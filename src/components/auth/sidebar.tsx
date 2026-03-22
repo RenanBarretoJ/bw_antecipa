@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { X } from 'lucide-react'
 import {
   LayoutDashboard,
   Users,
@@ -30,16 +31,18 @@ export interface SidebarItem {
 interface SidebarProps {
   items: SidebarItem[]
   role: string
+  open?: boolean
+  onClose?: () => void
 }
 
-export function Sidebar({ items, role }: SidebarProps) {
+export function Sidebar({ items, role, open, onClose }: SidebarProps) {
   const pathname = usePathname()
 
   const roleColors: Record<string, string> = {
-    gestor: 'bg-purple-600',
-    cedente: 'bg-blue-600',
-    sacado: 'bg-emerald-600',
-    consultor: 'bg-amber-600',
+    gestor: 'bg-purple-500/20 text-purple-300',
+    cedente: 'bg-blue-500/20 text-blue-300',
+    sacado: 'bg-emerald-500/20 text-emerald-300',
+    consultor: 'bg-amber-500/20 text-amber-300',
   }
 
   const roleLabels: Record<string, string> = {
@@ -49,16 +52,34 @@ export function Sidebar({ items, role }: SidebarProps) {
     consultor: 'Consultor',
   }
 
-  return (
-    <aside className="w-64 bg-gray-900 text-white min-h-screen flex flex-col">
-      <div className="p-6 border-b border-gray-800">
-        <h2 className="text-lg font-bold">BW Antecipa</h2>
-        <span className={`inline-block mt-2 px-2.5 py-0.5 text-xs font-medium rounded-full text-white ${roleColors[role] || 'bg-gray-600'}`}>
-          {roleLabels[role] || role}
-        </span>
+  const sidebarContent = (
+    <>
+      <div className="p-5 border-b border-sidebar-border">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-sidebar-primary/20 flex items-center justify-center text-sidebar-primary font-bold text-sm">
+              BW
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-sidebar-foreground tracking-tight">Antecipa</h2>
+              <span className={`inline-flex items-center px-2 py-0.5 text-[10px] font-semibold rounded-md mt-0.5 ${roleColors[role] || 'bg-gray-500/20 text-gray-300'}`}>
+                {roleLabels[role] || role}
+              </span>
+            </div>
+          </div>
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="lg:hidden p-1.5 rounded-md text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+              aria-label="Fechar menu"
+            >
+              <X size={18} />
+            </button>
+          )}
+        </div>
       </div>
 
-      <nav className="flex-1 p-4 space-y-1">
+      <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
         {items.map((item) => {
           const isActive = pathname === item.href
           const Icon = item.icon
@@ -66,19 +87,50 @@ export function Sidebar({ items, role }: SidebarProps) {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+              onClick={onClose}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
                 isActive
-                  ? 'bg-gray-800 text-white'
-                  : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
+                  ? 'bg-sidebar-accent text-sidebar-foreground shadow-sm'
+                  : 'text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/50'
               }`}
             >
-              <Icon size={18} />
+              <Icon size={18} className={isActive ? 'text-sidebar-primary' : ''} />
               {item.label}
             </Link>
           )
         })}
       </nav>
-    </aside>
+
+      <div className="p-4 border-t border-sidebar-border">
+        <p className="text-[10px] text-sidebar-foreground/30 text-center">Blue Wave Asset</p>
+      </div>
+    </>
+  )
+
+  return (
+    <>
+      {/* Overlay mobile */}
+      {open && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden animate-in fade-in duration-200"
+          onClick={onClose}
+        />
+      )}
+
+      {/* Sidebar mobile (drawer) */}
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 w-72 bg-sidebar text-sidebar-foreground flex flex-col transition-transform duration-300 ease-in-out lg:hidden ${
+          open ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        {sidebarContent}
+      </aside>
+
+      {/* Sidebar desktop */}
+      <aside className="hidden lg:flex w-64 bg-sidebar text-sidebar-foreground min-h-screen flex-col sticky top-0 h-screen">
+        {sidebarContent}
+      </aside>
+    </>
   )
 }
 

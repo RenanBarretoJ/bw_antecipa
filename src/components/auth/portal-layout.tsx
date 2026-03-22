@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Sidebar, type SidebarItem } from './sidebar'
 import { Header } from './header'
 import type { Profile, UserRole } from '@/types/database'
+import { Loader2 } from 'lucide-react'
 
 interface PortalLayoutProps {
   children: ReactNode
@@ -16,6 +17,7 @@ interface PortalLayoutProps {
 export function PortalLayout({ children, requiredRole, menuItems }: PortalLayoutProps) {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -56,21 +58,29 @@ export function PortalLayout({ children, requiredRole, menuItems }: PortalLayout
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-gray-500 mt-3">Carregando...</p>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center space-y-3">
+          <Loader2 size={32} className="text-primary animate-spin mx-auto" />
+          <p className="text-muted-foreground text-sm">Carregando...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      <Sidebar items={menuItems} role={requiredRole} />
-      <div className="flex-1 flex flex-col">
-        <Header profile={profile} />
-        <main className="flex-1 p-6">{children}</main>
+    <div className="flex min-h-screen bg-background">
+      <Sidebar
+        items={menuItems}
+        role={requiredRole}
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
+      <div className="flex-1 flex flex-col min-w-0">
+        <Header
+          profile={profile}
+          onToggleSidebar={() => setSidebarOpen(true)}
+        />
+        <main className="flex-1 p-4 lg:p-6">{children}</main>
       </div>
     </div>
   )
