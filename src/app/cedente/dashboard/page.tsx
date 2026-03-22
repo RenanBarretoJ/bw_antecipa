@@ -4,6 +4,10 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import Link from 'next/link'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   FileCheck,
   Receipt,
@@ -11,9 +15,9 @@ import {
   Wallet,
   ArrowRight,
   AlertTriangle,
-  Clock,
   Plus,
   TrendingUp,
+  Loader2,
 } from 'lucide-react'
 
 interface CedenteStats {
@@ -35,6 +39,34 @@ interface OperacaoRecente {
   status: string
   data_vencimento: string
   created_at: string
+}
+
+const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
+  solicitada: { label: 'Solicitada', variant: 'secondary' },
+  em_analise: { label: 'Em Analise', variant: 'outline' },
+  em_andamento: { label: 'Em Andamento', variant: 'default' },
+  liquidada: { label: 'Liquidada', variant: 'secondary' },
+  reprovada: { label: 'Reprovada', variant: 'destructive' },
+}
+
+function DashboardSkeleton() {
+  return (
+    <div className="max-w-6xl mx-auto space-y-6">
+      <div className="flex items-center justify-between">
+        <Skeleton className="h-8 w-40" />
+        <Skeleton className="h-10 w-44" />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {[1, 2, 3].map((i) => (
+          <Card key={i}><CardContent className="pt-5"><Skeleton className="h-10 w-32 mb-2" /><Skeleton className="h-4 w-20" /></CardContent></Card>
+        ))}
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card><CardContent className="pt-5 space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-12 w-full" />)}</CardContent></Card>
+        <div className="space-y-3">{[1,2,3,4].map(i => <Skeleton key={i} className="h-16 w-full rounded-xl" />)}</div>
+      </div>
+    </div>
+  )
 }
 
 export default function CedenteDashboard() {
@@ -83,123 +115,147 @@ export default function CedenteDashboard() {
     load()
   }, [])
 
-  const statusLabels: Record<string, { label: string; color: string }> = {
-    solicitada: { label: 'Solicitada', color: 'bg-blue-100 text-blue-700' },
-    em_analise: { label: 'Em Analise', color: 'bg-yellow-100 text-yellow-700' },
-    em_andamento: { label: 'Em Andamento', color: 'bg-purple-100 text-purple-700' },
-    liquidada: { label: 'Liquidada', color: 'bg-green-100 text-green-700' },
-    reprovada: { label: 'Reprovada', color: 'bg-red-100 text-red-700' },
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-      </div>
-    )
-  }
+  if (loading) return <DashboardSkeleton />
 
   return (
-    <div className="max-w-6xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
+    <div className="max-w-6xl mx-auto space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+          <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
           {stats.contaEscrow && (
-            <p className="text-sm text-gray-500">Conta Escrow: <span className="font-mono">{stats.contaEscrow}</span></p>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Conta Escrow: <span className="font-mono text-foreground/70">{stats.contaEscrow}</span>
+            </p>
           )}
         </div>
-        <Link href="/cedente/operacoes/nova"
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">
-          <Plus size={16} /> Nova Antecipacao
+        <Link href="/cedente/operacoes/nova">
+          <Button className="gap-2">
+            <Plus size={16} /> Nova Antecipacao
+          </Button>
         </Link>
       </div>
 
-      {/* Alertas */}
+      {/* Alerta documentos reprovados */}
       {stats.docsReprovados > 0 && (
-        <Link href="/cedente/documentos" className="mb-6 block bg-red-50 border border-red-200 rounded-xl p-4 hover:bg-red-100">
-          <div className="flex items-center gap-3">
-            <AlertTriangle size={20} className="text-red-600" />
-            <p className="font-medium text-red-700">{stats.docsReprovados} documento(s) reprovado(s) — reenvie para continuar</p>
-          </div>
+        <Link href="/cedente/documentos" className="block">
+          <Card className="border-destructive/30 bg-destructive/5 hover:bg-destructive/10 transition-colors cursor-pointer">
+            <CardContent className="flex items-center gap-3 py-4">
+              <div className="p-2 rounded-lg bg-destructive/10">
+                <AlertTriangle size={20} className="text-destructive" />
+              </div>
+              <div>
+                <p className="font-semibold text-destructive">{stats.docsReprovados} documento(s) reprovado(s)</p>
+                <p className="text-sm text-destructive/70">Reenvie para continuar operando</p>
+              </div>
+            </CardContent>
+          </Card>
         </Link>
       )}
 
-      {/* Saldo Escrow */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="p-2 bg-green-100 rounded-lg"><Wallet size={18} className="text-green-600" /></div>
-            <span className="text-xs text-gray-500">Saldo Disponivel</span>
-          </div>
-          <p className="text-3xl font-bold text-green-700">{formatCurrency(stats.saldoDisponivel)}</p>
-        </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="p-2 bg-purple-100 rounded-lg"><TrendingUp size={18} className="text-purple-600" /></div>
-            <span className="text-xs text-gray-500">Volume Ativo</span>
-          </div>
-          <p className="text-3xl font-bold text-purple-700">{formatCurrency(stats.volumeAtivo)}</p>
-          <p className="text-xs text-gray-400 mt-1">{stats.opsAtivas} operacao(es)</p>
-        </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="p-2 bg-blue-100 rounded-lg"><Receipt size={18} className="text-blue-600" /></div>
-            <span className="text-xs text-gray-500">NFs Disponiveis</span>
-          </div>
-          <p className="text-3xl font-bold text-blue-700">{stats.nfsAprovadas}</p>
-          <p className="text-xs text-gray-400 mt-1">de {stats.nfsTotal} total</p>
-        </div>
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="pt-5">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-500/20">
+                <Wallet size={18} className="text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Saldo Disponivel</span>
+            </div>
+            <p className="text-3xl font-bold text-emerald-700 dark:text-emerald-400 tabular-nums">{formatCurrency(stats.saldoDisponivel)}</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-5">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-500/20">
+                <TrendingUp size={18} className="text-purple-600 dark:text-purple-400" />
+              </div>
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Volume Ativo</span>
+            </div>
+            <p className="text-3xl font-bold text-purple-700 dark:text-purple-400 tabular-nums">{formatCurrency(stats.volumeAtivo)}</p>
+            <p className="text-xs text-muted-foreground mt-1">{stats.opsAtivas} operacao(es)</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-5">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-500/20">
+                <Receipt size={18} className="text-blue-600 dark:text-blue-400" />
+              </div>
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">NFs Disponiveis</span>
+            </div>
+            <p className="text-3xl font-bold text-blue-700 dark:text-blue-400 tabular-nums">{stats.nfsAprovadas}</p>
+            <p className="text-xs text-muted-foreground mt-1">de {stats.nfsTotal} total</p>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Operacoes recentes */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">Operacoes Recentes</h2>
-            <Link href="/cedente/operacoes" className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1">
+        <Card>
+          <CardHeader className="flex-row items-center justify-between">
+            <CardTitle>Operacoes Recentes</CardTitle>
+            <Link href="/cedente/operacoes" className="text-sm text-primary hover:text-primary/80 flex items-center gap-1 font-medium">
               Ver todas <ArrowRight size={14} />
             </Link>
-          </div>
-          {opsRecentes.length === 0 ? (
-            <p className="text-gray-500 text-sm">Nenhuma operacao ainda.</p>
-          ) : (
-            <div className="space-y-2">
-              {opsRecentes.map((op) => {
-                const st = statusLabels[op.status]
-                return (
-                  <div key={op.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-mono text-gray-400">#{op.id.substring(0, 8)}</span>
-                        <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${st?.color || 'bg-gray-100'}`}>
-                          {st?.label || op.status}
-                        </span>
+          </CardHeader>
+          <CardContent>
+            {opsRecentes.length === 0 ? (
+              <div className="text-center py-8">
+                <Receipt size={32} className="text-muted-foreground/30 mx-auto mb-2" />
+                <p className="text-muted-foreground text-sm">Nenhuma operacao ainda</p>
+                <Link href="/cedente/operacoes/nova">
+                  <Button variant="outline" size="sm" className="mt-3 gap-1.5">
+                    <Plus size={14} /> Criar primeira
+                  </Button>
+                </Link>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {opsRecentes.map((op) => {
+                  const st = statusConfig[op.status]
+                  return (
+                    <div key={op.id} className="flex items-center justify-between py-2.5 border-b border-border/50 last:border-0">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-mono text-muted-foreground">#{op.id.substring(0, 8)}</span>
+                          <Badge variant={st?.variant || 'secondary'}>
+                            {st?.label || op.status}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5">Venc: {formatDate(op.data_vencimento)}</p>
                       </div>
-                      <p className="text-xs text-gray-400 mt-0.5">Venc: {formatDate(op.data_vencimento)}</p>
+                      <p className="text-sm font-bold tabular-nums">{formatCurrency(op.valor_bruto_total)}</p>
                     </div>
-                    <p className="text-sm font-bold">{formatCurrency(op.valor_bruto_total)}</p>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
+                  )
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Links rapidos */}
         <div className="space-y-3">
           {[
-            { label: 'Meus Documentos', href: '/cedente/documentos', icon: FileCheck, color: 'bg-blue-100 text-blue-600' },
-            { label: 'Minhas NFs', href: '/cedente/notas-fiscais', icon: Receipt, color: 'bg-purple-100 text-purple-600' },
-            { label: 'Minhas Operacoes', href: '/cedente/operacoes', icon: Banknote, color: 'bg-amber-100 text-amber-600' },
-            { label: 'Extrato Escrow', href: '/cedente/extrato', icon: Wallet, color: 'bg-green-100 text-green-600' },
+            { label: 'Meus Documentos', href: '/cedente/documentos', icon: FileCheck, color: 'bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400' },
+            { label: 'Minhas NFs', href: '/cedente/notas-fiscais', icon: Receipt, color: 'bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400' },
+            { label: 'Minhas Operacoes', href: '/cedente/operacoes', icon: Banknote, color: 'bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400' },
+            { label: 'Extrato Escrow', href: '/cedente/extrato', icon: Wallet, color: 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' },
           ].map((item) => (
-            <Link key={item.href} href={item.href}
-              className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 flex items-center justify-between hover:border-blue-300 transition-colors group">
-              <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-lg ${item.color}`}><item.icon size={18} /></div>
-                <span className="font-medium text-gray-900">{item.label}</span>
-              </div>
-              <ArrowRight size={18} className="text-gray-300 group-hover:text-blue-500" />
+            <Link key={item.href} href={item.href}>
+              <Card className="hover:ring-2 hover:ring-primary/20 transition-all cursor-pointer group">
+                <CardContent className="flex items-center justify-between py-4">
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-lg ${item.color}`}><item.icon size={18} /></div>
+                    <span className="font-medium text-foreground">{item.label}</span>
+                  </div>
+                  <ArrowRight size={18} className="text-muted-foreground/40 group-hover:text-primary transition-colors" />
+                </CardContent>
+              </Card>
             </Link>
           ))}
         </div>

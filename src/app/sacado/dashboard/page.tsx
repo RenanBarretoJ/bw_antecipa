@@ -4,6 +4,9 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency, formatCNPJ, formatDate } from '@/lib/utils'
 import Link from 'next/link'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   Receipt,
   CheckSquare,
@@ -52,6 +55,17 @@ interface CedenteAgrupado {
   contaEscrow: string | null
 }
 
+function DashboardSkeleton() {
+  return (
+    <div className="max-w-6xl mx-auto space-y-6">
+      <Skeleton className="h-8 w-48" />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[1,2,3,4].map(i => <Card key={i}><CardContent className="pt-5"><Skeleton className="h-8 w-24 mb-1" /><Skeleton className="h-4 w-16" /></CardContent></Card>)}
+      </div>
+    </div>
+  )
+}
+
 export default function SacadoDashboard() {
   const [nfs, setNfs] = useState<NfSacado[]>([])
   const [operacoes, setOperacoes] = useState<OperacaoSacado[]>([])
@@ -61,7 +75,6 @@ export default function SacadoDashboard() {
     const load = async () => {
       const supabase = createClient()
 
-      // NFs destinadas a este sacado (via RLS)
       const { data: nfsData } = await supabase
         .from('notas_fiscais')
         .select('id, numero_nf, cnpj_emitente, razao_social_emitente, valor_bruto, data_vencimento, status, cedente_id')
@@ -70,7 +83,6 @@ export default function SacadoDashboard() {
 
       setNfs((nfsData || []) as NfSacado[])
 
-      // Operacoes vinculadas ao sacado (via RLS)
       const { data: opsData } = await supabase
         .from('operacoes')
         .select('id, valor_bruto_total, valor_liquido_desembolso, data_vencimento, status, cedentes(razao_social, cnpj), contas_escrow(identificador)')
@@ -83,14 +95,12 @@ export default function SacadoDashboard() {
     load()
   }, [])
 
-  // Agrupar por cedente
   const cedenteMap = new Map<string, CedenteAgrupado>()
   const nfsAtivas = nfs.filter((n) => n.status === 'em_antecipacao')
 
   for (const nf of nfsAtivas) {
     const key = nf.cnpj_emitente
     if (!cedenteMap.has(key)) {
-      // Encontrar conta escrow do cedente via operacoes
       const op = operacoes.find((o) => o.cedentes?.cnpj === nf.cnpj_emitente)
       cedenteMap.set(key, {
         cnpj: nf.cnpj_emitente,
@@ -111,7 +121,6 @@ export default function SacadoDashboard() {
   const cedentesAgrupados = Array.from(cedenteMap.values())
     .sort((a, b) => a.proximoVencimento.localeCompare(b.proximoVencimento))
 
-  // Agrupar NFs ativas por data de vencimento (calendario)
   const vencimentoMap = new Map<string, VencimentoDia>()
   for (const nf of nfsAtivas) {
     const data = nf.data_vencimento
@@ -125,7 +134,6 @@ export default function SacadoDashboard() {
   const vencimentos = Array.from(vencimentoMap.values())
     .sort((a, b) => a.data.localeCompare(b.data))
 
-  // KPIs
   const totalDevido = nfsAtivas.reduce((acc, n) => acc + n.valor_bruto, 0)
   const hoje = new Date().toISOString().split('T')[0]
   const vencimentosHoje = nfsAtivas.filter((n) => n.data_vencimento === hoje)
@@ -138,16 +146,14 @@ export default function SacadoDashboard() {
   })
 
   const getDiasAteVencimento = (data: string) => {
-    const diff = Math.ceil((new Date(data).getTime() - new Date(hoje).getTime()) / (1000 * 60 * 60 * 24))
-    return diff
+    return Math.ceil((new Date(data).getTime() - new Date(hoje).getTime()) / (1000 * 60 * 60 * 24))
   }
 
   const getVencimentoColor = (data: string) => {
     const dias = getDiasAteVencimento(data)
-    if (dias < 0) return 'bg-red-100 text-red-700 border-red-200'
-    if (dias === 0) return 'bg-red-100 text-red-700 border-red-200'
-    if (dias <= 5) return 'bg-yellow-100 text-yellow-700 border-yellow-200'
-    return 'bg-green-100 text-green-700 border-green-200'
+    if (dias <= 0) return 'border-destructive/30 bg-destructive/5'
+    if (dias <= 5) return 'border-amber-300/50 bg-amber-50 dark:bg-amber-500/10'
+    return 'border-emerald-300/50 bg-emerald-50 dark:bg-emerald-500/10'
   }
 
   const getVencimentoLabel = (data: string) => {
@@ -158,205 +164,206 @@ export default function SacadoDashboard() {
     return `em ${dias}d`
   }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-      </div>
-    )
+  const getVencimentoBadge = (data: string): 'destructive' | 'outline' | 'secondary' => {
+    const dias = getDiasAteVencimento(data)
+    if (dias <= 0) return 'destructive'
+    if (dias <= 5) return 'outline'
+    return 'secondary'
   }
 
+  if (loading) return <DashboardSkeleton />
+
   return (
-    <div className="max-w-6xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard do Sacado</h1>
-        <p className="text-gray-500">Acompanhe seus pagamentos e vencimentos.</p>
+    <div className="max-w-6xl mx-auto space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-foreground">Dashboard do Sacado</h1>
+        <p className="text-muted-foreground text-sm">Acompanhe seus pagamentos e vencimentos</p>
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="p-2 bg-blue-100 rounded-lg"><CreditCard size={18} className="text-blue-600" /></div>
-            <span className="text-xs text-gray-500">Total a Pagar</span>
-          </div>
-          <p className="text-2xl font-bold text-blue-700">{formatCurrency(totalDevido)}</p>
-          <p className="text-xs text-gray-400 mt-1">{nfsAtivas.length} NF(s) ativas</p>
-        </div>
-        <div className={`rounded-xl shadow-sm border p-5 ${vencidos.length > 0 ? 'bg-red-50 border-red-200' : 'bg-white border-gray-200'}`}>
-          <div className="flex items-center gap-2 mb-2">
-            <div className={`p-2 rounded-lg ${vencidos.length > 0 ? 'bg-red-200' : 'bg-red-100'}`}>
-              <AlertTriangle size={18} className="text-red-600" />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="pt-5">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-500/20"><CreditCard size={16} className="text-blue-600 dark:text-blue-400" /></div>
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Total a Pagar</span>
             </div>
-            <span className="text-xs text-gray-500">Vencidos</span>
-          </div>
-          <p className="text-2xl font-bold text-red-700">{vencidos.length}</p>
-          {vencidos.length > 0 && (
-            <p className="text-xs text-red-600 mt-1">{formatCurrency(vencidos.reduce((a, n) => a + n.valor_bruto, 0))}</p>
-          )}
-        </div>
-        <div className={`rounded-xl shadow-sm border p-5 ${vencimentosHoje.length > 0 ? 'bg-yellow-50 border-yellow-200' : 'bg-white border-gray-200'}`}>
-          <div className="flex items-center gap-2 mb-2">
-            <div className="p-2 bg-yellow-100 rounded-lg"><Calendar size={18} className="text-yellow-600" /></div>
-            <span className="text-xs text-gray-500">Vencem Hoje</span>
-          </div>
-          <p className="text-2xl font-bold text-yellow-700">{vencimentosHoje.length}</p>
-          {vencimentosHoje.length > 0 && (
-            <p className="text-xs text-yellow-600 mt-1">{formatCurrency(vencimentosHoje.reduce((a, n) => a + n.valor_bruto, 0))}</p>
-          )}
-        </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="p-2 bg-purple-100 rounded-lg"><Clock size={18} className="text-purple-600" /></div>
-            <span className="text-xs text-gray-500">Proximos 7 dias</span>
-          </div>
-          <p className="text-2xl font-bold text-purple-700">{proximos7d.length}</p>
-          <p className="text-xs text-gray-400 mt-1">{formatCurrency(proximos7d.reduce((a, n) => a + n.valor_bruto, 0))}</p>
-        </div>
+            <p className="text-2xl font-bold text-blue-700 dark:text-blue-400 tabular-nums">{formatCurrency(totalDevido)}</p>
+            <p className="text-xs text-muted-foreground mt-1">{nfsAtivas.length} NF(s) ativas</p>
+          </CardContent>
+        </Card>
+
+        <Card className={vencidos.length > 0 ? 'border-destructive/30 bg-destructive/5' : ''}>
+          <CardContent className="pt-5">
+            <div className="flex items-center gap-2 mb-3">
+              <div className={`p-2 rounded-lg ${vencidos.length > 0 ? 'bg-destructive/15' : 'bg-red-100 dark:bg-red-500/20'}`}>
+                <AlertTriangle size={16} className="text-destructive" />
+              </div>
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Vencidos</span>
+            </div>
+            <p className="text-2xl font-bold text-destructive tabular-nums">{vencidos.length}</p>
+            {vencidos.length > 0 && (
+              <p className="text-xs text-destructive/80 mt-1">{formatCurrency(vencidos.reduce((a, n) => a + n.valor_bruto, 0))}</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className={vencimentosHoje.length > 0 ? 'border-amber-300/50 bg-amber-50 dark:bg-amber-500/10' : ''}>
+          <CardContent className="pt-5">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-500/20"><Calendar size={16} className="text-amber-600 dark:text-amber-400" /></div>
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Vencem Hoje</span>
+            </div>
+            <p className="text-2xl font-bold text-amber-700 dark:text-amber-400 tabular-nums">{vencimentosHoje.length}</p>
+            {vencimentosHoje.length > 0 && (
+              <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">{formatCurrency(vencimentosHoje.reduce((a, n) => a + n.valor_bruto, 0))}</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-5">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-500/20"><Clock size={16} className="text-purple-600 dark:text-purple-400" /></div>
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Proximos 7d</span>
+            </div>
+            <p className="text-2xl font-bold text-purple-700 dark:text-purple-400 tabular-nums">{proximos7d.length}</p>
+            <p className="text-xs text-muted-foreground mt-1">{formatCurrency(proximos7d.reduce((a, n) => a + n.valor_bruto, 0))}</p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Calendario de vencimentos */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <Calendar size={20} className="text-blue-600" />
-          Calendario de Vencimentos
-        </h2>
-
-        {vencimentos.length === 0 ? (
-          <p className="text-gray-500 text-sm">Nenhum vencimento pendente.</p>
-        ) : (
-          <div className="space-y-3">
-            {vencimentos.map((v) => {
-              const color = getVencimentoColor(v.data)
-              const label = getVencimentoLabel(v.data)
-              return (
-                <div key={v.data} className={`rounded-xl border p-4 ${color}`}>
-                  <div className="flex items-center justify-between mb-2">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Calendar size={20} className="text-primary" />
+            Calendario de Vencimentos
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {vencimentos.length === 0 ? (
+            <div className="text-center py-8">
+              <Calendar size={32} className="text-muted-foreground/30 mx-auto mb-2" />
+              <p className="text-muted-foreground text-sm">Nenhum vencimento pendente</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {vencimentos.map((v) => (
+                <div key={v.data} className={`rounded-xl border p-4 ${getVencimentoColor(v.data)}`}>
+                  <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-3">
-                      <span className="font-bold text-lg">{formatDate(v.data)}</span>
-                      <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-white/50">{label}</span>
+                      <span className="font-bold text-foreground">{formatDate(v.data)}</span>
+                      <Badge variant={getVencimentoBadge(v.data)}>
+                        {getVencimentoLabel(v.data)}
+                      </Badge>
                     </div>
-                    <span className="font-bold text-lg">{formatCurrency(v.total)}</span>
+                    <span className="font-bold text-foreground tabular-nums">{formatCurrency(v.total)}</span>
                   </div>
-                  <div className="space-y-1">
+                  <div className="space-y-1.5">
                     {v.nfs.map((nf) => (
-                      <div key={nf.id} className="flex items-center justify-between text-sm bg-white/30 rounded-lg px-3 py-1.5">
+                      <div key={nf.id} className="flex items-center justify-between text-sm bg-card/60 rounded-lg px-3 py-2">
                         <div className="flex items-center gap-2">
-                          <Receipt size={14} />
+                          <Receipt size={14} className="text-muted-foreground" />
                           <span className="font-medium">NF {nf.numero_nf}</span>
-                          <span className="text-xs opacity-70">— {nf.razao_social_emitente}</span>
+                          <span className="text-xs text-muted-foreground hidden sm:inline">— {nf.razao_social_emitente}</span>
                         </div>
-                        <span className="font-medium">{formatCurrency(nf.valor_bruto)}</span>
+                        <span className="font-medium tabular-nums">{formatCurrency(nf.valor_bruto)}</span>
                       </div>
                     ))}
                   </div>
                 </div>
-              )
-            })}
-          </div>
-        )}
-      </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
-      {/* Visao por cedente — com dados da conta para pagamento */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <Building2 size={20} className="text-purple-600" />
-          Pagamentos por Cedente
-        </h2>
-
-        {cedentesAgrupados.length === 0 ? (
-          <p className="text-gray-500 text-sm">Nenhum pagamento pendente.</p>
-        ) : (
-          <div className="space-y-4">
-            {cedentesAgrupados.map((ced) => (
-              <div key={ced.cnpj} className="border border-gray-200 rounded-xl overflow-hidden">
-                {/* Header do cedente */}
-                <div className="bg-gray-50 px-5 py-4 flex items-center justify-between">
-                  <div>
-                    <p className="font-semibold text-gray-900">{ced.razao_social}</p>
-                    <p className="text-xs text-gray-500 font-mono">{formatCNPJ(ced.cnpj)}</p>
+      {/* Pagamentos por cedente */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Building2 size={20} className="text-primary" />
+            Pagamentos por Cedente
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {cedentesAgrupados.length === 0 ? (
+            <div className="text-center py-8">
+              <Building2 size={32} className="text-muted-foreground/30 mx-auto mb-2" />
+              <p className="text-muted-foreground text-sm">Nenhum pagamento pendente</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {cedentesAgrupados.map((ced) => (
+                <div key={ced.cnpj} className="border border-border rounded-xl overflow-hidden">
+                  <div className="bg-muted/50 px-5 py-4 flex items-center justify-between">
+                    <div>
+                      <p className="font-semibold text-foreground">{ced.razao_social}</p>
+                      <p className="text-xs text-muted-foreground font-mono">{formatCNPJ(ced.cnpj)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-lg font-bold text-foreground tabular-nums">{formatCurrency(ced.totalDevido)}</p>
+                      <p className="text-xs text-muted-foreground">{ced.nfs.length} NF(s)</p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-lg font-bold text-gray-900">{formatCurrency(ced.totalDevido)}</p>
-                    <p className="text-xs text-gray-500">{ced.nfs.length} NF(s)</p>
-                  </div>
-                </div>
 
-                {/* Conta escrow para pagamento */}
-                {ced.contaEscrow && (
-                  <div className="px-5 py-3 bg-blue-50 border-t border-blue-100 flex items-center gap-2">
-                    <Wallet size={16} className="text-blue-600" />
-                    <span className="text-sm text-blue-700">
-                      Pagar na conta escrow: <strong className="font-mono">{ced.contaEscrow}</strong>
-                    </span>
-                  </div>
-                )}
+                  {ced.contaEscrow && (
+                    <div className="px-5 py-3 bg-primary/5 border-t border-primary/10 flex items-center gap-2">
+                      <Wallet size={16} className="text-primary" />
+                      <span className="text-sm text-primary">
+                        Pagar na conta escrow: <strong className="font-mono">{ced.contaEscrow}</strong>
+                      </span>
+                    </div>
+                  )}
 
-                {/* NFs do cedente */}
-                <div className="divide-y divide-gray-100">
-                  {ced.nfs
-                    .sort((a, b) => a.data_vencimento.localeCompare(b.data_vencimento))
-                    .map((nf) => {
-                      const dias = getDiasAteVencimento(nf.data_vencimento)
-                      return (
-                        <div key={nf.id} className="px-5 py-3 flex items-center justify-between hover:bg-gray-50">
+                  <div className="divide-y divide-border/50">
+                    {ced.nfs
+                      .sort((a, b) => a.data_vencimento.localeCompare(b.data_vencimento))
+                      .map((nf) => (
+                        <div key={nf.id} className="px-5 py-3 flex items-center justify-between hover:bg-muted/30 transition-colors">
                           <div className="flex items-center gap-3">
-                            <Receipt size={16} className="text-gray-400" />
-                            <div>
-                              <span className="text-sm font-medium text-gray-900">NF {nf.numero_nf}</span>
-                              <span className={`ml-2 text-xs px-1.5 py-0.5 rounded ${
-                                dias < 0 ? 'bg-red-100 text-red-700' :
-                                dias === 0 ? 'bg-red-100 text-red-700' :
-                                dias <= 5 ? 'bg-yellow-100 text-yellow-700' :
-                                'bg-green-100 text-green-700'
-                              }`}>
+                            <Receipt size={16} className="text-muted-foreground" />
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium">NF {nf.numero_nf}</span>
+                              <Badge variant={getVencimentoBadge(nf.data_vencimento)}>
                                 {getVencimentoLabel(nf.data_vencimento)}
-                              </span>
+                              </Badge>
                             </div>
                           </div>
                           <div className="text-right">
-                            <p className="text-sm font-bold text-gray-900">{formatCurrency(nf.valor_bruto)}</p>
-                            <p className="text-xs text-gray-400">{formatDate(nf.data_vencimento)}</p>
+                            <p className="text-sm font-bold tabular-nums">{formatCurrency(nf.valor_bruto)}</p>
+                            <p className="text-xs text-muted-foreground">{formatDate(nf.data_vencimento)}</p>
                           </div>
                         </div>
-                      )
-                    })}
+                      ))}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Links rapidos */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Link href="/sacado/notas-fiscais" className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 hover:border-blue-300 transition-colors group">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg"><Receipt size={18} className="text-blue-600" /></div>
-              <span className="font-medium text-gray-900">NFs Recebidas</span>
-            </div>
-            <ArrowRight size={18} className="text-gray-300 group-hover:text-blue-500" />
-          </div>
-        </Link>
-        <Link href="/sacado/aceite" className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 hover:border-blue-300 transition-colors group">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-amber-100 rounded-lg"><CheckSquare size={18} className="text-amber-600" /></div>
-              <span className="font-medium text-gray-900">Aceite de Cessao</span>
-            </div>
-            <ArrowRight size={18} className="text-gray-300 group-hover:text-blue-500" />
-          </div>
-        </Link>
-        <Link href="/sacado/pagamentos" className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 hover:border-blue-300 transition-colors group">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-100 rounded-lg"><Wallet size={18} className="text-green-600" /></div>
-              <span className="font-medium text-gray-900">Historico Pagamentos</span>
-            </div>
-            <ArrowRight size={18} className="text-gray-300 group-hover:text-blue-500" />
-          </div>
-        </Link>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {[
+          { label: 'NFs Recebidas', href: '/sacado/notas-fiscais', icon: Receipt, color: 'bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400' },
+          { label: 'Aceite de Cessao', href: '/sacado/aceite', icon: CheckSquare, color: 'bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400' },
+          { label: 'Historico Pagamentos', href: '/sacado/pagamentos', icon: Wallet, color: 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' },
+        ].map((item) => (
+          <Link key={item.href} href={item.href}>
+            <Card className="hover:ring-2 hover:ring-primary/20 transition-all cursor-pointer group">
+              <CardContent className="flex items-center justify-between py-5">
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-lg ${item.color}`}><item.icon size={18} /></div>
+                  <span className="font-medium text-foreground">{item.label}</span>
+                </div>
+                <ArrowRight size={18} className="text-muted-foreground/40 group-hover:text-primary transition-colors" />
+              </CardContent>
+            </Card>
+          </Link>
+        ))}
       </div>
     </div>
   )
