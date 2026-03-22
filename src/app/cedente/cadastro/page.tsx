@@ -1,0 +1,367 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { cadastrarCedente } from '@/lib/actions/cedente'
+import {
+  etapa1Schema, etapa2Schema, etapa3Schema,
+  bancosBrasileiros,
+  type Etapa1Data, type Etapa2Data, type Etapa3Data, type CedenteFormData,
+} from '@/lib/validations/cedente'
+
+const STORAGE_KEY = 'bw_antecipa_cadastro_cedente'
+
+type FormErrors = Record<string, string[]>
+
+function maskCNPJ(v: string) {
+  return v.replace(/\D/g, '').replace(/^(\d{2})(\d)/, '$1.$2').replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3').replace(/\.(\d{3})(\d)/, '.$1/$2').replace(/(\d{4})(\d)/, '$1-$2').slice(0, 18)
+}
+function maskCPF(v: string) {
+  return v.replace(/\D/g, '').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d{1,2})$/, '$1-$2').slice(0, 14)
+}
+function maskPhone(v: string) {
+  const n = v.replace(/\D/g, '')
+  if (n.length <= 10) return n.replace(/(\d{2})(\d)/, '($1) $2').replace(/(\d{4})(\d)/, '$1-$2')
+  return n.replace(/(\d{2})(\d)/, '($1) $2').replace(/(\d{5})(\d)/, '$1-$2').slice(0, 15)
+}
+function maskCEP(v: string) {
+  return v.replace(/\D/g, '').replace(/(\d{5})(\d)/, '$1-$2').slice(0, 9)
+}
+
+export default function CadastroCedentePage() {
+  const router = useRouter()
+  const [etapa, setEtapa] = useState(1)
+  const [loading, setLoading] = useState(false)
+  const [errors, setErrors] = useState<FormErrors>({})
+  const [message, setMessage] = useState('')
+  const [buscandoCep, setBuscandoCep] = useState(false)
+
+  const [form, setForm] = useState<Partial<CedenteFormData>>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem(STORAGE_KEY)
+      if (saved) return JSON.parse(saved)
+    }
+    return {}
+  })
+
+  // Auto-save no localStorage
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(form))
+  }, [form])
+
+  const updateField = (field: string, value: string) => {
+    setForm((prev) => ({ ...prev, [field]: value }))
+    setErrors((prev) => {
+      const next = { ...prev }
+      delete next[field]
+      return next
+    })
+  }
+
+  const buscarCEP = async (cep: string) => {
+    const clean = cep.replace(/\D/g, '')
+    if (clean.length !== 8) return
+    setBuscandoCep(true)
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${clean}/json/`)
+      const data = await res.json()
+      if (!data.erro) {
+        setForm((prev) => ({
+          ...prev,
+          logradouro: data.logradouro || prev?.logradouro || '',
+          bairro: data.bairro || prev?.bairro || '',
+          cidade: data.localidade || prev?.cidade || '',
+          estado: data.uf || prev?.estado || '',
+        }))
+      }
+    } catch { /* ignore */ }
+    setBuscandoCep(false)
+  }
+
+  const validarEtapa = () => {
+    const schemas = { 1: etapa1Schema, 2: etapa2Schema, 3: etapa3Schema }
+    const schema = schemas[etapa as keyof typeof schemas]
+    const result = schema.safeParse(form)
+    if (!result.success) {
+      setErrors(result.error.flatten().fieldErrors as FormErrors)
+      return false
+    }
+    setErrors({})
+    return true
+  }
+
+  const avancar = () => {
+    if (validarEtapa()) setEtapa((e) => e + 1)
+  }
+
+  const voltar = () => setEtapa((e) => e - 1)
+
+  const submeter = async () => {
+    if (!validarEtapa()) return
+    setLoading(true)
+    setMessage('')
+
+    const result = await cadastrarCedente(form as CedenteFormData)
+
+    if (result?.success) {
+      localStorage.removeItem(STORAGE_KEY)
+      router.push('/cedente/documentos')
+    } else {
+      setMessage(result?.message || 'Erro ao cadastrar.')
+      if (result?.errors) setErrors(result.errors)
+    }
+    setLoading(false)
+  }
+
+  const inputClass = (field: string) =>
+    `w-full px-4 py-2.5 border rounded-lg outline-none transition-colors focus:ring-2 focus:ring-blue-500 ${
+      errors[field] ? 'border-red-400' : 'border-gray-300'
+    }`
+
+  const ErrorMsg = ({ field }: { field: string }) =>
+    errors[field] ? <p className="text-red-600 text-sm mt-1">{errors[field][0]}</p> : null
+
+  return (
+    <div className="max-w-3xl mx-auto">
+      <h1 className="text-2xl font-bold text-gray-900 mb-2">Cadastro do Cedente</h1>
+      <p className="text-gray-500 mb-6">Preencha os dados para solicitar habilitacao na plataforma.</p>
+
+      {/* Stepper */}
+      <div className="flex items-center mb-8">
+        {['Dados da Empresa', 'Representante Legal', 'Dados Bancarios'].map((label, i) => (
+          <div key={label} className="flex items-center flex-1">
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+              etapa > i + 1 ? 'bg-green-500 text-white' : etapa === i + 1 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-500'
+            }`}>
+              {etapa > i + 1 ? '✓' : i + 1}
+            </div>
+            <span className={`ml-2 text-sm font-medium ${etapa === i + 1 ? 'text-blue-600' : 'text-gray-500'}`}>
+              {label}
+            </span>
+            {i < 2 && <div className={`flex-1 h-0.5 mx-3 ${etapa > i + 1 ? 'bg-green-500' : 'bg-gray-200'}`} />}
+          </div>
+        ))}
+      </div>
+
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        {/* Etapa 1 */}
+        {etapa === 1 && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">CNPJ *</label>
+                <input className={inputClass('cnpj')} value={maskCNPJ(form.cnpj || '')}
+                  onChange={(e) => updateField('cnpj', e.target.value.replace(/\D/g, ''))} placeholder="00.000.000/0000-00" />
+                <ErrorMsg field="cnpj" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Razao Social *</label>
+                <input className={inputClass('razao_social')} value={form.razao_social || ''}
+                  onChange={(e) => updateField('razao_social', e.target.value)} />
+                <ErrorMsg field="razao_social" />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nome Fantasia</label>
+                <input className={inputClass('nome_fantasia')} value={form.nome_fantasia || ''}
+                  onChange={(e) => updateField('nome_fantasia', e.target.value)} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">CNAE</label>
+                <input className={inputClass('cnae')} value={form.cnae || ''}
+                  onChange={(e) => updateField('cnae', e.target.value)} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">CEP *</label>
+                <input className={inputClass('cep')} value={maskCEP(form.cep || '')}
+                  onChange={(e) => {
+                    const v = e.target.value.replace(/\D/g, '')
+                    updateField('cep', v)
+                    if (v.length === 8) buscarCEP(v)
+                  }} placeholder="00000-000" />
+                {buscandoCep && <p className="text-blue-500 text-xs mt-1">Buscando endereco...</p>}
+                <ErrorMsg field="cep" />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Logradouro *</label>
+                <input className={inputClass('logradouro')} value={form.logradouro || ''}
+                  onChange={(e) => updateField('logradouro', e.target.value)} />
+                <ErrorMsg field="logradouro" />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Numero *</label>
+                <input className={inputClass('numero')} value={form.numero || ''}
+                  onChange={(e) => updateField('numero', e.target.value)} />
+                <ErrorMsg field="numero" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Complemento</label>
+                <input className={inputClass('complemento')} value={form.complemento || ''}
+                  onChange={(e) => updateField('complemento', e.target.value)} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Bairro *</label>
+                <input className={inputClass('bairro')} value={form.bairro || ''}
+                  onChange={(e) => updateField('bairro', e.target.value)} />
+                <ErrorMsg field="bairro" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Cidade *</label>
+                <input className={inputClass('cidade')} value={form.cidade || ''}
+                  onChange={(e) => updateField('cidade', e.target.value)} />
+                <ErrorMsg field="cidade" />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Estado *</label>
+                <input className={inputClass('estado')} value={form.estado || ''} maxLength={2}
+                  onChange={(e) => updateField('estado', e.target.value.toUpperCase())} placeholder="UF" />
+                <ErrorMsg field="estado" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Telefone Comercial *</label>
+                <input className={inputClass('telefone_comercial')} value={maskPhone(form.telefone_comercial || '')}
+                  onChange={(e) => updateField('telefone_comercial', e.target.value.replace(/\D/g, ''))} placeholder="(00) 00000-0000" />
+                <ErrorMsg field="telefone_comercial" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">E-mail Comercial *</label>
+                <input className={inputClass('email_comercial')} type="email" value={form.email_comercial || ''}
+                  onChange={(e) => updateField('email_comercial', e.target.value)} />
+                <ErrorMsg field="email_comercial" />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Etapa 2 */}
+        {etapa === 2 && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nome Completo *</label>
+                <input className={inputClass('nome_representante')} value={form.nome_representante || ''}
+                  onChange={(e) => updateField('nome_representante', e.target.value)} />
+                <ErrorMsg field="nome_representante" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">CPF *</label>
+                <input className={inputClass('cpf_representante')} value={maskCPF(form.cpf_representante || '')}
+                  onChange={(e) => updateField('cpf_representante', e.target.value.replace(/\D/g, ''))} placeholder="000.000.000-00" />
+                <ErrorMsg field="cpf_representante" />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">RG *</label>
+                <input className={inputClass('rg_representante')} value={form.rg_representante || ''}
+                  onChange={(e) => updateField('rg_representante', e.target.value)} />
+                <ErrorMsg field="rg_representante" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Cargo na Empresa *</label>
+                <input className={inputClass('cargo_representante')} value={form.cargo_representante || ''}
+                  onChange={(e) => updateField('cargo_representante', e.target.value)} />
+                <ErrorMsg field="cargo_representante" />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">E-mail *</label>
+                <input className={inputClass('email_representante')} type="email" value={form.email_representante || ''}
+                  onChange={(e) => updateField('email_representante', e.target.value)} />
+                <ErrorMsg field="email_representante" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Telefone Celular *</label>
+                <input className={inputClass('telefone_representante')} value={maskPhone(form.telefone_representante || '')}
+                  onChange={(e) => updateField('telefone_representante', e.target.value.replace(/\D/g, ''))} placeholder="(00) 00000-0000" />
+                <ErrorMsg field="telefone_representante" />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Etapa 3 */}
+        {etapa === 3 && (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Banco *</label>
+              <select className={inputClass('banco')} value={form.banco || ''}
+                onChange={(e) => updateField('banco', e.target.value)}>
+                <option value="">Selecione o banco</option>
+                {bancosBrasileiros.map((b) => (
+                  <option key={b.codigo} value={`${b.codigo} - ${b.nome}`}>{b.codigo} - {b.nome}</option>
+                ))}
+              </select>
+              <ErrorMsg field="banco" />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Agencia *</label>
+                <input className={inputClass('agencia')} value={form.agencia || ''}
+                  onChange={(e) => updateField('agencia', e.target.value.replace(/\D/g, ''))} placeholder="0000" />
+                <ErrorMsg field="agencia" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Conta *</label>
+                <input className={inputClass('conta')} value={form.conta || ''}
+                  onChange={(e) => updateField('conta', e.target.value)} placeholder="00000-0" />
+                <ErrorMsg field="conta" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Conta *</label>
+                <select className={inputClass('tipo_conta')} value={form.tipo_conta || ''}
+                  onChange={(e) => updateField('tipo_conta', e.target.value)}>
+                  <option value="">Selecione</option>
+                  <option value="corrente">Corrente</option>
+                  <option value="poupanca">Poupanca</option>
+                </select>
+                <ErrorMsg field="tipo_conta" />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {message && (
+          <div className={`mt-4 p-3 rounded-lg text-sm ${
+            message.includes('sucesso') ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'
+          }`}>{message}</div>
+        )}
+
+        {/* Botoes */}
+        <div className="flex justify-between mt-6 pt-4 border-t border-gray-200">
+          {etapa > 1 ? (
+            <button onClick={voltar} className="px-6 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
+              Voltar
+            </button>
+          ) : <div />}
+
+          {etapa < 3 ? (
+            <button onClick={avancar} className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+              Proximo
+            </button>
+          ) : (
+            <button onClick={submeter} disabled={loading}
+              className="px-6 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors">
+              {loading ? 'Salvando...' : 'Finalizar Cadastro'}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}

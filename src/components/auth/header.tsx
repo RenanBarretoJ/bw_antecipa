@@ -1,7 +1,8 @@
 'use client'
 
-import { Bell, LogOut } from 'lucide-react'
+import { LogOut } from 'lucide-react'
 import { logout } from '@/app/actions/auth'
+import { NotificationBell } from '@/components/ui/notification-bell'
 import type { Profile } from '@/types/database'
 
 interface HeaderProps {
@@ -21,13 +22,7 @@ export function Header({ profile }: HeaderProps) {
       <div />
 
       <div className="flex items-center gap-4">
-        <button
-          className="relative p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-          aria-label="Notificacoes"
-        >
-          <Bell size={20} />
-          <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
-        </button>
+        {profile?.id && <NotificationBell userId={profile.id} />}
 
         <div className="flex items-center gap-3 pl-4 border-l border-gray-200">
           <div className="text-right">

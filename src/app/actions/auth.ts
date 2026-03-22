@@ -90,10 +90,11 @@ export async function signup(_prevState: AuthState, formData: FormData): Promise
   })
 
   if (error) {
+    console.error('[signup error]', error.message, error.status, error.name)
     if (error.message.includes('already registered')) {
       return { message: 'Este e-mail ja esta cadastrado.' }
     }
-    return { message: 'Erro ao criar conta. Tente novamente.' }
+    return { message: `Erro ao criar conta: ${error.message}` }
   }
 
   return {

@@ -166,6 +166,24 @@ export interface OperacaoNf {
   nota_fiscal_id: string
 }
 
+export interface TaxaCedente {
+  id: string
+  cedente_id: string
+  prazo_min: number
+  prazo_max: number
+  taxa_percentual: number
+  created_at: string
+  updated_at: string
+}
+
+export interface ConsultorCedente {
+  id: string
+  consultor_id: string
+  cedente_id: string
+  comissao_percentual: number
+  created_at: string
+}
+
 export interface Sacado {
   id: string
   user_id: string
@@ -259,6 +277,11 @@ export interface Database {
         Row: OperacaoNf
         Insert: OperacaoNf
         Update: Partial<OperacaoNf>
+      }
+      taxas_cedente: {
+        Row: TaxaCedente
+        Insert: Omit<TaxaCedente, 'id' | 'created_at' | 'updated_at'> & { id?: string }
+        Update: Partial<Omit<TaxaCedente, 'id' | 'created_at' | 'updated_at'>>
       }
       sacados: {
         Row: Sacado

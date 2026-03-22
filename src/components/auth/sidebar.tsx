@@ -87,6 +87,7 @@ export const gestorMenuItems: SidebarItem[] = [
   { label: 'Dashboard', href: '/gestor/dashboard', icon: LayoutDashboard },
   { label: 'Cedentes', href: '/gestor/cedentes', icon: Users },
   { label: 'Documentos', href: '/gestor/documentos', icon: FileText },
+  { label: 'Notas Fiscais', href: '/gestor/notas-fiscais', icon: Receipt },
   { label: 'Operacoes', href: '/gestor/operacoes', icon: CreditCard },
   { label: 'Escrow', href: '/gestor/escrow', icon: Wallet },
   { label: 'Relatorios', href: '/gestor/relatorios', icon: BarChart3 },
@@ -96,6 +97,7 @@ export const gestorMenuItems: SidebarItem[] = [
 
 export const cedenteMenuItems: SidebarItem[] = [
   { label: 'Dashboard', href: '/cedente/dashboard', icon: LayoutDashboard },
+  { label: 'Cadastro', href: '/cedente/cadastro', icon: Users },
   { label: 'Meus Documentos', href: '/cedente/documentos', icon: FileCheck },
   { label: 'Minhas NFs', href: '/cedente/notas-fiscais', icon: Receipt },
   { label: 'Minhas Operacoes', href: '/cedente/operacoes', icon: Banknote },
@@ -115,6 +117,7 @@ export const consultorMenuItems: SidebarItem[] = [
   { label: 'Dashboard', href: '/consultor/dashboard', icon: LayoutDashboard },
   { label: 'Minha Carteira', href: '/consultor/carteira', icon: Briefcase },
   { label: 'Operacoes', href: '/consultor/operacoes', icon: CreditCard },
+  { label: 'Extratos Escrow', href: '/consultor/escrow', icon: Wallet },
   { label: 'Relatorios', href: '/consultor/relatorios', icon: BarChart3 },
   { label: 'Notificacoes', href: '/consultor/notificacoes', icon: Bell },
 ]
