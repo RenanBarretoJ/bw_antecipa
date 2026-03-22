@@ -22,6 +22,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { BotaoDownloadContrato } from '@/components/contratos/BotaoDownloadContrato'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 
@@ -215,7 +216,13 @@ export default function OperacaoDetalheGestorPage() {
     if (result?.success) {
       setMessage(result.message || 'Aprovada!')
       setMessageType('success')
-      setTimeout(() => router.push('/gestor/operacoes'), 2000)
+      // Gerar Termo de Cessao automaticamente (non-blocking)
+      fetch('/api/contratos/gerar-termo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ operacao_id: opId }),
+      }).catch(() => {})
+      setTimeout(() => router.push('/gestor/operacoes'), 2500)
     } else {
       setMessage(result?.message || 'Erro.')
       setMessageType('error')
@@ -376,6 +383,22 @@ export default function OperacaoDetalheGestorPage() {
               {op.motivo_reprovacao && (
                 <div className="mt-4 p-3 bg-destructive/10 rounded-lg text-sm text-destructive">
                   <strong>Motivo da reprovacao:</strong> {op.motivo_reprovacao}
+                </div>
+              )}
+
+              {/* Documentos PDF */}
+              {(op.status === 'em_andamento' || op.status === 'liquidada' || op.status === 'inadimplente') && (
+                <div className="mt-4 pt-4 border-t border-border flex flex-wrap gap-3">
+                  <BotaoDownloadContrato
+                    tipo="termo"
+                    id={op.id}
+                    storagePath={(op as unknown as Record<string, unknown>).termo_url as string | null}
+                  />
+                  <BotaoDownloadContrato
+                    tipo="contrato"
+                    id={op.cedente_id}
+                    label="Contrato Mae"
+                  />
                 </div>
               )}
             </CardContent>

@@ -4,5 +4,10 @@
       "path": "/api/cron/vencimentos",
       "schedule": "0 8 * * *"
     }
-  ]
+  ],
+  "functions": {
+    "src/app/api/contratos/**/*.ts": {
+      "maxDuration": 60
+    }
+  }
 }
