@@ -17,17 +17,28 @@ export async function registrarLog({
   dados_antes = null,
   dados_depois = null,
 }: LogAuditoriaInput) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
 
-  if (!user) return
+    if (!user) {
+      console.warn('[registrarLog] Usuario nao autenticado — log nao registrado:', { tipo_evento, entidade_tipo, entidade_id })
+      return
+    }
 
-  await supabase.from('logs_auditoria').insert({
-    usuario_id: user.id,
-    tipo_evento,
-    entidade_tipo,
-    entidade_id,
-    dados_antes,
-    dados_depois,
-  } as never)
+    const { error } = await supabase.from('logs_auditoria').insert({
+      usuario_id: user.id,
+      tipo_evento,
+      entidade_tipo,
+      entidade_id,
+      dados_antes,
+      dados_depois,
+    } as never)
+
+    if (error) {
+      console.error('[registrarLog] Falha ao inserir log:', error.message, { tipo_evento, entidade_tipo, entidade_id })
+    }
+  } catch (err) {
+    console.error('[registrarLog] Erro inesperado:', err)
+  }
 }
