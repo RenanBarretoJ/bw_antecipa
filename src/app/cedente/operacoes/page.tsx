@@ -7,15 +7,25 @@ import { formatCurrency, formatDate } from '@/lib/utils'
 import Link from 'next/link'
 import {
   Plus,
-  Eye,
   XCircle,
   Clock,
   CheckCircle,
   AlertCircle,
   Banknote,
-  Search,
   Filter,
+  Loader2,
 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Card, CardContent } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 interface OperacaoRecord {
   id: string
@@ -29,15 +39,87 @@ interface OperacaoRecord {
   motivo_reprovacao: string | null
 }
 
-const statusConfig: Record<string, { label: string; color: string; icon: typeof CheckCircle }> = {
-  solicitada: { label: 'Solicitada', color: 'bg-blue-100 text-blue-700', icon: Clock },
-  em_analise: { label: 'Em Analise', color: 'bg-yellow-100 text-yellow-700', icon: AlertCircle },
-  aprovada: { label: 'Aprovada', color: 'bg-green-100 text-green-700', icon: CheckCircle },
-  em_andamento: { label: 'Em Andamento', color: 'bg-purple-100 text-purple-700', icon: Banknote },
-  liquidada: { label: 'Liquidada', color: 'bg-emerald-100 text-emerald-700', icon: CheckCircle },
-  inadimplente: { label: 'Inadimplente', color: 'bg-red-100 text-red-700', icon: AlertCircle },
-  reprovada: { label: 'Reprovada', color: 'bg-red-100 text-red-700', icon: XCircle },
-  cancelada: { label: 'Cancelada', color: 'bg-gray-100 text-gray-600', icon: XCircle },
+type BadgeVariant = 'default' | 'secondary' | 'destructive' | 'outline' | 'ghost' | 'link'
+
+const statusConfig: Record<
+  string,
+  { label: string; variant: BadgeVariant; className: string; icon: typeof CheckCircle }
+> = {
+  solicitada: {
+    label: 'Solicitada',
+    variant: 'secondary',
+    className: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+    icon: Clock,
+  },
+  em_analise: {
+    label: 'Em Analise',
+    variant: 'secondary',
+    className: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
+    icon: AlertCircle,
+  },
+  aprovada: {
+    label: 'Aprovada',
+    variant: 'secondary',
+    className: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+    icon: CheckCircle,
+  },
+  em_andamento: {
+    label: 'Em Andamento',
+    variant: 'secondary',
+    className: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+    icon: Banknote,
+  },
+  liquidada: {
+    label: 'Liquidada',
+    variant: 'secondary',
+    className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+    icon: CheckCircle,
+  },
+  inadimplente: {
+    label: 'Inadimplente',
+    variant: 'destructive',
+    className: '',
+    icon: AlertCircle,
+  },
+  reprovada: {
+    label: 'Reprovada',
+    variant: 'destructive',
+    className: '',
+    icon: XCircle,
+  },
+  cancelada: {
+    label: 'Cancelada',
+    variant: 'outline',
+    className: 'text-muted-foreground',
+    icon: XCircle,
+  },
+}
+
+function OperacaoSkeleton() {
+  return (
+    <Card>
+      <CardContent className="pt-4 pb-4">
+        <div className="flex items-start justify-between">
+          <div className="flex-1 space-y-3">
+            <div className="flex items-center gap-3">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-5 w-20 rounded-full" />
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="space-y-1">
+                  <Skeleton className="h-3 w-16" />
+                  <Skeleton className="h-4 w-24" />
+                </div>
+              ))}
+            </div>
+          </div>
+          <Skeleton className="h-7 w-20 ml-4" />
+        </div>
+        <Skeleton className="h-3 w-32 mt-3" />
+      </CardContent>
+    </Card>
+  )
 }
 
 export default function OperacoesCedentePage() {
@@ -80,73 +162,107 @@ export default function OperacoesCedentePage() {
 
   return (
     <div className="max-w-6xl mx-auto">
+      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Minhas Operacoes</h1>
-          <p className="text-gray-500">Acompanhe suas solicitacoes de antecipacao.</p>
+          <h1 className="text-2xl font-bold text-foreground">Minhas Operacoes</h1>
+          <p className="text-muted-foreground">Acompanhe suas solicitacoes de antecipacao.</p>
         </div>
-        <Link
-          href="/cedente/operacoes/nova"
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
-        >
-          <Plus size={16} />
-          Nova Solicitacao
+        <Link href="/cedente/operacoes/nova">
+          <Button>
+            <Plus />
+            Nova Solicitacao
+          </Button>
         </Link>
       </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <div className="bg-blue-50 rounded-xl p-4">
-          <p className="text-xs font-medium text-blue-600">Total</p>
-          <p className="text-2xl font-bold text-blue-700">{ops.length}</p>
-        </div>
-        <div className="bg-yellow-50 rounded-xl p-4">
-          <p className="text-xs font-medium text-yellow-600">Pendentes</p>
-          <p className="text-2xl font-bold text-yellow-700">{ops.filter((o) => o.status === 'solicitada' || o.status === 'em_analise').length}</p>
-        </div>
-        <div className="bg-purple-50 rounded-xl p-4">
-          <p className="text-xs font-medium text-purple-600">Em Andamento</p>
-          <p className="text-2xl font-bold text-purple-700">{ops.filter((o) => o.status === 'em_andamento').length}</p>
-        </div>
-        <div className="bg-green-50 rounded-xl p-4">
-          <p className="text-xs font-medium text-green-600">Valor Ativo</p>
-          <p className="text-2xl font-bold text-green-700">{formatCurrency(valorAtivo)}</p>
-        </div>
+        <Card className="bg-blue-50 dark:bg-blue-900/20 ring-blue-200 dark:ring-blue-800">
+          <CardContent className="pt-4 pb-4">
+            <p className="text-xs font-medium text-blue-600 dark:text-blue-400">Total</p>
+            <p className="text-2xl font-bold text-blue-700 dark:text-blue-300 tabular-nums">
+              {loading ? <Skeleton className="h-8 w-10 mt-1" /> : ops.length}
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="bg-yellow-50 dark:bg-yellow-900/20 ring-yellow-200 dark:ring-yellow-800">
+          <CardContent className="pt-4 pb-4">
+            <p className="text-xs font-medium text-yellow-600 dark:text-yellow-400">Pendentes</p>
+            <p className="text-2xl font-bold text-yellow-700 dark:text-yellow-300 tabular-nums">
+              {loading ? (
+                <Skeleton className="h-8 w-10 mt-1" />
+              ) : (
+                ops.filter((o) => o.status === 'solicitada' || o.status === 'em_analise').length
+              )}
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="bg-purple-50 dark:bg-purple-900/20 ring-purple-200 dark:ring-purple-800">
+          <CardContent className="pt-4 pb-4">
+            <p className="text-xs font-medium text-purple-600 dark:text-purple-400">Em Andamento</p>
+            <p className="text-2xl font-bold text-purple-700 dark:text-purple-300 tabular-nums">
+              {loading ? (
+                <Skeleton className="h-8 w-10 mt-1" />
+              ) : (
+                ops.filter((o) => o.status === 'em_andamento').length
+              )}
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="bg-green-50 dark:bg-green-900/20 ring-green-200 dark:ring-green-800">
+          <CardContent className="pt-4 pb-4">
+            <p className="text-xs font-medium text-green-600 dark:text-green-400">Valor Ativo</p>
+            <p className="text-2xl font-bold text-green-700 dark:text-green-300 tabular-nums">
+              {loading ? <Skeleton className="h-8 w-28 mt-1" /> : formatCurrency(valorAtivo)}
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
+      {/* Feedback message */}
       {message && (
-        <div className="mb-4 p-3 rounded-lg text-sm bg-green-50 text-green-700 border border-green-200">{message}</div>
+        <div className="mb-4 p-3 rounded-lg text-sm bg-green-50 text-green-700 border border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800">
+          {message}
+        </div>
       )}
 
-      {/* Filtro */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-4">
-        <div className="relative">
-          <Filter size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <select
-            value={filtroStatus}
-            onChange={(e) => setFiltroStatus(e.target.value)}
-            className="pl-9 pr-8 py-2 border border-gray-300 rounded-lg text-sm bg-white appearance-none"
-          >
-            <option value="todos">Todos</option>
-            <option value="solicitada">Solicitadas</option>
-            <option value="em_andamento">Em Andamento</option>
-            <option value="liquidada">Liquidadas</option>
-            <option value="reprovada">Reprovadas</option>
-            <option value="cancelada">Canceladas</option>
-          </select>
-        </div>
-      </div>
+      {/* Filter */}
+      <Card className="mb-4">
+        <CardContent className="pt-4 pb-4">
+          <div className="flex items-center gap-2">
+            <Filter size={16} className="text-muted-foreground shrink-0" />
+            <Select value={filtroStatus} onValueChange={(v) => { if (v) setFiltroStatus(v) }}>
+              <SelectTrigger className="w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos</SelectItem>
+                <SelectItem value="solicitada">Solicitadas</SelectItem>
+                <SelectItem value="em_andamento">Em Andamento</SelectItem>
+                <SelectItem value="liquidada">Liquidadas</SelectItem>
+                <SelectItem value="reprovada">Reprovadas</SelectItem>
+                <SelectItem value="cancelada">Canceladas</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
 
-      {/* Lista */}
+      {/* List */}
       {loading ? (
-        <div className="text-center py-12">
-          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
+        <div className="space-y-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <OperacaoSkeleton key={i} />
+          ))}
         </div>
       ) : opsFiltradas.length === 0 ? (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-          <Banknote size={48} className="mx-auto text-gray-300 mb-3" />
-          <p className="text-gray-500">Nenhuma operacao encontrada.</p>
-        </div>
+        <Card>
+          <CardContent className="py-12 text-center">
+            <Banknote size={48} className="mx-auto text-muted-foreground/30 mb-3" />
+            <p className="text-muted-foreground">Nenhuma operacao encontrada.</p>
+          </CardContent>
+        </Card>
       ) : (
         <div className="space-y-3">
           {opsFiltradas.map((op) => {
@@ -155,59 +271,77 @@ export default function OperacoesCedentePage() {
             const canCancel = op.status === 'solicitada' || op.status === 'em_analise'
 
             return (
-              <div key={op.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <span className="text-sm font-mono text-gray-400">#{op.id.substring(0, 8)}</span>
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${status.color}`}>
-                        <StatusIcon size={12} />
-                        {status.label}
-                      </span>
+              <Card key={op.id}>
+                <CardContent className="pt-4 pb-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className="text-sm font-mono text-muted-foreground">
+                          #{op.id.substring(0, 8)}
+                        </span>
+                        <Badge
+                          variant={status.variant}
+                          className={status.className || undefined}
+                        >
+                          <StatusIcon size={12} />
+                          {status.label}
+                        </Badge>
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+                        <div>
+                          <span className="text-muted-foreground text-xs">Valor Bruto</span>
+                          <p className="font-bold tabular-nums">{formatCurrency(op.valor_bruto_total)}</p>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground text-xs">Taxa</span>
+                          <p className="font-medium tabular-nums">
+                            {op.taxa_desconto > 0 ? `${op.taxa_desconto}% a.m.` : 'A definir'}
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground text-xs">Prazo</span>
+                          <p className="font-medium tabular-nums">{op.prazo_dias} dias</p>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground text-xs">Valor Liquido</span>
+                          <p className="font-bold text-green-700 dark:text-green-400 tabular-nums">
+                            {formatCurrency(op.valor_liquido_desembolso)}
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground text-xs">Vencimento</span>
+                          <p className="font-medium">{formatDate(op.data_vencimento)}</p>
+                        </div>
+                      </div>
+                      {op.motivo_reprovacao && (
+                        <p className="mt-2 text-sm text-destructive">
+                          Motivo: {op.motivo_reprovacao}
+                        </p>
+                      )}
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
-                      <div>
-                        <span className="text-gray-500 text-xs">Valor Bruto</span>
-                        <p className="font-bold">{formatCurrency(op.valor_bruto_total)}</p>
-                      </div>
-                      <div>
-                        <span className="text-gray-500 text-xs">Taxa</span>
-                        <p className="font-medium">{op.taxa_desconto > 0 ? `${op.taxa_desconto}% a.m.` : 'A definir'}</p>
-                      </div>
-                      <div>
-                        <span className="text-gray-500 text-xs">Prazo</span>
-                        <p className="font-medium">{op.prazo_dias} dias</p>
-                      </div>
-                      <div>
-                        <span className="text-gray-500 text-xs">Valor Liquido</span>
-                        <p className="font-bold text-green-700">{formatCurrency(op.valor_liquido_desembolso)}</p>
-                      </div>
-                      <div>
-                        <span className="text-gray-500 text-xs">Vencimento</span>
-                        <p className="font-medium">{formatDate(op.data_vencimento)}</p>
-                      </div>
+                    <div className="flex gap-2 ml-4">
+                      {canCancel && (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleCancel(op.id)}
+                          disabled={cancelling === op.id}
+                        >
+                          {cancelling === op.id ? (
+                            <Loader2 size={14} className="animate-spin" />
+                          ) : (
+                            <XCircle size={14} />
+                          )}
+                          {cancelling === op.id ? 'Cancelando...' : 'Cancelar'}
+                        </Button>
+                      )}
                     </div>
-                    {op.motivo_reprovacao && (
-                      <p className="mt-2 text-sm text-red-600">Motivo: {op.motivo_reprovacao}</p>
-                    )}
                   </div>
-                  <div className="flex gap-2 ml-4">
-                    {canCancel && (
-                      <button
-                        onClick={() => handleCancel(op.id)}
-                        disabled={cancelling === op.id}
-                        className="flex items-center gap-1 px-3 py-1.5 text-xs text-red-600 bg-red-50 rounded-lg hover:bg-red-100 disabled:opacity-50"
-                      >
-                        <XCircle size={14} />
-                        {cancelling === op.id ? 'Cancelando...' : 'Cancelar'}
-                      </button>
-                    )}
+                  <div className="mt-2 text-xs text-muted-foreground">
+                    Criada em {formatDate(op.created_at)}
                   </div>
-                </div>
-                <div className="mt-2 text-xs text-gray-400">
-                  Criada em {formatDate(op.created_at)}
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             )
           })}
         </div>
