@@ -11,8 +11,12 @@ import {
   AlertTriangle,
   Send,
   Search,
-  Filter,
 } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 
 interface OperacaoSacado {
   id: string
@@ -25,10 +29,30 @@ interface OperacaoSacado {
   contas_escrow: { identificador: string } | null
 }
 
-const statusConfig: Record<string, { label: string; color: string }> = {
-  em_andamento: { label: 'A pagar', color: 'bg-yellow-100 text-yellow-700' },
-  liquidada: { label: 'Pago', color: 'bg-green-100 text-green-700' },
-  inadimplente: { label: 'Inadimplente', color: 'bg-red-100 text-red-700' },
+const statusConfig: Record<string, { label: string; className: string }> = {
+  em_andamento: { label: 'A pagar', className: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
+  liquidada: { label: 'Pago', className: 'bg-green-100 text-green-700 border-green-200' },
+  inadimplente: { label: 'Inadimplente', className: 'bg-red-100 text-red-700 border-red-200' },
+}
+
+function LoadingSkeleton() {
+  return (
+    <div className="max-w-6xl mx-auto space-y-6">
+      <div className="space-y-1">
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-4 w-80" />
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <Skeleton key={i} className="h-24 rounded-xl" />
+        ))}
+      </div>
+      <Skeleton className="h-16 rounded-xl" />
+      {Array.from({ length: 4 }).map((_, i) => (
+        <Skeleton key={i} className="h-28 rounded-xl" />
+      ))}
+    </div>
+  )
 }
 
 export default function HistoricoPagamentosPage() {
@@ -75,11 +99,13 @@ export default function HistoricoPagamentosPage() {
   const totalAPagar = operacoes.filter((o) => o.status === 'em_andamento').reduce((a, o) => a + o.valor_bruto_total, 0)
   const totalPago = operacoes.filter((o) => o.status === 'liquidada').reduce((a, o) => a + o.valor_bruto_total, 0)
 
+  if (loading) return <LoadingSkeleton />
+
   return (
     <div className="max-w-6xl mx-auto">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Historico de Pagamentos</h1>
-        <p className="text-gray-500">Acompanhe e confirme pagamentos das operacoes.</p>
+        <h1 className="text-2xl font-bold text-foreground">Historico de Pagamentos</h1>
+        <p className="text-muted-foreground">Acompanhe e confirme pagamentos das operacoes.</p>
       </div>
 
       {/* KPIs */}
@@ -89,21 +115,21 @@ export default function HistoricoPagamentosPage() {
             <Clock size={18} className="text-yellow-600" />
             <span className="text-xs text-yellow-600">Total a Pagar</span>
           </div>
-          <p className="text-2xl font-bold text-yellow-700">{formatCurrency(totalAPagar)}</p>
+          <p className="text-2xl font-bold text-yellow-700 tabular-nums">{formatCurrency(totalAPagar)}</p>
         </div>
         <div className="bg-green-50 rounded-xl p-5">
           <div className="flex items-center gap-2 mb-1">
             <CheckCircle size={18} className="text-green-600" />
             <span className="text-xs text-green-600">Total Pago</span>
           </div>
-          <p className="text-2xl font-bold text-green-700">{formatCurrency(totalPago)}</p>
+          <p className="text-2xl font-bold text-green-700 tabular-nums">{formatCurrency(totalPago)}</p>
         </div>
         <div className="bg-blue-50 rounded-xl p-5">
           <div className="flex items-center gap-2 mb-1">
             <Wallet size={18} className="text-blue-600" />
             <span className="text-xs text-blue-600">Total Operacoes</span>
           </div>
-          <p className="text-2xl font-bold text-blue-700">{operacoes.length}</p>
+          <p className="text-2xl font-bold text-blue-700 tabular-nums">{operacoes.length}</p>
         </div>
       </div>
 
@@ -112,34 +138,41 @@ export default function HistoricoPagamentosPage() {
       )}
 
       {/* Filtros */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-4">
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input type="text" placeholder="Buscar por cedente..."
-              value={busca} onChange={(e) => setBusca(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+      <Card className="mb-4">
+        <CardContent className="p-4">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Buscar por cedente..."
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                className="h-11 pl-9"
+              />
+            </div>
+            <select
+              value={filtro}
+              onChange={(e) => { if (e.target.value) setFiltro(e.target.value) }}
+              className="border border-input rounded-lg px-3 py-2 text-sm bg-background text-foreground"
+            >
+              <option value="todos">Todos</option>
+              <option value="em_andamento">A pagar</option>
+              <option value="liquidada">Pagos</option>
+              <option value="inadimplente">Inadimplentes</option>
+            </select>
           </div>
-          <select value={filtro} onChange={(e) => setFiltro(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white">
-            <option value="todos">Todos</option>
-            <option value="em_andamento">A pagar</option>
-            <option value="liquidada">Pagos</option>
-            <option value="inadimplente">Inadimplentes</option>
-          </select>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Lista */}
-      {loading ? (
-        <div className="text-center py-12">
-          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
-        </div>
-      ) : opsFiltradas.length === 0 ? (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-          <Wallet size={48} className="mx-auto text-gray-300 mb-3" />
-          <p className="text-gray-500">Nenhuma operacao encontrada.</p>
-        </div>
+      {opsFiltradas.length === 0 ? (
+        <Card>
+          <CardContent className="p-12 text-center">
+            <Wallet size={48} className="mx-auto text-muted-foreground/30 mb-3" />
+            <p className="text-muted-foreground">Nenhuma operacao encontrada.</p>
+          </CardContent>
+        </Card>
       ) : (
         <div className="space-y-3">
           {opsFiltradas.map((op) => {
@@ -148,59 +181,58 @@ export default function HistoricoPagamentosPage() {
             const isSending = sending === op.id
 
             return (
-              <div key={op.id} className={`bg-white rounded-xl shadow-sm border overflow-hidden ${
-                vencido ? 'border-red-300' : 'border-gray-200'
-              }`}>
-                <div className="p-5">
+              <Card key={op.id} className={`overflow-hidden ${vencido ? 'border-red-300' : ''}`}>
+                <CardContent className="p-5">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
-                        <span className="text-sm font-mono text-gray-400">#{op.id.substring(0, 8)}</span>
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${st?.color || 'bg-gray-100'}`}>
+                        <span className="text-sm font-mono text-muted-foreground tabular-nums">#{op.id.substring(0, 8)}</span>
+                        <Badge className={st?.className || 'bg-gray-100 text-foreground'}>
                           {st?.label || op.status}
-                        </span>
+                        </Badge>
                         {vencido && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                          <Badge className="bg-red-100 text-red-700 border-red-200 gap-1">
                             <AlertTriangle size={12} /> Vencido
-                          </span>
+                          </Badge>
                         )}
                       </div>
 
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                         <div>
-                          <span className="text-gray-500 text-xs">Cedente</span>
-                          <p className="font-medium">{op.cedentes.razao_social}</p>
-                          <p className="text-xs text-gray-400">{formatCNPJ(op.cedentes.cnpj)}</p>
+                          <span className="text-muted-foreground text-xs">Cedente</span>
+                          <p className="font-medium text-foreground">{op.cedentes.razao_social}</p>
+                          <p className="text-xs text-muted-foreground">{formatCNPJ(op.cedentes.cnpj)}</p>
                         </div>
                         <div>
-                          <span className="text-gray-500 text-xs">Valor</span>
-                          <p className="font-bold text-lg">{formatCurrency(op.valor_bruto_total)}</p>
+                          <span className="text-muted-foreground text-xs">Valor</span>
+                          <p className="font-bold text-lg tabular-nums">{formatCurrency(op.valor_bruto_total)}</p>
                         </div>
                         <div>
-                          <span className="text-gray-500 text-xs">Vencimento</span>
-                          <p className={`font-medium ${vencido ? 'text-red-700' : ''}`}>{formatDate(op.data_vencimento)}</p>
+                          <span className="text-muted-foreground text-xs">Vencimento</span>
+                          <p className={`font-medium tabular-nums ${vencido ? 'text-destructive' : ''}`}>{formatDate(op.data_vencimento)}</p>
                         </div>
                         <div>
-                          <span className="text-gray-500 text-xs">Conta Escrow</span>
-                          <p className="font-mono text-sm">{op.contas_escrow?.identificador || '—'}</p>
+                          <span className="text-muted-foreground text-xs">Conta Escrow</span>
+                          <p className="font-mono text-sm tabular-nums">{op.contas_escrow?.identificador || '—'}</p>
                         </div>
                       </div>
                     </div>
 
                     {/* Botao informar pagamento */}
                     {op.status === 'em_andamento' && (
-                      <button
+                      <Button
                         onClick={() => handleConfirmarPagamento(op.id)}
                         disabled={isSending}
-                        className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm font-medium ml-4 shrink-0"
+                        className="bg-green-600 text-white hover:bg-green-700 gap-2 ml-4 shrink-0"
+                        size="sm"
                       >
                         <Send size={16} />
                         {isSending ? 'Enviando...' : 'Informar Pagamento'}
-                      </button>
+                      </Button>
                     )}
                   </div>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             )
           })}
         </div>

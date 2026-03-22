@@ -4,10 +4,13 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency, formatCNPJ, formatDate } from '@/lib/utils'
 import Link from 'next/link'
+import { Card, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Input } from '@/components/ui/input'
 import {
   Briefcase,
   Search,
-  Eye,
   CheckCircle,
   Clock,
   XCircle,
@@ -33,12 +36,33 @@ interface OperacaoResumoCedente {
   status: string
 }
 
-const statusConfig: Record<string, { label: string; color: string; icon: typeof CheckCircle }> = {
-  pendente: { label: 'Pendente', color: 'bg-yellow-100 text-yellow-700', icon: Clock },
-  em_analise: { label: 'Em Analise', color: 'bg-blue-100 text-blue-700', icon: Clock },
-  ativo: { label: 'Ativo', color: 'bg-green-100 text-green-700', icon: CheckCircle },
-  reprovado: { label: 'Reprovado', color: 'bg-red-100 text-red-700', icon: XCircle },
-  bloqueado: { label: 'Bloqueado', color: 'bg-red-100 text-red-700', icon: XCircle },
+const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; icon: typeof CheckCircle }> = {
+  pendente: { label: 'Pendente', variant: 'outline', icon: Clock },
+  em_analise: { label: 'Em Analise', variant: 'secondary', icon: Clock },
+  ativo: { label: 'Ativo', variant: 'default', icon: CheckCircle },
+  reprovado: { label: 'Reprovado', variant: 'destructive', icon: XCircle },
+  bloqueado: { label: 'Bloqueado', variant: 'destructive', icon: XCircle },
+}
+
+function CarteiraSkeleton() {
+  return (
+    <div className="max-w-6xl mx-auto space-y-6">
+      <div>
+        <Skeleton className="h-8 w-48 mb-2" />
+        <Skeleton className="h-4 w-72" />
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        {[1, 2, 3].map((i) => (
+          <Card key={i}><CardContent className="pt-5"><Skeleton className="h-8 w-24 mb-1" /><Skeleton className="h-4 w-16" /></CardContent></Card>
+        ))}
+      </div>
+      <div className="space-y-3">
+        {[1, 2, 3].map((i) => (
+          <Card key={i}><CardContent className="pt-5"><Skeleton className="h-16 w-full" /></CardContent></Card>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 export default function CarteiraConsultorPage() {
@@ -87,58 +111,64 @@ export default function CarteiraConsultorPage() {
 
   const volumeTotal = carteira.reduce((acc, c) => acc + getVolumeCedente(c.cedente_id), 0)
 
+  if (loading) return <CarteiraSkeleton />
+
   return (
     <div className="max-w-6xl mx-auto">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Minha Carteira</h1>
-        <p className="text-gray-500">Cedentes vinculados sob sua responsabilidade.</p>
+        <h1 className="text-2xl font-bold text-foreground">Minha Carteira</h1>
+        <p className="text-muted-foreground">Cedentes vinculados sob sua responsabilidade.</p>
       </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-amber-50 rounded-xl p-5">
+        <div className="bg-amber-50 dark:bg-amber-500/10 rounded-xl p-5">
           <div className="flex items-center gap-2 mb-1">
             <Briefcase size={18} className="text-amber-600" />
             <span className="text-xs text-amber-600">Total Cedentes</span>
           </div>
-          <p className="text-2xl font-bold text-amber-700">{carteira.length}</p>
+          <p className="text-2xl font-bold tabular-nums text-amber-700">{carteira.length}</p>
         </div>
-        <div className="bg-green-50 rounded-xl p-5">
+        <div className="bg-green-50 dark:bg-green-500/10 rounded-xl p-5">
           <div className="flex items-center gap-2 mb-1">
             <CheckCircle size={18} className="text-green-600" />
             <span className="text-xs text-green-600">Ativos</span>
           </div>
-          <p className="text-2xl font-bold text-green-700">{carteira.filter((c) => c.cedentes.status === 'ativo').length}</p>
+          <p className="text-2xl font-bold tabular-nums text-green-700">{carteira.filter((c) => c.cedentes.status === 'ativo').length}</p>
         </div>
-        <div className="bg-purple-50 rounded-xl p-5">
+        <div className="bg-purple-50 dark:bg-purple-500/10 rounded-xl p-5">
           <div className="flex items-center gap-2 mb-1">
             <TrendingUp size={18} className="text-purple-600" />
             <span className="text-xs text-purple-600">Volume Total</span>
           </div>
-          <p className="text-2xl font-bold text-purple-700">{formatCurrency(volumeTotal)}</p>
+          <p className="text-2xl font-bold tabular-nums text-purple-700">{formatCurrency(volumeTotal)}</p>
         </div>
       </div>
 
       {/* Busca */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-4">
-        <div className="relative">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input type="text" placeholder="Buscar cedente..." value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-        </div>
-      </div>
+      <Card className="mb-4">
+        <CardContent className="pt-4">
+          <div className="relative">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Buscar cedente..."
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              className="pl-9 h-11"
+            />
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Lista */}
-      {loading ? (
-        <div className="text-center py-12">
-          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
-        </div>
-      ) : carteiraFiltrada.length === 0 ? (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-          <Briefcase size={48} className="mx-auto text-gray-300 mb-3" />
-          <p className="text-gray-500">Nenhum cedente na carteira.</p>
-        </div>
+      {carteiraFiltrada.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <Briefcase size={48} className="mx-auto text-muted-foreground/30 mb-3" />
+            <p className="text-muted-foreground">Nenhum cedente na carteira.</p>
+          </CardContent>
+        </Card>
       ) : (
         <div className="space-y-3">
           {carteiraFiltrada.map((c) => {
@@ -148,41 +178,43 @@ export default function CarteiraConsultorPage() {
             const opsAtivas = getOpsAtivasCedente(c.cedente_id)
 
             return (
-              <div key={c.cedente_id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <p className="font-semibold text-gray-900 text-lg">{c.cedentes.razao_social}</p>
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${st?.color || 'bg-gray-100'}`}>
-                        <StIcon size={12} />
-                        {st?.label || c.cedentes.status}
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
-                      <div>
-                        <span className="text-gray-500 text-xs">CNPJ</span>
-                        <p className="font-mono">{formatCNPJ(c.cedentes.cnpj)}</p>
+              <Card key={c.cedente_id}>
+                <CardContent className="pt-5">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <p className="font-semibold text-foreground text-lg">{c.cedentes.razao_social}</p>
+                        <Badge variant={st?.variant || 'outline'}>
+                          <StIcon size={12} />
+                          {st?.label || c.cedentes.status}
+                        </Badge>
                       </div>
-                      <div>
-                        <span className="text-gray-500 text-xs">Nome Fantasia</span>
-                        <p>{c.cedentes.nome_fantasia || '—'}</p>
-                      </div>
-                      <div>
-                        <span className="text-gray-500 text-xs">Volume Operado</span>
-                        <p className="font-bold">{formatCurrency(volume)}</p>
-                      </div>
-                      <div>
-                        <span className="text-gray-500 text-xs">Ops Ativas</span>
-                        <p className="font-medium">{opsAtivas}</p>
-                      </div>
-                      <div>
-                        <span className="text-gray-500 text-xs">Comissao</span>
-                        <p className="font-medium text-green-700">{c.comissao_percentual}%</p>
+                      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+                        <div>
+                          <span className="text-muted-foreground text-xs">CNPJ</span>
+                          <p className="font-mono tabular-nums">{formatCNPJ(c.cedentes.cnpj)}</p>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground text-xs">Nome Fantasia</span>
+                          <p>{c.cedentes.nome_fantasia || '—'}</p>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground text-xs">Volume Operado</span>
+                          <p className="font-bold tabular-nums">{formatCurrency(volume)}</p>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground text-xs">Ops Ativas</span>
+                          <p className="font-medium tabular-nums">{opsAtivas}</p>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground text-xs">Comissao</span>
+                          <p className="font-medium tabular-nums text-green-700">{c.comissao_percentual}%</p>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             )
           })}
         </div>

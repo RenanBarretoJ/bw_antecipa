@@ -5,6 +5,19 @@ import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency, formatCNPJ } from '@/lib/utils'
 import Link from 'next/link'
+import { Card, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import {
   ArrowLeft,
   Wallet,
@@ -29,6 +42,25 @@ interface Movimento {
   valor: number
   saldo_apos: number
   created_at: string
+}
+
+function EscrowDetalheSkeleton() {
+  return (
+    <div className="max-w-5xl mx-auto space-y-6">
+      <Skeleton className="h-4 w-20" />
+      <div>
+        <Skeleton className="h-8 w-56 mb-2" />
+        <Skeleton className="h-4 w-72" />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card><CardContent className="pt-5"><Skeleton className="h-8 w-40 mb-1" /><Skeleton className="h-4 w-24" /></CardContent></Card>
+        <Card><CardContent className="pt-5"><Skeleton className="h-8 w-40 mb-1" /><Skeleton className="h-4 w-24" /></CardContent></Card>
+      </div>
+      <Card><CardContent className="pt-4 space-y-3">
+        {[1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-12 w-full" />)}
+      </CardContent></Card>
+    </div>
+  )
 }
 
 export default function EscrowDetalheConsultorPage() {
@@ -72,118 +104,134 @@ export default function EscrowDetalheConsultorPage() {
     return true
   })
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-      </div>
-    )
-  }
+  if (loading) return <EscrowDetalheSkeleton />
 
   if (!conta) {
     return (
       <div className="text-center py-20">
-        <p className="text-gray-500">Conta nao encontrada.</p>
-        <Link href="/consultor/escrow" className="text-blue-600 mt-2 inline-block">Voltar</Link>
+        <p className="text-muted-foreground">Conta nao encontrada.</p>
+        <Link href="/consultor/escrow" className="text-primary mt-2 inline-block hover:underline">Voltar</Link>
       </div>
     )
   }
 
   return (
     <div className="max-w-5xl mx-auto">
-      <Link href="/consultor/escrow" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4">
+      <Link href="/consultor/escrow" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4">
         <ArrowLeft size={16} /> Voltar
       </Link>
 
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">{conta.identificador}</h1>
-        <p className="text-gray-500">{conta.cedentes.razao_social} — {formatCNPJ(conta.cedentes.cnpj)}</p>
+        <h1 className="text-2xl font-bold text-foreground">{conta.identificador}</h1>
+        <p className="text-muted-foreground">{conta.cedentes.razao_social} — {formatCNPJ(conta.cedentes.cnpj)}</p>
         <p className="text-xs text-amber-600 mt-1">Somente leitura</p>
       </div>
 
       {/* Saldos */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-          <div className="flex items-center gap-2 mb-1">
-            <Wallet size={18} className="text-green-600" />
-            <span className="text-xs text-gray-500">Saldo Disponivel</span>
-          </div>
-          <p className="text-2xl font-bold text-green-700">{formatCurrency(conta.saldo_disponivel)}</p>
-        </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-          <div className="flex items-center gap-2 mb-1">
-            <Wallet size={18} className="text-yellow-600" />
-            <span className="text-xs text-gray-500">Saldo Bloqueado</span>
-          </div>
-          <p className="text-2xl font-bold text-yellow-700">{formatCurrency(conta.saldo_bloqueado)}</p>
-        </div>
+        <Card>
+          <CardContent className="pt-5">
+            <div className="flex items-center gap-2 mb-1">
+              <Wallet size={18} className="text-green-600" />
+              <span className="text-xs text-muted-foreground">Saldo Disponivel</span>
+            </div>
+            <p className="text-2xl font-bold tabular-nums text-green-700">{formatCurrency(conta.saldo_disponivel)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-5">
+            <div className="flex items-center gap-2 mb-1">
+              <Wallet size={18} className="text-yellow-600" />
+              <span className="text-xs text-muted-foreground">Saldo Bloqueado</span>
+            </div>
+            <p className="text-2xl font-bold tabular-nums text-yellow-700">{formatCurrency(conta.saldo_bloqueado)}</p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Filtros */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-4">
-        <div className="flex items-center gap-2">
-          <Calendar size={16} className="text-gray-400" />
-          <input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-          <span className="text-gray-400">ate</span>
-          <input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-        </div>
-      </div>
+      <Card className="mb-4">
+        <CardContent className="pt-4">
+          <div className="flex items-center gap-3 flex-wrap">
+            <Calendar size={16} className="text-muted-foreground" />
+            <div className="flex items-center gap-2">
+              <Label htmlFor="data-inicio" className="text-sm text-muted-foreground whitespace-nowrap">De</Label>
+              <Input
+                id="data-inicio"
+                type="date"
+                value={dataInicio}
+                onChange={(e) => setDataInicio(e.target.value)}
+                className="w-40 h-9"
+              />
+            </div>
+            <span className="text-muted-foreground text-sm">ate</span>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="data-fim" className="text-sm text-muted-foreground whitespace-nowrap">Ate</Label>
+              <Input
+                id="data-fim"
+                type="date"
+                value={dataFim}
+                onChange={(e) => setDataFim(e.target.value)}
+                className="w-40 h-9"
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Movimentos */}
       {movsFiltrados.length === 0 ? (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-          <p className="text-gray-500">Nenhum movimento encontrado.</p>
-        </div>
+        <Card>
+          <CardContent className="py-12 text-center">
+            <p className="text-muted-foreground">Nenhum movimento encontrado.</p>
+          </CardContent>
+        </Card>
       ) : (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-200 bg-gray-50">
-                  <th className="text-left text-xs font-medium text-gray-500 uppercase px-4 py-3">Data</th>
-                  <th className="text-left text-xs font-medium text-gray-500 uppercase px-4 py-3">Tipo</th>
-                  <th className="text-left text-xs font-medium text-gray-500 uppercase px-4 py-3">Descricao</th>
-                  <th className="text-right text-xs font-medium text-gray-500 uppercase px-4 py-3">Valor</th>
-                  <th className="text-right text-xs font-medium text-gray-500 uppercase px-4 py-3">Saldo</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {movsFiltrados.map((mov) => (
-                  <tr key={mov.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm text-gray-600">
-                      {new Date(mov.created_at).toLocaleString('pt-BR', {
-                        day: '2-digit', month: '2-digit', year: 'numeric',
-                        hour: '2-digit', minute: '2-digit',
-                      })}
-                    </td>
-                    <td className="px-4 py-3">
-                      {mov.tipo === 'credito' ? (
-                        <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
-                          <ArrowUpCircle size={12} /> Credito
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-xs font-medium text-red-700 bg-red-100 px-2 py-0.5 rounded-full">
-                          <ArrowDownCircle size={12} /> Debito
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-900">{mov.descricao}</td>
-                    <td className={`px-4 py-3 text-sm text-right font-bold ${
-                      mov.tipo === 'credito' ? 'text-green-700' : 'text-red-700'
-                    }`}>
-                      {mov.tipo === 'credito' ? '+' : '-'}{formatCurrency(mov.valor)}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-right text-gray-600 font-medium">
-                      {formatCurrency(mov.saldo_apos)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <Card>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="text-xs uppercase text-muted-foreground">Data</TableHead>
+                <TableHead className="text-xs uppercase text-muted-foreground">Tipo</TableHead>
+                <TableHead className="text-xs uppercase text-muted-foreground">Descricao</TableHead>
+                <TableHead className="text-xs uppercase text-muted-foreground text-right">Valor</TableHead>
+                <TableHead className="text-xs uppercase text-muted-foreground text-right">Saldo</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {movsFiltrados.map((mov) => (
+                <TableRow key={mov.id}>
+                  <TableCell className="text-sm text-muted-foreground tabular-nums">
+                    {new Date(mov.created_at).toLocaleString('pt-BR', {
+                      day: '2-digit', month: '2-digit', year: 'numeric',
+                      hour: '2-digit', minute: '2-digit',
+                    })}
+                  </TableCell>
+                  <TableCell>
+                    {mov.tipo === 'credito' ? (
+                      <Badge variant="default" className="gap-1">
+                        <ArrowUpCircle size={12} /> Credito
+                      </Badge>
+                    ) : (
+                      <Badge variant="destructive" className="gap-1">
+                        <ArrowDownCircle size={12} /> Debito
+                      </Badge>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-sm text-foreground">{mov.descricao}</TableCell>
+                  <TableCell className={`text-sm text-right font-bold tabular-nums ${
+                    mov.tipo === 'credito' ? 'text-green-700' : 'text-destructive'
+                  }`}>
+                    {mov.tipo === 'credito' ? '+' : '-'}{formatCurrency(mov.valor)}
+                  </TableCell>
+                  <TableCell className="text-sm text-right tabular-nums text-muted-foreground font-medium">
+                    {formatCurrency(mov.saldo_apos)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Card>
       )}
     </div>
   )

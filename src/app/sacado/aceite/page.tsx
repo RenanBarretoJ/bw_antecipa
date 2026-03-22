@@ -11,6 +11,10 @@ import {
   AlertTriangle,
   Wallet,
 } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Button } from '@/components/ui/button'
 
 interface NfCessao {
   id: string
@@ -26,6 +30,20 @@ interface NfCessao {
 interface ContaInfo {
   cedente_id: string
   identificador: string
+}
+
+function LoadingSkeleton() {
+  return (
+    <div className="max-w-5xl mx-auto space-y-6">
+      <div className="space-y-1">
+        <Skeleton className="h-8 w-52" />
+        <Skeleton className="h-4 w-80" />
+      </div>
+      {Array.from({ length: 3 }).map((_, i) => (
+        <Skeleton key={i} className="h-44 rounded-xl" />
+      ))}
+    </div>
+  )
 }
 
 export default function AceiteCessaoPage() {
@@ -101,36 +119,32 @@ export default function AceiteCessaoPage() {
     setProcessing(null)
   }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-      </div>
-    )
-  }
+  if (loading) return <LoadingSkeleton />
 
   return (
     <div className="max-w-5xl mx-auto">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Aceite de Cessao</h1>
-        <p className="text-gray-500">Confirme ou conteste as cessoes de credito das NFs emitidas contra voce.</p>
+        <h1 className="text-2xl font-bold text-foreground">Aceite de Cessao</h1>
+        <p className="text-muted-foreground">Confirme ou conteste as cessoes de credito das NFs emitidas contra voce.</p>
       </div>
 
       {message && (
-        <div className={`mb-4 p-3 rounded-lg text-sm ${
+        <div className={`mb-4 p-3 rounded-lg text-sm border ${
           messageType === 'success'
-            ? 'bg-green-50 text-green-700 border border-green-200'
-            : 'bg-red-50 text-red-700 border border-red-200'
+            ? 'bg-green-50 text-green-700 border-green-200'
+            : 'bg-red-50 text-destructive border-red-200'
         }`}>
           {message}
         </div>
       )}
 
       {nfs.length === 0 ? (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-          <CheckCircle size={48} className="mx-auto text-gray-300 mb-3" />
-          <p className="text-gray-500">Nenhuma cessao pendente de aceite.</p>
-        </div>
+        <Card>
+          <CardContent className="p-12 text-center">
+            <CheckCircle size={48} className="mx-auto text-muted-foreground/30 mb-3" />
+            <p className="text-muted-foreground">Nenhuma cessao pendente de aceite.</p>
+          </CardContent>
+        </Card>
       ) : (
         <div className="space-y-4">
           {nfs.map((nf) => {
@@ -139,31 +153,32 @@ export default function AceiteCessaoPage() {
             const isProcessing = processing === nf.id
 
             return (
-              <div key={nf.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <div className="p-5">
+              <Card key={nf.id} className="overflow-hidden">
+                <CardContent className="p-5">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
                         <Receipt size={18} className="text-purple-600" />
-                        <span className="font-bold text-gray-900 text-lg">NF {nf.numero_nf}</span>
+                        <span className="font-bold text-foreground text-lg">NF {nf.numero_nf}</span>
+                        <Badge className="bg-purple-100 text-purple-700 border-purple-200">Cessao ativa</Badge>
                       </div>
 
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                         <div>
-                          <span className="text-gray-500 text-xs">Cedente (Emitente)</span>
-                          <p className="font-medium">{nf.razao_social_emitente}</p>
-                          <p className="text-xs text-gray-400">{formatCNPJ(nf.cnpj_emitente)}</p>
+                          <span className="text-muted-foreground text-xs">Cedente (Emitente)</span>
+                          <p className="font-medium text-foreground">{nf.razao_social_emitente}</p>
+                          <p className="text-xs text-muted-foreground">{formatCNPJ(nf.cnpj_emitente)}</p>
                         </div>
                         <div>
-                          <span className="text-gray-500 text-xs">Valor</span>
-                          <p className="font-bold text-lg">{formatCurrency(nf.valor_bruto)}</p>
+                          <span className="text-muted-foreground text-xs">Valor</span>
+                          <p className="font-bold text-lg tabular-nums">{formatCurrency(nf.valor_bruto)}</p>
                         </div>
                         <div>
-                          <span className="text-gray-500 text-xs">Vencimento</span>
-                          <p className="font-medium">{formatDate(nf.data_vencimento)}</p>
+                          <span className="text-muted-foreground text-xs">Vencimento</span>
+                          <p className="font-medium tabular-nums">{formatDate(nf.data_vencimento)}</p>
                         </div>
                         <div>
-                          <span className="text-gray-500 text-xs">Status</span>
+                          <span className="text-muted-foreground text-xs">Status</span>
                           <p className="font-medium text-purple-700">Cessao ativa</p>
                         </div>
                       </div>
@@ -183,21 +198,24 @@ export default function AceiteCessaoPage() {
                   {/* Acoes */}
                   {!isContestando && (
                     <div className="mt-4 flex gap-3">
-                      <button
+                      <Button
                         onClick={() => handleAceitar(nf.id)}
                         disabled={isProcessing}
-                        className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm font-medium"
+                        className="bg-green-600 text-white hover:bg-green-700 gap-2"
+                        size="sm"
                       >
                         <CheckCircle size={16} />
                         {isProcessing ? 'Processando...' : 'Aceitar Cessao'}
-                      </button>
-                      <button
+                      </Button>
+                      <Button
+                        variant="destructive"
                         onClick={() => setContestando(nf.id)}
-                        className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 text-sm font-medium"
+                        size="sm"
+                        className="gap-2"
                       >
                         <XCircle size={16} />
                         Contestar
-                      </button>
+                      </Button>
                     </div>
                   )}
 
@@ -205,7 +223,7 @@ export default function AceiteCessaoPage() {
                   {isContestando && (
                     <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
                       <div className="flex items-center gap-2 mb-2">
-                        <AlertTriangle size={16} className="text-red-600" />
+                        <AlertTriangle size={16} className="text-destructive" />
                         <span className="font-medium text-red-800">Contestar Cessao</span>
                       </div>
                       <textarea
@@ -213,27 +231,29 @@ export default function AceiteCessaoPage() {
                         onChange={(e) => setMotivo(e.target.value)}
                         placeholder="Descreva o motivo da contestacao (obrigatorio)..."
                         rows={3}
-                        className="w-full border border-red-300 rounded-lg px-3 py-2 text-sm mb-3"
+                        className="w-full border border-red-300 rounded-lg px-3 py-2 text-sm mb-3 bg-background"
                       />
                       <div className="flex gap-2">
-                        <button
+                        <Button
+                          variant="outline"
+                          size="sm"
                           onClick={() => { setContestando(null); setMotivo('') }}
-                          className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm"
                         >
                           Cancelar
-                        </button>
-                        <button
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
                           onClick={() => handleContestar(nf.id)}
                           disabled={isProcessing}
-                          className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 text-sm"
                         >
                           {isProcessing ? 'Enviando...' : 'Confirmar Contestacao'}
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   )}
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             )
           })}
         </div>
