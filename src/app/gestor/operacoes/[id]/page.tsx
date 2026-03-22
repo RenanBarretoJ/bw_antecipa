@@ -16,7 +16,14 @@ import {
   Banknote,
   FileText,
   Calculator,
+  Loader2,
 } from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Skeleton } from '@/components/ui/skeleton'
 
 interface OperacaoDetalhe {
   id: string
@@ -52,14 +59,69 @@ interface TaxaConfig {
   taxa_percentual: number
 }
 
-const statusConfig: Record<string, { label: string; color: string; icon: typeof CheckCircle }> = {
-  solicitada: { label: 'Solicitada', color: 'bg-blue-100 text-blue-700', icon: Clock },
-  em_analise: { label: 'Em Analise', color: 'bg-yellow-100 text-yellow-700', icon: AlertCircle },
-  em_andamento: { label: 'Em Andamento', color: 'bg-purple-100 text-purple-700', icon: Banknote },
-  liquidada: { label: 'Liquidada', color: 'bg-emerald-100 text-emerald-700', icon: CheckCircle },
-  inadimplente: { label: 'Inadimplente', color: 'bg-red-100 text-red-700', icon: AlertCircle },
-  reprovada: { label: 'Reprovada', color: 'bg-red-100 text-red-700', icon: XCircle },
-  cancelada: { label: 'Cancelada', color: 'bg-gray-100 text-gray-600', icon: XCircle },
+type BadgeVariant = 'default' | 'secondary' | 'destructive' | 'outline' | 'ghost' | 'link'
+
+const statusConfig: Record<string, { label: string; variant: BadgeVariant; className: string; icon: typeof CheckCircle }> = {
+  solicitada: { label: 'Solicitada', variant: 'secondary', className: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400', icon: Clock },
+  em_analise: { label: 'Em Analise', variant: 'secondary', className: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400', icon: AlertCircle },
+  em_andamento: { label: 'Em Andamento', variant: 'secondary', className: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400', icon: Banknote },
+  liquidada: { label: 'Liquidada', variant: 'secondary', className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400', icon: CheckCircle },
+  inadimplente: { label: 'Inadimplente', variant: 'destructive', className: '', icon: AlertCircle },
+  reprovada: { label: 'Reprovada', variant: 'destructive', className: '', icon: XCircle },
+  cancelada: { label: 'Cancelada', variant: 'outline', className: 'text-muted-foreground', icon: XCircle },
+}
+
+function PageSkeleton() {
+  return (
+    <div className="max-w-5xl mx-auto space-y-6">
+      <div className="flex items-center gap-3">
+        <Skeleton className="h-9 w-9 rounded-lg" />
+        <div className="space-y-2">
+          <Skeleton className="h-7 w-48" />
+          <Skeleton className="h-4 w-64" />
+        </div>
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
+          <Card>
+            <CardContent className="p-6 space-y-4">
+              <Skeleton className="h-5 w-40" />
+              <div className="space-y-3">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} className="h-10 w-full" />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-6 space-y-4">
+              <Skeleton className="h-5 w-40" />
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="space-y-1">
+                    <Skeleton className="h-3 w-20" />
+                    <Skeleton className="h-6 w-28" />
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+        <div>
+          <Card>
+            <CardContent className="p-6 space-y-4">
+              <Skeleton className="h-5 w-32" />
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-11 w-full" />
+              ))}
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 export default function OperacaoDetalheGestorPage() {
@@ -177,18 +239,14 @@ export default function OperacaoDetalheGestorPage() {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-      </div>
-    )
+    return <PageSkeleton />
   }
 
   if (!op) {
     return (
       <div className="text-center py-20">
-        <p className="text-gray-500">Operacao nao encontrada.</p>
-        <Link href="/gestor/operacoes" className="text-blue-600 mt-2 inline-block">Voltar</Link>
+        <p className="text-muted-foreground">Operacao nao encontrada.</p>
+        <Link href="/gestor/operacoes" className="text-primary mt-2 inline-block">Voltar</Link>
       </div>
     )
   }
@@ -202,17 +260,19 @@ export default function OperacaoDetalheGestorPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <Link href="/gestor/operacoes" className="p-2 hover:bg-gray-100 rounded-lg">
-            <ArrowLeft size={20} />
+          <Link href="/gestor/operacoes">
+            <Button variant="ghost" size="icon">
+              <ArrowLeft size={20} />
+            </Button>
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Operacao #{op.id.substring(0, 8)}</h1>
+            <h1 className="text-2xl font-bold text-foreground">Operacao #{op.id.substring(0, 8)}</h1>
             <div className="flex items-center gap-2 mt-1">
-              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${status.color}`}>
+              <Badge variant={status.variant} className={status.className}>
                 <StatusIcon size={12} />
                 {status.label}
-              </span>
-              <span className="text-sm text-gray-500">| {op.cedentes.razao_social} ({formatCNPJ(op.cedentes.cnpj)})</span>
+              </Badge>
+              <span className="text-sm text-muted-foreground">| {op.cedentes.razao_social} ({formatCNPJ(op.cedentes.cnpj)})</span>
             </div>
           </div>
         </div>
@@ -221,8 +281,8 @@ export default function OperacaoDetalheGestorPage() {
       {message && (
         <div className={`mb-4 p-3 rounded-lg text-sm ${
           messageType === 'success'
-            ? 'bg-green-50 text-green-700 border border-green-200'
-            : 'bg-red-50 text-red-700 border border-red-200'
+            ? 'bg-green-50 text-green-700 border border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800'
+            : 'bg-destructive/10 text-destructive border border-destructive/20'
         }`}>
           {message}
         </div>
@@ -230,22 +290,22 @@ export default function OperacaoDetalheGestorPage() {
 
       {/* Modal reprovar */}
       {showReprovar && (
-        <div className="mb-6 bg-red-50 border border-red-200 rounded-xl p-4">
-          <h3 className="font-semibold text-red-800 mb-2">Reprovar Operacao</h3>
+        <div className="mb-6 bg-destructive/10 border border-destructive/20 rounded-xl p-4">
+          <h3 className="font-semibold text-destructive mb-2">Reprovar Operacao</h3>
           <textarea
             value={motivo}
             onChange={(e) => setMotivo(e.target.value)}
             placeholder="Motivo da reprovacao (obrigatorio)..."
             rows={3}
-            className="w-full border border-red-300 rounded-lg px-3 py-2 text-sm mb-3"
+            className="w-full border border-destructive/30 rounded-lg px-3 py-2 text-sm mb-3 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-destructive/50"
           />
           <div className="flex gap-2">
-            <button onClick={() => { setShowReprovar(false); setMotivo('') }} className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm">
+            <Button variant="outline" size="sm" onClick={() => { setShowReprovar(false); setMotivo('') }}>
               Cancelar
-            </button>
-            <button onClick={handleReprovar} disabled={processing} className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm disabled:opacity-50">
-              {processing ? 'Reprovando...' : 'Confirmar'}
-            </button>
+            </Button>
+            <Button variant="destructive" size="sm" onClick={handleReprovar} disabled={processing}>
+              {processing ? <><Loader2 size={14} className="animate-spin" /> Reprovando...</> : 'Confirmar'}
+            </Button>
           </div>
         </div>
       )}
@@ -253,228 +313,223 @@ export default function OperacaoDetalheGestorPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           {/* NFs da operacao */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <FileText size={18} />
-              Notas Fiscais ({nfs.length})
-            </h2>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-gray-50">
-                    <th className="text-left px-3 py-2 text-xs text-gray-500 uppercase">NF</th>
-                    <th className="text-left px-3 py-2 text-xs text-gray-500 uppercase">Sacado</th>
-                    <th className="text-left px-3 py-2 text-xs text-gray-500 uppercase">Valor</th>
-                    <th className="text-left px-3 py-2 text-xs text-gray-500 uppercase">Vencimento</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {nfs.map((nf) => (
-                    <tr key={nf.id} className="hover:bg-gray-50">
-                      <td className="px-3 py-2 font-medium">{nf.numero_nf}</td>
-                      <td className="px-3 py-2">
-                        <p>{nf.razao_social_destinatario}</p>
-                        <p className="text-xs text-gray-400">{formatCNPJ(nf.cnpj_destinatario)}</p>
-                      </td>
-                      <td className="px-3 py-2 font-medium">{formatCurrency(nf.valor_bruto)}</td>
-                      <td className="px-3 py-2">{formatDate(nf.data_vencimento)}</td>
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <FileText size={18} />
+                Notas Fiscais ({nfs.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b bg-muted/50">
+                      <th className="text-left px-3 py-2 text-xs text-muted-foreground uppercase">NF</th>
+                      <th className="text-left px-3 py-2 text-xs text-muted-foreground uppercase">Sacado</th>
+                      <th className="text-left px-3 py-2 text-xs text-muted-foreground uppercase">Valor</th>
+                      <th className="text-left px-3 py-2 text-xs text-muted-foreground uppercase">Vencimento</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+                  </thead>
+                  <tbody className="divide-y">
+                    {nfs.map((nf) => (
+                      <tr key={nf.id} className="hover:bg-muted/30">
+                        <td className="px-3 py-2 font-medium tabular-nums">{nf.numero_nf}</td>
+                        <td className="px-3 py-2">
+                          <p className="text-foreground">{nf.razao_social_destinatario}</p>
+                          <p className="text-xs text-muted-foreground">{formatCNPJ(nf.cnpj_destinatario)}</p>
+                        </td>
+                        <td className="px-3 py-2 font-medium tabular-nums">{formatCurrency(nf.valor_bruto)}</td>
+                        <td className="px-3 py-2">{formatDate(nf.data_vencimento)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Dados da operacao */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="font-semibold text-gray-900 mb-4">Dados da Operacao</h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-              <div>
-                <span className="text-gray-500">Valor Bruto Total</span>
-                <p className="text-xl font-bold">{formatCurrency(op.valor_bruto_total)}</p>
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Dados da Operacao</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div>
+                  <span className="text-muted-foreground">Valor Bruto Total</span>
+                  <p className="text-xl font-bold tabular-nums">{formatCurrency(op.valor_bruto_total)}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Prazo</span>
+                  <p className="text-xl font-bold tabular-nums">{op.prazo_dias} dias</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Vencimento</span>
+                  <p className="font-medium">{formatDate(op.data_vencimento)}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Criada em</span>
+                  <p className="font-medium">{formatDate(op.created_at)}</p>
+                </div>
               </div>
-              <div>
-                <span className="text-gray-500">Prazo</span>
-                <p className="text-xl font-bold">{op.prazo_dias} dias</p>
-              </div>
-              <div>
-                <span className="text-gray-500">Vencimento</span>
-                <p className="font-medium">{formatDate(op.data_vencimento)}</p>
-              </div>
-              <div>
-                <span className="text-gray-500">Criada em</span>
-                <p className="font-medium">{formatDate(op.created_at)}</p>
-              </div>
-            </div>
-            {op.motivo_reprovacao && (
-              <div className="mt-4 p-3 bg-red-50 rounded-lg text-sm text-red-700">
-                <strong>Motivo da reprovacao:</strong> {op.motivo_reprovacao}
-              </div>
-            )}
-          </div>
+              {op.motivo_reprovacao && (
+                <div className="mt-4 p-3 bg-destructive/10 rounded-lg text-sm text-destructive">
+                  <strong>Motivo da reprovacao:</strong> {op.motivo_reprovacao}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         {/* Sidebar — painel de aprovacao */}
         <div className="space-y-6">
           {canAnalyze ? (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <Calculator size={18} className="text-blue-600" />
-                <h3 className="font-semibold text-gray-900">Definir Termos</h3>
-              </div>
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Calculator size={18} className="text-primary" />
+                  Definir Termos
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0 space-y-4">
+                {/* Taxas pre-configuradas */}
+                {taxasConfig.length > 0 && (
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-2">Taxas pre-configuradas</p>
+                    <div className="space-y-1">
+                      {taxasConfig.map((t, i) => (
+                        <button
+                          key={i}
+                          onClick={() => aplicarTaxaConfig(t)}
+                          className={`w-full flex justify-between text-xs px-3 py-2 rounded-lg transition-colors ${
+                            taxa === t.taxa_percentual
+                              ? 'bg-primary/10 text-primary font-medium'
+                              : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                          }`}
+                        >
+                          <span className="tabular-nums">{t.prazo_min}-{t.prazo_max} dias</span>
+                          <span className="tabular-nums">{t.taxa_percentual}% a.m.</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-              {/* Taxas pre-configuradas */}
-              {taxasConfig.length > 0 && (
-                <div className="mb-4">
-                  <p className="text-xs font-medium text-gray-500 mb-2">Taxas pre-configuradas</p>
-                  <div className="space-y-1">
-                    {taxasConfig.map((t, i) => (
-                      <button
-                        key={i}
-                        onClick={() => aplicarTaxaConfig(t)}
-                        className={`w-full flex justify-between text-xs px-3 py-2 rounded-lg transition-colors ${
-                          taxa === t.taxa_percentual
-                            ? 'bg-blue-100 text-blue-700 font-medium'
-                            : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-                        }`}
-                      >
-                        <span>{t.prazo_min}-{t.prazo_max} dias</span>
-                        <span>{t.taxa_percentual}% a.m.</span>
-                      </button>
-                    ))}
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="taxa">Taxa (% a.m.)</Label>
+                    <Input
+                      id="taxa"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={taxa}
+                      onChange={(e) => setTaxa(parseFloat(e.target.value) || 0)}
+                      className="h-11 tabular-nums"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="prazo">Prazo (dias)</Label>
+                    <Input
+                      id="prazo"
+                      type="number"
+                      min="1"
+                      value={prazo}
+                      onChange={(e) => setPrazo(parseInt(e.target.value) || 0)}
+                      className="h-11 tabular-nums"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="valorLiquido">Valor Liquido Desembolso</Label>
+                    <Input
+                      id="valorLiquido"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={valorLiquido}
+                      onChange={(e) => setValorLiquido(parseFloat(e.target.value) || 0)}
+                      className="h-11 tabular-nums"
+                    />
                   </div>
                 </div>
-              )}
 
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Taxa (% a.m.)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={taxa}
-                    onChange={(e) => setTaxa(parseFloat(e.target.value) || 0)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                  />
+                {/* Resumo visual */}
+                <div className="p-3 bg-muted/50 rounded-lg space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Bruto</span>
+                    <span className="font-medium tabular-nums">{formatCurrency(op.valor_bruto_total)}</span>
+                  </div>
+                  <div className="flex justify-between text-destructive">
+                    <span className="tabular-nums">(-) Desconto ({taxa}% x {prazo}d)</span>
+                    <span className="tabular-nums">{formatCurrency(op.valor_bruto_total - valorLiquido)}</span>
+                  </div>
+                  <div className="flex justify-between border-t pt-2">
+                    <span className="font-semibold">Liquido</span>
+                    <span className="font-bold text-green-700 dark:text-green-400 text-lg tabular-nums">{formatCurrency(valorLiquido)}</span>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Prazo (dias)</label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={prazo}
-                    onChange={(e) => setPrazo(parseInt(e.target.value) || 0)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Valor Liquido Desembolso</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={valorLiquido}
-                    onChange={(e) => setValorLiquido(parseFloat(e.target.value) || 0)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                  />
-                </div>
-              </div>
 
-              {/* Resumo visual */}
-              <div className="mt-4 p-3 bg-gray-50 rounded-lg space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Bruto</span>
-                  <span className="font-medium">{formatCurrency(op.valor_bruto_total)}</span>
+                <div className="space-y-2">
+                  <Button
+                    onClick={handleAprovar}
+                    disabled={processing}
+                    className="w-full bg-green-600 hover:bg-green-700 text-white h-11"
+                  >
+                    {processing ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
+                    {processing ? 'Processando...' : 'Aprovar e Desembolsar'}
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={() => setShowReprovar(true)}
+                    disabled={processing}
+                    className="w-full"
+                  >
+                    <XCircle size={16} />
+                    Reprovar
+                  </Button>
                 </div>
-                <div className="flex justify-between text-red-600">
-                  <span>(-) Desconto ({taxa}% x {prazo}d)</span>
-                  <span>{formatCurrency(op.valor_bruto_total - valorLiquido)}</span>
-                </div>
-                <div className="flex justify-between border-t pt-2">
-                  <span className="font-semibold">Liquido</span>
-                  <span className="font-bold text-green-700 text-lg">{formatCurrency(valorLiquido)}</span>
-                </div>
-              </div>
-
-              <div className="mt-4 space-y-2">
-                <button
-                  onClick={handleAprovar}
-                  disabled={processing}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 font-medium"
-                >
-                  <CheckCircle size={18} />
-                  {processing ? 'Processando...' : 'Aprovar e Desembolsar'}
-                </button>
-                <button
-                  onClick={() => setShowReprovar(true)}
-                  disabled={processing}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 disabled:opacity-50 text-sm"
-                >
-                  <XCircle size={16} />
-                  Reprovar
-                </button>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           ) : (
             // Status somente leitura
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h3 className="font-semibold text-gray-900 mb-3">Resumo</h3>
-              <div className="space-y-2 text-sm">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Resumo</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0 space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Valor Bruto</span>
-                  <span className="font-bold">{formatCurrency(op.valor_bruto_total)}</span>
+                  <span className="text-muted-foreground">Valor Bruto</span>
+                  <span className="font-bold tabular-nums">{formatCurrency(op.valor_bruto_total)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Taxa</span>
-                  <span className="font-medium">{op.taxa_desconto}% a.m.</span>
+                  <span className="text-muted-foreground">Taxa</span>
+                  <span className="font-medium tabular-nums">{op.taxa_desconto}% a.m.</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Prazo</span>
-                  <span className="font-medium">{op.prazo_dias} dias</span>
+                  <span className="text-muted-foreground">Prazo</span>
+                  <span className="font-medium tabular-nums">{op.prazo_dias} dias</span>
                 </div>
                 <div className="flex justify-between border-t pt-2">
                   <span className="font-semibold">Valor Liquido</span>
-                  <span className="font-bold text-green-700">{formatCurrency(op.valor_liquido_desembolso)}</span>
+                  <span className="font-bold text-green-700 dark:text-green-400 tabular-nums">{formatCurrency(op.valor_liquido_desembolso)}</span>
                 </div>
                 {op.aprovado_em && (
-                  <div className="flex justify-between text-gray-400 text-xs mt-2">
+                  <div className="flex justify-between text-muted-foreground text-xs mt-2">
                     <span>Aprovada em</span>
                     <span>{formatDate(op.aprovado_em)}</span>
                   </div>
                 )}
-              </div>
 
-              {/* Acoes de liquidacao/inadimplencia */}
-              {(op.status === 'em_andamento' || op.status === 'inadimplente') && (
-                <div className="mt-4 space-y-2 border-t pt-4">
-                  <button
-                    onClick={async () => {
-                      setProcessing(true)
-                      const result = await liquidarOperacao(op.id)
-                      if (result?.success) {
-                        setMessage(result.message || 'Liquidada!')
-                        setMessageType('success')
-                        setTimeout(() => router.push('/gestor/operacoes'), 1500)
-                      } else {
-                        setMessage(result?.message || 'Erro.')
-                        setMessageType('error')
-                      }
-                      setProcessing(false)
-                    }}
-                    disabled={processing}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm font-medium"
-                  >
-                    <CheckCircle size={16} />
-                    {processing ? 'Processando...' : 'Confirmar Liquidacao'}
-                  </button>
-                  {op.status === 'em_andamento' && (
-                    <button
+                {/* Acoes de liquidacao/inadimplencia */}
+                {(op.status === 'em_andamento' || op.status === 'inadimplente') && (
+                  <div className="space-y-2 border-t pt-4 mt-2">
+                    <Button
                       onClick={async () => {
                         setProcessing(true)
-                        const result = await marcarInadimplente(op.id)
+                        const result = await liquidarOperacao(op.id)
                         if (result?.success) {
-                          setMessage(result.message || 'Marcada.')
+                          setMessage(result.message || 'Liquidada!')
                           setMessageType('success')
                           setTimeout(() => router.push('/gestor/operacoes'), 1500)
                         } else {
@@ -484,22 +539,45 @@ export default function OperacaoDetalheGestorPage() {
                         setProcessing(false)
                       }}
                       disabled={processing}
-                      className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 disabled:opacity-50 text-sm"
+                      className="w-full bg-green-600 hover:bg-green-700 text-white"
                     >
-                      <AlertCircle size={16} />
-                      Marcar Inadimplente
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
+                      {processing ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
+                      {processing ? 'Processando...' : 'Confirmar Liquidacao'}
+                    </Button>
+                    {op.status === 'em_andamento' && (
+                      <Button
+                        variant="destructive"
+                        onClick={async () => {
+                          setProcessing(true)
+                          const result = await marcarInadimplente(op.id)
+                          if (result?.success) {
+                            setMessage(result.message || 'Marcada.')
+                            setMessageType('success')
+                            setTimeout(() => router.push('/gestor/operacoes'), 1500)
+                          } else {
+                            setMessage(result?.message || 'Erro.')
+                            setMessageType('error')
+                          }
+                          setProcessing(false)
+                        }}
+                        disabled={processing}
+                        className="w-full"
+                      >
+                        <AlertCircle size={14} />
+                        Marcar Inadimplente
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           )}
 
           {/* Link para configurar taxas */}
           {canAnalyze && (
             <Link
               href={`/gestor/cedentes/${op.cedente_id}`}
-              className="block text-center text-sm text-blue-600 hover:text-blue-800"
+              className="block text-center text-sm text-primary hover:underline"
             >
               Gerenciar taxas deste cedente
             </Link>

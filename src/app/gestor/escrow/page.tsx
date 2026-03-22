@@ -14,6 +14,19 @@ import {
   XCircle,
   AlertCircle,
 } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
+} from '@/components/ui/table'
 
 interface ContaEscrowGestor {
   id: string
@@ -28,10 +41,10 @@ interface ContaEscrowGestor {
   }
 }
 
-const statusConfig: Record<string, { label: string; color: string; icon: typeof CheckCircle }> = {
-  ativa: { label: 'Ativa', color: 'bg-green-100 text-green-700', icon: CheckCircle },
-  bloqueada: { label: 'Bloqueada', color: 'bg-yellow-100 text-yellow-700', icon: AlertCircle },
-  encerrada: { label: 'Encerrada', color: 'bg-red-100 text-red-700', icon: XCircle },
+const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; icon: typeof CheckCircle }> = {
+  ativa: { label: 'Ativa', variant: 'default', icon: CheckCircle },
+  bloqueada: { label: 'Bloqueada', variant: 'secondary', icon: AlertCircle },
+  encerrada: { label: 'Encerrada', variant: 'destructive', icon: XCircle },
 }
 
 export default function EscrowGestorPage() {
@@ -70,121 +83,157 @@ export default function EscrowGestorPage() {
   return (
     <div className="max-w-6xl mx-auto">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Contas Escrow</h1>
-        <p className="text-gray-500">Visao consolidada de todas as contas escrow.</p>
+        <h1 className="text-2xl font-bold text-foreground">Contas Escrow</h1>
+        <p className="text-muted-foreground">Visao consolidada de todas as contas escrow.</p>
       </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-          <div className="flex items-center gap-2 mb-2">
-            <Wallet size={18} className="text-blue-600" />
-            <span className="text-xs text-gray-500">Total Contas</span>
-          </div>
-          <p className="text-2xl font-bold">{contas.length}</p>
-          <p className="text-xs text-green-600 mt-1">{contasAtivas} ativas</p>
-        </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-          <div className="flex items-center gap-2 mb-2">
-            <TrendingUp size={18} className="text-green-600" />
-            <span className="text-xs text-gray-500">Saldo Disponivel Total</span>
-          </div>
-          <p className="text-2xl font-bold text-green-700">{formatCurrency(saldoTotal)}</p>
-        </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-          <div className="flex items-center gap-2 mb-2">
-            <Lock size={18} className="text-yellow-600" />
-            <span className="text-xs text-gray-500">Saldo Bloqueado Total</span>
-          </div>
-          <p className="text-2xl font-bold text-yellow-700">{formatCurrency(saldoBloqueadoTotal)}</p>
-        </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-          <div className="flex items-center gap-2 mb-2">
-            <Wallet size={18} className="text-purple-600" />
-            <span className="text-xs text-gray-500">Volume Custodiado</span>
-          </div>
-          <p className="text-2xl font-bold text-purple-700">{formatCurrency(saldoTotal + saldoBloqueadoTotal)}</p>
-        </div>
+        {loading ? (
+          Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i}>
+              <CardContent className="p-5">
+                <Skeleton className="h-4 w-24 mb-2" />
+                <Skeleton className="h-8 w-32" />
+              </CardContent>
+            </Card>
+          ))
+        ) : (
+          <>
+            <Card>
+              <CardContent className="p-5">
+                <div className="flex items-center gap-2 mb-2">
+                  <Wallet size={18} className="text-blue-600" />
+                  <span className="text-xs text-muted-foreground">Total Contas</span>
+                </div>
+                <p className="text-2xl font-bold tabular-nums">{contas.length}</p>
+                <p className="text-xs text-green-600 mt-1">{contasAtivas} ativas</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-5">
+                <div className="flex items-center gap-2 mb-2">
+                  <TrendingUp size={18} className="text-green-600" />
+                  <span className="text-xs text-muted-foreground">Saldo Disponivel Total</span>
+                </div>
+                <p className="text-2xl font-bold text-green-700 tabular-nums">{formatCurrency(saldoTotal)}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-5">
+                <div className="flex items-center gap-2 mb-2">
+                  <Lock size={18} className="text-yellow-600" />
+                  <span className="text-xs text-muted-foreground">Saldo Bloqueado Total</span>
+                </div>
+                <p className="text-2xl font-bold text-yellow-700 tabular-nums">{formatCurrency(saldoBloqueadoTotal)}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-5">
+                <div className="flex items-center gap-2 mb-2">
+                  <Wallet size={18} className="text-purple-600" />
+                  <span className="text-xs text-muted-foreground">Volume Custodiado</span>
+                </div>
+                <p className="text-2xl font-bold text-purple-700 tabular-nums">{formatCurrency(saldoTotal + saldoBloqueadoTotal)}</p>
+              </CardContent>
+            </Card>
+          </>
+        )}
       </div>
 
       {/* Busca */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-4">
-        <div className="relative">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Buscar por identificador, razao social ou CNPJ..."
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-      </div>
+      <Card className="mb-4">
+        <CardContent className="p-4">
+          <div className="relative">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Buscar por identificador, razao social ou CNPJ..."
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Tabela */}
       {loading ? (
-        <div className="text-center py-12">
-          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
-        </div>
+        <Card>
+          <CardContent className="p-0">
+            <div className="divide-y">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-4 px-4 py-3">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="h-4 w-24 ml-auto" />
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-5 w-16" />
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       ) : contasFiltradas.length === 0 ? (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-          <Wallet size={48} className="mx-auto text-gray-300 mb-3" />
-          <p className="text-gray-500">Nenhuma conta escrow encontrada.</p>
-        </div>
+        <Card>
+          <CardContent className="p-12 text-center">
+            <Wallet size={48} className="mx-auto text-muted-foreground mb-3 opacity-30" />
+            <p className="text-muted-foreground">Nenhuma conta escrow encontrada.</p>
+          </CardContent>
+        </Card>
       ) : (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-200 bg-gray-50">
-                  <th className="text-left text-xs font-medium text-gray-500 uppercase px-4 py-3">Identificador</th>
-                  <th className="text-left text-xs font-medium text-gray-500 uppercase px-4 py-3">Cedente</th>
-                  <th className="text-right text-xs font-medium text-gray-500 uppercase px-4 py-3">Disponivel</th>
-                  <th className="text-right text-xs font-medium text-gray-500 uppercase px-4 py-3">Bloqueado</th>
-                  <th className="text-left text-xs font-medium text-gray-500 uppercase px-4 py-3">Status</th>
-                  <th className="text-left text-xs font-medium text-gray-500 uppercase px-4 py-3">Criada em</th>
-                  <th className="text-left text-xs font-medium text-gray-500 uppercase px-4 py-3">Acoes</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
+        <Card className="overflow-hidden">
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-xs uppercase px-4 py-3">Identificador</TableHead>
+                  <TableHead className="text-xs uppercase px-4 py-3">Cedente</TableHead>
+                  <TableHead className="text-xs uppercase px-4 py-3 text-right">Disponivel</TableHead>
+                  <TableHead className="text-xs uppercase px-4 py-3 text-right">Bloqueado</TableHead>
+                  <TableHead className="text-xs uppercase px-4 py-3">Status</TableHead>
+                  <TableHead className="text-xs uppercase px-4 py-3">Criada em</TableHead>
+                  <TableHead className="text-xs uppercase px-4 py-3">Acoes</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {contasFiltradas.map((conta) => {
                   const st = statusConfig[conta.status] || statusConfig.ativa
                   const StIcon = st.icon
                   return (
-                    <tr key={conta.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 font-mono text-sm">{conta.identificador}</td>
-                      <td className="px-4 py-3">
-                        <p className="text-sm font-medium text-gray-900">{conta.cedentes.razao_social}</p>
-                        <p className="text-xs text-gray-400">{formatCNPJ(conta.cedentes.cnpj)}</p>
-                      </td>
-                      <td className="px-4 py-3 text-right text-sm font-bold text-green-700">
+                    <TableRow key={conta.id}>
+                      <TableCell className="px-4 py-3 font-mono text-sm">{conta.identificador}</TableCell>
+                      <TableCell className="px-4 py-3">
+                        <p className="text-sm font-medium text-foreground">{conta.cedentes.razao_social}</p>
+                        <p className="text-xs text-muted-foreground">{formatCNPJ(conta.cedentes.cnpj)}</p>
+                      </TableCell>
+                      <TableCell className="px-4 py-3 text-right text-sm font-bold text-green-700 tabular-nums">
                         {formatCurrency(conta.saldo_disponivel)}
-                      </td>
-                      <td className="px-4 py-3 text-right text-sm font-medium text-yellow-700">
+                      </TableCell>
+                      <TableCell className="px-4 py-3 text-right text-sm font-medium text-yellow-700 tabular-nums">
                         {formatCurrency(conta.saldo_bloqueado)}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${st.color}`}>
+                      </TableCell>
+                      <TableCell className="px-4 py-3">
+                        <Badge variant={st.variant} className="inline-flex items-center gap-1">
                           <StIcon size={12} />
                           {st.label}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{formatDate(conta.created_at)}</td>
-                      <td className="px-4 py-3">
-                        <Link
-                          href={`/gestor/escrow/${conta.id}`}
-                          className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800"
-                        >
-                          <Eye size={14} /> Extrato
-                        </Link>
-                      </td>
-                    </tr>
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="px-4 py-3 text-sm text-muted-foreground">{formatDate(conta.created_at)}</TableCell>
+                      <TableCell className="px-4 py-3">
+                        <Button variant="ghost" size="sm" className="h-auto p-0 text-blue-600 hover:text-blue-800 hover:bg-transparent" onClick={() => {}}>
+                          <Link href={`/gestor/escrow/${conta.id}`} className="inline-flex items-center gap-1 text-sm">
+                            <Eye size={14} /> Extrato
+                          </Link>
+                        </Button>
+                      </TableCell>
+                    </TableRow>
                   )
                 })}
-              </tbody>
-            </table>
-          </div>
-        </div>
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       )}
     </div>
   )

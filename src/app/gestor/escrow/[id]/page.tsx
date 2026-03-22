@@ -14,6 +14,26 @@ import {
   Lock,
   TrendingUp,
 } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
+} from '@/components/ui/table'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 interface ContaEscrow {
   id: string
@@ -82,8 +102,45 @@ export default function EscrowDetalhePage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+      <div className="max-w-5xl mx-auto">
+        <Skeleton className="h-4 w-20 mb-6" />
+        <Skeleton className="h-8 w-64 mb-2" />
+        <Skeleton className="h-4 w-48 mb-6" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Card key={i}>
+              <CardContent className="p-5">
+                <Skeleton className="h-4 w-20 mb-2" />
+                <Skeleton className="h-8 w-32" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <Card key={i}>
+              <CardContent className="p-4">
+                <Skeleton className="h-4 w-32 mb-2" />
+                <Skeleton className="h-7 w-40" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <Card>
+          <CardContent className="p-0">
+            <div className="divide-y">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-4 px-4 py-3">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-5 w-16" />
+                  <Skeleton className="h-4 w-48" />
+                  <Skeleton className="h-4 w-24 ml-auto" />
+                  <Skeleton className="h-4 w-24" />
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     )
   }
@@ -91,7 +148,7 @@ export default function EscrowDetalhePage() {
   if (!conta) {
     return (
       <div className="text-center py-20">
-        <p className="text-gray-500">Conta escrow nao encontrada.</p>
+        <p className="text-muted-foreground">Conta escrow nao encontrada.</p>
         <Link href="/gestor/escrow" className="text-blue-600 mt-2 inline-block">Voltar</Link>
       </div>
     )
@@ -99,45 +156,51 @@ export default function EscrowDetalhePage() {
 
   return (
     <div className="max-w-5xl mx-auto">
-      <Link href="/gestor/escrow" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4">
-        <ArrowLeft size={16} /> Voltar
-      </Link>
+      <Button variant="ghost" size="sm" className="mb-4 px-0 text-muted-foreground hover:text-foreground hover:bg-transparent">
+        <Link href="/gestor/escrow" className="inline-flex items-center gap-1 text-sm">
+          <ArrowLeft size={16} /> Voltar
+        </Link>
+      </Button>
 
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{conta.identificador}</h1>
-          <p className="text-gray-500">{conta.cedentes.razao_social} — {formatCNPJ(conta.cedentes.cnpj)}</p>
+          <h1 className="text-2xl font-bold text-foreground">{conta.identificador}</h1>
+          <p className="text-muted-foreground">{conta.cedentes.razao_social} — {formatCNPJ(conta.cedentes.cnpj)}</p>
         </div>
-        <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-          conta.status === 'ativa' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-        }`}>
+        <Badge variant={conta.status === 'ativa' ? 'default' : 'destructive'}>
           {conta.status}
-        </span>
+        </Badge>
       </div>
 
       {/* Saldos */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-          <div className="flex items-center gap-2 mb-1">
-            <Wallet size={18} className="text-green-600" />
-            <span className="text-xs text-gray-500">Disponivel</span>
-          </div>
-          <p className="text-2xl font-bold text-green-700">{formatCurrency(conta.saldo_disponivel)}</p>
-        </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-          <div className="flex items-center gap-2 mb-1">
-            <Lock size={18} className="text-yellow-600" />
-            <span className="text-xs text-gray-500">Bloqueado</span>
-          </div>
-          <p className="text-2xl font-bold text-yellow-700">{formatCurrency(conta.saldo_bloqueado)}</p>
-        </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-          <div className="flex items-center gap-2 mb-1">
-            <TrendingUp size={18} className="text-blue-600" />
-            <span className="text-xs text-gray-500">Total</span>
-          </div>
-          <p className="text-2xl font-bold text-blue-700">{formatCurrency(conta.saldo_disponivel + conta.saldo_bloqueado)}</p>
-        </div>
+        <Card>
+          <CardContent className="p-5">
+            <div className="flex items-center gap-2 mb-1">
+              <Wallet size={18} className="text-green-600" />
+              <span className="text-xs text-muted-foreground">Disponivel</span>
+            </div>
+            <p className="text-2xl font-bold text-green-700 tabular-nums">{formatCurrency(conta.saldo_disponivel)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-5">
+            <div className="flex items-center gap-2 mb-1">
+              <Lock size={18} className="text-yellow-600" />
+              <span className="text-xs text-muted-foreground">Bloqueado</span>
+            </div>
+            <p className="text-2xl font-bold text-yellow-700 tabular-nums">{formatCurrency(conta.saldo_bloqueado)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-5">
+            <div className="flex items-center gap-2 mb-1">
+              <TrendingUp size={18} className="text-blue-600" />
+              <span className="text-xs text-muted-foreground">Total</span>
+            </div>
+            <p className="text-2xl font-bold text-blue-700 tabular-nums">{formatCurrency(conta.saldo_disponivel + conta.saldo_bloqueado)}</p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Resumo periodo */}
@@ -146,91 +209,107 @@ export default function EscrowDetalhePage() {
           <ArrowUpCircle size={24} className="text-green-600" />
           <div>
             <p className="text-xs text-green-600 font-medium">Creditos no periodo</p>
-            <p className="text-xl font-bold text-green-700">{formatCurrency(totalCreditos)}</p>
+            <p className="text-xl font-bold text-green-700 tabular-nums">{formatCurrency(totalCreditos)}</p>
           </div>
         </div>
         <div className="bg-red-50 rounded-xl p-4 flex items-center gap-3">
-          <ArrowDownCircle size={24} className="text-red-600" />
+          <ArrowDownCircle size={24} className="text-destructive" />
           <div>
-            <p className="text-xs text-red-600 font-medium">Debitos no periodo</p>
-            <p className="text-xl font-bold text-red-700">{formatCurrency(totalDebitos)}</p>
+            <p className="text-xs text-destructive font-medium">Debitos no periodo</p>
+            <p className="text-xl font-bold text-destructive tabular-nums">{formatCurrency(totalDebitos)}</p>
           </div>
         </div>
       </div>
 
       {/* Filtros */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-4">
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="flex items-center gap-2 flex-1">
-            <Calendar size={16} className="text-gray-400" />
-            <input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)}
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-            <span className="text-gray-400">ate</span>
-            <input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)}
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+      <Card className="mb-4">
+        <CardContent className="p-4">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex items-center gap-2 flex-1">
+              <Calendar size={16} className="text-muted-foreground shrink-0" />
+              <Input
+                type="date"
+                value={dataInicio}
+                onChange={(e) => setDataInicio(e.target.value)}
+                className="w-auto"
+              />
+              <span className="text-muted-foreground text-sm">ate</span>
+              <Input
+                type="date"
+                value={dataFim}
+                onChange={(e) => setDataFim(e.target.value)}
+                className="w-auto"
+              />
+            </div>
+            <Select value={filtroTipo} onValueChange={(v) => { if (v) setFiltroTipo(v) }}>
+              <SelectTrigger className="w-36">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos</SelectItem>
+                <SelectItem value="credito">Creditos</SelectItem>
+                <SelectItem value="debito">Debitos</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-          <select value={filtroTipo} onChange={(e) => setFiltroTipo(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white">
-            <option value="todos">Todos</option>
-            <option value="credito">Creditos</option>
-            <option value="debito">Debitos</option>
-          </select>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Tabela de movimentos */}
       {movsFiltrados.length === 0 ? (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-          <p className="text-gray-500">Nenhum movimento encontrado.</p>
-        </div>
+        <Card>
+          <CardContent className="p-12 text-center">
+            <p className="text-muted-foreground">Nenhum movimento encontrado.</p>
+          </CardContent>
+        </Card>
       ) : (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-200 bg-gray-50">
-                  <th className="text-left text-xs font-medium text-gray-500 uppercase px-4 py-3">Data</th>
-                  <th className="text-left text-xs font-medium text-gray-500 uppercase px-4 py-3">Tipo</th>
-                  <th className="text-left text-xs font-medium text-gray-500 uppercase px-4 py-3">Descricao</th>
-                  <th className="text-right text-xs font-medium text-gray-500 uppercase px-4 py-3">Valor</th>
-                  <th className="text-right text-xs font-medium text-gray-500 uppercase px-4 py-3">Saldo</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
+        <Card className="overflow-hidden">
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-xs uppercase px-4 py-3">Data</TableHead>
+                  <TableHead className="text-xs uppercase px-4 py-3">Tipo</TableHead>
+                  <TableHead className="text-xs uppercase px-4 py-3">Descricao</TableHead>
+                  <TableHead className="text-xs uppercase px-4 py-3 text-right">Valor</TableHead>
+                  <TableHead className="text-xs uppercase px-4 py-3 text-right">Saldo</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {movsFiltrados.map((mov) => (
-                  <tr key={mov.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm text-gray-600">
+                  <TableRow key={mov.id}>
+                    <TableCell className="px-4 py-3 text-sm text-muted-foreground tabular-nums">
                       {new Date(mov.created_at).toLocaleString('pt-BR', {
                         day: '2-digit', month: '2-digit', year: 'numeric',
                         hour: '2-digit', minute: '2-digit',
                       })}
-                    </td>
-                    <td className="px-4 py-3">
+                    </TableCell>
+                    <TableCell className="px-4 py-3">
                       {mov.tipo === 'credito' ? (
-                        <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
+                        <Badge variant="default" className="inline-flex items-center gap-1">
                           <ArrowUpCircle size={12} /> Credito
-                        </span>
+                        </Badge>
                       ) : (
-                        <span className="inline-flex items-center gap-1 text-xs font-medium text-red-700 bg-red-100 px-2 py-0.5 rounded-full">
+                        <Badge variant="destructive" className="inline-flex items-center gap-1">
                           <ArrowDownCircle size={12} /> Debito
-                        </span>
+                        </Badge>
                       )}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-900">{mov.descricao}</td>
-                    <td className={`px-4 py-3 text-sm text-right font-bold ${
-                      mov.tipo === 'credito' ? 'text-green-700' : 'text-red-700'
+                    </TableCell>
+                    <TableCell className="px-4 py-3 text-sm text-foreground">{mov.descricao}</TableCell>
+                    <TableCell className={`px-4 py-3 text-sm text-right font-bold tabular-nums ${
+                      mov.tipo === 'credito' ? 'text-green-700' : 'text-destructive'
                     }`}>
                       {mov.tipo === 'credito' ? '+' : '-'}{formatCurrency(mov.valor)}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-right text-gray-600 font-medium">
+                    </TableCell>
+                    <TableCell className="px-4 py-3 text-sm text-right text-muted-foreground font-medium tabular-nums">
                       {formatCurrency(mov.saldo_apos)}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       )}
     </div>
   )

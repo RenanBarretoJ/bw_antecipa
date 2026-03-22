@@ -16,6 +16,12 @@ import {
   Upload,
   Banknote,
 } from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Skeleton } from '@/components/ui/skeleton'
 
 interface NfCompleta {
   id: string
@@ -43,14 +49,14 @@ interface NfCompleta {
   cedente_id: string
 }
 
-const statusConfig: Record<string, { label: string; color: string; icon: typeof CheckCircle }> = {
-  rascunho: { label: 'Rascunho', color: 'bg-gray-100 text-gray-600', icon: FileText },
-  submetida: { label: 'Submetida', color: 'bg-blue-100 text-blue-700', icon: Upload },
-  em_analise: { label: 'Em Analise', color: 'bg-yellow-100 text-yellow-700', icon: AlertCircle },
-  aprovada: { label: 'Aprovada', color: 'bg-green-100 text-green-700', icon: CheckCircle },
-  em_antecipacao: { label: 'Em Antecipacao', color: 'bg-purple-100 text-purple-700', icon: Banknote },
-  liquidada: { label: 'Liquidada', color: 'bg-emerald-100 text-emerald-700', icon: CheckCircle },
-  cancelada: { label: 'Cancelada/Reprovada', color: 'bg-red-100 text-red-700', icon: XCircle },
+const statusConfig: Record<string, { label: string; icon: typeof CheckCircle; variant: 'default' | 'secondary' | 'destructive' | 'outline'; className: string }> = {
+  rascunho: { label: 'Rascunho', icon: FileText, variant: 'secondary', className: '' },
+  submetida: { label: 'Submetida', icon: Upload, variant: 'default', className: 'bg-blue-100 text-blue-700 border-transparent' },
+  em_analise: { label: 'Em Analise', icon: AlertCircle, variant: 'default', className: 'bg-yellow-100 text-yellow-700 border-transparent' },
+  aprovada: { label: 'Aprovada', icon: CheckCircle, variant: 'default', className: 'bg-green-100 text-green-700 border-transparent' },
+  em_antecipacao: { label: 'Em Antecipacao', icon: Banknote, variant: 'default', className: 'bg-purple-100 text-purple-700 border-transparent' },
+  liquidada: { label: 'Liquidada', icon: CheckCircle, variant: 'default', className: 'bg-emerald-100 text-emerald-700 border-transparent' },
+  cancelada: { label: 'Cancelada/Reprovada', icon: XCircle, variant: 'destructive', className: '' },
 }
 
 export default function NfDetalheGestorPage() {
@@ -127,8 +133,19 @@ export default function NfDetalheGestorPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+      <div className="max-w-5xl mx-auto space-y-6">
+        <Skeleton className="h-10 w-64" />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-6">
+            <Skeleton className="h-40 w-full" />
+            <Skeleton className="h-32 w-full" />
+            <Skeleton className="h-40 w-full" />
+          </div>
+          <div className="space-y-6">
+            <Skeleton className="h-40 w-full" />
+            <Skeleton className="h-60 w-full" />
+          </div>
+        </div>
       </div>
     )
   }
@@ -136,8 +153,8 @@ export default function NfDetalheGestorPage() {
   if (!nf) {
     return (
       <div className="max-w-4xl mx-auto text-center py-20">
-        <p className="text-gray-500">Nota fiscal nao encontrada.</p>
-        <Link href="/gestor/notas-fiscais" className="text-blue-600 hover:text-blue-800 mt-2 inline-block">
+        <p className="text-muted-foreground">Nota fiscal nao encontrada.</p>
+        <Link href="/gestor/notas-fiscais" className="text-primary hover:underline mt-2 inline-block">
           Voltar
         </Link>
       </div>
@@ -154,38 +171,40 @@ export default function NfDetalheGestorPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <Link href="/gestor/notas-fiscais" className="p-2 hover:bg-gray-100 rounded-lg">
-            <ArrowLeft size={20} />
+          <Link href="/gestor/notas-fiscais">
+            <Button variant="ghost" size="icon">
+              <ArrowLeft size={20} />
+            </Button>
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">
+            <h1 className="text-2xl font-bold text-foreground">
               Analise NF {nf.numero_nf || '(sem numero)'}
             </h1>
-            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${status.color}`}>
+            <Badge variant={status.variant} className={status.className}>
               <StatusIcon size={12} />
               {status.label}
-            </span>
+            </Badge>
           </div>
         </div>
 
         {canAnalyze && (
           <div className="flex gap-2">
-            <button
+            <Button
+              variant="destructive"
               onClick={() => setShowReprovar(true)}
               disabled={processing}
-              className="flex items-center gap-2 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 disabled:opacity-50"
             >
               <XCircle size={16} />
               Reprovar
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={handleAprovar}
               disabled={processing}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+              className="bg-green-600 hover:bg-green-700 text-white"
             >
               <CheckCircle size={16} />
               {processing ? 'Processando...' : 'Aprovar NF'}
-            </button>
+            </Button>
           </div>
         )}
       </div>
@@ -194,7 +213,7 @@ export default function NfDetalheGestorPage() {
         <div className={`mb-4 p-3 rounded-lg text-sm ${
           messageType === 'success'
             ? 'bg-green-50 text-green-700 border border-green-200'
-            : 'bg-red-50 text-red-700 border border-red-200'
+            : 'bg-destructive/10 text-destructive border border-destructive/20'
         }`}>
           {message}
         </div>
@@ -202,29 +221,37 @@ export default function NfDetalheGestorPage() {
 
       {/* Modal reprovar */}
       {showReprovar && (
-        <div className="mb-6 bg-red-50 border border-red-200 rounded-xl p-4">
-          <h3 className="font-semibold text-red-800 mb-2">Reprovar NF</h3>
-          <textarea
-            value={motivo}
-            onChange={(e) => setMotivo(e.target.value)}
-            placeholder="Informe o motivo da reprovacao (obrigatorio)..."
-            rows={3}
-            className="w-full border border-red-300 rounded-lg px-3 py-2 text-sm mb-3"
-          />
+        <div className="mb-6 bg-destructive/5 border border-destructive/20 rounded-xl p-4">
+          <h3 className="font-semibold text-destructive mb-3">Reprovar NF</h3>
+          <div className="mb-3">
+            <Label htmlFor="motivo-reprovar" className="text-sm mb-1 block">
+              Motivo da reprovacao (obrigatorio)
+            </Label>
+            <textarea
+              id="motivo-reprovar"
+              value={motivo}
+              onChange={(e) => setMotivo(e.target.value)}
+              placeholder="Informe o motivo da reprovacao..."
+              rows={3}
+              className="w-full border border-input rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
           <div className="flex gap-2">
-            <button
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => { setShowReprovar(false); setMotivo('') }}
-              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm"
             >
               Cancelar
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
               onClick={handleReprovar}
               disabled={processing}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 text-sm"
             >
               {processing ? 'Reprovando...' : 'Confirmar Reprovacao'}
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -233,164 +260,192 @@ export default function NfDetalheGestorPage() {
         {/* Dados — 2 colunas */}
         <div className="lg:col-span-2 space-y-6">
           {/* Dados basicos */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Dados da NF</h2>
-            <div className="grid grid-cols-3 gap-4 text-sm">
-              <div>
-                <span className="text-gray-500">Numero</span>
-                <p className="font-medium">{nf.numero_nf || '—'}</p>
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">Dados da NF</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-3 gap-4 text-sm">
+                <div>
+                  <span className="text-muted-foreground">Numero</span>
+                  <p className="font-medium tabular-nums">{nf.numero_nf || '—'}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Serie</span>
+                  <p className="font-medium">{nf.serie || '—'}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Data Emissao</span>
+                  <p className="font-medium tabular-nums">{formatDate(nf.data_emissao)}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Data Vencimento</span>
+                  <p className="font-medium tabular-nums">{formatDate(nf.data_vencimento)}</p>
+                </div>
+                <div className="col-span-2">
+                  <span className="text-muted-foreground">Chave de Acesso</span>
+                  <p className="font-mono text-xs break-all">{nf.chave_acesso || '—'}</p>
+                </div>
               </div>
-              <div>
-                <span className="text-gray-500">Serie</span>
-                <p className="font-medium">{nf.serie || '—'}</p>
-              </div>
-              <div>
-                <span className="text-gray-500">Data Emissao</span>
-                <p className="font-medium">{formatDate(nf.data_emissao)}</p>
-              </div>
-              <div>
-                <span className="text-gray-500">Data Vencimento</span>
-                <p className="font-medium">{formatDate(nf.data_vencimento)}</p>
-              </div>
-              <div className="col-span-2">
-                <span className="text-gray-500">Chave de Acesso</span>
-                <p className="font-mono text-xs break-all">{nf.chave_acesso || '—'}</p>
-              </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
           {/* Emitente e Destinatario */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h2 className="font-semibold text-gray-900 mb-3">Emitente (Cedente)</h2>
-              <div className="text-sm space-y-1">
-                <p className="font-medium">{nf.razao_social_emitente}</p>
-                <p className="text-gray-500">{formatCNPJ(nf.cnpj_emitente)}</p>
-              </div>
-            </div>
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h2 className="font-semibold text-gray-900 mb-3">Destinatario (Sacado)</h2>
-              <div className="text-sm space-y-1">
-                <p className="font-medium">{nf.razao_social_destinatario || '—'}</p>
-                <p className="text-gray-500">{nf.cnpj_destinatario ? formatCNPJ(nf.cnpj_destinatario) : '—'}</p>
-              </div>
-            </div>
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Emitente (Cedente)</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-sm space-y-1">
+                  <p className="font-medium">{nf.razao_social_emitente}</p>
+                  <p className="text-muted-foreground tabular-nums">{formatCNPJ(nf.cnpj_emitente)}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Destinatario (Sacado)</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-sm space-y-1">
+                  <p className="font-medium">{nf.razao_social_destinatario || '—'}</p>
+                  <p className="text-muted-foreground tabular-nums">{nf.cnpj_destinatario ? formatCNPJ(nf.cnpj_destinatario) : '—'}</p>
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Valores */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="font-semibold text-gray-900 mb-4">Valores</h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-              <div>
-                <span className="text-gray-500">Valor Bruto</span>
-                <p className="text-lg font-bold text-gray-900">{formatCurrency(nf.valor_bruto)}</p>
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Valores</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div>
+                  <span className="text-muted-foreground">Valor Bruto</span>
+                  <p className="text-lg font-bold text-foreground tabular-nums">{formatCurrency(nf.valor_bruto)}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">ICMS</span>
+                  <p className="font-medium tabular-nums">{formatCurrency(nf.valor_icms)}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">ISS</span>
+                  <p className="font-medium tabular-nums">{formatCurrency(nf.valor_iss)}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">PIS</span>
+                  <p className="font-medium tabular-nums">{formatCurrency(nf.valor_pis)}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">COFINS</span>
+                  <p className="font-medium tabular-nums">{formatCurrency(nf.valor_cofins)}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">IPI</span>
+                  <p className="font-medium tabular-nums">{formatCurrency(nf.valor_ipi)}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Total Impostos</span>
+                  <p className="font-medium text-destructive tabular-nums">{formatCurrency(impostos)}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Valor Liquido</span>
+                  <p className="text-lg font-bold text-green-700 tabular-nums">{formatCurrency(nf.valor_liquido || 0)}</p>
+                </div>
               </div>
-              <div>
-                <span className="text-gray-500">ICMS</span>
-                <p className="font-medium">{formatCurrency(nf.valor_icms)}</p>
-              </div>
-              <div>
-                <span className="text-gray-500">ISS</span>
-                <p className="font-medium">{formatCurrency(nf.valor_iss)}</p>
-              </div>
-              <div>
-                <span className="text-gray-500">PIS</span>
-                <p className="font-medium">{formatCurrency(nf.valor_pis)}</p>
-              </div>
-              <div>
-                <span className="text-gray-500">COFINS</span>
-                <p className="font-medium">{formatCurrency(nf.valor_cofins)}</p>
-              </div>
-              <div>
-                <span className="text-gray-500">IPI</span>
-                <p className="font-medium">{formatCurrency(nf.valor_ipi)}</p>
-              </div>
-              <div>
-                <span className="text-gray-500">Total Impostos</span>
-                <p className="font-medium text-red-600">{formatCurrency(impostos)}</p>
-              </div>
-              <div>
-                <span className="text-gray-500">Valor Liquido</span>
-                <p className="text-lg font-bold text-green-700">{formatCurrency(nf.valor_liquido || 0)}</p>
-              </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
           {/* Itens e pagamento */}
           {(nf.descricao_itens || nf.condicao_pagamento) && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h2 className="font-semibold text-gray-900 mb-4">Detalhes</h2>
-              {nf.descricao_itens && (
-                <div className="mb-4">
-                  <span className="text-sm text-gray-500">Itens</span>
-                  <p className="text-sm mt-1">{nf.descricao_itens}</p>
-                </div>
-              )}
-              {nf.condicao_pagamento && (
-                <div>
-                  <span className="text-sm text-gray-500">Condicao de Pagamento</span>
-                  <p className="text-sm mt-1">{nf.condicao_pagamento}</p>
-                </div>
-              )}
-            </div>
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Detalhes</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {nf.descricao_itens && (
+                  <div className="mb-4">
+                    <span className="text-sm text-muted-foreground">Itens</span>
+                    <p className="text-sm mt-1">{nf.descricao_itens}</p>
+                  </div>
+                )}
+                {nf.condicao_pagamento && (
+                  <div>
+                    <span className="text-sm text-muted-foreground">Condicao de Pagamento</span>
+                    <p className="text-sm mt-1">{nf.condicao_pagamento}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           )}
         </div>
 
         {/* Sidebar */}
         <div className="space-y-6">
           {/* Resumo rapido */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h3 className="font-semibold text-gray-900 mb-3">Resumo</h3>
-            <div className="space-y-3 text-sm">
-              <div className="flex justify-between">
-                <span className="text-gray-500">Valor Bruto</span>
-                <span className="font-bold">{formatCurrency(nf.valor_bruto)}</span>
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Resumo</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Valor Bruto</span>
+                  <span className="font-bold tabular-nums">{formatCurrency(nf.valor_bruto)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">(-) Impostos</span>
+                  <span className="text-destructive tabular-nums">{formatCurrency(impostos)}</span>
+                </div>
+                <div className="border-t pt-2 flex justify-between">
+                  <span className="font-medium">Valor Liquido</span>
+                  <span className="font-bold text-green-700 tabular-nums">{formatCurrency(nf.valor_liquido || 0)}</span>
+                </div>
+                <div className="border-t pt-2 flex justify-between">
+                  <span className="text-muted-foreground">Dias ate vencimento</span>
+                  <span className="font-medium tabular-nums">
+                    {Math.ceil((new Date(nf.data_vencimento).getTime() - Date.now()) / (1000 * 60 * 60 * 24))} dias
+                  </span>
+                </div>
               </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">(-) Impostos</span>
-                <span className="text-red-600">{formatCurrency(impostos)}</span>
-              </div>
-              <div className="border-t pt-2 flex justify-between">
-                <span className="font-medium">Valor Liquido</span>
-                <span className="font-bold text-green-700">{formatCurrency(nf.valor_liquido || 0)}</span>
-              </div>
-              <div className="border-t pt-2 flex justify-between">
-                <span className="text-gray-500">Dias ate vencimento</span>
-                <span className="font-medium">
-                  {Math.ceil((new Date(nf.data_vencimento).getTime() - Date.now()) / (1000 * 60 * 60 * 24))} dias
-                </span>
-              </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
           {/* Preview do arquivo */}
           {previewUrl && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-semibold text-gray-900">Arquivo</h3>
-                <a href={previewUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800">
-                  <ExternalLink size={16} />
-                </a>
-              </div>
-              {nf.arquivo_url?.endsWith('.pdf') ? (
-                <iframe src={previewUrl} className="w-full h-80 rounded-lg border" />
-              ) : nf.arquivo_url?.match(/\.(jpg|jpeg|png)$/i) ? (
-                <img src={previewUrl} alt="NF" className="w-full rounded-lg border" />
-              ) : (
-                <div className="bg-gray-50 rounded-lg p-4 text-center">
-                  <FileText size={32} className="mx-auto text-gray-400 mb-2" />
-                  <p className="text-sm text-gray-500">Arquivo XML</p>
-                  <a href={previewUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600">
-                    Baixar
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base">Arquivo</CardTitle>
+                  <a href={previewUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:text-primary/80">
+                    <ExternalLink size={16} />
                   </a>
                 </div>
-              )}
-            </div>
+              </CardHeader>
+              <CardContent>
+                {nf.arquivo_url?.endsWith('.pdf') ? (
+                  <iframe src={previewUrl} className="w-full h-80 rounded-lg border" />
+                ) : nf.arquivo_url?.match(/\.(jpg|jpeg|png)$/i) ? (
+                  <img src={previewUrl} alt="NF" className="w-full rounded-lg border" />
+                ) : (
+                  <div className="bg-muted rounded-lg p-4 text-center">
+                    <FileText size={32} className="mx-auto text-muted-foreground mb-2" />
+                    <p className="text-sm text-muted-foreground">Arquivo XML</p>
+                    <a href={previewUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline">
+                      Baixar
+                    </a>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           )}
 
           {/* Metadados */}
-          <div className="bg-gray-50 rounded-xl p-4 text-sm">
-            <p className="text-gray-500">Cadastrada em: {formatDate(nf.created_at)}</p>
+          <div className="bg-muted/50 rounded-xl p-4 text-sm">
+            <p className="text-muted-foreground">Cadastrada em: {formatDate(nf.created_at)}</p>
           </div>
         </div>
       </div>

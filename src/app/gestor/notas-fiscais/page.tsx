@@ -16,6 +16,26 @@ import {
   Upload,
   Banknote,
 } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Skeleton } from '@/components/ui/skeleton'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 interface NfGestorRecord {
   id: string
@@ -32,14 +52,14 @@ interface NfGestorRecord {
   cedente_id: string
 }
 
-const statusConfig: Record<string, { label: string; color: string; icon: typeof CheckCircle }> = {
-  rascunho: { label: 'Rascunho', color: 'bg-gray-100 text-gray-600', icon: FileText },
-  submetida: { label: 'Submetida', color: 'bg-blue-100 text-blue-700', icon: Upload },
-  em_analise: { label: 'Em Analise', color: 'bg-yellow-100 text-yellow-700', icon: AlertCircle },
-  aprovada: { label: 'Aprovada', color: 'bg-green-100 text-green-700', icon: CheckCircle },
-  em_antecipacao: { label: 'Em Antecipacao', color: 'bg-purple-100 text-purple-700', icon: Banknote },
-  liquidada: { label: 'Liquidada', color: 'bg-emerald-100 text-emerald-700', icon: CheckCircle },
-  cancelada: { label: 'Cancelada/Reprovada', color: 'bg-red-100 text-red-700', icon: XCircle },
+const statusConfig: Record<string, { label: string; icon: typeof CheckCircle; variant: 'default' | 'secondary' | 'destructive' | 'outline'; className: string }> = {
+  rascunho: { label: 'Rascunho', icon: FileText, variant: 'secondary', className: '' },
+  submetida: { label: 'Submetida', icon: Upload, variant: 'default', className: 'bg-blue-100 text-blue-700 border-transparent' },
+  em_analise: { label: 'Em Analise', icon: AlertCircle, variant: 'default', className: 'bg-yellow-100 text-yellow-700 border-transparent' },
+  aprovada: { label: 'Aprovada', icon: CheckCircle, variant: 'default', className: 'bg-green-100 text-green-700 border-transparent' },
+  em_antecipacao: { label: 'Em Antecipacao', icon: Banknote, variant: 'default', className: 'bg-purple-100 text-purple-700 border-transparent' },
+  liquidada: { label: 'Liquidada', icon: CheckCircle, variant: 'default', className: 'bg-emerald-100 text-emerald-700 border-transparent' },
+  cancelada: { label: 'Cancelada/Reprovada', icon: XCircle, variant: 'destructive', className: '' },
 }
 
 export default function NotasFiscaisGestorPage() {
@@ -84,132 +104,144 @@ export default function NotasFiscaisGestorPage() {
   return (
     <div className="max-w-6xl mx-auto">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Notas Fiscais</h1>
-        <p className="text-gray-500">Analise e gerencie as NFs dos cedentes.</p>
+        <h1 className="text-2xl font-bold text-foreground">Notas Fiscais</h1>
+        <p className="text-muted-foreground">Analise e gerencie as NFs dos cedentes.</p>
       </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         <div className="bg-yellow-50 rounded-xl p-4">
           <p className="text-xs font-medium text-yellow-600">Pendentes de Analise</p>
-          <p className="text-2xl font-bold text-yellow-700 mt-1">{pendentes}</p>
+          <p className="text-2xl font-bold text-yellow-700 mt-1 tabular-nums">{pendentes}</p>
         </div>
         <div className="bg-green-50 rounded-xl p-4">
           <p className="text-xs font-medium text-green-600">Aprovadas</p>
-          <p className="text-2xl font-bold text-green-700 mt-1">{aprovadas}</p>
+          <p className="text-2xl font-bold text-green-700 mt-1 tabular-nums">{aprovadas}</p>
         </div>
         <div className="bg-blue-50 rounded-xl p-4">
           <p className="text-xs font-medium text-blue-600">Total de NFs</p>
-          <p className="text-2xl font-bold text-blue-700 mt-1">{nfs.length}</p>
+          <p className="text-2xl font-bold text-blue-700 mt-1 tabular-nums">{nfs.length}</p>
         </div>
         <div className="bg-purple-50 rounded-xl p-4">
           <p className="text-xs font-medium text-purple-600">Valor Total</p>
-          <p className="text-2xl font-bold text-purple-700 mt-1">{formatCurrency(valorTotal)}</p>
+          <p className="text-2xl font-bold text-purple-700 mt-1 tabular-nums">{formatCurrency(valorTotal)}</p>
         </div>
       </div>
 
       {/* Filtros */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-4">
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Buscar por numero, CNPJ ou razao social..."
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+      <Card className="mb-4">
+        <CardContent className="pt-4">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Buscar por numero, CNPJ ou razao social..."
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                className="h-11 pl-9"
+              />
+            </div>
+            <div className="relative flex items-center gap-2">
+              <Filter size={16} className="text-muted-foreground shrink-0" />
+              <Select
+                value={filtroStatus}
+                onValueChange={(v) => { if (v) setFiltroStatus(v) }}
+              >
+                <SelectTrigger className="h-11 min-w-[200px]">
+                  <SelectValue placeholder="Filtrar por status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos</SelectItem>
+                  <SelectItem value="submetida">Submetidas (pendentes)</SelectItem>
+                  <SelectItem value="em_analise">Em Analise</SelectItem>
+                  <SelectItem value="aprovada">Aprovadas</SelectItem>
+                  <SelectItem value="em_antecipacao">Em Antecipacao</SelectItem>
+                  <SelectItem value="liquidada">Liquidadas</SelectItem>
+                  <SelectItem value="cancelada">Canceladas/Reprovadas</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-          <div className="relative">
-            <Filter size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <select
-              value={filtroStatus}
-              onChange={(e) => setFiltroStatus(e.target.value)}
-              className="pl-9 pr-8 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"
-            >
-              <option value="todos">Todos</option>
-              <option value="submetida">Submetidas (pendentes)</option>
-              <option value="em_analise">Em Analise</option>
-              <option value="aprovada">Aprovadas</option>
-              <option value="em_antecipacao">Em Antecipacao</option>
-              <option value="liquidada">Liquidadas</option>
-              <option value="cancelada">Canceladas/Reprovadas</option>
-            </select>
-          </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Tabela */}
       {loading ? (
-        <div className="text-center py-12">
-          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
-        </div>
+        <Card>
+          <CardContent className="pt-6 space-y-3">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-12 w-full" />
+            ))}
+          </CardContent>
+        </Card>
       ) : nfsFiltradas.length === 0 ? (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-          <FileText size={48} className="mx-auto text-gray-300 mb-3" />
-          <p className="text-gray-500">Nenhuma NF encontrada.</p>
-        </div>
+        <Card>
+          <CardContent className="py-12 text-center">
+            <FileText size={48} className="mx-auto text-muted-foreground/40 mb-3" />
+            <p className="text-muted-foreground">Nenhuma NF encontrada.</p>
+          </CardContent>
+        </Card>
       ) : (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-200 bg-gray-50">
-                  <th className="text-left text-xs font-medium text-gray-500 uppercase px-4 py-3">NF</th>
-                  <th className="text-left text-xs font-medium text-gray-500 uppercase px-4 py-3">Cedente (Emitente)</th>
-                  <th className="text-left text-xs font-medium text-gray-500 uppercase px-4 py-3">Sacado (Destinatario)</th>
-                  <th className="text-left text-xs font-medium text-gray-500 uppercase px-4 py-3">Valor</th>
-                  <th className="text-left text-xs font-medium text-gray-500 uppercase px-4 py-3">Vencimento</th>
-                  <th className="text-left text-xs font-medium text-gray-500 uppercase px-4 py-3">Status</th>
-                  <th className="text-left text-xs font-medium text-gray-500 uppercase px-4 py-3">Acoes</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {nfsFiltradas.map((nf) => {
-                  const status = statusConfig[nf.status] || statusConfig.rascunho
-                  const StatusIcon = status.icon
-                  return (
-                    <tr key={nf.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 font-medium text-gray-900">{nf.numero_nf || '—'}</td>
-                      <td className="px-4 py-3">
-                        <p className="text-sm text-gray-900">{nf.razao_social_emitente}</p>
-                        <p className="text-xs text-gray-400">{formatCNPJ(nf.cnpj_emitente)}</p>
-                      </td>
-                      <td className="px-4 py-3">
-                        <p className="text-sm text-gray-900">{nf.razao_social_destinatario || '—'}</p>
-                        <p className="text-xs text-gray-400">
-                          {nf.cnpj_destinatario ? formatCNPJ(nf.cnpj_destinatario) : '—'}
-                        </p>
-                      </td>
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                        {nf.valor_bruto > 0 ? formatCurrency(nf.valor_bruto) : '—'}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-600">
-                        {nf.data_vencimento ? formatDate(nf.data_vencimento) : '—'}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${status.color}`}>
-                          <StatusIcon size={12} />
-                          {status.label}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <Link
-                          href={`/gestor/notas-fiscais/${nf.id}`}
-                          className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800"
-                        >
+        <Card className="overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="px-4 py-3 text-xs uppercase">NF</TableHead>
+                <TableHead className="px-4 py-3 text-xs uppercase">Cedente (Emitente)</TableHead>
+                <TableHead className="px-4 py-3 text-xs uppercase">Sacado (Destinatario)</TableHead>
+                <TableHead className="px-4 py-3 text-xs uppercase">Valor</TableHead>
+                <TableHead className="px-4 py-3 text-xs uppercase">Vencimento</TableHead>
+                <TableHead className="px-4 py-3 text-xs uppercase">Status</TableHead>
+                <TableHead className="px-4 py-3 text-xs uppercase">Acoes</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {nfsFiltradas.map((nf) => {
+                const status = statusConfig[nf.status] || statusConfig.rascunho
+                const StatusIcon = status.icon
+                return (
+                  <TableRow key={nf.id}>
+                    <TableCell className="px-4 py-3 font-medium text-foreground">{nf.numero_nf || '—'}</TableCell>
+                    <TableCell className="px-4 py-3">
+                      <p className="text-sm text-foreground">{nf.razao_social_emitente}</p>
+                      <p className="text-xs text-muted-foreground">{formatCNPJ(nf.cnpj_emitente)}</p>
+                    </TableCell>
+                    <TableCell className="px-4 py-3">
+                      <p className="text-sm text-foreground">{nf.razao_social_destinatario || '—'}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {nf.cnpj_destinatario ? formatCNPJ(nf.cnpj_destinatario) : '—'}
+                      </p>
+                    </TableCell>
+                    <TableCell className="px-4 py-3 text-sm font-medium text-foreground tabular-nums">
+                      {nf.valor_bruto > 0 ? formatCurrency(nf.valor_bruto) : '—'}
+                    </TableCell>
+                    <TableCell className="px-4 py-3 text-sm text-muted-foreground tabular-nums">
+                      {nf.data_vencimento ? formatDate(nf.data_vencimento) : '—'}
+                    </TableCell>
+                    <TableCell className="px-4 py-3">
+                      <Badge
+                        variant={status.variant}
+                        className={status.className}
+                      >
+                        <StatusIcon size={12} />
+                        {status.label}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="px-4 py-3">
+                      <Link href={`/gestor/notas-fiscais/${nf.id}`}>
+                        <Button variant="ghost" size="sm" className="gap-1 text-sm">
                           <Eye size={14} />
                           Analisar
-                        </Link>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
+                        </Button>
+                      </Link>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
+        </Card>
       )}
     </div>
   )

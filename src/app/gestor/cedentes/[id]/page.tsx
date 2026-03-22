@@ -8,6 +8,12 @@ import { salvarTaxasCedente } from '@/lib/actions/operacao'
 import { formatCNPJ, formatDate } from '@/lib/utils'
 import { ArrowLeft, CheckCircle, XCircle, FileText, Eye, X, Plus, Trash2, Settings } from 'lucide-react'
 import Link from 'next/link'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 
 interface CedenteDetail {
   id: string; cnpj: string; razao_social: string; nome_fantasia: string | null
@@ -31,6 +37,14 @@ const tipoLabels: Record<string, string> = {
   rg_cpf: 'RG e CPF', comprovante_endereco: 'Comprovante de Endereco',
   extrato_bancario: 'Extrato Bancario', balanco_patrimonial: 'Balanco Patrimonial',
   dre: 'DRE', procuracao: 'Procuracao',
+}
+
+const statusBadgeVariant: Record<string, 'secondary' | 'default' | 'outline' | 'destructive'> = {
+  aguardando_envio: 'secondary',
+  enviado: 'default',
+  em_analise: 'outline',
+  aprovado: 'default',
+  reprovado: 'destructive',
 }
 
 const statusColors: Record<string, string> = {
@@ -145,11 +159,34 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
   }
 
   if (loading) {
-    return <div className="flex items-center justify-center py-20"><div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" /></div>
+    return (
+      <div className="max-w-5xl mx-auto space-y-6">
+        <Skeleton className="h-4 w-24" />
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-64" />
+            <Skeleton className="h-4 w-40" />
+          </div>
+          <Skeleton className="h-7 w-24 rounded-full" />
+        </div>
+        <Card>
+          <CardHeader><Skeleton className="h-6 w-40" /></CardHeader>
+          <CardContent className="space-y-3">
+            {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-4 w-full" />)}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader><Skeleton className="h-6 w-32" /></CardHeader>
+          <CardContent className="space-y-3">
+            {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   if (!cedente) {
-    return <p className="text-gray-500 text-center py-20">Cedente nao encontrado.</p>
+    return <p className="text-muted-foreground text-center py-20">Cedente nao encontrado.</p>
   }
 
   const latestDocs = getLatestByTipo()
@@ -158,233 +195,264 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
 
   return (
     <div className="max-w-5xl mx-auto">
-      <Link href="/gestor/cedentes" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4">
+      <Link href="/gestor/cedentes" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4">
         <ArrowLeft size={16} /> Voltar
       </Link>
 
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{cedente.razao_social}</h1>
-          <p className="text-gray-500 font-mono">{formatCNPJ(cedente.cnpj)}</p>
+          <h1 className="text-2xl font-bold text-foreground">{cedente.razao_social}</h1>
+          <p className="text-muted-foreground font-mono tabular-nums">{formatCNPJ(cedente.cnpj)}</p>
         </div>
-        <span className={`px-3 py-1.5 rounded-full text-sm font-medium ${statusColors[cedente.status] || 'bg-gray-100'}`}>
+        <Badge variant={statusBadgeVariant[cedente.status] || 'secondary'}>
           {cedente.status}
-        </span>
+        </Badge>
       </div>
 
       {message && (
-        <div className={`mb-4 p-3 rounded-lg text-sm ${
+        <div className={`mb-4 p-3 rounded-lg text-sm border ${
           message.includes('sucesso') || message.includes('aprovado') || message.includes('criada')
-            ? 'bg-green-50 text-green-700 border border-green-200'
-            : 'bg-red-50 text-red-700 border border-red-200'
+            ? 'bg-green-50 text-green-700 border-green-200'
+            : 'bg-destructive/10 text-destructive border-destructive/20'
         }`}>{message}</div>
       )}
 
       {/* Dados Cadastrais */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Dados Cadastrais</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-          <div><span className="text-gray-500">Nome Fantasia:</span> <span className="text-gray-900 ml-1">{cedente.nome_fantasia || '-'}</span></div>
-          <div><span className="text-gray-500">CNAE:</span> <span className="text-gray-900 ml-1">{cedente.cnae || '-'}</span></div>
-          <div><span className="text-gray-500">Cadastro:</span> <span className="text-gray-900 ml-1">{formatDate(cedente.created_at)}</span></div>
-          <div><span className="text-gray-500">Endereco:</span> <span className="text-gray-900 ml-1">{cedente.logradouro}, {cedente.numero} {cedente.complemento} - {cedente.bairro}, {cedente.cidade}/{cedente.estado} - CEP {cedente.cep}</span></div>
-          <div><span className="text-gray-500">Telefone:</span> <span className="text-gray-900 ml-1">{cedente.telefone_comercial || '-'}</span></div>
-          <div><span className="text-gray-500">E-mail:</span> <span className="text-gray-900 ml-1">{cedente.email_comercial || '-'}</span></div>
-        </div>
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Dados Cadastrais</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+            <div><span className="text-muted-foreground">Nome Fantasia:</span> <span className="text-foreground ml-1">{cedente.nome_fantasia || '-'}</span></div>
+            <div><span className="text-muted-foreground">CNAE:</span> <span className="text-foreground ml-1 tabular-nums">{cedente.cnae || '-'}</span></div>
+            <div><span className="text-muted-foreground">Cadastro:</span> <span className="text-foreground ml-1">{formatDate(cedente.created_at)}</span></div>
+            <div><span className="text-muted-foreground">Endereco:</span> <span className="text-foreground ml-1">{cedente.logradouro}, {cedente.numero} {cedente.complemento} - {cedente.bairro}, {cedente.cidade}/{cedente.estado} - CEP {cedente.cep}</span></div>
+            <div><span className="text-muted-foreground">Telefone:</span> <span className="text-foreground ml-1 tabular-nums">{cedente.telefone_comercial || '-'}</span></div>
+            <div><span className="text-muted-foreground">E-mail:</span> <span className="text-foreground ml-1">{cedente.email_comercial || '-'}</span></div>
+          </div>
 
-        <h3 className="text-md font-semibold text-gray-900 mt-6 mb-3">Representante Legal</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-          <div><span className="text-gray-500">Nome:</span> <span className="text-gray-900 ml-1">{cedente.nome_representante || '-'}</span></div>
-          <div><span className="text-gray-500">CPF:</span> <span className="text-gray-900 ml-1">{cedente.cpf_representante || '-'}</span></div>
-          <div><span className="text-gray-500">RG:</span> <span className="text-gray-900 ml-1">{cedente.rg_representante || '-'}</span></div>
-          <div><span className="text-gray-500">Cargo:</span> <span className="text-gray-900 ml-1">{cedente.cargo_representante || '-'}</span></div>
-          <div><span className="text-gray-500">E-mail:</span> <span className="text-gray-900 ml-1">{cedente.email_representante || '-'}</span></div>
-          <div><span className="text-gray-500">Telefone:</span> <span className="text-gray-900 ml-1">{cedente.telefone_representante || '-'}</span></div>
-        </div>
+          <h3 className="text-md font-semibold text-foreground mt-6 mb-3">Representante Legal</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+            <div><span className="text-muted-foreground">Nome:</span> <span className="text-foreground ml-1">{cedente.nome_representante || '-'}</span></div>
+            <div><span className="text-muted-foreground">CPF:</span> <span className="text-foreground ml-1 tabular-nums">{cedente.cpf_representante || '-'}</span></div>
+            <div><span className="text-muted-foreground">RG:</span> <span className="text-foreground ml-1 tabular-nums">{cedente.rg_representante || '-'}</span></div>
+            <div><span className="text-muted-foreground">Cargo:</span> <span className="text-foreground ml-1">{cedente.cargo_representante || '-'}</span></div>
+            <div><span className="text-muted-foreground">E-mail:</span> <span className="text-foreground ml-1">{cedente.email_representante || '-'}</span></div>
+            <div><span className="text-muted-foreground">Telefone:</span> <span className="text-foreground ml-1 tabular-nums">{cedente.telefone_representante || '-'}</span></div>
+          </div>
 
-        <h3 className="text-md font-semibold text-gray-900 mt-6 mb-3">Dados Bancarios</h3>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
-          <div><span className="text-gray-500">Banco:</span> <span className="text-gray-900 ml-1">{cedente.banco || '-'}</span></div>
-          <div><span className="text-gray-500">Agencia:</span> <span className="text-gray-900 ml-1">{cedente.agencia || '-'}</span></div>
-          <div><span className="text-gray-500">Conta:</span> <span className="text-gray-900 ml-1">{cedente.conta || '-'}</span></div>
-          <div><span className="text-gray-500">Tipo:</span> <span className="text-gray-900 ml-1">{cedente.tipo_conta || '-'}</span></div>
-        </div>
-      </div>
+          <h3 className="text-md font-semibold text-foreground mt-6 mb-3">Dados Bancarios</h3>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
+            <div><span className="text-muted-foreground">Banco:</span> <span className="text-foreground ml-1">{cedente.banco || '-'}</span></div>
+            <div><span className="text-muted-foreground">Agencia:</span> <span className="text-foreground ml-1 tabular-nums">{cedente.agencia || '-'}</span></div>
+            <div><span className="text-muted-foreground">Conta:</span> <span className="text-foreground ml-1 tabular-nums">{cedente.conta || '-'}</span></div>
+            <div><span className="text-muted-foreground">Tipo:</span> <span className="text-foreground ml-1">{cedente.tipo_conta || '-'}</span></div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Documentos */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Documentos</h2>
-        <div className="space-y-3">
-          {Object.entries(tipoLabels).map(([tipo, label]) => {
-            const doc = latestDocs[tipo]
-            const status = doc?.status || 'aguardando_envio'
-            return (
-              <div key={tipo} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
-                <div className="flex items-center gap-3">
-                  <FileText size={18} className="text-gray-400" />
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">{label}</p>
-                    {doc?.nome_arquivo && <p className="text-xs text-gray-400">{doc.nome_arquivo} (v{doc.versao})</p>}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Documentos</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {Object.entries(tipoLabels).map(([tipo, label]) => {
+              const doc = latestDocs[tipo]
+              const status = doc?.status || 'aguardando_envio'
+              return (
+                <div key={tipo} className="flex items-center justify-between py-3 border-b border-border last:border-0">
+                  <div className="flex items-center gap-3">
+                    <FileText size={18} className="text-muted-foreground" />
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{label}</p>
+                      {doc?.nome_arquivo && <p className="text-xs text-muted-foreground">{doc.nome_arquivo} (v{doc.versao})</p>}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Badge variant={statusBadgeVariant[status] || 'secondary'} className={statusColors[status]}>
+                      {status.replace('_', ' ')}
+                    </Badge>
+                    {doc && (doc.status === 'enviado' || doc.status === 'em_analise') && (
+                      <Button size="sm" variant="default" onClick={() => openPreview(doc)}>
+                        <Eye size={14} /> Analisar
+                      </Button>
+                    )}
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${statusColors[status]}`}>
-                    {status.replace('_', ' ')}
-                  </span>
-                  {doc && (doc.status === 'enviado' || doc.status === 'em_analise') && (
-                    <button onClick={() => openPreview(doc)}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700">
-                      <Eye size={14} /> Analisar
-                    </button>
-                  )}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </div>
+              )
+            })}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Acoes do Cadastro */}
       {cedente.status !== 'ativo' && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Acoes do Cadastro</h2>
-          <div className="flex gap-3">
-            {todosAprovados && cedente.status !== 'ativo' && (
-              <button onClick={handleAprovarCadastro} disabled={actionLoading}
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50">
-                <CheckCircle size={18} /> {actionLoading ? 'Processando...' : 'Aprovar Cadastro'}
-              </button>
-            )}
-            {!todosAprovados && (
-              <p className="text-amber-600 text-sm py-2">Todos os documentos obrigatorios precisam estar aprovados antes de aprovar o cadastro.</p>
-            )}
-            <button onClick={() => setShowReprovarCadastro(!showReprovarCadastro)}
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700">
-              <XCircle size={18} /> Reprovar Cadastro
-            </button>
-          </div>
-
-          {showReprovarCadastro && (
-            <div className="mt-4 p-4 border border-red-200 rounded-lg bg-red-50">
-              <label className="block text-sm font-medium text-red-700 mb-1">Motivo da reprovacao *</label>
-              <textarea className="w-full px-3 py-2 border border-red-300 rounded-lg text-sm" rows={3}
-                value={motivoCadastro} onChange={(e) => setMotivoCadastro(e.target.value)} />
-              <button onClick={handleReprovarCadastro} disabled={actionLoading}
-                className="mt-2 px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 disabled:opacity-50">
-                {actionLoading ? 'Processando...' : 'Confirmar Reprovacao'}
-              </button>
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Acoes do Cadastro</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex gap-3 flex-wrap">
+              {todosAprovados && cedente.status !== 'ativo' && (
+                <Button
+                  onClick={handleAprovarCadastro}
+                  disabled={actionLoading}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  <CheckCircle size={18} /> {actionLoading ? 'Processando...' : 'Aprovar Cadastro'}
+                </Button>
+              )}
+              {!todosAprovados && (
+                <p className="text-amber-600 text-sm py-2">Todos os documentos obrigatorios precisam estar aprovados antes de aprovar o cadastro.</p>
+              )}
+              <Button
+                variant="destructive"
+                onClick={() => setShowReprovarCadastro(!showReprovarCadastro)}
+              >
+                <XCircle size={18} /> Reprovar Cadastro
+              </Button>
             </div>
-          )}
-        </div>
+
+            {showReprovarCadastro && (
+              <div className="mt-4 p-4 border border-destructive/30 rounded-lg bg-destructive/5">
+                <Label className="block text-sm font-medium text-destructive mb-1">Motivo da reprovacao *</Label>
+                <textarea
+                  className="w-full px-3 py-2 border border-destructive/30 rounded-lg text-sm bg-background text-foreground"
+                  rows={3}
+                  value={motivoCadastro}
+                  onChange={(e) => setMotivoCadastro(e.target.value)}
+                />
+                <Button
+                  variant="destructive"
+                  onClick={handleReprovarCadastro}
+                  disabled={actionLoading}
+                  className="mt-2"
+                >
+                  {actionLoading ? 'Processando...' : 'Confirmar Reprovacao'}
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {/* Taxas Pre-configuradas */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-            <Settings size={18} />
-            Taxas Pre-configuradas
-          </h2>
-          <button
-            onClick={() => setTaxas([...taxas, { prazo_min: 0, prazo_max: 30, taxa_percentual: 2.5 }])}
-            className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700"
-          >
-            <Plus size={14} /> Adicionar faixa
-          </button>
-        </div>
-
-        {taxas.length === 0 ? (
-          <p className="text-sm text-gray-500">Nenhuma taxa configurada. As operacoes deste cedente terao taxa definida manualmente pelo gestor.</p>
-        ) : (
-          <div className="space-y-3">
-            <div className="grid grid-cols-4 gap-3 text-xs font-medium text-gray-500 uppercase">
-              <span>Prazo Min (dias)</span>
-              <span>Prazo Max (dias)</span>
-              <span>Taxa (% a.m.)</span>
-              <span></span>
-            </div>
-            {taxas.map((t, i) => (
-              <div key={i} className="grid grid-cols-4 gap-3 items-center">
-                <input
-                  type="number"
-                  min="0"
-                  value={t.prazo_min}
-                  onChange={(e) => {
-                    const updated = [...taxas]
-                    updated[i] = { ...updated[i], prazo_min: parseInt(e.target.value) || 0 }
-                    setTaxas(updated)
-                  }}
-                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                />
-                <input
-                  type="number"
-                  min="0"
-                  value={t.prazo_max}
-                  onChange={(e) => {
-                    const updated = [...taxas]
-                    updated[i] = { ...updated[i], prazo_max: parseInt(e.target.value) || 0 }
-                    setTaxas(updated)
-                  }}
-                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                />
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={t.taxa_percentual}
-                  onChange={(e) => {
-                    const updated = [...taxas]
-                    updated[i] = { ...updated[i], taxa_percentual: parseFloat(e.target.value) || 0 }
-                    setTaxas(updated)
-                  }}
-                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                />
-                <button
-                  onClick={() => setTaxas(taxas.filter((_, idx) => idx !== i))}
-                  className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            ))}
+      <Card className="mb-6">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Settings size={18} />
+              Taxas Pre-configuradas
+            </CardTitle>
+            <Button
+              size="sm"
+              variant="default"
+              onClick={() => setTaxas([...taxas, { prazo_min: 0, prazo_max: 30, taxa_percentual: 2.5 }])}
+            >
+              <Plus size={14} /> Adicionar faixa
+            </Button>
           </div>
-        )}
-
-        <div className="mt-4 flex items-center gap-3">
-          <button
-            onClick={async () => {
-              setSavingTaxas(true)
-              setTaxasMessage('')
-              const result = await salvarTaxasCedente(id, taxas)
-              setTaxasMessage(result?.message || '')
-              setSavingTaxas(false)
-            }}
-            disabled={savingTaxas}
-            className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50"
-          >
-            {savingTaxas ? 'Salvando...' : 'Salvar Taxas'}
-          </button>
-          {taxasMessage && (
-            <span className={`text-sm ${taxasMessage.includes('sucesso') ? 'text-green-600' : 'text-red-600'}`}>
-              {taxasMessage}
-            </span>
+        </CardHeader>
+        <CardContent>
+          {taxas.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhuma taxa configurada. As operacoes deste cedente terao taxa definida manualmente pelo gestor.</p>
+          ) : (
+            <div className="space-y-3">
+              <div className="grid grid-cols-4 gap-3 text-xs font-medium text-muted-foreground uppercase">
+                <span>Prazo Min (dias)</span>
+                <span>Prazo Max (dias)</span>
+                <span>Taxa (% a.m.)</span>
+                <span></span>
+              </div>
+              {taxas.map((t, i) => (
+                <div key={i} className="grid grid-cols-4 gap-3 items-center">
+                  <Input
+                    type="number"
+                    min="0"
+                    value={t.prazo_min}
+                    onChange={(e) => {
+                      const updated = [...taxas]
+                      updated[i] = { ...updated[i], prazo_min: parseInt(e.target.value) || 0 }
+                      setTaxas(updated)
+                    }}
+                    className="h-11 tabular-nums"
+                  />
+                  <Input
+                    type="number"
+                    min="0"
+                    value={t.prazo_max}
+                    onChange={(e) => {
+                      const updated = [...taxas]
+                      updated[i] = { ...updated[i], prazo_max: parseInt(e.target.value) || 0 }
+                      setTaxas(updated)
+                    }}
+                    className="h-11 tabular-nums"
+                  />
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={t.taxa_percentual}
+                    onChange={(e) => {
+                      const updated = [...taxas]
+                      updated[i] = { ...updated[i], taxa_percentual: parseFloat(e.target.value) || 0 }
+                      setTaxas(updated)
+                    }}
+                    className="h-11 tabular-nums"
+                  />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setTaxas(taxas.filter((_, idx) => idx !== i))}
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                  >
+                    <Trash2 size={16} />
+                  </Button>
+                </div>
+              ))}
+            </div>
           )}
-        </div>
 
-        <p className="mt-3 text-xs text-gray-400">
-          As taxas sao aplicadas automaticamente quando o cedente solicita antecipacao. O gestor pode ajustar na aprovacao.
-        </p>
-      </div>
+          <div className="mt-4 flex items-center gap-3">
+            <Button
+              onClick={async () => {
+                setSavingTaxas(true)
+                setTaxasMessage('')
+                const result = await salvarTaxasCedente(id, taxas)
+                setTaxasMessage(result?.message || '')
+                setSavingTaxas(false)
+              }}
+              disabled={savingTaxas}
+            >
+              {savingTaxas ? 'Salvando...' : 'Salvar Taxas'}
+            </Button>
+            {taxasMessage && (
+              <span className={`text-sm ${taxasMessage.includes('sucesso') ? 'text-green-600' : 'text-destructive'}`}>
+                {taxasMessage}
+              </span>
+            )}
+          </div>
+
+          <p className="mt-3 text-xs text-muted-foreground">
+            As taxas sao aplicadas automaticamente quando o cedente solicita antecipacao. O gestor pode ajustar na aprovacao.
+          </p>
+        </CardContent>
+      </Card>
 
       {/* Modal de Analise de Documento */}
       {modal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between p-4 border-b">
-              <h3 className="font-semibold text-gray-900">
-                {tipoLabels[modal.doc.tipo] || modal.doc.tipo} — v{modal.doc.versao}
+          <div className="bg-background rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col border border-border">
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <h3 className="font-semibold text-foreground">
+                {tipoLabels[modal.doc.tipo] || modal.doc.tipo} — v<span className="tabular-nums">{modal.doc.versao}</span>
               </h3>
-              <button onClick={() => setModal(null)} className="p-1 hover:bg-gray-100 rounded"><X size={20} /></button>
+              <Button variant="ghost" size="icon" onClick={() => setModal(null)}>
+                <X size={20} />
+              </Button>
             </div>
 
             <div className="flex-1 overflow-auto p-4">
@@ -395,29 +463,40 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
                   <img src={modal.previewUrl} alt={modal.doc.nome_arquivo || ''} className="max-w-full mx-auto rounded" />
                 )
               ) : (
-                <p className="text-gray-500 text-center py-10">Nao foi possivel carregar o preview.</p>
+                <p className="text-muted-foreground text-center py-10">Nao foi possivel carregar o preview.</p>
               )}
             </div>
 
-            <div className="p-4 border-t space-y-3">
+            <div className="p-4 border-t border-border space-y-3">
               <div className="flex gap-3">
-                <button onClick={() => handleAnalise('aprovado')} disabled={actionLoading}
-                  className="flex-1 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 font-medium">
+                <Button
+                  onClick={() => handleAnalise('aprovado')}
+                  disabled={actionLoading}
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                >
                   {actionLoading ? 'Processando...' : 'Aprovar'}
-                </button>
-                <button onClick={() => {
-                  if (motivoReprovacao.trim()) handleAnalise('reprovado')
-                  else setMessage('Preencha o motivo da reprovacao.')
-                }} disabled={actionLoading}
-                  className="flex-1 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 font-medium">
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => {
+                    if (motivoReprovacao.trim()) handleAnalise('reprovado')
+                    else setMessage('Preencha o motivo da reprovacao.')
+                  }}
+                  disabled={actionLoading}
+                  className="flex-1"
+                >
                   Reprovar
-                </button>
+                </Button>
               </div>
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Motivo da reprovacao (obrigatorio para reprovar)</label>
-                <textarea className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" rows={2}
-                  value={motivoReprovacao} onChange={(e) => setMotivoReprovacao(e.target.value)}
-                  placeholder="Descreva o motivo..." />
+                <Label className="block text-sm text-muted-foreground mb-1">Motivo da reprovacao (obrigatorio para reprovar)</Label>
+                <textarea
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm bg-background text-foreground"
+                  rows={2}
+                  value={motivoReprovacao}
+                  onChange={(e) => setMotivoReprovacao(e.target.value)}
+                  placeholder="Descreva o motivo..."
+                />
               </div>
             </div>
           </div>

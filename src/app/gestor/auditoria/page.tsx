@@ -3,7 +3,18 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { formatDate } from '@/lib/utils'
-import { ShieldCheck, Search, Filter, Calendar, ChevronDown, ChevronUp } from 'lucide-react'
+import { ShieldCheck, Search, Calendar, ChevronDown, ChevronUp } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Skeleton } from '@/components/ui/skeleton'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 interface LogRecord {
   id: string
@@ -86,50 +97,74 @@ export default function AuditoriaPage() {
   return (
     <div className="max-w-6xl mx-auto">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
           <ShieldCheck size={24} className="text-purple-600" />
           Auditoria
         </h1>
-        <p className="text-gray-500">Log completo de todas as acoes do sistema.</p>
+        <p className="text-muted-foreground">Log completo de todas as acoes do sistema.</p>
       </div>
 
       {/* Filtros */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-4">
-        <div className="flex flex-col md:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input type="text" placeholder="Buscar por evento, usuario, entidade..."
-              value={busca} onChange={(e) => setBusca(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+      <Card className="mb-4">
+        <CardContent className="pt-4">
+          <div className="flex flex-col md:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+              <Input
+                type="text"
+                placeholder="Buscar por evento, usuario, entidade..."
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                className="pl-9 h-11"
+              />
+            </div>
+            <Select value={filtroTipo} onValueChange={(v) => { if (v) setFiltroTipo(v) }}>
+              <SelectTrigger className="h-11 w-full md:w-56">
+                <SelectValue placeholder="Todos os eventos" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos os eventos</SelectItem>
+                {tiposUnicos.map((t) => (
+                  <SelectItem key={t} value={t}>{t}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="flex items-center gap-2">
+              <Calendar size={16} className="text-muted-foreground shrink-0" />
+              <Input
+                type="date"
+                value={dataInicio}
+                onChange={(e) => setDataInicio(e.target.value)}
+                className="h-11 w-36"
+              />
+              <span className="text-muted-foreground text-xs">ate</span>
+              <Input
+                type="date"
+                value={dataFim}
+                onChange={(e) => setDataFim(e.target.value)}
+                className="h-11 w-36"
+              />
+            </div>
           </div>
-          <select value={filtroTipo} onChange={(e) => setFiltroTipo(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white">
-            <option value="todos">Todos os eventos</option>
-            {tiposUnicos.map((t) => <option key={t} value={t}>{t}</option>)}
-          </select>
-          <div className="flex items-center gap-2">
-            <Calendar size={16} className="text-gray-400" />
-            <input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)}
-              className="border border-gray-300 rounded-lg px-2 py-2 text-sm" />
-            <span className="text-gray-400 text-xs">ate</span>
-            <input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)}
-              className="border border-gray-300 rounded-lg px-2 py-2 text-sm" />
-          </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
-      <p className="text-sm text-gray-400 mb-3">{logsFiltrados.length} registros</p>
+      <p className="text-sm text-muted-foreground mb-3 tabular-nums">{logsFiltrados.length} registros</p>
 
       {/* Lista */}
       {loading ? (
-        <div className="text-center py-12">
-          <div className="w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto" />
+        <div className="space-y-2">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-12 w-full rounded-xl" />
+          ))}
         </div>
       ) : logsFiltrados.length === 0 ? (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-          <ShieldCheck size={48} className="mx-auto text-gray-300 mb-3" />
-          <p className="text-gray-500">Nenhum log encontrado.</p>
-        </div>
+        <Card>
+          <CardContent className="p-12 text-center">
+            <ShieldCheck size={48} className="mx-auto text-muted-foreground/30 mb-3" />
+            <p className="text-muted-foreground">Nenhum log encontrado.</p>
+          </CardContent>
+        </Card>
       ) : (
         <div className="space-y-2">
           {logsFiltrados.map((log) => {
@@ -137,40 +172,40 @@ export default function AuditoriaPage() {
             const eventColor = tipoEventoColors[log.tipo_evento] || 'bg-gray-100 text-gray-700'
 
             return (
-              <div key={log.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <Card key={log.id} className="overflow-hidden py-0">
                 <button
                   onClick={() => setExpanded(isExpanded ? null : log.id)}
-                  className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 text-left"
+                  className="w-full px-4 py-3 flex items-center justify-between hover:bg-muted/50 text-left"
                 >
                   <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <span className={`px-2 py-0.5 rounded text-xs font-medium shrink-0 ${eventColor}`}>
+                    <Badge className={`shrink-0 rounded text-xs font-medium ${eventColor}`}>
                       {log.tipo_evento}
-                    </span>
-                    <span className="text-sm text-gray-600 truncate">
+                    </Badge>
+                    <span className="text-sm text-foreground truncate">
                       {log.profiles?.nome_completo || 'Sistema'}
-                      <span className="text-gray-400 ml-1">({log.profiles?.role || 'auto'})</span>
+                      <span className="text-muted-foreground ml-1">({log.profiles?.role || 'auto'})</span>
                     </span>
-                    <span className="text-xs text-gray-400 shrink-0">
+                    <span className="text-xs text-muted-foreground shrink-0">
                       {log.entidade_tipo} {log.entidade_id ? `#${log.entidade_id.substring(0, 8)}` : ''}
                     </span>
                   </div>
                   <div className="flex items-center gap-3 shrink-0 ml-3">
-                    <span className="text-xs text-gray-400">
+                    <span className="text-xs text-muted-foreground tabular-nums">
                       {new Date(log.created_at).toLocaleString('pt-BR', {
                         day: '2-digit', month: '2-digit', year: 'numeric',
                         hour: '2-digit', minute: '2-digit', second: '2-digit',
                       })}
                     </span>
-                    {isExpanded ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
+                    {isExpanded ? <ChevronUp size={16} className="text-muted-foreground" /> : <ChevronDown size={16} className="text-muted-foreground" />}
                   </div>
                 </button>
 
                 {isExpanded && (
-                  <div className="px-4 pb-4 border-t border-gray-100">
+                  <div className="px-4 pb-4 border-t border-border">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
                       {log.dados_antes && (
                         <div>
-                          <p className="text-xs font-medium text-gray-500 mb-1">Dados Antes</p>
+                          <p className="text-xs font-medium text-muted-foreground mb-1">Dados Antes</p>
                           <pre className="bg-red-50 rounded-lg p-3 text-xs overflow-auto max-h-40">
                             {JSON.stringify(log.dados_antes, null, 2)}
                           </pre>
@@ -178,7 +213,7 @@ export default function AuditoriaPage() {
                       )}
                       {log.dados_depois && (
                         <div>
-                          <p className="text-xs font-medium text-gray-500 mb-1">Dados Depois</p>
+                          <p className="text-xs font-medium text-muted-foreground mb-1">Dados Depois</p>
                           <pre className="bg-green-50 rounded-lg p-3 text-xs overflow-auto max-h-40">
                             {JSON.stringify(log.dados_depois, null, 2)}
                           </pre>
@@ -186,13 +221,13 @@ export default function AuditoriaPage() {
                       )}
                     </div>
                     {log.profiles && (
-                      <p className="text-xs text-gray-400 mt-2">
+                      <p className="text-xs text-muted-foreground mt-2">
                         Usuario: {log.profiles.email}
                       </p>
                     )}
                   </div>
                 )}
-              </div>
+              </Card>
             )
           })}
         </div>

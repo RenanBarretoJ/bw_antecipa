@@ -5,6 +5,26 @@ import { createClient } from '@/lib/supabase/client'
 import { Search, Eye } from 'lucide-react'
 import Link from 'next/link'
 import { formatCNPJ, formatDate } from '@/lib/utils'
+import { Card, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
+} from '@/components/ui/table'
 
 interface CedenteRow {
   id: string
@@ -14,12 +34,12 @@ interface CedenteRow {
   created_at: string
 }
 
-const statusBadge: Record<string, { label: string; color: string }> = {
-  pendente: { label: 'Pendente', color: 'bg-gray-100 text-gray-700' },
-  em_analise: { label: 'Em Analise', color: 'bg-yellow-100 text-yellow-700' },
-  ativo: { label: 'Ativo', color: 'bg-green-100 text-green-700' },
-  reprovado: { label: 'Reprovado', color: 'bg-red-100 text-red-700' },
-  bloqueado: { label: 'Bloqueado', color: 'bg-red-100 text-red-700' },
+const statusBadge: Record<string, { label: string; className: string }> = {
+  pendente:   { label: 'Pendente',   className: 'bg-gray-100 text-gray-700 border-gray-200' },
+  em_analise: { label: 'Em Analise', className: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
+  ativo:      { label: 'Ativo',      className: 'bg-green-100 text-green-700 border-green-200' },
+  reprovado:  { label: 'Reprovado',  className: 'bg-red-100 text-red-700 border-red-200' },
+  bloqueado:  { label: 'Bloqueado',  className: 'bg-red-100 text-red-700 border-red-200' },
 }
 
 export default function GestorCedentesPage() {
@@ -53,78 +73,100 @@ export default function GestorCedentesPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Cedentes</h1>
+      <h1 className="text-2xl font-bold text-foreground mb-6">Cedentes</h1>
 
       {/* Filtros */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="flex-1 relative">
-            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Buscar por CNPJ ou razao social..."
-              className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-            />
+      <Card className="mb-6">
+        <CardContent className="p-4">
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1 relative">
+              <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Buscar por CNPJ ou razao social..."
+                className="pl-10"
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+              />
+            </div>
+            <Select value={filtroStatus || '__all__'} onValueChange={(v) => { if (v) setFiltroStatus(v === '__all__' ? '' : v) }}>
+              <SelectTrigger className="w-full md:w-48">
+                <SelectValue placeholder="Todos os status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">Todos os status</SelectItem>
+                <SelectItem value="pendente">Pendente</SelectItem>
+                <SelectItem value="em_analise">Em Analise</SelectItem>
+                <SelectItem value="ativo">Ativo</SelectItem>
+                <SelectItem value="reprovado">Reprovado</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-          <select
-            className="px-4 py-2.5 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
-            value={filtroStatus}
-            onChange={(e) => setFiltroStatus(e.target.value)}
-          >
-            <option value="">Todos os status</option>
-            <option value="pendente">Pendente</option>
-            <option value="em_analise">Em Analise</option>
-            <option value="ativo">Ativo</option>
-            <option value="reprovado">Reprovado</option>
-          </select>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Tabela */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50 border-b border-gray-200">
-            <tr>
-              <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">CNPJ</th>
-              <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Razao Social</th>
-              <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Data Cadastro</th>
-              <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Status</th>
-              <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Acoes</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {loading ? (
-              <tr><td colSpan={5} className="text-center py-8 text-gray-500">Carregando...</td></tr>
-            ) : filtered.length === 0 ? (
-              <tr><td colSpan={5} className="text-center py-8 text-gray-500">Nenhum cedente encontrado.</td></tr>
-            ) : (
-              filtered.map((c) => {
-                const badge = statusBadge[c.status] || statusBadge.pendente
-                return (
-                  <tr key={c.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 text-sm font-mono text-gray-700">{formatCNPJ(c.cnpj)}</td>
-                    <td className="px-6 py-4 text-sm text-gray-900 font-medium">{c.razao_social}</td>
-                    <td className="px-6 py-4 text-sm text-gray-500">{formatDate(c.created_at)}</td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${badge.color}`}>
-                        {badge.label}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <Link href={`/gestor/cedentes/${c.id}`}
-                        className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 font-medium">
-                        <Eye size={16} /> Ver detalhes
-                      </Link>
-                    </td>
-                  </tr>
-                )
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
+      <Card className="overflow-hidden">
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="px-6 py-3 text-xs font-semibold text-muted-foreground uppercase">CNPJ</TableHead>
+                <TableHead className="px-6 py-3 text-xs font-semibold text-muted-foreground uppercase">Razao Social</TableHead>
+                <TableHead className="px-6 py-3 text-xs font-semibold text-muted-foreground uppercase">Data Cadastro</TableHead>
+                <TableHead className="px-6 py-3 text-xs font-semibold text-muted-foreground uppercase">Status</TableHead>
+                <TableHead className="px-6 py-3 text-xs font-semibold text-muted-foreground uppercase text-right">Acoes</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell className="px-6 py-4"><Skeleton className="h-4 w-36" /></TableCell>
+                    <TableCell className="px-6 py-4"><Skeleton className="h-4 w-48" /></TableCell>
+                    <TableCell className="px-6 py-4"><Skeleton className="h-4 w-24" /></TableCell>
+                    <TableCell className="px-6 py-4"><Skeleton className="h-5 w-20 rounded-full" /></TableCell>
+                    <TableCell className="px-6 py-4"><Skeleton className="h-4 w-20 ml-auto" /></TableCell>
+                  </TableRow>
+                ))
+              ) : filtered.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    Nenhum cedente encontrado.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filtered.map((c) => {
+                  const badge = statusBadge[c.status] || statusBadge.pendente
+                  return (
+                    <TableRow key={c.id}>
+                      <TableCell className="px-6 py-4 font-mono tabular-nums text-foreground">
+                        {formatCNPJ(c.cnpj)}
+                      </TableCell>
+                      <TableCell className="px-6 py-4 font-medium text-foreground">
+                        {c.razao_social}
+                      </TableCell>
+                      <TableCell className="px-6 py-4 tabular-nums text-muted-foreground">
+                        {formatDate(c.created_at)}
+                      </TableCell>
+                      <TableCell className="px-6 py-4">
+                        <Badge className={badge.className}>
+                          {badge.label}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="px-6 py-4 text-right">
+                        <Link href={`/gestor/cedentes/${c.id}`} className="inline-flex items-center gap-1.5 text-sm text-primary hover:text-primary/80 font-medium">
+                          <Eye size={16} /> Ver detalhes
+                        </Link>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
     </div>
   )
 }

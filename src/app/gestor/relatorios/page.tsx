@@ -6,12 +6,29 @@ import { formatCurrency, formatCNPJ } from '@/lib/utils'
 import {
   BarChart3,
   TrendingUp,
-  Users,
-  CreditCard,
-  Calendar,
   DollarSign,
+  Calendar,
   AlertTriangle,
 } from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Skeleton } from '@/components/ui/skeleton'
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableFooter,
+  TableHead,
+  TableRow,
+  TableCell,
+} from '@/components/ui/table'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 interface OperacaoResumo {
   id: string
@@ -101,8 +118,14 @@ export default function RelatoriosGestorPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full animate-spin" />
+      <div className="max-w-6xl mx-auto space-y-4">
+        <Skeleton className="h-8 w-48" />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-28 rounded-xl" />
+          ))}
+        </div>
+        <Skeleton className="h-64 rounded-xl" />
       </div>
     )
   }
@@ -111,56 +134,68 @@ export default function RelatoriosGestorPage() {
     <div className="max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Relatorios</h1>
-          <p className="text-gray-500">Visao gerencial de operacoes e performance.</p>
+          <h1 className="text-2xl font-bold text-foreground">Relatorios</h1>
+          <p className="text-muted-foreground">Visao gerencial de operacoes e performance.</p>
         </div>
         <div className="flex items-center gap-2">
-          <Calendar size={16} className="text-gray-400" />
-          <select value={mesSelected} onChange={(e) => setMesSelected(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white">
-            {mesesDisponiveis.map((m) => (
-              <option key={m} value={m}>
-                {new Date(m + '-01').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
-              </option>
-            ))}
-          </select>
+          <Calendar size={16} className="text-muted-foreground" />
+          <Select value={mesSelected} onValueChange={(v) => { if (v) setMesSelected(v) }}>
+            <SelectTrigger className="h-9 w-48">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {mesesDisponiveis.map((m) => (
+                <SelectItem key={m} value={m}>
+                  {new Date(m + '-01').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="p-2 bg-blue-100 rounded-lg"><BarChart3 size={18} className="text-blue-600" /></div>
-            <span className="text-xs text-gray-500">Volume Bruto (Mes)</span>
-          </div>
-          <p className="text-2xl font-bold text-blue-700">{formatCurrency(volumeBrutoMes)}</p>
-          <p className="text-xs text-gray-400">{opsValidas.length} operacao(es)</p>
-        </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="p-2 bg-green-100 rounded-lg"><DollarSign size={18} className="text-green-600" /></div>
-            <span className="text-xs text-gray-500">Receita (Mes)</span>
-          </div>
-          <p className="text-2xl font-bold text-green-700">{formatCurrency(receitaMes)}</p>
-          <p className="text-xs text-gray-400">Taxa media: {taxaMedia.toFixed(2)}% a.m.</p>
-        </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="p-2 bg-purple-100 rounded-lg"><TrendingUp size={18} className="text-purple-600" /></div>
-            <span className="text-xs text-gray-500">Volume Total Acumulado</span>
-          </div>
-          <p className="text-2xl font-bold text-purple-700">{formatCurrency(volumeTotalGeral)}</p>
-          <p className="text-xs text-gray-400">{operacoes.filter((o) => !['cancelada', 'reprovada'].includes(o.status)).length} operacoes</p>
-        </div>
-        <div className={`rounded-xl shadow-sm border p-5 ${opsInadimplentesMes > 0 ? 'bg-red-50 border-red-200' : 'bg-white border-gray-200'}`}>
-          <div className="flex items-center gap-2 mb-2">
-            <div className="p-2 bg-red-100 rounded-lg"><AlertTriangle size={18} className="text-red-600" /></div>
-            <span className="text-xs text-gray-500">Inadimplencia</span>
-          </div>
-          <p className="text-2xl font-bold text-red-700">{opsInadimplentesMes}</p>
-          <p className="text-xs text-gray-400">{opsLiquidadasMes} liquidadas no mes</p>
-        </div>
+        <Card>
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="p-2 bg-blue-100 rounded-lg"><BarChart3 size={18} className="text-blue-600" /></div>
+              <span className="text-xs text-muted-foreground">Volume Bruto (Mes)</span>
+            </div>
+            <p className="text-2xl font-bold text-blue-700 tabular-nums">{formatCurrency(volumeBrutoMes)}</p>
+            <p className="text-xs text-muted-foreground tabular-nums">{opsValidas.length} operacao(es)</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="p-2 bg-green-100 rounded-lg"><DollarSign size={18} className="text-green-600" /></div>
+              <span className="text-xs text-muted-foreground">Receita (Mes)</span>
+            </div>
+            <p className="text-2xl font-bold text-green-700 tabular-nums">{formatCurrency(receitaMes)}</p>
+            <p className="text-xs text-muted-foreground tabular-nums">Taxa media: {taxaMedia.toFixed(2)}% a.m.</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="p-2 bg-purple-100 rounded-lg"><TrendingUp size={18} className="text-purple-600" /></div>
+              <span className="text-xs text-muted-foreground">Volume Total Acumulado</span>
+            </div>
+            <p className="text-2xl font-bold text-purple-700 tabular-nums">{formatCurrency(volumeTotalGeral)}</p>
+            <p className="text-xs text-muted-foreground tabular-nums">{operacoes.filter((o) => !['cancelada', 'reprovada'].includes(o.status)).length} operacoes</p>
+          </CardContent>
+        </Card>
+        <Card className={opsInadimplentesMes > 0 ? 'ring-red-200 bg-red-50' : ''}>
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="p-2 bg-red-100 rounded-lg"><AlertTriangle size={18} className="text-red-600" /></div>
+              <span className="text-xs text-muted-foreground">Inadimplencia</span>
+            </div>
+            <p className="text-2xl font-bold text-destructive tabular-nums">{opsInadimplentesMes}</p>
+            <p className="text-xs text-muted-foreground tabular-nums">{opsLiquidadasMes} liquidadas no mes</p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Resumo por status */}
@@ -173,67 +208,67 @@ export default function RelatoriosGestorPage() {
           { label: 'Canceladas', count: opsMes.filter((o) => o.status === 'cancelada').length, color: 'bg-gray-50 text-gray-700' },
         ].map((item) => (
           <div key={item.label} className={`rounded-xl p-3 text-center ${item.color}`}>
-            <p className="text-2xl font-bold">{item.count}</p>
+            <p className="text-2xl font-bold tabular-nums">{item.count}</p>
             <p className="text-xs">{item.label}</p>
           </div>
         ))}
       </div>
 
       {/* Tabela por cedente */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Volume por Cedente</h2>
-        </div>
+      <Card className="overflow-hidden py-0">
+        <CardHeader className="border-b border-border px-6 py-4">
+          <CardTitle>Volume por Cedente</CardTitle>
+        </CardHeader>
         {volumePorCedente.length === 0 ? (
-          <div className="p-12 text-center"><p className="text-gray-500">Nenhum cedente ativo.</p></div>
+          <CardContent className="p-12 text-center">
+            <p className="text-muted-foreground">Nenhum cedente ativo.</p>
+          </CardContent>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-200 bg-gray-50">
-                  <th className="text-left text-xs font-medium text-gray-500 uppercase px-4 py-3">Cedente</th>
-                  <th className="text-right text-xs font-medium text-gray-500 uppercase px-4 py-3">Vol. Mes</th>
-                  <th className="text-left text-xs font-medium text-gray-500 uppercase px-4 py-3">Ops Mes</th>
-                  <th className="text-right text-xs font-medium text-gray-500 uppercase px-4 py-3">Vol. Total</th>
-                  <th className="text-left text-xs font-medium text-gray-500 uppercase px-4 py-3">Ops Total</th>
-                  <th className="text-left text-xs font-medium text-gray-500 uppercase px-4 py-3">Inadimp.</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {volumePorCedente.map((c) => (
-                  <tr key={c.cnpj} className="hover:bg-gray-50">
-                    <td className="px-4 py-3">
-                      <p className="text-sm font-medium">{c.razao_social}</p>
-                      <p className="text-xs text-gray-400">{formatCNPJ(c.cnpj)}</p>
-                    </td>
-                    <td className="px-4 py-3 text-right text-sm font-medium">{formatCurrency(c.volumeMes)}</td>
-                    <td className="px-4 py-3 text-sm">{c.opsMes}</td>
-                    <td className="px-4 py-3 text-right text-sm font-bold">{formatCurrency(c.volumeTotal)}</td>
-                    <td className="px-4 py-3 text-sm">{c.opsTotal}</td>
-                    <td className="px-4 py-3">
-                      {c.inadimplentes > 0 ? (
-                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">{c.inadimplentes}</span>
-                      ) : (
-                        <span className="text-sm text-gray-400">0</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="border-t-2 border-gray-300 bg-gray-50">
-                  <td className="px-4 py-3 font-bold text-sm">Total</td>
-                  <td className="px-4 py-3 text-right font-bold text-sm">{formatCurrency(volumeBrutoMes)}</td>
-                  <td className="px-4 py-3 font-bold text-sm">{opsValidas.length}</td>
-                  <td className="px-4 py-3 text-right font-bold text-sm">{formatCurrency(volumeTotalGeral)}</td>
-                  <td className="px-4 py-3 font-bold text-sm">{operacoes.filter((o) => !['cancelada', 'reprovada'].includes(o.status)).length}</td>
-                  <td className="px-4 py-3"></td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="text-xs uppercase px-4 py-3">Cedente</TableHead>
+                <TableHead className="text-xs uppercase px-4 py-3 text-right">Vol. Mes</TableHead>
+                <TableHead className="text-xs uppercase px-4 py-3">Ops Mes</TableHead>
+                <TableHead className="text-xs uppercase px-4 py-3 text-right">Vol. Total</TableHead>
+                <TableHead className="text-xs uppercase px-4 py-3">Ops Total</TableHead>
+                <TableHead className="text-xs uppercase px-4 py-3">Inadimp.</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {volumePorCedente.map((c) => (
+                <TableRow key={c.cnpj}>
+                  <TableCell className="px-4 py-3">
+                    <p className="text-sm font-medium text-foreground">{c.razao_social}</p>
+                    <p className="text-xs text-muted-foreground tabular-nums">{formatCNPJ(c.cnpj)}</p>
+                  </TableCell>
+                  <TableCell className="px-4 py-3 text-right text-sm font-medium tabular-nums">{formatCurrency(c.volumeMes)}</TableCell>
+                  <TableCell className="px-4 py-3 text-sm tabular-nums">{c.opsMes}</TableCell>
+                  <TableCell className="px-4 py-3 text-right text-sm font-bold tabular-nums">{formatCurrency(c.volumeTotal)}</TableCell>
+                  <TableCell className="px-4 py-3 text-sm tabular-nums">{c.opsTotal}</TableCell>
+                  <TableCell className="px-4 py-3">
+                    {c.inadimplentes > 0 ? (
+                      <Badge className="rounded-full text-xs font-medium bg-red-100 text-red-700 tabular-nums">{c.inadimplentes}</Badge>
+                    ) : (
+                      <span className="text-sm text-muted-foreground tabular-nums">0</span>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+            <TableFooter>
+              <TableRow>
+                <TableCell className="px-4 py-3 font-bold text-sm">Total</TableCell>
+                <TableCell className="px-4 py-3 text-right font-bold text-sm tabular-nums">{formatCurrency(volumeBrutoMes)}</TableCell>
+                <TableCell className="px-4 py-3 font-bold text-sm tabular-nums">{opsValidas.length}</TableCell>
+                <TableCell className="px-4 py-3 text-right font-bold text-sm tabular-nums">{formatCurrency(volumeTotalGeral)}</TableCell>
+                <TableCell className="px-4 py-3 font-bold text-sm tabular-nums">{operacoes.filter((o) => !['cancelada', 'reprovada'].includes(o.status)).length}</TableCell>
+                <TableCell className="px-4 py-3"></TableCell>
+              </TableRow>
+            </TableFooter>
+          </Table>
         )}
-      </div>
+      </Card>
     </div>
   )
 }
