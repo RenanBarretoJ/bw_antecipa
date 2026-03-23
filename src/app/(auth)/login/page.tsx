@@ -68,7 +68,7 @@ export default function LoginPage() {
             </div>
             <span className="text-xl font-bold tracking-tight">Antecipa</span>
           </div>
-          <p className="text-primary-foreground/70 text-sm mt-1">Blue Wave Asset Management</p>
+          <p className="text-primary-foreground/70 text-sm mt-1">BW BI LTDA</p>
         </div>
 
         <div className="relative z-10 space-y-8">
@@ -108,7 +108,7 @@ export default function LoginPage() {
         </div>
 
         <p className="relative z-10 text-xs text-primary-foreground/50">
-          2024-2026 Blue Wave Asset Management. Todos os direitos reservados.
+          2024-2026 BW BI LTDA. Todos os direitos reservados.
         </p>
       </div>
 

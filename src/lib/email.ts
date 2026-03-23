@@ -66,7 +66,7 @@ function baseTemplate(content: string): string {
           ${content}
         </div>
         <div style="background: #f9f9f9; padding: 16px 32px; text-align: center; font-size: 12px; color: #999;">
-          <p>Blue Wave Asset — Portal de Antecipacao de Recebiveis</p>
+          <p>BW BI LTDA — Portal de Antecipacao de Recebiveis</p>
           <p>Este e um email automatico. Nao responda.</p>
         </div>
       </div>

@@ -102,7 +102,7 @@ export function Sidebar({ items, role, open, onClose }: SidebarProps) {
       </nav>
 
       <div className="p-4 border-t border-sidebar-border">
-        <p className="text-[10px] text-sidebar-foreground/30 text-center">Blue Wave Asset</p>
+        <p className="text-[10px] text-sidebar-foreground/30 text-center">BW BI LTDA</p>
       </div>
     </>
   )

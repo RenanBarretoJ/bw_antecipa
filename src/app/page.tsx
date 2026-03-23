@@ -212,10 +212,10 @@ export default function Home() {
                 BW
               </div>
               <span className="text-sm font-semibold text-foreground">Antecipa</span>
-              <span className="text-xs text-muted-foreground">by Blue Wave Asset Management</span>
+              <span className="text-xs text-muted-foreground">by BW BI LTDA</span>
             </div>
             <p className="text-xs text-muted-foreground">
-              2024-2026 Blue Wave Asset Management. Todos os direitos reservados.
+              2024-2026 BW BI LTDA. Todos os direitos reservados.
             </p>
           </div>
         </div>
