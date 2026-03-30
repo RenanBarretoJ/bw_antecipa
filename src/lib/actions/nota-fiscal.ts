@@ -246,6 +246,108 @@ export async function uploadNFs(formData: FormData): Promise<NfActionState> {
   }
 }
 
+// Criar NF a partir de PDF/imagem com dados preenchidos manualmente pelo cedente
+export async function criarNFManual(formData: FormData): Promise<NfActionState> {
+  const supabase = await createClient()
+  const cedente = await getCedenteDoUsuario()
+
+  if (!cedente) {
+    return { success: false, message: 'Cadastro de cedente nao encontrado.' }
+  }
+
+  if (cedente.status !== 'ativo') {
+    return { success: false, message: 'Seu cadastro precisa estar ativo para enviar NFs.' }
+  }
+
+  const arquivo = formData.get('arquivo') as File | null
+  if (!arquivo) {
+    return { success: false, message: 'Arquivo nao encontrado.' }
+  }
+
+  const maxSize = 20 * 1024 * 1024
+  if (arquivo.size > maxSize) {
+    return { success: false, message: `${arquivo.name}: arquivo muito grande (max 20MB).` }
+  }
+
+  const numero_nf = (formData.get('numero_nf') as string || '').trim()
+  const data_emissao = formData.get('data_emissao') as string
+  const data_vencimento = formData.get('data_vencimento') as string
+  const cnpj_destinatario = (formData.get('cnpj_destinatario') as string || '').replace(/\D/g, '')
+  const razao_social_destinatario = (formData.get('razao_social_destinatario') as string || '').trim()
+  const valor_bruto = parseFloat(formData.get('valor_bruto') as string) || 0
+  const descricao_itens = (formData.get('descricao_itens') as string || '').trim()
+  const condicao_pagamento = (formData.get('condicao_pagamento') as string || '').trim()
+
+  if (!numero_nf) return { success: false, message: 'Numero da NF e obrigatorio.' }
+  if (!data_emissao) return { success: false, message: 'Data de emissao e obrigatoria.' }
+  if (!data_vencimento) return { success: false, message: 'Data de vencimento e obrigatoria.' }
+  if (!cnpj_destinatario || cnpj_destinatario.length < 14) return { success: false, message: 'CNPJ do destinatario invalido.' }
+  if (!razao_social_destinatario) return { success: false, message: 'Razao social do destinatario e obrigatoria.' }
+  if (valor_bruto <= 0) return { success: false, message: 'Valor bruto deve ser maior que zero.' }
+
+  const cnpjLimpo = cedente.cnpj.replace(/\D/g, '')
+  const timestamp = Date.now()
+  const cleanName = arquivo.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+  const filePath = `${cnpjLimpo}/nf/${timestamp}_${cleanName}`
+
+  const { error: uploadError } = await supabase.storage
+    .from('notas-fiscais')
+    .upload(filePath, arquivo)
+
+  if (uploadError) {
+    return { success: false, message: `Erro no upload: ${uploadError.message}` }
+  }
+
+  const { data: nf, error: dbError } = await supabase
+    .from('notas_fiscais')
+    .insert({
+      cedente_id: cedente.id,
+      numero_nf,
+      serie: null,
+      chave_acesso: null,
+      data_emissao,
+      data_vencimento,
+      cnpj_emitente: cnpjLimpo,
+      razao_social_emitente: cedente.razao_social,
+      cnpj_destinatario,
+      razao_social_destinatario,
+      valor_bruto,
+      valor_liquido: valor_bruto,
+      valor_icms: 0,
+      valor_iss: 0,
+      valor_pis: 0,
+      valor_cofins: 0,
+      valor_ipi: 0,
+      descricao_itens: descricao_itens || null,
+      condicao_pagamento: condicao_pagamento || null,
+      arquivo_url: filePath,
+      status: 'submetida',
+    } as never)
+    .select('id')
+    .single()
+
+  if (dbError) {
+    return { success: false, message: `Erro ao salvar: ${dbError.message}` }
+  }
+
+  const nfData = nf as { id: string }
+
+  await registrarLog({
+    tipo_evento: 'NF_CADASTRADA',
+    entidade_tipo: 'notas_fiscais',
+    entidade_id: nfData.id,
+    dados_depois: { numero_nf, valor_bruto, cnpj_destinatario } as Record<string, unknown>,
+  })
+
+  await notificarGestores(
+    'Nova NF enviada',
+    `O cedente ${cedente.razao_social} enviou a NF ${numero_nf} para analise.`,
+    'nf_enviada'
+  )
+
+  return { success: true, message: 'Nota fiscal enviada com sucesso!', ids: [nfData.id] }
+}
+
 // Salvar/atualizar dados de NF rascunho (preenchimento manual para PDF)
 export async function salvarDadosNF(nfId: string, data: NotaFiscalFormData): Promise<NfActionState> {
   const supabase = await createClient()

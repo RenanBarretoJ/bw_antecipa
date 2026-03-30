@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { uploadNFs } from '@/lib/actions/nota-fiscal'
+import { uploadNFs, criarNFManual } from '@/lib/actions/nota-fiscal'
 import { formatCurrency, formatCNPJ, formatDate } from '@/lib/utils'
 import Link from 'next/link'
 import {
@@ -48,6 +48,28 @@ interface NfRecord {
   created_at: string
 }
 
+interface PdfForm {
+  numero_nf: string
+  data_emissao: string
+  data_vencimento: string
+  cnpj_destinatario: string
+  razao_social_destinatario: string
+  valor_bruto: string
+  descricao_itens: string
+  condicao_pagamento: string
+}
+
+const defaultPdfForm = (): PdfForm => ({
+  numero_nf: '',
+  data_emissao: new Date().toISOString().split('T')[0],
+  data_vencimento: '',
+  cnpj_destinatario: '',
+  razao_social_destinatario: '',
+  valor_bruto: '',
+  descricao_itens: '',
+  condicao_pagamento: '',
+})
+
 const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; className: string; icon: typeof CheckCircle }> = {
   rascunho:      { label: 'Rascunho',       variant: 'outline',     className: 'bg-muted text-muted-foreground border-border',                   icon: FileText },
   submetida:     { label: 'Submetida',      variant: 'secondary',   className: 'bg-blue-100 text-blue-700 border-blue-200',                      icon: Upload },
@@ -56,6 +78,10 @@ const statusConfig: Record<string, { label: string; variant: 'default' | 'second
   em_antecipacao:{ label: 'Em Antecipacao', variant: 'secondary',   className: 'bg-purple-100 text-purple-700 border-purple-200',                icon: Banknote },
   liquidada:     { label: 'Liquidada',      variant: 'secondary',   className: 'bg-emerald-100 text-emerald-700 border-emerald-200',             icon: CheckCircle },
   cancelada:     { label: 'Cancelada',      variant: 'destructive', className: 'bg-red-100 text-red-700 border-red-200',                         icon: XCircle },
+}
+
+function isNonXml(file: File) {
+  return !file.name.toLowerCase().endsWith('.xml')
 }
 
 export default function NotasFiscaisCedentePage() {
@@ -69,6 +95,8 @@ export default function NotasFiscaisCedentePage() {
   const [busca, setBusca] = useState('')
   const [dragActive, setDragActive] = useState(false)
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
+  // pdfForms: keyed by file name, holds manual form data for each non-XML file
+  const [pdfForms, setPdfForms] = useState<Record<string, PdfForm>>({})
 
   const loadNFs = async () => {
     const supabase = createClient()
@@ -97,9 +125,7 @@ export default function NotasFiscaisCedentePage() {
     e.preventDefault()
     e.stopPropagation()
     setDragActive(false)
-
-    const files = Array.from(e.dataTransfer.files)
-    addFiles(files)
+    addFiles(Array.from(e.dataTransfer.files))
   }, [])
 
   const addFiles = (files: File[]) => {
@@ -115,49 +141,143 @@ export default function NotasFiscaisCedentePage() {
     }
 
     setSelectedFiles((prev) => [...prev, ...validFiles])
+    setPdfForms((prev) => {
+      const next = { ...prev }
+      validFiles.filter(isNonXml).forEach((f) => {
+        if (!next[f.name]) next[f.name] = defaultPdfForm()
+      })
+      return next
+    })
   }
 
   const removeFile = (index: number) => {
-    setSelectedFiles((prev) => prev.filter((_, i) => i !== index))
+    setSelectedFiles((prev) => {
+      const removed = prev[index]
+      const next = prev.filter((_, i) => i !== index)
+      if (removed && isNonXml(removed)) {
+        setPdfForms((forms) => {
+          const updated = { ...forms }
+          delete updated[removed.name]
+          return updated
+        })
+      }
+      return next
+    })
+  }
+
+  const updatePdfForm = (fileName: string, field: keyof PdfForm, value: string) => {
+    setPdfForms((prev) => ({
+      ...prev,
+      [fileName]: { ...prev[fileName], [field]: value },
+    }))
   }
 
   const handleUpload = async () => {
     if (selectedFiles.length === 0) return
 
+    // Validate PDF forms before sending
+    const nonXmlFiles = selectedFiles.filter(isNonXml)
+    for (const file of nonXmlFiles) {
+      const form = pdfForms[file.name]
+      if (!form) continue
+      if (!form.numero_nf.trim()) {
+        setMessage(`Preencha o Numero da NF para "${file.name}".`)
+        setMessageType('error')
+        return
+      }
+      if (!form.data_emissao) {
+        setMessage(`Preencha a Data de Emissao para "${file.name}".`)
+        setMessageType('error')
+        return
+      }
+      if (!form.data_vencimento) {
+        setMessage(`Preencha a Data de Vencimento para "${file.name}".`)
+        setMessageType('error')
+        return
+      }
+      if (!form.cnpj_destinatario.replace(/\D/g, '') || form.cnpj_destinatario.replace(/\D/g, '').length < 14) {
+        setMessage(`CNPJ do destinatario invalido para "${file.name}".`)
+        setMessageType('error')
+        return
+      }
+      if (!form.razao_social_destinatario.trim()) {
+        setMessage(`Preencha a Razao Social do destinatario para "${file.name}".`)
+        setMessageType('error')
+        return
+      }
+      if (!form.valor_bruto || parseFloat(form.valor_bruto) <= 0) {
+        setMessage(`Valor Bruto deve ser maior que zero para "${file.name}".`)
+        setMessageType('error')
+        return
+      }
+    }
+
     setUploading(true)
     setMessage('')
 
-    const formData = new FormData()
-    selectedFiles.forEach((file) => {
-      formData.append('arquivos', file)
-    })
+    const xmlFiles = selectedFiles.filter((f) => f.name.toLowerCase().endsWith('.xml'))
+    const errors: string[] = []
+    const createdIds: string[] = []
 
-    const result = await uploadNFs(formData)
-
-    if (result?.success) {
-      setSelectedFiles([])
-      // Se criou rascunhos (PDF/imagem), redirecionar para preenchimento
-      if (result.rascunhos && result.rascunhos.length === 1) {
-        router.push(`/cedente/notas-fiscais/${result.rascunhos[0]}`)
-        return
-      } else if (result.rascunhos && result.rascunhos.length > 1) {
-        setMessage(`${result.rascunhos.length} rascunhos criados. Preencha os dados de cada NF clicando em "Preencher" abaixo.`)
-        setMessageType('success')
-        await loadNFs()
-      } else {
-        setMessage(result.message || 'NFs enviadas!')
-        setMessageType('success')
-        await loadNFs()
+    // Upload XMLs via existing action
+    if (xmlFiles.length > 0) {
+      const fd = new FormData()
+      xmlFiles.forEach((f) => fd.append('arquivos', f))
+      const result = await uploadNFs(fd)
+      if (result?.success) {
+        createdIds.push(...(result.ids || []))
+      } else if (result?.message) {
+        errors.push(result.message)
       }
-    } else {
-      setMessage(result?.message || 'Erro no envio.')
-      setMessageType('error')
+    }
+
+    // Upload PDFs/images via criarNFManual with form data
+    for (const file of nonXmlFiles) {
+      const form = pdfForms[file.name]
+      const fd = new FormData()
+      fd.append('arquivo', file)
+      fd.append('numero_nf', form.numero_nf)
+      fd.append('data_emissao', form.data_emissao)
+      fd.append('data_vencimento', form.data_vencimento)
+      fd.append('cnpj_destinatario', form.cnpj_destinatario)
+      fd.append('razao_social_destinatario', form.razao_social_destinatario)
+      fd.append('valor_bruto', form.valor_bruto)
+      fd.append('descricao_itens', form.descricao_itens)
+      fd.append('condicao_pagamento', form.condicao_pagamento)
+
+      const result = await criarNFManual(fd)
+      if (result?.success) {
+        createdIds.push(...(result.ids || []))
+      } else {
+        errors.push(result?.message || `Erro ao enviar "${file.name}".`)
+      }
     }
 
     setUploading(false)
+
+    if (errors.length > 0 && createdIds.length === 0) {
+      setMessage(errors.join('\n'))
+      setMessageType('error')
+      return
+    }
+
+    setSelectedFiles([])
+    setPdfForms({})
+
+    if (errors.length > 0) {
+      setMessage(`${createdIds.length} NF(s) enviada(s) com sucesso. Erros: ${errors.join('; ')}`)
+      setMessageType('error')
+      await loadNFs()
+    } else if (createdIds.length === 1 && nonXmlFiles.length === 1 && xmlFiles.length === 0) {
+      // Single PDF: redirect to detail page
+      router.push(`/cedente/notas-fiscais/${createdIds[0]}`)
+    } else {
+      setMessage(`${createdIds.length} nota(s) fiscal(is) enviada(s) com sucesso!`)
+      setMessageType('success')
+      await loadNFs()
+    }
   }
 
-  // Filtrar NFs
   const nfsFiltradas = nfs.filter((nf) => {
     if (filtroStatus !== 'todos' && nf.status !== filtroStatus) return false
     if (busca) {
@@ -231,39 +351,138 @@ export default function NotasFiscaisCedentePage() {
                 <Button
                   variant="ghost"
                   size="xs"
-                  onClick={() => setSelectedFiles([])}
+                  onClick={() => { setSelectedFiles([]); setPdfForms({}) }}
                   className="text-destructive hover:text-destructive"
                 >
                   Limpar todos
                 </Button>
               </div>
-              <div className="space-y-2 max-h-48 overflow-y-auto">
+
+              <div className="space-y-4">
                 {selectedFiles.map((file, index) => (
-                  <div key={index} className="flex items-center justify-between bg-muted/40 rounded-lg px-3 py-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <FileText size={16} className={getFileIcon(file.name)} />
-                      <span className="text-sm text-foreground truncate">{file.name}</span>
-                      <span className="text-xs text-muted-foreground shrink-0">
-                        ({(file.size / 1024 / 1024).toFixed(1)} MB)
-                      </span>
-                      {file.name.endsWith('.xml') ? (
-                        <Badge className="bg-green-100 text-green-700 border-green-200 text-xs px-1.5 py-0.5">
-                          Leitura automatica
-                        </Badge>
-                      ) : (
-                        <Badge className="bg-yellow-100 text-yellow-700 border-yellow-200 text-xs px-1.5 py-0.5">
-                          Preenchimento manual
-                        </Badge>
-                      )}
+                  <div key={index}>
+                    {/* File row */}
+                    <div className="flex items-center justify-between bg-muted/40 rounded-lg px-3 py-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <FileText size={16} className={getFileIcon(file.name)} />
+                        <span className="text-sm text-foreground truncate">{file.name}</span>
+                        <span className="text-xs text-muted-foreground shrink-0">
+                          ({(file.size / 1024 / 1024).toFixed(1)} MB)
+                        </span>
+                        {!isNonXml(file) ? (
+                          <Badge className="bg-green-100 text-green-700 border-green-200 text-xs px-1.5 py-0.5">
+                            Leitura automatica
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-yellow-100 text-yellow-700 border-yellow-200 text-xs px-1.5 py-0.5">
+                            Preenchimento manual
+                          </Badge>
+                        )}
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        onClick={() => removeFile(index)}
+                        className="text-muted-foreground hover:text-destructive ml-2 shrink-0"
+                      >
+                        <X size={16} />
+                      </Button>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      onClick={() => removeFile(index)}
-                      className="text-muted-foreground hover:text-destructive ml-2 shrink-0"
-                    >
-                      <X size={16} />
-                    </Button>
+
+                    {/* Manual form for PDF/image files */}
+                    {isNonXml(file) && pdfForms[file.name] && (
+                      <div className="mt-2 ml-4 border border-border rounded-lg p-4 bg-background space-y-3">
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                          Dados da Nota Fiscal
+                        </p>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          <div>
+                            <label className="block text-xs font-medium text-foreground mb-1">Numero da NF *</label>
+                            <input
+                              type="text"
+                              value={pdfForms[file.name].numero_nf}
+                              onChange={(e) => updatePdfForm(file.name, 'numero_nf', e.target.value)}
+                              placeholder="Ex: 1234"
+                              className="w-full border border-input rounded-md px-2 py-1.5 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-foreground mb-1">Data de Emissao *</label>
+                            <input
+                              type="date"
+                              value={pdfForms[file.name].data_emissao}
+                              onChange={(e) => updatePdfForm(file.name, 'data_emissao', e.target.value)}
+                              className="w-full border border-input rounded-md px-2 py-1.5 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-foreground mb-1">Data de Vencimento *</label>
+                            <input
+                              type="date"
+                              value={pdfForms[file.name].data_vencimento}
+                              onChange={(e) => updatePdfForm(file.name, 'data_vencimento', e.target.value)}
+                              className="w-full border border-input rounded-md px-2 py-1.5 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                            />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-xs font-medium text-foreground mb-1">CNPJ do Sacado (Destinatario) *</label>
+                            <input
+                              type="text"
+                              value={pdfForms[file.name].cnpj_destinatario}
+                              onChange={(e) => updatePdfForm(file.name, 'cnpj_destinatario', e.target.value)}
+                              placeholder="00.000.000/0001-00"
+                              className="w-full border border-input rounded-md px-2 py-1.5 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-foreground mb-1">Razao Social do Sacado *</label>
+                            <input
+                              type="text"
+                              value={pdfForms[file.name].razao_social_destinatario}
+                              onChange={(e) => updatePdfForm(file.name, 'razao_social_destinatario', e.target.value)}
+                              placeholder="Nome da empresa"
+                              className="w-full border border-input rounded-md px-2 py-1.5 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                            />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          <div>
+                            <label className="block text-xs font-medium text-foreground mb-1">Valor Bruto (R$) *</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0.01"
+                              value={pdfForms[file.name].valor_bruto}
+                              onChange={(e) => updatePdfForm(file.name, 'valor_bruto', e.target.value)}
+                              placeholder="0,00"
+                              className="w-full border border-input rounded-md px-2 py-1.5 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-foreground mb-1">Condicao de Pagamento</label>
+                            <input
+                              type="text"
+                              value={pdfForms[file.name].condicao_pagamento}
+                              onChange={(e) => updatePdfForm(file.name, 'condicao_pagamento', e.target.value)}
+                              placeholder="Ex: 30 dias, boleto"
+                              className="w-full border border-input rounded-md px-2 py-1.5 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-foreground mb-1">Descricao dos Itens</label>
+                            <input
+                              type="text"
+                              value={pdfForms[file.name].descricao_itens}
+                              onChange={(e) => updatePdfForm(file.name, 'descricao_itens', e.target.value)}
+                              placeholder="Servicos / produtos"
+                              className="w-full border border-input rounded-md px-2 py-1.5 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
