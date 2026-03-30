@@ -10,6 +10,8 @@ export type NfActionState = {
   success?: boolean
   errors?: Record<string, string[]>
   message?: string
+  ids?: string[]
+  rascunhos?: string[]
   data?: {
     id: string
     parsed?: Record<string, unknown>
@@ -56,6 +58,7 @@ export async function uploadNFs(formData: FormData): Promise<NfActionState> {
 
   const erros: string[] = []
   const nfsCriadas: string[] = []
+  const nfsRascunho: string[] = []
 
   for (const arquivo of arquivos) {
     // Validar tipo e tamanho
@@ -207,6 +210,7 @@ export async function uploadNFs(formData: FormData): Promise<NfActionState> {
 
         const nfData = nf as { id: string }
         nfsCriadas.push(nfData.id)
+        nfsRascunho.push(nfData.id)
       }
     } catch (e) {
       erros.push(`${arquivo.name}: erro inesperado ao processar.`)
@@ -237,6 +241,8 @@ export async function uploadNFs(formData: FormData): Promise<NfActionState> {
     message: erros.length > 0
       ? `${msg} (${erros.length} erro(s): ${erros.join('; ')})`
       : msg,
+    ids: nfsCriadas,
+    rascunhos: nfsRascunho,
   }
 }
 

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { uploadNFs } from '@/lib/actions/nota-fiscal'
 import { formatCurrency, formatCNPJ, formatDate } from '@/lib/utils'
@@ -58,6 +59,7 @@ const statusConfig: Record<string, { label: string; variant: 'default' | 'second
 }
 
 export default function NotasFiscaisCedentePage() {
+  const router = useRouter()
   const [nfs, setNfs] = useState<NfRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
@@ -133,10 +135,20 @@ export default function NotasFiscaisCedentePage() {
     const result = await uploadNFs(formData)
 
     if (result?.success) {
-      setMessage(result.message || 'NFs enviadas!')
-      setMessageType('success')
       setSelectedFiles([])
-      await loadNFs()
+      // Se criou rascunhos (PDF/imagem), redirecionar para preenchimento
+      if (result.rascunhos && result.rascunhos.length === 1) {
+        router.push(`/cedente/notas-fiscais/${result.rascunhos[0]}`)
+        return
+      } else if (result.rascunhos && result.rascunhos.length > 1) {
+        setMessage(`${result.rascunhos.length} rascunhos criados. Preencha os dados de cada NF clicando em "Preencher" abaixo.`)
+        setMessageType('success')
+        await loadNFs()
+      } else {
+        setMessage(result.message || 'NFs enviadas!')
+        setMessageType('success')
+        await loadNFs()
+      }
     } else {
       setMessage(result?.message || 'Erro no envio.')
       setMessageType('error')
