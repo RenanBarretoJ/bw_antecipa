@@ -181,41 +181,41 @@ export default function OperacoesCedentePage() {
         <Card className="bg-blue-50 dark:bg-blue-900/20 ring-blue-200 dark:ring-blue-800">
           <CardContent className="pt-4 pb-4">
             <p className="text-xs font-medium text-blue-600 dark:text-blue-400">Total</p>
-            <p className="text-2xl font-bold text-blue-700 dark:text-blue-300 tabular-nums">
+            <div className="text-2xl font-bold text-blue-700 dark:text-blue-300 tabular-nums">
               {loading ? <Skeleton className="h-8 w-10 mt-1" /> : ops.length}
-            </p>
+            </div>
           </CardContent>
         </Card>
         <Card className="bg-yellow-50 dark:bg-yellow-900/20 ring-yellow-200 dark:ring-yellow-800">
           <CardContent className="pt-4 pb-4">
             <p className="text-xs font-medium text-yellow-600 dark:text-yellow-400">Pendentes</p>
-            <p className="text-2xl font-bold text-yellow-700 dark:text-yellow-300 tabular-nums">
+            <div className="text-2xl font-bold text-yellow-700 dark:text-yellow-300 tabular-nums">
               {loading ? (
                 <Skeleton className="h-8 w-10 mt-1" />
               ) : (
                 ops.filter((o) => o.status === 'solicitada' || o.status === 'em_analise').length
               )}
-            </p>
+            </div>
           </CardContent>
         </Card>
         <Card className="bg-purple-50 dark:bg-purple-900/20 ring-purple-200 dark:ring-purple-800">
           <CardContent className="pt-4 pb-4">
             <p className="text-xs font-medium text-purple-600 dark:text-purple-400">Em Andamento</p>
-            <p className="text-2xl font-bold text-purple-700 dark:text-purple-300 tabular-nums">
+            <div className="text-2xl font-bold text-purple-700 dark:text-purple-300 tabular-nums">
               {loading ? (
                 <Skeleton className="h-8 w-10 mt-1" />
               ) : (
                 ops.filter((o) => o.status === 'em_andamento').length
               )}
-            </p>
+            </div>
           </CardContent>
         </Card>
         <Card className="bg-green-50 dark:bg-green-900/20 ring-green-200 dark:ring-green-800">
           <CardContent className="pt-4 pb-4">
             <p className="text-xs font-medium text-green-600 dark:text-green-400">Valor Ativo</p>
-            <p className="text-2xl font-bold text-green-700 dark:text-green-300 tabular-nums">
+            <div className="text-2xl font-bold text-green-700 dark:text-green-300 tabular-nums">
               {loading ? <Skeleton className="h-8 w-28 mt-1" /> : formatCurrency(valorAtivo)}
-            </p>
+            </div>
           </CardContent>
         </Card>
       </div>

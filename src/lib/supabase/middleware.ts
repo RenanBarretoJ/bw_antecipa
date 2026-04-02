@@ -35,9 +35,13 @@ export async function updateSession(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname
 
-  // Rotas públicas
-  const publicRoutes = ['/login', '/cadastro']
+  // Rotas públicas (acessíveis sem autenticação)
+  const publicRoutes = ['/', '/login', '/cadastro']
   const isPublicRoute = publicRoutes.some((route) => pathname.startsWith(route))
+
+  // Rotas de auth: redirecionam usuário autenticado para o dashboard
+  const authRoutes = ['/login', '/cadastro']
+  const isAuthRoute = authRoutes.some((route) => pathname.startsWith(route))
 
   // Se não autenticado e rota protegida → redireciona para login
   if (!user && !isPublicRoute) {
@@ -46,8 +50,8 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // Se autenticado e em rota pública → redireciona para dashboard
-  if (user && isPublicRoute) {
+  // Se autenticado e em rota de auth (/login, /cadastro) → redireciona para dashboard
+  if (user && isAuthRoute) {
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')

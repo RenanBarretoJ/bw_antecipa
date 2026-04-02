@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { aprovarNF, reprovarNF } from '@/lib/actions/nota-fiscal'
-import { formatCurrency, formatCNPJ, formatDate } from '@/lib/utils'
+import { formatCurrency, formatCNPJ, formatDate, parseLocalDate } from '@/lib/utils'
 import Link from 'next/link'
 import {
   ArrowLeft,
@@ -407,7 +407,7 @@ export default function NfDetalheGestorPage() {
                 <div className="border-t pt-2 flex justify-between">
                   <span className="text-muted-foreground">Dias ate vencimento</span>
                   <span className="font-medium tabular-nums">
-                    {Math.ceil((new Date(nf.data_vencimento).getTime() - Date.now()) / (1000 * 60 * 60 * 24))} dias
+                    {Math.ceil((parseLocalDate(nf.data_vencimento).getTime() - Date.now()) / (1000 * 60 * 60 * 24))} dias
                   </span>
                 </div>
               </div>

@@ -197,8 +197,8 @@ export default function OperacaoDetalheGestorPage() {
   // Recalcular valor liquido quando taxa ou prazo mudam
   useEffect(() => {
     if (op && taxa >= 0 && prazo > 0) {
-      const taxaProporcional = (taxa / 100) * (prazo / 30)
-      const vl = op.valor_bruto_total * (1 - taxaProporcional)
+      const fatorTaxaDia = (1 + (taxa / 100)) ** (1 / 30)
+      const vl = (op.valor_bruto_total / (fatorTaxaDia ** prazo))
       setValorLiquido(Math.max(0, Math.round(vl * 100) / 100))
     }
   }, [taxa, prazo, op])

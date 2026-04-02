@@ -25,7 +25,7 @@ interface OperacaoSacado {
   data_vencimento: string
   status: string
   created_at: string
-  cedentes: { razao_social: string; cnpj: string }
+  cedentes: { razao_social: string; cnpj: string } | null
   contas_escrow: { identificador: string } | null
 }
 
@@ -90,7 +90,7 @@ export default function HistoricoPagamentosPage() {
     if (filtro !== 'todos' && op.status !== filtro) return false
     if (busca) {
       const term = busca.toLowerCase()
-      return op.cedentes.razao_social.toLowerCase().includes(term) || op.cedentes.cnpj.includes(term)
+      return op.cedentes?.razao_social.toLowerCase().includes(term) || op.cedentes?.cnpj.includes(term)
     }
     return true
   })
@@ -200,8 +200,8 @@ export default function HistoricoPagamentosPage() {
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                         <div>
                           <span className="text-muted-foreground text-xs">Cedente</span>
-                          <p className="font-medium text-foreground">{op.cedentes.razao_social}</p>
-                          <p className="text-xs text-muted-foreground">{formatCNPJ(op.cedentes.cnpj)}</p>
+                          <p className="font-medium text-foreground">{op.cedentes?.razao_social || '—'}</p>
+                          <p className="text-xs text-muted-foreground">{op.cedentes?.cnpj ? formatCNPJ(op.cedentes.cnpj) : '—'}</p>
                         </div>
                         <div>
                           <span className="text-muted-foreground text-xs">Valor</span>

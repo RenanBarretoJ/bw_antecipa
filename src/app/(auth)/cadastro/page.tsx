@@ -85,15 +85,15 @@ export default function CadastroPage() {
             <span className="text-xl font-bold tracking-tight text-foreground">Antecipa</span>
           </div>
 
-          <Card className="border-0 shadow-none bg-transparent">
-            <CardHeader className="px-0 pt-0">
+          <Card className="shadow-sm border bg-card">
+            <CardHeader className="pb-4">
               <CardTitle className="text-2xl font-bold">Criar nova conta</CardTitle>
-              <CardDescription>
+              <CardDescription className="text-muted-foreground">
                 Preencha os dados abaixo para comecar
               </CardDescription>
             </CardHeader>
 
-            <CardContent className="px-0">
+            <CardContent>
               {isSuccess ? (
                 <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-8 text-center">
                   <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4">
@@ -203,7 +203,7 @@ export default function CadastroPage() {
               )}
 
               {!isSuccess && (
-                <div className="mt-8 text-center">
+                <div className="mt-6 text-center">
                   <p className="text-muted-foreground text-sm">
                     Ja tem conta?{' '}
                     <Link href="/login" className="text-primary hover:text-primary/80 font-semibold transition-colors">

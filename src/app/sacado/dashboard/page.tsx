@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { formatCurrency, formatCNPJ, formatDate } from '@/lib/utils'
+import { formatCurrency, formatCNPJ, formatDate, parseLocalDate } from '@/lib/utils'
 import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -139,14 +139,14 @@ export default function SacadoDashboard() {
   const vencimentosHoje = nfsAtivas.filter((n) => n.data_vencimento === hoje)
   const vencidos = nfsAtivas.filter((n) => n.data_vencimento < hoje)
   const proximos7d = nfsAtivas.filter((n) => {
-    const venc = new Date(n.data_vencimento)
+    const venc = parseLocalDate(n.data_vencimento)
     const em7d = new Date()
     em7d.setDate(em7d.getDate() + 7)
-    return venc >= new Date(hoje) && venc <= em7d
+    return venc >= parseLocalDate(hoje) && venc <= em7d
   })
 
   const getDiasAteVencimento = (data: string) => {
-    return Math.ceil((new Date(data).getTime() - new Date(hoje).getTime()) / (1000 * 60 * 60 * 24))
+    return Math.ceil((parseLocalDate(data).getTime() - parseLocalDate(hoje).getTime()) / (1000 * 60 * 60 * 24))
   }
 
   const getVencimentoColor = (data: string) => {

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { solicitarAntecipacao } from '@/lib/actions/operacao'
-import { formatCurrency, formatCNPJ, formatDate } from '@/lib/utils'
+import { formatCurrency, formatCNPJ, formatDate, parseLocalDate } from '@/lib/utils'
 import Link from 'next/link'
 import { ArrowLeft, CheckSquare, Square, Send, Receipt, Calculator, Loader2 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -87,7 +87,7 @@ export default function NovaSolicitacaoPage() {
     : ''
 
   const prazoDias = dataVencimentoMaisDistante
-    ? Math.max(1, Math.ceil((new Date(dataVencimentoMaisDistante).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+    ? Math.max(1, Math.ceil((parseLocalDate(dataVencimentoMaisDistante).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
     : 0
 
   // Encontrar taxa aplicavel

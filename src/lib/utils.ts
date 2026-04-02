@@ -20,6 +20,16 @@ export function formatCNPJ(cnpj: string): string {
   )
 }
 
+/**
+ * Converte string de data do banco (YYYY-MM-DD ou ISO completo) para Date local.
+ * Strings sem horário (YYYY-MM-DD) são tratadas como UTC pelo JS, causando D-1 no Brasil.
+ * Forçar T00:00:00 faz o parse no timezone local e evita o problema.
+ */
+export function parseLocalDate(date: string): Date {
+  const normalized = date.includes('T') ? date : `${date}T00:00:00`
+  return new Date(normalized)
+}
+
 export function formatDate(date: string): string {
-  return new Intl.DateTimeFormat('pt-BR').format(new Date(date))
+  return new Intl.DateTimeFormat('pt-BR').format(parseLocalDate(date))
 }

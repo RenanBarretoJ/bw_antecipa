@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { notaFiscalSchema, type NotaFiscalFormData } from '@/lib/validations/nf'
 import { parseNFeXML } from '@/lib/nf-parser'
+import { extractDanfeFromPdf, type NfPdfExtracted } from '@/lib/pdf-nf-parser'
 import { registrarLog } from './auditoria'
 import { notificarGestores, criarNotificacao } from './notificacao'
 
@@ -160,7 +161,7 @@ export async function uploadNFs(formData: FormData): Promise<NfActionState> {
         })
 
       } else {
-        // PDF ou imagem — cria como rascunho para preenchimento manual
+        // PDF ou imagem — tenta extrair dados automaticamente, cria rascunho
         const cnpjLimpo = cedente.cnpj.replace(/\D/g, '')
         const timestamp = Date.now()
         const cleanName = arquivo.name.replace(/[^a-zA-Z0-9._-]/g, '_')
@@ -175,25 +176,45 @@ export async function uploadNFs(formData: FormData): Promise<NfActionState> {
           continue
         }
 
-        // Criar rascunho — cedente precisa preencher dados manualmente
+        // Tentar extração de dados do DANFE (falha silenciosa para PDFs escaneados)
+        const today = new Date().toISOString().split('T')[0]
+        let extracted: NfPdfExtracted = { campos_extraidos: [] }
+        console.log('[uploadNFs] arquivo:', arquivo.name, '| isPdf:', isPdf, '| isImage:', isImage, '| type:', arquivo.type)
+        if (isPdf) {
+          try {
+            console.log('[uploadNFs] iniciando extracao do PDF...')
+            const buffer = Buffer.from(await arquivo.arrayBuffer())
+            console.log('[uploadNFs] buffer size:', buffer.length)
+            extracted = await extractDanfeFromPdf(buffer)
+            console.log('[uploadNFs] extracao concluida:', extracted.campos_extraidos)
+          } catch (parseErr) {
+            console.warn('[uploadNFs] extracao pdf falhou:', parseErr)
+          }
+        }
+
         const { data: nf, error: dbError } = await supabase
           .from('notas_fiscais')
           .insert({
             cedente_id: cedente.id,
-            numero_nf: '',
-            data_emissao: new Date().toISOString().split('T')[0],
-            data_vencimento: new Date().toISOString().split('T')[0],
+            numero_nf: extracted.numero_nf ?? '',
+            serie: extracted.serie ?? null,
+            chave_acesso: extracted.chave_acesso ?? null,
+            data_emissao: extracted.data_emissao ?? today,
+            data_vencimento: extracted.data_vencimento ?? today,
+            // emitente sempre vem do cadastro — não confiar no PDF
             cnpj_emitente: cnpjLimpo,
             razao_social_emitente: cedente.razao_social,
-            cnpj_destinatario: '',
-            razao_social_destinatario: '',
-            valor_bruto: 0,
-            valor_liquido: 0,
+            cnpj_destinatario: extracted.cnpj_destinatario ?? '',
+            razao_social_destinatario: extracted.razao_social_destinatario ?? '',
+            valor_bruto: extracted.valor_bruto ?? 0,
+            valor_liquido: extracted.valor_liquido ?? 0,
             valor_icms: 0,
             valor_iss: 0,
             valor_pis: 0,
             valor_cofins: 0,
             valor_ipi: 0,
+            condicao_pagamento: extracted.condicao_pagamento ?? null,
+            descricao_itens: extracted.descricao_itens ?? null,
             arquivo_url: filePath,
             status: 'rascunho',
           } as never)
@@ -364,6 +385,89 @@ export async function submeterNF(nfId: string): Promise<NfActionState> {
   )
 
   return { success: true, message: 'NF submetida para analise com sucesso!' }
+}
+
+// Cedente: excluir rascunho
+export async function excluirRascunho(nfId: string): Promise<NfActionState> {
+  const supabase = await createClient()
+  const cedente = await getCedenteDoUsuario()
+
+  if (!cedente) {
+    return { success: false, message: 'Cadastro de cedente nao encontrado.' }
+  }
+
+  const { data: nf } = await supabase
+    .from('notas_fiscais')
+    .select('id, arquivo_url')
+    .eq('id', nfId)
+    .eq('cedente_id', cedente.id)
+    .eq('status', 'rascunho')
+    .single()
+
+  if (!nf) {
+    return { success: false, message: 'Rascunho nao encontrado ou ja foi submetido.' }
+  }
+
+  const nfData = nf as { id: string; arquivo_url: string | null }
+
+  // Remover arquivo do storage antes de excluir o registro
+  if (nfData.arquivo_url) {
+    await supabase.storage.from('notas-fiscais').remove([nfData.arquivo_url])
+  }
+
+  const { error } = await supabase
+    .from('notas_fiscais')
+    .delete()
+    .eq('id', nfId)
+    .eq('cedente_id', cedente.id)
+
+  if (error) {
+    return { success: false, message: `Erro ao excluir: ${error.message}` }
+  }
+
+  return { success: true, message: 'Rascunho excluido.' }
+}
+
+// Cedente: excluir múltiplos rascunhos em lote
+export async function excluirRascunhos(nfIds: string[]): Promise<NfActionState> {
+  if (!nfIds.length) return { success: false, message: 'Nenhuma NF selecionada.' }
+
+  const supabase = await createClient()
+  const cedente = await getCedenteDoUsuario()
+
+  if (!cedente) {
+    return { success: false, message: 'Cadastro de cedente nao encontrado.' }
+  }
+
+  const { data: nfs } = await supabase
+    .from('notas_fiscais')
+    .select('id, arquivo_url')
+    .in('id', nfIds)
+    .eq('cedente_id', cedente.id)
+    .eq('status', 'rascunho')
+
+  if (!nfs || nfs.length === 0) {
+    return { success: false, message: 'Nenhum rascunho encontrado.' }
+  }
+
+  const nfsData = nfs as { id: string; arquivo_url: string | null }[]
+  const arquivos = nfsData.map((n) => n.arquivo_url).filter(Boolean) as string[]
+  if (arquivos.length > 0) {
+    await supabase.storage.from('notas-fiscais').remove(arquivos)
+  }
+
+  const idsConfirmados = nfsData.map((n) => n.id)
+  const { error } = await supabase
+    .from('notas_fiscais')
+    .delete()
+    .in('id', idsConfirmados)
+    .eq('cedente_id', cedente.id)
+
+  if (error) {
+    return { success: false, message: `Erro ao excluir: ${error.message}` }
+  }
+
+  return { success: true, message: `${idsConfirmados.length} rascunho(s) excluido(s).` }
 }
 
 // Gestor: aprovar NF

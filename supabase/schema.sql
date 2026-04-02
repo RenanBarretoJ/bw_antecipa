@@ -49,6 +49,12 @@ RETURNS text AS $$
   SELECT s.cnpj FROM sacados s WHERE s.user_id = auth.uid();
 $$ LANGUAGE sql SECURITY DEFINER STABLE;
 
+-- Função para pegar IDs de operações do cedente logado (evita recursão em RLS)
+CREATE OR REPLACE FUNCTION get_user_operacao_ids()
+RETURNS SETOF uuid AS $$
+  SELECT id FROM operacoes WHERE cedente_id = get_user_cedente_id()
+$$ LANGUAGE sql SECURITY DEFINER STABLE;
+
 -- Função para atualizar updated_at automaticamente
 CREATE OR REPLACE FUNCTION update_updated_at()
 RETURNS TRIGGER AS $$
@@ -422,6 +428,9 @@ CREATE POLICY notas_fiscais_cedente_update ON notas_fiscais
   FOR UPDATE USING (cedente_id = get_user_cedente_id())
   WITH CHECK (cedente_id = get_user_cedente_id());
 
+CREATE POLICY notas_fiscais_cedente_delete ON notas_fiscais
+  FOR DELETE USING (cedente_id = get_user_cedente_id() AND status = 'rascunho');
+
 -- Sacado: apenas NFs onde é o destinatário
 CREATE POLICY notas_fiscais_sacado_select ON notas_fiscais
   FOR SELECT USING (cnpj_destinatario = get_user_sacado_cnpj());
@@ -467,20 +476,13 @@ CREATE POLICY operacoes_consultor_select ON operacoes
 CREATE POLICY operacoes_nfs_gestor_all ON operacoes_nfs
   FOR ALL USING (get_user_role() = 'gestor');
 
--- Cedente: apenas registros de suas operações
+-- Cedente: usa função SECURITY DEFINER para evitar recursão infinita
+-- (operacoes_nfs -> operacoes -> operacoes_nfs)
 CREATE POLICY operacoes_nfs_cedente_select ON operacoes_nfs
-  FOR SELECT USING (
-    operacao_id IN (
-      SELECT id FROM operacoes WHERE cedente_id = get_user_cedente_id()
-    )
-  );
+  FOR SELECT USING (operacao_id IN (SELECT get_user_operacao_ids()));
 
 CREATE POLICY operacoes_nfs_cedente_insert ON operacoes_nfs
-  FOR INSERT WITH CHECK (
-    operacao_id IN (
-      SELECT id FROM operacoes WHERE cedente_id = get_user_cedente_id()
-    )
-  );
+  FOR INSERT WITH CHECK (operacao_id IN (SELECT get_user_operacao_ids()));
 
 -- Sacado: apenas registros vinculados às suas NFs
 CREATE POLICY operacoes_nfs_sacado_select ON operacoes_nfs

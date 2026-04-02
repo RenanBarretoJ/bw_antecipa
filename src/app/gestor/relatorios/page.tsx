@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { formatCurrency, formatCNPJ } from '@/lib/utils'
+import { formatCurrency, formatCNPJ, parseLocalDate } from '@/lib/utils'
 import {
   BarChart3,
   TrendingUp,
@@ -146,7 +146,7 @@ export default function RelatoriosGestorPage() {
             <SelectContent>
               {mesesDisponiveis.map((m) => (
                 <SelectItem key={m} value={m}>
-                  {new Date(m + '-01').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
+                  {parseLocalDate(m + '-01').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
                 </SelectItem>
               ))}
             </SelectContent>

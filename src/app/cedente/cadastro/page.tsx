@@ -40,6 +40,7 @@ export default function CadastroCedentePage() {
   const [errors, setErrors] = useState<FormErrors>({})
   const [message, setMessage] = useState('')
   const [buscandoCep, setBuscandoCep] = useState(false)
+  const [buscandoCnpj, setBuscandoCnpj] = useState(false)
 
   const [form, setForm] = useState<Partial<CedenteFormData>>(() => {
     if (typeof window !== 'undefined') {
@@ -61,6 +62,35 @@ export default function CadastroCedentePage() {
       delete next[field]
       return next
     })
+  }
+
+  const buscarCNPJ = async (cnpj: string) => {
+    const clean = cnpj.replace(/\D/g, '')
+    if (clean.length !== 14) return
+    setBuscandoCnpj(true)
+    try {
+      const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${clean}`)
+      if (!res.ok) return
+      const data = await res.json()
+      const telefone = (data.ddd_telefone_1 || '').replace(/\D/g, '')
+      const cepLimpo = (data.cep || '').replace(/\D/g, '')
+      setForm((prev) => ({
+        ...prev,
+        razao_social:       data.razao_social   || prev?.razao_social   || '',
+        nome_fantasia:      data.nome_fantasia   || prev?.nome_fantasia  || '',
+        cnae:               data.cnae_fiscal     ? String(data.cnae_fiscal) : prev?.cnae || '',
+        logradouro:         data.logradouro      || prev?.logradouro     || '',
+        numero:             data.numero          || prev?.numero         || '',
+        complemento:        data.complemento     || prev?.complemento    || '',
+        bairro:             data.bairro          || prev?.bairro         || '',
+        cidade:             data.municipio       || prev?.cidade         || '',
+        estado:             data.uf              || prev?.estado         || '',
+        cep:                cepLimpo             || prev?.cep            || '',
+        email_comercial:    data.email           || prev?.email_comercial || '',
+        telefone_comercial: telefone             || prev?.telefone_comercial || '',
+      }))
+    } catch { /* ignore */ }
+    setBuscandoCnpj(false)
   }
 
   const buscarCEP = async (cep: string) => {
@@ -165,7 +195,12 @@ export default function CadastroCedentePage() {
                 <div>
                   <Label className="mb-1">CNPJ *</Label>
                   <Input className={`h-11 ${inputClass('cnpj')}`} value={maskCNPJ(form.cnpj || '')}
-                    onChange={(e) => updateField('cnpj', e.target.value.replace(/\D/g, ''))} placeholder="00.000.000/0000-00" />
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/\D/g, '')
+                      updateField('cnpj', v)
+                      if (v.length === 14) buscarCNPJ(v)
+                    }} placeholder="00.000.000/0000-00" />
+                  {buscandoCnpj && <p className="text-primary text-xs mt-1">Buscando dados da empresa...</p>}
                   <ErrorMsg field="cnpj" />
                 </div>
                 <div>

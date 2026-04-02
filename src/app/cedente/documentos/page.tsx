@@ -20,7 +20,7 @@ const documentosConfig: DocInfo[] = [
   { key: 'cartao_cnpj', label: 'Cartao CNPJ', obrigatorio: true },
   { key: 'rg_cpf', label: 'RG e CPF do Representante Legal', obrigatorio: true },
   { key: 'comprovante_endereco', label: 'Comprovante de Endereco (ultimos 90 dias)', obrigatorio: true },
-  { key: 'extrato_bancario', label: 'Extrato Bancario (ultimos 3 meses)', obrigatorio: true },
+  { key: 'extrato_bancario', label: 'Comprovante de Renda', obrigatorio: true },
   { key: 'balanco_patrimonial', label: 'Balanco Patrimonial (ultimo exercicio)', obrigatorio: true },
   { key: 'dre', label: 'DRE - Demonstracao de Resultado', obrigatorio: true },
   { key: 'procuracao', label: 'Procuracao', obrigatorio: false },
