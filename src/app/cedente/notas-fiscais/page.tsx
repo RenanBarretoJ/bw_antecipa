@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { uploadNFs, excluirRascunho, excluirRascunhos } from '@/lib/actions/nota-fiscal'
 import { formatCurrency, formatCNPJ, formatDate } from '@/lib/utils'
@@ -48,16 +49,17 @@ interface NfRecord {
 }
 
 const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; className: string; icon: typeof CheckCircle }> = {
-  rascunho:      { label: 'Rascunho',       variant: 'outline',     className: 'bg-muted text-muted-foreground border-border',                   icon: FileText },
-  submetida:     { label: 'Submetida',      variant: 'secondary',   className: 'bg-blue-100 text-blue-700 border-blue-200',                      icon: Upload },
-  em_analise:    { label: 'Em Analise',     variant: 'secondary',   className: 'bg-yellow-100 text-yellow-700 border-yellow-200',                icon: AlertCircle },
-  aprovada:      { label: 'Aprovada',       variant: 'secondary',   className: 'bg-green-100 text-green-700 border-green-200',                   icon: CheckCircle },
-  em_antecipacao:{ label: 'Em Antecipacao', variant: 'secondary',   className: 'bg-purple-100 text-purple-700 border-purple-200',                icon: Banknote },
-  liquidada:     { label: 'Liquidada',      variant: 'secondary',   className: 'bg-emerald-100 text-emerald-700 border-emerald-200',             icon: CheckCircle },
-  cancelada:     { label: 'Cancelada',      variant: 'destructive', className: 'bg-red-100 text-red-700 border-red-200',                         icon: XCircle },
+  rascunho:      { label: 'Rascunho',       variant: 'outline',     className: 'bg-muted text-muted-foreground border-border',    icon: FileText },
+  submetida:     { label: 'Submetida',      variant: 'secondary',   className: 'bg-blue-100 text-blue-700 border-blue-200',       icon: Upload },
+  em_analise:    { label: 'Em Analise',     variant: 'secondary',   className: 'bg-yellow-100 text-yellow-700 border-yellow-200', icon: AlertCircle },
+  aprovada:      { label: 'Aprovada',       variant: 'secondary',   className: 'bg-green-100 text-green-700 border-green-200',    icon: CheckCircle },
+  em_antecipacao:{ label: 'Em Antecipacao', variant: 'secondary',   className: 'bg-purple-100 text-purple-700 border-purple-200', icon: Banknote },
+  liquidada:     { label: 'Liquidada',      variant: 'secondary',   className: 'bg-emerald-100 text-emerald-700 border-emerald-200', icon: CheckCircle },
+  cancelada:     { label: 'Cancelada',      variant: 'destructive', className: 'bg-red-100 text-red-700 border-red-200',          icon: XCircle },
 }
 
 export default function NotasFiscaisCedentePage() {
+  const router = useRouter()
   const [nfs, setNfs] = useState<NfRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
@@ -143,20 +145,15 @@ export default function NotasFiscaisCedentePage() {
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    if (e.type === 'dragenter' || e.type === 'dragover') {
-      setDragActive(true)
-    } else if (e.type === 'dragleave') {
-      setDragActive(false)
-    }
+    if (e.type === 'dragenter' || e.type === 'dragover') setDragActive(true)
+    else if (e.type === 'dragleave') setDragActive(false)
   }, [])
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
     setDragActive(false)
-
-    const files = Array.from(e.dataTransfer.files)
-    addFiles(files)
+    addFiles(Array.from(e.dataTransfer.files))
   }, [])
 
   const addFiles = (files: File[]) => {
@@ -165,12 +162,10 @@ export default function NotasFiscaisCedentePage() {
       const ext = '.' + f.name.split('.').pop()?.toLowerCase()
       return validExtensions.includes(ext)
     })
-
     if (validFiles.length < files.length) {
       setMessage(`${files.length - validFiles.length} arquivo(s) ignorado(s) — formato invalido.`)
       setMessageType('error')
     }
-
     setSelectedFiles((prev) => [...prev, ...validFiles])
   }
 
@@ -185,16 +180,32 @@ export default function NotasFiscaisCedentePage() {
     setMessage('')
 
     const formData = new FormData()
-    selectedFiles.forEach((file) => {
-      formData.append('arquivos', file)
-    })
+    selectedFiles.forEach((file) => formData.append('arquivos', file))
 
     const result = await uploadNFs(formData)
 
     if (result?.success) {
-      setMessage(result.message || 'NFs enviadas!')
-      setMessageType('success')
       setSelectedFiles([])
+
+      // PDFs viram rascunho — se for só 1, redirecionar para preencher
+      if (result.rascunhos && result.rascunhos.length === 1 && (result.ids?.length ?? 0) === 1) {
+        router.push(`/cedente/notas-fiscais/${result.rascunhos[0]}`)
+        return
+      }
+
+      // Multiplos PDFs: mostrar aviso para preencher cada um
+      if (result.rascunhos && result.rascunhos.length > 0) {
+        const xmlCount = (result.ids?.length ?? 0) - result.rascunhos.length
+        const parts: string[] = []
+        if (xmlCount > 0) parts.push(`${xmlCount} XML(s) submetido(s) automaticamente`)
+        parts.push(`${result.rascunhos.length} PDF(s) salvo(s) como rascunho — clique em "Preencher" em cada um para adicionar os dados`)
+        setMessage(parts.join('. ') + '.')
+        setMessageType('success')
+      } else {
+        setMessage(result.message || 'NFs enviadas com sucesso!')
+        setMessageType('success')
+      }
+
       await loadNFs()
     } else {
       setMessage(result?.message || 'Erro no envio.')
@@ -204,7 +215,6 @@ export default function NotasFiscaisCedentePage() {
     setUploading(false)
   }
 
-  // Filtrar NFs
   const nfsFiltradas = nfs.filter((nf) => {
     if (filtroStatus !== 'todos' && nf.status !== filtroStatus) return false
     if (busca) {
@@ -234,7 +244,7 @@ export default function NotasFiscaisCedentePage() {
         <p className="text-muted-foreground">Envie XMLs de NF-e para leitura automatica ou PDFs para preenchimento manual.</p>
       </div>
 
-      {/* Zona de upload drag-and-drop */}
+      {/* Upload */}
       <Card className="mb-6">
         <CardHeader>
           <CardTitle>Enviar Notas Fiscais</CardTitle>
@@ -271,7 +281,6 @@ export default function NotasFiscaisCedentePage() {
             <p className="text-xs text-muted-foreground/70 mt-2">Maximo 20MB por arquivo. Multiplos arquivos permitidos.</p>
           </div>
 
-          {/* Arquivos selecionados */}
           {selectedFiles.length > 0 && (
             <div className="mt-4">
               <div className="flex items-center justify-between mb-2">
@@ -310,16 +319,8 @@ export default function NotasFiscaisCedentePage() {
                         </Badge>
                       )}
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      onClick={() => removeFile(index)}
-                      className="text-muted-foreground hover:text-destructive ml-2 shrink-0"
-                    >
-                      <X size={16} />
-                    </Button>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
 
               <Button
@@ -329,15 +330,9 @@ export default function NotasFiscaisCedentePage() {
                 className="mt-4 w-full"
               >
                 {uploading ? (
-                  <>
-                    <Loader2 className="animate-spin" />
-                    Enviando...
-                  </>
+                  <><Loader2 className="animate-spin" /> Enviando...</>
                 ) : (
-                  <>
-                    <Upload />
-                    Enviar {selectedFiles.length} arquivo(s)
-                  </>
+                  <><Upload /> Enviar {selectedFiles.length} arquivo(s)</>
                 )}
               </Button>
             </div>
@@ -394,9 +389,9 @@ export default function NotasFiscaisCedentePage() {
       {/* KPI mini-cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
         {[
-          { label: 'Total',     count: nfs.length,                                             valor: undefined },
-          { label: 'Rascunho',  count: nfs.filter((n) => n.status === 'rascunho').length,      valor: undefined },
-          { label: 'Aprovadas', count: nfs.filter((n) => n.status === 'aprovada').length,      valor: undefined },
+          { label: 'Total',       count: nfs.length,                                              valor: undefined },
+          { label: 'Rascunho',    count: nfs.filter((n) => n.status === 'rascunho').length,       valor: undefined },
+          { label: 'Aprovadas',   count: nfs.filter((n) => n.status === 'aprovada').length,       valor: undefined },
           { label: 'Valor Total', count: undefined, valor: nfs.reduce((acc, n) => acc + n.valor_bruto, 0) },
         ].map((item) => (
           <Card key={item.label} size="sm">
@@ -496,9 +491,7 @@ export default function NotasFiscaisCedentePage() {
                       )}
                     </TableCell>
                     <TableCell className="px-4 py-3">
-                      <span className="font-medium text-foreground">
-                        {nf.numero_nf || '—'}
-                      </span>
+                      <span className="font-medium text-foreground">{nf.numero_nf || '—'}</span>
                     </TableCell>
                     <TableCell className="px-4 py-3">
                       <div>
