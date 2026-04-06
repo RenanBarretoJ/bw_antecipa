@@ -319,8 +319,16 @@ export default function NotasFiscaisCedentePage() {
                         </Badge>
                       )}
                     </div>
-                  )
-                })}
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      onClick={() => removeFile(index)}
+                      className="text-muted-foreground hover:text-destructive ml-2 shrink-0"
+                    >
+                      <X size={16} />
+                    </Button>
+                  </div>
+                ))}
               </div>
 
               <Button
