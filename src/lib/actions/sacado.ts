@@ -87,16 +87,28 @@ export async function contestarCessao(nfId: string, motivo: string): Promise<Sac
 
   const { data: nf } = await supabase
     .from('notas_fiscais')
-    .select('id, numero_nf, cnpj_destinatario, razao_social_emitente, cedente_id')
+    .select('id, numero_nf, cnpj_destinatario, razao_social_emitente, cedente_id, status')
     .eq('id', nfId)
     .single()
 
   if (!nf) return { success: false, message: 'NF nao encontrada.' }
-  const nfData = nf as { id: string; numero_nf: string; cnpj_destinatario: string; razao_social_emitente: string; cedente_id: string }
+  const nfData = nf as { id: string; numero_nf: string; cnpj_destinatario: string; razao_social_emitente: string; cedente_id: string; status: string }
 
   if (nfData.cnpj_destinatario !== sacado.cnpj) {
     return { success: false, message: 'Esta NF nao e destinada a voce.' }
   }
+
+  if (nfData.status !== 'em_antecipacao') {
+    return { success: false, message: 'Esta NF nao pode ser contestada no status atual.' }
+  }
+
+  // Atualizar status da NF para contestada
+  const { error: updateError } = await supabase
+    .from('notas_fiscais')
+    .update({ status: 'contestada' })
+    .eq('id', nfId)
+
+  if (updateError) return { success: false, message: 'Erro ao registrar contestacao.' }
 
   // Notificar gestor urgente
   await notificarGestores(
