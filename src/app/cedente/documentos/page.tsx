@@ -243,8 +243,8 @@ export default function DocumentosCedentePage() {
 
       {loading ? (
         <div className="space-y-3">
-          {[...docsEmpresa, ...docsRepresentante].map((docConfig) => (
-            <Card key={docConfig.key}>
+          {[...docsEmpresa, ...docsRepresentante].map((_, idx) => (
+            <Card key={idx}>
               <CardContent className="py-5">
                 <div className="flex items-center gap-3">
                   <Skeleton className="h-5 w-5 rounded" />

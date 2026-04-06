@@ -88,12 +88,22 @@ export default function CedenteDashboard() {
         supabase.from('operacoes')
           .select('id, valor_bruto_total, valor_liquido_desembolso, status, data_vencimento, created_at')
           .order('created_at', { ascending: false }),
-        supabase.from('documentos').select('id, status').eq('status', 'reprovado'),
+        supabase.from('documentos').select('id, tipo, representante_id, versao, status').order('versao', { ascending: false }),
       ])
 
       const escrowData = (escrow.data || []) as Array<{ saldo_disponivel: number; saldo_bloqueado: number; identificador: string }>
       const nfsData = (nfs.data || []) as Array<{ id: string; status: string }>
       const opsData = (ops.data || []) as OperacaoRecente[]
+      const docsData = (docs.data || []) as Array<{ id: string; tipo: string; representante_id: string | null; versao: number; status: string }>
+
+      // Versão mais recente por (tipo, representante_id)
+      const latestDocs = Object.values(
+        docsData.reduce<Record<string, typeof docsData[0]>>((acc, d) => {
+          const k = `${d.tipo}_${d.representante_id ?? 'null'}`
+          if (!acc[k] || d.versao > acc[k].versao) acc[k] = d
+          return acc
+        }, {})
+      )
 
       const opsAtivas = opsData.filter((o) => o.status === 'em_andamento')
       const opsPendentes = opsData.filter((o) => o.status === 'solicitada' || o.status === 'em_analise')
@@ -107,7 +117,7 @@ export default function CedenteDashboard() {
         opsAtivas: opsAtivas.length,
         opsPendentes: opsPendentes.length,
         volumeAtivo: opsAtivas.reduce((a, o) => a + o.valor_liquido_desembolso, 0),
-        docsReprovados: (docs.data || []).length,
+        docsReprovados: latestDocs.filter((d) => d.status === 'reprovado').length,
       })
       setOpsRecentes(opsData.slice(0, 5))
       setLoading(false)
