@@ -38,10 +38,12 @@ export async function cadastrarCedente(data: CedenteFormData): Promise<CedenteAc
     return { success: false, message: 'Voce ja possui um cadastro de cedente.' }
   }
 
+  const { representantes, ...cedenteFields } = validated.data
+
   const { data: cedente, error } = await supabase
     .from('cedentes')
     .insert({
-      ...validated.data,
+      ...cedenteFields,
       user_id: user.id,
       status: 'pendente' as const,
     } as never)
@@ -54,6 +56,19 @@ export async function cadastrarCedente(data: CedenteFormData): Promise<CedenteAc
   }
 
   const cedenteData = cedente as { id: string; razao_social: string }
+
+  const { error: repError } = await supabase
+    .from('representantes')
+    .insert(representantes.map((rep, idx) => ({
+      ...rep,
+      cedente_id: cedenteData.id,
+      principal: idx === 0,
+    })) as never)
+
+  if (repError) {
+    await supabase.from('cedentes').delete().eq('id', cedenteData.id)
+    return { success: false, message: `Erro ao salvar representantes: ${repError.message}` }
+  }
 
   await registrarLog({
     tipo_evento: 'CEDENTE_CADASTRADO',
@@ -92,6 +107,7 @@ export async function uploadDocumento(formData: FormData): Promise<CedenteAction
   const cedenteData = cedente as { id: string; cnpj: string }
   const file = formData.get('arquivo') as File
   const tipo = formData.get('tipo') as string
+  const representanteId = (formData.get('representante_id') as string | null) || null
 
   if (!file || !tipo) {
     return { success: false, message: 'Arquivo e tipo sao obrigatorios.' }
@@ -106,8 +122,8 @@ export async function uploadDocumento(formData: FormData): Promise<CedenteAction
     return { success: false, message: 'Arquivo muito grande. Maximo: 20MB.' }
   }
 
-  // Buscar versao atual
-  const { data: existingDocs } = await supabase
+  // Buscar versao atual, filtrando por representante_id se presente
+  let versionQuery = supabase
     .from('documentos')
     .select('versao')
     .eq('cedente_id', cedenteData.id)
@@ -115,12 +131,21 @@ export async function uploadDocumento(formData: FormData): Promise<CedenteAction
     .order('versao', { ascending: false })
     .limit(1)
 
+  if (representanteId) {
+    versionQuery = versionQuery.eq('representante_id', representanteId)
+  } else {
+    versionQuery = versionQuery.is('representante_id', null)
+  }
+
+  const { data: existingDocs } = await versionQuery
+
   const docs = (existingDocs || []) as Array<{ versao: number }>
   const novaVersao = docs.length > 0 ? docs[0].versao + 1 : 1
 
   const timestamp = Date.now()
   const cleanName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
-  const filePath = `${cedenteData.cnpj}/${tipo}/${novaVersao}_${timestamp}_${cleanName}`
+  const subpasta = representanteId ? `representantes/${representanteId}` : tipo
+  const filePath = `${cedenteData.cnpj}/${subpasta}/${novaVersao}_${timestamp}_${cleanName}`
 
   const { error: uploadError } = await supabase.storage
     .from('documentos-cedentes')
@@ -140,6 +165,7 @@ export async function uploadDocumento(formData: FormData): Promise<CedenteAction
       status: 'enviado',
       url_arquivo: filePath,
       nome_arquivo: file.name,
+      representante_id: representanteId || null,
     } as never)
 
   if (dbError) {

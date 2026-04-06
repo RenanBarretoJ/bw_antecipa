@@ -87,25 +87,43 @@ export async function aprovarCedente(cedenteId: string): Promise<GestorActionSta
   }
 
   // Verificar se todos os docs obrigatorios estao aprovados
-  const docsObrigatorios = [
-    'contrato_social', 'cartao_cnpj', 'rg_cpf',
-    'comprovante_endereco', 'extrato_bancario',
-    'balanco_patrimonial', 'dre',
-  ]
-
   const { data: docs } = await supabase
     .from('documentos')
-    .select('tipo, status')
+    .select('tipo, status, representante_id')
     .eq('cedente_id', cedenteId)
 
-  const docsTyped = (docs || []) as Array<{ tipo: string; status: string }>
-  const aprovados = docsTyped.filter((d) => d.status === 'aprovado').map((d) => d.tipo)
-  const faltando = docsObrigatorios.filter((t) => !aprovados.includes(t))
+  const docsTyped = (docs || []) as Array<{ tipo: string; status: string; representante_id: string | null }>
+
+  // Buscar representantes do cedente
+  const { data: reps } = await supabase
+    .from('representantes')
+    .select('id, nome')
+    .eq('cedente_id', cedenteId)
+  const repsData = (reps || []) as { id: string; nome: string }[]
+
+  // Docs da empresa (sem representante_id)
+  const docsEmpresaObrig = ['contrato_social', 'cartao_cnpj', 'comprovante_endereco',
+                            'extrato_bancario', 'balanco_patrimonial', 'dre']
+  const faltandoEmpresa = docsEmpresaObrig.filter((t) =>
+    !docsTyped.some((d) => d.tipo === t && !d.representante_id && d.status === 'aprovado')
+  )
+
+  // docs obrigatórios por representante (fallback legado se tabela vazia)
+  const docsRepObrig = ['rg_cpf', 'comprovante_de_renda', 'comprovante_endereco']
+  const faltandoReps = repsData.length === 0
+    ? (docsTyped.some((d) => d.tipo === 'rg_cpf' && d.status === 'aprovado') ? [] : ['rg_cpf (representante)'])
+    : repsData.flatMap((rep) =>
+        docsRepObrig
+          .filter((t) => !docsTyped.some((d) => d.tipo === t && d.representante_id === rep.id && d.status === 'aprovado'))
+          .map((t) => `${t} (${rep.nome})`)
+      )
+
+  const faltando = [...faltandoEmpresa, ...faltandoReps]
 
   if (faltando.length > 0) {
     return {
       success: false,
-      message: `Documentos pendentes de aprovacao: ${faltando.join(', ')}`,
+      message: `Documentos obrigatorios pendentes: ${faltando.join(', ')}`,
     }
   }
 

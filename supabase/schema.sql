@@ -12,7 +12,7 @@ CREATE TYPE user_status AS ENUM ('ativo', 'inativo', 'bloqueado');
 CREATE TYPE cedente_status AS ENUM ('pendente', 'em_analise', 'ativo', 'reprovado', 'bloqueado');
 CREATE TYPE documento_tipo AS ENUM (
   'contrato_social', 'cartao_cnpj', 'rg_cpf', 'comprovante_endereco',
-  'extrato_bancario', 'balanco_patrimonial', 'dre', 'procuracao'
+  'extrato_bancario', 'balanco_patrimonial', 'dre', 'procuracao', 'comprovante_de_renda'
 );
 CREATE TYPE documento_status AS ENUM ('aguardando_envio', 'enviado', 'em_analise', 'aprovado', 'reprovado');
 CREATE TYPE conta_escrow_status AS ENUM ('ativa', 'bloqueada', 'encerrada');
@@ -139,6 +139,30 @@ CREATE TABLE documentos (
 CREATE TRIGGER documentos_updated_at
   BEFORE UPDATE ON documentos
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- ============================================================
+-- 2.X REPRESENTANTES LEGAIS
+-- ============================================================
+CREATE TABLE representantes (
+  id         uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  cedente_id uuid        NOT NULL REFERENCES cedentes(id) ON DELETE CASCADE,
+  nome       text        NOT NULL,
+  cpf        text        NOT NULL,
+  rg         text        NOT NULL,
+  cargo      text        NOT NULL,
+  email      text        NOT NULL,
+  telefone   text        NOT NULL,
+  principal  boolean     NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TRIGGER representantes_updated_at
+  BEFORE UPDATE ON representantes
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+ALTER TABLE documentos
+  ADD COLUMN representante_id uuid REFERENCES representantes(id) ON DELETE SET NULL;
 
 -- CONTAS ESCROW
 CREATE TABLE contas_escrow (
@@ -297,6 +321,9 @@ CREATE INDEX idx_logs_auditoria_tipo_evento ON logs_auditoria(tipo_evento);
 CREATE INDEX idx_logs_auditoria_entidade ON logs_auditoria(entidade_tipo, entidade_id);
 CREATE INDEX idx_notificacoes_usuario_id ON notificacoes(usuario_id);
 CREATE INDEX idx_notificacoes_lida ON notificacoes(usuario_id, lida);
+CREATE INDEX idx_representantes_cedente_id ON representantes(cedente_id);
+CREATE INDEX idx_representantes_principal   ON representantes(cedente_id, principal);
+CREATE INDEX idx_documentos_representante_id ON documentos(representante_id);
 
 -- ============================================================
 -- 5. ROW LEVEL SECURITY (RLS)
@@ -306,6 +333,7 @@ CREATE INDEX idx_notificacoes_lida ON notificacoes(usuario_id, lida);
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE cedentes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE documentos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE representantes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE contas_escrow ENABLE ROW LEVEL SECURITY;
 ALTER TABLE movimentos_escrow ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notas_fiscais ENABLE ROW LEVEL SECURITY;
@@ -372,6 +400,29 @@ CREATE POLICY documentos_cedente_insert ON documentos
 CREATE POLICY documentos_cedente_update ON documentos
   FOR UPDATE USING (cedente_id = get_user_cedente_id())
   WITH CHECK (cedente_id = get_user_cedente_id());
+
+-- ============================================================
+-- 5.3.1 REPRESENTANTES LEGAIS
+-- ============================================================
+
+CREATE POLICY representantes_gestor_all ON representantes
+  FOR ALL USING (get_user_role() = 'gestor');
+
+CREATE POLICY representantes_cedente_select ON representantes
+  FOR SELECT USING (cedente_id = get_user_cedente_id());
+
+CREATE POLICY representantes_cedente_insert ON representantes
+  FOR INSERT WITH CHECK (cedente_id = get_user_cedente_id());
+
+CREATE POLICY representantes_cedente_update ON representantes
+  FOR UPDATE USING (cedente_id = get_user_cedente_id())
+  WITH CHECK (cedente_id = get_user_cedente_id());
+
+CREATE POLICY representantes_cedente_delete ON representantes
+  FOR DELETE USING (cedente_id = get_user_cedente_id());
+
+CREATE POLICY representantes_consultor_select ON representantes
+  FOR SELECT USING (get_user_role() = 'consultor');
 
 -- ============================================================
 -- 5.4 CONTAS ESCROW

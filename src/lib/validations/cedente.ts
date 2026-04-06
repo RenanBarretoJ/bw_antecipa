@@ -50,17 +50,26 @@ export const etapa1Schema = z.object({
   cnae: z.string().optional().default(''),
 })
 
-// Etapa 2 — Representante Legal
-export const etapa2Schema = z.object({
-  nome_representante: z.string().min(3, { message: 'Nome do representante e obrigatorio.' }),
-  cpf_representante: z.string()
+// Schema de um representante legal individual
+export const representanteSchema = z.object({
+  nome: z.string().min(3, { message: 'Nome do representante e obrigatorio.' }),
+  cpf: z.string()
     .min(11, { message: 'CPF e obrigatorio.' })
     .refine((v) => validarCPF(v), { message: 'CPF invalido.' })
     .transform((v) => v.replace(/\D/g, '')),
-  rg_representante: z.string().min(1, { message: 'RG e obrigatorio.' }),
-  cargo_representante: z.string().min(1, { message: 'Cargo e obrigatorio.' }),
-  email_representante: z.string().email({ message: 'E-mail invalido.' }),
-  telefone_representante: z.string().min(10, { message: 'Telefone e obrigatorio.' }),
+  rg: z.string().min(1, { message: 'RG e obrigatorio.' }),
+  cargo: z.string().min(1, { message: 'Cargo e obrigatorio.' }),
+  email: z.string().email({ message: 'E-mail invalido.' }),
+  telefone: z.string().min(10, { message: 'Telefone e obrigatorio.' }),
+  principal: z.boolean().optional(),
+})
+
+export type RepresentanteData = z.infer<typeof representanteSchema>
+
+// Etapa 2 — Representantes Legais
+export const etapa2Schema = z.object({
+  representantes: z.array(representanteSchema)
+    .min(1, { message: 'Informe pelo menos um representante legal.' }),
 })
 
 // Etapa 3 — Dados Bancarios
@@ -72,7 +81,9 @@ export const etapa3Schema = z.object({
 })
 
 // Schema completo
-export const cedenteSchema = etapa1Schema.merge(etapa2Schema).merge(etapa3Schema)
+export const cedenteSchema = etapa1Schema
+  .merge(etapa3Schema)
+  .extend({ representantes: z.array(representanteSchema).min(1, { message: 'Informe pelo menos um representante legal.' }) })
 
 export type CedenteFormData = z.infer<typeof cedenteSchema>
 export type Etapa1Data = z.infer<typeof etapa1Schema>

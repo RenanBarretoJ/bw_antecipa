@@ -20,8 +20,6 @@ interface CedenteDetail {
   cep: string | null; logradouro: string | null; numero: string | null; complemento: string | null
   bairro: string | null; cidade: string | null; estado: string | null
   telefone_comercial: string | null; email_comercial: string | null; cnae: string | null
-  nome_representante: string | null; cpf_representante: string | null; rg_representante: string | null
-  cargo_representante: string | null; email_representante: string | null; telefone_representante: string | null
   banco: string | null; agencia: string | null; conta: string | null; tipo_conta: string | null
   status: string; created_at: string
 }
@@ -30,13 +28,26 @@ interface DocRecord {
   id: string; tipo: string; versao: number; status: string
   nome_arquivo: string | null; url_arquivo: string | null
   motivo_reprovacao: string | null; created_at: string
+  representante_id: string | null
+}
+
+interface RepresentanteRecord {
+  id: string; nome: string; cpf: string; rg: string; cargo: string
+  email: string; telefone: string; principal: boolean
 }
 
 const tipoLabels: Record<string, string> = {
   contrato_social: 'Contrato Social', cartao_cnpj: 'Cartao CNPJ',
   rg_cpf: 'RG e CPF', comprovante_endereco: 'Comprovante de Endereco',
-  extrato_bancario: 'Extrato Bancario', balanco_patrimonial: 'Balanco Patrimonial',
+  extrato_bancario: 'Comprovante de Faturamento', balanco_patrimonial: 'Balanco Patrimonial',
   dre: 'DRE', procuracao: 'Procuracao',
+}
+
+const tipoLabelsRep: Record<string, string> = {
+  rg_cpf: 'RG e CPF',
+  comprovante_de_renda: 'Comprovante de Renda',
+  comprovante_endereco: 'Comprovante de Residencia (ultimos 90 dias)',
+  procuracao: 'Procuracao',
 }
 
 const statusBadgeVariant: Record<string, 'secondary' | 'default' | 'outline' | 'destructive'> = {
@@ -59,6 +70,7 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
   const { id } = use(params)
   const [cedente, setCedente] = useState<CedenteDetail | null>(null)
   const [docs, setDocs] = useState<DocRecord[]>([])
+  const [representantes, setRepresentantes] = useState<RepresentanteRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(false)
   const [message, setMessage] = useState('')
@@ -78,9 +90,17 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
     const { data: c } = await supabase.from('cedentes').select('*').eq('id', id).single()
     setCedente(c as CedenteDetail | null)
 
+    const { data: reps } = await supabase
+      .from('representantes')
+      .select('id, nome, cpf, rg, cargo, email, telefone, principal')
+      .eq('cedente_id', id)
+      .order('principal', { ascending: false })
+
+    setRepresentantes((reps || []) as RepresentanteRecord[])
+
     const { data: d } = await supabase
       .from('documentos')
-      .select('id, tipo, versao, status, nome_arquivo, url_arquivo, motivo_reprovacao, created_at')
+      .select('id, tipo, versao, status, nome_arquivo, url_arquivo, motivo_reprovacao, created_at, representante_id')
       .eq('cedente_id', id)
       .order('tipo').order('versao', { ascending: false })
 
@@ -99,12 +119,19 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
 
   useEffect(() => { loadData() }, [id])
 
-  const getLatestByTipo = () => {
-    const map: Record<string, DocRecord> = {}
-    for (const doc of docs) {
-      if (!map[doc.tipo]) map[doc.tipo] = doc
-    }
-    return map
+  // Docs da empresa (representante_id = null), mais recente por tipo
+  const getLatestEmpresa = (tipo: string): DocRecord | null => {
+    return docs.find((d) => d.tipo === tipo && d.representante_id === null) || null
+  }
+
+  // Docs por representante
+  const getLatestByRep = (tipo: string, repId: string): DocRecord | null => {
+    return docs.find((d) => d.tipo === tipo && d.representante_id === repId) || null
+  }
+
+  // Fallback legado: doc sem representante_id para rg_cpf
+  const getLatestLegado = (tipo: string): DocRecord | null => {
+    return docs.find((d) => d.tipo === tipo) || null
   }
 
   const openPreview = async (doc: DocRecord) => {
@@ -189,9 +216,16 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
     return <p className="text-muted-foreground text-center py-20">Cedente nao encontrado.</p>
   }
 
-  const latestDocs = getLatestByTipo()
-  const docsObrigatorios = ['contrato_social', 'cartao_cnpj', 'rg_cpf', 'comprovante_endereco', 'extrato_bancario', 'balanco_patrimonial', 'dre']
-  const todosAprovados = docsObrigatorios.every((t) => latestDocs[t]?.status === 'aprovado')
+  const docsEmpresaObrig = ['contrato_social', 'cartao_cnpj', 'comprovante_endereco', 'extrato_bancario', 'balanco_patrimonial', 'dre']
+  const empresaAprovada = docsEmpresaObrig.every((t) => getLatestEmpresa(t)?.status === 'aprovado')
+
+  // Multi-representante: verificar rg_cpf, extrato_bancario e comprovante_endereco por rep. Fallback legado se sem reps.
+  const docsRepObrig = ['rg_cpf', 'comprovante_de_renda', 'comprovante_endereco']
+  const repsAprovadas = representantes.length === 0
+    ? getLatestLegado('rg_cpf')?.status === 'aprovado'
+    : representantes.every((rep) => docsRepObrig.every((t) => getLatestByRep(t, rep.id)?.status === 'aprovado'))
+
+  const todosAprovados = empresaAprovada && repsAprovadas
 
   return (
     <div className="max-w-5xl mx-auto">
@@ -232,15 +266,28 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
             <div><span className="text-muted-foreground">E-mail:</span> <span className="text-foreground ml-1">{cedente.email_comercial || '-'}</span></div>
           </div>
 
-          <h3 className="text-md font-semibold text-foreground mt-6 mb-3">Representante Legal</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-            <div><span className="text-muted-foreground">Nome:</span> <span className="text-foreground ml-1">{cedente.nome_representante || '-'}</span></div>
-            <div><span className="text-muted-foreground">CPF:</span> <span className="text-foreground ml-1 tabular-nums">{cedente.cpf_representante || '-'}</span></div>
-            <div><span className="text-muted-foreground">RG:</span> <span className="text-foreground ml-1 tabular-nums">{cedente.rg_representante || '-'}</span></div>
-            <div><span className="text-muted-foreground">Cargo:</span> <span className="text-foreground ml-1">{cedente.cargo_representante || '-'}</span></div>
-            <div><span className="text-muted-foreground">E-mail:</span> <span className="text-foreground ml-1">{cedente.email_representante || '-'}</span></div>
-            <div><span className="text-muted-foreground">Telefone:</span> <span className="text-foreground ml-1 tabular-nums">{cedente.telefone_representante || '-'}</span></div>
-          </div>
+          <h3 className="text-md font-semibold text-foreground mt-6 mb-3">Representantes Legais</h3>
+          {representantes.length > 0 ? (
+            <div className="space-y-4">
+              {representantes.map((rep, idx) => (
+                <div key={rep.id} className="border border-border rounded-lg p-3">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">
+                    Representante {idx + 1}{rep.principal ? ' (principal)' : ''}
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                    <div><span className="text-muted-foreground">Nome:</span> <span className="text-foreground ml-1">{rep.nome}</span></div>
+                    <div><span className="text-muted-foreground">CPF:</span> <span className="text-foreground ml-1 tabular-nums">{rep.cpf}</span></div>
+                    <div><span className="text-muted-foreground">RG:</span> <span className="text-foreground ml-1 tabular-nums">{rep.rg}</span></div>
+                    <div><span className="text-muted-foreground">Cargo:</span> <span className="text-foreground ml-1">{rep.cargo}</span></div>
+                    <div><span className="text-muted-foreground">E-mail:</span> <span className="text-foreground ml-1">{rep.email}</span></div>
+                    <div><span className="text-muted-foreground">Telefone:</span> <span className="text-foreground ml-1 tabular-nums">{rep.telefone}</span></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">Nenhum representante cadastrado.</p>
+          )}
 
           <h3 className="text-md font-semibold text-foreground mt-6 mb-3">Dados Bancarios</h3>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
@@ -257,34 +304,106 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
         <CardHeader>
           <CardTitle>Documentos</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {Object.entries(tipoLabels).map(([tipo, label]) => {
-              const doc = latestDocs[tipo]
-              const status = doc?.status || 'aguardando_envio'
-              return (
-                <div key={tipo} className="flex items-center justify-between py-3 border-b border-border last:border-0">
-                  <div className="flex items-center gap-3">
-                    <FileText size={18} className="text-muted-foreground" />
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{label}</p>
-                      {doc?.nome_arquivo && <p className="text-xs text-muted-foreground">{doc.nome_arquivo} (v{doc.versao})</p>}
+        <CardContent className="space-y-6">
+          {/* Empresa */}
+          <div>
+            <p className="text-sm font-semibold text-muted-foreground uppercase mb-3">Empresa</p>
+            <div className="space-y-0">
+              {(['contrato_social', 'cartao_cnpj', 'comprovante_endereco', 'extrato_bancario', 'balanco_patrimonial', 'dre'] as const).map((tipo) => {
+                const doc = getLatestEmpresa(tipo)
+                const status = doc?.status || 'aguardando_envio'
+                return (
+                  <div key={tipo} className="flex items-center justify-between py-3 border-b border-border last:border-0">
+                    <div className="flex items-center gap-3">
+                      <FileText size={18} className="text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{tipoLabels[tipo]}</p>
+                        {doc?.nome_arquivo && <p className="text-xs text-muted-foreground">{doc.nome_arquivo} (v{doc.versao})</p>}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Badge variant={statusBadgeVariant[status] || 'secondary'} className={statusColors[status]}>
+                        {status.replace('_', ' ')}
+                      </Badge>
+                      {doc && (doc.status === 'enviado' || doc.status === 'em_analise') && (
+                        <Button size="sm" variant="default" onClick={() => openPreview(doc)}>
+                          <Eye size={14} /> Analisar
+                        </Button>
+                      )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <Badge variant={statusBadgeVariant[status] || 'secondary'} className={statusColors[status]}>
-                      {status.replace('_', ' ')}
-                    </Badge>
-                    {doc && (doc.status === 'enviado' || doc.status === 'em_analise') && (
-                      <Button size="sm" variant="default" onClick={() => openPreview(doc)}>
-                        <Eye size={14} /> Analisar
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
+                )
+              })}
+            </div>
           </div>
+
+          {/* Por representante */}
+          {representantes.length > 0 ? representantes.map((rep) => (
+            <div key={rep.id}>
+              <p className="text-sm font-semibold text-muted-foreground uppercase mb-3">
+                {rep.nome}{rep.principal ? ' (principal)' : ''}
+              </p>
+              <div className="space-y-0">
+                {(['rg_cpf', 'comprovante_de_renda', 'comprovante_endereco', 'procuracao'] as const).map((tipo) => {
+                  const doc = getLatestByRep(tipo, rep.id)
+                  const status = doc?.status || 'aguardando_envio'
+                  return (
+                    <div key={tipo} className="flex items-center justify-between py-3 border-b border-border last:border-0">
+                      <div className="flex items-center gap-3">
+                        <FileText size={18} className="text-muted-foreground" />
+                        <div>
+                          <p className="text-sm font-medium text-foreground">{tipoLabelsRep[tipo] || tipoLabels[tipo]}</p>
+                          {doc?.nome_arquivo && <p className="text-xs text-muted-foreground">{doc.nome_arquivo} (v{doc.versao})</p>}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Badge variant={statusBadgeVariant[status] || 'secondary'} className={statusColors[status]}>
+                          {status.replace('_', ' ')}
+                        </Badge>
+                        {doc && (doc.status === 'enviado' || doc.status === 'em_analise') && (
+                          <Button size="sm" variant="default" onClick={() => openPreview(doc)}>
+                            <Eye size={14} /> Analisar
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )) : (
+            /* Fallback legado */
+            <div>
+              <p className="text-sm font-semibold text-muted-foreground uppercase mb-3">Representante Legal</p>
+              <div className="space-y-0">
+                {(['rg_cpf', 'procuracao'] as const).map((tipo) => {
+                  const doc = getLatestLegado(tipo)
+                  const status = doc?.status || 'aguardando_envio'
+                  return (
+                    <div key={tipo} className="flex items-center justify-between py-3 border-b border-border last:border-0">
+                      <div className="flex items-center gap-3">
+                        <FileText size={18} className="text-muted-foreground" />
+                        <div>
+                          <p className="text-sm font-medium text-foreground">{tipoLabelsRep[tipo] || tipoLabels[tipo]}</p>
+                          {doc?.nome_arquivo && <p className="text-xs text-muted-foreground">{doc.nome_arquivo} (v{doc.versao})</p>}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Badge variant={statusBadgeVariant[status] || 'secondary'} className={statusColors[status]}>
+                          {status.replace('_', ' ')}
+                        </Badge>
+                        {doc && (doc.status === 'enviado' || doc.status === 'em_analise') && (
+                          <Button size="sm" variant="default" onClick={() => openPreview(doc)}>
+                            <Eye size={14} /> Analisar
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

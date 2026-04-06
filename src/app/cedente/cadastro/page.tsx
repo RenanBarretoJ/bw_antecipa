@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Plus, Trash2 } from 'lucide-react'
 import { cadastrarCedente } from '@/lib/actions/cedente'
 import {
   etapa1Schema, etapa2Schema, etapa3Schema,
   bancosBrasileiros,
-  type Etapa1Data, type Etapa2Data, type Etapa3Data, type CedenteFormData,
+  type CedenteFormData, type RepresentanteData,
 } from '@/lib/validations/cedente'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -47,7 +47,9 @@ export default function CadastroCedentePage() {
       const saved = localStorage.getItem(STORAGE_KEY)
       if (saved) return JSON.parse(saved)
     }
-    return {}
+    return {
+      representantes: [{ nome: '', cpf: '', rg: '', cargo: '', email: '', telefone: '' }],
+    }
   })
 
   // Auto-save no localStorage
@@ -63,6 +65,27 @@ export default function CadastroCedentePage() {
       return next
     })
   }
+
+  const emptyRep: RepresentanteData = { nome: '', cpf: '', rg: '', cargo: '', email: '', telefone: '' }
+
+  const addRepresentante = () =>
+    setForm((prev) => ({
+      ...prev,
+      representantes: [...(prev.representantes || []), { ...emptyRep }],
+    }))
+
+  const removeRepresentante = (idx: number) =>
+    setForm((prev) => ({
+      ...prev,
+      representantes: (prev.representantes || []).filter((_, i) => i !== idx),
+    }))
+
+  const updateRepresentante = (idx: number, field: keyof RepresentanteData, value: string) =>
+    setForm((prev) => {
+      const updated = [...(prev.representantes || [])]
+      updated[idx] = { ...updated[idx], [field]: value }
+      return { ...prev, representantes: updated }
+    })
 
   const buscarCNPJ = async (cnpj: string) => {
     const clean = cnpj.replace(/\D/g, '')
@@ -118,7 +141,14 @@ export default function CadastroCedentePage() {
     const schema = schemas[etapa as keyof typeof schemas]
     const result = schema.safeParse(form)
     if (!result.success) {
-      setErrors(result.error.flatten().fieldErrors as FormErrors)
+      // Construir mapa de erros achatado manualmente para suportar arrays aninhados
+      const errosMapeados: FormErrors = {}
+      for (const issue of result.error.issues) {
+        const chave = issue.path.join('.')
+        if (!errosMapeados[chave]) errosMapeados[chave] = []
+        errosMapeados[chave].push(issue.message)
+      }
+      setErrors(errosMapeados)
       return false
     }
     setErrors({})
@@ -295,51 +325,119 @@ export default function CadastroCedentePage() {
 
           {/* Etapa 2 */}
           {etapa === 2 && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label className="mb-1">Nome Completo *</Label>
-                  <Input className={`h-11 ${inputClass('nome_representante')}`} value={form.nome_representante || ''}
-                    onChange={(e) => updateField('nome_representante', e.target.value)} />
-                  <ErrorMsg field="nome_representante" />
-                </div>
-                <div>
-                  <Label className="mb-1">CPF *</Label>
-                  <Input className={`h-11 ${inputClass('cpf_representante')}`} value={maskCPF(form.cpf_representante || '')}
-                    onChange={(e) => updateField('cpf_representante', e.target.value.replace(/\D/g, ''))} placeholder="000.000.000-00" />
-                  <ErrorMsg field="cpf_representante" />
-                </div>
-              </div>
+            <div className="space-y-6">
+              {(form.representantes || []).map((rep, idx) => (
+                <Card key={idx} className="border border-border">
+                  <CardHeader className="pb-3 pt-4 px-4">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        Representante {idx + 1}
+                        {idx === 0 && (
+                          <span className="text-xs font-normal text-muted-foreground bg-muted px-2 py-0.5 rounded-full">(principal)</span>
+                        )}
+                      </CardTitle>
+                      {idx > 0 && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeRepresentante(idx)}
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8"
+                        >
+                          <Trash2 size={16} />
+                        </Button>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="px-4 pb-4 space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label className="mb-1">Nome Completo *</Label>
+                        <Input
+                          className={`h-11 ${errors[`representantes.${idx}.nome`] ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                          value={rep.nome || ''}
+                          onChange={(e) => updateRepresentante(idx, 'nome', e.target.value)}
+                        />
+                        {errors[`representantes.${idx}.nome`] && (
+                          <p className="text-destructive text-sm mt-1">{errors[`representantes.${idx}.nome`][0]}</p>
+                        )}
+                      </div>
+                      <div>
+                        <Label className="mb-1">CPF *</Label>
+                        <Input
+                          className={`h-11 ${errors[`representantes.${idx}.cpf`] ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                          value={maskCPF(rep.cpf || '')}
+                          onChange={(e) => updateRepresentante(idx, 'cpf', e.target.value.replace(/\D/g, ''))}
+                          placeholder="000.000.000-00"
+                        />
+                        {errors[`representantes.${idx}.cpf`] && (
+                          <p className="text-destructive text-sm mt-1">{errors[`representantes.${idx}.cpf`][0]}</p>
+                        )}
+                      </div>
+                    </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label className="mb-1">RG *</Label>
-                  <Input className={`h-11 ${inputClass('rg_representante')}`} value={form.rg_representante || ''}
-                    onChange={(e) => updateField('rg_representante', e.target.value)} />
-                  <ErrorMsg field="rg_representante" />
-                </div>
-                <div>
-                  <Label className="mb-1">Cargo na Empresa *</Label>
-                  <Input className={`h-11 ${inputClass('cargo_representante')}`} value={form.cargo_representante || ''}
-                    onChange={(e) => updateField('cargo_representante', e.target.value)} />
-                  <ErrorMsg field="cargo_representante" />
-                </div>
-              </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label className="mb-1">RG *</Label>
+                        <Input
+                          className={`h-11 ${errors[`representantes.${idx}.rg`] ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                          value={rep.rg || ''}
+                          onChange={(e) => updateRepresentante(idx, 'rg', e.target.value)}
+                        />
+                        {errors[`representantes.${idx}.rg`] && (
+                          <p className="text-destructive text-sm mt-1">{errors[`representantes.${idx}.rg`][0]}</p>
+                        )}
+                      </div>
+                      <div>
+                        <Label className="mb-1">Cargo na Empresa *</Label>
+                        <Input
+                          className={`h-11 ${errors[`representantes.${idx}.cargo`] ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                          value={rep.cargo || ''}
+                          onChange={(e) => updateRepresentante(idx, 'cargo', e.target.value)}
+                        />
+                        {errors[`representantes.${idx}.cargo`] && (
+                          <p className="text-destructive text-sm mt-1">{errors[`representantes.${idx}.cargo`][0]}</p>
+                        )}
+                      </div>
+                    </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label className="mb-1">E-mail *</Label>
-                  <Input className={`h-11 ${inputClass('email_representante')}`} type="email" value={form.email_representante || ''}
-                    onChange={(e) => updateField('email_representante', e.target.value)} />
-                  <ErrorMsg field="email_representante" />
-                </div>
-                <div>
-                  <Label className="mb-1">Telefone Celular *</Label>
-                  <Input className={`h-11 ${inputClass('telefone_representante')}`} value={maskPhone(form.telefone_representante || '')}
-                    onChange={(e) => updateField('telefone_representante', e.target.value.replace(/\D/g, ''))} placeholder="(00) 00000-0000" />
-                  <ErrorMsg field="telefone_representante" />
-                </div>
-              </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label className="mb-1">E-mail *</Label>
+                        <Input
+                          type="email"
+                          className={`h-11 ${errors[`representantes.${idx}.email`] ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                          value={rep.email || ''}
+                          onChange={(e) => updateRepresentante(idx, 'email', e.target.value)}
+                        />
+                        {errors[`representantes.${idx}.email`] && (
+                          <p className="text-destructive text-sm mt-1">{errors[`representantes.${idx}.email`][0]}</p>
+                        )}
+                      </div>
+                      <div>
+                        <Label className="mb-1">Telefone Celular *</Label>
+                        <Input
+                          className={`h-11 ${errors[`representantes.${idx}.telefone`] ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                          value={maskPhone(rep.telefone || '')}
+                          onChange={(e) => updateRepresentante(idx, 'telefone', e.target.value.replace(/\D/g, ''))}
+                          placeholder="(00) 00000-0000"
+                        />
+                        {errors[`representantes.${idx}.telefone`] && (
+                          <p className="text-destructive text-sm mt-1">{errors[`representantes.${idx}.telefone`][0]}</p>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+
+              {errors['representantes'] && (
+                <p className="text-destructive text-sm">{errors['representantes'][0]}</p>
+              )}
+
+              <Button variant="outline" onClick={addRepresentante} className="w-full">
+                <Plus size={16} className="mr-2" />
+                Adicionar Representante
+              </Button>
             </div>
           )}
 
