@@ -54,7 +54,7 @@ const tipoLabels: Record<string, string> = {
   cartao_cnpj: 'Cartao CNPJ',
   rg_cpf: 'RG e CPF',
   comprovante_endereco: 'Comprovante de Endereco',
-  extrato_bancario: 'Extrato Bancario',
+  extrato_bancario: 'Comprovante de Renda',
   balanco_patrimonial: 'Balanco Patrimonial',
   dre: 'DRE',
   procuracao: 'Procuracao',

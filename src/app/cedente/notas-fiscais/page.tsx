@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { uploadNFs } from '@/lib/actions/nota-fiscal'
+import { uploadNFs, excluirRascunho, excluirRascunhos } from '@/lib/actions/nota-fiscal'
 import { formatCurrency, formatCNPJ, formatDate } from '@/lib/utils'
 import Link from 'next/link'
 import {
@@ -19,6 +19,7 @@ import {
   Eye,
   Banknote,
   Loader2,
+  Trash2,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -68,6 +69,65 @@ export default function NotasFiscaisCedentePage() {
   const [busca, setBusca] = useState('')
   const [dragActive, setDragActive] = useState(false)
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
+  const [excluindo, setExcluindo] = useState<string | null>(null)
+  const [selecionados, setSelecionados] = useState<Set<string>>(new Set())
+  const [excluindoLote, setExcluindoLote] = useState(false)
+
+  // IDs dos rascunhos que passam no filtro atual — calculado em tempo de render (abaixo de nfsFiltradas)
+  const rascunhosVisiveis: string[] = []
+  const todosSelecionados = rascunhosVisiveis.length > 0 && rascunhosVisiveis.every((id) => selecionados.has(id))
+
+  const toggleSelecionado = (id: string) => {
+    setSelecionados((prev) => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  const toggleTodos = () => {
+    if (todosSelecionados) {
+      setSelecionados((prev) => {
+        const next = new Set(prev)
+        rascunhosVisiveis.forEach((id) => next.delete(id))
+        return next
+      })
+    } else {
+      setSelecionados((prev) => new Set([...prev, ...rascunhosVisiveis]))
+    }
+  }
+
+  const handleExcluir = async (id: string) => {
+    if (!confirm('Excluir este rascunho? Esta acao nao pode ser desfeita.')) return
+    setExcluindo(id)
+    const result = await excluirRascunho(id)
+    if (result?.success) {
+      setNfs((prev) => prev.filter((n) => n.id !== id))
+      setSelecionados((prev) => { const next = new Set(prev); next.delete(id); return next })
+    } else {
+      setMessage(result?.message || 'Erro ao excluir.')
+      setMessageType('error')
+    }
+    setExcluindo(null)
+  }
+
+  const handleExcluirLote = async () => {
+    const ids = [...selecionados]
+    if (!ids.length) return
+    if (!confirm(`Excluir ${ids.length} rascunho(s)? Esta acao nao pode ser desfeita.`)) return
+    setExcluindoLote(true)
+    const result = await excluirRascunhos(ids)
+    if (result?.success) {
+      setNfs((prev) => prev.filter((n) => !ids.includes(n.id)))
+      setSelecionados(new Set())
+      setMessage(result.message || 'Rascunhos excluidos.')
+      setMessageType('success')
+    } else {
+      setMessage(result?.message || 'Erro ao excluir.')
+      setMessageType('error')
+    }
+    setExcluindoLote(false)
+  }
 
   const loadNFs = async () => {
     const supabase = createClient()
@@ -168,6 +228,9 @@ export default function NotasFiscaisCedentePage() {
     return true
   })
 
+  // Preencher lista de rascunhos visíveis para seleção em lote
+  rascunhosVisiveis.splice(0, rascunhosVisiveis.length, ...nfsFiltradas.filter((n) => n.status === 'rascunho').map((n) => n.id))
+
   const getFileIcon = (name: string) => {
     if (name.endsWith('.xml')) return 'text-green-600'
     if (name.endsWith('.pdf')) return 'text-red-600'
@@ -213,7 +276,7 @@ export default function NotasFiscaisCedentePage() {
               {dragActive ? 'Solte os arquivos aqui' : 'Arraste e solte seus arquivos aqui'}
             </p>
             <p className="text-sm text-muted-foreground mt-1">
-              XML — leitura automatica &nbsp;|&nbsp; PDF / JPG / PNG — salvo como rascunho para preenchimento
+              ou clique para selecionar — XML (leitura automatica), PDF (extracao automatica), JPG/PNG (preenchimento manual)
             </p>
             <p className="text-xs text-muted-foreground/70 mt-2">Maximo 20MB por arquivo. Multiplos arquivos permitidos.</p>
           </div>
@@ -234,37 +297,38 @@ export default function NotasFiscaisCedentePage() {
                 </Button>
               </div>
               <div className="space-y-2 max-h-48 overflow-y-auto">
-                {selectedFiles.map((file, index) => {
-                  const isXml = file.name.toLowerCase().endsWith('.xml')
-                  return (
-                    <div key={index} className="flex items-center justify-between bg-muted/40 rounded-lg px-3 py-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <FileText size={16} className={getFileIcon(file.name)} />
-                        <span className="text-sm text-foreground truncate">{file.name}</span>
-                        <span className="text-xs text-muted-foreground shrink-0">
-                          ({(file.size / 1024 / 1024).toFixed(1)} MB)
-                        </span>
-                        {isXml ? (
-                          <Badge className="bg-green-100 text-green-700 border-green-200 text-xs px-1.5 py-0.5">
-                            Leitura automatica
-                          </Badge>
-                        ) : (
-                          <Badge className="bg-yellow-100 text-yellow-700 border-yellow-200 text-xs px-1.5 py-0.5">
-                            Rascunho — preencher depois
-                          </Badge>
-                        )}
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon-xs"
-                        onClick={() => removeFile(index)}
-                        className="text-muted-foreground hover:text-destructive ml-2 shrink-0"
-                      >
-                        <X size={16} />
-                      </Button>
+                {selectedFiles.map((file, index) => (
+                  <div key={index} className="flex items-center justify-between bg-muted/40 rounded-lg px-3 py-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <FileText size={16} className={getFileIcon(file.name)} />
+                      <span className="text-sm text-foreground truncate">{file.name}</span>
+                      <span className="text-xs text-muted-foreground shrink-0">
+                        ({(file.size / 1024 / 1024).toFixed(1)} MB)
+                      </span>
+                      {file.name.endsWith('.xml') ? (
+                        <Badge className="bg-green-100 text-green-700 border-green-200 text-xs px-1.5 py-0.5">
+                          Leitura automatica
+                        </Badge>
+                      ) : file.name.endsWith('.pdf') ? (
+                        <Badge className="bg-blue-100 text-blue-700 border-blue-200 text-xs px-1.5 py-0.5">
+                          Extracao automatica
+                        </Badge>
+                      ) : (
+                        <Badge className="bg-yellow-100 text-yellow-700 border-yellow-200 text-xs px-1.5 py-0.5">
+                          Preenchimento manual
+                        </Badge>
+                      )}
                     </div>
-                  )
-                })}
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      onClick={() => removeFile(index)}
+                      className="text-muted-foreground hover:text-destructive ml-2 shrink-0"
+                    >
+                      <X size={16} />
+                    </Button>
+                  </div>
+                ))}
               </div>
 
               <Button
@@ -379,9 +443,36 @@ export default function NotasFiscaisCedentePage() {
         </Card>
       ) : (
         <Card className="overflow-hidden">
+          {selecionados.size > 0 && (
+            <div className="flex items-center justify-between px-4 py-2 bg-primary/5 border-b border-border">
+              <span className="text-sm text-foreground font-medium">
+                {selecionados.size} rascunho(s) selecionado(s)
+              </span>
+              <Button
+                variant="destructive"
+                size="sm"
+                disabled={excluindoLote}
+                onClick={handleExcluirLote}
+              >
+                {excluindoLote ? <Loader2 size={14} className="animate-spin mr-1" /> : <Trash2 size={14} className="mr-1" />}
+                Excluir selecionados
+              </Button>
+            </div>
+          )}
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/50 hover:bg-muted/50">
+                <TableHead className="px-4 py-3 w-8">
+                  {rascunhosVisiveis.length > 0 && (
+                    <input
+                      type="checkbox"
+                      checked={todosSelecionados}
+                      onChange={toggleTodos}
+                      className="cursor-pointer"
+                      title="Selecionar todos os rascunhos"
+                    />
+                  )}
+                </TableHead>
                 <TableHead className="text-xs uppercase tracking-wide px-4 py-3">NF</TableHead>
                 <TableHead className="text-xs uppercase tracking-wide px-4 py-3">Sacado (Destinatario)</TableHead>
                 <TableHead className="text-xs uppercase tracking-wide px-4 py-3">Valor Bruto</TableHead>
@@ -397,6 +488,16 @@ export default function NotasFiscaisCedentePage() {
                 const StatusIcon = status.icon
                 return (
                   <TableRow key={nf.id}>
+                    <TableCell className="px-4 py-3 w-8">
+                      {nf.status === 'rascunho' && (
+                        <input
+                          type="checkbox"
+                          checked={selecionados.has(nf.id)}
+                          onChange={() => toggleSelecionado(nf.id)}
+                          className="cursor-pointer"
+                        />
+                      )}
+                    </TableCell>
                     <TableCell className="px-4 py-3">
                       <span className="font-medium text-foreground">{nf.numero_nf || '—'}</span>
                     </TableCell>
@@ -422,15 +523,41 @@ export default function NotasFiscaisCedentePage() {
                         <StatusIcon size={12} />
                         {status.label}
                       </Badge>
+                      {nf.status === 'rascunho' && (
+                        <span className={`text-xs block mt-1 ${
+                          nf.numero_nf || nf.valor_bruto > 0 || nf.cnpj_destinatario
+                            ? 'text-blue-600'
+                            : 'text-amber-600'
+                        }`}>
+                          {nf.numero_nf || nf.valor_bruto > 0 || nf.cnpj_destinatario
+                            ? 'Pré-preenchido'
+                            : 'Preencher manualmente'}
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell className="px-4 py-3">
-                      <Link
-                        href={`/cedente/notas-fiscais/${nf.id}`}
-                        className="inline-flex items-center gap-1 text-sm text-primary hover:text-primary/80 font-medium"
-                      >
-                        <Eye size={14} />
-                        {nf.status === 'rascunho' ? 'Preencher' : 'Ver'}
-                      </Link>
+                      <div className="flex items-center gap-3">
+                        <Link
+                          href={`/cedente/notas-fiscais/${nf.id}`}
+                          className="inline-flex items-center gap-1 text-sm text-primary hover:text-primary/80 font-medium"
+                        >
+                          <Eye size={14} />
+                          {nf.status === 'rascunho' ? 'Preencher' : 'Ver'}
+                        </Link>
+                        {nf.status === 'rascunho' && (
+                          <button
+                            onClick={() => handleExcluir(nf.id)}
+                            disabled={excluindo === nf.id}
+                            className="inline-flex items-center gap-1 text-sm text-destructive hover:text-destructive/80 disabled:opacity-50"
+                            title="Excluir rascunho"
+                          >
+                            {excluindo === nf.id
+                              ? <Loader2 size={14} className="animate-spin" />
+                              : <Trash2 size={14} />
+                            }
+                          </button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 )

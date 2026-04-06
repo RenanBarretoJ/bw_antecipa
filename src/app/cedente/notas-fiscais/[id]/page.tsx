@@ -260,6 +260,12 @@ export default function NfDetalhePage() {
         </div>
       )}
 
+      {isEditable && (nf.numero_nf || nf.valor_bruto > 0 || nf.cnpj_destinatario) && (
+        <div className="mb-4 p-3 rounded-lg text-sm bg-blue-50 border border-blue-200 text-blue-800">
+          Alguns campos foram pré-preenchidos automaticamente a partir do PDF. Verifique os dados antes de submeter.
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Formulario — 2 colunas */}
         <div className="lg:col-span-2 space-y-6">

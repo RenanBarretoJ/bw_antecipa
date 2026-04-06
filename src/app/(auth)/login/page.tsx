@@ -123,15 +123,15 @@ export default function LoginPage() {
             <span className="text-xl font-bold tracking-tight text-foreground">Antecipa</span>
           </div>
 
-          <Card className="border-0 shadow-none lg:shadow-none bg-transparent">
-            <CardHeader className="px-0 pt-0">
+          <Card className="shadow-sm border bg-card">
+            <CardHeader className="pb-4">
               <CardTitle className="text-2xl font-bold">Bem-vindo de volta</CardTitle>
               <CardDescription className="text-muted-foreground">
                 Entre com suas credenciais para acessar o portal
               </CardDescription>
             </CardHeader>
 
-            <CardContent className="px-0">
+            <CardContent>
               {isLockedOut ? (
                 <div className="rounded-xl bg-destructive/10 border border-destructive/20 p-5 text-center">
                   <ShieldCheck size={28} className="text-destructive mx-auto mb-2" />
@@ -144,7 +144,7 @@ export default function LoginPage() {
                   </p>
                 </div>
               ) : (
-                <form ref={formRef} action={handleSubmit} className="space-y-5">
+                <form ref={formRef} action={handleSubmit} className="space-y-6">
                   <div className="space-y-2">
                     <Label htmlFor="email">E-mail</Label>
                     <Input
@@ -217,7 +217,7 @@ export default function LoginPage() {
                 </form>
               )}
 
-              <div className="mt-8 text-center">
+              <div className="mt-6 text-center">
                 <p className="text-muted-foreground text-sm">
                   Nao tem conta?{' '}
                   <Link href="/cadastro" className="text-primary hover:text-primary/80 font-semibold transition-colors">

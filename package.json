@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:homolog": "npx dotenv -e .env.homolog -- next dev --port 3001",
+    "dev:prod": "npx dotenv -e .env.producao -- next dev --port 3000",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
@@ -19,6 +21,7 @@
     "handlebars": "^4.7.8",
     "lucide-react": "^0.577.0",
     "next": "16.2.1",
+    "pdf-parse": "^1.1.1",
     "puppeteer-core": "^24.40.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
@@ -31,9 +34,11 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/pdf-parse": "^1.1.5",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "babel-plugin-react-compiler": "1.0.0",
+    "dotenv-cli": "^8.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.1",
     "tailwindcss": "^4",

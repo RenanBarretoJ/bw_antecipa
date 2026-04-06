@@ -15,14 +15,19 @@ interface DocInfo {
   obrigatorio: boolean
 }
 
-const documentosConfig: DocInfo[] = [
+const docsEmpresa: DocInfo[] = [
   { key: 'contrato_social', label: 'Contrato Social Atualizado', obrigatorio: true },
   { key: 'cartao_cnpj', label: 'Cartao CNPJ', obrigatorio: true },
-  { key: 'rg_cpf', label: 'RG e CPF do Representante Legal', obrigatorio: true },
   { key: 'comprovante_endereco', label: 'Comprovante de Endereco (ultimos 90 dias)', obrigatorio: true },
-  { key: 'extrato_bancario', label: 'Extrato Bancario (ultimos 3 meses)', obrigatorio: true },
+  { key: 'extrato_bancario', label: 'Comprovante de Faturamento', obrigatorio: true },
   { key: 'balanco_patrimonial', label: 'Balanco Patrimonial (ultimo exercicio)', obrigatorio: true },
   { key: 'dre', label: 'DRE - Demonstracao de Resultado', obrigatorio: true },
+]
+
+const docsRepresentante: DocInfo[] = [
+  { key: 'rg_cpf', label: 'RG e CPF', obrigatorio: true },
+  { key: 'comprovante_de_renda', label: 'Comprovante de Renda', obrigatorio: true },
+  { key: 'comprovante_endereco', label: 'Comprovante de Residencia (ultimos 90 dias)', obrigatorio: true },
   { key: 'procuracao', label: 'Procuracao', obrigatorio: false },
 ]
 
@@ -34,6 +39,13 @@ interface DocRecord {
   nome_arquivo: string | null
   motivo_reprovacao: string | null
   created_at: string
+  representante_id: string | null
+}
+
+interface RepresentanteRecord {
+  id: string
+  nome: string
+  principal: boolean
 }
 
 const statusConfig: Record<string, { label: string; variant: 'secondary' | 'outline' | 'destructive' | 'default'; icon: typeof CheckCircle }> = {
@@ -46,6 +58,7 @@ const statusConfig: Record<string, { label: string; variant: 'secondary' | 'outl
 
 export default function DocumentosCedentePage() {
   const [docs, setDocs] = useState<DocRecord[]>([])
+  const [representantes, setRepresentantes] = useState<RepresentanteRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState<string | null>(null)
   const [message, setMessage] = useState('')
@@ -53,22 +66,32 @@ export default function DocumentosCedentePage() {
 
   const loadDocs = async () => {
     const supabase = createClient()
-    const { data } = await supabase
-      .from('documentos')
-      .select('id, tipo, versao, status, nome_arquivo, motivo_reprovacao, created_at')
-      .order('created_at', { ascending: false })
+    try {
+      const { data: repsData } = await supabase
+        .from('representantes')
+        .select('id, nome, principal')
+        .order('principal', { ascending: false })
 
-    setDocs((data || []) as DocRecord[])
-    setLoading(false)
+      setRepresentantes((repsData || []) as RepresentanteRecord[])
+
+      const { data } = await supabase
+        .from('documentos')
+        .select('id, tipo, versao, status, nome_arquivo, motivo_reprovacao, created_at, representante_id')
+        .order('created_at', { ascending: false })
+
+      setDocs((data || []) as DocRecord[])
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => { loadDocs() }, [])
 
-  const getLatestDoc = (tipo: string): DocRecord | null => {
-    return docs.filter((d) => d.tipo === tipo)[0] || null
+  const getLatestDocByRep = (tipo: string, representanteId: string | null): DocRecord | null => {
+    return docs.find((d) => d.tipo === tipo && d.representante_id === representanteId) || null
   }
 
-  const handleUpload = async (tipo: string, file: File) => {
+  const handleUpload = async (tipo: string, file: File, representanteId?: string) => {
     const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png']
     if (!allowedTypes.includes(file.type)) {
       setMessage('Formato invalido. Aceitos: PDF, JPG, PNG.')
@@ -79,12 +102,14 @@ export default function DocumentosCedentePage() {
       return
     }
 
-    setUploading(tipo)
+    const uploadKey = representanteId ? `${tipo}_${representanteId}` : tipo
+    setUploading(uploadKey)
     setMessage('')
 
     const formData = new FormData()
     formData.set('arquivo', file)
     formData.set('tipo', tipo)
+    if (representanteId) formData.set('representante_id', representanteId)
 
     const result = await uploadDocumento(formData)
 
@@ -97,13 +122,91 @@ export default function DocumentosCedentePage() {
     setUploading(null)
   }
 
-  const obrigatorios = documentosConfig.filter((d) => d.obrigatorio)
-  const aprovados = obrigatorios.filter((d) => {
-    const doc = getLatestDoc(d.key)
-    return doc?.status === 'aprovado'
-  })
+  // Calcular progresso: docs empresa + docs obrigatórios por representante
+  const docsRepObrig = docsRepresentante.filter((d) => d.obrigatorio)
+  const totalObrig = docsEmpresa.filter((d) => d.obrigatorio).length + representantes.length * docsRepObrig.length
+  const aprovadosEmpresa = docsEmpresa.filter((d) => d.obrigatorio && getLatestDocByRep(d.key, null)?.status === 'aprovado').length
+  const aprovadosReps = representantes.reduce((acc, rep) =>
+    acc + docsRepObrig.filter((d) => getLatestDocByRep(d.key, rep.id)?.status === 'aprovado').length, 0
+  )
+  const totalAprovados = aprovadosEmpresa + aprovadosReps
+  const totalObrigFinal = totalObrig > 0 ? totalObrig : docsEmpresa.filter((d) => d.obrigatorio).length + docsRepObrig.length
 
   const isSuccess = message.includes('sucesso') || message.includes('enviado')
+
+  const renderDocCard = (docConfig: DocInfo, representanteId: string | null = null, keyPrefix = '') => {
+    const uploadKey = representanteId
+      ? `${docConfig.key}_${representanteId}`
+      : keyPrefix ? `${keyPrefix}_${docConfig.key}` : docConfig.key
+    const latestDoc = getLatestDocByRep(docConfig.key, representanteId)
+    const status = latestDoc?.status || 'aguardando_envio'
+    const config = statusConfig[status]
+    const Icon = config.icon
+    const isUploading = uploading === uploadKey
+    const canUpload = !latestDoc || status === 'aguardando_envio' || status === 'reprovado'
+
+    return (
+      <Card key={uploadKey}>
+        <CardContent className="py-5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3 flex-1">
+              <FileText size={20} className="text-muted-foreground" />
+              <div>
+                <p className="font-medium text-foreground">
+                  {docConfig.label}
+                  {!docConfig.obrigatorio && <span className="text-muted-foreground text-sm ml-2">(opcional)</span>}
+                </p>
+                {latestDoc?.nome_arquivo && (
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {latestDoc.nome_arquivo} <span className="tabular-nums">(v{latestDoc.versao})</span>
+                  </p>
+                )}
+                {status === 'reprovado' && latestDoc?.motivo_reprovacao && (
+                  <p className="text-xs text-destructive mt-1">Motivo: {latestDoc.motivo_reprovacao}</p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <Badge variant={config.variant}>
+                <Icon size={14} />
+                {config.label}
+              </Badge>
+
+              {canUpload && (
+                <>
+                  <input
+                    ref={(el) => { fileInputRefs.current[uploadKey] = el }}
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) handleUpload(docConfig.key, file, representanteId || undefined)
+                      e.target.value = ''
+                    }}
+                  />
+                  <Button
+                    variant={status === 'reprovado' ? 'destructive' : 'default'}
+                    size="sm"
+                    onClick={() => fileInputRefs.current[uploadKey]?.click()}
+                    disabled={isUploading}
+                  >
+                    {isUploading ? (
+                      <>
+                        <Loader2 size={14} className="animate-spin" />
+                        Enviando...
+                      </>
+                    ) : status === 'reprovado' ? 'Reenviar' : 'Enviar'}
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -119,10 +222,13 @@ export default function DocumentosCedentePage() {
         <CardContent className="pt-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-muted-foreground">Progresso de aprovacao</span>
-            <span className="text-sm font-bold text-foreground tabular-nums">{aprovados.length} de {obrigatorios.length} documentos aprovados</span>
+            <span className="text-sm font-bold text-foreground tabular-nums">{totalAprovados} de {totalObrigFinal} documentos aprovados</span>
           </div>
           <div className="w-full bg-muted rounded-full h-2.5">
-            <div className="bg-emerald-500 h-2.5 rounded-full transition-all" style={{ width: `${(aprovados.length / obrigatorios.length) * 100}%` }} />
+            <div
+              className="bg-emerald-500 h-2.5 rounded-full transition-all"
+              style={{ width: totalObrigFinal > 0 ? `${(totalAprovados / totalObrigFinal) * 100}%` : '0%' }}
+            />
           </div>
         </CardContent>
       </Card>
@@ -135,10 +241,9 @@ export default function DocumentosCedentePage() {
         }`}>{message}</div>
       )}
 
-      {/* Cards de documentos */}
       {loading ? (
         <div className="space-y-3">
-          {documentosConfig.map((docConfig) => (
+          {[...docsEmpresa, ...docsRepresentante].map((docConfig) => (
             <Card key={docConfig.key}>
               <CardContent className="py-5">
                 <div className="flex items-center gap-3">
@@ -154,77 +259,39 @@ export default function DocumentosCedentePage() {
           ))}
         </div>
       ) : (
-        <div className="space-y-3">
-          {documentosConfig.map((docConfig) => {
-            const latestDoc = getLatestDoc(docConfig.key)
-            const status = latestDoc?.status || 'aguardando_envio'
-            const config = statusConfig[status]
-            const Icon = config.icon
-            const isUploading = uploading === docConfig.key
-            const canUpload = !latestDoc || status === 'aguardando_envio' || status === 'reprovado'
+        <div className="space-y-6">
+          {/* Documentos da Empresa */}
+          <div>
+            <h2 className="text-lg font-semibold text-foreground mb-3">Documentos da Empresa</h2>
+            <div className="space-y-3">
+              {docsEmpresa.map((docConfig) => renderDocCard(docConfig, null))}
+            </div>
+          </div>
 
-            return (
-              <Card key={docConfig.key}>
-                <CardContent className="py-5">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3 flex-1">
-                      <FileText size={20} className="text-muted-foreground" />
-                      <div>
-                        <p className="font-medium text-foreground">
-                          {docConfig.label}
-                          {!docConfig.obrigatorio && <span className="text-muted-foreground text-sm ml-2">(opcional)</span>}
-                        </p>
-                        {latestDoc?.nome_arquivo && (
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {latestDoc.nome_arquivo} <span className="tabular-nums">(v{latestDoc.versao})</span>
-                          </p>
-                        )}
-                        {status === 'reprovado' && latestDoc?.motivo_reprovacao && (
-                          <p className="text-xs text-destructive mt-1">Motivo: {latestDoc.motivo_reprovacao}</p>
-                        )}
-                      </div>
-                    </div>
+          {/* Documentos por Representante */}
+          {representantes.map((rep) => (
+            <div key={rep.id}>
+              <h2 className="text-lg font-semibold text-foreground mb-3">
+                Documentos — {rep.nome}
+                {rep.principal && (
+                  <span className="text-xs font-normal text-muted-foreground bg-muted px-2 py-0.5 rounded-full ml-2">(principal)</span>
+                )}
+              </h2>
+              <div className="space-y-3">
+                {docsRepresentante.map((docConfig) => renderDocCard(docConfig, rep.id))}
+              </div>
+            </div>
+          ))}
 
-                    <div className="flex items-center gap-3">
-                      <Badge variant={config.variant}>
-                        <Icon size={14} />
-                        {config.label}
-                      </Badge>
-
-                      {canUpload && (
-                        <>
-                          <input
-                            ref={(el) => { fileInputRefs.current[docConfig.key] = el }}
-                            type="file"
-                            accept=".pdf,.jpg,.jpeg,.png"
-                            className="hidden"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0]
-                              if (file) handleUpload(docConfig.key, file)
-                              e.target.value = ''
-                            }}
-                          />
-                          <Button
-                            variant={status === 'reprovado' ? 'destructive' : 'default'}
-                            size="sm"
-                            onClick={() => fileInputRefs.current[docConfig.key]?.click()}
-                            disabled={isUploading}
-                          >
-                            {isUploading ? (
-                              <>
-                                <Loader2 size={14} className="animate-spin" />
-                                Enviando...
-                              </>
-                            ) : status === 'reprovado' ? 'Reenviar' : 'Enviar'}
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )
-          })}
+          {/* Fallback: sem representantes na tabela nova */}
+          {representantes.length === 0 && (
+            <div>
+              <h2 className="text-lg font-semibold text-foreground mb-3">Documentos do Representante Legal</h2>
+              <div className="space-y-3">
+                {docsRepresentante.map((docConfig) => renderDocCard(docConfig, null, 'legado'))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
