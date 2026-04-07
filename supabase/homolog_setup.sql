@@ -19,7 +19,7 @@ CREATE TYPE conta_escrow_status AS ENUM ('ativa', 'bloqueada', 'encerrada');
 CREATE TYPE movimento_tipo AS ENUM ('credito', 'debito');
 CREATE TYPE nf_status AS ENUM (
   'rascunho', 'submetida', 'em_analise', 'aprovada',
-  'em_antecipacao', 'liquidada', 'cancelada'
+  'em_antecipacao', 'aceita', 'contestada', 'liquidada', 'cancelada'
 );
 CREATE TYPE operacao_status AS ENUM (
   'solicitada', 'em_analise', 'aprovada', 'em_andamento',
@@ -396,6 +396,13 @@ CREATE POLICY notas_fiscais_cedente_insert ON notas_fiscais FOR INSERT WITH CHEC
 CREATE POLICY notas_fiscais_cedente_update ON notas_fiscais FOR UPDATE USING (cedente_id = get_user_cedente_id()) WITH CHECK (cedente_id = get_user_cedente_id());
 CREATE POLICY notas_fiscais_cedente_delete ON notas_fiscais FOR DELETE USING (cedente_id = get_user_cedente_id() AND status = 'rascunho');
 CREATE POLICY notas_fiscais_sacado_select ON notas_fiscais FOR SELECT USING (cnpj_destinatario = get_user_sacado_cnpj());
+CREATE POLICY notas_fiscais_sacado_aceitar ON notas_fiscais
+  FOR UPDATE USING (cnpj_destinatario = get_user_sacado_cnpj() AND status = 'em_antecipacao')
+  WITH CHECK (status = 'aceita');
+
+CREATE POLICY notas_fiscais_sacado_contestar ON notas_fiscais
+  FOR UPDATE USING (cnpj_destinatario = get_user_sacado_cnpj() AND status = 'em_antecipacao')
+  WITH CHECK (status = 'contestada');
 CREATE POLICY notas_fiscais_consultor_select ON notas_fiscais FOR SELECT USING (get_user_role() = 'consultor');
 
 -- Operações

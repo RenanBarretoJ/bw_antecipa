@@ -207,6 +207,31 @@ export async function aprovarOperacao(
     return { success: false, message: `Operacao com status "${opData.status}" nao pode ser aprovada.` }
   }
 
+  // Verificar que todas as NFs foram aceitas pelo sacado
+  const { data: opNfsCheck } = await supabase
+    .from('operacoes_nfs')
+    .select('nota_fiscal_id')
+    .eq('operacao_id', operacaoId)
+
+  if (opNfsCheck && opNfsCheck.length > 0) {
+    const nfIdsCheck = (opNfsCheck as Array<{ nota_fiscal_id: string }>).map((n) => n.nota_fiscal_id)
+    const { data: nfsCheck } = await supabase
+      .from('notas_fiscais')
+      .select('numero_nf, status')
+      .in('id', nfIdsCheck)
+
+    const pendentes = (nfsCheck || [])
+      .filter((n) => (n as { numero_nf: string; status: string }).status !== 'aceita')
+      .map((n) => (n as { numero_nf: string; status: string }).numero_nf)
+
+    if (pendentes.length > 0) {
+      return {
+        success: false,
+        message: `As seguintes NFs ainda nao foram aceitas pelo sacado: ${pendentes.join(', ')}`,
+      }
+    }
+  }
+
   // Atualizar operacao
   const { error } = await supabase
     .from('operacoes')
@@ -483,6 +508,142 @@ export async function salvarTaxasCedente(
   })
 
   return { success: true, message: 'Taxas salvas com sucesso.' }
+}
+
+// Remover NF contestada de uma operacao
+export async function removerNfDaOperacao(
+  operacaoId: string,
+  nfId: string
+): Promise<OperacaoActionState> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, message: 'Nao autenticado.' }
+
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (!profile || (profile as { role: string }).role !== 'gestor') {
+    return { success: false, message: 'Acesso negado.' }
+  }
+
+  // Buscar operacao
+  const { data: op } = await supabase
+    .from('operacoes')
+    .select('*, cedentes(user_id, razao_social)')
+    .eq('id', operacaoId)
+    .single()
+
+  if (!op) return { success: false, message: 'Operacao nao encontrada.' }
+  const opData = op as {
+    id: string; status: string; cedente_id: string; conta_escrow_id: string;
+    valor_bruto_total: number;
+    cedentes: { user_id: string; razao_social: string }
+  }
+
+  const statusPermitidos = ['solicitada', 'em_analise', 'em_andamento']
+  if (!statusPermitidos.includes(opData.status)) {
+    return { success: false, message: `Nao e possivel remover NFs de uma operacao com status "${opData.status}".` }
+  }
+
+  // Buscar NF e verificar que pertence a operacao e esta contestada
+  const { data: vinculo } = await supabase
+    .from('operacoes_nfs')
+    .select('nota_fiscal_id')
+    .eq('operacao_id', operacaoId)
+    .eq('nota_fiscal_id', nfId)
+    .single()
+
+  if (!vinculo) return { success: false, message: 'NF nao encontrada nesta operacao.' }
+
+  const { data: nf } = await supabase
+    .from('notas_fiscais')
+    .select('id, numero_nf, status, valor_bruto')
+    .eq('id', nfId)
+    .single()
+
+  if (!nf) return { success: false, message: 'NF nao encontrada.' }
+  const nfData = nf as { id: string; numero_nf: string; status: string; valor_bruto: number }
+
+  if (nfData.status !== 'contestada') {
+    return { success: false, message: 'Apenas NFs com status "contestada" podem ser removidas.' }
+  }
+
+  // Remover vinculo
+  await supabase
+    .from('operacoes_nfs')
+    .delete()
+    .eq('operacao_id', operacaoId)
+    .eq('nota_fiscal_id', nfId)
+
+  // Reverter NF para aprovada
+  await supabase
+    .from('notas_fiscais')
+    .update({ status: 'aprovada' } as never)
+    .eq('id', nfId)
+
+  // Buscar NFs restantes para recalcular valor
+  const { data: restantes } = await supabase
+    .from('operacoes_nfs')
+    .select('nota_fiscal_id')
+    .eq('operacao_id', operacaoId)
+
+  const wasEmAndamento = opData.status === 'em_andamento'
+
+  if (!restantes || restantes.length === 0) {
+    // Sem NFs restantes — cancelar operacao
+    await supabase
+      .from('operacoes')
+      .update({ status: 'cancelada' } as never)
+      .eq('id', operacaoId)
+
+    await registrarLog({
+      tipo_evento: 'NF_REMOVIDA_CONTESTACAO',
+      entidade_tipo: 'operacoes',
+      entidade_id: operacaoId,
+      dados_depois: { nf_removida: nfData.numero_nf, operacao_cancelada: true },
+    })
+
+    await criarNotificacao({
+      usuario_id: opData.cedentes.user_id,
+      titulo: 'Operacao cancelada — NF removida',
+      mensagem: `A NF ${nfData.numero_nf} foi removida da operacao pois foi contestada pelo sacado. Como era a unica NF, a operacao foi cancelada.`,
+      tipo: 'operacao_cancelada',
+    })
+
+    const aviso = wasEmAndamento ? ' ATENCAO: A operacao ja estava em andamento — verifique o saldo da conta escrow.' : ''
+    return { success: true, message: `NF ${nfData.numero_nf} removida. Operacao cancelada pois nao havia mais NFs.${aviso}` }
+  }
+
+  // Recalcular valor_bruto_total com NFs restantes
+  const nfIdsRestantes = (restantes as Array<{ nota_fiscal_id: string }>).map((n) => n.nota_fiscal_id)
+  const { data: nfsRestantes } = await supabase
+    .from('notas_fiscais')
+    .select('valor_bruto')
+    .in('id', nfIdsRestantes)
+
+  const novoValorBruto = (nfsRestantes || []).reduce(
+    (acc, n) => acc + ((n as { valor_bruto: number }).valor_bruto || 0), 0
+  )
+
+  await supabase
+    .from('operacoes')
+    .update({ valor_bruto_total: novoValorBruto } as never)
+    .eq('id', operacaoId)
+
+  await registrarLog({
+    tipo_evento: 'NF_REMOVIDA_CONTESTACAO',
+    entidade_tipo: 'operacoes',
+    entidade_id: operacaoId,
+    dados_depois: { nf_removida: nfData.numero_nf, novo_valor_bruto: novoValorBruto },
+  })
+
+  await criarNotificacao({
+    usuario_id: opData.cedentes.user_id,
+    titulo: 'NF removida da operacao',
+    mensagem: `A NF ${nfData.numero_nf} foi removida da operacao pois foi contestada pelo sacado. O valor da operacao foi recalculado para ${formatBRL(novoValorBruto)}.`,
+    tipo: 'nf_removida_contestacao',
+  })
+
+  const aviso = wasEmAndamento ? ' ATENCAO: A operacao ja estava em andamento — os termos financeiros precisam ser ajustados manualmente.' : ''
+  return { success: true, message: `NF ${nfData.numero_nf} removida. Novo valor bruto: ${formatBRL(novoValorBruto)}.${aviso}` }
 }
 
 // Helper
