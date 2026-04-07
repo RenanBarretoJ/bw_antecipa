@@ -44,6 +44,18 @@ export async function aceitarCessao(nfId: string): Promise<SacadoActionState> {
     return { success: false, message: 'Esta NF nao e destinada a voce.' }
   }
 
+  if (nfData.status !== 'em_antecipacao') {
+    return { success: false, message: 'Esta NF nao pode ser aceita no status atual.' }
+  }
+
+  // Atualizar status da NF para aceita
+  const { error: updateError } = await supabase
+    .from('notas_fiscais')
+    .update({ status: 'aceita' } as never)
+    .eq('id', nfId)
+
+  if (updateError) return { success: false, message: 'Erro ao registrar aceite.' }
+
   // Notificar gestor e cedente do aceite
   const { data: cedente } = await supabase
     .from('cedentes')
@@ -105,7 +117,7 @@ export async function contestarCessao(nfId: string, motivo: string): Promise<Sac
   // Atualizar status da NF para contestada
   const { error: updateError } = await supabase
     .from('notas_fiscais')
-    .update({ status: 'contestada' })
+    .update({ status: 'contestada' } as never)
     .eq('id', nfId)
 
   if (updateError) return { success: false, message: 'Erro ao registrar contestacao.' }
