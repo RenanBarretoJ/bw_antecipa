@@ -42,6 +42,7 @@ interface OperacaoDetalhe {
   cedentes: {
     razao_social: string
     cnpj: string
+    contrato_url: string | null
   }
 }
 
@@ -154,7 +155,7 @@ export default function OperacaoDetalheGestorPage() {
       // Buscar operacao
       const { data: opData } = await supabase
         .from('operacoes')
-        .select('*, cedentes(razao_social, cnpj)')
+        .select('*, cedentes(razao_social, cnpj, contrato_url)')
         .eq('id', opId)
         .single()
 
@@ -240,7 +241,7 @@ export default function OperacaoDetalheGestorPage() {
     if (result?.success) {
       // Recarregar dados
       const supabase = createClient()
-      const { data: opAtual } = await supabase.from('operacoes').select('*, cedentes(razao_social, cnpj)').eq('id', opId).single()
+      const { data: opAtual } = await supabase.from('operacoes').select('*, cedentes(razao_social, cnpj, contrato_url)').eq('id', opId).single()
       if (opAtual) setOp(opAtual as OperacaoDetalhe)
       const { data: opNfs } = await supabase.from('operacoes_nfs').select('nota_fiscal_id').eq('operacao_id', opId)
       if (opNfs) {
@@ -452,6 +453,7 @@ export default function OperacaoDetalheGestorPage() {
                   <BotaoDownloadContrato
                     tipo="contrato"
                     id={op.cedente_id}
+                    storagePath={op.cedentes.contrato_url}
                     label="Contrato Mae"
                   />
                 </div>

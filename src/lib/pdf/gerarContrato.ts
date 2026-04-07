@@ -72,7 +72,10 @@ async function htmlParaPdf(html: string): Promise<Buffer> {
     : await puppeteer.launch({
         args: chromium.args,
         defaultViewport: { width: 1280, height: 720 },
-        executablePath: await chromium.executablePath(),
+        executablePath: await chromium.executablePath(
+          process.env.CHROMIUM_BINARY_URL ||
+          'https://github.com/Sparticuz/chromium/releases/download/v143.0.4/chromium-v143.0.4-pack.tar'
+        ),
         headless: true,
       })
 
