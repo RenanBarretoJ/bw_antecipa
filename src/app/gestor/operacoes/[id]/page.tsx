@@ -52,6 +52,7 @@ interface NfDaOperacao {
   cnpj_destinatario: string
   razao_social_destinatario: string
   valor_bruto: number
+  valor_liquido: number
   data_vencimento: string
   status: string
 }
@@ -176,7 +177,7 @@ export default function OperacaoDetalheGestorPage() {
           const nfIds = (opNfs as Array<{ nota_fiscal_id: string }>).map((n) => n.nota_fiscal_id)
           const { data: nfsData } = await supabase
             .from('notas_fiscais')
-            .select('id, numero_nf, cnpj_destinatario, razao_social_destinatario, valor_bruto, data_vencimento, status')
+            .select('id, numero_nf, cnpj_destinatario, razao_social_destinatario, valor_bruto, valor_liquido, data_vencimento, status')
             .in('id', nfIds)
 
           setNfs((nfsData || []) as NfDaOperacao[])
@@ -197,14 +198,20 @@ export default function OperacaoDetalheGestorPage() {
     load()
   }, [opId])
 
-  // Recalcular valor liquido quando taxa ou prazo mudam
+  // Recalcular valor liquido total e valor antecipado por NF quando taxa ou prazo mudam
   useEffect(() => {
     if (op && taxa >= 0 && prazo > 0) {
-      const fatorTaxaDia = (1 + (taxa / 100)) ** (1 / 30)
-      const vl = (op.valor_bruto_total / (fatorTaxaDia ** prazo))
+      const fator = (1 + taxa / 100) ** (prazo / 30)
+      const vl = op.valor_bruto_total / fator
       setValorLiquido(Math.max(0, Math.round(vl * 100) / 100))
     }
   }, [taxa, prazo, op])
+
+  const calcularValorAntecipado = (valorLiquido: number): number => {
+    if (!taxa || !prazo || taxa < 0 || prazo <= 0) return valorLiquido
+    const fator = (1 + taxa / 100) ** (prazo / 30)
+    return Math.round((valorLiquido / fator) * 100) / 100
+  }
 
   const aplicarTaxaConfig = (t: TaxaConfig) => {
     setTaxa(t.taxa_percentual)
@@ -247,7 +254,7 @@ export default function OperacaoDetalheGestorPage() {
       if (opNfs) {
         const ids = (opNfs as Array<{ nota_fiscal_id: string }>).map((n) => n.nota_fiscal_id)
         if (ids.length > 0) {
-          const { data: nfsAtt } = await supabase.from('notas_fiscais').select('id, numero_nf, cnpj_destinatario, razao_social_destinatario, valor_bruto, data_vencimento, status').in('id', ids)
+          const { data: nfsAtt } = await supabase.from('notas_fiscais').select('id, numero_nf, cnpj_destinatario, razao_social_destinatario, valor_bruto, valor_liquido, data_vencimento, status').in('id', ids)
           setNfs((nfsAtt || []) as NfDaOperacao[])
         } else {
           setNfs([])
@@ -364,6 +371,7 @@ export default function OperacaoDetalheGestorPage() {
                       <th className="text-left px-3 py-2 text-xs text-muted-foreground uppercase">NF</th>
                       <th className="text-left px-3 py-2 text-xs text-muted-foreground uppercase">Sacado</th>
                       <th className="text-left px-3 py-2 text-xs text-muted-foreground uppercase">Valor</th>
+                      <th className="text-left px-3 py-2 text-xs text-muted-foreground uppercase">Vl. Antecipado</th>
                       <th className="text-left px-3 py-2 text-xs text-muted-foreground uppercase">Vencimento</th>
                       <th className="text-left px-3 py-2 text-xs text-muted-foreground uppercase">Status</th>
                       {canRemoveNf && <th className="px-3 py-2" />}
@@ -378,6 +386,9 @@ export default function OperacaoDetalheGestorPage() {
                           <p className="text-xs text-muted-foreground">{formatCNPJ(nf.cnpj_destinatario)}</p>
                         </td>
                         <td className="px-3 py-2 font-medium tabular-nums">{formatCurrency(nf.valor_bruto)}</td>
+                        <td className="px-3 py-2 tabular-nums text-green-700 font-medium">
+                          {formatCurrency(calcularValorAntecipado(nf.valor_liquido || nf.valor_bruto))}
+                        </td>
                         <td className="px-3 py-2">{formatDate(nf.data_vencimento)}</td>
                         <td className="px-3 py-2">
                           {nf.status === 'aceita' && (

@@ -280,7 +280,7 @@ export async function aprovarOperacao(
     tipo: 'operacao_aprovada',
   })
 
-  // Buscar NFs da operacao para notificar sacados
+  // Buscar NFs da operacao para calcular valor_antecipado e notificar sacados
   const { data: opNfs } = await supabase
     .from('operacoes_nfs')
     .select('nota_fiscal_id')
@@ -290,8 +290,43 @@ export async function aprovarOperacao(
     const nfIds = (opNfs as Array<{ nota_fiscal_id: string }>).map((n) => n.nota_fiscal_id)
     const { data: nfs } = await supabase
       .from('notas_fiscais')
-      .select('cnpj_destinatario, razao_social_destinatario, numero_nf')
+      .select('id, valor_liquido, cnpj_destinatario, razao_social_destinatario, numero_nf')
       .in('id', nfIds)
+
+    // Calcular e salvar taxa_desagio e valor_antecipado por NF
+    // Formula: valor_antecipado = valor_liquido / (1 + taxa_a_m) ^ (prazo / 30)
+    // Arredondamento HALF_UP (Math.round usa HALF_UP para positivos)
+    if (nfs && nfs.length > 0) {
+      const fator = Math.pow(1 + taxaDesconto / 100, prazoDias / 30)
+      const nfsTyped = nfs as Array<{ id: string; valor_liquido: number }>
+
+      // Calcular valor_antecipado por NF usando valor_liquido
+      const valores = nfsTyped.map((nf) => {
+        const valorRaw = (nf.valor_liquido || 0) / fator
+        // HALF_UP: arredondar para 2 casas
+        const valor = Math.round(valorRaw * 100) / 100
+        return { id: nf.id, valor }
+      })
+
+      // Ajuste de centavos: garantir que a soma == valorLiquidoDesembolso
+      const somaCalc = valores.reduce((acc, v) => acc + v.valor, 0)
+      const diff = Math.round((valorLiquidoDesembolso - somaCalc) * 100) // em centavos
+      if (diff !== 0) {
+        // Distribuir a diferença nas primeiras NFs (1 centavo cada)
+        const sinal = diff > 0 ? 1 : -1
+        for (let i = 0; i < Math.abs(diff); i++) {
+          valores[i % valores.length].valor = Math.round((valores[i % valores.length].valor + sinal * 0.01) * 100) / 100
+        }
+      }
+
+      // Atualizar cada NF
+      for (const { id, valor } of valores) {
+        await supabase
+          .from('notas_fiscais')
+          .update({ taxa_desagio: taxaDesconto, valor_antecipado: valor } as never)
+          .eq('id', id)
+      }
+    }
 
     if (nfs) {
       // Notificar sacados unicos
