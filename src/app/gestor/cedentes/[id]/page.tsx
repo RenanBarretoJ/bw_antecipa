@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { analisarDocumento, aprovarCedente, reprovarCedente } from '@/lib/actions/gestor'
 import { salvarTaxasCedente } from '@/lib/actions/operacao'
 import { formatCNPJ, formatDate } from '@/lib/utils'
+import { buckets } from '@/lib/storage'
 import { ArrowLeft, CheckCircle, XCircle, FileText, Eye, X, Plus, Trash2, Settings } from 'lucide-react'
 import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -138,7 +139,7 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
     if (!doc.url_arquivo) return
     const supabase = createClient()
     const { data } = await supabase.storage
-      .from('documentos-cedentes')
+      .from(buckets.documentos)
       .createSignedUrl(doc.url_arquivo, 3600)
 
     setModal({ doc, previewUrl: data?.signedUrl || '' })

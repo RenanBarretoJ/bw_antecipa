@@ -26,7 +26,7 @@ const docsEmpresa: DocInfo[] = [
 
 const docsRepresentante: DocInfo[] = [
   { key: 'rg_cpf', label: 'RG e CPF', obrigatorio: true },
-  { key: 'comprovante_de_renda', label: 'Comprovante de Renda', obrigatorio: true },
+  { key: 'comprovante_de_renda', label: 'Comprovante de Renda', obrigatorio: false },
   { key: 'comprovante_endereco', label: 'Comprovante de Residencia (ultimos 90 dias)', obrigatorio: true },
   { key: 'procuracao', label: 'Procuracao', obrigatorio: false },
 ]

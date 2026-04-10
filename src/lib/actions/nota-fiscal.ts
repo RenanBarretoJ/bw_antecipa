@@ -6,6 +6,7 @@ import { parseNFeXML } from '@/lib/nf-parser'
 import { extractDanfeFromPdf, type NfPdfExtracted } from '@/lib/pdf-nf-parser'
 import { registrarLog } from './auditoria'
 import { notificarGestores, criarNotificacao } from './notificacao'
+import { buckets } from '@/lib/storage'
 
 export type NfActionState = {
   success?: boolean
@@ -111,7 +112,7 @@ export async function uploadNFs(formData: FormData): Promise<NfActionState> {
         const filePath = `${cnpjLimpo}/nf/${timestamp}_${cleanName}`
 
         const { error: uploadError } = await supabase.storage
-          .from('notas-fiscais')
+          .from(buckets.notasFiscais)
           .upload(filePath, arquivo)
 
         if (uploadError) {
@@ -171,7 +172,7 @@ export async function uploadNFs(formData: FormData): Promise<NfActionState> {
         const filePath = `${cnpjLimpo}/nf/${timestamp}_${cleanName}`
 
         const { error: uploadError } = await supabase.storage
-          .from('notas-fiscais')
+          .from(buckets.notasFiscais)
           .upload(filePath, arquivo)
 
         if (uploadError) {
@@ -312,7 +313,7 @@ export async function criarNFManual(formData: FormData): Promise<NfActionState> 
   const filePath = `${cnpjLimpo}/nf/${timestamp}_${cleanName}`
 
   const { error: uploadError } = await supabase.storage
-    .from('notas-fiscais')
+    .from(buckets.notasFiscais)
     .upload(filePath, arquivo)
 
   if (uploadError) {
@@ -520,7 +521,7 @@ export async function excluirRascunho(nfId: string): Promise<NfActionState> {
 
   // Remover arquivo do storage antes de excluir o registro
   if (nfData.arquivo_url) {
-    await supabase.storage.from('notas-fiscais').remove([nfData.arquivo_url])
+    await supabase.storage.from(buckets.notasFiscais).remove([nfData.arquivo_url])
   }
 
   const { error } = await supabase
@@ -561,7 +562,7 @@ export async function excluirRascunhos(nfIds: string[]): Promise<NfActionState> 
   const nfsData = nfs as { id: string; arquivo_url: string | null }[]
   const arquivos = nfsData.map((n) => n.arquivo_url).filter(Boolean) as string[]
   if (arquivos.length > 0) {
-    await supabase.storage.from('notas-fiscais').remove(arquivos)
+    await supabase.storage.from(buckets.notasFiscais).remove(arquivos)
   }
 
   const idsConfirmados = nfsData.map((n) => n.id)

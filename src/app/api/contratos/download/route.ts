@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { buckets } from '@/lib/storage'
 
 // Gera signed URL para download de PDF do bucket privado 'contratos'
 // GET /api/contratos/download?path=cedentes/xxx/contrato-cessao.pdf
@@ -20,7 +21,7 @@ export async function GET(req: NextRequest) {
     )
 
     const { data, error } = await supabaseAdmin.storage
-      .from('contratos')
+      .from(buckets.contratos)
       .createSignedUrl(filePath, 3600) // 1 hora
 
     if (error) {

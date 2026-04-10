@@ -1,179 +1,366 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
-<meta charset="UTF-8">
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    font-family: 'Times New Roman', Times, serif;
-    font-size: 12pt;
-    line-height: 1.6;
-    color: #000;
-    padding: 3cm 2.5cm 2.5cm 3cm;
-  }
-  h1 {
-    font-size: 12pt;
-    text-align: center;
-    font-weight: bold;
-    text-transform: uppercase;
-    margin-bottom: 24pt;
-  }
-  h2 {
-    font-size: 12pt;
-    font-weight: bold;
-    text-transform: uppercase;
-    margin: 18pt 0 8pt;
-  }
-  p { margin-bottom: 10pt; text-align: justify; }
-  .preambulo { margin-bottom: 12pt; }
-  .preambulo-item { margin-bottom: 10pt; text-align: justify; }
-  .clausula { margin-bottom: 6pt; text-align: justify; }
-  .subclausula { margin-left: 20pt; margin-bottom: 6pt; text-align: justify; }
-  .alinha { margin-left: 20pt; margin-bottom: 6pt; text-align: justify; }
-  .assinaturas { margin-top: 40pt; }
-  .assinatura-bloco { margin-bottom: 28pt; }
-  .linha-assinatura {
-    border-top: 1px solid #000;
-    width: 80%;
-    margin-bottom: 4pt;
-  }
-  .assinatura-nome { font-weight: bold; text-transform: uppercase; }
-  .assinatura-qualidade { font-weight: bold; }
-  .testemunhas { margin-top: 30pt; }
-  .centro { text-align: center; }
-  table { width: 100%; border-collapse: collapse; margin: 10pt 0; }
-  table th, table td { border: 1px solid #000; padding: 6pt 8pt; font-size: 10pt; }
-  table th { background-color: #e0e0e0; font-weight: bold; text-align: center; }
-</style>
+  <meta charset="UTF-8">
+  <style>
+    @page {
+      size: A4;
+      margin: 3cm 2.5cm 2.5cm 3cm;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Times New Roman', Times, serif;
+      font-size: 10pt;
+      line-height: 1.5;
+      color: #000;
+    }
+
+    h1 {
+      font-size: 10pt;
+      text-align: center;
+      font-weight: bold;
+      text-transform: uppercase;
+      margin-bottom: 24pt;
+      break-after: avoid;
+    }
+
+    h2 {
+      font-size: 10pt;
+      font-weight: bold;
+      text-transform: uppercase;
+      margin: 18pt 0 8pt;
+      break-after: avoid;
+    }
+
+    p {
+      margin-bottom: 10pt;
+      text-align: justify;
+      orphans: 3;
+      widows: 3;
+    }
+
+    .clausula {
+      margin-bottom: 8pt;
+      text-align: justify;
+      break-inside: avoid;
+      orphans: 3;
+      widows: 3;
+    }
+
+    .subclausula {
+      margin-left: 20pt;
+      margin-bottom: 6pt;
+      text-align: justify;
+      break-inside: avoid;
+    }
+
+    .escrow-block {
+      margin: 10pt 0 10pt 30pt;
+    }
+
+    .escrow-block p {
+      margin-bottom: 2pt;
+    }
+
+    .assinaturas {
+      margin-top: 40pt;
+    }
+
+    .assinatura-bloco {
+      margin-bottom: 28pt;
+    }
+
+    .linha-assinatura {
+      border-top: 1px solid #000;
+      width: 80%;
+      margin-bottom: 4pt;
+    }
+
+    .assinatura-nome {
+      font-weight: bold;
+      text-transform: uppercase;
+    }
+
+    .assinatura-qualidade {
+      font-style: italic;
+    }
+
+    .testemunhas {
+      margin-top: 30pt;
+      break-inside: avoid;
+    }
+
+    .centro {
+      text-align: center;
+    }
+
+    .pagina-assinatura {
+      font-size: 10pt;
+      font-style: italic;
+      text-align: center;
+      margin-bottom: 40pt;
+    }
+  </style>
 </head>
+
 <body>
 
-<h1>CONTRATO DE CESSAO E AQUISICAO DE DIREITOS DE CREDITO E OUTRAS AVENCAS<br>COM COOBRIGACAO</h1>
+  <h1>CONTRATO DE CESSAO E AQUISICAO DE DIREITOS DE CREDITO E OUTRAS<br>AVENCAS COM COOBRIGACAO</h1>
 
-<p>Pelo presente instrumento particular, como Partes:</p>
+  <p>Pelo presente instrumento particular, como Partes:</p>
 
-<div class="preambulo">
-  <p class="preambulo-item">(a) <strong>{{cedente.razao_social}}</strong> (a "Cedente"), inscrita no CNPJ n {{cedente.cnpj}}, com sede na {{cedente.endereco}}, Telefone {{cedente.telefone}} com endereco eletronico: {{cedente.email}}</p>
+  <p class="clausula">(a) <strong>{{cedente.razao_social}}</strong> inscrita no CNPJ n {{cedente.cnpj}} ("Cedente"), com
+    sede na {{cedente.logradouro}}, n {{cedente.numero}}, {{cedente.bairro}}{{#if cedente.complemento}},
+    {{cedente.complemento}}{{/if}}, {{cedente.cidade}}, {{cedente.estado}}, CEP {{cedente.cep}}, Telefone
+    {{cedente.telefone}} com endereco eletronico: {{cedente.email}};</p>
 
-  <p class="preambulo-item">(b) <strong>{{fundo.nome}}</strong>, (o "Cessionario" ou o "Fundo"), fundo de investimento em direitos creditorios constituido sob a forma de condominio Fechado, inscrito no CNPJ sob o n. {{fundo.cnpj}}, neste ato representado na forma do seu Regulamento pela Administradora, <strong>{{fundo.administradora_nome}}</strong>. instituicao financeira devidamente autorizada para tanto, inscrito no CNPJ sob o n. {{fundo.administradora_cnpj}}, neste ato por seu representante legal;</p>
+  <p class="clausula">(b) (o "Cessionario" ou o
+    "Fundo"), <strong>HEALTH I FUNDO DE INVESTIMENTO EM DIREITOS CREDITORIOS</strong>, constituido sob a forma de
+    condominio Fechado, inscrito no CNPJ sob o n 62.342.629/0001-77, neste ato
+    representado na forma do seu Regulamento pela Administradora, <strong>MONETAR DISTRIBUIDORA DE TITULOS E VALORES
+      MOBILIARIOS S.A</strong>, com sede na Cidade e Estado de Sao Paulo, na Rua Joaquim Floriano, n 100, 18 andar,
+    Itaim Bibi, Sao Paulo – SP, CEP 04534-000, inscrita no CNPJ/ME sob o n 12.063.256/0001-27, devidamente autorizada a
+    prestacao dos servicos de administracao de carteira de titulos e valores mobiliarios, por meio do Ato Declaratorio
+    CVM n 13.091, neste ato por seu representante legal;</p>
 
-  {{#each devedores}}
-  <p class="preambulo-item">({{this.letra}}) <strong>{{this.nome}}</strong> ({{#if @first}}o Representante Legal e Devedor Solidario/ Avalista "Cedente"{{else}}{{#if this.feminino}}Devedora Solidaria/ Avalista{{else}}Devedor Solidario/ Avalista{{/if}} da "Cedente"{{/if}}), {{this.nacionalidade}}, {{this.estado_civil}}{{#if this.profissao}}, {{this.profissao}}{{/if}}, nascido em {{this.data_nascimento}}, portador{{#if this.feminino}}a{{/if}} da {{this.doc_tipo}} n {{this.doc_numero}}, expedida pelo {{this.doc_expedidor}} em {{this.doc_data}}, inscrito no CPF/MF sob o n {{this.cpf}}, residente e domiciliado{{#if this.feminino}}a{{/if}} em {{this.endereco}}, Telefone {{this.telefone}}, com endereco eletronico: {{this.email}}.</p>
-  {{/each}}
-</div>
+  <p>e como Intervenientes anuentes:</p>
 
-<p>e como Intervenientes anuentes:</p>
+  <p class="clausula">(a) <strong>BLUEWAVE ASSET LTDA</strong> (Gestora), inscrita no CNPJ/ME sob o n
+    13.703.306/0001-56, sociedade com sede na cidade de Sao Paulo, Estado de Sao Paulo, autorizada a prestacao do
+    servico de gestao de carteira de titulos e valores mobiliarios, neste ato representada na forma de seu contrato
+    social; e</p>
 
-<div class="preambulo">
-  <p class="preambulo-item">(a) <strong>{{fundo.gestora_nome}}</strong>.(Gestora), inscrita no CNPJ/ME sob o n {{fundo.gestora_cnpj}}, sociedade com sede na cidade de Sao Paulo, Estado de Sao Paulo, autorizada a prestacao do servico de gestao de carteira de titulos e valores mobiliarios, neste ato representada na forma de seu contrato social; e</p>
+  <p class="clausula">(b) <strong>TERRA INVESTIMENTOS DISTRIBUIDORA DE TITULOS E VALORES MOBILIARIOS LTDA</strong>
+    ("Custodiante") inscrita no CNPJ/ME sob o n 03.751.794/0001-13, sociedade com sede na cidade de Sao Paulo, Estado de
+    Sao Paulo, neste ato representada na forma do seu contrato social.</p>
 
-  <p class="preambulo-item">(b) <strong>{{fundo.custodiante_nome}}</strong> ("Custodiante") inscrita no CNPJ/ME sob o n {{fundo.custodiante_cnpj}}, sociedade com sede na cidade de Sao Paulo, Estado de Sao Paulo, neste ato representada na forma do seu contrato social.</p>
-</div>
+  <p><strong>CONSIDERANDO QUE</strong> o Cessionario e um Fundo de Investimento em Direitos Creditorios (FIDC)
+    constituido sob a forma de condominio fechado, nos termos RESOLUCAO CVM N 175, de 23 de dezembro de 2022, com as
+    alteracoes introduzidas pelas resolucoes CVM n 181/23, 184/23, 187/23 e 200/24.</p>
 
-<p><strong>CONSIDERANDO QUE</strong> o Cessionario e um Fundo de Investimento em Direitos Creditorios (FIDC) constituido sob a forma de condominio fechado, nos termos RESOLUCAO CVM N 175, de 23 de dezembro de 2022, com as alteracoes introduzidas pelas resolucoes CVM n 181/23, 184/23, 187/23 e 200/24.</p>
+  <p><strong>CONSIDERANDO QUE</strong> a Cedente e empresa prestadora de servicos, e que, no exercicio regular de suas
+    atividades, e capaz de originar direitos de credito contra seus clientes e terceiros (os "Devedores"), representados
+    por notas fiscais, contratos, ordens de servico e/ou duplicatas, instrumentos estes que representam creditos
+    liquidos e certos (os "Direitos de Credito");</p>
 
-<p><strong>CONSIDERANDO QUE</strong> a Cedente e empresa prestadora de servicos, e que, no exercicio regular de suas atividades, e capaz de originar direitos de credito contra seus clientes e terceiros (os "Devedores"), representados por notas fiscais, contratos, ordens de servico e/ou duplicatas, instrumentos estes que representam creditos liquidos e certos (os "Direitos de Credito");</p>
+  <p><strong>CONSIDERANDO QUE</strong> o Cessionario tem interesse em adquirir os referidos Direitos de Credito de
+    titularidade da Cedente;</p>
 
-<p><strong>CONSIDERANDO QUE</strong> o Cessionario tem interesse em adquirir os referidos Direitos de Credito de titularidade da Cedente;</p>
+  <p><strong>ISTO POSTO</strong>, resolvem as partes celebrar o presente Contrato de Cessao e Aquisicao de Direitos de
+    Credito e Outras Avencas (o "Contrato de Cessao"), o qual sera regido pelas clausulas e condicoes a seguir
+    estipuladas.</p>
 
-<p><strong>ISTO POSTO</strong>, resolvem as partes celebrar o presente Contrato de Cessao e Aquisicao de Direitos de Credito e Outras Avencas (o "Contrato de Cessao"), o qual sera regido pelas clausulas e condicoes a seguir estipuladas.</p>
+  <h2>1 DEFINICOES</h2>
 
-<h2>CLAUSULA I - DEFINICOES</h2>
+  <p class="clausula">1.1 Os termos iniciados em letras maiusculas e utilizados neste Contrato de Cessao estejam no
+    singular ou no plural, que nao sejam diversamente definidos neste Contrato de Cessao, terao os significados que lhes
+    sao atribuidos no regulamento do Fundo (o "Regulamento").</p>
 
-<p class="clausula">1.1 Os termos iniciados em letras maiusculas e utilizados neste Contrato de Cessao estejam no singular ou no plural, que nao sejam diversamente definidos neste Contrato de Cessao, terao os significados que lhes sao atribuidos no regulamento do Fundo (o "Regulamento").</p>
+  <p class="clausula">1.2. <strong>CONTA DESEMBOLSO</strong></p>
+  <p class="clausula">Considerando que as cessoes dos Direitos Creditorios nao ocorrerao por meio de conta vinculada, os
+    pagamentos serao realizados diretamente na conta corrente de livre movimentacao do Cedente, mantida junto a
+    instituicao financeira por ele indicada.</p>
+  <p class="clausula">O Cedente obriga-se a assegurar a correta identificacao dos recebiveis objetos de cessao ao FIDC,
+    bem como a realizar o repasse integral dos valores recebidos referentes aos Direitos Creditorios cedidos, nos termos
+    e prazos estabelecidos nos documentos da operacao e no Contrato de Cessao, ficando sujeito aos mecanismos de
+    controle, monitoramento e verificacao definidos pela Gestora e pelo Administrador do Fundo.</p>
 
-<p class="clausula">1.2. <strong>CONTRATO DE CONTA VINCULADA</strong>: Contrato de Prestacao de Servico para Administracao de Conta Vinculada para prestacao dos servicos de gerenciamento e monitoramento da Conta de Deposito das operacoes. A conta de n {{fundo.conta_vinculada}}, mantida na agencia n {{fundo.agencia}}, do {{fundo.banco}} sera responsavel pelos recebimentos dos Direitos creditorios adquiridos pelo FIDC.</p>
+  <p class="clausula">1.3. <strong>DIREITOS CREDITORIOS CEDIDOS</strong>: Direitos creditorios de titularidade da
+    Cedente, decorrentes da prestacao de servicos e/ou fornecimento de bens ao INTS – Instituto Nacional de Tecnologia e
+    Saude (o "Sacado"), representados por notas fiscais, contratos, ordens de servico, faturas ou outros documentos
+    comprobatorios da obrigacao de pagamento, os quais sao cedidos ao FIDC para fins de antecipacao de recebiveis.</p>
 
-<p class="clausula">1.3. <strong>DIREITOS CREDITORIOS CEDIDOS</strong>: direitos creditorios decorrentes dos Contratos de Emprestimo cedidos pela cedente ao FIDC.</p>
+  <p class="clausula">1.4. <strong>CONTA AUTORIZADA DA CEDENTE</strong>: Conta corrente de livre movimentacao n
+    {{cedente.conta}}, de titularidade da Cedente, mantida na agencia n {{cedente.agencia}}, do {{cedente.banco}}.</p>
 
-<p class="clausula">1.4. <strong>CONTA AUTORIZADA DA CEDENTE</strong>: Conta corrente de livre movimentacao n {{fundo.conta_vinculada}}, de titularidade da Cedente, mantida na agencia n {{fundo.agencia}}, do {{fundo.banco}}.</p>
+  <p class="clausula">1.5. <strong>TERMO DE CESSAO</strong>: Termo de cessao dos Direitos Creditorios Cedidos elaborado
+    na forma do Anexo I ao Contrato.</p>
 
-<p class="clausula">1.5. <strong>TERMO DE CESSAO</strong>: Termo de cessao dos Direitos Creditorios Cedidos elaborado na forma do Anexo I ao Contrato.</p>
+  <p class="clausula">1.6. <strong>SACADO</strong>: <strong>INSTITUTO NACIONAL DE TECNOLOGIA E SAUDE (INTS)</strong>,
+    inscrito no CNPJ sob o n 11.344.038/0001-06. Devedor dos Direitos Creditorios, o qual, apos a formalizacao da
+    cessao, reconhece o Fundo como legitimo credor e efetuara os pagamentos diretamente na conta indicada pelo Fundo,
+    nos termos do Termo de Cessao ou notificacao de cessao.</p>
 
-<p class="clausula">1.6. <strong>SACADO</strong>: {{sacado.descricao}} <strong>{{sacado.razao_social}}</strong>{{#if sacado.cnpj}}, CNPJ {{sacado.cnpj}}{{/if}}. O Sacado efetuara os pagamentos diretamente na Conta Vinculada.</p>
-
-<h2>CLAUSULA II - OBJETO E QUALIFICACAO DOS DIREITOS DE CREDITO CEDIDOS</h2>
-
-<p class="clausula">2.1. Para fins deste contrato, considera-se fatura performada toda e qualquer fatura emitida contra o Sacado que apresente as seguintes comprovacoes documentais: (a) Nota Fiscal eletronica com numero de pedido ou Contrato; (b) Protocolo de recebimento e conferencia da mercadoria ou servico; (c) Registro no sistema do Sacado com status de 'Pagamento Agendado', com data de liquidacao definida.</p>
-
-<p class="clausula">2.2. Cada cessao de Direitos de Credito nos termos do presente Contrato de Cessao sera realizada mediante a celebracao de um Termo de Cessao (o "Termo de Cessao"), conforme modelo anexo a este Contrato de Cessao (Anexo I), a ser celebrado entre o Fundo e a Cedente.</p>
-
-<p class="clausula">2.6. Cada cessao de Direitos de Credito nos termos do presente Contrato de Cessao sera realizada em carater irrevogavel e irretratavel, ficando o Cessionario automaticamente sub-rogado em todos os direitos, garantias, privilegios, preferencias e prerrogativas conferidas aos Direitos de Credito cedidos.</p>
-
-<p class="clausula">2.7. A Cedente respondera, civil e criminalmente, pela origem, existencia e correta formalizacao dos Direitos de Credito e dos titulos a eles relativos, bem como pela liquidez, certeza, exigibilidade e pagamento dos valores a eles referentes, na qualidade de devedora solidaria dos Devedores dos Direitos de Credito, na forma da Clausula XI abaixo, nos termos do Artigo 295 do Codigo Civil Brasileiro.</p>
-
-<h2>CLAUSULA XI - COOBRIGACAO</h2>
-
-<p class="clausula">11.1. A Cedente se responsabiliza, solidariamente, com os Devedores, nos termos do Artigo 296 do Codigo Civil, pelo pontual e total liquidacao de todos os Direitos de Credito cedidos ao Cessionario nos termos deste Contrato, <strong>obrigando-se</strong> pelo pagamento do principal, juros, multas e demais encargos relativos a cada Direito de Credito.</p>
-
-<h2>CLAUSULA XII - DEVEDOR SOLIDARIO</h2>
-
-<p class="clausula">12.1. O Devedor Solidario neste ato se obriga, em carater irrevogavel e irretratavel, como devedor e principal pagador, garantindo em favor do Cessionario, o pontual e integral pagamento de todos os Direitos de Credito cedidos nos termos deste Contrato, incluindo o principal, os encargos e os juros incidentes sobre tais Direitos de Credito, quando e conforme devidos e exigidos.</p>
-
-<h2>CLAUSULA XX - FORO</h2>
-
-<p class="clausula">20.1. Fica eleito o foro da Comarca de Sao Paulo, estado de Sao Paulo, para dirimir quaisquer duvidas ou controversias oriundas deste Contrato, com renuncia a qualquer outro por mais privilegiado que seja.</p>
-
-<p>E, assim, por estarem justas e contratadas, as partes assinam este contrato na presenca de duas testemunhas</p>
-
-<p class="centro">Sao Paulo, {{contrato.data_assinatura_extenso}}.</p>
-
-<div class="assinaturas">
-
-  <div class="assinatura-bloco">
-    <div class="linha-assinatura"></div>
-    <p class="assinatura-nome">{{cedente.razao_social}}</p>
-    <p class="assinatura-qualidade">CEDENTE</p>
-    <p><em>representado por {{cedente.rep_legal_nome}}</em></p>
+  <p class="clausula">1.7. <strong>CONTA VINCULADA E MECANISMO DE LIQUIDACAO</strong>: Como mecanismo de garantia e
+    liquidacao dos Direitos Creditorios cedidos ao Fundo, determinados recebiveis de titularidade do Sacado serao
+    vinculados a operacao, mediante a formalizacao de instrumento de cessao fiduciaria e/ou trava de recebiveis. Os
+    recursos serao liquidados na seguinte Conta Escrow do Sacado:</p>
+  <div class="escrow-block">
+    <p>Titular: INSTITUTO NACIONAL DE TECNOLOGIA E SAUDE</p>
+    <p>CNPJ: 11.344.038/0001-06</p>
+    <p>Banco: 457 – UY3 SCD S/A</p>
+    <p>Tipo de Conta: Conta Escrow</p>
+    <p>Numero da Conta: 4180406 | Agencia: 0001</p>
   </div>
 
-  {{#each devedores}}
-  <div class="assinatura-bloco">
-    <div class="linha-assinatura"></div>
-    <p class="assinatura-nome">{{this.nome}}</p>
-    <p class="assinatura-qualidade">DEVEDOR{{#if this.feminino}}A{{/if}} SOLIDARIO{{#if this.feminino}}A{{/if}} | AVALISTA</p>
-  </div>
-  {{/each}}
+  <p class="clausula">1.8. <strong>RECONHECIMENTO DA DIVIDA PELO SACADO</strong>: O <strong>INSTITUTO NACIONAL DE
+      TECNOLOGIA E SAUDE (INTS)</strong>, na qualidade de Sacado, reconhece expressamente, por meio de sua assinatura
+    neste instrumento na qualidade de Interveniente Anuente com Coobrigacao, a existencia, liquidez, certeza e
+    exigibilidade dos Direitos Creditorios objeto de cada Termo de Cessao, obrigando-se ao seu pontual e integral
+    pagamento diretamente ao Fundo, na conta por este indicada.</p>
 
-  <div class="assinatura-bloco">
-    <div class="linha-assinatura"></div>
-    <p class="assinatura-nome">{{fundo.nome}}</p>
-    <p class="assinatura-qualidade">CESSIONARIO</p>
-    <p><em>representado por sua administradora <strong>{{fundo.administradora_nome}}</strong></em></p>
-  </div>
+  <p class="clausula">1.9. <strong>VEDACAO DE PAGAMENTO AO CEDENTE</strong>: A partir da data de formalizacao de cada
+    cessao e da respectiva notificacao, o Sacado declara-se ciente e concorda que nao podera efetuar qualquer pagamento
+    referente aos Direitos Creditorios cedidos diretamente ao Cedente, sendo que eventuais pagamentos realizados ao
+    Cedente apos a notificacao nao serao considerados liberadores da obrigacao do Sacado perante o Fundo.</p>
 
-  <p><strong>INTERVENIENTES ANUENTES:</strong></p>
+  <p class="clausula">1.10. <strong>DIREITO DE COBRANCA DIRETA PELO FUNDO</strong>: O Fundo, como cessionario e unico e
+    legitimo titular dos Direitos Creditorios cedidos, tera o direito de cobrar diretamente do Sacado os valores
+    devidos, judicial ou extrajudicialmente, podendo para tanto emitir notificacoes, protestos ou tomar quaisquer outras
+    medidas necessarias a satisfacao do credito, sem necessidade de anuencia do Cedente.</p>
 
-  <div class="assinatura-bloco">
-    <div class="linha-assinatura"></div>
-    <p class="assinatura-nome">{{fundo.gestora_nome}}</p>
-    <p class="assinatura-qualidade">GESTORA</p>
-  </div>
+  <h2>2 OBJETO E QUALIFICACAO DOS DIREITOS DE CREDITO CEDIDOS</h2>
 
-  <div class="assinatura-bloco">
-    <div class="linha-assinatura"></div>
-    <p class="assinatura-nome">{{fundo.custodiante_nome}}</p>
-    <p class="assinatura-qualidade">CUSTODIANTE</p>
-  </div>
+  <p class="clausula">2.1. Para fins deste contrato, considera-se fatura performada toda e qualquer fatura emitida
+    contra o Sacado que apresente as seguintes comprovacoes documentais: (a) Nota Fiscal eletronica com numero; (b)
+    Registro no sistema do Sacado com status de 'Aprovacao de Pagamento' ou email de aprovacao, com data de liquidacao
+    definida.</p>
 
-</div>
+  <p class="clausula">2.2. Cada cessao de Direitos de Credito nos termos do presente Contrato de Cessao sera realizada
+    mediante a celebracao de um Termo de Cessao (o "Termo de Cessao"), conforme modelo anexo a este Contrato de Cessao
+    (Anexo I), a ser celebrado entre o Fundo e a Cedente.</p>
 
-<div class="testemunhas">
-  <p><strong>TESTEMUNHAS:</strong></p>
-  <br>
-  <div style="display:flex; gap: 60pt; margin-top: 10pt;">
-    <div>
-      <div class="linha-assinatura"></div>
-      <p>Nome: {{testemunha_1.nome}}</p>
-      <p>CPF: {{testemunha_1.cpf}}</p>
+  <p class="clausula">2.3. Cada cessao de Direitos de Credito nos termos do presente Contrato de Cessao sera realizada
+    em carater irrevogavel e irretratavel, ficando o Cessionario automaticamente sub-rogado em todos os direitos,
+    garantias, privilegios, preferencias e prerrogativas conferidas aos Direitos de Credito cedidos.</p>
+
+  <p class="clausula">2.4. A Cedente respondera, civil e criminalmente, pela origem, existencia e correta formalizacao
+    dos Direitos de Credito e dos titulos a eles relativos, bem como pela liquidez, certeza, exigibilidade e pagamento
+    dos valores a eles referentes, na qualidade de devedora solidaria dos Devedores dos Direitos de Credito, na forma da
+    Clausula III abaixo, nos termos do Artigo 295 do Codigo Civil Brasileiro.</p>
+
+  <h2>3 COOBRIGACAO</h2>
+
+  <p class="clausula">3.1. A Cedente se responsabiliza, solidariamente, com os Devedores, nos termos do Artigo 296 do
+    Codigo Civil, pelo pontual e total liquidacao de todos os Direitos de Credito cedidos ao Cessionario nos termos
+    deste Contrato, <strong>obrigando-se</strong> pelo pagamento do principal, juros, multas e demais encargos relativos
+    a cada Direito de Credito.</p>
+
+  <h2>4 DISPOSICOES GERAIS</h2>
+
+  <p class="clausula">4.1. <strong>COMUNICACOES:</strong> Todas as comunicacoes entre as Partes serao consideradas
+    validas a partir de seu envio conforme os dados de contato abaixo, ou outros que as Partes venham a indicar, por
+    escrito, no ambito deste Contrato:</p>
+  <p class="subclausula">(i) Para o Cedente:<br>
+    A/C: {{cedente.rep_legal_nome}}<br>
+    E-mails: {{cedente.email}}</p>
+  <p class="subclausula">(ii) Para os Cessionarios:<br>
+    A/C: Luiz Alvaro<br>
+    E-mails: op.estruturadas@terrainvestimentos.com.br; lferreira@terrainvestimentos.com.br</p>
+
+  <p class="clausula">4.2. <strong>FORMA DAS COMUNICACOES.</strong> Todas as comunicacoes realizadas nos termos deste
+    instrumento serao realizadas via correio eletronico, e serao consideradas recebidas na data de seu envio, desde que
+    haja prova inequivoca do seu recebimento pelos destinatarios. A alteracao de qualquer informacao prevista no item
+    4.1 acima devera ser comunicada as demais por quem tiver suas informacoes alteradas. Nao havendo informacao
+    atualizada, todas as correspondencias remetidas as Partes, bem como os seus eventuais sucessores, conforme o caso,
+    ao endereco existente nos seus registros serao, para todos os efeitos legais, consideradas recebidas.</p>
+
+  <p class="clausula">4.3. <strong>TOLERANCIAS E RENUNCIAS.</strong> A eventual tolerancia de qualquer das Partes quanto
+    ao atraso, ao nao cumprimento ou ao inexato cumprimento de qualquer das disposicoes deste Contrato, nao sera
+    interpretada ou entendida como renuncia a qualquer direito desta Parte, nao prejudicara o direito de exigir o
+    cumprimento da obrigacao assumida e nem constituira novacao.</p>
+
+  <p class="clausula">4.4. <strong>INDEPENDENCIAS DAS DISPOSICOES.</strong> A invalidade ou ineficacia, no todo ou em
+    parte, de qualquer das clausulas deste Contrato nao afetara as demais, que permanecerão sempre validas e eficazes
+    ate o cumprimento, pelas Partes, de todas as suas obrigacoes aqui previstas.</p>
+
+  <p class="clausula">4.5. <strong>EXECUCAO ESPECIFICA.</strong> Sem prejuizo de outros recursos detidos pelas Partes,
+    as disposicoes e obrigacoes assumidas neste Contrato comportam execucao especifica.</p>
+
+  <p class="clausula">4.6. <strong>MODIFICACOES.</strong> Qualquer modificacao ao presente instrumento somente sera
+    valida se realizada por escrito e com a concordancia das Partes.</p>
+
+  <p class="clausula">4.7. <strong>LEGISLACAO APLICAVEL.</strong> O presente Contrato sera interpretado e regido de
+    acordo com as leis da Republica Federativa do Brasil.</p>
+
+  <p class="clausula">4.8. <strong>ASSINATURA DIGITAL.</strong> Caso o presente Contrato venha a ser celebrado de forma
+    digital, as Partes reconhecem que as declaracoes de vontade das Partes contratantes mediante assinatura digital
+    presumem-se verdadeiras em relacao aos signatarios quando e utilizado (i) o processo de certificacao disponibilizado
+    pela Infraestrutura de Chaves Publicas Brasileira – ICP-Brasil ou (ii) outro meio de comprovacao da autoria e
+    integridade do documento em forma eletronica, desde que admitido como valido pelas partes ou aceito pela pessoa a
+    quem for oposto o documento, conforme admitido pelo art. 10 e seus paragrafos da Medida Provisoria n 2.200, de 24 de
+    agosto de 2001, em vigor no Brasil, reconhecendo essa forma de contratacao em meio eletronico, digital e informatico
+    como valida e plenamente eficaz, constituindo titulo executivo extrajudicial para todos os fins de direito, bem como
+    renunciam ao direito de impugnacao de que trata o art. 225 do Codigo Civil.</p>
+
+  <p class="clausula">4.9. Fica eleito o foro da Cidade de Sao Paulo, Estado de Sao Paulo, com expressa renuncia de
+    qualquer outro, por mais privilegiado que seja, para quaisquer acoes nos processos judiciais relativos ao Fundo ou a
+    questoes decorrentes do presente Contrato.</p>
+
+  <p>E, por estarem assim justas e contratadas, as Partes assinam este Contrato eletronicamente, juntamente com as 2
+    (duas) testemunhas abaixo indicadas.</p>
+
+  <p class="centro">Sao Paulo, {{contrato.data_assinatura_extenso}}.</p>
+
+  <div style="page-break-before: always;">
+
+    <p class="pagina-assinatura">(Restante da pagina deixada em branco propositalmente)</p>
+    <p class="pagina-assinatura">(Pagina de assinatura do Contrato De Cessao E Aquisicao De Direitos De Credito E Outras
+      Avencas Com Coobrigacao firmado entre {{cedente.razao_social}}, HEALTH I FIDC, MONETAR, e Intervenientes Anuentes
+      firmado em {{contrato.data_assinatura_extenso}}.) Pagina 1 de 1.</p>
+
+    <div class="assinaturas">
+
+      <div class="assinatura-bloco">
+        <div class="linha-assinatura"></div>
+        <p class="assinatura-nome">{{cedente.razao_social}}</p>
+        <p class="assinatura-qualidade">Cedente</p>
+      </div>
+
+      <div class="assinatura-bloco">
+        <div class="linha-assinatura"></div>
+        <p class="assinatura-nome">HEALTH I FUNDO DE INVESTIMENTO EM DIREITOS CREDITORIOS</p>
+        <p class="assinatura-qualidade">representado por sua administradora:</p>
+      </div>
+
+      <div class="assinatura-bloco">
+        <div class="linha-assinatura"></div>
+        <p class="assinatura-nome">MONETAR DISTRIBUIDORA DE TITULOS E VALORES MOBILIARIOS S.A</p>
+        <p class="assinatura-qualidade">Administradora</p>
+      </div>
+
+      <p><strong>INTERVENIENTES ANUENTES:</strong></p>
+
+      <div class="assinatura-bloco">
+        <div class="linha-assinatura"></div>
+        <p class="assinatura-nome">BLUEWAVE ASSET LTDA</p>
+        <p class="assinatura-qualidade">Gestora</p>
+      </div>
+
+      <div class="assinatura-bloco">
+        <div class="linha-assinatura"></div>
+        <p class="assinatura-nome">TERRA INVESTIMENTOS DISTRIBUIDORA DE TITULOS E VALORES MOBILIARIOS LTDA</p>
+        <p class="assinatura-qualidade">Custodiante</p>
+      </div>
+
     </div>
-    <div>
-      <div class="linha-assinatura"></div>
-      <p>Nome: {{testemunha_2.nome}}</p>
-      <p>CPF: {{testemunha_2.cpf}}</p>
+
+    <div class="testemunhas">
+      <p><strong>Testemunhas:</strong></p>
+      <br>
+      <div style="display:flex; gap: 60pt; margin-top: 20pt;">
+        <div>
+          <div class="linha-assinatura"></div>
+          <p>Nome: {{testemunha_1.nome}}</p>
+          <p>CPF: {{testemunha_1.cpf}}</p>
+        </div>
+        <div>
+          <div class="linha-assinatura"></div>
+          <p>Nome: {{testemunha_2.nome}}</p>
+          <p>CPF: {{testemunha_2.cpf}}</p>
+        </div>
+      </div>
     </div>
+
   </div>
-</div>
 
 </body>
+
 </html>
