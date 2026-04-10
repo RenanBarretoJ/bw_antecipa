@@ -326,9 +326,13 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
                       <Badge variant={statusBadgeVariant[status] || 'secondary'} className={statusColors[status]}>
                         {status.replace('_', ' ')}
                       </Badge>
-                      {doc && (doc.status === 'enviado' || doc.status === 'em_analise') && (
-                        <Button size="sm" variant="default" onClick={() => openPreview(doc)}>
-                          <Eye size={14} /> Analisar
+                      {doc?.url_arquivo && (
+                        <Button
+                          size="sm"
+                          variant={doc.status === 'enviado' || doc.status === 'em_analise' ? 'default' : 'ghost'}
+                          onClick={() => openPreview(doc)}
+                        >
+                          <Eye size={14} /> {doc.status === 'enviado' || doc.status === 'em_analise' ? 'Analisar' : 'Ver'}
                         </Button>
                       )}
                     </div>
@@ -361,9 +365,13 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
                         <Badge variant={statusBadgeVariant[status] || 'secondary'} className={statusColors[status]}>
                           {status.replace('_', ' ')}
                         </Badge>
-                        {doc && (doc.status === 'enviado' || doc.status === 'em_analise') && (
-                          <Button size="sm" variant="default" onClick={() => openPreview(doc)}>
-                            <Eye size={14} /> Analisar
+                        {doc?.url_arquivo && (
+                          <Button
+                            size="sm"
+                            variant={doc.status === 'enviado' || doc.status === 'em_analise' ? 'default' : 'ghost'}
+                            onClick={() => openPreview(doc)}
+                          >
+                            <Eye size={14} /> {doc.status === 'enviado' || doc.status === 'em_analise' ? 'Analisar' : 'Ver'}
                           </Button>
                         )}
                       </div>
@@ -393,9 +401,13 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
                         <Badge variant={statusBadgeVariant[status] || 'secondary'} className={statusColors[status]}>
                           {status.replace('_', ' ')}
                         </Badge>
-                        {doc && (doc.status === 'enviado' || doc.status === 'em_analise') && (
-                          <Button size="sm" variant="default" onClick={() => openPreview(doc)}>
-                            <Eye size={14} /> Analisar
+                        {doc?.url_arquivo && (
+                          <Button
+                            size="sm"
+                            variant={doc.status === 'enviado' || doc.status === 'em_analise' ? 'default' : 'ghost'}
+                            onClick={() => openPreview(doc)}
+                          >
+                            <Eye size={14} /> {doc.status === 'enviado' || doc.status === 'em_analise' ? 'Analisar' : 'Ver'}
                           </Button>
                         )}
                       </div>
@@ -587,38 +599,40 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
               )}
             </div>
 
-            <div className="p-4 border-t border-border space-y-3">
-              <div className="flex gap-3">
-                <Button
-                  onClick={() => handleAnalise('aprovado')}
-                  disabled={actionLoading}
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-                >
-                  {actionLoading ? 'Processando...' : 'Aprovar'}
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={() => {
-                    if (motivoReprovacao.trim()) handleAnalise('reprovado')
-                    else setMessage('Preencha o motivo da reprovacao.')
-                  }}
-                  disabled={actionLoading}
-                  className="flex-1"
-                >
-                  Reprovar
-                </Button>
+            {(modal.doc.status === 'enviado' || modal.doc.status === 'em_analise') && (
+              <div className="p-4 border-t border-border space-y-3">
+                <div className="flex gap-3">
+                  <Button
+                    onClick={() => handleAnalise('aprovado')}
+                    disabled={actionLoading}
+                    className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    {actionLoading ? 'Processando...' : 'Aprovar'}
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={() => {
+                      if (motivoReprovacao.trim()) handleAnalise('reprovado')
+                      else setMessage('Preencha o motivo da reprovacao.')
+                    }}
+                    disabled={actionLoading}
+                    className="flex-1"
+                  >
+                    Reprovar
+                  </Button>
+                </div>
+                <div>
+                  <Label className="block text-sm text-muted-foreground mb-1">Motivo da reprovacao (obrigatorio para reprovar)</Label>
+                  <textarea
+                    className="w-full px-3 py-2 border border-border rounded-lg text-sm bg-background text-foreground"
+                    rows={2}
+                    value={motivoReprovacao}
+                    onChange={(e) => setMotivoReprovacao(e.target.value)}
+                    placeholder="Descreva o motivo..."
+                  />
+                </div>
               </div>
-              <div>
-                <Label className="block text-sm text-muted-foreground mb-1">Motivo da reprovacao (obrigatorio para reprovar)</Label>
-                <textarea
-                  className="w-full px-3 py-2 border border-border rounded-lg text-sm bg-background text-foreground"
-                  rows={2}
-                  value={motivoReprovacao}
-                  onChange={(e) => setMotivoReprovacao(e.target.value)}
-                  placeholder="Descreva o motivo..."
-                />
-              </div>
-            </div>
+            )}
           </div>
         </div>
       )}

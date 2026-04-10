@@ -11,6 +11,20 @@ function formatarData(dataStr: string | null | undefined): string {
   return data.toLocaleDateString('pt-BR')
 }
 
+function formatarDataHora(dataStr: string | null | undefined): string {
+  if (!dataStr) return ''
+  const data = new Date(dataStr)
+  return data.toLocaleString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    timeZone: 'America/Sao_Paulo',
+  })
+}
+
 function formatarDataExtenso(dataStr: string | null | undefined): string {
   if (!dataStr) return ''
   const data = new Date(dataStr)
@@ -140,14 +154,28 @@ export async function gerarContratoCessao(
   if (erroC || !cedente) throw new Error('Cedente nao encontrado')
   const ced = cedente as Record<string, unknown>
 
-  // Rep. legal: prioriza nome_representante, fallback para primeiro devedor solidário
-  const { data: devedoresData } = await supabase
-    .from('devedores_solidarios')
-    .select('nome')
+  // Rep. legal: prioriza representante principal da tabela representantes
+  const { data: repPrincipalData } = await supabase
+    .from('representantes')
+    .select('nome, email')
     .eq('cedente_id', cedenteId)
-    .order('ordem', { ascending: true })
+    .eq('principal', true)
     .limit(1)
-  const primeiroDevedor = ((devedoresData || []) as Array<{ nome: string }>)[0]?.nome || ''
+    .maybeSingle()
+  const repPrincipal = repPrincipalData as { nome: string; email: string | null } | null
+
+  // Fallback: primeiro representante (sem filtro principal), depois nome_representante do cedente
+  const { data: primeiroRepData } = !repPrincipal ? await supabase
+    .from('representantes')
+    .select('nome, email')
+    .eq('cedente_id', cedenteId)
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle() : { data: null }
+  const primeiroRep = primeiroRepData as { nome: string; email: string | null } | null
+
+  const repNome = repPrincipal?.nome || primeiroRep?.nome || (ced.nome_representante as string) || ''
+  const repEmail = repPrincipal?.email || primeiroRep?.email || (ced.email_comercial as string) || ''
 
   const dados = {
     cedente: {
@@ -161,8 +189,8 @@ export async function gerarContratoCessao(
       estado: ced.estado || '',
       cep: ced.cep || '',
       telefone: ced.telefone_comercial || '',
-      email: ced.email_comercial || '',
-      rep_legal_nome: ced.nome_representante || primeiroDevedor,
+      email: repEmail,
+      rep_legal_nome: repNome,
       banco: ced.banco || '',
       agencia: ced.agencia || '',
       conta: ced.conta || '',
@@ -267,6 +295,11 @@ export async function gerarTermoCessao(
     termo: {
       data_extenso: formatarDataExtenso(new Date().toISOString()),
       preco_aquisicao_formatado: formatarMoeda(precoAquisicaoTotal),
+      solicitacao_data: formatarDataHora(op.created_at as string),
+      quantidade: notas.length,
+      total_face_formatado: formatarMoeda(
+        notas.reduce((acc, nf) => acc + ((nf.valor_liquido as number) || (nf.valor_bruto as number) || 0), 0)
+      ),
     },
     notas_fiscais: notas.map((nf) => ({
       numero: nf.numero_nf || '',
@@ -276,6 +309,11 @@ export async function gerarTermoCessao(
       valor_face_formatado: formatarMoeda((nf.valor_liquido as number) || (nf.valor_bruto as number)),
       taxa_desagio: ((nf.taxa_desagio as number) || taxaDesagio).toFixed(4),
       valor_antecipado_formatado: formatarMoeda((nf.valor_antecipado as number) || (nf.valor_liquido as number)),
+      // Trilha de auditoria para APENSO B
+      id_curto: (nf.id as string).slice(0, 8).toUpperCase(),
+      inclusao_data: formatarDataHora(nf.created_at as string),
+      aprovacao_gestor_data: nf.aprovada_gestor_em ? formatarDataHora(nf.aprovada_gestor_em as string) : '—',
+      aceite_sacado_data: nf.aceite_sacado_em ? formatarDataHora(nf.aceite_sacado_em as string) : '—',
     })),
     testemunha_1: {
       nome: (ced.testemunha_1_nome as string) || 'BRENO JOSE ALVIM DA SILVA',
