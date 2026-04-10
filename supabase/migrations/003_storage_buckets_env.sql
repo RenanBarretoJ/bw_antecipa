@@ -113,6 +113,13 @@ CREATE POLICY storage_nfs_consultor_select ON storage.objects
     AND get_user_role() = 'consultor'
   );
 
+DROP POLICY IF EXISTS storage_nfs_sacado_select ON storage.objects;
+CREATE POLICY storage_nfs_sacado_select ON storage.objects
+  FOR SELECT USING (
+    bucket_id = 'notas-fiscais'
+    AND get_user_role() = 'sacado'
+  );
+
 -- ============================================================
 -- 4. Policies para contratos
 -- ============================================================

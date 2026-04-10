@@ -143,7 +143,7 @@ export default function NfDetalhePage() {
     setForm((prev) => ({ ...prev, [field]: value }))
   }
 
-  const handleSave = async () => {
+  const handleSave = async (): Promise<boolean> => {
     setSaving(true)
     setMessage('')
 
@@ -161,16 +161,19 @@ export default function NfDetalhePage() {
     if (result?.success) {
       setMessage(result.message || 'Salvo!')
       setMessageType('success')
+      setSaving(false)
+      return true
     } else {
       setMessage(result?.message || 'Erro ao salvar.')
       setMessageType('error')
+      setSaving(false)
+      return false
     }
-    setSaving(false)
   }
 
   const handleSubmit = async () => {
-    // Salvar primeiro
-    await handleSave()
+    const saved = await handleSave()
+    if (!saved) return
 
     setSubmitting(true)
     const result = await submeterNF(nfId)
@@ -178,7 +181,6 @@ export default function NfDetalhePage() {
     if (result?.success) {
       setMessage(result.message || 'Submetida!')
       setMessageType('success')
-      // Recarregar para atualizar status
       setTimeout(() => router.push('/cedente/notas-fiscais'), 1500)
     } else {
       setMessage(result?.message || 'Erro ao submeter.')

@@ -220,8 +220,8 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
   const docsEmpresaObrig = ['contrato_social', 'cartao_cnpj', 'comprovante_endereco', 'extrato_bancario', 'balanco_patrimonial', 'dre']
   const empresaAprovada = docsEmpresaObrig.every((t) => getLatestEmpresa(t)?.status === 'aprovado')
 
-  // Multi-representante: verificar rg_cpf, extrato_bancario e comprovante_endereco por rep. Fallback legado se sem reps.
-  const docsRepObrig = ['rg_cpf', 'comprovante_de_renda', 'comprovante_endereco']
+  // Multi-representante: verificar rg_cpf e comprovante_endereco por rep. comprovante_de_renda e procuracao sao opcionais.
+  const docsRepObrig = ['rg_cpf', 'comprovante_endereco']
   const repsAprovadas = representantes.length === 0
     ? getLatestLegado('rg_cpf')?.status === 'aprovado'
     : representantes.every((rep) => docsRepObrig.every((t) => getLatestByRep(t, rep.id)?.status === 'aprovado'))

@@ -109,7 +109,8 @@ export async function aprovarCedente(cedenteId: string): Promise<GestorActionSta
   )
 
   // docs obrigatórios por representante (fallback legado se tabela vazia)
-  const docsRepObrig = ['rg_cpf', 'comprovante_de_renda', 'comprovante_endereco']
+  // comprovante_de_renda e procuracao sao opcionais
+  const docsRepObrig = ['rg_cpf', 'comprovante_endereco']
   const faltandoReps = repsData.length === 0
     ? (docsTyped.some((d) => d.tipo === 'rg_cpf' && d.status === 'aprovado') ? [] : ['rg_cpf (representante)'])
     : repsData.flatMap((rep) =>

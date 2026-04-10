@@ -28,10 +28,8 @@ export const notaFiscalSchema = z.object({
   message: 'Data de emissao nao pode ser futura.',
   path: ['data_emissao'],
 }).refine((data) => {
-  const vencimento = new Date(data.data_vencimento)
-  const hoje = new Date()
-  hoje.setHours(0, 0, 0, 0)
-  return vencimento >= hoje
+  const hojeStr = new Date().toISOString().split('T')[0]
+  return data.data_vencimento >= hojeStr
 }, {
   message: 'Data de vencimento deve ser futura.',
   path: ['data_vencimento'],
