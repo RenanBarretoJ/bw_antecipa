@@ -9,9 +9,10 @@ interface Props {
   id: string // cedente_id ou operacao_id
   storagePath?: string | null // caminho no storage (se ja gerado)
   label?: string
+  className?: string
 }
 
-export function BotaoDownloadContrato({ tipo, id, storagePath, label }: Props) {
+export function BotaoDownloadContrato({ tipo, id, storagePath, label, className }: Props) {
   const [gerando, setGerando] = useState(false)
   const [currentPath, setCurrentPath] = useState(storagePath)
   const [downloading, setDownloading] = useState(false)
@@ -72,13 +73,13 @@ export function BotaoDownloadContrato({ tipo, id, storagePath, label }: Props) {
 
   if (currentPath) {
     return (
-      <div className="flex items-center gap-2">
+      <div className={`flex items-center gap-2${className ? ' ' + className : ''}`}>
         <Button
           onClick={handleDownload}
           disabled={downloading}
           variant="outline"
           size="sm"
-          className="gap-2"
+          className="gap-2 flex-1"
         >
           {downloading ? (
             <Loader2 size={14} className="animate-spin" />
@@ -109,7 +110,7 @@ export function BotaoDownloadContrato({ tipo, id, storagePath, label }: Props) {
       onClick={handleGerar}
       disabled={gerando}
       size="sm"
-      className="gap-2"
+      className={`gap-2${className ? ' ' + className : ''}`}
     >
       {gerando ? (
         <>

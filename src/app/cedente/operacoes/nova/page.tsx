@@ -78,24 +78,23 @@ export default function NovaSolicitacaoPage() {
     }
   }
 
-  // Calculos
-  const nfsSelecionadas = nfs.filter((n) => selected.has(n.id))
+  // Calculos por NF: prazo individual → taxa individual → valor antecipado individual
+  const nfsComCalculo = nfs.map((nf) => {
+    const prazoDias = Math.max(1, Math.ceil(
+      (parseLocalDate(nf.data_vencimento).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+    ))
+    const taxaConfig = taxas.find((t) => prazoDias >= t.prazo_min && prazoDias <= t.prazo_max)
+    const taxa = taxaConfig?.taxa_percentual || 0
+    const fator = Math.pow(1 + taxa / 100, prazoDias / 30)
+    const valorAntecipado = nf.valor_bruto / fator
+    return { ...nf, prazoDias, taxa, valorAntecipado }
+  })
+
+  const nfsSelecionadas = nfsComCalculo.filter((n) => selected.has(n.id))
   const valorBrutoTotal = nfsSelecionadas.reduce((acc, n) => acc + n.valor_bruto, 0)
-
-  const dataVencimentoMaisDistante = nfsSelecionadas.length > 0
-    ? nfsSelecionadas.reduce((max, n) => n.data_vencimento > max ? n.data_vencimento : max, nfsSelecionadas[0].data_vencimento)
-    : ''
-
-  const prazoDias = dataVencimentoMaisDistante
-    ? Math.max(1, Math.ceil((parseLocalDate(dataVencimentoMaisDistante).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
-    : 0
-
-  // Encontrar taxa aplicavel
-  const taxaAplicavel = taxas.find((t) => prazoDias >= t.prazo_min && prazoDias <= t.prazo_max)
-  const taxaPercentual = taxaAplicavel?.taxa_percentual || 0
-  const taxaProporcional = (taxaPercentual / 100) * (prazoDias / 30)
-  const valorDesconto = valorBrutoTotal * taxaProporcional
-  const valorLiquidoEstimado = valorBrutoTotal - valorDesconto
+  const valorLiquidoEstimado = nfsSelecionadas.reduce((acc, n) => acc + n.valorAntecipado, 0)
+  const valorDesconto = valorBrutoTotal - valorLiquidoEstimado
+  const temTaxaConfig = nfsSelecionadas.length > 0 && nfsSelecionadas.some((n) => n.taxa > 0)
 
   const handleSubmit = async () => {
     if (selected.size === 0) {
@@ -197,7 +196,7 @@ export default function NovaSolicitacaoPage() {
               </div>
 
               <div className="divide-y divide-border">
-                {nfs.map((nf) => {
+                {nfsComCalculo.map((nf) => {
                   const isSelected = selected.has(nf.id)
                   return (
                     <div
@@ -220,6 +219,7 @@ export default function NovaSolicitacaoPage() {
                         <div className="flex gap-4 text-xs text-muted-foreground/70 mt-0.5">
                           <span>CNPJ: {formatCNPJ(nf.cnpj_destinatario)}</span>
                           <span>Venc: {formatDate(nf.data_vencimento)}</span>
+                          <span>{nf.prazoDias}d {nf.taxa > 0 ? `/ ${nf.taxa}% a.m.` : '/ taxa a definir'}</span>
                         </div>
                       </div>
                       <div className="text-right shrink-0">
@@ -252,21 +252,11 @@ export default function NovaSolicitacaoPage() {
                   <span className="text-muted-foreground">Valor Bruto Total</span>
                   <span className="font-bold text-foreground tabular-nums">{formatCurrency(valorBrutoTotal)}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Prazo (dias)</span>
-                  <span className="font-medium tabular-nums">{prazoDias || '—'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Taxa (% a.m.)</span>
-                  <span className="font-medium">
-                    {taxaPercentual > 0 ? `${taxaPercentual}%` : 'A definir pelo gestor'}
-                  </span>
-                </div>
 
-                {taxaPercentual > 0 && (
+                {temTaxaConfig && (
                   <>
                     <div className="flex justify-between text-destructive">
-                      <span>(-) Desconto</span>
+                      <span>(-) Desconto estimado</span>
                       <span className="tabular-nums">{formatCurrency(valorDesconto)}</span>
                     </div>
                     <div className="border-t border-border pt-3 flex justify-between">
@@ -276,9 +266,9 @@ export default function NovaSolicitacaoPage() {
                   </>
                 )}
 
-                {taxaPercentual === 0 && selected.size > 0 && (
+                {!temTaxaConfig && selected.size > 0 && (
                   <div className="bg-yellow-50 rounded-lg p-3 text-xs text-yellow-700">
-                    Nao ha taxa pre-configurada para este prazo. O gestor definira a taxa ao analisar.
+                    Nao ha taxa pre-configurada para um ou mais prazos. O gestor definira a taxa ao analisar.
                   </div>
                 )}
               </div>
@@ -288,14 +278,17 @@ export default function NovaSolicitacaoPage() {
                 <div className="mt-4 pt-4 border-t border-border">
                   <p className="text-xs font-medium text-muted-foreground mb-2">Taxas pre-configuradas</p>
                   <div className="space-y-1">
-                    {taxas.map((t, i) => (
-                      <div key={i} className={`flex justify-between text-xs px-2 py-1 rounded tabular-nums ${
-                        taxaAplicavel === t ? 'bg-primary/5 text-primary font-medium' : 'text-muted-foreground'
-                      }`}>
-                        <span>{t.prazo_min}-{t.prazo_max} dias</span>
-                        <span>{t.taxa_percentual}% a.m.</span>
-                      </div>
-                    ))}
+                    {taxas.map((t, i) => {
+                      const usada = nfsSelecionadas.some((n) => n.prazoDias >= t.prazo_min && n.prazoDias <= t.prazo_max)
+                      return (
+                        <div key={i} className={`flex justify-between text-xs px-2 py-1 rounded tabular-nums ${
+                          usada ? 'bg-primary/5 text-primary font-medium' : 'text-muted-foreground'
+                        }`}>
+                          <span>{t.prazo_min}-{t.prazo_max} dias</span>
+                          <span>{t.taxa_percentual}% a.m.</span>
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
               )}
