@@ -3,11 +3,13 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency, formatCNPJ, formatDate } from '@/lib/utils'
-import { Receipt, Search } from 'lucide-react'
+import { buckets } from '@/lib/storage'
+import { Receipt, Search, Eye, X, Loader2 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
 import {
   Table,
   TableBody,
@@ -26,6 +28,7 @@ interface NfSacado {
   data_emissao: string
   data_vencimento: string
   status: string
+  arquivo_url: string | null
 }
 
 const statusConfig: Record<string, { label: string; className: string }> = {
@@ -60,13 +63,15 @@ export default function NfsRecebidasSacadoPage() {
   const [loading, setLoading] = useState(true)
   const [busca, setBusca] = useState('')
   const [filtroStatus, setFiltroStatus] = useState('todos')
+  const [preview, setPreview] = useState<{ nf: NfSacado; url: string } | null>(null)
+  const [loadingPreview, setLoadingPreview] = useState(false)
 
   useEffect(() => {
     const load = async () => {
       const supabase = createClient()
       const { data } = await supabase
         .from('notas_fiscais')
-        .select('id, numero_nf, cnpj_emitente, razao_social_emitente, valor_bruto, data_emissao, data_vencimento, status')
+        .select('id, numero_nf, cnpj_emitente, razao_social_emitente, valor_bruto, data_emissao, data_vencimento, status, arquivo_url')
         .order('data_vencimento', { ascending: true })
 
       setNfs((data || []) as NfSacado[])
@@ -74,6 +79,17 @@ export default function NfsRecebidasSacadoPage() {
     }
     load()
   }, [])
+
+  const openPreview = async (nf: NfSacado) => {
+    if (!nf.arquivo_url) return
+    setLoadingPreview(true)
+    const supabase = createClient()
+    const { data } = await supabase.storage
+      .from(buckets.notasFiscais)
+      .createSignedUrl(nf.arquivo_url, 3600)
+    setPreview({ nf, url: data?.signedUrl || '' })
+    setLoadingPreview(false)
+  }
 
   const nfsFiltradas = nfs.filter((nf) => {
     if (filtroStatus !== 'todos' && nf.status !== filtroStatus) return false
@@ -162,6 +178,7 @@ export default function NfsRecebidasSacadoPage() {
                 <TableHead className="px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Emissao</TableHead>
                 <TableHead className="px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Vencimento</TableHead>
                 <TableHead className="px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Status</TableHead>
+                <TableHead className="px-4 py-3" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -188,12 +205,54 @@ export default function NfsRecebidasSacadoPage() {
                         {st?.label || nf.status}
                       </Badge>
                     </TableCell>
+                    <TableCell className="px-4 py-3">
+                      {nf.arquivo_url && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => openPreview(nf)}
+                          disabled={loadingPreview}
+                          className="gap-1 text-muted-foreground hover:text-foreground"
+                        >
+                          {loadingPreview ? <Loader2 size={14} className="animate-spin" /> : <Eye size={14} />}
+                          Ver NF
+                        </Button>
+                      )}
+                    </TableCell>
                   </TableRow>
                 )
               })}
             </TableBody>
           </Table>
         </Card>
+      )}
+
+      {/* Modal de preview */}
+      {preview && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-background rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col border border-border">
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <div>
+                <h3 className="font-semibold text-foreground">NF {preview.nf.numero_nf}</h3>
+                <p className="text-xs text-muted-foreground">{preview.nf.razao_social_emitente} — {formatCurrency(preview.nf.valor_bruto)}</p>
+              </div>
+              <Button variant="ghost" size="icon" onClick={() => setPreview(null)}>
+                <X size={20} />
+              </Button>
+            </div>
+            <div className="flex-1 overflow-auto p-4">
+              {preview.url ? (
+                preview.nf.arquivo_url?.toLowerCase().endsWith('.pdf') ? (
+                  <iframe src={preview.url} className="w-full h-[600px] border rounded" />
+                ) : (
+                  <img src={preview.url} alt={`NF ${preview.nf.numero_nf}`} className="max-w-full mx-auto rounded" />
+                )
+              ) : (
+                <p className="text-muted-foreground text-center py-10">Nao foi possivel carregar o arquivo.</p>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

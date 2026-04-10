@@ -10,11 +10,15 @@ import {
   Receipt,
   AlertTriangle,
   Wallet,
+  Eye,
+  X,
+  Loader2,
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
+import { buckets } from '@/lib/storage'
 
 interface NfCessao {
   id: string
@@ -25,6 +29,7 @@ interface NfCessao {
   data_vencimento: string
   status: string
   cedente_id: string
+  arquivo_url: string | null
 }
 
 interface ContaInfo {
@@ -55,6 +60,8 @@ export default function AceiteCessaoPage() {
   const [messageType, setMessageType] = useState<'success' | 'error'>('success')
   const [contestando, setContestando] = useState<string | null>(null)
   const [motivo, setMotivo] = useState('')
+  const [preview, setPreview] = useState<{ nf: NfCessao; url: string } | null>(null)
+  const [loadingPreview, setLoadingPreview] = useState(false)
 
   const loadData = async () => {
     const supabase = createClient()
@@ -62,7 +69,7 @@ export default function AceiteCessaoPage() {
     // NFs cedidas (em_antecipacao) destinadas a este sacado
     const { data: nfsData } = await supabase
       .from('notas_fiscais')
-      .select('id, numero_nf, cnpj_emitente, razao_social_emitente, valor_bruto, data_vencimento, status, cedente_id')
+      .select('id, numero_nf, cnpj_emitente, razao_social_emitente, valor_bruto, data_vencimento, status, cedente_id, arquivo_url')
       .eq('status', 'em_antecipacao')
       .order('data_vencimento', { ascending: true })
 
@@ -78,6 +85,17 @@ export default function AceiteCessaoPage() {
   }
 
   useEffect(() => { loadData() }, [])
+
+  const openPreview = async (nf: NfCessao) => {
+    if (!nf.arquivo_url) return
+    setLoadingPreview(true)
+    const supabase = createClient()
+    const { data } = await supabase.storage
+      .from(buckets.notasFiscais)
+      .createSignedUrl(nf.arquivo_url, 3600)
+    setPreview({ nf, url: data?.signedUrl || '' })
+    setLoadingPreview(false)
+  }
 
   const getContaEscrow = (cedenteId: string) => {
     return contas.find((c) => c.cedente_id === cedenteId)?.identificador || null
@@ -197,7 +215,7 @@ export default function AceiteCessaoPage() {
 
                   {/* Acoes */}
                   {!isContestando && (
-                    <div className="mt-4 flex gap-3">
+                    <div className="mt-4 flex gap-3 flex-wrap">
                       <Button
                         onClick={() => handleAceitar(nf.id)}
                         disabled={isProcessing}
@@ -216,6 +234,18 @@ export default function AceiteCessaoPage() {
                         <XCircle size={16} />
                         Contestar
                       </Button>
+                      {nf.arquivo_url && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openPreview(nf)}
+                          disabled={loadingPreview}
+                          className="gap-1 text-muted-foreground hover:text-foreground"
+                        >
+                          {loadingPreview ? <Loader2 size={14} className="animate-spin" /> : <Eye size={14} />}
+                          Ver NF
+                        </Button>
+                      )}
                     </div>
                   )}
 
@@ -256,6 +286,34 @@ export default function AceiteCessaoPage() {
               </Card>
             )
           })}
+        </div>
+      )}
+
+      {/* Modal de preview */}
+      {preview && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-background rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col border border-border">
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <div>
+                <h3 className="font-semibold text-foreground">NF {preview.nf.numero_nf}</h3>
+                <p className="text-xs text-muted-foreground">{preview.nf.razao_social_emitente} — {formatCurrency(preview.nf.valor_bruto)}</p>
+              </div>
+              <Button variant="ghost" size="icon" onClick={() => setPreview(null)}>
+                <X size={20} />
+              </Button>
+            </div>
+            <div className="flex-1 overflow-auto p-4">
+              {preview.url ? (
+                preview.nf.arquivo_url?.toLowerCase().endsWith('.pdf') ? (
+                  <iframe src={preview.url} className="w-full h-[600px] border rounded" />
+                ) : (
+                  <img src={preview.url} alt={`NF ${preview.nf.numero_nf}`} className="max-w-full mx-auto rounded" />
+                )
+              ) : (
+                <p className="text-muted-foreground text-center py-10">Nao foi possivel carregar o arquivo.</p>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>

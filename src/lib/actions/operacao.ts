@@ -558,7 +558,7 @@ export async function removerNfDaOperacao(
   if (!op) return { success: false, message: 'Operacao nao encontrada.' }
   const opData = op as {
     id: string; status: string; cedente_id: string; conta_escrow_id: string;
-    valor_bruto_total: number;
+    valor_bruto_total: number; taxa_desconto: number;
     cedentes: { user_id: string; razao_social: string }
   }
 
@@ -632,20 +632,32 @@ export async function removerNfDaOperacao(
     return { success: true, message: `NF ${nfData.numero_nf} removida. Operacao cancelada pois nao havia mais NFs.${aviso}` }
   }
 
-  // Recalcular valor_bruto_total com NFs restantes
+  // Recalcular valor_bruto_total e valor_liquido_desembolso com NFs restantes
   const nfIdsRestantes = (restantes as Array<{ nota_fiscal_id: string }>).map((n) => n.nota_fiscal_id)
   const { data: nfsRestantes } = await supabase
     .from('notas_fiscais')
-    .select('valor_bruto')
+    .select('valor_bruto, valor_liquido, data_vencimento')
     .in('id', nfIdsRestantes)
 
-  const novoValorBruto = (nfsRestantes || []).reduce(
-    (acc, n) => acc + ((n as { valor_bruto: number }).valor_bruto || 0), 0
-  )
+  const hoje = new Date()
+  const taxaDesconto = opData.taxa_desconto || 0
+  const nfsRestantesTyped = (nfsRestantes || []) as Array<{ valor_bruto: number; valor_liquido: number | null; data_vencimento: string }>
+
+  const novoValorBruto = nfsRestantesTyped.reduce((acc, n) => acc + (n.valor_bruto || 0), 0)
+  const novoValorLiquido = Math.round(
+    nfsRestantesTyped.reduce((acc, n) => {
+      const prazoDias = Math.max(1, Math.ceil(
+        (new Date(n.data_vencimento).getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24)
+      ))
+      const fator = Math.pow(1 + taxaDesconto / 100, prazoDias / 30)
+      const base = n.valor_liquido || n.valor_bruto
+      return acc + base / fator
+    }, 0) * 100
+  ) / 100
 
   await supabase
     .from('operacoes')
-    .update({ valor_bruto_total: novoValorBruto } as never)
+    .update({ valor_bruto_total: novoValorBruto, valor_liquido_desembolso: novoValorLiquido } as never)
     .eq('id', operacaoId)
 
   await registrarLog({
