@@ -15,6 +15,7 @@ import {
   AlertCircle,
   Banknote,
   FileText,
+  FileDown,
   Calculator,
   Loader2,
 } from 'lucide-react'
@@ -77,7 +78,7 @@ const statusConfig: Record<string, { label: string; variant: BadgeVariant; class
 
 function PageSkeleton() {
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-6">
       <div className="flex items-center gap-3">
         <Skeleton className="h-9 w-9 rounded-lg" />
         <div className="space-y-2">
@@ -144,7 +145,6 @@ export default function OperacaoDetalheGestorPage() {
 
   // Campos de aprovacao
   const [taxa, setTaxa] = useState(0)
-  const [prazo, setPrazo] = useState(0)
   const [valorLiquido, setValorLiquido] = useState(0)
   const [showReprovar, setShowReprovar] = useState(false)
   const [motivo, setMotivo] = useState('')
@@ -164,7 +164,6 @@ export default function OperacaoDetalheGestorPage() {
         const o = opData as OperacaoDetalhe
         setOp(o)
         setTaxa(o.taxa_desconto)
-        setPrazo(o.prazo_dias)
         setValorLiquido(o.valor_liquido_desembolso)
 
         // Buscar NFs da operacao
@@ -198,19 +197,29 @@ export default function OperacaoDetalheGestorPage() {
     load()
   }, [opId])
 
-  // Recalcular valor liquido total e valor antecipado por NF quando taxa ou prazo mudam
+  // Recalcular valor liquido total somando os valores antecipados individuais por NF
   useEffect(() => {
-    if (op && taxa >= 0 && prazo > 0) {
-      const fator = (1 + taxa / 100) ** (prazo / 30)
-      const vl = op.valor_bruto_total / fator
-      setValorLiquido(Math.max(0, Math.round(vl * 100) / 100))
+    if (op && taxa >= 0 && nfs.length > 0) {
+      const hoje = new Date()
+      const total = nfs.reduce((acc, nf) => {
+        const prazoDias = Math.max(1, Math.ceil(
+          (new Date(nf.data_vencimento).getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24)
+        ))
+        const fator = (1 + taxa / 100) ** (prazoDias / 30)
+        const base = nf.valor_liquido || nf.valor_bruto
+        return acc + Math.round((base / fator) * 100) / 100
+      }, 0)
+      setValorLiquido(Math.max(0, Math.round(total * 100) / 100))
     }
-  }, [taxa, prazo, op])
+  }, [taxa, nfs, op])
 
-  const calcularValorAntecipado = (valorLiquido: number): number => {
-    if (!taxa || !prazo || taxa < 0 || prazo <= 0) return valorLiquido
-    const fator = (1 + taxa / 100) ** (prazo / 30)
-    return Math.round((valorLiquido / fator) * 100) / 100
+  const calcularValorAntecipado = (valorBase: number, dataVencimento: string): number => {
+    if (taxa < 0) return valorBase
+    const prazoDias = Math.max(1, Math.ceil(
+      (new Date(dataVencimento).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+    ))
+    const fator = (1 + taxa / 100) ** (prazoDias / 30)
+    return Math.round((valorBase / fator) * 100) / 100
   }
 
   const aplicarTaxaConfig = (t: TaxaConfig) => {
@@ -222,7 +231,7 @@ export default function OperacaoDetalheGestorPage() {
     if (valorLiquido <= 0) { setMessage('Valor liquido invalido.'); setMessageType('error'); return }
 
     setProcessing(true)
-    const result = await aprovarOperacao(opId, taxa, prazo, valorLiquido)
+    const result = await aprovarOperacao(opId, taxa, valorLiquido)
     if (result?.success) {
       setMessage(result.message || 'Aprovada!')
       setMessageType('success')
@@ -299,7 +308,7 @@ export default function OperacaoDetalheGestorPage() {
   const todasAceitas = nfs.length > 0 && nfs.every((nf) => nf.status === 'aceita')
 
   return (
-    <div className="max-w-5xl mx-auto">
+    <div className="max-w-6xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
@@ -372,13 +381,18 @@ export default function OperacaoDetalheGestorPage() {
                       <th className="text-left px-3 py-2 text-xs text-muted-foreground uppercase">Sacado</th>
                       <th className="text-left px-3 py-2 text-xs text-muted-foreground uppercase">Valor</th>
                       <th className="text-left px-3 py-2 text-xs text-muted-foreground uppercase">Vl. Antecipado</th>
+                      <th className="text-left px-3 py-2 text-xs text-muted-foreground uppercase">Prazo</th>
                       <th className="text-left px-3 py-2 text-xs text-muted-foreground uppercase">Vencimento</th>
                       <th className="text-left px-3 py-2 text-xs text-muted-foreground uppercase">Status</th>
                       {canRemoveNf && <th className="px-3 py-2" />}
                     </tr>
                   </thead>
                   <tbody className="divide-y">
-                    {nfs.map((nf) => (
+                    {nfs.map((nf) => {
+                      const prazoDias = Math.max(1, Math.ceil(
+                        (new Date(nf.data_vencimento).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+                      ))
+                      return (
                       <tr key={nf.id} className={`hover:bg-muted/30 ${nf.status === 'contestada' ? 'bg-orange-50' : ''}`}>
                         <td className="px-3 py-2 font-medium tabular-nums">{nf.numero_nf}</td>
                         <td className="px-3 py-2">
@@ -387,8 +401,9 @@ export default function OperacaoDetalheGestorPage() {
                         </td>
                         <td className="px-3 py-2 font-medium tabular-nums">{formatCurrency(nf.valor_bruto)}</td>
                         <td className="px-3 py-2 tabular-nums text-green-700 font-medium">
-                          {formatCurrency(calcularValorAntecipado(nf.valor_liquido || nf.valor_bruto))}
+                          {formatCurrency(calcularValorAntecipado(nf.valor_liquido || nf.valor_bruto, nf.data_vencimento))}
                         </td>
+                        <td className="px-3 py-2 tabular-nums text-muted-foreground text-xs">{prazoDias}d</td>
                         <td className="px-3 py-2">{formatDate(nf.data_vencimento)}</td>
                         <td className="px-3 py-2">
                           {nf.status === 'aceita' && (
@@ -403,73 +418,31 @@ export default function OperacaoDetalheGestorPage() {
                         </td>
                         {canRemoveNf && (
                           <td className="px-3 py-2">
-                            {nf.status === 'contestada' && (
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                disabled={removendoNf === nf.id}
-                                onClick={() => handleRemoverNf(nf.id)}
-                              >
-                                {removendoNf === nf.id ? <Loader2 size={14} className="animate-spin" /> : 'Remover'}
-                              </Button>
-                            )}
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              disabled={removendoNf === nf.id}
+                              onClick={() => handleRemoverNf(nf.id)}
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            >
+                              {removendoNf === nf.id ? <Loader2 size={14} className="animate-spin" /> : 'Remover'}
+                            </Button>
                           </td>
                         )}
                       </tr>
-                    ))}
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>
             </CardContent>
-          </Card>
 
-          {/* Dados da operacao */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Dados da Operacao</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                <div>
-                  <span className="text-muted-foreground">Valor Bruto Total</span>
-                  <p className="text-xl font-bold tabular-nums">{formatCurrency(op.valor_bruto_total)}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Prazo</span>
-                  <p className="text-xl font-bold tabular-nums">{op.prazo_dias} dias</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Vencimento</span>
-                  <p className="font-medium">{formatDate(op.data_vencimento)}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Criada em</span>
-                  <p className="font-medium">{formatDate(op.created_at)}</p>
-                </div>
+            {/* Motivo de reprovacao */}
+            {op.motivo_reprovacao && (
+              <div className="p-3 bg-destructive/10 rounded-lg text-sm text-destructive">
+                <strong>Motivo da reprovacao:</strong> {op.motivo_reprovacao}
               </div>
-              {op.motivo_reprovacao && (
-                <div className="mt-4 p-3 bg-destructive/10 rounded-lg text-sm text-destructive">
-                  <strong>Motivo da reprovacao:</strong> {op.motivo_reprovacao}
-                </div>
-              )}
-
-              {/* Documentos PDF */}
-              {(op.status === 'em_andamento' || op.status === 'liquidada' || op.status === 'inadimplente') && (
-                <div className="mt-4 pt-4 border-t border-border flex flex-wrap gap-3">
-                  <BotaoDownloadContrato
-                    tipo="termo"
-                    id={op.id}
-                    storagePath={(op as unknown as Record<string, unknown>).termo_url as string | null}
-                  />
-                  <BotaoDownloadContrato
-                    tipo="contrato"
-                    id={op.cedente_id}
-                    storagePath={op.cedentes.contrato_url}
-                    label="Contrato Mae"
-                  />
-                </div>
-              )}
-            </CardContent>
+            )}
           </Card>
         </div>
 
@@ -521,17 +494,6 @@ export default function OperacaoDetalheGestorPage() {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="prazo">Prazo (dias)</Label>
-                    <Input
-                      id="prazo"
-                      type="number"
-                      min="1"
-                      value={prazo}
-                      onChange={(e) => setPrazo(parseInt(e.target.value) || 0)}
-                      className="h-11 tabular-nums"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
                     <Label htmlFor="valorLiquido">Valor Liquido Desembolso</Label>
                     <Input
                       id="valorLiquido"
@@ -552,7 +514,7 @@ export default function OperacaoDetalheGestorPage() {
                     <span className="font-medium tabular-nums">{formatCurrency(op.valor_bruto_total)}</span>
                   </div>
                   <div className="flex justify-between text-destructive">
-                    <span className="tabular-nums">(-) Desconto ({taxa}% x {prazo}d)</span>
+                    <span className="tabular-nums">(-) Desconto ({taxa}% a.m., prazo por NF)</span>
                     <span className="tabular-nums">{formatCurrency(op.valor_bruto_total - valorLiquido)}</span>
                   </div>
                   <div className="flex justify-between border-t pt-2">
@@ -663,6 +625,34 @@ export default function OperacaoDetalheGestorPage() {
                         Marcar Inadimplente
                       </Button>
                     )}
+                  </div>
+                )}
+
+                {/* Documentos PDF */}
+                {(op.status === 'em_andamento' || op.status === 'liquidada' || op.status === 'inadimplente') && (
+                  <div className="border-t pt-4 mt-2 flex flex-col gap-2">
+                    <BotaoDownloadContrato
+                      tipo="contrato"
+                      id={op.cedente_id}
+                      storagePath={op.cedentes.contrato_url}
+                      label="Contrato Mae"
+                      className="w-full"
+                    />
+                    <BotaoDownloadContrato
+                      tipo="termo"
+                      id={op.id}
+                      storagePath={(op as unknown as Record<string, unknown>).termo_url as string | null}
+                      className="w-full"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled
+                      className="w-full gap-2 text-muted-foreground"
+                    >
+                      <FileDown size={14} />
+                      Gerar CNAB
+                    </Button>
                   </div>
                 )}
               </CardContent>

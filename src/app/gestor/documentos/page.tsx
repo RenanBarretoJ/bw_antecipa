@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { analisarDocumento } from '@/lib/actions/gestor'
 import { formatCNPJ, formatDate } from '@/lib/utils'
+import { buckets } from '@/lib/storage'
 import {
   FileText,
   Search,
@@ -95,7 +96,7 @@ export default function DocumentosGestorPage() {
     if (!doc.url_arquivo) return
     const supabase = createClient()
     const { data } = await supabase.storage
-      .from('documentos-cedentes')
+      .from(buckets.documentos)
       .createSignedUrl(doc.url_arquivo, 3600)
     setModal({ doc, previewUrl: data?.signedUrl || '' })
     setMotivo('')

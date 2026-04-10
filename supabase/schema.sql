@@ -32,28 +32,37 @@ CREATE TYPE tipo_conta_bancaria AS ENUM ('corrente', 'poupanca');
 -- ============================================================
 
 -- Função para pegar a role do usuário logado (usada nas policies RLS)
+-- Usa plpgsql para evitar validação de tabelas em tempo de criação
 CREATE OR REPLACE FUNCTION get_user_role()
 RETURNS text AS $$
-  SELECT role::text FROM profiles WHERE id = auth.uid();
-$$ LANGUAGE sql SECURITY DEFINER STABLE;
+BEGIN
+  RETURN (SELECT role::text FROM profiles WHERE id = auth.uid());
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
 
 -- Função para pegar o cedente_id do usuário logado
 CREATE OR REPLACE FUNCTION get_user_cedente_id()
 RETURNS uuid AS $$
-  SELECT c.id FROM cedentes c WHERE c.user_id = auth.uid();
-$$ LANGUAGE sql SECURITY DEFINER STABLE;
+BEGIN
+  RETURN (SELECT c.id FROM cedentes c WHERE c.user_id = auth.uid());
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
 
 -- Função para pegar o CNPJ do sacado logado
 CREATE OR REPLACE FUNCTION get_user_sacado_cnpj()
 RETURNS text AS $$
-  SELECT s.cnpj FROM sacados s WHERE s.user_id = auth.uid();
-$$ LANGUAGE sql SECURITY DEFINER STABLE;
+BEGIN
+  RETURN (SELECT s.cnpj FROM sacados s WHERE s.user_id = auth.uid());
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
 
 -- Função para pegar IDs de operações do cedente logado (evita recursão em RLS)
 CREATE OR REPLACE FUNCTION get_user_operacao_ids()
 RETURNS SETOF uuid AS $$
-  SELECT id FROM operacoes WHERE cedente_id = get_user_cedente_id()
-$$ LANGUAGE sql SECURITY DEFINER STABLE;
+BEGIN
+  RETURN QUERY SELECT id FROM operacoes WHERE cedente_id = get_user_cedente_id();
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
 
 -- Função para atualizar updated_at automaticamente
 CREATE OR REPLACE FUNCTION update_updated_at()
@@ -112,6 +121,20 @@ CREATE TABLE cedentes (
   conta text,
   tipo_conta tipo_conta_bancaria,
   status cedente_status NOT NULL DEFAULT 'pendente',
+  fundo_id uuid,
+  sacado_razao_social text,
+  sacado_cnpj text,
+  sacado_descricao text,
+  sacado_banco_escrow text,
+  sacado_conta_escrow text,
+  sacado_agencia_escrow text,
+  sacado_tipo_conta_escrow text DEFAULT 'Conta Escrow',
+  contrato_url text,
+  contrato_gerado_em timestamptz,
+  testemunha_1_nome text DEFAULT 'BRENO JOSE ALVIM DA SILVA',
+  testemunha_1_cpf text DEFAULT '378.341.578-09',
+  testemunha_2_nome text DEFAULT 'KAIO MIGUEL RUIZ',
+  testemunha_2_cpf text DEFAULT '423.679.188-99',
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
@@ -192,6 +215,52 @@ CREATE TABLE movimentos_escrow (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
+-- FUNDOS
+CREATE TABLE fundos (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  nome text NOT NULL,
+  cnpj text NOT NULL,
+  administradora_nome text NOT NULL,
+  administradora_cnpj text NOT NULL,
+  gestora_nome text NOT NULL DEFAULT 'BLUEWAVE ASSET LTDA',
+  gestora_cnpj text NOT NULL DEFAULT '13.703.306/0001-56',
+  custodiante_nome text NOT NULL DEFAULT 'TERRA INVESTIMENTOS DISTRIBUIDORA DE TITULOS E VALORES MOBILIARIOS LTDA',
+  custodiante_cnpj text NOT NULL DEFAULT '03.751.794/0001-13',
+  conta_vinculada text,
+  agencia text,
+  banco text,
+  administradora_endereco text,
+  administradora_ato_declaratorio text,
+  contato_nome text,
+  contato_email text,
+  ativo boolean DEFAULT true,
+  created_at timestamptz DEFAULT now()
+);
+
+-- FK cedentes -> fundos
+ALTER TABLE cedentes ADD CONSTRAINT cedentes_fundo_id_fkey FOREIGN KEY (fundo_id) REFERENCES fundos(id);
+
+-- DEVEDORES SOLIDARIOS
+CREATE TABLE devedores_solidarios (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  cedente_id uuid NOT NULL REFERENCES cedentes(id) ON DELETE CASCADE,
+  nome text NOT NULL,
+  nacionalidade text DEFAULT 'brasileiro(a)',
+  estado_civil text,
+  profissao text,
+  data_nascimento date,
+  doc_tipo text DEFAULT 'RG',
+  doc_numero text NOT NULL,
+  doc_expedidor text,
+  doc_data date,
+  cpf text NOT NULL,
+  endereco text,
+  telefone text,
+  email text,
+  ordem integer DEFAULT 1,
+  created_at timestamptz DEFAULT now()
+);
+
 -- NOTAS FISCAIS
 CREATE TABLE notas_fiscais (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -216,6 +285,10 @@ CREATE TABLE notas_fiscais (
   condicao_pagamento text,
   arquivo_url text,
   status nf_status NOT NULL DEFAULT 'rascunho',
+  pedido_sap text,
+  status_sap text DEFAULT 'Pagamento Agendado',
+  taxa_desagio decimal(10,4),
+  valor_antecipado decimal(15,2),
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
@@ -238,6 +311,11 @@ CREATE TABLE operacoes (
   aprovado_por uuid REFERENCES profiles(id),
   aprovado_em timestamptz,
   motivo_reprovacao text,
+  termo_url text,
+  termo_gerado_em timestamptz,
+  taxa_desagio decimal(10,4),
+  valor_face_total decimal(15,2),
+  preco_aquisicao decimal(15,2),
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
@@ -256,6 +334,27 @@ CREATE TABLE operacoes_nfs (
   operacao_id uuid NOT NULL REFERENCES operacoes(id) ON DELETE CASCADE,
   nota_fiscal_id uuid NOT NULL REFERENCES notas_fiscais(id) ON DELETE CASCADE,
   PRIMARY KEY (operacao_id, nota_fiscal_id)
+);
+
+-- TAXAS POR CEDENTE
+CREATE TABLE taxas_cedente (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  cedente_id uuid NOT NULL REFERENCES cedentes(id) ON DELETE CASCADE,
+  prazo_min integer NOT NULL,
+  prazo_max integer NOT NULL,
+  taxa_percentual numeric NOT NULL CHECK (taxa_percentual >= 0),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- CONSULTOR ↔ CEDENTE
+CREATE TABLE consultor_cedente (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  consultor_id uuid NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  cedente_id uuid NOT NULL REFERENCES cedentes(id) ON DELETE CASCADE,
+  comissao_percentual numeric NOT NULL DEFAULT 0,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (consultor_id, cedente_id)
 );
 
 -- SACADOS
@@ -606,7 +705,7 @@ CREATE POLICY notificacoes_own_update ON notificacoes
 CREATE OR REPLACE FUNCTION handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO profiles (id, email, nome_completo, role)
+  INSERT INTO public.profiles (id, email, nome_completo, role)
   VALUES (
     NEW.id,
     NEW.email,
@@ -615,7 +714,7 @@ BEGIN
   );
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users

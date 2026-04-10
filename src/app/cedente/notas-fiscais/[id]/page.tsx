@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { salvarDadosNF, submeterNF } from '@/lib/actions/nota-fiscal'
 import { formatCurrency } from '@/lib/utils'
+import { buckets } from '@/lib/storage'
 import Link from 'next/link'
 import {
   ArrowLeft,
@@ -126,7 +127,7 @@ export default function NfDetalhePage() {
         // Gerar URL de preview do arquivo
         if (nfData.arquivo_url) {
           const { data: signedData } = await supabase.storage
-            .from('notas-fiscais')
+            .from(buckets.notasFiscais)
             .createSignedUrl(nfData.arquivo_url, 3600)
           if (signedData) {
             setPreviewUrl(signedData.signedUrl)

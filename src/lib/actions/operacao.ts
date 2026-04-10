@@ -72,34 +72,42 @@ export async function solicitarAntecipacao(nfIds: string[]): Promise<OperacaoAct
     }
   }
 
-  // Calcular totais
-  const valorBrutoTotal = nfsTyped.reduce((acc, nf) => acc + nf.valor_bruto, 0)
-
-  // Pegar a data de vencimento mais distante
-  const dataVencimento = nfsTyped.reduce((max, nf) => {
-    return nf.data_vencimento > max ? nf.data_vencimento : max
-  }, nfsTyped[0].data_vencimento)
-
-  // Calcular prazo em dias
+  // Calcular por NF: prazo individual → taxa individual → valor antecipado individual
   const hoje = new Date()
-  const venc = new Date(dataVencimento)
-  const prazoDias = Math.max(1, Math.ceil((venc.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24)))
 
-  // Buscar taxa pre-configurada para este cedente e prazo
-  const { data: taxas } = await supabase
+  // Buscar todas as taxas do cedente em uma unica query
+  const { data: todasTaxas } = await supabase
     .from('taxas_cedente')
-    .select('taxa_percentual, prazo_min, prazo_max')
+    .select('prazo_min, prazo_max, taxa_percentual')
     .eq('cedente_id', ced.id)
-    .lte('prazo_min', prazoDias)
-    .gte('prazo_max', prazoDias)
-    .limit(1)
 
-  const taxasTyped = (taxas || []) as Array<{ taxa_percentual: number; prazo_min: number; prazo_max: number }>
-  const taxaDesconto = taxasTyped.length > 0 ? taxasTyped[0].taxa_percentual : 0
+  const taxasDisp = (todasTaxas || []) as Array<{ prazo_min: number; prazo_max: number; taxa_percentual: number }>
 
-  // Calcular valor liquido estimado (taxa mensal proporcional ao prazo)
-  const taxaProporcional = (taxaDesconto / 100) * (prazoDias / 30)
-  const valorLiquidoDesembolso = valorBrutoTotal * (1 - taxaProporcional)
+  const nfsCalculadas = nfsTyped.map((nf) => {
+    const prazoDias = Math.max(1, Math.ceil(
+      (new Date(nf.data_vencimento).getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24)
+    ))
+    const taxaConfig = taxasDisp.find((t) => prazoDias >= t.prazo_min && prazoDias <= t.prazo_max)
+    const taxa = taxaConfig?.taxa_percentual || 0
+    const fator = Math.pow(1 + taxa / 100, prazoDias / 30)
+    const valorAntecipado = Math.round((nf.valor_bruto / fator) * 100) / 100
+    return { ...nf, prazoDias, taxa, valorAntecipado }
+  })
+
+  const valorBrutoTotal = nfsCalculadas.reduce((acc, nf) => acc + nf.valor_bruto, 0)
+  const valorLiquidoDesembolso = nfsCalculadas.reduce((acc, nf) => acc + nf.valorAntecipado, 0)
+
+  // Taxa e prazo medios ponderados (referencia para a operacao)
+  const taxaMedia = valorBrutoTotal > 0
+    ? nfsCalculadas.reduce((acc, nf) => acc + nf.taxa * nf.valor_bruto, 0) / valorBrutoTotal
+    : 0
+  const prazoMedio = valorBrutoTotal > 0
+    ? Math.round(nfsCalculadas.reduce((acc, nf) => acc + nf.prazoDias * nf.valor_bruto, 0) / valorBrutoTotal)
+    : 0
+  const dataVencimento = nfsCalculadas.reduce(
+    (max, nf) => nf.data_vencimento > max ? nf.data_vencimento : max,
+    nfsCalculadas[0].data_vencimento
+  )
 
   // Criar operacao
   const { data: operacao, error: opError } = await supabase
@@ -108,8 +116,8 @@ export async function solicitarAntecipacao(nfIds: string[]): Promise<OperacaoAct
       cedente_id: ced.id,
       conta_escrow_id: escrowData.id,
       valor_bruto_total: valorBrutoTotal,
-      taxa_desconto: taxaDesconto,
-      prazo_dias: prazoDias,
+      taxa_desconto: taxaMedia,
+      prazo_dias: prazoMedio,
       valor_liquido_desembolso: Math.max(0, valorLiquidoDesembolso),
       data_vencimento: dataVencimento,
       status: 'solicitada',
@@ -151,16 +159,16 @@ export async function solicitarAntecipacao(nfIds: string[]): Promise<OperacaoAct
     entidade_id: opData.id,
     dados_depois: {
       valor_bruto_total: valorBrutoTotal,
-      taxa_desconto: taxaDesconto,
-      prazo_dias: prazoDias,
-      nfs: nfsTyped.map((n) => n.numero_nf),
+      taxa_desconto: taxaMedia,
+      prazo_dias: prazoMedio,
+      nfs: nfsCalculadas.map((n) => n.numero_nf),
     },
   })
 
   return {
     success: true,
-    message: taxaDesconto > 0
-      ? `Solicitacao criada! Taxa pre-configurada: ${taxaDesconto}% a.m. Valor liquido estimado: ${formatBRL(valorLiquidoDesembolso)}.`
+    message: taxaMedia > 0
+      ? `Solicitacao criada! Valor liquido estimado: ${formatBRL(valorLiquidoDesembolso)}.`
       : 'Solicitacao criada! O gestor definira a taxa e valor liquido.',
     data: { operacaoId: opData.id },
   }
@@ -173,7 +181,6 @@ export async function solicitarAntecipacao(nfIds: string[]): Promise<OperacaoAct
 export async function aprovarOperacao(
   operacaoId: string,
   taxaDesconto: number,
-  prazoDias: number,
   valorLiquidoDesembolso: number
 ): Promise<OperacaoActionState> {
   const supabase = await createClient()
@@ -207,37 +214,54 @@ export async function aprovarOperacao(
     return { success: false, message: `Operacao com status "${opData.status}" nao pode ser aprovada.` }
   }
 
-  // Verificar que todas as NFs foram aceitas pelo sacado
-  const { data: opNfsCheck } = await supabase
+  // Buscar NFs da operacao (verificar aceite + calcular valores por NF)
+  const { data: opNfsData } = await supabase
     .from('operacoes_nfs')
     .select('nota_fiscal_id')
     .eq('operacao_id', operacaoId)
 
-  if (opNfsCheck && opNfsCheck.length > 0) {
-    const nfIdsCheck = (opNfsCheck as Array<{ nota_fiscal_id: string }>).map((n) => n.nota_fiscal_id)
-    const { data: nfsCheck } = await supabase
-      .from('notas_fiscais')
-      .select('numero_nf, status')
-      .in('id', nfIdsCheck)
+  const nfIds = ((opNfsData || []) as Array<{ nota_fiscal_id: string }>).map((n) => n.nota_fiscal_id)
 
-    const pendentes = (nfsCheck || [])
-      .filter((n) => (n as { numero_nf: string; status: string }).status !== 'aceita')
-      .map((n) => (n as { numero_nf: string; status: string }).numero_nf)
+  const nfsTyped = (nfIds.length > 0
+    ? ((await supabase
+        .from('notas_fiscais')
+        .select('id, numero_nf, status, valor_liquido, valor_bruto, data_vencimento, cnpj_destinatario, razao_social_destinatario')
+        .in('id', nfIds)).data || [])
+    : []) as Array<{
+      id: string; numero_nf: string; status: string;
+      valor_liquido: number; valor_bruto: number; data_vencimento: string;
+      cnpj_destinatario: string; razao_social_destinatario: string
+    }>
 
-    if (pendentes.length > 0) {
-      return {
-        success: false,
-        message: `As seguintes NFs ainda nao foram aceitas pelo sacado: ${pendentes.join(', ')}`,
-      }
+  // Verificar aceite de todas as NFs
+  const pendentes = nfsTyped.filter((n) => n.status !== 'aceita').map((n) => n.numero_nf)
+  if (pendentes.length > 0) {
+    return {
+      success: false,
+      message: `As seguintes NFs ainda nao foram aceitas pelo sacado: ${pendentes.join(', ')}`,
     }
   }
+
+  // Calcular prazo medio ponderado a partir dos vencimentos individuais (referencia)
+  const hoje = new Date()
+  const somaBase = nfsTyped.reduce((acc, nf) => acc + (nf.valor_liquido || nf.valor_bruto), 0)
+  const prazoMedio = somaBase > 0
+    ? Math.round(
+        nfsTyped.reduce((acc, nf) => {
+          const prazoDias = Math.max(1, Math.ceil(
+            (new Date(nf.data_vencimento).getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24)
+          ))
+          return acc + prazoDias * (nf.valor_liquido || nf.valor_bruto)
+        }, 0) / somaBase
+      )
+    : 0
 
   // Atualizar operacao
   const { error } = await supabase
     .from('operacoes')
     .update({
       taxa_desconto: taxaDesconto,
-      prazo_dias: prazoDias,
+      prazo_dias: prazoMedio,
       valor_liquido_desembolso: valorLiquidoDesembolso,
       status: 'em_andamento',
       aprovado_por: user.id,
@@ -276,82 +300,47 @@ export async function aprovarOperacao(
   await criarNotificacao({
     usuario_id: opData.cedentes.user_id,
     titulo: 'Operacao aprovada! Desembolso realizado.',
-    mensagem: `Sua operacao foi aprovada. Valor desembolsado: ${formatBRL(valorLiquidoDesembolso)} (taxa: ${taxaDesconto}% a.m., prazo: ${prazoDias} dias). Confira seu extrato.`,
+    mensagem: `Sua operacao foi aprovada. Valor desembolsado: ${formatBRL(valorLiquidoDesembolso)} (taxa: ${taxaDesconto}% a.m., prazo medio: ${prazoMedio} dias). Confira seu extrato.`,
     tipo: 'operacao_aprovada',
   })
 
-  // Buscar NFs da operacao para calcular valor_antecipado e notificar sacados
-  const { data: opNfs } = await supabase
-    .from('operacoes_nfs')
-    .select('nota_fiscal_id')
-    .eq('operacao_id', operacaoId)
-
-  if (opNfs) {
-    const nfIds = (opNfs as Array<{ nota_fiscal_id: string }>).map((n) => n.nota_fiscal_id)
-    const { data: nfs } = await supabase
-      .from('notas_fiscais')
-      .select('id, valor_liquido, cnpj_destinatario, razao_social_destinatario, numero_nf')
-      .in('id', nfIds)
-
-    // Calcular e salvar taxa_desagio e valor_antecipado por NF
-    // Formula: valor_antecipado = valor_liquido / (1 + taxa_a_m) ^ (prazo / 30)
-    // Arredondamento HALF_UP (Math.round usa HALF_UP para positivos)
-    if (nfs && nfs.length > 0) {
+  // Calcular e salvar taxa_desagio e valor_antecipado por NF com prazo individual
+  if (nfsTyped.length > 0) {
+    for (const nf of nfsTyped) {
+      const prazoDias = Math.max(1, Math.ceil(
+        (new Date(nf.data_vencimento).getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24)
+      ))
       const fator = Math.pow(1 + taxaDesconto / 100, prazoDias / 30)
-      const nfsTyped = nfs as Array<{ id: string; valor_liquido: number }>
-
-      // Calcular valor_antecipado por NF usando valor_liquido
-      const valores = nfsTyped.map((nf) => {
-        const valorRaw = (nf.valor_liquido || 0) / fator
-        // HALF_UP: arredondar para 2 casas
-        const valor = Math.round(valorRaw * 100) / 100
-        return { id: nf.id, valor }
-      })
-
-      // Ajuste de centavos: garantir que a soma == valorLiquidoDesembolso
-      const somaCalc = valores.reduce((acc, v) => acc + v.valor, 0)
-      const diff = Math.round((valorLiquidoDesembolso - somaCalc) * 100) // em centavos
-      if (diff !== 0) {
-        // Distribuir a diferença nas primeiras NFs (1 centavo cada)
-        const sinal = diff > 0 ? 1 : -1
-        for (let i = 0; i < Math.abs(diff); i++) {
-          valores[i % valores.length].valor = Math.round((valores[i % valores.length].valor + sinal * 0.01) * 100) / 100
-        }
-      }
-
-      // Atualizar cada NF
-      for (const { id, valor } of valores) {
-        await supabase
-          .from('notas_fiscais')
-          .update({ taxa_desagio: taxaDesconto, valor_antecipado: valor } as never)
-          .eq('id', id)
-      }
+      const base = nf.valor_liquido || nf.valor_bruto
+      const valor = Math.round((base / fator) * 100) / 100
+      await supabase
+        .from('notas_fiscais')
+        .update({ taxa_desagio: taxaDesconto, valor_antecipado: valor } as never)
+        .eq('id', nf.id)
     }
 
-    if (nfs) {
-      // Notificar sacados unicos
-      const sacadosCnpjs = [...new Set((nfs as Array<{ cnpj_destinatario: string }>).map((n) => n.cnpj_destinatario))]
-      for (const cnpj of sacadosCnpjs) {
-        const { data: sacado } = await supabase
-          .from('sacados')
-          .select('user_id')
-          .eq('cnpj', cnpj)
-          .single()
+    // Notificar sacados
+    const sacadosCnpjs = [...new Set(nfsTyped.map((n) => n.cnpj_destinatario))]
+    for (const cnpj of sacadosCnpjs) {
+      const { data: sacado } = await supabase
+        .from('sacados')
+        .select('user_id')
+        .eq('cnpj', cnpj)
+        .single()
 
-        if (sacado) {
-          const sacadoData = sacado as { user_id: string }
-          const nfsDeSacado = (nfs as Array<{ cnpj_destinatario: string; numero_nf: string }>)
-            .filter((n) => n.cnpj_destinatario === cnpj)
-            .map((n) => n.numero_nf)
-            .join(', ')
+      if (sacado) {
+        const sacadoData = sacado as { user_id: string }
+        const nfsDeSacado = nfsTyped
+          .filter((n) => n.cnpj_destinatario === cnpj)
+          .map((n) => n.numero_nf)
+          .join(', ')
 
-          await criarNotificacao({
-            usuario_id: sacadoData.user_id,
-            titulo: 'Notificacao de cessao de credito',
-            mensagem: `As NFs ${nfsDeSacado} emitidas contra voce foram cedidas ao cedente ${opData.cedentes.razao_social}. O pagamento no vencimento devera ser realizado na conta escrow indicada.`,
-            tipo: 'cessao_credito',
-          })
-        }
+        await criarNotificacao({
+          usuario_id: sacadoData.user_id,
+          titulo: 'Notificacao de cessao de credito',
+          mensagem: `As NFs ${nfsDeSacado} emitidas contra voce foram cedidas ao cedente ${opData.cedentes.razao_social}. O pagamento no vencimento devera ser realizado na conta escrow indicada.`,
+          tipo: 'cessao_credito',
+        })
       }
     }
   }
@@ -364,7 +353,7 @@ export async function aprovarOperacao(
     dados_depois: {
       status: 'em_andamento',
       taxa_desconto: taxaDesconto,
-      prazo_dias: prazoDias,
+      prazo_dias: prazoMedio,
       valor_liquido_desembolso: valorLiquidoDesembolso,
     },
   })
@@ -578,7 +567,7 @@ export async function removerNfDaOperacao(
     return { success: false, message: `Nao e possivel remover NFs de uma operacao com status "${opData.status}".` }
   }
 
-  // Buscar NF e verificar que pertence a operacao e esta contestada
+  // Buscar NF e verificar que pertence a operacao
   const { data: vinculo } = await supabase
     .from('operacoes_nfs')
     .select('nota_fiscal_id')
@@ -596,10 +585,6 @@ export async function removerNfDaOperacao(
 
   if (!nf) return { success: false, message: 'NF nao encontrada.' }
   const nfData = nf as { id: string; numero_nf: string; status: string; valor_bruto: number }
-
-  if (nfData.status !== 'contestada') {
-    return { success: false, message: 'Apenas NFs com status "contestada" podem ser removidas.' }
-  }
 
   // Remover vinculo
   await supabase
@@ -630,7 +615,7 @@ export async function removerNfDaOperacao(
       .eq('id', operacaoId)
 
     await registrarLog({
-      tipo_evento: 'NF_REMOVIDA_CONTESTACAO',
+      tipo_evento: 'NF_REMOVIDA_OPERACAO',
       entidade_tipo: 'operacoes',
       entidade_id: operacaoId,
       dados_depois: { nf_removida: nfData.numero_nf, operacao_cancelada: true },
@@ -639,7 +624,7 @@ export async function removerNfDaOperacao(
     await criarNotificacao({
       usuario_id: opData.cedentes.user_id,
       titulo: 'Operacao cancelada — NF removida',
-      mensagem: `A NF ${nfData.numero_nf} foi removida da operacao pois foi contestada pelo sacado. Como era a unica NF, a operacao foi cancelada.`,
+      mensagem: `A NF ${nfData.numero_nf} foi removida da operacao pelo gestor. Como era a unica NF, a operacao foi cancelada.`,
       tipo: 'operacao_cancelada',
     })
 
@@ -664,7 +649,7 @@ export async function removerNfDaOperacao(
     .eq('id', operacaoId)
 
   await registrarLog({
-    tipo_evento: 'NF_REMOVIDA_CONTESTACAO',
+    tipo_evento: 'NF_REMOVIDA_OPERACAO',
     entidade_tipo: 'operacoes',
     entidade_id: operacaoId,
     dados_depois: { nf_removida: nfData.numero_nf, novo_valor_bruto: novoValorBruto },
@@ -673,8 +658,8 @@ export async function removerNfDaOperacao(
   await criarNotificacao({
     usuario_id: opData.cedentes.user_id,
     titulo: 'NF removida da operacao',
-    mensagem: `A NF ${nfData.numero_nf} foi removida da operacao pois foi contestada pelo sacado. O valor da operacao foi recalculado para ${formatBRL(novoValorBruto)}.`,
-    tipo: 'nf_removida_contestacao',
+    mensagem: `A NF ${nfData.numero_nf} foi removida da operacao pelo gestor. O valor bruto da operacao foi recalculado para ${formatBRL(novoValorBruto)}.`,
+    tipo: 'nf_removida_operacao',
   })
 
   const aviso = wasEmAndamento ? ' ATENCAO: A operacao ja estava em andamento — os termos financeiros precisam ser ajustados manualmente.' : ''

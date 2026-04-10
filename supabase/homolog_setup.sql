@@ -28,26 +28,37 @@ CREATE TYPE operacao_status AS ENUM (
 CREATE TYPE tipo_conta_bancaria AS ENUM ('corrente', 'poupanca');
 
 -- Funções auxiliares
+-- Usam LANGUAGE plpgsql para evitar validação de tabelas em tempo de criação
+-- (as tabelas são criadas logo abaixo, após estas funções)
+
 CREATE OR REPLACE FUNCTION get_user_role()
 RETURNS text AS $$
-  SELECT role::text FROM profiles WHERE id = auth.uid();
-$$ LANGUAGE sql SECURITY DEFINER STABLE;
+BEGIN
+  RETURN (SELECT role::text FROM profiles WHERE id = auth.uid());
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
 
 CREATE OR REPLACE FUNCTION get_user_cedente_id()
 RETURNS uuid AS $$
-  SELECT c.id FROM cedentes c WHERE c.user_id = auth.uid();
-$$ LANGUAGE sql SECURITY DEFINER STABLE;
+BEGIN
+  RETURN (SELECT c.id FROM cedentes c WHERE c.user_id = auth.uid());
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
 
 CREATE OR REPLACE FUNCTION get_user_sacado_cnpj()
 RETURNS text AS $$
-  SELECT s.cnpj FROM sacados s WHERE s.user_id = auth.uid();
-$$ LANGUAGE sql SECURITY DEFINER STABLE;
+BEGIN
+  RETURN (SELECT s.cnpj FROM sacados s WHERE s.user_id = auth.uid());
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
 
 -- Função para IDs de operações do cedente (evita recursão em RLS operacoes <-> operacoes_nfs)
 CREATE OR REPLACE FUNCTION get_user_operacao_ids()
 RETURNS SETOF uuid AS $$
-  SELECT id FROM operacoes WHERE cedente_id = get_user_cedente_id()
-$$ LANGUAGE sql SECURITY DEFINER STABLE;
+BEGIN
+  RETURN QUERY SELECT id FROM operacoes WHERE cedente_id = get_user_cedente_id();
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
 
 CREATE OR REPLACE FUNCTION update_updated_at()
 RETURNS TRIGGER AS $$
@@ -102,6 +113,10 @@ CREATE TABLE cedentes (
   sacado_razao_social text,
   sacado_cnpj text,
   sacado_descricao text,
+  sacado_banco_escrow text,
+  sacado_conta_escrow text,
+  sacado_agencia_escrow text,
+  sacado_tipo_conta_escrow text DEFAULT 'Conta Escrow',
   contrato_url text,
   contrato_gerado_em timestamptz,
   testemunha_1_nome text DEFAULT 'BRENO JOSE ALVIM DA SILVA',
@@ -182,6 +197,10 @@ CREATE TABLE fundos (
   conta_vinculada text,
   agencia text,
   banco text,
+  administradora_endereco text,
+  administradora_ato_declaratorio text,
+  contato_nome text,
+  contato_email text,
   ativo boolean DEFAULT true,
   created_at timestamptz DEFAULT now()
 );
@@ -252,6 +271,25 @@ CREATE TABLE operacoes_nfs (
   operacao_id uuid NOT NULL REFERENCES operacoes(id) ON DELETE CASCADE,
   nota_fiscal_id uuid NOT NULL REFERENCES notas_fiscais(id) ON DELETE CASCADE,
   PRIMARY KEY (operacao_id, nota_fiscal_id)
+);
+
+CREATE TABLE taxas_cedente (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  cedente_id uuid NOT NULL REFERENCES cedentes(id) ON DELETE CASCADE,
+  prazo_min integer NOT NULL,
+  prazo_max integer NOT NULL,
+  taxa_percentual numeric NOT NULL CHECK (taxa_percentual >= 0),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE consultor_cedente (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  consultor_id uuid NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  cedente_id uuid NOT NULL REFERENCES cedentes(id) ON DELETE CASCADE,
+  comissao_percentual numeric NOT NULL DEFAULT 0,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (consultor_id, cedente_id)
 );
 
 CREATE TABLE sacados (
@@ -463,7 +501,7 @@ CREATE POLICY devedores_cedente_select ON devedores_solidarios FOR SELECT USING 
 CREATE OR REPLACE FUNCTION handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO profiles (id, email, nome_completo, role)
+  INSERT INTO public.profiles (id, email, nome_completo, role)
   VALUES (
     NEW.id,
     NEW.email,
@@ -472,7 +510,7 @@ BEGIN
   );
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users

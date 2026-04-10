@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { cedenteSchema, type CedenteFormData } from '@/lib/validations/cedente'
 import { registrarLog } from './auditoria'
 import { notificarGestores } from './notificacao'
+import { buckets } from '@/lib/storage'
 
 export type CedenteActionState = {
   success?: boolean
@@ -148,7 +149,7 @@ export async function uploadDocumento(formData: FormData): Promise<CedenteAction
   const filePath = `${cedenteData.cnpj}/${subpasta}/${novaVersao}_${timestamp}_${cleanName}`
 
   const { error: uploadError } = await supabase.storage
-    .from('documentos-cedentes')
+    .from(buckets.documentos)
     .upload(filePath, file)
 
   if (uploadError) {
