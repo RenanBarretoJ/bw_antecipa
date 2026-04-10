@@ -24,6 +24,7 @@ ON CONFLICT (id) DO NOTHING;
 -- 2. Policies para documentos-cedentes
 -- ============================================================
 
+DROP POLICY IF EXISTS storage_docs_cedente_insert ON storage.objects;
 CREATE POLICY storage_docs_cedente_insert ON storage.objects
   FOR INSERT WITH CHECK (
     bucket_id = 'documentos-cedentes'
@@ -33,6 +34,7 @@ CREATE POLICY storage_docs_cedente_insert ON storage.objects
     )
   );
 
+DROP POLICY IF EXISTS storage_docs_cedente_select ON storage.objects;
 CREATE POLICY storage_docs_cedente_select ON storage.objects
   FOR SELECT USING (
     bucket_id = 'documentos-cedentes'
@@ -42,6 +44,7 @@ CREATE POLICY storage_docs_cedente_select ON storage.objects
     )
   );
 
+DROP POLICY IF EXISTS storage_docs_cedente_update ON storage.objects;
 CREATE POLICY storage_docs_cedente_update ON storage.objects
   FOR UPDATE USING (
     bucket_id = 'documentos-cedentes'
@@ -51,18 +54,21 @@ CREATE POLICY storage_docs_cedente_update ON storage.objects
     )
   );
 
+DROP POLICY IF EXISTS storage_docs_gestor_select ON storage.objects;
 CREATE POLICY storage_docs_gestor_select ON storage.objects
   FOR SELECT USING (
     bucket_id = 'documentos-cedentes'
     AND get_user_role() = 'gestor'
   );
 
+DROP POLICY IF EXISTS storage_docs_gestor_insert ON storage.objects;
 CREATE POLICY storage_docs_gestor_insert ON storage.objects
   FOR INSERT WITH CHECK (
     bucket_id = 'documentos-cedentes'
     AND get_user_role() = 'gestor'
   );
 
+DROP POLICY IF EXISTS storage_docs_consultor_select ON storage.objects;
 CREATE POLICY storage_docs_consultor_select ON storage.objects
   FOR SELECT USING (
     bucket_id = 'documentos-cedentes'
@@ -73,6 +79,7 @@ CREATE POLICY storage_docs_consultor_select ON storage.objects
 -- 3. Policies para notas-fiscais
 -- ============================================================
 
+DROP POLICY IF EXISTS storage_nfs_cedente_insert ON storage.objects;
 CREATE POLICY storage_nfs_cedente_insert ON storage.objects
   FOR INSERT WITH CHECK (
     bucket_id = 'notas-fiscais'
@@ -82,6 +89,7 @@ CREATE POLICY storage_nfs_cedente_insert ON storage.objects
     )
   );
 
+DROP POLICY IF EXISTS storage_nfs_cedente_select ON storage.objects;
 CREATE POLICY storage_nfs_cedente_select ON storage.objects
   FOR SELECT USING (
     bucket_id = 'notas-fiscais'
@@ -91,12 +99,14 @@ CREATE POLICY storage_nfs_cedente_select ON storage.objects
     )
   );
 
+DROP POLICY IF EXISTS storage_nfs_gestor_select ON storage.objects;
 CREATE POLICY storage_nfs_gestor_select ON storage.objects
   FOR SELECT USING (
     bucket_id = 'notas-fiscais'
     AND get_user_role() = 'gestor'
   );
 
+DROP POLICY IF EXISTS storage_nfs_consultor_select ON storage.objects;
 CREATE POLICY storage_nfs_consultor_select ON storage.objects
   FOR SELECT USING (
     bucket_id = 'notas-fiscais'
@@ -107,12 +117,14 @@ CREATE POLICY storage_nfs_consultor_select ON storage.objects
 -- 4. Policies para contratos
 -- ============================================================
 
+DROP POLICY IF EXISTS storage_contratos_gestor_all ON storage.objects;
 CREATE POLICY storage_contratos_gestor_all ON storage.objects
   FOR ALL USING (
     bucket_id = 'contratos'
     AND get_user_role() = 'gestor'
   );
 
+DROP POLICY IF EXISTS storage_contratos_cedente_select ON storage.objects;
 CREATE POLICY storage_contratos_cedente_select ON storage.objects
   FOR SELECT USING (
     bucket_id = 'contratos'
@@ -123,6 +135,7 @@ CREATE POLICY storage_contratos_cedente_select ON storage.objects
     )
   );
 
+DROP POLICY IF EXISTS storage_contratos_consultor_select ON storage.objects;
 CREATE POLICY storage_contratos_consultor_select ON storage.objects
   FOR SELECT USING (
     bucket_id = 'contratos'
