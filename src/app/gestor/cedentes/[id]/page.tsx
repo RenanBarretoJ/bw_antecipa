@@ -5,6 +5,7 @@ import { use } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { analisarDocumento, aprovarCedente, reprovarCedente } from '@/lib/actions/gestor'
 import { salvarTaxasCedente } from '@/lib/actions/operacao'
+import { salvarContratoAssinado } from '@/lib/actions/cedente'
 import { formatCNPJ, formatDate } from '@/lib/utils'
 import { buckets } from '@/lib/storage'
 import { ArrowLeft, CheckCircle, XCircle, FileText, Eye, X, Plus, Trash2, Settings } from 'lucide-react'
@@ -15,6 +16,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { BotaoDownloadContrato } from '@/components/contratos/BotaoDownloadContrato'
+import { UploadDocumentoAssinado } from '@/components/contratos/UploadDocumentoAssinado'
 
 interface CedenteDetail {
   id: string; cnpj: string; razao_social: string; nome_fantasia: string | null
@@ -23,6 +26,8 @@ interface CedenteDetail {
   telefone_comercial: string | null; email_comercial: string | null; cnae: string | null
   banco: string | null; agencia: string | null; conta: string | null; tipo_conta: string | null
   status: string; created_at: string
+  contrato_url: string | null
+  contrato_assinado_url: string | null
 }
 
 interface DocRecord {
@@ -571,6 +576,40 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
           <p className="mt-3 text-xs text-muted-foreground">
             As taxas sao aplicadas automaticamente quando o cedente solicita antecipacao. O gestor pode ajustar na aprovacao.
           </p>
+        </CardContent>
+      </Card>
+
+      {/* Contrato de Cessao */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileText size={18} />
+            Contrato de Cessao
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="space-y-1">
+            <p className="text-xs text-muted-foreground">Versao gerada pelo sistema</p>
+            <BotaoDownloadContrato
+              tipo="contrato"
+              id={cedente.id}
+              storagePath={cedente.contrato_url}
+              label="Contrato Mae"
+              className="w-full"
+            />
+          </div>
+          <div className="border-t pt-3 space-y-1">
+            <p className="text-xs text-muted-foreground">Versao assinada pelas partes</p>
+            <UploadDocumentoAssinado
+              label="Contrato Assinado"
+              storagePath={cedente.contrato_assinado_url}
+              uploadPath={`cedentes/${cedente.id}/contrato-cessao-assinado.pdf`}
+              onSuccess={async (path) => {
+                await salvarContratoAssinado(cedente.id, path)
+                await loadData()
+              }}
+            />
+          </div>
         </CardContent>
       </Card>
 

@@ -678,6 +678,73 @@ export async function removerNfDaOperacao(
   return { success: true, message: `NF ${nfData.numero_nf} removida. Novo valor bruto: ${formatBRL(novoValorBruto)}.${aviso}` }
 }
 
+export async function salvarTestemunhasOperacao(
+  operacaoId: string,
+  testemunha1Id: string,
+  testemunha2Id: string
+): Promise<OperacaoActionState> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, message: 'Nao autenticado.' }
+
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (!profile || (profile as { role: string }).role !== 'gestor') {
+    return { success: false, message: 'Acesso negado.' }
+  }
+
+  const { error } = await supabase
+    .from('operacoes')
+    .update({ testemunha_1_id: testemunha1Id, testemunha_2_id: testemunha2Id } as never)
+    .eq('id', operacaoId)
+
+  if (error) return { success: false, message: `Erro ao salvar testemunhas: ${error.message}` }
+  return { success: true, message: 'Testemunhas salvas.' }
+}
+
+export async function salvarTermoAssinado(
+  operacaoId: string,
+  path: string
+): Promise<OperacaoActionState> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, message: 'Nao autenticado.' }
+
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (!profile || (profile as { role: string }).role !== 'gestor') {
+    return { success: false, message: 'Acesso negado.' }
+  }
+
+  const { error } = await supabase
+    .from('operacoes')
+    .update({ termo_assinado_url: path } as never)
+    .eq('id', operacaoId)
+
+  if (error) return { success: false, message: `Erro: ${error.message}` }
+  return { success: true, message: 'Termo assinado salvo.' }
+}
+
+export async function salvarComprovantePagamento(
+  operacaoId: string,
+  path: string
+): Promise<OperacaoActionState> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, message: 'Nao autenticado.' }
+
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (!profile || (profile as { role: string }).role !== 'gestor') {
+    return { success: false, message: 'Acesso negado.' }
+  }
+
+  const { error } = await supabase
+    .from('operacoes')
+    .update({ comprovante_pagamento_url: path } as never)
+    .eq('id', operacaoId)
+
+  if (error) return { success: false, message: `Erro: ${error.message}` }
+  return { success: true, message: 'Comprovante salvo.' }
+}
+
 // Helper
 function formatBRL(value: number): string {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)

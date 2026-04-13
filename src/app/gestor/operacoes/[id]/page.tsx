@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { aprovarOperacao, reprovarOperacao, removerNfDaOperacao } from '@/lib/actions/operacao'
+import { aprovarOperacao, reprovarOperacao, removerNfDaOperacao, salvarTestemunhasOperacao, salvarTermoAssinado, salvarComprovantePagamento } from '@/lib/actions/operacao'
 import { liquidarOperacao, marcarInadimplente } from '@/lib/actions/liquidacao'
 import { formatCurrency, formatCNPJ, formatDate } from '@/lib/utils'
 import Link from 'next/link'
@@ -24,8 +24,16 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { BotaoDownloadContrato } from '@/components/contratos/BotaoDownloadContrato'
+import { UploadDocumentoAssinado } from '@/components/contratos/UploadDocumentoAssinado'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+
+interface Testemunha {
+  id: string
+  nome: string
+  cpf: string
+}
 
 interface OperacaoDetalhe {
   id: string
@@ -40,6 +48,10 @@ interface OperacaoDetalhe {
   motivo_reprovacao: string | null
   aprovado_em: string | null
   created_at: string
+  testemunha_1_id: string | null
+  testemunha_2_id: string | null
+  termo_assinado_url: string | null
+  comprovante_pagamento_url: string | null
   cedentes: {
     razao_social: string
     cnpj: string
@@ -149,6 +161,12 @@ export default function OperacaoDetalheGestorPage() {
   const [showReprovar, setShowReprovar] = useState(false)
   const [motivo, setMotivo] = useState('')
 
+  // Testemunhas
+  const [testemunhas, setTestemunhas] = useState<Testemunha[]>([])
+  const [test1Id, setTest1Id] = useState('')
+  const [test2Id, setTest2Id] = useState('')
+  const [salvandoTest, setSalvandoTest] = useState(false)
+
   useEffect(() => {
     const load = async () => {
       const supabase = createClient()
@@ -160,11 +178,21 @@ export default function OperacaoDetalheGestorPage() {
         .eq('id', opId)
         .single()
 
+      // Buscar testemunhas ativas
+      const { data: testData } = await supabase
+        .from('testemunhas')
+        .select('id, nome, cpf')
+        .eq('ativo', true)
+        .order('created_at', { ascending: true })
+      setTestemunhas((testData || []) as Testemunha[])
+
       if (opData) {
         const o = opData as OperacaoDetalhe
         setOp(o)
         setTaxa(o.taxa_desconto)
         setValorLiquido(o.valor_liquido_desembolso)
+        if (o.testemunha_1_id) setTest1Id(o.testemunha_1_id)
+        if (o.testemunha_2_id) setTest2Id(o.testemunha_2_id)
 
         // Buscar NFs da operacao
         const { data: opNfs } = await supabase
@@ -272,6 +300,16 @@ export default function OperacaoDetalheGestorPage() {
       }
     }
     setRemovendoNf(null)
+  }
+
+  const handleSalvarTestemunhas = async () => {
+    if (!test1Id || !test2Id) { setMessage('Selecione as 2 testemunhas.'); setMessageType('error'); return }
+    if (test1Id === test2Id) { setMessage('Selecione testemunhas diferentes.'); setMessageType('error'); return }
+    setSalvandoTest(true)
+    const result = await salvarTestemunhasOperacao(opId, test1Id, test2Id)
+    setMessage(result?.message || '')
+    setMessageType(result?.success ? 'success' : 'error')
+    setSalvandoTest(false)
   }
 
   const handleReprovar = async () => {
@@ -508,6 +546,67 @@ export default function OperacaoDetalheGestorPage() {
                   </div>
                 </div>
 
+                {/* Testemunhas do Termo */}
+                {testemunhas.length > 0 && (
+                  <div className="space-y-2 border-t pt-4">
+                    <p className="text-xs font-medium text-muted-foreground">Testemunhas do Termo</p>
+                    <div className="space-y-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Testemunha 1</Label>
+                        <Select value={test1Id} onValueChange={(v) => setTest1Id(v ?? '')}>
+                          <SelectTrigger className="h-9 text-xs w-full">
+                            <SelectValue placeholder="Selecionar...">
+                              {test1Id ? (
+                                <span className="truncate max-w-[160px] block">
+                                  {testemunhas.find(t => t.id === test1Id)?.nome ?? test1Id}
+                                </span>
+                              ) : undefined}
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent className="max-w-[260px]">
+                            {testemunhas.filter(t => t.id !== test2Id).map((t) => (
+                              <SelectItem key={t.id} value={t.id} className="text-xs">
+                                <span className="truncate">{t.nome} — {t.cpf}</span>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Testemunha 2</Label>
+                        <Select value={test2Id} onValueChange={(v) => setTest2Id(v ?? '')}>
+                          <SelectTrigger className="h-9 text-xs w-full">
+                            <SelectValue placeholder="Selecionar...">
+                              {test2Id ? (
+                                <span className="truncate max-w-[160px] block">
+                                  {testemunhas.find(t => t.id === test2Id)?.nome ?? test2Id}
+                                </span>
+                              ) : undefined}
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent className="max-w-[260px]">
+                            {testemunhas.filter(t => t.id !== test1Id).map((t) => (
+                              <SelectItem key={t.id} value={t.id} className="text-xs">
+                                <span className="truncate">{t.nome} — {t.cpf}</span>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleSalvarTestemunhas}
+                        disabled={salvandoTest}
+                        className="w-full text-xs"
+                      >
+                        {salvandoTest ? <Loader2 size={12} className="animate-spin" /> : null}
+                        Salvar Testemunhas
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Resumo visual */}
                 <div className="p-3 bg-muted/50 rounded-lg space-y-2 text-sm">
                   <div className="flex justify-between">
@@ -631,20 +730,43 @@ export default function OperacaoDetalheGestorPage() {
 
                 {/* Documentos PDF */}
                 {(op.status === 'em_andamento' || op.status === 'liquidada' || op.status === 'inadimplente') && (
-                  <div className="border-t pt-4 mt-2 flex flex-col gap-2">
-                    <BotaoDownloadContrato
-                      tipo="contrato"
-                      id={op.cedente_id}
-                      storagePath={op.cedentes.contrato_url}
-                      label="Contrato Mae"
-                      className="w-full"
-                    />
-                    <BotaoDownloadContrato
-                      tipo="termo"
-                      id={op.id}
-                      storagePath={(op as unknown as Record<string, unknown>).termo_url as string | null}
-                      className="w-full"
-                    />
+                  <div className="border-t pt-4 mt-2 space-y-3">
+                    <p className="text-xs font-medium text-muted-foreground">Documentos gerados</p>
+                    <div className="flex flex-col gap-2">
+                      <BotaoDownloadContrato
+                        tipo="contrato"
+                        id={op.cedente_id}
+                        storagePath={op.cedentes.contrato_url}
+                        label="Contrato Mae"
+                        className="w-full"
+                      />
+                      <BotaoDownloadContrato
+                        tipo="termo"
+                        id={op.id}
+                        storagePath={(op as unknown as Record<string, unknown>).termo_url as string | null}
+                        className="w-full"
+                      />
+                    </div>
+                    <p className="text-xs font-medium text-muted-foreground border-t pt-3">Documentos assinados</p>
+                    <div className="flex flex-col gap-2">
+                      <UploadDocumentoAssinado
+                        label="Termo de Cessao Assinado"
+                        storagePath={op.termo_assinado_url}
+                        uploadPath={`operacoes/${op.id}/termo-cessao-assinado.pdf`}
+                        onSuccess={async (path) => {
+                          await salvarTermoAssinado(op.id, path)
+                        }}
+                      />
+                      <UploadDocumentoAssinado
+                        label="Comprovante de Pagamento"
+                        storagePath={op.comprovante_pagamento_url}
+                        uploadPath={`operacoes/${op.id}/comprovante-pagamento.pdf`}
+                        accept="application/pdf,image/jpeg,image/png"
+                        onSuccess={async (path) => {
+                          await salvarComprovantePagamento(op.id, path)
+                        }}
+                      />
+                    </div>
                     <Button
                       variant="outline"
                       size="sm"
