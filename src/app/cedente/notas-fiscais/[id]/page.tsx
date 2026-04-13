@@ -68,6 +68,7 @@ export default function NfDetalhePage() {
   const [message, setMessage] = useState('')
   const [messageType, setMessageType] = useState<'success' | 'error'>('success')
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [buscandoCnpj, setBuscandoCnpj] = useState(false)
 
   // Form state
   const [form, setForm] = useState({
@@ -142,6 +143,34 @@ export default function NfDetalhePage() {
   const updateForm = (field: string, value: string | number) => {
     setForm((prev) => ({ ...prev, [field]: value }))
   }
+
+  const buscarRazaoPorCnpj = async (cnpj: string) => {
+    const digits = cnpj.replace(/\D/g, '')
+    if (digits.length !== 14) return
+    setBuscandoCnpj(true)
+    try {
+      const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${digits}`)
+      if (res.ok) {
+        const data = await res.json() as { razao_social?: string; nome_fantasia?: string }
+        const nome = data.razao_social || data.nome_fantasia || ''
+        if (nome) setForm((prev) => ({ ...prev, razao_social_destinatario: nome }))
+      }
+    } catch {
+      // falha silenciosa — usuário preenche manualmente
+    } finally {
+      setBuscandoCnpj(false)
+    }
+  }
+
+  // Buscar razão social automaticamente quando o CNPJ destinatário estiver completo
+  useEffect(() => {
+    if (!nf || nf.status !== 'rascunho') return
+    const digits = form.cnpj_destinatario.replace(/\D/g, '')
+    if (digits.length === 14) {
+      buscarRazaoPorCnpj(digits)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.cnpj_destinatario])
 
   const handleSave = async (): Promise<boolean> => {
     setSaving(true)
@@ -373,12 +402,16 @@ export default function NfDetalhePage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Razao Social Destinatario *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Razao Social Destinatario *
+                  {buscandoCnpj && <span className="ml-2 text-xs text-blue-600 font-normal">Buscando...</span>}
+                </label>
                 <input
                   type="text"
                   value={form.razao_social_destinatario}
                   onChange={(e) => updateForm('razao_social_destinatario', e.target.value)}
-                  disabled={!isEditable}
+                  disabled={!isEditable || buscandoCnpj}
+                  placeholder={buscandoCnpj ? 'Buscando razao social...' : ''}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm disabled:bg-gray-50 disabled:text-gray-500"
                 />
               </div>

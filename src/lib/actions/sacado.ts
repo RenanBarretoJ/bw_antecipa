@@ -48,10 +48,10 @@ export async function aceitarCessao(nfId: string): Promise<SacadoActionState> {
     return { success: false, message: 'Esta NF nao pode ser aceita no status atual.' }
   }
 
-  // Atualizar status da NF para aceita
+  // Atualizar status da NF para aceita e registrar timestamp do aceite
   const { error: updateError } = await supabase
     .from('notas_fiscais')
-    .update({ status: 'aceita' } as never)
+    .update({ status: 'aceita', aceite_sacado_em: new Date().toISOString() } as never)
     .eq('id', nfId)
 
   if (updateError) return { success: false, message: 'Erro ao registrar aceite.' }

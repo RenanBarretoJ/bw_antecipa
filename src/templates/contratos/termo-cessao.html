@@ -290,8 +290,11 @@
         </tr>
         {{/each}}
         <tr>
-          <td colspan="6" class="td-total">TOTAL ANTECIPADO:</td>
-          <td style="font-weight: bold;">{{termo.preco_aquisicao_formatado}}</td>
+          <td colspan="3" class="td-total">QUANTIDADE: {{termo.quantidade}} NF(s)</td>
+          <td class="td-total">TOTAL FACE:</td>
+          <td style="font-weight: bold; text-align: center;">{{termo.total_face_formatado}}</td>
+          <td class="td-total">TOTAL ANTECIPADO:</td>
+          <td style="font-weight: bold; text-align: center;">{{termo.preco_aquisicao_formatado}}</td>
         </tr>
       </tbody>
     </table>
@@ -302,7 +305,42 @@
   <div style="page-break-before: always;">
 
     <p class="apenso-titulo">APENSO "B"</p>
-    <p class="apenso-titulo">APROVACAO DO SACADO</p>
+    <p class="apenso-titulo">TRILHA DE AUDITORIA — CONFIRMACAO ELETRONICA DO SACADO</p>
+
+    <p style="margin-top: 12pt; margin-bottom: 4pt;">Cedente: <strong>{{cedente.razao_social}}</strong></p>
+    <p style="margin-bottom: 12pt;">Antecipacao solicitada em: <strong>{{termo.solicitacao_data}}</strong></p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>ID do Registro</th>
+          <th>NF</th>
+          <th>Incluida pelo Cedente em</th>
+          <th>Aprovada pelo Gestor em</th>
+          <th>Antecipacao Solicitada em</th>
+          <th>Aceite do Sacado em</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each notas_fiscais}}
+        <tr>
+          <td style="font-family: monospace; font-size: 8pt;">{{this.id_curto}}</td>
+          <td>{{this.numero}}</td>
+          <td>{{this.inclusao_data}}</td>
+          <td>{{this.aprovacao_gestor_data}}</td>
+          <td>{{../termo.solicitacao_data}}</td>
+          <td><strong>{{this.aceite_sacado_data}}</strong></td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+
+    <p style="margin-top: 20pt; font-size: 8pt; font-style: italic; color: #444;">
+      Os registros acima foram gerados automaticamente pelo sistema BW Antecipa a partir dos eventos de inclusao,
+      solicitacao e aceite eletronico registrados em banco de dados auditavel. Os horarios estao em
+      Horario de Brasilia (UTC-3). O ID do Registro corresponde aos primeiros 8 caracteres do identificador
+      unico (UUID) da nota fiscal no sistema, utilizavel para consulta e verificacao futura.
+    </p>
 
   </div>
 

@@ -178,6 +178,7 @@ export default function OperacaoDetalheGestorPage() {
             .from('notas_fiscais')
             .select('id, numero_nf, cnpj_destinatario, razao_social_destinatario, valor_bruto, valor_liquido, data_vencimento, status')
             .in('id', nfIds)
+            .order('data_vencimento', { ascending: true })
 
           setNfs((nfsData || []) as NfDaOperacao[])
         }
@@ -263,7 +264,7 @@ export default function OperacaoDetalheGestorPage() {
       if (opNfs) {
         const ids = (opNfs as Array<{ nota_fiscal_id: string }>).map((n) => n.nota_fiscal_id)
         if (ids.length > 0) {
-          const { data: nfsAtt } = await supabase.from('notas_fiscais').select('id, numero_nf, cnpj_destinatario, razao_social_destinatario, valor_bruto, valor_liquido, data_vencimento, status').in('id', ids)
+          const { data: nfsAtt } = await supabase.from('notas_fiscais').select('id, numero_nf, cnpj_destinatario, razao_social_destinatario, valor_bruto, valor_liquido, data_vencimento, status').in('id', ids).order('data_vencimento', { ascending: true })
           setNfs((nfsAtt || []) as NfDaOperacao[])
         } else {
           setNfs([])

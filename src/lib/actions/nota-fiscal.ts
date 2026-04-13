@@ -609,7 +609,7 @@ export async function aprovarNF(nfId: string): Promise<NfActionState> {
 
   const { error } = await supabase
     .from('notas_fiscais')
-    .update({ status: 'aprovada' } as never)
+    .update({ status: 'aprovada', aprovada_gestor_em: new Date().toISOString() } as never)
     .eq('id', nfId)
 
   if (error) {

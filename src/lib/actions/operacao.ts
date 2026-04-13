@@ -399,7 +399,7 @@ export async function reprovarOperacao(operacaoId: string, motivo: string): Prom
     const nfIds = (opNfs as Array<{ nota_fiscal_id: string }>).map((n) => n.nota_fiscal_id)
     await supabase
       .from('notas_fiscais')
-      .update({ status: 'aprovada' } as never)
+      .update({ status: 'aprovada', aceite_sacado_em: null } as never)
       .in('id', nfIds)
   }
 
@@ -470,7 +470,7 @@ export async function cancelarOperacao(operacaoId: string): Promise<OperacaoActi
     const nfIds = (opNfs as Array<{ nota_fiscal_id: string }>).map((n) => n.nota_fiscal_id)
     await supabase
       .from('notas_fiscais')
-      .update({ status: 'aprovada' } as never)
+      .update({ status: 'aprovada', aceite_sacado_em: null } as never)
       .in('id', nfIds)
   }
 
@@ -593,10 +593,10 @@ export async function removerNfDaOperacao(
     .eq('operacao_id', operacaoId)
     .eq('nota_fiscal_id', nfId)
 
-  // Reverter NF para aprovada
+  // Reverter NF para aprovada e limpar aceite do sacado
   await supabase
     .from('notas_fiscais')
-    .update({ status: 'aprovada' } as never)
+    .update({ status: 'aprovada', aceite_sacado_em: null } as never)
     .eq('id', nfId)
 
   // Buscar NFs restantes para recalcular valor
