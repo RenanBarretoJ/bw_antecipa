@@ -72,7 +72,7 @@ const statusConfig: Record<string, { label: string; color: string; icon: typeof 
 export default function DocumentosGestorPage() {
   const [docs, setDocs] = useState<DocGestor[]>([])
   const [loading, setLoading] = useState(true)
-  const [filtroStatus, setFiltroStatus] = useState('enviado')
+  const [filtroStatus, setFiltroStatus] = useState('todos')
   const [busca, setBusca] = useState('')
   const [modal, setModal] = useState<{ doc: DocGestor; previewUrl: string } | null>(null)
   const [motivo, setMotivo] = useState('')

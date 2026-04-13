@@ -84,7 +84,7 @@ function TableSkeleton() {
 export default function OperacoesGestorPage() {
   const [ops, setOps] = useState<OperacaoGestor[]>([])
   const [loading, setLoading] = useState(true)
-  const [filtroStatus, setFiltroStatus] = useState('solicitada')
+  const [filtroStatus, setFiltroStatus] = useState('todos')
   const [busca, setBusca] = useState('')
 
   useEffect(() => {
