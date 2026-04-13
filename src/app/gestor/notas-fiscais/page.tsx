@@ -67,7 +67,7 @@ const statusConfig: Record<string, { label: string; icon: typeof CheckCircle; va
 export default function NotasFiscaisGestorPage() {
   const [nfs, setNfs] = useState<NfGestorRecord[]>([])
   const [loading, setLoading] = useState(true)
-  const [filtroStatus, setFiltroStatus] = useState<string>('submetida')
+  const [filtroStatus, setFiltroStatus] = useState<string>('todos')
   const [busca, setBusca] = useState('')
 
   useEffect(() => {

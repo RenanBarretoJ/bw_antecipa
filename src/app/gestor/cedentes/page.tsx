@@ -45,7 +45,7 @@ const statusBadge: Record<string, { label: string; className: string }> = {
 export default function GestorCedentesPage() {
   const [cedentes, setCedentes] = useState<CedenteRow[]>([])
   const [loading, setLoading] = useState(true)
-  const [filtroStatus, setFiltroStatus] = useState('')
+  const [filtroStatus, setFiltroStatus] = useState('todos')
   const [busca, setBusca] = useState('')
 
   useEffect(() => {
@@ -63,7 +63,7 @@ export default function GestorCedentesPage() {
   }, [])
 
   const filtered = cedentes.filter((c) => {
-    if (filtroStatus && c.status !== filtroStatus) return false
+    if (filtroStatus !== 'todos' && c.status !== filtroStatus) return false
     if (busca) {
       const q = busca.toLowerCase()
       return c.cnpj.includes(q) || c.razao_social.toLowerCase().includes(q)
@@ -89,12 +89,12 @@ export default function GestorCedentesPage() {
                 onChange={(e) => setBusca(e.target.value)}
               />
             </div>
-            <Select value={filtroStatus || '__all__'} onValueChange={(v) => { if (v) setFiltroStatus(v === '__all__' ? '' : v) }}>
+            <Select value={filtroStatus} onValueChange={(v) => { if (v) setFiltroStatus(v) }}>
               <SelectTrigger className="w-full md:w-48">
                 <SelectValue placeholder="Todos os status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="__all__">Todos os status</SelectItem>
+                <SelectItem value="todos">Todos os status</SelectItem>
                 <SelectItem value="pendente">Pendente</SelectItem>
                 <SelectItem value="em_analise">Em Analise</SelectItem>
                 <SelectItem value="ativo">Ativo</SelectItem>
