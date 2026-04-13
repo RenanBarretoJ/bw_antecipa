@@ -216,3 +216,26 @@ export async function reenviarDocumento(documentoId: string, formData: FormData)
 
   return uploadDocumento(newFormData)
 }
+
+
+export async function salvarContratoAssinado(
+  cedenteId: string,
+  path: string
+): Promise<{ success: boolean; message: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, message: 'Nao autenticado.' }
+
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (!profile || (profile as { role: string }).role !== 'gestor') {
+    return { success: false, message: 'Acesso negado.' }
+  }
+
+  const { error } = await supabase
+    .from('cedentes')
+    .update({ contrato_assinado_url: path } as never)
+    .eq('id', cedenteId)
+
+  if (error) return { success: false, message: `Erro: ${error.message}` }
+  return { success: true, message: 'Contrato assinado salvo.' }
+}

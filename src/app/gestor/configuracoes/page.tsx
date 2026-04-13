@@ -1,6 +1,7 @@
 'use client'
 
-import { Settings } from 'lucide-react'
+import Link from 'next/link'
+import { Settings, Users } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 export default function ConfiguracoesGestorPage() {
@@ -52,6 +53,29 @@ export default function ConfiguracoesGestorPage() {
               Para configurar taxas de um cedente, acesse <strong>Cedentes</strong> &gt; clique no cedente &gt;
               seccao <strong>Taxas Pre-configuradas</strong>.
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Testemunhas */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users size={18} />
+              Testemunhas
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-4">
+              Gerencie a lista de testemunhas usadas nos Termos de Cessao. Ao aprovar uma operacao,
+              o gestor seleciona 2 testemunhas antes de gerar o PDF.
+            </p>
+            <Link
+              href="/gestor/configuracoes/testemunhas"
+              className="inline-flex items-center gap-2 text-sm text-primary hover:underline font-medium"
+            >
+              <Users size={14} />
+              Gerenciar Testemunhas
+            </Link>
           </CardContent>
         </Card>
 

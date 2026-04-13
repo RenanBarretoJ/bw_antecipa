@@ -177,6 +177,15 @@ export async function gerarContratoCessao(
   const repNome = repPrincipal?.nome || primeiroRep?.nome || (ced.nome_representante as string) || ''
   const repEmail = repPrincipal?.email || primeiroRep?.email || (ced.email_comercial as string) || ''
 
+  // Buscar as 2 primeiras testemunhas ativas da tabela global
+  const { data: testemunhasGlobais } = await supabase
+    .from('testemunhas')
+    .select('nome, cpf')
+    .eq('ativo', true)
+    .order('created_at', { ascending: true })
+    .limit(2)
+  const tg = (testemunhasGlobais || []) as Array<{ nome: string; cpf: string }>
+
   const dados = {
     cedente: {
       razao_social: ced.razao_social,
@@ -199,12 +208,12 @@ export async function gerarContratoCessao(
       data_assinatura_extenso: formatarDataExtenso(new Date().toISOString()),
     },
     testemunha_1: {
-      nome: (ced.testemunha_1_nome as string) || 'BRENO JOSE ALVIM DA SILVA',
-      cpf: (ced.testemunha_1_cpf as string) || '378.341.578-09',
+      nome: tg[0]?.nome || (ced.testemunha_1_nome as string) || 'BRENO JOSE ALVIM DA SILVA',
+      cpf: tg[0]?.cpf || (ced.testemunha_1_cpf as string) || '378.341.578-09',
     },
     testemunha_2: {
-      nome: (ced.testemunha_2_nome as string) || 'KAIO MIGUEL RUIZ',
-      cpf: (ced.testemunha_2_cpf as string) || '423.679.188-99',
+      nome: tg[1]?.nome || (ced.testemunha_2_nome as string) || 'DAVI DE PAULA YANG',
+      cpf: tg[1]?.cpf || (ced.testemunha_2_cpf as string) || '469.942.738-30',
     },
   }
 
@@ -253,6 +262,31 @@ export async function gerarTermoCessao(
 
   if (!cedente) throw new Error('Cedente da operacao nao encontrado')
   const ced = cedente as Record<string, unknown>
+
+  // Buscar testemunhas: prioriza seleção da operação, depois as 2 primeiras ativas da tabela global
+  let test1: { nome: string; cpf: string } | null = null
+  let test2: { nome: string; cpf: string } | null = null
+
+  if (op.testemunha_1_id) {
+    const { data: t1 } = await supabase.from('testemunhas').select('nome, cpf').eq('id', op.testemunha_1_id as string).single()
+    test1 = t1 as { nome: string; cpf: string } | null
+  }
+  if (op.testemunha_2_id) {
+    const { data: t2 } = await supabase.from('testemunhas').select('nome, cpf').eq('id', op.testemunha_2_id as string).single()
+    test2 = t2 as { nome: string; cpf: string } | null
+  }
+
+  if (!test1 || !test2) {
+    const { data: tGlobais } = await supabase
+      .from('testemunhas')
+      .select('nome, cpf')
+      .eq('ativo', true)
+      .order('created_at', { ascending: true })
+      .limit(2)
+    const tg = (tGlobais || []) as Array<{ nome: string; cpf: string }>
+    if (!test1) test1 = tg[0] || null
+    if (!test2) test2 = tg[1] || null
+  }
 
   // Buscar NFs da operacao via tabela de juncao
   const { data: opNfs } = await supabase
@@ -316,12 +350,12 @@ export async function gerarTermoCessao(
       aceite_sacado_data: nf.aceite_sacado_em ? formatarDataHora(nf.aceite_sacado_em as string) : '—',
     })),
     testemunha_1: {
-      nome: (ced.testemunha_1_nome as string) || 'BRENO JOSE ALVIM DA SILVA',
-      cpf: (ced.testemunha_1_cpf as string) || '378.341.578-09',
+      nome: test1?.nome || (ced.testemunha_1_nome as string) || 'BRENO JOSE ALVIM DA SILVA',
+      cpf: test1?.cpf || (ced.testemunha_1_cpf as string) || '378.341.578-09',
     },
     testemunha_2: {
-      nome: (ced.testemunha_2_nome as string) || 'KAIO MIGUEL RUIZ',
-      cpf: (ced.testemunha_2_cpf as string) || '423.679.188-99',
+      nome: test2?.nome || (ced.testemunha_2_nome as string) || 'DAVI DE PAULA YANG',
+      cpf: test2?.cpf || (ced.testemunha_2_cpf as string) || '469.942.738-30',
     },
   }
 
