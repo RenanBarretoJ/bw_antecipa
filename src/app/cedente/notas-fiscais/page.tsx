@@ -52,7 +52,7 @@ const statusConfig: Record<string, { label: string; variant: 'default' | 'second
   rascunho:      { label: 'Rascunho',       variant: 'outline',     className: 'bg-muted text-muted-foreground border-border',    icon: FileText },
   submetida:     { label: 'Submetida',      variant: 'secondary',   className: 'bg-blue-100 text-blue-700 border-blue-200',       icon: Upload },
   em_analise:    { label: 'Em Analise',     variant: 'secondary',   className: 'bg-yellow-100 text-yellow-700 border-yellow-200', icon: AlertCircle },
-  aprovada:      { label: 'Aprovada',       variant: 'secondary',   className: 'bg-green-100 text-green-700 border-green-200',    icon: CheckCircle },
+  aprovada:      { label: 'Validada',       variant: 'secondary',   className: 'bg-green-100 text-green-700 border-green-200',    icon: CheckCircle },
   em_antecipacao:{ label: 'Em Antecipacao', variant: 'secondary',   className: 'bg-purple-100 text-purple-700 border-purple-200', icon: Banknote },
   liquidada:     { label: 'Liquidada',      variant: 'secondary',   className: 'bg-emerald-100 text-emerald-700 border-emerald-200', icon: CheckCircle },
   cancelada:     { label: 'Cancelada',      variant: 'destructive', className: 'bg-red-100 text-red-700 border-red-200',          icon: XCircle },

@@ -51,7 +51,7 @@ export async function aceitarCessao(nfId: string): Promise<SacadoActionState> {
   // Atualizar status da NF para aceita e registrar timestamp do aceite
   const { error: updateError } = await supabase
     .from('notas_fiscais')
-    .update({ status: 'aceita', aceite_sacado_em: new Date().toISOString() } as never)
+    .update({ status: 'aceita', aprovacao_sacado_em: new Date().toISOString() } as never)
     .eq('id', nfId)
 
   if (updateError) return { success: false, message: 'Erro ao registrar aceite.' }
@@ -87,6 +87,89 @@ export async function aceitarCessao(nfId: string): Promise<SacadoActionState> {
   })
 
   return { success: true, message: 'Cessao aceita com sucesso.' }
+}
+
+// Aprovar cessao de multiplas NFs em lote
+export async function aceitarCessaoLote(nfIds: string[]): Promise<SacadoActionState & { aprovadas?: number; invalidas?: number }> {
+  const supabase = await createClient()
+  const sacado = await getSacadoDoUsuario()
+  if (!sacado) return { success: false, message: 'Sacado nao encontrado.' }
+
+  if (!nfIds || nfIds.length === 0) {
+    return { success: false, message: 'Nenhuma NF selecionada.' }
+  }
+
+  // Buscar todas as NFs de uma vez e validar pertencimento + status
+  const { data: nfs } = await supabase
+    .from('notas_fiscais')
+    .select('id, numero_nf, cnpj_destinatario, razao_social_emitente, status, cedente_id')
+    .in('id', nfIds)
+
+  if (!nfs || nfs.length === 0) return { success: false, message: 'NFs nao encontradas.' }
+
+  const nfsValidas = (nfs as Array<{
+    id: string; numero_nf: string; cnpj_destinatario: string;
+    razao_social_emitente: string; status: string; cedente_id: string
+  }>).filter((nf) => nf.cnpj_destinatario === sacado.cnpj && nf.status === 'em_antecipacao')
+
+  if (nfsValidas.length === 0) {
+    return { success: false, message: 'Nenhuma NF valida para aprovacao.' }
+  }
+
+  const idsValidos = nfsValidas.map((nf) => nf.id)
+  const agora = new Date().toISOString()
+
+  const { error } = await supabase
+    .from('notas_fiscais')
+    .update({ status: 'aceita', aprovacao_sacado_em: agora } as never)
+    .in('id', idsValidos)
+
+  if (error) return { success: false, message: 'Erro ao registrar aprovacoes.' }
+
+  // Notificar por cedente (agrupado)
+  const porCedente = nfsValidas.reduce<Record<string, string[]>>((acc, nf) => {
+    acc[nf.cedente_id] = acc[nf.cedente_id] || []
+    acc[nf.cedente_id].push(nf.numero_nf)
+    return acc
+  }, {})
+
+  for (const [cedenteId, numeros] of Object.entries(porCedente)) {
+    const { data: cedente } = await supabase
+      .from('cedentes')
+      .select('user_id, razao_social')
+      .eq('id', cedenteId)
+      .single()
+
+    if (cedente) {
+      const cedData = cedente as { user_id: string; razao_social: string }
+      await criarNotificacao({
+        usuario_id: cedData.user_id,
+        titulo: 'Aprovação de cessão em lote',
+        mensagem: `O sacado ${sacado.razao_social} aprovou ${numeros.length} NF(s): ${numeros.join(', ')}.`,
+        tipo: 'cessao_aceita',
+      })
+    }
+  }
+
+  await notificarGestores(
+    'Aprovação de cessão em lote pelo sacado',
+    `O sacado ${sacado.razao_social} aprovou ${nfsValidas.length} cessão(ões) em lote.`,
+    'cessao_aceita'
+  )
+
+  await registrarLog({
+    tipo_evento: 'CESSAO_ACEITA_LOTE',
+    entidade_tipo: 'notas_fiscais',
+    entidade_id: null,
+    dados_depois: { sacado_cnpj: sacado.cnpj, nf_ids: idsValidos, quantidade: idsValidos.length },
+  })
+
+  return {
+    success: true,
+    message: `${nfsValidas.length} cessão(ões) aprovada(s) com sucesso.`,
+    aprovadas: nfsValidas.length,
+    invalidas: nfIds.length - nfsValidas.length,
+  }
 }
 
 // Contestar cessao de NF

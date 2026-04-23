@@ -50,7 +50,7 @@ const statusConfig: Record<string, { label: string; color: string; icon: typeof 
   rascunho: { label: 'Rascunho', color: 'bg-gray-100 text-gray-600', icon: FileText },
   submetida: { label: 'Submetida', color: 'bg-blue-100 text-blue-700', icon: Upload },
   em_analise: { label: 'Em Analise', color: 'bg-yellow-100 text-yellow-700', icon: AlertCircle },
-  aprovada: { label: 'Aprovada', color: 'bg-green-100 text-green-700', icon: CheckCircle },
+  aprovada: { label: 'Validada', color: 'bg-green-100 text-green-700', icon: CheckCircle },
   em_antecipacao: { label: 'Em Antecipacao', color: 'bg-purple-100 text-purple-700', icon: Banknote },
   liquidada: { label: 'Liquidada', color: 'bg-emerald-100 text-emerald-700', icon: CheckCircle },
   cancelada: { label: 'Cancelada', color: 'bg-red-100 text-red-700', icon: XCircle },
@@ -193,7 +193,11 @@ export default function NfDetalhePage() {
       setSaving(false)
       return true
     } else {
-      setMessage(result?.message || 'Erro ao salvar.')
+      const fieldErrors = result?.errors
+        ? Object.values(result.errors).flat().join(' | ')
+        : null
+
+      setMessage(fieldErrors || result?.message || 'Erro ao salvar.')
       setMessageType('error')
       setSaving(false)
       return false
@@ -212,7 +216,11 @@ export default function NfDetalhePage() {
       setMessageType('success')
       setTimeout(() => router.push('/cedente/notas-fiscais'), 1500)
     } else {
-      setMessage(result?.message || 'Erro ao submeter.')
+      const fieldErrors = result?.errors
+        ? Object.values(result.errors).flat().join(' | ')
+        : null
+
+      setMessage(fieldErrors || result?.message || 'Erro ao salvar.')
       setMessageType('error')
     }
     setSubmitting(false)

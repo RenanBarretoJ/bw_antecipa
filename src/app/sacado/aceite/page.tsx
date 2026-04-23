@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo, Fragment } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { aceitarCessao, contestarCessao } from '@/lib/actions/sacado'
+import { aceitarCessao, aceitarCessaoLote, contestarCessao } from '@/lib/actions/sacado'
 import { formatCurrency, formatCNPJ, formatDate } from '@/lib/utils'
 import {
   CheckCircle,
@@ -13,11 +13,18 @@ import {
   Eye,
   X,
   Loader2,
+  Search,
+  Filter,
+  CheckSquare,
+  Square,
+  ChevronDown,
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { buckets } from '@/lib/storage'
 
 interface NfCessao {
@@ -44,8 +51,9 @@ function LoadingSkeleton() {
         <Skeleton className="h-8 w-52" />
         <Skeleton className="h-4 w-80" />
       </div>
+      <Skeleton className="h-20 rounded-xl" />
       {Array.from({ length: 3 }).map((_, i) => (
-        <Skeleton key={i} className="h-44 rounded-xl" />
+        <Skeleton key={i} className="h-16 rounded-xl" />
       ))}
     </div>
   )
@@ -56,6 +64,7 @@ export default function AceiteCessaoPage() {
   const [contas, setContas] = useState<ContaInfo[]>([])
   const [loading, setLoading] = useState(true)
   const [processing, setProcessing] = useState<string | null>(null)
+  const [processandoLote, setProcessandoLote] = useState(false)
   const [message, setMessage] = useState('')
   const [messageType, setMessageType] = useState<'success' | 'error'>('success')
   const [contestando, setContestando] = useState<string | null>(null)
@@ -63,10 +72,21 @@ export default function AceiteCessaoPage() {
   const [preview, setPreview] = useState<{ nf: NfCessao; url: string } | null>(null)
   const [loadingPreview, setLoadingPreview] = useState(false)
 
+  // Seleção em lote
+  const [selecionadas, setSelecionadas] = useState<Set<string>>(new Set())
+
+  // Filtros
+  const [busca, setBusca] = useState('')
+  const [filtroCedente, setFiltroCedente] = useState('')
+  const [filtroVencDe, setFiltroVencDe] = useState('')
+  const [filtroVencAte, setFiltroVencAte] = useState('')
+  const [filtroValorMin, setFiltroValorMin] = useState('')
+  const [filtroValorMax, setFiltroValorMax] = useState('')
+  const [showFiltros, setShowFiltros] = useState(false)
+
   const loadData = async () => {
     const supabase = createClient()
 
-    // NFs cedidas (em_antecipacao) destinadas a este sacado
     const { data: nfsData } = await supabase
       .from('notas_fiscais')
       .select('id, numero_nf, cnpj_emitente, razao_social_emitente, valor_bruto, data_vencimento, status, cedente_id, arquivo_url')
@@ -75,7 +95,6 @@ export default function AceiteCessaoPage() {
 
     setNfs((nfsData || []) as NfCessao[])
 
-    // Buscar contas escrow para mostrar dados de pagamento
     const { data: contasData } = await supabase
       .from('contas_escrow')
       .select('cedente_id, identificador')
@@ -97,17 +116,99 @@ export default function AceiteCessaoPage() {
     setLoadingPreview(false)
   }
 
-  const getContaEscrow = (cedenteId: string) => {
-    return contas.find((c) => c.cedente_id === cedenteId)?.identificador || null
+  const getContaEscrow = (cedenteId: string) =>
+    contas.find((c) => c.cedente_id === cedenteId)?.identificador || null
+
+  // Lista de cedentes únicos para o filtro
+  const cedentesUnicos = useMemo(() => {
+    const map = new Map<string, string>()
+    nfs.forEach((nf) => map.set(nf.cnpj_emitente, nf.razao_social_emitente))
+    return Array.from(map.entries()).map(([cnpj, nome]) => ({ cnpj, nome }))
+  }, [nfs])
+
+  // NFs filtradas
+  const nfsFiltradas = useMemo(() => {
+    return nfs.filter((nf) => {
+      if (filtroCedente && nf.cnpj_emitente !== filtroCedente) return false
+      if (filtroVencDe && nf.data_vencimento < filtroVencDe) return false
+      if (filtroVencAte && nf.data_vencimento > filtroVencAte) return false
+      if (filtroValorMin && nf.valor_bruto < parseFloat(filtroValorMin)) return false
+      if (filtroValorMax && nf.valor_bruto > parseFloat(filtroValorMax)) return false
+      if (busca) {
+        const term = busca.toLowerCase()
+        return (
+          nf.numero_nf.toLowerCase().includes(term) ||
+          nf.razao_social_emitente.toLowerCase().includes(term) ||
+          nf.cnpj_emitente.includes(term)
+        )
+      }
+      return true
+    })
+  }, [nfs, filtroCedente, filtroVencDe, filtroVencAte, filtroValorMin, filtroValorMax, busca])
+
+  const todasFiltradaSelecionadas =
+    nfsFiltradas.length > 0 && nfsFiltradas.every((nf) => selecionadas.has(nf.id))
+
+  const toggleTodas = () => {
+    if (todasFiltradaSelecionadas) {
+      setSelecionadas((prev) => {
+        const next = new Set(prev)
+        nfsFiltradas.forEach((nf) => next.delete(nf.id))
+        return next
+      })
+    } else {
+      setSelecionadas((prev) => {
+        const next = new Set(prev)
+        nfsFiltradas.forEach((nf) => next.add(nf.id))
+        return next
+      })
+    }
   }
 
-  const handleAceitar = async (nfId: string) => {
+  const toggleNf = (id: string) => {
+    setSelecionadas((prev) => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  const limparFiltros = () => {
+    setBusca('')
+    setFiltroCedente('')
+    setFiltroVencDe('')
+    setFiltroVencAte('')
+    setFiltroValorMin('')
+    setFiltroValorMax('')
+  }
+
+  const temFiltroAtivo = !!(filtroCedente || filtroVencDe || filtroVencAte || filtroValorMin || filtroValorMax || busca)
+
+  const handleAprovarLote = async () => {
+    const ids = Array.from(selecionadas)
+    setProcessandoLote(true)
+    setMessage('')
+    const result = await aceitarCessaoLote(ids)
+    if (result?.success) {
+      setMessage(result.message || 'Aprovadas!')
+      setMessageType('success')
+      setSelecionadas(new Set())
+      await loadData()
+    } else {
+      setMessage(result?.message || 'Erro.')
+      setMessageType('error')
+    }
+    setProcessandoLote(false)
+  }
+
+  const handleAprovar = async (nfId: string) => {
     setProcessing(nfId)
     setMessage('')
     const result = await aceitarCessao(nfId)
     if (result?.success) {
-      setMessage(result.message || 'Aceita!')
+      setMessage(result.message || 'Aprovada!')
       setMessageType('success')
+      setSelecionadas((prev) => { const next = new Set(prev); next.delete(nfId); return next })
       await loadData()
     } else {
       setMessage(result?.message || 'Erro.')
@@ -139,11 +240,16 @@ export default function AceiteCessaoPage() {
 
   if (loading) return <LoadingSkeleton />
 
+  const totalSelecionado = selecionadas.size
+  const valorTotalSelecionado = nfs
+    .filter((nf) => selecionadas.has(nf.id))
+    .reduce((acc, nf) => acc + nf.valor_bruto, 0)
+
   return (
     <div className="max-w-5xl mx-auto">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Aceite de Cessao</h1>
-        <p className="text-muted-foreground">Confirme ou conteste as cessoes de credito das NFs emitidas contra voce.</p>
+        <h1 className="text-2xl font-bold text-foreground">Aprovação de Cessao</h1>
+        <p className="text-muted-foreground">Aprove ou conteste as cessoes de credito das NFs emitidas contra voce.</p>
       </div>
 
       {message && (
@@ -160,133 +266,292 @@ export default function AceiteCessaoPage() {
         <Card>
           <CardContent className="p-12 text-center">
             <CheckCircle size={48} className="mx-auto text-muted-foreground/30 mb-3" />
-            <p className="text-muted-foreground">Nenhuma cessao pendente de aceite.</p>
+            <p className="text-muted-foreground">Nenhuma cessao pendente de aprovação.</p>
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-4">
-          {nfs.map((nf) => {
-            const contaEscrow = getContaEscrow(nf.cedente_id)
-            const isContestando = contestando === nf.id
-            const isProcessing = processing === nf.id
+        <>
+          {/* Filtros */}
+          <Card className="mb-4">
+            <CardContent className="p-4 space-y-3">
+              <div className="flex gap-3 flex-col sm:flex-row">
+                <div className="relative flex-1">
+                  <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar por NF, cedente ou CNPJ..."
+                    value={busca}
+                    onChange={(e) => setBusca(e.target.value)}
+                    className="pl-9 h-10"
+                  />
+                </div>
+                <select
+                  value={filtroCedente}
+                  onChange={(e) => setFiltroCedente(e.target.value)}
+                  className="border border-input rounded-lg px-3 py-2 text-sm bg-background text-foreground min-w-[200px]"
+                >
+                  <option value="">Todos os cedentes</option>
+                  {cedentesUnicos.map((c) => (
+                    <option key={c.cnpj} value={c.cnpj}>{c.nome}</option>
+                  ))}
+                </select>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowFiltros((v) => !v)}
+                  className={`gap-2 h-10 ${temFiltroAtivo ? 'border-primary text-primary' : ''}`}
+                >
+                  <Filter size={14} />
+                  Filtros
+                  {temFiltroAtivo && (
+                    <span className="bg-primary text-primary-foreground rounded-full w-4 h-4 text-xs flex items-center justify-center">
+                      {[filtroVencDe, filtroVencAte, filtroValorMin, filtroValorMax].filter(Boolean).length}
+                    </span>
+                  )}
+                  <ChevronDown size={14} className={`transition-transform ${showFiltros ? 'rotate-180' : ''}`} />
+                </Button>
+              </div>
 
-            return (
-              <Card key={nf.id} className="overflow-hidden">
-                <CardContent className="p-5">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <Receipt size={18} className="text-purple-600" />
-                        <span className="font-bold text-foreground text-lg">NF {nf.numero_nf}</span>
-                        <Badge className="bg-purple-100 text-purple-700 border-purple-200">Cessao ativa</Badge>
-                      </div>
-
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                        <div>
-                          <span className="text-muted-foreground text-xs">Cedente (Emitente)</span>
-                          <p className="font-medium text-foreground">{nf.razao_social_emitente}</p>
-                          <p className="text-xs text-muted-foreground">{formatCNPJ(nf.cnpj_emitente)}</p>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground text-xs">Valor</span>
-                          <p className="font-bold text-lg tabular-nums">{formatCurrency(nf.valor_bruto)}</p>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground text-xs">Vencimento</span>
-                          <p className="font-medium tabular-nums">{formatDate(nf.data_vencimento)}</p>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground text-xs">Status</span>
-                          <p className="font-medium text-purple-700">Cessao ativa</p>
-                        </div>
-                      </div>
-                    </div>
+              {showFiltros && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2 border-t">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Vencimento de</Label>
+                    <Input
+                      type="date"
+                      value={filtroVencDe}
+                      onChange={(e) => setFiltroVencDe(e.target.value)}
+                      className="h-9 text-sm"
+                    />
                   </div>
-
-                  {/* Conta escrow para pagamento */}
-                  {contaEscrow && (
-                    <div className="mt-3 p-3 bg-blue-50 rounded-lg flex items-center gap-2 text-sm">
-                      <Wallet size={16} className="text-blue-600" />
-                      <span className="text-blue-700">
-                        Conta para pagamento: <strong className="font-mono">{contaEscrow}</strong>
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Acoes */}
-                  {!isContestando && (
-                    <div className="mt-4 flex gap-3 flex-wrap">
-                      <Button
-                        onClick={() => handleAceitar(nf.id)}
-                        disabled={isProcessing}
-                        className="bg-green-600 text-white hover:bg-green-700 gap-2"
-                        size="sm"
-                      >
-                        <CheckCircle size={16} />
-                        {isProcessing ? 'Processando...' : 'Aceitar Cessao'}
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Vencimento até</Label>
+                    <Input
+                      type="date"
+                      value={filtroVencAte}
+                      onChange={(e) => setFiltroVencAte(e.target.value)}
+                      className="h-9 text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Valor mínimo (R$)</Label>
+                    <Input
+                      type="number"
+                      placeholder="0,00"
+                      value={filtroValorMin}
+                      onChange={(e) => setFiltroValorMin(e.target.value)}
+                      className="h-9 text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Valor máximo (R$)</Label>
+                    <Input
+                      type="number"
+                      placeholder="0,00"
+                      value={filtroValorMax}
+                      onChange={(e) => setFiltroValorMax(e.target.value)}
+                      className="h-9 text-sm"
+                    />
+                  </div>
+                  {temFiltroAtivo && (
+                    <div className="col-span-2 md:col-span-4 flex justify-end">
+                      <Button variant="ghost" size="sm" onClick={limparFiltros} className="text-xs text-muted-foreground">
+                        Limpar filtros
                       </Button>
-                      <Button
-                        variant="destructive"
-                        onClick={() => setContestando(nf.id)}
-                        size="sm"
-                        className="gap-2"
-                      >
-                        <XCircle size={16} />
-                        Contestar
-                      </Button>
-                      {nf.arquivo_url && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openPreview(nf)}
-                          disabled={loadingPreview}
-                          className="gap-1 text-muted-foreground hover:text-foreground"
-                        >
-                          {loadingPreview ? <Loader2 size={14} className="animate-spin" /> : <Eye size={14} />}
-                          Ver NF
-                        </Button>
-                      )}
                     </div>
                   )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-                  {/* Form contestacao */}
-                  {isContestando && (
-                    <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-                      <div className="flex items-center gap-2 mb-2">
-                        <AlertTriangle size={16} className="text-destructive" />
-                        <span className="font-medium text-red-800">Contestar Cessao</span>
-                      </div>
-                      <textarea
-                        value={motivo}
-                        onChange={(e) => setMotivo(e.target.value)}
-                        placeholder="Descreva o motivo da contestacao (obrigatorio)..."
-                        rows={3}
-                        className="w-full border border-red-300 rounded-lg px-3 py-2 text-sm mb-3 bg-background"
-                      />
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => { setContestando(null); setMotivo('') }}
-                        >
-                          Cancelar
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => handleContestar(nf.id)}
-                          disabled={isProcessing}
-                        >
-                          {isProcessing ? 'Enviando...' : 'Confirmar Contestacao'}
-                        </Button>
-                      </div>
-                    </div>
+          {/* Barra de ações em lote */}
+          {totalSelecionado > 0 && (
+            <div className="mb-4 p-3 bg-primary/5 border border-primary/20 rounded-xl flex items-center justify-between gap-4 flex-wrap">
+              <div className="text-sm font-medium text-foreground">
+                <span className="text-primary">{totalSelecionado}</span> NF{totalSelecionado > 1 ? 's' : ''} selecionada{totalSelecionado > 1 ? 's' : ''}{' '}
+                <span className="text-muted-foreground font-normal">— Total: {formatCurrency(valorTotalSelecionado)}</span>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelecionadas(new Set())}
+                  className="text-xs text-muted-foreground"
+                >
+                  Desmarcar
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleAprovarLote}
+                  disabled={processandoLote}
+                  className="bg-green-600 hover:bg-green-700 text-white gap-2"
+                >
+                  {processandoLote ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
+                  {processandoLote ? 'Aprovando...' : `Aprovar ${totalSelecionado} NF${totalSelecionado > 1 ? 's' : ''}`}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Tabela */}
+          <Card>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/50">
+                    <th className="px-4 py-3 w-10">
+                      <button onClick={toggleTodas} className="text-muted-foreground hover:text-foreground">
+                        {todasFiltradaSelecionadas
+                          ? <CheckSquare size={16} className="text-primary" />
+                          : <Square size={16} />
+                        }
+                      </button>
+                    </th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">NF</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Cedente (Emitente)</th>
+                    <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Valor</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Vencimento</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Conta Escrow</th>
+                    <th className="px-4 py-3 text-xs font-medium text-muted-foreground uppercase text-right">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {nfsFiltradas.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="px-4 py-10 text-center text-muted-foreground text-sm">
+                        Nenhuma NF encontrada com os filtros aplicados.
+                      </td>
+                    </tr>
+                  ) : (
+                    nfsFiltradas.map((nf) => {
+                      const contaEscrow = getContaEscrow(nf.cedente_id)
+                      const isContestando = contestando === nf.id
+                      const isProcessing = processing === nf.id
+                      const isSelecionada = selecionadas.has(nf.id)
+
+                      return (
+                        <Fragment key={nf.id}>
+                          <tr className={`hover:bg-muted/30 transition-colors ${isSelecionada ? 'bg-primary/5' : ''}`}>
+                            <td className="px-4 py-3">
+                              <button onClick={() => toggleNf(nf.id)} className="text-muted-foreground hover:text-foreground">
+                                {isSelecionada
+                                  ? <CheckSquare size={16} className="text-primary" />
+                                  : <Square size={16} />
+                                }
+                              </button>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="font-medium tabular-nums">{nf.numero_nf}</div>
+                              <Badge className="bg-purple-100 text-purple-700 border-purple-200 text-xs mt-0.5">Cessão ativa</Badge>
+                            </td>
+                            <td className="px-4 py-3">
+                              <p className="font-medium text-foreground">{nf.razao_social_emitente}</p>
+                              <p className="text-xs text-muted-foreground">{formatCNPJ(nf.cnpj_emitente)}</p>
+                            </td>
+                            <td className="px-4 py-3 text-right font-bold tabular-nums">
+                              {formatCurrency(nf.valor_bruto)}
+                            </td>
+                            <td className="px-4 py-3 tabular-nums">
+                              {formatDate(nf.data_vencimento)}
+                            </td>
+                            <td className="px-4 py-3">
+                              {contaEscrow ? (
+                                <div className="flex items-center gap-1 text-xs text-blue-700">
+                                  <Wallet size={12} />
+                                  <span className="font-mono">{contaEscrow}</span>
+                                </div>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center justify-end gap-1">
+                                {nf.arquivo_url && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => openPreview(nf)}
+                                    disabled={loadingPreview}
+                                    className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                                    title="Ver NF"
+                                  >
+                                    {loadingPreview ? <Loader2 size={13} className="animate-spin" /> : <Eye size={13} />}
+                                  </Button>
+                                )}
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleAprovar(nf.id)}
+                                  disabled={isProcessing || processandoLote}
+                                  className="h-8 bg-green-600 hover:bg-green-700 text-white gap-1 text-xs px-2"
+                                >
+                                  {isProcessing ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle size={12} />}
+                                  Aprovar
+                                </Button>
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  onClick={() => setContestando(isContestando ? null : nf.id)}
+                                  disabled={isProcessing || processandoLote}
+                                  className="h-8 gap-1 text-xs px-2"
+                                >
+                                  <XCircle size={12} />
+                                  Contestar
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+
+                          {isContestando && (
+                            <tr className="bg-red-50">
+                              <td colSpan={7} className="px-4 py-3">
+                                <div className="flex items-start gap-2 mb-2">
+                                  <AlertTriangle size={15} className="text-destructive mt-0.5 shrink-0" />
+                                  <span className="font-medium text-red-800 text-sm">Contestar NF {nf.numero_nf}</span>
+                                </div>
+                                <textarea
+                                  value={motivo}
+                                  onChange={(e) => setMotivo(e.target.value)}
+                                  placeholder="Descreva o motivo da contestacao (obrigatorio)..."
+                                  rows={2}
+                                  className="w-full border border-red-300 rounded-lg px-3 py-2 text-sm mb-2 bg-background"
+                                />
+                                <div className="flex gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => { setContestando(null); setMotivo('') }}
+                                  >
+                                    Cancelar
+                                  </Button>
+                                  <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    onClick={() => handleContestar(nf.id)}
+                                    disabled={isProcessing}
+                                  >
+                                    {isProcessing ? 'Enviando...' : 'Confirmar Contestacao'}
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
+                      )
+                    })
                   )}
-                </CardContent>
-              </Card>
-            )
-          })}
-        </div>
+                </tbody>
+              </table>
+            </div>
+
+            {nfsFiltradas.length > 0 && (
+              <div className="px-4 py-3 border-t bg-muted/30 flex items-center justify-between text-xs text-muted-foreground">
+                <span>{nfsFiltradas.length} NF{nfsFiltradas.length > 1 ? 's' : ''} exibida{nfsFiltradas.length > 1 ? 's' : ''}{nfs.length !== nfsFiltradas.length ? ` de ${nfs.length}` : ''}</span>
+                <span className="font-medium tabular-nums">
+                  Total: {formatCurrency(nfsFiltradas.reduce((acc, nf) => acc + nf.valor_bruto, 0))}
+                </span>
+              </div>
+            )}
+          </Card>
+        </>
       )}
 
       {/* Modal de preview */}

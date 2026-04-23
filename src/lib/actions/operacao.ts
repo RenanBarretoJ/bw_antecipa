@@ -175,7 +175,7 @@ export async function solicitarAntecipacao(nfIds: string[]): Promise<OperacaoAct
 }
 
 // ============================================================
-// GESTOR — Aprovar operacao com desembolso
+// GESTOR — Aprovar operacao (etapa 1: define termos, sem desembolso)
 // ============================================================
 
 export async function aprovarOperacao(
@@ -256,53 +256,20 @@ export async function aprovarOperacao(
       )
     : 0
 
-  // Atualizar operacao
+  // Atualizar operacao (sem desembolso ainda — status vai para aprovada)
   const { error } = await supabase
     .from('operacoes')
     .update({
       taxa_desconto: taxaDesconto,
       prazo_dias: prazoMedio,
       valor_liquido_desembolso: valorLiquidoDesembolso,
-      status: 'em_andamento',
+      status: 'aprovada',
       aprovado_por: user.id,
       aprovado_em: new Date().toISOString(),
     } as never)
     .eq('id', operacaoId)
 
   if (error) return { success: false, message: `Erro ao aprovar: ${error.message}` }
-
-  // Registrar credito na conta escrow
-  const { data: escrow } = await supabase
-    .from('contas_escrow')
-    .select('saldo_disponivel')
-    .eq('id', opData.conta_escrow_id)
-    .single()
-
-  const saldoAtual = (escrow as { saldo_disponivel: number } | null)?.saldo_disponivel || 0
-  const novoSaldo = saldoAtual + valorLiquidoDesembolso
-
-  await supabase
-    .from('contas_escrow')
-    .update({ saldo_disponivel: novoSaldo } as never)
-    .eq('id', opData.conta_escrow_id)
-
-  // Registrar movimento escrow
-  await supabase.from('movimentos_escrow').insert({
-    conta_escrow_id: opData.conta_escrow_id,
-    tipo: 'credito',
-    descricao: `Desembolso antecipacao - Operacao ${operacaoId.substring(0, 8)}`,
-    valor: valorLiquidoDesembolso,
-    saldo_apos: novoSaldo,
-    operacao_id: operacaoId,
-  } as never)
-
-  // Notificar cedente
-  await criarNotificacao({
-    usuario_id: opData.cedentes.user_id,
-    titulo: 'Operacao aprovada! Desembolso realizado.',
-    mensagem: `Sua operacao foi aprovada. Valor desembolsado: ${formatBRL(valorLiquidoDesembolso)} (taxa: ${taxaDesconto}% a.m., prazo medio: ${prazoMedio} dias). Confira seu extrato.`,
-    tipo: 'operacao_aprovada',
-  })
 
   // Calcular e salvar taxa_desagio e valor_antecipado por NF com prazo individual
   if (nfsTyped.length > 0) {
@@ -351,14 +318,107 @@ export async function aprovarOperacao(
     entidade_id: operacaoId,
     dados_antes: { status: opData.status },
     dados_depois: {
-      status: 'em_andamento',
+      status: 'aprovada',
       taxa_desconto: taxaDesconto,
       prazo_dias: prazoMedio,
       valor_liquido_desembolso: valorLiquidoDesembolso,
     },
   })
 
-  return { success: true, message: `Operacao aprovada. Desembolso de ${formatBRL(valorLiquidoDesembolso)} realizado.` }
+  return { success: true, message: `Operacao aprovada. Envie os documentos assinados e o comprovante TED para desembolsar.` }
+}
+
+// ============================================================
+// GESTOR — Desembolsar operacao (etapa 2: valida docs, credita escrow)
+// ============================================================
+
+export async function desembolsarOperacao(operacaoId: string): Promise<OperacaoActionState> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, message: 'Nao autenticado.' }
+
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (!profile || (profile as { role: string }).role !== 'gestor') {
+    return { success: false, message: 'Acesso negado.' }
+  }
+
+  const { data: op } = await supabase
+    .from('operacoes')
+    .select('*, cedentes(user_id, razao_social)')
+    .eq('id', operacaoId)
+    .single()
+
+  if (!op) return { success: false, message: 'Operacao nao encontrada.' }
+
+  const opData = op as {
+    id: string; status: string; cedente_id: string; conta_escrow_id: string;
+    valor_liquido_desembolso: number; taxa_desconto: number; prazo_dias: number;
+    termo_assinado_url: string | null; comprovante_pagamento_url: string | null;
+    cedentes: { user_id: string; razao_social: string }
+  }
+
+  if (opData.status !== 'aprovada') {
+    return { success: false, message: `Operacao com status "${opData.status}" nao pode ser desembolsada.` }
+  }
+
+  if (!opData.termo_assinado_url) {
+    return { success: false, message: 'Envie o termo de cessao assinado antes de desembolsar.' }
+  }
+
+  if (!opData.comprovante_pagamento_url) {
+    return { success: false, message: 'Envie o comprovante de desembolso (TED) antes de confirmar.' }
+  }
+
+  const { error } = await supabase
+    .from('operacoes')
+    .update({ status: 'em_andamento' } as never)
+    .eq('id', operacaoId)
+
+  if (error) return { success: false, message: `Erro ao desembolsar: ${error.message}` }
+
+  // Creditar conta escrow
+  const { data: escrow } = await supabase
+    .from('contas_escrow')
+    .select('saldo_disponivel')
+    .eq('id', opData.conta_escrow_id)
+    .single()
+
+  const saldoAtual = (escrow as { saldo_disponivel: number } | null)?.saldo_disponivel || 0
+  const novoSaldo = saldoAtual + opData.valor_liquido_desembolso
+
+  await supabase
+    .from('contas_escrow')
+    .update({ saldo_disponivel: novoSaldo } as never)
+    .eq('id', opData.conta_escrow_id)
+
+  await supabase.from('movimentos_escrow').insert({
+    conta_escrow_id: opData.conta_escrow_id,
+    tipo: 'credito',
+    descricao: `Desembolso antecipacao - Operacao ${operacaoId.substring(0, 8)}`,
+    valor: opData.valor_liquido_desembolso,
+    saldo_apos: novoSaldo,
+    operacao_id: operacaoId,
+  } as never)
+
+  await criarNotificacao({
+    usuario_id: opData.cedentes.user_id,
+    titulo: 'Desembolso realizado!',
+    mensagem: `O desembolso da sua operacao foi confirmado. Valor: ${formatBRL(opData.valor_liquido_desembolso)} (taxa: ${opData.taxa_desconto}% a.m., prazo medio: ${opData.prazo_dias} dias). Confira seu extrato.`,
+    tipo: 'operacao_desembolsada',
+  })
+
+  await registrarLog({
+    tipo_evento: 'OPERACAO_DESEMBOLSADA',
+    entidade_tipo: 'operacoes',
+    entidade_id: operacaoId,
+    dados_antes: { status: 'aprovada' },
+    dados_depois: {
+      status: 'em_andamento',
+      valor_liquido_desembolso: opData.valor_liquido_desembolso,
+    },
+  })
+
+  return { success: true, message: `Desembolso de ${formatBRL(opData.valor_liquido_desembolso)} confirmado.` }
 }
 
 // ============================================================
@@ -399,7 +459,7 @@ export async function reprovarOperacao(operacaoId: string, motivo: string): Prom
     const nfIds = (opNfs as Array<{ nota_fiscal_id: string }>).map((n) => n.nota_fiscal_id)
     await supabase
       .from('notas_fiscais')
-      .update({ status: 'aprovada', aceite_sacado_em: null } as never)
+      .update({ status: 'aprovada', aprovacao_sacado_em: null } as never)
       .in('id', nfIds)
   }
 
@@ -470,7 +530,7 @@ export async function cancelarOperacao(operacaoId: string): Promise<OperacaoActi
     const nfIds = (opNfs as Array<{ nota_fiscal_id: string }>).map((n) => n.nota_fiscal_id)
     await supabase
       .from('notas_fiscais')
-      .update({ status: 'aprovada', aceite_sacado_em: null } as never)
+      .update({ status: 'aprovada', aprovacao_sacado_em: null } as never)
       .in('id', nfIds)
   }
 
@@ -596,7 +656,7 @@ export async function removerNfDaOperacao(
   // Reverter NF para aprovada e limpar aceite do sacado
   await supabase
     .from('notas_fiscais')
-    .update({ status: 'aprovada', aceite_sacado_em: null } as never)
+    .update({ status: 'aprovada', aprovacao_sacado_em: null } as never)
     .eq('id', nfId)
 
   // Buscar NFs restantes para recalcular valor
