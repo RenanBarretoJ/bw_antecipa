@@ -3,12 +3,13 @@
 import { useEffect, useState } from 'react'
 import { use } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { analisarDocumento, aprovarCedente, reprovarCedente } from '@/lib/actions/gestor'
+import { analisarDocumento, aprovarCedente, reprovarCedente, solicitarAtualizacaoDocumento } from '@/lib/actions/gestor'
 import { salvarTaxasCedente } from '@/lib/actions/operacao'
 import { salvarContratoAssinado } from '@/lib/actions/cedente'
 import { formatCNPJ, formatDate } from '@/lib/utils'
 import { buckets } from '@/lib/storage'
-import { ArrowLeft, CheckCircle, XCircle, FileText, Eye, X, Plus, Trash2, Settings } from 'lucide-react'
+import { ArrowLeft, CheckCircle, XCircle, FileText, Eye, X, Plus, Trash2, Settings, RefreshCw, Loader2 } from 'lucide-react'
+import { calcularExpiracaoDoc } from '@/lib/documentos'
 import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -35,6 +36,8 @@ interface DocRecord {
   nome_arquivo: string | null; url_arquivo: string | null
   motivo_reprovacao: string | null; created_at: string
   representante_id: string | null
+  analisado_em: string | null
+  atualizacao_solicitada_em: string | null
 }
 
 interface RepresentanteRecord {
@@ -85,6 +88,8 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
   const [motivoCadastro, setMotivoCadastro] = useState('')
   const [showReprovarCadastro, setShowReprovarCadastro] = useState(false)
 
+  const [requestingUpdate, setRequestingUpdate] = useState<string | null>(null)
+
   // Taxas
   const [taxas, setTaxas] = useState<Array<{ prazo_min: number; prazo_max: number; taxa_percentual: number }>>([])
   const [savingTaxas, setSavingTaxas] = useState(false)
@@ -106,7 +111,7 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
 
     const { data: d } = await supabase
       .from('documentos')
-      .select('id, tipo, versao, status, nome_arquivo, url_arquivo, motivo_reprovacao, created_at, representante_id')
+      .select('id, tipo, versao, status, nome_arquivo, url_arquivo, motivo_reprovacao, created_at, representante_id, analisado_em, atualizacao_solicitada_em')
       .eq('cedente_id', id)
       .order('tipo').order('versao', { ascending: false })
 
@@ -222,6 +227,73 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
     return <p className="text-muted-foreground text-center py-20">Cedente nao encontrado.</p>
   }
 
+  const handleSolicitarAtualizacao = async (docId: string) => {
+    setRequestingUpdate(docId)
+    const result = await solicitarAtualizacaoDocumento(docId)
+    setMessage(result?.message || '')
+    if (result?.success) await loadData()
+    setRequestingUpdate(null)
+  }
+
+  const renderDocRow = (tipo: string, doc: DocRecord | null, label: string) => {
+    const status = doc?.status || 'aguardando_envio'
+    const expiracao = doc?.status === 'aprovado' ? calcularExpiracaoDoc(doc.analisado_em, tipo) : null
+    const isRequesting = requestingUpdate === doc?.id
+
+    return (
+      <div key={`${tipo}_${doc?.id ?? 'empty'}`} className="flex items-center justify-between py-3 border-b border-border last:border-0 gap-3">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          <FileText size={18} className="text-muted-foreground shrink-0" />
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-foreground">{label}</p>
+            {doc?.nome_arquivo && <p className="text-xs text-muted-foreground truncate">{doc.nome_arquivo} (v{doc.versao})</p>}
+            {doc?.atualizacao_solicitada_em && (
+              <p className="text-xs text-amber-600 mt-0.5">
+                Atualização solicitada em {new Date(doc.atualizacao_solicitada_em).toLocaleDateString('pt-BR')}
+              </p>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap justify-end shrink-0">
+          {expiracao && (
+            expiracao.expirado ? (
+              <Badge variant="destructive" className="text-xs whitespace-nowrap">Vencido</Badge>
+            ) : expiracao.diasRestantes !== null && expiracao.diasRestantes <= 30 ? (
+              <Badge variant="outline" className="text-xs text-amber-600 border-amber-300 bg-amber-50 whitespace-nowrap">
+                Vence em {expiracao.diasRestantes}d
+              </Badge>
+            ) : null
+          )}
+          <Badge variant={statusBadgeVariant[status] || 'secondary'} className={statusColors[status]}>
+            {status.replace(/_/g, ' ')}
+          </Badge>
+          {doc && !doc.atualizacao_solicitada_em && status !== 'aguardando_envio' && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-amber-600 border-amber-300 hover:bg-amber-50 text-xs h-8 px-2"
+              disabled={isRequesting}
+              onClick={() => handleSolicitarAtualizacao(doc.id)}
+            >
+              {isRequesting
+                ? <><Loader2 size={12} className="animate-spin" /> Solicitando...</>
+                : <><RefreshCw size={12} /> Solicitar Atualização</>}
+            </Button>
+          )}
+          {doc?.url_arquivo && (
+            <Button
+              size="sm"
+              variant={doc.status === 'enviado' || doc.status === 'em_analise' ? 'default' : 'ghost'}
+              onClick={() => openPreview(doc)}
+            >
+              <Eye size={14} /> {doc.status === 'enviado' || doc.status === 'em_analise' ? 'Analisar' : 'Ver'}
+            </Button>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   const docsEmpresaObrig = ['contrato_social', 'cartao_cnpj', 'comprovante_endereco', 'extrato_bancario', 'balanco_patrimonial', 'dre']
   const empresaAprovada = docsEmpresaObrig.every((t) => getLatestEmpresa(t)?.status === 'aprovado')
 
@@ -315,35 +387,9 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
           <div>
             <p className="text-sm font-semibold text-muted-foreground uppercase mb-3">Empresa</p>
             <div className="space-y-0">
-              {(['contrato_social', 'cartao_cnpj', 'comprovante_endereco', 'extrato_bancario', 'balanco_patrimonial', 'dre'] as const).map((tipo) => {
-                const doc = getLatestEmpresa(tipo)
-                const status = doc?.status || 'aguardando_envio'
-                return (
-                  <div key={tipo} className="flex items-center justify-between py-3 border-b border-border last:border-0">
-                    <div className="flex items-center gap-3">
-                      <FileText size={18} className="text-muted-foreground" />
-                      <div>
-                        <p className="text-sm font-medium text-foreground">{tipoLabels[tipo]}</p>
-                        {doc?.nome_arquivo && <p className="text-xs text-muted-foreground">{doc.nome_arquivo} (v{doc.versao})</p>}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Badge variant={statusBadgeVariant[status] || 'secondary'} className={statusColors[status]}>
-                        {status.replace('_', ' ')}
-                      </Badge>
-                      {doc?.url_arquivo && (
-                        <Button
-                          size="sm"
-                          variant={doc.status === 'enviado' || doc.status === 'em_analise' ? 'default' : 'ghost'}
-                          onClick={() => openPreview(doc)}
-                        >
-                          <Eye size={14} /> {doc.status === 'enviado' || doc.status === 'em_analise' ? 'Analisar' : 'Ver'}
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
+              {(['contrato_social', 'cartao_cnpj', 'comprovante_endereco', 'extrato_bancario', 'balanco_patrimonial', 'dre'] as const).map((tipo) =>
+                renderDocRow(tipo, getLatestEmpresa(tipo), tipoLabels[tipo])
+              )}
             </div>
           </div>
 
@@ -354,35 +400,9 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
                 {rep.nome}{rep.principal ? ' (principal)' : ''}
               </p>
               <div className="space-y-0">
-                {(['rg_cpf', 'comprovante_de_renda', 'comprovante_endereco', 'procuracao'] as const).map((tipo) => {
-                  const doc = getLatestByRep(tipo, rep.id)
-                  const status = doc?.status || 'aguardando_envio'
-                  return (
-                    <div key={tipo} className="flex items-center justify-between py-3 border-b border-border last:border-0">
-                      <div className="flex items-center gap-3">
-                        <FileText size={18} className="text-muted-foreground" />
-                        <div>
-                          <p className="text-sm font-medium text-foreground">{tipoLabelsRep[tipo] || tipoLabels[tipo]}</p>
-                          {doc?.nome_arquivo && <p className="text-xs text-muted-foreground">{doc.nome_arquivo} (v{doc.versao})</p>}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <Badge variant={statusBadgeVariant[status] || 'secondary'} className={statusColors[status]}>
-                          {status.replace('_', ' ')}
-                        </Badge>
-                        {doc?.url_arquivo && (
-                          <Button
-                            size="sm"
-                            variant={doc.status === 'enviado' || doc.status === 'em_analise' ? 'default' : 'ghost'}
-                            onClick={() => openPreview(doc)}
-                          >
-                            <Eye size={14} /> {doc.status === 'enviado' || doc.status === 'em_analise' ? 'Analisar' : 'Ver'}
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  )
-                })}
+                {(['rg_cpf', 'comprovante_de_renda', 'comprovante_endereco', 'procuracao'] as const).map((tipo) =>
+                  renderDocRow(tipo, getLatestByRep(tipo, rep.id), tipoLabelsRep[tipo] || tipoLabels[tipo])
+                )}
               </div>
             </div>
           )) : (
@@ -390,35 +410,9 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
             <div>
               <p className="text-sm font-semibold text-muted-foreground uppercase mb-3">Representante Legal</p>
               <div className="space-y-0">
-                {(['rg_cpf', 'procuracao'] as const).map((tipo) => {
-                  const doc = getLatestLegado(tipo)
-                  const status = doc?.status || 'aguardando_envio'
-                  return (
-                    <div key={tipo} className="flex items-center justify-between py-3 border-b border-border last:border-0">
-                      <div className="flex items-center gap-3">
-                        <FileText size={18} className="text-muted-foreground" />
-                        <div>
-                          <p className="text-sm font-medium text-foreground">{tipoLabelsRep[tipo] || tipoLabels[tipo]}</p>
-                          {doc?.nome_arquivo && <p className="text-xs text-muted-foreground">{doc.nome_arquivo} (v{doc.versao})</p>}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <Badge variant={statusBadgeVariant[status] || 'secondary'} className={statusColors[status]}>
-                          {status.replace('_', ' ')}
-                        </Badge>
-                        {doc?.url_arquivo && (
-                          <Button
-                            size="sm"
-                            variant={doc.status === 'enviado' || doc.status === 'em_analise' ? 'default' : 'ghost'}
-                            onClick={() => openPreview(doc)}
-                          >
-                            <Eye size={14} /> {doc.status === 'enviado' || doc.status === 'em_analise' ? 'Analisar' : 'Ver'}
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  )
-                })}
+                {(['rg_cpf', 'procuracao'] as const).map((tipo) =>
+                  renderDocRow(tipo, getLatestLegado(tipo), tipoLabelsRep[tipo] || tipoLabels[tipo])
+                )}
               </div>
             </div>
           )}
