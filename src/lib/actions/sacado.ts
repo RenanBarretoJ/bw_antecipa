@@ -160,7 +160,7 @@ export async function aceitarCessaoLote(nfIds: string[]): Promise<SacadoActionSt
   await registrarLog({
     tipo_evento: 'CESSAO_ACEITA_LOTE',
     entidade_tipo: 'notas_fiscais',
-    entidade_id: null,
+    entidade_id: undefined,
     dados_depois: { sacado_cnpj: sacado.cnpj, nf_ids: idsValidos, quantidade: idsValidos.length },
   })
 
