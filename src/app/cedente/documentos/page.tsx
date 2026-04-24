@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { uploadDocumento } from '@/lib/actions/cedente'
-import { Upload, CheckCircle, XCircle, Clock, AlertCircle, FileText, Loader2 } from 'lucide-react'
+import { Upload, CheckCircle, XCircle, Clock, AlertCircle, FileText, Loader2, RefreshCw } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -40,6 +40,7 @@ interface DocRecord {
   motivo_reprovacao: string | null
   created_at: string
   representante_id: string | null
+  atualizacao_solicitada_em: string | null
 }
 
 interface RepresentanteRecord {
@@ -76,7 +77,7 @@ export default function DocumentosCedentePage() {
 
       const { data } = await supabase
         .from('documentos')
-        .select('id, tipo, versao, status, nome_arquivo, motivo_reprovacao, created_at, representante_id')
+        .select('id, tipo, versao, status, nome_arquivo, motivo_reprovacao, created_at, representante_id, atualizacao_solicitada_em')
         .order('created_at', { ascending: false })
 
       setDocs((data || []) as DocRecord[])
@@ -143,31 +144,52 @@ export default function DocumentosCedentePage() {
     const config = statusConfig[status]
     const Icon = config.icon
     const isUploading = uploading === uploadKey
-    const canUpload = !latestDoc || status === 'aguardando_envio' || status === 'reprovado'
+    const atualizacaoSolicitada = !!latestDoc?.atualizacao_solicitada_em
+    const canUpload = !latestDoc || status === 'aguardando_envio' || status === 'reprovado' || atualizacaoSolicitada
+
+    const uploadButtonLabel = isUploading
+      ? 'Enviando...'
+      : status === 'reprovado'
+      ? 'Reenviar'
+      : atualizacaoSolicitada && status !== 'aguardando_envio'
+      ? 'Atualizar'
+      : 'Enviar'
+
+    const uploadButtonVariant = status === 'reprovado'
+      ? 'destructive'
+      : atualizacaoSolicitada && status !== 'aguardando_envio'
+      ? 'outline'
+      : 'default'
 
     return (
-      <Card key={uploadKey}>
+      <Card key={uploadKey} className={atualizacaoSolicitada ? 'border-amber-300' : ''}>
         <CardContent className="py-5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3 flex-1">
-              <FileText size={20} className="text-muted-foreground" />
-              <div>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <FileText size={20} className="text-muted-foreground shrink-0" />
+              <div className="min-w-0">
                 <p className="font-medium text-foreground">
                   {docConfig.label}
                   {!docConfig.obrigatorio && <span className="text-muted-foreground text-sm ml-2">(opcional)</span>}
                 </p>
                 {latestDoc?.nome_arquivo && (
-                  <p className="text-xs text-muted-foreground mt-0.5">
+                  <p className="text-xs text-muted-foreground mt-0.5 truncate">
                     {latestDoc.nome_arquivo} <span className="tabular-nums">(v{latestDoc.versao})</span>
                   </p>
                 )}
                 {status === 'reprovado' && latestDoc?.motivo_reprovacao && (
                   <p className="text-xs text-destructive mt-1">Motivo: {latestDoc.motivo_reprovacao}</p>
                 )}
+                {atualizacaoSolicitada && (
+                  <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                    <RefreshCw size={11} />
+                    Atualização solicitada em {new Date(latestDoc!.atualizacao_solicitada_em!).toLocaleDateString('pt-BR')}
+                  </p>
+                )}
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 shrink-0">
               <Badge variant={config.variant}>
                 <Icon size={14} />
                 {config.label}
@@ -187,17 +209,23 @@ export default function DocumentosCedentePage() {
                     }}
                   />
                   <Button
-                    variant={status === 'reprovado' ? 'destructive' : 'default'}
+                    variant={uploadButtonVariant as 'destructive' | 'outline' | 'default'}
                     size="sm"
                     onClick={() => fileInputRefs.current[uploadKey]?.click()}
                     disabled={isUploading}
+                    className={atualizacaoSolicitada && status !== 'reprovado' ? 'text-amber-600 border-amber-300 hover:bg-amber-50' : ''}
                   >
                     {isUploading ? (
                       <>
                         <Loader2 size={14} className="animate-spin" />
                         Enviando...
                       </>
-                    ) : status === 'reprovado' ? 'Reenviar' : 'Enviar'}
+                    ) : (
+                      <>
+                        {atualizacaoSolicitada && status !== 'reprovado' && status !== 'aguardando_envio' && <RefreshCw size={14} />}
+                        {uploadButtonLabel}
+                      </>
+                    )}
                   </Button>
                 </>
               )}

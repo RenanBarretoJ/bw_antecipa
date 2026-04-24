@@ -347,7 +347,8 @@ export async function gerarTermoCessao(
       id_curto: (nf.id as string).slice(0, 8).toUpperCase(),
       inclusao_data: formatarDataHora(nf.created_at as string),
       aprovacao_gestor_data: nf.aprovada_gestor_em ? formatarDataHora(nf.aprovada_gestor_em as string) : '—',
-      aceite_sacado_data: nf.aceite_sacado_em ? formatarDataHora(nf.aceite_sacado_em as string) : '—',
+      aceite_sacado_data: nf.aprovacao_sacado_em ? formatarDataHora(nf.aprovacao_sacado_em as string) : '—',
+      aprovacao_final_gestor_data: op.aprovado_em ? formatarDataHora(op.aprovado_em as string) : '—',
     })),
     testemunha_1: {
       nome: test1?.nome || (ced.testemunha_1_nome as string) || 'BRENO JOSE ALVIM DA SILVA',

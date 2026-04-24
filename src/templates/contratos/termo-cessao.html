@@ -316,9 +316,10 @@
           <th>ID do Registro</th>
           <th>NF</th>
           <th>Incluida pelo Cedente em</th>
-          <th>Aprovada pelo Gestor em</th>
+          <th>Validada pelo Gestor em</th>
           <th>Antecipacao Solicitada em</th>
-          <th>Aceite do Sacado em</th>
+          <th>Aprovada pelo Sacado em</th>
+          <th>Aprovada pelo Gestor em</th>
         </tr>
       </thead>
       <tbody>
@@ -329,7 +330,8 @@
           <td>{{this.inclusao_data}}</td>
           <td>{{this.aprovacao_gestor_data}}</td>
           <td>{{../termo.solicitacao_data}}</td>
-          <td><strong>{{this.aceite_sacado_data}}</strong></td>
+          <td>{{this.aceite_sacado_data}}</td>
+          <td><strong>{{this.aprovacao_final_gestor_data}}</strong></td>
         </tr>
         {{/each}}
       </tbody>

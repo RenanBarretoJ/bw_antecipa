@@ -3,7 +3,12 @@
     "allow": [
       "Bash(npm install:*)",
       "Bash(npx next:*)",
-      "Bash(npx shadcn@latest init -d --yes)"
+      "Bash(npx shadcn@latest init -d --yes)",
+      "Read(//c/Users/BrenoAlvim/OneDrive/**)",
+      "Read(//c/Users/BrenoAlvim/**)",
+      "Bash(xargs grep *)",
+      "Bash(find \"/c/Users/BrenoAlvim/OneDrive\"* -name \"*.py\")",
+      "Read(//c/Users/BRENOA~1/AppData/Local/Temp/claude/c--Users-BrenoAlvim-Documents-GITHUB-RENAN-bw-antecipa/667bf2a7-5ca9-4b05-88d2-2693f8f14190/tasks/**)"
     ]
   }
 }

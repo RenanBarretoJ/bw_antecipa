@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/vencimentos",
       "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/documentos-vencidos",
+      "schedule": "30 8 * * *"
     }
   ],
   "functions": {

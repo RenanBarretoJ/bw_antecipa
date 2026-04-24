@@ -3,12 +3,13 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { aprovarOperacao, reprovarOperacao, removerNfDaOperacao, salvarTestemunhasOperacao, salvarTermoAssinado, salvarComprovantePagamento } from '@/lib/actions/operacao'
+import { aprovarOperacao, desembolsarOperacao, reprovarOperacao, removerNfDaOperacao, salvarTestemunhasOperacao, salvarTermoAssinado, salvarComprovantePagamento } from '@/lib/actions/operacao'
 import { liquidarOperacao, marcarInadimplente } from '@/lib/actions/liquidacao'
 import { formatCurrency, formatCNPJ, formatDate } from '@/lib/utils'
 import Link from 'next/link'
 import {
   ArrowLeft,
+  ArrowRight,
   CheckCircle,
   XCircle,
   Clock,
@@ -56,6 +57,7 @@ interface OperacaoDetalhe {
     razao_social: string
     cnpj: string
     contrato_url: string | null
+    contrato_assinado_url: string | null
   }
 }
 
@@ -81,6 +83,7 @@ type BadgeVariant = 'default' | 'secondary' | 'destructive' | 'outline' | 'ghost
 const statusConfig: Record<string, { label: string; variant: BadgeVariant; className: string; icon: typeof CheckCircle }> = {
   solicitada: { label: 'Solicitada', variant: 'secondary', className: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400', icon: Clock },
   em_analise: { label: 'Em Analise', variant: 'secondary', className: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400', icon: AlertCircle },
+  aprovada: { label: 'Aprovada — Aguard. Desembolso', variant: 'secondary', className: 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400', icon: CheckCircle },
   em_andamento: { label: 'Em Andamento', variant: 'secondary', className: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400', icon: Banknote },
   liquidada: { label: 'Liquidada', variant: 'secondary', className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400', icon: CheckCircle },
   inadimplente: { label: 'Inadimplente', variant: 'destructive', className: '', icon: AlertCircle },
@@ -166,19 +169,23 @@ export default function OperacaoDetalheGestorPage() {
   const [test1Id, setTest1Id] = useState('')
   const [test2Id, setTest2Id] = useState('')
   const [salvandoTest, setSalvandoTest] = useState(false)
+  const [gerandoCnab, setGerandoCnab] = useState(false)
+
+  // Estado local para docs (atualizado após upload sem reload da página)
+  const [termoAssinadoUrl, setTermoAssinadoUrl] = useState<string | null>(null)
+  const [comprovanteUrl, setComprovanteUrl] = useState<string | null>(null)
+  const [desembolsando, setDesembolsando] = useState(false)
 
   useEffect(() => {
     const load = async () => {
       const supabase = createClient()
 
-      // Buscar operacao
       const { data: opData } = await supabase
         .from('operacoes')
-        .select('*, cedentes(razao_social, cnpj, contrato_url)')
+        .select('*, cedentes(razao_social, cnpj, contrato_url, contrato_assinado_url)')
         .eq('id', opId)
         .single()
 
-      // Buscar testemunhas ativas
       const { data: testData } = await supabase
         .from('testemunhas')
         .select('id, nome, cpf')
@@ -193,8 +200,9 @@ export default function OperacaoDetalheGestorPage() {
         setValorLiquido(o.valor_liquido_desembolso)
         if (o.testemunha_1_id) setTest1Id(o.testemunha_1_id)
         if (o.testemunha_2_id) setTest2Id(o.testemunha_2_id)
+        setTermoAssinadoUrl(o.termo_assinado_url)
+        setComprovanteUrl(o.comprovante_pagamento_url)
 
-        // Buscar NFs da operacao
         const { data: opNfs } = await supabase
           .from('operacoes_nfs')
           .select('nota_fiscal_id')
@@ -211,7 +219,6 @@ export default function OperacaoDetalheGestorPage() {
           setNfs((nfsData || []) as NfDaOperacao[])
         }
 
-        // Buscar taxas pre-configuradas do cedente
         const { data: taxas } = await supabase
           .from('taxas_cedente')
           .select('prazo_min, prazo_max, taxa_percentual')
@@ -226,7 +233,6 @@ export default function OperacaoDetalheGestorPage() {
     load()
   }, [opId])
 
-  // Recalcular valor liquido total somando os valores antecipados individuais por NF
   useEffect(() => {
     if (op && taxa >= 0 && nfs.length > 0) {
       const hoje = new Date()
@@ -270,12 +276,29 @@ export default function OperacaoDetalheGestorPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ operacao_id: opId }),
       }).catch(() => {})
-      setTimeout(() => router.push('/gestor/operacoes'), 2500)
+      // Recarregar operacao para refletir novo status
+      const supabase = createClient()
+      const { data } = await supabase.from('operacoes').select('*, cedentes(razao_social, cnpj, contrato_url, contrato_assinado_url)').eq('id', opId).single()
+      if (data) setOp(data as OperacaoDetalhe)
     } else {
       setMessage(result?.message || 'Erro.')
       setMessageType('error')
     }
     setProcessing(false)
+  }
+
+  const handleDesembolsar = async () => {
+    setDesembolsando(true)
+    const result = await desembolsarOperacao(opId)
+    if (result?.success) {
+      setMessage(result.message || 'Desembolso confirmado!')
+      setMessageType('success')
+      setTimeout(() => router.push('/gestor/operacoes'), 2000)
+    } else {
+      setMessage(result?.message || 'Erro.')
+      setMessageType('error')
+    }
+    setDesembolsando(false)
   }
 
   const handleRemoverNf = async (nfId: string) => {
@@ -284,9 +307,8 @@ export default function OperacaoDetalheGestorPage() {
     setMessage(result?.message || 'Erro.')
     setMessageType(result?.success ? 'success' : 'error')
     if (result?.success) {
-      // Recarregar dados
       const supabase = createClient()
-      const { data: opAtual } = await supabase.from('operacoes').select('*, cedentes(razao_social, cnpj, contrato_url)').eq('id', opId).single()
+      const { data: opAtual } = await supabase.from('operacoes').select('*, cedentes(razao_social, cnpj, contrato_url, contrato_assinado_url)').eq('id', opId).single()
       if (opAtual) setOp(opAtual as OperacaoDetalhe)
       const { data: opNfs } = await supabase.from('operacoes_nfs').select('nota_fiscal_id').eq('operacao_id', opId)
       if (opNfs) {
@@ -310,6 +332,34 @@ export default function OperacaoDetalheGestorPage() {
     setMessage(result?.message || '')
     setMessageType(result?.success ? 'success' : 'error')
     setSalvandoTest(false)
+  }
+
+  const handleGerarCnab = async () => {
+    if (!op) return
+    setGerandoCnab(true)
+    try {
+      const res = await fetch('/api/contratos/gerar-cnab', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ operacao_id: op.id }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Erro ao gerar CNAB')
+      }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `REMESSA_${op.id.slice(0, 8).toUpperCase()}.REM`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Erro ao gerar CNAB.')
+      setMessageType('error')
+    } finally {
+      setGerandoCnab(false)
+    }
   }
 
   const handleReprovar = async () => {
@@ -343,8 +393,12 @@ export default function OperacaoDetalheGestorPage() {
   const status = statusConfig[op.status] || statusConfig.solicitada
   const StatusIcon = status.icon
   const canAnalyze = op.status === 'solicitada' || op.status === 'em_analise'
-  const canRemoveNf = ['solicitada', 'em_analise', 'em_andamento'].includes(op.status)
+  const canDisburse = op.status === 'aprovada'
+  const canRemoveNf = ['solicitada', 'em_analise'].includes(op.status)
   const todasAceitas = nfs.length > 0 && nfs.every((nf) => nf.status === 'aceita')
+
+  // Seção de documentos visível para aprovada, em_andamento, liquidada, inadimplente
+  const showDocs = ['aprovada', 'em_andamento', 'liquidada', 'inadimplente'].includes(op.status)
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -446,13 +500,13 @@ export default function OperacaoDetalheGestorPage() {
                         <td className="px-3 py-2">{formatDate(nf.data_vencimento)}</td>
                         <td className="px-3 py-2">
                           {nf.status === 'aceita' && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">Aceita</span>
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">Aprovado pelo Sacado</span>
                           )}
                           {nf.status === 'contestada' && (
                             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700">Contestada</span>
                           )}
                           {nf.status === 'em_antecipacao' && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">Aguard. aceite</span>
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">Aguard. aprovação</span>
                           )}
                         </td>
                         {canRemoveNf && (
@@ -476,7 +530,6 @@ export default function OperacaoDetalheGestorPage() {
               </div>
             </CardContent>
 
-            {/* Motivo de reprovacao */}
             {op.motivo_reprovacao && (
               <div className="p-3 bg-destructive/10 rounded-lg text-sm text-destructive">
                 <strong>Motivo da reprovacao:</strong> {op.motivo_reprovacao}
@@ -485,9 +538,11 @@ export default function OperacaoDetalheGestorPage() {
           </Card>
         </div>
 
-        {/* Sidebar — painel de aprovacao */}
+        {/* Sidebar */}
         <div className="space-y-6">
-          {canAnalyze ? (
+
+          {/* ETAPA 1: Definir termos (solicitada / em_analise) */}
+          {canAnalyze && (
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
@@ -496,7 +551,6 @@ export default function OperacaoDetalheGestorPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-0 space-y-4">
-                {/* Taxas pre-configuradas */}
                 {taxasConfig.length > 0 && (
                   <div>
                     <p className="text-xs font-medium text-muted-foreground mb-2">Taxas pre-configuradas</p>
@@ -546,7 +600,6 @@ export default function OperacaoDetalheGestorPage() {
                   </div>
                 </div>
 
-                {/* Testemunhas do Termo */}
                 {testemunhas.length > 0 && (
                   <div className="space-y-2 border-t pt-4">
                     <p className="text-xs font-medium text-muted-foreground">Testemunhas do Termo</p>
@@ -607,7 +660,6 @@ export default function OperacaoDetalheGestorPage() {
                   </div>
                 )}
 
-                {/* Resumo visual */}
                 <div className="p-3 bg-muted/50 rounded-lg space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Bruto</span>
@@ -626,16 +678,16 @@ export default function OperacaoDetalheGestorPage() {
                 <div className="space-y-2">
                   {!todasAceitas && (
                     <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg p-2">
-                      Aguardando aceite de todas as NFs pelo sacado antes de aprovar.
+                      Aguardando aprovação de todas as NFs pelo sacado antes de aprovar.
                     </p>
                   )}
                   <Button
                     onClick={handleAprovar}
                     disabled={processing || !todasAceitas}
-                    className="w-full bg-green-600 hover:bg-green-700 text-white h-11 disabled:opacity-50"
+                    className="w-full bg-teal-600 hover:bg-teal-700 text-white h-11 disabled:opacity-50"
                   >
-                    {processing ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
-                    {processing ? 'Processando...' : 'Aprovar e Desembolsar'}
+                    {processing ? <Loader2 size={16} className="animate-spin" /> : <ArrowRight size={16} />}
+                    {processing ? 'Processando...' : 'Aprovar e Seguir'}
                   </Button>
                   <Button
                     variant="destructive"
@@ -649,8 +701,10 @@ export default function OperacaoDetalheGestorPage() {
                 </div>
               </CardContent>
             </Card>
-          ) : (
-            // Status somente leitura
+          )}
+
+          {/* ETAPA 2: Documentos e desembolso (status aprovada) */}
+          {canDisburse && (
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">Resumo</CardTitle>
@@ -679,7 +733,108 @@ export default function OperacaoDetalheGestorPage() {
                   </div>
                 )}
 
-                {/* Acoes de liquidacao/inadimplencia */}
+                <div className="border-t pt-4 mt-2 space-y-3">
+                  <p className="text-xs font-medium text-muted-foreground">Documentos gerados</p>
+                  <div className="flex flex-col gap-2">
+                    <BotaoDownloadContrato
+                      tipo="contrato"
+                      id={op.cedente_id}
+                      storagePath={op.cedentes.contrato_url}
+                      hasSignedDoc={!!op.cedentes.contrato_assinado_url}
+                      label="Contrato Mae"
+                      className="w-full"
+                    />
+                    <BotaoDownloadContrato
+                      tipo="termo"
+                      id={op.id}
+                      storagePath={(op as unknown as Record<string, unknown>).termo_url as string | null}
+                      hasSignedDoc={!!termoAssinadoUrl}
+                      className="w-full"
+                    />
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleGerarCnab}
+                    disabled={gerandoCnab}
+                    className="w-full gap-2"
+                  >
+                    {gerandoCnab ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />}
+                    {gerandoCnab ? 'Gerando...' : 'Gerar CNAB'}
+                  </Button>
+
+                  <p className="text-xs font-medium text-muted-foreground border-t pt-3">Documentos assinados</p>
+                  <div className="flex flex-col gap-2">
+                    <UploadDocumentoAssinado
+                      label="Termo de Cessao Assinado"
+                      storagePath={termoAssinadoUrl}
+                      uploadPath={`operacoes/${op.id}/termo-cessao-assinado.pdf`}
+                      onSuccess={async (path) => {
+                        await salvarTermoAssinado(op.id, path)
+                        setTermoAssinadoUrl(path)
+                      }}
+                    />
+                    <UploadDocumentoAssinado
+                      label="Comprovante de Desembolso (TED)"
+                      storagePath={comprovanteUrl}
+                      uploadPath={`operacoes/${op.id}/comprovante-pagamento.pdf`}
+                      accept="application/pdf,image/jpeg,image/png"
+                      onSuccess={async (path) => {
+                        await salvarComprovantePagamento(op.id, path)
+                        setComprovanteUrl(path)
+                      }}
+                    />
+                  </div>
+
+                  {(!termoAssinadoUrl || !comprovanteUrl) && (
+                    <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg p-2">
+                      Envie o termo assinado e o comprovante TED para liberar o desembolso.
+                    </p>
+                  )}
+
+                  <Button
+                    onClick={handleDesembolsar}
+                    disabled={desembolsando || !termoAssinadoUrl || !comprovanteUrl}
+                    className="w-full bg-green-600 hover:bg-green-700 text-white h-11 disabled:opacity-50"
+                  >
+                    {desembolsando ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
+                    {desembolsando ? 'Processando...' : 'Desembolsar'}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* ETAPA 3: Em andamento / liquidação */}
+          {!canAnalyze && !canDisburse && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Resumo</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0 space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Valor Bruto</span>
+                  <span className="font-bold tabular-nums">{formatCurrency(op.valor_bruto_total)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Taxa</span>
+                  <span className="font-medium tabular-nums">{op.taxa_desconto}% a.m.</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Prazo</span>
+                  <span className="font-medium tabular-nums">{op.prazo_dias} dias</span>
+                </div>
+                <div className="flex justify-between border-t pt-2">
+                  <span className="font-semibold">Valor Liquido</span>
+                  <span className="font-bold text-green-700 dark:text-green-400 tabular-nums">{formatCurrency(op.valor_liquido_desembolso)}</span>
+                </div>
+                {op.aprovado_em && (
+                  <div className="flex justify-between text-muted-foreground text-xs mt-2">
+                    <span>Aprovada em</span>
+                    <span>{formatDate(op.aprovado_em)}</span>
+                  </div>
+                )}
+
                 {(op.status === 'em_andamento' || op.status === 'inadimplente') && (
                   <div className="space-y-2 border-t pt-4 mt-2">
                     <Button
@@ -728,8 +883,8 @@ export default function OperacaoDetalheGestorPage() {
                   </div>
                 )}
 
-                {/* Documentos PDF */}
-                {(op.status === 'em_andamento' || op.status === 'liquidada' || op.status === 'inadimplente') && (
+                {/* Documentos para operacoes legadas (em_andamento sem docs ainda) */}
+                {showDocs && !canDisburse && (
                   <div className="border-t pt-4 mt-2 space-y-3">
                     <p className="text-xs font-medium text-muted-foreground">Documentos gerados</p>
                     <div className="flex flex-col gap-2">
@@ -737,6 +892,7 @@ export default function OperacaoDetalheGestorPage() {
                         tipo="contrato"
                         id={op.cedente_id}
                         storagePath={op.cedentes.contrato_url}
+                        hasSignedDoc={!!op.cedentes.contrato_assinado_url}
                         label="Contrato Mae"
                         className="w-full"
                       />
@@ -744,6 +900,7 @@ export default function OperacaoDetalheGestorPage() {
                         tipo="termo"
                         id={op.id}
                         storagePath={(op as unknown as Record<string, unknown>).termo_url as string | null}
+                        hasSignedDoc={!!termoAssinadoUrl}
                         className="w-full"
                       />
                     </div>
@@ -751,30 +908,33 @@ export default function OperacaoDetalheGestorPage() {
                     <div className="flex flex-col gap-2">
                       <UploadDocumentoAssinado
                         label="Termo de Cessao Assinado"
-                        storagePath={op.termo_assinado_url}
+                        storagePath={termoAssinadoUrl}
                         uploadPath={`operacoes/${op.id}/termo-cessao-assinado.pdf`}
                         onSuccess={async (path) => {
                           await salvarTermoAssinado(op.id, path)
+                          setTermoAssinadoUrl(path)
                         }}
                       />
                       <UploadDocumentoAssinado
                         label="Comprovante de Pagamento"
-                        storagePath={op.comprovante_pagamento_url}
+                        storagePath={comprovanteUrl}
                         uploadPath={`operacoes/${op.id}/comprovante-pagamento.pdf`}
                         accept="application/pdf,image/jpeg,image/png"
                         onSuccess={async (path) => {
                           await salvarComprovantePagamento(op.id, path)
+                          setComprovanteUrl(path)
                         }}
                       />
                     </div>
                     <Button
                       variant="outline"
                       size="sm"
-                      disabled
-                      className="w-full gap-2 text-muted-foreground"
+                      onClick={handleGerarCnab}
+                      disabled={gerandoCnab}
+                      className="w-full gap-2"
                     >
-                      <FileDown size={14} />
-                      Gerar CNAB
+                      {gerandoCnab ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />}
+                      {gerandoCnab ? 'Gerando...' : 'Gerar CNAB'}
                     </Button>
                   </div>
                 )}
@@ -782,7 +942,6 @@ export default function OperacaoDetalheGestorPage() {
             </Card>
           )}
 
-          {/* Link para configurar taxas */}
           {canAnalyze && (
             <Link
               href={`/gestor/cedentes/${op.cedente_id}`}

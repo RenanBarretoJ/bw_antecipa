@@ -4,6 +4,18 @@ import { createClient } from '@/lib/supabase/server'
 import { registrarLog } from './auditoria'
 import { criarNotificacao } from './notificacao'
 
+const tipoLabelsDoc: Record<string, string> = {
+  contrato_social: 'Contrato Social',
+  cartao_cnpj: 'Cartao CNPJ',
+  rg_cpf: 'RG e CPF',
+  comprovante_endereco: 'Comprovante de Endereco',
+  extrato_bancario: 'Comprovante de Faturamento',
+  balanco_patrimonial: 'Balanco Patrimonial',
+  dre: 'DRE',
+  procuracao: 'Procuracao',
+  comprovante_de_renda: 'Comprovante de Renda',
+}
+
 export type GestorActionState = {
   success?: boolean
   message?: string
@@ -242,4 +254,53 @@ export async function reprovarCedente(cedenteId: string, motivo: string): Promis
   })
 
   return { success: true, message: 'Cedente reprovado.' }
+}
+
+export async function solicitarAtualizacaoDocumento(documentoId: string): Promise<GestorActionState> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) return { success: false, message: 'Usuario nao autenticado.' }
+
+  const { data: docRaw } = await supabase
+    .from('documentos')
+    .select('id, tipo, cedente_id, cedentes(user_id, razao_social)')
+    .eq('id', documentoId)
+    .single()
+
+  if (!docRaw) return { success: false, message: 'Documento nao encontrado.' }
+
+  const doc = docRaw as {
+    id: string; tipo: string; cedente_id: string
+    cedentes: { user_id: string; razao_social: string }
+  }
+
+  const { error } = await supabase
+    .from('documentos')
+    .update({
+      atualizacao_solicitada_em: new Date().toISOString(),
+      atualizacao_solicitada_por: user.id,
+    } as never)
+    .eq('id', documentoId)
+
+  if (error) return { success: false, message: `Erro ao solicitar atualizacao: ${error.message}` }
+
+  const tipoLabel = tipoLabelsDoc[doc.tipo] || doc.tipo
+
+  await criarNotificacao({
+    usuario_id: doc.cedentes.user_id,
+    titulo: 'Atualizacao de documento solicitada',
+    mensagem: `O gestor solicitou a atualizacao do documento "${tipoLabel}". Por favor, envie uma versao atualizada em Documentos.`,
+    tipo: 'documento_atualizacao_solicitada',
+  })
+
+  await registrarLog({
+    tipo_evento: 'ATUALIZACAO_DOCUMENTO_SOLICITADA',
+    entidade_tipo: 'documentos',
+    entidade_id: documentoId,
+    dados_antes: null,
+    dados_depois: { tipo: doc.tipo, cedente_id: doc.cedente_id, solicitado_por: user.id },
+  })
+
+  return { success: true, message: 'Atualizacao solicitada. O cedente foi notificado.' }
 }
