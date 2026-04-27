@@ -341,7 +341,7 @@ export async function gerarTermoCessao(
       data_emissao_formatada: formatarData(nf.data_emissao as string),
       data_vencimento_formatada: formatarData(nf.data_vencimento as string),
       valor_face_formatado: formatarMoeda((nf.valor_liquido as number) || (nf.valor_bruto as number)),
-      taxa_desagio: ((nf.taxa_desagio as number) || taxaDesagio).toFixed(4),
+      taxa_desagio: ((nf.taxa_desagio as number) || taxaDesagio).toFixed(2),
       valor_antecipado_formatado: formatarMoeda((nf.valor_antecipado as number) || (nf.valor_liquido as number)),
       // Trilha de auditoria para APENSO B
       id_curto: (nf.id as string).slice(0, 8).toUpperCase(),

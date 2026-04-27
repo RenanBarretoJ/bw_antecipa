@@ -24,8 +24,8 @@ async function getSacadoDoUsuario() {
   return sacado as { id: string; cnpj: string; razao_social: string; user_id: string }
 }
 
-// Aceitar cessao de NF
-export async function aceitarCessao(nfId: string): Promise<SacadoActionState> {
+// Aprovar cessao de NF
+export async function aprovarCessao(nfId: string): Promise<SacadoActionState> {
   const supabase = await createClient()
   const sacado = await getSacadoDoUsuario()
   if (!sacado) return { success: false, message: 'Sacado nao encontrado.' }
@@ -90,7 +90,7 @@ export async function aceitarCessao(nfId: string): Promise<SacadoActionState> {
 }
 
 // Aprovar cessao de multiplas NFs em lote
-export async function aceitarCessaoLote(nfIds: string[]): Promise<SacadoActionState & { aprovadas?: number; invalidas?: number }> {
+export async function aprovarCessaoLote(nfIds: string[]): Promise<SacadoActionState & { aprovadas?: number; invalidas?: number }> {
   const supabase = await createClient()
   const sacado = await getSacadoDoUsuario()
   if (!sacado) return { success: false, message: 'Sacado nao encontrado.' }

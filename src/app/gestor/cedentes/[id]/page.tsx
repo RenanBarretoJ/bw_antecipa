@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { use } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { analisarDocumento, aprovarCedente, reprovarCedente, solicitarAtualizacaoDocumento } from '@/lib/actions/gestor'
+import { analisarDocumento, aprovarCedente, reprovarCedente, solicitarAtualizacaoDocumento, toggleEscrowCedente } from '@/lib/actions/gestor'
 import { salvarTaxasCedente } from '@/lib/actions/operacao'
 import { salvarContratoAssinado } from '@/lib/actions/cedente'
 import { formatCNPJ, formatDate } from '@/lib/utils'
@@ -26,7 +26,7 @@ interface CedenteDetail {
   bairro: string | null; cidade: string | null; estado: string | null
   telefone_comercial: string | null; email_comercial: string | null; cnae: string | null
   banco: string | null; agencia: string | null; conta: string | null; tipo_conta: string | null
-  status: string; created_at: string
+  status: string; habilitar_escrow: boolean; created_at: string
   contrato_url: string | null
   contrato_assinado_url: string | null
 }
@@ -94,6 +94,10 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
   const [taxas, setTaxas] = useState<Array<{ prazo_min: number; prazo_max: number; taxa_percentual: number }>>([])
   const [savingTaxas, setSavingTaxas] = useState(false)
   const [taxasMessage, setTaxasMessage] = useState('')
+
+  // Escrow
+  const [togglingEscrow, setTogglingEscrow] = useState(false)
+  const [escrowMessage, setEscrowMessage] = useState('')
 
   const loadData = async () => {
     const supabase = createClient()
@@ -570,6 +574,47 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
           <p className="mt-3 text-xs text-muted-foreground">
             As taxas sao aplicadas automaticamente quando o cedente solicita antecipacao. O gestor pode ajustar na aprovacao.
           </p>
+        </CardContent>
+      </Card>
+
+      {/* Configuracoes de Acesso */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Settings size={18} />
+            Configuracoes de Acesso
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between py-2">
+            <div>
+              <p className="text-sm font-medium text-foreground">Extrato Escrow</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Quando habilitado, o cedente visualiza a aba "Extrato" com saldo e movimentos da conta escrow.
+              </p>
+            </div>
+            <Button
+              size="sm"
+              variant={cedente.habilitar_escrow ? 'destructive' : 'default'}
+              disabled={togglingEscrow}
+              onClick={async () => {
+                setTogglingEscrow(true)
+                setEscrowMessage('')
+                const result = await toggleEscrowCedente(id, !cedente.habilitar_escrow)
+                setEscrowMessage(result?.message || '')
+                if (result?.success) await loadData()
+                setTogglingEscrow(false)
+              }}
+              className={cedente.habilitar_escrow ? '' : 'bg-green-600 hover:bg-green-700 text-white'}
+            >
+              {togglingEscrow ? 'Aguarde...' : cedente.habilitar_escrow ? 'Desabilitar' : 'Habilitar'}
+            </Button>
+          </div>
+          {escrowMessage && (
+            <p className={`text-sm mt-2 ${escrowMessage.includes('sucesso') ? 'text-green-600' : 'text-destructive'}`}>
+              {escrowMessage}
+            </p>
+          )}
         </CardContent>
       </Card>
 

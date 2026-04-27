@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import {
@@ -51,6 +52,7 @@ interface Movimento {
 }
 
 export default function ExtratoCedentePage() {
+  const router = useRouter()
   const [conta, setConta] = useState<ContaEscrow | null>(null)
   const [movimentos, setMovimentos] = useState<Movimento[]>([])
   const [loading, setLoading] = useState(true)
@@ -61,6 +63,21 @@ export default function ExtratoCedentePage() {
   useEffect(() => {
     const load = async () => {
       const supabase = createClient()
+
+      // Verificar se escrow está habilitado para este cedente
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data: cedente } = await supabase
+          .from('cedentes')
+          .select('habilitar_escrow')
+          .eq('user_id', user.id)
+          .single()
+
+        if (!cedente || !(cedente as { habilitar_escrow: boolean }).habilitar_escrow) {
+          router.replace('/cedente/dashboard')
+          return
+        }
+      }
 
       // Buscar conta escrow do cedente (via RLS)
       const { data: contas } = await supabase

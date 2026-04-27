@@ -488,8 +488,8 @@ export default function OperacaoDetalheGestorPage() {
                       return (
                       <tr key={nf.id} className={`hover:bg-muted/30 ${nf.status === 'contestada' ? 'bg-orange-50' : ''}`}>
                         <td className="px-3 py-2 font-medium tabular-nums">{nf.numero_nf}</td>
-                        <td className="px-3 py-2">
-                          <p className="text-foreground">{nf.razao_social_destinatario}</p>
+                        <td className="px-3 py-2 max-w-[180px]">
+                          <p className="text-foreground truncate" title={nf.razao_social_destinatario}>{nf.razao_social_destinatario}</p>
                           <p className="text-xs text-muted-foreground">{formatCNPJ(nf.cnpj_destinatario)}</p>
                         </td>
                         <td className="px-3 py-2 font-medium tabular-nums">{formatCurrency(nf.valor_bruto)}</td>
@@ -500,7 +500,9 @@ export default function OperacaoDetalheGestorPage() {
                         <td className="px-3 py-2">{formatDate(nf.data_vencimento)}</td>
                         <td className="px-3 py-2">
                           {nf.status === 'aceita' && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">Aprovado pelo Sacado</span>
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 whitespace-nowrap">
+                              <CheckCircle size={11} /> Aprov. Sacado
+                            </span>
                           )}
                           {nf.status === 'contestada' && (
                             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700">Contestada</span>

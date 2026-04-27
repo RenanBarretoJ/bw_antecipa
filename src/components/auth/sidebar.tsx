@@ -160,7 +160,7 @@ export const cedenteMenuItems: SidebarItem[] = [
 export const sacadoMenuItems: SidebarItem[] = [
   { label: 'Dashboard', href: '/sacado/dashboard', icon: LayoutDashboard },
   { label: 'NFs Recebidas', href: '/sacado/notas-fiscais', icon: Receipt },
-  { label: 'Aceite de Cessao', href: '/sacado/aceite', icon: CheckSquare },
+  { label: 'Aprovação de Cessão', href: '/sacado/aprovacao', icon: CheckSquare },
   { label: 'Historico de Pagamentos', href: '/sacado/pagamentos', icon: History },
   { label: 'Notificacoes', href: '/sacado/notificacoes', icon: Bell },
 ]

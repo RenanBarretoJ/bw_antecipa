@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo, Fragment } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { aceitarCessao, aceitarCessaoLote, contestarCessao } from '@/lib/actions/sacado'
+import { aprovarCessao, aprovarCessaoLote, contestarCessao } from '@/lib/actions/sacado'
 import { formatCurrency, formatCNPJ, formatDate } from '@/lib/utils'
 import {
   CheckCircle,
@@ -59,7 +59,7 @@ function LoadingSkeleton() {
   )
 }
 
-export default function AceiteCessaoPage() {
+export default function AprovacaoCessaoPage() {
   const [nfs, setNfs] = useState<NfCessao[]>([])
   const [contas, setContas] = useState<ContaInfo[]>([])
   const [loading, setLoading] = useState(true)
@@ -188,7 +188,7 @@ export default function AceiteCessaoPage() {
     const ids = Array.from(selecionadas)
     setProcessandoLote(true)
     setMessage('')
-    const result = await aceitarCessaoLote(ids)
+    const result = await aprovarCessaoLote(ids)
     if (result?.success) {
       setMessage(result.message || 'Aprovadas!')
       setMessageType('success')
@@ -204,7 +204,7 @@ export default function AceiteCessaoPage() {
   const handleAprovar = async (nfId: string) => {
     setProcessing(nfId)
     setMessage('')
-    const result = await aceitarCessao(nfId)
+    const result = await aprovarCessao(nfId)
     if (result?.success) {
       setMessage(result.message || 'Aprovada!')
       setMessageType('success')
@@ -248,7 +248,7 @@ export default function AceiteCessaoPage() {
   return (
     <div className="max-w-5xl mx-auto">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Aprovação de Cessao</h1>
+        <h1 className="text-2xl font-bold text-foreground">Aprovação de Cessão</h1>
         <p className="text-muted-foreground">Aprove ou conteste as cessoes de credito das NFs emitidas contra voce.</p>
       </div>
 
