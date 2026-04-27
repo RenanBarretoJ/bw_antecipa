@@ -349,7 +349,7 @@ export default function SacadoDashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
           { label: 'NFs Recebidas', href: '/sacado/notas-fiscais', icon: Receipt, color: 'bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400' },
-          { label: 'Aprovação de Cessao', href: '/sacado/aceite', icon: CheckSquare, color: 'bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400' },
+          { label: 'Aprovação de Cessão', href: '/sacado/aprovacao', icon: CheckSquare, color: 'bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400' },
           { label: 'Historico Pagamentos', href: '/sacado/pagamentos', icon: Wallet, color: 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' },
         ].map((item) => (
           <Link key={item.href} href={item.href}>

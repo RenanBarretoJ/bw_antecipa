@@ -76,6 +76,7 @@ export interface Cedente {
   conta: string | null
   tipo_conta: TipoContaBancaria | null
   status: CedenteStatus
+  habilitar_escrow: boolean
   created_at: string
   updated_at: string
 }

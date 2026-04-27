@@ -256,6 +256,46 @@ export async function reprovarCedente(cedenteId: string, motivo: string): Promis
   return { success: true, message: 'Cedente reprovado.' }
 }
 
+export async function toggleEscrowCedente(cedenteId: string, habilitar: boolean): Promise<GestorActionState> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, message: 'Usuario nao autenticado.' }
+  }
+
+  const { data: cedente } = await supabase
+    .from('cedentes')
+    .select('habilitar_escrow')
+    .eq('id', cedenteId)
+    .single()
+
+  if (!cedente) {
+    return { success: false, message: 'Cedente nao encontrado.' }
+  }
+
+  const dadosAntes = { habilitar_escrow: (cedente as { habilitar_escrow: boolean }).habilitar_escrow }
+
+  const { error } = await supabase
+    .from('cedentes')
+    .update({ habilitar_escrow: habilitar } as never)
+    .eq('id', cedenteId)
+
+  if (error) {
+    return { success: false, message: `Erro ao atualizar configuracao de escrow: ${error.message}` }
+  }
+
+  await registrarLog({
+    tipo_evento: habilitar ? 'ESCROW_HABILITADO' : 'ESCROW_DESABILITADO',
+    entidade_tipo: 'cedentes',
+    entidade_id: cedenteId,
+    dados_antes: dadosAntes,
+    dados_depois: { habilitar_escrow: habilitar },
+  })
+
+  return { success: true, message: `Extrato escrow ${habilitar ? 'habilitado' : 'desabilitado'} com sucesso.` }
+}
+
 export async function solicitarAtualizacaoDocumento(documentoId: string): Promise<GestorActionState> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()

@@ -24,6 +24,7 @@ interface CedenteStats {
   saldoDisponivel: number
   saldoBloqueado: number
   contaEscrow: string | null
+  habilitarEscrow: boolean
   nfsAprovadas: number
   nfsTotal: number
   opsAtivas: number
@@ -71,7 +72,7 @@ function DashboardSkeleton() {
 
 export default function CedenteDashboard() {
   const [stats, setStats] = useState<CedenteStats>({
-    saldoDisponivel: 0, saldoBloqueado: 0, contaEscrow: null,
+    saldoDisponivel: 0, saldoBloqueado: 0, contaEscrow: null, habilitarEscrow: false,
     nfsAprovadas: 0, nfsTotal: 0, opsAtivas: 0, opsPendentes: 0,
     volumeAtivo: 0, docsReprovados: 0,
   })
@@ -82,13 +83,14 @@ export default function CedenteDashboard() {
     const load = async () => {
       const supabase = createClient()
 
-      const [escrow, nfs, ops, docs] = await Promise.all([
+      const [escrow, nfs, ops, docs, cedenteRow] = await Promise.all([
         supabase.from('contas_escrow').select('saldo_disponivel, saldo_bloqueado, identificador').limit(1),
         supabase.from('notas_fiscais').select('id, status'),
         supabase.from('operacoes')
           .select('id, valor_bruto_total, valor_liquido_desembolso, status, data_vencimento, created_at')
           .order('created_at', { ascending: false }),
         supabase.from('documentos').select('id, tipo, representante_id, versao, status').order('versao', { ascending: false }),
+        supabase.from('cedentes').select('habilitar_escrow').limit(1).single(),
       ])
 
       const escrowData = (escrow.data || []) as Array<{ saldo_disponivel: number; saldo_bloqueado: number; identificador: string }>
@@ -112,6 +114,7 @@ export default function CedenteDashboard() {
         saldoDisponivel: escrowData[0]?.saldo_disponivel || 0,
         saldoBloqueado: escrowData[0]?.saldo_bloqueado || 0,
         contaEscrow: escrowData[0]?.identificador || null,
+        habilitarEscrow: (cedenteRow.data as { habilitar_escrow: boolean } | null)?.habilitar_escrow ?? false,
         nfsAprovadas: nfsData.filter((n) => n.status === 'aprovada').length,
         nfsTotal: nfsData.length,
         opsAtivas: opsAtivas.length,
@@ -254,7 +257,7 @@ export default function CedenteDashboard() {
             { label: 'Meus Documentos', href: '/cedente/documentos', icon: FileCheck, color: 'bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400' },
             { label: 'Minhas NFs', href: '/cedente/notas-fiscais', icon: Receipt, color: 'bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400' },
             { label: 'Minhas Operacoes', href: '/cedente/operacoes', icon: Banknote, color: 'bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400' },
-            { label: 'Extrato Escrow', href: '/cedente/extrato', icon: Wallet, color: 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' },
+            ...(stats.habilitarEscrow ? [{ label: 'Extrato Escrow', href: '/cedente/extrato', icon: Wallet, color: 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' }] : []),
           ].map((item) => (
             <Link key={item.href} href={item.href}>
               <Card className="hover:ring-2 hover:ring-primary/20 transition-all cursor-pointer group">
