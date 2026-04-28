@@ -805,7 +805,7 @@ function AlteracaoForm({ cedente, onCancelar }: { cedente: CedenteCadastrado; on
   }
 
   const validarEtapa = () => {
-    const schemas = { 1: etapa2Schema, 2: etapa2Schema, 3: etapa3Schema }
+    const schemas = { 1: etapa1Schema, 2: etapa2Schema, 3: etapa3Schema }
     const schema = schemas[etapa as keyof typeof schemas]
     const result = schema.safeParse(etapa === 1 ? { ...form, cnpj: cedente.cnpj, razao_social: cedente.razao_social } : form)
     if (!result.success) {

@@ -1,6 +1,6 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 
 interface LogAuditoriaInput {
   tipo_evento: string
@@ -26,7 +26,8 @@ export async function registrarLog({
       return
     }
 
-    const { error } = await supabase.from('logs_auditoria').insert({
+    const admin = createAdminClient()
+    const { error } = await admin.from('logs_auditoria').insert({
       usuario_id: user.id,
       tipo_evento,
       entidade_tipo,
