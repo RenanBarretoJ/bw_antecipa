@@ -1037,18 +1037,19 @@ export default function CadastroCedentePage() {
         .single()
 
       if (!data) { setCedente(null); return }
+      const cedenteId = (data as unknown as { id: string }).id
 
       const { data: reps } = await supabase
         .from('representantes')
         .select('id, nome, cpf, rg, cargo, email, telefone, principal')
-        .eq('cedente_id', data.id)
+        .eq('cedente_id', cedenteId)
         .order('principal', { ascending: false })
 
       // Buscar solicitação mais recente
       const { data: sol } = await supabase
         .from('solicitacoes_alteracao_cedente')
         .select('id, status, solicitado_em, motivo_reprovacao')
-        .eq('cedente_id', data.id)
+        .eq('cedente_id', cedenteId)
         .order('solicitado_em', { ascending: false })
         .limit(1)
         .single()
