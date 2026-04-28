@@ -1,6 +1,6 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { enviarEmail, emailTemplates } from '@/lib/email'
 
 interface NotificacaoInput {
@@ -30,7 +30,7 @@ export async function criarNotificacao({ usuario_id, titulo, mensagem, tipo }: N
 
 export async function notificarGestores(titulo: string, mensagem: string, tipo: string) {
   try {
-    const supabase = await createClient()
+    const supabase = createAdminClient()
     const { data: gestores, error: queryError } = await supabase
       .from('profiles')
       .select('id')
