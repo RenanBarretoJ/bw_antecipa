@@ -303,7 +303,7 @@ export async function aprovarAlteracaoCedente(solicitacaoId: string): Promise<Ge
 
   const { data: sol } = await supabase
     .from('solicitacoes_alteracao_cedente')
-    .select('id, cedente_id, dados_propostos, representantes_propostos, cedentes(user_id, razao_social)')
+    .select('id, cedente_id, dados_propostos, representantes_propostos, representantes_atuais, cedentes(user_id, razao_social)')
     .eq('id', solicitacaoId)
     .single()
 
@@ -314,6 +314,7 @@ export async function aprovarAlteracaoCedente(solicitacaoId: string): Promise<Ge
     cedente_id: string
     dados_propostos: Record<string, unknown>
     representantes_propostos: Array<Record<string, unknown>>
+    representantes_atuais: Array<Record<string, unknown>>
     cedentes: { user_id: string; razao_social: string }
   }
 
@@ -325,15 +326,35 @@ export async function aprovarAlteracaoCedente(solicitacaoId: string): Promise<Ge
   if (updateError) return { success: false, message: `Erro ao aplicar alteracoes: ${updateError.message}` }
 
   if (s.representantes_propostos.length > 0) {
-    await supabase.from('representantes').delete().eq('cedente_id', s.cedente_id)
-    await supabase.from('representantes').insert(
-      s.representantes_propostos.map((rep, idx) => ({
-        ...rep,
-        id: undefined,
-        cedente_id: s.cedente_id,
-        principal: idx === 0,
-      })) as never
-    )
+    const toRow = (rep: Record<string, unknown>, idx: number) => ({
+      cedente_id: s.cedente_id,
+      nome:     String(rep.nome     ?? ''),
+      cpf:      String(rep.cpf      ?? ''),
+      rg:       String(rep.rg       ?? ''),
+      cargo:    String(rep.cargo    ?? ''),
+      email:    String(rep.email    ?? ''),
+      telefone: String(rep.telefone ?? ''),
+      principal: idx === 0,
+    })
+
+    const { error: deleteError } = await supabase
+      .from('representantes')
+      .delete()
+      .eq('cedente_id', s.cedente_id)
+
+    if (deleteError) return { success: false, message: `Erro ao remover representantes: ${deleteError.message}` }
+
+    const { error: insertError } = await supabase
+      .from('representantes')
+      .insert(s.representantes_propostos.map(toRow) as never)
+
+    if (insertError) {
+      // Restaurar representantes originais antes de retornar erro
+      await supabase
+        .from('representantes')
+        .insert(s.representantes_atuais.map(toRow) as never)
+      return { success: false, message: `Erro ao inserir representantes: ${insertError.message}` }
+    }
   }
 
   await supabase
