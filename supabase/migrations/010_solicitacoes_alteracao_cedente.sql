@@ -21,10 +21,10 @@ ALTER TABLE solicitacoes_alteracao_cedente ENABLE ROW LEVEL SECURITY;
 
 -- Cedente vê apenas as próprias solicitações
 CREATE POLICY sac_cedente_select ON solicitacoes_alteracao_cedente
-  FOR SELECT USING (cedente_id = get_cedente_id());
+  FOR SELECT USING (cedente_id = get_user_cedente_id());
 
 CREATE POLICY sac_cedente_insert ON solicitacoes_alteracao_cedente
-  FOR INSERT WITH CHECK (cedente_id = get_cedente_id());
+  FOR INSERT WITH CHECK (cedente_id = get_user_cedente_id());
 
 -- Gestor acessa tudo
 CREATE POLICY sac_gestor_all ON solicitacoes_alteracao_cedente
