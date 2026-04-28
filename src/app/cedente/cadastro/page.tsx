@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Loader2, Plus, Trash2 } from 'lucide-react'
+import { Loader2, Plus, Trash2, Building2, User, Landmark, CheckCircle, Clock, XCircle } from 'lucide-react'
 import { cadastrarCedente } from '@/lib/actions/cedente'
+import { createClient } from '@/lib/supabase/client'
+import { formatCNPJ } from '@/lib/utils'
 import {
   etapa1Schema, etapa2Schema, etapa3Schema,
   bancosBrasileiros,
@@ -13,10 +15,185 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Skeleton } from '@/components/ui/skeleton'
 
 const STORAGE_KEY = 'bw_antecipa_cadastro_cedente'
 
 type FormErrors = Record<string, string[]>
+
+interface RepresentanteCadastrado {
+  id: string
+  nome: string
+  cpf: string
+  rg: string
+  cargo: string
+  email: string
+  telefone: string
+  principal: boolean
+}
+
+interface CedenteCadastrado {
+  id: string
+  cnpj: string
+  razao_social: string
+  nome_fantasia: string | null
+  cnae: string | null
+  cep: string | null
+  logradouro: string | null
+  numero: string | null
+  complemento: string | null
+  bairro: string | null
+  cidade: string | null
+  estado: string | null
+  telefone_comercial: string | null
+  email_comercial: string | null
+  banco: string | null
+  agencia: string | null
+  conta: string | null
+  tipo_conta: string | null
+  status: string
+  created_at: string
+  representantes: RepresentanteCadastrado[]
+}
+
+const statusConfig: Record<string, { label: string; icon: typeof CheckCircle; className: string }> = {
+  pendente:  { label: 'Pendente de Análise', icon: Clock,        className: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
+  ativo:     { label: 'Ativo',               icon: CheckCircle,  className: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+  reprovado: { label: 'Reprovado',           icon: XCircle,      className: 'bg-destructive/10 text-destructive border-destructive/20' },
+  suspenso:  { label: 'Suspenso',            icon: XCircle,      className: 'bg-orange-100 text-orange-700 border-orange-200' },
+}
+
+function maskPhone(v: string) {
+  const n = (v || '').replace(/\D/g, '')
+  if (n.length <= 10) return n.replace(/(\d{2})(\d)/, '($1) $2').replace(/(\d{4})(\d)/, '$1-$2')
+  return n.replace(/(\d{2})(\d)/, '($1) $2').replace(/(\d{5})(\d)/, '$1-$2').slice(0, 15)
+}
+
+function Campo({ label, value }: { label: string; value: string | null | undefined }) {
+  return (
+    <div>
+      <p className="text-xs text-muted-foreground mb-0.5">{label}</p>
+      <p className="text-sm font-medium text-foreground">{value || '—'}</p>
+    </div>
+  )
+}
+
+function CedenteView({ cedente }: { cedente: CedenteCadastrado }) {
+  const st = statusConfig[cedente.status] || statusConfig.pendente
+  const StatusIcon = st.icon
+
+  const endereco = [
+    cedente.logradouro,
+    cedente.numero,
+    cedente.complemento,
+    cedente.bairro,
+    cedente.cidade,
+    cedente.estado,
+  ].filter(Boolean).join(', ')
+
+  return (
+    <div className="max-w-3xl mx-auto space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">{cedente.razao_social}</h1>
+          <p className="text-muted-foreground font-mono text-sm mt-0.5">{formatCNPJ(cedente.cnpj)}</p>
+        </div>
+        <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border ${st.className}`}>
+          <StatusIcon size={13} />
+          {st.label}
+        </span>
+      </div>
+
+      {/* Dados da Empresa */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Building2 size={16} className="text-muted-foreground" />
+            Dados da Empresa
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Campo label="Razão Social" value={cedente.razao_social} />
+          <Campo label="Nome Fantasia" value={cedente.nome_fantasia} />
+          <Campo label="CNPJ" value={formatCNPJ(cedente.cnpj)} />
+          <Campo label="CNAE" value={cedente.cnae} />
+          <Campo label="Telefone Comercial" value={maskPhone(cedente.telefone_comercial || '')} />
+          <Campo label="E-mail Comercial" value={cedente.email_comercial} />
+          {cedente.cep && (
+            <div className="sm:col-span-2">
+              <p className="text-xs text-muted-foreground mb-0.5">Endereço</p>
+              <p className="text-sm font-medium text-foreground">
+                {endereco}{cedente.cep ? ` — CEP ${cedente.cep}` : ''}
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Representantes */}
+      {cedente.representantes.length > 0 && (
+        <div className="space-y-3">
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+            <User size={14} />
+            Representantes Legais
+          </h2>
+          {cedente.representantes.map((rep, i) => (
+            <Card key={rep.id}>
+              <CardHeader className="pb-2 pt-4 px-4">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  {rep.nome}
+                  {rep.principal && (
+                    <span className="text-xs font-normal text-muted-foreground bg-muted px-2 py-0.5 rounded-full">principal</span>
+                  )}
+                  {!rep.principal && (
+                    <span className="text-xs font-normal text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{i + 1}º</span>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="px-4 pb-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <Campo label="CPF" value={rep.cpf} />
+                <Campo label="RG" value={rep.rg} />
+                <Campo label="Cargo" value={rep.cargo} />
+                <Campo label="E-mail" value={rep.email} />
+                <Campo label="Telefone" value={maskPhone(rep.telefone)} />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Dados Bancários */}
+      {(cedente.banco || cedente.agencia || cedente.conta) && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Landmark size={16} className="text-muted-foreground" />
+              Dados Bancários
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="sm:col-span-3">
+              <Campo label="Banco" value={cedente.banco} />
+            </div>
+            <Campo label="Agência" value={cedente.agencia} />
+            <Campo label="Conta" value={cedente.conta} />
+            <Campo label="Tipo" value={cedente.tipo_conta === 'corrente' ? 'Corrente' : cedente.tipo_conta === 'poupanca' ? 'Poupança' : cedente.tipo_conta} />
+          </CardContent>
+        </Card>
+      )}
+
+      {cedente.status === 'pendente' && (
+        <p className="text-sm text-muted-foreground text-center">
+          Seu cadastro está em análise. Em breve você receberá uma notificação com o resultado.
+        </p>
+      )}
+    </div>
+  )
+}
+
+// ─── Formulário de cadastro (inalterado) ────────────────────────────────────
 
 function maskCNPJ(v: string) {
   return v.replace(/\D/g, '').replace(/^(\d{2})(\d)/, '$1.$2').replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3').replace(/\.(\d{3})(\d)/, '.$1/$2').replace(/(\d{4})(\d)/, '$1-$2').slice(0, 18)
@@ -24,16 +201,11 @@ function maskCNPJ(v: string) {
 function maskCPF(v: string) {
   return v.replace(/\D/g, '').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d{1,2})$/, '$1-$2').slice(0, 14)
 }
-function maskPhone(v: string) {
-  const n = v.replace(/\D/g, '')
-  if (n.length <= 10) return n.replace(/(\d{2})(\d)/, '($1) $2').replace(/(\d{4})(\d)/, '$1-$2')
-  return n.replace(/(\d{2})(\d)/, '($1) $2').replace(/(\d{5})(\d)/, '$1-$2').slice(0, 15)
-}
 function maskCEP(v: string) {
   return v.replace(/\D/g, '').replace(/(\d{5})(\d)/, '$1-$2').slice(0, 9)
 }
 
-export default function CadastroCedentePage() {
+function CadastroForm() {
   const router = useRouter()
   const [etapa, setEtapa] = useState(1)
   const [loading, setLoading] = useState(false)
@@ -52,7 +224,6 @@ export default function CadastroCedentePage() {
     }
   })
 
-  // Auto-save no localStorage
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(form))
   }, [form])
@@ -141,7 +312,6 @@ export default function CadastroCedentePage() {
     const schema = schemas[etapa as keyof typeof schemas]
     const result = schema.safeParse(form)
     if (!result.success) {
-      // Construir mapa de erros achatado manualmente para suportar arrays aninhados
       const errosMapeados: FormErrors = {}
       for (const issue of result.error.issues) {
         const chave = issue.path.join('.')
@@ -165,9 +335,7 @@ export default function CadastroCedentePage() {
     if (!validarEtapa()) return
     setLoading(true)
     setMessage('')
-
     const result = await cadastrarCedente(form as CedenteFormData)
-
     if (result?.success) {
       localStorage.removeItem(STORAGE_KEY)
       router.push('/cedente/documentos')
@@ -501,32 +669,16 @@ export default function CadastroCedentePage() {
             }`}>{message}</div>
           )}
 
-          {/* Botoes */}
           <div className="flex justify-between mt-6 pt-4 border-t border-border">
             {etapa > 1 ? (
-              <Button variant="outline" onClick={voltar}>
-                Voltar
-              </Button>
+              <Button variant="outline" onClick={voltar}>Voltar</Button>
             ) : <div />}
 
             {etapa < 3 ? (
-              <Button variant="default" onClick={avancar}>
-                Proximo
-              </Button>
+              <Button variant="default" onClick={avancar}>Proximo</Button>
             ) : (
-              <Button
-                onClick={submeter}
-                disabled={loading}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Salvando...
-                  </>
-                ) : (
-                  'Finalizar Cadastro'
-                )}
+              <Button onClick={submeter} disabled={loading} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Salvando...</> : 'Finalizar Cadastro'}
               </Button>
             )}
           </div>
@@ -534,4 +686,53 @@ export default function CadastroCedentePage() {
       </Card>
     </div>
   )
+}
+
+// ─── Página principal ────────────────────────────────────────────────────────
+
+export default function CadastroCedentePage() {
+  const [cedente, setCedente] = useState<CedenteCadastrado | null | 'loading'>('loading')
+
+  useEffect(() => {
+    const load = async () => {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { setCedente(null); return }
+
+      const { data } = await supabase
+        .from('cedentes')
+        .select('id, cnpj, razao_social, nome_fantasia, cnae, cep, logradouro, numero, complemento, bairro, cidade, estado, telefone_comercial, email_comercial, banco, agencia, conta, tipo_conta, status, created_at')
+        .eq('user_id', user.id)
+        .single()
+
+      if (!data) { setCedente(null); return }
+
+      const { data: reps } = await supabase
+        .from('representantes')
+        .select('id, nome, cpf, rg, cargo, email, telefone, principal')
+        .eq('cedente_id', data.id)
+        .order('principal', { ascending: false })
+
+      setCedente({ ...(data as Omit<CedenteCadastrado, 'representantes'>), representantes: (reps || []) as RepresentanteCadastrado[] })
+    }
+    load()
+  }, [])
+
+  if (cedente === 'loading') {
+    return (
+      <div className="max-w-3xl mx-auto space-y-6">
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-72" />
+          <Skeleton className="h-4 w-40" />
+        </div>
+        <Skeleton className="h-48 rounded-xl" />
+        <Skeleton className="h-32 rounded-xl" />
+        <Skeleton className="h-24 rounded-xl" />
+      </div>
+    )
+  }
+
+  if (cedente) return <CedenteView cedente={cedente} />
+
+  return <CadastroForm />
 }
