@@ -296,6 +296,109 @@ export async function toggleEscrowCedente(cedenteId: string, habilitar: boolean)
   return { success: true, message: `Extrato escrow ${habilitar ? 'habilitado' : 'desabilitado'} com sucesso.` }
 }
 
+export async function aprovarAlteracaoCedente(solicitacaoId: string): Promise<GestorActionState> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, message: 'Usuario nao autenticado.' }
+
+  const { data: sol } = await supabase
+    .from('solicitacoes_alteracao_cedente')
+    .select('id, cedente_id, dados_propostos, representantes_propostos, cedentes(user_id, razao_social)')
+    .eq('id', solicitacaoId)
+    .single()
+
+  if (!sol) return { success: false, message: 'Solicitacao nao encontrada.' }
+
+  const s = sol as {
+    id: string
+    cedente_id: string
+    dados_propostos: Record<string, unknown>
+    representantes_propostos: Array<Record<string, unknown>>
+    cedentes: { user_id: string; razao_social: string }
+  }
+
+  const { error: updateError } = await supabase
+    .from('cedentes')
+    .update(s.dados_propostos as never)
+    .eq('id', s.cedente_id)
+
+  if (updateError) return { success: false, message: `Erro ao aplicar alteracoes: ${updateError.message}` }
+
+  if (s.representantes_propostos.length > 0) {
+    await supabase.from('representantes').delete().eq('cedente_id', s.cedente_id)
+    await supabase.from('representantes').insert(
+      s.representantes_propostos.map((rep, idx) => ({
+        ...rep,
+        id: undefined,
+        cedente_id: s.cedente_id,
+        principal: idx === 0,
+      })) as never
+    )
+  }
+
+  await supabase
+    .from('solicitacoes_alteracao_cedente')
+    .update({ status: 'aprovada', analisado_por: user.id, analisado_em: new Date().toISOString() } as never)
+    .eq('id', solicitacaoId)
+
+  await registrarLog({
+    tipo_evento: 'ALTERACAO_CADASTRAL_APROVADA',
+    entidade_tipo: 'cedentes',
+    entidade_id: s.cedente_id,
+    dados_depois: s.dados_propostos,
+  })
+
+  await criarNotificacao({
+    usuario_id: s.cedentes.user_id,
+    titulo: 'Alteracao cadastral aprovada',
+    mensagem: 'Sua solicitacao de alteracao de dados cadastrais foi aprovada.',
+    tipo: 'alteracao_cadastral_aprovada',
+  })
+
+  return { success: true, message: 'Alteracao cadastral aprovada e aplicada.' }
+}
+
+export async function reprovarAlteracaoCedente(solicitacaoId: string, motivo: string): Promise<GestorActionState> {
+  if (!motivo || motivo.trim().length === 0) {
+    return { success: false, message: 'Motivo da reprovacao e obrigatorio.' }
+  }
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, message: 'Usuario nao autenticado.' }
+
+  const { data: sol } = await supabase
+    .from('solicitacoes_alteracao_cedente')
+    .select('id, cedente_id, cedentes(user_id)')
+    .eq('id', solicitacaoId)
+    .single()
+
+  if (!sol) return { success: false, message: 'Solicitacao nao encontrada.' }
+
+  const s = sol as { id: string; cedente_id: string; cedentes: { user_id: string } }
+
+  await supabase
+    .from('solicitacoes_alteracao_cedente')
+    .update({ status: 'reprovada', motivo_reprovacao: motivo, analisado_por: user.id, analisado_em: new Date().toISOString() } as never)
+    .eq('id', solicitacaoId)
+
+  await registrarLog({
+    tipo_evento: 'ALTERACAO_CADASTRAL_REPROVADA',
+    entidade_tipo: 'cedentes',
+    entidade_id: s.cedente_id,
+    dados_depois: { motivo },
+  })
+
+  await criarNotificacao({
+    usuario_id: s.cedentes.user_id,
+    titulo: 'Alteracao cadastral reprovada',
+    mensagem: `Sua solicitacao de alteracao cadastral foi reprovada. Motivo: ${motivo}`,
+    tipo: 'alteracao_cadastral_reprovada',
+  })
+
+  return { success: true, message: 'Solicitacao reprovada.' }
+}
+
 export async function solicitarAtualizacaoDocumento(documentoId: string): Promise<GestorActionState> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()

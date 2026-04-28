@@ -218,6 +218,73 @@ export async function reenviarDocumento(documentoId: string, formData: FormData)
 }
 
 
+export async function solicitarAlteracaoCedente(
+  dados: Partial<CedenteFormData>
+): Promise<CedenteActionState> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, message: 'Usuario nao autenticado.' }
+
+  const { data: cedente } = await supabase
+    .from('cedentes')
+    .select('id, cnpj, razao_social, nome_fantasia, cnae, cep, logradouro, numero, complemento, bairro, cidade, estado, telefone_comercial, email_comercial, banco, agencia, conta, tipo_conta')
+    .eq('user_id', user.id)
+    .single()
+
+  if (!cedente) return { success: false, message: 'Cedente nao encontrado.' }
+
+  const cedenteData = cedente as { id: string } & Record<string, unknown>
+
+  // Bloquear se já há solicitação pendente
+  const { data: pendente } = await supabase
+    .from('solicitacoes_alteracao_cedente')
+    .select('id')
+    .eq('cedente_id', cedenteData.id)
+    .eq('status', 'pendente')
+    .limit(1)
+    .single()
+
+  if (pendente) {
+    return { success: false, message: 'Ja existe uma solicitacao de alteracao aguardando aprovacao.' }
+  }
+
+  const { data: reps } = await supabase
+    .from('representantes')
+    .select('id, nome, cpf, rg, cargo, email, telefone, principal')
+    .eq('cedente_id', cedenteData.id)
+    .order('principal', { ascending: false })
+
+  const { representantes: representantesPropostos, ...camposPropostos } = dados
+
+  const { error } = await supabase
+    .from('solicitacoes_alteracao_cedente')
+    .insert({
+      cedente_id: cedenteData.id,
+      dados_atuais: cedenteData,
+      dados_propostos: camposPropostos,
+      representantes_atuais: reps || [],
+      representantes_propostos: representantesPropostos || [],
+    } as never)
+
+  if (error) return { success: false, message: `Erro ao registrar solicitacao: ${error.message}` }
+
+  await registrarLog({
+    tipo_evento: 'ALTERACAO_CADASTRAL_SOLICITADA',
+    entidade_tipo: 'cedentes',
+    entidade_id: cedenteData.id,
+    dados_antes: cedenteData,
+    dados_depois: camposPropostos as Record<string, unknown>,
+  })
+
+  await notificarGestores(
+    'Solicitacao de alteracao cadastral',
+    `O cedente ${cedenteData.razao_social as string} (${cedenteData.cnpj as string}) solicitou alteracao nos dados cadastrais.`,
+    'alteracao_cadastral'
+  )
+
+  return { success: true, message: 'Solicitacao enviada. Aguardando aprovacao do gestor.' }
+}
+
 export async function salvarContratoAssinado(
   cedenteId: string,
   path: string
