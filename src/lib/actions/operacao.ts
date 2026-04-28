@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { registrarLog } from './auditoria'
-import { criarNotificacao, notificarGestores } from './notificacao'
+import { criarNotificacao, notificarCedente, notificarGestores } from './notificacao'
 
 export type OperacaoActionState = {
   success?: boolean
@@ -27,7 +27,6 @@ export async function solicitarAntecipacao(nfIds: string[]): Promise<OperacaoAct
   const { data: cedente } = await supabase
     .from('cedentes')
     .select('id, cnpj, razao_social, status')
-    .eq('user_id', user.id)
     .single()
 
   if (!cedente) return { success: false, message: 'Cadastro de cedente nao encontrado.' }
@@ -400,12 +399,12 @@ export async function desembolsarOperacao(operacaoId: string): Promise<OperacaoA
     operacao_id: operacaoId,
   } as never)
 
-  await criarNotificacao({
-    usuario_id: opData.cedentes.user_id,
-    titulo: 'Desembolso realizado!',
-    mensagem: `O desembolso da sua operacao foi confirmado. Valor: ${formatBRL(opData.valor_liquido_desembolso)} (taxa: ${opData.taxa_desconto}% a.m., prazo medio: ${opData.prazo_dias} dias). Confira seu extrato.`,
-    tipo: 'operacao_desembolsada',
-  })
+  await notificarCedente(
+    opData.cedente_id,
+    'Desembolso realizado!',
+    `O desembolso da sua operacao foi confirmado. Valor: ${formatBRL(opData.valor_liquido_desembolso)} (taxa: ${opData.taxa_desconto}% a.m., prazo medio: ${opData.prazo_dias} dias). Confira seu extrato.`,
+    'operacao_desembolsada',
+  )
 
   await registrarLog({
     tipo_evento: 'OPERACAO_DESEMBOLSADA',
@@ -463,12 +462,12 @@ export async function reprovarOperacao(operacaoId: string, motivo: string): Prom
       .in('id', nfIds)
   }
 
-  await criarNotificacao({
-    usuario_id: opData.cedentes.user_id,
-    titulo: 'Operacao reprovada',
-    mensagem: `Sua solicitacao de antecipacao foi reprovada. Motivo: ${motivo}. As NFs estao disponiveis para nova solicitacao.`,
-    tipo: 'operacao_reprovada',
-  })
+  await notificarCedente(
+    opData.cedente_id,
+    'Operacao reprovada',
+    `Sua solicitacao de antecipacao foi reprovada. Motivo: ${motivo}. As NFs estao disponiveis para nova solicitacao.`,
+    'operacao_reprovada',
+  )
 
   await registrarLog({
     tipo_evento: 'OPERACAO_REPROVADA',
@@ -493,7 +492,6 @@ export async function cancelarOperacao(operacaoId: string): Promise<OperacaoActi
   const { data: cedente } = await supabase
     .from('cedentes')
     .select('id')
-    .eq('user_id', user.id)
     .single()
 
   if (!cedente) return { success: false, message: 'Cedente nao encontrado.' }
@@ -681,12 +679,12 @@ export async function removerNfDaOperacao(
       dados_depois: { nf_removida: nfData.numero_nf, operacao_cancelada: true },
     })
 
-    await criarNotificacao({
-      usuario_id: opData.cedentes.user_id,
-      titulo: 'Operacao cancelada — NF removida',
-      mensagem: `A NF ${nfData.numero_nf} foi removida da operacao pelo gestor. Como era a unica NF, a operacao foi cancelada.`,
-      tipo: 'operacao_cancelada',
-    })
+    await notificarCedente(
+      opData.cedente_id,
+      'Operacao cancelada — NF removida',
+      `A NF ${nfData.numero_nf} foi removida da operacao pelo gestor. Como era a unica NF, a operacao foi cancelada.`,
+      'operacao_cancelada',
+    )
 
     const aviso = wasEmAndamento ? ' ATENCAO: A operacao ja estava em andamento — verifique o saldo da conta escrow.' : ''
     return { success: true, message: `NF ${nfData.numero_nf} removida. Operacao cancelada pois nao havia mais NFs.${aviso}` }
@@ -727,12 +725,12 @@ export async function removerNfDaOperacao(
     dados_depois: { nf_removida: nfData.numero_nf, novo_valor_bruto: novoValorBruto },
   })
 
-  await criarNotificacao({
-    usuario_id: opData.cedentes.user_id,
-    titulo: 'NF removida da operacao',
-    mensagem: `A NF ${nfData.numero_nf} foi removida da operacao pelo gestor. O valor bruto da operacao foi recalculado para ${formatBRL(novoValorBruto)}.`,
-    tipo: 'nf_removida_operacao',
-  })
+  await notificarCedente(
+    opData.cedente_id,
+    'NF removida da operacao',
+    `A NF ${nfData.numero_nf} foi removida da operacao pelo gestor. O valor bruto da operacao foi recalculado para ${formatBRL(novoValorBruto)}.`,
+    'nf_removida_operacao',
+  )
 
   const aviso = wasEmAndamento ? ' ATENCAO: A operacao ja estava em andamento — os termos financeiros precisam ser ajustados manualmente.' : ''
   return { success: true, message: `NF ${nfData.numero_nf} removida. Novo valor bruto: ${formatBRL(novoValorBruto)}.${aviso}` }

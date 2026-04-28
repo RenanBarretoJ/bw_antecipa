@@ -36,9 +36,9 @@ export function NotificationBell({ userId }: { userId: string }) {
 
     loadNotificacoes()
 
-    // Realtime
+    // Realtime — entrega imediata quando disponivel
     const channel = supabase
-      .channel('notificacoes-realtime')
+      .channel(`notificacoes-${userId}`)
       .on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',
@@ -50,8 +50,12 @@ export function NotificationBell({ userId }: { userId: string }) {
       })
       .subscribe()
 
+    // Polling a cada 30s como fallback caso o Realtime nao entregue
+    const interval = setInterval(loadNotificacoes, 30_000)
+
     return () => {
       supabase.removeChannel(channel)
+      clearInterval(interval)
     }
   }, [userId])
 

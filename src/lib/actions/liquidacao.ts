@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { registrarLog } from './auditoria'
-import { criarNotificacao, notificarGestores } from './notificacao'
+import { notificarCedente, notificarGestores } from './notificacao'
 
 export type LiquidacaoState = {
   success?: boolean
@@ -87,12 +87,12 @@ export async function liquidarOperacao(operacaoId: string): Promise<LiquidacaoSt
   }
 
   // Notificar cedente
-  await criarNotificacao({
-    usuario_id: opData.cedentes.user_id,
-    titulo: 'Operacao liquidada!',
-    mensagem: `A operacao #${operacaoId.substring(0, 8)} foi liquidada. O sacado efetuou o pagamento.`,
-    tipo: 'operacao_liquidada',
-  })
+  await notificarCedente(
+    opData.cedente_id,
+    'Operacao liquidada!',
+    `A operacao #${operacaoId.substring(0, 8)} foi liquidada. O sacado efetuou o pagamento.`,
+    'operacao_liquidada',
+  )
 
   await registrarLog({
     tipo_evento: 'OPERACAO_LIQUIDADA',
@@ -113,24 +113,24 @@ export async function marcarInadimplente(operacaoId: string): Promise<Liquidacao
 
   const { data: op } = await supabase
     .from('operacoes')
-    .select('status, cedentes(user_id)')
+    .select('status, cedente_id')
     .eq('id', operacaoId)
     .single()
 
   if (!op) return { success: false, message: 'Operacao nao encontrada.' }
-  const opData = op as { status: string; cedentes: { user_id: string } }
+  const opData = op as { status: string; cedente_id: string }
 
   await supabase
     .from('operacoes')
     .update({ status: 'inadimplente' } as never)
     .eq('id', operacaoId)
 
-  await criarNotificacao({
-    usuario_id: opData.cedentes.user_id,
-    titulo: 'ALERTA: Operacao inadimplente',
-    mensagem: `A operacao #${operacaoId.substring(0, 8)} foi marcada como inadimplente. O sacado nao efetuou o pagamento no vencimento.`,
-    tipo: 'operacao_inadimplente',
-  })
+  await notificarCedente(
+    opData.cedente_id,
+    'ALERTA: Operacao inadimplente',
+    `A operacao #${operacaoId.substring(0, 8)} foi marcada como inadimplente. O sacado nao efetuou o pagamento no vencimento.`,
+    'operacao_inadimplente',
+  )
 
   await registrarLog({
     tipo_evento: 'OPERACAO_INADIMPLENTE',

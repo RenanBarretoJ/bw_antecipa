@@ -1,6 +1,6 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { enviarEmail, emailTemplates } from '@/lib/email'
 
 interface NotificacaoInput {
@@ -28,9 +28,60 @@ export async function criarNotificacao({ usuario_id, titulo, mensagem, tipo }: N
   }
 }
 
+// Envia notificacao para o dono do cedente + todos os usuarios vinculados ativos.
+export async function notificarCedente(cedenteId: string, titulo: string, mensagem: string, tipo: string) {
+  try {
+    const admin = createAdminClient()
+
+    const { data: cedente, error: cedenteError } = await admin
+      .from('cedentes')
+      .select('user_id')
+      .eq('id', cedenteId)
+      .single()
+
+    if (cedenteError || !cedente) {
+      console.error('[notificarCedente] Cedente nao encontrado:', cedenteError?.message, { cedenteId })
+      return
+    }
+
+    const ownerUserId = (cedente as { user_id: string }).user_id
+
+    const { data: acessos, error: acessosError } = await admin
+      .from('cedente_acessos')
+      .select('user_id')
+      .eq('cedente_id', cedenteId)
+      .eq('ativo', true)
+
+    if (acessosError) {
+      console.error('[notificarCedente] Erro ao buscar acessos:', acessosError.message, { cedenteId })
+    }
+
+    const vinculados = ((acessos || []) as { user_id: string }[]).map((a) => a.user_id)
+    const userIds = [...new Set([ownerUserId, ...vinculados])]
+
+    console.log('[notificarCedente] Enviando para', userIds.length, 'usuario(s):', userIds, { cedenteId, tipo })
+
+    // Inserir individualmente para que falha de um nao bloqueie os demais
+    await Promise.allSettled(
+      userIds.map(async (uid) => {
+        const { error } = await admin
+          .from('notificacoes')
+          .insert({ usuario_id: uid, titulo, mensagem, tipo } as never)
+        if (error) {
+          console.error('[notificarCedente] Falha ao inserir para', uid, ':', error.message)
+        }
+      })
+    )
+
+    tentarEnviarEmail(ownerUserId, tipo, titulo, mensagem).catch(() => {})
+  } catch (err) {
+    console.error('[notificarCedente] Erro inesperado:', err)
+  }
+}
+
 export async function notificarGestores(titulo: string, mensagem: string, tipo: string) {
   try {
-    const supabase = await createClient()
+    const supabase = createAdminClient()
     const { data: gestores, error: queryError } = await supabase
       .from('profiles')
       .select('id')

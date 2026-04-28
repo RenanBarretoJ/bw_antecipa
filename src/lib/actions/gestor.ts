@@ -1,8 +1,8 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { registrarLog } from './auditoria'
-import { criarNotificacao } from './notificacao'
+import { notificarCedente } from './notificacao'
 
 const tipoLabelsDoc: Record<string, string> = {
   contrato_social: 'Contrato Social',
@@ -78,14 +78,14 @@ export async function analisarDocumento(
   })
 
   const statusLabel = decisao === 'aprovado' ? 'aprovado' : 'reprovado'
-  await criarNotificacao({
-    usuario_id: doc.cedentes.user_id,
-    titulo: `Documento ${statusLabel}`,
-    mensagem: decisao === 'aprovado'
+  await notificarCedente(
+    doc.cedente_id,
+    `Documento ${statusLabel}`,
+    decisao === 'aprovado'
       ? `Seu documento "${doc.tipo}" foi aprovado.`
       : `Seu documento "${doc.tipo}" foi reprovado. Motivo: ${motivo}`,
-    tipo: `documento_${statusLabel}`,
-  })
+    `documento_${statusLabel}`,
+  )
 
   return { success: true, message: `Documento ${statusLabel} com sucesso.` }
 }
@@ -195,12 +195,12 @@ export async function aprovarCedente(cedenteId: string): Promise<GestorActionSta
     dados_depois: { status: 'ativo', conta_escrow: identificador },
   })
 
-  await criarNotificacao({
-    usuario_id: cedenteData.user_id,
-    titulo: 'Cadastro aprovado!',
-    mensagem: `Seu cadastro foi aprovado. Sua conta escrow foi criada: ${identificador}. Voce ja pode solicitar antecipacoes.`,
-    tipo: 'cadastro_aprovado',
-  })
+  await notificarCedente(
+    cedenteId,
+    'Cadastro aprovado!',
+    `Seu cadastro foi aprovado. Sua conta escrow foi criada: ${identificador}. Voce ja pode solicitar antecipacoes.`,
+    'cadastro_aprovado',
+  )
 
   return { success: true, message: `Cedente aprovado. Conta escrow ${identificador} criada.` }
 }
@@ -246,12 +246,12 @@ export async function reprovarCedente(cedenteId: string, motivo: string): Promis
     dados_depois: { status: 'reprovado', motivo },
   })
 
-  await criarNotificacao({
-    usuario_id: cedenteData.user_id,
-    titulo: 'Cadastro reprovado',
-    mensagem: `Seu cadastro foi reprovado. Motivo: ${motivo}`,
-    tipo: 'cadastro_reprovado',
-  })
+  await notificarCedente(
+    cedenteId,
+    'Cadastro reprovado',
+    `Seu cadastro foi reprovado. Motivo: ${motivo}`,
+    'cadastro_reprovado',
+  )
 
   return { success: true, message: 'Cedente reprovado.' }
 }
@@ -296,6 +296,130 @@ export async function toggleEscrowCedente(cedenteId: string, habilitar: boolean)
   return { success: true, message: `Extrato escrow ${habilitar ? 'habilitado' : 'desabilitado'} com sucesso.` }
 }
 
+export async function aprovarAlteracaoCedente(solicitacaoId: string): Promise<GestorActionState> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, message: 'Usuario nao autenticado.' }
+
+  const { data: sol } = await supabase
+    .from('solicitacoes_alteracao_cedente')
+    .select('id, cedente_id, dados_propostos, representantes_propostos, representantes_atuais, cedentes(user_id, razao_social)')
+    .eq('id', solicitacaoId)
+    .single()
+
+  if (!sol) return { success: false, message: 'Solicitacao nao encontrada.' }
+
+  const s = sol as {
+    id: string
+    cedente_id: string
+    dados_propostos: Record<string, unknown>
+    representantes_propostos: Array<Record<string, unknown>>
+    representantes_atuais: Array<Record<string, unknown>>
+    cedentes: { user_id: string; razao_social: string }
+  }
+
+  const { error: updateError } = await supabase
+    .from('cedentes')
+    .update(s.dados_propostos as never)
+    .eq('id', s.cedente_id)
+
+  if (updateError) return { success: false, message: `Erro ao aplicar alteracoes: ${updateError.message}` }
+
+  if (s.representantes_propostos.length > 0) {
+    const toRow = (rep: Record<string, unknown>, idx: number) => ({
+      cedente_id: s.cedente_id,
+      nome:     String(rep.nome     ?? ''),
+      cpf:      String(rep.cpf      ?? ''),
+      rg:       String(rep.rg       ?? ''),
+      cargo:    String(rep.cargo    ?? ''),
+      email:    String(rep.email    ?? ''),
+      telefone: String(rep.telefone ?? ''),
+      principal: idx === 0,
+    })
+
+    const { error: deleteError } = await supabase
+      .from('representantes')
+      .delete()
+      .eq('cedente_id', s.cedente_id)
+
+    if (deleteError) return { success: false, message: `Erro ao remover representantes: ${deleteError.message}` }
+
+    const { error: insertError } = await supabase
+      .from('representantes')
+      .insert(s.representantes_propostos.map(toRow) as never)
+
+    if (insertError) {
+      // Restaurar representantes originais antes de retornar erro
+      await supabase
+        .from('representantes')
+        .insert(s.representantes_atuais.map(toRow) as never)
+      return { success: false, message: `Erro ao inserir representantes: ${insertError.message}` }
+    }
+  }
+
+  await supabase
+    .from('solicitacoes_alteracao_cedente')
+    .update({ status: 'aprovada', analisado_por: user.id, analisado_em: new Date().toISOString() } as never)
+    .eq('id', solicitacaoId)
+
+  await registrarLog({
+    tipo_evento: 'ALTERACAO_CADASTRAL_APROVADA',
+    entidade_tipo: 'cedentes',
+    entidade_id: s.cedente_id,
+    dados_depois: s.dados_propostos,
+  })
+
+  await notificarCedente(
+    s.cedente_id,
+    'Alteracao cadastral aprovada',
+    'Sua solicitacao de alteracao de dados cadastrais foi aprovada.',
+    'alteracao_cadastral_aprovada',
+  )
+
+  return { success: true, message: 'Alteracao cadastral aprovada e aplicada.' }
+}
+
+export async function reprovarAlteracaoCedente(solicitacaoId: string, motivo: string): Promise<GestorActionState> {
+  if (!motivo || motivo.trim().length === 0) {
+    return { success: false, message: 'Motivo da reprovacao e obrigatorio.' }
+  }
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, message: 'Usuario nao autenticado.' }
+
+  const { data: sol } = await supabase
+    .from('solicitacoes_alteracao_cedente')
+    .select('id, cedente_id, cedentes(user_id)')
+    .eq('id', solicitacaoId)
+    .single()
+
+  if (!sol) return { success: false, message: 'Solicitacao nao encontrada.' }
+
+  const s = sol as { id: string; cedente_id: string; cedentes: { user_id: string } }
+
+  await supabase
+    .from('solicitacoes_alteracao_cedente')
+    .update({ status: 'reprovada', motivo_reprovacao: motivo, analisado_por: user.id, analisado_em: new Date().toISOString() } as never)
+    .eq('id', solicitacaoId)
+
+  await registrarLog({
+    tipo_evento: 'ALTERACAO_CADASTRAL_REPROVADA',
+    entidade_tipo: 'cedentes',
+    entidade_id: s.cedente_id,
+    dados_depois: { motivo },
+  })
+
+  await notificarCedente(
+    s.cedente_id,
+    'Alteracao cadastral reprovada',
+    `Sua solicitacao de alteracao cadastral foi reprovada. Motivo: ${motivo}`,
+    'alteracao_cadastral_reprovada',
+  )
+
+  return { success: true, message: 'Solicitacao reprovada.' }
+}
+
 export async function solicitarAtualizacaoDocumento(documentoId: string): Promise<GestorActionState> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -327,12 +451,12 @@ export async function solicitarAtualizacaoDocumento(documentoId: string): Promis
 
   const tipoLabel = tipoLabelsDoc[doc.tipo] || doc.tipo
 
-  await criarNotificacao({
-    usuario_id: doc.cedentes.user_id,
-    titulo: 'Atualizacao de documento solicitada',
-    mensagem: `O gestor solicitou a atualizacao do documento "${tipoLabel}". Por favor, envie uma versao atualizada em Documentos.`,
-    tipo: 'documento_atualizacao_solicitada',
-  })
+  await notificarCedente(
+    doc.cedente_id,
+    'Atualizacao de documento solicitada',
+    `O gestor solicitou a atualizacao do documento "${tipoLabel}". Por favor, envie uma versao atualizada em Documentos.`,
+    'documento_atualizacao_solicitada',
+  )
 
   await registrarLog({
     tipo_evento: 'ATUALIZACAO_DOCUMENTO_SOLICITADA',
@@ -343,4 +467,108 @@ export async function solicitarAtualizacaoDocumento(documentoId: string): Promis
   })
 
   return { success: true, message: 'Atualizacao solicitada. O cedente foi notificado.' }
+}
+
+export async function convidarUsuarioCedente(
+  cedenteId: string,
+  email: string,
+  perfil: 'administrador' | 'operador'
+): Promise<GestorActionState> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, message: 'Usuario nao autenticado.' }
+
+  const admin = createAdminClient()
+
+  // Verificar se o email já existe como usuario
+  const { data: existingProfile } = await admin
+    .from('profiles')
+    .select('id, role')
+    .eq('email', email.toLowerCase().trim())
+    .single()
+
+  let userId: string
+
+  if (existingProfile) {
+    const p = existingProfile as { id: string; role: string }
+    if (p.role !== 'cedente') {
+      return { success: false, message: 'Este email pertence a um usuario com outro perfil no sistema.' }
+    }
+    userId = p.id
+  } else {
+    const { data: invited, error: inviteError } = await admin.auth.admin.inviteUserByEmail(
+      email.toLowerCase().trim(),
+      { data: { role: 'cedente' } }
+    )
+    if (inviteError || !invited?.user) {
+      return { success: false, message: `Erro ao convidar usuario: ${inviteError?.message || 'desconhecido'}` }
+    }
+    userId = invited.user.id
+  }
+
+  // Verificar se já existe um vínculo (ativo ou inativo)
+  const { data: existing } = await admin
+    .from('cedente_acessos')
+    .select('id, ativo')
+    .eq('cedente_id', cedenteId)
+    .eq('user_id', userId)
+    .single()
+
+  if (existing) {
+    const ex = existing as { id: string; ativo: boolean }
+    if (ex.ativo) {
+      return { success: false, message: 'Este usuario ja possui acesso ativo a este cedente.' }
+    }
+    const { error } = await admin
+      .from('cedente_acessos')
+      .update({ ativo: true, perfil, convidado_por: user.id } as never)
+      .eq('id', ex.id)
+    if (error) return { success: false, message: `Erro ao reativar acesso: ${error.message}` }
+  } else {
+    const { error } = await admin
+      .from('cedente_acessos')
+      .insert({ cedente_id: cedenteId, user_id: userId, perfil, convidado_por: user.id } as never)
+    if (error) return { success: false, message: `Erro ao criar acesso: ${error.message}` }
+  }
+
+  await registrarLog({
+    tipo_evento: 'ACESSO_CEDENTE_CONCEDIDO',
+    entidade_tipo: 'cedentes',
+    entidade_id: cedenteId,
+    dados_depois: { email, perfil, user_id: userId },
+  })
+
+  return { success: true, message: `Acesso concedido para ${email}.` }
+}
+
+export async function revogarAcessoCedente(acessoId: string): Promise<GestorActionState> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, message: 'Usuario nao autenticado.' }
+
+  const admin = createAdminClient()
+
+  const { data: acesso } = await admin
+    .from('cedente_acessos')
+    .select('cedente_id')
+    .eq('id', acessoId)
+    .single()
+
+  if (!acesso) return { success: false, message: 'Acesso nao encontrado.' }
+
+  const { error } = await admin
+    .from('cedente_acessos')
+    .update({ ativo: false } as never)
+    .eq('id', acessoId)
+
+  if (error) return { success: false, message: `Erro ao revogar acesso: ${error.message}` }
+
+  await registrarLog({
+    tipo_evento: 'ACESSO_CEDENTE_REVOGADO',
+    entidade_tipo: 'cedentes',
+    entidade_id: (acesso as { cedente_id: string }).cedente_id,
+    dados_depois: { acesso_id: acessoId },
+  })
+
+  return { success: true, message: 'Acesso revogado com sucesso.' }
 }

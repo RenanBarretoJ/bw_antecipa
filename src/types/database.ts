@@ -177,6 +177,16 @@ export interface TaxaCedente {
   updated_at: string
 }
 
+export interface CedenteAcesso {
+  id: string
+  cedente_id: string
+  user_id: string
+  perfil: 'administrador' | 'operador'
+  ativo: boolean
+  convidado_por: string | null
+  created_at: string
+}
+
 export interface ConsultorCedente {
   id: string
   consultor_id: string
@@ -283,6 +293,11 @@ export interface Database {
         Row: TaxaCedente
         Insert: Omit<TaxaCedente, 'id' | 'created_at' | 'updated_at'> & { id?: string }
         Update: Partial<Omit<TaxaCedente, 'id' | 'created_at' | 'updated_at'>>
+      }
+      cedente_acessos: {
+        Row: CedenteAcesso
+        Insert: Omit<CedenteAcesso, 'id' | 'created_at'> & { id?: string }
+        Update: Partial<Omit<CedenteAcesso, 'id' | 'created_at'>>
       }
       sacados: {
         Row: Sacado

@@ -5,7 +5,7 @@ import { notaFiscalSchema, type NotaFiscalFormData } from '@/lib/validations/nf'
 import { parseNFeXML } from '@/lib/nf-parser'
 import { extractDanfeFromPdf, type NfPdfExtracted } from '@/lib/pdf-nf-parser'
 import { registrarLog } from './auditoria'
-import { notificarGestores, criarNotificacao } from './notificacao'
+import { notificarGestores, notificarCedente } from './notificacao'
 import { buckets } from '@/lib/storage'
 
 export type NfActionState = {
@@ -28,7 +28,6 @@ async function getCedenteDoUsuario() {
   const { data: cedente } = await supabase
     .from('cedentes')
     .select('id, cnpj, razao_social, status')
-    .eq('user_id', user.id)
     .single()
 
   if (!cedente) return null
@@ -616,22 +615,12 @@ export async function aprovarNF(nfId: string): Promise<NfActionState> {
     return { success: false, message: `Erro ao aprovar: ${error.message}` }
   }
 
-  // Buscar user_id do cedente para notificar
-  const { data: cedenteInfo } = await supabase
-    .from('cedentes')
-    .select('user_id, razao_social')
-    .eq('id', nfData.cedente_id)
-    .single()
-
-  if (cedenteInfo) {
-    const cedenteUser = cedenteInfo as { user_id: string; razao_social: string }
-    await criarNotificacao({
-      usuario_id: cedenteUser.user_id,
-      titulo: 'NF aprovada',
-      mensagem: `Sua NF ${nfData.numero_nf} foi aprovada e esta disponivel para antecipacao.`,
-      tipo: 'nf_aprovada',
-    })
-  }
+  await notificarCedente(
+    nfData.cedente_id,
+    'NF aprovada',
+    `Sua NF ${nfData.numero_nf} foi aprovada e esta disponivel para antecipacao.`,
+    'nf_aprovada',
+  )
 
   await registrarLog({
     tipo_evento: 'NF_APROVADA',
@@ -675,21 +664,12 @@ export async function reprovarNF(nfId: string, motivo: string): Promise<NfAction
     return { success: false, message: `Erro ao reprovar: ${error.message}` }
   }
 
-  const { data: cedenteInfo } = await supabase
-    .from('cedentes')
-    .select('user_id')
-    .eq('id', nfData.cedente_id)
-    .single()
-
-  if (cedenteInfo) {
-    const cedenteUser = cedenteInfo as { user_id: string }
-    await criarNotificacao({
-      usuario_id: cedenteUser.user_id,
-      titulo: 'NF reprovada',
-      mensagem: `Sua NF ${nfData.numero_nf} foi reprovada. Motivo: ${motivo}`,
-      tipo: 'nf_reprovada',
-    })
-  }
+  await notificarCedente(
+    nfData.cedente_id,
+    'NF reprovada',
+    `Sua NF ${nfData.numero_nf} foi reprovada. Motivo: ${motivo}`,
+    'nf_reprovada',
+  )
 
   await registrarLog({
     tipo_evento: 'NF_REPROVADA',
