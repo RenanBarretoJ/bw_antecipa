@@ -19,7 +19,6 @@ export default function CedenteLayout({ children }: { children: React.ReactNode 
       const { data } = await supabase
         .from('cedentes')
         .select('habilitar_escrow')
-        .eq('user_id', user.id)
         .single()
 
       if (data && (data as { habilitar_escrow: boolean }).habilitar_escrow) {

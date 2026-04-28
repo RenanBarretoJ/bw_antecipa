@@ -3,12 +3,12 @@
 import { useEffect, useState } from 'react'
 import { use } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { analisarDocumento, aprovarCedente, reprovarCedente, solicitarAtualizacaoDocumento, toggleEscrowCedente, aprovarAlteracaoCedente, reprovarAlteracaoCedente } from '@/lib/actions/gestor'
+import { analisarDocumento, aprovarCedente, reprovarCedente, solicitarAtualizacaoDocumento, toggleEscrowCedente, aprovarAlteracaoCedente, reprovarAlteracaoCedente, convidarUsuarioCedente, revogarAcessoCedente } from '@/lib/actions/gestor'
 import { salvarTaxasCedente } from '@/lib/actions/operacao'
 import { salvarContratoAssinado } from '@/lib/actions/cedente'
 import { formatCNPJ, formatDate } from '@/lib/utils'
 import { buckets } from '@/lib/storage'
-import { ArrowLeft, CheckCircle, XCircle, FileText, Eye, X, Plus, Trash2, Settings, RefreshCw, Loader2, GitCompare } from 'lucide-react'
+import { ArrowLeft, CheckCircle, XCircle, FileText, Eye, X, Plus, Trash2, Settings, RefreshCw, Loader2, GitCompare, Users, UserPlus, UserX } from 'lucide-react'
 import { calcularExpiracaoDoc } from '@/lib/documentos'
 import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -43,6 +43,15 @@ interface DocRecord {
 interface RepresentanteRecord {
   id: string; nome: string; cpf: string; rg: string; cargo: string
   email: string; telefone: string; principal: boolean
+}
+
+interface AcessoCedenteRecord {
+  id: string
+  user_id: string
+  perfil: 'administrador' | 'operador'
+  ativo: boolean
+  created_at: string
+  profiles: { nome_completo: string; email: string } | null
 }
 
 interface AlteracaoPendente {
@@ -116,6 +125,15 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
   const [loadingAlteracao, setLoadingAlteracao] = useState(false)
   const [alteracaoMessage, setAlteracaoMessage] = useState('')
 
+  // Acessos
+  const [acessos, setAcessos] = useState<AcessoCedenteRecord[]>([])
+  const [showConviteModal, setShowConviteModal] = useState(false)
+  const [emailConvite, setEmailConvite] = useState('')
+  const [perfilConvite, setPerfilConvite] = useState<'administrador' | 'operador'>('operador')
+  const [loadingConvite, setLoadingConvite] = useState(false)
+  const [conviteMessage, setConviteMessage] = useState('')
+  const [revogandoId, setRevogandoId] = useState<string | null>(null)
+
   const loadData = async () => {
     const supabase = createClient()
 
@@ -157,6 +175,32 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
       .single()
 
     setAlteracao(alt as AlteracaoPendente | null)
+
+    // Acessos vinculados
+    const { data: ac } = await supabase
+      .from('cedente_acessos')
+      .select('id, user_id, perfil, ativo, created_at')
+      .eq('cedente_id', id)
+      .order('created_at', { ascending: true })
+
+    if (ac && ac.length > 0) {
+      const userIds = (ac as { user_id: string }[]).map((a) => a.user_id)
+      const { data: profs } = await supabase
+        .from('profiles')
+        .select('id, nome_completo, email')
+        .in('id', userIds)
+      const profsMap = Object.fromEntries(
+        ((profs || []) as { id: string; nome_completo: string; email: string }[]).map((p) => [p.id, p])
+      )
+      setAcessos(
+        (ac as { id: string; user_id: string; perfil: 'administrador' | 'operador'; ativo: boolean; created_at: string }[]).map((a) => ({
+          ...a,
+          profiles: profsMap[a.user_id] ? { nome_completo: profsMap[a.user_id].nome_completo, email: profsMap[a.user_id].email } : null,
+        }))
+      )
+    } else {
+      setAcessos([])
+    }
     setLoading(false)
   }
 
@@ -748,6 +792,151 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
           )}
         </CardContent>
       </Card>
+
+      {/* Acessos Vinculados */}
+      <Card className="mb-6">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Users size={18} />
+              Acessos Vinculados
+            </CardTitle>
+            <Button size="sm" variant="outline" onClick={() => { setShowConviteModal(true); setConviteMessage('') }}>
+              <UserPlus size={14} /> Convidar
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {acessos.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhum usuario adicional vinculado.</p>
+          ) : (
+            <div className="space-y-2">
+              {acessos.map((ac) => (
+                <div key={ac.id} className="flex items-center justify-between py-2 border-b last:border-0">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">
+                      {ac.profiles?.nome_completo || ac.profiles?.email || 'Sem nome'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{ac.profiles?.email}</p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0 ml-3">
+                    <Badge className={ac.perfil === 'administrador' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'}>
+                      {ac.perfil}
+                    </Badge>
+                    {ac.ativo ? (
+                      <Badge className="bg-green-100 text-green-700">ativo</Badge>
+                    ) : (
+                      <Badge className="bg-red-100 text-red-700">revogado</Badge>
+                    )}
+                    {ac.ativo && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-destructive hover:text-destructive h-7 px-2"
+                        disabled={revogandoId === ac.id}
+                        onClick={async () => {
+                          setRevogandoId(ac.id)
+                          const result = await revogarAcessoCedente(ac.id)
+                          if (result?.success) await loadData()
+                          else setConviteMessage(result?.message || '')
+                          setRevogandoId(null)
+                        }}
+                      >
+                        {revogandoId === ac.id ? <Loader2 size={12} className="animate-spin" /> : <UserX size={12} />}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {conviteMessage && (
+            <p className={`text-sm mt-3 ${conviteMessage.includes('sucesso') || conviteMessage.includes('concedido') ? 'text-green-600' : 'text-destructive'}`}>
+              {conviteMessage}
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Modal de Convite */}
+      {showConviteModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-background rounded-xl shadow-xl max-w-md w-full border border-border p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-foreground flex items-center gap-2">
+                <UserPlus size={16} /> Convidar Usuario
+              </h3>
+              <Button variant="ghost" size="icon" onClick={() => { setShowConviteModal(false); setEmailConvite(''); setConviteMessage('') }}>
+                <X size={18} />
+              </Button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <Label className="text-sm">Email</Label>
+                <Input
+                  type="email"
+                  placeholder="usuario@empresa.com"
+                  value={emailConvite}
+                  onChange={(e) => setEmailConvite(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label className="text-sm">Perfil</Label>
+                <div className="flex gap-2 mt-1">
+                  {(['operador', 'administrador'] as const).map((p) => (
+                    <button
+                      key={p}
+                      onClick={() => setPerfilConvite(p)}
+                      className={`flex-1 py-2 px-3 rounded-lg border text-sm font-medium transition-colors ${
+                        perfilConvite === p
+                          ? 'border-primary bg-primary text-primary-foreground'
+                          : 'border-border bg-background text-foreground hover:bg-muted'
+                      }`}
+                    >
+                      {p === 'operador' ? 'Operador' : 'Administrador'}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {perfilConvite === 'operador'
+                    ? 'Pode lancar NFs e consultar operacoes.'
+                    : 'Acesso completo, incluindo solicitacao de alteracao cadastral.'}
+                </p>
+              </div>
+              {conviteMessage && (
+                <p className={`text-sm ${conviteMessage.includes('concedido') ? 'text-green-600' : 'text-destructive'}`}>
+                  {conviteMessage}
+                </p>
+              )}
+              <div className="flex gap-2 pt-1">
+                <Button variant="outline" className="flex-1" onClick={() => { setShowConviteModal(false); setEmailConvite(''); setConviteMessage('') }}>
+                  Cancelar
+                </Button>
+                <Button
+                  className="flex-1"
+                  disabled={loadingConvite || !emailConvite.trim()}
+                  onClick={async () => {
+                    setLoadingConvite(true)
+                    setConviteMessage('')
+                    const result = await convidarUsuarioCedente(id, emailConvite.trim(), perfilConvite)
+                    setConviteMessage(result?.message || '')
+                    if (result?.success) {
+                      await loadData()
+                      setEmailConvite('')
+                      setTimeout(() => setShowConviteModal(false), 1500)
+                    }
+                    setLoadingConvite(false)
+                  }}
+                >
+                  {loadingConvite ? <Loader2 size={14} className="animate-spin" /> : null}
+                  Confirmar Convite
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Contrato de Cessao */}
       <Card className="mb-6">

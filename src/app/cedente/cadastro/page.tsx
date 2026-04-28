@@ -1034,7 +1034,6 @@ export default function CadastroCedentePage() {
       const { data } = await supabase
         .from('cedentes')
         .select('id, cnpj, razao_social, nome_fantasia, cnae, cep, logradouro, numero, complemento, bairro, cidade, estado, telefone_comercial, email_comercial, banco, agencia, conta, tipo_conta, status, created_at')
-        .eq('user_id', user.id)
         .single()
 
       if (!data) { setCedente(null); return }

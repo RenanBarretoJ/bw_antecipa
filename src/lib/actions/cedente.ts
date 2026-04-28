@@ -97,15 +97,27 @@ export async function uploadDocumento(formData: FormData): Promise<CedenteAction
 
   const { data: cedente } = await supabase
     .from('cedentes')
-    .select('id, cnpj')
-    .eq('user_id', user.id)
+    .select('id, cnpj, user_id')
     .single()
 
   if (!cedente) {
     return { success: false, message: 'Cadastro de cedente nao encontrado.' }
   }
 
-  const cedenteData = cedente as { id: string; cnpj: string }
+  const cedenteData = cedente as { id: string; cnpj: string; user_id: string }
+
+  // Operadores nao podem enviar documentos da empresa
+  if (cedenteData.user_id !== user.id) {
+    const { data: acesso } = await supabase
+      .from('cedente_acessos')
+      .select('perfil')
+      .eq('user_id', user.id)
+      .eq('ativo', true)
+      .single()
+    if (!acesso || (acesso as { perfil: string }).perfil !== 'administrador') {
+      return { success: false, message: 'Sem permissao para enviar documentos. Apenas administradores do cedente podem realizar esta acao.' }
+    }
+  }
   const file = formData.get('arquivo') as File
   const tipo = formData.get('tipo') as string
   const representanteId = (formData.get('representante_id') as string | null) || null
@@ -227,13 +239,25 @@ export async function solicitarAlteracaoCedente(
 
   const { data: cedente } = await supabase
     .from('cedentes')
-    .select('id, cnpj, razao_social, nome_fantasia, cnae, cep, logradouro, numero, complemento, bairro, cidade, estado, telefone_comercial, email_comercial, banco, agencia, conta, tipo_conta')
-    .eq('user_id', user.id)
+    .select('id, user_id, cnpj, razao_social, nome_fantasia, cnae, cep, logradouro, numero, complemento, bairro, cidade, estado, telefone_comercial, email_comercial, banco, agencia, conta, tipo_conta')
     .single()
 
   if (!cedente) return { success: false, message: 'Cedente nao encontrado.' }
 
-  const cedenteData = cedente as { id: string } & Record<string, unknown>
+  const cedenteData = cedente as { id: string; user_id: string } & Record<string, unknown>
+
+  // Operador nao pode solicitar alteracoes cadastrais — verificar perfil para usuarios vinculados
+  if (cedenteData.user_id !== user.id) {
+    const { data: acesso } = await supabase
+      .from('cedente_acessos')
+      .select('perfil')
+      .eq('user_id', user.id)
+      .eq('ativo', true)
+      .single()
+    if (!acesso || (acesso as { perfil: string }).perfil !== 'administrador') {
+      return { success: false, message: 'Sem permissao para solicitar alteracoes cadastrais.' }
+    }
+  }
 
   // Bloquear se já há solicitação pendente
   const { data: pendente } = await supabase
