@@ -850,11 +850,6 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
               ))}
             </div>
           )}
-          {conviteMessage && (
-            <p className={`text-sm mt-3 ${conviteMessage.includes('sucesso') || conviteMessage.includes('concedido') ? 'text-green-600' : 'text-destructive'}`}>
-              {conviteMessage}
-            </p>
-          )}
         </CardContent>
       </Card>
 

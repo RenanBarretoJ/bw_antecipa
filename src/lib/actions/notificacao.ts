@@ -44,8 +44,6 @@ export async function notificarCedente(cedenteId: string, titulo: string, mensag
       return
     }
 
-    const ownerUserId = (cedente as { user_id: string }).user_id
-
     const { data: acessos, error: acessosError } = await admin
       .from('cedente_acessos')
       .select('user_id')
@@ -56,10 +54,9 @@ export async function notificarCedente(cedenteId: string, titulo: string, mensag
       console.error('[notificarCedente] Erro ao buscar acessos:', acessosError.message, { cedenteId })
     }
 
+    const ownerUserId = (cedente as { user_id: string }).user_id
     const vinculados = ((acessos || []) as { user_id: string }[]).map((a) => a.user_id)
     const userIds = [...new Set([ownerUserId, ...vinculados])]
-
-    console.log('[notificarCedente] Enviando para', userIds.length, 'usuario(s):', userIds, { cedenteId, tipo })
 
     // Inserir individualmente para que falha de um nao bloqueie os demais
     await Promise.allSettled(
