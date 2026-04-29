@@ -681,3 +681,119 @@ export async function reprovarNF(nfId: string, motivo: string): Promise<NfAction
 
   return { success: true, message: 'NF reprovada.' }
 }
+
+export async function aprovarNFsLote(ids: string[]): Promise<NfActionState> {
+  if (!ids.length) return { success: false, message: 'Nenhuma NF selecionada.' }
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, message: 'Nao autenticado.' }
+
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (!profile || (profile as { role: string }).role !== 'gestor') return { success: false, message: 'Acesso negado.' }
+
+  const { data: elegíveis } = await supabase
+    .from('notas_fiscais')
+    .select('id, numero_nf, cedente_id')
+    .in('id', ids)
+    .in('status', ['submetida', 'em_analise'])
+
+  if (!elegíveis || elegíveis.length === 0) {
+    return { success: false, message: 'Nenhuma NF elegivel (status deve ser submetida ou em analise).' }
+  }
+
+  const nfs = elegíveis as { id: string; numero_nf: string; cedente_id: string }[]
+  const idsAprovados = nfs.map((n) => n.id)
+
+  const { error } = await supabase
+    .from('notas_fiscais')
+    .update({ status: 'aprovada', aprovada_gestor_em: new Date().toISOString() } as never)
+    .in('id', idsAprovados)
+
+  if (error) return { success: false, message: `Erro ao aprovar: ${error.message}` }
+
+  // Agrupar por cedente para enviar uma notificacao por cedente
+  const porCedente = new Map<string, string[]>()
+  for (const nf of nfs) {
+    const nums = porCedente.get(nf.cedente_id) || []
+    nums.push(nf.numero_nf)
+    porCedente.set(nf.cedente_id, nums)
+  }
+  await Promise.allSettled(
+    [...porCedente.entries()].map(([cedenteId, numeros]) =>
+      notificarCedente(
+        cedenteId,
+        'NFs aprovadas',
+        `As NFs ${numeros.join(', ')} foram aprovadas e estao disponiveis para antecipacao.`,
+        'nf_aprovada',
+      )
+    )
+  )
+
+  await registrarLog({
+    tipo_evento: 'NFS_APROVADAS_LOTE',
+    entidade_tipo: 'notas_fiscais',
+    entidade_id: idsAprovados[0],
+    dados_depois: { ids: idsAprovados, quantidade: idsAprovados.length },
+  })
+
+  return { success: true, message: `${idsAprovados.length} NF(s) aprovada(s) com sucesso!` }
+}
+
+export async function reprovarNFsLote(ids: string[], motivo: string): Promise<NfActionState> {
+  if (!ids.length) return { success: false, message: 'Nenhuma NF selecionada.' }
+  if (!motivo.trim()) return { success: false, message: 'Motivo obrigatorio.' }
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, message: 'Nao autenticado.' }
+
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (!profile || (profile as { role: string }).role !== 'gestor') return { success: false, message: 'Acesso negado.' }
+
+  const { data: elegíveis } = await supabase
+    .from('notas_fiscais')
+    .select('id, numero_nf, cedente_id')
+    .in('id', ids)
+    .in('status', ['submetida', 'em_analise'])
+
+  if (!elegíveis || elegíveis.length === 0) {
+    return { success: false, message: 'Nenhuma NF elegivel para reprovacao.' }
+  }
+
+  const nfs = elegíveis as { id: string; numero_nf: string; cedente_id: string }[]
+  const idsReprovados = nfs.map((n) => n.id)
+
+  const { error } = await supabase
+    .from('notas_fiscais')
+    .update({ status: 'cancelada' } as never)
+    .in('id', idsReprovados)
+
+  if (error) return { success: false, message: `Erro ao reprovar: ${error.message}` }
+
+  const porCedente = new Map<string, string[]>()
+  for (const nf of nfs) {
+    const nums = porCedente.get(nf.cedente_id) || []
+    nums.push(nf.numero_nf)
+    porCedente.set(nf.cedente_id, nums)
+  }
+  await Promise.allSettled(
+    [...porCedente.entries()].map(([cedenteId, numeros]) =>
+      notificarCedente(
+        cedenteId,
+        'NFs reprovadas',
+        `As NFs ${numeros.join(', ')} foram reprovadas. Motivo: ${motivo}`,
+        'nf_reprovada',
+      )
+    )
+  )
+
+  await registrarLog({
+    tipo_evento: 'NFS_REPROVADAS_LOTE',
+    entidade_tipo: 'notas_fiscais',
+    entidade_id: idsReprovados[0],
+    dados_depois: { ids: idsReprovados, quantidade: idsReprovados.length, motivo },
+  })
+
+  return { success: true, message: `${idsReprovados.length} NF(s) reprovada(s).` }
+}

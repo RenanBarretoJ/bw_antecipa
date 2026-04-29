@@ -33,22 +33,29 @@ export async function notificarCedente(cedenteId: string, titulo: string, mensag
   try {
     const admin = createAdminClient()
 
-    const [cedenteResult, acessosResult] = await Promise.all([
-      admin.from('cedentes').select('user_id').eq('id', cedenteId).single(),
-      admin.from('cedente_acessos').select('user_id').eq('cedente_id', cedenteId).eq('ativo', true),
-    ])
+    const { data: cedente, error: cedenteError } = await admin
+      .from('cedentes')
+      .select('user_id')
+      .eq('id', cedenteId)
+      .single()
 
-    if (cedenteResult.error || !cedenteResult.data) {
-      console.error('[notificarCedente] Cedente nao encontrado:', cedenteResult.error?.message, { cedenteId })
+    if (cedenteError || !cedente) {
+      console.error('[notificarCedente] Cedente nao encontrado:', cedenteError?.message, { cedenteId })
       return
     }
 
-    if (acessosResult.error) {
-      console.error('[notificarCedente] Erro ao buscar acessos:', acessosResult.error.message, { cedenteId })
+    const { data: acessos, error: acessosError } = await admin
+      .from('cedente_acessos')
+      .select('user_id')
+      .eq('cedente_id', cedenteId)
+      .eq('ativo', true)
+
+    if (acessosError) {
+      console.error('[notificarCedente] Erro ao buscar acessos:', acessosError.message, { cedenteId })
     }
 
-    const ownerUserId = (cedenteResult.data as { user_id: string }).user_id
-    const vinculados = ((acessosResult.data || []) as { user_id: string }[]).map((a) => a.user_id)
+    const ownerUserId = (cedente as { user_id: string }).user_id
+    const vinculados = ((acessos || []) as { user_id: string }[]).map((a) => a.user_id)
     const userIds = [...new Set([ownerUserId, ...vinculados])]
 
     // Inserir individualmente para que falha de um nao bloqueie os demais
