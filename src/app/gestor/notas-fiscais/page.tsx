@@ -447,14 +447,22 @@ export default function NotasFiscaisGestorPage() {
                     </TableCell>
                     <TableCell className="px-4 py-3 font-medium text-foreground">{nf.numero_nf || '—'}</TableCell>
                     <TableCell className="px-4 py-3">
-                      <p className="text-sm text-foreground">{nf.razao_social_emitente}</p>
-                      <p className="text-xs text-muted-foreground">{formatCNPJ(nf.cnpj_emitente)}</p>
+                      <div className="max-w-[160px]">
+                        <p className="text-sm text-foreground truncate" title={nf.razao_social_emitente}>
+                          {nf.razao_social_emitente}
+                        </p>
+                        <p className="text-xs text-muted-foreground">{formatCNPJ(nf.cnpj_emitente)}</p>
+                      </div>
                     </TableCell>
                     <TableCell className="px-4 py-3">
-                      <p className="text-sm text-foreground">{nf.razao_social_destinatario || '—'}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {nf.cnpj_destinatario ? formatCNPJ(nf.cnpj_destinatario) : '—'}
-                      </p>
+                      <div className="max-w-[160px]">
+                        <p className="text-sm text-foreground truncate" title={nf.razao_social_destinatario || undefined}>
+                          {nf.razao_social_destinatario || '—'}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {nf.cnpj_destinatario ? formatCNPJ(nf.cnpj_destinatario) : '—'}
+                        </p>
+                      </div>
                     </TableCell>
                     <TableCell className="px-4 py-3 text-sm font-medium text-foreground tabular-nums">
                       {nf.valor_bruto > 0 ? formatCurrency(nf.valor_bruto) : '—'}
