@@ -25,7 +25,6 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Table,
@@ -284,77 +283,70 @@ export default function NotasFiscaisGestorPage() {
       {/* Filtros */}
       <Card className="mb-4">
         <CardContent className="pt-4 pb-4">
-          <div className="flex flex-col gap-3">
-            {/* Linha 1: busca + status + cedente */}
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="relative flex-1">
-                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar por numero, CNPJ ou razao social..."
-                  value={busca}
-                  onChange={(e) => setBusca(e.target.value)}
-                  className="h-10 pl-9"
-                />
-              </div>
-              <Select value={filtroStatus} onValueChange={(v) => { if (v) setFiltroStatus(v) }}>
-                <SelectTrigger className="h-10 w-full sm:w-[200px]">
-                  <Filter size={14} className="text-muted-foreground mr-1 shrink-0" />
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos">Todos os status</SelectItem>
-                  <SelectItem value="submetida">Submetidas</SelectItem>
-                  <SelectItem value="em_analise">Em Analise</SelectItem>
-                  <SelectItem value="aprovada">Validadas</SelectItem>
-                  <SelectItem value="em_antecipacao">Em Antecipacao</SelectItem>
-                  <SelectItem value="aceita">Aceitas pelo Sacado</SelectItem>
-                  <SelectItem value="contestada">Contestadas</SelectItem>
-                  <SelectItem value="liquidada">Liquidadas</SelectItem>
-                  <SelectItem value="cancelada">Canceladas/Reprovadas</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={filtroCedente} onValueChange={(v) => { if (v) setFiltroCedente(v) }}>
-                <SelectTrigger className="h-10 w-full sm:w-[220px]">
-                  <SelectValue placeholder="Cedente" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos">Todos os cedentes</SelectItem>
-                  {cedentesUnicos.map(([id, nome]) => (
-                    <SelectItem key={id} value={id}>{nome}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por numero, CNPJ ou razao social..."
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                className="h-9 pl-9"
+              />
             </div>
 
-            {/* Linha 2: vencimento + limpar */}
-            <div className="flex flex-col sm:flex-row gap-3 items-end">
-              <div className="flex items-end gap-2 flex-1">
-                <div>
-                  <Label className="text-xs text-muted-foreground mb-1 block">Vencimento de</Label>
-                  <Input
-                    type="date"
-                    value={filtroVencDe}
-                    onChange={(e) => setFiltroVencDe(e.target.value)}
-                    className="h-10 w-[150px]"
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground mb-1 block">até</Label>
-                  <Input
-                    type="date"
-                    value={filtroVencAte}
-                    onChange={(e) => setFiltroVencAte(e.target.value)}
-                    className="h-10 w-[150px]"
-                  />
-                </div>
-              </div>
-              {temFiltrosAtivos && (
-                <Button variant="ghost" size="sm" onClick={limparFiltros} className="gap-1 text-muted-foreground h-10">
-                  <X size={14} />
-                  Limpar filtros
-                </Button>
-              )}
+            <Select value={filtroStatus} onValueChange={(v) => { if (v) setFiltroStatus(v) }}>
+              <SelectTrigger className="h-9 w-[170px]">
+                <Filter size={13} className="text-muted-foreground mr-1 shrink-0" />
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos os status</SelectItem>
+                <SelectItem value="submetida">Submetidas</SelectItem>
+                <SelectItem value="em_analise">Em Analise</SelectItem>
+                <SelectItem value="aprovada">Validadas</SelectItem>
+                <SelectItem value="em_antecipacao">Em Antecipacao</SelectItem>
+                <SelectItem value="aceita">Aceitas pelo Sacado</SelectItem>
+                <SelectItem value="contestada">Contestadas</SelectItem>
+                <SelectItem value="liquidada">Liquidadas</SelectItem>
+                <SelectItem value="cancelada">Canceladas/Reprovadas</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={filtroCedente} onValueChange={(v) => { if (v) setFiltroCedente(v) }}>
+              <SelectTrigger className="h-9 w-[190px]">
+                <SelectValue placeholder="Todos os cedentes" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos os cedentes</SelectItem>
+                {cedentesUnicos.map(([id, nome]) => (
+                  <SelectItem key={id} value={id}>{nome}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-muted-foreground shrink-0">Venc.</span>
+              <Input
+                type="date"
+                value={filtroVencDe}
+                onChange={(e) => setFiltroVencDe(e.target.value)}
+                className="h-9 w-[136px]"
+              />
+              <span className="text-xs text-muted-foreground shrink-0">—</span>
+              <Input
+                type="date"
+                value={filtroVencAte}
+                onChange={(e) => setFiltroVencAte(e.target.value)}
+                className="h-9 w-[136px]"
+              />
             </div>
+
+            {temFiltrosAtivos && (
+              <Button variant="ghost" size="sm" onClick={limparFiltros} className="gap-1 text-muted-foreground h-9 shrink-0">
+                <X size={13} />
+                Limpar
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>
