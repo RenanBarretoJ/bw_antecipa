@@ -296,12 +296,12 @@ export default function NotasFiscaisGestorPage() {
             </div>
 
             <Select value={filtroStatus} onValueChange={(v) => { if (v) setFiltroStatus(v) }}>
-              <SelectTrigger className="h-9 w-[170px]">
-                <Filter size={13} className="text-muted-foreground mr-1 shrink-0" />
-                <SelectValue placeholder="Status" />
+              <SelectTrigger className="h-9 w-[200px] gap-1.5">
+                <span className="text-xs text-muted-foreground shrink-0">Status:</span>
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="todos">Todos os status</SelectItem>
+                <SelectItem value="todos">Todos</SelectItem>
                 <SelectItem value="submetida">Submetidas</SelectItem>
                 <SelectItem value="em_analise">Em Analise</SelectItem>
                 <SelectItem value="aprovada">Validadas</SelectItem>
@@ -314,11 +314,12 @@ export default function NotasFiscaisGestorPage() {
             </Select>
 
             <Select value={filtroCedente} onValueChange={(v) => { if (v) setFiltroCedente(v) }}>
-              <SelectTrigger className="h-9 w-[190px]">
-                <SelectValue placeholder="Todos os cedentes" />
+              <SelectTrigger className="h-9 w-[220px] gap-1.5">
+                <span className="text-xs text-muted-foreground shrink-0">Cedente:</span>
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="todos">Todos os cedentes</SelectItem>
+                <SelectItem value="todos">Todos</SelectItem>
                 {cedentesUnicos.map(([id, nome]) => (
                   <SelectItem key={id} value={id}>{nome}</SelectItem>
                 ))}
