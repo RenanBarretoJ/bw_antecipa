@@ -31,7 +31,12 @@ export function NotificationBell({ userId }: { userId: string }) {
         .order('created_at', { ascending: false })
         .limit(10)
 
-      setNotificacoes((data || []) as Notificacao[])
+      const novas = (data || []) as Notificacao[]
+      setNotificacoes((prev) => {
+        const mudou = novas.length !== prev.length ||
+          novas.some((n, i) => n.id !== prev[i]?.id || n.lida !== prev[i]?.lida)
+        return mudou ? novas : prev
+      })
     }
 
     loadNotificacoes()

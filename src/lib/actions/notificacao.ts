@@ -33,33 +33,23 @@ export async function notificarCedente(cedenteId: string, titulo: string, mensag
   try {
     const admin = createAdminClient()
 
-    const { data: cedente, error: cedenteError } = await admin
-      .from('cedentes')
-      .select('user_id')
-      .eq('id', cedenteId)
-      .single()
+    const [cedenteResult, acessosResult] = await Promise.all([
+      admin.from('cedentes').select('user_id').eq('id', cedenteId).single(),
+      admin.from('cedente_acessos').select('user_id').eq('cedente_id', cedenteId).eq('ativo', true),
+    ])
 
-    if (cedenteError || !cedente) {
-      console.error('[notificarCedente] Cedente nao encontrado:', cedenteError?.message, { cedenteId })
+    if (cedenteResult.error || !cedenteResult.data) {
+      console.error('[notificarCedente] Cedente nao encontrado:', cedenteResult.error?.message, { cedenteId })
       return
     }
 
-    const ownerUserId = (cedente as { user_id: string }).user_id
-
-    const { data: acessos, error: acessosError } = await admin
-      .from('cedente_acessos')
-      .select('user_id')
-      .eq('cedente_id', cedenteId)
-      .eq('ativo', true)
-
-    if (acessosError) {
-      console.error('[notificarCedente] Erro ao buscar acessos:', acessosError.message, { cedenteId })
+    if (acessosResult.error) {
+      console.error('[notificarCedente] Erro ao buscar acessos:', acessosResult.error.message, { cedenteId })
     }
 
-    const vinculados = ((acessos || []) as { user_id: string }[]).map((a) => a.user_id)
+    const ownerUserId = (cedenteResult.data as { user_id: string }).user_id
+    const vinculados = ((acessosResult.data || []) as { user_id: string }[]).map((a) => a.user_id)
     const userIds = [...new Set([ownerUserId, ...vinculados])]
-
-    console.log('[notificarCedente] Enviando para', userIds.length, 'usuario(s):', userIds, { cedenteId, tipo })
 
     // Inserir individualmente para que falha de um nao bloqueie os demais
     await Promise.allSettled(

@@ -6,6 +6,19 @@ import { registrarLog } from './auditoria'
 import { notificarGestores } from './notificacao'
 import { buckets } from '@/lib/storage'
 
+type SupabaseClient = Awaited<ReturnType<typeof createClient>>
+
+async function ehAdministrador(supabase: SupabaseClient, userId: string, cedenteUserId: string): Promise<boolean> {
+  if (cedenteUserId === userId) return true
+  const { data: acesso } = await supabase
+    .from('cedente_acessos')
+    .select('perfil')
+    .eq('user_id', userId)
+    .eq('ativo', true)
+    .single()
+  return !!(acesso && (acesso as { perfil: string }).perfil === 'administrador')
+}
+
 export type CedenteActionState = {
   success?: boolean
   errors?: Record<string, string[]>
@@ -106,17 +119,8 @@ export async function uploadDocumento(formData: FormData): Promise<CedenteAction
 
   const cedenteData = cedente as { id: string; cnpj: string; user_id: string }
 
-  // Operadores nao podem enviar documentos da empresa
-  if (cedenteData.user_id !== user.id) {
-    const { data: acesso } = await supabase
-      .from('cedente_acessos')
-      .select('perfil')
-      .eq('user_id', user.id)
-      .eq('ativo', true)
-      .single()
-    if (!acesso || (acesso as { perfil: string }).perfil !== 'administrador') {
-      return { success: false, message: 'Sem permissao para enviar documentos. Apenas administradores do cedente podem realizar esta acao.' }
-    }
+  if (!await ehAdministrador(supabase, user.id, cedenteData.user_id)) {
+    return { success: false, message: 'Sem permissao para enviar documentos. Apenas administradores do cedente podem realizar esta acao.' }
   }
   const file = formData.get('arquivo') as File
   const tipo = formData.get('tipo') as string
@@ -246,17 +250,8 @@ export async function solicitarAlteracaoCedente(
 
   const cedenteData = cedente as { id: string; user_id: string } & Record<string, unknown>
 
-  // Operador nao pode solicitar alteracoes cadastrais — verificar perfil para usuarios vinculados
-  if (cedenteData.user_id !== user.id) {
-    const { data: acesso } = await supabase
-      .from('cedente_acessos')
-      .select('perfil')
-      .eq('user_id', user.id)
-      .eq('ativo', true)
-      .single()
-    if (!acesso || (acesso as { perfil: string }).perfil !== 'administrador') {
-      return { success: false, message: 'Sem permissao para solicitar alteracoes cadastrais.' }
-    }
+  if (!await ehAdministrador(supabase, user.id, cedenteData.user_id)) {
+    return { success: false, message: 'Sem permissao para solicitar alteracoes cadastrais.' }
   }
 
   // Bloquear se já há solicitação pendente
