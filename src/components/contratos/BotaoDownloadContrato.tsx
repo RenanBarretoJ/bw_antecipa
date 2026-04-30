@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { FileText, Download, RefreshCw, Loader2, AlertTriangle } from 'lucide-react'
 
 interface Props {
-  tipo: 'contrato' | 'termo'
+  tipo: 'contrato' | 'termo' | 'notificacao'
   id: string // cedente_id ou operacao_id
   storagePath?: string | null // caminho no storage (se ja gerado)
   hasSignedDoc?: boolean // se ja existe versao assinada no cadastro/operacao
@@ -25,7 +25,9 @@ export function BotaoDownloadContrato({ tipo, id, storagePath, hasSignedDoc, lab
     try {
       const endpoint = tipo === 'contrato'
         ? '/api/contratos/gerar-contrato'
-        : '/api/contratos/gerar-termo'
+        : tipo === 'termo'
+          ? '/api/contratos/gerar-termo'
+          : '/api/contratos/gerar-notificacao'
 
       const body = tipo === 'contrato'
         ? { cedente_id: id }
@@ -80,15 +82,21 @@ export function BotaoDownloadContrato({ tipo, id, storagePath, hasSignedDoc, lab
     }
   }
 
-  const defaultLabel = tipo === 'contrato' ? 'Contrato de Cessao' : 'Termo de Cessao'
+  const defaultLabel = tipo === 'contrato'
+    ? 'Contrato de Cessao'
+    : tipo === 'termo'
+      ? 'Termo de Cessao'
+      : 'Notificacao ao Sacado'
 
   const mensagemConfirmacao = hasSignedDoc
     ? tipo === 'contrato'
       ? 'ATENÇÃO: Existe um Contrato Mãe assinado no cadastro do cedente. Ao regenerar, o documento assinado atual ficará desatualizado e precisará ser substituído. Esta ação é crítica. Deseja continuar?'
-      : 'Este termo já possui uma versão assinada enviada. Ao regenerar, o documento assinado existente ficará desatualizado. Deseja continuar?'
+      : 'Este documento já possui uma versão assinada enviada. Ao regenerar, o documento assinado existente ficará desatualizado. Deseja continuar?'
     : tipo === 'contrato'
       ? 'Será gerado um novo Contrato Mãe, substituindo a versão atual. Deseja continuar?'
-      : 'Será gerado um novo Termo de Cessão, substituindo a versão atual. Deseja continuar?'
+      : tipo === 'termo'
+        ? 'Será gerado um novo Termo de Cessão, substituindo a versão atual. Deseja continuar?'
+        : 'Será gerada uma nova Notificação ao Sacado, substituindo a versão atual. Deseja continuar?'
 
   const isCritico = hasSignedDoc && tipo === 'contrato'
 

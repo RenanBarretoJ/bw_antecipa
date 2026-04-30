@@ -217,7 +217,11 @@ export async function gerarContratoCessao(
     },
   }
 
-  const html = compilarTemplate('contrato-cessao.html', dados)
+  const templateNome = (ced.coobrigacao as boolean) !== false
+    ? 'contrato-cessao.html'
+    : 'contrato-cessao-sem-coobrigacao.html'
+
+  const html = compilarTemplate(templateNome, dados)
   const pdfBuffer = await htmlParaPdf(html)
   const caminho = `cedentes/${cedenteId}/contrato-cessao.pdf`
   const url = await salvarPdfStorage(pdfBuffer, caminho)
@@ -327,6 +331,7 @@ export async function gerarTermoCessao(
       email: ced.email_comercial || '',
     },
     termo: {
+      numero: operacaoId.slice(0, 8).toUpperCase(),
       data_extenso: formatarDataExtenso(new Date().toISOString()),
       preco_aquisicao_formatado: formatarMoeda(precoAquisicaoTotal),
       solicitacao_data: formatarDataHora(op.created_at as string),
@@ -373,6 +378,65 @@ export async function gerarTermoCessao(
       termo_gerado_em: new Date().toISOString(),
       preco_aquisicao: precoAquisicaoTotal,
       taxa_desagio: taxaDesagio,
+    } as never)
+    .eq('id', operacaoId)
+
+  return { url, path: caminho }
+}
+
+// ============================================================
+// Gerar Notificacao de Cessao ao Sacado (1x por operacao)
+// ============================================================
+export async function gerarNotificacaoCessao(
+  operacaoId: string
+): Promise<{ url: string; path: string }> {
+  const { createClient } = await import('@supabase/supabase-js')
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  )
+
+  const { data: operacao, error: erroO } = await supabase
+    .from('operacoes')
+    .select('cedente_id')
+    .eq('id', operacaoId)
+    .single()
+
+  if (erroO || !operacao) throw new Error('Operacao nao encontrada')
+  const op = operacao as { cedente_id: string }
+
+  const { data: cedente } = await supabase
+    .from('cedentes')
+    .select('razao_social, cnpj')
+    .eq('id', op.cedente_id)
+    .single()
+
+  if (!cedente) throw new Error('Cedente da operacao nao encontrado')
+  const ced = cedente as { razao_social: string; cnpj: string }
+
+  const dados = {
+    cedente: {
+      razao_social: ced.razao_social,
+      cnpj: ced.cnpj,
+    },
+    contrato: {
+      data_assinatura_extenso: formatarDataExtenso(new Date().toISOString()),
+    },
+    termo: {
+      numero: operacaoId.slice(0, 8).toUpperCase(),
+    },
+  }
+
+  const html = compilarTemplate('notificacao-cessao-ao-sacado.html', dados)
+  const pdfBuffer = await htmlParaPdf(html)
+  const caminho = `operacoes/${operacaoId}/notificacao-cessao.pdf`
+  const url = await salvarPdfStorage(pdfBuffer, caminho)
+
+  await supabase
+    .from('operacoes')
+    .update({
+      notificacao_url: caminho,
+      notificacao_gerado_em: new Date().toISOString(),
     } as never)
     .eq('id', operacaoId)
 

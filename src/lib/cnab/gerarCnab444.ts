@@ -199,7 +199,7 @@ function montarDetalhe(
   return buildRecord([
     [1,   '1'],
     [2,   '         0000000000'],          // debito_automatico (19 chars: 9 espaços + 10 zeros)
-    [21,  num(0, 2)],                       // coobrigacao
+    [21,  num(cedente.coobrigacao !== false ? 2 : 1, 2)], // coobrigacao
     [23,  num(0, 2)],                       // caracteristica_especial
     [25,  num(0, 4)],                       // modalidade_operacao
     [29,  num(0, 2)],                       // natureza_operacao

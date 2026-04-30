@@ -256,6 +256,46 @@ export async function reprovarCedente(cedenteId: string, motivo: string): Promis
   return { success: true, message: 'Cedente reprovado.' }
 }
 
+export async function toggleCoobrigacaoCedente(cedenteId: string, habilitar: boolean): Promise<GestorActionState> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, message: 'Usuario nao autenticado.' }
+  }
+
+  const { data: cedente } = await supabase
+    .from('cedentes')
+    .select('coobrigacao')
+    .eq('id', cedenteId)
+    .single()
+
+  if (!cedente) {
+    return { success: false, message: 'Cedente nao encontrado.' }
+  }
+
+  const dadosAntes = { coobrigacao: (cedente as { coobrigacao: boolean }).coobrigacao }
+
+  const { error } = await supabase
+    .from('cedentes')
+    .update({ coobrigacao: habilitar } as never)
+    .eq('id', cedenteId)
+
+  if (error) {
+    return { success: false, message: `Erro ao atualizar configuracao de coobrigacao: ${error.message}` }
+  }
+
+  await registrarLog({
+    tipo_evento: 'COOBRIGACAO_ALTERADA',
+    entidade_tipo: 'cedentes',
+    entidade_id: cedenteId,
+    dados_antes: dadosAntes,
+    dados_depois: { coobrigacao: habilitar },
+  })
+
+  return { success: true, message: `Coobrigacao ${habilitar ? 'habilitada' : 'desabilitada'} com sucesso.` }
+}
+
 export async function toggleEscrowCedente(cedenteId: string, habilitar: boolean): Promise<GestorActionState> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()

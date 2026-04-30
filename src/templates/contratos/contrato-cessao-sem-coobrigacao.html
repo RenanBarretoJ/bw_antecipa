@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <style>
+    @page {
+      size: A4;
+      margin: 3cm 2.5cm 2.5cm 3cm;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Times New Roman', Times, serif;
+      font-size: 10pt;
+      line-height: 1.5;
+      color: #000;
+    }
+
+    h1 {
+      font-size: 10pt;
+      text-align: center;
+      font-weight: bold;
+      text-transform: uppercase;
+      margin-bottom: 24pt;
+      break-after: avoid;
+    }
+
+    h2 {
+      font-size: 10pt;
+      font-weight: bold;
+      text-transform: uppercase;
+      margin: 18pt 0 8pt;
+      break-after: avoid;
+    }
+
+    p {
+      margin-bottom: 10pt;
+      text-align: justify;
+      orphans: 3;
+      widows: 3;
+    }
+
+    .clausula {
+      margin-bottom: 8pt;
+      text-align: justify;
+      break-inside: avoid;
+      orphans: 3;
+      widows: 3;
+    }
+
+    .subclausula {
+      margin-left: 20pt;
+      margin-bottom: 6pt;
+      text-align: justify;
+      break-inside: avoid;
+    }
+
+    .escrow-block {
+      margin: 10pt 0 10pt 30pt;
+    }
+
+    .escrow-block p {
+      margin-bottom: 2pt;
+    }
+
+    .assinaturas {
+      margin-top: 40pt;
+    }
+
+    .assinatura-bloco {
+      margin-bottom: 28pt;
+    }
+
+    .linha-assinatura {
+      border-top: 1px solid #000;
+      width: 80%;
+      margin-bottom: 4pt;
+    }
+
+    .assinatura-nome {
+      font-weight: bold;
+      text-transform: uppercase;
+    }
+
+    .assinatura-qualidade {
+      font-style: italic;
+    }
+
+    .testemunhas {
+      margin-top: 30pt;
+      break-inside: avoid;
+    }
+
+    .centro {
+      text-align: center;
+    }
+
+    .pagina-assinatura {
+      font-size: 10pt;
+      font-style: italic;
+      text-align: center;
+      margin-bottom: 40pt;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1>CONTRATO DE CESSÃO E AQUISIÇÃO DE DIREITOS DE CRÉDITO E OUTRAS AVENÇAS SEM COOBRIGAÇÃO</h1>
+
+  <p>Pelo presente instrumento particular, as Partes abaixo qualificadas:</p>
+
+  <p class="clausula">(a) <strong>{{cedente.razao_social}}</strong>, pessoa jurídica de direito privado, inscrita no
+    CNPJ sob o nº {{cedente.cnpj}}, com sede na {{cedente.logradouro}}, nº {{cedente.numero}}{{#if
+    cedente.complemento}}, {{cedente.complemento}}{{/if}}, {{cedente.bairro}}, {{cedente.cidade}},
+    {{cedente.estado}}, CEP {{cedente.cep}}, telefone {{cedente.telefone}}, endereço eletrônico {{cedente.email}},
+    neste ato representada na forma de seus atos constitutivos ("Cedente");</p>
+
+  <p class="clausula">(b) <strong>HEALTH I FUNDO DE INVESTIMENTO EM DIREITOS CREDITÓRIOS</strong>, fundo de
+    investimento em direitos creditórios constituído sob a forma de condomínio fechado, inscrito no CNPJ sob o nº
+    62.342.629/0001-77 ("Cessionário" ou "Fundo"), neste ato representado na forma de seu Regulamento por sua
+    administradora, <strong>MONETAR DISTRIBUIDORA DE TÍTULOS E VALORES MOBILIÁRIOS S.A.</strong>, com sede na Cidade
+    de São Paulo, Estado de São Paulo, na Rua Joaquim Floriano, nº 100, 18º andar, Itaim Bibi, CEP 04534-000, inscrita
+    no CNPJ/ME sob o nº 12.063.256/0001-27, autorizada à prestação dos serviços de administração de carteira de
+    títulos e valores mobiliários por meio do Ato Declaratório CVM nº 13.091 ("Administradora");</p>
+
+  <p>E, ainda, como intervenientes anuentes:</p>
+
+  <p class="clausula">(c) <strong>BLUEWAVE ASSET LTDA.</strong>, inscrita no CNPJ/ME sob o nº 13.703.306/0001-56,
+    com sede na Rua Atílio Innocenti, nº 474, Vila Nova Conceição, São Paulo - SP, CEP 04538-001, autorizada à
+    prestação do serviço de gestão de carteira de títulos e valores mobiliários, neste ato representada na forma de
+    seu contrato social ("Gestora");</p>
+
+  <p class="clausula">(d) <strong>TERRA INVESTIMENTOS DISTRIBUIDORA DE TÍTULOS E VALORES MOBILIÁRIOS LTDA.</strong>,
+    inscrita no CNPJ/ME sob o nº 03.751.794/0001-13, com sede na Rua Joaquim Floriano, nº 100, 8º andar, Itaim Bibi,
+    São Paulo - SP, CEP 04534-000, neste ato representada na forma de seu contrato social ("Custodiante"); e</p>
+
+  <p class="clausula">(e) <strong>INSTITUTO NACIONAL DE TECNOLOGIA E SAÚDE - INTS</strong>, inscrito no CNPJ sob o
+    nº 11.344.038/0001-06, na qualidade de sacado/devedor dos Direitos Creditórios Cedidos e interveniente anuente
+    para fins de ciência, reconhecimento e oponibilidade das cessões realizadas no âmbito deste instrumento ("Sacado"
+    ou "INTS").</p>
+
+  <p><strong>CONSIDERANDO QUE</strong> o Cessionário é um Fundo de Investimento em Direitos Creditórios constituído
+    sob a forma de condomínio fechado, nos termos da Resolução CVM nº 175, de 23 de dezembro de 2022, conforme
+    alterada;</p>
+
+  <p><strong>CONSIDERANDO QUE</strong> a Cedente é empresa prestadora de serviços e/ou fornecedora de bens e, no
+    exercício regular de suas atividades, é capaz de originar direitos de crédito contra seus clientes e terceiros,
+    inclusive o Sacado, representados por notas fiscais, contratos, ordens de serviço, faturas, duplicatas, medições,
+    comprovantes de entrega, aprovações de pagamento e demais documentos comprobatórios da obrigação de pagamento;</p>
+
+  <p><strong>CONSIDERANDO QUE</strong> o Cessionário tem interesse em adquirir, sem coobrigação da Cedente quanto à
+    solvência do Sacado, os Direitos Creditórios de titularidade da Cedente que atendam aos critérios de
+    elegibilidade, formalização, lastro e documentação previstos neste Contrato e nos respectivos Termos de Cessão;</p>
+
+  <p><strong>CONSIDERANDO QUE</strong>, para conferir maior segurança jurídica à operação, as Partes desejam
+    disciplinar expressamente (i) o aperfeiçoamento da cessão perante o Sacado, mediante reconhecimento no próprio
+    instrumento e, adicionalmente, por notificação formal individualizada a cada cessão ou lote de cessões; e (ii)
+    hipóteses objetivas de vencimento antecipado, resolução e exigibilidade imediata em caso de inadimplemento,
+    insolvência, fraude, irregularidade documental, cessação de atividades ou eventos que comprometam a existência,
+    exigibilidade, validade ou recuperação dos Direitos Creditórios Cedidos.</p>
+
+  <p>As Partes resolvem celebrar o presente Contrato de Cessão e Aquisição de Direitos de Crédito e Outras Avenças
+    Sem Coobrigação ("Contrato"), que será regido pelas cláusulas e condições abaixo.</p>
+
+  <h2>1. DEFINIÇÕES</h2>
+
+  <p class="clausula">1.1. Os termos iniciados por letras maiúsculas e utilizados neste Contrato, no singular ou no
+    plural, que não sejam diversamente definidos neste instrumento, terão os significados que lhes são atribuídos no
+    Regulamento do Fundo.</p>
+
+  <p class="clausula">1.2. <strong>CONTA DESEMBOLSO.</strong> Considerando que as cessões dos Direitos Creditórios
+    não ocorrerão necessariamente por meio de conta vinculada de titularidade da Cedente, os pagamentos do preço de
+    aquisição poderão ser realizados diretamente na conta corrente de livre movimentação da Cedente, mantida junto à
+    instituição financeira por ela indicada, observados os mecanismos de controle, monitoramento e verificação
+    definidos pela Gestora, pela Administradora e/ou pelo Custodiante.</p>
+
+  <p class="clausula">1.3. A Cedente obriga-se a assegurar a correta identificação dos recebíveis objeto de cessão ao
+    Fundo e a realizar o repasse integral e imediato ao Fundo de quaisquer valores que, por qualquer motivo, venha a
+    receber em relação a Direitos Creditórios Cedidos, sem que tal obrigação configure coobrigação pela solvência do
+    Sacado, mas mera obrigação de não retenção, restituição e preservação de recursos de titularidade do
+    Cessionário.</p>
+
+  <p class="clausula">1.4. <strong>DIREITOS CREDITÓRIOS CEDIDOS.</strong> Direitos creditórios de titularidade da
+    Cedente, decorrentes da prestação de serviços e/ou fornecimento de bens ao INTS - Instituto Nacional de
+    Tecnologia e Saúde, representados por notas fiscais, contratos, ordens de serviço, faturas, medições, aprovações
+    de pagamento, comprovantes de entrega, duplicatas ou outros documentos comprobatórios da obrigação de pagamento,
+    cedidos ao Fundo para fins de aquisição de recebíveis.</p>
+
+  <p class="clausula">1.5. <strong>CONTA AUTORIZADA DA CEDENTE.</strong> Conta corrente de livre movimentação nº
+    {{cedente.conta}}, de titularidade da Cedente, mantida na agência nº {{cedente.agencia}}, do
+    {{cedente.banco}}.</p>
+
+  <p class="clausula">1.6. <strong>TERMO DE CESSÃO.</strong> Instrumento de cessão dos Direitos Creditórios Cedidos,
+    elaborado substancialmente na forma do Anexo I, por meio do qual cada cessão ou lote de cessões será
+    individualizado, com indicação, no mínimo, dos documentos representativos dos Direitos Creditórios, valores,
+    datas de emissão, vencimentos, preço de aquisição, eventuais condições específicas e conta de pagamento do
+    Fundo.</p>
+
+  <p class="clausula">1.7. <strong>SACADO.</strong> INSTITUTO NACIONAL DE TECNOLOGIA E SAÚDE - INTS, inscrito no
+    CNPJ sob o nº 11.344.038/0001-06, devedor dos Direitos Creditórios Cedidos, o qual, mediante assinatura deste
+    Contrato na qualidade de interveniente anuente e/ou mediante recebimento de Notificação de Cessão, reconhecerá o
+    Fundo como legítimo credor dos Direitos Creditórios Cedidos e deverá efetuar os pagamentos diretamente na conta
+    indicada pelo Fundo.</p>
+
+  <p class="clausula">1.8. <strong>CONTA VINCULADA E MECANISMO DE LIQUIDAÇÃO.</strong> Como mecanismo de garantia,
+    controle e liquidação dos Direitos Creditórios Cedidos ao Fundo, determinados recebíveis de titularidade do
+    Sacado poderão ser vinculados à operação mediante instrumento de cessão fiduciária, trava de recebíveis, conta
+    escrow, conta vinculada, notificação irrevogável de pagamento ou mecanismo equivalente. Salvo indicação diversa
+    por escrito pelo Fundo, os recursos serão liquidados na seguinte Conta Escrow do Sacado:</p>
+  <div class="escrow-block">
+    <p>Titular: INSTITUTO NACIONAL DE TECNOLOGIA E SAÚDE - INTS</p>
+    <p>CNPJ: 11.344.038/0001-06</p>
+    <p>Banco: 457 - UY3 SCD S.A.</p>
+    <p>Tipo de Conta: Conta Escrow</p>
+    <p>Conta nº 4180406 | Agência nº 0001</p>
+  </div>
+
+  <p class="clausula">1.9. <strong>RECONHECIMENTO DA DÍVIDA PELO SACADO.</strong> O Sacado, por sua assinatura neste
+    Contrato como interveniente anuente e/ou nos Termos de Cessão aplicáveis, reconhece, nos limites dos documentos
+    que lhe forem apresentados e das obrigações de pagamento por ele aprovadas, a existência, liquidez, certeza e
+    exigibilidade dos Direitos Creditórios Cedidos objeto de cada Termo de Cessão, obrigando-se ao seu pontual e
+    integral pagamento diretamente ao Fundo, na conta por este indicada.</p>
+
+  <p class="clausula">1.10. <strong>VEDAÇÃO DE PAGAMENTO AO CEDENTE.</strong> A partir da formalização de cada
+    cessão e de sua respectiva ciência, anuência ou notificação, o Sacado declara-se ciente de que não poderá efetuar
+    pagamentos referentes aos Direitos Creditórios Cedidos diretamente à Cedente, sendo que pagamentos realizados à
+    Cedente após a ciência, anuência ou notificação não serão considerados liberatórios perante o Fundo, sem prejuízo
+    da obrigação da Cedente de repassar imediatamente ao Fundo quaisquer valores indevidamente recebidos.</p>
+
+  <p class="clausula">1.11. <strong>DIREITO DE COBRANÇA DIRETA PELO FUNDO.</strong> O Fundo, como cessionário e
+    legítimo titular dos Direitos Creditórios Cedidos, terá o direito de cobrar diretamente do Sacado os valores
+    devidos, judicial ou extrajudicialmente, podendo emitir notificações, protestos, instruções de pagamento,
+    comunicados de cobrança e adotar quaisquer medidas necessárias à satisfação do crédito, independentemente de
+    anuência posterior da Cedente.</p>
+
+  <h2>2. OBJETO, QUALIFICAÇÃO E CESSÃO DOS DIREITOS CREDITÓRIOS</h2>
+
+  <p class="clausula">2.1. Para fins deste Contrato, considera-se fatura performada toda fatura emitida contra o
+    Sacado que apresente, conforme aplicável, as seguintes comprovações documentais: (a) nota fiscal eletrônica; (b)
+    comprovante de entrega, medição, ordem de serviço, aceite ou documento equivalente; e (c) registro no sistema do
+    Sacado com status de aprovação de pagamento, e-mail de aprovação, autorização de pagamento ou outro documento
+    hábil que indique a obrigação de pagamento e, quando disponível, a respectiva data de liquidação.</p>
+
+  <p class="clausula">2.2. Cada cessão de Direitos Creditórios será realizada mediante celebração de Termo de Cessão,
+    conforme modelo constante do Anexo I, a ser assinado pela Cedente e pelo Fundo e, sempre que operacionalmente
+    possível, também pelo Sacado como interveniente anuente ou acompanhado da Notificação de Cessão prevista no
+    Anexo II.</p>
+
+  <p class="clausula">2.3. Cada cessão será celebrada em caráter irrevogável e irretratável, ficando o Cessionário
+    automaticamente sub-rogado em todos os direitos, ações, garantias, privilégios, preferências, acessórios e
+    prerrogativas vinculados aos Direitos Creditórios Cedidos.</p>
+
+  <p class="clausula">2.4. A Cedente responde, civil e criminalmente, pela origem, existência, titularidade,
+    liquidez, certeza, exigibilidade e correta formalização dos Direitos Creditórios Cedidos e dos documentos a eles
+    relativos, nos termos do artigo 295 do Código Civil, não respondendo, contudo, pela solvência do Sacado, nem pelo
+    efetivo pagamento dos Direitos Creditórios Cedidos, observado o disposto nas hipóteses de recompra, indenização
+    ou restituição decorrentes de inexistência, invalidade, vício de origem, fraude, irregularidade documental,
+    duplicidade de cessão, pagamento recebido e não repassado, ou descumprimento de obrigação própria da Cedente.</p>
+
+  <p class="clausula">2.5. A cessão abrangerá todos os direitos creditórios individualizados nos respectivos Termos
+    de Cessão, inclusive principal, encargos, multas, juros, atualização monetária, indenizações, direitos
+    acessórios, garantias, preferências, prerrogativas e quaisquer valores que sejam devidos pelo Sacado em razão dos
+    documentos cedidos.</p>
+
+  <h2>3. AUSÊNCIA DE COOBRIGAÇÃO</h2>
+
+  <p class="clausula">3.1. A presente cessão é realizada <strong>SEM COOBRIGAÇÃO</strong> da Cedente quanto à
+    solvência do Sacado, nos termos do artigo 296 do Código Civil. A Cedente não se responsabiliza, por mera
+    inadimplência financeira do Sacado, pelo efetivo pagamento dos Direitos Creditórios Cedidos, sendo o risco de
+    crédito do Sacado assumido pelo Cessionário.</p>
+
+  <p class="clausula">3.2. A ausência de coobrigação não afasta, limita ou prejudica a responsabilidade da Cedente
+    por declarações falsas, vícios de origem, inexistência do crédito, ausência de lastro, duplicidade de cessão,
+    fraude, simulação, irregularidade documental, descumprimento de obrigações de fazer ou não fazer assumidas neste
+    Contrato, recebimento indevido de recursos pertencentes ao Fundo, ou qualquer ato ou omissão imputável à Cedente
+    que comprometa a validade, titularidade, exigibilidade, oponibilidade ou cobrança dos Direitos Creditórios
+    Cedidos.</p>
+
+  <p class="clausula">3.3. Verificada qualquer das hipóteses previstas na cláusula 3.2, o Fundo poderá exigir da
+    Cedente, sem prejuízo de perdas e danos, a regularização do vício, substituição do Direito Creditório, recompra
+    do respectivo Direito Creditório ou restituição dos valores pagos pelo Fundo, acrescidos dos encargos previstos
+    no respectivo Termo de Cessão, observado que tais remédios decorrem de responsabilidade por existência,
+    formalização e regularidade do crédito, e não de garantia de solvência do Sacado.</p>
+
+  <h2>4. NOTIFICAÇÃO FORMAL AO SACADO E APERFEIÇOAMENTO DA CESSÃO</h2>
+
+  <p class="clausula">4.1. Sem prejuízo do reconhecimento e anuência do Sacado neste Contrato, cada Termo de Cessão
+    deverá, sempre que aplicável e especialmente quando houver individualização de novos Direitos Creditórios, ser
+    acompanhado de Notificação de Cessão ao Sacado, substancialmente na forma do Anexo II, para fins de ciência
+    formal, oponibilidade e aperfeiçoamento da cessão perante o devedor, nos termos dos artigos 290 e 291 do Código
+    Civil.</p>
+
+  <p class="clausula">4.2. A Notificação de Cessão deverá indicar, no mínimo: (a) a identificação da Cedente, do
+    Fundo e do Sacado; (b) a referência ao presente Contrato e ao Termo de Cessão correspondente; (c) a relação
+    individualizada dos Direitos Creditórios Cedidos, com número de nota fiscal, fatura, ordem de serviço, medição,
+    contrato ou documento equivalente, valor e vencimento; (d) a conta de titularidade do Fundo ou conta
+    vinculada/escrow indicada para pagamento; (e) a vedação de pagamento à Cedente; e (f) declaração de que
+    pagamentos realizados em desconformidade com a notificação não terão efeito liberatório perante o Fundo.</p>
+
+  <p class="clausula">4.3. A assinatura do Sacado neste Contrato como interveniente anuente constitui ciência prévia
+    e geral da estrutura de cessão e do mecanismo de pagamento, mas não dispensa, salvo deliberação expressa do Fundo
+    por escrito, a emissão de Notificação de Cessão individualizada em relação a cada Termo de Cessão ou lote de
+    Direitos Creditórios Cedidos, de modo a reduzir risco operacional, documental e de oponibilidade.</p>
+
+  <p class="clausula">4.4. Caso o Sacado assine o respectivo Termo de Cessão como interveniente anuente, com
+    identificação suficiente dos Direitos Creditórios Cedidos e da conta de pagamento do Fundo, tal assinatura
+    poderá suprir a Notificação de Cessão prevista nesta cláusula para aquele lote específico, desde que o Termo de
+    Cessão contenha declaração expressa de ciência, reconhecimento e obrigação de pagamento direto ao Fundo.</p>
+
+  <p class="clausula">4.5. A Cedente obriga-se a cooperar integralmente para a emissão, envio, recebimento,
+    confirmação, protocolo, aceite, resposta ou assinatura da Notificação de Cessão pelo Sacado, inclusive
+    fornecendo documentos, contatos, e-mails, acessos, comprovantes e informações necessárias ao aperfeiçoamento da
+    cessão e à cobrança dos Direitos Creditórios Cedidos.</p>
+
+  <p class="clausula">4.6. O Fundo, a Gestora, a Administradora ou o Custodiante poderão encaminhar a Notificação de
+    Cessão por e-mail, plataforma eletrônica, carta com aviso de recebimento, cartório de títulos e documentos,
+    assinatura eletrônica, protocolo físico ou qualquer outro meio idôneo que permita comprovar o envio e/ou
+    recebimento pelo Sacado.</p>
+
+  <h2>5. VENCIMENTO ANTECIPADO, RESOLUÇÃO E EXIGIBILIDADE IMEDIATA</h2>
+
+  <p class="clausula">5.1. Sem prejuízo da ausência de coobrigação da Cedente quanto à solvência ordinária do
+    Sacado, constituirão Eventos de Vencimento Antecipado, resolução ou exigibilidade imediata, conforme aplicável,
+    independentemente de aviso judicial, as seguintes hipóteses:</p>
+
+  <p class="clausula">(a) pedido, requerimento, deferimento, decretação ou reconhecimento de recuperação judicial,
+    recuperação extrajudicial, falência, liquidação, insolvência, intervenção, regime especial, dissolução,
+    encerramento irregular ou medida equivalente envolvendo a Cedente, o Sacado ou qualquer parte essencial à
+    origem, formalização, pagamento ou cobrança dos Direitos Creditórios Cedidos;</p>
+
+  <p class="clausula">(b) descumprimento, pela Cedente, pelo Sacado ou por qualquer interveniente anuente, de
+    obrigação financeira, operacional, documental, informacional, de repasse, de pagamento direto, de cooperação, de
+    notificação, de não fazer ou de qualquer obrigação material assumida neste Contrato, no Termo de Cessão, na
+    Notificação de Cessão ou em documento correlato da operação;</p>
+
+  <p class="clausula">(c) constatação de fraude, simulação, dolo, culpa grave, falsidade, inexatidão relevante,
+    duplicidade de cessão, inexistência de lastro, vício de origem, irregularidade documental, divergência material
+    em nota fiscal, fatura, contrato, ordem de serviço, medição, aprovação de pagamento ou documento comprobatório
+    dos Direitos Creditórios Cedidos;</p>
+
+  <p class="clausula">(d) cessação, paralisação relevante, suspensão, encerramento ou redução substancial das
+    atividades da Cedente, do Sacado ou de unidade operacional relacionada à origem, execução, aprovação, liquidação
+    ou pagamento dos Direitos Creditórios Cedidos;</p>
+
+  <p class="clausula">(e) realização de pagamento pelo Sacado à Cedente, ou a terceiro não autorizado, após a
+    ciência, anuência ou notificação da cessão, sem o imediato repasse ao Fundo;</p>
+
+  <p class="clausula">(f) contestação pelo Sacado quanto à existência, validade, liquidez, certeza, exigibilidade,
+    valor ou vencimento dos Direitos Creditórios Cedidos, quando tal contestação decorrer de ato, omissão, vício
+    documental, inadimplemento contratual, falha de entrega, falha de prestação, irregularidade de faturamento ou
+    informação imputável à Cedente;</p>
+
+  <p class="clausula">(g) prática de ato que comprometa, dificulte ou impeça a cobrança dos Direitos Creditórios
+    Cedidos, inclusive alteração não autorizada de conta de pagamento, cancelamento de nota fiscal, abatimento,
+    compensação, desconto, novação, transação, remissão, prorrogação, substituição, emissão de carta de quitação ou
+    ajuste com o Sacado sem anuência prévia e expressa do Fundo;</p>
+
+  <p class="clausula">(h) descumprimento de obrigação legal, regulatória, fiscal, trabalhista, previdenciária,
+    ambiental, anticorrupção, de prevenção à lavagem de dinheiro ou de sanções, quando tal descumprimento puder
+    afetar a validade, exigibilidade, cobrança, reputação, regularidade ou pagamento dos Direitos Creditórios
+    Cedidos; e</p>
+
+  <p class="clausula">(i) qualquer evento que, a critério razoável do Fundo, da Gestora, da Administradora ou do
+    Custodiante, revele deterioração material da capacidade de pagamento do Sacado, da regularidade dos Direitos
+    Creditórios Cedidos ou da aptidão da Cedente de cumprir suas obrigações próprias no âmbito da operação.</p>
+
+  <p class="clausula">5.2. A ocorrência de qualquer Evento de Vencimento Antecipado autorizará o Fundo, a seu
+    exclusivo critério e sem prejuízo de outros direitos previstos neste Contrato ou em lei, a: (a) suspender novas
+    aquisições de Direitos Creditórios da Cedente; (b) declarar vencidos antecipadamente os Direitos Creditórios
+    Cedidos, quando juridicamente aplicável; (c) exigir do Sacado o pagamento imediato dos valores devidos ao Fundo;
+    (d) executar garantias, travas, contas vinculadas, cessões fiduciárias ou mecanismos de liquidação; (e) promover
+    cobrança judicial ou extrajudicial; (f) exigir da Cedente a recomposição, substituição, recompra ou indenização
+    quando o evento decorrer de responsabilidade própria da Cedente, vício de origem, inexistência, irregularidade,
+    fraude ou descumprimento contratual; e (g) rescindir o Contrato em relação a novas cessões, preservadas as
+    obrigações pendentes.</p>
+
+  <p class="clausula">5.3. A declaração de vencimento antecipado ou resolução não prejudicará a cessão já
+    aperfeiçoada dos Direitos Creditórios Cedidos, que permanecerão de titularidade do Fundo até sua integral
+    liquidação, tampouco liberará o Sacado de pagar diretamente ao Fundo ou a Cedente de repassar ao Fundo quaisquer
+    valores que venha a receber indevidamente.</p>
+
+  <p class="clausula">5.4. Eventual prazo de cura somente será aplicável se concedido expressamente pelo Fundo por
+    escrito. Na ausência de concessão expressa, os Eventos de Vencimento Antecipado produzirão efeitos imediatos a
+    partir de sua ocorrência ou ciência pelo Fundo, sem prejuízo das notificações cabíveis.</p>
+
+  <p class="clausula">5.5. Nenhum remédio previsto nesta cláusula será interpretado como coobrigação da Cedente pela
+    solvência do Sacado. A responsabilidade da Cedente permanecerá limitada às hipóteses de existência, titularidade,
+    validade, formalização, lastro, regularidade, repasse, declarações e demais obrigações próprias assumidas neste
+    Contrato.</p>
+
+  <h2>6. DECLARAÇÕES E OBRIGAÇÕES DA CEDENTE</h2>
+
+  <p class="clausula">6.1. A Cedente declara que: (a) é legítima titular dos Direitos Creditórios Cedidos; (b) os
+    Direitos Creditórios Cedidos existem, são válidos, líquidos, certos e exigíveis, salvo se expressamente indicado
+    no respectivo Termo de Cessão; (c) os documentos apresentados ao Fundo são autênticos, completos e refletem a
+    operação comercial subjacente; (d) os Direitos Creditórios Cedidos não foram cedidos, onerados, dados em
+    garantia, descontados, antecipados, prometidos ou transferidos a terceiros; (e) inexistem, até a data de cada
+    cessão, abatimentos, compensações, descontos, glosas, disputas, exceções, ônus ou impedimentos não informados ao
+    Fundo; e (f) não praticará qualquer ato que prejudique a cobrança, titularidade ou exigibilidade dos Direitos
+    Creditórios Cedidos.</p>
+
+  <p class="clausula">6.2. A Cedente obriga-se a entregar ao Fundo, à Gestora, à Administradora e/ou ao Custodiante
+    todos os documentos de lastro, comprovantes de performance, aprovações de pagamento, notas fiscais, contratos,
+    medições, ordens de serviço, comunicações com o Sacado e demais informações solicitadas para verificação dos
+    Direitos Creditórios Cedidos.</p>
+
+  <p class="clausula">6.3. A Cedente deverá comunicar imediatamente ao Fundo qualquer fato que possa afetar a
+    existência, validade, exigibilidade ou pagamento dos Direitos Creditórios Cedidos, inclusive glosas,
+    cancelamentos, disputas, reclamações, compensações, abatimentos, notificações, medidas judiciais, alterações
+    cadastrais, alterações de conta de pagamento ou indícios de fraude.</p>
+
+  <h2>7. COMUNICAÇÕES E DISPOSIÇÕES GERAIS</h2>
+
+  <p class="clausula">7.1. Todas as comunicações entre as Partes serão consideradas válidas a partir de seu envio
+    aos endereços eletrônicos indicados abaixo, ou a outros que as Partes venham a indicar por escrito, desde que
+    haja comprovação idônea de envio e, quando necessário à produção de efeitos perante terceiros, de
+    recebimento:</p>
+
+  <p class="subclausula">(i) Para a Cedente:<br>
+    A/C: {{cedente.rep_legal_nome}}<br>
+    E-mail: {{cedente.email}}</p>
+
+  <p class="subclausula">(ii) Para o Cessionário, Gestora, Administradora e/ou Custodiante:<br>
+    A/C: Luiz Alvaro<br>
+    E-mails: op.estruturadas@terrainvestimentos.com.br; lferreira@terrainvestimentos.com.br</p>
+
+  <p class="clausula">7.2. As comunicações poderão ser realizadas por correio eletrônico, assinatura eletrônica,
+    plataforma digital, carta, protocolo físico, cartório de títulos e documentos ou qualquer outro meio idôneo. A
+    alteração de qualquer dado de contato deverá ser comunicada às demais Partes por escrito; enquanto não realizada
+    tal comunicação, serão válidos os envios aos dados constantes deste Contrato.</p>
+
+  <p class="clausula">7.3. A eventual tolerância de qualquer Parte quanto ao atraso, não cumprimento ou cumprimento
+    inexato de obrigação não será interpretada como renúncia, perdão, novação ou alteração contratual, nem
+    prejudicará o direito de exigir o cumprimento da obrigação ou de exercer os remédios previstos neste
+    Contrato.</p>
+
+  <p class="clausula">7.4. A invalidade ou ineficácia de qualquer disposição não afetará as demais cláusulas, que
+    permanecerão válidas e eficazes até o integral cumprimento das obrigações assumidas.</p>
+
+  <p class="clausula">7.5. As obrigações previstas neste Contrato comportam execução específica, sem prejuízo de
+    perdas e danos e de outros remédios previstos em lei ou nos documentos da operação.</p>
+
+  <p class="clausula">7.6. Qualquer modificação ao presente instrumento somente será válida se realizada por escrito
+    e assinada pelas Partes competentes.</p>
+
+  <p class="clausula">7.7. O presente Contrato será interpretado e regido pelas leis da República Federativa do
+    Brasil.</p>
+
+  <p class="clausula">7.8. Caso este Contrato venha a ser celebrado de forma eletrônica ou digital, as Partes
+    reconhecem a validade, eficácia, autoria e integridade das assinaturas eletrônicas utilizadas, inclusive nos
+    termos do artigo 10 da Medida Provisória nº 2.200-2/2001, constituindo o presente instrumento título executivo
+    extrajudicial, juntamente com seus anexos, Termos de Cessão, notificações e demais documentos correlatos.</p>
+
+  <p class="clausula">7.9. Fica eleito o foro da Cidade de São Paulo, Estado de São Paulo, com renúncia expressa a
+    qualquer outro, por mais privilegiado que seja, para dirimir controvérsias decorrentes deste Contrato.</p>
+
+  <p>E, por estarem assim justas e contratadas, as Partes assinam este Contrato eletronicamente, juntamente com 2
+    (duas) testemunhas.</p>
+
+  <p class="centro">São Paulo, {{contrato.data_assinatura_extenso}}.</p>
+
+  <!-- PÁGINA DE ASSINATURAS -->
+  <div style="page-break-before: always;">
+
+    <p class="pagina-assinatura">(Restante da pagina deixada em branco propositalmente)</p>
+    <p class="pagina-assinatura">(Pagina de assinatura do Contrato De Cessao E Aquisicao De Direitos De Credito E
+      Outras Avencas Sem Coobrigacao firmado entre {{cedente.razao_social}}, HEALTH I FIDC, MONETAR, e Intervenientes
+      Anuentes firmado em {{contrato.data_assinatura_extenso}}.) Pagina 1 de 1.</p>
+
+    <div class="assinaturas">
+
+      <div class="assinatura-bloco">
+        <div class="linha-assinatura"></div>
+        <p class="assinatura-nome">{{cedente.razao_social}}</p>
+        <p class="assinatura-qualidade">Cedente</p>
+      </div>
+
+      <div class="assinatura-bloco">
+        <div class="linha-assinatura"></div>
+        <p class="assinatura-nome">HEALTH I FUNDO DE INVESTIMENTO EM DIREITOS CREDITÓRIOS</p>
+        <p class="assinatura-qualidade">representado por sua administradora:</p>
+      </div>
+
+      <div class="assinatura-bloco">
+        <div class="linha-assinatura"></div>
+        <p class="assinatura-nome">MONETAR DISTRIBUIDORA DE TÍTULOS E VALORES MOBILIÁRIOS S.A</p>
+        <p class="assinatura-qualidade">Administradora</p>
+      </div>
+
+      <p><strong>INTERVENIENTES ANUENTES:</strong></p>
+
+      <div class="assinatura-bloco">
+        <div class="linha-assinatura"></div>
+        <p class="assinatura-nome">BLUEWAVE ASSET LTDA</p>
+        <p class="assinatura-qualidade">Gestora</p>
+      </div>
+
+      <div class="assinatura-bloco">
+        <div class="linha-assinatura"></div>
+        <p class="assinatura-nome">TERRA INVESTIMENTOS DISTRIBUIDORA DE TÍTULOS E VALORES MOBILIÁRIOS LTDA</p>
+        <p class="assinatura-qualidade">Custodiante</p>
+      </div>
+
+      <div class="assinatura-bloco">
+        <div class="linha-assinatura"></div>
+        <p class="assinatura-nome">INSTITUTO NACIONAL DE TECNOLOGIA E SAÚDE - INTS</p>
+        <p class="assinatura-qualidade">Sacado / Interveniente Anuente</p>
+      </div>
+
+    </div>
+
+    <div class="testemunhas">
+      <p><strong>Testemunhas:</strong></p>
+      <br>
+      <div style="display:flex; gap: 60pt; margin-top: 20pt;">
+        <div>
+          <div class="linha-assinatura"></div>
+          <p>Nome: {{testemunha_1.nome}}</p>
+          <p>CPF: {{testemunha_1.cpf}}</p>
+        </div>
+        <div>
+          <div class="linha-assinatura"></div>
+          <p>Nome: {{testemunha_2.nome}}</p>
+          <p>CPF: {{testemunha_2.cpf}}</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ESTILOS ADICIONAIS DOS ANEXOS -->
+  <style>
+    .item {
+      margin-bottom: 8pt;
+      text-align: justify;
+      break-inside: avoid;
+      orphans: 3;
+      widows: 3;
+      padding-left: 16pt;
+      text-indent: -16pt;
+    }
+    .apenso-titulo {
+      font-size: 10pt;
+      font-weight: bold;
+      text-align: center;
+      text-transform: uppercase;
+      margin-bottom: 6pt;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 8.5pt;
+      margin-top: 4pt;
+    }
+    thead { display: table-header-group; }
+    th {
+      border: 1px solid #000;
+      padding: 4pt 3pt;
+      text-align: center;
+      font-weight: bold;
+      background-color: #d9e1f2;
+      vertical-align: middle;
+    }
+    td {
+      border: 1px solid #000;
+      padding: 4pt 3pt;
+      text-align: center;
+      vertical-align: middle;
+    }
+    tr { break-inside: avoid; }
+    .td-total { font-weight: bold; text-align: right; }
+    .escrow-notif { margin: 5pt 0 5pt 30pt; }
+    .escrow-notif p { margin-bottom: 2pt; }
+  </style>
+
+  <!-- ANEXO I - MODELO DO TERMO DE CESSÃO -->
+  <div style="page-break-before: always;">
+
+    <h1>ANEXO I - MODELO DO TERMO DE CESSÃO</h1>
+
+    <p style="text-align: center; font-size: 9pt; color: #444; margin-top: -14pt; margin-bottom: 18pt;">
+      N&ordm; [*]
+    </p>
+
+    <p>Por meio do presente termo de cessao ("Termo de Cessao"),</p>
+
+    <p class="clausula">(a) <strong>[*]</strong> inscrita no CNPJ n [*] ("Cedente"), com
+      sede na [*], n [*][*],
+      [*], [*], [*], CEP [*], Telefone [*] com
+      endereco eletronico: [*]</p>
+
+    <p class="clausula">(b) (o "Cessionario" ou o "Fundo"), <strong>HEALTH I FUNDO DE INVESTIMENTO EM DIREITOS
+        CREDITORIOS</strong>, constituido sob a forma de condominio Fechado, inscrito no CNPJ sob o n
+      62.342.629/0001-77, neste ato representado na forma do seu Regulamento pela Administradora,
+      <strong>MONETAR DISTRIBUIDORA DE TITULOS E VALORES MOBILIARIOS S.A.</strong>, com sede na Cidade e Estado de Sao
+      Paulo, na Rua Joaquim Floriano, n 100, 18 andar, Itaim Bibi, Sao Paulo – SP, CEP 04534-000, inscrita no CNPJ/ME
+      sob o n 12.063.256/0001-27, devidamente autorizada a prestacao dos servicos de administracao de carteira de titulos
+      e valores mobiliarios, por meio do Ato Declaratorio CVM n 13.091, neste ato por seu representante legal;
+    </p>
+
+    <p class="item">1.&nbsp;&nbsp;O presente Termo de Cessao e celebrado em conformidade com o disposto no Contrato de
+      Cessao e esta sujeito aos seus termos e condicoes, constituindo parte integrante do Contrato de Cessao, a partir
+      desta data.</p>
+
+    <p class="item">2.&nbsp;&nbsp;Pelo presente Termo de Cessao, o CEDENTE cedera e transferira ao CESSIONARIO, em carater
+      irrevogavel e irretratavel, os Direitos Creditorios discriminados no Apenso I deste Termo de Cessao e de acordo com
+      seu respectivo valor de face ("Valor de Face"), pelo Preco de Aquisicao.</p>
+
+    <p class="item">3.&nbsp;&nbsp;Os termos utilizados neste Termo de Cessao, iniciados em letras maiusculas, que nao
+      sejam aqui definidos de outra forma, terao o significado que lhes e atribuido no Contrato de Cessao. Em caso de
+      conflito entre o presente Termo de Cessao e o Contrato de Cessao, este ultimo prevalecera.</p>
+
+    <p class="item">4.&nbsp;&nbsp;Os Direitos Creditorios listados no Apenso ao presente Termo de Cessao sao cedidos, de
+      forma irretratavel e irrevogavel, ao FIDC, observadas as disposicoes do Contrato de Cessao.</p>
+
+    <p class="item">5.&nbsp;&nbsp;A eficacia das disposicoes deste Termo de Cessao esta condicionada, nos termos do artigo
+      125 do Codigo Civil, ao recebimento, pela Administradora, com copia para a Gestora, dos documentos comprobatorios
+      que preveem, expressamente, a cessao dos Direitos Creditorios decorrentes ao FIDC.</p>
+
+    <p class="item">6.&nbsp;&nbsp;O CESSIONARIO pagara ao CEDENTE o valor correspondente ao Preco de Aquisicao dos
+      Direitos Creditorios, no montante de <strong>[*]</strong>, mediante credito na conta
+      de titularidade do Cedente indicada no Contrato de Cessao, observadas as condicoes operacionais ali previstas.</p>
+
+    <p class="item">7.&nbsp;&nbsp;A CEDENTE declara ao Fundo que a cessao dos Direitos Creditorios Cedidos, descritos no
+      Apenso a este Termo de Cessao, na presente data, nao configura fraude contra credores, fraude a execucao, fraude a
+      execucao fiscal, fraude falimentar ou crime de lavagem de dinheiro.</p>
+
+    <p class="item">8.&nbsp;&nbsp;<strong>COMPROVACAO DE LASTRO:</strong> Para os Direitos Creditorios aqui cedidos,
+      considerar-se-a lastro suficiente: (a) Nota Fiscal eletronica com numero; (b) Registro no sistema do Sacado com
+      status de 'Aprovacao de Pagamento' ou email de aprovacao, com data de liquidacao definida.</p>
+
+    <p class="centro">Sao Paulo, [*].</p>
+
+    <!-- PAGINA DE ASSINATURAS DO TERMO -->
+    <div style="page-break-before: always;">
+
+      <p class="pagina-assinatura">(Restante da pagina deixada em branco propositalmente)</p>
+      <p class="pagina-assinatura">(Pagina de assinatura do Termo de Cessao de Direitos Creditorios n [*] firmado entre
+        [*], HEALTH I FIDC, MONETAR, e Intervenientes Anuentes firmado em
+        [*].) Pagina 1 de 1.</p>
+
+      <div class="assinaturas">
+
+        <div class="assinatura-bloco">
+          <div class="linha-assinatura"></div>
+          <p class="assinatura-nome">[*]</p>
+          <p class="assinatura-qualidade">Cedente</p>
+        </div>
+
+        <div class="assinatura-bloco">
+          <div class="linha-assinatura"></div>
+          <p class="assinatura-nome">HEALTH I FUNDO DE INVESTIMENTO EM DIREITOS CREDITORIOS</p>
+          <p class="assinatura-qualidade">representado por sua administradora:</p>
+        </div>
+
+        <div class="assinatura-bloco">
+          <div class="linha-assinatura"></div>
+          <p class="assinatura-nome">MONETAR DISTRIBUIDORA DE TITULOS E VALORES MOBILIARIOS S.A</p>
+          <p class="assinatura-qualidade">Administradora</p>
+        </div>
+
+        <p><strong>INTERVENIENTES ANUENTES:</strong></p>
+
+        <div class="assinatura-bloco">
+          <div class="linha-assinatura"></div>
+          <p class="assinatura-nome">BLUEWAVE ASSET LTDA</p>
+          <p class="assinatura-qualidade">Gestora</p>
+        </div>
+
+        <div class="assinatura-bloco">
+          <div class="linha-assinatura"></div>
+          <p class="assinatura-nome">TERRA INVESTIMENTOS DISTRIBUIDORA DE TITULOS E VALORES MOBILIARIOS LTDA</p>
+          <p class="assinatura-qualidade">Custodiante</p>
+        </div>
+
+      </div>
+
+      <div class="testemunhas">
+        <p><strong>Testemunhas:</strong></p>
+        <br>
+        <div style="display:flex; gap: 60pt; margin-top: 20pt;">
+          <div>
+            <div class="linha-assinatura"></div>
+            <p>Nome: [*]</p>
+            <p>CPF: [*]</p>
+          </div>
+          <div>
+            <div class="linha-assinatura"></div>
+            <p>Nome: [*]</p>
+            <p>CPF: [*]</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- APENSO A -->
+    <div style="page-break-before: always;">
+
+      <p class="apenso-titulo">APENSO "A"</p>
+      <p class="apenso-titulo">RELACAO DOS DIREITOS CREDITORIOS CEDIDOS</p>
+
+      <p style="margin-top: 12pt; margin-bottom: 12pt;">Cedente: <strong>[*]</strong></p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>NF</th>
+            <th>CNPJ Sacado</th>
+            <th>Data<br>Emissao</th>
+            <th>Data<br>Vencimento</th>
+            <th>Valor de<br>Face (R$)</th>
+            <th>Taxa (%<br>a.m.)</th>
+            <th>Valor<br>Antecipado (R$)</th>
+          </tr>
+        </thead>
+        <tbody>
+          [*]
+          <tr>
+            <td>[*]</td>
+            <td>[*]</td>
+            <td>[*]</td>
+            <td>[*]</td>
+            <td>[*]</td>
+            <td>[*]</td>
+            <td>[*]</td>
+          </tr>
+          [*]
+          <tr>
+            <td colspan="3" class="td-total">QUANTIDADE: [*] NF(s)</td>
+            <td class="td-total">TOTAL FACE:</td>
+            <td style="font-weight: bold; text-align: center;">[*]</td>
+            <td class="td-total">TOTAL ANTECIPADO:</td>
+            <td style="font-weight: bold; text-align: center;">[*]</td>
+          </tr>
+        </tbody>
+      </table>
+
+    </div>
+
+    <!-- APENSO B -->
+    <div style="page-break-before: always;">
+
+      <p class="apenso-titulo">APENSO "B"</p>
+      <p class="apenso-titulo">TRILHA DE AUDITORIA — CONFIRMACAO ELETRONICA DO SACADO</p>
+
+      <p style="margin-top: 12pt; margin-bottom: 4pt;">Cedente: <strong>[*]</strong></p>
+      <p style="margin-bottom: 12pt;">Antecipacao solicitada em: <strong>[*]</strong></p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>ID do Registro</th>
+            <th>NF</th>
+            <th>Incluida pelo Cedente em</th>
+            <th>Validada pelo Gestor em</th>
+            <th>Antecipacao Solicitada em</th>
+            <th>Aprovada pelo Sacado em</th>
+            <th>Aprovada pelo Gestor em</th>
+          </tr>
+        </thead>
+        <tbody>
+          [*]
+          <tr>
+            <td style="font-family: monospace; font-size: 8pt;">[*]</td>
+            <td>[*]</td>
+            <td>[*]</td>
+            <td>[*]</td>
+            <td>[*]</td>
+            <td>[*]</td>
+            <td><strong>[*]</strong></td>
+          </tr>
+          [*]
+        </tbody>
+      </table>
+
+      <p style="margin-top: 20pt; font-size: 8pt; font-style: italic; color: #444;">
+        Os registros acima foram gerados automaticamente pelo sistema BW Antecipa a partir dos eventos de inclusao,
+        solicitacao e aceite eletronico registrados em banco de dados auditavel. Os horarios estao em
+        Horario de Brasilia (UTC-3). O ID do Registro corresponde aos primeiros 8 caracteres do identificador
+        unico (UUID) da nota fiscal no sistema, utilizavel para consulta e verificacao futura.
+      </p>
+
+    </div>
+
+  </div>
+
+  <!-- ANEXO II - MODELO DE NOTIFICAÇÃO DE CESSÃO AO SACADO -->
+  <div style="page-break-before: always;">
+
+    <h1>ANEXO II - MODELO DE NOTIFICAÇÃO DE CESSÃO AO SACADO</h1>
+
+    <p>Ao <strong>INSTITUTO NACIONAL DE TECNOLOGIA E SAÚDE - INTS</strong>, inscrito no CNPJ sob o nº
+      11.344.038/0001-06 ("Sacado").</p>
+
+    <p class="clausula"><strong>[*]</strong>, inscrita no CNPJ sob o nº [*]
+      ("Cedente"), e <strong>HEALTH I FUNDO DE INVESTIMENTO EM DIREITOS CREDITÓRIOS</strong>, inscrito no CNPJ sob o nº
+      62.342.629/0001-77 ("Fundo" ou "Cessionário"), neste ato representado por sua Administradora, notificam V.Sas.,
+      para todos os fins de direito, nos termos dos artigos 290 e 291 do Código Civil, de que a Cedente cedeu e
+      transferiu ao Fundo, em caráter irrevogável e irretratável, os direitos creditórios abaixo individualizados,
+      juntamente com todos os seus acessórios, garantias, privilégios, preferências e prerrogativas.</p>
+
+    <p class="clausula">A presente notificação é emitida em complemento ao Contrato de Cessão e Aquisição de Direitos
+      de Crédito e Outras Avenças, e ao Termo de Cessão nº [*], produzindo efeitos perante o Sacado a
+      partir de seu recebimento, ciência, protocolo, aceite ou assinatura eletrônica, conforme aplicável.</p>
+
+    <p class="clausula">A partir do recebimento desta notificação, o Sacado deverá reconhecer o Fundo como único e
+      legítimo credor dos Direitos Creditórios Cedidos e efetuar os respectivos pagamentos exclusivamente na conta
+      indicada pelo Fundo:</p>
+    <div class="escrow-notif">
+      <p>Titular: INSTITUTO NACIONAL DE TECNOLOGIA E SAÚDE - INTS</p>
+      <p>CNPJ: 11.344.038/0001-06</p>
+      <p>Banco: 457 - UY3 SCD S.A.</p>
+      <p>Tipo de Conta: Conta Escrow</p>
+      <p>Conta nº 4180406 | Agência nº 0001</p>
+    </div>
+
+    <p class="clausula">Fica expressamente vedado ao Sacado realizar pagamento à Cedente ou a qualquer terceiro não
+      autorizado. Pagamentos realizados em desconformidade com esta notificação, após a ciência da cessão, não terão
+      efeito liberatório perante o Fundo e poderão ser cobrados novamente pelo Fundo, sem prejuízo das medidas judiciais
+      e extrajudiciais cabíveis.</p>
+
+    <p class="clausula">O Sacado deverá comunicar imediatamente ao Fundo qualquer divergência, glosa, contestação,
+      compensação, abatimento, retenção, impedimento de pagamento ou fato que possa afetar a existência, validade,
+      exigibilidade ou liquidação dos Direitos Creditórios Cedidos.</p>
+
+    <p class="clausula">Esta notificação deverá ser arquivada pelo Sacado em seus registros internos, devendo suas
+      áreas financeira, contas a pagar, controladoria e demais áreas responsáveis serem instruídas para direcionar os
+      pagamentos exclusivamente ao Fundo.</p>
+
+    <p>Local e data: São Paulo, [*].</p>
+
+    <div class="assinaturas" style="margin-top: 40pt;">
+
+      <div class="assinatura-bloco">
+        <div class="linha-assinatura"></div>
+        <p class="assinatura-nome">[*]</p>
+        <p class="assinatura-qualidade">Cedente</p>
+      </div>
+
+      <div class="assinatura-bloco">
+        <div class="linha-assinatura"></div>
+        <p class="assinatura-nome">HEALTH I FUNDO DE INVESTIMENTO EM DIREITOS CREDITÓRIOS</p>
+        <p class="assinatura-qualidade">Cessionário</p>
+      </div>
+
+      <div class="assinatura-bloco">
+        <div class="linha-assinatura"></div>
+        <p class="assinatura-nome">INSTITUTO NACIONAL DE TECNOLOGIA E SAÚDE - INTS</p>
+        <p class="assinatura-qualidade">Ciente e de acordo – Sacado</p>
+      </div>
+
+    </div>
+
+  </div>
+
+</body>
+
+</html>
