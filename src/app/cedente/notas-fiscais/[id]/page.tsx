@@ -55,8 +55,10 @@ const statusConfig: Record<string, { label: string; color: string; icon: typeof 
   aprovada: { label: 'Validada', color: 'bg-green-100 text-green-700', icon: CheckCircle },
   em_antecipacao: { label: 'Em Antecipacao', color: 'bg-purple-100 text-purple-700', icon: Banknote },
   liquidada: { label: 'Liquidada', color: 'bg-emerald-100 text-emerald-700', icon: CheckCircle },
-  cancelada: { label: 'Cancelada', color: 'bg-red-100 text-red-700', icon: XCircle },
-  requer_ajuste: { label: 'Requer Ajuste', color: 'bg-orange-100 text-orange-700', icon: Wrench },
+  aceita:        { label: 'Antecipada',         color: 'bg-green-100 text-green-700',  icon: CheckCircle },
+  contestada:    { label: 'Contestada',         color: 'bg-orange-100 text-orange-700', icon: AlertCircle },
+  cancelada:     { label: 'Cancelada',          color: 'bg-red-100 text-red-700',       icon: XCircle },
+  requer_ajuste: { label: 'Requer Ajuste',      color: 'bg-orange-100 text-orange-700', icon: Wrench },
 }
 
 export default function NfDetalhePage() {

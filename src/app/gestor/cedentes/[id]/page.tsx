@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { use } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { analisarDocumento, aprovarCedente, reprovarCedente, solicitarAtualizacaoDocumento, toggleEscrowCedente, aprovarAlteracaoCedente, reprovarAlteracaoCedente, convidarUsuarioCedente, revogarAcessoCedente } from '@/lib/actions/gestor'
+import { analisarDocumento, aprovarCedente, reprovarCedente, solicitarAtualizacaoDocumento, toggleEscrowCedente, toggleCoobrigacaoCedente, aprovarAlteracaoCedente, reprovarAlteracaoCedente, convidarUsuarioCedente, revogarAcessoCedente } from '@/lib/actions/gestor'
 import { salvarTaxasCedente } from '@/lib/actions/operacao'
 import { salvarContratoAssinado } from '@/lib/actions/cedente'
 import { formatCNPJ, formatDate } from '@/lib/utils'
@@ -26,7 +26,7 @@ interface CedenteDetail {
   bairro: string | null; cidade: string | null; estado: string | null
   telefone_comercial: string | null; email_comercial: string | null; cnae: string | null
   banco: string | null; agencia: string | null; conta: string | null; tipo_conta: string | null
-  status: string; habilitar_escrow: boolean; created_at: string
+  status: string; habilitar_escrow: boolean; coobrigacao: boolean; created_at: string
   contrato_url: string | null
   contrato_assinado_url: string | null
 }
@@ -117,6 +117,10 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
   // Escrow
   const [togglingEscrow, setTogglingEscrow] = useState(false)
   const [escrowMessage, setEscrowMessage] = useState('')
+
+  // Coobrigacao
+  const [togglingCoobrigacao, setTogglingCoobrigacao] = useState(false)
+  const [coobrigacaoMessage, setCoobrigacaoMessage] = useState('')
 
   // Alteração cadastral
   const [alteracao, setAlteracao] = useState<AlteracaoPendente | null>(null)
@@ -788,6 +792,36 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
           {escrowMessage && (
             <p className={`text-sm mt-2 ${escrowMessage.includes('sucesso') ? 'text-green-600' : 'text-destructive'}`}>
               {escrowMessage}
+            </p>
+          )}
+
+          <div className="flex items-center justify-between py-2 border-t mt-2">
+            <div>
+              <p className="text-sm font-medium text-foreground">Coobrigacao</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Quando habilitado, o contrato gerado incluira clausula de coobrigacao do cedente.
+              </p>
+            </div>
+            <Button
+              size="sm"
+              variant={cedente.coobrigacao ? 'destructive' : 'default'}
+              disabled={togglingCoobrigacao}
+              onClick={async () => {
+                setTogglingCoobrigacao(true)
+                setCoobrigacaoMessage('')
+                const result = await toggleCoobrigacaoCedente(id, !cedente.coobrigacao)
+                setCoobrigacaoMessage(result?.message || '')
+                if (result?.success) await loadData()
+                setTogglingCoobrigacao(false)
+              }}
+              className={cedente.coobrigacao ? '' : 'bg-green-600 hover:bg-green-700 text-white'}
+            >
+              {togglingCoobrigacao ? 'Aguarde...' : cedente.coobrigacao ? 'Desabilitar' : 'Habilitar'}
+            </Button>
+          </div>
+          {coobrigacaoMessage && (
+            <p className={`text-sm mt-2 ${coobrigacaoMessage.includes('sucesso') ? 'text-green-600' : 'text-destructive'}`}>
+              {coobrigacaoMessage}
             </p>
           )}
         </CardContent>

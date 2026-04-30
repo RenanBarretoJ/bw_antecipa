@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <style>
+    @page {
+      size: A4;
+      margin: 3cm 2.5cm 2.5cm 3cm;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Times New Roman', Times, serif;
+      font-size: 10pt;
+      line-height: 1.5;
+      color: #000;
+    }
+
+    h1 {
+      font-size: 10pt;
+      text-align: center;
+      font-weight: bold;
+      text-transform: uppercase;
+      margin-bottom: 24pt;
+      break-after: avoid;
+    }
+
+    p {
+      margin-bottom: 10pt;
+      text-align: justify;
+      orphans: 3;
+      widows: 3;
+    }
+
+    .clausula {
+      margin-bottom: 8pt;
+      text-align: justify;
+      break-inside: avoid;
+      orphans: 3;
+      widows: 3;
+    }
+
+    .escrow-block {
+      margin: 5pt 0 5pt 30pt;
+    }
+
+    .assinaturas {
+      margin-top: 40pt;
+    }
+
+    .assinatura-bloco {
+      margin-bottom: 28pt;
+    }
+
+    .linha-assinatura {
+      border-top: 1px solid #000;
+      width: 80%;
+      margin-bottom: 4pt;
+    }
+
+    .assinatura-nome {
+      font-weight: bold;
+      text-transform: uppercase;
+    }
+
+    .assinatura-qualidade {
+      font-style: italic;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1>NOTIFICAÇÃO DE CESSÃO DE DIREITOS CREDITÓRIOS</h1>
+
+  <p>Ao <strong>INSTITUTO NACIONAL DE TECNOLOGIA E SAÚDE - INTS</strong>, inscrito no CNPJ sob o nº
+    11.344.038/0001-06 ("Sacado").</p>
+
+  <p class="clausula"><strong>{{cedente.razao_social}}</strong>, inscrita no CNPJ sob o nº {{cedente.cnpj}}
+    ("Cedente"), e <strong>HEALTH I FUNDO DE INVESTIMENTO EM DIREITOS CREDITÓRIOS</strong>, inscrito no CNPJ sob o nº
+    62.342.629/0001-77 ("Fundo" ou "Cessionário"), neste ato representado por sua Administradora, notificam V.Sas.,
+    para todos os fins de direito, nos termos dos artigos 290 e 291 do Código Civil, de que a Cedente cedeu e
+    transferiu ao Fundo, em caráter irrevogável e irretratável, os direitos creditórios abaixo individualizados,
+    juntamente com todos os seus acessórios, garantias, privilégios, preferências e prerrogativas.</p>
+
+  <p class="clausula">A presente notificação é emitida em complemento ao Contrato de Cessão e Aquisição de Direitos
+    de Crédito e Outras Avenças Sem Coobrigação, firmado em {{contrato.data_assinatura_extenso}}, e ao Termo de
+    Cessão nº {{termo.numero}}, produzindo efeitos perante o Sacado a partir de seu recebimento, ciência, protocolo, aceite ou
+    assinatura eletrônica, conforme aplicável.</p>
+
+  <p class="clausula">A partir do recebimento desta notificação, o Sacado deverá reconhecer o Fundo como único e
+    legítimo credor dos Direitos Creditórios Cedidos e efetuar os respectivos pagamentos exclusivamente na conta
+    indicada pelo Fundo:</p>
+  <div class="escrow-block">
+    <p>Titular: INSTITUTO NACIONAL DE TECNOLOGIA E SAÚDE - INTS</p>
+    <p>CNPJ: 11.344.038/0001-06</p>
+    <p>Banco: 457 - UY3 SCD S.A.</p>
+    <p>Tipo de Conta: Conta Escrow</p>
+    <p>Conta nº 4180406 | Agência nº 0001</p>
+  </div>
+
+  <p class="clausula">Fica expressamente vedado ao Sacado realizar pagamento à Cedente ou a qualquer terceiro não
+    autorizado. Pagamentos realizados em desconformidade com esta notificação, após a ciência da cessão, não terão
+    efeito liberatório perante o Fundo e poderão ser cobrados novamente pelo Fundo, sem prejuízo das medidas judiciais
+    e extrajudiciais cabíveis.</p>
+
+  <p class="clausula">O Sacado deverá comunicar imediatamente ao Fundo qualquer divergência, glosa, contestação,
+    compensação, abatimento, retenção, impedimento de pagamento ou fato que possa afetar a existência, validade,
+    exigibilidade ou liquidação dos Direitos Creditórios Cedidos.</p>
+
+  <p class="clausula">Esta notificação deverá ser arquivada pelo Sacado em seus registros internos, devendo suas
+    áreas financeira, contas a pagar, controladoria e demais áreas responsáveis serem instruídas para direcionar os
+    pagamentos exclusivamente ao Fundo.</p>
+
+  <p>Local e data: São Paulo, {{contrato.data_assinatura_extenso}}.</p>
+
+  <div class="assinaturas" style="page-break-before: always;">
+
+    <div class="assinatura-bloco">
+      <div class="linha-assinatura"></div>
+      <p class="assinatura-nome">{{cedente.razao_social}}</p>
+      <p class="assinatura-qualidade">Cedente</p>
+    </div>
+
+    <div class="assinatura-bloco">
+      <div class="linha-assinatura"></div>
+      <p class="assinatura-nome">HEALTH I FUNDO DE INVESTIMENTO EM DIREITOS CREDITÓRIOS</p>
+      <p class="assinatura-qualidade">Cessionário</p>
+    </div>
+
+    <div class="assinatura-bloco">
+      <div class="linha-assinatura"></div>
+      <p class="assinatura-nome">INSTITUTO NACIONAL DE TECNOLOGIA E SAÚDE - INTS</p>
+      <p class="assinatura-qualidade">Ciente e de acordo – Sacado</p>
+    </div>
+
+  </div>
+
+</body>
+
+</html>

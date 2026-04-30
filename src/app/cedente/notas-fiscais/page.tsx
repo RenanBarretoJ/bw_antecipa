@@ -56,8 +56,10 @@ const statusConfig: Record<string, { label: string; variant: 'default' | 'second
   aprovada:      { label: 'Validada',       variant: 'secondary',   className: 'bg-green-100 text-green-700 border-green-200',    icon: CheckCircle },
   em_antecipacao:{ label: 'Em Antecipacao', variant: 'secondary',   className: 'bg-purple-100 text-purple-700 border-purple-200', icon: Banknote },
   liquidada:     { label: 'Liquidada',      variant: 'secondary',   className: 'bg-emerald-100 text-emerald-700 border-emerald-200', icon: CheckCircle },
-  cancelada:     { label: 'Cancelada',      variant: 'destructive', className: 'bg-red-100 text-red-700 border-red-200',          icon: XCircle },
-  requer_ajuste: { label: 'Requer Ajuste', variant: 'outline',     className: 'bg-orange-100 text-orange-700 border-orange-200',  icon: Wrench },
+  aceita:        { label: 'Antecipada',         variant: 'secondary',   className: 'bg-green-100 text-green-700 border-green-200',     icon: CheckCircle },
+  contestada:    { label: 'Contestada',         variant: 'outline',     className: 'bg-orange-100 text-orange-700 border-orange-200',  icon: AlertCircle },
+  cancelada:     { label: 'Cancelada',          variant: 'destructive', className: 'bg-red-100 text-red-700 border-red-200',           icon: XCircle },
+  requer_ajuste: { label: 'Requer Ajuste',      variant: 'outline',     className: 'bg-orange-100 text-orange-700 border-orange-200',  icon: Wrench },
 }
 
 export default function NotasFiscaisCedentePage() {
@@ -388,6 +390,9 @@ export default function NotasFiscaisCedentePage() {
                 <option value="em_analise">Em Analise</option>
                 <option value="aprovada">Aprovada</option>
                 <option value="em_antecipacao">Em Antecipacao</option>
+                <option value="aceita">Antecipada</option>
+                <option value="contestada">Contestada</option>
+                <option value="requer_ajuste">Requer Ajuste</option>
                 <option value="liquidada">Liquidada</option>
                 <option value="cancelada">Cancelada</option>
               </select>

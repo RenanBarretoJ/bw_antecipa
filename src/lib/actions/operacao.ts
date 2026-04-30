@@ -803,6 +803,28 @@ export async function salvarComprovantePagamento(
   return { success: true, message: 'Comprovante salvo.' }
 }
 
+export async function salvarNotificacaoAssinada(
+  operacaoId: string,
+  path: string
+): Promise<OperacaoActionState> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, message: 'Nao autenticado.' }
+
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (!profile || (profile as { role: string }).role !== 'gestor') {
+    return { success: false, message: 'Acesso negado.' }
+  }
+
+  const { error } = await supabase
+    .from('operacoes')
+    .update({ notificacao_assinada_url: path } as never)
+    .eq('id', operacaoId)
+
+  if (error) return { success: false, message: `Erro: ${error.message}` }
+  return { success: true, message: 'Notificacao assinada salva.' }
+}
+
 // Helper
 function formatBRL(value: number): string {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { aprovarOperacao, desembolsarOperacao, reprovarOperacao, removerNfDaOperacao, salvarTestemunhasOperacao, salvarTermoAssinado, salvarComprovantePagamento } from '@/lib/actions/operacao'
+import { aprovarOperacao, desembolsarOperacao, reprovarOperacao, removerNfDaOperacao, salvarTestemunhasOperacao, salvarTermoAssinado, salvarComprovantePagamento, salvarNotificacaoAssinada } from '@/lib/actions/operacao'
 import { liquidarOperacao, marcarInadimplente } from '@/lib/actions/liquidacao'
 import { formatCurrency, formatCNPJ, formatDate } from '@/lib/utils'
 import Link from 'next/link'
@@ -53,6 +53,8 @@ interface OperacaoDetalhe {
   testemunha_2_id: string | null
   termo_assinado_url: string | null
   comprovante_pagamento_url: string | null
+  notificacao_url: string | null
+  notificacao_assinada_url: string | null
   cedentes: {
     razao_social: string
     cnpj: string
@@ -174,6 +176,7 @@ export default function OperacaoDetalheGestorPage() {
   // Estado local para docs (atualizado após upload sem reload da página)
   const [termoAssinadoUrl, setTermoAssinadoUrl] = useState<string | null>(null)
   const [comprovanteUrl, setComprovanteUrl] = useState<string | null>(null)
+  const [notificacaoAssinadaUrl, setNotificacaoAssinadaUrl] = useState<string | null>(null)
   const [desembolsando, setDesembolsando] = useState(false)
 
   useEffect(() => {
@@ -202,6 +205,7 @@ export default function OperacaoDetalheGestorPage() {
         if (o.testemunha_2_id) setTest2Id(o.testemunha_2_id)
         setTermoAssinadoUrl(o.termo_assinado_url)
         setComprovanteUrl(o.comprovante_pagamento_url)
+        setNotificacaoAssinadaUrl(o.notificacao_assinada_url)
 
         const { data: opNfs } = await supabase
           .from('operacoes_nfs')
@@ -753,6 +757,14 @@ export default function OperacaoDetalheGestorPage() {
                       hasSignedDoc={!!termoAssinadoUrl}
                       className="w-full"
                     />
+                    <BotaoDownloadContrato
+                      tipo="notificacao"
+                      id={op.id}
+                      storagePath={(op as unknown as Record<string, unknown>).notificacao_url as string | null}
+                      hasSignedDoc={!!notificacaoAssinadaUrl}
+                      label="Notificacao ao Sacado"
+                      className="w-full"
+                    />
                   </div>
                   <Button
                     variant="outline"
@@ -777,6 +789,15 @@ export default function OperacaoDetalheGestorPage() {
                       }}
                     />
                     <UploadDocumentoAssinado
+                      label="Notificacao ao Sacado Assinada"
+                      storagePath={notificacaoAssinadaUrl}
+                      uploadPath={`operacoes/${op.id}/notificacao-cessao-assinada.pdf`}
+                      onSuccess={async (path) => {
+                        await salvarNotificacaoAssinada(op.id, path)
+                        setNotificacaoAssinadaUrl(path)
+                      }}
+                    />
+                    <UploadDocumentoAssinado
                       label="Comprovante de Desembolso (TED)"
                       storagePath={comprovanteUrl}
                       uploadPath={`operacoes/${op.id}/comprovante-pagamento.pdf`}
@@ -790,7 +811,7 @@ export default function OperacaoDetalheGestorPage() {
 
                   {(!termoAssinadoUrl || !comprovanteUrl) && (
                     <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg p-2">
-                      Envie o termo assinado e o comprovante TED para liberar o desembolso.
+                      Envie os documentos assinados e o comprovante TED para liberar o desembolso.
                     </p>
                   )}
 
@@ -905,6 +926,14 @@ export default function OperacaoDetalheGestorPage() {
                         hasSignedDoc={!!termoAssinadoUrl}
                         className="w-full"
                       />
+                      <BotaoDownloadContrato
+                        tipo="notificacao"
+                        id={op.id}
+                        storagePath={(op as unknown as Record<string, unknown>).notificacao_url as string | null}
+                        hasSignedDoc={!!notificacaoAssinadaUrl}
+                        label="Notificacao ao Sacado"
+                        className="w-full"
+                      />
                     </div>
                     <p className="text-xs font-medium text-muted-foreground border-t pt-3">Documentos assinados</p>
                     <div className="flex flex-col gap-2">
@@ -915,6 +944,15 @@ export default function OperacaoDetalheGestorPage() {
                         onSuccess={async (path) => {
                           await salvarTermoAssinado(op.id, path)
                           setTermoAssinadoUrl(path)
+                        }}
+                      />
+                      <UploadDocumentoAssinado
+                        label="Notificacao ao Sacado Assinada"
+                        storagePath={notificacaoAssinadaUrl}
+                        uploadPath={`operacoes/${op.id}/notificacao-cessao-assinada.pdf`}
+                        onSuccess={async (path) => {
+                          await salvarNotificacaoAssinada(op.id, path)
+                          setNotificacaoAssinadaUrl(path)
                         }}
                       />
                       <UploadDocumentoAssinado
