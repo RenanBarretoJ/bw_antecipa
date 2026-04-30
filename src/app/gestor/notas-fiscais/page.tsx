@@ -310,6 +310,7 @@ export default function NotasFiscaisGestorPage() {
                 <SelectItem value="em_antecipacao">Em Antecipacao</SelectItem>
                 <SelectItem value="aceita">Aceitas pelo Sacado</SelectItem>
                 <SelectItem value="contestada">Contestadas</SelectItem>
+                <SelectItem value="requer_ajuste">Requer Ajuste</SelectItem>
                 <SelectItem value="liquidada">Liquidadas</SelectItem>
                 <SelectItem value="cancelada">Canceladas/Reprovadas</SelectItem>
               </SelectContent>
