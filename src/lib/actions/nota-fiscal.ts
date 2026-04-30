@@ -682,6 +682,115 @@ export async function reprovarNF(nfId: string, motivo: string): Promise<NfAction
   return { success: true, message: 'NF reprovada.' }
 }
 
+// Cedente: resubmeter NF que foi devolvida para ajuste
+export async function resubmeterNFAjustada(nfId: string): Promise<NfActionState> {
+  const supabase = await createClient()
+  const cedente = await getCedenteDoUsuario()
+
+  if (!cedente) {
+    return { success: false, message: 'Cadastro de cedente nao encontrado.' }
+  }
+
+  const { data: nf } = await supabase
+    .from('notas_fiscais')
+    .select('id, numero_nf, status')
+    .eq('id', nfId)
+    .eq('cedente_id', cedente.id)
+    .eq('status', 'requer_ajuste')
+    .single()
+
+  if (!nf) {
+    return { success: false, message: 'NF nao encontrada ou nao esta aguardando ajuste.' }
+  }
+
+  const nfData = nf as { id: string; numero_nf: string; status: string }
+
+  const { error } = await supabase
+    .from('notas_fiscais')
+    .update({ status: 'submetida', motivo_ajuste: null } as never)
+    .eq('id', nfId)
+    .eq('cedente_id', cedente.id)
+
+  if (error) {
+    return { success: false, message: `Erro ao resubmeter: ${error.message}` }
+  }
+
+  await registrarLog({
+    tipo_evento: 'NF_RESUBMETIDA',
+    entidade_tipo: 'notas_fiscais',
+    entidade_id: nfId,
+    dados_antes: { status: 'requer_ajuste' },
+    dados_depois: { status: 'submetida' },
+  })
+
+  await notificarGestores(
+    'NF resubmetida apos ajuste',
+    `O cedente ${cedente.razao_social} resubmeteu a NF ${nfData.numero_nf} apos correcao.`,
+    'nf_submetida'
+  )
+
+  return { success: true, message: 'NF resubmetida para analise!' }
+}
+
+// Gestor: solicitar ajuste na NF (devolve ao cedente para correcao)
+export async function solicitarAjusteNF(nfId: string, motivo: string): Promise<NfActionState> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, message: 'Nao autenticado.' }
+
+  if (!motivo || motivo.trim().length === 0) {
+    return { success: false, message: 'Motivo do ajuste e obrigatorio.' }
+  }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile || (profile as { role: string }).role !== 'gestor') {
+    return { success: false, message: 'Acesso negado.' }
+  }
+
+  const { data: nfAntes } = await supabase
+    .from('notas_fiscais')
+    .select('status, numero_nf, cedente_id')
+    .eq('id', nfId)
+    .single()
+
+  if (!nfAntes) {
+    return { success: false, message: 'NF nao encontrada.' }
+  }
+
+  const nfData = nfAntes as { status: string; numero_nf: string; cedente_id: string }
+
+  const { error } = await supabase
+    .from('notas_fiscais')
+    .update({ status: 'requer_ajuste', motivo_ajuste: motivo.trim() } as never)
+    .eq('id', nfId)
+
+  if (error) {
+    return { success: false, message: `Erro ao solicitar ajuste: ${error.message}` }
+  }
+
+  await notificarCedente(
+    nfData.cedente_id,
+    'Ajuste solicitado na NF',
+    `Sua NF ${nfData.numero_nf} requer ajuste. Motivo: ${motivo.trim()}`,
+    'nf_ajuste_solicitado',
+  )
+
+  await registrarLog({
+    tipo_evento: 'NF_AJUSTE_SOLICITADO',
+    entidade_tipo: 'notas_fiscais',
+    entidade_id: nfId,
+    dados_antes: { status: nfData.status },
+    dados_depois: { status: 'requer_ajuste', motivo_ajuste: motivo.trim() },
+  })
+
+  return { success: true, message: 'Ajuste solicitado. Cedente sera notificado.' }
+}
+
 export async function aprovarNFsLote(ids: string[]): Promise<NfActionState> {
   if (!ids.length) return { success: false, message: 'Nenhuma NF selecionada.' }
 

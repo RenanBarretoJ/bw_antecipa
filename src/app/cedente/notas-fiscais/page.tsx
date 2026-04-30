@@ -20,6 +20,7 @@ import {
   Banknote,
   Loader2,
   Trash2,
+  Wrench,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -56,6 +57,7 @@ const statusConfig: Record<string, { label: string; variant: 'default' | 'second
   em_antecipacao:{ label: 'Em Antecipacao', variant: 'secondary',   className: 'bg-purple-100 text-purple-700 border-purple-200', icon: Banknote },
   liquidada:     { label: 'Liquidada',      variant: 'secondary',   className: 'bg-emerald-100 text-emerald-700 border-emerald-200', icon: CheckCircle },
   cancelada:     { label: 'Cancelada',      variant: 'destructive', className: 'bg-red-100 text-red-700 border-red-200',          icon: XCircle },
+  requer_ajuste: { label: 'Requer Ajuste', variant: 'outline',     className: 'bg-orange-100 text-orange-700 border-orange-200',  icon: Wrench },
 }
 
 export default function NotasFiscaisCedentePage() {

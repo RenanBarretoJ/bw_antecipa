@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { aprovarNF, reprovarNF } from '@/lib/actions/nota-fiscal'
+import { aprovarNF, reprovarNF, solicitarAjusteNF } from '@/lib/actions/nota-fiscal'
 import { formatCurrency, formatCNPJ, formatDate, parseLocalDate } from '@/lib/utils'
 import { buckets } from '@/lib/storage'
 import Link from 'next/link'
@@ -16,6 +16,7 @@ import {
   AlertCircle,
   Upload,
   Banknote,
+  Wrench,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -58,6 +59,7 @@ const statusConfig: Record<string, { label: string; icon: typeof CheckCircle; va
   em_antecipacao: { label: 'Em Antecipacao', icon: Banknote, variant: 'default', className: 'bg-purple-100 text-purple-700 border-transparent' },
   liquidada: { label: 'Liquidada', icon: CheckCircle, variant: 'default', className: 'bg-emerald-100 text-emerald-700 border-transparent' },
   cancelada: { label: 'Cancelada/Reprovada', icon: XCircle, variant: 'destructive', className: '' },
+  requer_ajuste: { label: 'Requer Ajuste', icon: Wrench, variant: 'default', className: 'bg-orange-100 text-orange-700 border-transparent' },
 }
 
 export default function NfDetalheGestorPage() {
@@ -73,6 +75,8 @@ export default function NfDetalheGestorPage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [showReprovar, setShowReprovar] = useState(false)
   const [motivo, setMotivo] = useState('')
+  const [showAjuste, setShowAjuste] = useState(false)
+  const [motivoAjuste, setMotivoAjuste] = useState('')
 
   useEffect(() => {
     const load = async () => {
@@ -104,6 +108,25 @@ export default function NfDetalheGestorPage() {
     const result = await aprovarNF(nfId)
     if (result?.success) {
       setMessage(result.message || 'Aprovada!')
+      setMessageType('success')
+      setTimeout(() => router.push('/gestor/notas-fiscais'), 1500)
+    } else {
+      setMessage(result?.message || 'Erro.')
+      setMessageType('error')
+    }
+    setProcessing(false)
+  }
+
+  const handleSolicitarAjuste = async () => {
+    if (!motivoAjuste.trim()) {
+      setMessage('Informe o motivo do ajuste.')
+      setMessageType('error')
+      return
+    }
+    setProcessing(true)
+    const result = await solicitarAjusteNF(nfId, motivoAjuste)
+    if (result?.success) {
+      setMessage(result.message || 'Ajuste solicitado.')
       setMessageType('success')
       setTimeout(() => router.push('/gestor/notas-fiscais'), 1500)
     } else {
@@ -192,11 +215,20 @@ export default function NfDetalheGestorPage() {
           <div className="flex gap-2">
             <Button
               variant="destructive"
-              onClick={() => setShowReprovar(true)}
+              onClick={() => { setShowReprovar(true); setShowAjuste(false) }}
               disabled={processing}
             >
               <XCircle size={16} />
               Reprovar
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => { setShowAjuste(true); setShowReprovar(false) }}
+              disabled={processing}
+              className="border-orange-300 text-orange-700 hover:bg-orange-50"
+            >
+              <Wrench size={16} />
+              Solicitar Ajuste
             </Button>
             <Button
               onClick={handleAprovar}
@@ -220,7 +252,7 @@ export default function NfDetalheGestorPage() {
         </div>
       )}
 
-      {/* Modal reprovar */}
+      {/* Painel reprovar */}
       {showReprovar && (
         <div className="mb-6 bg-destructive/5 border border-destructive/20 rounded-xl p-4">
           <h3 className="font-semibold text-destructive mb-3">Reprovar NF</h3>
@@ -252,6 +284,43 @@ export default function NfDetalheGestorPage() {
               disabled={processing}
             >
               {processing ? 'Reprovando...' : 'Confirmar Reprovacao'}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Painel solicitar ajuste */}
+      {showAjuste && (
+        <div className="mb-6 bg-orange-50 border border-orange-200 rounded-xl p-4">
+          <h3 className="font-semibold text-orange-700 mb-3">Solicitar Ajuste</h3>
+          <div className="mb-3">
+            <Label htmlFor="motivo-ajuste" className="text-sm mb-1 block">
+              Descreva o que precisa ser corrigido (obrigatorio)
+            </Label>
+            <textarea
+              id="motivo-ajuste"
+              value={motivoAjuste}
+              onChange={(e) => setMotivoAjuste(e.target.value)}
+              placeholder="Ex: Data de vencimento incorreta, CNPJ do sacado divergente..."
+              rows={3}
+              className="w-full border border-orange-300 rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-400"
+            />
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => { setShowAjuste(false); setMotivoAjuste('') }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleSolicitarAjuste}
+              disabled={processing}
+              className="bg-orange-600 hover:bg-orange-700 text-white"
+            >
+              {processing ? 'Enviando...' : 'Solicitar Ajuste'}
             </Button>
           </div>
         </div>
