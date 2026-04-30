@@ -69,7 +69,7 @@ const statusConfig: Record<string, { label: string; icon: typeof CheckCircle; cl
   em_analise:     { label: 'Em Analise',             icon: AlertCircle, className: 'bg-yellow-100 text-yellow-700 border-transparent' },
   aprovada:       { label: 'Validada',               icon: CheckCircle, className: 'bg-green-100 text-green-700 border-transparent' },
   em_antecipacao: { label: 'Em Antecipacao',         icon: Banknote,    className: 'bg-purple-100 text-purple-700 border-transparent' },
-  aceita:         { label: 'Aprovado pelo Sacado',   icon: CheckCircle, className: 'bg-green-100 text-green-700 border-transparent' },
+  aceita:         { label: 'Antecipada',             icon: CheckCircle, className: 'bg-green-100 text-green-700 border-transparent' },
   contestada:     { label: 'Contestada',             icon: AlertCircle, className: 'bg-orange-100 text-orange-700 border-transparent' },
   liquidada:      { label: 'Liquidada',              icon: CheckCircle, className: 'bg-emerald-100 text-emerald-700 border-transparent' },
   cancelada:      { label: 'Cancelada/Reprovada',    icon: XCircle,     className: 'bg-red-100 text-red-700 border-transparent' },
@@ -308,7 +308,7 @@ export default function NotasFiscaisGestorPage() {
                 <SelectItem value="em_analise">Em Analise</SelectItem>
                 <SelectItem value="aprovada">Validadas</SelectItem>
                 <SelectItem value="em_antecipacao">Em Antecipacao</SelectItem>
-                <SelectItem value="aceita">Aceitas pelo Sacado</SelectItem>
+                <SelectItem value="aceita">Antecipadas</SelectItem>
                 <SelectItem value="contestada">Contestadas</SelectItem>
                 <SelectItem value="requer_ajuste">Requer Ajuste</SelectItem>
                 <SelectItem value="liquidada">Liquidadas</SelectItem>
