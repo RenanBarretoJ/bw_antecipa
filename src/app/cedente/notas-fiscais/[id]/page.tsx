@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { salvarDadosNF, submeterNF } from '@/lib/actions/nota-fiscal'
+import { salvarDadosNF, submeterNF, resubmeterNFAjustada } from '@/lib/actions/nota-fiscal'
 import { formatCurrency } from '@/lib/utils'
 import { buckets } from '@/lib/storage'
 import Link from 'next/link'
@@ -19,6 +19,7 @@ import {
   Upload,
   Banknote,
   ExternalLink,
+  Wrench,
 } from 'lucide-react'
 
 interface NfCompleta {
@@ -43,6 +44,7 @@ interface NfCompleta {
   condicao_pagamento: string | null
   arquivo_url: string | null
   status: string
+  motivo_ajuste: string | null
   created_at: string
 }
 
@@ -54,6 +56,7 @@ const statusConfig: Record<string, { label: string; color: string; icon: typeof 
   em_antecipacao: { label: 'Em Antecipacao', color: 'bg-purple-100 text-purple-700', icon: Banknote },
   liquidada: { label: 'Liquidada', color: 'bg-emerald-100 text-emerald-700', icon: CheckCircle },
   cancelada: { label: 'Cancelada', color: 'bg-red-100 text-red-700', icon: XCircle },
+  requer_ajuste: { label: 'Requer Ajuste', color: 'bg-orange-100 text-orange-700', icon: Wrench },
 }
 
 export default function NfDetalhePage() {
@@ -65,6 +68,7 @@ export default function NfDetalhePage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [resubmitting, setResubmitting] = useState(false)
   const [message, setMessage] = useState('')
   const [messageType, setMessageType] = useState<'success' | 'error'>('success')
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
@@ -164,7 +168,7 @@ export default function NfDetalhePage() {
 
   // Buscar razão social automaticamente quando o CNPJ destinatário estiver completo
   useEffect(() => {
-    if (!nf || nf.status !== 'rascunho') return
+    if (!nf || (nf.status !== 'rascunho' && nf.status !== 'requer_ajuste')) return
     const digits = form.cnpj_destinatario.replace(/\D/g, '')
     if (digits.length === 14) {
       buscarRazaoPorCnpj(digits)
@@ -226,6 +230,24 @@ export default function NfDetalhePage() {
     setSubmitting(false)
   }
 
+  const handleResubmeter = async () => {
+    const saved = await handleSave()
+    if (!saved) return
+
+    setResubmitting(true)
+    const result = await resubmeterNFAjustada(nfId)
+
+    if (result?.success) {
+      setMessage(result.message || 'Resubmetida!')
+      setMessageType('success')
+      setTimeout(() => router.push('/cedente/notas-fiscais'), 1500)
+    } else {
+      setMessage(result?.message || 'Erro ao resubmeter.')
+      setMessageType('error')
+    }
+    setResubmitting(false)
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -245,7 +267,7 @@ export default function NfDetalhePage() {
     )
   }
 
-  const isEditable = nf.status === 'rascunho'
+  const isEditable = nf.status === 'rascunho' || nf.status === 'requer_ajuste'
   const status = statusConfig[nf.status] || statusConfig.rascunho
   const StatusIcon = status.icon
 
@@ -276,16 +298,27 @@ export default function NfDetalhePage() {
               className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50"
             >
               <Save size={16} />
-              {saving ? 'Salvando...' : 'Salvar rascunho'}
+              {saving ? 'Salvando...' : 'Salvar'}
             </button>
-            <button
-              onClick={handleSubmit}
-              disabled={submitting || saving}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-            >
-              <Send size={16} />
-              {submitting ? 'Submetendo...' : 'Submeter para analise'}
-            </button>
+            {nf.status === 'requer_ajuste' ? (
+              <button
+                onClick={handleResubmeter}
+                disabled={resubmitting || saving}
+                className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50"
+              >
+                <Send size={16} />
+                {resubmitting ? 'Enviando...' : 'Resubmeter apos ajuste'}
+              </button>
+            ) : (
+              <button
+                onClick={handleSubmit}
+                disabled={submitting || saving}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              >
+                <Send size={16} />
+                {submitting ? 'Submetendo...' : 'Submeter para analise'}
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -300,7 +333,20 @@ export default function NfDetalhePage() {
         </div>
       )}
 
-      {isEditable && (nf.numero_nf || nf.valor_bruto > 0 || nf.cnpj_destinatario) && (
+      {nf.status === 'requer_ajuste' && nf.motivo_ajuste && (
+        <div className="mb-4 p-4 rounded-lg text-sm bg-orange-50 border border-orange-300 text-orange-800">
+          <p className="font-semibold mb-1 flex items-center gap-1.5">
+            <Wrench size={14} />
+            Ajuste solicitado pelo gestor
+          </p>
+          <p>{nf.motivo_ajuste}</p>
+          <p className="mt-2 text-xs text-orange-600">
+            Corrija os dados abaixo e clique em &quot;Resubmeter apos ajuste&quot;.
+          </p>
+        </div>
+      )}
+
+      {isEditable && nf.status === 'rascunho' && (nf.numero_nf || nf.valor_bruto > 0 || nf.cnpj_destinatario) && (
         <div className="mb-4 p-3 rounded-lg text-sm bg-blue-50 border border-blue-200 text-blue-800">
           Alguns campos foram pré-preenchidos automaticamente a partir do PDF. Verifique os dados antes de submeter.
         </div>
@@ -598,20 +644,29 @@ export default function NfDetalhePage() {
           )}
 
           {/* Info */}
-          <div className="bg-blue-50 rounded-xl p-4 text-sm text-blue-800">
-            <p className="font-medium mb-1">Dica</p>
-            {isEditable ? (
+          {nf.status === 'requer_ajuste' ? (
+            <div className="bg-orange-50 rounded-xl p-4 text-sm text-orange-800">
+              <p className="font-medium mb-1">Ajuste necessario</p>
               <p>
-                Preencha todos os campos obrigatorios (*) e clique em &quot;Submeter para analise&quot;.
-                O devedor (sacado) sera identificado pelo CNPJ destinatario.
+                Corrija os campos indicados pelo gestor e clique em &quot;Resubmeter apos ajuste&quot; para enviar novamente para analise.
               </p>
-            ) : (
-              <p>
-                Esta NF ja foi submetida e nao pode ser editada.
-                Acompanhe o status na listagem.
-              </p>
-            )}
-          </div>
+            </div>
+          ) : (
+            <div className="bg-blue-50 rounded-xl p-4 text-sm text-blue-800">
+              <p className="font-medium mb-1">Dica</p>
+              {isEditable ? (
+                <p>
+                  Preencha todos os campos obrigatorios (*) e clique em &quot;Submeter para analise&quot;.
+                  O devedor (sacado) sera identificado pelo CNPJ destinatario.
+                </p>
+              ) : (
+                <p>
+                  Esta NF ja foi submetida e nao pode ser editada.
+                  Acompanhe o status na listagem.
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

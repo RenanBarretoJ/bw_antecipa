@@ -20,6 +20,7 @@ import {
   ChevronsUpDown,
   X,
   Loader2,
+  Wrench,
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -72,6 +73,7 @@ const statusConfig: Record<string, { label: string; icon: typeof CheckCircle; cl
   contestada:     { label: 'Contestada',             icon: AlertCircle, className: 'bg-orange-100 text-orange-700 border-transparent' },
   liquidada:      { label: 'Liquidada',              icon: CheckCircle, className: 'bg-emerald-100 text-emerald-700 border-transparent' },
   cancelada:      { label: 'Cancelada/Reprovada',    icon: XCircle,     className: 'bg-red-100 text-red-700 border-transparent' },
+  requer_ajuste:  { label: 'Requer Ajuste',          icon: Wrench,      className: 'bg-orange-100 text-orange-700 border-transparent' },
 }
 
 export default function NotasFiscaisGestorPage() {
