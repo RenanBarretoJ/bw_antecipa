@@ -70,6 +70,7 @@ interface NfDaOperacao {
   razao_social_destinatario: string
   valor_bruto: number
   valor_liquido: number
+  valor_antecipado: number | null
   data_vencimento: string
   status: string
 }
@@ -216,7 +217,7 @@ export default function OperacaoDetalheGestorPage() {
           const nfIds = (opNfs as Array<{ nota_fiscal_id: string }>).map((n) => n.nota_fiscal_id)
           const { data: nfsData } = await supabase
             .from('notas_fiscais')
-            .select('id, numero_nf, cnpj_destinatario, razao_social_destinatario, valor_bruto, valor_liquido, data_vencimento, status')
+            .select('id, numero_nf, cnpj_destinatario, razao_social_destinatario, valor_bruto, valor_liquido, valor_antecipado, data_vencimento, status')
             .in('id', nfIds)
             .order('data_vencimento', { ascending: true })
 
@@ -257,7 +258,7 @@ export default function OperacaoDetalheGestorPage() {
     const prazoDias = Math.max(1, Math.ceil(
       (new Date(dataVencimento).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
     ))
-    const fator = (1 + taxa / 100) ** (prazoDias / 30)
+    const fator = Math.pow(1 + taxa / 100, prazoDias / 30)
     return Math.round((valorBase / fator) * 100) / 100
   }
 
@@ -280,10 +281,18 @@ export default function OperacaoDetalheGestorPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ operacao_id: opId }),
       }).catch(() => {})
-      // Recarregar operacao para refletir novo status
+      // Recarregar operacao e NFs para refletir valores salvos
       const supabase = createClient()
       const { data } = await supabase.from('operacoes').select('*, cedentes(razao_social, cnpj, contrato_url, contrato_assinado_url)').eq('id', opId).single()
       if (data) setOp(data as OperacaoDetalhe)
+      const { data: opNfsAprov } = await supabase.from('operacoes_nfs').select('nota_fiscal_id').eq('operacao_id', opId)
+      if (opNfsAprov) {
+        const ids = (opNfsAprov as Array<{ nota_fiscal_id: string }>).map((n) => n.nota_fiscal_id)
+        if (ids.length > 0) {
+          const { data: nfsAprov } = await supabase.from('notas_fiscais').select('id, numero_nf, cnpj_destinatario, razao_social_destinatario, valor_bruto, valor_liquido, valor_antecipado, data_vencimento, status').in('id', ids).order('data_vencimento', { ascending: true })
+          setNfs((nfsAprov || []) as NfDaOperacao[])
+        }
+      }
     } else {
       setMessage(result?.message || 'Erro.')
       setMessageType('error')
@@ -318,7 +327,7 @@ export default function OperacaoDetalheGestorPage() {
       if (opNfs) {
         const ids = (opNfs as Array<{ nota_fiscal_id: string }>).map((n) => n.nota_fiscal_id)
         if (ids.length > 0) {
-          const { data: nfsAtt } = await supabase.from('notas_fiscais').select('id, numero_nf, cnpj_destinatario, razao_social_destinatario, valor_bruto, valor_liquido, data_vencimento, status').in('id', ids).order('data_vencimento', { ascending: true })
+          const { data: nfsAtt } = await supabase.from('notas_fiscais').select('id, numero_nf, cnpj_destinatario, razao_social_destinatario, valor_bruto, valor_liquido, valor_antecipado, data_vencimento, status').in('id', ids).order('data_vencimento', { ascending: true })
           setNfs((nfsAtt || []) as NfDaOperacao[])
         } else {
           setNfs([])
@@ -481,7 +490,7 @@ export default function OperacaoDetalheGestorPage() {
                       <th className="text-left px-3 py-2 text-xs text-muted-foreground uppercase">Prazo</th>
                       <th className="text-left px-3 py-2 text-xs text-muted-foreground uppercase">Vencimento</th>
                       <th className="text-left px-3 py-2 text-xs text-muted-foreground uppercase">Status</th>
-                      {canRemoveNf && <th className="px-3 py-2" />}
+                      {canRemoveNf && <th className="text-left px-3 py-2 text-xs text-muted-foreground uppercase">Ação</th>}
                     </tr>
                   </thead>
                   <tbody className="divide-y">
@@ -498,7 +507,11 @@ export default function OperacaoDetalheGestorPage() {
                         </td>
                         <td className="px-3 py-2 font-medium tabular-nums">{formatCurrency(nf.valor_bruto)}</td>
                         <td className="px-3 py-2 tabular-nums text-green-700 font-medium">
-                          {formatCurrency(calcularValorAntecipado(nf.valor_liquido || nf.valor_bruto, nf.data_vencimento))}
+                          {formatCurrency(
+                            (op?.status === 'solicitada' || op?.status === 'em_analise')
+                              ? calcularValorAntecipado(nf.valor_liquido || nf.valor_bruto, nf.data_vencimento)
+                              : (nf.valor_antecipado ?? nf.valor_liquido ?? nf.valor_bruto)
+                          )}
                         </td>
                         <td className="px-3 py-2 tabular-nums text-muted-foreground text-xs">{prazoDias}d</td>
                         <td className="px-3 py-2">{formatDate(nf.data_vencimento)}</td>

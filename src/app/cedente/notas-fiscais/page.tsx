@@ -21,6 +21,11 @@ import {
   Loader2,
   Trash2,
   Wrench,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -71,6 +76,14 @@ export default function NotasFiscaisCedentePage() {
   const [messageType, setMessageType] = useState<'success' | 'error'>('success')
   const [filtroStatus, setFiltroStatus] = useState<string>('todos')
   const [busca, setBusca] = useState('')
+  const [valorMin, setValorMin] = useState('')
+  const [valorMax, setValorMax] = useState('')
+  const [emissaoDe, setEmissaoDe] = useState('')
+  const [emissaoAte, setEmissaoAte] = useState('')
+  const [vencimentoDe, setVencimentoDe] = useState('')
+  const [vencimentoAte, setVencimentoAte] = useState('')
+  const [filtrosExpandidos, setFiltrosExpandidos] = useState(false)
+  const [ordenacao, setOrdenacao] = useState<{ campo: string; direcao: 'asc' | 'desc' }>({ campo: 'created_at', direcao: 'desc' })
   const [dragActive, setDragActive] = useState(false)
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [excluindo, setExcluindo] = useState<string | null>(null)
@@ -219,18 +232,53 @@ export default function NotasFiscaisCedentePage() {
     setUploading(false)
   }
 
-  const nfsFiltradas = nfs.filter((nf) => {
-    if (filtroStatus !== 'todos' && nf.status !== filtroStatus) return false
-    if (busca) {
-      const term = busca.toLowerCase()
-      return (
-        nf.numero_nf.toLowerCase().includes(term) ||
-        nf.razao_social_destinatario.toLowerCase().includes(term) ||
-        nf.cnpj_destinatario.includes(term)
-      )
-    }
-    return true
-  })
+  const handleOrdenar = (campo: string) => {
+    setOrdenacao((prev) => ({
+      campo,
+      direcao: prev.campo === campo && prev.direcao === 'asc' ? 'desc' : 'asc',
+    }))
+  }
+
+  const temFiltrosExtras = valorMin || valorMax || emissaoDe || emissaoAte || vencimentoDe || vencimentoAte
+
+  const limparFiltrosExtras = () => {
+    setValorMin(''); setValorMax('')
+    setEmissaoDe(''); setEmissaoAte('')
+    setVencimentoDe(''); setVencimentoAte('')
+  }
+
+  const nfsFiltradas = nfs
+    .filter((nf) => {
+      if (filtroStatus !== 'todos' && nf.status !== filtroStatus) return false
+      if (busca) {
+        const term = busca.toLowerCase()
+        if (
+          !nf.numero_nf.toLowerCase().includes(term) &&
+          !nf.razao_social_destinatario.toLowerCase().includes(term) &&
+          !nf.cnpj_destinatario.includes(term)
+        ) return false
+      }
+      if (valorMin && nf.valor_bruto < parseFloat(valorMin)) return false
+      if (valorMax && nf.valor_bruto > parseFloat(valorMax)) return false
+      if (emissaoDe && nf.data_emissao < emissaoDe) return false
+      if (emissaoAte && nf.data_emissao > emissaoAte) return false
+      if (vencimentoDe && nf.data_vencimento < vencimentoDe) return false
+      if (vencimentoAte && nf.data_vencimento > vencimentoAte) return false
+      return true
+    })
+    .sort((a, b) => {
+      const { campo, direcao } = ordenacao
+      let aVal: string | number = a.created_at
+      let bVal: string | number = b.created_at
+      if (campo === 'numero_nf') { aVal = a.numero_nf; bVal = b.numero_nf }
+      else if (campo === 'valor_bruto') { aVal = a.valor_bruto; bVal = b.valor_bruto }
+      else if (campo === 'data_emissao') { aVal = a.data_emissao ?? ''; bVal = b.data_emissao ?? '' }
+      else if (campo === 'data_vencimento') { aVal = a.data_vencimento ?? ''; bVal = b.data_vencimento ?? '' }
+      else if (campo === 'status') { aVal = a.status; bVal = b.status }
+      if (aVal < bVal) return direcao === 'asc' ? -1 : 1
+      if (aVal > bVal) return direcao === 'asc' ? 1 : -1
+      return 0
+    })
 
   // Preencher lista de rascunhos visíveis para seleção em lote
   rascunhosVisiveis.splice(0, rascunhosVisiveis.length, ...nfsFiltradas.filter((n) => n.status === 'rascunho').map((n) => n.id))
@@ -365,7 +413,8 @@ export default function NotasFiscaisCedentePage() {
 
       {/* Filtros */}
       <Card className="mb-4">
-        <CardContent className="pt-4 pb-4">
+        <CardContent className="pt-4 pb-4 space-y-3">
+          {/* Linha 1: busca + status + botão expandir */}
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
@@ -382,7 +431,7 @@ export default function NotasFiscaisCedentePage() {
               <select
                 value={filtroStatus}
                 onChange={(e) => setFiltroStatus(e.target.value)}
-                className="h-8 pl-9 pr-8 border border-input rounded-lg text-sm bg-transparent text-foreground focus:outline-none focus:ring-3 focus:ring-ring/50 focus:border-ring appearance-none transition-colors"
+                className="h-9 pl-9 pr-8 border border-input rounded-lg text-sm bg-transparent text-foreground focus:outline-none focus:ring-3 focus:ring-ring/50 focus:border-ring appearance-none transition-colors"
               >
                 <option value="todos">Todos os status</option>
                 <option value="rascunho">Rascunho</option>
@@ -397,7 +446,106 @@ export default function NotasFiscaisCedentePage() {
                 <option value="cancelada">Cancelada</option>
               </select>
             </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setFiltrosExpandidos((v) => !v)}
+              className={`gap-1 shrink-0 ${temFiltrosExtras ? 'border-primary text-primary' : ''}`}
+            >
+              <Filter size={14} />
+              Mais filtros
+              {temFiltrosExtras && <span className="ml-1 w-2 h-2 rounded-full bg-primary inline-block" />}
+              {filtrosExpandidos ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </Button>
           </div>
+
+          {/* Linha 2: filtros avançados (expansível) */}
+          {filtrosExpandidos && (
+            <div className="flex flex-wrap gap-4 pt-2 border-t border-border items-end">
+              {/* Valor Bruto */}
+              <div className="flex items-end gap-2">
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground font-medium">Valor Bruto — mínimo</p>
+                  <Input
+                    type="number"
+                    placeholder="0,00"
+                    value={valorMin}
+                    onChange={(e) => setValorMin(e.target.value)}
+                    className="h-8 text-sm w-32"
+                    min={0}
+                  />
+                </div>
+                <span className="text-xs text-muted-foreground mb-2">—</span>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground font-medium">máximo</p>
+                  <Input
+                    type="number"
+                    placeholder="0,00"
+                    value={valorMax}
+                    onChange={(e) => setValorMax(e.target.value)}
+                    className="h-8 text-sm w-32"
+                    min={0}
+                  />
+                </div>
+              </div>
+
+              <div className="w-px h-10 bg-border self-end mb-0.5 hidden sm:block" />
+
+              {/* Emissão */}
+              <div className="flex items-end gap-2">
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground font-medium">Emissão — de</p>
+                  <Input
+                    type="date"
+                    value={emissaoDe}
+                    onChange={(e) => setEmissaoDe(e.target.value)}
+                    className="h-8 text-sm w-36"
+                  />
+                </div>
+                <span className="text-xs text-muted-foreground mb-2">até</span>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground font-medium invisible">até</p>
+                  <Input
+                    type="date"
+                    value={emissaoAte}
+                    onChange={(e) => setEmissaoAte(e.target.value)}
+                    className="h-8 text-sm w-36"
+                  />
+                </div>
+              </div>
+
+              <div className="w-px h-10 bg-border self-end mb-0.5 hidden sm:block" />
+
+              {/* Vencimento */}
+              <div className="flex items-end gap-2">
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground font-medium">Vencimento — de</p>
+                  <Input
+                    type="date"
+                    value={vencimentoDe}
+                    onChange={(e) => setVencimentoDe(e.target.value)}
+                    className="h-8 text-sm w-36"
+                  />
+                </div>
+                <span className="text-xs text-muted-foreground mb-2">até</span>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground font-medium invisible">até</p>
+                  <Input
+                    type="date"
+                    value={vencimentoAte}
+                    onChange={(e) => setVencimentoAte(e.target.value)}
+                    className="h-8 text-sm w-36"
+                  />
+                </div>
+              </div>
+
+              {temFiltrosExtras && (
+                <Button variant="ghost" size="xs" onClick={limparFiltrosExtras} className="text-muted-foreground self-end mb-0.5">
+                  <X size={13} className="mr-1" /> Limpar
+                </Button>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -480,13 +628,33 @@ export default function NotasFiscaisCedentePage() {
                     />
                   )}
                 </TableHead>
-                <TableHead className="text-xs uppercase tracking-wide px-4 py-3">NF</TableHead>
-                <TableHead className="text-xs uppercase tracking-wide px-4 py-3">Sacado (Destinatario)</TableHead>
-                <TableHead className="text-xs uppercase tracking-wide px-4 py-3">Valor Bruto</TableHead>
-                <TableHead className="text-xs uppercase tracking-wide px-4 py-3">Emissao</TableHead>
-                <TableHead className="text-xs uppercase tracking-wide px-4 py-3">Vencimento</TableHead>
-                <TableHead className="text-xs uppercase tracking-wide px-4 py-3">Status</TableHead>
-                <TableHead className="text-xs uppercase tracking-wide px-4 py-3">Acoes</TableHead>
+                {(() => {
+                  const SortIcon = ({ campo }: { campo: string }) => {
+                    if (ordenacao.campo !== campo) return <ArrowUpDown size={12} className="ml-1 text-muted-foreground/50 inline" />
+                    return ordenacao.direcao === 'asc'
+                      ? <ArrowUp size={12} className="ml-1 text-primary inline" />
+                      : <ArrowDown size={12} className="ml-1 text-primary inline" />
+                  }
+                  const Th = ({ campo, children }: { campo: string; children: React.ReactNode }) => (
+                    <TableHead
+                      className="text-xs uppercase tracking-wide px-4 py-3 cursor-pointer select-none hover:text-foreground whitespace-nowrap"
+                      onClick={() => handleOrdenar(campo)}
+                    >
+                      {children}<SortIcon campo={campo} />
+                    </TableHead>
+                  )
+                  return (
+                    <>
+                      <Th campo="numero_nf">NF</Th>
+                      <TableHead className="text-xs uppercase tracking-wide px-4 py-3">Sacado (Destinatario)</TableHead>
+                      <Th campo="valor_bruto">Valor Bruto</Th>
+                      <Th campo="data_emissao">Emissao</Th>
+                      <Th campo="data_vencimento">Vencimento</Th>
+                      <Th campo="status">Status</Th>
+                      <TableHead className="text-xs uppercase tracking-wide px-4 py-3">Acoes</TableHead>
+                    </>
+                  )
+                })()}
               </TableRow>
             </TableHeader>
             <TableBody>

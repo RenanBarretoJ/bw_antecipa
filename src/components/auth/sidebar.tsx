@@ -143,6 +143,7 @@ export const gestorMenuItems: SidebarItem[] = [
   { label: 'Operacoes', href: '/gestor/operacoes', icon: CreditCard },
   { label: 'Escrow', href: '/gestor/escrow', icon: Wallet },
   { label: 'Relatorios', href: '/gestor/relatorios', icon: BarChart3 },
+  { label: 'Notificacoes', href: '/gestor/notificacoes', icon: Bell },
   { label: 'Configuracoes', href: '/gestor/configuracoes', icon: Settings },
   { label: 'Auditoria', href: '/gestor/auditoria', icon: ShieldCheck },
 ]
