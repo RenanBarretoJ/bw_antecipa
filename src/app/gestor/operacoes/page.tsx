@@ -13,6 +13,12 @@ import {
   Banknote,
   Filter,
   Search,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  ChevronDown,
+  ChevronUp,
+  X,
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -36,6 +42,7 @@ interface OperacaoGestor {
   data_vencimento: string
   status: string
   created_at: string
+  aprovado_em: string | null
   cedentes: {
     razao_social: string
     cnpj: string
@@ -86,13 +93,19 @@ export default function OperacoesGestorPage() {
   const [loading, setLoading] = useState(true)
   const [filtroStatus, setFiltroStatus] = useState('todos')
   const [busca, setBusca] = useState('')
+  const [valorMin, setValorMin] = useState('')
+  const [valorMax, setValorMax] = useState('')
+  const [aprovadoDe, setAprovadoDe] = useState('')
+  const [aprovadoAte, setAprovadoAte] = useState('')
+  const [filtrosExpandidos, setFiltrosExpandidos] = useState(false)
+  const [ordenacao, setOrdenacao] = useState<{ campo: string; direcao: 'asc' | 'desc' }>({ campo: 'created_at', direcao: 'desc' })
 
   useEffect(() => {
     const load = async () => {
       const supabase = createClient()
       const { data } = await supabase
         .from('operacoes')
-        .select('id, valor_bruto_total, taxa_desconto, prazo_dias, valor_liquido_desembolso, data_vencimento, status, created_at, cedentes(razao_social, cnpj)')
+        .select('id, valor_bruto_total, taxa_desconto, prazo_dias, valor_liquido_desembolso, data_vencimento, status, created_at, aprovado_em, cedentes(razao_social, cnpj)')
         .order('created_at', { ascending: false })
 
       setOps((data || []) as OperacaoGestor[])
@@ -101,18 +114,51 @@ export default function OperacoesGestorPage() {
     load()
   }, [])
 
-  const opsFiltradas = ops.filter((op) => {
-    if (filtroStatus !== 'todos' && op.status !== filtroStatus) return false
-    if (busca) {
-      const term = busca.toLowerCase()
-      return (
-        op.cedentes.razao_social.toLowerCase().includes(term) ||
-        op.cedentes.cnpj.includes(term) ||
-        op.id.includes(term)
-      )
-    }
-    return true
-  })
+  const handleOrdenar = (campo: string) => {
+    setOrdenacao((prev) => ({
+      campo,
+      direcao: prev.campo === campo && prev.direcao === 'asc' ? 'desc' : 'asc',
+    }))
+  }
+
+  const temFiltrosExtras = valorMin || valorMax || aprovadoDe || aprovadoAte
+
+  const limparFiltrosExtras = () => {
+    setValorMin(''); setValorMax('')
+    setAprovadoDe(''); setAprovadoAte('')
+  }
+
+  const opsFiltradas = ops
+    .filter((op) => {
+      if (filtroStatus !== 'todos' && op.status !== filtroStatus) return false
+      if (busca) {
+        const term = busca.toLowerCase()
+        if (
+          !op.cedentes.razao_social.toLowerCase().includes(term) &&
+          !op.cedentes.cnpj.includes(term) &&
+          !op.id.includes(term)
+        ) return false
+      }
+      if (valorMin && op.valor_bruto_total < parseFloat(valorMin)) return false
+      if (valorMax && op.valor_bruto_total > parseFloat(valorMax)) return false
+      if (aprovadoDe && (!op.aprovado_em || op.aprovado_em < aprovadoDe)) return false
+      if (aprovadoAte && (!op.aprovado_em || op.aprovado_em > aprovadoAte + 'T23:59:59')) return false
+      return true
+    })
+    .sort((a, b) => {
+      const { campo, direcao } = ordenacao
+      let aVal: string | number = a.created_at
+      let bVal: string | number = b.created_at
+      if (campo === 'valor_bruto_total') { aVal = a.valor_bruto_total; bVal = b.valor_bruto_total }
+      else if (campo === 'taxa_desconto') { aVal = a.taxa_desconto; bVal = b.taxa_desconto }
+      else if (campo === 'prazo_dias') { aVal = a.prazo_dias; bVal = b.prazo_dias }
+      else if (campo === 'valor_liquido_desembolso') { aVal = a.valor_liquido_desembolso; bVal = b.valor_liquido_desembolso }
+      else if (campo === 'status') { aVal = a.status; bVal = b.status }
+      else if (campo === 'aprovado_em') { aVal = a.aprovado_em ?? ''; bVal = b.aprovado_em ?? '' }
+      if (aVal < bVal) return direcao === 'asc' ? -1 : 1
+      if (aVal > bVal) return direcao === 'asc' ? 1 : -1
+      return 0
+    })
 
   const pendentes = ops.filter((o) => o.status === 'solicitada' || o.status === 'em_analise').length
   const volumeAtivo = ops
@@ -148,7 +194,8 @@ export default function OperacoesGestorPage() {
 
       {/* Filtros */}
       <Card className="mb-4">
-        <CardContent className="py-4">
+        <CardContent className="py-4 space-y-3">
+          {/* Linha 1: busca + status + expandir */}
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -157,18 +204,19 @@ export default function OperacoesGestorPage() {
                 placeholder="Buscar por cedente, CNPJ ou ID..."
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}
-                className="pl-9 h-11"
+                className="pl-9 h-9"
               />
             </div>
             <div className="relative flex items-center gap-2">
               <Filter size={16} className="text-muted-foreground shrink-0" />
               <Select value={filtroStatus} onValueChange={(v) => { if (v) setFiltroStatus(v) }}>
-                <SelectTrigger className="h-11 min-w-[200px]">
+                <SelectTrigger className="h-9 min-w-[200px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="todos">Todos</SelectItem>
                   <SelectItem value="solicitada">Solicitadas (pendentes)</SelectItem>
+                  <SelectItem value="aprovada">Aprovadas</SelectItem>
                   <SelectItem value="em_andamento">Em Andamento</SelectItem>
                   <SelectItem value="liquidada">Liquidadas</SelectItem>
                   <SelectItem value="inadimplente">Inadimplentes</SelectItem>
@@ -177,7 +225,81 @@ export default function OperacoesGestorPage() {
                 </SelectContent>
               </Select>
             </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setFiltrosExpandidos((v) => !v)}
+              className={`gap-1 shrink-0 ${temFiltrosExtras ? 'border-primary text-primary' : ''}`}
+            >
+              <Filter size={14} />
+              Mais filtros
+              {temFiltrosExtras && <span className="ml-1 w-2 h-2 rounded-full bg-primary inline-block" />}
+              {filtrosExpandidos ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </Button>
           </div>
+
+          {/* Linha 2: filtros avançados */}
+          {filtrosExpandidos && (
+            <div className="flex flex-wrap gap-4 pt-2 border-t border-border items-end">
+              {/* Valor Bruto */}
+              <div className="flex items-end gap-2">
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground font-medium">Valor Bruto — mínimo</p>
+                  <Input
+                    type="number"
+                    placeholder="0,00"
+                    value={valorMin}
+                    onChange={(e) => setValorMin(e.target.value)}
+                    className="h-8 text-sm w-32"
+                    min={0}
+                  />
+                </div>
+                <span className="text-xs text-muted-foreground mb-2">—</span>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground font-medium">máximo</p>
+                  <Input
+                    type="number"
+                    placeholder="0,00"
+                    value={valorMax}
+                    onChange={(e) => setValorMax(e.target.value)}
+                    className="h-8 text-sm w-32"
+                    min={0}
+                  />
+                </div>
+              </div>
+
+              <div className="w-px h-10 bg-border self-end mb-0.5 hidden sm:block" />
+
+              {/* Data Aprovação */}
+              <div className="flex items-end gap-2">
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground font-medium">Data Aprovação — de</p>
+                  <Input
+                    type="date"
+                    value={aprovadoDe}
+                    onChange={(e) => setAprovadoDe(e.target.value)}
+                    className="h-8 text-sm w-36"
+                  />
+                </div>
+                <span className="text-xs text-muted-foreground mb-2">até</span>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground font-medium invisible">até</p>
+                  <Input
+                    type="date"
+                    value={aprovadoAte}
+                    onChange={(e) => setAprovadoAte(e.target.value)}
+                    className="h-8 text-sm w-36"
+                  />
+                </div>
+              </div>
+
+              {temFiltrosExtras && (
+                <Button variant="ghost" size="xs" onClick={limparFiltrosExtras} className="text-muted-foreground self-end mb-0.5">
+                  <X size={13} className="mr-1" /> Limpar
+                </Button>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -198,14 +320,35 @@ export default function OperacoesGestorPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b bg-muted/50">
-                    <th className="text-left text-xs font-medium text-muted-foreground uppercase px-4 py-3">ID</th>
-                    <th className="text-left text-xs font-medium text-muted-foreground uppercase px-4 py-3">Cedente</th>
-                    <th className="text-left text-xs font-medium text-muted-foreground uppercase px-4 py-3">Valor Bruto</th>
-                    <th className="text-left text-xs font-medium text-muted-foreground uppercase px-4 py-3">Taxa</th>
-                    <th className="text-left text-xs font-medium text-muted-foreground uppercase px-4 py-3">Prazo</th>
-                    <th className="text-left text-xs font-medium text-muted-foreground uppercase px-4 py-3">Liquido</th>
-                    <th className="text-left text-xs font-medium text-muted-foreground uppercase px-4 py-3">Status</th>
-                    <th className="text-left text-xs font-medium text-muted-foreground uppercase px-4 py-3">Acoes</th>
+                    {(() => {
+                      const SortIcon = ({ campo }: { campo: string }) => {
+                        if (ordenacao.campo !== campo) return <ArrowUpDown size={12} className="ml-1 text-muted-foreground/50 inline" />
+                        return ordenacao.direcao === 'asc'
+                          ? <ArrowUp size={12} className="ml-1 text-primary inline" />
+                          : <ArrowDown size={12} className="ml-1 text-primary inline" />
+                      }
+                      const Th = ({ campo, children }: { campo: string; children: React.ReactNode }) => (
+                        <th
+                          className="text-left text-xs font-medium text-muted-foreground uppercase px-4 py-3 cursor-pointer select-none hover:text-foreground whitespace-nowrap"
+                          onClick={() => handleOrdenar(campo)}
+                        >
+                          {children}<SortIcon campo={campo} />
+                        </th>
+                      )
+                      return (
+                        <>
+                          <th className="text-left text-xs font-medium text-muted-foreground uppercase px-4 py-3">ID</th>
+                          <th className="text-left text-xs font-medium text-muted-foreground uppercase px-4 py-3">Cedente</th>
+                          <Th campo="valor_bruto_total">Valor Bruto</Th>
+                          <Th campo="taxa_desconto">Taxa</Th>
+                          <Th campo="prazo_dias">Prazo</Th>
+                          <Th campo="valor_liquido_desembolso">Liquido</Th>
+                          <Th campo="status">Status</Th>
+                          <Th campo="aprovado_em">Data Aprovacao</Th>
+                          <th className="text-left text-xs font-medium text-muted-foreground uppercase px-4 py-3">Acoes</th>
+                        </>
+                      )
+                    })()}
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -228,6 +371,9 @@ export default function OperacoesGestorPage() {
                             <StatusIcon size={12} />
                             {status.label}
                           </Badge>
+                        </td>
+                        <td className="px-4 py-3 text-sm tabular-nums text-muted-foreground">
+                          {op.aprovado_em ? formatDate(op.aprovado_em) : '—'}
                         </td>
                         <td className="px-4 py-3">
                           <Link href={`/gestor/operacoes/${op.id}`}>
