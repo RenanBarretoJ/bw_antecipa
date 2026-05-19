@@ -116,7 +116,7 @@ function montarHeader(cedente: Record<string, unknown>, dataGravacao: string): s
 // ——— DETALHE (tipo 1) — Layout D ———
 // pos  1:      identificacao_registro  = '1'
 // pos  2-20:   debito_automatico       = '         0000000000' (19 alfa: 9 espaços + 10 zeros)
-// pos 21-22:   coobrigacao             = '00' (2 num)
+// pos 21-22:   coobrigacao             = '01' com coobrigacao, '02' sem (2 num)
 // pos 23-24:   caracteristica_especial = '00' (2 num)
 // pos 25-28:   modalidade_operacao     = '0000' (4 num)
 // pos 29-30:   natureza_operacao       = '00' (2 num)
@@ -199,7 +199,7 @@ function montarDetalhe(
   return buildRecord([
     [1,   '1'],
     [2,   '         0000000000'],          // debito_automatico (19 chars: 9 espaços + 10 zeros)
-    [21,  num(cedente.coobrigacao !== false ? 2 : 1, 2)], // coobrigacao
+    [21,  num(cedente.coobrigacao !== false ? 1 : 2, 2)], // coobrigacao: 01=com, 02=sem
     [23,  num(0, 2)],                       // caracteristica_especial
     [25,  num(0, 4)],                       // modalidade_operacao
     [29,  num(0, 2)],                       // natureza_operacao
