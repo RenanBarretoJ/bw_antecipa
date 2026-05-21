@@ -1,10 +1,7 @@
-// Import dinâmico: pdf-parse v1 tenta abrir arquivo de teste na avaliação do módulo,
-// o que quebra no Next.js. O import lazy evita esse comportamento.
-// Importar diretamente a implementação interna, ignorando o index.js.
-// O index.js do pdf-parse v1 executa `!module.parent` e tenta ler um arquivo de teste
-// que não existe no projeto — o que causa ENOENT em ambientes Next.js.
+// pdf-parse está em serverExternalPackages (next.config.ts): o Next.js usa o require
+// nativo do Node.js, evitando o problema do index.js tentar ler arquivo de teste ao ser bundlado.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const getPdfParse = () => require('pdf-parse/lib/pdf-parse.js') as (buffer: Buffer) => Promise<{ text: string }>
+const pdfParse = require('pdf-parse') as (buffer: Buffer) => Promise<{ text: string }>
 
 export interface NfPdfExtracted {
   numero_nf?: string
@@ -32,7 +29,6 @@ export async function extractDanfeFromPdf(buffer: Buffer): Promise<NfPdfExtracte
   let text = ''
 
   try {
-    const pdfParse = getPdfParse()
     // Timeout de 20s: em ambientes serverless o PDF.js pode travar sem rejeitar
     const result = await Promise.race([
       pdfParse(buffer),

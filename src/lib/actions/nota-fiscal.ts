@@ -34,219 +34,186 @@ async function getCedenteDoUsuario() {
   return cedente as { id: string; cnpj: string; razao_social: string; status: string }
 }
 
-// Upload multiplo de arquivos de NF (XML ou PDF)
-// Retorna IDs das NFs criadas como rascunho
+type ArquivoResult =
+  | { ok: true; id: string; isRascunho: boolean }
+  | { ok: false; error: string }
+
+async function processarArquivo(
+  arquivo: File,
+  cedente: { id: string; cnpj: string; razao_social: string },
+  supabase: Awaited<ReturnType<typeof createClient>>
+): Promise<ArquivoResult> {
+  const maxSize = 20 * 1024 * 1024
+  const isXml = arquivo.name.toLowerCase().endsWith('.xml') ||
+    arquivo.type === 'text/xml' || arquivo.type === 'application/xml'
+  const isPdf = arquivo.type === 'application/pdf'
+  const isImage = arquivo.type === 'image/jpeg' || arquivo.type === 'image/png'
+
+  if (!isXml && !isPdf && !isImage) {
+    return { ok: false, error: `${arquivo.name}: formato invalido. Aceitos: XML, PDF, JPG, PNG.` }
+  }
+  if (arquivo.size > maxSize) {
+    return { ok: false, error: `${arquivo.name}: arquivo muito grande (max 20MB).` }
+  }
+
+  const cnpjLimpo = cedente.cnpj.replace(/\D/g, '')
+  const timestamp = Date.now()
+  const cleanName = arquivo.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+  const filePath = `${cnpjLimpo}/nf/${timestamp}_${cleanName}`
+
+  try {
+    if (isXml) {
+      const xmlContent = await arquivo.text()
+      const parsed = parseNFeXML(xmlContent)
+
+      if (parsed.cnpj_emitente !== cnpjLimpo) {
+        return { ok: false, error: `${arquivo.name}: CNPJ emitente (${parsed.cnpj_emitente}) diferente do seu CNPJ (${cnpjLimpo}).` }
+      }
+
+      if (parsed.chave_acesso) {
+        const { data: existing } = await supabase
+          .from('notas_fiscais').select('id').eq('chave_acesso', parsed.chave_acesso).limit(1)
+        if (existing && existing.length > 0) {
+          return { ok: false, error: `${arquivo.name}: NF com chave de acesso ja cadastrada.` }
+        }
+      }
+
+      const { error: uploadError } = await supabase.storage
+        .from(buckets.notasFiscais).upload(filePath, arquivo)
+      if (uploadError) {
+        return { ok: false, error: `${arquivo.name}: erro no upload - ${uploadError.message}` }
+      }
+
+      const { data: nf, error: dbError } = await supabase
+        .from('notas_fiscais')
+        .insert({
+          cedente_id: cedente.id,
+          numero_nf: parsed.numero_nf,
+          serie: parsed.serie || null,
+          chave_acesso: parsed.chave_acesso || null,
+          data_emissao: parsed.data_emissao,
+          data_vencimento: parsed.data_vencimento || parsed.data_emissao,
+          cnpj_emitente: parsed.cnpj_emitente,
+          razao_social_emitente: parsed.razao_social_emitente,
+          cnpj_destinatario: parsed.cnpj_destinatario,
+          razao_social_destinatario: parsed.razao_social_destinatario,
+          valor_bruto: parsed.valor_bruto,
+          valor_liquido: parsed.valor_liquido,
+          valor_icms: parsed.valor_icms,
+          valor_iss: parsed.valor_iss,
+          valor_pis: parsed.valor_pis,
+          valor_cofins: parsed.valor_cofins,
+          valor_ipi: parsed.valor_ipi,
+          descricao_itens: parsed.descricao_itens || null,
+          condicao_pagamento: parsed.condicao_pagamento || null,
+          arquivo_url: filePath,
+          status: 'submetida',
+        } as never)
+        .select('id').single()
+
+      if (dbError) {
+        return { ok: false, error: `${arquivo.name}: erro ao salvar - ${dbError.message}` }
+      }
+
+      const nfData = nf as { id: string }
+      registrarLog({
+        tipo_evento: 'NF_CADASTRADA',
+        entidade_tipo: 'notas_fiscais',
+        entidade_id: nfData.id,
+        dados_depois: parsed as unknown as Record<string, unknown>,
+      }).catch(() => {})
+
+      return { ok: true, id: nfData.id, isRascunho: false }
+
+    } else {
+      const { error: uploadError } = await supabase.storage
+        .from(buckets.notasFiscais).upload(filePath, arquivo)
+      if (uploadError) {
+        return { ok: false, error: `${arquivo.name}: erro no upload - ${uploadError.message}` }
+      }
+
+      const today = new Date().toISOString().split('T')[0]
+      let extracted: NfPdfExtracted = { campos_extraidos: [] }
+      if (isPdf) {
+        try {
+          extracted = await extractDanfeFromPdf(Buffer.from(await arquivo.arrayBuffer()))
+        } catch {
+          // falha silenciosa — PDF fica como rascunho para preenchimento manual
+        }
+      }
+
+      const { data: nf, error: dbError } = await supabase
+        .from('notas_fiscais')
+        .insert({
+          cedente_id: cedente.id,
+          numero_nf: extracted.numero_nf ?? '',
+          serie: extracted.serie ?? null,
+          chave_acesso: extracted.chave_acesso ?? null,
+          data_emissao: extracted.data_emissao ?? today,
+          data_vencimento: extracted.data_vencimento ?? today,
+          cnpj_emitente: cnpjLimpo,
+          razao_social_emitente: cedente.razao_social,
+          cnpj_destinatario: extracted.cnpj_destinatario ?? '',
+          razao_social_destinatario: extracted.razao_social_destinatario ?? '',
+          valor_bruto: extracted.valor_bruto ?? 0,
+          valor_liquido: extracted.valor_liquido ?? 0,
+          valor_icms: 0, valor_iss: 0, valor_pis: 0, valor_cofins: 0, valor_ipi: 0,
+          condicao_pagamento: extracted.condicao_pagamento ?? null,
+          descricao_itens: extracted.descricao_itens ?? null,
+          arquivo_url: filePath,
+          status: 'rascunho',
+        } as never)
+        .select('id').single()
+
+      if (dbError) {
+        return { ok: false, error: `${arquivo.name}: erro ao salvar - ${dbError.message}` }
+      }
+
+      return { ok: true, id: (nf as { id: string }).id, isRascunho: true }
+    }
+  } catch (e) {
+    console.error('[uploadNFs]', e)
+    return { ok: false, error: `${arquivo.name}: erro inesperado ao processar.` }
+  }
+}
+
+// Upload multiplo de arquivos de NF (XML ou PDF) — processa em paralelo
 export async function uploadNFs(formData: FormData): Promise<NfActionState> {
   const supabase = await createClient()
   const cedente = await getCedenteDoUsuario()
 
-  if (!cedente) {
-    return { success: false, message: 'Cadastro de cedente nao encontrado.' }
-  }
-
-  if (cedente.status !== 'ativo') {
-    return { success: false, message: 'Seu cadastro precisa estar ativo para enviar NFs.' }
-  }
+  if (!cedente) return { success: false, message: 'Cadastro de cedente nao encontrado.' }
+  if (cedente.status !== 'ativo') return { success: false, message: 'Seu cadastro precisa estar ativo para enviar NFs.' }
 
   const arquivos = formData.getAll('arquivos') as File[]
+  if (!arquivos || arquivos.length === 0) return { success: false, message: 'Nenhum arquivo selecionado.' }
 
-  if (!arquivos || arquivos.length === 0) {
-    return { success: false, message: 'Nenhum arquivo selecionado.' }
-  }
-
-  const allowedTypes = ['text/xml', 'application/xml', 'application/pdf', 'image/jpeg', 'image/png']
-  const maxSize = 20 * 1024 * 1024
+  const resultados = await Promise.allSettled(
+    arquivos.map((arquivo) => processarArquivo(arquivo, cedente, supabase))
+  )
 
   const erros: string[] = []
   const nfsCriadas: string[] = []
   const nfsRascunho: string[] = []
 
-  for (const arquivo of arquivos) {
-    // Validar tipo e tamanho
-    const isXml = arquivo.name.toLowerCase().endsWith('.xml') ||
-      arquivo.type === 'text/xml' || arquivo.type === 'application/xml'
-    const isPdf = arquivo.type === 'application/pdf'
-    const isImage = arquivo.type === 'image/jpeg' || arquivo.type === 'image/png'
-
-    if (!isXml && !isPdf && !isImage) {
-      erros.push(`${arquivo.name}: formato invalido. Aceitos: XML, PDF, JPG, PNG.`)
-      continue
-    }
-
-    if (arquivo.size > maxSize) {
-      erros.push(`${arquivo.name}: arquivo muito grande (max 20MB).`)
-      continue
-    }
-
-    try {
-      if (isXml) {
-        // Parse XML da NF-e
-        const xmlContent = await arquivo.text()
-        const parsed = parseNFeXML(xmlContent)
-
-        // Validar CNPJ emitente = CNPJ do cedente
-        const cnpjLimpo = cedente.cnpj.replace(/\D/g, '')
-        if (parsed.cnpj_emitente !== cnpjLimpo) {
-          erros.push(`${arquivo.name}: CNPJ emitente (${parsed.cnpj_emitente}) diferente do seu CNPJ (${cnpjLimpo}).`)
-          continue
-        }
-
-        // Verificar duplicidade por chave de acesso
-        if (parsed.chave_acesso) {
-          const { data: existing } = await supabase
-            .from('notas_fiscais')
-            .select('id')
-            .eq('chave_acesso', parsed.chave_acesso)
-            .limit(1)
-
-          if (existing && existing.length > 0) {
-            erros.push(`${arquivo.name}: NF com chave de acesso ja cadastrada.`)
-            continue
-          }
-        }
-
-        // Upload do arquivo XML
-        const timestamp = Date.now()
-        const cleanName = arquivo.name.replace(/[^a-zA-Z0-9._-]/g, '_')
-        const filePath = `${cnpjLimpo}/nf/${timestamp}_${cleanName}`
-
-        const { error: uploadError } = await supabase.storage
-          .from(buckets.notasFiscais)
-          .upload(filePath, arquivo)
-
-        if (uploadError) {
-          erros.push(`${arquivo.name}: erro no upload - ${uploadError.message}`)
-          continue
-        }
-
-        // Inserir NF com dados parseados — status submetida (XML ja tem dados completos)
-        const { data: nf, error: dbError } = await supabase
-          .from('notas_fiscais')
-          .insert({
-            cedente_id: cedente.id,
-            numero_nf: parsed.numero_nf,
-            serie: parsed.serie || null,
-            chave_acesso: parsed.chave_acesso || null,
-            data_emissao: parsed.data_emissao,
-            data_vencimento: parsed.data_vencimento || parsed.data_emissao,
-            cnpj_emitente: parsed.cnpj_emitente,
-            razao_social_emitente: parsed.razao_social_emitente,
-            cnpj_destinatario: parsed.cnpj_destinatario,
-            razao_social_destinatario: parsed.razao_social_destinatario,
-            valor_bruto: parsed.valor_bruto,
-            valor_liquido: parsed.valor_liquido,
-            valor_icms: parsed.valor_icms,
-            valor_iss: parsed.valor_iss,
-            valor_pis: parsed.valor_pis,
-            valor_cofins: parsed.valor_cofins,
-            valor_ipi: parsed.valor_ipi,
-            descricao_itens: parsed.descricao_itens || null,
-            condicao_pagamento: parsed.condicao_pagamento || null,
-            arquivo_url: filePath,
-            status: 'submetida',
-          } as never)
-          .select('id')
-          .single()
-
-        if (dbError) {
-          erros.push(`${arquivo.name}: erro ao salvar - ${dbError.message}`)
-          continue
-        }
-
-        const nfData = nf as { id: string }
-        nfsCriadas.push(nfData.id)
-
-        await registrarLog({
-          tipo_evento: 'NF_CADASTRADA',
-          entidade_tipo: 'notas_fiscais',
-          entidade_id: nfData.id,
-          dados_depois: parsed as unknown as Record<string, unknown>,
-        })
-
-      } else {
-        // PDF ou imagem — tenta extrair dados automaticamente, cria rascunho
-        const cnpjLimpo = cedente.cnpj.replace(/\D/g, '')
-        const timestamp = Date.now()
-        const cleanName = arquivo.name.replace(/[^a-zA-Z0-9._-]/g, '_')
-        const filePath = `${cnpjLimpo}/nf/${timestamp}_${cleanName}`
-
-        const { error: uploadError } = await supabase.storage
-          .from(buckets.notasFiscais)
-          .upload(filePath, arquivo)
-
-        if (uploadError) {
-          erros.push(`${arquivo.name}: erro no upload - ${uploadError.message}`)
-          continue
-        }
-
-        // Tentar extração de dados do DANFE (falha silenciosa para PDFs escaneados)
-        const today = new Date().toISOString().split('T')[0]
-        let extracted: NfPdfExtracted = { campos_extraidos: [] }
-        console.log('[uploadNFs] arquivo:', arquivo.name, '| isPdf:', isPdf, '| isImage:', isImage, '| type:', arquivo.type)
-        if (isPdf) {
-          try {
-            console.log('[uploadNFs] iniciando extracao do PDF...')
-            const buffer = Buffer.from(await arquivo.arrayBuffer())
-            console.log('[uploadNFs] buffer size:', buffer.length)
-            extracted = await extractDanfeFromPdf(buffer)
-            console.log('[uploadNFs] extracao concluida:', extracted.campos_extraidos)
-          } catch (parseErr) {
-            console.warn('[uploadNFs] extracao pdf falhou:', parseErr)
-          }
-        }
-
-        const { data: nf, error: dbError } = await supabase
-          .from('notas_fiscais')
-          .insert({
-            cedente_id: cedente.id,
-            numero_nf: extracted.numero_nf ?? '',
-            serie: extracted.serie ?? null,
-            chave_acesso: extracted.chave_acesso ?? null,
-            data_emissao: extracted.data_emissao ?? today,
-            data_vencimento: extracted.data_vencimento ?? today,
-            // emitente sempre vem do cadastro — não confiar no PDF
-            cnpj_emitente: cnpjLimpo,
-            razao_social_emitente: cedente.razao_social,
-            cnpj_destinatario: extracted.cnpj_destinatario ?? '',
-            razao_social_destinatario: extracted.razao_social_destinatario ?? '',
-            valor_bruto: extracted.valor_bruto ?? 0,
-            valor_liquido: extracted.valor_liquido ?? 0,
-            valor_icms: 0,
-            valor_iss: 0,
-            valor_pis: 0,
-            valor_cofins: 0,
-            valor_ipi: 0,
-            condicao_pagamento: extracted.condicao_pagamento ?? null,
-            descricao_itens: extracted.descricao_itens ?? null,
-            arquivo_url: filePath,
-            status: 'rascunho',
-          } as never)
-          .select('id')
-          .single()
-
-        if (dbError) {
-          erros.push(`${arquivo.name}: erro ao salvar - ${dbError.message}`)
-          continue
-        }
-
-        const nfData = nf as { id: string }
-        nfsCriadas.push(nfData.id)
-        nfsRascunho.push(nfData.id)
-      }
-    } catch (e) {
-      erros.push(`${arquivo.name}: erro inesperado ao processar.`)
-      console.error('[uploadNFs]', e)
+  for (const r of resultados) {
+    if (r.status === 'rejected') {
+      erros.push('Erro inesperado ao processar arquivo.')
+    } else if (!r.value.ok) {
+      erros.push(r.value.error)
+    } else {
+      nfsCriadas.push(r.value.id)
+      if (r.value.isRascunho) nfsRascunho.push(r.value.id)
     }
   }
 
-  // Notificar gestores se houver NFs submetidas
-  const submetidas = nfsCriadas.length - erros.length
+  // Notificação não bloqueia a resposta ao usuário
   if (nfsCriadas.length > 0) {
-    await notificarGestores(
+    notificarGestores(
       'Novas NFs enviadas',
       `O cedente ${cedente.razao_social} enviou ${nfsCriadas.length} nota(s) fiscal(is) para analise.`,
       'nf_enviada'
-    )
+    ).catch(() => {})
   }
 
   if (erros.length > 0 && nfsCriadas.length === 0) {
@@ -259,9 +226,7 @@ export async function uploadNFs(formData: FormData): Promise<NfActionState> {
 
   return {
     success: true,
-    message: erros.length > 0
-      ? `${msg} (${erros.length} erro(s): ${erros.join('; ')})`
-      : msg,
+    message: erros.length > 0 ? `${msg} (${erros.length} erro(s): ${erros.join('; ')})` : msg,
     ids: nfsCriadas,
     rascunhos: nfsRascunho,
   }
