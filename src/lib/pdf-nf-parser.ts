@@ -98,6 +98,8 @@ function extractNumeroNF(text: string): string | undefined {
     /ELETR[ÔO]NICA\s+N[°º]\.?\s*(\d[\d.,]{0,11})/i,
     /N[°º]\s+DA\s+NOTA\s*[:\-]?\s*(\d[\d.]{0,11})/i,
     /NOTA\s+FISCAL\s+N[°º\.]+\s*(\d[\d.]{0,11})/i,
+    // "N.º\nSÉRIE\n33850" — layout de bloco (Vida Saúde e similares): N então ponto então º
+    /N\.[°º]\s*\n\s*S[ÉE]R[^\n]*\n\s*(\d+)/i,
   ]
   for (const re of patterns) {
     const m = text.match(re)
@@ -127,6 +129,8 @@ function extractDataEmissao(text: string): string | undefined {
   const patterns = [
     /DATA\s+(?:DE\s+)?EMISS[ÃA]O\s*[:\-\/]?\s*(\d{2}\/\d{2}\/\d{4})/i,
     /EMISS[ÃA]O\s*[:\-]?\s*(\d{2}\/\d{2}\/\d{4})/i,
+    // data aparece em linha de dados abaixo do cabeçalho de coluna (Vida Saúde e similares)
+    /DATA\s+DA\s+EMISS[ÃA]O[\s\S]{0,600}?(\d{2}\/\d{2}\/\d{4})/i,
   ]
   for (const re of patterns) {
     const m = text.match(re)
@@ -247,6 +251,14 @@ function extractValorProdutos(text: string): number | undefined {
       if (v > 0) return v
     }
   }
+  // layout de bloco: valor dos produtos aparece sozinho numa linha imediatamente antes
+  // da linha de valores concatenados de frete/seguro/desconto/IPI/total
+  // ex: "\n5.007,18\n0,000,000,000,005.007,18\n"
+  const mBloco = text.match(/\n([\d.]+,\d{2})\n0,00(?:0,00)+/)
+  if (mBloco?.[1]) {
+    const v = parseBRLValue(mBloco[1])
+    if (v > 0) return v
+  }
   return undefined
 }
 
@@ -261,6 +273,16 @@ function extractValorNota(text: string): number | undefined {
     const m = text.match(re)
     if (m?.[1]) {
       const v = parseBRLValue(m[1])
+      if (v > 0) return v
+    }
+  }
+  // layout de bloco: frete/seguro/desconto/outras/IPI/total aparecem numa linha concatenada
+  // ex: "0,000,000,000,005.007,18" — o último valor é o TOTAL DA NOTA
+  const mLinhaConcat = text.match(/\n(0,00(?:[\d.,]+,\d{2})+)\s*(?:\n|$)/m)
+  if (mLinhaConcat?.[1]) {
+    const allVals = [...mLinhaConcat[1].matchAll(/([\d.]+,\d{2})/g)]
+    if (allVals.length > 0) {
+      const v = parseBRLValue(allVals[allVals.length - 1][1])
       if (v > 0) return v
     }
   }
