@@ -19,6 +19,7 @@ import {
   FileDown,
   Calculator,
   Loader2,
+  Send,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -55,6 +56,10 @@ interface OperacaoDetalhe {
   comprovante_pagamento_url: string | null
   notificacao_url: string | null
   notificacao_assinada_url: string | null
+  remessa_url: string | null
+  remessa_gerado_em: string | null
+  remessa_enviado_em: string | null
+  remessa_fromtis_id: string | null
   cedentes: {
     razao_social: string
     cnpj: string
@@ -173,11 +178,15 @@ export default function OperacaoDetalheGestorPage() {
   const [test2Id, setTest2Id] = useState('')
   const [salvandoTest, setSalvandoTest] = useState(false)
   const [gerandoCnab, setGerandoCnab] = useState(false)
+  const [enviandoRemessa, setEnviandoRemessa] = useState(false)
 
   // Estado local para docs (atualizado após upload sem reload da página)
   const [termoAssinadoUrl, setTermoAssinadoUrl] = useState<string | null>(null)
   const [comprovanteUrl, setComprovanteUrl] = useState<string | null>(null)
   const [notificacaoAssinadaUrl, setNotificacaoAssinadaUrl] = useState<string | null>(null)
+  const [remessaGeradaEm, setRemessaGeradaEm] = useState<string | null>(null)
+  const [remessaEnviadaEm, setRemessaEnviadaEm] = useState<string | null>(null)
+  const [remessaFromtisId, setRemessaFromtisId] = useState<string | null>(null)
   const [desembolsando, setDesembolsando] = useState(false)
 
   useEffect(() => {
@@ -207,6 +216,9 @@ export default function OperacaoDetalheGestorPage() {
         setTermoAssinadoUrl(o.termo_assinado_url)
         setComprovanteUrl(o.comprovante_pagamento_url)
         setNotificacaoAssinadaUrl(o.notificacao_assinada_url)
+        setRemessaGeradaEm(o.remessa_gerado_em)
+        setRemessaEnviadaEm(o.remessa_enviado_em)
+        setRemessaFromtisId(o.remessa_fromtis_id)
 
         const { data: opNfs } = await supabase
           .from('operacoes_nfs')
@@ -367,11 +379,35 @@ export default function OperacaoDetalheGestorPage() {
       a.download = `REMESSA_${op.id.slice(0, 8).toUpperCase()}.REM`
       a.click()
       URL.revokeObjectURL(url)
+      setRemessaGeradaEm(new Date().toISOString())
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Erro ao gerar CNAB.')
       setMessageType('error')
     } finally {
       setGerandoCnab(false)
+    }
+  }
+
+  const handleEnviarRemessa = async () => {
+    if (!op) return
+    setEnviandoRemessa(true)
+    try {
+      const res = await fetch('/api/contratos/enviar-remessa', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ operacao_id: op.id }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Erro ao enviar remessa')
+      setRemessaEnviadaEm(new Date().toISOString())
+      setRemessaFromtisId(data.idArquivo)
+      setMessage(`Remessa enviada. ID Fromtis: ${data.idArquivo}`)
+      setMessageType('success')
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Erro ao enviar remessa.')
+      setMessageType('error')
+    } finally {
+      setEnviandoRemessa(false)
     }
   }
 
@@ -789,6 +825,19 @@ export default function OperacaoDetalheGestorPage() {
                     {gerandoCnab ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />}
                     {gerandoCnab ? 'Gerando...' : 'Gerar CNAB'}
                   </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleEnviarRemessa}
+                    disabled={enviandoRemessa || !remessaGeradaEm}
+                    className="w-full gap-2"
+                  >
+                    {enviandoRemessa ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                    {enviandoRemessa ? 'Enviando...' : remessaEnviadaEm ? `Reenviado ${formatDate(remessaEnviadaEm)}` : 'Enviar CNAB para Fromtis'}
+                  </Button>
+                  {remessaFromtisId && (
+                    <p className="text-xs text-muted-foreground">ID Fromtis: {remessaFromtisId}</p>
+                  )}
 
                   <p className="text-xs font-medium text-muted-foreground border-t pt-3">Documentos assinados</p>
                   <div className="flex flex-col gap-2">
@@ -989,6 +1038,19 @@ export default function OperacaoDetalheGestorPage() {
                       {gerandoCnab ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />}
                       {gerandoCnab ? 'Gerando...' : 'Gerar CNAB'}
                     </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleEnviarRemessa}
+                      disabled={enviandoRemessa || !remessaGeradaEm}
+                      className="w-full gap-2"
+                    >
+                      {enviandoRemessa ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                      {enviandoRemessa ? 'Enviando...' : remessaEnviadaEm ? `Reenviado ${formatDate(remessaEnviadaEm)}` : 'Enviar CNAB para Fromtis'}
+                    </Button>
+                    {remessaFromtisId && (
+                      <p className="text-xs text-muted-foreground">ID Fromtis: {remessaFromtisId}</p>
+                    )}
                   </div>
                 )}
               </CardContent>

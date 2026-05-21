@@ -612,3 +612,161 @@ export async function revogarAcessoCedente(acessoId: string): Promise<GestorActi
 
   return { success: true, message: 'Acesso revogado com sucesso.' }
 }
+
+// ─── Gestão de Fundos ──────────────────────────────────────────────────────
+
+interface FundoDados {
+  nome: string
+  cnpj: string
+  administradora_nome: string
+  administradora_cnpj: string
+  gestora_nome?: string
+  gestora_cnpj?: string
+  custodiante_nome?: string
+  custodiante_cnpj?: string
+  banco?: string
+  agencia?: string
+  conta_vinculada?: string
+  contato_nome?: string
+  contato_email?: string
+  administradora_endereco?: string
+  administradora_ato_declaratorio?: string
+}
+
+export async function criarFundo(dados: FundoDados): Promise<GestorActionState> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, message: 'Nao autorizado.' }
+
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (!profile || (profile as { role: string }).role !== 'gestor') {
+    return { success: false, message: 'Acesso negado.' }
+  }
+
+  const { data: fundo, error } = await supabase
+    .from('fundos')
+    .insert({
+      nome: dados.nome.trim(),
+      cnpj: dados.cnpj.replace(/\D/g, ''),
+      administradora_nome: dados.administradora_nome.trim(),
+      administradora_cnpj: dados.administradora_cnpj.replace(/\D/g, ''),
+      gestora_nome: dados.gestora_nome?.trim() || 'BLUEWAVE ASSET LTDA',
+      gestora_cnpj: dados.gestora_cnpj?.replace(/\D/g, '') || '13703306000156',
+      custodiante_nome: dados.custodiante_nome?.trim() || null,
+      custodiante_cnpj: dados.custodiante_cnpj?.replace(/\D/g, '') || null,
+      banco: dados.banco?.trim() || null,
+      agencia: dados.agencia?.trim() || null,
+      conta_vinculada: dados.conta_vinculada?.trim() || null,
+      contato_nome: dados.contato_nome?.trim() || null,
+      contato_email: dados.contato_email?.trim() || null,
+      administradora_endereco: dados.administradora_endereco?.trim() || null,
+      administradora_ato_declaratorio: dados.administradora_ato_declaratorio?.trim() || null,
+    } as never)
+    .select('id')
+    .single()
+
+  if (error) return { success: false, message: `Erro ao criar fundo: ${error.message}` }
+
+  await registrarLog({
+    tipo_evento: 'FUNDO_CRIADO',
+    entidade_tipo: 'fundos',
+    entidade_id: (fundo as { id: string }).id,
+    dados_depois: { nome: dados.nome, cnpj: dados.cnpj },
+  })
+
+  return { success: true, message: 'Fundo criado com sucesso.' }
+}
+
+export async function atualizarFundo(fundoId: string, dados: FundoDados): Promise<GestorActionState> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, message: 'Nao autorizado.' }
+
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (!profile || (profile as { role: string }).role !== 'gestor') {
+    return { success: false, message: 'Acesso negado.' }
+  }
+
+  const { error } = await supabase
+    .from('fundos')
+    .update({
+      nome: dados.nome.trim(),
+      cnpj: dados.cnpj.replace(/\D/g, ''),
+      administradora_nome: dados.administradora_nome.trim(),
+      administradora_cnpj: dados.administradora_cnpj.replace(/\D/g, ''),
+      gestora_nome: dados.gestora_nome?.trim() || 'BLUEWAVE ASSET LTDA',
+      gestora_cnpj: dados.gestora_cnpj?.replace(/\D/g, '') || '13703306000156',
+      custodiante_nome: dados.custodiante_nome?.trim() || null,
+      custodiante_cnpj: dados.custodiante_cnpj?.replace(/\D/g, '') || null,
+      banco: dados.banco?.trim() || null,
+      agencia: dados.agencia?.trim() || null,
+      conta_vinculada: dados.conta_vinculada?.trim() || null,
+      contato_nome: dados.contato_nome?.trim() || null,
+      contato_email: dados.contato_email?.trim() || null,
+      administradora_endereco: dados.administradora_endereco?.trim() || null,
+      administradora_ato_declaratorio: dados.administradora_ato_declaratorio?.trim() || null,
+    } as never)
+    .eq('id', fundoId)
+
+  if (error) return { success: false, message: `Erro ao atualizar fundo: ${error.message}` }
+
+  await registrarLog({
+    tipo_evento: 'FUNDO_ATUALIZADO',
+    entidade_tipo: 'fundos',
+    entidade_id: fundoId,
+    dados_depois: { nome: dados.nome },
+  })
+
+  return { success: true, message: 'Fundo atualizado com sucesso.' }
+}
+
+export async function toggleAtivoFundo(fundoId: string, ativo: boolean): Promise<GestorActionState> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, message: 'Nao autorizado.' }
+
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (!profile || (profile as { role: string }).role !== 'gestor') {
+    return { success: false, message: 'Acesso negado.' }
+  }
+
+  const { error } = await supabase.from('fundos').update({ ativo } as never).eq('id', fundoId)
+
+  if (error) return { success: false, message: `Erro: ${error.message}` }
+
+  await registrarLog({
+    tipo_evento: ativo ? 'FUNDO_ATIVADO' : 'FUNDO_DESATIVADO',
+    entidade_tipo: 'fundos',
+    entidade_id: fundoId,
+    dados_depois: { ativo },
+  })
+
+  return { success: true, message: ativo ? 'Fundo ativado.' : 'Fundo desativado.' }
+}
+
+export async function vincularFundoCedente(cedenteId: string, fundoId: string | null): Promise<GestorActionState> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, message: 'Nao autorizado.' }
+
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (!profile || (profile as { role: string }).role !== 'gestor') {
+    return { success: false, message: 'Acesso negado.' }
+  }
+
+  const { error } = await supabase
+    .from('cedentes')
+    .update({ fundo_id: fundoId } as never)
+    .eq('id', cedenteId)
+
+  if (error) return { success: false, message: `Erro ao vincular fundo: ${error.message}` }
+
+  await registrarLog({
+    tipo_evento: fundoId ? 'FUNDO_VINCULADO_CEDENTE' : 'FUNDO_DESVINCULADO_CEDENTE',
+    entidade_tipo: 'cedentes',
+    entidade_id: cedenteId,
+    dados_depois: { fundo_id: fundoId },
+  })
+
+  return { success: true, message: fundoId ? 'Fundo vinculado com sucesso.' : 'Fundo desvinculado.' }
+}

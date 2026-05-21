@@ -19,6 +19,7 @@ import {
   CheckSquare,
   History,
   Briefcase,
+  Building2,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -142,6 +143,7 @@ export const gestorMenuItems: SidebarItem[] = [
   { label: 'Notas Fiscais', href: '/gestor/notas-fiscais', icon: Receipt },
   { label: 'Operacoes', href: '/gestor/operacoes', icon: CreditCard },
   { label: 'Escrow', href: '/gestor/escrow', icon: Wallet },
+  { label: 'Fundos', href: '/gestor/fundos', icon: Building2 },
   { label: 'Relatorios', href: '/gestor/relatorios', icon: BarChart3 },
   { label: 'Notificacoes', href: '/gestor/notificacoes', icon: Bell },
   { label: 'Configuracoes', href: '/gestor/configuracoes', icon: Settings },

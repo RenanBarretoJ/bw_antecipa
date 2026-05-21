@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { gerarCnab444 } from '@/lib/cnab/gerarCnab444'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/server'
+import { buckets } from '@/lib/storage'
 
 export const maxDuration = 60
 
@@ -20,6 +22,23 @@ export async function POST(req: NextRequest) {
 
     const cnabContent = await gerarCnab444(operacao_id)
     const nomeArquivo = `REMESSA_${String(operacao_id).slice(0, 8).toUpperCase()}.REM`
+
+    // Salvar no storage como lastro — falha silenciosa para não bloquear o download
+    try {
+      const caminho = `operacoes/${operacao_id}/remessa.REM`
+      const admin = createAdminClient()
+      await admin.storage.from(buckets.contratos).upload(
+        caminho,
+        Buffer.from(cnabContent, 'utf-8'),
+        { contentType: 'text/plain; charset=utf-8', upsert: true }
+      )
+      await admin.from('operacoes').update({
+        remessa_url: caminho,
+        remessa_gerado_em: new Date().toISOString(),
+      } as never).eq('id', operacao_id)
+    } catch (storageErr) {
+      console.error('[api/contratos/gerar-cnab] storage:', storageErr)
+    }
 
     return new NextResponse(cnabContent, {
       status: 200,
