@@ -33,7 +33,13 @@ export async function extractDanfeFromPdf(buffer: Buffer): Promise<NfPdfExtracte
 
   try {
     const pdfParse = getPdfParse()
-    const result = await pdfParse(buffer)
+    // Timeout de 20s: em ambientes serverless o PDF.js pode travar sem rejeitar
+    const result = await Promise.race([
+      pdfParse(buffer),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('pdf-parse timeout')), 20000)
+      ),
+    ])
     text = result.text || ''
   } catch {
     return { campos_extraidos: [] }
