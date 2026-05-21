@@ -77,8 +77,31 @@ export interface Cedente {
   tipo_conta: TipoContaBancaria | null
   status: CedenteStatus
   habilitar_escrow: boolean
+  coobrigacao: boolean
+  fundo_id: string | null
   created_at: string
   updated_at: string
+}
+
+export interface Fundo {
+  id: string
+  nome: string
+  cnpj: string
+  administradora_nome: string
+  administradora_cnpj: string
+  gestora_nome: string
+  gestora_cnpj: string
+  custodiante_nome: string | null
+  custodiante_cnpj: string | null
+  conta_vinculada: string | null
+  agencia: string | null
+  banco: string | null
+  administradora_endereco: string | null
+  administradora_ato_declaratorio: string | null
+  contato_nome: string | null
+  contato_email: string | null
+  ativo: boolean
+  created_at: string
 }
 
 export interface Documento {
@@ -158,6 +181,18 @@ export interface Operacao {
   aprovado_por: string | null
   aprovado_em: string | null
   motivo_reprovacao: string | null
+  testemunha_1_id: string | null
+  testemunha_2_id: string | null
+  termo_assinado_url: string | null
+  comprovante_pagamento_url: string | null
+  notificacao_url: string | null
+  notificacao_gerado_em: string | null
+  notificacao_assinada_url: string | null
+  remessa_url: string | null
+  remessa_gerado_em: string | null
+  remessa_enviado_em: string | null
+  remessa_fromtis_id: string | null
+  remessa_fromtis_retorno: string | null
   created_at: string
   updated_at: string
 }
@@ -316,6 +351,11 @@ export interface Database {
           lida?: boolean
         }
         Update: Partial<Omit<Notificacao, 'id' | 'created_at'>>
+      }
+      fundos: {
+        Row: Fundo
+        Insert: Omit<Fundo, 'id' | 'created_at'> & { id?: string }
+        Update: Partial<Omit<Fundo, 'id' | 'created_at'>>
       }
     }
     Functions: {

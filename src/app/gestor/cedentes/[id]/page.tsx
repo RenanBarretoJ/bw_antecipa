@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { use } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { analisarDocumento, aprovarCedente, reprovarCedente, solicitarAtualizacaoDocumento, toggleEscrowCedente, toggleCoobrigacaoCedente, aprovarAlteracaoCedente, reprovarAlteracaoCedente, convidarUsuarioCedente, revogarAcessoCedente } from '@/lib/actions/gestor'
+import { analisarDocumento, aprovarCedente, reprovarCedente, solicitarAtualizacaoDocumento, toggleEscrowCedente, toggleCoobrigacaoCedente, aprovarAlteracaoCedente, reprovarAlteracaoCedente, convidarUsuarioCedente, revogarAcessoCedente, vincularFundoCedente } from '@/lib/actions/gestor'
 import { salvarTaxasCedente } from '@/lib/actions/operacao'
 import { salvarContratoAssinado } from '@/lib/actions/cedente'
 import { formatCNPJ, formatDate } from '@/lib/utils'
@@ -19,6 +19,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { BotaoDownloadContrato } from '@/components/contratos/BotaoDownloadContrato'
 import { UploadDocumentoAssinado } from '@/components/contratos/UploadDocumentoAssinado'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import type { Fundo } from '@/types/database'
 
 interface CedenteDetail {
   id: string; cnpj: string; razao_social: string; nome_fantasia: string | null
@@ -26,7 +28,7 @@ interface CedenteDetail {
   bairro: string | null; cidade: string | null; estado: string | null
   telefone_comercial: string | null; email_comercial: string | null; cnae: string | null
   banco: string | null; agencia: string | null; conta: string | null; tipo_conta: string | null
-  status: string; habilitar_escrow: boolean; coobrigacao: boolean; created_at: string
+  status: string; habilitar_escrow: boolean; coobrigacao: boolean; fundo_id: string | null; created_at: string
   contrato_url: string | null
   contrato_assinado_url: string | null
 }
@@ -122,6 +124,12 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
   const [togglingCoobrigacao, setTogglingCoobrigacao] = useState(false)
   const [coobrigacaoMessage, setCoobrigacaoMessage] = useState('')
 
+  // Fundo vinculado
+  const [fundos, setFundos] = useState<Fundo[]>([])
+  const [fundoSelecionado, setFundoSelecionado] = useState<string>('')
+  const [salvandoFundo, setSalvandoFundo] = useState(false)
+  const [fundoMessage, setFundoMessage] = useState('')
+
   // Alteração cadastral
   const [alteracao, setAlteracao] = useState<AlteracaoPendente | null>(null)
   const [motivoRepAlteracao, setMotivoRepAlteracao] = useState('')
@@ -143,6 +151,10 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
 
     const { data: c } = await supabase.from('cedentes').select('*').eq('id', id).single()
     setCedente(c as CedenteDetail | null)
+    if (c) setFundoSelecionado((c as CedenteDetail).fundo_id ?? '')
+
+    const { data: fs } = await supabase.from('fundos').select('id, nome, cnpj, ativo').eq('ativo', true).order('nome')
+    setFundos((fs || []) as Fundo[])
 
     const { data: reps } = await supabase
       .from('representantes')
@@ -822,6 +834,52 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
           {coobrigacaoMessage && (
             <p className={`text-sm mt-2 ${coobrigacaoMessage.includes('sucesso') ? 'text-green-600' : 'text-destructive'}`}>
               {coobrigacaoMessage}
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Fundo Vinculado */}
+      <Card className="mb-6">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Fundo Vinculado</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-xs text-muted-foreground">
+            O fundo vinculado é usado para gerar o CNAB e identificar o cessionário nos contratos.
+          </p>
+          <div className="flex gap-2">
+            <Select value={fundoSelecionado} onValueChange={(v) => setFundoSelecionado(v ?? '')}>
+              <SelectTrigger className="flex-1">
+                <SelectValue placeholder="Selecione um fundo..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none" label="— Sem fundo vinculado —">— Sem fundo vinculado —</SelectItem>
+                {fundos.map(f => (
+                  <SelectItem key={f.id} value={f.id} label={f.nome}>
+                    {f.nome}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              size="sm"
+              disabled={salvandoFundo}
+              onClick={async () => {
+                setSalvandoFundo(true)
+                setFundoMessage('')
+                const result = await vincularFundoCedente(id, fundoSelecionado === 'none' || !fundoSelecionado ? null : fundoSelecionado)
+                setFundoMessage(result?.message || '')
+                if (result?.success) await loadData()
+                setSalvandoFundo(false)
+              }}
+            >
+              {salvandoFundo ? 'Salvando...' : 'Salvar'}
+            </Button>
+          </div>
+          {fundoMessage && (
+            <p className={`text-xs ${fundoMessage.includes('sucesso') || fundoMessage.includes('Fundo') ? 'text-green-600' : 'text-destructive'}`}>
+              {fundoMessage}
             </p>
           )}
         </CardContent>
