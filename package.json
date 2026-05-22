@@ -2,6 +2,9 @@
   "name": "bw_antecipa",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "dev": "next dev",
     "dev:homolog": "npx dotenv -e .env.homolog -- next dev --port 3001",
@@ -21,7 +24,7 @@
     "handlebars": "^4.7.8",
     "jszip": "^3.10.1",
     "lucide-react": "^0.577.0",
-    "next": "16.2.1",
+    "next": "^16.2.6",
     "pdf-parse": "^1.1.1",
     "puppeteer-core": "^24.40.0",
     "react": "19.2.4",
@@ -42,7 +45,7 @@
     "babel-plugin-react-compiler": "1.0.0",
     "dotenv-cli": "^8.0.0",
     "eslint": "^9",
-    "eslint-config-next": "16.2.1",
+    "eslint-config-next": "^16.2.6",
     "supabase": "^2.88.1",
     "tailwindcss": "^4",
     "typescript": "^5"
