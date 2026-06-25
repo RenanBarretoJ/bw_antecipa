@@ -2,8 +2,8 @@ import { createClient } from '@supabase/supabase-js'
 
 // Código do originador FIDC DLZ — fixo
 const CODIGO_ORIGINADOR = '00000000000000500497'
-const NUM_BANCO = '001'
-const NOME_BANCO = 'BANCO DO BRASIL SA'
+const NUM_BANCO = '611'
+const NOME_BANCO = 'BBBBBBBBBBBBBBB'
 const ESPECIE_TITULO = '61'
 
 // ——— Utilitários de formatação ———
