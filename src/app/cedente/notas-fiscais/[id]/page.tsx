@@ -185,7 +185,7 @@ export default function NfDetalhePage() {
     const result = await salvarDadosNF(nfId, {
       ...form,
       valor_bruto: Number(form.valor_bruto),
-      valor_liquido: Number(form.valor_liquido),
+      valor_liquido: Number(form.valor_bruto),
       valor_icms: Number(form.valor_icms),
       valor_iss: Number(form.valor_iss),
       valor_pis: Number(form.valor_pis),
@@ -549,11 +549,11 @@ export default function NfDetalhePage() {
                 <input
                   type="number"
                   step="0.01"
-                  value={form.valor_liquido}
-                  onChange={(e) => updateForm('valor_liquido', parseFloat(e.target.value) || 0)}
-                  disabled={!isEditable}
+                  value={form.valor_bruto}
+                  disabled
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm disabled:bg-gray-50 disabled:text-gray-500"
                 />
+                <p className="text-xs text-gray-500 mt-1">Igual ao valor bruto. Impostos sao registrados, mas nao deduzidos.</p>
               </div>
             </div>
           </div>
@@ -598,14 +598,14 @@ export default function NfDetalhePage() {
                 <span className="font-medium">{formatCurrency(form.valor_bruto)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">(-) Impostos</span>
-                <span className="text-red-600">
+                <span className="text-gray-500">Impostos (informativo)</span>
+                <span className="text-gray-700">
                   {formatCurrency(form.valor_icms + form.valor_iss + form.valor_pis + form.valor_cofins + form.valor_ipi)}
                 </span>
               </div>
               <div className="border-t pt-2 flex justify-between">
                 <span className="font-medium text-gray-900">Valor Liquido</span>
-                <span className="font-bold text-green-700">{formatCurrency(form.valor_liquido)}</span>
+                <span className="font-bold text-green-700">{formatCurrency(form.valor_bruto)}</span>
               </div>
             </div>
           </div>

@@ -89,8 +89,8 @@ export function parseNFeXML(xmlContent: string): NfParsedData {
   const issBlock = xmlContent.match(/<ISSQNtot>([\s\S]*?)<\/ISSQNtot>/i)?.[1] || ''
   const valor_iss = parseNumber(getTagValue(issBlock, 'vISS'))
 
-  // Valor liquido
-  const valor_liquido = valor_bruto - valor_icms - valor_iss - valor_pis - valor_cofins - valor_ipi
+  // Valor liquido = valor bruto (impostos sao salvos no BD mas nao deduzidos nesta etapa)
+  const valor_liquido = valor_bruto
 
   // Itens / produtos
   const detBlocks = getAllBlocks(xmlContent, 'det')
@@ -132,7 +132,7 @@ export function parseNFeXML(xmlContent: string): NfParsedData {
     cnpj_destinatario,
     razao_social_destinatario,
     valor_bruto,
-    valor_liquido: Math.max(0, valor_liquido),
+    valor_liquido,
     valor_icms,
     valor_iss,
     valor_pis,
