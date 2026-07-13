@@ -14,6 +14,7 @@ import {
   Banknote,
   Filter,
   Loader2,
+  FileCheck,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -37,6 +38,7 @@ interface OperacaoRecord {
   status: string
   created_at: string
   motivo_reprovacao: string | null
+  quitacao_assinada_url: string | null
 }
 
 type BadgeVariant = 'default' | 'secondary' | 'destructive' | 'outline' | 'ghost' | 'link'
@@ -127,13 +129,14 @@ export default function OperacoesCedentePage() {
   const [loading, setLoading] = useState(true)
   const [filtroStatus, setFiltroStatus] = useState('todos')
   const [cancelling, setCancelling] = useState<string | null>(null)
+  const [baixandoQuitacao, setBaixandoQuitacao] = useState<string | null>(null)
   const [message, setMessage] = useState('')
 
   const loadOps = async () => {
     const supabase = createClient()
     const { data } = await supabase
       .from('operacoes')
-      .select('id, valor_bruto_total, taxa_desconto, prazo_dias, valor_liquido_desembolso, data_vencimento, status, created_at, motivo_reprovacao')
+      .select('id, valor_bruto_total, taxa_desconto, prazo_dias, valor_liquido_desembolso, data_vencimento, status, created_at, motivo_reprovacao, quitacao_assinada_url')
       .order('created_at', { ascending: false })
 
     setOps((data || []) as OperacaoRecord[])
@@ -141,6 +144,21 @@ export default function OperacoesCedentePage() {
   }
 
   useEffect(() => { loadOps() }, [])
+
+  const handleBaixarQuitacao = async (op: OperacaoRecord) => {
+    if (!op.quitacao_assinada_url) return
+    setBaixandoQuitacao(op.id)
+    try {
+      const res = await fetch(`/api/contratos/download?path=${encodeURIComponent(op.quitacao_assinada_url)}`)
+      const data = await res.json()
+      if (data.url) window.open(data.url, '_blank')
+      else setMessage('Erro ao obter link do termo de quitacao.')
+    } catch {
+      setMessage('Erro ao baixar termo de quitacao.')
+    } finally {
+      setBaixandoQuitacao(null)
+    }
+  }
 
   const handleCancel = async (id: string) => {
     setCancelling(id)
@@ -320,6 +338,21 @@ export default function OperacoesCedentePage() {
                       )}
                     </div>
                     <div className="flex gap-2 ml-4">
+                      {op.status === 'liquidada' && op.quitacao_assinada_url && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleBaixarQuitacao(op)}
+                          disabled={baixandoQuitacao === op.id}
+                        >
+                          {baixandoQuitacao === op.id ? (
+                            <Loader2 size={14} className="animate-spin" />
+                          ) : (
+                            <FileCheck size={14} />
+                          )}
+                          Termo de Quitacao
+                        </Button>
+                      )}
                       {canCancel && (
                         <Button
                           variant="destructive"

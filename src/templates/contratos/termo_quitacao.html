@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <style>
+    @page {
+      size: A4;
+      margin: 3cm 2.5cm 2.5cm 3cm;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Times New Roman', Times, serif;
+      font-size: 10pt;
+      line-height: 1.5;
+      color: #000;
+    }
+
+    h1 {
+      font-size: 10pt;
+      text-align: center;
+      font-weight: bold;
+      text-transform: uppercase;
+      margin-bottom: 24pt;
+      break-after: avoid;
+    }
+
+    h2 {
+      font-size: 10pt;
+      font-weight: bold;
+      text-transform: uppercase;
+      margin: 18pt 0 8pt;
+      break-after: avoid;
+    }
+
+    p {
+      margin-bottom: 10pt;
+      text-align: justify;
+      orphans: 3;
+      widows: 3;
+    }
+
+    .clausula {
+      margin-bottom: 8pt;
+      text-align: justify;
+      break-inside: avoid;
+      orphans: 3;
+      widows: 3;
+    }
+
+    .subclausula {
+      margin-left: 20pt;
+      margin-bottom: 6pt;
+      text-align: justify;
+      break-inside: avoid;
+    }
+
+    .escrow-block {
+      margin: 10pt 0 10pt 30pt;
+    }
+
+    .escrow-block p {
+      margin-bottom: 2pt;
+    }
+
+    .assinaturas {
+      margin-top: 40pt;
+    }
+
+    .assinatura-bloco {
+      margin-bottom: 28pt;
+    }
+
+    .linha-assinatura {
+      border-top: 1px solid #000;
+      width: 80%;
+      margin-bottom: 4pt;
+    }
+
+    .assinatura-nome {
+      font-weight: bold;
+      text-transform: uppercase;
+    }
+
+    .assinatura-qualidade {
+      font-style: italic;
+    }
+
+    .testemunhas {
+      margin-top: 30pt;
+      break-inside: avoid;
+    }
+
+    .centro {
+      text-align: center;
+    }
+
+    .pagina-assinatura {
+      font-size: 10pt;
+      font-style: italic;
+      text-align: center;
+      margin-bottom: 40pt;
+    }
+
+    .item {
+      margin-bottom: 8pt;
+      text-align: justify;
+      break-inside: avoid;
+      orphans: 3;
+      widows: 3;
+      padding-left: 16pt;
+      text-indent: -16pt;
+    }
+
+    .apenso-titulo {
+      font-size: 10pt;
+      font-weight: bold;
+      text-align: center;
+      text-transform: uppercase;
+      margin-bottom: 6pt;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 8.5pt;
+      margin-top: 4pt;
+    }
+
+    thead {
+      display: table-header-group;
+    }
+
+    th {
+      border: 1px solid #000;
+      padding: 4pt 3pt;
+      text-align: center;
+      font-weight: bold;
+      background-color: #d9e1f2;
+      vertical-align: middle;
+    }
+
+    td {
+      border: 1px solid #000;
+      padding: 4pt 3pt;
+      text-align: center;
+      vertical-align: middle;
+    }
+
+    tr {
+      break-inside: avoid;
+    }
+
+    .td-total {
+      font-weight: bold;
+      text-align: right;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1>TERMO DE QUITAÇÃO DE DIREITOS CREDITÓRIOS CEDIDOS</h1>
+
+  <p class="centro" style="font-weight: bold; margin-top: -14pt;">N&ordm; {{quitacao.numero}}</p>
+
+  <p class="centro">(vinculado ao Termo de Cessão de Direitos Creditórios nº {{termo.numero}})</p>
+
+  <p>Por meio do presente termo de quitação ("Termo de Quitação"):</p>
+
+  <p class="clausula">(a) <strong>HEALTH I FUNDO DE INVESTIMENTO EM DIREITOS CREDITÓRIOS</strong>, constituído sob a
+    forma de condomínio fechado, inscrito no CNPJ sob o nº 62.342.629/0001-77 ("Fundo" ou "Cessionário"), neste ato
+    representado, na forma do seu Regulamento, por sua Gestora, <strong>RX ASSET LTDA.</strong>, sociedade limitada,
+    inscrita no CNPJ sob o nº 62.390.184/0001-09, com sede na cidade de São Paulo, Estado de São Paulo, na Rua
+    Professor Atílio Innocenti, nº 474, conjunto 209, Vila Nova Conceição, CEP 04538-001, devidamente autorizada à
+    prestação dos serviços de administração de carteira de títulos e valores mobiliários por meio do Ato Declaratório
+    CVM nº 25.099, de 10 de abril de 2026, neste ato representada na forma de seu contrato social ("Gestora");</p>
+
+  <p>declara, em favor de:</p>
+
+  <p class="clausula">(b) <strong>{{cedente.razao_social}}</strong>, inscrita no CNPJ sob o nº {{cedente.cnpj}}, com
+    sede na {{cedente.logradouro}}, nº {{cedente.numero}}, {{cedente.complemento}}, {{cedente.bairro}},
+    {{cedente.cidade}}, {{cedente.estado}}, CEP {{cedente.cep}} ("Cedente");</p>
+
+  <p>o quanto segue.</p>
+
+  <p><strong>CONSIDERANDO QUE</strong> a Cedente e o Fundo celebraram o Contrato de Cessão e Aquisição de Direitos de
+    Crédito e Outras Avenças com Coobrigação, firmado em {{contrato.data_assinatura_extenso}} ("Contrato de Cessão"),
+    por meio do qual a Cedente responde solidariamente, nos termos dos artigos 295 e 296 do Código Civil, pelo
+    pagamento dos direitos creditórios cedidos ao Fundo;</p>
+
+  <p><strong>CONSIDERANDO QUE</strong>, no âmbito do Contrato de Cessão, foi celebrado o Termo de Cessão de Direitos
+    Creditórios nº {{termo.numero}}, firmado em {{termo.data_extenso}} ("Termo de Cessão"), por meio do qual a Cedente
+    cedeu ao Fundo, em caráter irrevogável e irretratável, os direitos creditórios de sua titularidade contra o
+    INSTITUTO NACIONAL DE TECNOLOGIA E SAÚDE (INTS), inscrito no CNPJ sob o nº 11.344.038/0001-06 ("Sacado"),
+    individualizados no respectivo Apenso ("Direitos Creditórios Cedidos"); e</p>
+
+  <p><strong>CONSIDERANDO QUE</strong> o Sacado realizou o pagamento integral dos Direitos Creditórios Cedidos
+    identificados no Apenso Único deste Termo de Quitação, mediante crédito dos respectivos valores na conta indicada
+    pelo Fundo, conforme verificado e conciliado pela Gestora;</p>
+
+  <p>o Fundo, por sua Gestora, emite o presente Termo de Quitação, nos termos e condições a seguir.</p>
+
+  <h2>1. OBJETO E RECONHECIMENTO DE PAGAMENTO</h2>
+
+  <p class="clausula">1.1. O Fundo reconhece e declara, para todos os fins de direito, que recebeu do Sacado, em
+    {{quitacao.data_pagamento}}, o pagamento integral dos Direitos Creditórios Cedidos individualizados no Apenso
+    Único a este Termo de Quitação, no valor total de R$ {{quitacao.total_pago}} ({{quitacao.total_pago_extenso}}),
+    mediante crédito na conta indicada pelo Fundo.</p>
+
+  <h2>2. QUITAÇÃO E EXTINÇÃO DA COOBRIGAÇÃO</h2>
+
+  <p class="clausula">2.1. Em razão do pagamento referido na Cláusula 1.1, o Fundo outorga à Cedente, de forma
+    irrevogável e irretratável, plena, rasa, geral e definitiva quitação, exclusivamente em relação aos Direitos
+    Creditórios Cedidos identificados no Apenso Único, para nada mais reclamar ou exigir da Cedente, a qualquer tempo
+    e a qualquer título, quanto à obrigação de pagamento de tais créditos.</p>
+
+  <p class="clausula">2.2. Fica, por conseguinte, integralmente extinta e liberada, em relação aos Direitos
+    Creditórios Cedidos identificados no Apenso Único, a coobrigação assumida pela Cedente na Cláusula 3 do Contrato
+    de Cessão, nos termos do artigo 296 do Código Civil, inclusive quanto a principal, juros, multas e demais encargos
+    a eles relativos.</p>
+
+  <h2>3. LIMITES E RESSALVAS DA QUITAÇÃO</h2>
+
+  <p class="clausula">3.1. A quitação ora outorgada é restrita aos Direitos Creditórios Cedidos expressamente
+    identificados no Apenso Único, não alcançando quaisquer outros direitos creditórios cedidos ao Fundo pela Cedente,
+    liquidados ou não, no âmbito do Contrato de Cessão ou de outros termos de cessão, os quais permanecem regidos
+    integralmente pelos respectivos instrumentos.</p>
+
+  <p class="clausula">3.2. A presente quitação não alcança, permanecendo íntegras e exigíveis, as responsabilidades da
+    Cedente relativas à origem, existência, validade, correta formalização e legitimidade dos Direitos Creditórios
+    Cedidos, nos termos do artigo 295 do Código Civil e da Cláusula 2.4 do Contrato de Cessão, bem como as
+    responsabilidades decorrentes de fraude, simulação, vício, falsidade documental ou violação de declarações
+    prestadas nos documentos da operação.</p>
+
+  <p class="clausula">3.3. Este Termo de Quitação não constitui novação, renúncia, transação ou alteração de
+    quaisquer disposições do Contrato de Cessão, que permanece em pleno vigor em relação às demais operações
+    realizadas ou que venham a ser realizadas em seu âmbito.</p>
+
+  <h2>4. CONDIÇÃO RESOLUTIVA</h2>
+
+  <p class="clausula">4.1. A quitação ora outorgada fica sujeita a condição resolutiva, nos termos dos artigos 127 e
+    128 do Código Civil, de modo que, caso o pagamento referido na Cláusula 1.1 venha a ser, no todo ou em parte,
+    estornado, bloqueado, restituído, anulado, declarado ineficaz ou desfeito por qualquer motivo, inclusive em razão
+    de decisão judicial, arbitral ou administrativa, de ação revocatória ou de declaração de ineficácia no âmbito de
+    falência ou recuperação da Cedente ou do Sacado, nos termos dos artigos 129 e 130 da Lei nº 11.101/2005, a
+    quitação será automaticamente resolvida, restabelecendo-se de pleno direito a coobrigação da Cedente quanto aos
+    valores atingidos, sem necessidade de qualquer formalidade adicional.</p>
+
+  <h2>5. DISPOSIÇÕES GERAIS</h2>
+
+  <p class="clausula">5.1. Os termos iniciados em letras maiúsculas e não definidos neste Termo de Quitação terão os
+    significados a eles atribuídos no Contrato de Cessão ou no Regulamento do Fundo.</p>
+
+  <p class="clausula">5.2. Aplicam-se a este Termo de Quitação, no que couber, as disposições gerais do Contrato de
+    Cessão, inclusive quanto a comunicações, assinatura eletrônica ou digital e execução específica.</p>
+
+  <p class="clausula">5.3. Este Termo de Quitação é regido pelas leis da República Federativa do Brasil, ficando
+    eleito o foro da Cidade de São Paulo, Estado de São Paulo, com renúncia expressa a qualquer outro, por mais
+    privilegiado que seja.</p>
+
+  <p class="centro">São Paulo, {{quitacao.data_extenso}}.</p>
+
+  <div class="assinaturas">
+    <div class="assinatura-bloco">
+      <div class="linha-assinatura"></div>
+      <p class="assinatura-nome">HEALTH I FUNDO DE INVESTIMENTO EM DIREITOS CREDITÓRIOS</p>
+      <p class="assinatura-qualidade">Cessionário, representado por sua Gestora RX ASSET LTDA.</p>
+    </div>
+  </div>
+
+  <div style="page-break-before: always;">
+
+    <p class="apenso-titulo">APENSO ÚNICO</p>
+    <p class="apenso-titulo">RELAÇÃO DOS DIREITOS CREDITÓRIOS CEDIDOS OBJETO DA QUITAÇÃO</p>
+
+    <p style="margin-top: 12pt;">Cedente: <strong>{{cedente.razao_social}}</strong></p>
+    <p style="margin-bottom: 12pt;">Termo de Cessão nº: <strong>{{termo.numero}}</strong></p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>NF</th>
+          <th>Data de<br>Emissão</th>
+          <th>Data de<br>Vencimento</th>
+          <th>Valor de<br>Face (R$)</th>
+          <th>Valor<br>Antecipado (R$)</th>
+          <th>Data do<br>Pagamento</th>
+          <th>Valor<br>Pago (R$)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each notas_fiscais}}
+        <tr>
+          <td>{{this.numero}}</td>
+          <td>{{this.data_emissao_formatada}}</td>
+          <td>{{this.data_vencimento_formatada}}</td>
+          <td>{{this.valor_face_formatado}}</td>
+          <td>{{this.valor_antecipado_formatado}}</td>
+          <td>{{this.data_pagamento_formatada}}</td>
+          <td>{{this.valor_pago_formatado}}</td>
+        </tr>
+        {{/each}}
+        <tr>
+          <td colspan="3" class="td-total">QUANTIDADE: {{quitacao.qtd_nf}} NF(s)</td>
+          <td class="td-total">TOTAL FACE:</td>
+          <td style="font-weight: bold; text-align: center;">{{quitacao.total_face}}</td>
+          <td class="td-total">TOTAL PAGO:</td>
+          <td style="font-weight: bold; text-align: center;">{{quitacao.total_pago}}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p style="margin-top: 12pt;">Os pagamentos acima foram conciliados pela Gestora com base nos créditos efetivamente
+      recebidos na conta indicada pelo Fundo.</p>
+
+  </div>
+
+</body>
+
+</html>

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { aprovarOperacao, desembolsarOperacao, reprovarOperacao, removerNfDaOperacao, salvarTestemunhasOperacao, salvarTermoAssinado, salvarComprovantePagamento, salvarNotificacaoAssinada } from '@/lib/actions/operacao'
+import { aprovarOperacao, desembolsarOperacao, reprovarOperacao, removerNfDaOperacao, salvarTestemunhasOperacao, salvarTermoAssinado, salvarComprovantePagamento, salvarNotificacaoAssinada, salvarQuitacaoAssinada } from '@/lib/actions/operacao'
 import { liquidarOperacao, marcarInadimplente } from '@/lib/actions/liquidacao'
 import { formatCurrency, formatCNPJ, formatDate } from '@/lib/utils'
 import Link from 'next/link'
@@ -56,6 +56,8 @@ interface OperacaoDetalhe {
   comprovante_pagamento_url: string | null
   notificacao_url: string | null
   notificacao_assinada_url: string | null
+  quitacao_url: string | null
+  quitacao_assinada_url: string | null
   remessa_url: string | null
   remessa_gerado_em: string | null
   remessa_enviado_em: string | null
@@ -184,6 +186,7 @@ export default function OperacaoDetalheGestorPage() {
   const [termoAssinadoUrl, setTermoAssinadoUrl] = useState<string | null>(null)
   const [comprovanteUrl, setComprovanteUrl] = useState<string | null>(null)
   const [notificacaoAssinadaUrl, setNotificacaoAssinadaUrl] = useState<string | null>(null)
+  const [quitacaoAssinadaUrl, setQuitacaoAssinadaUrl] = useState<string | null>(null)
   const [remessaGeradaEm, setRemessaGeradaEm] = useState<string | null>(null)
   const [remessaEnviadaEm, setRemessaEnviadaEm] = useState<string | null>(null)
   const [remessaFromtisId, setRemessaFromtisId] = useState<string | null>(null)
@@ -216,6 +219,7 @@ export default function OperacaoDetalheGestorPage() {
         setTermoAssinadoUrl(o.termo_assinado_url)
         setComprovanteUrl(o.comprovante_pagamento_url)
         setNotificacaoAssinadaUrl(o.notificacao_assinada_url)
+        setQuitacaoAssinadaUrl(o.quitacao_assinada_url)
         setRemessaGeradaEm(o.remessa_gerado_em)
         setRemessaEnviadaEm(o.remessa_enviado_em)
         setRemessaFromtisId(o.remessa_fromtis_id)
@@ -996,6 +1000,16 @@ export default function OperacaoDetalheGestorPage() {
                         label="Notificacao ao Sacado"
                         className="w-full"
                       />
+                      {op.status === 'liquidada' && (
+                        <BotaoDownloadContrato
+                          tipo="quitacao"
+                          id={op.id}
+                          storagePath={op.quitacao_url}
+                          hasSignedDoc={!!quitacaoAssinadaUrl}
+                          label="Termo de Quitacao"
+                          className="w-full"
+                        />
+                      )}
                     </div>
                     <p className="text-xs font-medium text-muted-foreground border-t pt-3">Documentos assinados</p>
                     <div className="flex flex-col gap-2">
@@ -1027,6 +1041,17 @@ export default function OperacaoDetalheGestorPage() {
                           setComprovanteUrl(path)
                         }}
                       />
+                      {op.status === 'liquidada' && (
+                        <UploadDocumentoAssinado
+                          label="Termo de Quitacao Assinado"
+                          storagePath={quitacaoAssinadaUrl}
+                          uploadPath={`operacoes/${op.id}/termo-quitacao-assinado.pdf`}
+                          onSuccess={async (path) => {
+                            await salvarQuitacaoAssinada(op.id, path)
+                            setQuitacaoAssinadaUrl(path)
+                          }}
+                        />
+                      )}
                     </div>
                     <Button
                       variant="outline"

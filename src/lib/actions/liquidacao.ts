@@ -40,7 +40,7 @@ export async function liquidarOperacao(operacaoId: string): Promise<LiquidacaoSt
   // Atualizar status
   await supabase
     .from('operacoes')
-    .update({ status: 'liquidada' } as never)
+    .update({ status: 'liquidada', liquidada_em: new Date().toISOString() } as never)
     .eq('id', operacaoId)
 
   // Atualizar NFs para liquidada

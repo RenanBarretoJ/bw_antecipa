@@ -825,6 +825,28 @@ export async function salvarNotificacaoAssinada(
   return { success: true, message: 'Notificacao assinada salva.' }
 }
 
+export async function salvarQuitacaoAssinada(
+  operacaoId: string,
+  path: string
+): Promise<OperacaoActionState> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, message: 'Nao autenticado.' }
+
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (!profile || (profile as { role: string }).role !== 'gestor') {
+    return { success: false, message: 'Acesso negado.' }
+  }
+
+  const { error } = await supabase
+    .from('operacoes')
+    .update({ quitacao_assinada_url: path } as never)
+    .eq('id', operacaoId)
+
+  if (error) return { success: false, message: `Erro: ${error.message}` }
+  return { success: true, message: 'Termo de quitacao assinado salvo.' }
+}
+
 // Helper
 function formatBRL(value: number): string {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
