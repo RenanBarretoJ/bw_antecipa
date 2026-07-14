@@ -43,6 +43,74 @@ function formatarMoeda(valor: number | null | undefined): string {
   }).format(valor)
 }
 
+// Valor numerico sem o simbolo R$ (para templates que ja trazem "R$" no texto)
+function formatarNumero(valor: number | null | undefined): string {
+  if (valor == null) return '0,00'
+  return new Intl.NumberFormat('pt-BR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(valor)
+}
+
+function centenaPorExtenso(n: number): string {
+  const unidades = ['', 'um', 'dois', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove']
+  const dezADezenove = ['dez', 'onze', 'doze', 'treze', 'quatorze', 'quinze', 'dezesseis', 'dezessete', 'dezoito', 'dezenove']
+  const dezenas = ['', '', 'vinte', 'trinta', 'quarenta', 'cinquenta', 'sessenta', 'setenta', 'oitenta', 'noventa']
+  const centenas = ['', 'cento', 'duzentos', 'trezentos', 'quatrocentos', 'quinhentos', 'seiscentos', 'setecentos', 'oitocentos', 'novecentos']
+
+  if (n === 0) return ''
+  if (n === 100) return 'cem'
+  const c = Math.floor(n / 100)
+  const resto = n % 100
+  const partes: string[] = []
+  if (c > 0) partes.push(centenas[c])
+  if (resto >= 10 && resto < 20) {
+    partes.push(dezADezenove[resto - 10])
+  } else {
+    const d = Math.floor(resto / 10)
+    const u = resto % 10
+    if (d > 0) partes.push(dezenas[d])
+    if (u > 0) partes.push(unidades[u])
+  }
+  return partes.join(' e ')
+}
+
+function inteiroPorExtenso(n: number): string {
+  if (n === 0) return 'zero'
+  const grupos: string[] = []
+  const bilhoes = Math.floor(n / 1_000_000_000)
+  const milhoes = Math.floor((n % 1_000_000_000) / 1_000_000)
+  const milhares = Math.floor((n % 1_000_000) / 1_000)
+  const resto = n % 1000
+
+  if (bilhoes > 0) grupos.push(`${centenaPorExtenso(bilhoes)} ${bilhoes === 1 ? 'bilhão' : 'bilhões'}`)
+  if (milhoes > 0) grupos.push(`${centenaPorExtenso(milhoes)} ${milhoes === 1 ? 'milhão' : 'milhões'}`)
+  if (milhares > 0) grupos.push(milhares === 1 ? 'mil' : `${centenaPorExtenso(milhares)} mil`)
+  if (resto > 0) grupos.push(centenaPorExtenso(resto))
+
+  if (grupos.length === 1) return grupos[0]
+  // "e" antes do ultimo grupo quando ele e < 100 ou centena redonda; caso contrario virgula
+  const ultimo = grupos.pop()!
+  const usaE = resto > 0 && (resto < 100 || resto % 100 === 0)
+  return grupos.join(', ') + (usaE ? ' e ' : ', ') + ultimo
+}
+
+// Valor monetario por extenso, ex.: "duzentos e sessenta mil, quinhentos e trinta e cinco reais e sessenta e oito centavos"
+function valorPorExtenso(valor: number): string {
+  const inteiro = Math.floor(valor)
+  const centavos = Math.round((valor - inteiro) * 100)
+  const partes: string[] = []
+  if (inteiro > 0) {
+    const de = inteiro >= 1_000_000 && inteiro % 1_000_000 === 0 ? 'de ' : ''
+    partes.push(`${inteiroPorExtenso(inteiro)} ${de}${inteiro === 1 ? 'real' : 'reais'}`)
+  }
+  if (centavos > 0) {
+    partes.push(`${inteiroPorExtenso(centavos)} ${centavos === 1 ? 'centavo' : 'centavos'}`)
+  }
+  if (partes.length === 0) return 'zero reais'
+  return partes.join(' e ')
+}
+
 // Montar endereco completo a partir dos campos separados do cedente
 function montarEndereco(ced: Record<string, unknown>): string {
   const partes = [
@@ -437,6 +505,125 @@ export async function gerarNotificacaoCessao(
     .update({
       notificacao_url: caminho,
       notificacao_gerado_em: new Date().toISOString(),
+    } as never)
+    .eq('id', operacaoId)
+
+  return { url, path: caminho }
+}
+
+// ============================================================
+// Gerar Termo de Quitacao (1x por operacao liquidada)
+// ============================================================
+export async function gerarTermoQuitacao(
+  operacaoId: string
+): Promise<{ url: string; path: string }> {
+  const { createClient } = await import('@supabase/supabase-js')
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  )
+
+  const { data: operacao, error: erroO } = await supabase
+    .from('operacoes')
+    .select('*')
+    .eq('id', operacaoId)
+    .single()
+
+  if (erroO || !operacao) throw new Error('Operacao nao encontrada')
+  const op = operacao as Record<string, unknown>
+
+  if (op.status !== 'liquidada') {
+    throw new Error('O termo de quitacao so pode ser gerado para operacoes liquidadas')
+  }
+
+  const { data: cedente } = await supabase
+    .from('cedentes')
+    .select('*')
+    .eq('id', op.cedente_id)
+    .single()
+
+  if (!cedente) throw new Error('Cedente da operacao nao encontrado')
+  const ced = cedente as Record<string, unknown>
+
+  // Buscar NFs da operacao via tabela de juncao
+  const { data: opNfs } = await supabase
+    .from('operacoes_nfs')
+    .select('nota_fiscal_id')
+    .eq('operacao_id', operacaoId)
+
+  const nfIds = ((opNfs || []) as Array<{ nota_fiscal_id: string }>).map(n => n.nota_fiscal_id)
+
+  let notas: Array<Record<string, unknown>> = []
+  if (nfIds.length > 0) {
+    const { data: nfsData } = await supabase
+      .from('notas_fiscais')
+      .select('*')
+      .in('id', nfIds)
+      .order('data_vencimento', { ascending: true })
+    notas = (nfsData || []) as Array<Record<string, unknown>>
+  }
+
+  if (notas.length === 0) throw new Error('Operacao sem notas fiscais vinculadas')
+
+  // Operacoes liquidadas antes da coluna liquidada_em usam updated_at como data de pagamento
+  const dataPagamento = (op.liquidada_em as string) || (op.updated_at as string) || new Date().toISOString()
+
+  const valorFace = (nf: Record<string, unknown>) =>
+    (nf.valor_liquido as number) || (nf.valor_bruto as number) || 0
+
+  const totalFace = notas.reduce((acc, nf) => acc + valorFace(nf), 0)
+
+  const dados = {
+    cedente: {
+      razao_social: ced.razao_social,
+      cnpj: ced.cnpj,
+      logradouro: ced.logradouro || '',
+      numero: ced.numero || '',
+      complemento: ced.complemento || '',
+      bairro: ced.bairro || '',
+      cidade: ced.cidade || '',
+      estado: ced.estado || '',
+      cep: ced.cep || '',
+    },
+    contrato: {
+      data_assinatura_extenso: formatarDataExtenso((ced.contrato_gerado_em as string) || new Date().toISOString()),
+    },
+    termo: {
+      numero: operacaoId.slice(0, 8).toUpperCase(),
+      data_extenso: formatarDataExtenso(
+        (op.termo_gerado_em as string) || (op.aprovado_em as string) || (op.created_at as string)
+      ),
+    },
+    quitacao: {
+      numero: operacaoId.slice(0, 8).toUpperCase(),
+      data_extenso: formatarDataExtenso(new Date().toISOString()),
+      data_pagamento: formatarData(dataPagamento),
+      total_pago: formatarNumero(totalFace),
+      total_pago_extenso: valorPorExtenso(totalFace),
+      total_face: formatarNumero(totalFace),
+      qtd_nf: notas.length,
+    },
+    notas_fiscais: notas.map((nf) => ({
+      numero: nf.numero_nf || '',
+      data_emissao_formatada: formatarData(nf.data_emissao as string),
+      data_vencimento_formatada: formatarData(nf.data_vencimento as string),
+      valor_face_formatado: formatarNumero(valorFace(nf)),
+      valor_antecipado_formatado: formatarNumero((nf.valor_antecipado as number) || valorFace(nf)),
+      data_pagamento_formatada: formatarData(dataPagamento),
+      valor_pago_formatado: formatarNumero(valorFace(nf)),
+    })),
+  }
+
+  const html = compilarTemplate('termo_quitacao.html', dados)
+  const pdfBuffer = await htmlParaPdf(html)
+  const caminho = `operacoes/${operacaoId}/termo-quitacao.pdf`
+  const url = await salvarPdfStorage(pdfBuffer, caminho)
+
+  await supabase
+    .from('operacoes')
+    .update({
+      quitacao_url: caminho,
+      quitacao_gerado_em: new Date().toISOString(),
     } as never)
     .eq('id', operacaoId)
 

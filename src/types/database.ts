@@ -193,6 +193,10 @@ export interface Operacao {
   remessa_enviado_em: string | null
   remessa_fromtis_id: string | null
   remessa_fromtis_retorno: string | null
+  liquidada_em: string | null
+  quitacao_url: string | null
+  quitacao_gerado_em: string | null
+  quitacao_assinada_url: string | null
   created_at: string
   updated_at: string
 }

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { FileText, Download, RefreshCw, Loader2, AlertTriangle } from 'lucide-react'
 
 interface Props {
-  tipo: 'contrato' | 'termo' | 'notificacao'
+  tipo: 'contrato' | 'termo' | 'notificacao' | 'quitacao'
   id: string // cedente_id ou operacao_id
   storagePath?: string | null // caminho no storage (se ja gerado)
   hasSignedDoc?: boolean // se ja existe versao assinada no cadastro/operacao
@@ -27,7 +27,9 @@ export function BotaoDownloadContrato({ tipo, id, storagePath, hasSignedDoc, lab
         ? '/api/contratos/gerar-contrato'
         : tipo === 'termo'
           ? '/api/contratos/gerar-termo'
-          : '/api/contratos/gerar-notificacao'
+          : tipo === 'quitacao'
+            ? '/api/contratos/gerar-quitacao'
+            : '/api/contratos/gerar-notificacao'
 
       const body = tipo === 'contrato'
         ? { cedente_id: id }
@@ -86,7 +88,9 @@ export function BotaoDownloadContrato({ tipo, id, storagePath, hasSignedDoc, lab
     ? 'Contrato de Cessao'
     : tipo === 'termo'
       ? 'Termo de Cessao'
-      : 'Notificacao ao Sacado'
+      : tipo === 'quitacao'
+        ? 'Termo de Quitacao'
+        : 'Notificacao ao Sacado'
 
   const mensagemConfirmacao = hasSignedDoc
     ? tipo === 'contrato'
@@ -96,7 +100,9 @@ export function BotaoDownloadContrato({ tipo, id, storagePath, hasSignedDoc, lab
       ? 'Será gerado um novo Contrato Mãe, substituindo a versão atual. Deseja continuar?'
       : tipo === 'termo'
         ? 'Será gerado um novo Termo de Cessão, substituindo a versão atual. Deseja continuar?'
-        : 'Será gerada uma nova Notificação ao Sacado, substituindo a versão atual. Deseja continuar?'
+        : tipo === 'quitacao'
+          ? 'Será gerado um novo Termo de Quitação, substituindo a versão atual. Deseja continuar?'
+          : 'Será gerada uma nova Notificação ao Sacado, substituindo a versão atual. Deseja continuar?'
 
   const isCritico = hasSignedDoc && tipo === 'contrato'
 
