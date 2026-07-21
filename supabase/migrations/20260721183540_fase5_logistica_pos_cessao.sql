@@ -57,7 +57,7 @@ CREATE TABLE IF NOT EXISTS public.nota_fiscal_entregas (
 
 CREATE TRIGGER nota_fiscal_entregas_updated_at
   BEFORE UPDATE ON public.nota_fiscal_entregas
-  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
 
 CREATE TABLE IF NOT EXISTS public.eventos_entrega (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -133,7 +133,7 @@ CREATE TABLE IF NOT EXISTS public.ctes (
 
 CREATE TRIGGER ctes_updated_at
   BEFORE UPDATE ON public.ctes
-  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
 
 CREATE TABLE IF NOT EXISTS public.cte_notas_fiscais (
   cte_id uuid NOT NULL REFERENCES public.ctes(id) ON DELETE CASCADE,
@@ -168,7 +168,7 @@ CREATE TABLE IF NOT EXISTS public.canhotos (
 
 CREATE TRIGGER canhotos_updated_at
   BEFORE UPDATE ON public.canhotos
-  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
 
 ALTER TABLE public.documento_vinculos
   ADD COLUMN IF NOT EXISTS nota_fiscal_entrega_id uuid REFERENCES public.nota_fiscal_entregas(id) ON DELETE CASCADE,
