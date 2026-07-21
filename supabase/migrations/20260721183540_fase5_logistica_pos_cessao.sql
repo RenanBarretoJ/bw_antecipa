@@ -1,5 +1,17 @@
 -- Fase 5: acompanhamento pos-cessao, CT-e, canhoto e entrega da NF.
 
+DO $$
+BEGIN
+  IF to_regclass('public.documento_tipos') IS NULL
+    OR to_regclass('public.documentos_repositorio') IS NULL
+    OR to_regclass('public.documento_versoes') IS NULL
+    OR to_regclass('public.documento_vinculos') IS NULL
+    OR to_regclass('public.documento_requisito_instancias') IS NULL THEN
+    RAISE EXCEPTION 'Fase 5 depende da Fase 3 (20260721132903_fase3_repositorio_documental_nf.sql). Aplique as migrations pendentes em ordem cronologica antes de rodar esta migration.';
+  END IF;
+END;
+$$;
+
 ALTER TABLE public.operacoes
   ADD COLUMN IF NOT EXISTS cessao_efetivada_em timestamptz;
 
