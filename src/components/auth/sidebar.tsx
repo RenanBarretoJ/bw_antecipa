@@ -20,6 +20,7 @@ import {
   History,
   Briefcase,
   Building2,
+  FileCog,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -144,6 +145,7 @@ export const gestorMenuItems: SidebarItem[] = [
   { label: 'Operacoes', href: '/gestor/operacoes', icon: CreditCard },
   { label: 'Escrow', href: '/gestor/escrow', icon: Wallet },
   { label: 'Fundos', href: '/gestor/fundos', icon: Building2 },
+  { label: 'Políticas', href: '/gestor/politicas', icon: FileCog },
   { label: 'Relatorios', href: '/gestor/relatorios', icon: BarChart3 },
   { label: 'Notificacoes', href: '/gestor/notificacoes', icon: Bell },
   { label: 'Configuracoes', href: '/gestor/configuracoes', icon: Settings },

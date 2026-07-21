@@ -4,14 +4,22 @@
 export type {
   AuditoriaAtorTipo,
   AuditOrigin,
+  AceiteSacadoStatus,
+  CedenteFundoStatus,
   ContaEscrowStatus,
   CedenteAcessoPerfil,
   CedenteStatus,
+  ContextoConfiguracaoStatus,
   DocumentoStatus,
   DocumentoTipo,
   MovimentoTipo,
   NfStatus,
   OperacaoStatus,
+  PoliticaNivelValidacao,
+  PoliticaRequisitoEscopo,
+  PoliticaResponsavel,
+  PoliticaStatus,
+  PoliticaTipoDocumentoCodigo,
   SolicitacaoAlteracaoStatus,
   TipoContaBancaria,
   UserRole,
@@ -22,12 +30,20 @@ import type {
   AuditoriaAtorTipo,
   CedenteAcessoPerfil,
   CedenteStatus,
+  CedenteFundoStatus,
+  ContextoConfiguracaoStatus,
   ContaEscrowStatus,
+  AceiteSacadoStatus,
   DocumentoStatus,
   DocumentoTipo,
   MovimentoTipo,
   NfStatus,
   OperacaoStatus,
+  PoliticaNivelValidacao,
+  PoliticaRequisitoEscopo,
+  PoliticaResponsavel,
+  PoliticaStatus,
+  PoliticaTipoDocumentoCodigo,
   SolicitacaoAlteracaoStatus,
   TipoContaBancaria,
   UserRole,
@@ -171,6 +187,68 @@ export interface Fundo {
   created_at: string | null
 }
 
+export interface CedenteFundo {
+  id: string
+  cedente_id: string
+  fundo_id: string
+  codigo_externo: string | null
+  status: CedenteFundoStatus
+  vigente_desde: string
+  vigente_ate: string | null
+  observacoes: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface PoliticaOperacional {
+  id: string
+  cedente_fundo_id: string
+  codigo: string
+  nome: string
+  descricao: string | null
+  status: PoliticaStatus
+  created_by: string
+  created_at: string
+  updated_at: string
+}
+
+export interface PoliticaOperacionalVersao {
+  id: string
+  politica_operacional_id: string
+  cedente_fundo_id: string
+  versao: number
+  vigente_desde: string
+  vigente_ate: string | null
+  aceite_sacado_obrigatorio: boolean
+  cessao_no_desembolso: boolean
+  cria_acompanhamento_entrega: boolean
+  configuracao: Record<string, unknown>
+  conteudo_hash: string
+  publicada_por: string | null
+  publicada_em: string | null
+  created_at: string
+}
+
+export interface PoliticaRequisitoDocumental {
+  id: string
+  politica_operacional_versao_id: string
+  politica_operacional_id: string
+  cedente_fundo_id: string
+  codigo: string
+  escopo: PoliticaRequisitoEscopo
+  tipo_documento_codigo: PoliticaTipoDocumentoCodigo
+  obrigatorio: boolean
+  quantidade_minima: number
+  formatos_aceitos: string[]
+  nivel_validacao: PoliticaNivelValidacao
+  prazo_dias_corridos: number | null
+  responsavel_upload: PoliticaResponsavel
+  responsavel_aprovacao: PoliticaResponsavel
+  ordem: number
+  ativo: boolean
+  created_at: string
+}
+
 export interface DevedorSolidario {
   id: string
   cedente_id: string
@@ -229,6 +307,18 @@ export interface Operacao {
   id: string
   cedente_id: string
   conta_escrow_id: string | null
+  cedente_fundo_id: string | null
+  politica_operacional_id: string | null
+  politica_operacional_versao_id: string | null
+  politica_versao: number | null
+  politica_snapshot: Record<string, unknown> | null
+  politica_snapshot_hash: string | null
+  contexto_configuracao_status: ContextoConfiguracaoStatus | null
+  contexto_capturado_em: string | null
+  aceite_sacado_exigido: boolean | null
+  aceite_sacado_status: AceiteSacadoStatus | null
+  aceite_sacado_em: string | null
+  cessao_efetivada_em: string | null
   valor_bruto_total: number
   taxa_desconto: number
   prazo_dias: number
@@ -364,6 +454,10 @@ export interface Database {
       contas_escrow: { Row: ContaEscrow & Record<string, unknown>; Insert: InsertShape<ContaEscrow, 'cedente_id' | 'identificador'> & Record<string, unknown>; Update: UpdateShape<ContaEscrow> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'contas_escrow_cedente_id_fkey'; columns: ['cedente_id']; isOneToOne: false; referencedRelation: 'cedentes'; referencedColumns: ['id'] }] }
       movimentos_escrow: { Row: MovimentoEscrow & Record<string, unknown>; Insert: InsertShape<MovimentoEscrow, 'conta_escrow_id' | 'tipo' | 'descricao' | 'valor' | 'saldo_apos'> & Record<string, unknown>; Update: UpdateShape<MovimentoEscrow> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'movimentos_escrow_conta_escrow_id_fkey'; columns: ['conta_escrow_id']; isOneToOne: false; referencedRelation: 'contas_escrow'; referencedColumns: ['id'] }, { foreignKeyName: 'fk_movimentos_operacao'; columns: ['operacao_id']; isOneToOne: false; referencedRelation: 'operacoes'; referencedColumns: ['id'] }] }
       fundos: { Row: Fundo & Record<string, unknown>; Insert: InsertShape<Fundo, 'nome' | 'cnpj' | 'administradora_nome' | 'administradora_cnpj'> & Record<string, unknown>; Update: UpdateShape<Fundo> & Record<string, unknown>; Relationships: [] }
+      cedente_fundos: { Row: CedenteFundo & Record<string, unknown>; Insert: InsertShape<CedenteFundo, 'cedente_id' | 'fundo_id'> & Record<string, unknown>; Update: UpdateShape<CedenteFundo> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'cedente_fundos_cedente_id_fkey'; columns: ['cedente_id']; isOneToOne: false; referencedRelation: 'cedentes'; referencedColumns: ['id'] }, { foreignKeyName: 'cedente_fundos_fundo_id_fkey'; columns: ['fundo_id']; isOneToOne: false; referencedRelation: 'fundos'; referencedColumns: ['id'] }] }
+      politicas_operacionais: { Row: PoliticaOperacional & Record<string, unknown>; Insert: InsertShape<PoliticaOperacional, 'cedente_fundo_id' | 'codigo' | 'nome' | 'created_by'> & Record<string, unknown>; Update: UpdateShape<PoliticaOperacional> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'politicas_operacionais_cedente_fundo_id_fkey'; columns: ['cedente_fundo_id']; isOneToOne: false; referencedRelation: 'cedente_fundos'; referencedColumns: ['id'] }, { foreignKeyName: 'politicas_operacionais_created_by_fkey'; columns: ['created_by']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] }] }
+      politica_operacional_versoes: { Row: PoliticaOperacionalVersao & Record<string, unknown>; Insert: InsertShape<PoliticaOperacionalVersao, 'politica_operacional_id' | 'cedente_fundo_id' | 'versao' | 'vigente_desde' | 'conteudo_hash'> & Record<string, unknown>; Update: UpdateShape<PoliticaOperacionalVersao> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'politica_operacional_versoes_politica_operacional_id_fkey'; columns: ['politica_operacional_id']; isOneToOne: false; referencedRelation: 'politicas_operacionais'; referencedColumns: ['id'] }, { foreignKeyName: 'politica_operacional_versoes_cedente_fundo_id_fkey'; columns: ['cedente_fundo_id']; isOneToOne: false; referencedRelation: 'cedente_fundos'; referencedColumns: ['id'] }, { foreignKeyName: 'politica_operacional_versoes_publicada_por_fkey'; columns: ['publicada_por']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] }] }
+      politica_requisitos_documentais: { Row: PoliticaRequisitoDocumental & Record<string, unknown>; Insert: InsertShape<PoliticaRequisitoDocumental, 'politica_operacional_versao_id' | 'politica_operacional_id' | 'cedente_fundo_id' | 'codigo' | 'escopo' | 'tipo_documento_codigo' | 'responsavel_upload' | 'responsavel_aprovacao'> & Record<string, unknown>; Update: UpdateShape<PoliticaRequisitoDocumental> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'politica_requisitos_documentais_politica_operacional_versao_id_fkey'; columns: ['politica_operacional_versao_id']; isOneToOne: false; referencedRelation: 'politica_operacional_versoes'; referencedColumns: ['id'] }, { foreignKeyName: 'politica_requisitos_documentais_politica_operacional_id_fkey'; columns: ['politica_operacional_id']; isOneToOne: false; referencedRelation: 'politicas_operacionais'; referencedColumns: ['id'] }, { foreignKeyName: 'politica_requisitos_documentais_cedente_fundo_id_fkey'; columns: ['cedente_fundo_id']; isOneToOne: false; referencedRelation: 'cedente_fundos'; referencedColumns: ['id'] }] }
       devedores_solidarios: { Row: DevedorSolidario & Record<string, unknown>; Insert: InsertShape<DevedorSolidario, 'cedente_id' | 'nome' | 'doc_numero' | 'cpf'> & Record<string, unknown>; Update: UpdateShape<DevedorSolidario> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'devedores_solidarios_cedente_id_fkey'; columns: ['cedente_id']; isOneToOne: false; referencedRelation: 'cedentes'; referencedColumns: ['id'] }] }
       notas_fiscais: { Row: NotaFiscal & Record<string, unknown>; Insert: InsertShape<NotaFiscal, 'cedente_id' | 'numero_nf' | 'data_emissao' | 'data_vencimento' | 'cnpj_emitente' | 'razao_social_emitente' | 'cnpj_destinatario' | 'razao_social_destinatario' | 'valor_bruto'> & Record<string, unknown>; Update: UpdateShape<NotaFiscal> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'notas_fiscais_cedente_id_fkey'; columns: ['cedente_id']; isOneToOne: false; referencedRelation: 'cedentes'; referencedColumns: ['id'] }] }
       operacoes: { Row: Operacao & Record<string, unknown>; Insert: InsertShape<Operacao, 'cedente_id' | 'valor_bruto_total' | 'taxa_desconto' | 'prazo_dias' | 'valor_liquido_desembolso' | 'data_vencimento'> & Record<string, unknown>; Update: UpdateShape<Operacao> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'operacoes_cedente_id_fkey'; columns: ['cedente_id']; isOneToOne: false; referencedRelation: 'cedentes'; referencedColumns: ['id'] }, { foreignKeyName: 'operacoes_conta_escrow_id_fkey'; columns: ['conta_escrow_id']; isOneToOne: false; referencedRelation: 'contas_escrow'; referencedColumns: ['id'] }, { foreignKeyName: 'operacoes_aprovado_por_fkey'; columns: ['aprovado_por']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] }, { foreignKeyName: 'operacoes_testemunha_1_id_fkey'; columns: ['testemunha_1_id']; isOneToOne: false; referencedRelation: 'testemunhas'; referencedColumns: ['id'] }, { foreignKeyName: 'operacoes_testemunha_2_id_fkey'; columns: ['testemunha_2_id']; isOneToOne: false; referencedRelation: 'testemunhas'; referencedColumns: ['id'] }] }

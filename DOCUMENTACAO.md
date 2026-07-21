@@ -551,6 +551,16 @@ Arquivos: `src/app/api/cron/vencimentos/route.ts`, `src/app/sacado/pagamentos/pa
 | `src/types/database.ts` | Tipagem consumida pelos clientes Supabase; atualmente incompleta em relação às migrations |
 | `vercel.json` | Crons e duração das funções de contrato |
 
+## 13.2 Atualizacao apos a Fase 2
+
+A Fase 2 adicionou a migration `supabase/migrations/20260721123935_fase2_nucleo_multifundo_politicas_snapshot.sql`. Ela cria `cedente_fundos`, preserva `cedentes.fundo_id`, faz backfill apenas para vinculos legados com fundo informado e marca operacoes anteriores como `legado_inferido` ou `legado_indefinido`. O campo legado continua sendo sincronizado nas acoes de vinculo em `src/lib/fundos/cedente-fundo.ts` e `src/lib/actions/gestor.ts`.
+
+Politicas, versoes e requisitos documentais configuraveis estao em `politicas_operacionais`, `politica_operacional_versoes` e `politica_requisitos_documentais`. A autoridade server-side esta em `src/lib/actions/politica.ts`; apenas uma politica ativa pode existir por vinculo, e a publicacao encerra a versao vigente anterior. Prazos ficam nos requisitos documentais. A interface de gestor esta em `src/app/gestor/politicas/page.tsx` e no menu de `src/components/auth/sidebar.tsx`.
+
+Novas solicitacoes de antecipacao resolvem o vinculo e a politica ativa em `src/lib/operacoes/politica.ts`, montam snapshot imutavel e hash SHA-256 e gravam o contexto em `src/lib/actions/operacao.ts`. A politica pode manter o aceite do sacado obrigatorio ou registrar o status `dispensado`; o roteamento e a exigencia historica das NFs aceitas continuam preservados para a Fase 4. O snapshot rejeita chaves de segredo e nao armazena credenciais.
+
+As quatro tabelas novas possuem RLS e grants explicitos para o Data API na migration. O acesso de gestor e de administracao; cedentes e consultores podem apenas consultar os vinculos/politicas de sua carteira. A API nao expoe acesso de sacado a configuracao. Os testes novos estao em `src/lib/fundos/cedente-fundo.test.ts` e `src/lib/operacoes/politica.test.ts`. A validacao do TypeScript e dos testes passou; a validacao SQL aplicada ao banco remoto/homolog nao foi executada nesta etapa.
+
 ## 12. Resumo executivo
 
 O BW Antecipa é uma aplicação Next.js com quatro portais sobre Supabase. O cedente passa por onboarding e compliance, envia NFs e solicita antecipação. O gestor valida documentos/NFs, espera o aceite do sacado, define termos, gera documentos, desembolsa e acompanha liquidação ou inadimplência. O sacado confirma/contesta cessões e informa pagamentos. O consultor consulta carteira, operações, escrow e comissões.
@@ -561,7 +571,7 @@ Os pontos de atenção são a defasagem entre tipos TypeScript, schema base e mi
 
 Antes de alterar o sistema, deve-se entender que o comportamento real depende de aplicar schema base e migrations na ordem correta, que RLS é parte essencial da autorização, que `src/types/database.ts` não representa todo o banco atual, que operações escrow não estão encapsuladas em transações e que a geração de documentos usa service role e runtime Chromium. Qualquer mudança no ciclo de status de NF/operação, nos saldos, nos buckets ou nas policies deve ser revisada em conjunto no frontend, Server Actions, Route Handlers, SQL e templates.
 
-## 13. Atualização após a Fase 1
+## 13.1 Atualização após a Fase 1
 
 A Fase 1 adicionou a tipagem consolidada do schema base mais as migrations existentes em `src/types/database.ts` e centralizou enums/status de domínio em `src/lib/types/domain.ts`. A relação de consultor usada pelo frontend foi alinhada ao nome existente no banco, `consultor_cedente`, em `src/app/consultor/carteira/page.tsx`, `src/app/consultor/dashboard/page.tsx` e `src/app/consultor/relatorios/page.tsx`.
 

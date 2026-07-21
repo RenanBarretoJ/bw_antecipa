@@ -4,6 +4,8 @@ import { createClient } from '@/lib/supabase/server'
 import { requireAuthenticated, requireGestor } from '@/lib/auth/authorization'
 import { registrarLog } from './auditoria'
 import { criarNotificacao, notificarCedente, notificarGestores } from './notificacao'
+import { criarSnapshotPolitica, resolverPoliticaAtiva, statusAceiteInicial } from '@/lib/operacoes/politica'
+import { CedenteFundoError } from '@/lib/fundos/cedente-fundo'
 
 export type OperacaoActionState = {
   success?: boolean
@@ -37,6 +39,18 @@ export async function solicitarAntecipacao(nfIds: string[]): Promise<OperacaoAct
   if (ced.status !== 'ativo') {
     return { success: false, message: 'Seu cadastro precisa estar ativo para solicitar antecipacoes.' }
   }
+
+  // A operacao nova precisa capturar o contexto vigente antes de qualquer alteracao operacional.
+  let politicaContexto
+  try {
+    politicaContexto = await resolverPoliticaAtiva(ced.id, supabase)
+  } catch (error) {
+    if (error instanceof CedenteFundoError) return { success: false, message: error.message }
+    return { success: false, message: 'Nao foi possivel resolver a politica operacional vigente.' }
+  }
+  const politicaSnapshot = criarSnapshotPolitica(politicaContexto)
+  const contextoCapturadoEm = new Date().toISOString()
+  const aceiteSacadoStatus = statusAceiteInicial(politicaContexto.versao.aceite_sacado_obrigatorio)
 
   // Buscar conta escrow
   const { data: escrow } = await supabase
@@ -122,6 +136,18 @@ export async function solicitarAntecipacao(nfIds: string[]): Promise<OperacaoAct
       valor_liquido_desembolso: Math.max(0, valorLiquidoDesembolso),
       data_vencimento: dataVencimento,
       status: 'solicitada',
+      cedente_fundo_id: politicaContexto.cedenteFundo.id,
+      politica_operacional_id: politicaContexto.politica.id,
+      politica_operacional_versao_id: politicaContexto.versao.id,
+      politica_versao: politicaContexto.versao.versao,
+      politica_snapshot: politicaSnapshot.snapshot,
+      politica_snapshot_hash: politicaSnapshot.hash,
+      contexto_configuracao_status: 'completo',
+      contexto_capturado_em: contextoCapturadoEm,
+      aceite_sacado_exigido: politicaContexto.versao.aceite_sacado_obrigatorio,
+      aceite_sacado_status: aceiteSacadoStatus,
+      aceite_sacado_em: null,
+      cessao_efetivada_em: null,
     } as never)
     .select('id')
     .single()
@@ -235,7 +261,7 @@ export async function aprovarOperacao(
       cnpj_destinatario: string; razao_social_destinatario: string
     }>
 
-  // Verificar aceite de todas as NFs
+  // O roteamento historico do aceite por NF permanece nesta fase.
   const pendentes = nfsTyped.filter((n) => n.status !== 'aceita').map((n) => n.numero_nf)
   if (pendentes.length > 0) {
     return {
@@ -288,7 +314,7 @@ export async function aprovarOperacao(
         .eq('id', nf.id)
     }
 
-    // Notificar sacados
+    // Notificar sacados (fila historica preservada nesta fase).
     const sacadosCnpjs = [...new Set(nfsTyped.map((n) => n.cnpj_destinatario))]
     for (const cnpj of sacadosCnpjs) {
       const { data: sacado } = await supabase

@@ -4,6 +4,7 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { requireGestor } from '@/lib/auth/authorization'
 import { registrarLog } from './auditoria'
 import { notificarCedente } from './notificacao'
+import { suspenderCedenteFundo, vincularCedenteFundo } from '@/lib/fundos/cedente-fundo'
 
 const tipoLabelsDoc: Record<string, string> = {
   contrato_social: 'Contrato Social',
@@ -759,29 +760,15 @@ export async function toggleAtivoFundo(fundoId: string, ativo: boolean): Promise
 }
 
 export async function vincularFundoCedente(cedenteId: string, fundoId: string | null): Promise<GestorActionState> {
-  await requireGestor()
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { success: false, message: 'Nao autorizado.' }
+  try {
+    if (fundoId) {
+      await vincularCedenteFundo(cedenteId, fundoId)
+      return { success: true, message: 'Fundo vinculado com sucesso.' }
+    }
 
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-  if (!profile || (profile as { role: string }).role !== 'gestor') {
-    return { success: false, message: 'Acesso negado.' }
+    await suspenderCedenteFundo(cedenteId)
+    return { success: true, message: 'Fundo desvinculado.' }
+  } catch (error) {
+    return { success: false, message: error instanceof Error ? error.message : 'Erro ao atualizar vinculo do fundo.' }
   }
-
-  const { error } = await supabase
-    .from('cedentes')
-    .update({ fundo_id: fundoId } as never)
-    .eq('id', cedenteId)
-
-  if (error) return { success: false, message: `Erro ao vincular fundo: ${error.message}` }
-
-  await registrarLog({
-    tipo_evento: fundoId ? 'FUNDO_VINCULADO_CEDENTE' : 'FUNDO_DESVINCULADO_CEDENTE',
-    entidade_tipo: 'cedentes',
-    entidade_id: cedenteId,
-    dados_depois: { fundo_id: fundoId },
-  })
-
-  return { success: true, message: fundoId ? 'Fundo vinculado com sucesso.' : 'Fundo desvinculado.' }
 }

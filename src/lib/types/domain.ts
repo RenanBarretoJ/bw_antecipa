@@ -1,8 +1,7 @@
 /**
  * Tipos de domínio já existentes no banco.
  *
- * Não adicionar aqui status multifundo ou logísticos nesta fase. Os valores
- * devem permanecer alinhados ao schema base e às migrations aplicadas.
+ * Os valores devem permanecer alinhados ao schema base e às migrations aplicadas.
  */
 
 export const USER_ROLES = ['gestor', 'cedente', 'sacado', 'consultor'] as const
@@ -70,6 +69,36 @@ export type CedenteAcessoPerfil = (typeof CEDENTE_ACCESS_PROFILES)[number]
 
 export const ALTERATION_REQUEST_STATUSES = ['pendente', 'aprovada', 'reprovada'] as const
 export type SolicitacaoAlteracaoStatus = (typeof ALTERATION_REQUEST_STATUSES)[number]
+
+export const CEDENTE_FUNDO_STATUSES = ['ativo', 'suspenso', 'encerrado'] as const
+export type CedenteFundoStatus = (typeof CEDENTE_FUNDO_STATUSES)[number]
+
+export const POLITICA_STATUSES = ['rascunho', 'ativa', 'desativada'] as const
+export type PoliticaStatus = (typeof POLITICA_STATUSES)[number]
+
+export const POLICY_REQUIREMENT_SCOPES = ['nf_pre_cessao', 'operacao', 'pos_cessao', 'entrega'] as const
+export type PoliticaRequisitoEscopo = (typeof POLICY_REQUIREMENT_SCOPES)[number]
+
+export const POLICY_VALIDATION_LEVELS = ['estrutural', 'manual', 'hibrido'] as const
+export type PoliticaNivelValidacao = (typeof POLICY_VALIDATION_LEVELS)[number]
+
+export const POLICY_RESPONSIBLES = ['cedente', 'gestor', 'sacado', 'sistema'] as const
+export type PoliticaResponsavel = (typeof POLICY_RESPONSIBLES)[number]
+
+export const POLICY_DOCUMENT_CODES = [
+  'nf_xml',
+  'nf_danfe_pdf',
+  'nf_pedido_compra',
+  'cte',
+  'canhoto',
+] as const
+export type PoliticaTipoDocumentoCodigo = (typeof POLICY_DOCUMENT_CODES)[number]
+
+export const CONTEXT_CONFIGURATION_STATUSES = ['completo', 'legado_inferido', 'legado_indefinido'] as const
+export type ContextoConfiguracaoStatus = (typeof CONTEXT_CONFIGURATION_STATUSES)[number]
+
+export const ACCEPTANCE_STATUSES = ['pendente', 'aceito', 'contestado', 'dispensado'] as const
+export type AceiteSacadoStatus = (typeof ACCEPTANCE_STATUSES)[number]
 
 export const AUDIT_ACTOR_TYPES = ['usuario', 'sistema', 'integracao', 'cron'] as const
 export type AuditoriaAtorTipo = (typeof AUDIT_ACTOR_TYPES)[number]
