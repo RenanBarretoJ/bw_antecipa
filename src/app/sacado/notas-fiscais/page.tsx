@@ -29,6 +29,9 @@ interface NfSacado {
   data_vencimento: string
   status: string
   arquivo_url: string | null
+  operacao_id: string
+  aceite_sacado_exigido: boolean | null
+  aceite_sacado_status: string | null
 }
 
 const statusConfig: Record<string, { label: string; className: string }> = {
@@ -69,12 +72,27 @@ export default function NfsRecebidasSacadoPage() {
   useEffect(() => {
     const load = async () => {
       const supabase = createClient()
+      const { data: operations } = await supabase
+        .from('operacoes')
+        .select('id, aceite_sacado_exigido, aceite_sacado_status, status')
+        .in('status', ['solicitada', 'em_analise', 'aprovada', 'em_andamento', 'liquidada', 'inadimplente', 'reprovada', 'cancelada'])
+      const operationIds = ((operations || []) as Array<{ id: string }>).map((operation) => operation.id)
+      const { data: links } = operationIds.length
+        ? await supabase.from('operacoes_nfs').select('operacao_id, nota_fiscal_id').in('operacao_id', operationIds)
+        : { data: [] }
+      const linkByNf = new Map(((links || []) as Array<{ operacao_id: string; nota_fiscal_id: string }>).map((link) => [link.nota_fiscal_id, link.operacao_id]))
+      const operationById = new Map(((operations || []) as Array<{ id: string; aceite_sacado_exigido: boolean | null; aceite_sacado_status: string | null }>).map((operation) => [operation.id, operation]))
+      const nfIds = Array.from(linkByNf.keys())
       const { data } = await supabase
         .from('notas_fiscais')
         .select('id, numero_nf, cnpj_emitente, razao_social_emitente, valor_bruto, data_emissao, data_vencimento, status, arquivo_url')
+        .in('id', nfIds.length ? nfIds : ['00000000-0000-0000-0000-000000000000'])
         .order('data_vencimento', { ascending: true })
 
-      setNfs((data || []) as NfSacado[])
+      setNfs(((data || []) as Omit<NfSacado, 'operacao_id' | 'aceite_sacado_exigido' | 'aceite_sacado_status'>[]).map((nf) => {
+        const operation = operationById.get(linkByNf.get(nf.id) || '')
+        return { ...nf, operacao_id: linkByNf.get(nf.id) || '', aceite_sacado_exigido: operation?.aceite_sacado_exigido ?? null, aceite_sacado_status: operation?.aceite_sacado_status ?? null }
+      }))
       setLoading(false)
     }
     load()

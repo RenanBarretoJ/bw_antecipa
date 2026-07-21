@@ -8,14 +8,15 @@ interface NotificacaoInput {
   titulo: string
   mensagem: string
   tipo: string
+  dedupe_key?: string
 }
 
-export async function criarNotificacao({ usuario_id, titulo, mensagem, tipo }: NotificacaoInput) {
+export async function criarNotificacao({ usuario_id, titulo, mensagem, tipo, dedupe_key }: NotificacaoInput) {
   try {
     const supabase = await createClient()
     const { error } = await supabase
       .from('notificacoes')
-      .insert({ usuario_id, titulo, mensagem, tipo } as never)
+      .insert({ usuario_id, titulo, mensagem, tipo, dedupe_key } as never)
 
     if (error) {
       console.error('[criarNotificacao] Falha ao inserir:', error.message, { usuario_id, tipo })
@@ -29,7 +30,7 @@ export async function criarNotificacao({ usuario_id, titulo, mensagem, tipo }: N
 }
 
 // Envia notificacao para o dono do cedente + todos os usuarios vinculados ativos.
-export async function notificarCedente(cedenteId: string, titulo: string, mensagem: string, tipo: string) {
+export async function notificarCedente(cedenteId: string, titulo: string, mensagem: string, tipo: string, dedupeKey?: string) {
   try {
     const admin = createAdminClient()
 
@@ -63,7 +64,7 @@ export async function notificarCedente(cedenteId: string, titulo: string, mensag
       userIds.map(async (uid) => {
         const { error } = await admin
           .from('notificacoes')
-          .insert({ usuario_id: uid, titulo, mensagem, tipo } as never)
+          .insert({ usuario_id: uid, titulo, mensagem, tipo, dedupe_key: dedupeKey ? `${dedupeKey}:${uid}` : undefined } as never)
         if (error) {
           console.error('[notificarCedente] Falha ao inserir para', uid, ':', error.message)
         }
@@ -76,7 +77,7 @@ export async function notificarCedente(cedenteId: string, titulo: string, mensag
   }
 }
 
-export async function notificarGestores(titulo: string, mensagem: string, tipo: string) {
+export async function notificarGestores(titulo: string, mensagem: string, tipo: string, dedupeKey?: string) {
   try {
     const supabase = createAdminClient()
     const { data: gestores, error: queryError } = await supabase
@@ -99,6 +100,7 @@ export async function notificarGestores(titulo: string, mensagem: string, tipo: 
       titulo,
       mensagem,
       tipo,
+      dedupe_key: dedupeKey ? `${dedupeKey}:${(g as { id: string }).id}` : undefined,
     }))
 
     const { error: insertError } = await supabase

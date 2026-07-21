@@ -39,6 +39,8 @@ interface OperacaoResumo {
   status: string
   created_at: string
   data_vencimento: string
+  aceite_sacado_exigido: boolean | null
+  aceite_sacado_status: string | null
   cedentes: { razao_social: string; cnpj: string }
 }
 
@@ -61,7 +63,7 @@ export default function RelatoriosGestorPage() {
 
       const [opsRes, cedsRes] = await Promise.all([
         supabase.from('operacoes')
-          .select('id, cedente_id, valor_bruto_total, valor_liquido_desembolso, taxa_desconto, status, created_at, data_vencimento, cedentes(razao_social, cnpj)')
+          .select('id, cedente_id, valor_bruto_total, valor_liquido_desembolso, taxa_desconto, status, created_at, data_vencimento, aceite_sacado_exigido, aceite_sacado_status, cedentes(razao_social, cnpj)')
           .order('created_at', { ascending: false }),
         supabase.from('cedentes')
           .select('id, razao_social, cnpj, status'),
@@ -85,6 +87,8 @@ export default function RelatoriosGestorPage() {
   const opsAtivasMes = opsValidas.filter((o) => o.status === 'em_andamento').length
   const opsLiquidadasMes = opsValidas.filter((o) => o.status === 'liquidada').length
   const opsInadimplentesMes = opsValidas.filter((o) => o.status === 'inadimplente').length
+  const opsAguardandoAceiteMes = opsMes.filter((o) => ['solicitada', 'em_analise'].includes(o.status) && o.aceite_sacado_exigido !== false && o.aceite_sacado_status !== 'aceito').length
+  const opsProntasAnaliseMes = opsMes.filter((o) => ['solicitada', 'em_analise'].includes(o.status) && (o.aceite_sacado_exigido === false || o.aceite_sacado_status === 'dispensado' || o.aceite_sacado_status === 'aceito')).length
   const taxaMedia = opsValidas.length > 0
     ? opsValidas.reduce((a, o) => a + o.taxa_desconto, 0) / opsValidas.length
     : 0
@@ -199,9 +203,10 @@ export default function RelatoriosGestorPage() {
       </div>
 
       {/* Resumo por status */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 mb-6">
         {[
-          { label: 'Solicitadas', count: opsMes.filter((o) => o.status === 'solicitada').length, color: 'bg-blue-50 text-blue-700' },
+          { label: 'Aguardando aceite', count: opsAguardandoAceiteMes, color: 'bg-blue-50 text-blue-700' },
+          { label: 'Prontas analise', count: opsProntasAnaliseMes, color: 'bg-cyan-50 text-cyan-700' },
           { label: 'Em Andamento', count: opsAtivasMes, color: 'bg-purple-50 text-purple-700' },
           { label: 'Liquidadas', count: opsLiquidadasMes, color: 'bg-green-50 text-green-700' },
           { label: 'Reprovadas', count: opsMes.filter((o) => o.status === 'reprovada').length, color: 'bg-red-50 text-red-700' },

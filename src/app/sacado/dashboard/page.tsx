@@ -28,6 +28,7 @@ interface NfSacado {
   data_vencimento: string
   status: string
   cedente_id: string
+  operacao_id: string
 }
 
 interface OperacaoSacado {
@@ -36,6 +37,8 @@ interface OperacaoSacado {
   valor_liquido_desembolso: number
   data_vencimento: string
   status: string
+  aceite_sacado_exigido: boolean | null
+  aceite_sacado_status: string | null
   cedentes: { razao_social: string; cnpj: string }
   contas_escrow: { identificador: string } | null
 }
@@ -75,21 +78,26 @@ export default function SacadoDashboard() {
     const load = async () => {
       const supabase = createClient()
 
-      const { data: nfsData } = await supabase
-        .from('notas_fiscais')
-        .select('id, numero_nf, cnpj_emitente, razao_social_emitente, valor_bruto, data_vencimento, status, cedente_id')
-        .in('status', ['em_antecipacao', 'aprovada', 'liquidada'])
-        .order('data_vencimento', { ascending: true })
-
-      setNfs((nfsData || []) as NfSacado[])
-
       const { data: opsData } = await supabase
         .from('operacoes')
-        .select('id, valor_bruto_total, valor_liquido_desembolso, data_vencimento, status, cedentes(razao_social, cnpj), contas_escrow(identificador)')
-        .in('status', ['em_andamento', 'liquidada', 'inadimplente'])
+        .select('id, valor_bruto_total, valor_liquido_desembolso, data_vencimento, status, aceite_sacado_exigido, aceite_sacado_status, cedentes(razao_social, cnpj), contas_escrow(identificador)')
+        .in('status', ['solicitada', 'em_analise', 'aprovada', 'em_andamento', 'liquidada', 'inadimplente'])
         .order('data_vencimento', { ascending: true })
 
       setOperacoes((opsData || []) as OperacaoSacado[])
+      const operationIds = ((opsData || []) as Array<{ id: string }>).map((operation) => operation.id)
+      const { data: links } = operationIds.length
+        ? await supabase.from('operacoes_nfs').select('operacao_id, nota_fiscal_id').in('operacao_id', operationIds)
+        : { data: [] }
+      const linkByNf = new Map(((links || []) as Array<{ operacao_id: string; nota_fiscal_id: string }>).map((link) => [link.nota_fiscal_id, link.operacao_id]))
+      const nfIds = Array.from(linkByNf.keys())
+      const { data: nfsData } = await supabase
+        .from('notas_fiscais')
+        .select('id, numero_nf, cnpj_emitente, razao_social_emitente, valor_bruto, data_vencimento, status, cedente_id')
+        .in('id', nfIds.length ? nfIds : ['00000000-0000-0000-0000-000000000000'])
+        .in('status', ['em_antecipacao', 'aprovada', 'aceita', 'liquidada'])
+        .order('data_vencimento', { ascending: true })
+      setNfs(((nfsData || []) as Omit<NfSacado, 'operacao_id'>[]).map((nf) => ({ ...nf, operacao_id: linkByNf.get(nf.id) || '' })))
       setLoading(false)
     }
     load()

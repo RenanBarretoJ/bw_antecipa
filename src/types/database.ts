@@ -5,15 +5,21 @@ export type {
   AuditoriaAtorTipo,
   AuditOrigin,
   AceiteSacadoStatus,
+  CanhotoStatus,
   CedenteFundoStatus,
   ContaEscrowStatus,
   CedenteAcessoPerfil,
   CedenteStatus,
   ContextoConfiguracaoStatus,
+  CteFormato,
+  CteNivelValidacao,
+  CteStatus,
   DocumentoStatus,
   DocumentoTipo,
   DocumentoAnaliseResultado,
   DocumentoVersaoStatus,
+  EntregaEventoTipo,
+  EntregaStatus,
   MovimentoTipo,
   NfStatus,
   OperacaoStatus,
@@ -32,16 +38,22 @@ export type {
 
 import type {
   AuditoriaAtorTipo,
+  CanhotoStatus,
   CedenteAcessoPerfil,
   CedenteStatus,
   CedenteFundoStatus,
   ContextoConfiguracaoStatus,
   ContaEscrowStatus,
   AceiteSacadoStatus,
+  CteFormato,
+  CteNivelValidacao,
+  CteStatus,
   DocumentoStatus,
   DocumentoTipo,
   DocumentoAnaliseResultado,
   DocumentoVersaoStatus,
+  EntregaEventoTipo,
+  EntregaStatus,
   MovimentoTipo,
   NfStatus,
   OperacaoStatus,
@@ -304,6 +316,8 @@ export interface DocumentoVinculo {
   documento_id: string
   nota_fiscal_id: string | null
   operacao_id: string | null
+  nota_fiscal_entrega_id: string | null
+  cte_id: string | null
   cedente_id: string
   principal: boolean
   created_at: string
@@ -318,8 +332,9 @@ export interface DocumentoRequisitoInstancia {
   documento_tipo_id: string | null
   tipo_documento_codigo_snapshot: string
   escopo_snapshot: string
-  nota_fiscal_id: string
+  nota_fiscal_id: string | null
   operacao_id: string | null
+  nota_fiscal_entrega_id: string | null
   cedente_id: string
   status: RequisitoDocumentoStatus
   obrigatorio: boolean
@@ -346,6 +361,86 @@ export interface DocumentoAnalise {
   dados_estruturados: Record<string, unknown>
   analisado_em: string
   created_at: string
+}
+
+export interface NotaFiscalEntrega {
+  id: string
+  operacao_id: string
+  nota_fiscal_id: string
+  status_entrega: EntregaStatus
+  cessao_efetivada_em: string | null
+  data_limite_cte: string | null
+  data_limite_canhoto: string | null
+  data_entrega: string | null
+  entrega_confirmada_em: string | null
+  motivo_pendencia: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface EventoEntrega {
+  id: string
+  nota_fiscal_entrega_id: string
+  tipo_evento: EntregaEventoTipo
+  status_anterior: string | null
+  status_novo: string | null
+  ocorrido_em: string
+  registrado_por: string | null
+  ator_tipo: AuditoriaAtorTipo
+  dados: Record<string, unknown>
+  created_at: string
+}
+
+export interface Cte {
+  id: string
+  cedente_id: string
+  chave_cte: string | null
+  numero: string | null
+  serie: string | null
+  data_emissao: string | null
+  cnpj_transportadora: string | null
+  cnpj_remetente: string | null
+  cnpj_destinatario: string | null
+  valor_frete: number | null
+  formato_origem: CteFormato
+  nivel_validacao: CteNivelValidacao
+  status: CteStatus
+  analisado_por: string | null
+  analisado_em: string | null
+  motivo_rejeicao: string | null
+  documento_id: string | null
+  documento_versao_atual_id: string | null
+  documento_versao_aprovada_id: string | null
+  dados_extraidos: Record<string, unknown>
+  created_at: string
+  updated_at: string
+}
+
+export interface CteNotaFiscal {
+  cte_id: string
+  nota_fiscal_id: string
+  created_at: string
+}
+
+export interface Canhoto {
+  id: string
+  nota_fiscal_entrega_id: string
+  status: CanhotoStatus
+  data_assinatura: string | null
+  nome_recebedor: string | null
+  documento_recebedor: string | null
+  possui_assinatura: boolean
+  possui_ressalva: boolean
+  descricao_ressalva: string | null
+  recebido_em: string | null
+  analisado_por: string | null
+  analisado_em: string | null
+  motivo_rejeicao: string | null
+  documento_id: string | null
+  documento_versao_atual_id: string | null
+  documento_versao_aprovada_id: string | null
+  created_at: string
+  updated_at: string
 }
 
 export interface DevedorSolidario {
@@ -539,6 +634,7 @@ export interface Notificacao {
   titulo: string
   mensagem: string
   tipo: string
+  dedupe_key: string | null
   lida: boolean
   created_at: string
 }
@@ -554,6 +650,11 @@ export interface Database {
       documento_vinculos: { Row: DocumentoVinculo & Record<string, unknown>; Insert: InsertShape<DocumentoVinculo, 'documento_id' | 'cedente_id'> & Record<string, unknown>; Update: UpdateShape<DocumentoVinculo> & Record<string, unknown>; Relationships: [] }
       documento_requisito_instancias: { Row: DocumentoRequisitoInstancia & Record<string, unknown>; Insert: InsertShape<DocumentoRequisitoInstancia, 'politica_requisito_id' | 'politica_operacional_id' | 'politica_operacional_versao_id' | 'politica_versao' | 'tipo_documento_codigo_snapshot' | 'escopo_snapshot' | 'nota_fiscal_id' | 'cedente_id' | 'obrigatorio' | 'nivel_validacao_snapshot' | 'quantidade_minima_snapshot' | 'responsavel_upload_snapshot' | 'responsavel_aprovacao_snapshot'> & Record<string, unknown>; Update: UpdateShape<DocumentoRequisitoInstancia> & Record<string, unknown>; Relationships: [] }
       documento_analises: { Row: DocumentoAnalise & Record<string, unknown>; Insert: InsertShape<DocumentoAnalise, 'documento_versao_id' | 'resultado'> & Record<string, unknown>; Update: UpdateShape<DocumentoAnalise> & Record<string, unknown>; Relationships: [] }
+      nota_fiscal_entregas: { Row: NotaFiscalEntrega & Record<string, unknown>; Insert: InsertShape<NotaFiscalEntrega, 'operacao_id' | 'nota_fiscal_id' | 'status_entrega'> & Record<string, unknown>; Update: UpdateShape<NotaFiscalEntrega> & Record<string, unknown>; Relationships: [] }
+      eventos_entrega: { Row: EventoEntrega & Record<string, unknown>; Insert: InsertShape<EventoEntrega, 'nota_fiscal_entrega_id' | 'tipo_evento'> & Record<string, unknown>; Update: UpdateShape<EventoEntrega> & Record<string, unknown>; Relationships: [] }
+      ctes: { Row: Cte & Record<string, unknown>; Insert: InsertShape<Cte, 'cedente_id' | 'formato_origem' | 'nivel_validacao'> & Record<string, unknown>; Update: UpdateShape<Cte> & Record<string, unknown>; Relationships: [] }
+      cte_notas_fiscais: { Row: CteNotaFiscal & Record<string, unknown>; Insert: InsertShape<CteNotaFiscal, 'cte_id' | 'nota_fiscal_id'> & Record<string, unknown>; Update: Partial<CteNotaFiscal> & Record<string, unknown>; Relationships: [] }
+      canhotos: { Row: Canhoto & Record<string, unknown>; Insert: InsertShape<Canhoto, 'nota_fiscal_entrega_id'> & Record<string, unknown>; Update: UpdateShape<Canhoto> & Record<string, unknown>; Relationships: [] }
       representantes: { Row: Representante & Record<string, unknown>; Insert: InsertShape<Representante, 'cedente_id' | 'nome' | 'cpf' | 'rg' | 'cargo' | 'email' | 'telefone'> & Record<string, unknown>; Update: UpdateShape<Representante> & Record<string, unknown>; Relationships: [] }
       documentos: { Row: Documento & Record<string, unknown>; Insert: InsertShape<Documento, 'cedente_id' | 'tipo'> & Record<string, unknown>; Update: UpdateShape<Documento> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'documentos_cedente_id_fkey'; columns: ['cedente_id']; isOneToOne: false; referencedRelation: 'cedentes'; referencedColumns: ['id'] }, { foreignKeyName: 'documentos_representante_id_fkey'; columns: ['representante_id']; isOneToOne: false; referencedRelation: 'representantes'; referencedColumns: ['id'] }, { foreignKeyName: 'documentos_analisado_por_fkey'; columns: ['analisado_por']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] }] }
       contas_escrow: { Row: ContaEscrow & Record<string, unknown>; Insert: InsertShape<ContaEscrow, 'cedente_id' | 'identificador'> & Record<string, unknown>; Update: UpdateShape<ContaEscrow> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'contas_escrow_cedente_id_fkey'; columns: ['cedente_id']; isOneToOne: false; referencedRelation: 'cedentes'; referencedColumns: ['id'] }] }
@@ -585,6 +686,13 @@ export interface Database {
       instanciar_requisitos_nota: { Args: { p_nota_fiscal_id: string; p_politica_operacional_id: string; p_politica_versao_id: string }; Returns: Record<string, unknown> }
       registrar_documento_upload: { Args: { p_nota_fiscal_id: string; p_requisito_id: string; p_documento_tipo_id: string; p_nome_original: string; p_mime_type: string; p_tamanho_bytes: number; p_sha256: string; p_bucket: string; p_path: string; p_enviado_por: string; p_substitui_versao_id?: string | null }; Returns: Record<string, unknown> }
       analisar_documento_versao: { Args: { p_documento_versao_id: string; p_resultado: string; p_observacoes?: string | null; p_dados_estruturados?: Record<string, unknown> }; Returns: Record<string, unknown> }
+      processar_aceite_sacado: { Args: { p_nota_fiscal_ids: string[]; p_acao: string; p_motivo?: string | null }; Returns: Record<string, unknown> }
+      desembolsar_operacao_com_logistica: { Args: { p_operacao_id: string }; Returns: Record<string, unknown> }
+      registrar_cte_documento: { Args: { p_nota_fiscal_ids: string[]; p_documento_tipo_codigo: string; p_nome_original: string; p_mime_type: string; p_tamanho_bytes: number; p_sha256: string; p_bucket: string; p_path: string; p_chave_cte?: string | null; p_numero?: string | null; p_serie?: string | null; p_data_emissao?: string | null; p_cnpj_transportadora?: string | null; p_cnpj_remetente?: string | null; p_cnpj_destinatario?: string | null; p_valor_frete?: number | null; p_nivel_validacao?: string; p_dados_extraidos?: Record<string, unknown> }; Returns: Record<string, unknown> }
+      registrar_canhoto_documento: { Args: { p_nota_fiscal_entrega_id: string; p_nome_original: string; p_mime_type: string; p_tamanho_bytes: number; p_sha256: string; p_bucket: string; p_path: string; p_data_assinatura?: string | null; p_nome_recebedor?: string | null; p_documento_recebedor?: string | null; p_possui_assinatura?: boolean; p_possui_ressalva?: boolean; p_descricao_ressalva?: string | null }; Returns: Record<string, unknown> }
+      analisar_cte_documento: { Args: { p_cte_id: string; p_documento_versao_id: string; p_resultado: string; p_motivo?: string | null }; Returns: Record<string, unknown> }
+      analisar_canhoto_documento: { Args: { p_canhoto_id: string; p_documento_versao_id: string; p_resultado: string; p_motivo?: string | null }; Returns: Record<string, unknown> }
+      processar_prazos_entrega: { Args: { p_data?: string | null }; Returns: Record<string, unknown> }
     }
     Enums: {
       user_role: UserRole

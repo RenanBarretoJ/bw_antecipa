@@ -43,6 +43,8 @@ interface OperacaoGestor {
   status: string
   created_at: string
   aprovado_em: string | null
+  aceite_sacado_exigido: boolean | null
+  aceite_sacado_status: string | null
   cedentes: {
     razao_social: string
     cnpj: string
@@ -105,7 +107,7 @@ export default function OperacoesGestorPage() {
       const supabase = createClient()
       const { data } = await supabase
         .from('operacoes')
-        .select('id, valor_bruto_total, taxa_desconto, prazo_dias, valor_liquido_desembolso, data_vencimento, status, created_at, aprovado_em, cedentes(razao_social, cnpj)')
+        .select('id, valor_bruto_total, taxa_desconto, prazo_dias, valor_liquido_desembolso, data_vencimento, status, created_at, aprovado_em, aceite_sacado_exigido, aceite_sacado_status, cedentes(razao_social, cnpj)')
         .order('created_at', { ascending: false })
 
       setOps((data || []) as OperacaoGestor[])
@@ -160,7 +162,8 @@ export default function OperacoesGestorPage() {
       return 0
     })
 
-  const pendentes = ops.filter((o) => o.status === 'solicitada' || o.status === 'em_analise').length
+  const aguardandoAceite = ops.filter((o) => ['solicitada', 'em_analise'].includes(o.status) && o.aceite_sacado_exigido !== false && o.aceite_sacado_status !== 'aceito').length
+  const prontasAnalise = ops.filter((o) => ['solicitada', 'em_analise'].includes(o.status) && (o.aceite_sacado_exigido === false || o.aceite_sacado_status === 'dispensado' || o.aceite_sacado_status === 'aceito')).length
   const volumeAtivo = ops
     .filter((o) => o.status === 'em_andamento')
     .reduce((acc, o) => acc + o.valor_liquido_desembolso, 0)
@@ -175,12 +178,12 @@ export default function OperacoesGestorPage() {
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-xl p-4">
-          <p className="text-xs font-medium text-yellow-600 dark:text-yellow-400">Pendentes</p>
-          <p className="text-2xl font-bold text-yellow-700 dark:text-yellow-300 tabular-nums">{pendentes}</p>
+          <p className="text-xs font-medium text-yellow-600 dark:text-yellow-400">Aguardando aceite</p>
+          <p className="text-2xl font-bold text-yellow-700 dark:text-yellow-300 tabular-nums">{aguardandoAceite}</p>
         </div>
         <div className="bg-purple-50 dark:bg-purple-900/20 rounded-xl p-4">
-          <p className="text-xs font-medium text-purple-600 dark:text-purple-400">Em Andamento</p>
-          <p className="text-2xl font-bold text-purple-700 dark:text-purple-300 tabular-nums">{ops.filter((o) => o.status === 'em_andamento').length}</p>
+          <p className="text-xs font-medium text-purple-600 dark:text-purple-400">Prontas para análise</p>
+          <p className="text-2xl font-bold text-purple-700 dark:text-purple-300 tabular-nums">{prontasAnalise}</p>
         </div>
         <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-4">
           <p className="text-xs font-medium text-green-600 dark:text-green-400">Volume Ativo</p>
@@ -373,6 +376,11 @@ export default function OperacoesGestorPage() {
                             <StatusIcon size={12} />
                             {status.label}
                           </Badge>
+                          <p className="mt-1 text-[11px] text-muted-foreground">
+                            {op.aceite_sacado_exigido === false || op.aceite_sacado_status === 'dispensado'
+                              ? 'Aceite dispensado pela política'
+                              : `Aceite do sacado: ${op.aceite_sacado_status || 'pendente'}`}
+                          </p>
                         </td>
                         <td className="whitespace-nowrap px-4 py-3 text-sm tabular-nums text-muted-foreground">
                           {op.aprovado_em ? formatDate(op.aprovado_em) : '—'}

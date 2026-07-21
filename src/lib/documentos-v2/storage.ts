@@ -17,6 +17,23 @@ export function gerarCaminhoDocumento({
   return `${cedenteId}/nota-fiscal/${notaFiscalId}/${tipoCodigo}/${randomUUID()}${ext}`
 }
 
+export function gerarCaminhoDocumentoLogistico({
+  cedenteId,
+  contextoTipo,
+  contextoId,
+  tipoCodigo,
+  nomeOriginal,
+}: {
+  cedenteId: string
+  contextoTipo: 'cte' | 'entrega'
+  contextoId: string
+  tipoCodigo: string
+  nomeOriginal: string
+}): string {
+  const ext = nomeOriginal.includes('.') ? nomeOriginal.slice(nomeOriginal.lastIndexOf('.')).toLowerCase() : ''
+  return `${cedenteId}/logistica/${contextoTipo}/${contextoId}/${tipoCodigo}/${randomUUID()}${ext}`
+}
+
 export async function enviarObjetoDocumento(path: string, file: File, mimeType: string): Promise<void> {
   const admin = createAdminClient()
   const { error } = await admin.storage.from(DOCUMENTO_V2_BUCKET).upload(

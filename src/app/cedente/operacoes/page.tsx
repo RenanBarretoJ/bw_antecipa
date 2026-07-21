@@ -36,6 +36,8 @@ interface OperacaoRecord {
   valor_liquido_desembolso: number
   data_vencimento: string
   status: string
+  aceite_sacado_exigido: boolean | null
+  aceite_sacado_status: string | null
   created_at: string
   motivo_reprovacao: string | null
   quitacao_assinada_url: string | null
@@ -136,7 +138,7 @@ export default function OperacoesCedentePage() {
     const supabase = createClient()
     const { data } = await supabase
       .from('operacoes')
-      .select('id, valor_bruto_total, taxa_desconto, prazo_dias, valor_liquido_desembolso, data_vencimento, status, created_at, motivo_reprovacao, quitacao_assinada_url')
+      .select('id, valor_bruto_total, taxa_desconto, prazo_dias, valor_liquido_desembolso, data_vencimento, status, created_at, motivo_reprovacao, quitacao_assinada_url, aceite_sacado_exigido, aceite_sacado_status')
       .order('created_at', { ascending: false })
 
     setOps((data || []) as OperacaoRecord[])
@@ -341,6 +343,15 @@ export default function OperacoesCedentePage() {
                           Motivo: {op.motivo_reprovacao}
                         </p>
                       )}
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        {op.aceite_sacado_exigido === false || op.aceite_sacado_status === 'dispensado'
+                          ? 'Sem aceite: aceite do sacado dispensado pela política; aguardando análise da gestora.'
+                          : op.aceite_sacado_status === 'aceito'
+                            ? 'Com aceite: aceite do sacado concluído; aguardando análise da gestora.'
+                            : op.aceite_sacado_status === 'contestado'
+                              ? 'Com aceite: contestada pelo sacado.'
+                              : 'Com aceite: aguardando aceite do sacado.'}
+                      </p>
                     </div>
                     <div className="flex gap-2 ml-4">
                       {op.status === 'liquidada' && op.quitacao_assinada_url && (

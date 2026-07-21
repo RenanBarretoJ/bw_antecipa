@@ -7,7 +7,6 @@ import { formatCurrency, formatCNPJ, formatDate } from '@/lib/utils'
 import {
   CheckCircle,
   XCircle,
-  Receipt,
   AlertTriangle,
   Wallet,
   Eye,
@@ -37,6 +36,8 @@ interface NfCessao {
   status: string
   cedente_id: string
   arquivo_url: string | null
+  operacao_id: string
+  aceite_sacado_status: string
 }
 
 interface ContaInfo {
@@ -87,13 +88,31 @@ export default function AprovacaoCessaoPage() {
   const loadData = async () => {
     const supabase = createClient()
 
+    const { data: operacoes } = await supabase
+      .from('operacoes')
+      .select('id, aceite_sacado_exigido, aceite_sacado_status, status')
+      .in('status', ['solicitada', 'em_analise'])
+
+    const operacoesAceite = ((operacoes || []) as Array<{ id: string; aceite_sacado_exigido: boolean | null; aceite_sacado_status: string | null; status: string }>)
+      .filter((operation) => operation.aceite_sacado_exigido !== false && operation.aceite_sacado_status !== 'dispensado')
+    const operacaoIds = operacoesAceite.map((operation) => operation.id)
+    const { data: links } = operacaoIds.length
+      ? await supabase.from('operacoes_nfs').select('operacao_id, nota_fiscal_id').in('operacao_id', operacaoIds)
+      : { data: [] }
+    const linkByNf = new Map(((links || []) as Array<{ operacao_id: string; nota_fiscal_id: string }>).map((link) => [link.nota_fiscal_id, link.operacao_id]))
+    const operationById = new Map(operacoesAceite.map((operation) => [operation.id, operation]))
+    const nfIds = Array.from(linkByNf.keys())
     const { data: nfsData } = await supabase
       .from('notas_fiscais')
       .select('id, numero_nf, cnpj_emitente, razao_social_emitente, valor_bruto, data_vencimento, status, cedente_id, arquivo_url')
+      .in('id', nfIds.length ? nfIds : ['00000000-0000-0000-0000-000000000000'])
       .eq('status', 'em_antecipacao')
       .order('data_vencimento', { ascending: true })
 
-    setNfs((nfsData || []) as NfCessao[])
+    setNfs(((nfsData || []) as Omit<NfCessao, 'operacao_id' | 'aceite_sacado_status'>[]).map((nf) => {
+      const operacaoId = linkByNf.get(nf.id) || ''
+      return { ...nf, operacao_id: operacaoId, aceite_sacado_status: operationById.get(operacaoId)?.aceite_sacado_status || 'pendente' }
+    }))
 
     const { data: contasData } = await supabase
       .from('contas_escrow')
@@ -103,7 +122,11 @@ export default function AprovacaoCessaoPage() {
     setLoading(false)
   }
 
-  useEffect(() => { loadData() }, [])
+  useEffect(() => {
+    queueMicrotask(() => {
+      void loadData()
+    })
+  }, [])
 
   const openPreview = async (nf: NfCessao) => {
     if (!nf.arquivo_url) return
@@ -168,7 +191,11 @@ export default function AprovacaoCessaoPage() {
   const toggleNf = (id: string) => {
     setSelecionadas((prev) => {
       const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
       return next
     })
   }

@@ -112,6 +112,39 @@ export type ContextoConfiguracaoStatus = (typeof CONTEXT_CONFIGURATION_STATUSES)
 export const ACCEPTANCE_STATUSES = ['pendente', 'aceito', 'contestado', 'dispensado'] as const
 export type AceiteSacadoStatus = (typeof ACCEPTANCE_STATUSES)[number]
 
+export const DELIVERY_STATUSES = ['nao_aplicavel', 'em_transito', 'aguardando_validacao', 'entregue', 'entrega_com_pendencia', 'devolvida', 'cancelada'] as const
+export type EntregaStatus = (typeof DELIVERY_STATUSES)[number]
+
+export const DELIVERY_EVENT_TYPES = [
+  'cessao_efetivada',
+  'cte_pendente',
+  'cte_enviado',
+  'cte_aprovado',
+  'cte_rejeitado',
+  'cte_atrasado',
+  'canhoto_pendente',
+  'canhoto_enviado',
+  'canhoto_aprovado',
+  'canhoto_rejeitado',
+  'canhoto_atrasado',
+  'entrega_confirmada',
+  'entrega_com_pendencia',
+  'devolucao_registrada',
+] as const
+export type EntregaEventoTipo = (typeof DELIVERY_EVENT_TYPES)[number]
+
+export const CTE_STATUSES = ['enviado', 'em_analise', 'aprovado', 'rejeitado', 'substituido', 'cancelado'] as const
+export type CteStatus = (typeof CTE_STATUSES)[number]
+
+export const CTE_FORMATS = ['xml', 'pdf'] as const
+export type CteFormato = (typeof CTE_FORMATS)[number]
+
+export const CTE_VALIDATION_LEVELS = ['estrutural', 'manual', 'hibrido'] as const
+export type CteNivelValidacao = (typeof CTE_VALIDATION_LEVELS)[number]
+
+export const CANHOTO_STATUSES = ['pendente', 'enviado', 'em_analise', 'aprovado', 'rejeitado', 'substituido', 'cancelado'] as const
+export type CanhotoStatus = (typeof CANHOTO_STATUSES)[number]
+
 export const AUDIT_ACTOR_TYPES = ['usuario', 'sistema', 'integracao', 'cron'] as const
 export type AuditoriaAtorTipo = (typeof AUDIT_ACTOR_TYPES)[number]
 

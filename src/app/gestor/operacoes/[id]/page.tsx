@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { aprovarOperacao, desembolsarOperacao, reprovarOperacao, removerNfDaOperacao, salvarTestemunhasOperacao, salvarTermoAssinado, salvarComprovantePagamento, salvarNotificacaoAssinada, salvarQuitacaoAssinada } from '@/lib/actions/operacao'
 import { liquidarOperacao, marcarInadimplente } from '@/lib/actions/liquidacao'
+import { analisarCanhoto, analisarCte, baixarVersaoLogistica, carregarResumoEntregaPorOperacao, registrarPendenciaEntrega } from '@/lib/actions/logistica'
 import { formatCurrency, formatCNPJ, formatDate } from '@/lib/utils'
 import Link from 'next/link'
 import {
@@ -20,6 +21,7 @@ import {
   Calculator,
   Loader2,
   Send,
+  Truck,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -47,6 +49,8 @@ interface OperacaoDetalhe {
   valor_liquido_desembolso: number
   data_vencimento: string
   status: string
+  aceite_sacado_exigido: boolean | null
+  aceite_sacado_status: string | null
   motivo_reprovacao: string | null
   aprovado_em: string | null
   created_at: string
@@ -88,6 +92,30 @@ interface TaxaConfig {
   taxa_percentual: number
 }
 
+interface LogisticaDocumento {
+  id: string
+  status: string
+  documento_versao_atual_id: string | null
+  motivo_rejeicao?: string | null
+}
+
+interface LogisticaCteLink {
+  ctes: LogisticaDocumento | null
+}
+
+interface LogisticaEntrega {
+  id: string
+  nota_fiscal_id: string
+  status_entrega: string
+  data_limite_cte: string | null
+  data_limite_canhoto: string | null
+  data_entrega: string | null
+  motivo_pendencia: string | null
+  notas_fiscais: { numero_nf: string; valor_bruto: number } | null
+  canhotos: LogisticaDocumento[]
+  cte_notas_fiscais: LogisticaCteLink[]
+}
+
 type BadgeVariant = 'default' | 'secondary' | 'destructive' | 'outline' | 'ghost' | 'link'
 
 const statusConfig: Record<string, { label: string; variant: BadgeVariant; className: string; icon: typeof CheckCircle }> = {
@@ -99,6 +127,167 @@ const statusConfig: Record<string, { label: string; variant: BadgeVariant; class
   inadimplente: { label: 'Inadimplente', variant: 'destructive', className: '', icon: AlertCircle },
   reprovada: { label: 'Reprovada', variant: 'destructive', className: '', icon: XCircle },
   cancelada: { label: 'Cancelada', variant: 'outline', className: 'text-muted-foreground', icon: XCircle },
+}
+
+const entregaStatusConfig: Record<string, { label: string; className: string }> = {
+  nao_aplicavel: { label: 'Nao aplicavel', className: 'bg-muted text-muted-foreground' },
+  em_transito: { label: 'Em transito', className: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' },
+  aguardando_validacao: { label: 'Aguard. validacao', className: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300' },
+  entregue: { label: 'Entregue', className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' },
+  entrega_com_pendencia: { label: 'Com pendencia', className: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' },
+  devolvida: { label: 'Devolvida', className: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300' },
+  cancelada: { label: 'Cancelada', className: 'bg-muted text-muted-foreground' },
+}
+
+function DocumentoAnaliseActions({
+  tipo,
+  documento,
+  onReload,
+  setMessage,
+  setMessageType,
+}: {
+  tipo: 'cte' | 'canhoto'
+  documento: LogisticaDocumento
+  onReload: () => Promise<void>
+  setMessage: (message: string) => void
+  setMessageType: (type: 'success' | 'error') => void
+}) {
+  const [processing, setProcessing] = useState(false)
+
+  const baixar = async () => {
+    const result = await baixarVersaoLogistica(documento.documento_versao_atual_id || '')
+    if (result?.success && result.url) window.open(result.url, '_blank', 'noopener,noreferrer')
+    else {
+      setMessage(result?.message || 'Nao foi possivel baixar o documento.')
+      setMessageType('error')
+    }
+  }
+
+  const analisar = async (resultado: 'aprovado' | 'rejeitado') => {
+    if (!documento.documento_versao_atual_id) return
+    const motivo = resultado === 'rejeitado' ? window.prompt('Informe o motivo da rejeicao') : undefined
+    if (resultado === 'rejeitado' && !motivo?.trim()) return
+    setProcessing(true)
+    const result = tipo === 'cte'
+      ? await analisarCte(documento.id, documento.documento_versao_atual_id, resultado, motivo || undefined)
+      : await analisarCanhoto(documento.id, documento.documento_versao_atual_id, resultado, motivo || undefined)
+    setProcessing(false)
+    setMessage(result?.message || '')
+    setMessageType(result?.success ? 'success' : 'error')
+    if (result?.success) await onReload()
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <Button type="button" size="sm" variant="outline" onClick={baixar}>
+        Ver
+      </Button>
+      {documento.status === 'em_analise' && (
+        <>
+          <Button type="button" size="sm" onClick={() => analisar('aprovado')} disabled={processing}>
+            {processing ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
+            Aprovar
+          </Button>
+          <Button type="button" size="sm" variant="destructive" onClick={() => analisar('rejeitado')} disabled={processing}>
+            Rejeitar
+          </Button>
+        </>
+      )}
+    </div>
+  )
+}
+
+function AcompanhamentoLogisticoCard({
+  entregas,
+  onReload,
+  setMessage,
+  setMessageType,
+}: {
+  entregas: LogisticaEntrega[]
+  onReload: () => Promise<void>
+  setMessage: (message: string) => void
+  setMessageType: (type: 'success' | 'error') => void
+}) {
+  const registrarPendencia = async (entregaId: string) => {
+    const motivo = window.prompt('Descreva a pendencia da entrega')
+    if (!motivo?.trim()) return
+    const result = await registrarPendenciaEntrega(entregaId, motivo)
+    setMessage(result?.message || '')
+    setMessageType(result?.success ? 'success' : 'error')
+    if (result?.success) await onReload()
+  }
+
+  if (entregas.length === 0) return null
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base flex items-center gap-2">
+          <Truck size={18} />
+          Acompanhamento logistico
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="pt-0 space-y-3">
+        {entregas.map((entrega) => {
+          const status = entregaStatusConfig[entrega.status_entrega] || entregaStatusConfig.em_transito
+          const ctes = entrega.cte_notas_fiscais.map((link) => link.ctes).filter(Boolean) as LogisticaDocumento[]
+          return (
+            <div key={entrega.id} className="rounded-xl border bg-muted/20 p-4 space-y-3">
+              <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                <div>
+                  <p className="font-semibold">NF {entrega.notas_fiscais?.numero_nf || entrega.nota_fiscal_id.slice(0, 8)}</p>
+                  <p className="text-xs text-muted-foreground">
+                    CT-e ate {entrega.data_limite_cte ? formatDate(entrega.data_limite_cte) : 'sem prazo'} · Canhoto ate {entrega.data_limite_canhoto ? formatDate(entrega.data_limite_canhoto) : 'sem prazo'}
+                  </p>
+                  {entrega.motivo_pendencia && <p className="text-xs text-destructive mt-1">{entrega.motivo_pendencia}</p>}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${status.className}`}>{status.label}</span>
+                  <Button type="button" size="sm" variant="outline" onClick={() => registrarPendencia(entrega.id)}>
+                    Pendencia
+                  </Button>
+                </div>
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="rounded-lg bg-background/60 border p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">CT-e</p>
+                  {ctes.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Nenhum CT-e enviado.</p>
+                  ) : ctes.map((cte) => (
+                    <div key={cte.id} className="flex flex-col gap-2 border-t first:border-t-0 py-2 first:pt-0 last:pb-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-medium">CT-e {cte.id.slice(0, 8)}</span>
+                        <Badge variant={cte.status === 'rejeitado' ? 'destructive' : 'secondary'}>{cte.status}</Badge>
+                      </div>
+                      {cte.motivo_rejeicao && <p className="text-xs text-destructive">{cte.motivo_rejeicao}</p>}
+                      <DocumentoAnaliseActions tipo="cte" documento={cte} onReload={onReload} setMessage={setMessage} setMessageType={setMessageType} />
+                    </div>
+                  ))}
+                </div>
+
+                <div className="rounded-lg bg-background/60 border p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Canhoto</p>
+                  {entrega.canhotos.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Nenhum canhoto enviado.</p>
+                  ) : entrega.canhotos.map((canhoto) => (
+                    <div key={canhoto.id} className="flex flex-col gap-2 border-t first:border-t-0 py-2 first:pt-0 last:pb-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-medium">Canhoto {canhoto.id.slice(0, 8)}</span>
+                        <Badge variant={canhoto.status === 'rejeitado' ? 'destructive' : 'secondary'}>{canhoto.status}</Badge>
+                      </div>
+                      {canhoto.motivo_rejeicao && <p className="text-xs text-destructive">{canhoto.motivo_rejeicao}</p>}
+                      <DocumentoAnaliseActions tipo="canhoto" documento={canhoto} onReload={onReload} setMessage={setMessage} setMessageType={setMessageType} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </CardContent>
+    </Card>
+  )
 }
 
 function PageSkeleton() {
@@ -161,6 +350,7 @@ export default function OperacaoDetalheGestorPage() {
 
   const [op, setOp] = useState<OperacaoDetalhe | null>(null)
   const [nfs, setNfs] = useState<NfDaOperacao[]>([])
+  const [entregas, setEntregas] = useState<LogisticaEntrega[]>([])
   const [taxasConfig, setTaxasConfig] = useState<TaxaConfig[]>([])
   const [loading, setLoading] = useState(true)
   const [processing, setProcessing] = useState(false)
@@ -191,6 +381,11 @@ export default function OperacaoDetalheGestorPage() {
   const [remessaEnviadaEm, setRemessaEnviadaEm] = useState<string | null>(null)
   const [remessaFromtisId, setRemessaFromtisId] = useState<string | null>(null)
   const [desembolsando, setDesembolsando] = useState(false)
+
+  const carregarLogistica = useCallback(async () => {
+    const data = await carregarResumoEntregaPorOperacao(opId)
+    setEntregas(data as unknown as LogisticaEntrega[])
+  }, [opId])
 
   useEffect(() => {
     const load = async () => {
@@ -247,12 +442,13 @@ export default function OperacaoDetalheGestorPage() {
           .order('prazo_min', { ascending: true })
 
         setTaxasConfig((taxas || []) as TaxaConfig[])
+        await carregarLogistica()
       }
 
       setLoading(false)
     }
     load()
-  }, [opId])
+  }, [opId, carregarLogistica])
 
   useEffect(() => {
     if (op && taxa >= 0 && nfs.length > 0) {
@@ -448,7 +644,8 @@ export default function OperacaoDetalheGestorPage() {
   const canAnalyze = op.status === 'solicitada' || op.status === 'em_analise'
   const canDisburse = op.status === 'aprovada'
   const canRemoveNf = ['solicitada', 'em_analise'].includes(op.status)
-  const todasAceitas = nfs.length > 0 && nfs.every((nf) => nf.status === 'aceita')
+  const aceiteDispensado = op.aceite_sacado_exigido === false || op.aceite_sacado_status === 'dispensado'
+  const todasAceitas = aceiteDispensado || (nfs.length > 0 && nfs.every((nf) => nf.status === 'aceita'))
 
   // Seção de documentos visível para aprovada, em_andamento, liquidada, inadimplente
   const showDocs = ['aprovada', 'em_andamento', 'liquidada', 'inadimplente'].includes(op.status)
@@ -471,6 +668,11 @@ export default function OperacaoDetalheGestorPage() {
                 {status.label}
               </Badge>
               <span className="text-sm text-muted-foreground">| {op.cedentes.razao_social} ({formatCNPJ(op.cedentes.cnpj)})</span>
+              <Badge variant="outline" className="ml-2">
+                {op.aceite_sacado_exigido === false || op.aceite_sacado_status === 'dispensado'
+                  ? 'Aceite do sacado: dispensado pela política'
+                  : `Aceite do sacado: ${op.aceite_sacado_status || 'pendente'}`}
+              </Badge>
             </div>
           </div>
         </div>
@@ -595,6 +797,13 @@ export default function OperacaoDetalheGestorPage() {
               </div>
             )}
           </Card>
+
+          <AcompanhamentoLogisticoCard
+            entregas={entregas}
+            onReload={carregarLogistica}
+            setMessage={setMessage}
+            setMessageType={setMessageType}
+          />
         </div>
 
         {/* Sidebar */}

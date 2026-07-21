@@ -7,6 +7,7 @@ import { criarNotificacao, notificarCedente, notificarGestores } from './notific
 import { criarSnapshotPolitica, resolverPoliticaAtiva, statusAceiteInicial } from '@/lib/operacoes/politica'
 import { CedenteFundoError } from '@/lib/fundos/cedente-fundo'
 import { verificarElegibilidadeDocumental } from '@/lib/actions/documento-v2'
+import { validarElegibilidadeAprovacao, validarElegibilidadeSolicitacao } from '@/lib/operacoes/elegibilidade'
 
 export type OperacaoActionState = {
   success?: boolean
@@ -51,7 +52,8 @@ export async function solicitarAntecipacao(nfIds: string[]): Promise<OperacaoAct
   }
   const politicaSnapshot = criarSnapshotPolitica(politicaContexto)
   const contextoCapturadoEm = new Date().toISOString()
-  const aceiteSacadoStatus = statusAceiteInicial(politicaContexto.versao.aceite_sacado_obrigatorio)
+  const aceiteSacadoExigido = politicaContexto.versao.aceite_sacado_obrigatorio
+  const aceiteSacadoStatus = statusAceiteInicial(aceiteSacadoExigido)
 
   // Buscar conta escrow
   const { data: escrow } = await supabase
@@ -100,6 +102,14 @@ export async function solicitarAntecipacao(nfIds: string[]): Promise<OperacaoAct
       message: inelegiveis.map(({ nf, resultado }) => `NF ${nf.numero_nf}: ${resultado.motivos.join(', ')}`).join(' | '),
     }
   }
+
+  const solicitacaoGate = validarElegibilidadeSolicitacao({
+    snapshot: politicaSnapshot.snapshot as unknown as Record<string, unknown>,
+    politicaOperacionalVersaoId: politicaContexto.versao.id,
+    aceiteSacadoObrigatorio: aceiteSacadoExigido,
+    quantidadeNfs: nfsTyped.length,
+  })
+  if (!solicitacaoGate.elegivel) return { success: false, message: solicitacaoGate.bloqueios.join(' ') }
 
   const hoje = new Date()
 
@@ -157,9 +167,9 @@ export async function solicitarAntecipacao(nfIds: string[]): Promise<OperacaoAct
       politica_snapshot_hash: politicaSnapshot.hash,
       contexto_configuracao_status: 'completo',
       contexto_capturado_em: contextoCapturadoEm,
-      aceite_sacado_exigido: politicaContexto.versao.aceite_sacado_obrigatorio,
+      aceite_sacado_exigido: aceiteSacadoExigido,
       aceite_sacado_status: aceiteSacadoStatus,
-      aceite_sacado_em: null,
+      aceite_sacado_em: aceiteSacadoExigido ? null : contextoCapturadoEm,
       cessao_efetivada_em: null,
     } as never)
     .select('id')
@@ -186,12 +196,36 @@ export async function solicitarAntecipacao(nfIds: string[]): Promise<OperacaoAct
     .update({ status: 'em_antecipacao' } as never)
     .in('id', nfIds)
 
-  // Notificar gestores
-  await notificarGestores(
-    'Nova solicitacao de antecipacao',
-    `O cedente ${ced.razao_social} solicitou antecipacao de ${nfsTyped.length} NF(s), valor bruto total ${formatBRL(valorBrutoTotal)}.`,
-    'operacao_solicitada'
-  )
+  const mensagemSolicitacao = `O cedente ${ced.razao_social} solicitou antecipacao de ${nfsTyped.length} NF(s), valor bruto total ${formatBRL(valorBrutoTotal)}.`
+  if (aceiteSacadoExigido) {
+    await notificarGestores('Nova solicitacao de antecipacao', mensagemSolicitacao, 'operacao_solicitada', `operacao:${opData.id}:solicitada`)
+  } else {
+    await notificarGestores(
+      'Nova operação disponível para análise',
+      `${mensagemSolicitacao} O aceite do sacado foi dispensado pela política registrada no snapshot.`,
+      'operacao_disponivel_analise',
+      `operacao:${opData.id}:encaminhada_gestor`,
+    )
+    await notificarCedente(
+      ced.id,
+      'Operação solicitada e encaminhada à gestora',
+      `A operação foi criada e encaminhada para análise da gestora. O aceite do sacado foi dispensado pela política da operação.`,
+      'operacao_encaminhada_gestor',
+      `operacao:${opData.id}:encaminhada_cedente`,
+    )
+    await registrarLog({
+      tipo_evento: 'ACEITE_SACADO_DISPENSADO',
+      entidade_tipo: 'operacoes',
+      entidade_id: opData.id,
+      dados_depois: { aceite_sacado_exigido: false, aceite_sacado_status: 'dispensado', politica_snapshot_hash: politicaSnapshot.hash },
+    })
+    await registrarLog({
+      tipo_evento: 'OPERACAO_ENCAMINHADA_GESTOR',
+      entidade_tipo: 'operacoes',
+      entidade_id: opData.id,
+      dados_depois: { status: 'solicitada', aceite_sacado_status: 'dispensado' },
+    })
+  }
 
   await registrarLog({
     tipo_evento: 'OPERACAO_SOLICITADA',
@@ -207,7 +241,9 @@ export async function solicitarAntecipacao(nfIds: string[]): Promise<OperacaoAct
 
   return {
     success: true,
-    message: taxaMedia > 0
+    message: !aceiteSacadoExigido
+      ? 'Solicitacao criada e encaminhada para analise da gestora.'
+      : taxaMedia > 0
       ? `Solicitacao criada! Valor liquido estimado: ${formatBRL(valorLiquidoDesembolso)}.`
       : 'Solicitacao criada! O gestor definira a taxa e valor liquido.',
     data: { operacaoId: opData.id },
@@ -274,14 +310,11 @@ export async function aprovarOperacao(
       cnpj_destinatario: string; razao_social_destinatario: string
     }>
 
-  // O roteamento historico do aceite por NF permanece nesta fase.
-  const pendentes = nfsTyped.filter((n) => n.status !== 'aceita').map((n) => n.numero_nf)
-  if (pendentes.length > 0) {
-    return {
-      success: false,
-      message: `As seguintes NFs ainda nao foram aceitas pelo sacado: ${pendentes.join(', ')}`,
-    }
-  }
+  const gate = await validarElegibilidadeAprovacao(supabase, operacaoId, {
+    taxaDesconto,
+    valorLiquidoDesembolso,
+  })
+  if (!gate.elegivel) return { success: false, message: gate.bloqueios.join(' ') }
 
   // Calcular prazo medio ponderado a partir dos vencimentos individuais (referencia)
   const hoje = new Date()
@@ -411,36 +444,10 @@ export async function desembolsarOperacao(operacaoId: string): Promise<OperacaoA
     return { success: false, message: 'Envie o comprovante de desembolso (TED) antes de confirmar.' }
   }
 
-  const { error } = await supabase
-    .from('operacoes')
-    .update({ status: 'em_andamento' } as never)
-    .eq('id', operacaoId)
-
+  const { data: desembolso, error } = await supabase.rpc('desembolsar_operacao_com_logistica', {
+    p_operacao_id: operacaoId,
+  })
   if (error) return { success: false, message: `Erro ao desembolsar: ${error.message}` }
-
-  // Creditar conta escrow
-  const { data: escrow } = await supabase
-    .from('contas_escrow')
-    .select('saldo_disponivel')
-    .eq('id', opData.conta_escrow_id)
-    .single()
-
-  const saldoAtual = (escrow as { saldo_disponivel: number } | null)?.saldo_disponivel || 0
-  const novoSaldo = saldoAtual + opData.valor_liquido_desembolso
-
-  await supabase
-    .from('contas_escrow')
-    .update({ saldo_disponivel: novoSaldo } as never)
-    .eq('id', opData.conta_escrow_id)
-
-  await supabase.from('movimentos_escrow').insert({
-    conta_escrow_id: opData.conta_escrow_id,
-    tipo: 'credito',
-    descricao: `Desembolso antecipacao - Operacao ${operacaoId.substring(0, 8)}`,
-    valor: opData.valor_liquido_desembolso,
-    saldo_apos: novoSaldo,
-    operacao_id: operacaoId,
-  } as never)
 
   await notificarCedente(
     opData.cedente_id,
@@ -457,6 +464,7 @@ export async function desembolsarOperacao(operacaoId: string): Promise<OperacaoA
     dados_depois: {
       status: 'em_andamento',
       valor_liquido_desembolso: opData.valor_liquido_desembolso,
+      logistica: desembolso,
     },
   })
 
