@@ -1050,6 +1050,9 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
               label="Contrato Assinado"
               storagePath={cedente.contrato_assinado_url}
               uploadPath={`cedentes/${cedente.id}/contrato-cessao-assinado.pdf`}
+              tipoEntidade="cedente"
+              entidadeId={cedente.id}
+              tipoDocumento="contrato_assinado"
               onSuccess={async (path) => {
                 await salvarContratoAssinado(cedente.id, path)
                 await loadData()

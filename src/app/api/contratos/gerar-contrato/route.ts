@@ -1,20 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { gerarContratoCessao } from '@/lib/pdf/gerarContrato'
-import { createClient } from '@/lib/supabase/server'
+import { AuthorizationError, requireGestor } from '@/lib/auth/authorization'
 
 export const maxDuration = 60
 
 export async function POST(req: NextRequest) {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Nao autorizado' }, { status: 401 })
-
-    // Verificar role gestor
-    const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-    if (!profile || (profile as { role: string }).role !== 'gestor') {
-      return NextResponse.json({ error: 'Acesso negado' }, { status: 403 })
-    }
+    await requireGestor()
 
     const { cedente_id } = await req.json()
     if (!cedente_id) return NextResponse.json({ error: 'cedente_id obrigatorio' }, { status: 400 })
@@ -22,6 +14,9 @@ export async function POST(req: NextRequest) {
     const { url, path } = await gerarContratoCessao(cedente_id)
     return NextResponse.json({ url, path, sucesso: true })
   } catch (error: unknown) {
+    if (error instanceof AuthorizationError) {
+      return NextResponse.json({ error: error.message }, { status: error.status })
+    }
     const message = error instanceof Error ? error.message : 'Erro desconhecido'
     console.error('[api/contratos/gerar-contrato]', message)
     return NextResponse.json({ error: message }, { status: 500 })

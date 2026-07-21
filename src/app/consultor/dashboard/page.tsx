@@ -66,7 +66,7 @@ export default function ConsultorDashboard() {
       const supabase = createClient()
 
       const [carteiraRes, opsRes] = await Promise.all([
-        supabase.from('consultor_cedentes')
+        supabase.from('consultor_cedente')
           .select('cedente_id, comissao_percentual, cedentes(razao_social, cnpj, status)'),
         supabase.from('operacoes')
           .select('id, valor_bruto_total, valor_liquido_desembolso, taxa_desconto, status, created_at, cedentes(razao_social)')

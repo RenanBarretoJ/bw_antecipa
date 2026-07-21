@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { requireAuthenticated } from '@/lib/auth/authorization'
 import { registrarLog } from './auditoria'
 
 export type EscrowActionState = {
@@ -22,6 +23,7 @@ export async function registrarMovimentoEscrow({
   valor: number
   operacao_id?: string | null
 }): Promise<EscrowActionState> {
+  await requireAuthenticated()
   const supabase = await createClient()
 
   if (valor <= 0) return { success: false, message: 'Valor deve ser positivo.' }
@@ -89,6 +91,7 @@ export async function registrarMovimentosLote(
     referencia_externa?: string
   }>
 ): Promise<EscrowActionState> {
+  await requireAuthenticated()
   const supabase = await createClient()
 
   const { data: conta } = await supabase

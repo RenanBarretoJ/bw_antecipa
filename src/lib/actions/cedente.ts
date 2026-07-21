@@ -1,6 +1,8 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { DOCUMENT_TYPES, type DocumentoTipo } from '@/lib/types/domain'
+import { requireAuthenticated, requireGestor } from '@/lib/auth/authorization'
 import { cedenteSchema, type CedenteFormData } from '@/lib/validations/cedente'
 import { registrarLog } from './auditoria'
 import { notificarGestores } from './notificacao'
@@ -26,6 +28,7 @@ export type CedenteActionState = {
 } | undefined
 
 export async function cadastrarCedente(data: CedenteFormData): Promise<CedenteActionState> {
+  await requireAuthenticated()
   const validated = cedenteSchema.safeParse(data)
 
   if (!validated.success) {
@@ -101,6 +104,7 @@ export async function cadastrarCedente(data: CedenteFormData): Promise<CedenteAc
 }
 
 export async function uploadDocumento(formData: FormData): Promise<CedenteActionState> {
+  await requireAuthenticated()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -130,6 +134,11 @@ export async function uploadDocumento(formData: FormData): Promise<CedenteAction
     return { success: false, message: 'Arquivo e tipo sao obrigatorios.' }
   }
 
+  if (!DOCUMENT_TYPES.includes(tipo as DocumentoTipo)) {
+    return { success: false, message: 'Tipo de documento invalido.' }
+  }
+  const tipoDocumento = tipo as DocumentoTipo
+
   const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png']
   if (!allowedTypes.includes(file.type)) {
     return { success: false, message: 'Formato invalido. Aceitos: PDF, JPG, PNG.' }
@@ -144,7 +153,7 @@ export async function uploadDocumento(formData: FormData): Promise<CedenteAction
     .from('documentos')
     .select('versao')
     .eq('cedente_id', cedenteData.id)
-    .eq('tipo', tipo)
+    .eq('tipo', tipoDocumento)
     .order('versao', { ascending: false })
     .limit(1)
 
@@ -206,6 +215,7 @@ export async function uploadDocumento(formData: FormData): Promise<CedenteAction
 }
 
 export async function reenviarDocumento(documentoId: string, formData: FormData): Promise<CedenteActionState> {
+  await requireAuthenticated()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -237,6 +247,7 @@ export async function reenviarDocumento(documentoId: string, formData: FormData)
 export async function solicitarAlteracaoCedente(
   dados: Partial<CedenteFormData>
 ): Promise<CedenteActionState> {
+  await requireAuthenticated()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, message: 'Usuario nao autenticado.' }
@@ -308,6 +319,7 @@ export async function salvarContratoAssinado(
   cedenteId: string,
   path: string
 ): Promise<{ success: boolean; message: string }> {
+  await requireGestor()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, message: 'Nao autenticado.' }

@@ -149,7 +149,12 @@ export default function OperacoesCedentePage() {
     if (!op.quitacao_assinada_url) return
     setBaixandoQuitacao(op.id)
     try {
-      const res = await fetch(`/api/contratos/download?path=${encodeURIComponent(op.quitacao_assinada_url)}`)
+      const params = new URLSearchParams({
+        tipo_entidade: 'operacao',
+        entidade_id: op.id,
+        tipo_documento: 'quitacao_assinada',
+      })
+      const res = await fetch(`/api/contratos/download?${params.toString()}`)
       const data = await res.json()
       if (data.url) window.open(data.url, '_blank')
       else setMessage('Erro ao obter link do termo de quitacao.')

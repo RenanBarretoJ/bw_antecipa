@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { requireAuthenticated, requireGestor } from '@/lib/auth/authorization'
 import { notaFiscalSchema, type NotaFiscalFormData } from '@/lib/validations/nf'
 import { parseNFeXML } from '@/lib/nf-parser'
 import { extractDanfeFromPdf, type NfPdfExtracted } from '@/lib/pdf-nf-parser'
@@ -179,6 +180,7 @@ async function processarArquivo(
 
 // Upload multiplo de arquivos de NF (XML ou PDF) — processa em paralelo
 export async function uploadNFs(formData: FormData): Promise<NfActionState> {
+  await requireAuthenticated()
   const supabase = await createClient()
   const cedente = await getCedenteDoUsuario()
 
@@ -234,6 +236,7 @@ export async function uploadNFs(formData: FormData): Promise<NfActionState> {
 
 // Criar NF a partir de PDF/imagem com dados preenchidos manualmente pelo cedente
 export async function criarNFManual(formData: FormData): Promise<NfActionState> {
+  await requireAuthenticated()
   const supabase = await createClient()
   const cedente = await getCedenteDoUsuario()
 
@@ -336,6 +339,7 @@ export async function criarNFManual(formData: FormData): Promise<NfActionState> 
 
 // Salvar/atualizar dados de NF rascunho (preenchimento manual para PDF)
 export async function salvarDadosNF(nfId: string, data: NotaFiscalFormData): Promise<NfActionState> {
+  await requireAuthenticated()
   const supabase = await createClient()
   const cedente = await getCedenteDoUsuario()
 
@@ -408,6 +412,7 @@ export async function salvarDadosNF(nfId: string, data: NotaFiscalFormData): Pro
 
 // Submeter NF rascunho para analise
 export async function submeterNF(nfId: string): Promise<NfActionState> {
+  await requireAuthenticated()
   const supabase = await createClient()
   const cedente = await getCedenteDoUsuario()
 
@@ -462,6 +467,7 @@ export async function submeterNF(nfId: string): Promise<NfActionState> {
 
 // Cedente: excluir rascunho
 export async function excluirRascunho(nfId: string): Promise<NfActionState> {
+  await requireAuthenticated()
   const supabase = await createClient()
   const cedente = await getCedenteDoUsuario()
 
@@ -505,6 +511,7 @@ export async function excluirRascunho(nfId: string): Promise<NfActionState> {
 export async function excluirRascunhos(nfIds: string[]): Promise<NfActionState> {
   if (!nfIds.length) return { success: false, message: 'Nenhuma NF selecionada.' }
 
+  await requireAuthenticated()
   const supabase = await createClient()
   const cedente = await getCedenteDoUsuario()
 
@@ -545,6 +552,7 @@ export async function excluirRascunhos(nfIds: string[]): Promise<NfActionState> 
 
 // Gestor: aprovar NF
 export async function aprovarNF(nfId: string): Promise<NfActionState> {
+  await requireGestor()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, message: 'Nao autenticado.' }
@@ -600,6 +608,7 @@ export async function aprovarNF(nfId: string): Promise<NfActionState> {
 
 // Gestor: reprovar NF
 export async function reprovarNF(nfId: string, motivo: string): Promise<NfActionState> {
+  await requireGestor()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, message: 'Nao autenticado.' }
@@ -649,6 +658,7 @@ export async function reprovarNF(nfId: string, motivo: string): Promise<NfAction
 
 // Cedente: resubmeter NF que foi devolvida para ajuste
 export async function resubmeterNFAjustada(nfId: string): Promise<NfActionState> {
+  await requireAuthenticated()
   const supabase = await createClient()
   const cedente = await getCedenteDoUsuario()
 
@@ -699,6 +709,7 @@ export async function resubmeterNFAjustada(nfId: string): Promise<NfActionState>
 
 // Gestor: solicitar ajuste na NF (devolve ao cedente para correcao)
 export async function solicitarAjusteNF(nfId: string, motivo: string): Promise<NfActionState> {
+  await requireGestor()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, message: 'Nao autenticado.' }
@@ -759,6 +770,7 @@ export async function solicitarAjusteNF(nfId: string, motivo: string): Promise<N
 export async function aprovarNFsLote(ids: string[]): Promise<NfActionState> {
   if (!ids.length) return { success: false, message: 'Nenhuma NF selecionada.' }
 
+  await requireGestor()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, message: 'Nao autenticado.' }
@@ -818,6 +830,7 @@ export async function reprovarNFsLote(ids: string[], motivo: string): Promise<Nf
   if (!ids.length) return { success: false, message: 'Nenhuma NF selecionada.' }
   if (!motivo.trim()) return { success: false, message: 'Motivo obrigatorio.' }
 
+  await requireGestor()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, message: 'Nao autenticado.' }

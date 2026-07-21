@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { requireRole } from '@/lib/auth/authorization'
 import { registrarLog } from './auditoria'
 import { criarNotificacao, notificarGestores } from './notificacao'
 
@@ -26,6 +27,7 @@ async function getSacadoDoUsuario() {
 
 // Aprovar cessao de NF
 export async function aprovarCessao(nfId: string): Promise<SacadoActionState> {
+  await requireRole('sacado')
   const supabase = await createClient()
   const sacado = await getSacadoDoUsuario()
   if (!sacado) return { success: false, message: 'Sacado nao encontrado.' }
@@ -91,6 +93,7 @@ export async function aprovarCessao(nfId: string): Promise<SacadoActionState> {
 
 // Aprovar cessao de multiplas NFs em lote
 export async function aprovarCessaoLote(nfIds: string[]): Promise<SacadoActionState & { aprovadas?: number; invalidas?: number }> {
+  await requireRole('sacado')
   const supabase = await createClient()
   const sacado = await getSacadoDoUsuario()
   if (!sacado) return { success: false, message: 'Sacado nao encontrado.' }
@@ -174,6 +177,7 @@ export async function aprovarCessaoLote(nfIds: string[]): Promise<SacadoActionSt
 
 // Contestar cessao de NF
 export async function contestarCessao(nfId: string, motivo: string): Promise<SacadoActionState> {
+  await requireRole('sacado')
   const supabase = await createClient()
   const sacado = await getSacadoDoUsuario()
   if (!sacado) return { success: false, message: 'Sacado nao encontrado.' }
@@ -241,6 +245,7 @@ export async function contestarCessao(nfId: string, motivo: string): Promise<Sac
 
 // Registrar confirmacao de pagamento (sacado informa que pagou)
 export async function confirmarPagamento(operacaoId: string, comprovante?: string): Promise<SacadoActionState> {
+  await requireRole('sacado')
   const supabase = await createClient()
   const sacado = await getSacadoDoUsuario()
   if (!sacado) return { success: false, message: 'Sacado nao encontrado.' }

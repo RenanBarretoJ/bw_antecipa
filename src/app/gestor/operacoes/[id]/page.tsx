@@ -849,6 +849,9 @@ export default function OperacaoDetalheGestorPage() {
                       label="Termo de Cessao Assinado"
                       storagePath={termoAssinadoUrl}
                       uploadPath={`operacoes/${op.id}/termo-cessao-assinado.pdf`}
+                      tipoEntidade="operacao"
+                      entidadeId={op.id}
+                      tipoDocumento="termo_assinado"
                       onSuccess={async (path) => {
                         await salvarTermoAssinado(op.id, path)
                         setTermoAssinadoUrl(path)
@@ -858,6 +861,9 @@ export default function OperacaoDetalheGestorPage() {
                       label="Notificacao ao Sacado Assinada"
                       storagePath={notificacaoAssinadaUrl}
                       uploadPath={`operacoes/${op.id}/notificacao-cessao-assinada.pdf`}
+                      tipoEntidade="operacao"
+                      entidadeId={op.id}
+                      tipoDocumento="notificacao_assinada"
                       onSuccess={async (path) => {
                         await salvarNotificacaoAssinada(op.id, path)
                         setNotificacaoAssinadaUrl(path)
@@ -867,6 +873,9 @@ export default function OperacaoDetalheGestorPage() {
                       label="Comprovante de Desembolso (TED)"
                       storagePath={comprovanteUrl}
                       uploadPath={`operacoes/${op.id}/comprovante-pagamento.pdf`}
+                      tipoEntidade="operacao"
+                      entidadeId={op.id}
+                      tipoDocumento="comprovante_pagamento"
                       accept="application/pdf,image/jpeg,image/png"
                       onSuccess={async (path) => {
                         await salvarComprovantePagamento(op.id, path)
@@ -1017,6 +1026,9 @@ export default function OperacaoDetalheGestorPage() {
                         label="Termo de Cessao Assinado"
                         storagePath={termoAssinadoUrl}
                         uploadPath={`operacoes/${op.id}/termo-cessao-assinado.pdf`}
+                        tipoEntidade="operacao"
+                        entidadeId={op.id}
+                        tipoDocumento="termo_assinado"
                         onSuccess={async (path) => {
                           await salvarTermoAssinado(op.id, path)
                           setTermoAssinadoUrl(path)
@@ -1026,6 +1038,9 @@ export default function OperacaoDetalheGestorPage() {
                         label="Notificacao ao Sacado Assinada"
                         storagePath={notificacaoAssinadaUrl}
                         uploadPath={`operacoes/${op.id}/notificacao-cessao-assinada.pdf`}
+                        tipoEntidade="operacao"
+                        entidadeId={op.id}
+                        tipoDocumento="notificacao_assinada"
                         onSuccess={async (path) => {
                           await salvarNotificacaoAssinada(op.id, path)
                           setNotificacaoAssinadaUrl(path)
@@ -1035,6 +1050,9 @@ export default function OperacaoDetalheGestorPage() {
                         label="Comprovante de Pagamento"
                         storagePath={comprovanteUrl}
                         uploadPath={`operacoes/${op.id}/comprovante-pagamento.pdf`}
+                        tipoEntidade="operacao"
+                        entidadeId={op.id}
+                        tipoDocumento="comprovante_pagamento"
                         accept="application/pdf,image/jpeg,image/png"
                         onSuccess={async (path) => {
                           await salvarComprovantePagamento(op.id, path)
@@ -1046,6 +1064,9 @@ export default function OperacaoDetalheGestorPage() {
                           label="Termo de Quitacao Assinado"
                           storagePath={quitacaoAssinadaUrl}
                           uploadPath={`operacoes/${op.id}/termo-quitacao-assinado.pdf`}
+                          tipoEntidade="operacao"
+                          entidadeId={op.id}
+                          tipoDocumento="quitacao_assinada"
                           onSuccess={async (path) => {
                             await salvarQuitacaoAssinada(op.id, path)
                             setQuitacaoAssinadaUrl(path)

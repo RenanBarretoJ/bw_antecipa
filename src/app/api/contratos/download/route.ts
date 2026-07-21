@@ -1,28 +1,94 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { requireCedenteAccess, requireOperationAccess, AuthorizationError } from '@/lib/auth/authorization'
+import { createAdminClient } from '@/lib/supabase/server'
 import { buckets } from '@/lib/storage'
+import type { ContratoDocumentType, ContratoEntityType } from '@/lib/types/domain'
 
-// Gera signed URL para download de PDF do bucket privado 'contratos'
-// GET /api/contratos/download?path=cedentes/xxx/contrato-cessao.pdf
+const CEDENTE_DOCUMENT_FIELDS: Partial<Record<ContratoDocumentType, 'contrato_url' | 'contrato_assinado_url'>> = {
+  contrato: 'contrato_url',
+  contrato_assinado: 'contrato_assinado_url',
+}
+
+const OPERACAO_DOCUMENT_FIELDS: Partial<Record<ContratoDocumentType, 'termo_url' | 'termo_assinado_url' | 'notificacao_url' | 'notificacao_assinada_url' | 'comprovante_pagamento_url' | 'remessa_url' | 'quitacao_url' | 'quitacao_assinada_url'>> = {
+  termo: 'termo_url',
+  termo_assinado: 'termo_assinado_url',
+  notificacao: 'notificacao_url',
+  notificacao_assinada: 'notificacao_assinada_url',
+  comprovante_pagamento: 'comprovante_pagamento_url',
+  remessa: 'remessa_url',
+  quitacao: 'quitacao_url',
+  quitacao_assinada: 'quitacao_assinada_url',
+}
+
+function isEntityType(value: string | null): value is ContratoEntityType {
+  return value === 'cedente' || value === 'operacao'
+}
+
+function isDocumentType(value: string | null): value is ContratoDocumentType {
+  return value !== null && (
+    value === 'contrato' ||
+    value === 'contrato_assinado' ||
+    value === 'termo' ||
+    value === 'termo_assinado' ||
+    value === 'notificacao' ||
+    value === 'notificacao_assinada' ||
+    value === 'comprovante_pagamento' ||
+    value === 'remessa' ||
+    value === 'quitacao' ||
+    value === 'quitacao_assinada'
+  )
+}
+
+// Gera signed URL apenas para o path privado registrado na entidade.
+// GET /api/contratos/download?tipo_entidade=cedente&entidade_id=...&tipo_documento=contrato
 export async function GET(req: NextRequest) {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Nao autorizado' }, { status: 401 })
+    const tipoEntidade = req.nextUrl.searchParams.get('tipo_entidade')
+    const entidadeId = req.nextUrl.searchParams.get('entidade_id')
+    const tipoDocumento = req.nextUrl.searchParams.get('tipo_documento')
 
-    const filePath = req.nextUrl.searchParams.get('path')
-    if (!filePath) return NextResponse.json({ error: 'path obrigatorio' }, { status: 400 })
+    if (!isEntityType(tipoEntidade) || !entidadeId || !isDocumentType(tipoDocumento)) {
+      return NextResponse.json(
+        { error: 'tipo_entidade, entidade_id e tipo_documento sao obrigatorios.' },
+        { status: 400 },
+      )
+    }
 
-    // Usar service role para acessar bucket privado
-    const { createClient: createAdmin } = await import('@supabase/supabase-js')
-    const supabaseAdmin = createAdmin(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    )
+    let filePath: string | null = null
+
+    if (tipoEntidade === 'cedente') {
+      const field = CEDENTE_DOCUMENT_FIELDS[tipoDocumento]
+      if (!field) return NextResponse.json({ error: 'Documento nao pertence a um cedente.' }, { status: 400 })
+
+      const context = await requireCedenteAccess(entidadeId)
+      filePath = context.cedente[field]
+    } else {
+      const field = OPERACAO_DOCUMENT_FIELDS[tipoDocumento]
+      if (!field) return NextResponse.json({ error: 'Documento nao pertence a uma operacao.' }, { status: 400 })
+
+      const context = await requireOperationAccess(entidadeId)
+      const { data: operacao, error } = await context.supabase
+        .from('operacoes')
+        .select('termo_url, termo_assinado_url, notificacao_url, notificacao_assinada_url, comprovante_pagamento_url, remessa_url, quitacao_url, quitacao_assinada_url')
+        .eq('id', entidadeId)
+        .single()
+
+      if (error || !operacao) {
+        return NextResponse.json({ error: 'Operacao nao encontrada.' }, { status: 404 })
+      }
+
+      filePath = (operacao as Record<string, string | null>)[field] ?? null
+    }
+
+    if (!filePath) {
+      return NextResponse.json({ error: 'Documento nao encontrado ou nao registrado.' }, { status: 404 })
+    }
+
+    const supabaseAdmin = createAdminClient()
 
     const { data, error } = await supabaseAdmin.storage
       .from(buckets.contratos)
-      .createSignedUrl(filePath, 3600) // 1 hora
+      .createSignedUrl(filePath, 3600)
 
     if (error) {
       return NextResponse.json({ error: `Erro ao gerar URL: ${error.message}` }, { status: 500 })
@@ -30,6 +96,9 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ url: data.signedUrl })
   } catch (error: unknown) {
+    if (error instanceof AuthorizationError) {
+      return NextResponse.json({ error: error.message }, { status: error.status })
+    }
     const message = error instanceof Error ? error.message : 'Erro desconhecido'
     console.error('[api/contratos/download]', message)
     return NextResponse.json({ error: message }, { status: 500 })

@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { requireGestor } from '@/lib/auth/authorization'
 import { registrarLog } from './auditoria'
 import { notificarCedente } from './notificacao'
 
@@ -26,6 +27,7 @@ export async function analisarDocumento(
   decisao: 'aprovado' | 'reprovado',
   motivo?: string
 ): Promise<GestorActionState> {
+  await requireGestor()
   if (decisao === 'reprovado' && (!motivo || motivo.trim().length === 0)) {
     return { success: false, message: 'Motivo da reprovacao e obrigatorio.' }
   }
@@ -91,6 +93,7 @@ export async function analisarDocumento(
 }
 
 export async function aprovarCedente(cedenteId: string): Promise<GestorActionState> {
+  await requireGestor()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -206,6 +209,7 @@ export async function aprovarCedente(cedenteId: string): Promise<GestorActionSta
 }
 
 export async function reprovarCedente(cedenteId: string, motivo: string): Promise<GestorActionState> {
+  await requireGestor()
   if (!motivo || motivo.trim().length === 0) {
     return { success: false, message: 'Motivo da reprovacao e obrigatorio.' }
   }
@@ -257,6 +261,7 @@ export async function reprovarCedente(cedenteId: string, motivo: string): Promis
 }
 
 export async function toggleCoobrigacaoCedente(cedenteId: string, habilitar: boolean): Promise<GestorActionState> {
+  await requireGestor()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -297,6 +302,7 @@ export async function toggleCoobrigacaoCedente(cedenteId: string, habilitar: boo
 }
 
 export async function toggleEscrowCedente(cedenteId: string, habilitar: boolean): Promise<GestorActionState> {
+  await requireGestor()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -337,6 +343,7 @@ export async function toggleEscrowCedente(cedenteId: string, habilitar: boolean)
 }
 
 export async function aprovarAlteracaoCedente(solicitacaoId: string): Promise<GestorActionState> {
+  await requireGestor()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, message: 'Usuario nao autenticado.' }
@@ -420,6 +427,7 @@ export async function aprovarAlteracaoCedente(solicitacaoId: string): Promise<Ge
 }
 
 export async function reprovarAlteracaoCedente(solicitacaoId: string, motivo: string): Promise<GestorActionState> {
+  await requireGestor()
   if (!motivo || motivo.trim().length === 0) {
     return { success: false, message: 'Motivo da reprovacao e obrigatorio.' }
   }
@@ -461,6 +469,7 @@ export async function reprovarAlteracaoCedente(solicitacaoId: string, motivo: st
 }
 
 export async function solicitarAtualizacaoDocumento(documentoId: string): Promise<GestorActionState> {
+  await requireGestor()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -514,6 +523,7 @@ export async function convidarUsuarioCedente(
   email: string,
   perfil: 'administrador' | 'operador'
 ): Promise<GestorActionState> {
+  await requireGestor()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, message: 'Usuario nao autenticado.' }
@@ -582,6 +592,7 @@ export async function convidarUsuarioCedente(
 }
 
 export async function revogarAcessoCedente(acessoId: string): Promise<GestorActionState> {
+  await requireGestor()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, message: 'Usuario nao autenticado.' }
@@ -634,6 +645,7 @@ interface FundoDados {
 }
 
 export async function criarFundo(dados: FundoDados): Promise<GestorActionState> {
+  await requireGestor()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, message: 'Nao autorizado.' }
@@ -678,6 +690,7 @@ export async function criarFundo(dados: FundoDados): Promise<GestorActionState> 
 }
 
 export async function atualizarFundo(fundoId: string, dados: FundoDados): Promise<GestorActionState> {
+  await requireGestor()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, message: 'Nao autorizado.' }
@@ -721,6 +734,7 @@ export async function atualizarFundo(fundoId: string, dados: FundoDados): Promis
 }
 
 export async function toggleAtivoFundo(fundoId: string, ativo: boolean): Promise<GestorActionState> {
+  await requireGestor()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, message: 'Nao autorizado.' }
@@ -745,6 +759,7 @@ export async function toggleAtivoFundo(fundoId: string, ativo: boolean): Promise
 }
 
 export async function vincularFundoCedente(cedenteId: string, fundoId: string | null): Promise<GestorActionState> {
+  await requireGestor()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, message: 'Nao autorizado.' }

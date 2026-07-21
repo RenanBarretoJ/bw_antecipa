@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { VALIDADE_DIAS } from '@/lib/documentos'
+import { registrarLog } from '@/lib/actions/auditoria'
 
 // Cron job: verificar documentos aprovados vencidos ou a vencer em 30 dias
 // Executado diariamente as 08:30 UTC via Vercel Cron (vercel.json)
@@ -83,14 +84,14 @@ export async function GET(request: Request) {
           }
 
           // Registrar log de auditoria
-          await supabaseAdmin.from('logs_auditoria').insert({
-            usuario_id: null,
+          await registrarLog({
             tipo_evento: 'DOCUMENTO_VENCIDO_AUTO',
             entidade_tipo: 'documentos',
             entidade_id: doc.id,
             dados_antes: { atualizacao_solicitada_em: null },
             dados_depois: { tipo: doc.tipo, cedente_id: doc.cedente_id, dias_vencido: Math.abs(diasRestantes), source: 'cron' },
-          } as never)
+            ator: { tipo: 'cron', origem: 'cron/documentos-vencidos', identificador: 'documentos-vencidos' },
+          })
 
           if (!vencidosPorCedente[doc.cedente_id]) {
             vencidosPorCedente[doc.cedente_id] = { razao_social: doc.cedentes.razao_social, tipos: [] }

@@ -76,7 +76,7 @@ export default function RelatoriosConsultorPage() {
       const supabase = createClient()
 
       const [carteiraRes, opsRes] = await Promise.all([
-        supabase.from('consultor_cedentes')
+        supabase.from('consultor_cedente')
           .select('cedente_id, comissao_percentual, cedentes(razao_social, cnpj, status)'),
         supabase.from('operacoes')
           .select('id, cedente_id, valor_bruto_total, valor_liquido_desembolso, status, created_at, cedentes(razao_social)')

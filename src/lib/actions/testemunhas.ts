@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { requireGestor } from '@/lib/auth/authorization'
 
 interface TestemunhaActionState {
   success: boolean
@@ -8,6 +9,7 @@ interface TestemunhaActionState {
 }
 
 export async function listarTestemunhas() {
+  await requireGestor()
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('testemunhas')
@@ -22,6 +24,7 @@ export async function adicionarTestemunha(
   cpf: string,
   email: string | null
 ): Promise<TestemunhaActionState> {
+  await requireGestor()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, message: 'Nao autenticado.' }
@@ -43,6 +46,7 @@ export async function toggleTestemunhaAtivo(
   id: string,
   ativo: boolean
 ): Promise<TestemunhaActionState> {
+  await requireGestor()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, message: 'Nao autenticado.' }

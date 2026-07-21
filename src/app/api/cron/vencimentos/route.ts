@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { registrarLog } from '@/lib/actions/auditoria'
 
 // Cron job: verificar vencimentos e enviar alertas D-5, D-1 e inadimplencia
 // Executado diariamente as 08:00 UTC via Vercel Cron (vercel.json)
@@ -137,17 +138,14 @@ export async function GET(request: Request) {
             resultados.erros++
           }
 
-          const { error: logError } = await supabaseAdmin.from('logs_auditoria').insert({
-            usuario_id: null,
+          await registrarLog({
             tipo_evento: 'OPERACAO_INADIMPLENTE_AUTO',
             entidade_tipo: 'operacoes',
             entidade_id: op.id,
             dados_antes: { status: 'em_andamento' },
             dados_depois: { status: 'inadimplente', source: 'cron' },
-          } as never)
-          if (logError) {
-            console.error(`[cron/vencimentos] Erro log auditoria op ${op.id}:`, logError.message)
-          }
+            ator: { tipo: 'cron', origem: 'cron/vencimentos', identificador: 'vencimentos' },
+          })
 
           resultados.inadimplentes++
         }

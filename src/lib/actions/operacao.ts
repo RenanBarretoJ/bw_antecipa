@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { requireAuthenticated, requireGestor } from '@/lib/auth/authorization'
 import { registrarLog } from './auditoria'
 import { criarNotificacao, notificarCedente, notificarGestores } from './notificacao'
 
@@ -15,6 +16,7 @@ export type OperacaoActionState = {
 // ============================================================
 
 export async function solicitarAntecipacao(nfIds: string[]): Promise<OperacaoActionState> {
+  await requireAuthenticated()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, message: 'Nao autenticado.' }
@@ -182,6 +184,7 @@ export async function aprovarOperacao(
   taxaDesconto: number,
   valorLiquidoDesembolso: number
 ): Promise<OperacaoActionState> {
+  await requireGestor()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, message: 'Nao autenticado.' }
@@ -332,6 +335,7 @@ export async function aprovarOperacao(
 // ============================================================
 
 export async function desembolsarOperacao(operacaoId: string): Promise<OperacaoActionState> {
+  await requireGestor()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, message: 'Nao autenticado.' }
@@ -425,6 +429,7 @@ export async function desembolsarOperacao(operacaoId: string): Promise<OperacaoA
 // ============================================================
 
 export async function reprovarOperacao(operacaoId: string, motivo: string): Promise<OperacaoActionState> {
+  await requireGestor()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, message: 'Nao autenticado.' }
@@ -485,6 +490,7 @@ export async function reprovarOperacao(operacaoId: string, motivo: string): Prom
 // ============================================================
 
 export async function cancelarOperacao(operacaoId: string): Promise<OperacaoActionState> {
+  await requireAuthenticated()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, message: 'Nao autenticado.' }
@@ -551,6 +557,7 @@ export async function salvarTaxasCedente(
   cedenteId: string,
   taxas: Array<{ prazo_min: number; prazo_max: number; taxa_percentual: number }>
 ): Promise<OperacaoActionState> {
+  await requireGestor()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, message: 'Nao autenticado.' }
@@ -597,6 +604,7 @@ export async function removerNfDaOperacao(
   operacaoId: string,
   nfId: string
 ): Promise<OperacaoActionState> {
+  await requireGestor()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, message: 'Nao autenticado.' }
@@ -741,6 +749,7 @@ export async function salvarTestemunhasOperacao(
   testemunha1Id: string,
   testemunha2Id: string
 ): Promise<OperacaoActionState> {
+  await requireGestor()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, message: 'Nao autenticado.' }
@@ -763,6 +772,7 @@ export async function salvarTermoAssinado(
   operacaoId: string,
   path: string
 ): Promise<OperacaoActionState> {
+  await requireGestor()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, message: 'Nao autenticado.' }
@@ -785,6 +795,7 @@ export async function salvarComprovantePagamento(
   operacaoId: string,
   path: string
 ): Promise<OperacaoActionState> {
+  await requireGestor()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, message: 'Nao autenticado.' }
@@ -807,6 +818,7 @@ export async function salvarNotificacaoAssinada(
   operacaoId: string,
   path: string
 ): Promise<OperacaoActionState> {
+  await requireGestor()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, message: 'Nao autenticado.' }
@@ -829,6 +841,7 @@ export async function salvarQuitacaoAssinada(
   operacaoId: string,
   path: string
 ): Promise<OperacaoActionState> {
+  await requireGestor()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, message: 'Nao autenticado.' }

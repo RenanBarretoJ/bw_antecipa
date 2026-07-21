@@ -70,7 +70,19 @@ export function BotaoDownloadContrato({ tipo, id, storagePath, hasSignedDoc, lab
     if (!currentPath) return
     setDownloading(true)
     try {
-      const res = await fetch(`/api/contratos/download?path=${encodeURIComponent(currentPath)}`)
+      const tipoDocumento = tipo === 'contrato'
+        ? 'contrato'
+        : tipo === 'termo'
+          ? 'termo'
+          : tipo === 'notificacao'
+            ? 'notificacao'
+            : 'quitacao'
+      const params = new URLSearchParams({
+        tipo_entidade: tipo === 'contrato' ? 'cedente' : 'operacao',
+        entidade_id: id,
+        tipo_documento: tipoDocumento,
+      })
+      const res = await fetch(`/api/contratos/download?${params.toString()}`)
       const data = await res.json()
       if (data.url) {
         window.open(data.url, '_blank')
