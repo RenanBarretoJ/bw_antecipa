@@ -48,6 +48,28 @@ async function validarFundoAtivo(supabase: Awaited<ReturnType<typeof requireGest
   if ((fundo as { ativo: boolean | null }).ativo === false) throw new Error('Templates so podem ser administrados para fundos ativos.')
 }
 
+async function validarTemplateDoFundo(supabase: Awaited<ReturnType<typeof requireGestor>>['supabase'], fundoId: string, templateId: string) {
+  await validarFundoAtivo(supabase, fundoId)
+  const { data: template, error } = await supabase
+    .from('templates_documentos')
+    .select('id, fundo_id')
+    .eq('id', templateId)
+    .eq('fundo_id', fundoId)
+    .maybeSingle()
+  if (error || !template) throw new Error('Template nao encontrado no fundo informado.')
+}
+
+async function validarVersaoTemplateDoFundo(supabase: Awaited<ReturnType<typeof requireGestor>>['supabase'], fundoId: string, versaoId: string) {
+  await validarFundoAtivo(supabase, fundoId)
+  const { data: versao, error } = await supabase
+    .from('template_versoes')
+    .select('id, template:templates_documentos(id, fundo_id)')
+    .eq('id', versaoId)
+    .maybeSingle()
+  const versionData = versao as unknown as { template: { fundo_id: string } | null } | null
+  if (error || versionData?.template?.fundo_id !== fundoId) throw new Error('Versao do template nao pertence ao fundo informado.')
+}
+
 export async function criarTemplateDocumento(input: {
   fundoId: string
   codigo: string
@@ -148,6 +170,21 @@ export async function criarVersaoTemplate(input: {
   }
 }
 
+export async function criarVersaoTemplateNoFundo(fundoId: string, input: {
+  templateId: string
+  conteudoHtml: string
+  vigenteDesde?: string
+  variaveisSchema?: TemplateVariaveisSchema
+}): Promise<TemplateActionState<{ id: string; versao: number }>> {
+  try {
+    const context = await requireGestor()
+    await validarTemplateDoFundo(context.supabase, fundoId, input.templateId)
+    return criarVersaoTemplate(input)
+  } catch (error) {
+    return result(error instanceof Error ? error.message : 'Erro ao criar versao.')
+  }
+}
+
 export async function publicarVersaoTemplate(versaoId: string): Promise<TemplateActionState> {
   try {
     const context = await requireGestor()
@@ -216,6 +253,16 @@ export async function publicarVersaoTemplate(versaoId: string): Promise<Template
   }
 }
 
+export async function publicarVersaoTemplateNoFundo(fundoId: string, versaoId: string): Promise<TemplateActionState> {
+  try {
+    const context = await requireGestor()
+    await validarVersaoTemplateDoFundo(context.supabase, fundoId, versaoId)
+    return publicarVersaoTemplate(versaoId)
+  } catch (error) {
+    return result(error instanceof Error ? error.message : 'Erro ao publicar versao.')
+  }
+}
+
 export async function desativarTemplateDocumento(templateId: string): Promise<TemplateActionState> {
   try {
     const context = await requireGestor()
@@ -231,6 +278,16 @@ export async function desativarTemplateDocumento(templateId: string): Promise<Te
       dados_depois: { status: 'desativado' },
     })
     return result('Template desativado.', true)
+  } catch (error) {
+    return result(error instanceof Error ? error.message : 'Erro ao desativar template.')
+  }
+}
+
+export async function desativarTemplateDocumentoNoFundo(fundoId: string, templateId: string): Promise<TemplateActionState> {
+  try {
+    const context = await requireGestor()
+    await validarTemplateDoFundo(context.supabase, fundoId, templateId)
+    return desativarTemplateDocumento(templateId)
   } catch (error) {
     return result(error instanceof Error ? error.message : 'Erro ao desativar template.')
   }

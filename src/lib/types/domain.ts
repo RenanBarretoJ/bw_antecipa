@@ -157,6 +157,27 @@ export type TemplateVersionStatus = (typeof TEMPLATE_VERSION_STATUSES)[number]
 export const GENERATED_DOCUMENT_STATUSES = ['gerado', 'assinado', 'substituido', 'cancelado'] as const
 export type GeneratedDocumentStatus = (typeof GENERATED_DOCUMENT_STATUSES)[number]
 
+export const CNAB_CONFIG_STATUSES = ['rascunho', 'ativa', 'desativada'] as const
+export type CnabConfigStatus = (typeof CNAB_CONFIG_STATUSES)[number]
+
+export const CNAB_CONFIG_VERSION_STATUSES = ['rascunho', 'publicada', 'substituida', 'cancelada'] as const
+export type CnabConfigVersionStatus = (typeof CNAB_CONFIG_VERSION_STATUSES)[number]
+
+export const CNAB_REMESSA_STATUSES = ['gerada', 'validada', 'enviada', 'aceita', 'rejeitada', 'cancelada', 'erro'] as const
+export type CnabRemessaStatus = (typeof CNAB_REMESSA_STATUSES)[number]
+
+export const INTEGRACAO_FUNDO_PROVEDORES = ['fromtis', 'sinqia'] as const
+export type IntegracaoFundoProvedor = (typeof INTEGRACAO_FUNDO_PROVEDORES)[number]
+
+export const INTEGRACAO_FUNDO_STATUSES = ['rascunho', 'ativa', 'desativada'] as const
+export type IntegracaoFundoStatus = (typeof INTEGRACAO_FUNDO_STATUSES)[number]
+
+export const INTEGRACAO_FUNDO_VERSAO_STATUSES = ['rascunho', 'publicada', 'substituida', 'cancelada'] as const
+export type IntegracaoFundoVersaoStatus = (typeof INTEGRACAO_FUNDO_VERSAO_STATUSES)[number]
+
+export const INTEGRACAO_AMBIENTES = ['homologacao', 'producao'] as const
+export type IntegracaoAmbiente = (typeof INTEGRACAO_AMBIENTES)[number]
+
 export const AUDIT_ACTOR_TYPES = ['usuario', 'sistema', 'integracao', 'cron'] as const
 export type AuditoriaAtorTipo = (typeof AUDIT_ACTOR_TYPES)[number]
 

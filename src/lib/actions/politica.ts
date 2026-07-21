@@ -88,6 +88,38 @@ function hashVersao(input: CriarVersaoPoliticaInput, requisitos: ReturnType<type
   })).digest('hex')
 }
 
+async function validarCedenteFundoDoFundo(supabase: Awaited<ReturnType<typeof requireGestor>>['supabase'], fundoId: string, cedenteFundoId: string) {
+  const { data, error } = await supabase
+    .from('cedente_fundos')
+    .select('id, fundo_id, status')
+    .eq('id', cedenteFundoId)
+    .eq('fundo_id', fundoId)
+    .maybeSingle()
+  if (error || !data) throw new Error('Vinculo cedente-fundo nao pertence ao fundo informado.')
+  return data as { id: string; fundo_id: string; status: string }
+}
+
+async function validarPoliticaDoFundo(supabase: Awaited<ReturnType<typeof requireGestor>>['supabase'], fundoId: string, politicaId: string) {
+  const { data, error } = await supabase
+    .from('politicas_operacionais')
+    .select('id, cedente_fundo_id, link:cedente_fundos(fundo_id)')
+    .eq('id', politicaId)
+    .maybeSingle()
+  const policy = data as unknown as { cedente_fundo_id: string; link: { fundo_id: string } | null } | null
+  if (error || policy?.link?.fundo_id !== fundoId) throw new Error('Politica nao pertence ao fundo informado.')
+  return policy
+}
+
+async function validarVersaoPoliticaDoFundo(supabase: Awaited<ReturnType<typeof requireGestor>>['supabase'], fundoId: string, versaoId: string) {
+  const { data, error } = await supabase
+    .from('politica_operacional_versoes')
+    .select('id, politica_operacional_id, cedente_fundo_id, link:cedente_fundos(fundo_id)')
+    .eq('id', versaoId)
+    .maybeSingle()
+  const version = data as unknown as { link: { fundo_id: string } | null } | null
+  if (error || version?.link?.fundo_id !== fundoId) throw new Error('Versao de politica nao pertence ao fundo informado.')
+}
+
 export async function criarPoliticaOperacional(
   cedenteFundoId: string,
   codigo: string,
@@ -118,6 +150,22 @@ export async function criarPoliticaOperacional(
   if (error || !data) return result(`Erro ao criar politica: ${error?.message || 'registro nao retornado'}`)
   await registrarLog({ tipo_evento: 'POLITICA_OPERACIONAL_CRIADA', entidade_tipo: 'politicas_operacionais', entidade_id: (data as { id: string }).id, dados_depois: { cedente_fundo_id: cedenteFundoId, codigo: codigo.trim() } })
   return { success: true, message: 'Politica criada como rascunho.', data: { id: (data as { id: string }).id } }
+}
+
+export async function criarPoliticaOperacionalNoFundo(
+  fundoId: string,
+  cedenteFundoId: string,
+  codigo: string,
+  nome: string,
+  descricao?: string,
+): Promise<PolicyActionState & { data?: { id: string } }> {
+  try {
+    const context = await requireGestor()
+    await validarCedenteFundoDoFundo(context.supabase, fundoId, cedenteFundoId)
+    return criarPoliticaOperacional(cedenteFundoId, codigo, nome, descricao)
+  } catch (error) {
+    return result(error instanceof Error ? error.message : 'Erro ao criar politica.')
+  }
 }
 
 export async function criarVersaoPolitica(
@@ -182,6 +230,20 @@ export async function criarVersaoPolitica(
   }
 }
 
+export async function criarVersaoPoliticaNoFundo(
+  fundoId: string,
+  politicaId: string,
+  input: CriarVersaoPoliticaInput,
+): Promise<PolicyActionState & { data?: { id: string; versao: number } }> {
+  try {
+    const context = await requireGestor()
+    await validarPoliticaDoFundo(context.supabase, fundoId, politicaId)
+    return criarVersaoPolitica(politicaId, input)
+  } catch (error) {
+    return result(error instanceof Error ? error.message : 'Erro ao criar versao.')
+  }
+}
+
 export async function publicarVersaoPolitica(versaoId: string): Promise<PolicyActionState> {
   const context = await requireGestor()
   const supabase = context.supabase
@@ -220,6 +282,16 @@ export async function publicarVersaoPolitica(versaoId: string): Promise<PolicyAc
   return { success: true, message: `Versao ${versionData.versao} publicada e politica ativada.` }
 }
 
+export async function publicarVersaoPoliticaNoFundo(fundoId: string, versaoId: string): Promise<PolicyActionState> {
+  try {
+    const context = await requireGestor()
+    await validarVersaoPoliticaDoFundo(context.supabase, fundoId, versaoId)
+    return publicarVersaoPolitica(versaoId)
+  } catch (error) {
+    return result(error instanceof Error ? error.message : 'Erro ao publicar versao.')
+  }
+}
+
 export async function desativarPolitica(politicaId: string): Promise<PolicyActionState> {
   await requireGestor()
   const supabase = await createClient()
@@ -227,4 +299,14 @@ export async function desativarPolitica(politicaId: string): Promise<PolicyActio
   if (error) return result(`Erro ao desativar politica: ${error.message}`)
   await registrarLog({ tipo_evento: 'POLITICA_OPERACIONAL_DESATIVADA', entidade_tipo: 'politicas_operacionais', entidade_id: politicaId, dados_depois: { status: 'desativada' } })
   return { success: true, message: 'Politica desativada.' }
+}
+
+export async function desativarPoliticaNoFundo(fundoId: string, politicaId: string): Promise<PolicyActionState> {
+  try {
+    const context = await requireGestor()
+    await validarPoliticaDoFundo(context.supabase, fundoId, politicaId)
+    return desativarPolitica(politicaId)
+  } catch (error) {
+    return result(error instanceof Error ? error.message : 'Erro ao desativar politica.')
+  }
 }

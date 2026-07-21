@@ -55,6 +55,7 @@ export async function GET(req: NextRequest) {
     }
 
     let filePath: string | null = null
+    let bucket: string = buckets.contratos
 
     if (tipoEntidade === 'cedente') {
       const field = CEDENTE_DOCUMENT_FIELDS[tipoDocumento]
@@ -67,17 +68,34 @@ export async function GET(req: NextRequest) {
       if (!field) return NextResponse.json({ error: 'Documento nao pertence a uma operacao.' }, { status: 400 })
 
       const context = await requireOperationAccess(entidadeId)
-      const { data: operacao, error } = await context.supabase
-        .from('operacoes')
-        .select('termo_url, termo_assinado_url, notificacao_url, notificacao_assinada_url, comprovante_pagamento_url, remessa_url, quitacao_url, quitacao_assinada_url')
-        .eq('id', entidadeId)
-        .single()
-
-      if (error || !operacao) {
-        return NextResponse.json({ error: 'Operacao nao encontrada.' }, { status: 404 })
+      if (tipoDocumento === 'remessa') {
+        const { data: remessa } = await context.supabase
+          .from('remessas_cnab_operacoes')
+          .select('remessa:remessas_cnab(bucket, storage_path)')
+          .eq('operacao_id', entidadeId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+        const remessaData = remessa as unknown as { remessa: { bucket: string; storage_path: string } | null } | null
+        if (remessaData?.remessa) {
+          bucket = remessaData.remessa.bucket
+          filePath = remessaData.remessa.storage_path
+        }
       }
 
-      filePath = (operacao as Record<string, string | null>)[field] ?? null
+      if (!filePath) {
+        const { data: operacao, error } = await context.supabase
+          .from('operacoes')
+          .select('termo_url, termo_assinado_url, notificacao_url, notificacao_assinada_url, comprovante_pagamento_url, remessa_url, quitacao_url, quitacao_assinada_url')
+          .eq('id', entidadeId)
+          .single()
+
+        if (error || !operacao) {
+          return NextResponse.json({ error: 'Operacao nao encontrada.' }, { status: 404 })
+        }
+
+        filePath = (operacao as Record<string, string | null>)[field] ?? null
+      }
     }
 
     if (!filePath) {
@@ -87,7 +105,7 @@ export async function GET(req: NextRequest) {
     const supabaseAdmin = createAdminClient()
 
     const { data, error } = await supabaseAdmin.storage
-      .from(buckets.contratos)
+      .from(bucket)
       .createSignedUrl(filePath, 3600)
 
     if (error) {

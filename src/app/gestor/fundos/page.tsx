@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { criarFundo, atualizarFundo, toggleAtivoFundo } from '@/lib/actions/gestor'
 import { formatCNPJ } from '@/lib/utils'
@@ -189,6 +190,9 @@ export default function FundosPage() {
                   </div>
                   <div className="flex items-center gap-2 ml-4 shrink-0">
                     <StatusBadge status={fundo.ativo ? 'ativo' : 'inativo'} label={fundo.ativo ? 'Ativo' : 'Inativo'} />
+                    <Link href={`/gestor/fundos/${fundo.id}`} className="inline-flex h-7 items-center rounded-lg border border-border bg-background px-2.5 text-xs font-medium hover:bg-muted">
+                      Detalhes
+                    </Link>
                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => abrirEditar(fundo)}>
                       <Pencil size={13} />
                     </Button>
