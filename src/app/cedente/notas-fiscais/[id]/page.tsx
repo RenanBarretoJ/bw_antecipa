@@ -13,7 +13,6 @@ import {
   Send,
   FileText,
   CheckCircle,
-  Clock,
   AlertCircle,
   XCircle,
   Upload,
@@ -21,6 +20,7 @@ import {
   ExternalLink,
   Wrench,
 } from 'lucide-react'
+import { ChecklistCedente } from '@/components/documentos-v2/ChecklistCedente'
 
 interface NfCompleta {
   id: string
@@ -334,6 +334,8 @@ export default function NfDetalhePage() {
           {message}
         </div>
       )}
+
+      <ChecklistCedente notaFiscalId={nfId} />
 
       {nf.status === 'requer_ajuste' && nf.motivo_ajuste && (
         <div className="mb-4 p-4 rounded-lg text-sm bg-orange-50 border border-orange-300 text-orange-800">

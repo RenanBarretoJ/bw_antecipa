@@ -317,7 +317,7 @@ export default function OperacoesGestorPage() {
         <Card className="overflow-hidden">
           <CardContent className="p-0">
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full min-w-[980px]">
                 <thead>
                   <tr className="border-b bg-muted/50">
                     {(() => {
@@ -338,7 +338,7 @@ export default function OperacoesGestorPage() {
                       return (
                         <>
                           <th className="text-left text-xs font-medium text-muted-foreground uppercase px-4 py-3">ID</th>
-                          <th className="text-left text-xs font-medium text-muted-foreground uppercase px-4 py-3">Cedente</th>
+                          <th className="w-[260px] max-w-[260px] text-left text-xs font-medium text-muted-foreground uppercase px-4 py-3">Cedente</th>
                           <Th campo="valor_bruto_total">Valor Bruto</Th>
                           <Th campo="taxa_desconto">Taxa</Th>
                           <Th campo="prazo_dias">Prazo</Th>
@@ -356,26 +356,28 @@ export default function OperacoesGestorPage() {
                     const status = statusConfig[op.status] || statusConfig.solicitada
                     const StatusIcon = status.icon
                     return (
-                      <tr key={op.id} className="hover:bg-muted/30">
-                        <td className="px-4 py-3 font-mono text-sm text-muted-foreground tabular-nums">{op.id.substring(0, 8)}</td>
-                        <td className="px-4 py-3">
-                          <p className="text-sm font-medium text-foreground">{op.cedentes.razao_social}</p>
-                          <p className="text-xs text-muted-foreground">{formatCNPJ(op.cedentes.cnpj)}</p>
+                      <tr key={op.id} className="align-middle hover:bg-muted/30">
+                        <td className="whitespace-nowrap px-4 py-3 font-mono text-sm text-muted-foreground tabular-nums">{op.id.substring(0, 8)}</td>
+                        <td className="w-[260px] max-w-[260px] px-4 py-3">
+                          <div className="min-w-0 max-w-[260px]">
+                            <p className="block truncate text-sm font-medium text-foreground" title={op.cedentes.razao_social}>{op.cedentes.razao_social}</p>
+                            <p className="block truncate font-mono text-xs text-muted-foreground" title={formatCNPJ(op.cedentes.cnpj)}>{formatCNPJ(op.cedentes.cnpj)}</p>
+                          </div>
                         </td>
-                        <td className="px-4 py-3 text-sm font-medium tabular-nums">{formatCurrency(op.valor_bruto_total)}</td>
-                        <td className="px-4 py-3 text-sm tabular-nums">{op.taxa_desconto > 0 ? `${op.taxa_desconto}%` : '—'}</td>
-                        <td className="px-4 py-3 text-sm tabular-nums">{op.prazo_dias}d</td>
-                        <td className="px-4 py-3 text-sm font-bold text-green-700 dark:text-green-400 tabular-nums">{formatCurrency(op.valor_liquido_desembolso)}</td>
-                        <td className="px-4 py-3">
+                        <td className="whitespace-nowrap px-4 py-3 text-sm font-medium tabular-nums">{formatCurrency(op.valor_bruto_total)}</td>
+                        <td className="whitespace-nowrap px-4 py-3 text-sm tabular-nums">{op.taxa_desconto > 0 ? `${op.taxa_desconto}%` : '—'}</td>
+                        <td className="whitespace-nowrap px-4 py-3 text-sm tabular-nums">{op.prazo_dias}d</td>
+                        <td className="whitespace-nowrap px-4 py-3 text-sm font-bold text-green-700 dark:text-green-400 tabular-nums">{formatCurrency(op.valor_liquido_desembolso)}</td>
+                        <td className="whitespace-nowrap px-4 py-3">
                           <Badge variant={status.variant} className={status.className}>
                             <StatusIcon size={12} />
                             {status.label}
                           </Badge>
                         </td>
-                        <td className="px-4 py-3 text-sm tabular-nums text-muted-foreground">
+                        <td className="whitespace-nowrap px-4 py-3 text-sm tabular-nums text-muted-foreground">
                           {op.aprovado_em ? formatDate(op.aprovado_em) : '—'}
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="whitespace-nowrap px-4 py-3">
                           <Link href={`/gestor/operacoes/${op.id}`}>
                             <Button variant="ghost" size="sm" className="gap-1">
                               <Eye size={14} />

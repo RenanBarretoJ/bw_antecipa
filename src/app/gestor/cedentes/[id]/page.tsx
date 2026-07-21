@@ -8,7 +8,7 @@ import { salvarTaxasCedente } from '@/lib/actions/operacao'
 import { salvarContratoAssinado } from '@/lib/actions/cedente'
 import { formatCNPJ, formatDate } from '@/lib/utils'
 import { buckets } from '@/lib/storage'
-import { ArrowLeft, CheckCircle, XCircle, FileText, Eye, X, Plus, Trash2, Settings, RefreshCw, Loader2, GitCompare, Users, UserPlus, UserX } from 'lucide-react'
+import { ArrowLeft, CheckCircle, XCircle, FileText, FilePenLine, Eye, X, Plus, Trash2, Settings, RefreshCw, Loader2, GitCompare, Users, UserPlus, UserX, UserRound, Landmark } from 'lucide-react'
 import { calcularExpiracaoDoc } from '@/lib/documentos'
 import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -21,6 +21,9 @@ import { BotaoDownloadContrato } from '@/components/contratos/BotaoDownloadContr
 import { UploadDocumentoAssinado } from '@/components/contratos/UploadDocumentoAssinado'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import type { Fundo } from '@/types/database'
+import { PageContainer } from '@/components/layout/page-container'
+import { PageHeader } from '@/components/layout/page-header'
+import { DetailField, DetailSection, FieldGrid, StatusBadge } from '@/components/data-display/primitives'
 
 interface CedenteDetail {
   id: string; cnpj: string; razao_social: string; nome_fantasia: string | null
@@ -89,11 +92,11 @@ const statusBadgeVariant: Record<string, 'secondary' | 'default' | 'outline' | '
 }
 
 const statusColors: Record<string, string> = {
-  aguardando_envio: 'bg-gray-100 text-gray-600',
-  enviado: 'bg-blue-100 text-blue-700',
-  em_analise: 'bg-yellow-100 text-yellow-700',
-  aprovado: 'bg-green-100 text-green-700',
-  reprovado: 'bg-red-100 text-red-700',
+  aguardando_envio: 'bg-muted text-muted-foreground ring-1 ring-inset ring-border',
+  enviado: 'bg-info/10 text-info-foreground ring-1 ring-inset ring-info/25',
+  em_analise: 'bg-warning text-warning-foreground ring-1 ring-inset ring-warning/40',
+  aprovado: 'bg-success text-success-foreground ring-1 ring-inset ring-success/40',
+  reprovado: 'bg-destructive/10 text-destructive ring-1 ring-inset ring-destructive/25',
 }
 
 export default function CedenteDetalhePage({ params }: { params: Promise<{ id: string }> }) {
@@ -220,6 +223,8 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
     setLoading(false)
   }
 
+  // A tela sincroniza múltiplas coleções relacionadas ao cedente em uma única carga.
+  // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
   useEffect(() => { loadData() }, [id])
 
   // Docs da empresa (representante_id = null), mais recente por tipo
@@ -290,7 +295,7 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
 
   if (loading) {
     return (
-      <div className="max-w-5xl mx-auto space-y-6">
+      <PageContainer className="max-w-5xl space-y-6">
         <Skeleton className="h-4 w-24" />
         <div className="flex items-center justify-between">
           <div className="space-y-2">
@@ -311,12 +316,12 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
             {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
           </CardContent>
         </Card>
-      </div>
+      </PageContainer>
     )
   }
 
   if (!cedente) {
-    return <p className="text-muted-foreground text-center py-20">Cedente nao encontrado.</p>
+    return <PageContainer><p className="py-20 text-center text-muted-foreground">Cedente nao encontrado.</p></PageContainer>
   }
 
   const handleSolicitarAtualizacao = async (docId: string) => {
@@ -333,25 +338,27 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
     const isRequesting = requestingUpdate === doc?.id
 
     return (
-      <div key={`${tipo}_${doc?.id ?? 'empty'}`} className="flex items-center justify-between py-3 border-b border-border last:border-0 gap-3">
-        <div className="flex items-center gap-3 min-w-0 flex-1">
-          <FileText size={18} className="text-muted-foreground shrink-0" />
+      <div key={`${tipo}_${doc?.id ?? 'empty'}`} className="flex flex-col gap-3 rounded-lg border border-border bg-background px-3 py-3.5 transition-colors hover:border-border/80 hover:bg-accent/30 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-accent text-accent-foreground">
+            <FileText size={16} aria-hidden="true" />
+          </span>
           <div className="min-w-0">
-            <p className="text-sm font-medium text-foreground">{label}</p>
+            <p className="text-sm font-semibold text-foreground">{label}</p>
             {doc?.nome_arquivo && <p className="text-xs text-muted-foreground truncate">{doc.nome_arquivo} (v{doc.versao})</p>}
             {doc?.atualizacao_solicitada_em && (
-              <p className="text-xs text-amber-600 mt-0.5">
+              <p className="mt-0.5 text-xs text-warning-foreground">
                 Atualização solicitada em {new Date(doc.atualizacao_solicitada_em).toLocaleDateString('pt-BR')}
               </p>
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2 flex-wrap justify-end shrink-0">
+        <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
           {expiracao && (
             expiracao.expirado ? (
               <Badge variant="destructive" className="text-xs whitespace-nowrap">Vencido</Badge>
             ) : expiracao.diasRestantes !== null && expiracao.diasRestantes <= 30 ? (
-              <Badge variant="outline" className="text-xs text-amber-600 border-amber-300 bg-amber-50 whitespace-nowrap">
+              <Badge variant="outline" className="whitespace-nowrap border-warning/40 bg-warning text-xs text-warning-foreground">
                 Vence em {expiracao.diasRestantes}d
               </Badge>
             ) : null
@@ -363,7 +370,7 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
             <Button
               size="sm"
               variant="outline"
-              className="text-amber-600 border-amber-300 hover:bg-amber-50 text-xs h-8 px-2"
+              className="h-8 border-border bg-background px-2 text-xs text-foreground hover:bg-accent"
               disabled={isRequesting}
               onClick={() => handleSolicitarAtualizacao(doc.id)}
             >
@@ -398,60 +405,55 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
   const todosAprovados = empresaAprovada && repsAprovadas
 
   return (
-    <div className="max-w-5xl mx-auto">
-      <Link href="/gestor/cedentes" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4">
-        <ArrowLeft size={16} /> Voltar
-      </Link>
+    <PageContainer className="max-w-5xl space-y-6">
+      <Link href="/gestor/cedentes" className="inline-flex items-center gap-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"><ArrowLeft size={16} /> Voltar para cedentes</Link>
 
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">{cedente.razao_social}</h1>
-          <p className="text-muted-foreground font-mono tabular-nums">{formatCNPJ(cedente.cnpj)}</p>
-        </div>
-        <Badge variant={statusBadgeVariant[cedente.status] || 'secondary'}>
-          {cedente.status}
-        </Badge>
-      </div>
+      <PageHeader title={cedente.razao_social} description={formatCNPJ(cedente.cnpj)} eyebrow="Detalhe do cedente" action={<StatusBadge status={cedente.status} />} titleClassName="text-xl sm:text-2xl" align="center" className="mb-4" />
 
       {message && (
         <div className={`mb-4 p-3 rounded-lg text-sm border ${
           message.includes('sucesso') || message.includes('aprovado') || message.includes('criada')
-            ? 'bg-green-50 text-green-700 border-green-200'
+            ? 'border-success/25 bg-success/10 text-success-foreground'
             : 'bg-destructive/10 text-destructive border-destructive/20'
         }`}>{message}</div>
       )}
 
       {/* Dados Cadastrais */}
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Dados Cadastrais</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-            <div><span className="text-muted-foreground">Nome Fantasia:</span> <span className="text-foreground ml-1">{cedente.nome_fantasia || '-'}</span></div>
-            <div><span className="text-muted-foreground">CNAE:</span> <span className="text-foreground ml-1 tabular-nums">{cedente.cnae || '-'}</span></div>
-            <div><span className="text-muted-foreground">Cadastro:</span> <span className="text-foreground ml-1">{formatDate(cedente.created_at)}</span></div>
-            <div><span className="text-muted-foreground">Endereco:</span> <span className="text-foreground ml-1">{cedente.logradouro}, {cedente.numero} {cedente.complemento} - {cedente.bairro}, {cedente.cidade}/{cedente.estado} - CEP {cedente.cep}</span></div>
-            <div><span className="text-muted-foreground">Telefone:</span> <span className="text-foreground ml-1 tabular-nums">{cedente.telefone_comercial || '-'}</span></div>
-            <div><span className="text-muted-foreground">E-mail:</span> <span className="text-foreground ml-1">{cedente.email_comercial || '-'}</span></div>
-          </div>
+      <DetailSection title="Dados cadastrais" icon={Users}>
+          <FieldGrid className="lg:grid-cols-3">
+            <DetailField label="Nome fantasia" value={cedente.nome_fantasia} />
+            <DetailField label="CNAE" value={cedente.cnae} />
+            <DetailField label="Cadastro" value={formatDate(cedente.created_at)} />
+            <DetailField
+              label="Endereço"
+              value={`${cedente.logradouro || '—'}, ${cedente.numero || 's/n'}${cedente.complemento ? ` · ${cedente.complemento}` : ''} · ${cedente.bairro || '—'} · ${cedente.cidade || '—'}/${cedente.estado || '—'} · CEP ${cedente.cep || '—'}`}
+              className="sm:col-span-2 lg:col-span-3"
+            />
+            <DetailField label="Telefone" value={cedente.telefone_comercial} />
+            <DetailField label="E-mail" value={cedente.email_comercial} />
+          </FieldGrid>
+      </DetailSection>
 
-          <h3 className="text-md font-semibold text-foreground mt-6 mb-3">Representantes Legais</h3>
+      <DetailSection title="Representantes Legais" icon={Users}>
           {representantes.length > 0 ? (
-            <div className="space-y-4">
+            <div className="grid gap-4">
               {representantes.map((rep, idx) => (
-                <div key={rep.id} className="border border-border rounded-lg p-3">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">
-                    Representante {idx + 1}{rep.principal ? ' (principal)' : ''}
-                  </p>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-                    <div><span className="text-muted-foreground">Nome:</span> <span className="text-foreground ml-1">{rep.nome}</span></div>
-                    <div><span className="text-muted-foreground">CPF:</span> <span className="text-foreground ml-1 tabular-nums">{rep.cpf}</span></div>
-                    <div><span className="text-muted-foreground">RG:</span> <span className="text-foreground ml-1 tabular-nums">{rep.rg}</span></div>
-                    <div><span className="text-muted-foreground">Cargo:</span> <span className="text-foreground ml-1">{rep.cargo}</span></div>
-                    <div><span className="text-muted-foreground">E-mail:</span> <span className="text-foreground ml-1">{rep.email}</span></div>
-                    <div><span className="text-muted-foreground">Telefone:</span> <span className="text-foreground ml-1 tabular-nums">{rep.telefone}</span></div>
+                <div key={rep.id} className="rounded-lg border border-border bg-background p-4">
+                  <div className="mb-4 flex items-center gap-2">
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground">
+                      <UserRound size={16} aria-hidden="true" />
+                    </span>
+                    <p className="text-sm font-semibold text-foreground">Representante {idx + 1}</p>
+                    {rep.principal && <Badge variant="secondary" className="h-5 rounded-full px-2 text-[10px] font-medium">Principal</Badge>}
                   </div>
+                  <FieldGrid className="gap-y-4">
+                    <DetailField label="Nome" value={rep.nome} />
+                    <DetailField label="CPF" value={rep.cpf} />
+                    <DetailField label="RG" value={rep.rg} />
+                    <DetailField label="Cargo" value={rep.cargo} />
+                    <DetailField label="E-mail" value={rep.email} />
+                    <DetailField label="Telefone" value={rep.telefone} />
+                  </FieldGrid>
                 </div>
               ))}
             </div>
@@ -459,26 +461,27 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
             <p className="text-sm text-muted-foreground">Nenhum representante cadastrado.</p>
           )}
 
-          <h3 className="text-md font-semibold text-foreground mt-6 mb-3">Dados Bancarios</h3>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
-            <div><span className="text-muted-foreground">Banco:</span> <span className="text-foreground ml-1">{cedente.banco || '-'}</span></div>
-            <div><span className="text-muted-foreground">Agencia:</span> <span className="text-foreground ml-1 tabular-nums">{cedente.agencia || '-'}</span></div>
-            <div><span className="text-muted-foreground">Conta:</span> <span className="text-foreground ml-1 tabular-nums">{cedente.conta || '-'}</span></div>
-            <div><span className="text-muted-foreground">Tipo:</span> <span className="text-foreground ml-1">{cedente.tipo_conta || '-'}</span></div>
-          </div>
-        </CardContent>
-      </Card>
+      </DetailSection>
+
+      <DetailSection title="Dados bancários" icon={Landmark}>
+          <FieldGrid className="lg:grid-cols-4">
+            <DetailField label="Banco" value={cedente.banco} />
+            <DetailField label="Agência" value={cedente.agencia} />
+            <DetailField label="Conta" value={cedente.conta} />
+            <DetailField label="Tipo de conta" value={cedente.tipo_conta} />
+          </FieldGrid>
+      </DetailSection>
 
       {/* Documentos */}
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Documentos</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
+      <DetailSection title="Documentos" icon={FileText}>
+        <div className="space-y-6">
           {/* Empresa */}
           <div>
-            <p className="text-sm font-semibold text-muted-foreground uppercase mb-3">Empresa</p>
-            <div className="space-y-0">
+            <div className="mb-3 flex items-center gap-2">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Empresa</p>
+              <span className="h-px flex-1 bg-border" />
+            </div>
+            <div className="space-y-2">
               {(['contrato_social', 'cartao_cnpj', 'comprovante_endereco', 'extrato_bancario', 'balanco_patrimonial', 'dre'] as const).map((tipo) =>
                 renderDocRow(tipo, getLatestEmpresa(tipo), tipoLabels[tipo])
               )}
@@ -488,10 +491,13 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
           {/* Por representante */}
           {representantes.length > 0 ? representantes.map((rep) => (
             <div key={rep.id}>
-              <p className="text-sm font-semibold text-muted-foreground uppercase mb-3">
+              <div className="mb-3 flex items-center gap-2">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                 {rep.nome}{rep.principal ? ' (principal)' : ''}
-              </p>
-              <div className="space-y-0">
+                </p>
+                <span className="h-px flex-1 bg-border" />
+              </div>
+              <div className="space-y-2">
                 {(['rg_cpf', 'comprovante_de_renda', 'comprovante_endereco', 'procuracao'] as const).map((tipo) =>
                   renderDocRow(tipo, getLatestByRep(tipo, rep.id), tipoLabelsRep[tipo] || tipoLabels[tipo])
                 )}
@@ -500,16 +506,19 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
           )) : (
             /* Fallback legado */
             <div>
-              <p className="text-sm font-semibold text-muted-foreground uppercase mb-3">Representante Legal</p>
-              <div className="space-y-0">
+              <div className="mb-3 flex items-center gap-2">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Representante Legal</p>
+                <span className="h-px flex-1 bg-border" />
+              </div>
+              <div className="space-y-2">
                 {(['rg_cpf', 'procuracao'] as const).map((tipo) =>
                   renderDocRow(tipo, getLatestLegado(tipo), tipoLabelsRep[tipo] || tipoLabels[tipo])
                 )}
               </div>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </DetailSection>
 
       {/* Acoes do Cadastro */}
       {cedente.status !== 'ativo' && (
@@ -523,13 +532,13 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
                 <Button
                   onClick={handleAprovarCadastro}
                   disabled={actionLoading}
-                  className="bg-green-600 hover:bg-green-700 text-white"
+                  className="bg-success text-success-foreground hover:bg-success/90"
                 >
                   <CheckCircle size={18} /> {actionLoading ? 'Processando...' : 'Aprovar Cadastro'}
                 </Button>
               )}
               {!todosAprovados && (
-                <p className="text-amber-600 text-sm py-2">Todos os documentos obrigatorios precisam estar aprovados antes de aprovar o cadastro.</p>
+                <p className="py-2 text-sm text-warning-foreground">Todos os documentos obrigatorios precisam estar aprovados antes de aprovar o cadastro.</p>
               )}
               <Button
                 variant="destructive"
@@ -653,7 +662,7 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
               {savingTaxas ? 'Salvando...' : 'Salvar Taxas'}
             </Button>
             {taxasMessage && (
-              <span className={`text-sm ${taxasMessage.includes('sucesso') ? 'text-green-600' : 'text-destructive'}`}>
+              <span className={`text-sm ${taxasMessage.includes('sucesso') ? 'text-success-foreground' : 'text-destructive'}`}>
                 {taxasMessage}
               </span>
             )}
@@ -667,9 +676,9 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
 
       {/* Alteração cadastral pendente */}
       {alteracao && (
-        <Card className="mb-6 border-yellow-300">
+        <Card className="mb-6 border-warning/40">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-yellow-700 dark:text-yellow-400">
+            <CardTitle className="flex items-center gap-2 text-warning-foreground">
               <GitCompare size={18} />
               Solicitação de Alteração Cadastral
             </CardTitle>
@@ -691,7 +700,7 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground mb-1 uppercase">Proposto</p>
-                    <p className="text-emerald-700 dark:text-emerald-400 font-medium">{String(valorNovo || '—')}</p>
+                    <p className="font-medium text-success-foreground">{String(valorNovo || '—')}</p>
                   </div>
                 </div>
               )
@@ -703,7 +712,7 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
                 <p className="text-xs font-medium text-muted-foreground mb-2">Representantes propostos</p>
                 <div className="space-y-1">
                   {alteracao.representantes_propostos.map((rep, i) => (
-                    <p key={i} className="text-sm text-emerald-700 dark:text-emerald-400">
+                    <p key={i} className="text-sm text-success-foreground">
                       {rep.nome} — {rep.cargo}
                     </p>
                   ))}
@@ -712,7 +721,7 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
             )}
 
             {alteracaoMessage && (
-              <p className={`text-sm ${alteracaoMessage.includes('aprovada') ? 'text-green-600' : 'text-destructive'}`}>
+              <p className={`text-sm ${alteracaoMessage.includes('aprovada') ? 'text-success-foreground' : 'text-destructive'}`}>
                 {alteracaoMessage}
               </p>
             )}
@@ -746,7 +755,7 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
               <div className="flex gap-2 border-t pt-3">
                 <Button
                   size="sm"
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                  className="bg-success text-success-foreground hover:bg-success/90"
                   disabled={loadingAlteracao}
                   onClick={async () => {
                     setLoadingAlteracao(true)
@@ -781,7 +790,7 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
             <div>
               <p className="text-sm font-medium text-foreground">Extrato Escrow</p>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Quando habilitado, o cedente visualiza a aba "Extrato" com saldo e movimentos da conta escrow.
+                Quando habilitado, o cedente visualiza a aba &quot;Extrato&quot; com saldo e movimentos da conta escrow.
               </p>
             </div>
             <Button
@@ -796,13 +805,13 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
                 if (result?.success) await loadData()
                 setTogglingEscrow(false)
               }}
-              className={cedente.habilitar_escrow ? '' : 'bg-green-600 hover:bg-green-700 text-white'}
+              className={cedente.habilitar_escrow ? '' : 'bg-success text-success-foreground hover:bg-success/90'}
             >
               {togglingEscrow ? 'Aguarde...' : cedente.habilitar_escrow ? 'Desabilitar' : 'Habilitar'}
             </Button>
           </div>
           {escrowMessage && (
-            <p className={`text-sm mt-2 ${escrowMessage.includes('sucesso') ? 'text-green-600' : 'text-destructive'}`}>
+            <p className={`mt-2 text-sm ${escrowMessage.includes('sucesso') ? 'text-success-foreground' : 'text-destructive'}`}>
               {escrowMessage}
             </p>
           )}
@@ -826,13 +835,13 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
                 if (result?.success) await loadData()
                 setTogglingCoobrigacao(false)
               }}
-              className={cedente.coobrigacao ? '' : 'bg-green-600 hover:bg-green-700 text-white'}
+              className={cedente.coobrigacao ? '' : 'bg-success text-success-foreground hover:bg-success/90'}
             >
               {togglingCoobrigacao ? 'Aguarde...' : cedente.coobrigacao ? 'Desabilitar' : 'Habilitar'}
             </Button>
           </div>
           {coobrigacaoMessage && (
-            <p className={`text-sm mt-2 ${coobrigacaoMessage.includes('sucesso') ? 'text-green-600' : 'text-destructive'}`}>
+            <p className={`mt-2 text-sm ${coobrigacaoMessage.includes('sucesso') ? 'text-success-foreground' : 'text-destructive'}`}>
               {coobrigacaoMessage}
             </p>
           )}
@@ -841,10 +850,15 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
 
       {/* Fundo Vinculado */}
       <Card className="mb-6">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Fundo Vinculado</CardTitle>
+        <CardHeader className="border-b border-border px-5 py-4">
+          <CardTitle className="flex items-center gap-2.5 text-base font-semibold">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-accent text-accent-foreground">
+              <Landmark size={17} aria-hidden="true" />
+            </span>
+            Fundo Vinculado
+          </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-3 px-5 py-5">
           <p className="text-xs text-muted-foreground">
             O fundo vinculado é usado para gerar o CNAB e identificar o cessionário nos contratos.
           </p>
@@ -873,12 +887,13 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
                 if (result?.success) await loadData()
                 setSalvandoFundo(false)
               }}
+              className="bg-foreground text-background hover:bg-foreground/90"
             >
               {salvandoFundo ? 'Salvando...' : 'Salvar'}
             </Button>
           </div>
           {fundoMessage && (
-            <p className={`text-xs ${fundoMessage.includes('sucesso') || fundoMessage.includes('Fundo') ? 'text-green-600' : 'text-destructive'}`}>
+            <p className={`text-xs ${fundoMessage.includes('sucesso') || fundoMessage.includes('Fundo') ? 'text-success-foreground' : 'text-destructive'}`}>
               {fundoMessage}
             </p>
           )}
@@ -887,38 +902,40 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
 
       {/* Acessos Vinculados */}
       <Card className="mb-6">
-        <CardHeader>
+        <CardHeader className="border-b border-border px-5 py-4">
           <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Users size={18} />
+            <CardTitle className="flex items-center gap-2.5 text-base font-semibold">
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-accent text-accent-foreground">
+                <Users size={17} aria-hidden="true" />
+              </span>
               Acessos Vinculados
             </CardTitle>
-            <Button size="sm" variant="outline" onClick={() => { setShowConviteModal(true); setConviteMessage('') }}>
+            <Button size="sm" variant="outline" className="border-border bg-background" onClick={() => { setShowConviteModal(true); setConviteMessage('') }}>
               <UserPlus size={14} /> Convidar
             </Button>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-5 py-5">
           {acessos.length === 0 ? (
             <p className="text-sm text-muted-foreground">Nenhum usuario adicional vinculado.</p>
           ) : (
             <div className="space-y-2">
               {acessos.map((ac) => (
-                <div key={ac.id} className="flex items-center justify-between py-2 border-b last:border-0">
+                <div key={ac.id} className="flex flex-col gap-3 rounded-lg border border-border bg-background p-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">
+                    <p className="truncate text-sm font-semibold text-foreground">
                       {ac.profiles?.nome_completo || ac.profiles?.email || 'Sem nome'}
                     </p>
                     <p className="text-xs text-muted-foreground">{ac.profiles?.email}</p>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0 ml-3">
-                    <Badge className={ac.perfil === 'administrador' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'}>
+                  <div className="ml-3 flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
+                    <Badge className={ac.perfil === 'administrador' ? 'bg-info text-info-foreground ring-1 ring-inset ring-info/30' : 'bg-muted text-muted-foreground ring-1 ring-inset ring-border'}>
                       {ac.perfil}
                     </Badge>
                     {ac.ativo ? (
-                      <Badge className="bg-green-100 text-green-700">ativo</Badge>
+                      <Badge className="bg-success text-success-foreground ring-1 ring-inset ring-success/30">ativo</Badge>
                     ) : (
-                      <Badge className="bg-red-100 text-red-700">revogado</Badge>
+                      <Badge className="bg-destructive text-destructive-foreground ring-1 ring-inset ring-destructive/30">revogado</Badge>
                     )}
                     {ac.ativo && (
                       <Button
@@ -947,7 +964,7 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
 
       {/* Modal de Convite */}
       {showConviteModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/60 p-4">
           <div className="bg-background rounded-xl shadow-xl max-w-md w-full border border-border p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold text-foreground flex items-center gap-2">
@@ -992,7 +1009,7 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
                 </p>
               </div>
               {conviteMessage && (
-                <p className={`text-sm ${conviteMessage.includes('concedido') ? 'text-green-600' : 'text-destructive'}`}>
+                <p className={`text-sm ${conviteMessage.includes('concedido') ? 'text-success-foreground' : 'text-destructive'}`}>
                   {conviteMessage}
                 </p>
               )}
@@ -1027,15 +1044,17 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
 
       {/* Contrato de Cessao */}
       <Card className="mb-6">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileText size={18} />
+        <CardHeader className="border-b border-border px-5 py-4">
+          <CardTitle className="flex items-center gap-2.5 text-base font-semibold">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-accent text-accent-foreground">
+              <FilePenLine size={17} aria-hidden="true" />
+            </span>
             Contrato de Cessao
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="space-y-1">
-            <p className="text-xs text-muted-foreground">Versao gerada pelo sistema</p>
+        <CardContent className="space-y-4 px-5 py-5">
+          <div className="space-y-2">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Versao gerada pelo sistema</p>
             <BotaoDownloadContrato
               tipo="contrato"
               id={cedente.id}
@@ -1044,8 +1063,8 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
               className="w-full"
             />
           </div>
-          <div className="border-t pt-3 space-y-1">
-            <p className="text-xs text-muted-foreground">Versao assinada pelas partes</p>
+          <div className="space-y-2 border-t border-border pt-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Versao assinada pelas partes</p>
             <UploadDocumentoAssinado
               label="Contrato Assinado"
               storagePath={cedente.contrato_assinado_url}
@@ -1064,7 +1083,7 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
 
       {/* Modal de Analise de Documento */}
       {modal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/60 p-4">
           <div className="bg-background rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col border border-border">
             <div className="flex items-center justify-between p-4 border-b border-border">
               <h3 className="font-semibold text-foreground">
@@ -1093,7 +1112,7 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
                   <Button
                     onClick={() => handleAnalise('aprovado')}
                     disabled={actionLoading}
-                    className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                    className="flex-1 bg-success text-success-foreground hover:bg-success/90"
                   >
                     {actionLoading ? 'Processando...' : 'Aprovar'}
                   </Button>
@@ -1124,6 +1143,6 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
           </div>
         </div>
       )}
-    </div>
+    </PageContainer>
   )
 }

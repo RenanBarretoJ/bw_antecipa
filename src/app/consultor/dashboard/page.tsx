@@ -112,7 +112,7 @@ export default function ConsultorDashboard() {
         <Card>
           <CardContent className="pt-5">
             <div className="flex items-center gap-2 mb-3">
-              <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-500/20"><Briefcase size={16} className="text-amber-600 dark:text-amber-400" /></div>
+              <div className="rounded-lg bg-warning/20 p-2"><Briefcase size={16} className="text-warning-foreground" /></div>
               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Cedentes</span>
             </div>
             <p className="text-2xl font-bold tabular-nums">{cedentesAtivos}</p>
@@ -122,29 +122,29 @@ export default function ConsultorDashboard() {
         <Card>
           <CardContent className="pt-5">
             <div className="flex items-center gap-2 mb-3">
-              <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-500/20"><CreditCard size={16} className="text-blue-600 dark:text-blue-400" /></div>
+              <div className="rounded-lg bg-primary/20 p-2"><CreditCard size={16} className="text-primary" /></div>
               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Ops Ativas</span>
             </div>
-            <p className="text-2xl font-bold text-blue-700 dark:text-blue-400 tabular-nums">{opsAtivas.length}</p>
+            <p className="text-2xl font-bold text-primary tabular-nums">{opsAtivas.length}</p>
             <p className="text-xs text-muted-foreground mt-1">{formatCurrency(opsAtivas.reduce((a, o) => a + o.valor_bruto_total, 0))}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-5">
             <div className="flex items-center gap-2 mb-3">
-              <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-500/20"><BarChart3 size={16} className="text-purple-600 dark:text-purple-400" /></div>
+              <div className="rounded-lg bg-info/20 p-2"><BarChart3 size={16} className="text-info-foreground" /></div>
               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Volume Mes</span>
             </div>
-            <p className="text-2xl font-bold text-purple-700 dark:text-purple-400 tabular-nums">{formatCurrency(volumeMes)}</p>
+            <p className="text-2xl font-bold text-info-foreground tabular-nums">{formatCurrency(volumeMes)}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-5">
             <div className="flex items-center gap-2 mb-3">
-              <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-500/20"><DollarSign size={16} className="text-emerald-600 dark:text-emerald-400" /></div>
+              <div className="rounded-lg bg-success/20 p-2"><DollarSign size={16} className="text-success-foreground" /></div>
               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Comissao Est.</span>
             </div>
-            <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-400 tabular-nums">{formatCurrency(comissaoEstimada)}</p>
+            <p className="text-2xl font-bold text-success-foreground tabular-nums">{formatCurrency(comissaoEstimada)}</p>
             <p className="text-xs text-muted-foreground mt-1">operacoes ativas</p>
           </CardContent>
         </Card>
@@ -162,7 +162,7 @@ export default function ConsultorDashboard() {
           <CardContent>
             {carteira.length === 0 ? (
               <div className="text-center py-8">
-                <Briefcase size={32} className="text-muted-foreground/30 mx-auto mb-2" />
+                <Briefcase size={32} className="text-muted-foreground/50 mx-auto mb-2" />
                 <p className="text-muted-foreground text-sm">Nenhum cedente vinculado</p>
               </div>
             ) : (
@@ -197,7 +197,7 @@ export default function ConsultorDashboard() {
           <CardContent>
             {operacoes.length === 0 ? (
               <div className="text-center py-8">
-                <CreditCard size={32} className="text-muted-foreground/30 mx-auto mb-2" />
+                <CreditCard size={32} className="text-muted-foreground/50 mx-auto mb-2" />
                 <p className="text-muted-foreground text-sm">Nenhuma operacao encontrada</p>
               </div>
             ) : (
@@ -228,9 +228,9 @@ export default function ConsultorDashboard() {
       {/* Links rapidos */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
-          { label: 'Minha Carteira', href: '/consultor/carteira', icon: Briefcase, color: 'bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400' },
-          { label: 'Operacoes', href: '/consultor/operacoes', icon: CreditCard, color: 'bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400' },
-          { label: 'Relatorios', href: '/consultor/relatorios', icon: BarChart3, color: 'bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400' },
+          { label: 'Minha Carteira', href: '/consultor/carteira', icon: Briefcase, color: 'bg-warning/20 text-warning-foreground' },
+          { label: 'Operacoes', href: '/consultor/operacoes', icon: CreditCard, color: 'bg-primary/20 text-primary' },
+          { label: 'Relatorios', href: '/consultor/relatorios', icon: BarChart3, color: 'bg-info/20 text-info-foreground' },
         ].map((item) => (
           <Link key={item.href} href={item.href}>
             <Card className="hover:ring-2 hover:ring-primary/20 transition-all cursor-pointer group">
@@ -239,7 +239,7 @@ export default function ConsultorDashboard() {
                   <div className={`p-2 rounded-lg ${item.color}`}><item.icon size={18} /></div>
                   <span className="font-medium text-foreground">{item.label}</span>
                 </div>
-                <ArrowRight size={18} className="text-muted-foreground/40 group-hover:text-primary transition-colors" />
+                <ArrowRight size={18} className="text-muted-foreground/80 group-hover:text-primary transition-colors" />
               </CardContent>
             </Card>
           </Link>

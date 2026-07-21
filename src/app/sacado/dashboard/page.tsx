@@ -152,8 +152,8 @@ export default function SacadoDashboard() {
   const getVencimentoColor = (data: string) => {
     const dias = getDiasAteVencimento(data)
     if (dias <= 0) return 'border-destructive/30 bg-destructive/5'
-    if (dias <= 5) return 'border-amber-300/50 bg-amber-50 dark:bg-amber-500/10'
-    return 'border-emerald-300/50 bg-emerald-50 dark:bg-emerald-500/10'
+    if (dias <= 5) return 'border-warning/60 bg-warning/20'
+    return 'border-success/50 bg-success/15'
   }
 
   const getVencimentoLabel = (data: string) => {
@@ -185,10 +185,10 @@ export default function SacadoDashboard() {
         <Card>
           <CardContent className="pt-5">
             <div className="flex items-center gap-2 mb-3">
-              <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-500/20"><CreditCard size={16} className="text-blue-600 dark:text-blue-400" /></div>
+              <div className="rounded-lg bg-primary/20 p-2"><CreditCard size={16} className="text-primary" /></div>
               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Total a Pagar</span>
             </div>
-            <p className="text-2xl font-bold text-blue-700 dark:text-blue-400 tabular-nums">{formatCurrency(totalDevido)}</p>
+            <p className="text-2xl font-bold text-primary tabular-nums">{formatCurrency(totalDevido)}</p>
             <p className="text-xs text-muted-foreground mt-1">{nfsAtivas.length} NF(s) ativas</p>
           </CardContent>
         </Card>
@@ -196,7 +196,7 @@ export default function SacadoDashboard() {
         <Card className={vencidos.length > 0 ? 'border-destructive/30 bg-destructive/5' : ''}>
           <CardContent className="pt-5">
             <div className="flex items-center gap-2 mb-3">
-              <div className={`p-2 rounded-lg ${vencidos.length > 0 ? 'bg-destructive/15' : 'bg-red-100 dark:bg-red-500/20'}`}>
+              <div className="rounded-lg bg-destructive/20 p-2">
                 <AlertTriangle size={16} className="text-destructive" />
               </div>
               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Vencidos</span>
@@ -208,15 +208,15 @@ export default function SacadoDashboard() {
           </CardContent>
         </Card>
 
-        <Card className={vencimentosHoje.length > 0 ? 'border-amber-300/50 bg-amber-50 dark:bg-amber-500/10' : ''}>
+        <Card className={vencimentosHoje.length > 0 ? 'border-warning/60 bg-warning/20' : ''}>
           <CardContent className="pt-5">
             <div className="flex items-center gap-2 mb-3">
-              <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-500/20"><Calendar size={16} className="text-amber-600 dark:text-amber-400" /></div>
+              <div className="rounded-lg bg-warning/20 p-2"><Calendar size={16} className="text-warning-foreground" /></div>
               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Vencem Hoje</span>
             </div>
-            <p className="text-2xl font-bold text-amber-700 dark:text-amber-400 tabular-nums">{vencimentosHoje.length}</p>
+            <p className="text-2xl font-bold text-warning-foreground tabular-nums">{vencimentosHoje.length}</p>
             {vencimentosHoje.length > 0 && (
-              <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">{formatCurrency(vencimentosHoje.reduce((a, n) => a + n.valor_bruto, 0))}</p>
+              <p className="mt-1 text-xs text-warning-foreground">{formatCurrency(vencimentosHoje.reduce((a, n) => a + n.valor_bruto, 0))}</p>
             )}
           </CardContent>
         </Card>
@@ -224,10 +224,10 @@ export default function SacadoDashboard() {
         <Card>
           <CardContent className="pt-5">
             <div className="flex items-center gap-2 mb-3">
-              <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-500/20"><Clock size={16} className="text-purple-600 dark:text-purple-400" /></div>
+              <div className="rounded-lg bg-info/20 p-2"><Clock size={16} className="text-info-foreground" /></div>
               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Proximos 7d</span>
             </div>
-            <p className="text-2xl font-bold text-purple-700 dark:text-purple-400 tabular-nums">{proximos7d.length}</p>
+            <p className="text-2xl font-bold text-info-foreground tabular-nums">{proximos7d.length}</p>
             <p className="text-xs text-muted-foreground mt-1">{formatCurrency(proximos7d.reduce((a, n) => a + n.valor_bruto, 0))}</p>
           </CardContent>
         </Card>
@@ -244,7 +244,7 @@ export default function SacadoDashboard() {
         <CardContent>
           {vencimentos.length === 0 ? (
             <div className="text-center py-8">
-              <Calendar size={32} className="text-muted-foreground/30 mx-auto mb-2" />
+              <Calendar size={32} className="text-muted-foreground/50 mx-auto mb-2" />
               <p className="text-muted-foreground text-sm">Nenhum vencimento pendente</p>
             </div>
           ) : (
@@ -290,7 +290,7 @@ export default function SacadoDashboard() {
         <CardContent>
           {cedentesAgrupados.length === 0 ? (
             <div className="text-center py-8">
-              <Building2 size={32} className="text-muted-foreground/30 mx-auto mb-2" />
+              <Building2 size={32} className="text-muted-foreground/50 mx-auto mb-2" />
               <p className="text-muted-foreground text-sm">Nenhum pagamento pendente</p>
             </div>
           ) : (
@@ -348,9 +348,9 @@ export default function SacadoDashboard() {
       {/* Links rapidos */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
-          { label: 'NFs Recebidas', href: '/sacado/notas-fiscais', icon: Receipt, color: 'bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400' },
-          { label: 'Aprovação de Cessão', href: '/sacado/aprovacao', icon: CheckSquare, color: 'bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400' },
-          { label: 'Historico Pagamentos', href: '/sacado/pagamentos', icon: Wallet, color: 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' },
+          { label: 'NFs Recebidas', href: '/sacado/notas-fiscais', icon: Receipt, color: 'bg-primary/20 text-primary' },
+          { label: 'Aprovação de Cessão', href: '/sacado/aprovacao', icon: CheckSquare, color: 'bg-warning/20 text-warning-foreground' },
+          { label: 'Historico Pagamentos', href: '/sacado/pagamentos', icon: Wallet, color: 'bg-success/20 text-success-foreground' },
         ].map((item) => (
           <Link key={item.href} href={item.href}>
             <Card className="hover:ring-2 hover:ring-primary/20 transition-all cursor-pointer group">
@@ -359,7 +359,7 @@ export default function SacadoDashboard() {
                   <div className={`p-2 rounded-lg ${item.color}`}><item.icon size={18} /></div>
                   <span className="font-medium text-foreground">{item.label}</span>
                 </div>
-                <ArrowRight size={18} className="text-muted-foreground/40 group-hover:text-primary transition-colors" />
+                <ArrowRight size={18} className="text-muted-foreground/80 group-hover:text-primary transition-colors" />
               </CardContent>
             </Card>
           </Link>

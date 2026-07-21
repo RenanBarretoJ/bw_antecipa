@@ -2,45 +2,16 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Search, Eye } from 'lucide-react'
+import { Eye } from 'lucide-react'
 import Link from 'next/link'
 import { formatCNPJ, formatDate } from '@/lib/utils'
-import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Skeleton } from '@/components/ui/skeleton'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableHead,
-  TableRow,
-  TableCell,
-} from '@/components/ui/table'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table'
+import { PageContainer } from '@/components/layout/page-container'
+import { PageHeader } from '@/components/layout/page-header'
+import { DataTableContainer, EmptyState, FilterBar, LoadingState, StatusBadge } from '@/components/data-display/primitives'
 
-interface CedenteRow {
-  id: string
-  cnpj: string
-  razao_social: string
-  status: string
-  created_at: string
-}
-
-const statusBadge: Record<string, { label: string; className: string }> = {
-  pendente:   { label: 'Pendente',   className: 'bg-gray-100 text-gray-700 border-gray-200' },
-  em_analise: { label: 'Em Analise', className: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
-  ativo:      { label: 'Ativo',      className: 'bg-green-100 text-green-700 border-green-200' },
-  reprovado:  { label: 'Reprovado',  className: 'bg-red-100 text-red-700 border-red-200' },
-  bloqueado:  { label: 'Bloqueado',  className: 'bg-red-100 text-red-700 border-red-200' },
-}
+interface CedenteRow { id: string; cnpj: string; razao_social: string; status: string; created_at: string }
 
 export default function GestorCedentesPage() {
   const [cedentes, setCedentes] = useState<CedenteRow[]>([])
@@ -51,122 +22,40 @@ export default function GestorCedentesPage() {
   useEffect(() => {
     const load = async () => {
       const supabase = createClient()
-      const { data } = await supabase
-        .from('cedentes')
-        .select('id, cnpj, razao_social, status, created_at')
-        .order('created_at', { ascending: false })
-
+      const { data } = await supabase.from('cedentes').select('id, cnpj, razao_social, status, created_at').order('created_at', { ascending: false })
       setCedentes((data || []) as CedenteRow[])
       setLoading(false)
     }
     load()
   }, [])
 
-  const filtered = cedentes.filter((c) => {
-    if (filtroStatus !== 'todos' && c.status !== filtroStatus) return false
+  const filtered = cedentes.filter((cedente) => {
+    if (filtroStatus !== 'todos' && cedente.status !== filtroStatus) return false
     if (busca) {
-      const q = busca.toLowerCase()
-      return c.cnpj.includes(q) || c.razao_social.toLowerCase().includes(q)
+      const query = busca.toLowerCase()
+      return cedente.cnpj.includes(query) || cedente.razao_social.toLowerCase().includes(query)
     }
     return true
   })
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold text-foreground mb-6">Cedentes</h1>
+    <PageContainer className="space-y-6">
+      <PageHeader title="Cedentes" description="Acompanhe cadastro, status e documentos dos cedentes." eyebrow="Relacionamento" />
 
-      {/* Filtros */}
-      <Card className="mb-6">
-        <CardContent className="p-4">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1 relative">
-              <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                type="text"
-                placeholder="Buscar por CNPJ ou razao social..."
-                className="pl-10"
-                value={busca}
-                onChange={(e) => setBusca(e.target.value)}
-              />
-            </div>
-            <Select value={filtroStatus} onValueChange={(v) => { if (v) setFiltroStatus(v) }}>
-              <SelectTrigger className="w-full md:w-48">
-                <SelectValue placeholder="Todos os status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos os status</SelectItem>
-                <SelectItem value="pendente">Pendente</SelectItem>
-                <SelectItem value="em_analise">Em Analise</SelectItem>
-                <SelectItem value="ativo">Ativo</SelectItem>
-                <SelectItem value="reprovado">Reprovado</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
+      <FilterBar search={busca} onSearch={setBusca} placeholder="Buscar por CNPJ ou razão social...">
+        <Select value={filtroStatus} onValueChange={(value) => { if (value) setFiltroStatus(value) }}>
+          <SelectTrigger className="w-full md:w-48"><SelectValue placeholder="Todos os status" /></SelectTrigger>
+          <SelectContent><SelectItem value="todos">Todos os status</SelectItem><SelectItem value="pendente">Pendente</SelectItem><SelectItem value="em_analise">Em análise</SelectItem><SelectItem value="ativo">Ativo</SelectItem><SelectItem value="reprovado">Reprovado</SelectItem><SelectItem value="bloqueado">Bloqueado</SelectItem></SelectContent>
+        </Select>
+      </FilterBar>
 
-      {/* Tabela */}
-      <Card className="overflow-hidden">
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="px-6 py-3 text-xs font-semibold text-muted-foreground uppercase">CNPJ</TableHead>
-                <TableHead className="px-6 py-3 text-xs font-semibold text-muted-foreground uppercase">Razao Social</TableHead>
-                <TableHead className="px-6 py-3 text-xs font-semibold text-muted-foreground uppercase">Data Cadastro</TableHead>
-                <TableHead className="px-6 py-3 text-xs font-semibold text-muted-foreground uppercase">Status</TableHead>
-                <TableHead className="px-6 py-3 text-xs font-semibold text-muted-foreground uppercase text-right">Acoes</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                Array.from({ length: 5 }).map((_, i) => (
-                  <TableRow key={i}>
-                    <TableCell className="px-6 py-4"><Skeleton className="h-4 w-36" /></TableCell>
-                    <TableCell className="px-6 py-4"><Skeleton className="h-4 w-48" /></TableCell>
-                    <TableCell className="px-6 py-4"><Skeleton className="h-4 w-24" /></TableCell>
-                    <TableCell className="px-6 py-4"><Skeleton className="h-5 w-20 rounded-full" /></TableCell>
-                    <TableCell className="px-6 py-4"><Skeleton className="h-4 w-20 ml-auto" /></TableCell>
-                  </TableRow>
-                ))
-              ) : filtered.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                    Nenhum cedente encontrado.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filtered.map((c) => {
-                  const badge = statusBadge[c.status] || statusBadge.pendente
-                  return (
-                    <TableRow key={c.id}>
-                      <TableCell className="px-6 py-4 font-mono tabular-nums text-foreground">
-                        {formatCNPJ(c.cnpj)}
-                      </TableCell>
-                      <TableCell className="px-6 py-4 font-medium text-foreground">
-                        {c.razao_social}
-                      </TableCell>
-                      <TableCell className="px-6 py-4 tabular-nums text-muted-foreground">
-                        {formatDate(c.created_at)}
-                      </TableCell>
-                      <TableCell className="px-6 py-4">
-                        <Badge className={badge.className}>
-                          {badge.label}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="px-6 py-4 text-right">
-                        <Link href={`/gestor/cedentes/${c.id}`} className="inline-flex items-center gap-1.5 text-sm text-primary hover:text-primary/80 font-medium">
-                          <Eye size={16} /> Ver detalhes
-                        </Link>
-                      </TableCell>
-                    </TableRow>
-                  )
-                })
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    </div>
+      <DataTableContainer>
+        {loading ? <LoadingState label="Carregando cedentes..." /> : filtered.length === 0 ? <EmptyState title="Nenhum cedente encontrado" description={busca || filtroStatus !== 'todos' ? 'Ajuste os filtros para tentar novamente.' : 'Ainda não há cedentes cadastrados.'} /> : <Table>
+          <TableHeader><TableRow className="bg-muted/35 hover:bg-muted/35"><TableHead className="px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">CNPJ</TableHead><TableHead className="px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Razão social</TableHead><TableHead className="px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Data cadastro</TableHead><TableHead className="px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Status</TableHead><TableHead className="px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Ações</TableHead></TableRow></TableHeader>
+          <TableBody>{filtered.map((cedente) => <TableRow key={cedente.id} className="align-middle"><TableCell className="whitespace-nowrap px-5 py-4 font-mono text-sm tabular-nums">{formatCNPJ(cedente.cnpj)}</TableCell><TableCell className="w-[280px] max-w-[280px] px-5 py-4"><p className="block truncate font-medium" title={cedente.razao_social}>{cedente.razao_social}</p></TableCell><TableCell className="whitespace-nowrap px-5 py-4 text-sm tabular-nums text-muted-foreground">{formatDate(cedente.created_at)}</TableCell><TableCell className="whitespace-nowrap px-5 py-4"><StatusBadge status={cedente.status} /></TableCell><TableCell className="whitespace-nowrap px-5 py-4 text-right"><Link href={`/gestor/cedentes/${cedente.id}`} className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm font-medium text-primary transition-colors hover:bg-primary/10"><Eye size={15} /> Ver detalhes</Link></TableCell></TableRow>)}</TableBody>
+        </Table>}
+      </DataTableContainer>
+      {!loading && <p className="text-xs text-muted-foreground">{filtered.length} de {cedentes.length} cedente(s) exibido(s).</p>}
+    </PageContainer>
   )
 }

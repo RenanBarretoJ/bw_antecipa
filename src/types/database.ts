@@ -12,6 +12,8 @@ export type {
   ContextoConfiguracaoStatus,
   DocumentoStatus,
   DocumentoTipo,
+  DocumentoAnaliseResultado,
+  DocumentoVersaoStatus,
   MovimentoTipo,
   NfStatus,
   OperacaoStatus,
@@ -20,6 +22,8 @@ export type {
   PoliticaResponsavel,
   PoliticaStatus,
   PoliticaTipoDocumentoCodigo,
+  RepositorioDocumentoStatus,
+  RequisitoDocumentoStatus,
   SolicitacaoAlteracaoStatus,
   TipoContaBancaria,
   UserRole,
@@ -36,6 +40,8 @@ import type {
   AceiteSacadoStatus,
   DocumentoStatus,
   DocumentoTipo,
+  DocumentoAnaliseResultado,
+  DocumentoVersaoStatus,
   MovimentoTipo,
   NfStatus,
   OperacaoStatus,
@@ -44,6 +50,8 @@ import type {
   PoliticaResponsavel,
   PoliticaStatus,
   PoliticaTipoDocumentoCodigo,
+  RepositorioDocumentoStatus,
+  RequisitoDocumentoStatus,
   SolicitacaoAlteracaoStatus,
   TipoContaBancaria,
   UserRole,
@@ -237,6 +245,7 @@ export interface PoliticaRequisitoDocumental {
   codigo: string
   escopo: PoliticaRequisitoEscopo
   tipo_documento_codigo: PoliticaTipoDocumentoCodigo
+  documento_tipo_id: string | null
   obrigatorio: boolean
   quantidade_minima: number
   formatos_aceitos: string[]
@@ -246,6 +255,96 @@ export interface PoliticaRequisitoDocumental {
   responsavel_aprovacao: PoliticaResponsavel
   ordem: number
   ativo: boolean
+  created_at: string
+}
+
+export interface DocumentoTipoRepositorio {
+  id: string
+  codigo: string
+  nome: string
+  dominio: string
+  mime_types_aceitos: string[]
+  extensoes_aceitas: string[]
+  tamanho_max_bytes: number
+  permite_multiplas_versoes: boolean
+  ativo: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface DocumentoRepositorio {
+  id: string
+  documento_tipo_id: string
+  status: RepositorioDocumentoStatus
+  criado_por: string
+  created_at: string
+  updated_at: string
+  deleted_at: string | null
+}
+
+export interface DocumentoVersao {
+  id: string
+  documento_id: string
+  numero_versao: number
+  bucket: string
+  path: string
+  nome_original: string
+  mime_type: string
+  tamanho_bytes: number
+  sha256: string
+  status: DocumentoVersaoStatus
+  substitui_versao_id: string | null
+  enviado_por: string
+  enviado_em: string
+  created_at: string
+}
+
+export interface DocumentoVinculo {
+  id: string
+  documento_id: string
+  nota_fiscal_id: string | null
+  operacao_id: string | null
+  cedente_id: string
+  principal: boolean
+  created_at: string
+}
+
+export interface DocumentoRequisitoInstancia {
+  id: string
+  politica_requisito_id: string
+  politica_operacional_id: string
+  politica_operacional_versao_id: string
+  politica_versao: number
+  documento_tipo_id: string | null
+  tipo_documento_codigo_snapshot: string
+  escopo_snapshot: string
+  nota_fiscal_id: string
+  operacao_id: string | null
+  cedente_id: string
+  status: RequisitoDocumentoStatus
+  obrigatorio: boolean
+  prazo_limite: string | null
+  formatos_aceitos_snapshot: string[]
+  nivel_validacao_snapshot: string
+  quantidade_minima_snapshot: number
+  responsavel_upload_snapshot: string
+  responsavel_aprovacao_snapshot: string
+  documento_id: string | null
+  versao_aprovada_id: string | null
+  satisfeito_em: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface DocumentoAnalise {
+  id: string
+  documento_versao_id: string
+  resultado: DocumentoAnaliseResultado
+  analisado_por: string | null
+  ator_tipo: AuditoriaAtorTipo
+  observacoes: string | null
+  dados_estruturados: Record<string, unknown>
+  analisado_em: string
   created_at: string
 }
 
@@ -449,6 +548,12 @@ export interface Database {
     Tables: {
       profiles: { Row: Profile & Record<string, unknown>; Insert: InsertShape<Profile, 'id' | 'nome_completo' | 'email'> & Record<string, unknown>; Update: UpdateShape<Profile> & Record<string, unknown>; Relationships: [] }
       cedentes: { Row: Cedente & Record<string, unknown>; Insert: InsertShape<Cedente, 'user_id' | 'cnpj' | 'razao_social'> & Record<string, unknown>; Update: UpdateShape<Cedente> & Record<string, unknown>; Relationships: [] }
+      documento_tipos: { Row: DocumentoTipoRepositorio & Record<string, unknown>; Insert: InsertShape<DocumentoTipoRepositorio, 'codigo' | 'nome' | 'dominio'> & Record<string, unknown>; Update: UpdateShape<DocumentoTipoRepositorio> & Record<string, unknown>; Relationships: [] }
+      documentos_repositorio: { Row: DocumentoRepositorio & Record<string, unknown>; Insert: InsertShape<DocumentoRepositorio, 'documento_tipo_id' | 'criado_por'> & Record<string, unknown>; Update: UpdateShape<DocumentoRepositorio> & Record<string, unknown>; Relationships: [] }
+      documento_versoes: { Row: DocumentoVersao & Record<string, unknown>; Insert: InsertShape<DocumentoVersao, 'documento_id' | 'nome_original' | 'mime_type' | 'tamanho_bytes' | 'sha256' | 'enviado_por'> & Record<string, unknown>; Update: UpdateShape<DocumentoVersao> & Record<string, unknown>; Relationships: [] }
+      documento_vinculos: { Row: DocumentoVinculo & Record<string, unknown>; Insert: InsertShape<DocumentoVinculo, 'documento_id' | 'cedente_id'> & Record<string, unknown>; Update: UpdateShape<DocumentoVinculo> & Record<string, unknown>; Relationships: [] }
+      documento_requisito_instancias: { Row: DocumentoRequisitoInstancia & Record<string, unknown>; Insert: InsertShape<DocumentoRequisitoInstancia, 'politica_requisito_id' | 'politica_operacional_id' | 'politica_operacional_versao_id' | 'politica_versao' | 'tipo_documento_codigo_snapshot' | 'escopo_snapshot' | 'nota_fiscal_id' | 'cedente_id' | 'obrigatorio' | 'nivel_validacao_snapshot' | 'quantidade_minima_snapshot' | 'responsavel_upload_snapshot' | 'responsavel_aprovacao_snapshot'> & Record<string, unknown>; Update: UpdateShape<DocumentoRequisitoInstancia> & Record<string, unknown>; Relationships: [] }
+      documento_analises: { Row: DocumentoAnalise & Record<string, unknown>; Insert: InsertShape<DocumentoAnalise, 'documento_versao_id' | 'resultado'> & Record<string, unknown>; Update: UpdateShape<DocumentoAnalise> & Record<string, unknown>; Relationships: [] }
       representantes: { Row: Representante & Record<string, unknown>; Insert: InsertShape<Representante, 'cedente_id' | 'nome' | 'cpf' | 'rg' | 'cargo' | 'email' | 'telefone'> & Record<string, unknown>; Update: UpdateShape<Representante> & Record<string, unknown>; Relationships: [] }
       documentos: { Row: Documento & Record<string, unknown>; Insert: InsertShape<Documento, 'cedente_id' | 'tipo'> & Record<string, unknown>; Update: UpdateShape<Documento> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'documentos_cedente_id_fkey'; columns: ['cedente_id']; isOneToOne: false; referencedRelation: 'cedentes'; referencedColumns: ['id'] }, { foreignKeyName: 'documentos_representante_id_fkey'; columns: ['representante_id']; isOneToOne: false; referencedRelation: 'representantes'; referencedColumns: ['id'] }, { foreignKeyName: 'documentos_analisado_por_fkey'; columns: ['analisado_por']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] }] }
       contas_escrow: { Row: ContaEscrow & Record<string, unknown>; Insert: InsertShape<ContaEscrow, 'cedente_id' | 'identificador'> & Record<string, unknown>; Update: UpdateShape<ContaEscrow> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'contas_escrow_cedente_id_fkey'; columns: ['cedente_id']; isOneToOne: false; referencedRelation: 'cedentes'; referencedColumns: ['id'] }] }
@@ -457,7 +562,7 @@ export interface Database {
       cedente_fundos: { Row: CedenteFundo & Record<string, unknown>; Insert: InsertShape<CedenteFundo, 'cedente_id' | 'fundo_id'> & Record<string, unknown>; Update: UpdateShape<CedenteFundo> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'cedente_fundos_cedente_id_fkey'; columns: ['cedente_id']; isOneToOne: false; referencedRelation: 'cedentes'; referencedColumns: ['id'] }, { foreignKeyName: 'cedente_fundos_fundo_id_fkey'; columns: ['fundo_id']; isOneToOne: false; referencedRelation: 'fundos'; referencedColumns: ['id'] }] }
       politicas_operacionais: { Row: PoliticaOperacional & Record<string, unknown>; Insert: InsertShape<PoliticaOperacional, 'cedente_fundo_id' | 'codigo' | 'nome' | 'created_by'> & Record<string, unknown>; Update: UpdateShape<PoliticaOperacional> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'politicas_operacionais_cedente_fundo_id_fkey'; columns: ['cedente_fundo_id']; isOneToOne: false; referencedRelation: 'cedente_fundos'; referencedColumns: ['id'] }, { foreignKeyName: 'politicas_operacionais_created_by_fkey'; columns: ['created_by']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] }] }
       politica_operacional_versoes: { Row: PoliticaOperacionalVersao & Record<string, unknown>; Insert: InsertShape<PoliticaOperacionalVersao, 'politica_operacional_id' | 'cedente_fundo_id' | 'versao' | 'vigente_desde' | 'conteudo_hash'> & Record<string, unknown>; Update: UpdateShape<PoliticaOperacionalVersao> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'politica_operacional_versoes_politica_operacional_id_fkey'; columns: ['politica_operacional_id']; isOneToOne: false; referencedRelation: 'politicas_operacionais'; referencedColumns: ['id'] }, { foreignKeyName: 'politica_operacional_versoes_cedente_fundo_id_fkey'; columns: ['cedente_fundo_id']; isOneToOne: false; referencedRelation: 'cedente_fundos'; referencedColumns: ['id'] }, { foreignKeyName: 'politica_operacional_versoes_publicada_por_fkey'; columns: ['publicada_por']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] }] }
-      politica_requisitos_documentais: { Row: PoliticaRequisitoDocumental & Record<string, unknown>; Insert: InsertShape<PoliticaRequisitoDocumental, 'politica_operacional_versao_id' | 'politica_operacional_id' | 'cedente_fundo_id' | 'codigo' | 'escopo' | 'tipo_documento_codigo' | 'responsavel_upload' | 'responsavel_aprovacao'> & Record<string, unknown>; Update: UpdateShape<PoliticaRequisitoDocumental> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'politica_requisitos_documentais_politica_operacional_versao_id_fkey'; columns: ['politica_operacional_versao_id']; isOneToOne: false; referencedRelation: 'politica_operacional_versoes'; referencedColumns: ['id'] }, { foreignKeyName: 'politica_requisitos_documentais_politica_operacional_id_fkey'; columns: ['politica_operacional_id']; isOneToOne: false; referencedRelation: 'politicas_operacionais'; referencedColumns: ['id'] }, { foreignKeyName: 'politica_requisitos_documentais_cedente_fundo_id_fkey'; columns: ['cedente_fundo_id']; isOneToOne: false; referencedRelation: 'cedente_fundos'; referencedColumns: ['id'] }] }
+      politica_requisitos_documentais: { Row: PoliticaRequisitoDocumental & Record<string, unknown>; Insert: InsertShape<PoliticaRequisitoDocumental, 'politica_operacional_versao_id' | 'politica_operacional_id' | 'cedente_fundo_id' | 'codigo' | 'escopo' | 'tipo_documento_codigo' | 'responsavel_upload' | 'responsavel_aprovacao'> & Record<string, unknown>; Update: UpdateShape<PoliticaRequisitoDocumental> & Record<string, unknown>; Relationships: [] }
       devedores_solidarios: { Row: DevedorSolidario & Record<string, unknown>; Insert: InsertShape<DevedorSolidario, 'cedente_id' | 'nome' | 'doc_numero' | 'cpf'> & Record<string, unknown>; Update: UpdateShape<DevedorSolidario> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'devedores_solidarios_cedente_id_fkey'; columns: ['cedente_id']; isOneToOne: false; referencedRelation: 'cedentes'; referencedColumns: ['id'] }] }
       notas_fiscais: { Row: NotaFiscal & Record<string, unknown>; Insert: InsertShape<NotaFiscal, 'cedente_id' | 'numero_nf' | 'data_emissao' | 'data_vencimento' | 'cnpj_emitente' | 'razao_social_emitente' | 'cnpj_destinatario' | 'razao_social_destinatario' | 'valor_bruto'> & Record<string, unknown>; Update: UpdateShape<NotaFiscal> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'notas_fiscais_cedente_id_fkey'; columns: ['cedente_id']; isOneToOne: false; referencedRelation: 'cedentes'; referencedColumns: ['id'] }] }
       operacoes: { Row: Operacao & Record<string, unknown>; Insert: InsertShape<Operacao, 'cedente_id' | 'valor_bruto_total' | 'taxa_desconto' | 'prazo_dias' | 'valor_liquido_desembolso' | 'data_vencimento'> & Record<string, unknown>; Update: UpdateShape<Operacao> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'operacoes_cedente_id_fkey'; columns: ['cedente_id']; isOneToOne: false; referencedRelation: 'cedentes'; referencedColumns: ['id'] }, { foreignKeyName: 'operacoes_conta_escrow_id_fkey'; columns: ['conta_escrow_id']; isOneToOne: false; referencedRelation: 'contas_escrow'; referencedColumns: ['id'] }, { foreignKeyName: 'operacoes_aprovado_por_fkey'; columns: ['aprovado_por']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] }, { foreignKeyName: 'operacoes_testemunha_1_id_fkey'; columns: ['testemunha_1_id']; isOneToOne: false; referencedRelation: 'testemunhas'; referencedColumns: ['id'] }, { foreignKeyName: 'operacoes_testemunha_2_id_fkey'; columns: ['testemunha_2_id']; isOneToOne: false; referencedRelation: 'testemunhas'; referencedColumns: ['id'] }] }
@@ -477,6 +582,9 @@ export interface Database {
       get_user_cedente_id: { Args: Record<string, never>; Returns: string | null }
       get_user_sacado_cnpj: { Args: Record<string, never>; Returns: string | null }
       get_user_operacao_ids: { Args: Record<string, never>; Returns: string[] }
+      instanciar_requisitos_nota: { Args: { p_nota_fiscal_id: string; p_politica_operacional_id: string; p_politica_versao_id: string }; Returns: Record<string, unknown> }
+      registrar_documento_upload: { Args: { p_nota_fiscal_id: string; p_requisito_id: string; p_documento_tipo_id: string; p_nome_original: string; p_mime_type: string; p_tamanho_bytes: number; p_sha256: string; p_bucket: string; p_path: string; p_enviado_por: string; p_substitui_versao_id?: string | null }; Returns: Record<string, unknown> }
+      analisar_documento_versao: { Args: { p_documento_versao_id: string; p_resultado: string; p_observacoes?: string | null; p_dados_estruturados?: Record<string, unknown> }; Returns: Record<string, unknown> }
     }
     Enums: {
       user_role: UserRole

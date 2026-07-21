@@ -238,15 +238,14 @@ export default function RelatoriosGestorPage() {
             <TableBody>
               {volumePorCedente.map((c) => (
                 <TableRow key={c.cnpj}>
-                  <TableCell className="px-4 py-3">
-                    <p className="text-sm font-medium text-foreground">{c.razao_social}</p>
-                    <p className="text-xs text-muted-foreground tabular-nums">{formatCNPJ(c.cnpj)}</p>
+                  <TableCell className="w-[260px] max-w-[260px] px-4 py-3">
+                    <div className="min-w-0 max-w-[260px]"><p className="block truncate text-sm font-medium text-foreground" title={c.razao_social}>{c.razao_social}</p><p className="block truncate font-mono text-xs text-muted-foreground tabular-nums" title={formatCNPJ(c.cnpj)}>{formatCNPJ(c.cnpj)}</p></div>
                   </TableCell>
-                  <TableCell className="px-4 py-3 text-right text-sm font-medium tabular-nums">{formatCurrency(c.volumeMes)}</TableCell>
-                  <TableCell className="px-4 py-3 text-sm tabular-nums">{c.opsMes}</TableCell>
-                  <TableCell className="px-4 py-3 text-right text-sm font-bold tabular-nums">{formatCurrency(c.volumeTotal)}</TableCell>
-                  <TableCell className="px-4 py-3 text-sm tabular-nums">{c.opsTotal}</TableCell>
-                  <TableCell className="px-4 py-3">
+                  <TableCell className="whitespace-nowrap px-4 py-3 text-right text-sm font-medium tabular-nums">{formatCurrency(c.volumeMes)}</TableCell>
+                  <TableCell className="whitespace-nowrap px-4 py-3 text-sm tabular-nums">{c.opsMes}</TableCell>
+                  <TableCell className="whitespace-nowrap px-4 py-3 text-right text-sm font-bold tabular-nums">{formatCurrency(c.volumeTotal)}</TableCell>
+                  <TableCell className="whitespace-nowrap px-4 py-3 text-sm tabular-nums">{c.opsTotal}</TableCell>
+                  <TableCell className="whitespace-nowrap px-4 py-3">
                     {c.inadimplentes > 0 ? (
                       <Badge className="rounded-full text-xs font-medium bg-red-100 text-red-700 tabular-nums">{c.inadimplentes}</Badge>
                     ) : (

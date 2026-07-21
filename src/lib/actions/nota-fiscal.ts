@@ -8,6 +8,7 @@ import { extractDanfeFromPdf, type NfPdfExtracted } from '@/lib/pdf-nf-parser'
 import { registrarLog } from './auditoria'
 import { notificarGestores, notificarCedente } from './notificacao'
 import { buckets } from '@/lib/storage'
+import { uploadDocumentoSeRequerido } from '@/lib/documentos-v2/upload'
 
 export type NfActionState = {
   success?: boolean
@@ -113,10 +114,18 @@ async function processarArquivo(
         .select('id').single()
 
       if (dbError) {
+        await supabase.storage.from(buckets.notasFiscais).remove([filePath])
         return { ok: false, error: `${arquivo.name}: erro ao salvar - ${dbError.message}` }
       }
 
       const nfData = nf as { id: string }
+      try {
+        await uploadDocumentoSeRequerido(nfData.id, 'nf_xml', arquivo, supabase)
+      } catch (error) {
+        await supabase.storage.from(buckets.notasFiscais).remove([filePath])
+        await supabase.from('notas_fiscais').delete().eq('id', nfData.id)
+        return { ok: false, error: `${arquivo.name}: nao foi possivel registrar o XML no repositorio documental - ${error instanceof Error ? error.message : 'erro desconhecido'}` }
+      }
       registrarLog({
         tipo_evento: 'NF_CADASTRADA',
         entidade_tipo: 'notas_fiscais',
@@ -167,10 +176,22 @@ async function processarArquivo(
         .select('id').single()
 
       if (dbError) {
+        await supabase.storage.from(buckets.notasFiscais).remove([filePath])
         return { ok: false, error: `${arquivo.name}: erro ao salvar - ${dbError.message}` }
       }
 
-      return { ok: true, id: (nf as { id: string }).id, isRascunho: true }
+      const nfData = nf as { id: string }
+      if (isPdf) {
+        try {
+          await uploadDocumentoSeRequerido(nfData.id, 'nf_danfe_pdf', arquivo, supabase)
+        } catch (error) {
+          await supabase.storage.from(buckets.notasFiscais).remove([filePath])
+          await supabase.from('notas_fiscais').delete().eq('id', nfData.id)
+          return { ok: false, error: `${arquivo.name}: nao foi possivel registrar o DANFE no repositorio documental - ${error instanceof Error ? error.message : 'erro desconhecido'}` }
+        }
+      }
+
+      return { ok: true, id: nfData.id, isRascunho: true }
     }
   } catch (e) {
     console.error('[uploadNFs]', e)
@@ -316,10 +337,21 @@ export async function criarNFManual(formData: FormData): Promise<NfActionState> 
     .single()
 
   if (dbError) {
+    await supabase.storage.from(buckets.notasFiscais).remove([filePath])
     return { success: false, message: `Erro ao salvar: ${dbError.message}` }
   }
 
   const nfData = nf as { id: string }
+
+  if (arquivo.type === 'application/pdf') {
+    try {
+      await uploadDocumentoSeRequerido(nfData.id, 'nf_danfe_pdf', arquivo, supabase)
+    } catch (error) {
+      await supabase.storage.from(buckets.notasFiscais).remove([filePath])
+      await supabase.from('notas_fiscais').delete().eq('id', nfData.id)
+      return { success: false, message: `Nao foi possivel registrar o DANFE no repositorio documental: ${error instanceof Error ? error.message : 'erro desconhecido'}` }
+    }
+  }
 
   await registrarLog({
     tipo_evento: 'NF_CADASTRADA',

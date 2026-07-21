@@ -4,13 +4,10 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { criarFundo, atualizarFundo, toggleAtivoFundo } from '@/lib/actions/gestor'
 import { formatCNPJ } from '@/lib/utils'
-import { Plus, Pencil, Building2, Loader2 } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Plus, Pencil, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Skeleton } from '@/components/ui/skeleton'
 import {
   Sheet,
   SheetContent,
@@ -19,6 +16,9 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { Fundo } from '@/types/database'
+import { PageContainer } from '@/components/layout/page-container'
+import { PageHeader } from '@/components/layout/page-header'
+import { DetailSection, EmptyState, LoadingState, StatusBadge } from '@/components/data-display/primitives'
 
 const camposVazios = {
   nome: '',
@@ -114,6 +114,8 @@ export default function FundosPage() {
     setLoading(false)
   }
 
+  // A carga inicial sincroniza a lista com o Supabase.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { loadData() }, [])
 
   function abrirNovo() {
@@ -160,39 +162,20 @@ export default function FundosPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Building2 size={24} className="text-primary" />
-          <div>
-            <h1 className="text-2xl font-bold">Fundos</h1>
-            <p className="text-sm text-muted-foreground">Gerencie os fundos de investimento</p>
-          </div>
-        </div>
-        <Button onClick={abrirNovo} className="gap-2">
-          <Plus size={16} /> Novo Fundo
-        </Button>
-      </div>
+    <PageContainer className="space-y-6">
+      <PageHeader title="Fundos" description="Gerencie os fundos de investimento." eyebrow="Estrutura financeira" action={<Button onClick={abrirNovo} className="gap-2"><Plus size={16} /> Novo fundo</Button>} />
 
       {message && (
-        <div className={`text-sm px-3 py-2 rounded-lg border ${messageType === 'success' ? 'bg-green-50 border-green-200 text-green-700 dark:bg-green-900/20 dark:border-green-800 dark:text-green-400' : 'bg-red-50 border-red-200 text-red-700 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400'}`}>
+        <div className={`rounded-xl border px-4 py-3 text-sm ${messageType === 'success' ? 'border-success/25 bg-success/10 text-success-foreground' : 'border-destructive/25 bg-destructive/5 text-destructive'}`}>
           {message}
         </div>
       )}
 
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Fundos cadastrados</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
+      <DetailSection title="Fundos cadastrados">
           {loading ? (
-            <div className="p-4 space-y-3">
-              {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
-            </div>
+            <LoadingState label="Carregando fundos..." />
           ) : fundos.length === 0 ? (
-            <div className="p-8 text-center text-sm text-muted-foreground">
-              Nenhum fundo cadastrado. Clique em &quot;Novo Fundo&quot; para começar.
-            </div>
+            <EmptyState title="Nenhum fundo cadastrado" description="Cadastre o primeiro fundo para vinculá-lo aos cedentes." action={<Button onClick={abrirNovo}>Novo fundo</Button>} />
           ) : (
             <div className="divide-y">
               {fundos.map(fundo => (
@@ -205,12 +188,7 @@ export default function FundosPage() {
                     </p>
                   </div>
                   <div className="flex items-center gap-2 ml-4 shrink-0">
-                    <Badge
-                      variant="secondary"
-                      className={fundo.ativo ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : ''}
-                    >
-                      {fundo.ativo ? 'Ativo' : 'Inativo'}
-                    </Badge>
+                    <StatusBadge status={fundo.ativo ? 'ativo' : 'inativo'} label={fundo.ativo ? 'Ativo' : 'Inativo'} />
                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => abrirEditar(fundo)}>
                       <Pencil size={13} />
                     </Button>
@@ -228,8 +206,7 @@ export default function FundosPage() {
               ))}
             </div>
           )}
-        </CardContent>
-      </Card>
+      </DetailSection>
 
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetContent side="right" className="w-full sm:max-w-lg flex flex-col gap-0 p-0 overflow-hidden">
@@ -291,6 +268,6 @@ export default function FundosPage() {
           </SheetFooter>
         </SheetContent>
       </Sheet>
-    </div>
+    </PageContainer>
   )
 }

@@ -8,8 +8,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
-import { Building2, FileCog, Loader2, Plus, Power, Send, Trash2 } from 'lucide-react'
+import { Building2, FileCog, Plus, Power, Send, Trash2 } from 'lucide-react'
+import { PageContainer } from '@/components/layout/page-container'
+import { PageHeader } from '@/components/layout/page-header'
+import { LoadingState, StatusBadge } from '@/components/data-display/primitives'
 
 interface LinkRow { id: string; cedente_id: string; fundo_id: string; status: string; vigente_desde: string }
 interface CedenteRow { id: string; razao_social: string; cnpj: string }
@@ -98,21 +100,18 @@ export default function PoliticasPage() {
     setVersionForm((current) => ({ ...current, requisitos: [] }))
   }
 
-  if (loading) return <div className="flex items-center justify-center py-20"><Loader2 className="animate-spin" /></div>
+  if (loading) return <PageContainer><LoadingState label="Carregando políticas..." /></PageContainer>
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      <div className="flex items-center gap-3">
-        <FileCog size={24} className="text-primary" />
-        <div><h1 className="text-2xl font-bold">Políticas operacionais</h1><p className="text-sm text-muted-foreground">Configure vínculos, versões e requisitos documentais do contexto operacional.</p></div>
-      </div>
+    <PageContainer className="space-y-6">
+      <PageHeader title="Políticas operacionais" description="Configure vínculos, versões e requisitos documentais do contexto operacional." eyebrow="Governança" action={<FileCog size={20} className="text-primary" aria-hidden="true" />} />
 
-      {message && <div className="rounded-lg border bg-muted/30 px-3 py-2 text-sm">{message}</div>}
+      {message && <div className="rounded-xl border border-info/25 bg-info/10 px-4 py-3 text-sm text-info-foreground">{message}</div>}
 
-      <Card>
+      <Card className="border-primary/15 shadow-sm">
         <CardHeader><CardTitle className="text-base flex items-center gap-2"><Building2 size={17} /> Vínculo cedente-fundo</CardTitle></CardHeader>
         <CardContent className="space-y-3">
-          <select className="h-9 w-full rounded-md border bg-background px-3 text-sm" value={selectedLinkId} onChange={(event) => { setSelectedLinkId(event.target.value); setSelectedPolicyId('') }}>
+          <select className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20" value={selectedLinkId} onChange={(event) => { setSelectedLinkId(event.target.value); setSelectedPolicyId('') }}>
             <option value="">Selecione um vínculo</option>
             {links.map((link) => <option key={link.id} value={link.id}>{cedenteName(link.cedente_id)} — {fundoName(link.fundo_id)} ({link.status})</option>)}
           </select>
@@ -122,7 +121,7 @@ export default function PoliticasPage() {
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
+        <Card className="border-border shadow-sm">
           <CardHeader><CardTitle className="text-base">Políticas do vínculo</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-2 sm:grid-cols-2">
@@ -131,15 +130,15 @@ export default function PoliticasPage() {
             </div>
             <div><Label>Descrição</Label><Input value={policyForm.descricao} onChange={(event) => setPolicyForm({ ...policyForm, descricao: event.target.value })} /></div>
             <Button onClick={createPolicy} disabled={busy || !selectedLinkId} className="gap-2"><Plus size={15} /> Criar rascunho</Button>
-            <div className="divide-y rounded-md border">
-              {visiblePolicies.map((policy) => <button key={policy.id} type="button" onClick={() => setSelectedPolicyId(policy.id)} className={`w-full px-3 py-2 text-left text-sm ${selectedPolicyId === policy.id ? 'bg-muted' : ''}`}><span className="font-medium">{policy.codigo} — {policy.nome}</span><Badge variant="outline" className="ml-2">{policy.status}</Badge></button>)}
+            <div className="divide-y overflow-hidden rounded-xl border border-border">
+              {visiblePolicies.map((policy) => <button key={policy.id} type="button" onClick={() => setSelectedPolicyId(policy.id)} className={`flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm transition-colors hover:bg-muted/50 ${selectedPolicyId === policy.id ? 'bg-primary/5' : ''}`}><span className="font-medium">{policy.codigo} — {policy.nome}</span><StatusBadge status={policy.status} /></button>)}
               {visiblePolicies.length === 0 && <p className="p-3 text-sm text-muted-foreground">Nenhuma política para o vínculo.</p>}
             </div>
             {selectedPolicy && <Button variant="outline" size="sm" disabled={busy || selectedPolicy.status === 'desativada'} onClick={() => execute(() => desativarPolitica(selectedPolicy.id))}>Desativar política</Button>}
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-border shadow-sm">
           <CardHeader><CardTitle className="text-base">Nova versão</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <p className="text-xs text-muted-foreground">A versão é criada como rascunho. Publicar uma versão fecha a versão publicada anterior dessa política.</p>
@@ -149,7 +148,7 @@ export default function PoliticasPage() {
               <label className="flex items-center gap-2"><input type="checkbox" checked={versionForm.entrega} onChange={(event) => setVersionForm({ ...versionForm, entrega: event.target.checked })} /> Acomp. entrega</label>
             </div>
             <div className="space-y-3">
-              {versionForm.requisitos.map((requirement, index) => <div key={`${index}-${requirement.codigo}`} className="rounded-md border p-3 space-y-2">
+              {versionForm.requisitos.map((requirement, index) => <div key={`${index}-${requirement.codigo}`} className="space-y-2 rounded-xl border border-border bg-muted/20 p-4">
                 <div className="flex items-center justify-between"><span className="text-xs font-semibold">Requisito {index + 1}</span><Button type="button" variant="ghost" size="icon" onClick={() => setVersionForm({ ...versionForm, requisitos: versionForm.requisitos.filter((_, itemIndex) => itemIndex !== index) })}><Trash2 size={14} /></Button></div>
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input placeholder="Código" value={requirement.codigo} onChange={(event) => setVersionForm({ ...versionForm, requisitos: versionForm.requisitos.map((item, itemIndex) => itemIndex === index ? { ...item, codigo: event.target.value } : item) })} />
@@ -165,7 +164,7 @@ export default function PoliticasPage() {
         </Card>
       </div>
 
-      {selectedPolicy && <Card><CardHeader><CardTitle className="text-base">Histórico de versões — {selectedPolicy.codigo}</CardTitle></CardHeader><CardContent className="space-y-2">{visibleVersions.map((version) => <div key={version.id} className="rounded-md border px-3 py-2 text-sm"><div className="flex flex-wrap items-center justify-between gap-2"><div><span className="font-medium">Versão {version.versao}</span><span className="ml-2 text-xs text-muted-foreground">criada em {new Date(version.vigente_desde).toLocaleDateString('pt-BR')}</span>{version.publicada_em && <Badge className="ml-2">Publicada</Badge>}</div>{!version.publicada_em && <Button size="sm" disabled={busy} onClick={() => execute(() => publicarVersaoPolitica(version.id))}><Send size={13} className="mr-1" /> Publicar</Button>}</div><div className="mt-2 flex flex-wrap gap-1">{requirements.filter((requirement) => requirement.politica_operacional_versao_id === version.id).map((requirement) => <span key={requirement.id} className="rounded bg-muted px-2 py-1 text-[11px]">{requirement.codigo} · {requirement.tipo_documento_codigo} · {requirement.prazo_dias_corridos === null ? 'sem prazo' : `${requirement.prazo_dias_corridos}d`} · upload {requirement.responsavel_upload} · aprova {requirement.responsavel_aprovacao}{requirement.obrigatorio ? '' : ' · opcional'}</span>)}</div></div>)}{visibleVersions.length === 0 && <p className="text-sm text-muted-foreground">Nenhuma versão criada.</p>}</CardContent></Card>}
-    </div>
+      {selectedPolicy && <Card className="border-border shadow-sm"><CardHeader><CardTitle className="text-base">Histórico de versões — {selectedPolicy.codigo}</CardTitle></CardHeader><CardContent className="space-y-2">{visibleVersions.map((version) => <div key={version.id} className="rounded-xl border border-border bg-background px-4 py-3 text-sm"><div className="flex flex-wrap items-center justify-between gap-2"><div><span className="font-medium">Versão {version.versao}</span><span className="ml-2 text-xs text-muted-foreground">criada em {new Date(version.vigente_desde).toLocaleDateString('pt-BR')}</span>{version.publicada_em && <StatusBadge status="publicada" label="Publicada" />}</div>{!version.publicada_em && <Button size="sm" disabled={busy} onClick={() => execute(() => publicarVersaoPolitica(version.id))}><Send size={13} className="mr-1" /> Publicar</Button>}</div><div className="mt-3 flex flex-wrap gap-1.5">{requirements.filter((requirement) => requirement.politica_operacional_versao_id === version.id).map((requirement) => <span key={requirement.id} className="rounded-lg bg-muted px-2.5 py-1.5 text-[11px] text-muted-foreground">{requirement.codigo} · {requirement.tipo_documento_codigo} · {requirement.prazo_dias_corridos === null ? 'sem prazo' : `${requirement.prazo_dias_corridos}d`} · upload {requirement.responsavel_upload} · aprova {requirement.responsavel_aprovacao}{requirement.obrigatorio ? '' : ' · opcional'}</span>)}</div></div>)}{visibleVersions.length === 0 && <p className="text-sm text-muted-foreground">Nenhuma versão criada.</p>}</CardContent></Card>}
+    </PageContainer>
   )
 }

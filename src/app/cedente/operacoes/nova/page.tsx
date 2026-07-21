@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { solicitarAntecipacao } from '@/lib/actions/operacao'
+import { verificarElegibilidadeDocumental, type ElegibilidadeDocumental } from '@/lib/actions/documento-v2'
 import { formatCurrency, formatCNPJ, formatDate, parseLocalDate } from '@/lib/utils'
 import Link from 'next/link'
 import { ArrowLeft, CheckSquare, Square, Send, Receipt, Calculator, Loader2 } from 'lucide-react'
@@ -30,11 +31,13 @@ export default function NovaSolicitacaoPage() {
   const router = useRouter()
   const [nfs, setNfs] = useState<NfAprovada[]>([])
   const [taxas, setTaxas] = useState<TaxaConfig[]>([])
+  const [elegibilidades, setElegibilidades] = useState<Record<string, ElegibilidadeDocumental>>({})
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [message, setMessage] = useState('')
   const [messageType, setMessageType] = useState<'success' | 'error'>('success')
+  const [todayMs] = useState(() => Date.now())
 
   useEffect(() => {
     const load = async () => {
@@ -48,6 +51,8 @@ export default function NovaSolicitacaoPage() {
         .order('data_vencimento', { ascending: true })
 
       setNfs((nfsData || []) as NfAprovada[])
+      const checks = await Promise.all((nfsData || []).map(async (nf) => [nf.id, await verificarElegibilidadeDocumental(nf.id)] as const))
+      setElegibilidades(Object.fromEntries(checks))
 
       // Buscar taxas pre-configuradas
       const { data: taxasData } = await supabase
@@ -71,17 +76,18 @@ export default function NovaSolicitacaoPage() {
   }
 
   const toggleAll = () => {
-    if (selected.size === nfs.length) {
+    const elegiveis = nfs.filter((nf) => elegibilidades[nf.id]?.elegivel !== false)
+    if (selected.size === elegiveis.length) {
       setSelected(new Set())
     } else {
-      setSelected(new Set(nfs.map((n) => n.id)))
+      setSelected(new Set(elegiveis.map((n) => n.id)))
     }
   }
 
   // Calculos por NF: prazo individual → taxa individual → valor antecipado individual
   const nfsComCalculo = nfs.map((nf) => {
     const prazoDias = Math.max(1, Math.ceil(
-      (parseLocalDate(nf.data_vencimento).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+      (parseLocalDate(nf.data_vencimento).getTime() - todayMs) / (1000 * 60 * 60 * 24)
     ))
     const taxaConfig = taxas.find((t) => prazoDias >= t.prazo_min && prazoDias <= t.prazo_max)
     const taxa = taxaConfig?.taxa_percentual || 0
@@ -186,7 +192,7 @@ export default function NovaSolicitacaoPage() {
                   onClick={toggleAll}
                   className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  {selected.size === nfs.length
+                  {selected.size === nfs.filter((nf) => elegibilidades[nf.id]?.elegivel !== false).length
                     ? <CheckSquare size={16} className="text-primary" />
                     : <Square size={16} />
                   }
@@ -198,11 +204,13 @@ export default function NovaSolicitacaoPage() {
               <div className="divide-y divide-border">
                 {nfsComCalculo.map((nf) => {
                   const isSelected = selected.has(nf.id)
+                  const eligibility = elegibilidades[nf.id]
+                  const blocked = eligibility?.elegivel === false
                   return (
                     <div
                       key={nf.id}
-                      onClick={() => toggleNf(nf.id)}
-                      className={`px-4 py-3 flex items-center gap-4 cursor-pointer transition-colors ${
+                      onClick={() => { if (!blocked) toggleNf(nf.id) }}
+                      className={`px-4 py-3 flex items-center gap-4 transition-colors ${blocked ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'} ${
                         isSelected ? 'bg-primary/5' : 'hover:bg-muted/50'
                       }`}
                     >
@@ -221,6 +229,7 @@ export default function NovaSolicitacaoPage() {
                           <span>Venc: {formatDate(nf.data_vencimento)}</span>
                           <span>{nf.prazoDias}d {nf.taxa > 0 ? `/ ${nf.taxa}% a.m.` : '/ taxa a definir'}</span>
                         </div>
+                        {blocked && <p className="mt-1 text-xs text-red-700">Indisponivel: {eligibility.motivos.join(', ')}</p>}
                       </div>
                       <div className="text-right shrink-0">
                         <p className="font-bold text-foreground tabular-nums">{formatCurrency(nf.valor_bruto)}</p>

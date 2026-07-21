@@ -154,8 +154,8 @@ export function BotaoDownloadContrato({ tipo, id, storagePath, hasSignedDoc, lab
         {showConfirm && (
           <div className={`rounded-lg border p-3 text-xs space-y-2 ${
             isCritico
-              ? 'bg-red-50 border-red-300 text-red-800'
-              : 'bg-amber-50 border-amber-300 text-amber-800'
+              ? 'bg-destructive/10 border-destructive/30 text-destructive'
+              : 'bg-warning/10 border-warning/30 text-warning-foreground'
           }`}>
             <div className="flex items-start gap-2">
               <AlertTriangle size={14} className="mt-0.5 shrink-0" />
@@ -172,7 +172,7 @@ export function BotaoDownloadContrato({ tipo, id, storagePath, hasSignedDoc, lab
               </Button>
               <Button
                 size="sm"
-                className={`h-7 text-xs text-white ${isCritico ? 'bg-red-600 hover:bg-red-700' : 'bg-amber-600 hover:bg-amber-700'}`}
+                className={`h-7 text-xs ${isCritico ? 'bg-destructive text-destructive-foreground hover:bg-destructive/85' : 'bg-warning text-warning-foreground hover:bg-warning/85'}`}
                 onClick={handleGerar}
                 disabled={gerando}
               >

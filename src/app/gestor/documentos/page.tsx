@@ -235,21 +235,20 @@ export default function DocumentosGestorPage() {
                 const StIcon = st?.icon || Clock
                 return (
                   <TableRow key={doc.id}>
-                    <TableCell className="px-4 py-3">
-                      <p className="text-sm font-medium text-foreground">{doc.cedentes.razao_social}</p>
-                      <p className="text-xs text-muted-foreground tabular-nums">{formatCNPJ(doc.cedentes.cnpj)}</p>
+                    <TableCell className="w-[260px] max-w-[260px] px-4 py-3">
+                      <div className="min-w-0 max-w-[260px]"><p className="block truncate text-sm font-medium text-foreground" title={doc.cedentes.razao_social}>{doc.cedentes.razao_social}</p><p className="block truncate font-mono text-xs text-muted-foreground tabular-nums" title={formatCNPJ(doc.cedentes.cnpj)}>{formatCNPJ(doc.cedentes.cnpj)}</p></div>
                     </TableCell>
-                    <TableCell className="px-4 py-3 text-sm">{tipoLabels[doc.tipo] || doc.tipo}</TableCell>
-                    <TableCell className="px-4 py-3 text-sm text-muted-foreground truncate max-w-[150px]">{doc.nome_arquivo || '—'}</TableCell>
-                    <TableCell className="px-4 py-3 text-sm tabular-nums">v{doc.versao}</TableCell>
-                    <TableCell className="px-4 py-3">
+                    <TableCell className="whitespace-nowrap px-4 py-3 text-sm">{tipoLabels[doc.tipo] || doc.tipo}</TableCell>
+                    <TableCell className="max-w-[150px] truncate px-4 py-3 text-sm text-muted-foreground" title={doc.nome_arquivo || undefined}>{doc.nome_arquivo || '—'}</TableCell>
+                    <TableCell className="whitespace-nowrap px-4 py-3 text-sm tabular-nums">v{doc.versao}</TableCell>
+                    <TableCell className="whitespace-nowrap px-4 py-3">
                       <Badge className={`inline-flex items-center gap-1 rounded-full text-xs font-medium ${st?.color || 'bg-gray-100'}`}>
                         <StIcon size={12} />
                         {st?.label || doc.status}
                       </Badge>
                     </TableCell>
-                    <TableCell className="px-4 py-3 text-sm text-muted-foreground">{formatDate(doc.created_at)}</TableCell>
-                    <TableCell className="px-4 py-3">
+                    <TableCell className="whitespace-nowrap px-4 py-3 text-sm text-muted-foreground">{formatDate(doc.created_at)}</TableCell>
+                    <TableCell className="whitespace-nowrap px-4 py-3">
                       {(doc.status === 'enviado' || doc.status === 'em_analise') && (
                         <Button
                           variant="ghost"

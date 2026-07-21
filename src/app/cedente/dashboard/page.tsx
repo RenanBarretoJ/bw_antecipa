@@ -152,14 +152,14 @@ export default function CedenteDashboard() {
       {/* Alerta documentos reprovados */}
       {stats.docsReprovados > 0 && (
         <Link href="/cedente/documentos" className="block">
-          <Card className="border-destructive/30 bg-destructive/5 hover:bg-destructive/10 transition-colors cursor-pointer">
+          <Card className="border-destructive/45 bg-destructive/15 hover:bg-destructive/20 transition-colors cursor-pointer">
             <CardContent className="flex items-center gap-3 py-4">
-              <div className="p-2 rounded-lg bg-destructive/10">
+              <div className="rounded-lg bg-destructive/20 p-2">
                 <AlertTriangle size={20} className="text-destructive" />
               </div>
               <div>
                 <p className="font-semibold text-destructive">{stats.docsReprovados} documento(s) reprovado(s)</p>
-                <p className="text-sm text-destructive/70">Reenvie para continuar operando</p>
+                <p className="text-sm text-destructive/85">Reenvie para continuar operando</p>
               </div>
             </CardContent>
           </Card>
@@ -171,24 +171,24 @@ export default function CedenteDashboard() {
         <Card>
           <CardContent className="pt-5">
             <div className="flex items-center gap-2 mb-3">
-              <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-500/20">
-                <Wallet size={18} className="text-emerald-600 dark:text-emerald-400" />
+              <div className="rounded-lg bg-success/20 p-2">
+                <Wallet size={18} className="text-success-foreground" />
               </div>
               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Saldo Disponivel</span>
             </div>
-            <p className="text-3xl font-bold text-emerald-700 dark:text-emerald-400 tabular-nums">{formatCurrency(stats.saldoDisponivel)}</p>
+            <p className="text-3xl font-bold text-success-foreground tabular-nums">{formatCurrency(stats.saldoDisponivel)}</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardContent className="pt-5">
             <div className="flex items-center gap-2 mb-3">
-              <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-500/20">
-                <TrendingUp size={18} className="text-purple-600 dark:text-purple-400" />
+              <div className="rounded-lg bg-info/20 p-2">
+                <TrendingUp size={18} className="text-info-foreground" />
               </div>
               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Volume Ativo</span>
             </div>
-            <p className="text-3xl font-bold text-purple-700 dark:text-purple-400 tabular-nums">{formatCurrency(stats.volumeAtivo)}</p>
+            <p className="text-3xl font-bold text-info-foreground tabular-nums">{formatCurrency(stats.volumeAtivo)}</p>
             <p className="text-xs text-muted-foreground mt-1">{stats.opsAtivas} operacao(es)</p>
           </CardContent>
         </Card>
@@ -196,12 +196,12 @@ export default function CedenteDashboard() {
         <Card>
           <CardContent className="pt-5">
             <div className="flex items-center gap-2 mb-3">
-              <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-500/20">
-                <Receipt size={18} className="text-blue-600 dark:text-blue-400" />
+              <div className="rounded-lg bg-primary/20 p-2">
+                <Receipt size={18} className="text-primary" />
               </div>
               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">NFs Disponiveis</span>
             </div>
-            <p className="text-3xl font-bold text-blue-700 dark:text-blue-400 tabular-nums">{stats.nfsAprovadas}</p>
+            <p className="text-3xl font-bold text-primary tabular-nums">{stats.nfsAprovadas}</p>
             <p className="text-xs text-muted-foreground mt-1">de {stats.nfsTotal} total</p>
           </CardContent>
         </Card>
@@ -219,7 +219,7 @@ export default function CedenteDashboard() {
           <CardContent>
             {opsRecentes.length === 0 ? (
               <div className="text-center py-8">
-                <Receipt size={32} className="text-muted-foreground/30 mx-auto mb-2" />
+                <Receipt size={32} className="text-muted-foreground/50 mx-auto mb-2" />
                 <p className="text-muted-foreground text-sm">Nenhuma operacao ainda</p>
                 <Link href="/cedente/operacoes/nova">
                   <Button variant="outline" size="sm" className="mt-3 gap-1.5">
@@ -254,10 +254,10 @@ export default function CedenteDashboard() {
         {/* Links rapidos */}
         <div className="space-y-3">
           {[
-            { label: 'Meus Documentos', href: '/cedente/documentos', icon: FileCheck, color: 'bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400' },
-            { label: 'Minhas NFs', href: '/cedente/notas-fiscais', icon: Receipt, color: 'bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400' },
-            { label: 'Minhas Operacoes', href: '/cedente/operacoes', icon: Banknote, color: 'bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400' },
-            ...(stats.habilitarEscrow ? [{ label: 'Extrato Escrow', href: '/cedente/extrato', icon: Wallet, color: 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' }] : []),
+            { label: 'Meus Documentos', href: '/cedente/documentos', icon: FileCheck, color: 'bg-primary/20 text-primary' },
+            { label: 'Minhas NFs', href: '/cedente/notas-fiscais', icon: Receipt, color: 'bg-info/20 text-info-foreground' },
+            { label: 'Minhas Operacoes', href: '/cedente/operacoes', icon: Banknote, color: 'bg-warning/20 text-warning-foreground' },
+            ...(stats.habilitarEscrow ? [{ label: 'Extrato Escrow', href: '/cedente/extrato', icon: Wallet, color: 'bg-success/20 text-success-foreground' }] : []),
           ].map((item) => (
             <Link key={item.href} href={item.href}>
               <Card className="hover:ring-2 hover:ring-primary/20 transition-all cursor-pointer group">
@@ -266,7 +266,7 @@ export default function CedenteDashboard() {
                     <div className={`p-2 rounded-lg ${item.color}`}><item.icon size={18} /></div>
                     <span className="font-medium text-foreground">{item.label}</span>
                   </div>
-                  <ArrowRight size={18} className="text-muted-foreground/40 group-hover:text-primary transition-colors" />
+                  <ArrowRight size={18} className="text-muted-foreground/80 group-hover:text-primary transition-colors" />
                 </CardContent>
               </Card>
             </Link>

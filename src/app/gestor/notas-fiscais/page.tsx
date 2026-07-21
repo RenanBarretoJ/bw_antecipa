@@ -443,40 +443,40 @@ export default function NotasFiscaisGestorPage() {
                       />
                     </TableCell>
                     <TableCell className="px-4 py-3 font-medium text-foreground">{nf.numero_nf || '—'}</TableCell>
-                    <TableCell className="px-4 py-3">
-                      <div className="max-w-[160px]">
+                    <TableCell className="w-[220px] max-w-[220px] px-4 py-3">
+                      <div className="min-w-0 max-w-[220px]">
                         <p className="text-sm text-foreground truncate" title={nf.razao_social_emitente}>
                           {nf.razao_social_emitente}
                         </p>
-                        <p className="text-xs text-muted-foreground">{formatCNPJ(nf.cnpj_emitente)}</p>
+                        <p className="block truncate font-mono text-xs text-muted-foreground" title={formatCNPJ(nf.cnpj_emitente)}>{formatCNPJ(nf.cnpj_emitente)}</p>
                       </div>
                     </TableCell>
-                    <TableCell className="px-4 py-3">
-                      <div className="max-w-[160px]">
+                    <TableCell className="w-[220px] max-w-[220px] px-4 py-3">
+                      <div className="min-w-0 max-w-[220px]">
                         <p className="text-sm text-foreground truncate" title={nf.razao_social_destinatario || undefined}>
                           {nf.razao_social_destinatario || '—'}
                         </p>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="block truncate font-mono text-xs text-muted-foreground" title={nf.cnpj_destinatario ? formatCNPJ(nf.cnpj_destinatario) : undefined}>
                           {nf.cnpj_destinatario ? formatCNPJ(nf.cnpj_destinatario) : '—'}
                         </p>
                       </div>
                     </TableCell>
-                    <TableCell className="px-4 py-3 text-sm font-medium text-foreground tabular-nums">
+                    <TableCell className="whitespace-nowrap px-4 py-3 text-sm font-medium text-foreground tabular-nums">
                       {nf.valor_bruto > 0 ? formatCurrency(nf.valor_bruto) : '—'}
                     </TableCell>
-                    <TableCell className="px-4 py-3 text-sm text-muted-foreground tabular-nums">
+                    <TableCell className="whitespace-nowrap px-4 py-3 text-sm text-muted-foreground tabular-nums">
                       {nf.data_emissao ? formatDate(nf.data_emissao) : '—'}
                     </TableCell>
-                    <TableCell className="px-4 py-3 text-sm text-muted-foreground tabular-nums">
+                    <TableCell className="whitespace-nowrap px-4 py-3 text-sm text-muted-foreground tabular-nums">
                       {nf.data_vencimento ? formatDate(nf.data_vencimento) : '—'}
                     </TableCell>
-                    <TableCell className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                    <TableCell className="whitespace-nowrap px-4 py-3" onClick={(e) => e.stopPropagation()}>
                       <Badge className={cfg.className}>
                         <StatusIcon size={12} />
                         {cfg.label}
                       </Badge>
                     </TableCell>
-                    <TableCell className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                    <TableCell className="whitespace-nowrap px-4 py-3" onClick={(e) => e.stopPropagation()}>
                       <Link href={`/gestor/notas-fiscais/${nf.id}`}>
                         <Button variant="ghost" size="sm" className="gap-1 text-sm">
                           <Eye size={14} />

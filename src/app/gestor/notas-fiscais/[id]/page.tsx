@@ -21,9 +21,9 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
+import { ChecklistGestor } from '@/components/documentos-v2/ChecklistGestor'
 
 interface NfCompleta {
   id: string
@@ -77,6 +77,7 @@ export default function NfDetalheGestorPage() {
   const [motivo, setMotivo] = useState('')
   const [showAjuste, setShowAjuste] = useState(false)
   const [motivoAjuste, setMotivoAjuste] = useState('')
+  const [todayMs] = useState(() => Date.now())
 
   useEffect(() => {
     const load = async () => {
@@ -326,6 +327,8 @@ export default function NfDetalheGestorPage() {
         </div>
       )}
 
+      <ChecklistGestor notaFiscalId={nfId} />
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Dados — 2 colunas */}
         <div className="lg:col-span-2 space-y-6">
@@ -477,7 +480,7 @@ export default function NfDetalheGestorPage() {
                 <div className="border-t pt-2 flex justify-between">
                   <span className="text-muted-foreground">Dias ate vencimento</span>
                   <span className="font-medium tabular-nums">
-                    {Math.ceil((parseLocalDate(nf.data_vencimento).getTime() - Date.now()) / (1000 * 60 * 60 * 24))} dias
+                    {Math.ceil((parseLocalDate(nf.data_vencimento).getTime() - todayMs) / (1000 * 60 * 60 * 24))} dias
                   </span>
                 </div>
               </div>

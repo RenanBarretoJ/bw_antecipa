@@ -6,6 +6,7 @@ import { registrarLog } from './auditoria'
 import { criarNotificacao, notificarCedente, notificarGestores } from './notificacao'
 import { criarSnapshotPolitica, resolverPoliticaAtiva, statusAceiteInicial } from '@/lib/operacoes/politica'
 import { CedenteFundoError } from '@/lib/fundos/cedente-fundo'
+import { verificarElegibilidadeDocumental } from '@/lib/actions/documento-v2'
 
 export type OperacaoActionState = {
   success?: boolean
@@ -88,6 +89,18 @@ export async function solicitarAntecipacao(nfIds: string[]): Promise<OperacaoAct
   }
 
   // Calcular por NF: prazo individual → taxa individual → valor antecipado individual
+  const elegibilidades = await Promise.all(nfsTyped.map(async (nf) => ({
+    nf,
+    resultado: await verificarElegibilidadeDocumental(nf.id),
+  })))
+  const inelegiveis = elegibilidades.filter(({ resultado }) => !resultado.elegivel)
+  if (inelegiveis.length > 0) {
+    return {
+      success: false,
+      message: inelegiveis.map(({ nf, resultado }) => `NF ${nf.numero_nf}: ${resultado.motivos.join(', ')}`).join(' | '),
+    }
+  }
+
   const hoje = new Date()
 
   // Buscar todas as taxas do cedente em uma unica query

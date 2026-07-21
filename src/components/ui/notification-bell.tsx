@@ -13,6 +13,17 @@ interface Notificacao {
   created_at: string
 }
 
+function timeAgo(dateStr: string) {
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'agora'
+  if (mins < 60) return `${mins}min`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours}h`
+  const days = Math.floor(hours / 24)
+  return `${days}d`
+}
+
 export function NotificationBell({ userId }: { userId: string }) {
   const [notificacoes, setNotificacoes] = useState<Notificacao[]>([])
   const [open, setOpen] = useState(false)
@@ -83,60 +94,49 @@ export function NotificationBell({ userId }: { userId: string }) {
     )
   }
 
-  const timeAgo = (dateStr: string) => {
-    const diff = Date.now() - new Date(dateStr).getTime()
-    const mins = Math.floor(diff / 60000)
-    if (mins < 1) return 'agora'
-    if (mins < 60) return `${mins}min`
-    const hours = Math.floor(mins / 60)
-    if (hours < 24) return `${hours}h`
-    const days = Math.floor(hours / 24)
-    return `${days}d`
-  }
-
   return (
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setOpen(!open)}
-        className="relative p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+        className="relative rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         aria-label="Notificacoes"
       >
         <Bell size={20} />
         {naoLidas > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+          <span className="absolute -top-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
             {naoLidas > 9 ? '9+' : naoLidas}
           </span>
         )}
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl shadow-xl border border-gray-200 z-50 overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-100">
-            <p className="font-semibold text-gray-900 text-sm">Notificacoes</p>
+        <div className="absolute right-0 top-full z-50 mt-2 w-80 overflow-hidden rounded-xl border border-border bg-popover shadow-xl">
+          <div className="border-b border-border px-4 py-3">
+            <p className="text-sm font-semibold text-popover-foreground">Notificacoes</p>
           </div>
 
           <div className="max-h-80 overflow-y-auto">
             {notificacoes.length === 0 ? (
-              <p className="text-gray-400 text-sm text-center py-6">Nenhuma notificacao.</p>
+              <p className="py-6 text-center text-sm text-muted-foreground">Nenhuma notificacao.</p>
             ) : (
               notificacoes.map((n) => (
                 <button
                   key={n.id}
                   onClick={() => marcarComoLida(n.id)}
-                  className={`w-full text-left px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition-colors ${
-                    !n.lida ? 'bg-blue-50/50' : ''
+                  className={`w-full border-b border-border px-4 py-3 text-left transition-colors hover:bg-muted ${
+                    !n.lida ? 'bg-primary/5' : ''
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
-                      <p className={`text-sm ${!n.lida ? 'font-semibold text-gray-900' : 'text-gray-700'}`}>
+                      <p className={`text-sm ${!n.lida ? 'font-semibold text-foreground' : 'text-muted-foreground'}`}>
                         {n.titulo}
                       </p>
-                      <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{n.mensagem}</p>
+                      <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{n.mensagem}</p>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
-                      <span className="text-[10px] text-gray-400">{timeAgo(n.created_at)}</span>
-                      {!n.lida && <span className="w-2 h-2 bg-blue-500 rounded-full" />}
+                      <span className="text-[10px] text-muted-foreground">{timeAgo(n.created_at)}</span>
+                      {!n.lida && <span className="h-2 w-2 rounded-full bg-primary" />}
                     </div>
                   </div>
                 </button>

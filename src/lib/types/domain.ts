@@ -94,6 +94,18 @@ export const POLICY_DOCUMENT_CODES = [
 ] as const
 export type PoliticaTipoDocumentoCodigo = (typeof POLICY_DOCUMENT_CODES)[number]
 
+export const REPOSITORY_DOCUMENT_STATUSES = ['pendente', 'enviado', 'em_analise', 'aprovado', 'rejeitado', 'substituido', 'cancelado'] as const
+export type RepositorioDocumentoStatus = (typeof REPOSITORY_DOCUMENT_STATUSES)[number]
+
+export const DOCUMENT_VERSION_STATUSES = ['enviado', 'em_analise', 'aprovado', 'rejeitado', 'substituido', 'cancelado'] as const
+export type DocumentoVersaoStatus = (typeof DOCUMENT_VERSION_STATUSES)[number]
+
+export const REQUIREMENT_INSTANCE_STATUSES = ['pendente', 'satisfeito', 'vencido', 'dispensado', 'cancelado'] as const
+export type RequisitoDocumentoStatus = (typeof REQUIREMENT_INSTANCE_STATUSES)[number]
+
+export const DOCUMENT_ANALYSIS_RESULTS = ['aprovado', 'rejeitado', 'pendente', 'requer_ajuste'] as const
+export type DocumentoAnaliseResultado = (typeof DOCUMENT_ANALYSIS_RESULTS)[number]
+
 export const CONTEXT_CONFIGURATION_STATUSES = ['completo', 'legado_inferido', 'legado_indefinido'] as const
 export type ContextoConfiguracaoStatus = (typeof CONTEXT_CONFIGURATION_STATUSES)[number]
 
