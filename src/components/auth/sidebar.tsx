@@ -17,6 +17,7 @@ export const gestorMenuItems: SidebarItem[] = [
   { label: 'Escrow', href: '/gestor/escrow', icon: Wallet },
   { label: 'Fundos', href: '/gestor/fundos', icon: Building2 },
   { label: 'Políticas', href: '/gestor/politicas', icon: FileCog },
+  { label: 'Templates', href: '/gestor/templates', icon: FileText },
   { label: 'Relatórios', href: '/gestor/relatorios', icon: BarChart3 },
   { label: 'Notificações', href: '/gestor/notificacoes', icon: Bell },
   { label: 'Configurações', href: '/gestor/configuracoes', icon: Settings },

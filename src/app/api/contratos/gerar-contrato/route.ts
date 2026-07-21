@@ -6,12 +6,12 @@ export const maxDuration = 60
 
 export async function POST(req: NextRequest) {
   try {
-    await requireGestor()
+    const context = await requireGestor()
 
     const { cedente_id } = await req.json()
     if (!cedente_id) return NextResponse.json({ error: 'cedente_id obrigatorio' }, { status: 400 })
 
-    const { url, path } = await gerarContratoCessao(cedente_id)
+    const { url, path } = await gerarContratoCessao(cedente_id, context.user.id)
     return NextResponse.json({ url, path, sucesso: true })
   } catch (error: unknown) {
     if (error instanceof AuthorizationError) {

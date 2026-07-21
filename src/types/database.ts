@@ -20,6 +20,7 @@ export type {
   DocumentoVersaoStatus,
   EntregaEventoTipo,
   EntregaStatus,
+  GeneratedDocumentStatus,
   MovimentoTipo,
   NfStatus,
   OperacaoStatus,
@@ -31,6 +32,9 @@ export type {
   RepositorioDocumentoStatus,
   RequisitoDocumentoStatus,
   SolicitacaoAlteracaoStatus,
+  TemplateDocumentStatus,
+  TemplateDocumentType,
+  TemplateVersionStatus,
   TipoContaBancaria,
   UserRole,
   UserStatus,
@@ -54,6 +58,7 @@ import type {
   DocumentoVersaoStatus,
   EntregaEventoTipo,
   EntregaStatus,
+  GeneratedDocumentStatus,
   MovimentoTipo,
   NfStatus,
   OperacaoStatus,
@@ -65,6 +70,9 @@ import type {
   RepositorioDocumentoStatus,
   RequisitoDocumentoStatus,
   SolicitacaoAlteracaoStatus,
+  TemplateDocumentStatus,
+  TemplateDocumentType,
+  TemplateVersionStatus,
   TipoContaBancaria,
   UserRole,
   UserStatus,
@@ -443,6 +451,53 @@ export interface Canhoto {
   updated_at: string
 }
 
+export interface TemplateDocumento {
+  id: string
+  fundo_id: string
+  codigo: string
+  tipo_documento: TemplateDocumentType
+  nome: string
+  descricao: string | null
+  status: TemplateDocumentStatus
+  created_by: string
+  created_at: string
+  updated_at: string
+}
+
+export interface TemplateVersao {
+  id: string
+  template_id: string
+  versao: number
+  vigente_desde: string
+  vigente_ate: string | null
+  conteudo_html: string
+  variaveis_schema: Record<string, unknown>
+  sha256: string
+  status: TemplateVersionStatus
+  publicada_por: string | null
+  publicada_em: string | null
+  created_at: string
+}
+
+export interface DocumentoGerado {
+  id: string
+  operacao_id: string | null
+  cedente_id: string
+  fundo_id: string
+  template_id: string
+  template_versao_id: string
+  template_versao: number
+  template_hash: string
+  tipo_documento: TemplateDocumentType
+  bucket: string
+  storage_path: string
+  sha256: string
+  status: GeneratedDocumentStatus
+  gerado_por: string | null
+  gerado_em: string
+  created_at: string
+}
+
 export interface DevedorSolidario {
   id: string
   cedente_id: string
@@ -655,6 +710,9 @@ export interface Database {
       ctes: { Row: Cte & Record<string, unknown>; Insert: InsertShape<Cte, 'cedente_id' | 'formato_origem' | 'nivel_validacao'> & Record<string, unknown>; Update: UpdateShape<Cte> & Record<string, unknown>; Relationships: [] }
       cte_notas_fiscais: { Row: CteNotaFiscal & Record<string, unknown>; Insert: InsertShape<CteNotaFiscal, 'cte_id' | 'nota_fiscal_id'> & Record<string, unknown>; Update: Partial<CteNotaFiscal> & Record<string, unknown>; Relationships: [] }
       canhotos: { Row: Canhoto & Record<string, unknown>; Insert: InsertShape<Canhoto, 'nota_fiscal_entrega_id'> & Record<string, unknown>; Update: UpdateShape<Canhoto> & Record<string, unknown>; Relationships: [] }
+      templates_documentos: { Row: TemplateDocumento & Record<string, unknown>; Insert: InsertShape<TemplateDocumento, 'fundo_id' | 'codigo' | 'tipo_documento' | 'nome' | 'created_by'> & Record<string, unknown>; Update: UpdateShape<TemplateDocumento> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'templates_documentos_fundo_id_fkey'; columns: ['fundo_id']; isOneToOne: false; referencedRelation: 'fundos'; referencedColumns: ['id'] }, { foreignKeyName: 'templates_documentos_created_by_fkey'; columns: ['created_by']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] }] }
+      template_versoes: { Row: TemplateVersao & Record<string, unknown>; Insert: InsertShape<TemplateVersao, 'template_id' | 'versao' | 'vigente_desde' | 'conteudo_html' | 'sha256'> & Record<string, unknown>; Update: UpdateShape<TemplateVersao> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'template_versoes_template_id_fkey'; columns: ['template_id']; isOneToOne: false; referencedRelation: 'templates_documentos'; referencedColumns: ['id'] }, { foreignKeyName: 'template_versoes_publicada_por_fkey'; columns: ['publicada_por']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] }] }
+      documentos_gerados: { Row: DocumentoGerado & Record<string, unknown>; Insert: InsertShape<DocumentoGerado, 'operacao_id' | 'cedente_id' | 'fundo_id' | 'template_id' | 'template_versao_id' | 'template_versao' | 'template_hash' | 'tipo_documento' | 'storage_path' | 'sha256'> & Record<string, unknown>; Update: UpdateShape<DocumentoGerado> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'documentos_gerados_operacao_id_fkey'; columns: ['operacao_id']; isOneToOne: false; referencedRelation: 'operacoes'; referencedColumns: ['id'] }, { foreignKeyName: 'documentos_gerados_cedente_id_fkey'; columns: ['cedente_id']; isOneToOne: false; referencedRelation: 'cedentes'; referencedColumns: ['id'] }, { foreignKeyName: 'documentos_gerados_fundo_id_fkey'; columns: ['fundo_id']; isOneToOne: false; referencedRelation: 'fundos'; referencedColumns: ['id'] }, { foreignKeyName: 'documentos_gerados_template_id_fkey'; columns: ['template_id']; isOneToOne: false; referencedRelation: 'templates_documentos'; referencedColumns: ['id'] }, { foreignKeyName: 'documentos_gerados_template_versao_id_fkey'; columns: ['template_versao_id']; isOneToOne: false; referencedRelation: 'template_versoes'; referencedColumns: ['id'] }] }
       representantes: { Row: Representante & Record<string, unknown>; Insert: InsertShape<Representante, 'cedente_id' | 'nome' | 'cpf' | 'rg' | 'cargo' | 'email' | 'telefone'> & Record<string, unknown>; Update: UpdateShape<Representante> & Record<string, unknown>; Relationships: [] }
       documentos: { Row: Documento & Record<string, unknown>; Insert: InsertShape<Documento, 'cedente_id' | 'tipo'> & Record<string, unknown>; Update: UpdateShape<Documento> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'documentos_cedente_id_fkey'; columns: ['cedente_id']; isOneToOne: false; referencedRelation: 'cedentes'; referencedColumns: ['id'] }, { foreignKeyName: 'documentos_representante_id_fkey'; columns: ['representante_id']; isOneToOne: false; referencedRelation: 'representantes'; referencedColumns: ['id'] }, { foreignKeyName: 'documentos_analisado_por_fkey'; columns: ['analisado_por']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] }] }
       contas_escrow: { Row: ContaEscrow & Record<string, unknown>; Insert: InsertShape<ContaEscrow, 'cedente_id' | 'identificador'> & Record<string, unknown>; Update: UpdateShape<ContaEscrow> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'contas_escrow_cedente_id_fkey'; columns: ['cedente_id']; isOneToOne: false; referencedRelation: 'cedentes'; referencedColumns: ['id'] }] }

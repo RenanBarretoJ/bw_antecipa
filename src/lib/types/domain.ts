@@ -145,6 +145,18 @@ export type CteNivelValidacao = (typeof CTE_VALIDATION_LEVELS)[number]
 export const CANHOTO_STATUSES = ['pendente', 'enviado', 'em_analise', 'aprovado', 'rejeitado', 'substituido', 'cancelado'] as const
 export type CanhotoStatus = (typeof CANHOTO_STATUSES)[number]
 
+export const TEMPLATE_DOCUMENT_TYPES = ['contrato_mae', 'termo_cessao', 'notificacao_sacado', 'termo_quitacao'] as const
+export type TemplateDocumentType = (typeof TEMPLATE_DOCUMENT_TYPES)[number]
+
+export const TEMPLATE_DOCUMENT_STATUSES = ['rascunho', 'ativo', 'desativado'] as const
+export type TemplateDocumentStatus = (typeof TEMPLATE_DOCUMENT_STATUSES)[number]
+
+export const TEMPLATE_VERSION_STATUSES = ['rascunho', 'publicada', 'substituida', 'cancelada'] as const
+export type TemplateVersionStatus = (typeof TEMPLATE_VERSION_STATUSES)[number]
+
+export const GENERATED_DOCUMENT_STATUSES = ['gerado', 'assinado', 'substituido', 'cancelado'] as const
+export type GeneratedDocumentStatus = (typeof GENERATED_DOCUMENT_STATUSES)[number]
+
 export const AUDIT_ACTOR_TYPES = ['usuario', 'sistema', 'integracao', 'cron'] as const
 export type AuditoriaAtorTipo = (typeof AUDIT_ACTOR_TYPES)[number]
 

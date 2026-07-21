@@ -3,7 +3,21 @@ import chromium from '@sparticuz/chromium'
 import puppeteer from 'puppeteer-core'
 import fs from 'fs'
 import path from 'path'
+import { createHash, randomUUID } from 'crypto'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { buckets } from '@/lib/storage'
+import type { Database } from '@/types/database'
+import {
+  registrarDocumentoGerado,
+  renderizarTemplate,
+  resolverTemplateVigente,
+  SCHEMAS_POR_TIPO,
+  type TemplateResolvido,
+  type TemplateTipoDocumento,
+  type TemplateVariaveisSchema,
+} from '@/lib/templates/resolver-template'
+
+type AdminSupabaseClient = SupabaseClient<Database>
 
 function formatarData(dataStr: string | null | undefined): string {
   if (!dataStr) return ''
@@ -111,20 +125,6 @@ function valorPorExtenso(valor: number): string {
   return partes.join(' e ')
 }
 
-// Montar endereco completo a partir dos campos separados do cedente
-function montarEndereco(ced: Record<string, unknown>): string {
-  const partes = [
-    ced.logradouro,
-    ced.numero ? `n ${ced.numero}` : null,
-    ced.complemento,
-    ced.bairro,
-    ced.cidade,
-    ced.estado,
-    ced.cep ? `CEP ${ced.cep}` : null,
-  ].filter(Boolean)
-  return partes.join(', ')
-}
-
 function compilarTemplate(nomeTemplate: string, dados: object): string {
   const caminhoTemplate = path.join(
     process.cwd(),
@@ -136,6 +136,80 @@ function compilarTemplate(nomeTemplate: string, dados: object): string {
   const templateStr = fs.readFileSync(caminhoTemplate, 'utf-8')
   const template = Handlebars.compile(templateStr)
   return template(dados)
+}
+
+function renderizarTemplateJuridico({
+  templateResolvido,
+  tipoDocumento,
+  nomeTemplateLocal,
+  dados,
+}: {
+  templateResolvido: TemplateResolvido | null
+  tipoDocumento: TemplateTipoDocumento
+  nomeTemplateLocal: string
+  dados: Record<string, unknown>
+}): string {
+  if (!templateResolvido) return compilarTemplate(nomeTemplateLocal, dados)
+
+  return renderizarTemplate(
+    templateResolvido.versao.conteudo_html,
+    (templateResolvido.versao.variaveis_schema || SCHEMAS_POR_TIPO[tipoDocumento]) as TemplateVariaveisSchema,
+    dados,
+  )
+}
+
+function sha256Buffer(buffer: Buffer): string {
+  return createHash('sha256').update(buffer).digest('hex')
+}
+
+function gerarPathVersionadoDocumento({
+  fundoId,
+  tipoDocumento,
+  contextoId,
+  documentoId,
+  versao,
+}: {
+  fundoId: string
+  tipoDocumento: TemplateTipoDocumento
+  contextoId: string
+  documentoId: string
+  versao: number
+}): string {
+  return `fundos/${fundoId}/templates/${tipoDocumento}/${contextoId}/documentos/${documentoId}/v${versao}/${randomUUID()}.pdf`
+}
+
+async function resolverFundoCedente(supabase: AdminSupabaseClient, ced: Record<string, unknown>): Promise<string> {
+  const cedenteId = ced.id as string
+  const { data: linkAtivo, error } = await supabase
+    .from('cedente_fundos')
+    .select('fundo_id')
+    .eq('cedente_id', cedenteId)
+    .eq('status', 'ativo')
+    .order('vigente_desde', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (error) throw new Error(`Erro ao resolver fundo do cedente: ${error.message}`)
+  const fundoBridge = (linkAtivo as { fundo_id?: string } | null)?.fundo_id
+  const fundoLegado = ced.fundo_id as string | null | undefined
+  const fundoId = fundoBridge || fundoLegado
+  if (!fundoId) throw new Error('Cedente sem fundo vinculado para resolver template juridico')
+  return fundoId
+}
+
+async function resolverFundoOperacao(supabase: AdminSupabaseClient, op: Record<string, unknown>, ced: Record<string, unknown>): Promise<string> {
+  if (op.cedente_fundo_id) {
+    const { data: link, error } = await supabase
+      .from('cedente_fundos')
+      .select('fundo_id')
+      .eq('id', op.cedente_fundo_id as string)
+      .maybeSingle()
+    if (error) throw new Error(`Erro ao resolver fundo historico da operacao: ${error.message}`)
+    const fundoHistorico = (link as { fundo_id?: string } | null)?.fundo_id
+    if (fundoHistorico) return fundoHistorico
+  }
+
+  return resolverFundoCedente(supabase, ced)
 }
 
 async function htmlParaPdf(html: string): Promise<Buffer> {
@@ -204,10 +278,11 @@ async function salvarPdfStorage(
 // Gerar Contrato Mae (1x por cedente)
 // ============================================================
 export async function gerarContratoCessao(
-  cedenteId: string
+  cedenteId: string,
+  geradoPor: string | null = null,
 ): Promise<{ url: string; path: string }> {
   const { createClient } = await import('@supabase/supabase-js')
-  const supabase = createClient(
+  const supabase = createClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   )
@@ -288,11 +363,53 @@ export async function gerarContratoCessao(
   const templateNome = (ced.coobrigacao as boolean) !== false
     ? 'contrato-cessao.html'
     : 'contrato-cessao-sem-coobrigacao.html'
+  const templateCodigo = (ced.coobrigacao as boolean) !== false
+    ? 'contrato_mae'
+    : 'contrato_mae_sem_coobrigacao'
 
-  const html = compilarTemplate(templateNome, dados)
+  const fundoId = await resolverFundoCedente(supabase, ced)
+  const templateResolvido = await resolverTemplateVigente({
+    supabase,
+    fundoId,
+    tipoDocumento: 'contrato_mae',
+    codigo: templateCodigo,
+  })
+
+  const html = renderizarTemplateJuridico({
+    templateResolvido,
+    tipoDocumento: 'contrato_mae',
+    nomeTemplateLocal: templateNome,
+    dados,
+  })
   const pdfBuffer = await htmlParaPdf(html)
-  const caminho = `cedentes/${cedenteId}/contrato-cessao.pdf`
+  const documentoGeradoId = randomUUID()
+  const caminho = templateResolvido
+    ? gerarPathVersionadoDocumento({
+        fundoId,
+        tipoDocumento: 'contrato_mae',
+        contextoId: cedenteId,
+        documentoId: documentoGeradoId,
+        versao: templateResolvido.versao.versao,
+      })
+    : `cedentes/${cedenteId}/contrato-cessao.pdf`
   const url = await salvarPdfStorage(pdfBuffer, caminho)
+
+  if (templateResolvido) {
+    await registrarDocumentoGerado({
+      supabase,
+      documentoGeradoId,
+      operacaoId: null,
+      cedenteId,
+      fundoId,
+      template: templateResolvido.template,
+      versao: templateResolvido.versao,
+      tipoDocumento: 'contrato_mae',
+      bucket: buckets.contratos,
+      storagePath: caminho,
+      sha256: sha256Buffer(pdfBuffer),
+      geradoPor,
+    })
+  }
 
   // Atualizar URL no banco
   await supabase
@@ -307,10 +424,11 @@ export async function gerarContratoCessao(
 // Gerar Termo de Cessao (1x por operacao)
 // ============================================================
 export async function gerarTermoCessao(
-  operacaoId: string
+  operacaoId: string,
+  geradoPor: string | null = null,
 ): Promise<{ url: string; path: string }> {
   const { createClient } = await import('@supabase/supabase-js')
-  const supabase = createClient(
+  const supabase = createClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   )
@@ -329,7 +447,7 @@ export async function gerarTermoCessao(
   const { data: cedente } = await supabase
     .from('cedentes')
     .select('*')
-    .eq('id', op.cedente_id)
+    .eq('id', op.cedente_id as string)
     .single()
 
   if (!cedente) throw new Error('Cedente da operacao nao encontrado')
@@ -433,10 +551,49 @@ export async function gerarTermoCessao(
     },
   }
 
-  const html = compilarTemplate('termo-cessao.html', dados)
+  const fundoId = await resolverFundoOperacao(supabase, op, ced)
+  const templateResolvido = await resolverTemplateVigente({
+    supabase,
+    fundoId,
+    tipoDocumento: 'termo_cessao',
+    codigo: 'termo_cessao',
+  })
+
+  const html = renderizarTemplateJuridico({
+    templateResolvido,
+    tipoDocumento: 'termo_cessao',
+    nomeTemplateLocal: 'termo-cessao.html',
+    dados,
+  })
   const pdfBuffer = await htmlParaPdf(html)
-  const caminho = `operacoes/${operacaoId}/termo-cessao.pdf`
+  const documentoGeradoId = randomUUID()
+  const caminho = templateResolvido
+    ? gerarPathVersionadoDocumento({
+        fundoId,
+        tipoDocumento: 'termo_cessao',
+        contextoId: operacaoId,
+        documentoId: documentoGeradoId,
+        versao: templateResolvido.versao.versao,
+      })
+    : `operacoes/${operacaoId}/termo-cessao.pdf`
   const url = await salvarPdfStorage(pdfBuffer, caminho)
+
+  if (templateResolvido) {
+    await registrarDocumentoGerado({
+      supabase,
+      documentoGeradoId,
+      operacaoId,
+      cedenteId: op.cedente_id as string,
+      fundoId,
+      template: templateResolvido.template,
+      versao: templateResolvido.versao,
+      tipoDocumento: 'termo_cessao',
+      bucket: buckets.contratos,
+      storagePath: caminho,
+      sha256: sha256Buffer(pdfBuffer),
+      geradoPor,
+    })
+  }
 
   // Atualizar URL no banco
   await supabase
@@ -456,31 +613,32 @@ export async function gerarTermoCessao(
 // Gerar Notificacao de Cessao ao Sacado (1x por operacao)
 // ============================================================
 export async function gerarNotificacaoCessao(
-  operacaoId: string
+  operacaoId: string,
+  geradoPor: string | null = null,
 ): Promise<{ url: string; path: string }> {
   const { createClient } = await import('@supabase/supabase-js')
-  const supabase = createClient(
+  const supabase = createClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   )
 
   const { data: operacao, error: erroO } = await supabase
     .from('operacoes')
-    .select('cedente_id')
+    .select('cedente_id, cedente_fundo_id')
     .eq('id', operacaoId)
     .single()
 
   if (erroO || !operacao) throw new Error('Operacao nao encontrada')
-  const op = operacao as { cedente_id: string }
+  const op = operacao as { cedente_id: string; cedente_fundo_id: string | null }
 
   const { data: cedente } = await supabase
     .from('cedentes')
-    .select('razao_social, cnpj')
+    .select('id, razao_social, cnpj, fundo_id')
     .eq('id', op.cedente_id)
     .single()
 
   if (!cedente) throw new Error('Cedente da operacao nao encontrado')
-  const ced = cedente as { razao_social: string; cnpj: string }
+  const ced = cedente as { id: string; razao_social: string; cnpj: string; fundo_id: string | null }
 
   const dados = {
     cedente: {
@@ -495,10 +653,49 @@ export async function gerarNotificacaoCessao(
     },
   }
 
-  const html = compilarTemplate('notificacao-cessao-ao-sacado.html', dados)
+  const fundoId = await resolverFundoOperacao(supabase, op as unknown as Record<string, unknown>, ced as unknown as Record<string, unknown>)
+  const templateResolvido = await resolverTemplateVigente({
+    supabase,
+    fundoId,
+    tipoDocumento: 'notificacao_sacado',
+    codigo: 'notificacao_sacado',
+  })
+
+  const html = renderizarTemplateJuridico({
+    templateResolvido,
+    tipoDocumento: 'notificacao_sacado',
+    nomeTemplateLocal: 'notificacao-cessao-ao-sacado.html',
+    dados,
+  })
   const pdfBuffer = await htmlParaPdf(html)
-  const caminho = `operacoes/${operacaoId}/notificacao-cessao.pdf`
+  const documentoGeradoId = randomUUID()
+  const caminho = templateResolvido
+    ? gerarPathVersionadoDocumento({
+        fundoId,
+        tipoDocumento: 'notificacao_sacado',
+        contextoId: operacaoId,
+        documentoId: documentoGeradoId,
+        versao: templateResolvido.versao.versao,
+      })
+    : `operacoes/${operacaoId}/notificacao-cessao.pdf`
   const url = await salvarPdfStorage(pdfBuffer, caminho)
+
+  if (templateResolvido) {
+    await registrarDocumentoGerado({
+      supabase,
+      documentoGeradoId,
+      operacaoId,
+      cedenteId: op.cedente_id,
+      fundoId,
+      template: templateResolvido.template,
+      versao: templateResolvido.versao,
+      tipoDocumento: 'notificacao_sacado',
+      bucket: buckets.contratos,
+      storagePath: caminho,
+      sha256: sha256Buffer(pdfBuffer),
+      geradoPor,
+    })
+  }
 
   await supabase
     .from('operacoes')
@@ -515,10 +712,11 @@ export async function gerarNotificacaoCessao(
 // Gerar Termo de Quitacao (1x por operacao liquidada)
 // ============================================================
 export async function gerarTermoQuitacao(
-  operacaoId: string
+  operacaoId: string,
+  geradoPor: string | null = null,
 ): Promise<{ url: string; path: string }> {
   const { createClient } = await import('@supabase/supabase-js')
-  const supabase = createClient(
+  const supabase = createClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   )
@@ -539,7 +737,7 @@ export async function gerarTermoQuitacao(
   const { data: cedente } = await supabase
     .from('cedentes')
     .select('*')
-    .eq('id', op.cedente_id)
+    .eq('id', op.cedente_id as string)
     .single()
 
   if (!cedente) throw new Error('Cedente da operacao nao encontrado')
@@ -614,10 +812,49 @@ export async function gerarTermoQuitacao(
     })),
   }
 
-  const html = compilarTemplate('termo_quitacao.html', dados)
+  const fundoId = await resolverFundoOperacao(supabase, op, ced)
+  const templateResolvido = await resolverTemplateVigente({
+    supabase,
+    fundoId,
+    tipoDocumento: 'termo_quitacao',
+    codigo: 'termo_quitacao',
+  })
+
+  const html = renderizarTemplateJuridico({
+    templateResolvido,
+    tipoDocumento: 'termo_quitacao',
+    nomeTemplateLocal: 'termo_quitacao.html',
+    dados,
+  })
   const pdfBuffer = await htmlParaPdf(html)
-  const caminho = `operacoes/${operacaoId}/termo-quitacao.pdf`
+  const documentoGeradoId = randomUUID()
+  const caminho = templateResolvido
+    ? gerarPathVersionadoDocumento({
+        fundoId,
+        tipoDocumento: 'termo_quitacao',
+        contextoId: operacaoId,
+        documentoId: documentoGeradoId,
+        versao: templateResolvido.versao.versao,
+      })
+    : `operacoes/${operacaoId}/termo-quitacao.pdf`
   const url = await salvarPdfStorage(pdfBuffer, caminho)
+
+  if (templateResolvido) {
+    await registrarDocumentoGerado({
+      supabase,
+      documentoGeradoId,
+      operacaoId,
+      cedenteId: op.cedente_id as string,
+      fundoId,
+      template: templateResolvido.template,
+      versao: templateResolvido.versao,
+      tipoDocumento: 'termo_quitacao',
+      bucket: buckets.contratos,
+      storagePath: caminho,
+      sha256: sha256Buffer(pdfBuffer),
+      geradoPor,
+    })
+  }
 
   await supabase
     .from('operacoes')
