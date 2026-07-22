@@ -23,14 +23,20 @@ export type MfaActionState<T = unknown> = {
   data?: T
 }
 
+type SupabaseMfaError = {
+  message: string
+  code?: string
+  status?: number
+}
+
 type MfaClient = Awaited<ReturnType<typeof createClient>> & {
   auth: Awaited<ReturnType<typeof createClient>>['auth'] & {
     mfa: {
-      enroll(input: { factorType: 'totp'; friendlyName?: string }): Promise<{ data: unknown; error: { message: string } | null }>
-      challenge(input: { factorId: string }): Promise<{ data: { id: string } | null; error: { message: string } | null }>
-      verify(input: { factorId: string; challengeId: string; code: string }): Promise<{ data: unknown; error: { message: string } | null }>
-      listFactors(): Promise<{ data: { totp?: unknown[] } | null; error: { message: string } | null }>
-      unenroll(input: { factorId: string }): Promise<{ data: unknown; error: { message: string } | null }>
+      enroll(input: { factorType: 'totp'; friendlyName?: string }): Promise<{ data: unknown; error: SupabaseMfaError | null }>
+      challenge(input: { factorId: string }): Promise<{ data: { id: string } | null; error: SupabaseMfaError | null }>
+      verify(input: { factorId: string; challengeId: string; code: string }): Promise<{ data: unknown; error: SupabaseMfaError | null }>
+      listFactors(): Promise<{ data: { totp?: unknown[]; all?: unknown[] } | null; error: SupabaseMfaError | null }>
+      unenroll(input: { factorId: string }): Promise<{ data: unknown; error: SupabaseMfaError | null }>
     }
   }
 }
@@ -59,7 +65,44 @@ function parseFactor(factor: unknown) {
     id: String(value.id || ''),
     friendlyName: typeof value.friendly_name === 'string' ? value.friendly_name : 'Autenticador',
     status: typeof value.status === 'string' ? value.status : '',
+    factorType: typeof value.factor_type === 'string' ? value.factor_type : typeof value.type === 'string' ? value.type : '',
   }
+}
+
+async function removerFatoresTotpPendentes(client: MfaClient) {
+  const { data, error } = await client.auth.mfa.listFactors()
+  if (error) {
+    console.error('[mfa/setup][listFactors]', { message: error.message, code: error.code, status: error.status })
+    return
+  }
+
+  const candidatos = [...(data?.totp || []), ...(data?.all || [])]
+    .map(parseFactor)
+    .filter((factor, index, list) => (
+      factor.id &&
+      factor.status !== 'verified' &&
+      (!factor.factorType || factor.factorType === 'totp') &&
+      list.findIndex((item) => item.id === factor.id) === index
+    ))
+
+  for (const factor of candidatos) {
+    const { error: unenrollError } = await client.auth.mfa.unenroll({ factorId: factor.id })
+    if (unenrollError) {
+      console.error('[mfa/setup][unenroll-pending-factor]', {
+        factorId: factor.id,
+        message: unenrollError.message,
+        code: unenrollError.code,
+        status: unenrollError.status,
+      })
+    }
+  }
+}
+
+async function criarFatorTotp(client: MfaClient) {
+  return client.auth.mfa.enroll({
+    factorType: 'totp',
+    friendlyName: `BW Antecipa ${new Date().toISOString()}`,
+  })
 }
 
 export async function iniciarConfiguracaoMfa(): Promise<MfaActionState<{ factorId: string; qrCode: string; secret: string; uri: string }>> {
@@ -67,14 +110,24 @@ export async function iniciarConfiguracaoMfa(): Promise<MfaActionState<{ factorI
   const limited = await verificarRateLimit({ escopo: 'mfa_totp', identifier: user.id, limite: 5 })
   if (!limited.allowed) return result('Muitas tentativas. Aguarde antes de tentar novamente.')
 
-  const { data, error } = await asMfaClient(supabase).auth.mfa.enroll({
-    factorType: 'totp',
-    friendlyName: 'BW Antecipa',
-  })
+  const client = asMfaClient(supabase)
+  await removerFatoresTotpPendentes(client)
+
+  let { data, error } = await criarFatorTotp(client)
+
+  if (error && ['mfa_factor_name_conflict', 'too_many_enrolled_mfa_factors', 'conflict'].includes(error.code || '')) {
+    await removerFatoresTotpPendentes(client)
+    const retry = await criarFatorTotp(client)
+    data = retry.data
+    error = retry.error
+  }
 
   if (error) {
     await registrarTentativaRateLimit({ escopo: 'mfa_totp', identifier: user.id, sucesso: false })
-    return result('Nao foi possivel iniciar a configuracao do MFA.')
+    console.error('[mfa/setup][enroll]', { userId: user.id, message: error.message, code: error.code, status: error.status })
+    if (error.code === 'mfa_totp_enroll_not_enabled') return result('MFA TOTP nao esta habilitado no Supabase Auth deste projeto.')
+    if (error.code === 'too_many_enrolled_mfa_factors') return result('Ha muitos fatores MFA pendentes. Remova fatores antigos e tente novamente.')
+    return result('Nao foi possivel iniciar a configuracao do MFA. Tente sair e entrar novamente.')
   }
 
   await registrarEventoSeguranca({ tipo_evento: 'MFA_ENROLL_INICIADO', usuario_id: user.id, ator_usuario_id: user.id })
