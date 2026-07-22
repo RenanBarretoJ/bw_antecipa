@@ -9,10 +9,13 @@ import {
   criarConfiguracaoCnab,
   criarOuAtualizarIntegracaoFundo,
   criarVersaoConfiguracaoCnab,
+  atualizarRascunhoIntegracaoFundo,
+  desativarIntegracaoFundo,
   gerarArquivoTesteConfiguracaoCnab,
   importarConfiguracaoCnabLegado,
   publicarVersaoConfiguracaoCnab,
   publicarVersaoIntegracaoFundo,
+  testarConexaoIntegracaoFundo,
 } from '@/lib/actions/configuracoes-cnab'
 import type { Fundo } from '@/types/database'
 import { Button } from '@/components/ui/button'
@@ -76,6 +79,27 @@ type IntegracaoVersionRow = {
   secret_name: string | null
   vault_key: string | null
   vigente_desde: string
+  vigente_ate: string | null
+  publicada_em: string | null
+}
+
+type IntegracaoExecucaoRow = {
+  id: string
+  fundo_id: string
+  integracao_fundo_versao_id: string
+  remessa_cnab_id: string | null
+  operacao_id: string | null
+  tipo_execucao: string
+  ambiente: string
+  status: string
+  tentativa: number
+  protocolo_externo: string | null
+  codigo_resposta: string | null
+  mensagem_resumida: string | null
+  erro_categoria: string | null
+  duracao_ms: number | null
+  iniciada_em: string
+  finalizada_em: string | null
 }
 
 const LEGADO_PADRAO_UI = {
@@ -143,8 +167,8 @@ const defaultIntegracaoForm = {
   identificadorCliente: '',
   codigoOriginador: '',
   endpointBase: '',
-  credentialRef: 'FROMTIS',
-  secretName: 'FROMTIS',
+  credentialRef: '',
+  secretName: '',
   vaultKey: '',
 }
 
@@ -170,7 +194,9 @@ export default function FundoDetalhePage() {
   const [fundo, setFundo] = useState<Fundo | null>(null)
   const [configs, setConfigs] = useState<ConfigRow[]>([])
   const [integracoes, setIntegracoes] = useState<IntegracaoRow[]>([])
+  const [execucoesIntegracao, setExecucoesIntegracao] = useState<IntegracaoExecucaoRow[]>([])
   const [selectedConfigId, setSelectedConfigId] = useState('')
+  const [editingIntegracaoVersaoId, setEditingIntegracaoVersaoId] = useState('')
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
   const [messageType, setMessageType] = useState<'success' | 'error'>('success')
@@ -181,10 +207,11 @@ export default function FundoDetalhePage() {
 
   const loadData = useCallback(async () => {
     const supabase = createClient()
-    const [{ data: fundoData }, { data: configsData }, { data: integracoesData }] = await Promise.all([
+    const [{ data: fundoData }, { data: configsData }, { data: integracoesData }, { data: execucoesData }] = await Promise.all([
       supabase.from('fundos').select('*').eq('id', fundoId).maybeSingle(),
       supabase.from('configuracoes_cnab').select('*, configuracao_cnab_versoes(*)').eq('fundo_id', fundoId).order('created_at', { ascending: false }),
       supabase.from('integracoes_fundo').select('*, integracao_fundo_versoes(*)').eq('fundo_id', fundoId).order('created_at', { ascending: false }),
+      supabase.from('integracao_execucoes').select('*').eq('fundo_id', fundoId).order('iniciada_em', { ascending: false }).limit(12),
     ])
     setFundo((fundoData || null) as Fundo | null)
     setConfigs(((configsData || []) as ConfigRow[]).map((config) => ({
@@ -195,6 +222,7 @@ export default function FundoDetalhePage() {
       ...integracao,
       integracao_fundo_versoes: [...(integracao.integracao_fundo_versoes || [])].sort((a, b) => b.versao - a.versao),
     })))
+    setExecucoesIntegracao((execucoesData || []) as IntegracaoExecucaoRow[])
     setLoading(false)
   }, [fundoId])
 
@@ -203,6 +231,18 @@ export default function FundoDetalhePage() {
   useEffect(() => { loadData() }, [loadData])
 
   const selectedConfig = useMemo(() => configs.find((config) => config.id === selectedConfigId) || configs[0] || null, [configs, selectedConfigId])
+  const integracaoMetrics = useMemo(() => {
+    const totalFinalizadas = execucoesIntegracao.filter((execucao) => execucao.status !== 'iniciada')
+    const totalSucesso = totalFinalizadas.filter((execucao) => execucao.status === 'sucesso').length
+    const taxaSucesso = totalFinalizadas.length > 0 ? Math.round((totalSucesso / totalFinalizadas.length) * 100) : null
+
+    return {
+      ultimoTeste: execucoesIntegracao.find((execucao) => execucao.tipo_execucao === 'teste_conexao') || null,
+      ultimoEnvio: execucoesIntegracao.find((execucao) => execucao.tipo_execucao === 'envio_remessa') || null,
+      errosRecentes: execucoesIntegracao.filter((execucao) => ['erro', 'timeout'].includes(execucao.status)).length,
+      taxaSucesso,
+    }
+  }, [execucoesIntegracao])
 
   function notify(result: { success: boolean; message: string }) {
     setMessage(result.message)
@@ -231,6 +271,34 @@ export default function FundoDetalhePage() {
         a.click()
         URL.revokeObjectURL(url)
       }
+    })
+  }
+
+  function editarRascunhoIntegracao(version: IntegracaoVersionRow) {
+    setEditingIntegracaoVersaoId(version.id)
+    setIntegracaoForm({
+      provedor: 'fromtis',
+      ambiente: version.ambiente as 'homologacao' | 'producao',
+      identificadorCliente: version.identificador_cliente,
+      codigoOriginador: version.codigo_originador || '',
+      endpointBase: version.endpoint_base,
+      credentialRef: version.credential_ref,
+      secretName: version.secret_name || '',
+      vaultKey: version.vault_key || '',
+    })
+  }
+
+  function salvarIntegracaoPortalFidc() {
+    runAction(async () => {
+      const payload = { ...integracaoForm, provedor: 'fromtis' as const, configuracaoNaoSensivel: {} }
+      const action = editingIntegracaoVersaoId
+        ? await atualizarRascunhoIntegracaoFundo(fundoId, editingIntegracaoVersaoId, payload)
+        : await criarOuAtualizarIntegracaoFundo(fundoId, payload)
+      if (action.success) {
+        setEditingIntegracaoVersaoId('')
+        setIntegracaoForm(defaultIntegracaoForm)
+      }
+      return action
     })
   }
 
@@ -367,30 +435,62 @@ export default function FundoDetalhePage() {
 
       {activeTab === 'integracoes' && (
         <div className="space-y-5">
-          <DetailSection title="Integrações do fundo" icon={Plug}>
+          <DetailSection title="Portal FIDC" icon={Plug}>
+            <div className="mb-4 grid gap-3 md:grid-cols-4">
+              <div className="rounded-lg border border-border bg-background p-3">
+                <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Ultimo teste</p>
+                <p className="mt-2 text-sm font-semibold">{integracaoMetrics.ultimoTeste ? new Date(integracaoMetrics.ultimoTeste.iniciada_em).toLocaleString('pt-BR') : 'Sem teste'}</p>
+                {integracaoMetrics.ultimoTeste && <StatusBadge status={integracaoMetrics.ultimoTeste.status} />}
+              </div>
+              <div className="rounded-lg border border-border bg-background p-3">
+                <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Ultimo envio</p>
+                <p className="mt-2 text-sm font-semibold">{integracaoMetrics.ultimoEnvio ? new Date(integracaoMetrics.ultimoEnvio.iniciada_em).toLocaleString('pt-BR') : 'Sem envio'}</p>
+                {integracaoMetrics.ultimoEnvio && <StatusBadge status={integracaoMetrics.ultimoEnvio.status} />}
+              </div>
+              <div className="rounded-lg border border-border bg-background p-3">
+                <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Taxa de sucesso</p>
+                <p className="mt-2 text-sm font-semibold">{integracaoMetrics.taxaSucesso === null ? 'Sem dados' : `${integracaoMetrics.taxaSucesso}%`}</p>
+                <p className="text-xs text-muted-foreground">base: execucoes recentes</p>
+              </div>
+              <div className="rounded-lg border border-border bg-background p-3">
+                <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Erros recentes</p>
+                <p className="mt-2 text-sm font-semibold">{integracaoMetrics.errosRecentes}</p>
+                <p className="text-xs text-muted-foreground">erro ou timeout</p>
+              </div>
+            </div>
             {integracoes.length === 0 ? (
-              <EmptyState title="Nenhuma integração configurada" description="Cadastre a integração Fromtis no contexto deste fundo. Segredos não são armazenados nesta tabela." icon={Plug} />
+              <EmptyState title="Nenhuma configuracao Portal FIDC" description="Cadastre a integracao Portal FIDC - Sinqia no contexto deste fundo. Segredos nao sao armazenados nesta tabela." icon={Plug} />
             ) : (
               <div className="space-y-3">
                 {integracoes.map((integracao) => (
                   <article key={integracao.id} className="rounded-xl border border-border bg-background p-4">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="font-semibold">{integracao.nome}</h3>
-                      <StatusBadge status={integracao.status} />
-                      <span className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">{integracao.provedor}</span>
+                    <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="font-semibold">Portal FIDC - Sinqia</h3>
+                        <StatusBadge status={integracao.status} />
+                        <span className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">provedor tecnico: {integracao.provedor}</span>
+                      </div>
+                      {integracao.status !== 'desativada' && (
+                        <Button type="button" size="sm" variant="outline" onClick={() => runAction(() => desativarIntegracaoFundo(fundoId, integracao.id))}>Desativar</Button>
+                      )}
                     </div>
                     <div className="mt-4 space-y-2">
                       {(integracao.integracao_fundo_versoes || []).map((version) => (
                         <div key={version.id} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-3 text-sm lg:flex-row lg:items-start lg:justify-between">
                           <div>
                             <div className="flex flex-wrap items-center gap-2">
-                              <span className="font-medium">v{version.versao} · {version.ambiente}</span>
+                              <span className="font-medium">v{version.versao} - {version.ambiente}</span>
                               <StatusBadge status={version.status} />
                             </div>
-                            <p className="mt-1 text-xs text-muted-foreground">Cliente {version.identificador_cliente} · Credencial {version.credential_ref}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">Cliente {version.identificador_cliente} - Originador {version.codigo_originador || 'nao informado'} - Credencial {version.credential_ref}</p>
                             <p className="text-xs text-muted-foreground">Endpoint {version.endpoint_base}</p>
+                            <p className="text-xs text-muted-foreground">Vigencia desde {new Date(version.vigente_desde).toLocaleString('pt-BR')}{version.publicada_em ? ` - publicada em ${new Date(version.publicada_em).toLocaleString('pt-BR')}` : ''}</p>
                           </div>
-                          {version.status !== 'publicada' && <Button type="button" size="sm" onClick={() => runAction(() => publicarVersaoIntegracaoFundo(fundoId, version.id))}>Publicar</Button>}
+                          <div className="flex flex-wrap gap-2">
+                            {version.status === 'rascunho' && <Button type="button" size="sm" variant="outline" onClick={() => editarRascunhoIntegracao(version)}>Editar rascunho</Button>}
+                            <Button type="button" size="sm" variant="outline" onClick={() => runAction(() => testarConexaoIntegracaoFundo(fundoId, version.id))}>Testar conexao</Button>
+                            {version.status !== 'publicada' && version.status !== 'desativada' && <Button type="button" size="sm" onClick={() => runAction(() => publicarVersaoIntegracaoFundo(fundoId, version.id))}>Publicar</Button>}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -400,13 +500,12 @@ export default function FundoDetalhePage() {
             )}
           </DetailSection>
 
-          <DetailSection title="Configurar Fromtis" icon={Plug}>
+          <DetailSection title={editingIntegracaoVersaoId ? 'Editar rascunho Portal FIDC' : 'Nova versao Portal FIDC'} icon={Plug}>
             <div className="grid gap-3 md:grid-cols-2">
               <div>
                 <Label>Provedor</Label>
-                <select value={integracaoForm.provedor} onChange={(e) => setIntegracaoForm((p) => ({ ...p, provedor: e.target.value as 'fromtis' | 'sinqia' }))} className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground">
-                  <option value="fromtis">Fromtis</option>
-                  <option value="sinqia">Sinqia (futuro)</option>
+                <select value="fromtis" disabled className="mt-2 h-10 w-full rounded-md border border-input bg-muted px-3 text-sm text-muted-foreground">
+                  <option value="fromtis">Portal FIDC - Sinqia</option>
                 </select>
               </div>
               <div>
@@ -417,14 +516,41 @@ export default function FundoDetalhePage() {
                 </select>
               </div>
               <div><Label>Identificador cliente</Label><Input value={integracaoForm.identificadorCliente} onChange={(e) => setIntegracaoForm((p) => ({ ...p, identificadorCliente: e.target.value }))} /></div>
-              <div><Label>Código originador da integração</Label><Input value={integracaoForm.codigoOriginador} onChange={(e) => setIntegracaoForm((p) => ({ ...p, codigoOriginador: e.target.value }))} /></div>
+              <div><Label>Codigo originador do Portal FIDC</Label><Input value={integracaoForm.codigoOriginador} onChange={(e) => setIntegracaoForm((p) => ({ ...p, codigoOriginador: e.target.value }))} /></div>
               <div className="md:col-span-2"><Label>Endpoint base</Label><Input value={integracaoForm.endpointBase} onChange={(e) => setIntegracaoForm((p) => ({ ...p, endpointBase: e.target.value }))} placeholder="https://..." /></div>
-              <div><Label>Referência de credencial</Label><Input value={integracaoForm.credentialRef} onChange={(e) => setIntegracaoForm((p) => ({ ...p, credentialRef: e.target.value }))} /></div>
+              <div><Label>Referencia de credencial</Label><Input value={integracaoForm.credentialRef} onChange={(e) => setIntegracaoForm((p) => ({ ...p, credentialRef: e.target.value }))} placeholder="portal_fidc_fundo_abc_homologacao" /></div>
               <div><Label>Secret name</Label><Input value={integracaoForm.secretName} onChange={(e) => setIntegracaoForm((p) => ({ ...p, secretName: e.target.value }))} /></div>
               <div><Label>Vault key</Label><Input value={integracaoForm.vaultKey} onChange={(e) => setIntegracaoForm((p) => ({ ...p, vaultKey: e.target.value }))} /></div>
             </div>
-            <p className="mt-3 text-xs text-muted-foreground">Não informe senha, token ou segredo aqui. A tabela guarda apenas referência de credencial; a gestão criptografada fica para fase específica. Teste de conexão ainda não implementado nesta fase.</p>
-            <Button type="button" className="mt-4" disabled={isPending} onClick={() => runAction(() => criarOuAtualizarIntegracaoFundo(fundoId, { ...integracaoForm, configuracaoNaoSensivel: {} }))}>Salvar nova versão da integração</Button>
+            <p className="mt-3 text-xs text-muted-foreground">Nao informe senha, token ou segredo aqui. A tabela guarda apenas referencia de credencial. As variaveis esperadas seguem o padrao PORTAL_FIDC_CREDENTIAL_[REFERENCIA]_USERNAME/PASSWORD.</p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button type="button" disabled={isPending} onClick={salvarIntegracaoPortalFidc}>{editingIntegracaoVersaoId ? 'Salvar rascunho' : 'Criar versao'}</Button>
+              {editingIntegracaoVersaoId && <Button type="button" variant="outline" onClick={() => { setEditingIntegracaoVersaoId(''); setIntegracaoForm(defaultIntegracaoForm) }}>Cancelar edicao</Button>}
+            </div>
+          </DetailSection>
+
+          <DetailSection title="Execucoes recentes" icon={Plug}>
+            {execucoesIntegracao.length === 0 ? (
+              <EmptyState title="Nenhuma execucao registrada" description="Testes, envios e consultas do Portal FIDC aparecerao aqui." icon={Plug} />
+            ) : (
+              <div className="space-y-2">
+                {execucoesIntegracao.map((execucao) => (
+                  <div key={execucao.id} className="rounded-lg border border-border bg-background p-3 text-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium">{execucao.tipo_execucao}</span>
+                        <StatusBadge status={execucao.status} />
+                        <span className="rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground">tentativa {execucao.tentativa}</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground">{new Date(execucao.iniciada_em).toLocaleString('pt-BR')}</span>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">Ambiente {execucao.ambiente}{execucao.protocolo_externo ? ` - Protocolo ${execucao.protocolo_externo}` : ''}{execucao.duracao_ms !== null ? ` - ${execucao.duracao_ms}ms` : ''}</p>
+                    {execucao.mensagem_resumida && <p className="mt-1 text-xs text-muted-foreground">{execucao.mensagem_resumida}</p>}
+                    {execucao.erro_categoria && <p className="mt-1 text-xs text-destructive">Categoria: {execucao.erro_categoria}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
           </DetailSection>
         </div>
       )}

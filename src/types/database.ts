@@ -14,6 +14,9 @@ export type {
   IntegracaoFundoProvedor,
   IntegracaoFundoStatus,
   IntegracaoFundoVersaoStatus,
+  IntegracaoExecucaoStatus,
+  IntegracaoExecucaoTipo,
+  RetornoIntegracaoTipo,
   ContaEscrowStatus,
   CedenteAcessoPerfil,
   CedenteStatus,
@@ -60,6 +63,9 @@ import type {
   IntegracaoFundoProvedor,
   IntegracaoFundoStatus,
   IntegracaoFundoVersaoStatus,
+  IntegracaoExecucaoStatus,
+  IntegracaoExecucaoTipo,
+  RetornoIntegracaoTipo,
   ContextoConfiguracaoStatus,
   ContaEscrowStatus,
   AceiteSacadoStatus,
@@ -585,6 +591,44 @@ export interface IntegracaoFundoVersao {
   created_at: string
 }
 
+export interface IntegracaoExecucao {
+  id: string
+  fundo_id: string
+  integracao_fundo_versao_id: string
+  remessa_cnab_id: string | null
+  operacao_id: string | null
+  tipo_execucao: IntegracaoExecucaoTipo
+  ambiente: IntegracaoAmbiente
+  status: IntegracaoExecucaoStatus
+  tentativa: number
+  idempotency_key: string | null
+  request_hash: string | null
+  protocolo_externo: string | null
+  codigo_resposta: string | null
+  mensagem_resumida: string | null
+  erro_categoria: string | null
+  duracao_ms: number | null
+  iniciada_em: string
+  finalizada_em: string | null
+  created_at: string
+}
+
+export interface RetornoIntegracao {
+  id: string
+  fundo_id: string
+  integracao_execucao_id: string
+  remessa_cnab_id: string | null
+  tipo_retorno: RetornoIntegracaoTipo
+  bucket: string
+  storage_path: string
+  mime_type: string | null
+  tamanho_bytes: number
+  sha256: string
+  resumo_estruturado: Record<string, unknown>
+  recebido_em: string
+  created_at: string
+}
+
 export interface SequenciaRemessa {
   configuracao_cnab_id: string
   data_referencia: string
@@ -844,6 +888,8 @@ export interface Database {
       configuracao_cnab_versoes: { Row: ConfiguracaoCnabVersao & Record<string, unknown>; Insert: InsertShape<ConfiguracaoCnabVersao, 'configuracao_cnab_id' | 'versao' | 'vigente_desde' | 'layout' | 'versao_layout' | 'codigo_banco' | 'banco' | 'agencia' | 'conta' | 'digito_conta' | 'carteira' | 'convenio' | 'codigo_originador' | 'codigo_empresa' | 'tipo_inscricao' | 'numero_inscricao' | 'especie_titulo' | 'tipo_recebivel' | 'conteudo_hash'> & Record<string, unknown>; Update: UpdateShape<ConfiguracaoCnabVersao> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'configuracao_cnab_versoes_configuracao_cnab_id_fkey'; columns: ['configuracao_cnab_id']; isOneToOne: false; referencedRelation: 'configuracoes_cnab'; referencedColumns: ['id'] }, { foreignKeyName: 'configuracao_cnab_versoes_publicada_por_fkey'; columns: ['publicada_por']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] }] }
       integracoes_fundo: { Row: IntegracaoFundo & Record<string, unknown>; Insert: InsertShape<IntegracaoFundo, 'fundo_id' | 'provedor' | 'nome' | 'created_by'> & Record<string, unknown>; Update: UpdateShape<IntegracaoFundo> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'integracoes_fundo_fundo_id_fkey'; columns: ['fundo_id']; isOneToOne: false; referencedRelation: 'fundos'; referencedColumns: ['id'] }, { foreignKeyName: 'integracoes_fundo_created_by_fkey'; columns: ['created_by']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] }] }
       integracao_fundo_versoes: { Row: IntegracaoFundoVersao & Record<string, unknown>; Insert: InsertShape<IntegracaoFundoVersao, 'integracao_fundo_id' | 'versao' | 'ambiente' | 'identificador_cliente' | 'endpoint_base' | 'credential_ref' | 'vigente_desde'> & Record<string, unknown>; Update: UpdateShape<IntegracaoFundoVersao> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'integracao_fundo_versoes_integracao_fundo_id_fkey'; columns: ['integracao_fundo_id']; isOneToOne: false; referencedRelation: 'integracoes_fundo'; referencedColumns: ['id'] }, { foreignKeyName: 'integracao_fundo_versoes_publicada_por_fkey'; columns: ['publicada_por']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] }] }
+      integracao_execucoes: { Row: IntegracaoExecucao & Record<string, unknown>; Insert: InsertShape<IntegracaoExecucao, 'fundo_id' | 'integracao_fundo_versao_id' | 'tipo_execucao' | 'ambiente'> & Record<string, unknown>; Update: UpdateShape<IntegracaoExecucao> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'integracao_execucoes_fundo_id_fkey'; columns: ['fundo_id']; isOneToOne: false; referencedRelation: 'fundos'; referencedColumns: ['id'] }, { foreignKeyName: 'integracao_execucoes_integracao_fundo_versao_id_fkey'; columns: ['integracao_fundo_versao_id']; isOneToOne: false; referencedRelation: 'integracao_fundo_versoes'; referencedColumns: ['id'] }, { foreignKeyName: 'integracao_execucoes_remessa_cnab_id_fkey'; columns: ['remessa_cnab_id']; isOneToOne: false; referencedRelation: 'remessas_cnab'; referencedColumns: ['id'] }, { foreignKeyName: 'integracao_execucoes_operacao_id_fkey'; columns: ['operacao_id']; isOneToOne: false; referencedRelation: 'operacoes'; referencedColumns: ['id'] }] }
+      retornos_integracao: { Row: RetornoIntegracao & Record<string, unknown>; Insert: InsertShape<RetornoIntegracao, 'fundo_id' | 'integracao_execucao_id' | 'tipo_retorno' | 'storage_path' | 'tamanho_bytes' | 'sha256'> & Record<string, unknown>; Update: UpdateShape<RetornoIntegracao> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'retornos_integracao_fundo_id_fkey'; columns: ['fundo_id']; isOneToOne: false; referencedRelation: 'fundos'; referencedColumns: ['id'] }, { foreignKeyName: 'retornos_integracao_integracao_execucao_id_fkey'; columns: ['integracao_execucao_id']; isOneToOne: false; referencedRelation: 'integracao_execucoes'; referencedColumns: ['id'] }, { foreignKeyName: 'retornos_integracao_remessa_cnab_id_fkey'; columns: ['remessa_cnab_id']; isOneToOne: false; referencedRelation: 'remessas_cnab'; referencedColumns: ['id'] }] }
       sequencias_remessa: { Row: SequenciaRemessa & Record<string, unknown>; Insert: InsertShape<SequenciaRemessa, 'configuracao_cnab_id' | 'data_referencia'> & Record<string, unknown>; Update: Partial<SequenciaRemessa> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'sequencias_remessa_configuracao_cnab_id_fkey'; columns: ['configuracao_cnab_id']; isOneToOne: false; referencedRelation: 'configuracoes_cnab'; referencedColumns: ['id'] }] }
       remessas_cnab: { Row: RemessaCnab & Record<string, unknown>; Insert: InsertShape<RemessaCnab, 'fundo_id' | 'configuracao_cnab_id' | 'configuracao_cnab_versao_id' | 'configuracao_versao' | 'configuracao_hash' | 'storage_path' | 'sha256' | 'quantidade_registros' | 'quantidade_titulos' | 'valor_total' | 'nome_arquivo' | 'sequencial' | 'idempotency_key' | 'payload_hash'> & Record<string, unknown>; Update: UpdateShape<RemessaCnab> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'remessas_cnab_fundo_id_fkey'; columns: ['fundo_id']; isOneToOne: false; referencedRelation: 'fundos'; referencedColumns: ['id'] }, { foreignKeyName: 'remessas_cnab_configuracao_cnab_id_fkey'; columns: ['configuracao_cnab_id']; isOneToOne: false; referencedRelation: 'configuracoes_cnab'; referencedColumns: ['id'] }, { foreignKeyName: 'remessas_cnab_configuracao_cnab_versao_id_fkey'; columns: ['configuracao_cnab_versao_id']; isOneToOne: false; referencedRelation: 'configuracao_cnab_versoes'; referencedColumns: ['id'] }, { foreignKeyName: 'remessas_cnab_integracao_fundo_versao_id_fkey'; columns: ['integracao_fundo_versao_id']; isOneToOne: false; referencedRelation: 'integracao_fundo_versoes'; referencedColumns: ['id'] }] }
       remessas_cnab_operacoes: { Row: RemessaCnabOperacao & Record<string, unknown>; Insert: RemessaCnabOperacao & Record<string, unknown>; Update: Partial<RemessaCnabOperacao> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'remessas_cnab_operacoes_remessa_cnab_id_fkey'; columns: ['remessa_cnab_id']; isOneToOne: false; referencedRelation: 'remessas_cnab'; referencedColumns: ['id'] }, { foreignKeyName: 'remessas_cnab_operacoes_operacao_id_fkey'; columns: ['operacao_id']; isOneToOne: false; referencedRelation: 'operacoes'; referencedColumns: ['id'] }] }

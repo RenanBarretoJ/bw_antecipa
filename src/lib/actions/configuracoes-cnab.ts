@@ -5,6 +5,7 @@ import { registrarLog } from '@/lib/actions/auditoria'
 import { montarConfiguracaoLegadoParaCadastro, normalizarConfiguracaoCnabInput, validarConfiguracaoCnab } from '@/lib/cnab/resolver-configuracao'
 import { calcularHashConfiguracaoCnab, type ConfiguracaoCnabResolvida } from '@/lib/cnab/domain'
 import { geradorCnab444 } from '@/lib/cnab/layouts/cnab444'
+import { testarConexaoPortalFidc } from '@/lib/portal-fidc/integracao'
 
 type ActionState<T = unknown> = { success: boolean; message: string; data?: T }
 
@@ -250,7 +251,7 @@ type IntegracaoInput = {
 
 function validarIntegracaoInput(input: IntegracaoInput): string[] {
   const erros: string[] = []
-  if (!['fromtis', 'sinqia'].includes(input.provedor)) erros.push('Provedor invalido.')
+  if (input.provedor !== 'fromtis') erros.push('Provedor invalido. Use Portal FIDC - Sinqia.')
   if (!['homologacao', 'producao'].includes(input.ambiente)) erros.push('Ambiente invalido.')
   if (!input.identificadorCliente.trim()) erros.push('Identificador do cliente e obrigatorio.')
   if (!input.endpointBase.trim()) erros.push('Endpoint base e obrigatorio.')
@@ -281,7 +282,7 @@ export async function criarOuAtualizarIntegracaoFundo(fundoId: string, input: In
         .insert({
           fundo_id: fundoId,
           provedor: input.provedor,
-          nome: input.provedor === 'fromtis' ? 'Fromtis' : 'Sinqia',
+          nome: 'Portal FIDC - Sinqia',
           status: 'rascunho',
           created_by: context.user.id,
         } as never)
@@ -289,6 +290,11 @@ export async function criarOuAtualizarIntegracaoFundo(fundoId: string, input: In
         .single()
       if (error || !created) return result(`Erro ao criar integracao do fundo: ${error?.message || 'registro nao retornado'}`)
       integracaoId = (created as { id: string }).id
+    } else if ((existing as { status?: string } | null)?.status === 'desativada') {
+      await context.supabase
+        .from('integracoes_fundo')
+        .update({ status: 'rascunho', nome: 'Portal FIDC - Sinqia' } as never)
+        .eq('id', integracaoId)
     }
 
     const { data: last } = await context.supabase
@@ -324,6 +330,45 @@ export async function criarOuAtualizarIntegracaoFundo(fundoId: string, input: In
     return result(`Versao ${versao} da integracao criada como rascunho.`, true, { integracaoId, versaoId: (data as { id: string }).id, versao })
   } catch (error) {
     return result(error instanceof Error ? error.message : 'Erro ao salvar integracao do fundo.')
+  }
+}
+
+export async function atualizarRascunhoIntegracaoFundo(fundoId: string, versaoId: string, input: IntegracaoInput): Promise<ActionState> {
+  try {
+    const context = await requireGestor()
+    await assertFundoGestor(context, fundoId)
+    const erros = validarIntegracaoInput(input)
+    if (erros.length > 0) return result(erros.join(' '))
+
+    const { data: version } = await context.supabase
+      .from('integracao_fundo_versoes')
+      .select('id, status, integracao_fundo_id, integracao:integracoes_fundo(fundo_id, provedor)')
+      .eq('id', versaoId)
+      .maybeSingle()
+    if (!version) return result('Rascunho de integracao nao encontrado.')
+    const versionData = version as { id: string; status: string; integracao_fundo_id: string; integracao: { fundo_id: string; provedor: string } | null }
+    if (versionData.integracao?.fundo_id !== fundoId) return result('Versao de integracao nao pertence ao fundo informado.')
+    if (versionData.integracao?.provedor !== 'fromtis') return result('Somente Portal FIDC - Sinqia e suportado nesta fase.')
+    if (versionData.status !== 'rascunho') return result('Somente rascunhos podem ser editados.')
+
+    const { error } = await context.supabase
+      .from('integracao_fundo_versoes')
+      .update({
+        ambiente: input.ambiente,
+        identificador_cliente: input.identificadorCliente.trim(),
+        codigo_originador: input.codigoOriginador?.trim() || null,
+        endpoint_base: input.endpointBase.trim(),
+        configuracao_nao_sensivel: input.configuracaoNaoSensivel || {},
+        credential_ref: input.credentialRef.trim(),
+        secret_name: input.secretName?.trim() || null,
+        vault_key: input.vaultKey?.trim() || null,
+      } as never)
+      .eq('id', versaoId)
+    if (error) return result(`Erro ao atualizar rascunho da integracao: ${error.message}`)
+    await registrarLog({ tipo_evento: 'INTEGRACAO_FUNDO_RASCUNHO_ATUALIZADO', entidade_tipo: 'integracao_fundo_versoes', entidade_id: versaoId, dados_depois: { fundo_id: fundoId } })
+    return result('Rascunho da integracao atualizado.', true)
+  } catch (error) {
+    return result(error instanceof Error ? error.message : 'Erro ao atualizar rascunho da integracao.')
   }
 }
 
@@ -366,6 +411,60 @@ export async function publicarVersaoIntegracaoFundo(fundoId: string, versaoId: s
     return result(`Versao ${versionData.versao} da integracao publicada.`, true)
   } catch (error) {
     return result(error instanceof Error ? error.message : 'Erro ao publicar integracao do fundo.')
+  }
+}
+
+export async function desativarIntegracaoFundo(fundoId: string, integracaoId: string): Promise<ActionState> {
+  try {
+    const context = await requireGestor()
+    await assertFundoGestor(context, fundoId)
+    const now = new Date().toISOString()
+    const { data: integracao } = await context.supabase
+      .from('integracoes_fundo')
+      .select('id, fundo_id, provedor')
+      .eq('id', integracaoId)
+      .eq('fundo_id', fundoId)
+      .maybeSingle()
+    if (!integracao) return result('Integracao nao encontrada no fundo informado.')
+    const integracaoData = integracao as { id: string; provedor: string }
+    if (integracaoData.provedor !== 'fromtis') return result('Somente Portal FIDC - Sinqia e suportado nesta fase.')
+
+    await context.supabase
+      .from('integracao_fundo_versoes')
+      .update({ status: 'desativada', vigente_ate: now } as never)
+      .eq('integracao_fundo_id', integracaoId)
+      .in('status', ['rascunho', 'publicada'])
+
+    const { error } = await context.supabase
+      .from('integracoes_fundo')
+      .update({ status: 'desativada' } as never)
+      .eq('id', integracaoId)
+      .eq('fundo_id', fundoId)
+    if (error) return result(`Erro ao desativar integracao: ${error.message}`)
+    await registrarLog({ tipo_evento: 'INTEGRACAO_FUNDO_DESATIVADA', entidade_tipo: 'integracoes_fundo', entidade_id: integracaoId, dados_depois: { fundo_id: fundoId } })
+    return result('Integracao Portal FIDC desativada.', true)
+  } catch (error) {
+    return result(error instanceof Error ? error.message : 'Erro ao desativar integracao.')
+  }
+}
+
+export async function testarConexaoIntegracaoFundo(fundoId: string, versaoId: string): Promise<ActionState<{ execucaoId: string }>> {
+  try {
+    const context = await requireGestor()
+    await assertFundoGestor(context, fundoId)
+    const { data: version } = await context.supabase
+      .from('integracao_fundo_versoes')
+      .select('id, integracao:integracoes_fundo(fundo_id, provedor)')
+      .eq('id', versaoId)
+      .maybeSingle()
+    const versionData = version as { integracao: { fundo_id: string; provedor: string } | null } | null
+    if (versionData?.integracao?.fundo_id !== fundoId) return result('Versao de integracao nao pertence ao fundo informado.')
+    if (versionData.integracao.provedor !== 'fromtis') return result('Somente Portal FIDC - Sinqia e suportado nesta fase.')
+    const teste = await testarConexaoPortalFidc(fundoId, versaoId)
+    await registrarLog({ tipo_evento: 'PORTAL_FIDC_TESTE_CONEXAO', entidade_tipo: 'integracao_fundo_versoes', entidade_id: versaoId, dados_depois: { fundo_id: fundoId, sucesso: teste.success } })
+    return result(teste.message, teste.success, teste.data)
+  } catch (error) {
+    return result(error instanceof Error ? error.message : 'Erro ao testar conexao com o Portal FIDC.')
   }
 }
 

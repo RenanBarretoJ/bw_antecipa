@@ -601,10 +601,31 @@ export default function OperacaoDetalheGestorPage() {
       if (!res.ok) throw new Error(data.error || 'Erro ao enviar remessa')
       setRemessaEnviadaEm(new Date().toISOString())
       setRemessaFromtisId(data.idArquivo)
-      setMessage(`Remessa enviada. ID Fromtis: ${data.idArquivo}`)
+      setMessage(`Remessa enviada ao Portal FIDC. Protocolo: ${data.idArquivo}`)
       setMessageType('success')
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Erro ao enviar remessa.')
+      setMessageType('error')
+    } finally {
+      setEnviandoRemessa(false)
+    }
+  }
+
+  const handleConsultarStatusPortalFidc = async () => {
+    if (!op) return
+    setEnviandoRemessa(true)
+    try {
+      const res = await fetch('/api/contratos/consultar-status-remessa', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ operacao_id: op.id }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Erro ao consultar status da remessa')
+      setMessage(`Status Portal FIDC: ${data.status} - ${data.mensagem}`)
+      setMessageType('success')
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Erro ao consultar status Portal FIDC.')
       setMessageType('error')
     } finally {
       setEnviandoRemessa(false)
@@ -1046,10 +1067,21 @@ export default function OperacaoDetalheGestorPage() {
                     className="w-full gap-2"
                   >
                     {enviandoRemessa ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-                    {enviandoRemessa ? 'Enviando...' : remessaEnviadaEm ? `Reenviado ${formatDate(remessaEnviadaEm)}` : 'Enviar CNAB para Fromtis'}
+                    {enviandoRemessa ? 'Enviando...' : remessaEnviadaEm ? `Reenviado ${formatDate(remessaEnviadaEm)}` : 'Enviar CNAB para Portal FIDC'}
                   </Button>
                   {remessaFromtisId && (
-                    <p className="text-xs text-muted-foreground">ID Fromtis: {remessaFromtisId}</p>
+                    <p className="text-xs text-muted-foreground">Protocolo Portal FIDC: {remessaFromtisId}</p>
+                  )}
+                  {remessaFromtisId && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleConsultarStatusPortalFidc}
+                      disabled={enviandoRemessa}
+                      className="w-full gap-2"
+                    >
+                      Consultar status Portal FIDC
+                    </Button>
                   )}
 
                   <p className="text-xs font-medium text-muted-foreground border-t pt-3">Documentos assinados</p>
@@ -1301,10 +1333,21 @@ export default function OperacaoDetalheGestorPage() {
                       className="w-full gap-2"
                     >
                       {enviandoRemessa ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-                      {enviandoRemessa ? 'Enviando...' : remessaEnviadaEm ? `Reenviado ${formatDate(remessaEnviadaEm)}` : 'Enviar CNAB para Fromtis'}
+                      {enviandoRemessa ? 'Enviando...' : remessaEnviadaEm ? `Reenviado ${formatDate(remessaEnviadaEm)}` : 'Enviar CNAB para Portal FIDC'}
                     </Button>
                     {remessaFromtisId && (
-                      <p className="text-xs text-muted-foreground">ID Fromtis: {remessaFromtisId}</p>
+                      <p className="text-xs text-muted-foreground">Protocolo Portal FIDC: {remessaFromtisId}</p>
+                    )}
+                    {remessaFromtisId && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleConsultarStatusPortalFidc}
+                        disabled={enviandoRemessa}
+                        className="w-full gap-2"
+                      >
+                        Consultar status Portal FIDC
+                      </Button>
                     )}
                   </div>
                 )}

@@ -8,4 +8,5 @@ export const buckets = {
   notasFiscais: 'notas-fiscais',
   contratos: 'contratos',
   remessasCnab: 'remessas-cnab',
+  retornosIntegracao: 'retornos-integracao',
 } as const

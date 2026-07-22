@@ -172,8 +172,17 @@ export type IntegracaoFundoProvedor = (typeof INTEGRACAO_FUNDO_PROVEDORES)[numbe
 export const INTEGRACAO_FUNDO_STATUSES = ['rascunho', 'ativa', 'desativada'] as const
 export type IntegracaoFundoStatus = (typeof INTEGRACAO_FUNDO_STATUSES)[number]
 
-export const INTEGRACAO_FUNDO_VERSAO_STATUSES = ['rascunho', 'publicada', 'substituida', 'cancelada'] as const
+export const INTEGRACAO_FUNDO_VERSAO_STATUSES = ['rascunho', 'publicada', 'substituida', 'cancelada', 'desativada'] as const
 export type IntegracaoFundoVersaoStatus = (typeof INTEGRACAO_FUNDO_VERSAO_STATUSES)[number]
+
+export const INTEGRACAO_EXECUCAO_TIPOS = ['teste_conexao', 'envio_remessa', 'consulta_status', 'download_retorno'] as const
+export type IntegracaoExecucaoTipo = (typeof INTEGRACAO_EXECUCAO_TIPOS)[number]
+
+export const INTEGRACAO_EXECUCAO_STATUSES = ['iniciada', 'sucesso', 'erro', 'timeout', 'cancelada'] as const
+export type IntegracaoExecucaoStatus = (typeof INTEGRACAO_EXECUCAO_STATUSES)[number]
+
+export const RETORNO_INTEGRACAO_TIPOS = ['status', 'arquivo', 'payload'] as const
+export type RetornoIntegracaoTipo = (typeof RETORNO_INTEGRACAO_TIPOS)[number]
 
 export const INTEGRACAO_AMBIENTES = ['homologacao', 'producao'] as const
 export type IntegracaoAmbiente = (typeof INTEGRACAO_AMBIENTES)[number]
