@@ -403,7 +403,7 @@ function CadastroForm() {
   const inputClass = (field: string) =>
     errors[field] ? 'border-destructive focus-visible:ring-destructive' : ''
 
-  const ErrorMsg = ({ field }: { field: string }) =>
+  const renderError = (field: string) =>
     errors[field] ? <p className="text-destructive text-sm mt-1">{errors[field][0]}</p> : null
 
   return (
@@ -453,13 +453,13 @@ function CadastroForm() {
                       if (v.length === 14) buscarCNPJ(v)
                     }} placeholder="00.000.000/0000-00" />
                   {buscandoCnpj && <p className="text-primary text-xs mt-1">Buscando dados da empresa...</p>}
-                  <ErrorMsg field="cnpj" />
+                  {renderError('cnpj')}
                 </div>
                 <div>
                   <Label className="mb-1">Razao Social *</Label>
                   <Input className={`h-11 ${inputClass('razao_social')}`} value={form.razao_social || ''}
                     onChange={(e) => updateField('razao_social', e.target.value)} />
-                  <ErrorMsg field="razao_social" />
+                  {renderError('razao_social')}
                 </div>
               </div>
 
@@ -486,13 +486,13 @@ function CadastroForm() {
                       if (v.length === 8) buscarCEP(v)
                     }} placeholder="00000-000" />
                   {buscandoCep && <p className="text-primary text-xs mt-1">Buscando endereco...</p>}
-                  <ErrorMsg field="cep" />
+                  {renderError('cep')}
                 </div>
                 <div className="md:col-span-2">
                   <Label className="mb-1">Logradouro *</Label>
                   <Input className={`h-11 ${inputClass('logradouro')}`} value={form.logradouro || ''}
                     onChange={(e) => updateField('logradouro', e.target.value)} />
-                  <ErrorMsg field="logradouro" />
+                  {renderError('logradouro')}
                 </div>
               </div>
 
@@ -501,7 +501,7 @@ function CadastroForm() {
                   <Label className="mb-1">Numero *</Label>
                   <Input className={`h-11 ${inputClass('numero')}`} value={form.numero || ''}
                     onChange={(e) => updateField('numero', e.target.value)} />
-                  <ErrorMsg field="numero" />
+                  {renderError('numero')}
                 </div>
                 <div>
                   <Label className="mb-1">Complemento</Label>
@@ -512,13 +512,13 @@ function CadastroForm() {
                   <Label className="mb-1">Bairro *</Label>
                   <Input className={`h-11 ${inputClass('bairro')}`} value={form.bairro || ''}
                     onChange={(e) => updateField('bairro', e.target.value)} />
-                  <ErrorMsg field="bairro" />
+                  {renderError('bairro')}
                 </div>
                 <div>
                   <Label className="mb-1">Cidade *</Label>
                   <Input className={`h-11 ${inputClass('cidade')}`} value={form.cidade || ''}
                     onChange={(e) => updateField('cidade', e.target.value)} />
-                  <ErrorMsg field="cidade" />
+                  {renderError('cidade')}
                 </div>
               </div>
 
@@ -527,19 +527,19 @@ function CadastroForm() {
                   <Label className="mb-1">Estado *</Label>
                   <Input className={`h-11 ${inputClass('estado')}`} value={form.estado || ''} maxLength={2}
                     onChange={(e) => updateField('estado', e.target.value.toUpperCase())} placeholder="UF" />
-                  <ErrorMsg field="estado" />
+                  {renderError('estado')}
                 </div>
                 <div>
                   <Label className="mb-1">Telefone Comercial *</Label>
                   <Input className={`h-11 ${inputClass('telefone_comercial')}`} value={maskPhone(form.telefone_comercial || '')}
                     onChange={(e) => updateField('telefone_comercial', e.target.value.replace(/\D/g, ''))} placeholder="(00) 00000-0000" />
-                  <ErrorMsg field="telefone_comercial" />
+                  {renderError('telefone_comercial')}
                 </div>
                 <div>
                   <Label className="mb-1">E-mail Comercial *</Label>
                   <Input className={`h-11 ${inputClass('email_comercial')}`} type="email" value={form.email_comercial || ''}
                     onChange={(e) => updateField('email_comercial', e.target.value)} />
-                  <ErrorMsg field="email_comercial" />
+                  {renderError('email_comercial')}
                 </div>
               </div>
             </div>
@@ -680,7 +680,7 @@ function CadastroForm() {
                     <option key={b.codigo} value={`${b.codigo} - ${b.nome}`}>{b.codigo} - {b.nome}</option>
                   ))}
                 </select>
-                <ErrorMsg field="banco" />
+                {renderError('banco')}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -688,13 +688,13 @@ function CadastroForm() {
                   <Label className="mb-1">Agencia *</Label>
                   <Input className={`h-11 ${inputClass('agencia')}`} value={form.agencia || ''}
                     onChange={(e) => updateField('agencia', e.target.value.replace(/\D/g, ''))} placeholder="0000" />
-                  <ErrorMsg field="agencia" />
+                  {renderError('agencia')}
                 </div>
                 <div>
                   <Label className="mb-1">Conta *</Label>
                   <Input className={`h-11 ${inputClass('conta')}`} value={form.conta || ''}
                     onChange={(e) => updateField('conta', e.target.value)} placeholder="00000-0" />
-                  <ErrorMsg field="conta" />
+                  {renderError('conta')}
                 </div>
                 <div>
                   <Label className="mb-1">Tipo de Conta *</Label>
@@ -709,7 +709,7 @@ function CadastroForm() {
                     <option value="corrente">Corrente</option>
                     <option value="poupanca">Poupanca</option>
                   </select>
-                  <ErrorMsg field="tipo_conta" />
+                  {renderError('tipo_conta')}
                 </div>
               </div>
             </div>
@@ -839,7 +839,8 @@ function AlteracaoForm({ cedente, onCancelar }: { cedente: CedenteCadastrado; on
   const maskCPF = (v: string) => v.replace(/\D/g, '').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d{1,2})$/, '$1-$2').slice(0, 14)
   const maskCEP = (v: string) => v.replace(/\D/g, '').replace(/(\d{5})(\d)/, '$1-$2').slice(0, 9)
   const inputClass = (field: string) => errors[field] ? 'border-destructive focus-visible:ring-destructive' : ''
-  const ErrorMsg = ({ field }: { field: string }) => errors[field] ? <p className="text-destructive text-sm mt-1">{errors[field][0]}</p> : null
+  const renderError = (field: string) =>
+    errors[field] ? <p className="text-destructive text-sm mt-1">{errors[field][0]}</p> : null
 
   return (
     <div className="max-w-3xl mx-auto">
@@ -902,12 +903,12 @@ function AlteracaoForm({ cedente, onCancelar }: { cedente: CedenteCadastrado; on
                 <div>
                   <Label className="mb-1">Telefone Comercial</Label>
                   <Input className={`h-11 ${inputClass('telefone_comercial')}`} value={maskPhone(form.telefone_comercial || '')} onChange={(e) => updateField('telefone_comercial', e.target.value.replace(/\D/g, ''))} placeholder="(00) 00000-0000" />
-                  <ErrorMsg field="telefone_comercial" />
+                  {renderError('telefone_comercial')}
                 </div>
                 <div>
                   <Label className="mb-1">E-mail Comercial</Label>
                   <Input className={`h-11 ${inputClass('email_comercial')}`} type="email" value={form.email_comercial || ''} onChange={(e) => updateField('email_comercial', e.target.value)} />
-                  <ErrorMsg field="email_comercial" />
+                  {renderError('email_comercial')}
                 </div>
               </div>
             </div>

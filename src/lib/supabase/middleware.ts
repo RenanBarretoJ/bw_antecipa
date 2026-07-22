@@ -30,6 +30,13 @@ export async function updateSession(request: NextRequest) {
   const authRoutes = ['/login', '/cadastro']
   const isAuthRoute = authRoutes.some((route) => pathname === route)
   const isMfaRoute = pathname.startsWith('/mfa')
+  const isServerActionRequest = request.method === 'POST' && request.headers.has('next-action')
+
+  // Server Actions usam um protocolo próprio de resposta do Next.js. Se o proxy
+  // responder com redirect HTML para login/MFA, o client recebe uma resposta
+  // inválida e lança "An unexpected response was received from the server".
+  // Autorização e MFA continuam sendo validados nas actions server-side.
+  if (isServerActionRequest) return supabaseResponse
 
   if (!user && !isPublicRoute) {
     const url = request.nextUrl.clone()

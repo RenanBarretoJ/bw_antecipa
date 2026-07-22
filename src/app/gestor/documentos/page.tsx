@@ -90,7 +90,22 @@ export default function DocumentosGestorPage() {
     setLoading(false)
   }
 
-  useEffect(() => { loadDocs() }, [])
+  useEffect(() => {
+    let mounted = true
+    async function loadInitialDocs() {
+      const supabase = createClient()
+      const { data } = await supabase
+        .from('documentos')
+        .select('id, tipo, versao, status, nome_arquivo, url_arquivo, motivo_reprovacao, created_at, cedentes(razao_social, cnpj)')
+        .order('created_at', { ascending: false })
+
+      if (!mounted) return
+      setDocs((data || []) as DocGestor[])
+      setLoading(false)
+    }
+    void loadInitialDocs()
+    return () => { mounted = false }
+  }, [])
 
   const openPreview = async (doc: DocGestor) => {
     if (!doc.url_arquivo) return

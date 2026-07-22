@@ -37,7 +37,17 @@ export default function TestemunhasPage() {
     setLoading(false)
   }
 
-  useEffect(() => { carregar() }, [])
+  useEffect(() => {
+    let mounted = true
+    async function carregarInicial() {
+      const data = await listarTestemunhas()
+      if (!mounted) return
+      setTestemunhas(data as Testemunha[])
+      setLoading(false)
+    }
+    void carregarInicial()
+    return () => { mounted = false }
+  }, [])
 
   const handleAdicionar = async () => {
     if (!nome.trim() || !cpf.trim()) {

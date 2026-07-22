@@ -25,9 +25,10 @@ describe('Portal FIDC integration helpers', () => {
     process.env[portalFidcCredentialEnvName(ref, 'USERNAME')] = 'usuario-teste'
     process.env[portalFidcCredentialEnvName(ref, 'PASSWORD')] = 'senha-teste'
 
-    expect(resolverCredenciaisPortalFidc({ credentialRef: ref, secretName: null })).toEqual({
+    expect(resolverCredenciaisPortalFidc({ credentialRef: ref, secretName: null })).toMatchObject({
       username: 'usuario-teste',
       password: 'senha-teste',
+      source: 'env_fallback',
     })
 
     delete process.env[portalFidcCredentialEnvName(ref, 'USERNAME')]

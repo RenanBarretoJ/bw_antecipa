@@ -2,6 +2,8 @@ import JSZip from 'jszip'
 import { createHash } from 'crypto'
 import { createAdminClient } from '@/lib/supabase/server'
 import { buckets } from '@/lib/storage'
+import { registrarEventoSeguranca } from '@/lib/auth/mfa'
+import { descriptografarPortalFidcValor } from '@/lib/portal-fidc/credenciais'
 
 export const PORTAL_FIDC_PROVIDER = 'fromtis'
 export const PORTAL_FIDC_LABEL = 'Portal FIDC'
@@ -37,6 +39,7 @@ export type PortalFidcVersaoResolvida = {
   identificadorCliente: string
   codigoOriginador: string | null
   credentialRef: string
+  credencialIntegracaoId: string | null
   secretName: string | null
   vaultKey: string | null
   configuracao: Record<string, unknown>
@@ -45,6 +48,8 @@ export type PortalFidcVersaoResolvida = {
 type PortalFidcCredenciais = {
   username: string
   password: string
+  source?: 'banco' | 'env_fallback'
+  credencialIntegracaoId?: string | null
 }
 
 type RemessaPortalFidc = {
@@ -88,7 +93,79 @@ export function resolverCredenciaisPortalFidc(integracao: Pick<PortalFidcVersaoR
   if (!username || !password) {
     throw Object.assign(new Error(`Credenciais do Portal FIDC nao encontradas para a referencia ${integracao.credentialRef}.`), { categoria: 'autenticacao' })
   }
-  return { username, password }
+  return { username, password, source: 'env_fallback', credencialIntegracaoId: null }
+}
+
+async function resolverCredenciaisPortalFidcBanco(
+  admin: AdminClient,
+  integracao: Pick<PortalFidcVersaoResolvida, 'id' | 'integracaoId' | 'fundoId' | 'ambiente' | 'credentialRef' | 'secretName' | 'credencialIntegracaoId'>,
+): Promise<PortalFidcCredenciais | null> {
+  let query = admin
+    .from('credenciais_integracao')
+    .select('id, fundo_id, integracao_fundo_id, ambiente, status, usuario_criptografado, senha_criptografada, chave_versao')
+    .eq('fundo_id', integracao.fundoId)
+    .eq('integracao_fundo_id', integracao.integracaoId)
+    .eq('ambiente', integracao.ambiente)
+    .eq('status', 'ativa')
+
+  if (integracao.credencialIntegracaoId) query = query.eq('id', integracao.credencialIntegracaoId)
+  else query = query.order('ativada_em', { ascending: false }).limit(1)
+
+  const { data, error } = await query.maybeSingle()
+  if (error) {
+    if (error.code === '42P01' || error.message?.includes('credenciais_integracao')) return null
+    throw new Error(`Erro ao resolver credencial Portal FIDC: ${error.message}`)
+  }
+  if (!data) return null
+
+  const credencial = data as unknown as {
+    id: string
+    fundo_id: string
+    integracao_fundo_id: string
+    ambiente: string
+    status: string
+    usuario_criptografado: string
+    senha_criptografada: string
+    chave_versao: string
+  }
+
+  if (
+    credencial.fundo_id !== integracao.fundoId
+    || credencial.integracao_fundo_id !== integracao.integracaoId
+    || credencial.ambiente !== integracao.ambiente
+    || credencial.status !== 'ativa'
+  ) {
+    throw Object.assign(new Error('Credencial Portal FIDC ativa incompatível com fundo, integração ou ambiente.'), { categoria: 'autenticacao' })
+  }
+
+  const username = descriptografarPortalFidcValor(credencial.usuario_criptografado, credencial.chave_versao)
+  const password = descriptografarPortalFidcValor(credencial.senha_criptografada, credencial.chave_versao)
+  await admin.from('credenciais_integracao').update({ ultimo_uso_em: new Date().toISOString() } as never).eq('id', credencial.id)
+  await registrarEventoSeguranca({
+    tipo_evento: 'CREDENCIAL_USADA',
+    ator_tipo: 'integracao',
+    severidade: 'info',
+    entidade_tipo: 'credenciais_integracao',
+    entidade_id: credencial.id,
+    dados: { fundo_id: integracao.fundoId, integracao_fundo_id: integracao.integracaoId, ambiente: integracao.ambiente, versao_id: integracao.id },
+  })
+  return { username, password, source: 'banco', credencialIntegracaoId: credencial.id }
+}
+
+export async function resolverCredenciaisPortalFidcSeguras(admin: AdminClient, integracao: PortalFidcVersaoResolvida): Promise<PortalFidcCredenciais> {
+  const credencialBanco = await resolverCredenciaisPortalFidcBanco(admin, integracao)
+  if (credencialBanco) return credencialBanco
+
+  const credencialEnv = resolverCredenciaisPortalFidc(integracao)
+  await registrarEventoSeguranca({
+    tipo_evento: 'CREDENCIAL_USADA',
+    ator_tipo: 'integracao',
+    severidade: 'warning',
+    entidade_tipo: 'integracao_fundo_versoes',
+    entidade_id: integracao.id,
+    dados: { fundo_id: integracao.fundoId, integracao_fundo_id: integracao.integracaoId, ambiente: integracao.ambiente, fallback_env: true },
+  })
+  return credencialEnv
 }
 
 export async function resolverVersaoPortalFidc(
@@ -137,6 +214,7 @@ export async function resolverVersaoPortalFidc(
     identificadorCliente: String(vigente.identificador_cliente),
     codigoOriginador: vigente.codigo_originador ? String(vigente.codigo_originador) : null,
     credentialRef: String(vigente.credential_ref),
+    credencialIntegracaoId: vigente.credencial_integracao_id ? String(vigente.credencial_integracao_id) : null,
     secretName: vigente.secret_name ? String(vigente.secret_name) : null,
     vaultKey: vigente.vault_key ? String(vigente.vault_key) : null,
     configuracao: (vigente.configuracao_nao_sensivel as Record<string, unknown> | null) || {},
@@ -342,7 +420,7 @@ export async function testarConexaoPortalFidc(fundoId: string, versaoId: string)
   })
 
   try {
-    const credenciais = resolverCredenciaisPortalFidc(integracao)
+    const credenciais = await resolverCredenciaisPortalFidcSeguras(admin, integracao)
     const before = Date.now()
     const response = await fetch(integracao.endpointBase, {
       method: 'GET',
@@ -415,7 +493,7 @@ export async function enviarRemessaPortalFidc(operacaoId: string): Promise<{ idA
     throw new Error('Existe uma tentativa de envio do Portal FIDC em estado incerto. Consulte o status antes de reenviar.')
   }
 
-  const credenciais = resolverCredenciaisPortalFidc(integracao)
+  const credenciais = await resolverCredenciaisPortalFidcSeguras(admin, integracao)
   const cnabBuffer = await baixarArquivoRemessa(admin, remessa)
   const requestHash = sha256Hex(`${remessa.id}:${integracao.id}:${cnabBuffer.toString('base64')}`)
   let lastError: unknown

@@ -1,12 +1,14 @@
 'use server'
 
 import { requireGestor } from '@/lib/auth/authorization'
-import { exigirSessaoElevada } from '@/lib/auth/mfa'
+import { exigirSessaoElevada, registrarEventoSeguranca } from '@/lib/auth/mfa'
 import { registrarLog } from '@/lib/actions/auditoria'
+import { createAdminClient } from '@/lib/supabase/server'
 import { montarConfiguracaoLegadoParaCadastro, normalizarConfiguracaoCnabInput, validarConfiguracaoCnab } from '@/lib/cnab/resolver-configuracao'
 import { calcularHashConfiguracaoCnab, type ConfiguracaoCnabResolvida } from '@/lib/cnab/domain'
 import { geradorCnab444 } from '@/lib/cnab/layouts/cnab444'
 import { testarConexaoPortalFidc } from '@/lib/portal-fidc/integracao'
+import { criptografarPortalFidcValor } from '@/lib/portal-fidc/credenciais'
 import { registrarTentativaRateLimit, verificarRateLimit } from '@/lib/security/rate-limit'
 
 type ActionState<T = unknown> = { success: boolean; message: string; data?: T }
@@ -251,9 +253,29 @@ type IntegracaoInput = {
   codigoOriginador?: string
   endpointBase: string
   credentialRef: string
+  credencialIntegracaoId?: string | null
   secretName?: string
   vaultKey?: string
   configuracaoNaoSensivel?: Record<string, unknown>
+}
+
+type CredencialPortalFidcMetadata = {
+  id: string
+  fundo_id: string
+  integracao_fundo_id: string
+  ambiente: 'homologacao' | 'producao'
+  nome: string
+  status: 'rascunho' | 'ativa' | 'substituida' | 'revogada'
+  chave_versao: string
+  criada_por: string
+  criada_em: string
+  ativada_em: string | null
+  revogada_em: string | null
+  substituida_por: string | null
+  ultimo_uso_em: string | null
+  created_at: string
+  updated_at: string
+  criador?: { nome_completo: string; email: string } | null
 }
 
 function validarIntegracaoInput(input: IntegracaoInput): string[] {
@@ -263,9 +285,203 @@ function validarIntegracaoInput(input: IntegracaoInput): string[] {
   if (!input.identificadorCliente.trim()) erros.push('Identificador do cliente e obrigatorio.')
   if (!input.endpointBase.trim()) erros.push('Endpoint base e obrigatorio.')
   if (!/^https?:\/\//i.test(input.endpointBase.trim())) erros.push('Endpoint base deve iniciar com http:// ou https://.')
-  if (!input.credentialRef.trim()) erros.push('Referencia de credencial e obrigatoria.')
+  if (!input.credencialIntegracaoId && !input.credentialRef.trim()) erros.push('Selecione uma credencial ativa ou informe referencia temporaria de fallback.')
   if (input.codigoOriginador && !/^\d{1,20}$/.test(input.codigoOriginador.trim())) erros.push('Codigo originador da integracao deve conter ate 20 digitos.')
   return erros
+}
+
+async function obterOuCriarIntegracaoPortalFidc(fundoId: string, userId: string) {
+  const admin = createAdminClient()
+  const { data: existing, error: existingError } = await admin
+    .from('integracoes_fundo')
+    .select('id, status')
+    .eq('fundo_id', fundoId)
+    .eq('provedor', 'fromtis')
+    .maybeSingle()
+  if (existingError) throw new Error(`Erro ao consultar integracao Portal FIDC: ${existingError.message}`)
+
+  const integracaoId = (existing as { id?: string; status?: string } | null)?.id
+  if (integracaoId) {
+    if ((existing as { status?: string }).status === 'desativada') {
+      await admin.from('integracoes_fundo').update({ status: 'rascunho', nome: 'Portal FIDC - Sinqia' } as never).eq('id', integracaoId)
+    }
+    return integracaoId
+  }
+
+  const { data, error } = await admin
+    .from('integracoes_fundo')
+    .insert({
+      fundo_id: fundoId,
+      provedor: 'fromtis',
+      nome: 'Portal FIDC - Sinqia',
+      status: 'rascunho',
+      created_by: userId,
+    } as never)
+    .select('id')
+    .single()
+  if (error || !data) throw new Error(`Erro ao criar integracao Portal FIDC: ${error?.message || 'registro nao retornado'}`)
+  return (data as { id: string }).id
+}
+
+function mascararIdentificador(value: string) {
+  const trimmed = value.trim()
+  if (!trimmed) return ''
+  if (trimmed.length <= 4) return '••••'
+  return `${trimmed.slice(0, 2)}••••${trimmed.slice(-2)}`
+}
+
+export async function listarCredenciaisPortalFidc(fundoId: string): Promise<ActionState<CredencialPortalFidcMetadata[]>> {
+  try {
+    const context = await requireGestor()
+    await exigirSessaoElevada(context)
+    await assertFundoGestor(context, fundoId)
+    const admin = createAdminClient()
+    const { data, error } = await admin
+      .from('credenciais_integracao')
+      .select('id, fundo_id, integracao_fundo_id, ambiente, nome, status, chave_versao, criada_por, criada_em, ativada_em, revogada_em, substituida_por, ultimo_uso_em, created_at, updated_at, criador:profiles(nome_completo, email)')
+      .eq('fundo_id', fundoId)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      if (error.code === '42P01' || error.message.includes('credenciais_integracao')) return result('Tabela de credenciais ainda nao aplicada no banco.', true, [])
+      return result(`Erro ao listar credenciais: ${error.message}`)
+    }
+
+    return result('Credenciais carregadas.', true, (data || []) as unknown as CredencialPortalFidcMetadata[])
+  } catch (error) {
+    return result(error instanceof Error ? error.message : 'Erro ao listar credenciais Portal FIDC.')
+  }
+}
+
+export async function cadastrarCredencialPortalFidc(fundoId: string, input: {
+  ambiente: 'homologacao' | 'producao'
+  nome: string
+  usuario: string
+  senha: string
+}): Promise<ActionState<{ id: string }>> {
+  try {
+    const context = await requireGestor()
+    await exigirSessaoElevada(context)
+    await assertFundoGestor(context, fundoId)
+    if (!['homologacao', 'producao'].includes(input.ambiente)) return result('Ambiente invalido.')
+    if (input.nome.trim().length < 2) return result('Nome da credencial e obrigatorio.')
+    if (!input.usuario.trim() || !input.senha) return result('Usuario e senha sao obrigatorios.')
+
+    const integracaoId = await obterOuCriarIntegracaoPortalFidc(fundoId, context.user.id)
+    const usuario = criptografarPortalFidcValor(input.usuario.trim())
+    const senha = criptografarPortalFidcValor(input.senha)
+    const chaveVersao = usuario.chaveVersao
+    if (senha.chaveVersao !== chaveVersao) return result('Rotacao de chave mudou durante criptografia. Tente novamente.')
+
+    const admin = createAdminClient()
+    const { data, error } = await admin
+      .from('credenciais_integracao')
+      .insert({
+        fundo_id: fundoId,
+        integracao_fundo_id: integracaoId,
+        ambiente: input.ambiente,
+        nome: input.nome.trim(),
+        usuario_criptografado: usuario.ciphertext,
+        senha_criptografada: senha.ciphertext,
+        chave_versao: chaveVersao,
+        status: 'rascunho',
+        criada_por: context.user.id,
+        metadados: { usuario_mascarado: mascararIdentificador(input.usuario) },
+      } as never)
+      .select('id')
+      .single()
+
+    if (error || !data) return result(`Erro ao cadastrar credencial: ${error?.message || 'registro nao retornado'}`)
+    const id = (data as { id: string }).id
+    await registrarEventoSeguranca({ tipo_evento: 'CREDENCIAL_CRIADA', usuario_id: context.user.id, ator_usuario_id: context.user.id, severidade: 'warning', entidade_tipo: 'credenciais_integracao', entidade_id: id, dados: { fundo_id: fundoId, integracao_fundo_id: integracaoId, ambiente: input.ambiente, chave_versao: chaveVersao } })
+    await registrarLog({ tipo_evento: 'CREDENCIAL_CRIADA', entidade_tipo: 'credenciais_integracao', entidade_id: id, dados_depois: { fundo_id: fundoId, integracao_fundo_id: integracaoId, ambiente: input.ambiente, status: 'rascunho' } })
+    return result('Credencial criptografada cadastrada como rascunho.', true, { id })
+  } catch (error) {
+    await registrarEventoSeguranca({ tipo_evento: 'ACESSO_CREDENCIAL_NEGADO', severidade: 'warning', entidade_tipo: 'credenciais_integracao', dados: { fundo_id: fundoId, erro: error instanceof Error ? error.message : 'erro_desconhecido' } })
+    return result(error instanceof Error ? error.message : 'Erro ao cadastrar credencial Portal FIDC.')
+  }
+}
+
+export async function ativarCredencialPortalFidc(fundoId: string, credencialId: string, motivo?: string): Promise<ActionState> {
+  try {
+    const context = await requireGestor()
+    await exigirSessaoElevada(context)
+    await assertFundoGestor(context, fundoId)
+    const admin = createAdminClient()
+    const now = new Date().toISOString()
+    const { data: credencial } = await admin
+      .from('credenciais_integracao')
+      .select('id, fundo_id, integracao_fundo_id, ambiente, status')
+      .eq('id', credencialId)
+      .eq('fundo_id', fundoId)
+      .maybeSingle()
+
+    const atual = credencial as { id: string; integracao_fundo_id: string; ambiente: 'homologacao' | 'producao'; status: string } | null
+    if (!atual) return result('Credencial nao encontrada para este fundo.')
+    if (atual.status === 'revogada') return result('Credencial revogada nao pode ser ativada.')
+    if (atual.status === 'ativa') return result('Credencial ja esta ativa.', true)
+
+    const { data: anterior } = await admin
+      .from('credenciais_integracao')
+      .select('id')
+      .eq('integracao_fundo_id', atual.integracao_fundo_id)
+      .eq('ambiente', atual.ambiente)
+      .eq('status', 'ativa')
+      .maybeSingle()
+
+    await admin
+      .from('credenciais_integracao')
+      .update({ status: 'substituida', substituida_por: credencialId, updated_at: now } as never)
+      .eq('integracao_fundo_id', atual.integracao_fundo_id)
+      .eq('ambiente', atual.ambiente)
+      .eq('status', 'ativa')
+
+    const { error } = await admin
+      .from('credenciais_integracao')
+      .update({ status: 'ativa', ativada_em: now, revogada_em: null, updated_at: now } as never)
+      .eq('id', credencialId)
+    if (error) return result(`Erro ao ativar credencial: ${error.message}`)
+
+    await registrarEventoSeguranca({ tipo_evento: anterior ? 'CREDENCIAL_ROTACIONADA' : 'CREDENCIAL_ATIVADA', usuario_id: context.user.id, ator_usuario_id: context.user.id, severidade: 'critical', entidade_tipo: 'credenciais_integracao', entidade_id: credencialId, dados: { fundo_id: fundoId, integracao_fundo_id: atual.integracao_fundo_id, ambiente: atual.ambiente, anterior_id: (anterior as { id?: string } | null)?.id || null, motivo: motivo?.trim() || null } })
+    await registrarLog({ tipo_evento: anterior ? 'CREDENCIAL_ROTACIONADA' : 'CREDENCIAL_ATIVADA', entidade_tipo: 'credenciais_integracao', entidade_id: credencialId, dados_depois: { fundo_id: fundoId, ambiente: atual.ambiente, anterior_id: (anterior as { id?: string } | null)?.id || null } })
+    return result(anterior ? 'Credencial ativada e anterior marcada como substituida.' : 'Credencial ativada.', true)
+  } catch (error) {
+    return result(error instanceof Error ? error.message : 'Erro ao ativar credencial Portal FIDC.')
+  }
+}
+
+export async function revogarCredencialPortalFidc(fundoId: string, credencialId: string, motivo: string): Promise<ActionState> {
+  try {
+    const context = await requireGestor()
+    await exigirSessaoElevada(context)
+    await assertFundoGestor(context, fundoId)
+    if (motivo.trim().length < 10) return result('Informe um motivo com pelo menos 10 caracteres.')
+    const admin = createAdminClient()
+    const now = new Date().toISOString()
+
+    const { data: usada } = await admin
+      .from('integracao_fundo_versoes')
+      .select('id')
+      .eq('credencial_integracao_id', credencialId)
+      .eq('status', 'publicada')
+      .limit(1)
+      .maybeSingle()
+    if (usada) return result('Credencial vinculada a versao publicada nao pode ser revogada antes de publicar uma nova versao com outra credencial.')
+
+    const { error } = await admin
+      .from('credenciais_integracao')
+      .update({ status: 'revogada', revogada_em: now, updated_at: now } as never)
+      .eq('id', credencialId)
+      .eq('fundo_id', fundoId)
+      .neq('status', 'revogada')
+    if (error) return result(`Erro ao revogar credencial: ${error.message}`)
+
+    await registrarEventoSeguranca({ tipo_evento: 'CREDENCIAL_REVOGADA', usuario_id: context.user.id, ator_usuario_id: context.user.id, severidade: 'critical', entidade_tipo: 'credenciais_integracao', entidade_id: credencialId, dados: { fundo_id: fundoId, motivo: motivo.trim() } })
+    await registrarLog({ tipo_evento: 'CREDENCIAL_REVOGADA', entidade_tipo: 'credenciais_integracao', entidade_id: credencialId, dados_depois: { fundo_id: fundoId, status: 'revogada' } })
+    return result('Credencial revogada.', true)
+  } catch (error) {
+    return result(error instanceof Error ? error.message : 'Erro ao revogar credencial Portal FIDC.')
+  }
 }
 
 export async function criarOuAtualizarIntegracaoFundo(fundoId: string, input: IntegracaoInput): Promise<ActionState<{ integracaoId: string; versaoId: string; versao: number }>> {
@@ -314,6 +530,7 @@ export async function criarOuAtualizarIntegracaoFundo(fundoId: string, input: In
       .maybeSingle()
 
     const versao = ((last as { versao: number } | null)?.versao || 0) + 1
+    const credentialRef = input.credentialRef.trim() || (input.credencialIntegracaoId ? `credencial:${input.credencialIntegracaoId}` : '')
     const { data, error } = await context.supabase
       .from('integracao_fundo_versoes')
       .insert({
@@ -325,7 +542,8 @@ export async function criarOuAtualizarIntegracaoFundo(fundoId: string, input: In
         codigo_originador: input.codigoOriginador?.trim() || null,
         endpoint_base: input.endpointBase.trim(),
         configuracao_nao_sensivel: input.configuracaoNaoSensivel || {},
-        credential_ref: input.credentialRef.trim(),
+        credential_ref: credentialRef,
+        credencial_integracao_id: input.credencialIntegracaoId || null,
         secret_name: input.secretName?.trim() || null,
         vault_key: input.vaultKey?.trim() || null,
         vigente_desde: new Date().toISOString(),
@@ -360,6 +578,7 @@ export async function atualizarRascunhoIntegracaoFundo(fundoId: string, versaoId
     if (versionData.integracao?.provedor !== 'fromtis') return result('Somente Portal FIDC - Sinqia e suportado nesta fase.')
     if (versionData.status !== 'rascunho') return result('Somente rascunhos podem ser editados.')
 
+    const credentialRef = input.credentialRef.trim() || (input.credencialIntegracaoId ? `credencial:${input.credencialIntegracaoId}` : '')
     const { error } = await context.supabase
       .from('integracao_fundo_versoes')
       .update({
@@ -368,7 +587,8 @@ export async function atualizarRascunhoIntegracaoFundo(fundoId: string, versaoId
         codigo_originador: input.codigoOriginador?.trim() || null,
         endpoint_base: input.endpointBase.trim(),
         configuracao_nao_sensivel: input.configuracaoNaoSensivel || {},
-        credential_ref: input.credentialRef.trim(),
+        credential_ref: credentialRef,
+        credencial_integracao_id: input.credencialIntegracaoId || null,
         secret_name: input.secretName?.trim() || null,
         vault_key: input.vaultKey?.trim() || null,
       } as never)

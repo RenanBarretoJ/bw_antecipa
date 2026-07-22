@@ -111,11 +111,24 @@ export default function NotasFiscaisGestorPage() {
   }, [])
 
   useEffect(() => {
-    reloadNfs().then(() => setLoading(false))
+    let mounted = true
+    async function loadInitialNfs() {
+      const supabase = createClient()
+      const { data } = await supabase
+        .from('notas_fiscais')
+        .select(NF_SELECT)
+        .order('created_at', { ascending: false })
+      if (!mounted) return
+      setNfs((data || []) as NfGestorRecord[])
+      setLoading(false)
+    }
+    void loadInitialNfs()
+    return () => { mounted = false }
   }, [reloadNfs])
 
   // Limpar seleção quando qualquer filtro muda
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelecionadas(new Set())
   }, [filtroStatus, filtroCedente, filtroVencDe, filtroVencAte, busca])
 
@@ -248,7 +261,7 @@ export default function NotasFiscaisGestorPage() {
     setLoadingLote(false)
   }
 
-  const SortIcon = ({ field }: { field: SortField }) => {
+  const renderSortIcon = (field: SortField) => {
     if (sortField !== field) return <ChevronsUpDown size={11} className="opacity-30 shrink-0" />
     return sortDir === 'asc'
       ? <ChevronUp size={11} className="text-primary shrink-0" />
@@ -390,7 +403,7 @@ export default function NotasFiscaisGestorPage() {
                   className="px-4 py-3 text-xs uppercase cursor-pointer select-none hover:bg-muted/50 transition-colors"
                   onClick={() => toggleSort('numero_nf')}
                 >
-                  <div className="flex items-center gap-1">NF <SortIcon field="numero_nf" /></div>
+                  <div className="flex items-center gap-1">NF {renderSortIcon('numero_nf')}</div>
                 </TableHead>
                 <TableHead className="px-4 py-3 text-xs uppercase">Cedente (Emitente)</TableHead>
                 <TableHead className="px-4 py-3 text-xs uppercase">Sacado (Destinatario)</TableHead>
@@ -398,25 +411,25 @@ export default function NotasFiscaisGestorPage() {
                   className="px-4 py-3 text-xs uppercase cursor-pointer select-none hover:bg-muted/50 transition-colors"
                   onClick={() => toggleSort('valor_bruto')}
                 >
-                  <div className="flex items-center gap-1">Valor <SortIcon field="valor_bruto" /></div>
+                  <div className="flex items-center gap-1">Valor {renderSortIcon('valor_bruto')}</div>
                 </TableHead>
                 <TableHead
                   className="px-4 py-3 text-xs uppercase cursor-pointer select-none hover:bg-muted/50 transition-colors"
                   onClick={() => toggleSort('data_emissao')}
                 >
-                  <div className="flex items-center gap-1">Emissao <SortIcon field="data_emissao" /></div>
+                  <div className="flex items-center gap-1">Emissao {renderSortIcon('data_emissao')}</div>
                 </TableHead>
                 <TableHead
                   className="px-4 py-3 text-xs uppercase cursor-pointer select-none hover:bg-muted/50 transition-colors"
                   onClick={() => toggleSort('data_vencimento')}
                 >
-                  <div className="flex items-center gap-1">Vencimento <SortIcon field="data_vencimento" /></div>
+                  <div className="flex items-center gap-1">Vencimento {renderSortIcon('data_vencimento')}</div>
                 </TableHead>
                 <TableHead
                   className="px-4 py-3 text-xs uppercase cursor-pointer select-none hover:bg-muted/50 transition-colors"
                   onClick={() => toggleSort('status')}
                 >
-                  <div className="flex items-center gap-1">Status <SortIcon field="status" /></div>
+                  <div className="flex items-center gap-1">Status {renderSortIcon('status')}</div>
                 </TableHead>
                 <TableHead className="px-4 py-3 text-xs uppercase">Acoes</TableHead>
               </TableRow>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { confirmarPagamento } from '@/lib/actions/sacado'
 import { formatCurrency, formatCNPJ, formatDate } from '@/lib/utils'
@@ -63,7 +63,7 @@ export default function HistoricoPagamentosPage() {
   const [sending, setSending] = useState<string | null>(null)
   const [message, setMessage] = useState('')
 
-  const loadOps = async () => {
+  const loadOps = useCallback(async () => {
     const supabase = createClient()
     const { data } = await supabase
       .from('operacoes')
@@ -73,9 +73,25 @@ export default function HistoricoPagamentosPage() {
 
     setOperacoes((data || []) as OperacaoSacado[])
     setLoading(false)
-  }
+  }, [])
 
-  useEffect(() => { loadOps() }, [])
+  useEffect(() => {
+    let mounted = true
+    async function loadInitialOps() {
+      const supabase = createClient()
+      const { data } = await supabase
+        .from('operacoes')
+        .select('id, valor_bruto_total, valor_liquido_desembolso, data_vencimento, status, created_at, cedentes(razao_social, cnpj), contas_escrow(identificador)')
+        .in('status', ['em_andamento', 'liquidada', 'inadimplente'])
+        .order('data_vencimento', { ascending: true })
+
+      if (!mounted) return
+      setOperacoes((data || []) as OperacaoSacado[])
+      setLoading(false)
+    }
+    void loadInitialOps()
+    return () => { mounted = false }
+  }, [])
 
   const handleConfirmarPagamento = async (opId: string) => {
     setSending(opId)

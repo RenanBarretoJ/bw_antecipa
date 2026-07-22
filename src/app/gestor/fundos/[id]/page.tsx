@@ -10,11 +10,15 @@ import {
   criarOuAtualizarIntegracaoFundo,
   criarVersaoConfiguracaoCnab,
   atualizarRascunhoIntegracaoFundo,
+  ativarCredencialPortalFidc,
+  cadastrarCredencialPortalFidc,
   desativarIntegracaoFundo,
   gerarArquivoTesteConfiguracaoCnab,
   importarConfiguracaoCnabLegado,
+  listarCredenciaisPortalFidc,
   publicarVersaoConfiguracaoCnab,
   publicarVersaoIntegracaoFundo,
+  revogarCredencialPortalFidc,
   testarConexaoIntegracaoFundo,
 } from '@/lib/actions/configuracoes-cnab'
 import type { Fundo } from '@/types/database'
@@ -76,6 +80,7 @@ type IntegracaoVersionRow = {
   codigo_originador: string | null
   endpoint_base: string
   credential_ref: string
+  credencial_integracao_id: string | null
   secret_name: string | null
   vault_key: string | null
   vigente_desde: string
@@ -100,6 +105,25 @@ type IntegracaoExecucaoRow = {
   duracao_ms: number | null
   iniciada_em: string
   finalizada_em: string | null
+}
+
+type CredencialPortalFidcRow = {
+  id: string
+  fundo_id: string
+  integracao_fundo_id: string
+  ambiente: 'homologacao' | 'producao'
+  nome: string
+  status: 'rascunho' | 'ativa' | 'substituida' | 'revogada'
+  chave_versao: string
+  criada_por: string
+  criada_em: string
+  ativada_em: string | null
+  revogada_em: string | null
+  substituida_por: string | null
+  ultimo_uso_em: string | null
+  created_at: string
+  updated_at: string
+  criador?: { nome_completo: string; email: string } | null
 }
 
 const LEGADO_PADRAO_UI = {
@@ -168,6 +192,7 @@ const defaultIntegracaoForm = {
   codigoOriginador: '',
   endpointBase: '',
   credentialRef: '',
+  credencialIntegracaoId: '',
   secretName: '',
   vaultKey: '',
 }
@@ -179,8 +204,23 @@ type IntegracaoForm = {
   codigoOriginador: string
   endpointBase: string
   credentialRef: string
+  credencialIntegracaoId: string
   secretName: string
   vaultKey: string
+}
+
+type CredencialForm = {
+  ambiente: 'homologacao' | 'producao'
+  nome: string
+  usuario: string
+  senha: string
+}
+
+const defaultCredencialForm: CredencialForm = {
+  ambiente: 'homologacao' as const,
+  nome: '',
+  usuario: '',
+  senha: '',
 }
 
 const tabs = ['dados', 'politica', 'templates', 'cnab', 'integracoes'] as const
@@ -195,6 +235,7 @@ export default function FundoDetalhePage() {
   const [configs, setConfigs] = useState<ConfigRow[]>([])
   const [integracoes, setIntegracoes] = useState<IntegracaoRow[]>([])
   const [execucoesIntegracao, setExecucoesIntegracao] = useState<IntegracaoExecucaoRow[]>([])
+  const [credenciaisPortalFidc, setCredenciaisPortalFidc] = useState<CredencialPortalFidcRow[]>([])
   const [selectedConfigId, setSelectedConfigId] = useState('')
   const [editingIntegracaoVersaoId, setEditingIntegracaoVersaoId] = useState('')
   const [loading, setLoading] = useState(true)
@@ -203,15 +244,18 @@ export default function FundoDetalhePage() {
   const [configForm, setConfigForm] = useState(defaultConfigForm)
   const [versionForm, setVersionForm] = useState(defaultVersionForm)
   const [integracaoForm, setIntegracaoForm] = useState<IntegracaoForm>(defaultIntegracaoForm)
+  const [credencialForm, setCredencialForm] = useState(defaultCredencialForm)
+  const [motivoRevogacao, setMotivoRevogacao] = useState('')
   const [isPending, startTransition] = useTransition()
 
   const loadData = useCallback(async () => {
     const supabase = createClient()
-    const [{ data: fundoData }, { data: configsData }, { data: integracoesData }, { data: execucoesData }] = await Promise.all([
+    const [{ data: fundoData }, { data: configsData }, { data: integracoesData }, { data: execucoesData }, credenciaisResult] = await Promise.all([
       supabase.from('fundos').select('*').eq('id', fundoId).maybeSingle(),
       supabase.from('configuracoes_cnab').select('*, configuracao_cnab_versoes(*)').eq('fundo_id', fundoId).order('created_at', { ascending: false }),
       supabase.from('integracoes_fundo').select('*, integracao_fundo_versoes(*)').eq('fundo_id', fundoId).order('created_at', { ascending: false }),
       supabase.from('integracao_execucoes').select('*').eq('fundo_id', fundoId).order('iniciada_em', { ascending: false }).limit(12),
+      listarCredenciaisPortalFidc(fundoId),
     ])
     setFundo((fundoData || null) as Fundo | null)
     setConfigs(((configsData || []) as ConfigRow[]).map((config) => ({
@@ -223,6 +267,7 @@ export default function FundoDetalhePage() {
       integracao_fundo_versoes: [...(integracao.integracao_fundo_versoes || [])].sort((a, b) => b.versao - a.versao),
     })))
     setExecucoesIntegracao((execucoesData || []) as IntegracaoExecucaoRow[])
+    setCredenciaisPortalFidc((credenciaisResult.success ? credenciaisResult.data || [] : []) as CredencialPortalFidcRow[])
     setLoading(false)
   }, [fundoId])
 
@@ -283,6 +328,7 @@ export default function FundoDetalhePage() {
       codigoOriginador: version.codigo_originador || '',
       endpointBase: version.endpoint_base,
       credentialRef: version.credential_ref,
+      credencialIntegracaoId: version.credencial_integracao_id || '',
       secretName: version.secret_name || '',
       vaultKey: version.vault_key || '',
     })
@@ -290,7 +336,7 @@ export default function FundoDetalhePage() {
 
   function salvarIntegracaoPortalFidc() {
     runAction(async () => {
-      const payload = { ...integracaoForm, provedor: 'fromtis' as const, configuracaoNaoSensivel: {} }
+      const payload = { ...integracaoForm, provedor: 'fromtis' as const, credencialIntegracaoId: integracaoForm.credencialIntegracaoId || null, configuracaoNaoSensivel: {} }
       const action = editingIntegracaoVersaoId
         ? await atualizarRascunhoIntegracaoFundo(fundoId, editingIntegracaoVersaoId, payload)
         : await criarOuAtualizarIntegracaoFundo(fundoId, payload)
@@ -298,6 +344,26 @@ export default function FundoDetalhePage() {
         setEditingIntegracaoVersaoId('')
         setIntegracaoForm(defaultIntegracaoForm)
       }
+      return action
+    })
+  }
+
+  function cadastrarCredencial() {
+    runAction(async () => {
+      const action = await cadastrarCredencialPortalFidc(fundoId, credencialForm)
+      if (action.success) setCredencialForm(defaultCredencialForm)
+      return action
+    })
+  }
+
+  function ativarCredencial(credencialId: string) {
+    runAction(() => ativarCredencialPortalFidc(fundoId, credencialId, 'Ativacao pelo cadastro do fundo'))
+  }
+
+  function revogarCredencial(credencialId: string) {
+    runAction(async () => {
+      const action = await revogarCredencialPortalFidc(fundoId, credencialId, motivoRevogacao)
+      if (action.success) setMotivoRevogacao('')
       return action
     })
   }
@@ -435,6 +501,62 @@ export default function FundoDetalhePage() {
 
       {activeTab === 'integracoes' && (
         <div className="space-y-5">
+          <DetailSection title="Credenciais do Portal FIDC" icon={Plug}>
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(320px,420px)]">
+              <div className="space-y-3">
+                {credenciaisPortalFidc.length === 0 ? (
+                  <EmptyState title="Nenhuma credencial cadastrada" description="Cadastre usuario e senha do Portal FIDC sem novo deploy. Os valores serao criptografados server-side." icon={Plug} />
+                ) : (
+                  credenciaisPortalFidc.map((credencial) => (
+                    <article key={credencial.id} className="rounded-xl border border-border bg-background p-4 text-sm">
+                      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                        <div className="space-y-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h3 className="font-semibold">{credencial.nome}</h3>
+                            <StatusBadge status={credencial.status} />
+                            <span className="rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground">{credencial.ambiente}</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground">Criada em {new Date(credencial.criada_em).toLocaleString('pt-BR')} por {credencial.criador?.nome_completo || credencial.criador?.email || 'usuario nao informado'}</p>
+                          <p className="text-xs text-muted-foreground">Chave {credencial.chave_versao} · Ativada {credencial.ativada_em ? new Date(credencial.ativada_em).toLocaleString('pt-BR') : 'nao'} · Ultimo uso {credencial.ultimo_uso_em ? new Date(credencial.ultimo_uso_em).toLocaleString('pt-BR') : 'sem uso'}</p>
+                          {credencial.revogada_em && <p className="text-xs text-destructive">Revogada em {new Date(credencial.revogada_em).toLocaleString('pt-BR')}</p>}
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {credencial.status !== 'ativa' && credencial.status !== 'revogada' && (
+                            <Button type="button" size="sm" onClick={() => ativarCredencial(credencial.id)} disabled={isPending}>Ativar</Button>
+                          )}
+                          {credencial.status !== 'revogada' && (
+                            <Button type="button" size="sm" variant="outline" onClick={() => revogarCredencial(credencial.id)} disabled={isPending || motivoRevogacao.trim().length < 10}>Revogar</Button>
+                          )}
+                        </div>
+                      </div>
+                    </article>
+                  ))
+                )}
+              </div>
+              <div className="rounded-xl border border-border bg-background p-4">
+                <h3 className="font-semibold">Cadastrar nova credencial</h3>
+                <p className="mt-1 text-xs text-muted-foreground">A senha nunca sera exibida novamente. Para rotacionar, cadastre uma nova credencial e ative-a.</p>
+                <div className="mt-4 space-y-3">
+                  <div>
+                    <Label>Ambiente</Label>
+                    <select value={credencialForm.ambiente} onChange={(e) => setCredencialForm((p) => ({ ...p, ambiente: e.target.value as 'homologacao' | 'producao' }))} className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground">
+                      <option value="homologacao">Homologacao</option>
+                      <option value="producao">Producao</option>
+                    </select>
+                  </div>
+                  <div><Label>Nome de identificacao</Label><Input value={credencialForm.nome} onChange={(e) => setCredencialForm((p) => ({ ...p, nome: e.target.value }))} placeholder="Portal FIDC homologacao" /></div>
+                  <div><Label>Usuario</Label><Input value={credencialForm.usuario} onChange={(e) => setCredencialForm((p) => ({ ...p, usuario: e.target.value }))} autoComplete="off" /></div>
+                  <div><Label>Senha</Label><Input type="password" value={credencialForm.senha} onChange={(e) => setCredencialForm((p) => ({ ...p, senha: e.target.value }))} autoComplete="new-password" placeholder="Informe nova senha" /></div>
+                  <Button type="button" className="w-full" disabled={isPending} onClick={cadastrarCredencial}>Cadastrar credencial criptografada</Button>
+                </div>
+                <div className="mt-4 border-t border-border pt-4">
+                  <Label>Motivo para revogacao</Label>
+                  <Input value={motivoRevogacao} onChange={(e) => setMotivoRevogacao(e.target.value)} placeholder="Obrigatorio para revogar credenciais" />
+                </div>
+              </div>
+            </div>
+          </DetailSection>
+
           <DetailSection title="Portal FIDC" icon={Plug}>
             <div className="mb-4 grid gap-3 md:grid-cols-4">
               <div className="rounded-lg border border-border bg-background p-3">
@@ -459,7 +581,7 @@ export default function FundoDetalhePage() {
               </div>
             </div>
             {integracoes.length === 0 ? (
-              <EmptyState title="Nenhuma configuracao Portal FIDC" description="Cadastre a integracao Portal FIDC - Sinqia no contexto deste fundo. Segredos nao sao armazenados nesta tabela." icon={Plug} />
+              <EmptyState title="Nenhuma configuracao Portal FIDC" description="Cadastre a integracao Portal FIDC - Sinqia no contexto deste fundo. As credenciais ficam criptografadas em tabela propria." icon={Plug} />
             ) : (
               <div className="space-y-3">
                 {integracoes.map((integracao) => (
@@ -482,7 +604,7 @@ export default function FundoDetalhePage() {
                               <span className="font-medium">v{version.versao} - {version.ambiente}</span>
                               <StatusBadge status={version.status} />
                             </div>
-                            <p className="mt-1 text-xs text-muted-foreground">Cliente {version.identificador_cliente} - Originador {version.codigo_originador || 'nao informado'} - Credencial {version.credential_ref}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">Cliente {version.identificador_cliente} - Originador {version.codigo_originador || 'nao informado'} - Credencial {version.credencial_integracao_id ? credenciaisPortalFidc.find((credencial) => credencial.id === version.credencial_integracao_id)?.nome || 'credencial vinculada' : version.credential_ref}</p>
                             <p className="text-xs text-muted-foreground">Endpoint {version.endpoint_base}</p>
                             <p className="text-xs text-muted-foreground">Vigencia desde {new Date(version.vigente_desde).toLocaleString('pt-BR')}{version.publicada_em ? ` - publicada em ${new Date(version.publicada_em).toLocaleString('pt-BR')}` : ''}</p>
                           </div>
@@ -518,11 +640,20 @@ export default function FundoDetalhePage() {
               <div><Label>Identificador cliente</Label><Input value={integracaoForm.identificadorCliente} onChange={(e) => setIntegracaoForm((p) => ({ ...p, identificadorCliente: e.target.value }))} /></div>
               <div><Label>Codigo originador do Portal FIDC</Label><Input value={integracaoForm.codigoOriginador} onChange={(e) => setIntegracaoForm((p) => ({ ...p, codigoOriginador: e.target.value }))} /></div>
               <div className="md:col-span-2"><Label>Endpoint base</Label><Input value={integracaoForm.endpointBase} onChange={(e) => setIntegracaoForm((p) => ({ ...p, endpointBase: e.target.value }))} placeholder="https://..." /></div>
+              <div>
+                <Label>Credencial ativa</Label>
+                <select value={integracaoForm.credencialIntegracaoId} onChange={(e) => setIntegracaoForm((p) => ({ ...p, credencialIntegracaoId: e.target.value }))} className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground">
+                  <option value="">Usar fallback temporario por referencia</option>
+                  {credenciaisPortalFidc
+                    .filter((credencial) => credencial.status === 'ativa' && credencial.ambiente === integracaoForm.ambiente)
+                    .map((credencial) => <option key={credencial.id} value={credencial.id}>{credencial.nome} - {credencial.ambiente}</option>)}
+                </select>
+              </div>
               <div><Label>Referencia de credencial</Label><Input value={integracaoForm.credentialRef} onChange={(e) => setIntegracaoForm((p) => ({ ...p, credentialRef: e.target.value }))} placeholder="portal_fidc_fundo_abc_homologacao" /></div>
               <div><Label>Secret name</Label><Input value={integracaoForm.secretName} onChange={(e) => setIntegracaoForm((p) => ({ ...p, secretName: e.target.value }))} /></div>
               <div><Label>Vault key</Label><Input value={integracaoForm.vaultKey} onChange={(e) => setIntegracaoForm((p) => ({ ...p, vaultKey: e.target.value }))} /></div>
             </div>
-            <p className="mt-3 text-xs text-muted-foreground">Nao informe senha, token ou segredo aqui. A tabela guarda apenas referencia de credencial. As variaveis esperadas seguem o padrao PORTAL_FIDC_CREDENTIAL_[REFERENCIA]_USERNAME/PASSWORD.</p>
+            <p className="mt-3 text-xs text-muted-foreground">Preferencialmente selecione uma credencial ativa criptografada. A referencia por variavel de ambiente permanece apenas como fallback temporario de migracao.</p>
             <div className="mt-4 flex flex-wrap gap-2">
               <Button type="button" disabled={isPending} onClick={salvarIntegracaoPortalFidc}>{editingIntegracaoVersaoId ? 'Salvar rascunho' : 'Criar versao'}</Button>
               {editingIntegracaoVersaoId && <Button type="button" variant="outline" onClick={() => { setEditingIntegracaoVersaoId(''); setIntegracaoForm(defaultIntegracaoForm) }}>Cancelar edicao</Button>}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { uploadNFs, excluirRascunho, excluirRascunhos } from '@/lib/actions/nota-fiscal'
@@ -91,9 +91,6 @@ export default function NotasFiscaisCedentePage() {
   const [excluindoLote, setExcluindoLote] = useState(false)
 
   // IDs dos rascunhos que passam no filtro atual — calculado em tempo de render (abaixo de nfsFiltradas)
-  const rascunhosVisiveis: string[] = []
-  const todosSelecionados = rascunhosVisiveis.length > 0 && rascunhosVisiveis.every((id) => selecionados.has(id))
-
   const toggleSelecionado = (id: string) => {
     setSelecionados((prev) => {
       const next = new Set(prev)
@@ -170,10 +167,11 @@ export default function NotasFiscaisCedentePage() {
     e.preventDefault()
     e.stopPropagation()
     setDragActive(false)
+    // eslint-disable-next-line react-hooks/immutability
     addFiles(Array.from(e.dataTransfer.files))
   }, [])
 
-  const addFiles = (files: File[]) => {
+  function addFiles(files: File[]) {
     const validExtensions = ['.xml', '.pdf', '.jpg', '.jpeg', '.png']
     const validFiles = files.filter((f) => {
       const ext = '.' + f.name.split('.').pop()?.toLowerCase()
@@ -247,7 +245,7 @@ export default function NotasFiscaisCedentePage() {
     setVencimentoDe(''); setVencimentoAte('')
   }
 
-  const nfsFiltradas = nfs
+  const nfsFiltradas = useMemo(() => nfs
     .filter((nf) => {
       if (filtroStatus !== 'todos' && nf.status !== filtroStatus) return false
       if (busca) {
@@ -281,7 +279,13 @@ export default function NotasFiscaisCedentePage() {
     })
 
   // Preencher lista de rascunhos visíveis para seleção em lote
-  rascunhosVisiveis.splice(0, rascunhosVisiveis.length, ...nfsFiltradas.filter((n) => n.status === 'rascunho').map((n) => n.id))
+  , [nfs, filtroStatus, busca, valorMin, valorMax, emissaoDe, emissaoAte, vencimentoDe, vencimentoAte, ordenacao])
+
+  const rascunhosVisiveis = useMemo(
+    () => nfsFiltradas.filter((n) => n.status === 'rascunho').map((n) => n.id),
+    [nfsFiltradas],
+  )
+  const todosSelecionados = rascunhosVisiveis.length > 0 && rascunhosVisiveis.every((id) => selecionados.has(id))
 
   const getFileIcon = (name: string) => {
     if (name.endsWith('.xml')) return 'text-green-600'

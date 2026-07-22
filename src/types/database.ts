@@ -587,6 +587,7 @@ export interface IntegracaoFundoVersao {
   endpoint_base: string
   configuracao_nao_sensivel: Record<string, unknown>
   credential_ref: string
+  credencial_integracao_id: string | null
   secret_name: string | null
   vault_key: string | null
   vigente_desde: string
@@ -594,6 +595,27 @@ export interface IntegracaoFundoVersao {
   publicada_por: string | null
   publicada_em: string | null
   created_at: string
+}
+
+export interface CredencialIntegracao {
+  id: string
+  fundo_id: string
+  integracao_fundo_id: string
+  ambiente: IntegracaoAmbiente
+  nome: string
+  usuario_criptografado: string
+  senha_criptografada: string
+  chave_versao: string
+  status: 'rascunho' | 'ativa' | 'substituida' | 'revogada'
+  criada_por: string
+  criada_em: string
+  ativada_em: string | null
+  revogada_em: string | null
+  substituida_por: string | null
+  ultimo_uso_em: string | null
+  metadados: Record<string, unknown>
+  created_at: string
+  updated_at: string
 }
 
 export interface IntegracaoExecucao {
@@ -907,6 +929,23 @@ export interface SegurancaRateLimit {
   updated_at: string
 }
 
+export interface MfaResetSolicitacao {
+  id: string
+  usuario_id: string
+  solicitante_id: string
+  aprovador_id: string | null
+  motivo: string
+  evidencia: string | null
+  status: 'pendente' | 'aprovado' | 'executado' | 'rejeitado' | 'erro'
+  fatores_removidos: number
+  erro_execucao: string | null
+  solicitado_em: string
+  aprovado_em: string | null
+  executado_em: string | null
+  created_at: string
+  updated_at: string
+}
+
 export interface Notificacao {
   id: string
   usuario_id: string
@@ -941,6 +980,7 @@ export interface Database {
       configuracao_cnab_versoes: { Row: ConfiguracaoCnabVersao & Record<string, unknown>; Insert: InsertShape<ConfiguracaoCnabVersao, 'configuracao_cnab_id' | 'versao' | 'vigente_desde' | 'layout' | 'versao_layout' | 'codigo_banco' | 'banco' | 'agencia' | 'conta' | 'digito_conta' | 'carteira' | 'convenio' | 'codigo_originador' | 'codigo_empresa' | 'tipo_inscricao' | 'numero_inscricao' | 'especie_titulo' | 'tipo_recebivel' | 'conteudo_hash'> & Record<string, unknown>; Update: UpdateShape<ConfiguracaoCnabVersao> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'configuracao_cnab_versoes_configuracao_cnab_id_fkey'; columns: ['configuracao_cnab_id']; isOneToOne: false; referencedRelation: 'configuracoes_cnab'; referencedColumns: ['id'] }, { foreignKeyName: 'configuracao_cnab_versoes_publicada_por_fkey'; columns: ['publicada_por']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] }] }
       integracoes_fundo: { Row: IntegracaoFundo & Record<string, unknown>; Insert: InsertShape<IntegracaoFundo, 'fundo_id' | 'provedor' | 'nome' | 'created_by'> & Record<string, unknown>; Update: UpdateShape<IntegracaoFundo> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'integracoes_fundo_fundo_id_fkey'; columns: ['fundo_id']; isOneToOne: false; referencedRelation: 'fundos'; referencedColumns: ['id'] }, { foreignKeyName: 'integracoes_fundo_created_by_fkey'; columns: ['created_by']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] }] }
       integracao_fundo_versoes: { Row: IntegracaoFundoVersao & Record<string, unknown>; Insert: InsertShape<IntegracaoFundoVersao, 'integracao_fundo_id' | 'versao' | 'ambiente' | 'identificador_cliente' | 'endpoint_base' | 'credential_ref' | 'vigente_desde'> & Record<string, unknown>; Update: UpdateShape<IntegracaoFundoVersao> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'integracao_fundo_versoes_integracao_fundo_id_fkey'; columns: ['integracao_fundo_id']; isOneToOne: false; referencedRelation: 'integracoes_fundo'; referencedColumns: ['id'] }, { foreignKeyName: 'integracao_fundo_versoes_publicada_por_fkey'; columns: ['publicada_por']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] }] }
+      credenciais_integracao: { Row: CredencialIntegracao & Record<string, unknown>; Insert: InsertShape<CredencialIntegracao, 'fundo_id' | 'integracao_fundo_id' | 'ambiente' | 'nome' | 'usuario_criptografado' | 'senha_criptografada' | 'chave_versao' | 'criada_por'> & Record<string, unknown>; Update: UpdateShape<CredencialIntegracao> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'credenciais_integracao_fundo_id_fkey'; columns: ['fundo_id']; isOneToOne: false; referencedRelation: 'fundos'; referencedColumns: ['id'] }, { foreignKeyName: 'credenciais_integracao_integracao_fundo_id_fkey'; columns: ['integracao_fundo_id']; isOneToOne: false; referencedRelation: 'integracoes_fundo'; referencedColumns: ['id'] }, { foreignKeyName: 'credenciais_integracao_criada_por_fkey'; columns: ['criada_por']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] }, { foreignKeyName: 'credenciais_integracao_substituida_por_fkey'; columns: ['substituida_por']; isOneToOne: false; referencedRelation: 'credenciais_integracao'; referencedColumns: ['id'] }] }
       integracao_execucoes: { Row: IntegracaoExecucao & Record<string, unknown>; Insert: InsertShape<IntegracaoExecucao, 'fundo_id' | 'integracao_fundo_versao_id' | 'tipo_execucao' | 'ambiente'> & Record<string, unknown>; Update: UpdateShape<IntegracaoExecucao> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'integracao_execucoes_fundo_id_fkey'; columns: ['fundo_id']; isOneToOne: false; referencedRelation: 'fundos'; referencedColumns: ['id'] }, { foreignKeyName: 'integracao_execucoes_integracao_fundo_versao_id_fkey'; columns: ['integracao_fundo_versao_id']; isOneToOne: false; referencedRelation: 'integracao_fundo_versoes'; referencedColumns: ['id'] }, { foreignKeyName: 'integracao_execucoes_remessa_cnab_id_fkey'; columns: ['remessa_cnab_id']; isOneToOne: false; referencedRelation: 'remessas_cnab'; referencedColumns: ['id'] }, { foreignKeyName: 'integracao_execucoes_operacao_id_fkey'; columns: ['operacao_id']; isOneToOne: false; referencedRelation: 'operacoes'; referencedColumns: ['id'] }] }
       retornos_integracao: { Row: RetornoIntegracao & Record<string, unknown>; Insert: InsertShape<RetornoIntegracao, 'fundo_id' | 'integracao_execucao_id' | 'tipo_retorno' | 'storage_path' | 'tamanho_bytes' | 'sha256'> & Record<string, unknown>; Update: UpdateShape<RetornoIntegracao> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'retornos_integracao_fundo_id_fkey'; columns: ['fundo_id']; isOneToOne: false; referencedRelation: 'fundos'; referencedColumns: ['id'] }, { foreignKeyName: 'retornos_integracao_integracao_execucao_id_fkey'; columns: ['integracao_execucao_id']; isOneToOne: false; referencedRelation: 'integracao_execucoes'; referencedColumns: ['id'] }, { foreignKeyName: 'retornos_integracao_remessa_cnab_id_fkey'; columns: ['remessa_cnab_id']; isOneToOne: false; referencedRelation: 'remessas_cnab'; referencedColumns: ['id'] }] }
       sequencias_remessa: { Row: SequenciaRemessa & Record<string, unknown>; Insert: InsertShape<SequenciaRemessa, 'configuracao_cnab_id' | 'data_referencia'> & Record<string, unknown>; Update: Partial<SequenciaRemessa> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'sequencias_remessa_configuracao_cnab_id_fkey'; columns: ['configuracao_cnab_id']; isOneToOne: false; referencedRelation: 'configuracoes_cnab'; referencedColumns: ['id'] }] }
@@ -950,6 +990,7 @@ export interface Database {
       mfa_recovery_codes: { Row: MfaRecoveryCode & Record<string, unknown>; Insert: InsertShape<MfaRecoveryCode, 'user_id' | 'code_hash'> & Record<string, unknown>; Update: UpdateShape<MfaRecoveryCode> & Record<string, unknown>; Relationships: [] }
       sessoes_elevadas: { Row: SessaoElevada & Record<string, unknown>; Insert: InsertShape<SessaoElevada, 'user_id' | 'metodo' | 'expira_em'> & Record<string, unknown>; Update: UpdateShape<SessaoElevada> & Record<string, unknown>; Relationships: [] }
       seguranca_rate_limits: { Row: SegurancaRateLimit & Record<string, unknown>; Insert: InsertShape<SegurancaRateLimit, 'key_hash' | 'escopo'> & Record<string, unknown>; Update: UpdateShape<SegurancaRateLimit> & Record<string, unknown>; Relationships: [] }
+      mfa_reset_solicitacoes: { Row: MfaResetSolicitacao & Record<string, unknown>; Insert: InsertShape<MfaResetSolicitacao, 'usuario_id' | 'solicitante_id' | 'motivo'> & Record<string, unknown>; Update: UpdateShape<MfaResetSolicitacao> & Record<string, unknown>; Relationships: [] }
       representantes: { Row: Representante & Record<string, unknown>; Insert: InsertShape<Representante, 'cedente_id' | 'nome' | 'cpf' | 'rg' | 'cargo' | 'email' | 'telefone'> & Record<string, unknown>; Update: UpdateShape<Representante> & Record<string, unknown>; Relationships: [] }
       documentos: { Row: Documento & Record<string, unknown>; Insert: InsertShape<Documento, 'cedente_id' | 'tipo'> & Record<string, unknown>; Update: UpdateShape<Documento> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'documentos_cedente_id_fkey'; columns: ['cedente_id']; isOneToOne: false; referencedRelation: 'cedentes'; referencedColumns: ['id'] }, { foreignKeyName: 'documentos_representante_id_fkey'; columns: ['representante_id']; isOneToOne: false; referencedRelation: 'representantes'; referencedColumns: ['id'] }, { foreignKeyName: 'documentos_analisado_por_fkey'; columns: ['analisado_por']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] }] }
       contas_escrow: { Row: ContaEscrow & Record<string, unknown>; Insert: InsertShape<ContaEscrow, 'cedente_id' | 'identificador'> & Record<string, unknown>; Update: UpdateShape<ContaEscrow> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'contas_escrow_cedente_id_fkey'; columns: ['cedente_id']; isOneToOne: false; referencedRelation: 'cedentes'; referencedColumns: ['id'] }] }
