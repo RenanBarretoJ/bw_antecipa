@@ -1,11 +1,11 @@
 'use client'
 
 import { useActionState, useEffect, useState } from 'react'
-import Link from 'next/link'
 import { ShieldCheck, Copy, Download, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { logout } from '@/app/actions/auth'
 import { confirmarConfiguracaoMfa, iniciarConfiguracaoMfa, redirecionarAposMfa, type MfaActionState } from '@/app/actions/mfa'
 
 type Enrollment = { factorId: string; qrCode: string; secret: string; uri: string }
@@ -99,7 +99,13 @@ export default function MfaSetupPage() {
           </form>
         ) : null}
 
-        <p className="mt-8 text-xs text-muted-foreground">Se voce nao deveria configurar MFA neste momento, <Link href="/login" className="text-primary underline">saia e entre novamente</Link>.</p>
+        <div className="mt-8 flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+          <span>Se voce nao deveria configurar MFA neste momento,</span>
+          <form action={logout}>
+            <button type="submit" className="text-primary underline">saia e entre novamente</button>
+          </form>
+          <span>.</span>
+        </div>
       </section>
     </main>
   )

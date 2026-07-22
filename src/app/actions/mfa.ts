@@ -107,7 +107,7 @@ async function criarFatorTotp(client: MfaClient) {
 
 export async function iniciarConfiguracaoMfa(): Promise<MfaActionState<{ factorId: string; qrCode: string; secret: string; uri: string }>> {
   const { user, supabase } = await getCurrentUserOrThrow()
-  const limited = await verificarRateLimit({ escopo: 'mfa_totp', identifier: user.id, limite: 5 })
+  const limited = await verificarRateLimit({ escopo: 'mfa_setup', identifier: user.id, limite: 20, janelaMs: 10 * 60 * 1000, bloqueioMs: 5 * 60 * 1000 })
   if (!limited.allowed) return result('Muitas tentativas. Aguarde antes de tentar novamente.')
 
   const client = asMfaClient(supabase)
@@ -123,7 +123,7 @@ export async function iniciarConfiguracaoMfa(): Promise<MfaActionState<{ factorI
   }
 
   if (error) {
-    await registrarTentativaRateLimit({ escopo: 'mfa_totp', identifier: user.id, sucesso: false })
+    await registrarTentativaRateLimit({ escopo: 'mfa_setup', identifier: user.id, sucesso: false })
     console.error('[mfa/setup][enroll]', { userId: user.id, message: error.message, code: error.code, status: error.status })
     if (error.code === 'mfa_totp_enroll_not_enabled') return result('MFA TOTP nao esta habilitado no Supabase Auth deste projeto.')
     if (error.code === 'too_many_enrolled_mfa_factors') return result('Ha muitos fatores MFA pendentes. Remova fatores antigos e tente novamente.')
@@ -131,7 +131,7 @@ export async function iniciarConfiguracaoMfa(): Promise<MfaActionState<{ factorI
   }
 
   await registrarEventoSeguranca({ tipo_evento: 'MFA_ENROLL_INICIADO', usuario_id: user.id, ator_usuario_id: user.id })
-  await registrarTentativaRateLimit({ escopo: 'mfa_totp', identifier: user.id, sucesso: true })
+  await registrarTentativaRateLimit({ escopo: 'mfa_setup', identifier: user.id, sucesso: true })
   return result('Escaneie o QR Code no seu aplicativo autenticador.', true, parseEnrollment(data))
 }
 

@@ -4,6 +4,7 @@ import { registrarEventoSeguranca } from '@/lib/auth/mfa'
 
 export type RateLimitEscopo =
   | 'login'
+  | 'mfa_setup'
   | 'mfa_totp'
   | 'mfa_recovery'
   | 'portal_fidc_test'

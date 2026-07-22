@@ -5,6 +5,7 @@ import { KeyRound, Loader2, ShieldCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { logout } from '@/app/actions/auth'
 import { listarFatoresMfa, redirecionarAposMfa, usarCodigoRecuperacaoMfa, verificarDesafioMfa, type MfaActionState } from '@/app/actions/mfa'
 
 type Factor = { id: string; friendlyName: string; status: string }
@@ -76,6 +77,10 @@ export default function MfaChallengePage() {
             <Button type="submit" variant="outline" disabled={recoveryPending} className="w-full">{recoveryPending ? 'Validando...' : 'Validar recuperacao'}</Button>
           </form>
         </details>
+
+        <form action={logout} className="mt-6 text-center">
+          <button type="submit" className="text-xs text-primary underline">Sair e entrar com outra conta</button>
+        </form>
       </section>
     </main>
   )
