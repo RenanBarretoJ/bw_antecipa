@@ -23,7 +23,7 @@ export class AuthorizationError extends Error {
 export interface AuthContext {
   supabase: AppSupabaseClient
   user: User
-  profile: Pick<Profile, 'id' | 'role' | 'status' | 'nome_completo' | 'email'>
+  profile: Pick<Profile, 'id' | 'role' | 'status' | 'nome_completo' | 'email' | 'mfa_obrigatorio_override' | 'mfa_ativado_em' | 'ultima_autenticacao_forte_em'>
 }
 
 type CedenteContext = AuthContext & { cedente: Cedente }
@@ -64,7 +64,7 @@ export async function requireAuthenticated(client?: AppSupabaseClient): Promise<
 
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
-    .select('id, role, status, nome_completo, email')
+    .select('id, role, status, nome_completo, email, mfa_obrigatorio_override, mfa_ativado_em, ultima_autenticacao_forte_em')
     .eq('id', data.user.id)
     .maybeSingle()
 
@@ -75,7 +75,7 @@ export async function requireAuthenticated(client?: AppSupabaseClient): Promise<
   return {
     supabase,
     user: data.user,
-    profile: profile as Pick<Profile, 'id' | 'role' | 'status' | 'nome_completo' | 'email'>,
+    profile: profile as Pick<Profile, 'id' | 'role' | 'status' | 'nome_completo' | 'email' | 'mfa_obrigatorio_override' | 'mfa_ativado_em' | 'ultima_autenticacao_forte_em'>,
   }
 }
 

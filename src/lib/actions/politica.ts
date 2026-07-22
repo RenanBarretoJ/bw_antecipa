@@ -2,6 +2,7 @@
 
 import { createHash } from 'node:crypto'
 import { requireGestor } from '@/lib/auth/authorization'
+import { exigirSessaoElevada } from '@/lib/auth/mfa'
 import { createClient } from '@/lib/supabase/server'
 import {
   POLICY_DOCUMENT_CODES,
@@ -246,6 +247,7 @@ export async function criarVersaoPoliticaNoFundo(
 
 export async function publicarVersaoPolitica(versaoId: string): Promise<PolicyActionState> {
   const context = await requireGestor()
+  await exigirSessaoElevada(context)
   const supabase = context.supabase
   const { data: version } = await supabase.from('politica_operacional_versoes').select('*').eq('id', versaoId).maybeSingle()
   if (!version) return result('Versao nao encontrada.')
@@ -293,7 +295,8 @@ export async function publicarVersaoPoliticaNoFundo(fundoId: string, versaoId: s
 }
 
 export async function desativarPolitica(politicaId: string): Promise<PolicyActionState> {
-  await requireGestor()
+  const context = await requireGestor()
+  await exigirSessaoElevada(context)
   const supabase = await createClient()
   const { error } = await supabase.from('politicas_operacionais').update({ status: 'desativada' } as never).eq('id', politicaId)
   if (error) return result(`Erro ao desativar politica: ${error.message}`)

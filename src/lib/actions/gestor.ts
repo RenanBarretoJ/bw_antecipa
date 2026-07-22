@@ -1,7 +1,8 @@
 'use server'
 
 import { createClient, createAdminClient } from '@/lib/supabase/server'
-import { requireGestor } from '@/lib/auth/authorization'
+import { requireGestor as requireGestorBase } from '@/lib/auth/authorization'
+import { exigirSessaoElevada } from '@/lib/auth/mfa'
 import { registrarLog } from './auditoria'
 import { notificarCedente } from './notificacao'
 import { suspenderCedenteFundo, vincularCedenteFundo } from '@/lib/fundos/cedente-fundo'
@@ -22,6 +23,12 @@ export type GestorActionState = {
   success?: boolean
   message?: string
 } | undefined
+
+async function requireGestor() {
+  const context = await requireGestorBase()
+  await exigirSessaoElevada(context)
+  return context
+}
 
 export async function analisarDocumento(
   documentoId: string,

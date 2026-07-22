@@ -3,6 +3,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { loginSchema, cadastroSchema } from '@/lib/validations/auth'
+import { obterEstadoMfaUsuario } from '@/lib/auth/mfa'
+import { registrarTentativaRateLimit, verificarRateLimit } from '@/lib/security/rate-limit'
 
 export type AuthState = {
   errors?: Record<string, string[]>
@@ -24,6 +26,13 @@ export async function login(_prevState: AuthState, formData: FormData): Promise<
   }
 
   const supabase = await createClient()
+  const loginIdentifier = validated.data.email.toLowerCase().trim()
+  const limited = await verificarRateLimit({ escopo: 'login', identifier: loginIdentifier, limite: 5 })
+  if (!limited.allowed) {
+    return {
+      message: 'Muitas tentativas de acesso. Aguarde antes de tentar novamente.',
+    }
+  }
 
   const { error } = await supabase.auth.signInWithPassword({
     email: validated.data.email,
@@ -31,10 +40,12 @@ export async function login(_prevState: AuthState, formData: FormData): Promise<
   })
 
   if (error) {
+    await registrarTentativaRateLimit({ escopo: 'login', identifier: loginIdentifier, sucesso: false })
     return {
       message: 'E-mail ou senha incorretos.',
     }
   }
+  await registrarTentativaRateLimit({ escopo: 'login', identifier: loginIdentifier, sucesso: true })
 
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -49,6 +60,15 @@ export async function login(_prevState: AuthState, formData: FormData): Promise<
     .single()
 
   const role = (profile as { role: string } | null)?.role || 'cedente'
+  const estadoMfa = await obterEstadoMfaUsuario(supabase)
+
+  if (estadoMfa.exigeMfa && !estadoMfa.possuiFatorVerificado) {
+    redirect('/mfa/setup')
+  }
+
+  if ((estadoMfa.exigeMfa || estadoMfa.possuiFatorVerificado) && estadoMfa.aalAtual !== 'aal2') {
+    redirect('/mfa/desafio')
+  }
 
   const dashboards: Record<string, string> = {
     gestor: '/gestor/dashboard',

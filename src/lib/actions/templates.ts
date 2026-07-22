@@ -3,6 +3,7 @@
 import fs from 'fs'
 import path from 'path'
 import { requireGestor } from '@/lib/auth/authorization'
+import { exigirSessaoElevada } from '@/lib/auth/mfa'
 import { registrarLog } from '@/lib/actions/auditoria'
 import {
   calcularSha256Canonico,
@@ -188,6 +189,7 @@ export async function criarVersaoTemplateNoFundo(fundoId: string, input: {
 export async function publicarVersaoTemplate(versaoId: string): Promise<TemplateActionState> {
   try {
     const context = await requireGestor()
+    await exigirSessaoElevada(context)
     const { data: versao } = await context.supabase
       .from('template_versoes')
       .select('id, template_id, versao, status, conteudo_html, variaveis_schema, template:templates_documentos(id, tipo_documento)')
@@ -266,6 +268,7 @@ export async function publicarVersaoTemplateNoFundo(fundoId: string, versaoId: s
 export async function desativarTemplateDocumento(templateId: string): Promise<TemplateActionState> {
   try {
     const context = await requireGestor()
+    await exigirSessaoElevada(context)
     const { error } = await context.supabase
       .from('templates_documentos')
       .update({ status: 'desativado' } as never)

@@ -1,7 +1,8 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { requireAuthenticated, requireGestor } from '@/lib/auth/authorization'
+import { requireAuthenticated, requireGestor as requireGestorBase } from '@/lib/auth/authorization'
+import { exigirSessaoElevada } from '@/lib/auth/mfa'
 import { notaFiscalSchema, type NotaFiscalFormData } from '@/lib/validations/nf'
 import { parseNFeXML } from '@/lib/nf-parser'
 import { extractDanfeFromPdf, type NfPdfExtracted } from '@/lib/pdf-nf-parser'
@@ -21,6 +22,12 @@ export type NfActionState = {
     parsed?: Record<string, unknown>
   }
 } | undefined
+
+async function requireGestor() {
+  const context = await requireGestorBase()
+  await exigirSessaoElevada(context)
+  return context
+}
 
 async function getCedenteDoUsuario() {
   const supabase = await createClient()

@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { requireAuthenticated, requireGestor } from '@/lib/auth/authorization'
+import { exigirSessaoElevada } from '@/lib/auth/mfa'
 import { registrarLog } from './auditoria'
 import { criarNotificacao, notificarCedente, notificarGestores } from './notificacao'
 import { criarSnapshotPolitica, resolverPoliticaAtiva, statusAceiteInicial } from '@/lib/operacoes/politica'
@@ -259,7 +260,8 @@ export async function aprovarOperacao(
   taxaDesconto: number,
   valorLiquidoDesembolso: number
 ): Promise<OperacaoActionState> {
-  await requireGestor()
+  const context = await requireGestor()
+  await exigirSessaoElevada(context)
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, message: 'Nao autenticado.' }
@@ -407,7 +409,8 @@ export async function aprovarOperacao(
 // ============================================================
 
 export async function desembolsarOperacao(operacaoId: string): Promise<OperacaoActionState> {
-  await requireGestor()
+  const context = await requireGestor()
+  await exigirSessaoElevada(context)
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, message: 'Nao autenticado.' }

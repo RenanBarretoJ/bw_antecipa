@@ -108,6 +108,11 @@ export interface Profile {
   email: string
   telefone: string | null
   status: UserStatus
+  mfa_obrigatorio_override: boolean | null
+  mfa_ativado_em: string | null
+  ultima_autenticacao_forte_em: string | null
+  mfa_reset_em: string | null
+  sessoes_revogadas_em: string | null
   created_at: string
   updated_at: string
 }
@@ -854,6 +859,54 @@ export interface LogAuditoria {
   created_at: string
 }
 
+export interface SegurancaEvento {
+  id: string
+  tipo_evento: string
+  usuario_id: string | null
+  ator_usuario_id: string | null
+  ator_tipo: string
+  origem: string
+  severidade: string
+  entidade_tipo: string | null
+  entidade_id: string | null
+  ip_hash: string | null
+  user_agent_hash: string | null
+  dados: Record<string, unknown>
+  created_at: string
+}
+
+export interface MfaRecoveryCode {
+  id: string
+  user_id: string
+  code_hash: string
+  geracao_id: string
+  usado_em: string | null
+  usado_por: string | null
+  invalidado_em: string | null
+  created_at: string
+}
+
+export interface SessaoElevada {
+  user_id: string
+  aal: 'aal2'
+  metodo: 'totp' | 'recovery_code' | 'admin_reset'
+  factor_id: string | null
+  elevada_em: string
+  expira_em: string
+  created_at: string
+  updated_at: string
+}
+
+export interface SegurancaRateLimit {
+  key_hash: string
+  escopo: string
+  tentativas: number
+  bloqueado_ate: string | null
+  primeira_tentativa_em: string
+  ultima_tentativa_em: string
+  updated_at: string
+}
+
 export interface Notificacao {
   id: string
   usuario_id: string
@@ -893,6 +946,10 @@ export interface Database {
       sequencias_remessa: { Row: SequenciaRemessa & Record<string, unknown>; Insert: InsertShape<SequenciaRemessa, 'configuracao_cnab_id' | 'data_referencia'> & Record<string, unknown>; Update: Partial<SequenciaRemessa> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'sequencias_remessa_configuracao_cnab_id_fkey'; columns: ['configuracao_cnab_id']; isOneToOne: false; referencedRelation: 'configuracoes_cnab'; referencedColumns: ['id'] }] }
       remessas_cnab: { Row: RemessaCnab & Record<string, unknown>; Insert: InsertShape<RemessaCnab, 'fundo_id' | 'configuracao_cnab_id' | 'configuracao_cnab_versao_id' | 'configuracao_versao' | 'configuracao_hash' | 'storage_path' | 'sha256' | 'quantidade_registros' | 'quantidade_titulos' | 'valor_total' | 'nome_arquivo' | 'sequencial' | 'idempotency_key' | 'payload_hash'> & Record<string, unknown>; Update: UpdateShape<RemessaCnab> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'remessas_cnab_fundo_id_fkey'; columns: ['fundo_id']; isOneToOne: false; referencedRelation: 'fundos'; referencedColumns: ['id'] }, { foreignKeyName: 'remessas_cnab_configuracao_cnab_id_fkey'; columns: ['configuracao_cnab_id']; isOneToOne: false; referencedRelation: 'configuracoes_cnab'; referencedColumns: ['id'] }, { foreignKeyName: 'remessas_cnab_configuracao_cnab_versao_id_fkey'; columns: ['configuracao_cnab_versao_id']; isOneToOne: false; referencedRelation: 'configuracao_cnab_versoes'; referencedColumns: ['id'] }, { foreignKeyName: 'remessas_cnab_integracao_fundo_versao_id_fkey'; columns: ['integracao_fundo_versao_id']; isOneToOne: false; referencedRelation: 'integracao_fundo_versoes'; referencedColumns: ['id'] }] }
       remessas_cnab_operacoes: { Row: RemessaCnabOperacao & Record<string, unknown>; Insert: RemessaCnabOperacao & Record<string, unknown>; Update: Partial<RemessaCnabOperacao> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'remessas_cnab_operacoes_remessa_cnab_id_fkey'; columns: ['remessa_cnab_id']; isOneToOne: false; referencedRelation: 'remessas_cnab'; referencedColumns: ['id'] }, { foreignKeyName: 'remessas_cnab_operacoes_operacao_id_fkey'; columns: ['operacao_id']; isOneToOne: false; referencedRelation: 'operacoes'; referencedColumns: ['id'] }] }
+      seguranca_eventos: { Row: SegurancaEvento & Record<string, unknown>; Insert: InsertShape<SegurancaEvento, 'tipo_evento'> & Record<string, unknown>; Update: UpdateShape<SegurancaEvento> & Record<string, unknown>; Relationships: [] }
+      mfa_recovery_codes: { Row: MfaRecoveryCode & Record<string, unknown>; Insert: InsertShape<MfaRecoveryCode, 'user_id' | 'code_hash'> & Record<string, unknown>; Update: UpdateShape<MfaRecoveryCode> & Record<string, unknown>; Relationships: [] }
+      sessoes_elevadas: { Row: SessaoElevada & Record<string, unknown>; Insert: InsertShape<SessaoElevada, 'user_id' | 'metodo' | 'expira_em'> & Record<string, unknown>; Update: UpdateShape<SessaoElevada> & Record<string, unknown>; Relationships: [] }
+      seguranca_rate_limits: { Row: SegurancaRateLimit & Record<string, unknown>; Insert: InsertShape<SegurancaRateLimit, 'key_hash' | 'escopo'> & Record<string, unknown>; Update: UpdateShape<SegurancaRateLimit> & Record<string, unknown>; Relationships: [] }
       representantes: { Row: Representante & Record<string, unknown>; Insert: InsertShape<Representante, 'cedente_id' | 'nome' | 'cpf' | 'rg' | 'cargo' | 'email' | 'telefone'> & Record<string, unknown>; Update: UpdateShape<Representante> & Record<string, unknown>; Relationships: [] }
       documentos: { Row: Documento & Record<string, unknown>; Insert: InsertShape<Documento, 'cedente_id' | 'tipo'> & Record<string, unknown>; Update: UpdateShape<Documento> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'documentos_cedente_id_fkey'; columns: ['cedente_id']; isOneToOne: false; referencedRelation: 'cedentes'; referencedColumns: ['id'] }, { foreignKeyName: 'documentos_representante_id_fkey'; columns: ['representante_id']; isOneToOne: false; referencedRelation: 'representantes'; referencedColumns: ['id'] }, { foreignKeyName: 'documentos_analisado_por_fkey'; columns: ['analisado_por']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] }] }
       contas_escrow: { Row: ContaEscrow & Record<string, unknown>; Insert: InsertShape<ContaEscrow, 'cedente_id' | 'identificador'> & Record<string, unknown>; Update: UpdateShape<ContaEscrow> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'contas_escrow_cedente_id_fkey'; columns: ['cedente_id']; isOneToOne: false; referencedRelation: 'cedentes'; referencedColumns: ['id'] }] }

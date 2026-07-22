@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { carregarContextoCnab444, gerarRemessaCnab444ComSequencial } from '@/lib/cnab/gerarCnab444'
 import { AuthorizationError, requireGestor } from '@/lib/auth/authorization'
+import { exigirSessaoElevada } from '@/lib/auth/mfa'
 import { createAdminClient } from '@/lib/supabase/server'
 import { buckets } from '@/lib/storage'
 import { registrarLog } from '@/lib/actions/auditoria'
@@ -36,6 +37,7 @@ async function baixarRemessaExistente(storagePath: string) {
 export async function POST(req: NextRequest) {
   try {
     const context = await requireGestor()
+    await exigirSessaoElevada(context)
 
     const { operacao_id } = await req.json()
     if (!operacao_id) return NextResponse.json({ error: 'operacao_id obrigatorio' }, { status: 400 })

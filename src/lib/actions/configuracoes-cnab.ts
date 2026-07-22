@@ -1,11 +1,13 @@
 'use server'
 
 import { requireGestor } from '@/lib/auth/authorization'
+import { exigirSessaoElevada } from '@/lib/auth/mfa'
 import { registrarLog } from '@/lib/actions/auditoria'
 import { montarConfiguracaoLegadoParaCadastro, normalizarConfiguracaoCnabInput, validarConfiguracaoCnab } from '@/lib/cnab/resolver-configuracao'
 import { calcularHashConfiguracaoCnab, type ConfiguracaoCnabResolvida } from '@/lib/cnab/domain'
 import { geradorCnab444 } from '@/lib/cnab/layouts/cnab444'
 import { testarConexaoPortalFidc } from '@/lib/portal-fidc/integracao'
+import { registrarTentativaRateLimit, verificarRateLimit } from '@/lib/security/rate-limit'
 
 type ActionState<T = unknown> = { success: boolean; message: string; data?: T }
 
@@ -41,6 +43,7 @@ export async function criarConfiguracaoCnab(input: {
 }): Promise<ActionState<{ id: string }>> {
   try {
     const context = await requireGestor()
+    await exigirSessaoElevada(context)
     const codigo = assertCodigo(input.codigo)
     if (!input.fundoId || !input.nome.trim()) return result('Fundo e nome sao obrigatorios.')
     await assertFundoGestor(context, input.fundoId)
@@ -68,6 +71,7 @@ export async function criarConfiguracaoCnab(input: {
 export async function criarVersaoConfiguracaoCnab(fundoId: string, configuracaoCnabId: string, input: ConfigInput): Promise<ActionState<{ id: string; versao: number }>> {
   try {
     const context = await requireGestor()
+    await exigirSessaoElevada(context)
     await assertFundoGestor(context, fundoId)
     const { data: config } = await context.supabase
       .from('configuracoes_cnab')
@@ -129,6 +133,7 @@ export async function criarVersaoConfiguracaoCnab(fundoId: string, configuracaoC
 export async function publicarVersaoConfiguracaoCnab(fundoId: string, versaoId: string): Promise<ActionState> {
   try {
     const context = await requireGestor()
+    await exigirSessaoElevada(context)
     await assertFundoGestor(context, fundoId)
     const { data: version } = await context.supabase
       .from('configuracao_cnab_versoes')
@@ -187,6 +192,7 @@ export async function publicarVersaoConfiguracaoCnab(fundoId: string, versaoId: 
 export async function desativarConfiguracaoCnab(fundoId: string, configuracaoCnabId: string): Promise<ActionState> {
   try {
     const context = await requireGestor()
+    await exigirSessaoElevada(context)
     await assertFundoGestor(context, fundoId)
     const { error } = await context.supabase
       .from('configuracoes_cnab')
@@ -204,6 +210,7 @@ export async function desativarConfiguracaoCnab(fundoId: string, configuracaoCna
 export async function importarConfiguracaoCnabLegado(fundoId: string): Promise<ActionState<{ configuracaoId: string; versaoId: string }>> {
   try {
     const context = await requireGestor()
+    await exigirSessaoElevada(context)
     await assertFundoGestor(context, fundoId)
     const legado = montarConfiguracaoLegadoParaCadastro()
     const codigo = 'cnab444_legado'
@@ -264,6 +271,7 @@ function validarIntegracaoInput(input: IntegracaoInput): string[] {
 export async function criarOuAtualizarIntegracaoFundo(fundoId: string, input: IntegracaoInput): Promise<ActionState<{ integracaoId: string; versaoId: string; versao: number }>> {
   try {
     const context = await requireGestor()
+    await exigirSessaoElevada(context)
     await assertFundoGestor(context, fundoId)
     const erros = validarIntegracaoInput(input)
     if (erros.length > 0) return result(erros.join(' '))
@@ -336,6 +344,7 @@ export async function criarOuAtualizarIntegracaoFundo(fundoId: string, input: In
 export async function atualizarRascunhoIntegracaoFundo(fundoId: string, versaoId: string, input: IntegracaoInput): Promise<ActionState> {
   try {
     const context = await requireGestor()
+    await exigirSessaoElevada(context)
     await assertFundoGestor(context, fundoId)
     const erros = validarIntegracaoInput(input)
     if (erros.length > 0) return result(erros.join(' '))
@@ -375,6 +384,7 @@ export async function atualizarRascunhoIntegracaoFundo(fundoId: string, versaoId
 export async function publicarVersaoIntegracaoFundo(fundoId: string, versaoId: string): Promise<ActionState> {
   try {
     const context = await requireGestor()
+    await exigirSessaoElevada(context)
     await assertFundoGestor(context, fundoId)
     const { data: version } = await context.supabase
       .from('integracao_fundo_versoes')
@@ -417,6 +427,7 @@ export async function publicarVersaoIntegracaoFundo(fundoId: string, versaoId: s
 export async function desativarIntegracaoFundo(fundoId: string, integracaoId: string): Promise<ActionState> {
   try {
     const context = await requireGestor()
+    await exigirSessaoElevada(context)
     await assertFundoGestor(context, fundoId)
     const now = new Date().toISOString()
     const { data: integracao } = await context.supabase
@@ -451,6 +462,7 @@ export async function desativarIntegracaoFundo(fundoId: string, integracaoId: st
 export async function testarConexaoIntegracaoFundo(fundoId: string, versaoId: string): Promise<ActionState<{ execucaoId: string }>> {
   try {
     const context = await requireGestor()
+    await exigirSessaoElevada(context)
     await assertFundoGestor(context, fundoId)
     const { data: version } = await context.supabase
       .from('integracao_fundo_versoes')
@@ -460,7 +472,10 @@ export async function testarConexaoIntegracaoFundo(fundoId: string, versaoId: st
     const versionData = version as { integracao: { fundo_id: string; provedor: string } | null } | null
     if (versionData?.integracao?.fundo_id !== fundoId) return result('Versao de integracao nao pertence ao fundo informado.')
     if (versionData.integracao.provedor !== 'fromtis') return result('Somente Portal FIDC - Sinqia e suportado nesta fase.')
+    const limited = await verificarRateLimit({ escopo: 'portal_fidc_test', identifier: `${context.user.id}:${versaoId}`, limite: 5 })
+    if (!limited.allowed) return result('Muitas tentativas de teste de conexao. Aguarde antes de tentar novamente.')
     const teste = await testarConexaoPortalFidc(fundoId, versaoId)
+    await registrarTentativaRateLimit({ escopo: 'portal_fidc_test', identifier: `${context.user.id}:${versaoId}`, sucesso: teste.success })
     await registrarLog({ tipo_evento: 'PORTAL_FIDC_TESTE_CONEXAO', entidade_tipo: 'integracao_fundo_versoes', entidade_id: versaoId, dados_depois: { fundo_id: fundoId, sucesso: teste.success } })
     return result(teste.message, teste.success, teste.data)
   } catch (error) {
@@ -471,6 +486,7 @@ export async function testarConexaoIntegracaoFundo(fundoId: string, versaoId: st
 export async function gerarArquivoTesteConfiguracaoCnab(fundoId: string, versaoId: string): Promise<ActionState<{ nomeArquivo: string; conteudo: string }>> {
   try {
     const context = await requireGestor()
+    await exigirSessaoElevada(context)
     const fundo = await assertFundoGestor(context, fundoId)
     const { data: version } = await context.supabase
       .from('configuracao_cnab_versoes')
