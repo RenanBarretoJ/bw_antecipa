@@ -74,6 +74,13 @@ A regra fica centralizada em `src/lib/auth/mfa.ts`:
 
 Não há regra por e-mail, nome ou ID fixo de usuário.
 
+Decisão pós-homologação: quando `estado.exigeMfa = true`, o usuário não pode desativar seu próprio MFA. Essa decisão foi aplicada em duas camadas:
+
+- interface: `src/components/auth/security-page.tsx` deixa de renderizar o botão "Desativar MFA" e exibe a indicação "Obrigatório pela política";
+- servidor: `src/app/actions/mfa.ts` bloqueia `desativarMfaProprio` quando MFA é obrigatório, registra evento `ACESSO_NEGADO` e retorna mensagem segura.
+
+Motivo: permitir desativação pelo próprio usuário anularia a política obrigatória de MFA. Para perfis obrigatórios, reset ou exceção deve ocorrer por fluxo administrativo controlado, não por autoatendimento.
+
 ## 4. Migration
 
 Migration criada:
@@ -144,6 +151,7 @@ Finalidade: rate limit server-side.
 Escopos implementados:
 
 - login;
+- setup MFA;
 - MFA TOTP;
 - MFA recovery;
 - teste Portal FIDC;
@@ -177,6 +185,12 @@ recovery codes gerados e exibidos uma única vez
 ```
 
 O segredo TOTP não é salvo em logs, auditoria ou tabela comum.
+
+Observações de homologação incorporadas:
+
+- MFA/TOTP precisa estar habilitado no Supabase Auth do projeto. A migration da Fase 9 cria estruturas auxiliares do BW Antecipa, mas não ativa o recurso TOTP no Auth. Quando o Supabase retorna `mfa_totp_enroll_not_enabled`, a interface mostra mensagem específica orientando a habilitação.
+- `iniciarConfiguracaoMfa()` tornou-se tolerante a tentativas pendentes: antes de criar um novo fator, remove fatores TOTP não verificados do usuário e cria o novo fator com `friendlyName` único. Isso evita falhas por refresh, tentativa abandonada, Strict Mode em desenvolvimento ou conflito de nome de fator.
+- O link "saia e entre novamente" deixou de ser navegação simples para `/login` e passou a executar `logout()` de `src/app/actions/auth.ts`, limpando a sessão/cookies do Supabase antes do redirecionamento. Sem isso, o middleware reencaminhava o usuário autenticado para `/mfa/setup`.
 
 ## 6. Login com MFA
 
@@ -236,11 +250,14 @@ Implementado em `src/lib/security/rate-limit.ts`.
 Proteções aplicadas:
 
 - login em `src/app/actions/auth.ts`;
+- setup de MFA em `src/app/actions/mfa.ts`, com escopo `mfa_setup`, limite mais tolerante e limpeza do contador quando o QR Code é gerado com sucesso;
 - TOTP/recovery em `src/app/actions/mfa.ts`;
 - teste Portal FIDC em `src/lib/actions/configuracoes-cnab.ts`;
 - envio Portal FIDC em `src/app/api/contratos/enviar-remessa/route.ts`.
 
 Mensagens são sanitizadas e não revelam se o usuário existe, se senha estava correta ou se fator existe.
+
+Decisão pós-homologação: o setup de MFA não deve compartilhar o mesmo rate limit da validação do código TOTP. A geração do fator pode ser repetida por refresh, tentativa anterior abandonada ou reconexão do navegador. Por isso, `mfa_setup` foi separado de `mfa_totp`; a validação do código continua mais restritiva.
 
 ## 10. Sessões
 
@@ -275,6 +292,14 @@ A tela mostra:
 - fatores cadastrados;
 - regeneração de recovery codes;
 - encerramento de outras sessões.
+
+Comportamento pós-homologação:
+
+- em `/mfa/setup`, o link de saída executa logout real via server action `logout()`, removendo a sessão Supabase antes de voltar ao login;
+- em `/mfa/desafio`, também existe saída segura para permitir trocar de conta sem ficar preso no redirect de MFA;
+- em "Minha Segurança", usuários com MFA obrigatório não veem o botão "Desativar MFA"; veem apenas a indicação "Obrigatório pela política";
+- usuários sem obrigatoriedade podem manter a possibilidade futura de desativação, desde que tenham sessão elevada válida;
+- o bloqueio de desativação obrigatória também existe no servidor, portanto a UI não é a única barreira de segurança.
 
 ## 12. Headers de segurança
 
@@ -380,18 +405,24 @@ Cobre:
 
 ## 18. Riscos residuais
 
-- Migration ainda precisa ser aplicada em homolog.
-- MFA precisa ser testado com usuários reais Supabase Auth em AAL1/AAL2.
+- Migration precisa estar aplicada em cada ambiente alvo antes de ativar MFA obrigatório.
+- MFA/TOTP precisa estar habilitado no Supabase Auth de cada ambiente; a migration não ativa esse recurso.
+- MFA precisa continuar sendo testado com usuários reais Supabase Auth em AAL1/AAL2.
 - Supabase Auth Admin para reset administrativo completo ainda precisa de homologação segura.
 - Vault/Supabase Vault ainda não foi ativado para segredos Portal FIDC.
 - `supabase db lint`/advisors ainda precisa ser executado quando houver banco local/remoto disponível.
 - Testes negativos de RLS precisam ser executados contra o banco real.
+- Usuários obrigatórios não podem desativar MFA por autoatendimento; ainda falta implementar fluxo administrativo completo de reset/exceção com auditoria operacional.
 
 ## 19. Checklist de homologação
 
 ☐ Aplicar migration da Fase 9  
 ☐ Confirmar que Supabase Auth MFA/TOTP está habilitado no projeto  
 ☐ Testar login gestor sem fator → onboarding obrigatório  
+☐ Testar `/mfa/setup` após tentativa abandonada/refresh e confirmar que novo QR Code é gerado
+☐ Testar mensagem específica quando TOTP estiver desabilitado no Supabase Auth
+☐ Testar "saia e entre novamente" em `/mfa/setup` e confirmar limpeza de cookie/sessão Supabase
+☐ Testar saída segura em `/mfa/desafio`
 ☐ Testar login gestor com fator → desafio MFA  
 ☐ Confirmar JWT AAL2 após verify  
 ☐ Confirmar bloqueio AAL1 em geração CNAB  
@@ -399,7 +430,10 @@ Cobre:
 ☐ Confirmar aprovação/desembolso exigindo sessão elevada  
 ☐ Confirmar recovery code de uso único  
 ☐ Confirmar regeneração invalida códigos anteriores  
+☐ Confirmar que usuário com MFA obrigatório não vê botão "Desativar MFA" em Minha Segurança
+☐ Confirmar que chamada direta a `desativarMfaProprio` é bloqueada quando MFA é obrigatório
 ☐ Confirmar rate limit de login  
+☐ Confirmar rate limit separado de setup MFA (`mfa_setup`)
 ☐ Confirmar rate limit TOTP  
 ☐ Confirmar que segredo TOTP não aparece em logs  
 ☐ Confirmar que recovery code não aparece em banco em texto aberto  
@@ -414,4 +448,6 @@ Cobre:
 
 A Fase 9 cria a base de MFA TOTP nativo Supabase e hardening pré-produção sem alterar regras financeiras ou fluxos de negócio. O sistema passa a ter onboarding MFA, desafio AAL2, janela elevada, recovery codes, rate limit server-side, eventos de segurança, headers e gates em ações críticas.
 
-Ainda impedem produção: aplicação e validação da migration em homolog, testes reais AAL1/AAL2, auditoria automatizada Supabase no banco, reset administrativo completo e estratégia final de Vault/rotação de credenciais.
+Após os testes iniciais em homologação, a implementação foi refinada para cobrir comportamentos reais de uso: setup idempotente com limpeza de fatores TOTP pendentes, mensagem específica para TOTP desabilitado no Supabase Auth, logout real nas telas de MFA para limpar cookies/sessão, rate limit separado para setup e bloqueio de desativação de MFA quando a política torna o fator obrigatório.
+
+Ainda impedem produção plena: aplicação e validação da migration em todos os ambientes alvo, confirmação de MFA/TOTP habilitado no Supabase Auth, testes reais AAL1/AAL2, auditoria automatizada Supabase no banco, reset administrativo completo e estratégia final de Vault/rotação de credenciais.

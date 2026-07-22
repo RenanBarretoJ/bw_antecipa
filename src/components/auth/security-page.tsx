@@ -38,6 +38,7 @@ export function SecurityPage() {
   const estado = data?.estado
   const fatores = data?.fatores || []
   const mfaAtivo = !!estado?.possuiFatorVerificado
+  const mfaObrigatorio = !!estado?.exigeMfa
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-6 px-4 pb-10 sm:px-6 lg:px-8">
@@ -75,10 +76,15 @@ export function SecurityPage() {
                     <p className="font-semibold">{factor.friendlyName}</p>
                     <p className="text-xs text-muted-foreground">Status: {factor.status}</p>
                   </div>
-                  <Button type="button" variant="destructive" size="sm" disabled={isPending || !estado?.sessaoElevadaValida} onClick={() => run(() => desativarMfaProprio(factor.id))}>Desativar MFA</Button>
+                  {mfaObrigatorio ? (
+                    <span className="rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">Obrigatorio pela politica</span>
+                  ) : (
+                    <Button type="button" variant="destructive" size="sm" disabled={isPending || !estado?.sessaoElevadaValida} onClick={() => run(() => desativarMfaProprio(factor.id))}>Desativar MFA</Button>
+                  )}
                 </div>
               ))}
-              {!estado?.sessaoElevadaValida && <p className="text-xs text-muted-foreground">Para desativar MFA ou regenerar codigos, valide sua sessao em <Link href="/mfa/desafio" className="text-primary underline">MFA</Link>.</p>}
+              {mfaObrigatorio && <p className="text-xs text-muted-foreground">MFA e obrigatorio para este perfil. A desativacao nao fica disponivel para o proprio usuario; reset ou excecao deve ser tratado por fluxo administrativo.</p>}
+              {!estado?.sessaoElevadaValida && <p className="text-xs text-muted-foreground">Para regenerar codigos, validar sessoes ou encerrar outras sessoes, valide sua sessao em <Link href="/mfa/desafio" className="text-primary underline">MFA</Link>.</p>}
             </div>
           </section>
 
