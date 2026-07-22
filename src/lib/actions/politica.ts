@@ -112,13 +112,16 @@ async function validarPoliticaDoFundo(supabase: Awaited<ReturnType<typeof requir
 }
 
 async function validarVersaoPoliticaDoFundo(supabase: Awaited<ReturnType<typeof requireGestor>>['supabase'], fundoId: string, versaoId: string) {
-  const { data, error } = await supabase
+  const { data: version, error: versionError } = await supabase
     .from('politica_operacional_versoes')
-    .select('id, politica_operacional_id, cedente_fundo_id, link:cedente_fundos(fundo_id)')
+    .select('id, politica_operacional_id, cedente_fundo_id')
     .eq('id', versaoId)
     .maybeSingle()
-  const version = data as unknown as { link: { fundo_id: string } | null } | null
-  if (error || version?.link?.fundo_id !== fundoId) throw new Error('Versao de politica nao pertence ao fundo informado.')
+  if (versionError) throw new Error(`Erro ao validar versao da politica: ${versionError.message}`)
+  const versionData = version as { id: string; politica_operacional_id: string; cedente_fundo_id: string } | null
+  if (!versionData) throw new Error('Versao de politica nao encontrada.')
+  await validarCedenteFundoDoFundo(supabase, fundoId, versionData.cedente_fundo_id)
+  return versionData
 }
 
 export async function criarPoliticaOperacional(
@@ -172,16 +175,18 @@ export async function criarPoliticaOperacionalNoFundo(
 export async function criarVersaoPolitica(
   politicaId: string,
   input: CriarVersaoPoliticaInput,
-): Promise<PolicyActionState & { data?: { id: string; versao: number } }> {
+): Promise<PolicyActionState & { data?: { id: string; politica_operacional_id: string; cedente_fundo_id: string; versao: number; publicada_em: string | null; vigente_desde: string } }> {
   const context = await requireGestor()
   try {
     const supabase = context.supabase
-    const { data: policy } = await supabase.from('politicas_operacionais').select('id, cedente_fundo_id, status').eq('id', politicaId).maybeSingle()
+    const { data: policy, error: policyError } = await supabase.from('politicas_operacionais').select('id, cedente_fundo_id, status').eq('id', politicaId).maybeSingle()
+    if (policyError) return result(`Erro ao consultar politica: ${policyError.message}`)
     if (!policy) return result('Politica nao encontrada.')
 
     const policyData = policy as { id: string; cedente_fundo_id: string; status: string }
     if (policyData.status === 'desativada') return result('Nao e possivel criar versao para politica desativada.')
-    const { data: link } = await supabase.from('cedente_fundos').select('id, status').eq('id', policyData.cedente_fundo_id).maybeSingle()
+    const { data: link, error: linkError } = await supabase.from('cedente_fundos').select('id, status').eq('id', policyData.cedente_fundo_id).maybeSingle()
+    if (linkError) return result(`Erro ao consultar vinculo cedente-fundo: ${linkError.message}`)
     if (!link || (link as { status: string }).status !== 'ativo') return result('O vinculo cedente-fundo precisa estar ativo.')
 
     const normalized = input.requisitos.map(normalizeRequirement)
@@ -191,7 +196,15 @@ export async function criarVersaoPolitica(
       codes.add(requirement.codigo)
     }
 
-    const { data: last } = await supabase.from('politica_operacional_versoes').select('versao').eq('politica_operacional_id', politicaId).order('versao', { ascending: false }).limit(1).maybeSingle()
+    const { data: last, error: lastError } = await supabase
+      .from('politica_operacional_versoes')
+      .select('versao')
+      .eq('politica_operacional_id', politicaId)
+      .eq('cedente_fundo_id', policyData.cedente_fundo_id)
+      .order('versao', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    if (lastError) return result(`Erro ao consultar ultima versao: ${lastError.message}`)
     const version = ((last as { versao: number } | null)?.versao || 0) + 1
     const config = input.configuracao || {}
     validarConfiguracaoPublica(config)
@@ -207,10 +220,12 @@ export async function criarVersaoPolitica(
       cria_acompanhamento_entrega: input.cria_acompanhamento_entrega,
       configuracao: config,
       conteudo_hash: hash,
-    } as never).select('id').single()
-    if (error || !created) return result(`Erro ao criar versao: ${error?.message || 'registro nao retornado'}`)
+    } as never).select('id, politica_operacional_id, cedente_fundo_id, versao, publicada_em, vigente_desde').single()
+    if (error) return result(`Erro ao criar versao: ${error.message}`)
+    if (!created) return result('Erro ao criar versao: registro nao retornado pelo banco.')
 
-    const versionId = (created as { id: string }).id
+    const createdVersion = created as { id: string; politica_operacional_id: string; cedente_fundo_id: string; versao: number; publicada_em: string | null; vigente_desde: string }
+    const versionId = createdVersion.id
     if (normalized.length > 0) {
       const { error: requirementsError } = await supabase.from('politica_requisitos_documentais').insert(normalized.map((requirement) => ({
         ...requirement,
@@ -225,7 +240,7 @@ export async function criarVersaoPolitica(
     }
 
     await registrarLog({ tipo_evento: 'POLITICA_OPERACIONAL_VERSAO_CRIADA', entidade_tipo: 'politica_operacional_versoes', entidade_id: versionId, dados_depois: { politica_operacional_id: politicaId, versao: version, conteudo_hash: hash } })
-    return { success: true, message: `Versao ${version} criada como rascunho.`, data: { id: versionId, versao: version } }
+    return { success: true, message: `Versao ${version} criada como rascunho.`, data: createdVersion }
   } catch (error) {
     return result(error instanceof Error ? error.message : 'Dados invalidos para a versao.')
   }
@@ -235,60 +250,74 @@ export async function criarVersaoPoliticaNoFundo(
   fundoId: string,
   politicaId: string,
   input: CriarVersaoPoliticaInput,
-): Promise<PolicyActionState & { data?: { id: string; versao: number } }> {
+): Promise<PolicyActionState & { data?: { id: string; politica_operacional_id: string; cedente_fundo_id: string; versao: number; publicada_em: string | null; vigente_desde: string } }> {
   try {
     const context = await requireGestor()
     await validarPoliticaDoFundo(context.supabase, fundoId, politicaId)
-    return criarVersaoPolitica(politicaId, input)
+    return await criarVersaoPolitica(politicaId, input)
   } catch (error) {
     return result(error instanceof Error ? error.message : 'Erro ao criar versao.')
   }
 }
 
 export async function publicarVersaoPolitica(versaoId: string): Promise<PolicyActionState> {
-  const context = await requireGestor()
-  await exigirSessaoElevada(context)
-  const supabase = context.supabase
-  const { data: version } = await supabase.from('politica_operacional_versoes').select('*').eq('id', versaoId).maybeSingle()
-  if (!version) return result('Versao nao encontrada.')
-  const versionData = version as { id: string; politica_operacional_id: string; cedente_fundo_id: string; vigente_desde: string; publicada_em: string | null; versao: number }
-  if (versionData.publicada_em) return result('Esta versao ja foi publicada.')
+  try {
+    const context = await requireGestor()
+    await exigirSessaoElevada(context)
+    const supabase = context.supabase
+    const { data: version, error: versionError } = await supabase.from('politica_operacional_versoes').select('*').eq('id', versaoId).maybeSingle()
+    if (versionError) return result(`Erro ao consultar versao: ${versionError.message}`)
+    if (!version) return result('Versao nao encontrada.')
+    const versionData = version as { id: string; politica_operacional_id: string; cedente_fundo_id: string; vigente_desde: string; publicada_em: string | null; versao: number }
+    if (versionData.publicada_em) return result('Esta versao ja foi publicada.')
 
-  const { data: link } = await supabase.from('cedente_fundos').select('status').eq('id', versionData.cedente_fundo_id).maybeSingle()
-  if (!link || (link as { status: string }).status !== 'ativo') return result('O vinculo cedente-fundo precisa estar ativo.')
-  const now = new Date().toISOString()
+    const { data: link, error: linkError } = await supabase.from('cedente_fundos').select('status').eq('id', versionData.cedente_fundo_id).maybeSingle()
+    if (linkError) return result(`Erro ao consultar vinculo cedente-fundo: ${linkError.message}`)
+    if (!link || (link as { status: string }).status !== 'ativo') return result('O vinculo cedente-fundo precisa estar ativo.')
+    const now = new Date().toISOString()
 
-  const { error: closeError } = await supabase.from('politica_operacional_versoes')
-    .update({ vigente_ate: now } as never)
-    .eq('politica_operacional_id', versionData.politica_operacional_id)
-    .not('publicada_em', 'is', null)
-    .is('vigente_ate', null)
-  if (closeError) return result(`Erro ao fechar versao anterior: ${closeError.message}`)
+    const { error: closeError } = await supabase.from('politica_operacional_versoes')
+      .update({ vigente_ate: now } as never)
+      .eq('politica_operacional_id', versionData.politica_operacional_id)
+      .eq('cedente_fundo_id', versionData.cedente_fundo_id)
+      .not('publicada_em', 'is', null)
+      .is('vigente_ate', null)
+    if (closeError) return result(`Erro ao fechar versao anterior: ${closeError.message}`)
 
-  const { error: publishError } = await supabase.from('politica_operacional_versoes').update({
-    vigente_desde: now,
-    publicada_por: context.user.id,
-    publicada_em: now,
-  } as never).eq('id', versaoId)
-  if (publishError) return result(`Erro ao publicar versao: ${publishError.message}`)
+    const { data: published, error: publishError } = await supabase.from('politica_operacional_versoes').update({
+      vigente_desde: now,
+      publicada_por: context.user.id,
+      publicada_em: now,
+    } as never).eq('id', versaoId).select('id, versao, publicada_em').single()
+    if (publishError) return result(`Erro ao publicar versao: ${publishError.message}`)
+    if (!published) return result('Erro ao publicar versao: registro nao retornado pelo banco.')
 
-  const { error: deactivateError } = await supabase.from('politicas_operacionais').update({ status: 'desativada' } as never)
-    .eq('cedente_fundo_id', versionData.cedente_fundo_id)
-    .neq('id', versionData.politica_operacional_id)
-    .eq('status', 'ativa')
-  if (deactivateError) return result(`Versao publicada, mas nao foi possivel desativar politica anterior: ${deactivateError.message}`)
-  const { error: activateError } = await supabase.from('politicas_operacionais').update({ status: 'ativa' } as never).eq('id', versionData.politica_operacional_id)
-  if (activateError) return result(`Versao publicada, mas nao foi possivel ativar a politica: ${activateError.message}`)
+    const { error: deactivateError } = await supabase.from('politicas_operacionais').update({ status: 'desativada' } as never)
+      .eq('cedente_fundo_id', versionData.cedente_fundo_id)
+      .neq('id', versionData.politica_operacional_id)
+      .eq('status', 'ativa')
+    if (deactivateError) return result(`Versao publicada, mas nao foi possivel desativar politica anterior: ${deactivateError.message}`)
+    const { data: activated, error: activateError } = await supabase
+      .from('politicas_operacionais')
+      .update({ status: 'ativa' } as never)
+      .eq('id', versionData.politica_operacional_id)
+      .select('id, status')
+      .single()
+    if (activateError) return result(`Versao publicada, mas nao foi possivel ativar a politica: ${activateError.message}`)
+    if (!activated) return result('Versao publicada, mas a politica ativada nao foi retornada pelo banco.')
 
-  await registrarLog({ tipo_evento: 'POLITICA_OPERACIONAL_VERSAO_PUBLICADA', entidade_tipo: 'politica_operacional_versoes', entidade_id: versaoId, dados_depois: { versao: versionData.versao, publicada_em: now } })
-  return { success: true, message: `Versao ${versionData.versao} publicada e politica ativada.` }
+    await registrarLog({ tipo_evento: 'POLITICA_OPERACIONAL_VERSAO_PUBLICADA', entidade_tipo: 'politica_operacional_versoes', entidade_id: versaoId, dados_depois: { versao: versionData.versao, publicada_em: now } })
+    return { success: true, message: `Versao ${versionData.versao} publicada e politica ativada.` }
+  } catch (error) {
+    return result(error instanceof Error ? error.message : 'Erro ao publicar versao.')
+  }
 }
 
 export async function publicarVersaoPoliticaNoFundo(fundoId: string, versaoId: string): Promise<PolicyActionState> {
   try {
     const context = await requireGestor()
     await validarVersaoPoliticaDoFundo(context.supabase, fundoId, versaoId)
-    return publicarVersaoPolitica(versaoId)
+    return await publicarVersaoPolitica(versaoId)
   } catch (error) {
     return result(error instanceof Error ? error.message : 'Erro ao publicar versao.')
   }

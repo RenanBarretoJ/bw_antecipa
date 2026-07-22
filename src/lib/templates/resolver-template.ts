@@ -3,7 +3,7 @@ import Handlebars from 'handlebars'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database'
 
-export type TemplateTipoDocumento = 'contrato_mae' | 'termo_cessao' | 'notificacao_sacado' | 'termo_quitacao'
+export type TemplateTipoDocumento = 'contrato_mae' | 'contrato_mae_sem_coobrigacao' | 'termo_cessao' | 'notificacao_sacado' | 'termo_quitacao'
 
 export interface TemplateDocumentoRow {
   id: string
@@ -45,15 +45,24 @@ export interface TemplateVariaveisSchema {
 }
 
 export const TEMPLATE_TIPOS: Array<{ tipo: TemplateTipoDocumento; codigo: string; nome: string; arquivo: string }> = [
-  { tipo: 'contrato_mae', codigo: 'contrato_mae', nome: 'Contrato Mae', arquivo: 'contrato-cessao.html' },
-  { tipo: 'contrato_mae', codigo: 'contrato_mae_sem_coobrigacao', nome: 'Contrato Mae sem coobrigacao', arquivo: 'contrato-cessao-sem-coobrigacao.html' },
-  { tipo: 'termo_cessao', codigo: 'termo_cessao', nome: 'Termo de Cessao', arquivo: 'termo-cessao.html' },
-  { tipo: 'notificacao_sacado', codigo: 'notificacao_sacado', nome: 'Notificacao ao Sacado', arquivo: 'notificacao-cessao-ao-sacado.html' },
-  { tipo: 'termo_quitacao', codigo: 'termo_quitacao', nome: 'Termo de Quitacao', arquivo: 'termo_quitacao.html' },
+  { tipo: 'contrato_mae', codigo: 'contrato_mae', nome: 'Contrato-mãe', arquivo: 'contrato-cessao.html' },
+  { tipo: 'contrato_mae_sem_coobrigacao', codigo: 'contrato_mae_sem_coobrigacao', nome: 'Contrato-mãe sem coobrigação', arquivo: 'contrato-cessao-sem-coobrigacao.html' },
+  { tipo: 'termo_cessao', codigo: 'termo_cessao', nome: 'Termo de cessão', arquivo: 'termo-cessao.html' },
+  { tipo: 'notificacao_sacado', codigo: 'notificacao_sacado', nome: 'Notificação ao sacado', arquivo: 'notificacao-cessao-ao-sacado.html' },
+  { tipo: 'termo_quitacao', codigo: 'termo_quitacao', nome: 'Termo de quitação', arquivo: 'termo_quitacao.html' },
 ]
 
 export const SCHEMAS_POR_TIPO: Record<TemplateTipoDocumento, TemplateVariaveisSchema> = {
   contrato_mae: {
+    variaveis: {
+      cedente: { type: 'object', required: true },
+      contrato: { type: 'object', required: true },
+      testemunha_1: { type: 'object', required: true },
+      testemunha_2: { type: 'object', required: true },
+    },
+    helpers: ['if', 'each'],
+  },
+  contrato_mae_sem_coobrigacao: {
     variaveis: {
       cedente: { type: 'object', required: true },
       contrato: { type: 'object', required: true },

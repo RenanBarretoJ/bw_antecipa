@@ -360,10 +360,14 @@ export async function gerarContratoCessao(
     },
   }
 
-  const templateNome = (ced.coobrigacao as boolean) !== false
+  const possuiCoobrigacao = (ced.coobrigacao as boolean) !== false
+  const tipoDocumento: TemplateTipoDocumento = possuiCoobrigacao
+    ? 'contrato_mae'
+    : 'contrato_mae_sem_coobrigacao'
+  const templateNome = possuiCoobrigacao
     ? 'contrato-cessao.html'
     : 'contrato-cessao-sem-coobrigacao.html'
-  const templateCodigo = (ced.coobrigacao as boolean) !== false
+  const templateCodigo = possuiCoobrigacao
     ? 'contrato_mae'
     : 'contrato_mae_sem_coobrigacao'
 
@@ -371,13 +375,13 @@ export async function gerarContratoCessao(
   const templateResolvido = await resolverTemplateVigente({
     supabase,
     fundoId,
-    tipoDocumento: 'contrato_mae',
+    tipoDocumento,
     codigo: templateCodigo,
   })
 
   const html = renderizarTemplateJuridico({
     templateResolvido,
-    tipoDocumento: 'contrato_mae',
+    tipoDocumento,
     nomeTemplateLocal: templateNome,
     dados,
   })

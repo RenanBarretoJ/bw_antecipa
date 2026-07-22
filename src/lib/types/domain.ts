@@ -89,8 +89,14 @@ export const POLICY_DOCUMENT_CODES = [
   'nf_xml',
   'nf_danfe_pdf',
   'nf_pedido_compra',
+  'contrato',
+  'comprovante_entrega',
   'cte',
   'canhoto',
+  'boleto',
+  'duplicata',
+  'comprovante_aceite',
+  'outro',
 ] as const
 export type PoliticaTipoDocumentoCodigo = (typeof POLICY_DOCUMENT_CODES)[number]
 
@@ -145,7 +151,7 @@ export type CteNivelValidacao = (typeof CTE_VALIDATION_LEVELS)[number]
 export const CANHOTO_STATUSES = ['pendente', 'enviado', 'em_analise', 'aprovado', 'rejeitado', 'substituido', 'cancelado'] as const
 export type CanhotoStatus = (typeof CANHOTO_STATUSES)[number]
 
-export const TEMPLATE_DOCUMENT_TYPES = ['contrato_mae', 'termo_cessao', 'notificacao_sacado', 'termo_quitacao'] as const
+export const TEMPLATE_DOCUMENT_TYPES = ['contrato_mae', 'contrato_mae_sem_coobrigacao', 'termo_cessao', 'notificacao_sacado', 'termo_quitacao'] as const
 export type TemplateDocumentType = (typeof TEMPLATE_DOCUMENT_TYPES)[number]
 
 export const TEMPLATE_DOCUMENT_STATUSES = ['rascunho', 'ativo', 'desativado'] as const

@@ -23,6 +23,10 @@ function result<T = unknown>(message: string, success = false, data?: T): Templa
   return { success, message, data }
 }
 
+function isUniqueViolation(error: unknown) {
+  return !!error && typeof error === 'object' && 'code' in error && (error as { code?: string }).code === '23505'
+}
+
 function assertTemplateType(value: string): TemplateTipoDocumento {
   if (!TEMPLATE_DOCUMENT_TYPES.includes(value as TemplateTipoDocumento)) throw new Error('Tipo de documento invalido.')
   return value as TemplateTipoDocumento
@@ -100,7 +104,11 @@ export async function criarTemplateDocumento(input: {
       .select('id')
       .single()
 
-    if (error || !data) return result(`Erro ao criar template: ${error?.message || 'registro nao retornado'}`)
+    if (error) {
+      if (isUniqueViolation(error)) return result('Este template jurídico já existe para o fundo selecionado.')
+      return result(`Erro ao criar template: ${error.message}`)
+    }
+    if (!data) return result('Erro ao criar template: registro nao retornado')
     await registrarLog({
       tipo_evento: 'TEMPLATE_JURIDICO_CRIADO',
       entidade_tipo: 'templates_documentos',
@@ -303,6 +311,7 @@ export async function importarTemplatesLocaisParaFundo(fundoId: string): Promise
 
     let criados = 0
     let ignorados = 0
+    let erros = 0
     for (const item of TEMPLATE_TIPOS) {
       const { data: existing, error: existingError } = await context.supabase
         .from('templates_documentos')
@@ -310,7 +319,10 @@ export async function importarTemplatesLocaisParaFundo(fundoId: string): Promise
         .eq('fundo_id', fundoId)
         .eq('codigo', item.codigo)
         .maybeSingle()
-      if (existingError) return result(`Erro ao verificar template ${item.codigo}: ${existingError.message}`)
+      if (existingError) {
+        erros += 1
+        continue
+      }
 
       let templateId = (existing as { id?: string } | null)?.id
       if (!templateId) {
@@ -327,7 +339,18 @@ export async function importarTemplatesLocaisParaFundo(fundoId: string): Promise
           })
           .select('id')
           .single()
-        if (error || !created) return result(`Erro ao criar template ${item.codigo}: ${error?.message || 'registro nao retornado'}`)
+        if (error) {
+          if (isUniqueViolation(error)) {
+            ignorados += 1
+            continue
+          }
+          erros += 1
+          continue
+        }
+        if (!created) {
+          erros += 1
+          continue
+        }
         templateId = (created as { id: string }).id
       } else if (((existing as { template_versoes?: unknown[] }).template_versoes || []).length > 0) {
         ignorados += 1
@@ -351,7 +374,14 @@ export async function importarTemplatesLocaisParaFundo(fundoId: string): Promise
           status: 'rascunho',
         } as never)
 
-      if (versionError) return result(`Erro ao importar versao do template ${item.codigo}: ${versionError.message}`)
+      if (versionError) {
+        if (isUniqueViolation(versionError)) {
+          ignorados += 1
+          continue
+        }
+        erros += 1
+        continue
+      }
       criados += 1
     }
 
@@ -361,7 +391,8 @@ export async function importarTemplatesLocaisParaFundo(fundoId: string): Promise
       entidade_id: fundoId,
       dados_depois: { criados, ignorados },
     })
-    return result(`${criados} templates importados. ${ignorados} ja existiam com versao.`, true, { criados, ignorados })
+    if (criados === 0 && erros === 0) return result('Os templates locais deste fundo ja foram importados.', true, { criados, ignorados })
+    return result(`${criados} templates importados. ${ignorados} templates ja existentes. ${erros} erros.`, erros === 0, { criados, ignorados })
   } catch (error) {
     return result(error instanceof Error ? error.message : 'Erro ao importar templates locais.')
   }

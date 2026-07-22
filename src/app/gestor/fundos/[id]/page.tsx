@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useParams, useSearchParams } from 'next/navigation'
-import { ArrowLeft, Banknote, FileCog, Plug, UploadCloud } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, Banknote, CheckCircle2, Circle, FileCog, Plug, RotateCcw, ShieldAlert, UploadCloud } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import {
   criarConfiguracaoCnab,
@@ -12,7 +12,6 @@ import {
   atualizarRascunhoIntegracaoFundo,
   ativarCredencialPortalFidc,
   cadastrarCredencialPortalFidc,
-  desativarIntegracaoFundo,
   gerarArquivoTesteConfiguracaoCnab,
   importarConfiguracaoCnabLegado,
   listarCredenciaisPortalFidc,
@@ -25,6 +24,7 @@ import type { Fundo } from '@/types/database'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { PageContainer } from '@/components/layout/page-container'
 import { PageHeader } from '@/components/layout/page-header'
 import { DetailField, DetailSection, EmptyState, FieldGrid, LoadingState, StatusBadge } from '@/components/data-display/primitives'
@@ -39,6 +39,7 @@ type ConfigRow = {
   nome: string
   descricao: string | null
   status: string
+  updated_at?: string | null
   configuracao_cnab_versoes?: VersionRow[]
 }
 
@@ -55,11 +56,16 @@ type VersionRow = {
   banco: string
   agencia: string
   conta: string
+  digito_conta: string
   carteira: string
   especie_titulo: string
+  tipo_inscricao: string
+  numero_inscricao: string
   tipo_recebivel: string
   conteudo_hash: string
   vigente_desde: string
+  vigente_ate?: string | null
+  publicada_em?: string | null
 }
 
 type IntegracaoRow = {
@@ -168,7 +174,24 @@ const defaultConfigForm = {
   descricao: '',
 }
 
-const defaultVersionForm = {
+type VersionForm = {
+  versaoLayout: string
+  codigoBanco: string
+  banco: string
+  agencia: string
+  conta: string
+  digitoConta: string
+  carteira: string
+  convenio: string
+  codigoOriginador: string
+  codigoEmpresa: string
+  tipoInscricao: string
+  numeroInscricao: string
+  especieTitulo: string
+  tipoRecebivel: string
+}
+
+const defaultVersionForm: VersionForm = {
   versaoLayout: LEGADO_PADRAO_UI.versaoLayout,
   codigoBanco: LEGADO_PADRAO_UI.codigoBanco,
   banco: LEGADO_PADRAO_UI.banco,
@@ -183,6 +206,23 @@ const defaultVersionForm = {
   numeroInscricao: LEGADO_PADRAO_UI.numeroInscricao,
   especieTitulo: LEGADO_PADRAO_UI.especieTitulo,
   tipoRecebivel: LEGADO_PADRAO_UI.tipoRecebivel,
+}
+
+const cnabVersionFieldLabels: Record<keyof typeof defaultVersionForm, string> = {
+  versaoLayout: 'Versão do layout',
+  codigoBanco: 'Código do banco',
+  banco: 'Banco',
+  agencia: 'Agência',
+  conta: 'Conta',
+  digitoConta: 'Dígito da conta',
+  carteira: 'Carteira',
+  convenio: 'Convênio',
+  codigoOriginador: 'Código originador',
+  codigoEmpresa: 'Código da empresa',
+  tipoInscricao: 'Tipo de inscrição',
+  numeroInscricao: 'Número de inscrição',
+  especieTitulo: 'Espécie do título',
+  tipoRecebivel: 'Tipo de recebível',
 }
 
 const defaultIntegracaoForm = {
@@ -225,6 +265,24 @@ const defaultCredencialForm: CredencialForm = {
 
 const tabs = ['dados', 'politica', 'templates', 'cnab', 'integracoes'] as const
 
+const portalFidcEndpointDefaults: Record<'homologacao' | 'producao', string> = {
+  homologacao: '',
+  producao: '',
+}
+
+function formatDateTime(value?: string | null) {
+  return value ? new Date(value).toLocaleString('pt-BR') : 'Não registrado'
+}
+
+function ambienteLabel(value: string) {
+  return value === 'producao' ? 'Produção' : 'Homologação'
+}
+
+function statusChecklist(ok: boolean) {
+  const Icon = ok ? CheckCircle2 : Circle
+  return <Icon size={16} className={ok ? 'text-success' : 'text-muted-foreground'} aria-hidden="true" />
+}
+
 export default function FundoDetalhePage() {
   const params = useParams<{ id: string }>()
   const searchParams = useSearchParams()
@@ -243,9 +301,18 @@ export default function FundoDetalhePage() {
   const [messageType, setMessageType] = useState<'success' | 'error'>('success')
   const [configForm, setConfigForm] = useState(defaultConfigForm)
   const [versionForm, setVersionForm] = useState(defaultVersionForm)
+  const [cnabLayoutForm, setCnabLayoutForm] = useState<'cnab444'>('cnab444')
+  const [configCnabModalOpen, setConfigCnabModalOpen] = useState(false)
+  const [versaoCnabModalOpen, setVersaoCnabModalOpen] = useState(false)
+  const [detalheTecnicoCnab, setDetalheTecnicoCnab] = useState<VersionRow | null>(null)
+  const [arquivadasVisiveis, setArquivadasVisiveis] = useState(false)
+  const [arquivosTesteGerados, setArquivosTesteGerados] = useState<Set<string>>(new Set())
   const [integracaoForm, setIntegracaoForm] = useState<IntegracaoForm>(defaultIntegracaoForm)
   const [credencialForm, setCredencialForm] = useState(defaultCredencialForm)
   const [motivoRevogacao, setMotivoRevogacao] = useState('')
+  const [credencialRevogacao, setCredencialRevogacao] = useState<CredencialPortalFidcRow | null>(null)
+  const [credencialRotacaoId, setCredencialRotacaoId] = useState('')
+  const [historicoIntegracaoTab, setHistoricoIntegracaoTab] = useState<'versoes' | 'execucoes'>('versoes')
   const [isPending, startTransition] = useTransition()
 
   const loadData = useCallback(async () => {
@@ -276,6 +343,34 @@ export default function FundoDetalhePage() {
   useEffect(() => { loadData() }, [loadData])
 
   const selectedConfig = useMemo(() => configs.find((config) => config.id === selectedConfigId) || configs[0] || null, [configs, selectedConfigId])
+  const versoesCnab = useMemo(() => configs.flatMap((config) => config.configuracao_cnab_versoes || []), [configs])
+  const versaoCnabPublicada = useMemo(() => versoesCnab.find((version) => version.status === 'publicada') || null, [versoesCnab])
+  const configuracaoCnabVigente = useMemo(
+    () => configs.find((config) => config.status === 'ativa' && (config.configuracao_cnab_versoes || []).some((version) => version.status === 'publicada')) || configs.find((config) => config.status !== 'desativada') || null,
+    [configs],
+  )
+  const versaoCnabVigente = useMemo(
+    () => (configuracaoCnabVigente?.configuracao_cnab_versoes || []).find((version) => version.status === 'publicada') || null,
+    [configuracaoCnabVigente],
+  )
+  const versoesCnabVigentes = useMemo(() => configuracaoCnabVigente?.configuracao_cnab_versoes || [], [configuracaoCnabVigente])
+  const configuracoesCnabArquivadas = useMemo(() => configs.filter((config) => config.status === 'desativada'), [configs])
+  const legadoImportado = useMemo(() => configs.some((config) => config.codigo === defaultConfigForm.codigo), [configs])
+  const cnabDadosBancariosCompletos = !!(versaoCnabVigente?.codigo_banco && versaoCnabVigente.banco && versaoCnabVigente.agencia && versaoCnabVigente.conta && versaoCnabVigente.carteira)
+  const versoesPortalFidc = useMemo(() => integracoes.flatMap((integracao) => integracao.integracao_fundo_versoes || []), [integracoes])
+  const versaoPortalFidcPublicada = useMemo(() => versoesPortalFidc.find((version) => version.status === 'publicada') || null, [versoesPortalFidc])
+  const versaoPortalFidcAtual = useMemo(() => versaoPortalFidcPublicada || versoesPortalFidc[0] || null, [versaoPortalFidcPublicada, versoesPortalFidc])
+  const credencialRotacao = useMemo(() => credenciaisPortalFidc.find((credencial) => credencial.id === credencialRotacaoId) || null, [credenciaisPortalFidc, credencialRotacaoId])
+  const credencialRevogacaoEmUso = useMemo(
+    () => !!credencialRevogacao && versoesPortalFidc.some((version) => version.status === 'publicada' && version.credencial_integracao_id === credencialRevogacao.id),
+    [credencialRevogacao, versoesPortalFidc],
+  )
+  const credenciaisAtivasAmbiente = useMemo(
+    () => credenciaisPortalFidc.filter((credencial) => credencial.status === 'ativa' && credencial.ambiente === integracaoForm.ambiente),
+    [credenciaisPortalFidc, integracaoForm.ambiente],
+  )
+  const codigoOriginadorCnab = versaoCnabPublicada?.codigo_originador || ''
+  const codigoOriginadorDivergente = !!(codigoOriginadorCnab && versaoPortalFidcAtual?.codigo_originador && versaoPortalFidcAtual.codigo_originador !== codigoOriginadorCnab)
   const integracaoMetrics = useMemo(() => {
     const totalFinalizadas = execucoesIntegracao.filter((execucao) => execucao.status !== 'iniciada')
     const totalSucesso = totalFinalizadas.filter((execucao) => execucao.status === 'sucesso').length
@@ -284,10 +379,27 @@ export default function FundoDetalhePage() {
     return {
       ultimoTeste: execucoesIntegracao.find((execucao) => execucao.tipo_execucao === 'teste_conexao') || null,
       ultimoEnvio: execucoesIntegracao.find((execucao) => execucao.tipo_execucao === 'envio_remessa') || null,
+      ultimoErro: execucoesIntegracao.find((execucao) => ['erro', 'timeout'].includes(execucao.status)) || null,
       errosRecentes: execucoesIntegracao.filter((execucao) => ['erro', 'timeout'].includes(execucao.status)).length,
       taxaSucesso,
     }
   }, [execucoesIntegracao])
+
+  useEffect(() => {
+    if (activeTab !== 'integracoes') return
+    // Sincroniza o formulário operacional com a versão publicada/rascunho carregada.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIntegracaoForm((prev) => ({
+      ...prev,
+      codigoOriginador: codigoOriginadorCnab || prev.codigoOriginador,
+      identificadorCliente: prev.identificadorCliente || versaoPortalFidcAtual?.identificador_cliente || fundo?.cnpj?.replace(/\D/g, '') || '',
+      endpointBase: prev.endpointBase || versaoPortalFidcAtual?.endpoint_base || portalFidcEndpointDefaults[prev.ambiente],
+      credentialRef: prev.credentialRef || versaoPortalFidcAtual?.credential_ref || `portal_fidc_${fundoId}_${prev.ambiente}`,
+      credencialIntegracaoId: prev.credencialIntegracaoId || versaoPortalFidcAtual?.credencial_integracao_id || '',
+      secretName: prev.secretName || versaoPortalFidcAtual?.secret_name || '',
+      vaultKey: prev.vaultKey || versaoPortalFidcAtual?.vault_key || '',
+    }))
+  }, [activeTab, codigoOriginadorCnab, fundo?.cnpj, fundoId, versaoPortalFidcAtual])
 
   function notify(result: { success: boolean; message: string }) {
     setMessage(result.message)
@@ -307,6 +419,7 @@ export default function FundoDetalhePage() {
       const result = await gerarArquivoTesteConfiguracaoCnab(fundoId, versaoId)
       notify(result)
       if (result.success && result.data) {
+        setArquivosTesteGerados((prev) => new Set(prev).add(versaoId))
         const { nomeArquivo, conteudo } = result.data
         const blob = new Blob([conteudo], { type: 'text/plain;charset=utf-8' })
         const url = URL.createObjectURL(blob)
@@ -316,6 +429,58 @@ export default function FundoDetalhePage() {
         a.click()
         URL.revokeObjectURL(url)
       }
+    })
+  }
+
+  function preencherFormularioVersaoCnab(version?: VersionRow | null) {
+    setCnabLayoutForm('cnab444')
+    setVersionForm(version ? {
+      versaoLayout: version.versao_layout,
+      codigoBanco: version.codigo_banco,
+      banco: version.banco,
+      agencia: version.agencia,
+      conta: version.conta,
+      digitoConta: version.digito_conta || defaultVersionForm.digitoConta,
+      carteira: version.carteira,
+      convenio: version.convenio,
+      codigoOriginador: version.codigo_originador,
+      codigoEmpresa: version.codigo_empresa,
+      tipoInscricao: version.tipo_inscricao || defaultVersionForm.tipoInscricao,
+      numeroInscricao: version.numero_inscricao || defaultVersionForm.numeroInscricao,
+      especieTitulo: version.especie_titulo,
+      tipoRecebivel: version.tipo_recebivel,
+    } : defaultVersionForm)
+  }
+
+  function abrirNovaVersaoCnab(version?: VersionRow | null) {
+    const config = configs.find((item) => (item.configuracao_cnab_versoes || []).some((candidate) => candidate.id === version?.id)) || configuracaoCnabVigente || selectedConfig
+    if (config) setSelectedConfigId(config.id)
+    preencherFormularioVersaoCnab(version || versaoCnabVigente)
+    setVersaoCnabModalOpen(true)
+  }
+
+  function criarConfiguracaoCnabOperacional() {
+    runAction(async () => {
+      const action = await criarConfiguracaoCnab({ fundoId, ...configForm })
+      if (action.success) {
+        const data = action.data as { id?: string } | undefined
+        if (data?.id) setSelectedConfigId(data.id)
+        setConfigForm(defaultConfigForm)
+        setConfigCnabModalOpen(false)
+        preencherFormularioVersaoCnab(null)
+        setVersaoCnabModalOpen(true)
+      }
+      return action
+    })
+  }
+
+  function criarVersaoCnabOperacional() {
+    const config = configs.find((item) => item.id === selectedConfigId) || configuracaoCnabVigente || selectedConfig
+    if (!config) return
+    runAction(async () => {
+      const action = await criarVersaoConfiguracaoCnab(fundoId, config.id, { layout: cnabLayoutForm, configuracao: LEGADO_PADRAO_UI.configuracao, ...versionForm })
+      if (action.success) setVersaoCnabModalOpen(false)
+      return action
     })
   }
 
@@ -336,7 +501,17 @@ export default function FundoDetalhePage() {
 
   function salvarIntegracaoPortalFidc() {
     runAction(async () => {
-      const payload = { ...integracaoForm, provedor: 'fromtis' as const, credencialIntegracaoId: integracaoForm.credencialIntegracaoId || null, configuracaoNaoSensivel: {} }
+      const payload = {
+        ...integracaoForm,
+        provedor: 'fromtis' as const,
+        identificadorCliente: integracaoForm.identificadorCliente || versaoPortalFidcAtual?.identificador_cliente || fundo?.cnpj?.replace(/\D/g, '') || fundoId,
+        codigoOriginador: codigoOriginadorCnab || integracaoForm.codigoOriginador,
+        credentialRef: integracaoForm.credentialRef || versaoPortalFidcAtual?.credential_ref || `portal_fidc_${fundoId}_${integracaoForm.ambiente}`,
+        credencialIntegracaoId: integracaoForm.credencialIntegracaoId || null,
+        secretName: integracaoForm.secretName || versaoPortalFidcAtual?.secret_name || '',
+        vaultKey: integracaoForm.vaultKey || versaoPortalFidcAtual?.vault_key || '',
+        configuracaoNaoSensivel: {},
+      }
       const action = editingIntegracaoVersaoId
         ? await atualizarRascunhoIntegracaoFundo(fundoId, editingIntegracaoVersaoId, payload)
         : await criarOuAtualizarIntegracaoFundo(fundoId, payload)
@@ -348,10 +523,13 @@ export default function FundoDetalhePage() {
     })
   }
 
-  function cadastrarCredencial() {
+  function cadastrarCredencial(options?: { fecharRotacao?: boolean }) {
     runAction(async () => {
       const action = await cadastrarCredencialPortalFidc(fundoId, credencialForm)
-      if (action.success) setCredencialForm(defaultCredencialForm)
+      if (action.success) {
+        setCredencialForm(defaultCredencialForm)
+        if (options?.fecharRotacao) setCredencialRotacaoId('')
+      }
       return action
     })
   }
@@ -363,8 +541,43 @@ export default function FundoDetalhePage() {
   function revogarCredencial(credencialId: string) {
     runAction(async () => {
       const action = await revogarCredencialPortalFidc(fundoId, credencialId, motivoRevogacao)
-      if (action.success) setMotivoRevogacao('')
+      if (action.success) {
+        setMotivoRevogacao('')
+        setCredencialRevogacao(null)
+      }
       return action
+    })
+  }
+
+  function abrirRevogacaoCredencial(credencial: CredencialPortalFidcRow) {
+    setCredencialRevogacao(credencial)
+    setMotivoRevogacao('')
+  }
+
+  function fecharRevogacaoCredencial() {
+    setCredencialRevogacao(null)
+    setMotivoRevogacao('')
+  }
+
+  function alterarAmbienteIntegracao(ambiente: 'homologacao' | 'producao') {
+    const versaoMesmoAmbiente = versoesPortalFidc.find((version) => version.ambiente === ambiente)
+    const credencialAtiva = credenciaisPortalFidc.find((credencial) => credencial.status === 'ativa' && credencial.ambiente === ambiente)
+    setIntegracaoForm((prev) => ({
+      ...prev,
+      ambiente,
+      endpointBase: versaoMesmoAmbiente?.endpoint_base || portalFidcEndpointDefaults[ambiente],
+      credencialIntegracaoId: credencialAtiva?.id || '',
+      credentialRef: versaoMesmoAmbiente?.credential_ref || `portal_fidc_${fundoId}_${ambiente}`,
+    }))
+  }
+
+  function prepararRotacaoCredencial(credencial: CredencialPortalFidcRow) {
+    setCredencialRotacaoId(credencial.id)
+    setCredencialForm({
+      ambiente: credencial.ambiente,
+      nome: `${credencial.nome} - rotação`,
+      usuario: '',
+      senha: '',
     })
   }
 
@@ -418,94 +631,303 @@ export default function FundoDetalhePage() {
 
       {activeTab === 'cnab' && (
         <div className="space-y-5">
-          <DetailSection title="CNAB do fundo" icon={FileCog} action={<Button type="button" onClick={() => runAction(() => importarConfiguracaoCnabLegado(fundoId))} disabled={isPending}><UploadCloud className="mr-2 size-4" /> Importar legado</Button>}>
-            {configs.length === 0 ? (
-              <EmptyState title="Nenhuma configuração CNAB" description="Crie uma configuração no contexto deste fundo ou importe a configuração legado." icon={FileCog} />
-            ) : (
-              <div className="space-y-4">
-                {configs.map((config) => (
-                  <article key={config.id} className="rounded-xl border border-border bg-background p-4">
-                    <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                      <div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="font-semibold">{config.nome}</h3>
-                          <StatusBadge status={config.status} />
-                          <span className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">{config.codigo}</span>
-                        </div>
-                        {config.descricao && <p className="mt-2 text-sm text-muted-foreground">{config.descricao}</p>}
-                      </div>
-                      <Button type="button" size="sm" variant="outline" onClick={() => setSelectedConfigId(config.id)}>Nova versão</Button>
-                    </div>
-                    <div className="mt-4 space-y-2">
-                      {(config.configuracao_cnab_versoes || []).map((version) => (
-                        <div key={version.id} className="rounded-lg border border-border bg-card p-3 text-sm">
-                          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                            <div className="space-y-1">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <span className="font-medium">v{version.versao} · {version.layout} {version.versao_layout}</span>
-                                <StatusBadge status={version.status} />
-                              </div>
-                              <p className="text-xs text-muted-foreground">Originador {version.codigo_originador} · Empresa {version.codigo_empresa} · Convênio {version.convenio}</p>
-                              <p className="text-xs text-muted-foreground">Banco {version.codigo_banco} · Agência {version.agencia} · Conta {version.conta} · Carteira {version.carteira} · Espécie {version.especie_titulo}</p>
-                              <p className="text-xs text-muted-foreground">Hash {version.conteudo_hash.slice(0, 16)}...</p>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                              <Button type="button" size="sm" variant="outline" onClick={() => downloadArquivoTeste(version.id)}>Arquivo de teste</Button>
-                              {version.status !== 'publicada' && <Button type="button" size="sm" onClick={() => runAction(() => publicarVersaoConfiguracaoCnab(fundoId, version.id))}>Publicar</Button>}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </article>
+          <DetailSection
+            title="Status CNAB 444"
+            icon={FileCog}
+            action={
+              <div className="flex flex-wrap gap-2">
+                {!legadoImportado && (
+                  <Button type="button" variant="outline" onClick={() => runAction(() => importarConfiguracaoCnabLegado(fundoId))} disabled={isPending}>
+                    <UploadCloud className="mr-2 size-4" /> Importar configuração atual
+                  </Button>
+                )}
+                <Button type="button" variant="outline" onClick={() => setConfigCnabModalOpen(true)} disabled={isPending}>
+                  Nova configuração
+                </Button>
+                <Button type="button" onClick={() => abrirNovaVersaoCnab()} disabled={isPending || !configuracaoCnabVigente}>
+                  Nova versão
+                </Button>
+              </div>
+            }
+          >
+            <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+              <div className="space-y-3">
+                {[
+                  { label: 'Configuração publicada', ok: !!versaoCnabVigente },
+                  { label: 'Código originador informado', ok: !!versaoCnabVigente?.codigo_originador },
+                  { label: 'Dados bancários completos', ok: cnabDadosBancariosCompletos },
+                  { label: 'Arquivo de teste gerado nesta sessão', ok: !!versaoCnabVigente && arquivosTesteGerados.has(versaoCnabVigente.id) },
+                ].map((item) => (
+                  <div key={item.label} className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm">
+                    {statusChecklist(item.ok)}
+                    <span className={item.ok ? 'font-medium text-foreground' : 'text-muted-foreground'}>{item.label}</span>
+                  </div>
                 ))}
+              </div>
+              <div className="rounded-xl border border-border bg-background p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Pronto para operação</p>
+                <p className="mt-2 text-2xl font-semibold">{versaoCnabVigente && cnabDadosBancariosCompletos ? 'Sim' : 'Não'}</p>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {versaoCnabVigente
+                    ? `Versão vigente: ${versaoCnabVigente.versao}. Alterações exigem nova versão publicada.`
+                    : 'Publique uma versão CNAB para liberar geração operacional.'}
+                </p>
+              </div>
+            </div>
+          </DetailSection>
+
+          <DetailSection title="Configuração vigente" icon={Banknote}>
+            {!configuracaoCnabVigente ? (
+              <EmptyState title="CNAB ainda não configurado" description="Importe a configuração atual ou crie uma nova configuração para este fundo." icon={FileCog} />
+            ) : (
+              <div className="space-y-5">
+                <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-lg font-semibold">{configuracaoCnabVigente.nome}</h3>
+                      <StatusBadge status={configuracaoCnabVigente.status} />
+                    </div>
+                    {configuracaoCnabVigente.descricao && <p className="mt-1 text-sm text-muted-foreground">{configuracaoCnabVigente.descricao}</p>}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {versaoCnabVigente && (
+                      <Button type="button" size="sm" variant="outline" onClick={() => downloadArquivoTeste(versaoCnabVigente.id)} disabled={isPending}>
+                        Arquivo de teste
+                      </Button>
+                    )}
+                    <Button type="button" size="sm" onClick={() => abrirNovaVersaoCnab(versaoCnabVigente)} disabled={isPending}>
+                      Nova versão a partir da vigente
+                    </Button>
+                  </div>
+                </div>
+
+                {versaoCnabVigente ? (
+                  <div className="grid gap-4 rounded-xl border border-border bg-background p-4 md:grid-cols-3">
+                    <DetailField label="Layout" value={`CNAB 444 · ${versaoCnabVigente.versao_layout}`} />
+                    <DetailField label="Código originador" value={versaoCnabVigente.codigo_originador} />
+                    <DetailField label="Banco" value={`${versaoCnabVigente.codigo_banco} · ${versaoCnabVigente.banco}`} />
+                    <DetailField label="Agência" value={versaoCnabVigente.agencia} />
+                    <DetailField label="Conta" value={`${versaoCnabVigente.conta}${versaoCnabVigente.digito_conta ? `-${versaoCnabVigente.digito_conta}` : ''}`} />
+                    <DetailField label="Carteira" value={versaoCnabVigente.carteira} />
+                    <DetailField label="Convênio" value={versaoCnabVigente.convenio} />
+                    <DetailField label="Código da empresa" value={versaoCnabVigente.codigo_empresa} />
+                    <DetailField label="Espécie" value={versaoCnabVigente.especie_titulo} />
+                  </div>
+                ) : (
+                  <EmptyState title="Nenhuma versão publicada" description="Crie uma versão e publique para tornar esta configuração operacional." icon={FileCog} />
+                )}
               </div>
             )}
           </DetailSection>
 
-          <div className="grid gap-5 xl:grid-cols-2">
-            <DetailSection title="Criar configuração CNAB" icon={FileCog}>
-              <div className="space-y-3">
-                <div><Label>Código</Label><Input value={configForm.codigo} onChange={(e) => setConfigForm((p) => ({ ...p, codigo: e.target.value }))} /></div>
-                <div><Label>Nome</Label><Input value={configForm.nome} onChange={(e) => setConfigForm((p) => ({ ...p, nome: e.target.value }))} /></div>
-                <div><Label>Descrição</Label><Input value={configForm.descricao} onChange={(e) => setConfigForm((p) => ({ ...p, descricao: e.target.value }))} /></div>
-                <Button type="button" onClick={() => runAction(async () => {
-                  const action = await criarConfiguracaoCnab({ fundoId, ...configForm })
-                  if (action.success) setConfigForm(defaultConfigForm)
-                  return action
-                })} disabled={isPending} className="w-full">Criar configuração</Button>
+          <DetailSection title="Histórico de versões" icon={FileCog}>
+            {versoesCnabVigentes.length === 0 ? (
+              <EmptyState title="Nenhuma versão registrada" description="As versões da configuração vigente aparecerão aqui." icon={FileCog} />
+            ) : (
+              <div className="overflow-hidden rounded-xl border border-border">
+                <div className="grid grid-cols-[90px_minmax(140px,1fr)_120px_150px_180px] gap-3 border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                  <span>Versão</span>
+                  <span>Layout</span>
+                  <span>Status</span>
+                  <span>Publicação</span>
+                  <span className="text-right">Ações</span>
+                </div>
+                <div className="divide-y divide-border">
+                  {versoesCnabVigentes.map((version) => (
+                    <div key={version.id} className="grid grid-cols-[90px_minmax(140px,1fr)_120px_150px_180px] items-center gap-3 px-4 py-3 text-sm">
+                      <span className="font-medium">v{version.versao}</span>
+                      <span className="text-muted-foreground">CNAB 444 · {version.versao_layout}</span>
+                      <StatusBadge status={version.status} />
+                      <span className="text-xs text-muted-foreground">{formatDateTime(version.publicada_em)}</span>
+                      <div className="flex justify-end gap-2">
+                        <Button type="button" size="sm" variant="outline" onClick={() => setDetalheTecnicoCnab(version)}>Detalhes</Button>
+                        <Button type="button" size="sm" variant="outline" onClick={() => downloadArquivoTeste(version.id)} disabled={isPending}>Teste</Button>
+                        {version.status === 'rascunho' && (
+                          <Button type="button" size="sm" onClick={() => runAction(() => publicarVersaoConfiguracaoCnab(fundoId, version.id))} disabled={isPending}>
+                            Publicar
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </DetailSection>
+            )}
+          </DetailSection>
 
-            <DetailSection title="Nova versão CNAB444" icon={FileCog}>
+          <DetailSection
+            title="Configurações arquivadas"
+            icon={ShieldAlert}
+            action={
+              <Button type="button" size="sm" variant="outline" onClick={() => setArquivadasVisiveis((value) => !value)}>
+                {arquivadasVisiveis ? 'Ocultar' : 'Mostrar'} arquivadas
+              </Button>
+            }
+          >
+            {!arquivadasVisiveis ? (
+              <p className="text-sm text-muted-foreground">Configurações antigas ficam separadas para evitar edição acidental da configuração operacional.</p>
+            ) : configuracoesCnabArquivadas.length === 0 ? (
+              <EmptyState title="Nenhuma configuração arquivada" description="Configurações desativadas aparecerão aqui." icon={ShieldAlert} />
+            ) : (
               <div className="space-y-3">
+                {configuracoesCnabArquivadas.map((config) => {
+                  const ultimaVersao = config.configuracao_cnab_versoes?.[0]
+                  return (
+                    <article key={config.id} className="rounded-xl border border-border bg-background p-4">
+                      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h3 className="font-semibold">{config.nome}</h3>
+                            <StatusBadge status={config.status} />
+                          </div>
+                          <p className="mt-1 text-sm text-muted-foreground">{config.descricao || 'Configuração arquivada sem descrição.'}</p>
+                        </div>
+                        {ultimaVersao && (
+                          <Button type="button" size="sm" variant="outline" onClick={() => setDetalheTecnicoCnab(ultimaVersao)}>
+                            Ver detalhes
+                          </Button>
+                        )}
+                      </div>
+                    </article>
+                  )
+                })}
+              </div>
+            )}
+          </DetailSection>
+
+          <Dialog open={configCnabModalOpen} onOpenChange={setConfigCnabModalOpen}>
+            <DialogContent className="sm:max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Nova configuração CNAB</DialogTitle>
+                <DialogDescription>Crie a configuração dentro deste fundo. A versão operacional será preenchida no próximo passo.</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-3">
+                <div><Label>Código interno</Label><Input value={configForm.codigo} onChange={(e) => setConfigForm((p) => ({ ...p, codigo: e.target.value }))} /></div>
+                <div><Label>Nome da configuração</Label><Input value={configForm.nome} onChange={(e) => setConfigForm((p) => ({ ...p, nome: e.target.value }))} /></div>
+                <div><Label>Descrição</Label><Input value={configForm.descricao} onChange={(e) => setConfigForm((p) => ({ ...p, descricao: e.target.value }))} /></div>
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setConfigCnabModalOpen(false)}>Cancelar</Button>
+                <Button type="button" onClick={criarConfiguracaoCnabOperacional} disabled={isPending}>Criar e preencher versão</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={versaoCnabModalOpen} onOpenChange={setVersaoCnabModalOpen}>
+            <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
+              <DialogHeader>
+                <DialogTitle>Nova versão CNAB 444</DialogTitle>
+                <DialogDescription>Versões publicadas preservam o histórico das remessas antigas. Zeros à esquerda são mantidos como texto.</DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 md:grid-cols-2">
                 <div>
-                  <Label>Configuração</Label>
-                  <select value={selectedConfig?.id || ''} onChange={(event) => setSelectedConfigId(event.target.value)} className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground">
-                    {configs.map((config) => <option key={config.id} value={config.id}>{config.nome}</option>)}
+                  <Label>Configuração do fundo</Label>
+                  <select value={selectedConfigId} onChange={(event) => setSelectedConfigId(event.target.value)} className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground">
+                    {configs.filter((config) => config.status !== 'desativada').map((config) => <option key={config.id} value={config.id}>{config.nome}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <Label>Layout</Label>
+                  <select value={cnabLayoutForm} onChange={() => setCnabLayoutForm('cnab444')} className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground">
+                    <option value="cnab444">CNAB 444</option>
                   </select>
                 </div>
                 {Object.entries(versionForm).map(([field, value]) => (
                   <div key={field}>
-                    <Label>{field === 'codigoOriginador' ? 'Código originador' : field}</Label>
+                    <Label>{cnabVersionFieldLabels[field as keyof typeof defaultVersionForm]}</Label>
                     <Input value={value} onChange={(e) => setVersionForm((p) => ({ ...p, [field]: e.target.value }))} />
-                    {field === 'codigoOriginador' && <p className="mt-1 text-xs text-muted-foreground">Específico por fundo. Zeros à esquerda serão preservados. Alteração exige nova versão publicada e não altera remessas antigas.</p>}
+                    {field === 'codigoOriginador' && (
+                      <p className="mt-1 text-xs text-muted-foreground">Específico por fundo. Não converta para número: zeros à esquerda serão preservados.</p>
+                    )}
                   </div>
                 ))}
-                <Button type="button" onClick={() => selectedConfig && runAction(() => criarVersaoConfiguracaoCnab(fundoId, selectedConfig.id, { layout: 'cnab444', configuracao: LEGADO_PADRAO_UI.configuracao, ...versionForm }))} disabled={isPending || !selectedConfig} className="w-full">Criar versão</Button>
               </div>
-            </DetailSection>
-          </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setVersaoCnabModalOpen(false)}>Cancelar</Button>
+                <Button type="button" onClick={criarVersaoCnabOperacional} disabled={isPending || !selectedConfigId}>Salvar rascunho</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={!!detalheTecnicoCnab} onOpenChange={(open) => { if (!open) setDetalheTecnicoCnab(null) }}>
+            <DialogContent className="sm:max-w-xl">
+              <DialogHeader>
+                <DialogTitle>Detalhes técnicos da versão</DialogTitle>
+                <DialogDescription>Informações de auditoria da versão CNAB selecionada.</DialogDescription>
+              </DialogHeader>
+              {detalheTecnicoCnab && (
+                <div className="grid gap-3 text-sm">
+                  <DetailField label="Versão" value={`v${detalheTecnicoCnab.versao}`} />
+                  <DetailField label="Status" value={detalheTecnicoCnab.status} />
+                  <DetailField label="Vigência" value={`${formatDateTime(detalheTecnicoCnab.vigente_desde)}${detalheTecnicoCnab.vigente_ate ? ` até ${formatDateTime(detalheTecnicoCnab.vigente_ate)}` : ''}`} />
+                  <DetailField label="Hash de conteúdo" value={detalheTecnicoCnab.conteudo_hash} />
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
         </div>
       )}
 
       {activeTab === 'integracoes' && (
         <div className="space-y-5">
-          <DetailSection title="Credenciais do Portal FIDC" icon={Plug}>
+          <DetailSection
+            title="Portal FIDC — Sinqia"
+            icon={Plug}
+            action={
+              <div className="flex flex-wrap gap-2">
+                {versaoPortalFidcAtual && (
+                  <Button type="button" size="sm" variant="outline" disabled={isPending} onClick={() => runAction(() => testarConexaoIntegracaoFundo(fundoId, versaoPortalFidcAtual.id))}>
+                    Testar conexão
+                  </Button>
+                )}
+                {versaoPortalFidcAtual && versaoPortalFidcAtual.status !== 'publicada' && versaoPortalFidcAtual.status !== 'desativada' && (
+                  <Button type="button" size="sm" disabled={isPending} onClick={() => runAction(() => publicarVersaoIntegracaoFundo(fundoId, versaoPortalFidcAtual.id))}>
+                    Publicar integração
+                  </Button>
+                )}
+              </div>
+            }
+          >
+            <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+              <div className="space-y-4">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {[
+                    { label: 'Credencial cadastrada', ok: credenciaisAtivasAmbiente.length > 0 },
+                    { label: 'Configuração CNAB publicada', ok: !!versaoCnabPublicada },
+                    { label: 'Código originador válido', ok: !!codigoOriginadorCnab && !codigoOriginadorDivergente },
+                    { label: 'Teste de conexão validado', ok: integracaoMetrics.ultimoTeste?.status === 'sucesso' },
+                    { label: 'Integração publicada', ok: !!versaoPortalFidcPublicada },
+                  ].map((item) => (
+                    <div key={item.label} className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm">
+                      {statusChecklist(item.ok)}
+                      <span className={item.ok ? 'font-medium text-foreground' : 'text-muted-foreground'}>{item.label}</span>
+                    </div>
+                  ))}
+                </div>
+                {codigoOriginadorDivergente && (
+                  <div className="flex gap-3 rounded-xl border border-warning/40 bg-warning/10 p-4 text-sm text-warning-foreground">
+                    <AlertTriangle size={18} className="mt-0.5 shrink-0" aria-hidden="true" />
+                    <div>
+                      <p className="font-semibold">Código originador divergente</p>
+                      <p className="mt-1 text-muted-foreground">CNAB publicado: {codigoOriginadorCnab}. Portal FIDC atual: {versaoPortalFidcAtual?.codigo_originador || 'não informado'}. Salvar uma nova configuração usará automaticamente o código da versão CNAB publicada.</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <dl className="grid gap-3 rounded-xl border border-border bg-background p-4 text-sm">
+                <DetailField label="Último teste" value={integracaoMetrics.ultimoTeste ? `${formatDateTime(integracaoMetrics.ultimoTeste.iniciada_em)} · ${integracaoMetrics.ultimoTeste.status}` : 'Pendente'} />
+                <DetailField label="Último envio" value={integracaoMetrics.ultimoEnvio ? `${formatDateTime(integracaoMetrics.ultimoEnvio.iniciada_em)} · ${integracaoMetrics.ultimoEnvio.status}` : 'Sem envio'} />
+                <DetailField label="Taxa de sucesso" value={integracaoMetrics.taxaSucesso === null ? 'Sem dados' : `${integracaoMetrics.taxaSucesso}%`} />
+                <DetailField label="Último erro" value={integracaoMetrics.ultimoErro?.mensagem_resumida || integracaoMetrics.ultimoErro?.erro_categoria || 'Sem erro recente'} />
+              </dl>
+            </div>
+          </DetailSection>
+
+          <DetailSection title="Credenciais" icon={Plug}>
             <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(320px,420px)]">
               <div className="space-y-3">
                 {credenciaisPortalFidc.length === 0 ? (
-                  <EmptyState title="Nenhuma credencial cadastrada" description="Cadastre usuario e senha do Portal FIDC sem novo deploy. Os valores serao criptografados server-side." icon={Plug} />
+                  <EmptyState title="Nenhuma credencial cadastrada" description="Cadastre as credenciais do Portal FIDC para este fundo." icon={Plug} />
                 ) : (
                   credenciaisPortalFidc.map((credencial) => (
                     <article key={credencial.id} className="rounded-xl border border-border bg-background p-4 text-sm">
@@ -514,175 +936,229 @@ export default function FundoDetalhePage() {
                           <div className="flex flex-wrap items-center gap-2">
                             <h3 className="font-semibold">{credencial.nome}</h3>
                             <StatusBadge status={credencial.status} />
-                            <span className="rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground">{credencial.ambiente}</span>
+                            <span className="rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground">{ambienteLabel(credencial.ambiente)}</span>
                           </div>
-                          <p className="text-xs text-muted-foreground">Criada em {new Date(credencial.criada_em).toLocaleString('pt-BR')} por {credencial.criador?.nome_completo || credencial.criador?.email || 'usuario nao informado'}</p>
-                          <p className="text-xs text-muted-foreground">Chave {credencial.chave_versao} · Ativada {credencial.ativada_em ? new Date(credencial.ativada_em).toLocaleString('pt-BR') : 'nao'} · Ultimo uso {credencial.ultimo_uso_em ? new Date(credencial.ultimo_uso_em).toLocaleString('pt-BR') : 'sem uso'}</p>
-                          {credencial.revogada_em && <p className="text-xs text-destructive">Revogada em {new Date(credencial.revogada_em).toLocaleString('pt-BR')}</p>}
+                          <p className="text-xs text-muted-foreground">Criada em {formatDateTime(credencial.criada_em)}{credencial.criador ? ` por ${credencial.criador.nome_completo || credencial.criador.email}` : ''}</p>
+                          <p className="text-xs text-muted-foreground">Último uso: {formatDateTime(credencial.ultimo_uso_em)}</p>
+                          {credencial.revogada_em && <p className="text-xs text-destructive">Revogada em {formatDateTime(credencial.revogada_em)}</p>}
                         </div>
                         <div className="flex flex-wrap gap-2">
+                          <Button type="button" size="sm" variant="outline" onClick={() => prepararRotacaoCredencial(credencial)} disabled={isPending}>
+                            <RotateCcw className="mr-1.5 size-3.5" /> Rotacionar
+                          </Button>
                           {credencial.status !== 'ativa' && credencial.status !== 'revogada' && (
                             <Button type="button" size="sm" onClick={() => ativarCredencial(credencial.id)} disabled={isPending}>Ativar</Button>
                           )}
                           {credencial.status !== 'revogada' && (
-                            <Button type="button" size="sm" variant="outline" onClick={() => revogarCredencial(credencial.id)} disabled={isPending || motivoRevogacao.trim().length < 10}>Revogar</Button>
+                            <Button type="button" size="sm" variant="outline" onClick={() => abrirRevogacaoCredencial(credencial)} disabled={isPending}>Revogar</Button>
                           )}
                         </div>
                       </div>
+                      {credencialRevogacao?.id === credencial.id && (
+                        <div className="mt-3 flex flex-col gap-2 rounded-lg border border-destructive/25 bg-destructive/5 p-3 text-xs text-destructive sm:flex-row sm:items-center sm:justify-between">
+                          <span>Revogação selecionada. Confirme o motivo no modal para concluir.</span>
+                          <Button type="button" size="xs" variant="destructive" onClick={() => abrirRevogacaoCredencial(credencial)}>Abrir confirmação</Button>
+                        </div>
+                      )}
                     </article>
                   ))
                 )}
               </div>
               <div className="rounded-xl border border-border bg-background p-4">
                 <h3 className="font-semibold">Cadastrar nova credencial</h3>
-                <p className="mt-1 text-xs text-muted-foreground">A senha nunca sera exibida novamente. Para rotacionar, cadastre uma nova credencial e ative-a.</p>
+                <p className="mt-1 text-xs text-muted-foreground">A senha nunca será exibida novamente. Para rotacionar, cadastre uma nova credencial e ative-a.</p>
                 <div className="mt-4 space-y-3">
                   <div>
                     <Label>Ambiente</Label>
                     <select value={credencialForm.ambiente} onChange={(e) => setCredencialForm((p) => ({ ...p, ambiente: e.target.value as 'homologacao' | 'producao' }))} className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground">
-                      <option value="homologacao">Homologacao</option>
-                      <option value="producao">Producao</option>
+                      <option value="homologacao">Homologação</option>
+                      <option value="producao">Produção</option>
                     </select>
                   </div>
-                  <div><Label>Nome de identificacao</Label><Input value={credencialForm.nome} onChange={(e) => setCredencialForm((p) => ({ ...p, nome: e.target.value }))} placeholder="Portal FIDC homologacao" /></div>
-                  <div><Label>Usuario</Label><Input value={credencialForm.usuario} onChange={(e) => setCredencialForm((p) => ({ ...p, usuario: e.target.value }))} autoComplete="off" /></div>
+                  <div><Label>Nome</Label><Input value={credencialForm.nome} onChange={(e) => setCredencialForm((p) => ({ ...p, nome: e.target.value }))} placeholder="Portal FIDC homologação" /></div>
+                  <div><Label>Usuário</Label><Input value={credencialForm.usuario} onChange={(e) => setCredencialForm((p) => ({ ...p, usuario: e.target.value }))} autoComplete="off" /></div>
                   <div><Label>Senha</Label><Input type="password" value={credencialForm.senha} onChange={(e) => setCredencialForm((p) => ({ ...p, senha: e.target.value }))} autoComplete="new-password" placeholder="Informe nova senha" /></div>
-                  <Button type="button" className="w-full" disabled={isPending} onClick={cadastrarCredencial}>Cadastrar credencial criptografada</Button>
-                </div>
-                <div className="mt-4 border-t border-border pt-4">
-                  <Label>Motivo para revogacao</Label>
-                  <Input value={motivoRevogacao} onChange={(e) => setMotivoRevogacao(e.target.value)} placeholder="Obrigatorio para revogar credenciais" />
+                  <Button type="button" className="w-full" disabled={isPending} onClick={() => cadastrarCredencial()}>Cadastrar credencial</Button>
                 </div>
               </div>
             </div>
           </DetailSection>
 
-          <DetailSection title="Portal FIDC" icon={Plug}>
-            <div className="mb-4 grid gap-3 md:grid-cols-4">
-              <div className="rounded-lg border border-border bg-background p-3">
-                <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Ultimo teste</p>
-                <p className="mt-2 text-sm font-semibold">{integracaoMetrics.ultimoTeste ? new Date(integracaoMetrics.ultimoTeste.iniciada_em).toLocaleString('pt-BR') : 'Sem teste'}</p>
-                {integracaoMetrics.ultimoTeste && <StatusBadge status={integracaoMetrics.ultimoTeste.status} />}
-              </div>
-              <div className="rounded-lg border border-border bg-background p-3">
-                <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Ultimo envio</p>
-                <p className="mt-2 text-sm font-semibold">{integracaoMetrics.ultimoEnvio ? new Date(integracaoMetrics.ultimoEnvio.iniciada_em).toLocaleString('pt-BR') : 'Sem envio'}</p>
-                {integracaoMetrics.ultimoEnvio && <StatusBadge status={integracaoMetrics.ultimoEnvio.status} />}
-              </div>
-              <div className="rounded-lg border border-border bg-background p-3">
-                <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Taxa de sucesso</p>
-                <p className="mt-2 text-sm font-semibold">{integracaoMetrics.taxaSucesso === null ? 'Sem dados' : `${integracaoMetrics.taxaSucesso}%`}</p>
-                <p className="text-xs text-muted-foreground">base: execucoes recentes</p>
-              </div>
-              <div className="rounded-lg border border-border bg-background p-3">
-                <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Erros recentes</p>
-                <p className="mt-2 text-sm font-semibold">{integracaoMetrics.errosRecentes}</p>
-                <p className="text-xs text-muted-foreground">erro ou timeout</p>
-              </div>
-            </div>
-            {integracoes.length === 0 ? (
-              <EmptyState title="Nenhuma configuracao Portal FIDC" description="Cadastre a integracao Portal FIDC - Sinqia no contexto deste fundo. As credenciais ficam criptografadas em tabela propria." icon={Plug} />
-            ) : (
-              <div className="space-y-3">
-                {integracoes.map((integracao) => (
-                  <article key={integracao.id} className="rounded-xl border border-border bg-background p-4">
-                    <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="font-semibold">Portal FIDC - Sinqia</h3>
-                        <StatusBadge status={integracao.status} />
-                        <span className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">provedor tecnico: {integracao.provedor}</span>
-                      </div>
-                      {integracao.status !== 'desativada' && (
-                        <Button type="button" size="sm" variant="outline" onClick={() => runAction(() => desativarIntegracaoFundo(fundoId, integracao.id))}>Desativar</Button>
-                      )}
-                    </div>
-                    <div className="mt-4 space-y-2">
-                      {(integracao.integracao_fundo_versoes || []).map((version) => (
-                        <div key={version.id} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-3 text-sm lg:flex-row lg:items-start lg:justify-between">
-                          <div>
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="font-medium">v{version.versao} - {version.ambiente}</span>
-                              <StatusBadge status={version.status} />
-                            </div>
-                            <p className="mt-1 text-xs text-muted-foreground">Cliente {version.identificador_cliente} - Originador {version.codigo_originador || 'nao informado'} - Credencial {version.credencial_integracao_id ? credenciaisPortalFidc.find((credencial) => credencial.id === version.credencial_integracao_id)?.nome || 'credencial vinculada' : version.credential_ref}</p>
-                            <p className="text-xs text-muted-foreground">Endpoint {version.endpoint_base}</p>
-                            <p className="text-xs text-muted-foreground">Vigencia desde {new Date(version.vigente_desde).toLocaleString('pt-BR')}{version.publicada_em ? ` - publicada em ${new Date(version.publicada_em).toLocaleString('pt-BR')}` : ''}</p>
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            {version.status === 'rascunho' && <Button type="button" size="sm" variant="outline" onClick={() => editarRascunhoIntegracao(version)}>Editar rascunho</Button>}
-                            <Button type="button" size="sm" variant="outline" onClick={() => runAction(() => testarConexaoIntegracaoFundo(fundoId, version.id))}>Testar conexao</Button>
-                            {version.status !== 'publicada' && version.status !== 'desativada' && <Button type="button" size="sm" onClick={() => runAction(() => publicarVersaoIntegracaoFundo(fundoId, version.id))}>Publicar</Button>}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </article>
-                ))}
-              </div>
-            )}
-          </DetailSection>
-
-          <DetailSection title={editingIntegracaoVersaoId ? 'Editar rascunho Portal FIDC' : 'Nova versao Portal FIDC'} icon={Plug}>
+          <DetailSection title="Configuração do Portal FIDC" icon={Plug}>
             <div className="grid gap-3 md:grid-cols-2">
               <div>
-                <Label>Provedor</Label>
-                <select value="fromtis" disabled className="mt-2 h-10 w-full rounded-md border border-input bg-muted px-3 text-sm text-muted-foreground">
-                  <option value="fromtis">Portal FIDC - Sinqia</option>
-                </select>
-              </div>
-              <div>
                 <Label>Ambiente</Label>
-                <select value={integracaoForm.ambiente} onChange={(e) => setIntegracaoForm((p) => ({ ...p, ambiente: e.target.value as 'homologacao' | 'producao' }))} className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground">
+                <select value={integracaoForm.ambiente} onChange={(e) => alterarAmbienteIntegracao(e.target.value as 'homologacao' | 'producao')} className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground">
                   <option value="homologacao">Homologação</option>
                   <option value="producao">Produção</option>
                 </select>
               </div>
-              <div><Label>Identificador cliente</Label><Input value={integracaoForm.identificadorCliente} onChange={(e) => setIntegracaoForm((p) => ({ ...p, identificadorCliente: e.target.value }))} /></div>
-              <div><Label>Codigo originador do Portal FIDC</Label><Input value={integracaoForm.codigoOriginador} onChange={(e) => setIntegracaoForm((p) => ({ ...p, codigoOriginador: e.target.value }))} /></div>
-              <div className="md:col-span-2"><Label>Endpoint base</Label><Input value={integracaoForm.endpointBase} onChange={(e) => setIntegracaoForm((p) => ({ ...p, endpointBase: e.target.value }))} placeholder="https://..." /></div>
               <div>
                 <Label>Credencial ativa</Label>
                 <select value={integracaoForm.credencialIntegracaoId} onChange={(e) => setIntegracaoForm((p) => ({ ...p, credencialIntegracaoId: e.target.value }))} className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground">
-                  <option value="">Usar fallback temporario por referencia</option>
-                  {credenciaisPortalFidc
-                    .filter((credencial) => credencial.status === 'ativa' && credencial.ambiente === integracaoForm.ambiente)
-                    .map((credencial) => <option key={credencial.id} value={credencial.id}>{credencial.nome} - {credencial.ambiente}</option>)}
+                  <option value="">Selecione uma credencial ativa</option>
+                  {credenciaisAtivasAmbiente.map((credencial) => <option key={credencial.id} value={credencial.id}>{credencial.nome}</option>)}
                 </select>
               </div>
-              <div><Label>Referencia de credencial</Label><Input value={integracaoForm.credentialRef} onChange={(e) => setIntegracaoForm((p) => ({ ...p, credentialRef: e.target.value }))} placeholder="portal_fidc_fundo_abc_homologacao" /></div>
-              <div><Label>Secret name</Label><Input value={integracaoForm.secretName} onChange={(e) => setIntegracaoForm((p) => ({ ...p, secretName: e.target.value }))} /></div>
-              <div><Label>Vault key</Label><Input value={integracaoForm.vaultKey} onChange={(e) => setIntegracaoForm((p) => ({ ...p, vaultKey: e.target.value }))} /></div>
+              <div className="md:col-span-2"><Label>Endpoint</Label><Input value={integracaoForm.endpointBase} onChange={(e) => setIntegracaoForm((p) => ({ ...p, endpointBase: e.target.value }))} placeholder="https://..." /></div>
+              <div>
+                <Label>Código originador</Label>
+                <div className="mt-2 rounded-md border border-input bg-muted px-3 py-2 text-sm font-semibold text-foreground">{codigoOriginadorCnab || 'CNAB publicado não encontrado'}</div>
+                <p className="mt-1 text-xs text-muted-foreground">{versaoCnabPublicada ? `Origem: CNAB versão ${versaoCnabPublicada.versao}` : 'Publique uma configuração CNAB para habilitar o código originador.'}</p>
+              </div>
+              <div>
+                <Label>Versão atual</Label>
+                <div className="mt-2 rounded-md border border-input bg-muted px-3 py-2 text-sm text-foreground">
+                  {versaoPortalFidcAtual ? (
+                    <span className="font-semibold">v{versaoPortalFidcAtual.versao} · {versaoPortalFidcAtual.status}</span>
+                  ) : 'Nenhuma versão criada'}
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">{versaoPortalFidcAtual?.publicada_em ? `Publicada em ${formatDateTime(versaoPortalFidcAtual.publicada_em)}` : 'Salvar rascunho cria ou atualiza a configuração deste fundo.'}</p>
+              </div>
             </div>
-            <p className="mt-3 text-xs text-muted-foreground">Preferencialmente selecione uma credencial ativa criptografada. A referencia por variavel de ambiente permanece apenas como fallback temporario de migracao.</p>
             <div className="mt-4 flex flex-wrap gap-2">
-              <Button type="button" disabled={isPending} onClick={salvarIntegracaoPortalFidc}>{editingIntegracaoVersaoId ? 'Salvar rascunho' : 'Criar versao'}</Button>
+              <Button type="button" disabled={isPending || !codigoOriginadorCnab || !integracaoForm.endpointBase || !integracaoForm.credencialIntegracaoId} onClick={salvarIntegracaoPortalFidc}>Salvar rascunho</Button>
+              {versaoPortalFidcAtual && <Button type="button" variant="outline" disabled={isPending} onClick={() => runAction(() => testarConexaoIntegracaoFundo(fundoId, versaoPortalFidcAtual.id))}>Testar conexão</Button>}
+              {versaoPortalFidcAtual && versaoPortalFidcAtual.status !== 'publicada' && versaoPortalFidcAtual.status !== 'desativada' && <Button type="button" disabled={isPending} onClick={() => runAction(() => publicarVersaoIntegracaoFundo(fundoId, versaoPortalFidcAtual.id))}>Publicar</Button>}
               {editingIntegracaoVersaoId && <Button type="button" variant="outline" onClick={() => { setEditingIntegracaoVersaoId(''); setIntegracaoForm(defaultIntegracaoForm) }}>Cancelar edicao</Button>}
             </div>
-          </DetailSection>
-
-          <DetailSection title="Execucoes recentes" icon={Plug}>
-            {execucoesIntegracao.length === 0 ? (
-              <EmptyState title="Nenhuma execucao registrada" description="Testes, envios e consultas do Portal FIDC aparecerao aqui." icon={Plug} />
-            ) : (
-              <div className="space-y-2">
-                {execucoesIntegracao.map((execucao) => (
-                  <div key={execucao.id} className="rounded-lg border border-border bg-background p-3 text-sm">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-medium">{execucao.tipo_execucao}</span>
-                        <StatusBadge status={execucao.status} />
-                        <span className="rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground">tentativa {execucao.tentativa}</span>
-                      </div>
-                      <span className="text-xs text-muted-foreground">{new Date(execucao.iniciada_em).toLocaleString('pt-BR')}</span>
-                    </div>
-                    <p className="mt-1 text-xs text-muted-foreground">Ambiente {execucao.ambiente}{execucao.protocolo_externo ? ` - Protocolo ${execucao.protocolo_externo}` : ''}{execucao.duracao_ms !== null ? ` - ${execucao.duracao_ms}ms` : ''}</p>
-                    {execucao.mensagem_resumida && <p className="mt-1 text-xs text-muted-foreground">{execucao.mensagem_resumida}</p>}
-                    {execucao.erro_categoria && <p className="mt-1 text-xs text-destructive">Categoria: {execucao.erro_categoria}</p>}
-                  </div>
-                ))}
-              </div>
+            {(!codigoOriginadorCnab || !integracaoForm.credencialIntegracaoId) && (
+              <p className="mt-3 text-xs text-muted-foreground">Para salvar, publique a configuração CNAB e selecione uma credencial ativa do mesmo ambiente.</p>
             )}
           </DetailSection>
+
+          <DetailSection title="Histórico" icon={Plug}>
+            <div className="mb-4 flex gap-2">
+              {(['versoes', 'execucoes'] as const).map((tab) => (
+                <button key={tab} type="button" onClick={() => setHistoricoIntegracaoTab(tab)} className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${historicoIntegracaoTab === tab ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'}`}>
+                  {tab === 'versoes' ? 'Versões' : 'Execuções'}
+                </button>
+              ))}
+            </div>
+            {historicoIntegracaoTab === 'versoes' ? (
+              versoesPortalFidc.length === 0 ? (
+                <EmptyState title="Nenhuma versão registrada" description="Salve a primeira configuração para iniciar o histórico do Portal FIDC." icon={Plug} />
+              ) : (
+                <div className="space-y-2">
+                  {versoesPortalFidc.map((version) => (
+                    <div key={version.id} className="rounded-lg border border-border bg-background p-3 text-sm">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-medium">Versão {version.versao}</span>
+                          <StatusBadge status={version.status} />
+                          <span className="rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground">{ambienteLabel(version.ambiente)}</span>
+                        </div>
+                        {version.status === 'rascunho' && <Button type="button" size="sm" variant="outline" onClick={() => editarRascunhoIntegracao(version)}>Editar</Button>}
+                      </div>
+                      <p className="mt-2 text-xs text-muted-foreground">Vigência: {formatDateTime(version.vigente_desde)}{version.vigente_ate ? ` até ${formatDateTime(version.vigente_ate)}` : ''}</p>
+                      <p className="text-xs text-muted-foreground">Publicação: {formatDateTime(version.publicada_em)}</p>
+                    </div>
+                  ))}
+                </div>
+              )
+            ) : (
+              execucoesIntegracao.length === 0 ? (
+                <EmptyState title="Nenhuma execução registrada" description="Testes, envios e consultas do Portal FIDC aparecerão aqui." icon={Plug} />
+              ) : (
+                <div className="space-y-2">
+                  {execucoesIntegracao.map((execucao) => (
+                    <div key={execucao.id} className="rounded-lg border border-border bg-background p-3 text-sm">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-medium">{execucao.tipo_execucao.replaceAll('_', ' ')}</span>
+                          <StatusBadge status={execucao.status} />
+                          <span className="rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground">{ambienteLabel(execucao.ambiente)}</span>
+                        </div>
+                        <span className="text-xs text-muted-foreground">{formatDateTime(execucao.iniciada_em)}</span>
+                      </div>
+                      <p className="mt-1 text-xs text-muted-foreground">Protocolo: {execucao.protocolo_externo || 'não informado'} · Tempo: {execucao.duracao_ms !== null ? `${execucao.duracao_ms}ms` : 'não medido'}</p>
+                      {execucao.mensagem_resumida && <p className="mt-1 text-xs text-muted-foreground">Mensagem: {execucao.mensagem_resumida}</p>}
+                    </div>
+                  ))}
+                </div>
+              )
+            )}
+          </DetailSection>
+
+          <Dialog open={!!credencialRotacaoId} onOpenChange={(open) => { if (!open) { setCredencialRotacaoId(''); setCredencialForm(defaultCredencialForm) } }}>
+            <DialogContent className="sm:max-w-lg">
+              <DialogHeader>
+                <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <RotateCcw size={20} aria-hidden="true" />
+                </div>
+                <DialogTitle>Rotacionar credencial</DialogTitle>
+                <DialogDescription>
+                  Cadastre uma nova credencial para substituir a atual. A credencial anterior não será revogada automaticamente; depois de validar a nova, ative-a e revogue a antiga se necessário.
+                </DialogDescription>
+              </DialogHeader>
+              {credencialRotacao && (
+                <div className="rounded-xl border border-border bg-muted/40 p-3 text-sm">
+                  <p className="font-semibold">{credencialRotacao.nome}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{ambienteLabel(credencialRotacao.ambiente)} · último uso: {formatDateTime(credencialRotacao.ultimo_uso_em)}</p>
+                </div>
+              )}
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <Label>Ambiente</Label>
+                  <select value={credencialForm.ambiente} onChange={(e) => setCredencialForm((p) => ({ ...p, ambiente: e.target.value as 'homologacao' | 'producao' }))} className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground">
+                    <option value="homologacao">Homologação</option>
+                    <option value="producao">Produção</option>
+                  </select>
+                </div>
+                <div><Label>Nome</Label><Input value={credencialForm.nome} onChange={(e) => setCredencialForm((p) => ({ ...p, nome: e.target.value }))} placeholder="Portal FIDC produção - rotação" /></div>
+                <div><Label>Usuário</Label><Input value={credencialForm.usuario} onChange={(e) => setCredencialForm((p) => ({ ...p, usuario: e.target.value }))} autoComplete="off" /></div>
+                <div><Label>Nova senha</Label><Input type="password" value={credencialForm.senha} onChange={(e) => setCredencialForm((p) => ({ ...p, senha: e.target.value }))} autoComplete="new-password" placeholder="Informe a nova senha" /></div>
+              </div>
+              <div className="rounded-xl border border-info/25 bg-info/10 p-3 text-xs text-muted-foreground">
+                Próximo passo recomendado: cadastrar a nova credencial, ativá-la, testar conexão e só então revogar a credencial antiga.
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => { setCredencialRotacaoId(''); setCredencialForm(defaultCredencialForm) }}>Cancelar</Button>
+                <Button type="button" disabled={isPending || !credencialForm.nome.trim() || !credencialForm.usuario.trim() || !credencialForm.senha} onClick={() => cadastrarCredencial({ fecharRotacao: true })}>Cadastrar nova credencial</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={!!credencialRevogacao} onOpenChange={(open) => { if (!open) fecharRevogacaoCredencial() }}>
+            <DialogContent className="sm:max-w-lg">
+              <DialogHeader>
+                <div className="flex size-10 items-center justify-center rounded-xl bg-destructive/10 text-destructive">
+                  <ShieldAlert size={20} aria-hidden="true" />
+                </div>
+                <DialogTitle>Revogar credencial</DialogTitle>
+                <DialogDescription>Essa credencial deixará de aparecer como opção ativa para novas configurações do Portal FIDC.</DialogDescription>
+              </DialogHeader>
+              {credencialRevogacao && (
+                <div className="rounded-xl border border-border bg-muted/40 p-3 text-sm">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-semibold">{credencialRevogacao.nome}</p>
+                    <StatusBadge status={credencialRevogacao.status} />
+                    <span className="rounded-full bg-background px-2 py-1 text-xs text-muted-foreground">{ambienteLabel(credencialRevogacao.ambiente)}</span>
+                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground">Criada em {formatDateTime(credencialRevogacao.criada_em)} · último uso: {formatDateTime(credencialRevogacao.ultimo_uso_em)}</p>
+                </div>
+              )}
+              <div className="rounded-xl border border-destructive/25 bg-destructive/5 p-3 text-xs text-destructive">
+                {credencialRevogacaoEmUso
+                  ? 'Esta credencial está vinculada à configuração publicada do Portal FIDC. Para revogar, primeiro publique uma nova configuração usando outra credencial ativa.'
+                  : 'Antes de revogar, confirme que nenhuma configuração publicada depende operacionalmente desta credencial ou que já existe uma credencial substituta ativa.'}
+              </div>
+              <div className="space-y-2">
+                <Label>Motivo obrigatório</Label>
+                <textarea
+                  value={motivoRevogacao}
+                  onChange={(e) => setMotivoRevogacao(e.target.value)}
+                  placeholder="Ex.: credencial substituída por rotação de senha em homologação."
+                  className="min-h-24 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                />
+                <p className="text-xs text-muted-foreground">Mínimo de 10 caracteres. Esse motivo ficará registrado para auditoria.</p>
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={fecharRevogacaoCredencial}>Cancelar</Button>
+                <Button type="button" variant="destructive" disabled={isPending || !credencialRevogacao || credencialRevogacaoEmUso || motivoRevogacao.trim().length < 10} onClick={() => credencialRevogacao && revogarCredencial(credencialRevogacao.id)}>Confirmar revogação</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       )}
     </PageContainer>

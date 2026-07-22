@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { AlertCircle, CheckCircle2, Clock3, FileText, Loader2, Search, XCircle } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Circle, Clock3, FileText, Loader2, Search, XCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Input } from '@/components/ui/input'
 
@@ -17,12 +17,24 @@ const statusConfig: Record<string, { label: string; icon: typeof CheckCircle2; c
   aprovado: { label: 'Aprovado', icon: CheckCircle2, className: 'bg-success/20 text-success-foreground ring-success/40' },
   aprovada: { label: 'Aprovada', icon: CheckCircle2, className: 'bg-success/20 text-success-foreground ring-success/40' },
   ativo: { label: 'Ativo', icon: CheckCircle2, className: 'bg-success text-success-foreground ring-success/35' },
+  ativa: { label: 'Ativa', icon: CheckCircle2, className: 'bg-success text-success-foreground ring-success/35' },
+  publicada: { label: 'Publicada', icon: CheckCircle2, className: 'bg-success/20 text-success-foreground ring-success/40' },
+  rascunho: { label: 'Rascunho', icon: Clock3, className: 'bg-muted text-muted-foreground ring-border' },
+  substituida: { label: 'Substituída', icon: Circle, className: 'bg-muted text-muted-foreground ring-border' },
+  desativada: { label: 'Desativada', icon: Circle, className: 'bg-muted text-muted-foreground ring-border' },
+  não_configurada: { label: 'Não configurada', icon: Circle, className: 'bg-muted text-muted-foreground ring-border' },
   pendente: { label: 'Pendente', icon: Clock3, className: 'bg-warning/20 text-warning-foreground ring-warning/40' },
   em_analise: { label: 'Em análise', icon: Clock3, className: 'bg-warning/20 text-warning-foreground ring-warning/40' },
   enviado: { label: 'Enviado', icon: FileText, className: 'bg-info/20 text-info-foreground ring-info/40' },
   reprovado: { label: 'Reprovado', icon: XCircle, className: 'bg-destructive/15 text-destructive ring-destructive/35' },
   rejeitado: { label: 'Rejeitado', icon: XCircle, className: 'bg-destructive/15 text-destructive ring-destructive/35' },
   bloqueado: { label: 'Bloqueado', icon: AlertCircle, className: 'bg-destructive/15 text-destructive ring-destructive/35' },
+  Publicado: { label: 'Publicado', icon: CheckCircle2, className: 'bg-success/20 text-success-foreground ring-success/40' },
+  Pendente: { label: 'Pendente', icon: Clock3, className: 'bg-warning/20 text-warning-foreground ring-warning/40' },
+  'Obrigatório': { label: 'Obrigatório', icon: AlertCircle, className: 'bg-warning/15 text-warning-foreground ring-warning/35' },
+  Opcional: { label: 'Opcional', icon: Circle, className: 'bg-muted text-muted-foreground ring-border' },
+  'Não configurado': { label: 'Não configurado', icon: Circle, className: 'bg-muted text-muted-foreground ring-border' },
+  Desativado: { label: 'Desativado', icon: Circle, className: 'bg-muted text-muted-foreground ring-border' },
 }
 
 export function StatusBadge({ status, label }: { status: string; label?: string }) {
