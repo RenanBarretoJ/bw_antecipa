@@ -39,7 +39,7 @@ export function PortalSidebar({ items, role, open = false, onClose }: { items: P
           })}
         </ul>
       </nav>
-      <div className="border-t border-sidebar-border px-5 py-4"><p className="text-[10px] text-sidebar-foreground/40">BW BI LTDA</p></div>
+      <div className="border-t border-sidebar-border px-5 py-4"><p className="text-[10px] text-sidebar-foreground/40">BETTER WITH</p></div>
     </>
   )
   return <>

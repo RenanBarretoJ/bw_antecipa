@@ -51,7 +51,7 @@ export default function LoginPage() {
         <div aria-hidden="true" className="pointer-events-none absolute inset-0 opacity-40" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0)', backgroundSize: '32px 32px' }} />
         <div className="relative z-10 flex items-center gap-3">
           <div className="flex size-11 items-center justify-center rounded-xl border border-black/20 bg-[#d0d0d0] text-base font-bold">BW</div>
-          <div className="leading-tight"><p className="text-lg font-semibold tracking-tight">Antecipa</p><p className="text-xs text-black/60">BW BI LTDA</p></div>
+          <div className="leading-tight"><p className="text-lg font-semibold tracking-tight">Antecipa</p><p className="text-xs text-black/60">BETTER WITH</p></div>
         </div>
         <div className="relative z-10 max-w-xl">
           <h1 className="text-pretty text-4xl font-bold leading-tight tracking-tight xl:text-5xl">Antecipação de recebíveis com segurança e agilidade</h1>
@@ -63,12 +63,12 @@ export default function LoginPage() {
             ].map(({ icon: Icon, title, description }) => <li key={title} className="flex items-start gap-4"><span className="mt-0.5 flex size-11 shrink-0 items-center justify-center rounded-xl border border-black/20 bg-black/5"><Icon size={20} /></span><span><p className="font-semibold">{title}</p><p className="text-sm leading-relaxed text-black/60">{description}</p></span></li>)}
           </ul>
         </div>
-        <p className="relative z-10 flex items-center gap-2 text-xs text-black/55"><ShieldCheck size={15} /> 2024–2026 BW BI LTDA. Todos os direitos reservados.</p>
+        <p className="relative z-10 flex items-center gap-2 text-xs text-black/55"><ShieldCheck size={15} /> 2024–2026 BETTER WITH. Todos os direitos reservados.</p>
       </section>
 
       <section className="flex min-h-screen items-center justify-center bg-[#125dcc] px-6 py-12 sm:px-12 lg:px-16">
         <div className="w-full max-w-[448px]">
-          <div className="mb-12 flex items-center gap-3 lg:hidden"><div className="flex size-10 items-center justify-center rounded-xl bg-white text-sm font-bold text-black">BW</div><div className="leading-tight"><p className="font-semibold tracking-tight">Antecipa</p><p className="text-xs text-white/55">BW BI LTDA</p></div></div>
+          <div className="mb-12 flex items-center gap-3 lg:hidden"><div className="flex size-10 items-center justify-center rounded-xl bg-white text-sm font-bold text-black">BW</div><div className="leading-tight"><p className="font-semibold tracking-tight">Antecipa</p><p className="text-xs text-white/55">BETTER WITH</p></div></div>
           <div className="mb-8"><h2 className="text-3xl font-bold tracking-tight">Bem-vindo de volta</h2><p className="mt-2 text-sm text-white/60">Entre com suas credenciais para acessar o portal.</p></div>
 
           {isLockedOut ? <div className="rounded-xl border border-red-400/30 bg-red-400/10 p-5 text-center"><ShieldCheck size={28} className="mx-auto mb-2 text-red-300" /><p className="font-semibold text-red-200">Acesso temporariamente bloqueado</p><p className="mt-1 text-sm text-red-200/75">Muitas tentativas falhas. Tente novamente em <span className="font-mono font-bold">{Math.floor(lockoutRemaining / 60)}:{String(lockoutRemaining % 60).padStart(2, '0')}</span></p></div> : <form ref={formRef} action={handleSubmit} className="space-y-6">
