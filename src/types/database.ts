@@ -1035,6 +1035,7 @@ export interface Database {
       analisar_cte_documento: { Args: { p_cte_id: string; p_documento_versao_id: string; p_resultado: string; p_motivo?: string | null }; Returns: Record<string, unknown> }
       analisar_canhoto_documento: { Args: { p_canhoto_id: string; p_documento_versao_id: string; p_resultado: string; p_motivo?: string | null }; Returns: Record<string, unknown> }
       processar_prazos_entrega: { Args: { p_data?: string | null }; Returns: Record<string, unknown> }
+      reparar_requisitos_pos_cessao_operacao: { Args: { p_operacao_id: string }; Returns: Record<string, unknown> }
       reservar_sequencial_remessa: { Args: { p_configuracao_cnab_id: string; p_data_referencia: string }; Returns: number }
       usuario_pode_ler_remessa_cnab: { Args: { p_remessa_id: string }; Returns: boolean }
     }

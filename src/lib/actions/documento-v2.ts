@@ -9,6 +9,7 @@ import { uploadDocumentoDaEntrega, uploadDocumentoDaNota } from '@/lib/documento
 import { normalizarCodigoDocumentoCatalogo } from '@/lib/documentos-v2/tipos'
 import { calcularPrazoDocumento, type StatusPrazoDocumento } from '@/lib/documentos-v2/prazos'
 import { calcularStatusLogisticoDocumental, type StatusLogisticoResumo } from '@/lib/documentos-v2/resumo-operacional'
+import { faseDocumentalPorEscopo } from '@/lib/documentos-v2/requisitos-pos-cessao'
 import type { DocumentoAnaliseResultado } from '@/lib/types/domain'
 
 export interface ChecklistDocumentoItem {
@@ -165,7 +166,7 @@ async function carregarChecklist(notaFiscalId: string): Promise<ChecklistDocumen
     const type = row.documento_tipo_id
       ? types.get(row.documento_tipo_id)
       : typesByCode.get(normalizarCodigoDocumentoCatalogo(row.tipo_documento_codigo_snapshot))
-    const fase: ChecklistDocumentoItem['fase'] = row.nota_fiscal_entrega_id ? 'pos_cessao' : 'pre_cessao'
+    const fase: ChecklistDocumentoItem['fase'] = faseDocumentalPorEscopo(row.escopo_snapshot)
     const prazo = calcularPrazoDocumento({
       status: row.status,
       prazoLimite: row.prazo_limite,

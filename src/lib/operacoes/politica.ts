@@ -29,6 +29,8 @@ export interface PoliticaSnapshot {
   cria_acompanhamento_entrega: boolean
   configuracao: Record<string, unknown>
   requisitos: Array<{
+    id: string
+    documento_tipo_id: string | null
     codigo: string
     escopo: string
     tipo_documento_codigo: string
@@ -96,6 +98,8 @@ export function criarSnapshotPolitica(policy: PoliticaResolvida): { snapshot: Po
     requisitos: [...policy.requisitos]
       .sort((left, right) => left.ordem - right.ordem || left.codigo.localeCompare(right.codigo))
       .map((requirement) => ({
+        id: requirement.id,
+        documento_tipo_id: requirement.documento_tipo_id,
         codigo: requirement.codigo,
         escopo: requirement.escopo,
         tipo_documento_codigo: requirement.tipo_documento_codigo,
