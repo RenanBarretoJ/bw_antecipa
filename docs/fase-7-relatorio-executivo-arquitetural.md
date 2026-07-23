@@ -118,9 +118,13 @@ A modelagem armazena apenas `credential_ref`, `secret_name` e `vault_key`. O seg
 
 `importarConfiguracaoCnabLegado` cria uma configuração inicial com os valores legados definidos em `CONFIGURACAO_CNAB_LEGADO_PADRAO`. Isso permite migração gradual e comparação via golden file sem mudar o arquivo legado esperado.
 
-### Existe fallback operacional
+### Existe importação operacional do padrão legado
 
-O resolvedor CNAB (`resolverConfiguracaoCnab`) aceita fallback legado quando não há configuração publicada. Esse fallback preserva o comportamento atual durante a transição, mas a arquitetura alvo é usar configuração publicada por fundo.
+O resolvedor CNAB (`resolverConfiguracaoCnab`) deve operar com uma configuração publicada no fundo. A compatibilidade com o legado ocorre pela importação do padrão legado para uma versão inicial publicada, e não por uso silencioso de valores fixos durante a geração de uma nova remessa.
+
+### Nota de estabilização técnica
+
+Após a estabilização técnica, a decisão operacional documentada passa a ser: novas remessas devem exigir configuração CNAB publicada no contexto do fundo. A importação legado continua existindo como mecanismo de migração inicial do fundo, mas não deve ser tratada como fallback silencioso para geração operacional nova. Operações históricas permanecem preservadas pelos registros e arquivos já gravados; reprocessamento/geração nova exige contexto configurado e publicado.
 
 ### A rota antiga de CNAB não edita configuração
 
@@ -455,7 +459,7 @@ Detalhamento por etapa:
 
 A compatibilidade com o comportamento legado foi preservada por quatro mecanismos.
 
-### Fallback legado
+### Padrão legado importável
 
 `CONFIGURACAO_CNAB_LEGADO_PADRAO` mantém os valores já usados pelo sistema, incluindo:
 
@@ -467,6 +471,8 @@ A compatibilidade com o comportamento legado foi preservada por quatro mecanismo
 - tipo de recebível `01`;
 - serviço `COBRANCA`;
 - identificação de sistema `MX`.
+
+Esse padrão é usado para importar a configuração inicial do fundo piloto/migrado. Ele não deve substituir a exigência de uma versão publicada para novas gerações CNAB.
 
 ### Importação gradual
 
@@ -561,7 +567,7 @@ Itens não implementados nesta fase:
 Limitações conhecidas:
 
 - a UI de CNAB no detalhe do fundo usa campos de formulário diretos para CNAB444, não um editor genérico de posições;
-- o fallback legado é útil para transição, mas a operação alvo deve ser configuração publicada por fundo;
+- o padrão legado importável é útil para transição, mas a operação alvo deve ser configuração publicada por fundo;
 - a Fromtis ainda resolve credenciais por referência/ambiente, não por vault gerenciado pela aplicação;
 - o check constraint de layout restringe o banco a `cnab444` até a próxima evolução de layouts.
 
@@ -586,7 +592,7 @@ Escopo sugerido:
 - Migration pode ainda não estar aplicada em todos os ambientes.
 - O comportamento real depende de homologação externa com administrador/custodiante.
 - Fromtis precisa ser validada com endpoint, credenciais e payload reais por fundo.
-- Fallback legado pode mascarar ausência de configuração publicada se não houver controle operacional.
+- Importação incompleta do padrão legado pode atrasar a publicação da configuração CNAB exigida para novas remessas.
 - Testes integrados com Supabase remoto não foram executados localmente.
 - Testes de concorrência do sequencial dependem de execução em banco real.
 - RLS precisa ser validada no ambiente aplicado com usuários reais de cada perfil.
@@ -713,6 +719,6 @@ O que ainda impede produção:
 - arquivos precisam ser homologados com administrador/custodiante;
 - Fromtis precisa ser validada por fundo com credenciais reais;
 - concorrência de sequencial e idempotência precisam ser exercitadas em banco real;
-- fallback legado deve ser tratado como mecanismo de transição, não como configuração operacional definitiva.
+- padrão legado importável deve ser tratado como mecanismo de transição, não como configuração operacional definitiva.
 
 Parecer técnico: a Fase 7 muda o sistema de uma geração CNAB acoplada a valores fixos para uma arquitetura multifundo, versionada, auditável e extensível. O desenho atual é adequado para evolução controlada, desde que a homologação externa e a gestão segura de credenciais sejam concluídas antes de produção.

@@ -11,7 +11,7 @@ interface EmailPayload {
 }
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY
-const EMAIL_FROM = process.env.EMAIL_FROM || 'BW Antecipa <noreply@bluewaveasset.com.br>'
+const EMAIL_FROM = process.env.EMAIL_FROM || 'BETTER WITH <noreply@betterwith.com.br>'
 const EMAIL_ENABLED = !!RESEND_API_KEY
 
 export async function enviarEmail({ to, subject, html }: EmailPayload): Promise<boolean> {
@@ -60,7 +60,7 @@ function baseTemplate(content: string): string {
     <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; padding: 20px;">
       <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
         <div style="background: #1e3a5f; padding: 24px; text-align: center;">
-          <h1 style="color: white; margin: 0; font-size: 22px;">BW Antecipa</h1>
+          <h1 style="color: white; margin: 0; font-size: 22px;">BETTER WITH</h1>
         </div>
         <div style="padding: 32px;">
           ${content}

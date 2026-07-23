@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { extensaoArquivo, mimeArquivo, validarArquivoContraTipo, sha256Arquivo } from './tipos'
+import { extensaoArquivo, mimeArquivo, normalizarCodigoDocumentoCatalogo, validarArquivoContraTipo, sha256Arquivo } from './tipos'
 
 const tipo = {
   id: 'tipo-1', codigo: 'nf_xml', nome: 'XML da NF-e',
@@ -22,5 +22,13 @@ describe('catalogo documental v2', () => {
   it('calcula hash deterministico', async () => {
     const file = new File(['conteudo'], 'nf.xml', { type: 'application/xml' })
     expect(await sha256Arquivo(file)).toBe('92359bb294288000958de4f1f20d5778681b14bfe2f0868104f79230942a6984')
+  })
+
+  it('normaliza o requisito operacional cte para o tipo documental catalogado', () => {
+    expect(normalizarCodigoDocumentoCatalogo('cte')).toBe('cte_xml')
+    expect(normalizarCodigoDocumentoCatalogo('cte', 'xml')).toBe('cte_xml')
+    expect(normalizarCodigoDocumentoCatalogo('cte', 'pdf')).toBe('cte_pdf_dacte')
+    expect(normalizarCodigoDocumentoCatalogo('nf_xml')).toBe('nf_xml')
+    expect(normalizarCodigoDocumentoCatalogo('comprovante_entrega')).toBe('comprovante_entrega')
   })
 })

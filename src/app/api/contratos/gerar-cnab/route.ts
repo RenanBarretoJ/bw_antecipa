@@ -34,6 +34,28 @@ async function baixarRemessaExistente(storagePath: string) {
   return Buffer.from(await data.arrayBuffer()).toString('utf8')
 }
 
+async function compensarUploadRemessa(storagePath: string, contexto: Record<string, unknown>) {
+  const admin = createAdminClient()
+  const { error } = await admin.storage.from(buckets.remessasCnab).remove([storagePath])
+  if (error) {
+    console.error('[api/contratos/gerar-cnab]', {
+      etapa: 'compensar_upload_remessa_erro',
+      storage_path: storagePath,
+      erro: error.message,
+      ...contexto,
+    })
+    await registrarLog({
+      tipo_evento: 'REMESSA_CNAB_COMPENSACAO_FALHOU',
+      entidade_tipo: 'remessas_cnab',
+      dados_depois: {
+        storage_path: storagePath,
+        erro: error.message,
+        ...contexto,
+      },
+    }).catch(() => {})
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const context = await requireGestor()
@@ -119,18 +141,42 @@ export async function POST(req: NextRequest) {
       gerado_por: context.user.id,
     } as never)
 
-    if (insertError) throw new Error(`Erro ao registrar remessa CNAB: ${insertError.message}`)
+    const logContext = {
+      fundo_id: remessa.fundoId,
+      operacao_id,
+      configuracao_id: remessa.configuracaoCnabId,
+      versao_id: remessa.configuracaoCnabVersaoId,
+      sequencial,
+      storage_path: caminho,
+      idempotency_key: remessa.idempotencyKey,
+      correlation_id: remessaId,
+    }
+
+    if (insertError) {
+      await compensarUploadRemessa(caminho, { ...logContext, etapa: 'insert_remessa' })
+      throw new Error(`Erro ao registrar remessa CNAB: ${insertError.message}`)
+    }
 
     const { error: linkError } = await admin.from('remessas_cnab_operacoes').insert({
       remessa_cnab_id: remessaId,
       operacao_id,
     } as never)
-    if (linkError) throw new Error(`Erro ao vincular operacao a remessa CNAB: ${linkError.message}`)
+    if (linkError) {
+      await admin.from('remessas_cnab').delete().eq('id', remessaId)
+      await compensarUploadRemessa(caminho, { ...logContext, etapa: 'insert_remessa_operacao' })
+      throw new Error(`Erro ao vincular operacao a remessa CNAB: ${linkError.message}`)
+    }
 
-    await admin.from('operacoes').update({
+    const { error: updateOperacaoError } = await admin.from('operacoes').update({
       remessa_url: caminho,
       remessa_gerado_em: new Date().toISOString(),
     } as never).eq('id', operacao_id)
+    if (updateOperacaoError) {
+      await admin.from('remessas_cnab_operacoes').delete().eq('remessa_cnab_id', remessaId).eq('operacao_id', operacao_id)
+      await admin.from('remessas_cnab').delete().eq('id', remessaId)
+      await compensarUploadRemessa(caminho, { ...logContext, etapa: 'update_operacao_remessa' })
+      throw new Error(`Erro ao atualizar operacao com remessa CNAB: ${updateOperacaoError.message}`)
+    }
 
     await registrarLog({
       tipo_evento: 'REMESSA_CNAB_GERADA',

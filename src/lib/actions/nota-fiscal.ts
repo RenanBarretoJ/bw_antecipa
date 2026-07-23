@@ -1,6 +1,6 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient, createClient } from '@/lib/supabase/server'
 import { requireAuthenticated, requireGestor as requireGestorBase } from '@/lib/auth/authorization'
 import { exigirSessaoElevada } from '@/lib/auth/mfa'
 import { notaFiscalSchema, type NotaFiscalFormData } from '@/lib/validations/nf'
@@ -10,6 +10,8 @@ import { registrarLog } from './auditoria'
 import { notificarGestores, notificarCedente } from './notificacao'
 import { buckets } from '@/lib/storage'
 import { uploadDocumentoSeRequerido } from '@/lib/documentos-v2/upload'
+import { CedenteFundoError, resolverCedenteFundoAtivo } from '@/lib/fundos/cedente-fundo'
+import { decidirAcaoDuplicidadeNotaFiscal, mensagemDuplicidadeNotaFiscal } from '@/lib/notas-fiscais/upload-context'
 
 export type NfActionState = {
   success?: boolean
@@ -29,29 +31,257 @@ async function requireGestor() {
   return context
 }
 
-async function getCedenteDoUsuario() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+type CedenteUploadContext = {
+  userId: string
+  cedente: { id: string; cnpj: string; razao_social: string; status: string }
+  cedenteFundoId: string
+  fundoId: string
+}
+
+function logUploadNf(
+  etapa: string,
+  context: Partial<CedenteUploadContext> & { chaveAcesso?: string | null; erro?: unknown; notaFiscalId?: string | null },
+) {
+  console.error('[uploadNFs][cedente]', {
+    etapa,
+    user_id: context.userId ?? null,
+    cedente_id: context.cedente?.id ?? null,
+    cedente_fundo_id: context.cedenteFundoId ?? null,
+    fundo_id: context.fundoId ?? null,
+    chave_acesso: context.chaveAcesso ?? null,
+    nota_fiscal_id: context.notaFiscalId ?? null,
+    erro: context.erro instanceof Error ? context.erro.message : context.erro ?? null,
+  })
+}
+
+async function getCedenteComUsuario(supabaseParam?: Awaited<ReturnType<typeof createClient>>) {
+  const supabase = supabaseParam ?? await createClient()
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  if (userError) throw new Error(`Erro ao identificar usuario autenticado: ${userError.message}`)
   if (!user) return null
 
-  const { data: cedente } = await supabase
+  const { data: cedente, error: cedenteError } = await supabase
     .from('cedentes')
     .select('id, cnpj, razao_social, status')
-    .single()
+    .maybeSingle()
 
+  if (cedenteError) throw new Error(`Erro ao consultar cedente do usuario: ${cedenteError.message}`)
   if (!cedente) return null
-  return cedente as { id: string; cnpj: string; razao_social: string; status: string }
+  return { userId: user.id, cedente: cedente as { id: string; cnpj: string; razao_social: string; status: string } }
+}
+
+async function getCedenteDoUsuario(supabaseParam?: Awaited<ReturnType<typeof createClient>>) {
+  const result = await getCedenteComUsuario(supabaseParam)
+  return result?.cedente ?? null
+}
+
+async function resolverContextoUploadCedente(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+): Promise<CedenteUploadContext | { error: string }> {
+  let partialContext: Partial<CedenteUploadContext> = {}
+  try {
+    const base = await getCedenteComUsuario(supabase)
+    if (!base) return { error: 'Cadastro de cedente nao encontrado.' }
+    partialContext = { userId: base.userId, cedente: base.cedente }
+    if (base.cedente.status !== 'ativo') return { error: 'Seu cadastro precisa estar ativo para enviar NFs.' }
+
+    const resolved = await resolverCedenteFundoAtivo(base.cedente.id, supabase)
+    partialContext = {
+      ...partialContext,
+      cedenteFundoId: resolved.cedenteFundo?.id,
+      fundoId: resolved.cedenteFundo?.fundo_id ?? resolved.fundo?.id,
+    }
+    if (resolved.source !== 'bridge' || !resolved.cedenteFundo || !resolved.fundo) {
+      return { error: 'Nenhum vinculo cedente-fundo ativo foi encontrado para este cedente.' }
+    }
+    if (resolved.cedenteFundo.status !== 'ativo') {
+      return { error: 'O vinculo cedente-fundo deste cedente nao esta ativo.' }
+    }
+    if (resolved.fundo.ativo !== true) {
+      return { error: 'O fundo vinculado ao cedente esta inativo.' }
+    }
+
+    return {
+      userId: base.userId,
+      cedente: base.cedente,
+      cedenteFundoId: resolved.cedenteFundo.id,
+      fundoId: resolved.fundo.id,
+    }
+  } catch (error) {
+    logUploadNf('resolver_contexto_erro', { ...partialContext, erro: error })
+    if (error instanceof CedenteFundoError) {
+      if (error.code === 'MULTIPLOS_VINCULOS_ATIVOS') {
+        return { error: 'Ha mais de um vinculo ativo para este cedente; selecione o fundo antes de enviar NFs.' }
+      }
+      if (error.code === 'VINCULO_NOT_FOUND') return { error: error.message }
+      if (error.code === 'FUNDO_NOT_FOUND') return { error: 'Fundo vinculado ao cedente nao encontrado.' }
+      if (error.code === 'FUNDO_INATIVO') return { error: 'O fundo vinculado ao cedente esta inativo.' }
+    }
+    return { error: error instanceof Error ? error.message : 'Nao foi possivel resolver o fundo do cedente.' }
+  }
 }
 
 type ArquivoResult =
   | { ok: true; id: string; isRascunho: boolean }
   | { ok: false; error: string }
 
+type NfExistente = {
+  id: string
+  cedente_id: string
+  cedente_fundo_id: string | null
+  fundo_id: string | null
+  arquivo_url: string | null
+  status: string
+}
+
+async function notaFiscalPossuiDocumentoXml(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  notaFiscalId: string,
+): Promise<boolean> {
+  const { data: requisitos, error } = await supabase
+    .from('documento_requisito_instancias')
+    .select('documento_id, status')
+    .eq('nota_fiscal_id', notaFiscalId)
+    .eq('tipo_documento_codigo_snapshot', 'nf_xml')
+    .not('documento_id', 'is', null)
+
+  if (error) throw new Error(`Erro ao verificar documento XML existente: ${error.message}`)
+  const documentoIds = (requisitos || [])
+    .map((row) => (row as { documento_id: string | null }).documento_id)
+    .filter(Boolean) as string[]
+  if (documentoIds.length === 0) return false
+
+  const { data: versoes, error: versionError } = await supabase
+    .from('documento_versoes')
+    .select('id')
+    .in('documento_id', documentoIds)
+    .in('status', ['enviado', 'aprovado', 'rejeitado', 'substituido'])
+    .limit(1)
+
+  if (versionError) throw new Error(`Erro ao verificar versao do XML existente: ${versionError.message}`)
+  return !!versoes?.length
+}
+
+async function removerNotaFiscalParcial(
+  input: {
+    notaFiscalId: string
+    cedenteId: string
+    arquivoUrl?: string | null
+    etapa: string
+    context: CedenteUploadContext
+  },
+) {
+  const admin = createAdminClient()
+  const { data: requisitos } = await admin
+    .from('documento_requisito_instancias')
+    .select('documento_id')
+    .eq('nota_fiscal_id', input.notaFiscalId)
+
+  const documentoIds = Array.from(new Set(
+    (requisitos || [])
+      .map((row) => (row as { documento_id: string | null }).documento_id)
+      .filter(Boolean) as string[],
+  ))
+
+  if (documentoIds.length > 0) {
+    const { data: versoes } = await admin
+      .from('documento_versoes')
+      .select('bucket, path')
+      .in('documento_id', documentoIds)
+
+    const pathsPorBucket = new Map<string, string[]>()
+    for (const version of versoes || []) {
+      const row = version as { bucket?: string | null; path?: string | null }
+      if (!row.bucket || !row.path) continue
+      pathsPorBucket.set(row.bucket, [...(pathsPorBucket.get(row.bucket) || []), row.path])
+    }
+
+    for (const [bucket, paths] of pathsPorBucket.entries()) {
+      const { error: documentStorageError } = await admin.storage.from(bucket).remove(paths)
+      if (documentStorageError) {
+        logUploadNf(`${input.etapa}_documento_storage_compensacao_erro`, {
+          ...input.context,
+          erro: documentStorageError,
+          notaFiscalId: input.notaFiscalId,
+        })
+      }
+    }
+
+    await admin.from('documento_requisito_instancias').delete().eq('nota_fiscal_id', input.notaFiscalId)
+    await admin.from('documento_vinculos').delete().eq('nota_fiscal_id', input.notaFiscalId)
+    await admin.from('documento_versoes').delete().in('documento_id', documentoIds)
+    await admin.from('documentos_repositorio').delete().in('id', documentoIds)
+  } else {
+    await admin.from('documento_requisito_instancias').delete().eq('nota_fiscal_id', input.notaFiscalId)
+  }
+
+  if (input.arquivoUrl) {
+    const { error: storageError } = await admin.storage.from(buckets.notasFiscais).remove([input.arquivoUrl])
+    if (storageError) logUploadNf(`${input.etapa}_storage_compensacao_erro`, { ...input.context, erro: storageError, notaFiscalId: input.notaFiscalId })
+  }
+
+  const { error: deleteError } = await admin
+    .from('notas_fiscais')
+    .delete()
+    .eq('id', input.notaFiscalId)
+    .eq('cedente_id', input.cedenteId)
+
+  if (deleteError) {
+    logUploadNf(`${input.etapa}_nf_compensacao_erro`, { ...input.context, erro: deleteError, notaFiscalId: input.notaFiscalId })
+    throw new Error(`Nao foi possivel remover NF parcial: ${deleteError.message}`)
+  }
+}
+
+async function recuperarDuplicidadeIncompleta(
+  arquivo: File,
+  context: CedenteUploadContext,
+  chaveAcesso: string,
+  supabase: Awaited<ReturnType<typeof createClient>>,
+): Promise<ArquivoResult | null> {
+  const { data, error } = await supabase
+    .from('notas_fiscais')
+    .select('id, cedente_id, cedente_fundo_id, fundo_id, arquivo_url, status')
+    .eq('chave_acesso', chaveAcesso)
+    .limit(1)
+    .maybeSingle()
+
+  if (error) throw new Error(`Erro ao verificar duplicidade da NF: ${error.message}`)
+  if (!data) return null
+
+  const existente = data as NfExistente
+  const possuiXml = await notaFiscalPossuiDocumentoXml(supabase, existente.id)
+  const acao = decidirAcaoDuplicidadeNotaFiscal({ existeNota: true, possuiXmlDocumentalValido: possuiXml })
+  if (acao === 'conflito_xml_existente') {
+    return { ok: false, error: `${arquivo.name}: ${mensagemDuplicidadeNotaFiscal(acao)}` }
+  }
+
+  logUploadNf('duplicidade_incompleta_recuperacao', { ...context, chaveAcesso, notaFiscalId: existente.id })
+  await removerNotaFiscalParcial({
+    notaFiscalId: existente.id,
+    cedenteId: existente.cedente_id,
+    arquivoUrl: existente.arquivo_url,
+    etapa: 'duplicidade_incompleta',
+    context,
+  })
+  return null
+}
+
+function contextoDocumentoDaNota(context: CedenteUploadContext, notaFiscalId: string) {
+  return {
+    fundoId: context.fundoId,
+    cedenteId: context.cedente.id,
+    cedenteFundoId: context.cedenteFundoId,
+    entidadeTipo: 'nota_fiscal' as const,
+    entidadeId: notaFiscalId,
+  }
+}
+
 async function processarArquivo(
   arquivo: File,
-  cedente: { id: string; cnpj: string; razao_social: string },
+  context: CedenteUploadContext,
   supabase: Awaited<ReturnType<typeof createClient>>
 ): Promise<ArquivoResult> {
+  const { cedente } = context
   const maxSize = 20 * 1024 * 1024
   const isXml = arquivo.name.toLowerCase().endsWith('.xml') ||
     arquivo.type === 'text/xml' || arquivo.type === 'application/xml'
@@ -80,11 +310,8 @@ async function processarArquivo(
       }
 
       if (parsed.chave_acesso) {
-        const { data: existing } = await supabase
-          .from('notas_fiscais').select('id').eq('chave_acesso', parsed.chave_acesso).limit(1)
-        if (existing && existing.length > 0) {
-          return { ok: false, error: `${arquivo.name}: NF com chave de acesso ja cadastrada.` }
-        }
+        const duplicidade = await recuperarDuplicidadeIncompleta(arquivo, context, parsed.chave_acesso, supabase)
+        if (duplicidade) return duplicidade
       }
 
       const { error: uploadError } = await supabase.storage
@@ -97,6 +324,8 @@ async function processarArquivo(
         .from('notas_fiscais')
         .insert({
           cedente_id: cedente.id,
+          cedente_fundo_id: context.cedenteFundoId,
+          fundo_id: context.fundoId,
           numero_nf: parsed.numero_nf,
           serie: parsed.serie || null,
           chave_acesso: parsed.chave_acesso || null,
@@ -122,22 +351,40 @@ async function processarArquivo(
 
       if (dbError) {
         await supabase.storage.from(buckets.notasFiscais).remove([filePath])
+        logUploadNf('insert_nf_erro', { ...context, chaveAcesso: parsed.chave_acesso, erro: dbError })
         return { ok: false, error: `${arquivo.name}: erro ao salvar - ${dbError.message}` }
       }
 
       const nfData = nf as { id: string }
       try {
-        await uploadDocumentoSeRequerido(nfData.id, 'nf_xml', arquivo, supabase)
+        await uploadDocumentoSeRequerido(nfData.id, 'nf_xml', arquivo, supabase, contextoDocumentoDaNota(context, nfData.id))
       } catch (error) {
-        await supabase.storage.from(buckets.notasFiscais).remove([filePath])
-        await supabase.from('notas_fiscais').delete().eq('id', nfData.id)
+        logUploadNf('registrar_xml_documental_erro', { ...context, chaveAcesso: parsed.chave_acesso, erro: error, notaFiscalId: nfData.id })
+        try {
+          await removerNotaFiscalParcial({
+            notaFiscalId: nfData.id,
+            cedenteId: cedente.id,
+            arquivoUrl: filePath,
+            etapa: 'registrar_xml_documental',
+            context,
+          })
+        } catch (cleanupError) {
+          return {
+            ok: false,
+            error: `${arquivo.name}: nao foi possivel registrar o XML no repositorio documental e a limpeza automatica falhou - ${cleanupError instanceof Error ? cleanupError.message : 'erro desconhecido'}`,
+          }
+        }
         return { ok: false, error: `${arquivo.name}: nao foi possivel registrar o XML no repositorio documental - ${error instanceof Error ? error.message : 'erro desconhecido'}` }
       }
       registrarLog({
         tipo_evento: 'NF_CADASTRADA',
         entidade_tipo: 'notas_fiscais',
         entidade_id: nfData.id,
-        dados_depois: parsed as unknown as Record<string, unknown>,
+        dados_depois: {
+          ...(parsed as unknown as Record<string, unknown>),
+          fundo_id: context.fundoId,
+          cedente_fundo_id: context.cedenteFundoId,
+        },
       }).catch(() => {})
 
       return { ok: true, id: nfData.id, isRascunho: false }
@@ -163,6 +410,8 @@ async function processarArquivo(
         .from('notas_fiscais')
         .insert({
           cedente_id: cedente.id,
+          cedente_fundo_id: context.cedenteFundoId,
+          fundo_id: context.fundoId,
           numero_nf: extracted.numero_nf ?? '',
           serie: extracted.serie ?? null,
           chave_acesso: extracted.chave_acesso ?? null,
@@ -184,16 +433,23 @@ async function processarArquivo(
 
       if (dbError) {
         await supabase.storage.from(buckets.notasFiscais).remove([filePath])
+        logUploadNf('insert_nf_rascunho_erro', { ...context, chaveAcesso: extracted.chave_acesso ?? null, erro: dbError })
         return { ok: false, error: `${arquivo.name}: erro ao salvar - ${dbError.message}` }
       }
 
       const nfData = nf as { id: string }
       if (isPdf) {
         try {
-          await uploadDocumentoSeRequerido(nfData.id, 'nf_danfe_pdf', arquivo, supabase)
+          await uploadDocumentoSeRequerido(nfData.id, 'nf_danfe_pdf', arquivo, supabase, contextoDocumentoDaNota(context, nfData.id))
         } catch (error) {
-          await supabase.storage.from(buckets.notasFiscais).remove([filePath])
-          await supabase.from('notas_fiscais').delete().eq('id', nfData.id)
+          logUploadNf('registrar_danfe_documental_erro', { ...context, chaveAcesso: extracted.chave_acesso ?? null, erro: error, notaFiscalId: nfData.id })
+          await removerNotaFiscalParcial({
+            notaFiscalId: nfData.id,
+            cedenteId: cedente.id,
+            arquivoUrl: filePath,
+            etapa: 'registrar_danfe_documental',
+            context,
+          })
           return { ok: false, error: `${arquivo.name}: nao foi possivel registrar o DANFE no repositorio documental - ${error instanceof Error ? error.message : 'erro desconhecido'}` }
         }
       }
@@ -201,7 +457,7 @@ async function processarArquivo(
       return { ok: true, id: nfData.id, isRascunho: true }
     }
   } catch (e) {
-    console.error('[uploadNFs]', e)
+    logUploadNf('erro_inesperado_processar_arquivo', { ...context, erro: e })
     return { ok: false, error: `${arquivo.name}: erro inesperado ao processar.` }
   }
 }
@@ -210,16 +466,15 @@ async function processarArquivo(
 export async function uploadNFs(formData: FormData): Promise<NfActionState> {
   await requireAuthenticated()
   const supabase = await createClient()
-  const cedente = await getCedenteDoUsuario()
+  const context = await resolverContextoUploadCedente(supabase)
 
-  if (!cedente) return { success: false, message: 'Cadastro de cedente nao encontrado.' }
-  if (cedente.status !== 'ativo') return { success: false, message: 'Seu cadastro precisa estar ativo para enviar NFs.' }
+  if ('error' in context) return { success: false, message: context.error }
 
   const arquivos = formData.getAll('arquivos') as File[]
   if (!arquivos || arquivos.length === 0) return { success: false, message: 'Nenhum arquivo selecionado.' }
 
   const resultados = await Promise.allSettled(
-    arquivos.map((arquivo) => processarArquivo(arquivo, cedente, supabase))
+    arquivos.map((arquivo) => processarArquivo(arquivo, context, supabase))
   )
 
   const erros: string[] = []
@@ -241,7 +496,7 @@ export async function uploadNFs(formData: FormData): Promise<NfActionState> {
   if (nfsCriadas.length > 0) {
     notificarGestores(
       'Novas NFs enviadas',
-      `O cedente ${cedente.razao_social} enviou ${nfsCriadas.length} nota(s) fiscal(is) para analise.`,
+      `O cedente ${context.cedente.razao_social} enviou ${nfsCriadas.length} nota(s) fiscal(is) para analise.`,
       'nf_enviada'
     ).catch(() => {})
   }
@@ -266,15 +521,9 @@ export async function uploadNFs(formData: FormData): Promise<NfActionState> {
 export async function criarNFManual(formData: FormData): Promise<NfActionState> {
   await requireAuthenticated()
   const supabase = await createClient()
-  const cedente = await getCedenteDoUsuario()
-
-  if (!cedente) {
-    return { success: false, message: 'Cadastro de cedente nao encontrado.' }
-  }
-
-  if (cedente.status !== 'ativo') {
-    return { success: false, message: 'Seu cadastro precisa estar ativo para enviar NFs.' }
-  }
+  const context = await resolverContextoUploadCedente(supabase)
+  if ('error' in context) return { success: false, message: context.error }
+  const { cedente } = context
 
   const arquivo = formData.get('arquivo') as File | null
   if (!arquivo) {
@@ -319,6 +568,8 @@ export async function criarNFManual(formData: FormData): Promise<NfActionState> 
     .from('notas_fiscais')
     .insert({
       cedente_id: cedente.id,
+      cedente_fundo_id: context.cedenteFundoId,
+      fundo_id: context.fundoId,
       numero_nf,
       serie: null,
       chave_acesso: null,
@@ -345,6 +596,7 @@ export async function criarNFManual(formData: FormData): Promise<NfActionState> 
 
   if (dbError) {
     await supabase.storage.from(buckets.notasFiscais).remove([filePath])
+    logUploadNf('insert_nf_manual_erro', { ...context, erro: dbError })
     return { success: false, message: `Erro ao salvar: ${dbError.message}` }
   }
 
@@ -352,10 +604,16 @@ export async function criarNFManual(formData: FormData): Promise<NfActionState> 
 
   if (arquivo.type === 'application/pdf') {
     try {
-      await uploadDocumentoSeRequerido(nfData.id, 'nf_danfe_pdf', arquivo, supabase)
+      await uploadDocumentoSeRequerido(nfData.id, 'nf_danfe_pdf', arquivo, supabase, contextoDocumentoDaNota(context, nfData.id))
     } catch (error) {
-      await supabase.storage.from(buckets.notasFiscais).remove([filePath])
-      await supabase.from('notas_fiscais').delete().eq('id', nfData.id)
+      logUploadNf('registrar_danfe_manual_documental_erro', { ...context, erro: error, notaFiscalId: nfData.id })
+      await removerNotaFiscalParcial({
+        notaFiscalId: nfData.id,
+        cedenteId: cedente.id,
+        arquivoUrl: filePath,
+        etapa: 'registrar_danfe_manual_documental',
+        context,
+      })
       return { success: false, message: `Nao foi possivel registrar o DANFE no repositorio documental: ${error instanceof Error ? error.message : 'erro desconhecido'}` }
     }
   }
@@ -364,7 +622,7 @@ export async function criarNFManual(formData: FormData): Promise<NfActionState> 
     tipo_evento: 'NF_CADASTRADA',
     entidade_tipo: 'notas_fiscais',
     entidade_id: nfData.id,
-    dados_depois: { numero_nf, valor_bruto, cnpj_destinatario } as Record<string, unknown>,
+    dados_depois: { numero_nf, valor_bruto, cnpj_destinatario, fundo_id: context.fundoId, cedente_fundo_id: context.cedenteFundoId } as Record<string, unknown>,
   })
 
   await notificarGestores(

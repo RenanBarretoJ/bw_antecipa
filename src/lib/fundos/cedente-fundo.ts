@@ -40,7 +40,8 @@ async function loadFundo(client: AppSupabaseClient, fundoId: string): Promise<Fu
     .eq('id', fundoId)
     .maybeSingle()
 
-  if (error || !data) throw new CedenteFundoError('Fundo não encontrado.', 'FUNDO_NOT_FOUND')
+  if (error) throw new CedenteFundoError(`Erro ao consultar fundo vinculado: ${error.message}`, 'FUNDO_NOT_FOUND')
+  if (!data) throw new CedenteFundoError('Fundo vinculado nao encontrado ou sem permissao de leitura.', 'FUNDO_NOT_FOUND')
   return data as Fundo
 }
 

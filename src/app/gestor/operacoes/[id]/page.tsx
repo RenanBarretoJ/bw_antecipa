@@ -139,6 +139,96 @@ const entregaStatusConfig: Record<string, { label: string; className: string }> 
   cancelada: { label: 'Cancelada', className: 'bg-muted text-muted-foreground' },
 }
 
+function NfStatusBadge({
+  status,
+  aceiteDispensado,
+  operacaoAprovada,
+  entregaStatus,
+}: {
+  status: string
+  aceiteDispensado: boolean
+  operacaoAprovada: boolean
+  entregaStatus?: string | null
+}) {
+  if (entregaStatus === 'em_transito') {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 whitespace-nowrap">
+        <Truck size={11} /> Em trânsito
+      </span>
+    )
+  }
+
+  if (entregaStatus === 'aguardando_validacao') {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700 whitespace-nowrap">
+        <Clock size={11} /> Aguard. validação
+      </span>
+    )
+  }
+
+  if (entregaStatus === 'entregue') {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 whitespace-nowrap">
+        <CheckCircle size={11} /> Entregue
+      </span>
+    )
+  }
+
+  if (entregaStatus === 'entrega_com_pendencia') {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700 whitespace-nowrap">
+        <AlertCircle size={11} /> Pendência entrega
+      </span>
+    )
+  }
+
+  if (status === 'aceita') {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 whitespace-nowrap">
+        <CheckCircle size={11} /> Aprov. Sacado
+      </span>
+    )
+  }
+
+  if (status === 'contestada') {
+    return (
+      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700 whitespace-nowrap">
+        Contestada
+      </span>
+    )
+  }
+
+  if (status === 'em_antecipacao' && aceiteDispensado) {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 whitespace-nowrap">
+        <CheckCircle size={11} /> Aceite dispensado
+      </span>
+    )
+  }
+
+  if (status === 'em_antecipacao' && operacaoAprovada) {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 whitespace-nowrap">
+        <CheckCircle size={11} /> Aprov. gestor
+      </span>
+    )
+  }
+
+  if (status === 'em_antecipacao') {
+    return (
+      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700 whitespace-nowrap">
+        Aguard. aprovação
+      </span>
+    )
+  }
+
+  return (
+    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground whitespace-nowrap">
+      {status}
+    </span>
+  )
+}
+
 function DocumentoAnaliseActions({
   tipo,
   documento,
@@ -518,6 +608,8 @@ export default function OperacaoDetalheGestorPage() {
     if (result?.success) {
       setMessage(result.message || 'Desembolso confirmado!')
       setMessageType('success')
+      setOp((current) => current ? { ...current, status: 'em_andamento' } : current)
+      await carregarLogistica()
       setTimeout(() => router.push('/gestor/operacoes'), 2000)
     } else {
       setMessage(result?.message || 'Erro.')
@@ -667,6 +759,7 @@ export default function OperacaoDetalheGestorPage() {
   const canRemoveNf = ['solicitada', 'em_analise'].includes(op.status)
   const aceiteDispensado = op.aceite_sacado_exigido === false || op.aceite_sacado_status === 'dispensado'
   const todasAceitas = aceiteDispensado || (nfs.length > 0 && nfs.every((nf) => nf.status === 'aceita'))
+  const entregaPorNfId = new Map(entregas.map((entrega) => [entrega.nota_fiscal_id, entrega]))
 
   // Seção de documentos visível para aprovada, em_andamento, liquidada, inadimplente
   const showDocs = ['aprovada', 'em_andamento', 'liquidada', 'inadimplente'].includes(op.status)
@@ -779,17 +872,12 @@ export default function OperacaoDetalheGestorPage() {
                         <td className="px-3 py-2 tabular-nums text-muted-foreground text-xs">{prazoDias}d</td>
                         <td className="px-3 py-2">{formatDate(nf.data_vencimento)}</td>
                         <td className="px-3 py-2">
-                          {nf.status === 'aceita' && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 whitespace-nowrap">
-                              <CheckCircle size={11} /> Aprov. Sacado
-                            </span>
-                          )}
-                          {nf.status === 'contestada' && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700">Contestada</span>
-                          )}
-                          {nf.status === 'em_antecipacao' && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">Aguard. aprovação</span>
-                          )}
+                          <NfStatusBadge
+                            status={nf.status}
+                            aceiteDispensado={aceiteDispensado}
+                            operacaoAprovada={['aprovada', 'em_andamento', 'liquidada'].includes(op.status)}
+                            entregaStatus={entregaPorNfId.get(nf.id)?.status_entrega}
+                          />
                         </td>
                         {canRemoveNf && (
                           <td className="px-3 py-2">

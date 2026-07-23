@@ -24,6 +24,7 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  Truck,
   ChevronDown,
   ChevronUp,
 } from 'lucide-react'
@@ -52,6 +53,7 @@ interface NfRecord {
   status: string
   arquivo_url: string | null
   created_at: string
+  entrega_status?: string | null
 }
 
 const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; className: string; icon: typeof CheckCircle }> = {
@@ -65,6 +67,13 @@ const statusConfig: Record<string, { label: string; variant: 'default' | 'second
   contestada:    { label: 'Contestada',         variant: 'outline',     className: 'bg-orange-100 text-orange-700 border-orange-200',  icon: AlertCircle },
   cancelada:     { label: 'Cancelada',          variant: 'destructive', className: 'bg-red-100 text-red-700 border-red-200',           icon: XCircle },
   requer_ajuste: { label: 'Requer Ajuste',      variant: 'outline',     className: 'bg-orange-100 text-orange-700 border-orange-200',  icon: Wrench },
+}
+
+const entregaStatusConfig: Record<string, { label: string; className: string; icon: typeof CheckCircle }> = {
+  em_transito: { label: 'Em trânsito', className: 'bg-blue-100 text-blue-700 border-blue-200', icon: Truck },
+  aguardando_validacao: { label: 'Aguard. validação', className: 'bg-yellow-100 text-yellow-700 border-yellow-200', icon: AlertCircle },
+  entregue: { label: 'Entregue', className: 'bg-emerald-100 text-emerald-700 border-emerald-200', icon: CheckCircle },
+  entrega_com_pendencia: { label: 'Pendência entrega', className: 'bg-orange-100 text-orange-700 border-orange-200', icon: AlertCircle },
 }
 
 export default function NotasFiscaisCedentePage() {
@@ -94,7 +103,8 @@ export default function NotasFiscaisCedentePage() {
   const toggleSelecionado = (id: string) => {
     setSelecionados((prev) => {
       const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
       return next
     })
   }
@@ -150,7 +160,23 @@ export default function NotasFiscaisCedentePage() {
       .select('id, numero_nf, cnpj_destinatario, razao_social_destinatario, valor_bruto, data_emissao, data_vencimento, status, arquivo_url, created_at')
       .order('created_at', { ascending: false })
 
-    setNfs((data || []) as NfRecord[])
+    const rows = (data || []) as NfRecord[]
+    const ids = rows.map((nf) => nf.id)
+    const { data: entregasData } = ids.length > 0
+      ? await supabase
+          .from('nota_fiscal_entregas')
+          .select('nota_fiscal_id, status_entrega, created_at')
+          .in('nota_fiscal_id', ids)
+          .neq('status_entrega', 'nao_aplicavel')
+          .order('created_at', { ascending: false })
+      : { data: [] }
+
+    const entregaPorNf = new Map(
+      ((entregasData || []) as Array<{ nota_fiscal_id: string; status_entrega: string }>)
+        .map((entrega) => [entrega.nota_fiscal_id, entrega.status_entrega]),
+    )
+
+    setNfs(rows.map((nf) => ({ ...nf, entrega_status: entregaPorNf.get(nf.id) || null })))
     setLoading(false)
   }
 
@@ -663,7 +689,10 @@ export default function NotasFiscaisCedentePage() {
             </TableHeader>
             <TableBody>
               {nfsFiltradas.map((nf) => {
-                const status = statusConfig[nf.status] || statusConfig.rascunho
+                const entregaStatus = nf.entrega_status
+                const status = entregaStatus && entregaStatusConfig[entregaStatus]
+                  ? entregaStatusConfig[entregaStatus]
+                  : statusConfig[nf.status] || statusConfig.rascunho
                 const StatusIcon = status.icon
                 return (
                   <TableRow key={nf.id}>

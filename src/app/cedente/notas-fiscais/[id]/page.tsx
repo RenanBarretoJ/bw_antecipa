@@ -1,11 +1,10 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { salvarDadosNF, submeterNF, resubmeterNFAjustada } from '@/lib/actions/nota-fiscal'
-import { enviarCanhoto, enviarCte } from '@/lib/actions/logistica'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { formatCurrency } from '@/lib/utils'
 import { buckets } from '@/lib/storage'
 import Link from 'next/link'
 import {
@@ -16,11 +15,9 @@ import {
   CheckCircle,
   AlertCircle,
   XCircle,
-  Upload,
   Banknote,
   ExternalLink,
   Wrench,
-  Truck,
 } from 'lucide-react'
 import { ChecklistCedente } from '@/components/documentos-v2/ChecklistCedente'
 
@@ -50,20 +47,9 @@ interface NfCompleta {
   created_at: string
 }
 
-interface EntregaLogistica {
-  id: string
-  status_entrega: string
-  data_limite_cte: string | null
-  data_limite_canhoto: string | null
-  data_entrega: string | null
-  motivo_pendencia: string | null
-  canhotos: Array<{ id: string; status: string; motivo_rejeicao: string | null }>
-  cte_notas_fiscais: Array<{ ctes: { id: string; status: string; motivo_rejeicao: string | null } | null }>
-}
-
 const statusConfig: Record<string, { label: string; color: string; icon: typeof CheckCircle }> = {
   rascunho: { label: 'Rascunho', color: 'bg-gray-100 text-gray-600', icon: FileText },
-  submetida: { label: 'Submetida', color: 'bg-blue-100 text-blue-700', icon: Upload },
+  submetida: { label: 'Submetida', color: 'bg-blue-100 text-blue-700', icon: Send },
   em_analise: { label: 'Em Analise', color: 'bg-yellow-100 text-yellow-700', icon: AlertCircle },
   aprovada: { label: 'Validada', color: 'bg-green-100 text-green-700', icon: CheckCircle },
   em_antecipacao: { label: 'Em Antecipacao', color: 'bg-purple-100 text-purple-700', icon: Banknote },
@@ -72,16 +58,6 @@ const statusConfig: Record<string, { label: string; color: string; icon: typeof 
   contestada:    { label: 'Contestada',         color: 'bg-orange-100 text-orange-700', icon: AlertCircle },
   cancelada:     { label: 'Cancelada',          color: 'bg-red-100 text-red-700',       icon: XCircle },
   requer_ajuste: { label: 'Requer Ajuste',      color: 'bg-orange-100 text-orange-700', icon: Wrench },
-}
-
-const entregaStatusLabel: Record<string, string> = {
-  nao_aplicavel: 'Nao aplicavel',
-  em_transito: 'Em transito',
-  aguardando_validacao: 'Aguardando validacao',
-  entregue: 'Entregue',
-  entrega_com_pendencia: 'Entrega com pendencia',
-  devolvida: 'Devolvida',
-  cancelada: 'Cancelada',
 }
 
 export default function NfDetalhePage() {
@@ -98,11 +74,6 @@ export default function NfDetalhePage() {
   const [messageType, setMessageType] = useState<'success' | 'error'>('success')
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [buscandoCnpj, setBuscandoCnpj] = useState(false)
-  const [entrega, setEntrega] = useState<EntregaLogistica | null>(null)
-  const [cteFile, setCteFile] = useState<File | null>(null)
-  const [canhotoFile, setCanhotoFile] = useState<File | null>(null)
-  const [uploadingCte, setUploadingCte] = useState(false)
-  const [uploadingCanhoto, setUploadingCanhoto] = useState(false)
 
   // Form state
   const [form, setForm] = useState({
@@ -125,16 +96,6 @@ export default function NfDetalhePage() {
     descricao_itens: '',
     condicao_pagamento: '',
   })
-
-  const carregarLogistica = useCallback(async () => {
-    const supabase = createClient()
-    const { data } = await supabase
-      .from('nota_fiscal_entregas')
-      .select('*, canhotos(id, status, motivo_rejeicao), cte_notas_fiscais(ctes(id, status, motivo_rejeicao))')
-      .eq('nota_fiscal_id', nfId)
-      .maybeSingle()
-    setEntrega((data || null) as unknown as EntregaLogistica | null)
-  }, [nfId])
 
   useEffect(() => {
     const load = async () => {
@@ -179,11 +140,10 @@ export default function NfDetalhePage() {
           }
         }
       }
-      await carregarLogistica()
       setLoading(false)
     }
     load()
-  }, [nfId, carregarLogistica])
+  }, [nfId])
 
   const updateForm = (field: string, value: string | number) => {
     setForm((prev) => ({ ...prev, [field]: value }))
@@ -289,38 +249,6 @@ export default function NfDetalhePage() {
     setResubmitting(false)
   }
 
-  const handleEnviarCte = async () => {
-    if (!cteFile) return
-    setUploadingCte(true)
-    const formData = new FormData()
-    formData.set('notaFiscalIds', nfId)
-    formData.set('arquivo', cteFile)
-    const result = await enviarCte(formData)
-    setMessage(result?.message || '')
-    setMessageType(result?.success ? 'success' : 'error')
-    if (result?.success) {
-      setCteFile(null)
-      await carregarLogistica()
-    }
-    setUploadingCte(false)
-  }
-
-  const handleEnviarCanhoto = async () => {
-    if (!canhotoFile || !entrega?.id) return
-    setUploadingCanhoto(true)
-    const formData = new FormData()
-    formData.set('entregaId', entrega.id)
-    formData.set('arquivo', canhotoFile)
-    formData.set('possuiAssinatura', 'true')
-    const result = await enviarCanhoto(formData)
-    setMessage(result?.message || '')
-    setMessageType(result?.success ? 'success' : 'error')
-    if (result?.success) {
-      setCanhotoFile(null)
-      await carregarLogistica()
-    }
-    setUploadingCanhoto(false)
-  }
 
   if (loading) {
     return (
@@ -408,106 +336,6 @@ export default function NfDetalhePage() {
       )}
 
       <ChecklistCedente notaFiscalId={nfId} />
-
-      {entrega && entrega.status_entrega !== 'nao_aplicavel' && (
-        <div className="mb-6 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between mb-5">
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <Truck size={18} />
-                Acompanhamento pos-cessao
-              </h2>
-              <p className="text-sm text-gray-500 mt-1">
-                Envie os comprovantes logisticos da NF antecipada para validacao do gestor.
-              </p>
-            </div>
-            <span className="inline-flex w-fit items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
-              {entregaStatusLabel[entrega.status_entrega] || entrega.status_entrega}
-            </span>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-3 mb-5">
-            <div className="rounded-lg bg-gray-50 border border-gray-200 p-3">
-              <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold">Prazo CT-e</p>
-              <p className="text-sm font-semibold text-gray-900">{entrega.data_limite_cte ? formatDate(entrega.data_limite_cte) : 'Nao definido'}</p>
-            </div>
-            <div className="rounded-lg bg-gray-50 border border-gray-200 p-3">
-              <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold">Prazo canhoto</p>
-              <p className="text-sm font-semibold text-gray-900">{entrega.data_limite_canhoto ? formatDate(entrega.data_limite_canhoto) : 'Nao definido'}</p>
-            </div>
-            <div className="rounded-lg bg-gray-50 border border-gray-200 p-3">
-              <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold">Entrega</p>
-              <p className="text-sm font-semibold text-gray-900">{entrega.data_entrega ? formatDate(entrega.data_entrega) : 'Pendente'}</p>
-            </div>
-          </div>
-
-          {entrega.motivo_pendencia && (
-            <div className="mb-5 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
-              {entrega.motivo_pendencia}
-            </div>
-          )}
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="rounded-xl border border-gray-200 p-4">
-              <h3 className="font-semibold text-gray-900 mb-2">CT-e</h3>
-              <div className="space-y-2 mb-4">
-                {entrega.cte_notas_fiscais.length === 0 ? (
-                  <p className="text-sm text-gray-500">Nenhum CT-e enviado.</p>
-                ) : entrega.cte_notas_fiscais.map((link) => link.ctes && (
-                  <div key={link.ctes.id} className="flex items-center justify-between gap-3 rounded-lg bg-gray-50 border border-gray-200 p-2 text-sm">
-                    <span className="font-medium">CT-e {link.ctes.id.slice(0, 8)}</span>
-                    <span className="text-gray-600">{link.ctes.status}</span>
-                  </div>
-                ))}
-              </div>
-              <input
-                type="file"
-                accept=".xml,.pdf,application/xml,text/xml,application/pdf"
-                onChange={(e) => setCteFile(e.target.files?.[0] || null)}
-                className="block w-full text-sm text-gray-700 file:mr-3 file:rounded-lg file:border-0 file:bg-blue-50 file:px-3 file:py-2 file:text-blue-700"
-              />
-              <button
-                type="button"
-                onClick={handleEnviarCte}
-                disabled={!cteFile || uploadingCte}
-                className="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-              >
-                <Upload size={16} />
-                {uploadingCte ? 'Enviando...' : 'Enviar CT-e'}
-              </button>
-            </div>
-
-            <div className="rounded-xl border border-gray-200 p-4">
-              <h3 className="font-semibold text-gray-900 mb-2">Canhoto de entrega</h3>
-              <div className="space-y-2 mb-4">
-                {entrega.canhotos.length === 0 ? (
-                  <p className="text-sm text-gray-500">Nenhum canhoto enviado.</p>
-                ) : entrega.canhotos.map((canhoto) => (
-                  <div key={canhoto.id} className="flex items-center justify-between gap-3 rounded-lg bg-gray-50 border border-gray-200 p-2 text-sm">
-                    <span className="font-medium">Canhoto {canhoto.id.slice(0, 8)}</span>
-                    <span className="text-gray-600">{canhoto.status}</span>
-                  </div>
-                ))}
-              </div>
-              <input
-                type="file"
-                accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
-                onChange={(e) => setCanhotoFile(e.target.files?.[0] || null)}
-                className="block w-full text-sm text-gray-700 file:mr-3 file:rounded-lg file:border-0 file:bg-blue-50 file:px-3 file:py-2 file:text-blue-700"
-              />
-              <button
-                type="button"
-                onClick={handleEnviarCanhoto}
-                disabled={!canhotoFile || uploadingCanhoto}
-                className="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-              >
-                <Upload size={16} />
-                {uploadingCanhoto ? 'Enviando...' : 'Enviar canhoto'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {nf.status === 'requer_ajuste' && nf.motivo_ajuste && (
         <div className="mb-4 p-4 rounded-lg text-sm bg-orange-50 border border-orange-300 text-orange-800">

@@ -17,6 +17,7 @@ import {
   Upload,
   Banknote,
   Wrench,
+  Truck,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -51,6 +52,12 @@ interface NfCompleta {
   cedente_id: string
 }
 
+interface EntregaResumo {
+  id: string
+  status_entrega: string
+  motivo_pendencia: string | null
+}
+
 const statusConfig: Record<string, { label: string; icon: typeof CheckCircle; variant: 'default' | 'secondary' | 'destructive' | 'outline'; className: string }> = {
   rascunho: { label: 'Rascunho', icon: FileText, variant: 'secondary', className: '' },
   submetida: { label: 'Submetida', icon: Upload, variant: 'default', className: 'bg-blue-100 text-blue-700 border-transparent' },
@@ -62,12 +69,22 @@ const statusConfig: Record<string, { label: string; icon: typeof CheckCircle; va
   requer_ajuste: { label: 'Requer Ajuste', icon: Wrench, variant: 'default', className: 'bg-orange-100 text-orange-700 border-transparent' },
 }
 
+const entregaStatusConfig: Record<string, { label: string; className: string }> = {
+  em_transito: { label: 'Em trânsito', className: 'bg-blue-100 text-blue-700 border-transparent dark:bg-blue-500/15 dark:text-blue-200' },
+  aguardando_validacao: { label: 'Documento enviado — em análise', className: 'bg-cyan-100 text-cyan-700 border-transparent dark:bg-cyan-500/15 dark:text-cyan-200' },
+  entregue: { label: 'Entrega confirmada', className: 'bg-green-100 text-green-700 border-transparent dark:bg-green-500/15 dark:text-green-200' },
+  entrega_com_pendencia: { label: 'Em atraso / com pendência', className: 'bg-red-100 text-red-700 border-transparent dark:bg-red-500/15 dark:text-red-200' },
+  devolvida: { label: 'Devolvida', className: 'bg-red-100 text-red-700 border-transparent dark:bg-red-500/15 dark:text-red-200' },
+  cancelada: { label: 'Cancelada', className: 'bg-muted text-muted-foreground' },
+}
+
 export default function NfDetalheGestorPage() {
   const params = useParams()
   const router = useRouter()
   const nfId = params.id as string
 
   const [nf, setNf] = useState<NfCompleta | null>(null)
+  const [entrega, setEntrega] = useState<EntregaResumo | null>(null)
   const [loading, setLoading] = useState(true)
   const [processing, setProcessing] = useState(false)
   const [message, setMessage] = useState('')
@@ -99,6 +116,16 @@ export default function NfDetalheGestorPage() {
           if (signedData) setPreviewUrl(signedData.signedUrl)
         }
       }
+
+      const { data: entregaData } = await supabase
+        .from('nota_fiscal_entregas')
+        .select('id, status_entrega, motivo_pendencia, created_at')
+        .eq('nota_fiscal_id', nfId)
+        .neq('status_entrega', 'nao_aplicavel')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      setEntrega(entregaData as EntregaResumo | null)
       setLoading(false)
     }
     load()
@@ -187,6 +214,7 @@ export default function NfDetalheGestorPage() {
   }
 
   const status = statusConfig[nf.status] || statusConfig.rascunho
+  const entregaStatus = entrega ? entregaStatusConfig[entrega.status_entrega] || entregaStatusConfig.em_transito : null
   const StatusIcon = status.icon
   const canAnalyze = nf.status === 'submetida' || nf.status === 'em_analise'
   const impostos = nf.valor_icms + nf.valor_iss + nf.valor_pis + nf.valor_cofins + nf.valor_ipi
@@ -209,6 +237,13 @@ export default function NfDetalheGestorPage() {
               <StatusIcon size={12} />
               {status.label}
             </Badge>
+            {entregaStatus && (
+              <Badge variant="default" className={`ml-2 ${entregaStatus.className}`}>
+                <Truck size={12} />
+                {entregaStatus.label}
+              </Badge>
+            )}
+            {entrega?.motivo_pendencia && <p className="mt-1 text-xs text-destructive">{entrega.motivo_pendencia}</p>}
           </div>
         </div>
 
