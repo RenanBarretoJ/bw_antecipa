@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { aprovarOperacao, desembolsarOperacao, reprovarOperacao, removerNfDaOperacao, salvarTestemunhasOperacao, salvarTermoAssinado, salvarComprovantePagamento, salvarNotificacaoAssinada, salvarQuitacaoAssinada } from '@/lib/actions/operacao'
@@ -33,6 +33,7 @@ import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useNotifications } from '@/components/notifications/notification-provider'
+import { OperacaoNotaFiscalCard, buildOperacaoNotaFiscalView, type OperacaoNotaFiscalView } from '@/components/operacoes/OperacaoNotaFiscalCard'
 
 interface Testemunha {
   id: string
@@ -118,6 +119,7 @@ interface LogisticaEntrega {
 }
 
 type BadgeVariant = 'default' | 'secondary' | 'destructive' | 'outline' | 'ghost' | 'link'
+type NotaFiscalSort = 'vencimento' | 'numero' | 'sacado' | 'valor' | 'status'
 
 const statusConfig: Record<string, { label: string; variant: BadgeVariant; className: string; icon: typeof CheckCircle }> = {
   solicitada: { label: 'Solicitada', variant: 'secondary', className: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400', icon: Clock },
@@ -483,6 +485,7 @@ export default function OperacaoDetalheGestorPage() {
   const [remessaEnviadaEm, setRemessaEnviadaEm] = useState<string | null>(null)
   const [remessaFromtisId, setRemessaFromtisId] = useState<string | null>(null)
   const [desembolsando, setDesembolsando] = useState(false)
+  const [nfSort, setNfSort] = useState<NotaFiscalSort>('vencimento')
 
   const carregarLogistica = useCallback(async () => {
     const data = await carregarResumoEntregaPorOperacao(opId)
@@ -567,14 +570,46 @@ export default function OperacaoDetalheGestorPage() {
     }
   }, [taxa, nfs, op])
 
-  const calcularValorAntecipado = (valorBase: number, dataVencimento: string): number => {
+  const calcularValorAntecipado = useCallback((valorBase: number, dataVencimento: string): number => {
     if (taxa < 0) return valorBase
     const prazoDias = Math.max(1, Math.ceil(
       (new Date(dataVencimento).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
     ))
     const fator = Math.pow(1 + taxa / 100, prazoDias / 30)
     return Math.round((valorBase / fator) * 100) / 100
-  }
+  }, [taxa])
+
+  const entregaPorNfId = useMemo(() => new Map(entregas.map((entrega) => [entrega.nota_fiscal_id, entrega])), [entregas])
+
+  const notasFiscaisView = useMemo<OperacaoNotaFiscalView[]>(() => {
+    const views = nfs.map((nf) => buildOperacaoNotaFiscalView({
+      notaFiscal: {
+        id: nf.id,
+        numero_nf: nf.numero_nf,
+        cnpj_destinatario: nf.cnpj_destinatario,
+        razao_social_destinatario: nf.razao_social_destinatario,
+        valor_bruto: nf.valor_bruto,
+        data_vencimento: nf.data_vencimento,
+        status: nf.status,
+      },
+      valorAntecipado: (op?.status === 'solicitada' || op?.status === 'em_analise')
+        ? calcularValorAntecipado(nf.valor_liquido || nf.valor_bruto, nf.data_vencimento)
+        : (nf.valor_antecipado ?? nf.valor_liquido ?? nf.valor_bruto),
+    }))
+
+    return views.sort((a, b) => {
+      if (nfSort === 'numero') return a.numero_nf.localeCompare(b.numero_nf, 'pt-BR', { numeric: true })
+      if (nfSort === 'sacado') return a.razao_social_destinatario.localeCompare(b.razao_social_destinatario, 'pt-BR')
+      if (nfSort === 'valor') return b.valor_bruto - a.valor_bruto
+      if (nfSort === 'status') return a.status.localeCompare(b.status, 'pt-BR')
+      return new Date(a.data_vencimento).getTime() - new Date(b.data_vencimento).getTime()
+    })
+  }, [nfs, nfSort, op?.status, calcularValorAntecipado])
+
+  const totaisNfs = useMemo(() => ({
+    bruto: notasFiscaisView.reduce((acc, nf) => acc + nf.valor_bruto, 0),
+    antecipado: notasFiscaisView.reduce((acc, nf) => acc + nf.valor_antecipado, 0),
+  }), [notasFiscaisView])
 
   const aplicarTaxaConfig = (t: TaxaConfig) => {
     setTaxa(t.taxa_percentual)
@@ -771,13 +806,12 @@ export default function OperacaoDetalheGestorPage() {
   const canRemoveNf = ['solicitada', 'em_analise'].includes(op.status)
   const aceiteDispensado = op.aceite_sacado_exigido === false || op.aceite_sacado_status === 'dispensado'
   const todasAceitas = aceiteDispensado || (nfs.length > 0 && nfs.every((nf) => nf.status === 'aceita'))
-  const entregaPorNfId = new Map(entregas.map((entrega) => [entrega.nota_fiscal_id, entrega]))
 
   // Seção de documentos visível para aprovada, em_andamento, liquidada, inadimplente
   const showDocs = ['aprovada', 'em_andamento', 'liquidada', 'inadimplente'].includes(op.status)
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="mx-auto max-w-7xl">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
@@ -826,79 +860,77 @@ export default function OperacaoDetalheGestorPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="space-y-6">
           {/* NFs da operacao */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <FileText size={18} />
-                Notas Fiscais ({nfs.length})
-              </CardTitle>
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <FileText size={18} />
+                    Notas Fiscais ({notasFiscaisView.length})
+                  </CardTitle>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Conferência operacional sem rolagem horizontal. A ação principal fica sempre visível.
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-3 lg:min-w-[420px]">
+                  <div className="rounded-lg border bg-background px-3 py-2">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Total bruto</p>
+                    <p className="font-semibold tabular-nums">{formatCurrency(totaisNfs.bruto)}</p>
+                  </div>
+                  <div className="rounded-lg border bg-background px-3 py-2">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Antecipado</p>
+                    <p className="font-semibold text-success-foreground tabular-nums">{formatCurrency(totaisNfs.antecipado)}</p>
+                  </div>
+                  <div className="rounded-lg border bg-background px-3 py-2">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Diferença</p>
+                    <p className="font-semibold tabular-nums">{formatCurrency(Math.max(0, totaisNfs.bruto - totaisNfs.antecipado))}</p>
+                  </div>
+                </div>
+              </div>
             </CardHeader>
             <CardContent className="pt-0">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b bg-muted/50">
-                      <th className="text-left px-3 py-2 text-xs text-muted-foreground uppercase">NF</th>
-                      <th className="text-left px-3 py-2 text-xs text-muted-foreground uppercase">Sacado</th>
-                      <th className="text-left px-3 py-2 text-xs text-muted-foreground uppercase">Valor</th>
-                      <th className="text-left px-3 py-2 text-xs text-muted-foreground uppercase">Vl. Antecipado</th>
-                      <th className="text-left px-3 py-2 text-xs text-muted-foreground uppercase">Prazo</th>
-                      <th className="text-left px-3 py-2 text-xs text-muted-foreground uppercase">Vencimento</th>
-                      <th className="text-left px-3 py-2 text-xs text-muted-foreground uppercase">Status</th>
-                      {canRemoveNf && <th className="text-left px-3 py-2 text-xs text-muted-foreground uppercase">Ação</th>}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {nfs.map((nf) => {
-                      const prazoDias = Math.max(1, Math.ceil(
-                        (new Date(nf.data_vencimento).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
-                      ))
-                      return (
-                      <tr key={nf.id} className={`hover:bg-muted/30 ${nf.status === 'contestada' ? 'bg-orange-50' : ''}`}>
-                        <td className="px-3 py-2 font-medium tabular-nums">{nf.numero_nf}</td>
-                        <td className="px-3 py-2 max-w-[180px]">
-                          <p className="text-foreground truncate" title={nf.razao_social_destinatario}>{nf.razao_social_destinatario}</p>
-                          <p className="text-xs text-muted-foreground">{formatCNPJ(nf.cnpj_destinatario)}</p>
-                        </td>
-                        <td className="px-3 py-2 font-medium tabular-nums">{formatCurrency(nf.valor_bruto)}</td>
-                        <td className="px-3 py-2 tabular-nums text-green-700 font-medium">
-                          {formatCurrency(
-                            (op?.status === 'solicitada' || op?.status === 'em_analise')
-                              ? calcularValorAntecipado(nf.valor_liquido || nf.valor_bruto, nf.data_vencimento)
-                              : (nf.valor_antecipado ?? nf.valor_liquido ?? nf.valor_bruto)
-                          )}
-                        </td>
-                        <td className="px-3 py-2 tabular-nums text-muted-foreground text-xs">{prazoDias}d</td>
-                        <td className="px-3 py-2">{formatDate(nf.data_vencimento)}</td>
-                        <td className="px-3 py-2">
-                          <NfStatusBadge
-                            status={nf.status}
-                            aceiteDispensado={aceiteDispensado}
-                            operacaoAprovada={['aprovada', 'em_andamento', 'liquidada'].includes(op.status)}
-                            entregaStatus={entregaPorNfId.get(nf.id)?.status_entrega}
-                          />
-                        </td>
-                        {canRemoveNf && (
-                          <td className="px-3 py-2">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              disabled={removendoNf === nf.id}
-                              onClick={() => handleRemoverNf(nf.id)}
-                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                            >
-                              {removendoNf === nf.id ? <Loader2 size={14} className="animate-spin" /> : 'Remover'}
-                            </Button>
-                          </td>
-                        )}
-                      </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
+              <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm text-muted-foreground">
+                  {notasFiscaisView.length === 1 ? '1 NF vinculada' : `${notasFiscaisView.length} NFs vinculadas`}
+                </p>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Ordenar por</span>
+                  <Select value={nfSort} onValueChange={(value) => setNfSort(value as NotaFiscalSort)}>
+                    <SelectTrigger className="h-9 w-[170px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="vencimento">Vencimento</SelectItem>
+                      <SelectItem value="numero">Número</SelectItem>
+                      <SelectItem value="sacado">Sacado</SelectItem>
+                      <SelectItem value="valor">Valor</SelectItem>
+                      <SelectItem value="status">Status</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="space-y-3">
+                {notasFiscaisView.map((nf) => (
+                  <OperacaoNotaFiscalCard
+                    key={nf.id}
+                    notaFiscal={nf}
+                    href={`/gestor/notas-fiscais/${nf.id}`}
+                    canRemove={canRemoveNf}
+                    removing={removendoNf === nf.id}
+                    onRemove={() => handleRemoverNf(nf.id)}
+                    statusNode={(
+                      <NfStatusBadge
+                        status={nf.status}
+                        aceiteDispensado={aceiteDispensado}
+                        operacaoAprovada={['aprovada', 'em_andamento', 'liquidada'].includes(op.status)}
+                        entregaStatus={entregaPorNfId.get(nf.id)?.status_entrega}
+                      />
+                    )}
+                  />
+                ))}
               </div>
             </CardContent>
 
@@ -918,7 +950,7 @@ export default function OperacaoDetalheGestorPage() {
         </div>
 
         {/* Sidebar */}
-        <div className="space-y-6">
+        <aside className="space-y-6 xl:sticky xl:top-6 xl:self-start">
 
           {/* ETAPA 1: Definir termos (solicitada / em_analise) */}
           {canAnalyze && (
@@ -1453,7 +1485,7 @@ export default function OperacaoDetalheGestorPage() {
               Gerenciar taxas deste cedente
             </Link>
           )}
-        </div>
+        </aside>
       </div>
     </div>
   )

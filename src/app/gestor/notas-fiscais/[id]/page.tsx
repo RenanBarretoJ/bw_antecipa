@@ -12,7 +12,6 @@ import {
   CheckCircle,
   XCircle,
   FileText,
-  ExternalLink,
   AlertCircle,
   Upload,
   Banknote,
@@ -26,6 +25,7 @@ import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ChecklistGestor } from '@/components/documentos-v2/ChecklistGestor'
 import { useNotifications } from '@/components/notifications/notification-provider'
+import { ArquivoOriginalCompacto } from '@/components/notas-fiscais/ArquivoOriginalCompacto'
 
 interface NfCompleta {
   id: string
@@ -364,13 +364,13 @@ export default function NfDetalheGestorPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Dados — 2 colunas */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-4">
           {/* Dados basicos */}
           <Card>
-            <CardHeader className="pb-3">
+            <CardHeader className="pb-2">
               <CardTitle className="text-lg">Dados da NF</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-0">
               <div className="grid grid-cols-3 gap-4 text-sm">
                 <div>
                   <span className="text-muted-foreground">Numero</span>
@@ -397,12 +397,12 @@ export default function NfDetalheGestorPage() {
           </Card>
 
           {/* Emitente e Destinatario */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <Card>
-              <CardHeader className="pb-3">
+              <CardHeader className="pb-2">
                 <CardTitle className="text-base">Emitente (Cedente)</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="pt-0">
                 <div className="text-sm space-y-1">
                   <p className="font-medium">{nf.razao_social_emitente}</p>
                   <p className="text-muted-foreground tabular-nums">{formatCNPJ(nf.cnpj_emitente)}</p>
@@ -410,10 +410,10 @@ export default function NfDetalheGestorPage() {
               </CardContent>
             </Card>
             <Card>
-              <CardHeader className="pb-3">
+              <CardHeader className="pb-2">
                 <CardTitle className="text-base">Destinatario (Sacado)</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="pt-0">
                 <div className="text-sm space-y-1">
                   <p className="font-medium">{nf.razao_social_destinatario || '—'}</p>
                   <p className="text-muted-foreground tabular-nums">{nf.cnpj_destinatario ? formatCNPJ(nf.cnpj_destinatario) : '—'}</p>
@@ -424,10 +424,10 @@ export default function NfDetalheGestorPage() {
 
           {/* Valores */}
           <Card>
-            <CardHeader className="pb-3">
+            <CardHeader className="pb-2">
               <CardTitle className="text-base">Valores</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-0">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 <div>
                   <span className="text-muted-foreground">Valor Bruto</span>
@@ -467,11 +467,9 @@ export default function NfDetalheGestorPage() {
 
           {/* Itens e pagamento */}
           {(nf.descricao_itens || nf.condicao_pagamento) && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Detalhes</CardTitle>
-              </CardHeader>
-              <CardContent>
+            <details className="rounded-xl border bg-card p-4">
+              <summary className="cursor-pointer text-base font-semibold text-foreground">Itens e condição de pagamento</summary>
+              <div className="mt-3">
                 {nf.descricao_itens && (
                   <div className="mb-4">
                     <span className="text-sm text-muted-foreground">Itens</span>
@@ -484,19 +482,19 @@ export default function NfDetalheGestorPage() {
                     <p className="text-sm mt-1">{nf.condicao_pagamento}</p>
                   </div>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </details>
           )}
         </div>
 
         {/* Sidebar */}
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* Resumo rapido */}
           <Card>
-            <CardHeader className="pb-3">
+            <CardHeader className="pb-2">
               <CardTitle className="text-base">Resumo</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-0">
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Valor Bruto</span>
@@ -520,34 +518,7 @@ export default function NfDetalheGestorPage() {
             </CardContent>
           </Card>
 
-          {/* Preview do arquivo */}
-          {previewUrl && (
-            <Card>
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base">Arquivo</CardTitle>
-                  <a href={previewUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:text-primary/80">
-                    <ExternalLink size={16} />
-                  </a>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {nf.arquivo_url?.endsWith('.pdf') ? (
-                  <iframe src={previewUrl} className="w-full h-80 rounded-lg border" />
-                ) : nf.arquivo_url?.match(/\.(jpg|jpeg|png)$/i) ? (
-                  <img src={previewUrl} alt="NF" className="w-full rounded-lg border" />
-                ) : (
-                  <div className="bg-muted rounded-lg p-4 text-center">
-                    <FileText size={32} className="mx-auto text-muted-foreground mb-2" />
-                    <p className="text-sm text-muted-foreground">Arquivo XML</p>
-                    <a href={previewUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline">
-                      Baixar
-                    </a>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
+          <ArquivoOriginalCompacto previewUrl={previewUrl} arquivoUrl={nf.arquivo_url} title="Arquivo original" />
 
           {/* Metadados */}
           <div className="bg-muted/50 rounded-xl p-4 text-sm">

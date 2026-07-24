@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
-import { Eye, KeyRound, Mail, ShieldCheck, TrendingUp, Zap, Loader2 } from 'lucide-react'
+import { Eye, EyeOff, KeyRound, Mail, ShieldCheck, TrendingUp, Zap, Loader2 } from 'lucide-react'
 
 const MAX_ATTEMPTS = 5
 const LOCKOUT_DURATION = 15 * 60 * 1000
@@ -16,6 +16,7 @@ export default function LoginPage() {
   const [attempts, setAttempts] = useState(0)
   const [lockoutUntil, setLockoutUntil] = useState<number | null>(null)
   const [lockoutRemaining, setLockoutRemaining] = useState(0)
+  const [showPassword, setShowPassword] = useState(false)
   const formRef = useRef<HTMLFormElement>(null)
   const isLockedOut = lockoutUntil !== null && Date.now() < lockoutUntil
 
@@ -73,7 +74,7 @@ export default function LoginPage() {
 
           {isLockedOut ? <div className="rounded-xl border border-red-400/30 bg-red-400/10 p-5 text-center"><ShieldCheck size={28} className="mx-auto mb-2 text-red-300" /><p className="font-semibold text-red-200">Acesso temporariamente bloqueado</p><p className="mt-1 text-sm text-red-200/75">Muitas tentativas falhas. Tente novamente em <span className="font-mono font-bold">{Math.floor(lockoutRemaining / 60)}:{String(lockoutRemaining % 60).padStart(2, '0')}</span></p></div> : <form ref={formRef} action={handleSubmit} className="space-y-6">
             <div className="space-y-2"><Label htmlFor="email" className="text-sm text-white">E-mail</Label><div className="relative"><Mail size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-black" /><Input id="email" name="email" type="email" autoComplete="email" required placeholder="voce@empresa.com.br" className="h-10 border-white/30 bg-white/10 pl-10 text-white placeholder:text-white/65 focus-visible:border-white/60 focus-visible:ring-white/25" aria-invalid={!!state?.errors?.email} /></div>{state?.errors?.email && <p className="text-sm text-red-200">{state.errors.email[0]}</p>}</div>
-            <div className="space-y-2"><Label htmlFor="password" className="text-sm text-white">Senha</Label><div className="relative"><KeyRound size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-black" /><Input id="password" name="password" type="password" autoComplete="current-password" required placeholder="Digite sua senha" className="h-10 border-white/30 bg-white/10 pl-10 pr-10 text-white placeholder:text-white/65 focus-visible:border-white/60 focus-visible:ring-white/25" aria-invalid={!!state?.errors?.password} /><Eye size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-black" /></div>{state?.errors?.password && <div className="space-y-1">{state.errors.password.map((error) => <p key={error} className="text-sm text-red-200">{error}</p>)}</div>}</div>
+            <div className="space-y-2"><Label htmlFor="password" className="text-sm text-white">Senha</Label><div className="relative"><KeyRound size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-black" /><Input id="password" name="password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" required placeholder="Digite sua senha" className="h-10 border-white/30 bg-white/10 pl-10 pr-10 text-white placeholder:text-white/65 focus-visible:border-white/60 focus-visible:ring-white/25" aria-invalid={!!state?.errors?.password} /><button type="button" onClick={() => setShowPassword((current) => !current)} className="absolute right-2 top-1/2 flex size-7 -translate-y-1/2 items-center justify-center rounded-md text-black transition-colors hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50" aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}>{showPassword ? <EyeOff size={16} /> : <Eye size={16} />}</button></div>{state?.errors?.password && <div className="space-y-1">{state.errors.password.map((error) => <p key={error} className="text-sm text-red-200">{error}</p>)}</div>}</div>
             {state?.message && <div className={`rounded-lg border p-3 text-sm ${state.message.includes('sucesso') ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-200' : 'border-red-400/30 bg-red-400/10 text-red-200'}`}>{state.message}</div>}
             {attempts > 0 && attempts < MAX_ATTEMPTS && <p className="rounded-lg bg-amber-400/10 py-2 text-center text-sm text-amber-200">{MAX_ATTEMPTS - attempts} tentativa(s) restante(s)</p>}
             <Button type="submit" disabled={pending || isLockedOut} className="h-10 w-full bg-white text-sm font-semibold text-black hover:bg-white/90" size="lg">{pending ? <><Loader2 size={17} className="animate-spin" /> Entrando...</> : 'Entrar'}</Button>

@@ -127,6 +127,22 @@ function OperacaoSkeleton() {
   )
 }
 
+function getCedenteOperacaoHint(op: OperacaoRecord) {
+  if (op.status === 'aprovada') return 'Aprovada. Aguardando desembolso.'
+  if (op.status === 'em_andamento') return 'Desembolso realizado. Operação em andamento.'
+  if (op.status === 'liquidada') return 'Operação liquidada.'
+  if (op.status === 'inadimplente') return 'Operação inadimplente.'
+  if (op.status === 'reprovada' || op.status === 'cancelada') return null
+  if (op.aceite_sacado_status === 'contestado') return 'Contestada pelo sacado.'
+  if (op.status === 'solicitada' || op.status === 'em_analise') {
+    if (op.aceite_sacado_exigido === false || op.aceite_sacado_status === 'dispensado' || op.aceite_sacado_status === 'aceito') {
+      return 'Aguardando análise da gestora.'
+    }
+    return 'Aguardando aceite do sacado.'
+  }
+  return null
+}
+
 export default function OperacoesCedentePage() {
   const notifications = useNotifications()
   const [ops, setOps] = useState<OperacaoRecord[]>([])
@@ -295,72 +311,90 @@ export default function OperacoesCedentePage() {
             const status = statusConfig[op.status] || statusConfig.solicitada
             const StatusIcon = status.icon
             const canCancel = op.status === 'solicitada' || op.status === 'em_analise'
+            const operationHint = getCedenteOperacaoHint(op)
 
             return (
-              <Card key={op.id}>
-                <CardContent className="pt-4 pb-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <span className="text-sm font-mono text-muted-foreground">
-                          #{op.id.substring(0, 8)}
-                        </span>
-                        <Badge
-                          variant={status.variant}
-                          className={status.className || undefined}
-                        >
-                          <StatusIcon size={12} />
-                          {status.label}
-                        </Badge>
-                      </div>
-                      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
-                        <div>
-                          <span className="text-muted-foreground text-xs">Valor Bruto</span>
-                          <p className="font-bold tabular-nums">{formatCurrency(op.valor_bruto_total)}</p>
+              <Card key={op.id} className="overflow-hidden transition-colors hover:border-primary/35 hover:shadow-sm">
+                <CardContent className="p-0">
+                  <div className="flex flex-col gap-4 p-5 lg:flex-row lg:items-start lg:justify-between">
+                    <Link
+                      href={`/cedente/operacoes/${op.id}`}
+                      className="min-w-0 flex-1 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      aria-label={`Ver detalhes da operação ${op.id.substring(0, 8)}`}
+                    >
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-mono text-sm font-semibold text-foreground">
+                              #{op.id.substring(0, 8)}
+                            </span>
+                            <Badge
+                              variant={status.variant}
+                              className={status.className || undefined}
+                            >
+                              <StatusIcon size={12} />
+                              {status.label}
+                            </Badge>
+                          </div>
+                          {operationHint && <p className="mt-2 text-sm text-muted-foreground">{operationHint}</p>}
+                          {op.motivo_reprovacao && (
+                            <p className="mt-2 rounded-lg border border-destructive/25 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                              Motivo: {op.motivo_reprovacao}
+                            </p>
+                          )}
                         </div>
-                        <div>
-                          <span className="text-muted-foreground text-xs">Taxa</span>
-                          <p className="font-medium tabular-nums">
+                        <div className="flex flex-wrap gap-2 text-xs text-muted-foreground sm:justify-end">
+                          <span className="rounded-full border border-border bg-muted/40 px-2.5 py-1">
+                            Criada em {formatDate(op.created_at)}
+                          </span>
+                          <span className="rounded-full border border-border bg-muted/40 px-2.5 py-1">
+                            Vence em {formatDate(op.data_vencimento)}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-5">
+                        <div className="rounded-xl border border-border bg-muted/25 p-3">
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Valor bruto</span>
+                          <p className="mt-1 text-base font-bold tabular-nums text-foreground">{formatCurrency(op.valor_bruto_total)}</p>
+                        </div>
+                        <div className="rounded-xl border border-border bg-muted/25 p-3">
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Taxa</span>
+                          <p className="mt-1 text-base font-semibold tabular-nums text-foreground">
                             {op.taxa_desconto > 0 ? `${op.taxa_desconto}% a.m.` : 'A definir'}
                           </p>
                         </div>
-                        <div>
-                          <span className="text-muted-foreground text-xs">Prazo</span>
-                          <p className="font-medium tabular-nums">{op.prazo_dias} dias</p>
+                        <div className="rounded-xl border border-border bg-muted/25 p-3">
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Prazo</span>
+                          <p className="mt-1 text-base font-semibold tabular-nums text-foreground">{op.prazo_dias} dias</p>
                         </div>
-                        <div>
-                          <span className="text-muted-foreground text-xs">Valor Liquido</span>
-                          <p className="font-bold text-green-700 dark:text-green-400 tabular-nums">
+                        <div className="rounded-xl border border-success/25 bg-success/10 p-3">
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-success-foreground/75">Valor líquido</span>
+                          <p className="mt-1 text-base font-bold text-success-foreground tabular-nums">
                             {formatCurrency(op.valor_liquido_desembolso)}
                           </p>
                         </div>
-                        <div>
-                          <span className="text-muted-foreground text-xs">Vencimento</span>
-                          <p className="font-medium">{formatDate(op.data_vencimento)}</p>
+                        <div className="rounded-xl border border-border bg-muted/25 p-3">
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Vencimento</span>
+                          <p className="mt-1 text-base font-semibold tabular-nums text-foreground">{formatDate(op.data_vencimento)}</p>
                         </div>
                       </div>
-                      {op.motivo_reprovacao && (
-                        <p className="mt-2 text-sm text-destructive">
-                          Motivo: {op.motivo_reprovacao}
-                        </p>
-                      )}
-                      <p className="mt-2 text-xs text-muted-foreground">
-                        {op.aceite_sacado_exigido === false || op.aceite_sacado_status === 'dispensado'
-                          ? 'Sem aceite: aceite do sacado dispensado pela política; aguardando análise da gestora.'
-                          : op.aceite_sacado_status === 'aceito'
-                            ? 'Com aceite: aceite do sacado concluído; aguardando análise da gestora.'
-                            : op.aceite_sacado_status === 'contestado'
-                              ? 'Com aceite: contestada pelo sacado.'
-                              : 'Com aceite: aguardando aceite do sacado.'}
-                      </p>
-                    </div>
-                    <div className="flex gap-2 ml-4">
+                    </Link>
+
+                    <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-border pt-4 lg:min-w-[150px] lg:flex-col lg:items-stretch lg:border-t-0 lg:pt-0">
+                      <Link
+                        href={`/cedente/operacoes/${op.id}`}
+                        className="inline-flex h-9 items-center justify-center rounded-md border border-border bg-background px-3 text-sm font-medium hover:bg-muted"
+                      >
+                        Ver detalhes
+                      </Link>
                       {op.status === 'liquidada' && op.quitacao_assinada_url && (
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => handleBaixarQuitacao(op)}
                           disabled={baixandoQuitacao === op.id}
+                          className="justify-center"
                         >
                           {baixandoQuitacao === op.id ? (
                             <Loader2 size={14} className="animate-spin" />
@@ -376,6 +410,7 @@ export default function OperacoesCedentePage() {
                           size="sm"
                           onClick={() => handleCancel(op.id)}
                           disabled={cancelling === op.id}
+                          className="justify-center"
                         >
                           {cancelling === op.id ? (
                             <Loader2 size={14} className="animate-spin" />
@@ -386,9 +421,6 @@ export default function OperacoesCedentePage() {
                         </Button>
                       )}
                     </div>
-                  </div>
-                  <div className="mt-2 text-xs text-muted-foreground">
-                    Criada em {formatDate(op.created_at)}
                   </div>
                 </CardContent>
               </Card>

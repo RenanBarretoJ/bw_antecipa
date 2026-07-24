@@ -29,6 +29,7 @@ import {
   Users,
   Calendar,
 } from 'lucide-react'
+import { ListNameCell } from '@/components/data-display/primitives'
 
 interface CarteiraCedente {
   cedente_id: string
@@ -216,9 +217,8 @@ export default function RelatoriosConsultorPage() {
             <TableBody>
               {comissaoPorCedente.map((c) => (
                 <TableRow key={c.cnpj}>
-                  <TableCell>
-                    <p className="text-sm font-medium">{c.cedente}</p>
-                    <p className="text-xs text-muted-foreground font-mono">{formatCNPJ(c.cnpj)}</p>
+                  <TableCell className="w-[220px] max-w-[220px]">
+                    <ListNameCell name={c.cedente} subline={formatCNPJ(c.cnpj)} />
                   </TableCell>
                   <TableCell>
                     <Badge variant={c.status === 'ativo' ? 'default' : 'outline'}>{c.status}</Badge>

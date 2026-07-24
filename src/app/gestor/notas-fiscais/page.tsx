@@ -43,6 +43,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useNotifications } from '@/components/notifications/notification-provider'
+import { ListNameCell } from '@/components/data-display/primitives'
 
 interface NfGestorRecord {
   id: string
@@ -456,22 +457,10 @@ export default function NotasFiscaisGestorPage() {
                     </TableCell>
                     <TableCell className="px-4 py-3 font-medium text-foreground">{nf.numero_nf || '—'}</TableCell>
                     <TableCell className="w-[220px] max-w-[220px] px-4 py-3">
-                      <div className="min-w-0 max-w-[220px]">
-                        <p className="text-sm text-foreground truncate" title={nf.razao_social_emitente}>
-                          {nf.razao_social_emitente}
-                        </p>
-                        <p className="block truncate font-mono text-xs text-muted-foreground" title={formatCNPJ(nf.cnpj_emitente)}>{formatCNPJ(nf.cnpj_emitente)}</p>
-                      </div>
+                      <ListNameCell name={nf.razao_social_emitente} subline={formatCNPJ(nf.cnpj_emitente)} />
                     </TableCell>
                     <TableCell className="w-[220px] max-w-[220px] px-4 py-3">
-                      <div className="min-w-0 max-w-[220px]">
-                        <p className="text-sm text-foreground truncate" title={nf.razao_social_destinatario || undefined}>
-                          {nf.razao_social_destinatario || '—'}
-                        </p>
-                        <p className="block truncate font-mono text-xs text-muted-foreground" title={nf.cnpj_destinatario ? formatCNPJ(nf.cnpj_destinatario) : undefined}>
-                          {nf.cnpj_destinatario ? formatCNPJ(nf.cnpj_destinatario) : '—'}
-                        </p>
-                      </div>
+                      <ListNameCell name={nf.razao_social_destinatario} subline={nf.cnpj_destinatario ? formatCNPJ(nf.cnpj_destinatario) : '—'} />
                     </TableCell>
                     <TableCell className="whitespace-nowrap px-4 py-3 text-sm font-medium text-foreground tabular-nums">
                       {nf.valor_bruto > 0 ? formatCurrency(nf.valor_bruto) : '—'}

@@ -42,6 +42,7 @@ import {
   TableCell,
 } from '@/components/ui/table'
 import { useNotifications } from '@/components/notifications/notification-provider'
+import { ListNameCell } from '@/components/data-display/primitives'
 
 interface NfRecord {
   id: string
@@ -690,13 +691,11 @@ export default function NotasFiscaisCedentePage() {
                     <TableCell className="px-4 py-3">
                       <span className="font-medium text-foreground">{nf.numero_nf || '—'}</span>
                     </TableCell>
-                    <TableCell className="px-4 py-3">
-                      <div>
-                        <p className="text-sm text-foreground">{nf.razao_social_destinatario || '—'}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {nf.cnpj_destinatario ? formatCNPJ(nf.cnpj_destinatario) : '—'}
-                        </p>
-                      </div>
+                    <TableCell className="w-[220px] max-w-[220px] px-4 py-3">
+                      <ListNameCell
+                        name={nf.razao_social_destinatario}
+                        subline={nf.cnpj_destinatario ? formatCNPJ(nf.cnpj_destinatario) : '—'}
+                      />
                     </TableCell>
                     <TableCell className="px-4 py-3 text-sm font-medium tabular-nums text-foreground">
                       {nf.valor_bruto > 0 ? formatCurrency(nf.valor_bruto) : '—'}

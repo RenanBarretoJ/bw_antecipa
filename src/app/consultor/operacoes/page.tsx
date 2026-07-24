@@ -26,6 +26,7 @@ import {
   CreditCard,
   Search,
 } from 'lucide-react'
+import { ListNameCell } from '@/components/data-display/primitives'
 
 interface OperacaoConsultor {
   id: string
@@ -155,9 +156,8 @@ export default function OperacoesConsultorPage() {
                 return (
                   <TableRow key={op.id}>
                     <TableCell className="font-mono text-sm text-muted-foreground tabular-nums">{op.id.substring(0, 8)}</TableCell>
-                    <TableCell>
-                      <p className="text-sm font-medium">{op.cedentes.razao_social}</p>
-                      <p className="text-xs text-muted-foreground font-mono">{formatCNPJ(op.cedentes.cnpj)}</p>
+                    <TableCell className="w-[220px] max-w-[220px]">
+                      <ListNameCell name={op.cedentes.razao_social} subline={formatCNPJ(op.cedentes.cnpj)} />
                     </TableCell>
                     <TableCell className="text-right text-sm font-medium tabular-nums">{formatCurrency(op.valor_bruto_total)}</TableCell>
                     <TableCell className="text-sm tabular-nums">{op.taxa_desconto > 0 ? `${op.taxa_desconto}%` : '—'}</TableCell>

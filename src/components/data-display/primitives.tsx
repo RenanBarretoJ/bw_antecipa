@@ -13,6 +13,24 @@ export function DetailField({ label, value, className }: { label: string; value:
 
 export function FieldGrid({ children, className }: { children: ReactNode; className?: string }) { return <dl className={cn('grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2 lg:grid-cols-3', className)}>{children}</dl> }
 
+export function ListNameCell({ name, subline, className, nameClassName, sublineClassName }: { name: string | null | undefined; subline?: string | null; className?: string; nameClassName?: string; sublineClassName?: string }) {
+  const displayName = name?.trim() || '—'
+  const displaySubline = subline?.trim()
+
+  return (
+    <div className={cn('min-w-0 max-w-[220px]', className)}>
+      <p className={cn('block truncate text-sm font-medium text-foreground', nameClassName)} title={displayName}>
+        {displayName}
+      </p>
+      {displaySubline && (
+        <p className={cn('block truncate font-mono text-xs text-muted-foreground tabular-nums', sublineClassName)} title={displaySubline}>
+          {displaySubline}
+        </p>
+      )}
+    </div>
+  )
+}
+
 const statusConfig: Record<string, { label: string; icon: typeof CheckCircle2; className: string }> = {
   aprovado: { label: 'Aprovado', icon: CheckCircle2, className: 'bg-success/20 text-success-foreground ring-success/40' },
   aprovada: { label: 'Aprovada', icon: CheckCircle2, className: 'bg-success/20 text-success-foreground ring-success/40' },

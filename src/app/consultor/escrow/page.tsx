@@ -17,6 +17,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Wallet, Eye, Search } from 'lucide-react'
+import { ListNameCell } from '@/components/data-display/primitives'
 
 interface ContaEscrowConsultor {
   id: string
@@ -117,9 +118,8 @@ export default function EscrowConsultorPage() {
               {contasFiltradas.map((conta) => (
                 <TableRow key={conta.id}>
                   <TableCell className="font-mono text-sm">{conta.identificador}</TableCell>
-                  <TableCell>
-                    <p className="text-sm font-medium text-foreground">{conta.cedentes.razao_social}</p>
-                    <p className="text-xs text-muted-foreground font-mono">{formatCNPJ(conta.cedentes.cnpj)}</p>
+                  <TableCell className="w-[220px] max-w-[220px]">
+                    <ListNameCell name={conta.cedentes.razao_social} subline={formatCNPJ(conta.cedentes.cnpj)} />
                   </TableCell>
                   <TableCell className="text-right text-sm font-bold tabular-nums text-green-700">
                     {formatCurrency(conta.saldo_disponivel)}

@@ -9,7 +9,7 @@ import {
   type ChecklistDocumento,
   type ChecklistDocumentoItem,
 } from '@/lib/actions/documento-v2'
-import { AlertTriangle, CheckCircle, Clock, Eye, FileText, Loader2, ShieldAlert, Truck, XCircle } from 'lucide-react'
+import { AlertTriangle, CheckCircle, ChevronDown, ChevronUp, Clock, Eye, FileText, Loader2, MoreVertical, ShieldAlert, Truck, Upload, XCircle } from 'lucide-react'
 import { DocumentDropzone } from './DocumentDropzone'
 import { Button } from '@/components/ui/button'
 import { useNotifications } from '@/components/notifications/notification-provider'
@@ -83,6 +83,21 @@ function formatDateBR(value: string | null): string | null {
   return time ? `${formattedDate}, ${time.slice(0, 5)}` : formattedDate
 }
 
+export function shouldShowPrazoBlock(item: Pick<ChecklistDocumentoItem, 'dataLimite' | 'prazoDetalhe' | 'statusPrazo' | 'marcoPrazo'>) {
+  if (!item.dataLimite) return false
+  if (item.statusPrazo === 'nao_iniciado') return false
+  if ((item.prazoDetalhe || '').toLowerCase() === 'não iniciado') return false
+  if (!item.marcoPrazo) return false
+  return true
+}
+
+export function compactHistorySummary(item: Pick<ChecklistDocumentoItem, 'versoes'>) {
+  const latest = item.versoes[0]
+  if (!latest) return 'Nenhuma versão enviada'
+  if (item.versoes.length === 1) return `v${latest.numero} · ${latest.nome} · enviado em ${formatDateBR(latest.enviadoEm) || '—'}`
+  return `${item.versoes.length} versões · Ver histórico`
+}
+
 function TechnicalDetails({ version }: { version: ChecklistDocumentoItem['versoes'][number] }) {
   return (
     <details className="mt-2 text-xs text-muted-foreground">
@@ -113,111 +128,162 @@ function RequirementCard({
   onDownload: (versionId: string) => Promise<void>
   onAnalyze: (versionId: string, result: 'aprovado' | 'rejeitado' | 'requer_ajuste') => Promise<void>
 }) {
+  const [expanded, setExpanded] = useState(false)
+  const [showUpload, setShowUpload] = useState(false)
   const visual = statusVisual(item)
   const StatusIcon = visual.icon
   const canUpload = mode === 'cedente' && item.uploadPermitido && item.status !== 'satisfeito'
   const accept = acceptedFromFormats(item.formatosAceitos)
   const latest = item.versoes[0]
   const canAnalyze = mode === 'gestor' && latest && !['aprovado', 'substituido', 'cancelado'].includes(latest.status)
+  const shouldShowUpload = canUpload && (item.versoes.length === 0 || showUpload || visual.label === 'Rejeitado')
+  const showPrazo = shouldShowPrazoBlock(item)
+  const historySummary = compactHistorySummary(item)
+  const ExpandedIcon = expanded ? ChevronUp : ChevronDown
 
   return (
-    <article className="rounded-xl border bg-background p-4">
-      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <FileText size={17} className="shrink-0 text-muted-foreground" />
-            <h3 className="font-semibold text-foreground">{item.nome}</h3>
-            <span className={`rounded-full px-2 py-0.5 text-xs ${item.obrigatorio ? 'bg-warning/15 text-warning-foreground' : 'bg-muted text-muted-foreground'}`}>
-              {item.obrigatorio ? 'Obrigatório' : 'Opcional'}
-            </span>
-            {item.bloqueiaFluxo && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-xs text-destructive">
-                <ShieldAlert size={12} /> Bloqueia conclusão
+    <article className="rounded-xl border bg-background">
+      <div className="flex flex-col gap-2 px-3 py-2.5 md:min-h-16 md:flex-row md:items-center md:justify-between">
+        <button
+          type="button"
+          onClick={() => setExpanded((current) => !current)}
+          className="flex min-w-0 flex-1 items-center gap-3 rounded-lg text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          aria-expanded={expanded}
+        >
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+            <FileText size={17} />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="flex flex-wrap items-center gap-2">
+              <span className="truncate font-semibold text-foreground">{item.nome}</span>
+              <span className={`rounded-full px-2 py-0.5 text-[11px] ${item.obrigatorio ? 'bg-warning/15 text-warning-foreground' : 'bg-muted text-muted-foreground'}`}>
+                {item.obrigatorio ? 'Obrigatório' : 'Opcional'}
               </span>
-            )}
-          </div>
-          <p className="mt-1 text-sm text-muted-foreground">{item.descricao}</p>
+              {item.bloqueiaFluxo && mode === 'gestor' && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] text-destructive">
+                  <ShieldAlert size={11} /> Bloqueia
+                </span>
+              )}
+            </span>
+            <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+              {historySummary}
+            </span>
+          </span>
+        </button>
+
+        <div className="flex flex-wrap items-center gap-2 md:justify-end">
+          <span className={`inline-flex w-fit items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${visual.tone}`}>
+            <StatusIcon size={13} />
+            {visual.label}
+          </span>
+
+          {latest && (
+            <Button type="button" size="sm" variant="outline" onClick={() => onDownload(latest.id)}>
+              <Eye size={13} />
+              Ver
+            </Button>
+          )}
+
+          {canAnalyze && latest && (
+            <>
+              <Button type="button" size="sm" onClick={() => onAnalyze(latest.id, 'aprovado')} disabled={processing === latest.id}>
+                {processing === latest.id ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle size={13} />}
+                Aprovar
+              </Button>
+              <Button type="button" size="sm" variant="destructive" onClick={() => onAnalyze(latest.id, 'rejeitado')} disabled={processing === latest.id}>
+                <XCircle size={13} />
+                Rejeitar
+              </Button>
+            </>
+          )}
+
+          {canUpload && item.versoes.length > 0 && visual.label !== 'Rejeitado' && (
+            <Button type="button" size="sm" variant="outline" onClick={() => { setShowUpload((current) => !current); setExpanded(true) }}>
+              <Upload size={13} />
+              Enviar nova versão
+            </Button>
+          )}
+
+          {mode === 'gestor' && latest && (
+            <Button type="button" size="icon-sm" variant="ghost" onClick={() => setExpanded(true)} title="Mais detalhes">
+              <MoreVertical size={14} />
+            </Button>
+          )}
+
+          <Button type="button" size="icon-sm" variant="ghost" onClick={() => setExpanded((current) => !current)} title={expanded ? 'Recolher' : 'Expandir'}>
+            <ExpandedIcon size={15} />
+          </Button>
         </div>
-        <span className={`inline-flex w-fit items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${visual.tone}`}>
-          <StatusIcon size={13} />
-          {visual.label}
-        </span>
       </div>
 
-      {(item.dataLimite || item.prazoDetalhe || mode === 'gestor') && (
-        <div className="mt-4 grid gap-3 rounded-lg border bg-card p-3 text-sm md:grid-cols-3">
-          <div>
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Marco do prazo</p>
-            <p className="font-medium text-foreground">{item.marcoPrazo === 'desembolso' ? 'Desembolso' : item.marcoPrazo || 'Não iniciado'}</p>
-          </div>
-          <div>
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Data limite</p>
-            <p className="font-medium text-foreground">{item.dataLimite ? formatDateBR(item.dataLimite) : 'Não definido'}</p>
-          </div>
-          <div>
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Situação do prazo</p>
-            <p className={`font-medium ${item.statusPrazo === 'vencido' ? 'text-destructive' : 'text-foreground'}`}>{item.prazoDetalhe || 'Não iniciado'}</p>
-          </div>
-        </div>
-      )}
+      {(expanded || shouldShowUpload) && (
+        <div className="border-t border-border px-3 py-3">
+          <div className="space-y-3 rounded-lg bg-muted/25 p-3">
+            {item.descricao && <p className="text-sm text-muted-foreground">{item.descricao}</p>}
 
-      {mode === 'gestor' && item.versoes.length === 0 && (
-        <div className="mt-4 rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground">
-          Documento ainda não enviado pelo cedente. Impacto: {item.bloqueiaFluxo ? 'bloqueia a conclusão logística.' : 'não bloqueia o fluxo.'}
-        </div>
-      )}
-
-      {canUpload && (
-        <DocumentDropzone
-          accept={accept}
-          sending={sending === item.id}
-          label={item.versoes.length ? 'Arraste para substituir por nova versão' : 'Arraste o arquivo aqui ou clique para selecionar'}
-          onUpload={(file) => onUpload(item, file)}
-        />
-      )}
-
-      {mode === 'cedente' && !item.uploadPermitido && <p className="mt-3 text-xs text-muted-foreground">Tipo ainda não catalogado para upload nesta fase.</p>}
-
-      {item.versoes.length > 0 && (
-        <div className="mt-4 space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Histórico compacto</p>
-          {item.versoes.slice(0, 4).map((version) => (
-            <div key={version.id} className="rounded-lg border bg-card px-3 py-2 text-xs">
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                <div className="min-w-0">
-                  <p className="truncate font-medium text-foreground">v{version.numero} — {version.nome}</p>
-                  <p className="text-muted-foreground">
-                    {labels[version.status] || version.status} · enviado por {version.enviadoPorNome || 'não informado'} em {formatDateBR(version.enviadoEm)}
-                  </p>
-                  {version.ultimaAnalise && (
-                    <p className="text-muted-foreground">
-                      Analisado por {version.ultimaAnalise.analisadoPorNome || 'não informado'} em {formatDateBR(version.ultimaAnalise.analisadoEm)}
-                    </p>
-                  )}
-                  {version.ultimaAnalise?.observacoes && <p className="mt-1 text-destructive">{version.ultimaAnalise.observacoes}</p>}
-                  {mode === 'gestor' && <TechnicalDetails version={version} />}
+            {showPrazo && (
+              <div className="grid gap-3 rounded-lg border bg-card p-3 text-sm md:grid-cols-3">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Marco do prazo</p>
+                  <p className="font-medium text-foreground">{item.marcoPrazo === 'desembolso' ? 'Desembolso' : item.marcoPrazo}</p>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button type="button" size="sm" variant="outline" onClick={() => onDownload(version.id)}>
-                    <Eye size={13} />
-                    Ver
-                  </Button>
-                  {canAnalyze && version.id === latest.id && (
-                    <>
-                      <Button type="button" size="sm" onClick={() => onAnalyze(version.id, 'aprovado')} disabled={processing === version.id}>
-                        {processing === version.id ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle size={13} />}
-                        Aprovar
-                      </Button>
-                      <Button type="button" size="sm" variant="destructive" onClick={() => onAnalyze(version.id, 'rejeitado')} disabled={processing === version.id}>
-                        <XCircle size={13} />
-                        Rejeitar
-                      </Button>
-                    </>
-                  )}
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Data limite</p>
+                  <p className="font-medium text-foreground">{formatDateBR(item.dataLimite)}</p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Situação do prazo</p>
+                  <p className={`font-medium ${item.statusPrazo === 'vencido' ? 'text-destructive' : 'text-foreground'}`}>{item.prazoDetalhe}</p>
                 </div>
               </div>
-            </div>
-          ))}
+            )}
+
+            {mode === 'gestor' && item.versoes.length === 0 && (
+              <div className="rounded-lg border bg-background p-3 text-sm text-muted-foreground">
+                Documento ainda não enviado pelo cedente. Impacto: {item.bloqueiaFluxo ? 'bloqueia a conclusão logística.' : 'não bloqueia o fluxo.'}
+              </div>
+            )}
+
+            {shouldShowUpload && (
+              <DocumentDropzone
+                accept={accept}
+                sending={sending === item.id}
+                label={item.versoes.length ? 'Selecione o arquivo da nova versão' : 'Arraste o arquivo aqui ou clique para selecionar'}
+                onUpload={async (file) => {
+                  await onUpload(item, file)
+                  setShowUpload(false)
+                }}
+              />
+            )}
+
+            {mode === 'cedente' && !item.uploadPermitido && <p className="text-xs text-muted-foreground">Tipo ainda não catalogado para upload nesta fase.</p>}
+
+            {item.versoes.length > 0 && (
+              <div className="divide-y divide-border rounded-lg border bg-card">
+                {item.versoes.map((version) => (
+                  <div key={version.id} className="flex flex-col gap-2 px-3 py-2.5 text-xs lg:flex-row lg:items-start lg:justify-between">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-foreground">v{version.numero} · {version.nome}</p>
+                      <p className="text-muted-foreground">
+                        {labels[version.status] || version.status} · enviado por {version.enviadoPorNome || 'não informado'} em {formatDateBR(version.enviadoEm)}
+                      </p>
+                      {version.ultimaAnalise && (
+                        <p className="text-muted-foreground">
+                          Analisado por {version.ultimaAnalise.analisadoPorNome || 'não informado'} em {formatDateBR(version.ultimaAnalise.analisadoEm)}
+                        </p>
+                      )}
+                      {version.ultimaAnalise?.observacoes && <p className="mt-1 text-destructive">{version.ultimaAnalise.observacoes}</p>}
+                      {mode === 'gestor' && <TechnicalDetails version={version} />}
+                    </div>
+                    <Button type="button" size="sm" variant="outline" onClick={() => onDownload(version.id)}>
+                      <Eye size={13} />
+                      Ver
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </article>
@@ -228,8 +294,8 @@ function OperationalSummary({ checklist }: { checklist: ChecklistDocumento }) {
   const resumo = checklist.resumoOperacional
   const prazo = resumo.proximoPrazo
   return (
-    <section className="mb-6 rounded-xl border bg-card p-5">
-      <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+    <section className="mb-4 rounded-xl border bg-card p-4">
+      <div className="mb-3 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary">Resumo operacional</p>
           <h2 className="mt-1 text-lg font-semibold">Situação documental e logística</h2>
@@ -239,22 +305,22 @@ function OperationalSummary({ checklist }: { checklist: ChecklistDocumento }) {
           {logisticoLabels[resumo.statusLogistico]}
         </span>
       </div>
-      <div className="grid gap-3 md:grid-cols-3">
-        <div className="rounded-lg border bg-background p-3">
+      <div className="grid gap-2 md:grid-cols-3">
+        <div className="rounded-lg border bg-background px-3 py-2.5">
           <p className="text-xs uppercase tracking-wide text-muted-foreground">Antecipação</p>
           <p className="mt-1 font-semibold">{labels[resumo.statusAntecipacao] || resumo.statusAntecipacao}</p>
         </div>
-        <div className="rounded-lg border bg-background p-3">
+        <div className="rounded-lg border bg-background px-3 py-2.5">
           <p className="text-xs uppercase tracking-wide text-muted-foreground">Pré-cessão</p>
           <p className="mt-1 font-semibold">{resumo.pendenciasPreCessao === 0 ? 'Sem pendências' : `${resumo.pendenciasPreCessao} pendência(s)`}</p>
         </div>
-        <div className="rounded-lg border bg-background p-3">
+        <div className="rounded-lg border bg-background px-3 py-2.5">
           <p className="text-xs uppercase tracking-wide text-muted-foreground">Pós-cessão</p>
           <p className="mt-1 font-semibold">{resumo.pendenciasPosCessao === 0 ? 'Sem pendências' : `${resumo.pendenciasPosCessao} pendência(s)`}</p>
         </div>
       </div>
       {prazo && (
-        <div className={`mt-3 flex flex-col gap-2 rounded-lg border p-3 text-sm md:flex-row md:items-center md:justify-between ${prazo.statusPrazo === 'vencido' ? 'border-destructive/30 bg-destructive/5' : 'bg-background'}`}>
+        <div className={`mt-3 flex flex-col gap-2 rounded-lg border px-3 py-2.5 text-sm md:flex-row md:items-center md:justify-between ${prazo.statusPrazo === 'vencido' ? 'border-destructive/30 bg-destructive/5' : 'bg-background'}`}>
           <div className="flex items-center gap-2">
             {prazo.statusPrazo === 'vencido' ? <AlertTriangle size={16} className="text-destructive" /> : <Clock size={16} className="text-muted-foreground" />}
             <span className="font-medium">Prazo mais próximo: {prazo.nome}</span>
@@ -335,11 +401,11 @@ export function ChecklistCedente({ notaFiscalId, mode = 'cedente' }: { notaFisca
   if (!checklist || checklist.items.length === 0) return null
 
   return (
-    <div className="mb-6 space-y-6">
+    <div className="mb-4 space-y-4">
       {mode === 'gestor' && <OperationalSummary checklist={checklist} />}
 
-      <section className="rounded-xl border bg-card p-5">
-        <div className="mb-4 flex items-start justify-between gap-3">
+      <section className="rounded-xl border bg-card p-4">
+        <div className="mb-3 flex items-start justify-between gap-3">
           <div>
             <h2 className="font-semibold">Documentos pré-cessão</h2>
             <p className="text-sm text-muted-foreground">
@@ -353,7 +419,7 @@ export function ChecklistCedente({ notaFiscalId, mode = 'cedente' }: { notaFisca
         {checklist.preCessao.length === 0 ? (
           <p className="text-sm text-muted-foreground">Não há requisitos pré-cessão configurados para esta NF.</p>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-2">
             {checklist.preCessao.map((item) => (
               <RequirementCard key={item.id} item={item} mode={mode} sending={sending} processing={processing} onUpload={upload} onDownload={download} onAnalyze={analyze} />
             ))}
@@ -362,8 +428,8 @@ export function ChecklistCedente({ notaFiscalId, mode = 'cedente' }: { notaFisca
       </section>
 
       {(checklist.posCessao.length > 0 || checklist.entrega || mode === 'gestor') && (
-        <section className="rounded-xl border bg-card p-5">
-          <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <section className="rounded-xl border bg-card p-4">
+          <div className="mb-3 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
             <div>
               <h2 className="font-semibold">Documentos pós-cessão</h2>
               <p className="text-sm text-muted-foreground">
@@ -373,7 +439,7 @@ export function ChecklistCedente({ notaFiscalId, mode = 'cedente' }: { notaFisca
             {posBadge && <span className={`w-fit rounded-full px-2 py-1 text-xs font-medium ${posBadge.tone}`}>{posBadge.label}</span>}
           </div>
           {checklist.entrega && (
-            <div className="mb-4 rounded-lg border bg-background p-3 text-sm">
+            <div className="mb-3 rounded-lg border bg-background px-3 py-2.5 text-sm">
               <div className="flex flex-wrap items-center gap-2">
                 <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold ${logisticalTone(checklist.resumoOperacional.statusLogistico)}`}>
                   <Truck size={13} />
@@ -386,7 +452,7 @@ export function ChecklistCedente({ notaFiscalId, mode = 'cedente' }: { notaFisca
           {checklist.posCessao.length === 0 ? (
             <p className="rounded-lg border bg-background p-3 text-sm text-muted-foreground">Os documentos pós-cessão serão liberados após o desembolso.</p>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2">
               {checklist.posCessao.map((item) => (
                 <RequirementCard key={item.id} item={item} mode={mode} sending={sending} processing={processing} onUpload={upload} onDownload={download} onAnalyze={analyze} />
               ))}

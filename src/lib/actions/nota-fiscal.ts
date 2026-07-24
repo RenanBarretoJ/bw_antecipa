@@ -4,7 +4,6 @@ import { createAdminClient, createClient } from '@/lib/supabase/server'
 import { requireAuthenticated, requireGestor as requireGestorBase } from '@/lib/auth/authorization'
 import { exigirSessaoElevada } from '@/lib/auth/mfa'
 import { notaFiscalSchema, type NotaFiscalFormData } from '@/lib/validations/nf'
-import { parseNFeXML } from '@/lib/nf-parser'
 import { extractDanfeFromPdf, type NfPdfExtracted } from '@/lib/pdf-nf-parser'
 import { registrarLog } from './auditoria'
 import { notificarGestores, notificarCedente } from './notificacao'
@@ -12,6 +11,7 @@ import { buckets } from '@/lib/storage'
 import { uploadDocumentoSeRequerido } from '@/lib/documentos-v2/upload'
 import { CedenteFundoError, resolverCedenteFundoAtivo } from '@/lib/fundos/cedente-fundo'
 import { decidirAcaoDuplicidadeNotaFiscal, mensagemDuplicidadeNotaFiscal } from '@/lib/notas-fiscais/upload-context'
+import { formatarDetalhesBloqueioEmitente, validarXmlNfeParaUploadCedente } from '@/lib/notas-fiscais/emitente-autorizado'
 
 export type NfActionState = {
   success?: boolean
@@ -303,11 +303,21 @@ async function processarArquivo(
   try {
     if (isXml) {
       const xmlContent = await arquivo.text()
-      const parsed = parseNFeXML(xmlContent)
+      const preValidacao = validarXmlNfeParaUploadCedente({
+        xmlContent,
+        cnpjCedente: cedente.cnpj,
+      })
 
-      if (parsed.cnpj_emitente !== cnpjLimpo) {
-        return { ok: false, error: `${arquivo.name}: CNPJ emitente (${parsed.cnpj_emitente}) diferente do seu CNPJ (${cnpjLimpo}).` }
+      if (!preValidacao.ok) {
+        const detalhes = formatarDetalhesBloqueioEmitente({
+          cnpjCedente: preValidacao.cnpjCedente,
+          cnpjEmitente: preValidacao.cnpjEmitente,
+        })
+        logUploadNf('validar_emitente_xml_bloqueado', { ...context, chaveAcesso: null, erro: preValidacao.message })
+        return { ok: false, error: `${arquivo.name}: ${preValidacao.message}${detalhes}` }
       }
+
+      const parsed = preValidacao.parsed
 
       if (parsed.chave_acesso) {
         const duplicidade = await recuperarDuplicidadeIncompleta(arquivo, context, parsed.chave_acesso, supabase)

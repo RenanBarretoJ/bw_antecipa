@@ -38,6 +38,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useNotifications } from '@/components/notifications/notification-provider'
+import { ListNameCell } from '@/components/data-display/primitives'
 
 interface DocGestor {
   id: string
@@ -245,8 +246,8 @@ export default function DocumentosGestorPage() {
                 const StIcon = st?.icon || Clock
                 return (
                   <TableRow key={doc.id}>
-                    <TableCell className="w-[260px] max-w-[260px] px-4 py-3">
-                      <div className="min-w-0 max-w-[260px]"><p className="block truncate text-sm font-medium text-foreground" title={doc.cedentes.razao_social}>{doc.cedentes.razao_social}</p><p className="block truncate font-mono text-xs text-muted-foreground tabular-nums" title={formatCNPJ(doc.cedentes.cnpj)}>{formatCNPJ(doc.cedentes.cnpj)}</p></div>
+                    <TableCell className="w-[220px] max-w-[220px] px-4 py-3">
+                      <ListNameCell name={doc.cedentes.razao_social} subline={formatCNPJ(doc.cedentes.cnpj)} />
                     </TableCell>
                     <TableCell className="whitespace-nowrap px-4 py-3 text-sm">{tipoLabels[doc.tipo] || doc.tipo}</TableCell>
                     <TableCell className="max-w-[150px] truncate px-4 py-3 text-sm text-muted-foreground" title={doc.nome_arquivo || undefined}>{doc.nome_arquivo || '—'}</TableCell>

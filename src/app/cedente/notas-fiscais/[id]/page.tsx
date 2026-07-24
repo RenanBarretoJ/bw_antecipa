@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { salvarDadosNF, submeterNF, resubmeterNFAjustada } from '@/lib/actions/nota-fiscal'
-import { formatCurrency } from '@/lib/utils'
+import { formatCNPJ, formatCurrency, formatDate } from '@/lib/utils'
 import { buckets } from '@/lib/storage'
 import Link from 'next/link'
 import {
@@ -16,11 +16,12 @@ import {
   AlertCircle,
   XCircle,
   Banknote,
-  ExternalLink,
   Wrench,
+  Truck,
 } from 'lucide-react'
 import { ChecklistCedente } from '@/components/documentos-v2/ChecklistCedente'
 import { useNotifications } from '@/components/notifications/notification-provider'
+import { ArquivoOriginalCompacto } from '@/components/notas-fiscais/ArquivoOriginalCompacto'
 
 interface NfCompleta {
   id: string
@@ -48,6 +49,12 @@ interface NfCompleta {
   created_at: string
 }
 
+interface EntregaResumo {
+  id: string
+  status_entrega: string
+  motivo_pendencia: string | null
+}
+
 const statusConfig: Record<string, { label: string; color: string; icon: typeof CheckCircle }> = {
   rascunho: { label: 'Rascunho', color: 'bg-gray-100 text-gray-600', icon: FileText },
   submetida: { label: 'Submetida', color: 'bg-blue-100 text-blue-700', icon: Send },
@@ -61,6 +68,128 @@ const statusConfig: Record<string, { label: string; color: string; icon: typeof 
   requer_ajuste: { label: 'Requer Ajuste',      color: 'bg-orange-100 text-orange-700', icon: Wrench },
 }
 
+const entregaStatusConfig: Record<string, { label: string; color: string }> = {
+  em_transito: { label: 'Em trânsito', color: 'bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-200' },
+  aguardando_validacao: { label: 'Documento enviado — em análise', color: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-500/15 dark:text-cyan-200' },
+  entregue: { label: 'Entrega confirmada', color: 'bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-200' },
+  entrega_com_pendencia: { label: 'Em atraso / com pendência', color: 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-200' },
+  devolvida: { label: 'Devolvida', color: 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-200' },
+  cancelada: { label: 'Cancelada', color: 'bg-gray-100 text-gray-600 dark:bg-muted dark:text-muted-foreground' },
+}
+
+function LabelValue({ label, value, mono = false }: { label: string; value: string | number | null | undefined; mono?: boolean }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className={`mt-1 truncate font-medium text-foreground ${mono ? 'font-mono text-xs tabular-nums' : ''}`}>{value || '—'}</p>
+    </div>
+  )
+}
+
+function ReadOnlyNfDetails({
+  nf,
+  previewUrl,
+}: {
+  nf: NfCompleta
+  previewUrl: string | null
+}) {
+  const impostos = Number(nf.valor_icms || 0) + Number(nf.valor_iss || 0) + Number(nf.valor_pis || 0) + Number(nf.valor_cofins || 0) + Number(nf.valor_ipi || 0)
+
+  return (
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <div className="space-y-4 lg:col-span-2">
+        <section className="rounded-xl border bg-card p-4">
+          <h2 className="mb-3 font-semibold text-foreground">Dados da Nota Fiscal</h2>
+          <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-5">
+            <LabelValue label="Número" value={nf.numero_nf} />
+            <LabelValue label="Série" value={nf.serie} />
+            <LabelValue label="Emissão" value={formatDate(nf.data_emissao)} />
+            <LabelValue label="Vencimento" value={formatDate(nf.data_vencimento)} />
+            <div className="col-span-2 md:col-span-1">
+              <LabelValue label="Chave" value={nf.chave_acesso} mono />
+            </div>
+          </div>
+        </section>
+
+        <section className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="rounded-xl border bg-card p-4">
+            <h2 className="mb-3 font-semibold text-foreground">Emitente</h2>
+            <div className="space-y-2 text-sm">
+              <LabelValue label="Razão social" value={nf.razao_social_emitente} />
+              <LabelValue label="CNPJ" value={formatCNPJ(nf.cnpj_emitente)} mono />
+            </div>
+          </div>
+          <div className="rounded-xl border bg-card p-4">
+            <h2 className="mb-3 font-semibold text-foreground">Destinatário</h2>
+            <div className="space-y-2 text-sm">
+              <LabelValue label="Razão social" value={nf.razao_social_destinatario} />
+              <LabelValue label="CNPJ" value={nf.cnpj_destinatario ? formatCNPJ(nf.cnpj_destinatario) : null} mono />
+            </div>
+          </div>
+        </section>
+
+        <section className="rounded-xl border bg-card p-4">
+          <h2 className="mb-3 font-semibold text-foreground">Valores</h2>
+          <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
+            <LabelValue label="Valor bruto" value={formatCurrency(nf.valor_bruto)} />
+            <LabelValue label="ICMS" value={formatCurrency(nf.valor_icms)} />
+            <LabelValue label="ISS" value={formatCurrency(nf.valor_iss)} />
+            <LabelValue label="PIS" value={formatCurrency(nf.valor_pis)} />
+            <LabelValue label="COFINS" value={formatCurrency(nf.valor_cofins)} />
+            <LabelValue label="IPI" value={formatCurrency(nf.valor_ipi)} />
+            <LabelValue label="Impostos" value={formatCurrency(impostos)} />
+            <div>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Valor líquido</p>
+              <p className="mt-1 font-bold text-success-foreground">{formatCurrency(nf.valor_liquido || nf.valor_bruto)}</p>
+            </div>
+          </div>
+        </section>
+
+        {(nf.descricao_itens || nf.condicao_pagamento) && (
+          <details className="rounded-xl border bg-card p-4">
+            <summary className="cursor-pointer font-semibold text-foreground">Itens e condição de pagamento</summary>
+            <div className="mt-3 space-y-3 text-sm">
+              {nf.descricao_itens && (
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Itens</p>
+                  <p className="mt-1 text-foreground">{nf.descricao_itens}</p>
+                </div>
+              )}
+              {nf.condicao_pagamento && (
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Condição de pagamento</p>
+                  <p className="mt-1 text-foreground">{nf.condicao_pagamento}</p>
+                </div>
+              )}
+            </div>
+          </details>
+        )}
+      </div>
+
+      <div className="space-y-4">
+        <section className="rounded-xl border bg-card p-4">
+          <h3 className="mb-3 font-semibold text-foreground">Resumo</h3>
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between gap-3">
+              <span className="text-muted-foreground">Valor Bruto</span>
+              <span className="font-medium tabular-nums">{formatCurrency(nf.valor_bruto)}</span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span className="text-muted-foreground">Impostos</span>
+              <span className="tabular-nums">{formatCurrency(impostos)}</span>
+            </div>
+            <div className="flex justify-between gap-3 border-t pt-2">
+              <span className="font-medium">Valor Líquido</span>
+              <span className="font-bold text-success-foreground tabular-nums">{formatCurrency(nf.valor_liquido || nf.valor_bruto)}</span>
+            </div>
+          </div>
+        </section>
+        <ArquivoOriginalCompacto previewUrl={previewUrl} arquivoUrl={nf.arquivo_url} title="Arquivo original" />
+      </div>
+    </div>
+  )
+}
+
 export default function NfDetalhePage() {
   const params = useParams()
   const router = useRouter()
@@ -68,6 +197,7 @@ export default function NfDetalhePage() {
   const nfId = params.id as string
 
   const [nf, setNf] = useState<NfCompleta | null>(null)
+  const [entrega, setEntrega] = useState<EntregaResumo | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -148,6 +278,17 @@ export default function NfDetalhePage() {
           }
         }
       }
+
+      const { data: entregaData } = await supabase
+        .from('nota_fiscal_entregas')
+        .select('id, status_entrega, motivo_pendencia, created_at')
+        .eq('nota_fiscal_id', nfId)
+        .neq('status_entrega', 'nao_aplicavel')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      setEntrega(entregaData as EntregaResumo | null)
+
       setLoading(false)
     }
     load()
@@ -279,6 +420,7 @@ export default function NfDetalhePage() {
 
   const isEditable = nf.status === 'rascunho' || nf.status === 'requer_ajuste'
   const status = statusConfig[nf.status] || statusConfig.rascunho
+  const entregaStatus = entrega ? entregaStatusConfig[entrega.status_entrega] || entregaStatusConfig.em_transito : null
   const StatusIcon = status.icon
 
   return (
@@ -297,6 +439,13 @@ export default function NfDetalhePage() {
               <StatusIcon size={12} />
               {status.label}
             </span>
+            {entregaStatus && (
+              <span className={`ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${entregaStatus.color}`}>
+                <Truck size={12} />
+                {entregaStatus.label}
+              </span>
+            )}
+            {entrega?.motivo_pendencia && <p className="mt-1 text-xs text-red-600">{entrega.motivo_pendencia}</p>}
           </div>
         </div>
 
@@ -354,12 +503,13 @@ export default function NfDetalhePage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {isEditable ? (
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {/* Formulario — 2 colunas */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="space-y-4 lg:col-span-2">
           {/* Dados basicos */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Dados da Nota Fiscal</h2>
+          <div className="rounded-xl border bg-card p-4 shadow-sm">
+            <h2 className="mb-3 text-lg font-semibold text-foreground">Dados da Nota Fiscal</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Numero da NF *</label>
@@ -418,8 +568,8 @@ export default function NfDetalhePage() {
           </div>
 
           {/* Emitente */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Emitente (Cedente)</h2>
+          <div className="rounded-xl border bg-card p-4 shadow-sm">
+            <h2 className="mb-3 text-lg font-semibold text-foreground">Emitente (Cedente)</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">CNPJ Emitente</label>
@@ -443,8 +593,8 @@ export default function NfDetalhePage() {
           </div>
 
           {/* Destinatario (Sacado) */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Destinatario (Sacado / Devedor)</h2>
+          <div className="rounded-xl border bg-card p-4 shadow-sm">
+            <h2 className="mb-3 text-lg font-semibold text-foreground">Destinatario (Sacado / Devedor)</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">CNPJ Destinatario *</label>
@@ -475,8 +625,8 @@ export default function NfDetalhePage() {
           </div>
 
           {/* Valores */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Valores</h2>
+          <div className="rounded-xl border bg-card p-4 shadow-sm">
+            <h2 className="mb-3 text-lg font-semibold text-foreground">Valores</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Valor Bruto *</label>
@@ -559,8 +709,8 @@ export default function NfDetalhePage() {
           </div>
 
           {/* Descricao e pagamento */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Informacoes Adicionais</h2>
+          <details className="rounded-xl border bg-card p-4 shadow-sm">
+            <summary className="cursor-pointer text-lg font-semibold text-foreground">Informacoes Adicionais</summary>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Descricao dos Itens</label>
@@ -584,14 +734,14 @@ export default function NfDetalhePage() {
                 />
               </div>
             </div>
-          </div>
+          </details>
         </div>
 
         {/* Sidebar — preview + resumo */}
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* Resumo de valores */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h3 className="font-semibold text-gray-900 mb-3">Resumo</h3>
+          <div className="rounded-xl border bg-card p-4 shadow-sm">
+            <h3 className="mb-3 font-semibold text-foreground">Resumo</h3>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-500">Valor Bruto</span>
@@ -610,40 +760,7 @@ export default function NfDetalhePage() {
             </div>
           </div>
 
-          {/* Preview do arquivo */}
-          {previewUrl && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-semibold text-gray-900">Arquivo Original</h3>
-                <a
-                  href={previewUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:text-blue-800"
-                >
-                  <ExternalLink size={16} />
-                </a>
-              </div>
-              {nf.arquivo_url?.endsWith('.pdf') ? (
-                <iframe src={previewUrl} className="w-full h-80 rounded-lg border" />
-              ) : nf.arquivo_url?.match(/\.(jpg|jpeg|png)$/i) ? (
-                <img src={previewUrl} alt="NF" className="w-full rounded-lg border" />
-              ) : (
-                <div className="bg-gray-50 rounded-lg p-4 text-center">
-                  <FileText size={32} className="mx-auto text-gray-400 mb-2" />
-                  <p className="text-sm text-gray-500">Arquivo XML</p>
-                  <a
-                    href={previewUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-blue-600 hover:text-blue-800"
-                  >
-                    Baixar arquivo
-                  </a>
-                </div>
-              )}
-            </div>
-          )}
+          <ArquivoOriginalCompacto previewUrl={previewUrl} arquivoUrl={nf.arquivo_url} title="Arquivo original" />
 
           {/* Info */}
           {nf.status === 'requer_ajuste' ? (
@@ -671,6 +788,9 @@ export default function NfDetalhePage() {
           )}
         </div>
       </div>
+      ) : (
+        <ReadOnlyNfDetails nf={nf} previewUrl={previewUrl} />
+      )}
     </div>
   )
 }

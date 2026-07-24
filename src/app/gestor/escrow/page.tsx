@@ -27,6 +27,7 @@ import {
   TableRow,
   TableCell,
 } from '@/components/ui/table'
+import { ListNameCell } from '@/components/data-display/primitives'
 
 interface ContaEscrowGestor {
   id: string
@@ -203,9 +204,8 @@ export default function EscrowGestorPage() {
                   return (
                     <TableRow key={conta.id}>
                       <TableCell className="px-4 py-3 font-mono text-sm">{conta.identificador}</TableCell>
-                      <TableCell className="px-4 py-3">
-                        <p className="text-sm font-medium text-foreground">{conta.cedentes.razao_social}</p>
-                        <p className="text-xs text-muted-foreground">{formatCNPJ(conta.cedentes.cnpj)}</p>
+                      <TableCell className="w-[220px] max-w-[220px] px-4 py-3">
+                        <ListNameCell name={conta.cedentes.razao_social} subline={formatCNPJ(conta.cedentes.cnpj)} />
                       </TableCell>
                       <TableCell className="px-4 py-3 text-right text-sm font-bold text-green-700 tabular-nums">
                         {formatCurrency(conta.saldo_disponivel)}

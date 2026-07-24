@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { ListNameCell } from '@/components/data-display/primitives'
 import {
   Table,
   TableBody,
@@ -206,9 +207,8 @@ export default function NfsRecebidasSacadoPage() {
                 return (
                   <TableRow key={nf.id} className={vencido ? 'bg-red-50/50' : ''}>
                     <TableCell className="px-4 py-3 font-medium text-foreground">{nf.numero_nf}</TableCell>
-                    <TableCell className="px-4 py-3">
-                      <p className="text-sm text-foreground">{nf.razao_social_emitente}</p>
-                      <p className="text-xs text-muted-foreground">{formatCNPJ(nf.cnpj_emitente)}</p>
+                    <TableCell className="w-[220px] max-w-[220px] px-4 py-3">
+                      <ListNameCell name={nf.razao_social_emitente} subline={formatCNPJ(nf.cnpj_emitente)} />
                     </TableCell>
                     <TableCell className="px-4 py-3 text-right text-sm font-bold text-foreground tabular-nums">{formatCurrency(nf.valor_bruto)}</TableCell>
                     <TableCell className="px-4 py-3 text-sm text-muted-foreground tabular-nums">{formatDate(nf.data_emissao)}</TableCell>

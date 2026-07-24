@@ -32,6 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { ListNameCell } from '@/components/data-display/primitives'
 
 interface OperacaoGestor {
   id: string
@@ -361,11 +362,8 @@ export default function OperacoesGestorPage() {
                     return (
                       <tr key={op.id} className="align-middle hover:bg-muted/30">
                         <td className="whitespace-nowrap px-4 py-3 font-mono text-sm text-muted-foreground tabular-nums">{op.id.substring(0, 8)}</td>
-                        <td className="w-[260px] max-w-[260px] px-4 py-3">
-                          <div className="min-w-0 max-w-[260px]">
-                            <p className="block truncate text-sm font-medium text-foreground" title={op.cedentes.razao_social}>{op.cedentes.razao_social}</p>
-                            <p className="block truncate font-mono text-xs text-muted-foreground" title={formatCNPJ(op.cedentes.cnpj)}>{formatCNPJ(op.cedentes.cnpj)}</p>
-                          </div>
+                        <td className="w-[220px] max-w-[220px] px-4 py-3">
+                          <ListNameCell name={op.cedentes.razao_social} subline={formatCNPJ(op.cedentes.cnpj)} />
                         </td>
                         <td className="whitespace-nowrap px-4 py-3 text-sm font-medium tabular-nums">{formatCurrency(op.valor_bruto_total)}</td>
                         <td className="whitespace-nowrap px-4 py-3 text-sm tabular-nums">{op.taxa_desconto > 0 ? `${op.taxa_desconto}%` : '—'}</td>

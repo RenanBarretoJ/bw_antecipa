@@ -18,6 +18,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useNotifications } from '@/components/notifications/notification-provider'
+import { ListNameCell } from '@/components/data-display/primitives'
 
 interface OperacaoSacado {
   id: string
@@ -212,8 +213,10 @@ export default function HistoricoPagamentosPage() {
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                         <div>
                           <span className="text-muted-foreground text-xs">Cedente</span>
-                          <p className="font-medium text-foreground">{op.cedentes?.razao_social || '—'}</p>
-                          <p className="text-xs text-muted-foreground">{op.cedentes?.cnpj ? formatCNPJ(op.cedentes.cnpj) : '—'}</p>
+                          <ListNameCell
+                            name={op.cedentes?.razao_social}
+                            subline={op.cedentes?.cnpj ? formatCNPJ(op.cedentes.cnpj) : '—'}
+                          />
                         </div>
                         <div>
                           <span className="text-muted-foreground text-xs">Valor</span>

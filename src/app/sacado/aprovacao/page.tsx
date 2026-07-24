@@ -26,6 +26,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { buckets } from '@/lib/storage'
 import { useNotifications } from '@/components/notifications/notification-provider'
+import { ListNameCell } from '@/components/data-display/primitives'
 
 interface NfCessao {
   id: string
@@ -445,9 +446,8 @@ export default function AprovacaoCessaoPage() {
                               <div className="font-medium tabular-nums">{nf.numero_nf}</div>
                               <Badge className="bg-purple-100 text-purple-700 border-purple-200 text-xs mt-0.5">Cessão ativa</Badge>
                             </td>
-                            <td className="px-4 py-3">
-                              <p className="font-medium text-foreground">{nf.razao_social_emitente}</p>
-                              <p className="text-xs text-muted-foreground">{formatCNPJ(nf.cnpj_emitente)}</p>
+                            <td className="w-[220px] max-w-[220px] px-4 py-3">
+                              <ListNameCell name={nf.razao_social_emitente} subline={formatCNPJ(nf.cnpj_emitente)} />
                             </td>
                             <td className="px-4 py-3 text-right font-bold tabular-nums">
                               {formatCurrency(nf.valor_bruto)}

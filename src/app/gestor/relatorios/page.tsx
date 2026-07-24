@@ -29,6 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { ListNameCell } from '@/components/data-display/primitives'
 
 interface OperacaoResumo {
   id: string
@@ -243,8 +244,8 @@ export default function RelatoriosGestorPage() {
             <TableBody>
               {volumePorCedente.map((c) => (
                 <TableRow key={c.cnpj}>
-                  <TableCell className="w-[260px] max-w-[260px] px-4 py-3">
-                    <div className="min-w-0 max-w-[260px]"><p className="block truncate text-sm font-medium text-foreground" title={c.razao_social}>{c.razao_social}</p><p className="block truncate font-mono text-xs text-muted-foreground tabular-nums" title={formatCNPJ(c.cnpj)}>{formatCNPJ(c.cnpj)}</p></div>
+                  <TableCell className="w-[220px] max-w-[220px] px-4 py-3">
+                    <ListNameCell name={c.razao_social} subline={formatCNPJ(c.cnpj)} />
                   </TableCell>
                   <TableCell className="whitespace-nowrap px-4 py-3 text-right text-sm font-medium tabular-nums">{formatCurrency(c.volumeMes)}</TableCell>
                   <TableCell className="whitespace-nowrap px-4 py-3 text-sm tabular-nums">{c.opsMes}</TableCell>
