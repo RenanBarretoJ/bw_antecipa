@@ -24,6 +24,7 @@ import type { Fundo } from '@/types/database'
 import { PageContainer } from '@/components/layout/page-container'
 import { PageHeader } from '@/components/layout/page-header'
 import { DetailField, DetailSection, FieldGrid, StatusBadge } from '@/components/data-display/primitives'
+import { useNotifications } from '@/components/notifications/notification-provider'
 
 interface CedenteDetail {
   id: string; cnpj: string; razao_social: string; nome_fantasia: string | null
@@ -100,6 +101,7 @@ const statusColors: Record<string, string> = {
 }
 
 export default function CedenteDetalhePage({ params }: { params: Promise<{ id: string }> }) {
+  const notifications = useNotifications()
   const { id } = use(params)
   const [cedente, setCedente] = useState<CedenteDetail | null>(null)
   const [docs, setDocs] = useState<DocRecord[]>([])
@@ -148,6 +150,24 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
   const [loadingConvite, setLoadingConvite] = useState(false)
   const [conviteMessage, setConviteMessage] = useState('')
   const [revogandoId, setRevogandoId] = useState<string | null>(null)
+
+  const notifyTransientMessage = (key: string, value: string, clear: () => void) => {
+    if (!value) return
+    const normalized = value.toLowerCase()
+    const isError = normalized.includes('erro')
+      || normalized.includes('obrigatorio')
+      || normalized.includes('obrigatório')
+      || normalized.includes('preencha')
+      || normalized.includes('invalido')
+      || normalized.includes('inválido')
+
+    notifications.notify({
+      type: isError ? 'error' : 'success',
+      message: value,
+      dedupeKey: `${key}:${value}`,
+    })
+    queueMicrotask(clear)
+  }
 
   const loadData = async () => {
     const supabase = createClient()
@@ -224,8 +244,19 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
   }
 
   // A tela sincroniza múltiplas coleções relacionadas ao cedente em uma única carga.
-  // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadData() }, [id])
+
+  useEffect(() => {
+    notifyTransientMessage('cedente', message, () => setMessage(''))
+    notifyTransientMessage('taxas', taxasMessage, () => setTaxasMessage(''))
+    notifyTransientMessage('escrow', escrowMessage, () => setEscrowMessage(''))
+    notifyTransientMessage('coobrigacao', coobrigacaoMessage, () => setCoobrigacaoMessage(''))
+    notifyTransientMessage('fundo', fundoMessage, () => setFundoMessage(''))
+    notifyTransientMessage('alteracao', alteracaoMessage, () => setAlteracaoMessage(''))
+    notifyTransientMessage('convite', conviteMessage, () => setConviteMessage(''))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [message, taxasMessage, escrowMessage, coobrigacaoMessage, fundoMessage, alteracaoMessage, conviteMessage])
 
   // Docs da empresa (representante_id = null), mais recente por tipo
   const getLatestEmpresa = (tipo: string): DocRecord | null => {
@@ -409,14 +440,6 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
       <Link href="/gestor/cedentes" className="inline-flex items-center gap-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"><ArrowLeft size={16} /> Voltar para cedentes</Link>
 
       <PageHeader title={cedente.razao_social} description={formatCNPJ(cedente.cnpj)} eyebrow="Detalhe do cedente" action={<StatusBadge status={cedente.status} />} titleClassName="text-xl sm:text-2xl" align="center" className="mb-4" />
-
-      {message && (
-        <div className={`mb-4 p-3 rounded-lg text-sm border ${
-          message.includes('sucesso') || message.includes('aprovado') || message.includes('criada')
-            ? 'border-success/25 bg-success/10 text-success-foreground'
-            : 'bg-destructive/10 text-destructive border-destructive/20'
-        }`}>{message}</div>
-      )}
 
       {/* Dados Cadastrais */}
       <DetailSection title="Dados cadastrais" icon={Users}>
@@ -661,11 +684,6 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
             >
               {savingTaxas ? 'Salvando...' : 'Salvar Taxas'}
             </Button>
-            {taxasMessage && (
-              <span className={`text-sm ${taxasMessage.includes('sucesso') ? 'text-success-foreground' : 'text-destructive'}`}>
-                {taxasMessage}
-              </span>
-            )}
           </div>
 
           <p className="mt-3 text-xs text-muted-foreground">
@@ -718,12 +736,6 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
                   ))}
                 </div>
               </div>
-            )}
-
-            {alteracaoMessage && (
-              <p className={`text-sm ${alteracaoMessage.includes('aprovada') ? 'text-success-foreground' : 'text-destructive'}`}>
-                {alteracaoMessage}
-              </p>
             )}
 
             {showReprovarAlteracao ? (
@@ -810,12 +822,6 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
               {togglingEscrow ? 'Aguarde...' : cedente.habilitar_escrow ? 'Desabilitar' : 'Habilitar'}
             </Button>
           </div>
-          {escrowMessage && (
-            <p className={`mt-2 text-sm ${escrowMessage.includes('sucesso') ? 'text-success-foreground' : 'text-destructive'}`}>
-              {escrowMessage}
-            </p>
-          )}
-
           <div className="flex items-center justify-between py-2 border-t mt-2">
             <div>
               <p className="text-sm font-medium text-foreground">Coobrigacao</p>
@@ -840,11 +846,6 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
               {togglingCoobrigacao ? 'Aguarde...' : cedente.coobrigacao ? 'Desabilitar' : 'Habilitar'}
             </Button>
           </div>
-          {coobrigacaoMessage && (
-            <p className={`mt-2 text-sm ${coobrigacaoMessage.includes('sucesso') ? 'text-success-foreground' : 'text-destructive'}`}>
-              {coobrigacaoMessage}
-            </p>
-          )}
         </CardContent>
       </Card>
 
@@ -892,11 +893,6 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
               {salvandoFundo ? 'Salvando...' : 'Salvar'}
             </Button>
           </div>
-          {fundoMessage && (
-            <p className={`text-xs ${fundoMessage.includes('sucesso') || fundoMessage.includes('Fundo') ? 'text-success-foreground' : 'text-destructive'}`}>
-              {fundoMessage}
-            </p>
-          )}
         </CardContent>
       </Card>
 
@@ -1008,11 +1004,6 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
                     : 'Acesso completo, incluindo solicitacao de alteracao cadastral.'}
                 </p>
               </div>
-              {conviteMessage && (
-                <p className={`text-sm ${conviteMessage.includes('concedido') ? 'text-success-foreground' : 'text-destructive'}`}>
-                  {conviteMessage}
-                </p>
-              )}
               <div className="flex gap-2 pt-1">
                 <Button variant="outline" className="flex-1" onClick={() => { setShowConviteModal(false); setEmailConvite(''); setConviteMessage('') }}>
                   Cancelar

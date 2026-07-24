@@ -31,6 +31,7 @@ import { DetailField, DetailSection, EmptyState, FieldGrid, LoadingState, Status
 import { formatCNPJ } from '@/lib/utils'
 import { PoliticasDoFundo } from '@/components/politicas/PoliticasDoFundo'
 import { TemplatesDoFundo } from '@/components/templates/TemplatesDoFundo'
+import { useNotifications } from '@/components/notifications/notification-provider'
 
 type ConfigRow = {
   id: string
@@ -286,6 +287,7 @@ function statusChecklist(ok: boolean) {
 export default function FundoDetalhePage() {
   const params = useParams<{ id: string }>()
   const searchParams = useSearchParams()
+  const notifications = useNotifications()
   const fundoId = params.id
   const tabParam = searchParams.get('tab')
   const activeTab = tabs.includes(tabParam as (typeof tabs)[number]) ? tabParam as (typeof tabs)[number] : 'dados'
@@ -297,8 +299,6 @@ export default function FundoDetalhePage() {
   const [selectedConfigId, setSelectedConfigId] = useState('')
   const [editingIntegracaoVersaoId, setEditingIntegracaoVersaoId] = useState('')
   const [loading, setLoading] = useState(true)
-  const [message, setMessage] = useState('')
-  const [messageType, setMessageType] = useState<'success' | 'error'>('success')
   const [configForm, setConfigForm] = useState(defaultConfigForm)
   const [versionForm, setVersionForm] = useState(defaultVersionForm)
   const [cnabLayoutForm, setCnabLayoutForm] = useState<'cnab444'>('cnab444')
@@ -402,8 +402,7 @@ export default function FundoDetalhePage() {
   }, [activeTab, codigoOriginadorCnab, fundo?.cnpj, fundoId, versaoPortalFidcAtual])
 
   function notify(result: { success: boolean; message: string }) {
-    setMessage(result.message)
-    setMessageType(result.success ? 'success' : 'error')
+    notifications.fromActionResult(result)
   }
 
   function runAction(action: () => Promise<{ success: boolean; message: string; data?: unknown }>) {
@@ -592,12 +591,6 @@ export default function FundoDetalhePage() {
         description={`${formatCNPJ(fundo.cnpj)} · ${fundo.ativo ? 'ativo' : 'inativo'}`}
         action={<Link href="/gestor/fundos" className="inline-flex h-8 items-center gap-2 rounded-lg border border-border bg-background px-2.5 text-sm font-medium hover:bg-muted"><ArrowLeft size={14} /> Voltar</Link>}
       />
-
-      {message && (
-        <div className={`rounded-xl border px-4 py-3 text-sm ${messageType === 'success' ? 'border-success/25 bg-success/10 text-success-foreground' : 'border-destructive/25 bg-destructive/5 text-destructive'}`}>
-          {message}
-        </div>
-      )}
 
       <div className="flex flex-wrap gap-2 rounded-xl border border-border bg-card p-2">
         {tabs.map((tab) => (

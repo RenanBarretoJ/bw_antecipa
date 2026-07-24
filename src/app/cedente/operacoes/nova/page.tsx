@@ -11,6 +11,7 @@ import { ArrowLeft, CheckSquare, Square, Send, Receipt, Calculator, Loader2 } fr
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useNotifications } from '@/components/notifications/notification-provider'
 
 interface NfAprovada {
   id: string
@@ -29,14 +30,13 @@ interface TaxaConfig {
 
 export default function NovaSolicitacaoPage() {
   const router = useRouter()
+  const notifications = useNotifications()
   const [nfs, setNfs] = useState<NfAprovada[]>([])
   const [taxas, setTaxas] = useState<TaxaConfig[]>([])
   const [elegibilidades, setElegibilidades] = useState<Record<string, ElegibilidadeDocumental>>({})
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
-  const [message, setMessage] = useState('')
-  const [messageType, setMessageType] = useState<'success' | 'error'>('success')
   const [todayMs] = useState(() => Date.now())
 
   useEffect(() => {
@@ -104,23 +104,19 @@ export default function NovaSolicitacaoPage() {
 
   const handleSubmit = async () => {
     if (selected.size === 0) {
-      setMessage('Selecione ao menos uma NF.')
-      setMessageType('error')
+      notifications.error('Selecione ao menos uma NF.')
       return
     }
 
     setSubmitting(true)
-    setMessage('')
 
     const result = await solicitarAntecipacao(Array.from(selected))
 
     if (result?.success) {
-      setMessage(result.message || 'Solicitacao criada!')
-      setMessageType('success')
+      notifications.fromActionResult(result, 'Solicitação criada!')
       setTimeout(() => router.push('/cedente/operacoes'), 2000)
     } else {
-      setMessage(result?.message || 'Erro ao solicitar.')
-      setMessageType('error')
+      notifications.fromActionResult(result, 'Erro ao solicitar.')
     }
     setSubmitting(false)
   }
@@ -161,16 +157,6 @@ export default function NovaSolicitacaoPage() {
           <p className="text-muted-foreground">Selecione as NFs aprovadas que deseja antecipar.</p>
         </div>
       </div>
-
-      {message && (
-        <div className={`mb-4 p-3 rounded-lg text-sm ${
-          messageType === 'success'
-            ? 'bg-green-50 text-green-700 border border-green-200'
-            : 'bg-red-50 text-red-700 border border-red-200'
-        }`}>
-          {message}
-        </div>
-      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Lista de NFs */}

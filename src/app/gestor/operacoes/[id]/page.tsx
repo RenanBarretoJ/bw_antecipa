@@ -32,6 +32,7 @@ import { UploadDocumentoAssinado } from '@/components/contratos/UploadDocumentoA
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { useNotifications } from '@/components/notifications/notification-provider'
 
 interface Testemunha {
   id: string
@@ -436,6 +437,7 @@ function PageSkeleton() {
 export default function OperacaoDetalheGestorPage() {
   const params = useParams()
   const router = useRouter()
+  const notifications = useNotifications()
   const opId = params.id as string
 
   const [op, setOp] = useState<OperacaoDetalhe | null>(null)
@@ -447,6 +449,16 @@ export default function OperacaoDetalheGestorPage() {
   const [removendoNf, setRemovendoNf] = useState<string | null>(null)
   const [message, setMessage] = useState('')
   const [messageType, setMessageType] = useState<'success' | 'error'>('success')
+
+  useEffect(() => {
+    if (!message) return
+    notifications.notify({
+      type: messageType,
+      message,
+      dedupeKey: `${messageType}:${message}`,
+    })
+    queueMicrotask(() => setMessage(''))
+  }, [message, messageType, notifications])
 
   // Campos de aprovacao
   const [taxa, setTaxa] = useState(0)
@@ -791,16 +803,6 @@ export default function OperacaoDetalheGestorPage() {
           </div>
         </div>
       </div>
-
-      {message && (
-        <div className={`mb-4 p-3 rounded-lg text-sm ${
-          messageType === 'success'
-            ? 'bg-green-50 text-green-700 border border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800'
-            : 'bg-destructive/10 text-destructive border border-destructive/20'
-        }`}>
-          {message}
-        </div>
-      )}
 
       {/* Modal reprovar */}
       {showReprovar && (

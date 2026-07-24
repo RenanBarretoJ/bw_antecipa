@@ -25,6 +25,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { buckets } from '@/lib/storage'
+import { useNotifications } from '@/components/notifications/notification-provider'
 
 interface NfCessao {
   id: string
@@ -61,13 +62,12 @@ function LoadingSkeleton() {
 }
 
 export default function AprovacaoCessaoPage() {
+  const notifications = useNotifications()
   const [nfs, setNfs] = useState<NfCessao[]>([])
   const [contas, setContas] = useState<ContaInfo[]>([])
   const [loading, setLoading] = useState(true)
   const [processing, setProcessing] = useState<string | null>(null)
   const [processandoLote, setProcessandoLote] = useState(false)
-  const [message, setMessage] = useState('')
-  const [messageType, setMessageType] = useState<'success' | 'error'>('success')
   const [contestando, setContestando] = useState<string | null>(null)
   const [motivo, setMotivo] = useState('')
   const [preview, setPreview] = useState<{ nf: NfCessao; url: string } | null>(null)
@@ -214,53 +214,38 @@ export default function AprovacaoCessaoPage() {
   const handleAprovarLote = async () => {
     const ids = Array.from(selecionadas)
     setProcessandoLote(true)
-    setMessage('')
     const result = await aprovarCessaoLote(ids)
+    notifications.fromActionResult(result)
     if (result?.success) {
-      setMessage(result.message || 'Aprovadas!')
-      setMessageType('success')
       setSelecionadas(new Set())
       await loadData()
-    } else {
-      setMessage(result?.message || 'Erro.')
-      setMessageType('error')
     }
     setProcessandoLote(false)
   }
 
   const handleAprovar = async (nfId: string) => {
     setProcessing(nfId)
-    setMessage('')
     const result = await aprovarCessao(nfId)
+    notifications.fromActionResult(result)
     if (result?.success) {
-      setMessage(result.message || 'Aprovada!')
-      setMessageType('success')
       setSelecionadas((prev) => { const next = new Set(prev); next.delete(nfId); return next })
       await loadData()
-    } else {
-      setMessage(result?.message || 'Erro.')
-      setMessageType('error')
     }
     setProcessing(null)
   }
 
   const handleContestar = async (nfId: string) => {
     if (!motivo.trim()) {
-      setMessage('Informe o motivo da contestacao.')
-      setMessageType('error')
+      notifications.error('Informe o motivo da contestação.')
       return
     }
     setProcessing(nfId)
     const result = await contestarCessao(nfId, motivo)
+    notifications.fromActionResult(result)
     if (result?.success) {
-      setMessage(result.message || 'Contestada.')
-      setMessageType('success')
       setContestando(null)
       setMotivo('')
       await loadData()
-    } else {
-      setMessage(result?.message || 'Erro.')
-      setMessageType('error')
     }
     setProcessing(null)
   }
@@ -278,16 +263,6 @@ export default function AprovacaoCessaoPage() {
         <h1 className="text-2xl font-bold text-foreground">Aprovação de Cessão</h1>
         <p className="text-muted-foreground">Aprove ou conteste as cessoes de credito das NFs emitidas contra voce.</p>
       </div>
-
-      {message && (
-        <div className={`mb-4 p-3 rounded-lg text-sm border ${
-          messageType === 'success'
-            ? 'bg-green-50 text-green-700 border-green-200'
-            : 'bg-red-50 text-destructive border-red-200'
-        }`}>
-          {message}
-        </div>
-      )}
 
       {nfs.length === 0 ? (
         <Card>

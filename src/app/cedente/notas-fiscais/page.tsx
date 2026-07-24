@@ -41,6 +41,7 @@ import {
   TableRow,
   TableCell,
 } from '@/components/ui/table'
+import { useNotifications } from '@/components/notifications/notification-provider'
 
 interface NfRecord {
   id: string
@@ -78,11 +79,10 @@ const entregaStatusConfig: Record<string, { label: string; className: string; ic
 
 export default function NotasFiscaisCedentePage() {
   const router = useRouter()
+  const notifications = useNotifications()
   const [nfs, setNfs] = useState<NfRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
-  const [message, setMessage] = useState('')
-  const [messageType, setMessageType] = useState<'success' | 'error'>('success')
   const [filtroStatus, setFiltroStatus] = useState<string>('todos')
   const [busca, setBusca] = useState('')
   const [valorMin, setValorMin] = useState('')
@@ -129,8 +129,7 @@ export default function NotasFiscaisCedentePage() {
       setNfs((prev) => prev.filter((n) => n.id !== id))
       setSelecionados((prev) => { const next = new Set(prev); next.delete(id); return next })
     } else {
-      setMessage(result?.message || 'Erro ao excluir.')
-      setMessageType('error')
+      notifications.fromActionResult(result, 'Erro ao excluir.')
     }
     setExcluindo(null)
   }
@@ -144,11 +143,9 @@ export default function NotasFiscaisCedentePage() {
     if (result?.success) {
       setNfs((prev) => prev.filter((n) => !ids.includes(n.id)))
       setSelecionados(new Set())
-      setMessage(result.message || 'Rascunhos excluidos.')
-      setMessageType('success')
+      notifications.fromActionResult(result, 'Rascunhos excluídos.')
     } else {
-      setMessage(result?.message || 'Erro ao excluir.')
-      setMessageType('error')
+      notifications.fromActionResult(result, 'Erro ao excluir.')
     }
     setExcluindoLote(false)
   }
@@ -204,8 +201,7 @@ export default function NotasFiscaisCedentePage() {
       return validExtensions.includes(ext)
     })
     if (validFiles.length < files.length) {
-      setMessage(`${files.length - validFiles.length} arquivo(s) ignorado(s) — formato invalido.`)
-      setMessageType('error')
+      notifications.warning(`${files.length - validFiles.length} arquivo(s) ignorado(s) — formato inválido.`)
     }
     setSelectedFiles((prev) => [...prev, ...validFiles])
   }
@@ -218,7 +214,6 @@ export default function NotasFiscaisCedentePage() {
     if (selectedFiles.length === 0) return
 
     setUploading(true)
-    setMessage('')
 
     const formData = new FormData()
     selectedFiles.forEach((file) => formData.append('arquivos', file))
@@ -240,17 +235,14 @@ export default function NotasFiscaisCedentePage() {
         const parts: string[] = []
         if (xmlCount > 0) parts.push(`${xmlCount} XML(s) submetido(s) automaticamente`)
         parts.push(`${result.rascunhos.length} PDF(s) salvo(s) como rascunho — clique em "Preencher" em cada um para adicionar os dados`)
-        setMessage(parts.join('. ') + '.')
-        setMessageType('success')
+        notifications.success(parts.join('. ') + '.')
       } else {
-        setMessage(result.message || 'NFs enviadas com sucesso!')
-        setMessageType('success')
+        notifications.fromActionResult(result, 'NFs enviadas com sucesso!')
       }
 
       await loadNFs()
     } else {
-      setMessage(result?.message || 'Erro no envio.')
-      setMessageType('error')
+      notifications.fromActionResult(result, 'Erro no envio.')
     }
 
     setUploading(false)
@@ -429,17 +421,6 @@ export default function NotasFiscaisCedentePage() {
           )}
         </CardContent>
       </Card>
-
-      {/* Mensagem */}
-      {message && (
-        <div className={`mb-4 p-3 rounded-lg text-sm whitespace-pre-line border ${
-          messageType === 'success'
-            ? 'bg-green-50 text-green-700 border-green-200'
-            : 'bg-red-50 text-red-700 border-red-200'
-        }`}>
-          {message}
-        </div>
-      )}
 
       {/* Filtros */}
       <Card className="mb-4">

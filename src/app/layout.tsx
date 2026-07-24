@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme/theme-provider";
+import { NotificationProvider } from "@/components/notifications/notification-provider";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -36,7 +37,11 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="min-h-full flex flex-col font-sans"><ThemeProvider>{children}</ThemeProvider></body>
+      <body className="min-h-full flex flex-col font-sans">
+        <ThemeProvider>
+          <NotificationProvider>{children}</NotificationProvider>
+        </ThemeProvider>
+      </body>
     </html>
   );
 }

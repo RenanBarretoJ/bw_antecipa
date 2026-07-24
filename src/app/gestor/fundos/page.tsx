@@ -20,6 +20,7 @@ import { Fundo } from '@/types/database'
 import { PageContainer } from '@/components/layout/page-container'
 import { PageHeader } from '@/components/layout/page-header'
 import { DetailSection, EmptyState, LoadingState, StatusBadge } from '@/components/data-display/primitives'
+import { useNotifications } from '@/components/notifications/notification-provider'
 
 const camposVazios = {
   nome: '',
@@ -92,6 +93,7 @@ function Secao({ titulo }: { titulo: string }) {
 }
 
 export default function FundosPage() {
+  const notifications = useNotifications()
   const [fundos, setFundos] = useState<Fundo[]>([])
   const [loading, setLoading] = useState(true)
   const [sheetOpen, setSheetOpen] = useState(false)
@@ -99,8 +101,6 @@ export default function FundosPage() {
   const [form, setForm] = useState<FormFields>(camposVazios)
   const [salvando, setSalvando] = useState(false)
   const [toggling, setToggling] = useState<string | null>(null)
-  const [message, setMessage] = useState('')
-  const [messageType, setMessageType] = useState<'success' | 'error'>('success')
 
   const set = (field: keyof FormFields) => (value: string) =>
     setForm(prev => ({ ...prev, [field]: value }))
@@ -133,8 +133,7 @@ export default function FundosPage() {
 
   async function handleSalvar() {
     if (!form.nome.trim() || !form.cnpj.trim() || !form.administradora_nome.trim() || !form.administradora_cnpj.trim()) {
-      setMessage('Preencha os campos obrigatorios (*).')
-      setMessageType('error')
+      notifications.error('Preencha os campos obrigatórios (*).')
       return
     }
     setSalvando(true)
@@ -144,11 +143,9 @@ export default function FundosPage() {
     if (result?.success) {
       setSheetOpen(false)
       await loadData()
-      setMessage(result.message || 'Salvo.')
-      setMessageType('success')
+      notifications.fromActionResult(result, 'Salvo.')
     } else {
-      setMessage(result?.message || 'Erro ao salvar.')
-      setMessageType('error')
+      notifications.fromActionResult(result, 'Erro ao salvar.')
     }
     setSalvando(false)
   }
@@ -157,20 +154,13 @@ export default function FundosPage() {
     setToggling(fundo.id)
     const result = await toggleAtivoFundo(fundo.id, !fundo.ativo)
     if (result?.success) await loadData()
-    setMessage(result?.message || '')
-    setMessageType(result?.success ? 'success' : 'error')
+    notifications.fromActionResult(result)
     setToggling(null)
   }
 
   return (
     <PageContainer className="space-y-6">
       <PageHeader title="Fundos" description="Gerencie os fundos de investimento." eyebrow="Estrutura financeira" action={<Button onClick={abrirNovo} className="gap-2"><Plus size={16} /> Novo fundo</Button>} />
-
-      {message && (
-        <div className={`rounded-xl border px-4 py-3 text-sm ${messageType === 'success' ? 'border-success/25 bg-success/10 text-success-foreground' : 'border-destructive/25 bg-destructive/5 text-destructive'}`}>
-          {message}
-        </div>
-      )}
 
       <DetailSection title="Fundos cadastrados">
           {loading ? (

@@ -20,6 +20,7 @@ import {
   Wrench,
 } from 'lucide-react'
 import { ChecklistCedente } from '@/components/documentos-v2/ChecklistCedente'
+import { useNotifications } from '@/components/notifications/notification-provider'
 
 interface NfCompleta {
   id: string
@@ -63,6 +64,7 @@ const statusConfig: Record<string, { label: string; color: string; icon: typeof 
 export default function NfDetalhePage() {
   const params = useParams()
   const router = useRouter()
+  const notifications = useNotifications()
   const nfId = params.id as string
 
   const [nf, setNf] = useState<NfCompleta | null>(null)
@@ -74,6 +76,12 @@ export default function NfDetalhePage() {
   const [messageType, setMessageType] = useState<'success' | 'error'>('success')
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [buscandoCnpj, setBuscandoCnpj] = useState(false)
+
+  useEffect(() => {
+    if (!message) return
+    notifications.notify({ type: messageType, message, dedupeKey: `${messageType}:${message}` })
+    queueMicrotask(() => setMessage(''))
+  }, [message, messageType, notifications])
 
   // Form state
   const [form, setForm] = useState({
@@ -324,16 +332,6 @@ export default function NfDetalhePage() {
           </div>
         )}
       </div>
-
-      {message && (
-        <div className={`mb-4 p-3 rounded-lg text-sm ${
-          messageType === 'success'
-            ? 'bg-green-50 text-green-700 border border-green-200'
-            : 'bg-red-50 text-red-700 border border-red-200'
-        }`}>
-          {message}
-        </div>
-      )}
 
       <ChecklistCedente notaFiscalId={nfId} />
 

@@ -12,6 +12,7 @@ import {
 import { AlertTriangle, CheckCircle, Clock, Eye, FileText, Loader2, ShieldAlert, Truck, XCircle } from 'lucide-react'
 import { DocumentDropzone } from './DocumentDropzone'
 import { Button } from '@/components/ui/button'
+import { useNotifications } from '@/components/notifications/notification-provider'
 
 type ChecklistMode = 'cedente' | 'gestor'
 
@@ -266,34 +267,33 @@ function OperationalSummary({ checklist }: { checklist: ChecklistDocumento }) {
 }
 
 export function ChecklistCedente({ notaFiscalId, mode = 'cedente' }: { notaFiscalId: string; mode?: ChecklistMode }) {
+  const notifications = useNotifications()
   const [checklist, setChecklist] = useState<ChecklistDocumento | null>(null)
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState<string | null>(null)
   const [processing, setProcessing] = useState<string | null>(null)
-  const [message, setMessage] = useState('')
 
   const load = useCallback(async () => {
     try {
       setChecklist(await listarChecklistDaNota(notaFiscalId))
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Não foi possível carregar o checklist.')
+      notifications.error(error instanceof Error ? error.message : 'Não foi possível carregar o checklist.')
     } finally {
       setLoading(false)
     }
-  }, [notaFiscalId])
+  }, [notaFiscalId, notifications])
 
   useEffect(() => { void load() }, [load])
 
   const upload = async (item: ChecklistDocumentoItem, file: File) => {
     setSending(item.id)
-    setMessage('')
     const form = new FormData()
     form.set('notaFiscalId', notaFiscalId)
     form.set('requisitoId', item.id)
     if (item.entregaId) form.set('entregaId', item.entregaId)
     form.set('arquivo', file)
     const result = await enviarDocumentoDaNota(form)
-    setMessage(result.message || '')
+    notifications.fromActionResult(result)
     if (result.success) await load()
     setSending(null)
   }
@@ -301,7 +301,7 @@ export function ChecklistCedente({ notaFiscalId, mode = 'cedente' }: { notaFisca
   const download = async (versionId: string) => {
     const result = await baixarVersaoDocumento(versionId)
     if (!result.success || !result.url) {
-      setMessage(result.message || 'Não foi possível abrir o documento.')
+      notifications.fromActionResult(result, 'Não foi possível abrir o documento.')
       return
     }
     window.open(result.url, '_blank', 'noopener,noreferrer')
@@ -311,9 +311,9 @@ export function ChecklistCedente({ notaFiscalId, mode = 'cedente' }: { notaFisca
     const observation = result === 'aprovado' ? undefined : window.prompt('Informe o motivo da rejeição/ajuste:') || ''
     if (result !== 'aprovado' && !(observation || '').trim()) return
     setProcessing(versionId)
-    setMessage('')
     const response = await analisarVersaoDocumento(versionId, result, observation || undefined)
-    setMessage(response.success ? 'Análise registrada.' : response.message || 'Falha na análise.')
+    if (response.success) notifications.success('Análise registrada.')
+    else notifications.fromActionResult(response, 'Falha na análise.')
     if (response.success) await load()
     setProcessing(null)
   }
@@ -350,7 +350,6 @@ export function ChecklistCedente({ notaFiscalId, mode = 'cedente' }: { notaFisca
             {checklist.elegibilidade.elegivel ? 'Elegível documentalmente' : 'Pendências documentais'}
           </span>
         </div>
-        {message && <p className="mb-3 rounded-md bg-muted px-3 py-2 text-sm">{message}</p>}
         {checklist.preCessao.length === 0 ? (
           <p className="text-sm text-muted-foreground">Não há requisitos pré-cessão configurados para esta NF.</p>
         ) : (

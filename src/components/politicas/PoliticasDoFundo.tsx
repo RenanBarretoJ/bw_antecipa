@@ -20,6 +20,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { DetailField, DetailSection, EmptyState, LoadingState, StatusBadge } from '@/components/data-display/primitives'
+import { useNotifications } from '@/components/notifications/notification-provider'
 import {
   createPolicyInternalCode,
   derivePoliticaVersionState,
@@ -129,6 +130,7 @@ function cloneRequirements(rows: RequirementRow[]): PoliticaRequisitoInput[] {
 
 export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId?: string; showFundoInLabel?: boolean }) {
   const router = useRouter()
+  const notifications = useNotifications()
   const [links, setLinks] = useState<LinkRow[]>([])
   const [cedentes, setCedentes] = useState<CedenteRow[]>([])
   const [fundos, setFundos] = useState<FundoRow[]>([])
@@ -137,7 +139,6 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
   const [requirements, setRequirements] = useState<RequirementRow[]>([])
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
-  const [message, setMessage] = useState('')
   const [selectedLinkId, setSelectedLinkId] = useState('')
   const [selectedPolicyId, setSelectedPolicyId] = useState('')
   const [policyModalOpen, setPolicyModalOpen] = useState(false)
@@ -192,7 +193,7 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
     }
 
     const queryError = linkResult.error || cedenteResult.error || fundoResult.error || policyResult.error || versionResult.error || requirementResult.error
-    if (queryError) setMessage(`Erro ao recarregar politica operacional: ${(queryError as { message?: string }).message || 'consulta nao concluida.'}`)
+    if (queryError) notifications.error(`Erro ao recarregar política operacional: ${(queryError as { message?: string }).message || 'consulta não concluída.'}`)
 
     setLinks(nextLinks)
     setCedentes((cedenteResult.data || []) as CedenteRow[])
@@ -231,12 +232,12 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
     setBusy(true)
     try {
       const result = await operation()
-      setMessage(result?.message || '')
+      notifications.fromActionResult(result)
       if (result?.success) await loadData()
       return result
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'A operacao nao foi concluida.'
-      setMessage(errorMessage)
+      notifications.error(errorMessage)
       return { success: false, message: errorMessage }
     } finally {
       setBusy(false)
@@ -245,7 +246,7 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
 
   function openPolicyModal() {
     if (!selectedLinkId) {
-      setMessage('Selecione um vínculo cedente-fundo.')
+      notifications.error('Selecione um vínculo cedente-fundo.')
       return
     }
     setPolicyForm({
@@ -257,12 +258,12 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
   }
 
   async function createPolicy() {
-    if (!selectedLinkId) return setMessage('Selecione um vínculo cedente-fundo.')
+    if (!selectedLinkId) return notifications.error('Selecione um vínculo cedente-fundo.')
     setBusy(true)
     const result = fundoId
       ? await criarPoliticaOperacionalNoFundo(fundoId, selectedLinkId, policyForm.codigo, policyForm.nome, policyForm.descricao)
       : await criarPoliticaOperacional(selectedLinkId, policyForm.codigo, policyForm.nome, policyForm.descricao)
-    setMessage(result?.message || '')
+    notifications.fromActionResult(result)
     if (result?.success) {
       if (result.data?.id) setSelectedPolicyId(result.data.id)
       setPolicyModalOpen(false)
@@ -274,7 +275,7 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
 
   function openVersionModal(base?: VersionRow | null) {
     if (!selectedPolicy) {
-      setMessage('Configure uma política antes de criar versões.')
+      notifications.error('Configure uma política antes de criar versões.')
       return
     }
     const source = base || versaoPublicada || versaoRascunho
@@ -286,7 +287,7 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
   }
 
   async function createVersion() {
-    if (!selectedPolicy) return setMessage('Selecione uma política.')
+    if (!selectedPolicy) return notifications.error('Selecione uma política.')
     const flags = mapOperationalSelectionsToLegacyFlags(operationalSelections)
     const payload: CriarVersaoPoliticaInput = {
       ...flags,
@@ -300,7 +301,7 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
     const result = fundoId
       ? await criarVersaoPoliticaNoFundo(fundoId, selectedPolicy.id, payload)
       : await criarVersaoPolitica(selectedPolicy.id, payload)
-    setMessage(result?.message || '')
+    notifications.fromActionResult(result)
     if (!shouldCloseVersionModalAfterCreate(result)) {
       setBusy(false)
       return
@@ -338,8 +339,6 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
 
   return (
     <div className="space-y-5">
-      {message && <div className="rounded-xl border border-info/25 bg-info/10 px-4 py-3 text-sm text-info-foreground">{message}</div>}
-
       <DetailSection title="Status da política operacional" icon={FileCog}>
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
           <div className="space-y-3">
@@ -718,11 +717,6 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
             <DialogTitle>Publicar nova versão</DialogTitle>
             <DialogDescription>A nova versão substituirá a versão atualmente publicada. Operações já criadas manterão o snapshot anterior.</DialogDescription>
           </DialogHeader>
-          {message && (
-            <div className="rounded-xl border border-info/25 bg-info/10 px-4 py-3 text-sm text-info-foreground">
-              {message}
-            </div>
-          )}
           {publishVersion && (
             <div className="grid gap-3 rounded-xl border border-border bg-background p-4 text-sm">
               <DetailField label="Política" value={selectedPolicy?.nome || 'Política operacional'} />

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { FileText, Download, RefreshCw, Loader2, AlertTriangle } from 'lucide-react'
+import { useNotifications } from '@/components/notifications/notification-provider'
 
 interface Props {
   tipo: 'contrato' | 'termo' | 'notificacao' | 'quitacao'
@@ -14,6 +15,7 @@ interface Props {
 }
 
 export function BotaoDownloadContrato({ tipo, id, storagePath, hasSignedDoc, label, className }: Props) {
+  const notifications = useNotifications()
   const [gerando, setGerando] = useState(false)
   const [currentPath, setCurrentPath] = useState(storagePath)
   const [downloading, setDownloading] = useState(false)
@@ -44,14 +46,15 @@ export function BotaoDownloadContrato({ tipo, id, storagePath, hasSignedDoc, lab
       const data = await res.json()
       if (data.sucesso && data.path) {
         setCurrentPath(data.path)
+        notifications.success('Documento gerado.')
         if (data.url) {
           window.open(data.url, '_blank')
         }
       } else {
-        alert(data.error || 'Erro ao gerar documento.')
+        notifications.error(data.error || 'Erro ao gerar documento.')
       }
     } catch {
-      alert('Erro ao gerar documento. Tente novamente.')
+      notifications.error('Erro ao gerar documento. Tente novamente.')
     } finally {
       setGerando(false)
     }
@@ -87,10 +90,10 @@ export function BotaoDownloadContrato({ tipo, id, storagePath, hasSignedDoc, lab
       if (data.url) {
         window.open(data.url, '_blank')
       } else {
-        alert('Erro ao obter link de download.')
+        notifications.error('Erro ao obter link de download.')
       }
     } catch {
-      alert('Erro ao baixar documento.')
+      notifications.error('Erro ao baixar documento.')
     } finally {
       setDownloading(false)
     }

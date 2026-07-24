@@ -25,6 +25,7 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ChecklistGestor } from '@/components/documentos-v2/ChecklistGestor'
+import { useNotifications } from '@/components/notifications/notification-provider'
 
 interface NfCompleta {
   id: string
@@ -81,6 +82,7 @@ const entregaStatusConfig: Record<string, { label: string; className: string }> 
 export default function NfDetalheGestorPage() {
   const params = useParams()
   const router = useRouter()
+  const notifications = useNotifications()
   const nfId = params.id as string
 
   const [nf, setNf] = useState<NfCompleta | null>(null)
@@ -95,6 +97,12 @@ export default function NfDetalheGestorPage() {
   const [showAjuste, setShowAjuste] = useState(false)
   const [motivoAjuste, setMotivoAjuste] = useState('')
   const [todayMs] = useState(() => Date.now())
+
+  useEffect(() => {
+    if (!message) return
+    notifications.notify({ type: messageType, message, dedupeKey: `${messageType}:${message}` })
+    queueMicrotask(() => setMessage(''))
+  }, [message, messageType, notifications])
 
   useEffect(() => {
     const load = async () => {
@@ -277,16 +285,6 @@ export default function NfDetalheGestorPage() {
           </div>
         )}
       </div>
-
-      {message && (
-        <div className={`mb-4 p-3 rounded-lg text-sm ${
-          messageType === 'success'
-            ? 'bg-green-50 text-green-700 border border-green-200'
-            : 'bg-destructive/10 text-destructive border border-destructive/20'
-        }`}>
-          {message}
-        </div>
-      )}
 
       {/* Painel reprovar */}
       {showReprovar && (

@@ -27,6 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { useNotifications } from '@/components/notifications/notification-provider'
 
 interface OperacaoRecord {
   id: string
@@ -127,12 +128,19 @@ function OperacaoSkeleton() {
 }
 
 export default function OperacoesCedentePage() {
+  const notifications = useNotifications()
   const [ops, setOps] = useState<OperacaoRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [filtroStatus, setFiltroStatus] = useState('todos')
   const [cancelling, setCancelling] = useState<string | null>(null)
   const [baixandoQuitacao, setBaixandoQuitacao] = useState<string | null>(null)
   const [message, setMessage] = useState('')
+
+  useEffect(() => {
+    if (!message) return
+    notifications.notify({ type: message.toLowerCase().includes('erro') ? 'error' : 'success', message, dedupeKey: `operacoes:${message}` })
+    queueMicrotask(() => setMessage(''))
+  }, [message, notifications])
 
   const loadOps = async () => {
     const supabase = createClient()
@@ -244,13 +252,6 @@ export default function OperacoesCedentePage() {
           </CardContent>
         </Card>
       </div>
-
-      {/* Feedback message */}
-      {message && (
-        <div className="mb-4 p-3 rounded-lg text-sm bg-green-50 text-green-700 border border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800">
-          {message}
-        </div>
-      )}
 
       {/* Filter */}
       <Card className="mb-4">

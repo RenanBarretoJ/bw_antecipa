@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { useNotifications } from '@/components/notifications/notification-provider'
 
 interface OperacaoSacado {
   id: string
@@ -56,12 +57,12 @@ function LoadingSkeleton() {
 }
 
 export default function HistoricoPagamentosPage() {
+  const notifications = useNotifications()
   const [operacoes, setOperacoes] = useState<OperacaoSacado[]>([])
   const [loading, setLoading] = useState(true)
   const [filtro, setFiltro] = useState('todos')
   const [busca, setBusca] = useState('')
   const [sending, setSending] = useState<string | null>(null)
-  const [message, setMessage] = useState('')
 
   const loadOps = useCallback(async () => {
     const supabase = createClient()
@@ -95,9 +96,8 @@ export default function HistoricoPagamentosPage() {
 
   const handleConfirmarPagamento = async (opId: string) => {
     setSending(opId)
-    setMessage('')
     const result = await confirmarPagamento(opId)
-    setMessage(result?.message || '')
+    notifications.fromActionResult(result, 'Não foi possível confirmar o pagamento.')
     setSending(null)
     if (result?.success) await loadOps()
   }
@@ -148,10 +148,6 @@ export default function HistoricoPagamentosPage() {
           <p className="text-2xl font-bold text-blue-700 tabular-nums">{operacoes.length}</p>
         </div>
       </div>
-
-      {message && (
-        <div className="mb-4 p-3 rounded-lg text-sm bg-green-50 text-green-700 border border-green-200">{message}</div>
-      )}
 
       {/* Filtros */}
       <Card className="mb-4">

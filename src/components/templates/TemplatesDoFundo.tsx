@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { DetailField, DetailSection, EmptyState, LoadingState, StatusBadge } from '@/components/data-display/primitives'
+import { useNotifications } from '@/components/notifications/notification-provider'
 
 type TemplateWithVersions = TemplateDocumento & { template_versoes?: TemplateVersao[] }
 
@@ -117,12 +118,11 @@ function checklistIcon(ok: boolean) {
 }
 
 export function TemplatesDoFundo({ fundoId, showFundoSelector = !fundoId }: { fundoId?: string; showFundoSelector?: boolean }) {
+  const notifications = useNotifications()
   const [fundos, setFundos] = useState<Fundo[]>([])
   const [templates, setTemplates] = useState<TemplateWithVersions[]>([])
   const [selectedFundoId, setSelectedFundoId] = useState(fundoId || '')
   const [loading, setLoading] = useState(true)
-  const [message, setMessage] = useState('')
-  const [messageType, setMessageType] = useState<'success' | 'error'>('success')
   const [isPending, startTransition] = useTransition()
   const [editorContext, setEditorContext] = useState<EditorContext | null>(null)
   const [editorTab, setEditorTab] = useState<'conteudo' | 'preview' | 'variaveis' | 'historico'>('conteudo')
@@ -206,8 +206,7 @@ export function TemplatesDoFundo({ fundoId, showFundoSelector = !fundoId }: { fu
     .at(-1)
 
   function notify(result: { success: boolean; message: string }) {
-    setMessage(result.message)
-    setMessageType(result.success ? 'success' : 'error')
+    notifications.fromActionResult(result)
   }
 
   function runAction(action: () => Promise<{ success: boolean; message: string }>) {
@@ -226,8 +225,8 @@ export function TemplatesDoFundo({ fundoId, showFundoSelector = !fundoId }: { fu
   }
 
   function configureDocument(item: LegalDocumentCatalogItem) {
-    if (!contextFundoId) return notify({ success: false, message: 'Selecione um fundo.' })
-    if (!item.tipo) return notify({ success: false, message: 'Tipo jurídico indisponível no catálogo técnico.' })
+    if (!contextFundoId) return notifications.error('Selecione um fundo.')
+    if (!item.tipo) return notifications.error('Tipo jurídico indisponível no catálogo técnico.')
     const tipoDocumento = item.tipo
     startTransition(async () => {
       const result = await criarTemplateDocumento({
@@ -258,7 +257,7 @@ export function TemplatesDoFundo({ fundoId, showFundoSelector = !fundoId }: { fu
   }
 
   function handleCreateVersion() {
-    if (!editorContext || !conteudoHtml.trim()) return notify({ success: false, message: 'Informe o HTML da versão.' })
+    if (!editorContext || !conteudoHtml.trim()) return notifications.error('Informe o HTML da versão.')
     runAction(async () => {
       const result = fundoId
         ? await criarVersaoTemplateNoFundo(fundoId, { templateId: editorContext.template.id, conteudoHtml })
@@ -274,7 +273,7 @@ export function TemplatesDoFundo({ fundoId, showFundoSelector = !fundoId }: { fu
 
   function handlePreview(version?: TemplateVersao | null) {
     const html = version?.conteudo_html || conteudoHtml
-    if (!editorContext || !html.trim()) return notify({ success: false, message: 'Informe o HTML para preview.' })
+    if (!editorContext || !html.trim()) return notifications.error('Informe o HTML para preview.')
     startTransition(async () => {
       const result = await previewTemplateHtml({ tipoDocumento: editorContext.template.tipo_documento, conteudoHtml: html })
       notify(result)
@@ -305,12 +304,6 @@ export function TemplatesDoFundo({ fundoId, showFundoSelector = !fundoId }: { fu
 
   return (
     <div className="space-y-5">
-      {message && (
-        <div className={`rounded-lg border px-4 py-3 text-sm ${messageType === 'success' ? 'border-success/30 bg-success/10 text-success-foreground' : 'border-destructive/30 bg-destructive/10 text-destructive'}`}>
-          {message}
-        </div>
-      )}
-
       {showFundoSelector && (
         <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
           <Label htmlFor="fundo-template">Fundo</Label>

@@ -5,20 +5,21 @@ import Link from 'next/link'
 import { KeyRound, Loader2, RefreshCcw, ShieldCheck, Smartphone, UsersRound, type LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { desativarMfaProprio, encerrarOutrasSessoes, listarFatoresMfa, regenerarCodigosRecuperacao, type MfaActionState } from '@/app/actions/mfa'
+import { useNotifications } from '@/components/notifications/notification-provider'
 
 type Factor = { id: string; friendlyName: string; status: string }
 type SecurityData = NonNullable<Awaited<ReturnType<typeof listarFatoresMfa>>['data']>
 
 export function SecurityPage() {
+  const notifications = useNotifications()
   const [data, setData] = useState<SecurityData | null>(null)
-  const [message, setMessage] = useState('')
   const [codes, setCodes] = useState<string[]>([])
   const [isPending, startTransition] = useTransition()
 
   async function load() {
     const result = await listarFatoresMfa()
     if (result.success && result.data) setData(result.data)
-    else setMessage(result.message)
+    else notifications.fromActionResult(result, 'Não foi possível carregar os dados de segurança.')
   }
 
   // Sincroniza a tela de seguranca com o estado remoto do Supabase Auth.
@@ -28,7 +29,7 @@ export function SecurityPage() {
   function run(action: () => Promise<MfaActionState<{ recoveryCodes?: string[] } | unknown>>) {
     startTransition(async () => {
       const result = await action()
-      setMessage(result.message)
+      notifications.fromActionResult(result)
       const maybeCodes = result.data as { recoveryCodes?: string[] } | undefined
       if (maybeCodes?.recoveryCodes) setCodes(maybeCodes.recoveryCodes)
       await load()
@@ -47,8 +48,6 @@ export function SecurityPage() {
         <h1 className="mt-2 text-2xl font-bold tracking-tight">Seguranca</h1>
         <p className="mt-2 text-sm text-muted-foreground">Gerencie MFA, codigos de recuperacao e sessoes. Segredos, tokens e QR Code nao sao exibidos apos a ativacao.</p>
       </div>
-
-      {message && <div className="rounded-xl border border-border bg-card p-4 text-sm">{message}</div>}
 
       {!data ? (
         <div className="flex items-center gap-2 rounded-xl border border-border bg-card p-5 text-sm text-muted-foreground"><Loader2 className="animate-spin" size={16} /> Carregando seguranca...</div>

@@ -7,7 +7,6 @@ import { aprovarNFsLote, reprovarNFsLote } from '@/lib/actions/nota-fiscal'
 import Link from 'next/link'
 import {
   Search,
-  Filter,
   Eye,
   FileText,
   CheckCircle,
@@ -43,6 +42,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { useNotifications } from '@/components/notifications/notification-provider'
 
 interface NfGestorRecord {
   id: string
@@ -77,6 +77,7 @@ const statusConfig: Record<string, { label: string; icon: typeof CheckCircle; cl
 }
 
 export default function NotasFiscaisGestorPage() {
+  const notifications = useNotifications()
   const [nfs, setNfs] = useState<NfGestorRecord[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -99,7 +100,6 @@ export default function NotasFiscaisGestorPage() {
   const [showReprovarModal, setShowReprovarModal] = useState(false)
   const [motivoLote, setMotivoLote] = useState('')
   const [loadingLote, setLoadingLote] = useState(false)
-  const [loteMessage, setLoteMessage] = useState('')
 
   const reloadNfs = useCallback(async () => {
     const supabase = createClient()
@@ -202,7 +202,8 @@ export default function NotasFiscaisGestorPage() {
   const toggleSelecionar = (id: string) => {
     setSelecionadas((prev) => {
       const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
       return next
     })
   }
@@ -236,9 +237,8 @@ export default function NotasFiscaisGestorPage() {
 
   const handleAprovarLote = async () => {
     setLoadingLote(true)
-    setLoteMessage('')
     const result = await aprovarNFsLote([...selecionadas])
-    setLoteMessage(result?.message || '')
+    notifications.fromActionResult(result)
     if (result?.success) {
       setSelecionadas(new Set())
       await reloadNfs()
@@ -249,9 +249,8 @@ export default function NotasFiscaisGestorPage() {
   const handleReprovarLote = async () => {
     if (!motivoLote.trim()) return
     setLoadingLote(true)
-    setLoteMessage('')
     const result = await reprovarNFsLote([...selecionadas], motivoLote)
-    setLoteMessage(result?.message || '')
+    notifications.fromActionResult(result)
     if (result?.success) {
       setSelecionadas(new Set())
       setShowReprovarModal(false)
@@ -515,11 +514,6 @@ export default function NotasFiscaisGestorPage() {
             )}
           </span>
           <div className="w-px h-5 bg-border" />
-          {loteMessage && (
-            <span className={`text-sm ${loteMessage.includes('sucesso') ? 'text-green-600' : 'text-destructive'}`}>
-              {loteMessage}
-            </span>
-          )}
           <Button
             size="sm"
             className="gap-1 bg-green-600 hover:bg-green-700 text-white"
@@ -534,7 +528,7 @@ export default function NotasFiscaisGestorPage() {
             variant="destructive"
             className="gap-1"
             disabled={loadingLote || elegiveisNaSel === 0}
-            onClick={() => { setMotivoLote(''); setLoteMessage(''); setShowReprovarModal(true) }}
+            onClick={() => { setMotivoLote(''); setShowReprovarModal(true) }}
           >
             <XCircle size={13} />
             Reprovar em lote
@@ -543,7 +537,7 @@ export default function NotasFiscaisGestorPage() {
             size="sm"
             variant="ghost"
             className="text-muted-foreground"
-            onClick={() => { setSelecionadas(new Set()); setLoteMessage('') }}
+            onClick={() => { setSelecionadas(new Set()) }}
           >
             <X size={14} />
           </Button>
@@ -578,9 +572,6 @@ export default function NotasFiscaisGestorPage() {
                   onChange={(e) => setMotivoLote(e.target.value)}
                 />
               </div>
-              {loteMessage && (
-                <p className="text-sm text-destructive">{loteMessage}</p>
-              )}
               <div className="flex gap-2 pt-1">
                 <Button
                   variant="outline"

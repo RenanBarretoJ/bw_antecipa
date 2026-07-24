@@ -37,6 +37,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { useNotifications } from '@/components/notifications/notification-provider'
 
 interface DocGestor {
   id: string
@@ -70,6 +71,7 @@ const statusConfig: Record<string, { label: string; color: string; icon: typeof 
 }
 
 export default function DocumentosGestorPage() {
+  const notifications = useNotifications()
   const [docs, setDocs] = useState<DocGestor[]>([])
   const [loading, setLoading] = useState(true)
   const [filtroStatus, setFiltroStatus] = useState('todos')
@@ -77,7 +79,6 @@ export default function DocumentosGestorPage() {
   const [modal, setModal] = useState<{ doc: DocGestor; previewUrl: string } | null>(null)
   const [motivo, setMotivo] = useState('')
   const [processing, setProcessing] = useState(false)
-  const [message, setMessage] = useState('')
 
   const loadDocs = async () => {
     const supabase = createClient()
@@ -120,12 +121,12 @@ export default function DocumentosGestorPage() {
   const handleAnalise = async (decisao: 'aprovado' | 'reprovado') => {
     if (!modal) return
     if (decisao === 'reprovado' && !motivo.trim()) {
-      setMessage('Motivo obrigatorio para reprovar.')
+      notifications.error('Motivo obrigatório para reprovar.')
       return
     }
     setProcessing(true)
     const result = await analisarDocumento(modal.doc.id, decisao, motivo || undefined)
-    setMessage(result?.message || '')
+    notifications.fromActionResult(result)
     if (result?.success) {
       setModal(null)
       await loadDocs()
@@ -174,12 +175,6 @@ export default function DocumentosGestorPage() {
           <p className="text-2xl font-bold text-blue-700 tabular-nums">{docs.length}</p>
         </div>
       </div>
-
-      {message && (
-        <div className={`mb-4 p-3 rounded-lg text-sm ${
-          message.includes('sucesso') ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-destructive border border-red-200'
-        }`}>{message}</div>
-      )}
 
       {/* Filtros */}
       <Card className="mb-4">
@@ -317,7 +312,7 @@ export default function DocumentosGestorPage() {
                   {processing ? 'Processando...' : 'Aprovar'}
                 </Button>
                 <Button
-                  onClick={() => { if (motivo.trim()) handleAnalise('reprovado'); else setMessage('Preencha o motivo.') }}
+                  onClick={() => { if (motivo.trim()) handleAnalise('reprovado'); else notifications.error('Preencha o motivo.') }}
                   disabled={processing}
                   variant="destructive"
                   className="flex-1"
