@@ -34,6 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { useFundoAtivo } from '@/components/fundos/fundo-ativo-provider'
 
 interface ContaEscrow {
   id: string
@@ -42,6 +43,7 @@ interface ContaEscrow {
   saldo_bloqueado: number
   status: string
   created_at: string
+  cedente_id: string
   cedentes: { razao_social: string; cnpj: string }
 }
 
@@ -56,6 +58,7 @@ interface Movimento {
 
 export default function EscrowDetalhePage() {
   const params = useParams()
+  const { loading: loadingFundo, fundoAtivo, bloqueado } = useFundoAtivo()
   const contaId = params.id as string
 
   const [conta, setConta] = useState<ContaEscrow | null>(null)
@@ -67,16 +70,38 @@ export default function EscrowDetalhePage() {
 
   useEffect(() => {
     const load = async () => {
+      if (loadingFundo) return
+      if (bloqueado || !fundoAtivo?.id) {
+        setConta(null)
+        setMovimentos([])
+        setLoading(false)
+        return
+      }
       const supabase = createClient()
 
       const { data: c } = await supabase
         .from('contas_escrow')
-        .select('id, identificador, saldo_disponivel, saldo_bloqueado, status, created_at, cedentes(razao_social, cnpj)')
+        .select('id, cedente_id, identificador, saldo_disponivel, saldo_bloqueado, status, created_at, cedentes(razao_social, cnpj)')
         .eq('id', contaId)
         .single()
 
       if (c) {
-        setConta(c as ContaEscrow)
+        const contaData = c as ContaEscrow
+        const { data: link } = await supabase
+          .from('cedente_fundos')
+          .select('id')
+          .eq('cedente_id', contaData.cedente_id)
+          .eq('fundo_id', fundoAtivo.id)
+          .maybeSingle()
+
+        if (!link) {
+          setConta(null)
+          setMovimentos([])
+          setLoading(false)
+          return
+        }
+
+        setConta(contaData)
         const { data: movs } = await supabase
           .from('movimentos_escrow')
           .select('id, tipo, descricao, valor, saldo_apos, created_at')
@@ -88,7 +113,7 @@ export default function EscrowDetalhePage() {
       setLoading(false)
     }
     load()
-  }, [contaId])
+  }, [contaId, loadingFundo, bloqueado, fundoAtivo?.id])
 
   const movsFiltrados = movimentos.filter((m) => {
     if (filtroTipo !== 'todos' && m.tipo !== filtroTipo) return false

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { criarFundo, atualizarFundo, toggleAtivoFundo } from '@/lib/actions/gestor'
@@ -21,6 +21,7 @@ import { PageContainer } from '@/components/layout/page-container'
 import { PageHeader } from '@/components/layout/page-header'
 import { DetailSection, EmptyState, LoadingState, StatusBadge } from '@/components/data-display/primitives'
 import { useNotifications } from '@/components/notifications/notification-provider'
+import { useFundoAtivo } from '@/components/fundos/fundo-ativo-provider'
 
 const camposVazios = {
   nome: '',
@@ -94,6 +95,7 @@ function Secao({ titulo }: { titulo: string }) {
 
 export default function FundosPage() {
   const notifications = useNotifications()
+  const { loading: loadingFundo, fundos: fundosAutorizados, bloqueado } = useFundoAtivo()
   const [fundos, setFundos] = useState<Fundo[]>([])
   const [loading, setLoading] = useState(true)
   const [sheetOpen, setSheetOpen] = useState(false)
@@ -105,19 +107,27 @@ export default function FundosPage() {
   const set = (field: keyof FormFields) => (value: string) =>
     setForm(prev => ({ ...prev, [field]: value }))
 
-  async function loadData() {
+  const loadData = useCallback(async () => {
+    if (loadingFundo) return
+    const fundoIds = fundosAutorizados.map((fundo) => fundo.id)
+    if (bloqueado || fundoIds.length === 0) {
+      setFundos([])
+      setLoading(false)
+      return
+    }
     const supabase = createClient()
     const { data } = await supabase
       .from('fundos')
       .select('*')
+      .in('id', fundoIds)
       .order('created_at', { ascending: false })
     setFundos((data || []) as Fundo[])
     setLoading(false)
-  }
+  }, [loadingFundo, bloqueado, fundosAutorizados])
 
   // A carga inicial sincroniza a lista com o Supabase.
   // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { loadData() }, [])
+  useEffect(() => { loadData() }, [loadData])
 
   function abrirNovo() {
     setEditando(null)

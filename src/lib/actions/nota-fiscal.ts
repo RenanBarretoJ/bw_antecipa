@@ -12,6 +12,7 @@ import { uploadDocumentoSeRequerido } from '@/lib/documentos-v2/upload'
 import { CedenteFundoError, resolverCedenteFundoAtivo } from '@/lib/fundos/cedente-fundo'
 import { decidirAcaoDuplicidadeNotaFiscal, mensagemDuplicidadeNotaFiscal } from '@/lib/notas-fiscais/upload-context'
 import { formatarDetalhesBloqueioEmitente, validarXmlNfeParaUploadCedente } from '@/lib/notas-fiscais/emitente-autorizado'
+import { obterFundoAtivoAutorizado } from '@/lib/actions/fundo-ativo'
 
 export type NfActionState = {
   success?: boolean
@@ -873,6 +874,8 @@ export async function aprovarNF(nfId: string): Promise<NfActionState> {
   if (!profile || (profile as { role: string }).role !== 'gestor') {
     return { success: false, message: 'Acesso negado.' }
   }
+  const acessoNf = await validarNfsNoFundoAtivo(supabase, [nfId])
+  if (!acessoNf?.success) return acessoNf
 
   const { data: nfAntes } = await supabase
     .from('notas_fiscais')
@@ -923,6 +926,8 @@ export async function reprovarNF(nfId: string, motivo: string): Promise<NfAction
   if (!motivo || motivo.trim().length === 0) {
     return { success: false, message: 'Motivo da reprovacao e obrigatorio.' }
   }
+  const acessoNf = await validarNfsNoFundoAtivo(supabase, [nfId])
+  if (!acessoNf?.success) return acessoNf
 
   const { data: nfAntes } = await supabase
     .from('notas_fiscais')
@@ -1034,6 +1039,8 @@ export async function solicitarAjusteNF(nfId: string, motivo: string): Promise<N
   if (!profile || (profile as { role: string }).role !== 'gestor') {
     return { success: false, message: 'Acesso negado.' }
   }
+  const acessoNf = await validarNfsNoFundoAtivo(supabase, [nfId])
+  if (!acessoNf?.success) return acessoNf
 
   const { data: nfAntes } = await supabase
     .from('notas_fiscais')
@@ -1084,6 +1091,8 @@ export async function aprovarNFsLote(ids: string[]): Promise<NfActionState> {
 
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
   if (!profile || (profile as { role: string }).role !== 'gestor') return { success: false, message: 'Acesso negado.' }
+  const acessoNfs = await validarNfsNoFundoAtivo(supabase, ids)
+  if (!acessoNfs?.success) return acessoNfs
 
   const { data: elegíveis } = await supabase
     .from('notas_fiscais')
@@ -1144,6 +1153,8 @@ export async function reprovarNFsLote(ids: string[], motivo: string): Promise<Nf
 
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
   if (!profile || (profile as { role: string }).role !== 'gestor') return { success: false, message: 'Acesso negado.' }
+  const acessoNfs = await validarNfsNoFundoAtivo(supabase, ids)
+  if (!acessoNfs?.success) return acessoNfs
 
   const { data: elegíveis } = await supabase
     .from('notas_fiscais')
@@ -1190,4 +1201,30 @@ export async function reprovarNFsLote(ids: string[], motivo: string): Promise<Nf
   })
 
   return { success: true, message: `${idsReprovados.length} NF(s) reprovada(s).` }
+}
+
+async function validarNfsNoFundoAtivo(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  nfIds: string[],
+): Promise<NfActionState> {
+  const contexto = await obterFundoAtivoAutorizado()
+  if (!contexto.fundoId) return { success: false, message: 'Selecione um fundo ativo antes de executar esta ação.' }
+
+  const idsUnicos = Array.from(new Set(nfIds.filter(Boolean)))
+  if (idsUnicos.length === 0) return { success: false, message: 'Nenhuma NF informada.' }
+
+  const { data, error } = await supabase
+    .from('notas_fiscais')
+    .select('id, fundo_id')
+    .in('id', idsUnicos)
+
+  if (error) return { success: false, message: `Erro ao validar fundo das NFs: ${error.message}` }
+
+  const rows = (data || []) as Array<{ id: string; fundo_id: string | null }>
+  if (rows.length !== idsUnicos.length) return { success: false, message: 'Uma ou mais NFs não foram encontradas.' }
+  if (rows.some((row) => row.fundo_id !== contexto.fundoId)) {
+    return { success: false, message: 'Uma ou mais NFs não pertencem ao fundo ativo.' }
+  }
+
+  return { success: true }
 }

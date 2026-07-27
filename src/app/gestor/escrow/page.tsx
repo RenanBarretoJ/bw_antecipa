@@ -28,6 +28,7 @@ import {
   TableCell,
 } from '@/components/ui/table'
 import { ListNameCell } from '@/components/data-display/primitives'
+import { useFundoAtivo } from '@/components/fundos/fundo-ativo-provider'
 
 interface ContaEscrowGestor {
   id: string
@@ -49,23 +50,43 @@ const statusConfig: Record<string, { label: string; variant: 'default' | 'second
 }
 
 export default function EscrowGestorPage() {
+  const { loading: loadingFundo, fundoAtivo, bloqueado } = useFundoAtivo()
   const [contas, setContas] = useState<ContaEscrowGestor[]>([])
   const [loading, setLoading] = useState(true)
   const [busca, setBusca] = useState('')
 
   useEffect(() => {
     const load = async () => {
+      if (loadingFundo) return
+      if (bloqueado || !fundoAtivo?.id) {
+        setContas([])
+        setLoading(false)
+        return
+      }
       const supabase = createClient()
+      const { data: links } = await supabase
+        .from('cedente_fundos')
+        .select('cedente_id')
+        .eq('fundo_id', fundoAtivo.id)
+
+      const cedenteIds = Array.from(new Set(((links || []) as Array<{ cedente_id: string | null }>).map((link) => link.cedente_id).filter(Boolean) as string[]))
+      if (cedenteIds.length === 0) {
+        setContas([])
+        setLoading(false)
+        return
+      }
+
       const { data } = await supabase
         .from('contas_escrow')
         .select('id, identificador, saldo_disponivel, saldo_bloqueado, status, created_at, cedentes(razao_social, cnpj)')
+        .in('cedente_id', cedenteIds)
         .order('created_at', { ascending: false })
 
       setContas((data || []) as ContaEscrowGestor[])
       setLoading(false)
     }
     load()
-  }, [])
+  }, [loadingFundo, bloqueado, fundoAtivo?.id])
 
   const contasFiltradas = contas.filter((c) => {
     if (!busca) return true
@@ -85,7 +106,7 @@ export default function EscrowGestorPage() {
     <div className="max-w-6xl mx-auto">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-foreground">Contas Escrow</h1>
-        <p className="text-muted-foreground">Visao consolidada de todas as contas escrow.</p>
+        <p className="text-muted-foreground">{fundoAtivo ? `Contas escrow vinculadas ao fundo ${fundoAtivo.nome}.` : 'Visao consolidada de todas as contas escrow.'}</p>
       </div>
 
       {/* KPIs */}

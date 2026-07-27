@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { ThemeToggle } from '@/components/theme/theme-toggle'
 import type { Profile } from '@/types/database'
+import { FundoAtivoSelector } from '@/components/fundos/fundo-ativo-selector'
 
 const roleLabels: Record<string, string> = { gestor: 'Gestor', cedente: 'Cedente', sacado: 'Sacado', consultor: 'Consultor' }
 
@@ -17,6 +18,7 @@ export function PortalHeader({ profile, onToggleSidebar }: { profile: Profile | 
     <div className="ml-auto flex items-center gap-2 sm:gap-4">
       <ThemeToggle />
       {profile?.id && <NotificationBell userId={profile.id} />}
+      {profile?.role === 'gestor' && <FundoAtivoSelector />}
       <div className="flex items-center gap-3 border-l border-border pl-3 sm:pl-4">
         <div className="hidden text-right sm:block"><p className="max-w-48 truncate text-sm font-semibold leading-tight">{profile?.nome_completo || 'Carregando...'}</p><p className="text-xs text-muted-foreground">{profile?.role ? roleLabels[profile.role] : ''}</p></div>
         <Avatar size="default"><AvatarFallback className="bg-primary text-xs font-semibold text-primary-foreground">{initials}</AvatarFallback></Avatar>

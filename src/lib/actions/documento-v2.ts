@@ -291,7 +291,8 @@ export async function enviarDocumentoDaNota(formData: FormData) {
     const result = entregaId
       ? await uploadDocumentoDaEntrega({ notaFiscalId, entregaId, requisitoId, arquivo }, client)
       : await uploadDocumentoDaNota({ notaFiscalId, requisitoId, arquivo }, client)
-    return { success: true, message: 'Documento enviado para analise.', data: result }
+    const resultMessage = (result as { message?: unknown }).message
+    return { success: true, message: typeof resultMessage === 'string' ? resultMessage : 'Documento enviado para analise.', data: result }
   } catch (error) {
     return { success: false, message: error instanceof Error ? error.message : 'Nao foi possivel enviar o documento.' }
   }

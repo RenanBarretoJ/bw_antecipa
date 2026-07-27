@@ -26,6 +26,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { ChecklistGestor } from '@/components/documentos-v2/ChecklistGestor'
 import { useNotifications } from '@/components/notifications/notification-provider'
 import { ArquivoOriginalCompacto } from '@/components/notas-fiscais/ArquivoOriginalCompacto'
+import { useFundoAtivo } from '@/components/fundos/fundo-ativo-provider'
 
 interface NfCompleta {
   id: string
@@ -51,6 +52,7 @@ interface NfCompleta {
   status: string
   created_at: string
   cedente_id: string
+  fundo_id: string | null
 }
 
 interface EntregaResumo {
@@ -83,6 +85,7 @@ export default function NfDetalheGestorPage() {
   const params = useParams()
   const router = useRouter()
   const notifications = useNotifications()
+  const { loading: loadingFundo, fundoAtivo, bloqueado } = useFundoAtivo()
   const nfId = params.id as string
 
   const [nf, setNf] = useState<NfCompleta | null>(null)
@@ -106,11 +109,19 @@ export default function NfDetalheGestorPage() {
 
   useEffect(() => {
     const load = async () => {
+      if (loadingFundo) return
+      if (bloqueado || !fundoAtivo?.id) {
+        setNf(null)
+        setEntrega(null)
+        setLoading(false)
+        return
+      }
       const supabase = createClient()
       const { data } = await supabase
         .from('notas_fiscais')
         .select('*')
         .eq('id', nfId)
+        .eq('fundo_id', fundoAtivo.id)
         .single()
 
       if (data) {
@@ -137,7 +148,7 @@ export default function NfDetalheGestorPage() {
       setLoading(false)
     }
     load()
-  }, [nfId])
+  }, [nfId, loadingFundo, bloqueado, fundoAtivo?.id])
 
   const handleAprovar = async () => {
     setProcessing(true)

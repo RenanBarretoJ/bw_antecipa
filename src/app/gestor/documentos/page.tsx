@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { analisarDocumento } from '@/lib/actions/gestor'
 import { formatCNPJ, formatDate } from '@/lib/utils'
@@ -39,6 +39,7 @@ import {
 } from '@/components/ui/select'
 import { useNotifications } from '@/components/notifications/notification-provider'
 import { ListNameCell } from '@/components/data-display/primitives'
+import { useFundoAtivo } from '@/components/fundos/fundo-ativo-provider'
 
 interface DocGestor {
   id: string
@@ -73,6 +74,7 @@ const statusConfig: Record<string, { label: string; color: string; icon: typeof 
 
 export default function DocumentosGestorPage() {
   const notifications = useNotifications()
+  const { loading: loadingFundo, fundoAtivo, bloqueado } = useFundoAtivo()
   const [docs, setDocs] = useState<DocGestor[]>([])
   const [loading, setLoading] = useState(true)
   const [filtroStatus, setFiltroStatus] = useState('todos')
@@ -81,24 +83,63 @@ export default function DocumentosGestorPage() {
   const [motivo, setMotivo] = useState('')
   const [processing, setProcessing] = useState(false)
 
-  const loadDocs = async () => {
+  const loadDocs = useCallback(async () => {
+    if (loadingFundo) return
+    if (bloqueado || !fundoAtivo?.id) {
+      setDocs([])
+      setLoading(false)
+      return
+    }
     const supabase = createClient()
+    const { data: links } = await supabase
+      .from('cedente_fundos')
+      .select('cedente_id')
+      .eq('fundo_id', fundoAtivo.id)
+
+    const cedenteIds = Array.from(new Set(((links || []) as Array<{ cedente_id: string | null }>).map((link) => link.cedente_id).filter(Boolean) as string[]))
+    if (cedenteIds.length === 0) {
+      setDocs([])
+      setLoading(false)
+      return
+    }
+
     const { data } = await supabase
       .from('documentos')
       .select('id, tipo, versao, status, nome_arquivo, url_arquivo, motivo_reprovacao, created_at, cedentes(razao_social, cnpj)')
+      .in('cedente_id', cedenteIds)
       .order('created_at', { ascending: false })
 
     setDocs((data || []) as DocGestor[])
     setLoading(false)
-  }
+  }, [loadingFundo, bloqueado, fundoAtivo])
 
   useEffect(() => {
     let mounted = true
     async function loadInitialDocs() {
+      if (loadingFundo) return
+      if (bloqueado || !fundoAtivo?.id) {
+        setDocs([])
+        setLoading(false)
+        return
+      }
       const supabase = createClient()
+      const { data: links } = await supabase
+        .from('cedente_fundos')
+        .select('cedente_id')
+        .eq('fundo_id', fundoAtivo.id)
+
+      const cedenteIds = Array.from(new Set(((links || []) as Array<{ cedente_id: string | null }>).map((link) => link.cedente_id).filter(Boolean) as string[]))
+      if (cedenteIds.length === 0) {
+        if (!mounted) return
+        setDocs([])
+        setLoading(false)
+        return
+      }
+
       const { data } = await supabase
         .from('documentos')
         .select('id, tipo, versao, status, nome_arquivo, url_arquivo, motivo_reprovacao, created_at, cedentes(razao_social, cnpj)')
+        .in('cedente_id', cedenteIds)
         .order('created_at', { ascending: false })
 
       if (!mounted) return
@@ -107,7 +148,7 @@ export default function DocumentosGestorPage() {
     }
     void loadInitialDocs()
     return () => { mounted = false }
-  }, [])
+  }, [loadingFundo, bloqueado, fundoAtivo])
 
   const openPreview = async (doc: DocGestor) => {
     if (!doc.url_arquivo) return

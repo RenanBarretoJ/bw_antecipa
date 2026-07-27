@@ -106,9 +106,10 @@ function createSingleStatementSqlFiles(migrationPath, suffix) {
   }
 
   const statements = [
+    'DROP FUNCTION IF EXISTS public.reset_operacional_fundo_homolog(uuid, text, boolean, text);',
     functionMatch[0],
-    'REVOKE ALL ON FUNCTION public.reset_operacional_fundo_homolog(uuid, text, boolean, text) FROM PUBLIC;',
-    'GRANT EXECUTE ON FUNCTION public.reset_operacional_fundo_homolog(uuid, text, boolean, text) TO service_role;',
+    'REVOKE ALL ON FUNCTION public.reset_operacional_fundo_homolog(uuid, text, boolean, text, text) FROM PUBLIC;',
+    'GRANT EXECUTE ON FUNCTION public.reset_operacional_fundo_homolog(uuid, text, boolean, text, text) TO service_role;',
   ]
 
   return statements.map((statement, index) => {

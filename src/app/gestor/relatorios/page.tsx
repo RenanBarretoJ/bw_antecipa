@@ -30,10 +30,12 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { ListNameCell } from '@/components/data-display/primitives'
+import { useFundoAtivo } from '@/components/fundos/fundo-ativo-provider'
 
 interface OperacaoResumo {
   id: string
   cedente_id: string
+  cedente_fundo_id: string | null
   valor_bruto_total: number
   valor_liquido_desembolso: number
   taxa_desconto: number
@@ -53,6 +55,7 @@ interface CedenteResumo {
 }
 
 export default function RelatoriosGestorPage() {
+  const { loading: loadingFundo, fundoAtivo, bloqueado } = useFundoAtivo()
   const [operacoes, setOperacoes] = useState<OperacaoResumo[]>([])
   const [cedentes, setCedentes] = useState<CedenteResumo[]>([])
   const [loading, setLoading] = useState(true)
@@ -60,14 +63,36 @@ export default function RelatoriosGestorPage() {
 
   useEffect(() => {
     const load = async () => {
+      if (loadingFundo) return
+      if (bloqueado || !fundoAtivo?.id) {
+        setOperacoes([])
+        setCedentes([])
+        setLoading(false)
+        return
+      }
       const supabase = createClient()
+      const { data: links } = await supabase
+        .from('cedente_fundos')
+        .select('id, cedente_id')
+        .eq('fundo_id', fundoAtivo.id)
+
+      const linkIds = ((links || []) as Array<{ id: string; cedente_id: string | null }>).map((link) => link.id)
+      const cedenteIds = Array.from(new Set(((links || []) as Array<{ id: string; cedente_id: string | null }>).map((link) => link.cedente_id).filter(Boolean) as string[]))
+      if (linkIds.length === 0 || cedenteIds.length === 0) {
+        setOperacoes([])
+        setCedentes([])
+        setLoading(false)
+        return
+      }
 
       const [opsRes, cedsRes] = await Promise.all([
         supabase.from('operacoes')
-          .select('id, cedente_id, valor_bruto_total, valor_liquido_desembolso, taxa_desconto, status, created_at, data_vencimento, aceite_sacado_exigido, aceite_sacado_status, cedentes(razao_social, cnpj)')
+          .select('id, cedente_id, cedente_fundo_id, valor_bruto_total, valor_liquido_desembolso, taxa_desconto, status, created_at, data_vencimento, aceite_sacado_exigido, aceite_sacado_status, cedentes(razao_social, cnpj)')
+          .in('cedente_fundo_id', linkIds)
           .order('created_at', { ascending: false }),
         supabase.from('cedentes')
-          .select('id, razao_social, cnpj, status'),
+          .select('id, razao_social, cnpj, status')
+          .in('id', cedenteIds),
       ])
 
       setOperacoes((opsRes.data || []) as OperacaoResumo[])
@@ -75,7 +100,7 @@ export default function RelatoriosGestorPage() {
       setLoading(false)
     }
     load()
-  }, [])
+  }, [loadingFundo, bloqueado, fundoAtivo?.id])
 
   // Filtrar por mes
   const opsMes = operacoes.filter((o) => o.created_at.substring(0, 7) === mesSelected)

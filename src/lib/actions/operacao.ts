@@ -10,6 +10,7 @@ import { CedenteFundoError } from '@/lib/fundos/cedente-fundo'
 import { verificarElegibilidadeDocumental } from '@/lib/actions/documento-v2'
 import { validarElegibilidadeAprovacao, validarElegibilidadeSolicitacao } from '@/lib/operacoes/elegibilidade'
 import { montarIdempotencyKeySolicitacaoOperacao } from '@/lib/operacoes/idempotencia'
+import { obterFundoAtivoAutorizado } from '@/lib/actions/fundo-ativo'
 
 export type OperacaoActionState = {
   success?: boolean
@@ -259,6 +260,8 @@ export async function aprovarOperacao(
 
   if (taxaDesconto < 0) return { success: false, message: 'Taxa deve ser >= 0.' }
   if (valorLiquidoDesembolso <= 0) return { success: false, message: 'Valor liquido deve ser > 0.' }
+  const acessoOperacao = await validarOperacaoNoFundoAtivo(supabase, operacaoId)
+  if (!acessoOperacao?.success) return acessoOperacao
 
   // Buscar operacao
   const { data: op } = await supabase
@@ -371,6 +374,8 @@ export async function desembolsarOperacao(operacaoId: string): Promise<OperacaoA
   if (!profile || (profile as { role: string }).role !== 'gestor') {
     return { success: false, message: 'Acesso negado.' }
   }
+  const acessoOperacao = await validarOperacaoNoFundoAtivo(supabase, operacaoId)
+  if (!acessoOperacao?.success) return acessoOperacao
 
   const { data: op } = await supabase
     .from('operacoes')
@@ -437,6 +442,8 @@ export async function reprovarOperacao(operacaoId: string, motivo: string): Prom
   if (!user) return { success: false, message: 'Nao autenticado.' }
 
   if (!motivo?.trim()) return { success: false, message: 'Motivo e obrigatorio.' }
+  const acessoOperacao = await validarOperacaoNoFundoAtivo(supabase, operacaoId)
+  if (!acessoOperacao?.success) return acessoOperacao
 
   const { data: op } = await supabase
     .from('operacoes')
@@ -615,6 +622,8 @@ export async function removerNfDaOperacao(
   if (!profile || (profile as { role: string }).role !== 'gestor') {
     return { success: false, message: 'Acesso negado.' }
   }
+  const acessoOperacao = await validarOperacaoNoFundoAtivo(supabase, operacaoId)
+  if (!acessoOperacao?.success) return acessoOperacao
 
   // Buscar operacao
   const { data: op } = await supabase
@@ -760,6 +769,8 @@ export async function salvarTestemunhasOperacao(
   if (!profile || (profile as { role: string }).role !== 'gestor') {
     return { success: false, message: 'Acesso negado.' }
   }
+  const acessoOperacao = await validarOperacaoNoFundoAtivo(supabase, operacaoId)
+  if (!acessoOperacao?.success) return acessoOperacao
 
   const { error } = await supabase
     .from('operacoes')
@@ -783,6 +794,8 @@ export async function salvarTermoAssinado(
   if (!profile || (profile as { role: string }).role !== 'gestor') {
     return { success: false, message: 'Acesso negado.' }
   }
+  const acessoOperacao = await validarOperacaoNoFundoAtivo(supabase, operacaoId)
+  if (!acessoOperacao?.success) return acessoOperacao
 
   const { error } = await supabase
     .from('operacoes')
@@ -806,6 +819,8 @@ export async function salvarComprovantePagamento(
   if (!profile || (profile as { role: string }).role !== 'gestor') {
     return { success: false, message: 'Acesso negado.' }
   }
+  const acessoOperacao = await validarOperacaoNoFundoAtivo(supabase, operacaoId)
+  if (!acessoOperacao?.success) return acessoOperacao
 
   const { error } = await supabase
     .from('operacoes')
@@ -829,6 +844,8 @@ export async function salvarNotificacaoAssinada(
   if (!profile || (profile as { role: string }).role !== 'gestor') {
     return { success: false, message: 'Acesso negado.' }
   }
+  const acessoOperacao = await validarOperacaoNoFundoAtivo(supabase, operacaoId)
+  if (!acessoOperacao?.success) return acessoOperacao
 
   const { error } = await supabase
     .from('operacoes')
@@ -852,6 +869,8 @@ export async function salvarQuitacaoAssinada(
   if (!profile || (profile as { role: string }).role !== 'gestor') {
     return { success: false, message: 'Acesso negado.' }
   }
+  const acessoOperacao = await validarOperacaoNoFundoAtivo(supabase, operacaoId)
+  if (!acessoOperacao?.success) return acessoOperacao
 
   const { error } = await supabase
     .from('operacoes')
@@ -863,6 +882,38 @@ export async function salvarQuitacaoAssinada(
 }
 
 // Helper
+async function validarOperacaoNoFundoAtivo(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  operacaoId: string,
+): Promise<OperacaoActionState> {
+  const contexto = await obterFundoAtivoAutorizado()
+  if (!contexto.fundoId) return { success: false, message: 'Selecione um fundo ativo antes de executar esta ação.' }
+
+  const { data: op, error: opError } = await supabase
+    .from('operacoes')
+    .select('id, cedente_fundo_id')
+    .eq('id', operacaoId)
+    .maybeSingle()
+
+  if (opError) return { success: false, message: `Erro ao validar fundo da operação: ${opError.message}` }
+  if (!op) return { success: false, message: 'Operação não encontrada.' }
+
+  const cedenteFundoId = (op as { cedente_fundo_id?: string | null }).cedente_fundo_id
+  if (!cedenteFundoId) return { success: false, message: 'Operação sem vínculo de fundo.' }
+
+  const { data: link, error: linkError } = await supabase
+    .from('cedente_fundos')
+    .select('id')
+    .eq('id', cedenteFundoId)
+    .eq('fundo_id', contexto.fundoId)
+    .maybeSingle()
+
+  if (linkError) return { success: false, message: `Erro ao validar acesso ao fundo: ${linkError.message}` }
+  if (!link) return { success: false, message: 'Operação não pertence ao fundo ativo.' }
+
+  return { success: true }
+}
+
 function formatBRL(value: number): string {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
 }

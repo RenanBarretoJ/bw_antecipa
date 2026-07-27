@@ -73,8 +73,14 @@ export type SolicitacaoAlteracaoStatus = (typeof ALTERATION_REQUEST_STATUSES)[nu
 export const CEDENTE_FUNDO_STATUSES = ['ativo', 'suspenso', 'encerrado'] as const
 export type CedenteFundoStatus = (typeof CEDENTE_FUNDO_STATUSES)[number]
 
-export const POLITICA_STATUSES = ['rascunho', 'ativa', 'desativada'] as const
+export const POLITICA_STATUSES = ['rascunho', 'ativa', 'arquivada', 'desativada'] as const
 export type PoliticaStatus = (typeof POLITICA_STATUSES)[number]
+
+export const POLITICA_VERSAO_STATUSES = ['rascunho', 'publicada', 'substituida', 'arquivada'] as const
+export type PoliticaVersaoStatus = (typeof POLITICA_VERSAO_STATUSES)[number]
+
+export const CEDENTE_FUNDO_POLITICA_STATUSES = ['ativa', 'encerrada'] as const
+export type CedenteFundoPoliticaStatus = (typeof CEDENTE_FUNDO_POLITICA_STATUSES)[number]
 
 export const POLICY_REQUIREMENT_SCOPES = ['nf_pre_cessao', 'operacao', 'pos_cessao', 'entrega'] as const
 export type PoliticaRequisitoEscopo = (typeof POLICY_REQUIREMENT_SCOPES)[number]

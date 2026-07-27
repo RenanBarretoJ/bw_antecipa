@@ -25,10 +25,15 @@ async function main() {
   const apagarNotas = parseBoolean(args['apagar-notas'] ?? args['apagar-notas-fiscais'] ?? 'true')
   const deleteStorage = Boolean(args['delete-storage'])
   const yes = Boolean(args.yes)
+  const scope = normalizeScope(args.scope ?? args.escopo ?? 'operacional')
 
   if (!fundoId) throw new Error(`Informe o fundo.\n\n${helpText()}`)
   if (!['preview', 'reset', 'validate'].includes(mode)) throw new Error(`Modo invalido: ${mode}. Use preview, reset ou validate.`)
+  if (!['operacional', 'completo'].includes(scope)) throw new Error(`Escopo invalido: ${scope}. Use operacional ou full/completo.`)
   if (mode === 'reset' && !yes) throw new Error('Reset destrutivo bloqueado. Reexecute com --yes depois de conferir o preview.')
+  if (mode === 'reset' && scope === 'completo' && args['confirm-full'] !== 'RESETAR_CONFIGURACOES') {
+    throw new Error('Reset completo bloqueado. Reexecute com --scope full --confirm-full RESETAR_CONFIGURACOES depois de conferir o preview.')
+  }
 
   const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -45,6 +50,7 @@ async function main() {
 
   console.log(`\nBW Antecipa - reset operacional de fundo (${mode})`)
   console.log(`Fundo: ${fundoId}`)
+  console.log(`Escopo: ${scope}`)
   console.log(`Apagar NFs: ${apagarNotas ? 'sim' : 'nao'}`)
   console.log(`Apagar Storage apos reset: ${deleteStorage ? 'sim' : 'nao'}\n`)
 
@@ -53,6 +59,7 @@ async function main() {
     p_modo: mode,
     p_apagar_notas_fiscais: apagarNotas,
     p_confirmacao: mode === 'reset' ? 'RESETAR_HOMOLOG' : null,
+    p_escopo: scope,
   })
 
   if (error) throw new Error(formatSupabaseError(error))
@@ -65,7 +72,7 @@ async function main() {
 
   if (mode === 'reset') {
     console.log('\nReset concluido. Recomendo rodar agora:')
-    console.log(`  npm run reset:operacional:fundo -- --fundo-id ${fundoId} --mode validate --apagar-notas=${apagarNotas}`)
+    console.log(`  npm run reset:operacional:fundo -- --fundo-id ${fundoId} --mode validate --apagar-notas=${apagarNotas} --scope ${scope}`)
   }
 }
 
@@ -144,6 +151,12 @@ function parseBoolean(value) {
   return ['1', 'true', 'sim', 'yes', 'y'].includes(String(value).toLowerCase())
 }
 
+function normalizeScope(value) {
+  const normalized = String(value || 'operacional').toLowerCase()
+  if (['full', 'completo', 'complete', 'config', 'configuracoes'].includes(normalized)) return 'completo'
+  return normalized
+}
+
 function printHelp() {
   console.log(helpText())
 }
@@ -159,6 +172,9 @@ function helpText() {
     'Reset do banco, preservando Storage:',
     '  npm run reset:operacional:fundo -- --fundo-id <uuid> --mode reset --yes',
     '',
+    'Reset completo do fundo, incluindo politicas/templates/CNAB/integracoes/credenciais:',
+    '  npm run reset:operacional:fundo -- --fundo-id <uuid> --mode reset --yes --scope full --confirm-full RESETAR_CONFIGURACOES',
+    '',
     'Reset do banco e remocao dos arquivos no Storage:',
     '  npm run reset:operacional:fundo -- --fundo-id <uuid> --mode reset --yes --delete-storage',
     '',
@@ -167,6 +183,8 @@ function helpText() {
     '',
     'Opcoes:',
     '  --apagar-notas=true|false  true libera a chave de acesso para novo upload',
+    '  --scope operacional|full    full tambem remove configuracoes do fundo',
+    '  --confirm-full <texto>      exige RESETAR_CONFIGURACOES para --scope full em reset',
     '  --env-file <arquivo>       carrega um .env especifico antes de .env.homolog/.env.local/.env',
   ].join('\n')
 }
@@ -178,6 +196,7 @@ function printResult(result) {
   }
 
   console.log(`Fundo: ${result.fundo_nome ?? '-'} (${result.fundo_id ?? '-'})`)
+  if (result.escopo) console.log(`Escopo: ${result.escopo}`)
 
   if (result.contagens) {
     console.log('\nPreview:')
@@ -201,6 +220,15 @@ function printResult(result) {
     'documentos_gerados_restantes',
     'notas_fiscais_restantes_do_fundo',
   ]
+  if (result.escopo === 'completo') {
+    validationKeys.push(
+      'politicas_restantes',
+      'templates_restantes',
+      'configuracoes_cnab_restantes',
+      'integracoes_restantes',
+      'credenciais_restantes',
+    )
+  }
 
   const validation = Object.fromEntries(validationKeys
     .filter((key) => key in result)

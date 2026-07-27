@@ -5,14 +5,21 @@
 -- fundos, cedentes, cedente_fundos, políticas, requisitos de política,
 -- templates, CNAB, integrações ou credenciais.
 --
+-- Quando p_escopo = 'completo', remove também as configurações do fundo:
+-- políticas operacionais, templates jurídicos, CNAB, integrações e credenciais.
+-- Ainda preserva fundos, cedentes, cedente_fundos e usuario_fundos.
+--
 -- Fonte de escopo:
 -- operacoes.cedente_fundo_id -> cedente_fundos.id -> cedente_fundos.fundo_id
+
+DROP FUNCTION IF EXISTS public.reset_operacional_fundo_homolog(uuid, text, boolean, text);
 
 CREATE OR REPLACE FUNCTION public.reset_operacional_fundo_homolog(
   p_fundo_id uuid,
   p_modo text DEFAULT 'preview',
   p_apagar_notas_fiscais boolean DEFAULT true,
-  p_confirmacao text DEFAULT NULL
+  p_confirmacao text DEFAULT NULL,
+  p_escopo text DEFAULT 'operacional'
 )
 RETURNS jsonb
 LANGUAGE plpgsql
@@ -30,6 +37,10 @@ DECLARE
 BEGIN
   IF p_modo NOT IN ('preview', 'reset', 'validate') THEN
     RAISE EXCEPTION 'Modo invalido: %. Use preview, reset ou validate.', p_modo;
+  END IF;
+
+  IF p_escopo NOT IN ('operacional', 'completo') THEN
+    RAISE EXCEPTION 'Escopo invalido: %. Use operacional ou completo.', p_escopo;
   END IF;
 
   IF p_modo = 'reset' AND p_confirmacao IS DISTINCT FROM 'RESETAR_HOMOLOG' THEN
@@ -57,6 +68,17 @@ BEGIN
   DROP TABLE IF EXISTS tmp_reset_ctes;
   DROP TABLE IF EXISTS tmp_reset_documentos_gerados;
   DROP TABLE IF EXISTS tmp_reset_integracao_execucoes;
+  DROP TABLE IF EXISTS tmp_reset_politicas;
+  DROP TABLE IF EXISTS tmp_reset_politica_versoes;
+  DROP TABLE IF EXISTS tmp_reset_politica_requisitos;
+  DROP TABLE IF EXISTS tmp_reset_cedente_fundo_politicas;
+  DROP TABLE IF EXISTS tmp_reset_templates;
+  DROP TABLE IF EXISTS tmp_reset_template_versoes;
+  DROP TABLE IF EXISTS tmp_reset_configuracoes_cnab;
+  DROP TABLE IF EXISTS tmp_reset_configuracao_cnab_versoes;
+  DROP TABLE IF EXISTS tmp_reset_integracoes_fundo;
+  DROP TABLE IF EXISTS tmp_reset_integracao_fundo_versoes;
+  DROP TABLE IF EXISTS tmp_reset_credenciais_integracao;
   DROP TABLE IF EXISTS tmp_reset_storage_objects_to_delete;
 
   CREATE TEMP TABLE tmp_reset_operacoes(id uuid PRIMARY KEY) ON COMMIT DROP;
@@ -69,6 +91,17 @@ BEGIN
   CREATE TEMP TABLE tmp_reset_ctes(id uuid PRIMARY KEY) ON COMMIT DROP;
   CREATE TEMP TABLE tmp_reset_documentos_gerados(id uuid PRIMARY KEY) ON COMMIT DROP;
   CREATE TEMP TABLE tmp_reset_integracao_execucoes(id uuid PRIMARY KEY) ON COMMIT DROP;
+  CREATE TEMP TABLE tmp_reset_politicas(id uuid PRIMARY KEY) ON COMMIT DROP;
+  CREATE TEMP TABLE tmp_reset_politica_versoes(id uuid PRIMARY KEY) ON COMMIT DROP;
+  CREATE TEMP TABLE tmp_reset_politica_requisitos(id uuid PRIMARY KEY) ON COMMIT DROP;
+  CREATE TEMP TABLE tmp_reset_cedente_fundo_politicas(id uuid PRIMARY KEY) ON COMMIT DROP;
+  CREATE TEMP TABLE tmp_reset_templates(id uuid PRIMARY KEY) ON COMMIT DROP;
+  CREATE TEMP TABLE tmp_reset_template_versoes(id uuid PRIMARY KEY) ON COMMIT DROP;
+  CREATE TEMP TABLE tmp_reset_configuracoes_cnab(id uuid PRIMARY KEY) ON COMMIT DROP;
+  CREATE TEMP TABLE tmp_reset_configuracao_cnab_versoes(id uuid PRIMARY KEY) ON COMMIT DROP;
+  CREATE TEMP TABLE tmp_reset_integracoes_fundo(id uuid PRIMARY KEY) ON COMMIT DROP;
+  CREATE TEMP TABLE tmp_reset_integracao_fundo_versoes(id uuid PRIMARY KEY) ON COMMIT DROP;
+  CREATE TEMP TABLE tmp_reset_credenciais_integracao(id uuid PRIMARY KEY) ON COMMIT DROP;
   CREATE TEMP TABLE tmp_reset_storage_objects_to_delete(
     bucket text,
     storage_path text,
@@ -241,6 +274,80 @@ BEGIN
   FROM public.documentos_gerados dg
   WHERE dg.id IN (SELECT id FROM tmp_reset_documentos_gerados);
 
+  INSERT INTO tmp_reset_politicas(id)
+  SELECT po.id
+  FROM public.politicas_operacionais po
+  WHERE po.fundo_id = p_fundo_id
+     OR po.cedente_fundo_id IN (SELECT id FROM public.cedente_fundos WHERE fundo_id = p_fundo_id)
+  ON CONFLICT DO NOTHING;
+
+  INSERT INTO tmp_reset_politica_versoes(id)
+  SELECT pov.id
+  FROM public.politica_operacional_versoes pov
+  WHERE pov.politica_operacional_id IN (SELECT id FROM tmp_reset_politicas)
+     OR pov.fundo_id = p_fundo_id
+     OR pov.cedente_fundo_id IN (SELECT id FROM public.cedente_fundos WHERE fundo_id = p_fundo_id)
+  ON CONFLICT DO NOTHING;
+
+  INSERT INTO tmp_reset_politica_requisitos(id)
+  SELECT pr.id
+  FROM public.politica_requisitos_documentais pr
+  WHERE pr.politica_operacional_id IN (SELECT id FROM tmp_reset_politicas)
+     OR pr.politica_operacional_versao_id IN (SELECT id FROM tmp_reset_politica_versoes)
+     OR pr.fundo_id = p_fundo_id
+     OR pr.cedente_fundo_id IN (SELECT id FROM public.cedente_fundos WHERE fundo_id = p_fundo_id)
+  ON CONFLICT DO NOTHING;
+
+  INSERT INTO tmp_reset_cedente_fundo_politicas(id)
+  SELECT cfp.id
+  FROM public.cedente_fundo_politicas cfp
+  WHERE cfp.politica_operacional_id IN (SELECT id FROM tmp_reset_politicas)
+     OR cfp.cedente_fundo_id IN (SELECT id FROM public.cedente_fundos WHERE fundo_id = p_fundo_id)
+  ON CONFLICT DO NOTHING;
+
+  INSERT INTO tmp_reset_templates(id)
+  SELECT td.id
+  FROM public.templates_documentos td
+  WHERE td.fundo_id = p_fundo_id
+  ON CONFLICT DO NOTHING;
+
+  INSERT INTO tmp_reset_template_versoes(id)
+  SELECT tv.id
+  FROM public.template_versoes tv
+  WHERE tv.template_id IN (SELECT id FROM tmp_reset_templates)
+  ON CONFLICT DO NOTHING;
+
+  INSERT INTO tmp_reset_configuracoes_cnab(id)
+  SELECT cc.id
+  FROM public.configuracoes_cnab cc
+  WHERE cc.fundo_id = p_fundo_id
+  ON CONFLICT DO NOTHING;
+
+  INSERT INTO tmp_reset_configuracao_cnab_versoes(id)
+  SELECT ccv.id
+  FROM public.configuracao_cnab_versoes ccv
+  WHERE ccv.configuracao_cnab_id IN (SELECT id FROM tmp_reset_configuracoes_cnab)
+  ON CONFLICT DO NOTHING;
+
+  INSERT INTO tmp_reset_integracoes_fundo(id)
+  SELECT inf.id
+  FROM public.integracoes_fundo inf
+  WHERE inf.fundo_id = p_fundo_id
+  ON CONFLICT DO NOTHING;
+
+  INSERT INTO tmp_reset_integracao_fundo_versoes(id)
+  SELECT ifv.id
+  FROM public.integracao_fundo_versoes ifv
+  WHERE ifv.integracao_fundo_id IN (SELECT id FROM tmp_reset_integracoes_fundo)
+  ON CONFLICT DO NOTHING;
+
+  INSERT INTO tmp_reset_credenciais_integracao(id)
+  SELECT ci.id
+  FROM public.credenciais_integracao ci
+  WHERE ci.fundo_id = p_fundo_id
+     OR ci.integracao_fundo_id IN (SELECT id FROM tmp_reset_integracoes_fundo)
+  ON CONFLICT DO NOTHING;
+
   v_counts_before := jsonb_build_object(
     'operacoes', (SELECT count(*) FROM tmp_reset_operacoes),
     'notas_fiscais', (SELECT count(*) FROM tmp_reset_notas_fiscais),
@@ -252,7 +359,18 @@ BEGIN
     'ctes', (SELECT count(*) FROM tmp_reset_ctes),
     'documentos_gerados', (SELECT count(*) FROM tmp_reset_documentos_gerados),
     'integracao_execucoes', (SELECT count(*) FROM tmp_reset_integracao_execucoes),
-    'storage_objects', (SELECT count(*) FROM tmp_reset_storage_objects_to_delete)
+    'storage_objects', (SELECT count(*) FROM tmp_reset_storage_objects_to_delete),
+    'politicas', CASE WHEN p_escopo = 'completo' THEN (SELECT count(*) FROM tmp_reset_politicas) ELSE 0 END,
+    'politica_versoes', CASE WHEN p_escopo = 'completo' THEN (SELECT count(*) FROM tmp_reset_politica_versoes) ELSE 0 END,
+    'politica_requisitos', CASE WHEN p_escopo = 'completo' THEN (SELECT count(*) FROM tmp_reset_politica_requisitos) ELSE 0 END,
+    'cedente_fundo_politicas', CASE WHEN p_escopo = 'completo' THEN (SELECT count(*) FROM tmp_reset_cedente_fundo_politicas) ELSE 0 END,
+    'templates', CASE WHEN p_escopo = 'completo' THEN (SELECT count(*) FROM tmp_reset_templates) ELSE 0 END,
+    'template_versoes', CASE WHEN p_escopo = 'completo' THEN (SELECT count(*) FROM tmp_reset_template_versoes) ELSE 0 END,
+    'configuracoes_cnab', CASE WHEN p_escopo = 'completo' THEN (SELECT count(*) FROM tmp_reset_configuracoes_cnab) ELSE 0 END,
+    'configuracao_cnab_versoes', CASE WHEN p_escopo = 'completo' THEN (SELECT count(*) FROM tmp_reset_configuracao_cnab_versoes) ELSE 0 END,
+    'integracoes_fundo', CASE WHEN p_escopo = 'completo' THEN (SELECT count(*) FROM tmp_reset_integracoes_fundo) ELSE 0 END,
+    'integracao_fundo_versoes', CASE WHEN p_escopo = 'completo' THEN (SELECT count(*) FROM tmp_reset_integracao_fundo_versoes) ELSE 0 END,
+    'credenciais_integracao', CASE WHEN p_escopo = 'completo' THEN (SELECT count(*) FROM tmp_reset_credenciais_integracao) ELSE 0 END
   );
 
   SELECT coalesce(jsonb_agg(to_jsonb(s) ORDER BY s.entidade_origem, s.bucket, s.storage_path), '[]'::jsonb)
@@ -264,6 +382,7 @@ BEGIN
       'modo', p_modo,
       'fundo_id', p_fundo_id,
       'fundo_nome', v_fundo_nome,
+      'escopo', p_escopo,
       'apagar_notas_fiscais', p_apagar_notas_fiscais,
       'contagens', v_counts_before,
       'storage_objects', v_storage_objects
@@ -275,6 +394,7 @@ BEGIN
       'modo', p_modo,
       'fundo_id', p_fundo_id,
       'fundo_nome', v_fundo_nome,
+      'escopo', p_escopo,
       'operacoes_restantes', (
         SELECT count(*)
         FROM public.operacoes op
@@ -464,6 +584,122 @@ BEGIN
      WHERE id IN (SELECT id FROM tmp_reset_notas_fiscais);
   END IF;
 
+  IF p_escopo = 'completo' THEN
+    DELETE FROM public.logs_auditoria
+    WHERE (entidade_tipo = 'cedente_fundo_politicas' AND entidade_id IN (SELECT id FROM tmp_reset_cedente_fundo_politicas))
+       OR (entidade_tipo = 'politicas_operacionais' AND entidade_id IN (SELECT id FROM tmp_reset_politicas))
+       OR (entidade_tipo = 'politica_operacional_versoes' AND entidade_id IN (SELECT id FROM tmp_reset_politica_versoes))
+       OR (entidade_tipo = 'templates_documentos' AND entidade_id IN (SELECT id FROM tmp_reset_templates))
+       OR (entidade_tipo = 'template_versoes' AND entidade_id IN (SELECT id FROM tmp_reset_template_versoes))
+       OR (entidade_tipo = 'configuracoes_cnab' AND entidade_id IN (SELECT id FROM tmp_reset_configuracoes_cnab))
+       OR (entidade_tipo = 'configuracao_cnab_versoes' AND entidade_id IN (SELECT id FROM tmp_reset_configuracao_cnab_versoes))
+       OR (entidade_tipo = 'integracoes_fundo' AND entidade_id IN (SELECT id FROM tmp_reset_integracoes_fundo))
+       OR (entidade_tipo = 'integracao_fundo_versoes' AND entidade_id IN (SELECT id FROM tmp_reset_integracao_fundo_versoes))
+       OR (entidade_tipo = 'credenciais_integracao' AND entidade_id IN (SELECT id FROM tmp_reset_credenciais_integracao));
+
+    UPDATE public.integracao_fundo_versoes
+       SET credencial_integracao_id = NULL
+     WHERE id IN (SELECT id FROM tmp_reset_integracao_fundo_versoes)
+       AND credencial_integracao_id IS NOT NULL;
+
+    UPDATE public.credenciais_integracao
+       SET substituida_por = NULL
+     WHERE id IN (SELECT id FROM tmp_reset_credenciais_integracao)
+        OR substituida_por IN (SELECT id FROM tmp_reset_credenciais_integracao);
+
+    BEGIN
+      ALTER TABLE public.integracao_fundo_versoes DISABLE TRIGGER integracao_fundo_versoes_validacao;
+      DELETE FROM public.integracao_fundo_versoes
+      WHERE id IN (SELECT id FROM tmp_reset_integracao_fundo_versoes);
+      ALTER TABLE public.integracao_fundo_versoes ENABLE TRIGGER integracao_fundo_versoes_validacao;
+    EXCEPTION WHEN OTHERS THEN
+      ALTER TABLE public.integracao_fundo_versoes ENABLE TRIGGER integracao_fundo_versoes_validacao;
+      RAISE;
+    END;
+
+    DELETE FROM public.credenciais_integracao
+    WHERE id IN (SELECT id FROM tmp_reset_credenciais_integracao);
+
+    DELETE FROM public.integracoes_fundo
+    WHERE id IN (SELECT id FROM tmp_reset_integracoes_fundo);
+
+    DELETE FROM public.sequencias_remessa
+    WHERE configuracao_cnab_id IN (SELECT id FROM tmp_reset_configuracoes_cnab);
+
+    BEGIN
+      ALTER TABLE public.configuracao_cnab_versoes DISABLE TRIGGER configuracao_cnab_versoes_validacao;
+      DELETE FROM public.configuracao_cnab_versoes
+      WHERE id IN (SELECT id FROM tmp_reset_configuracao_cnab_versoes);
+      ALTER TABLE public.configuracao_cnab_versoes ENABLE TRIGGER configuracao_cnab_versoes_validacao;
+    EXCEPTION WHEN OTHERS THEN
+      ALTER TABLE public.configuracao_cnab_versoes ENABLE TRIGGER configuracao_cnab_versoes_validacao;
+      RAISE;
+    END;
+
+    BEGIN
+      ALTER TABLE public.configuracoes_cnab DISABLE TRIGGER configuracoes_cnab_sem_delete_utilizado;
+      DELETE FROM public.configuracoes_cnab
+      WHERE id IN (SELECT id FROM tmp_reset_configuracoes_cnab);
+      ALTER TABLE public.configuracoes_cnab ENABLE TRIGGER configuracoes_cnab_sem_delete_utilizado;
+    EXCEPTION WHEN OTHERS THEN
+      ALTER TABLE public.configuracoes_cnab ENABLE TRIGGER configuracoes_cnab_sem_delete_utilizado;
+      RAISE;
+    END;
+
+    BEGIN
+      ALTER TABLE public.template_versoes DISABLE TRIGGER template_versoes_validacao;
+      DELETE FROM public.template_versoes
+      WHERE id IN (SELECT id FROM tmp_reset_template_versoes);
+      ALTER TABLE public.template_versoes ENABLE TRIGGER template_versoes_validacao;
+    EXCEPTION WHEN OTHERS THEN
+      ALTER TABLE public.template_versoes ENABLE TRIGGER template_versoes_validacao;
+      RAISE;
+    END;
+
+    BEGIN
+      ALTER TABLE public.templates_documentos DISABLE TRIGGER templates_documentos_sem_delete_utilizado;
+      DELETE FROM public.templates_documentos
+      WHERE id IN (SELECT id FROM tmp_reset_templates);
+      ALTER TABLE public.templates_documentos ENABLE TRIGGER templates_documentos_sem_delete_utilizado;
+    EXCEPTION WHEN OTHERS THEN
+      ALTER TABLE public.templates_documentos ENABLE TRIGGER templates_documentos_sem_delete_utilizado;
+      RAISE;
+    END;
+
+    DELETE FROM public.cedente_fundo_politicas
+    WHERE id IN (SELECT id FROM tmp_reset_cedente_fundo_politicas);
+
+    BEGIN
+      ALTER TABLE public.politica_requisitos_documentais DISABLE TRIGGER politica_requisito_publicado_immutavel;
+      DELETE FROM public.politica_requisitos_documentais
+      WHERE id IN (SELECT id FROM tmp_reset_politica_requisitos);
+      ALTER TABLE public.politica_requisitos_documentais ENABLE TRIGGER politica_requisito_publicado_immutavel;
+    EXCEPTION WHEN OTHERS THEN
+      ALTER TABLE public.politica_requisitos_documentais ENABLE TRIGGER politica_requisito_publicado_immutavel;
+      RAISE;
+    END;
+
+    BEGIN
+      ALTER TABLE public.politica_operacional_versoes DISABLE TRIGGER politica_versao_publicada_validacao;
+      DELETE FROM public.politica_operacional_versoes
+      WHERE id IN (SELECT id FROM tmp_reset_politica_versoes);
+      ALTER TABLE public.politica_operacional_versoes ENABLE TRIGGER politica_versao_publicada_validacao;
+    EXCEPTION WHEN OTHERS THEN
+      ALTER TABLE public.politica_operacional_versoes ENABLE TRIGGER politica_versao_publicada_validacao;
+      RAISE;
+    END;
+
+    BEGIN
+      ALTER TABLE public.politicas_operacionais DISABLE TRIGGER politicas_operacionais_sem_delete;
+      DELETE FROM public.politicas_operacionais
+      WHERE id IN (SELECT id FROM tmp_reset_politicas);
+      ALTER TABLE public.politicas_operacionais ENABLE TRIGGER politicas_operacionais_sem_delete;
+    EXCEPTION WHEN OTHERS THEN
+      ALTER TABLE public.politicas_operacionais ENABLE TRIGGER politicas_operacionais_sem_delete;
+      RAISE;
+    END;
+  END IF;
+
   v_counts_after := jsonb_build_object(
     'operacoes_restantes', (
       SELECT count(*)
@@ -484,13 +720,24 @@ BEGIN
       SELECT count(*)
       FROM public.notas_fiscais nf
       WHERE nf.cedente_fundo_id IN (SELECT id FROM public.cedente_fundos WHERE fundo_id = p_fundo_id)
-    )
+    ),
+    'politicas_restantes', (
+      SELECT count(*)
+      FROM public.politicas_operacionais po
+      WHERE po.fundo_id = p_fundo_id
+         OR po.cedente_fundo_id IN (SELECT id FROM public.cedente_fundos WHERE fundo_id = p_fundo_id)
+    ),
+    'templates_restantes', (SELECT count(*) FROM public.templates_documentos WHERE fundo_id = p_fundo_id),
+    'configuracoes_cnab_restantes', (SELECT count(*) FROM public.configuracoes_cnab WHERE fundo_id = p_fundo_id),
+    'integracoes_restantes', (SELECT count(*) FROM public.integracoes_fundo WHERE fundo_id = p_fundo_id),
+    'credenciais_restantes', (SELECT count(*) FROM public.credenciais_integracao WHERE fundo_id = p_fundo_id)
   );
 
   RETURN jsonb_build_object(
     'modo', p_modo,
     'fundo_id', p_fundo_id,
     'fundo_nome', v_fundo_nome,
+    'escopo', p_escopo,
     'apagar_notas_fiscais', p_apagar_notas_fiscais,
     'contagens_antes', v_counts_before,
     'contagens_depois', v_counts_after,
@@ -503,5 +750,5 @@ EXCEPTION
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.reset_operacional_fundo_homolog(uuid, text, boolean, text) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.reset_operacional_fundo_homolog(uuid, text, boolean, text) TO service_role;
+REVOKE ALL ON FUNCTION public.reset_operacional_fundo_homolog(uuid, text, boolean, text, text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.reset_operacional_fundo_homolog(uuid, text, boolean, text, text) TO service_role;

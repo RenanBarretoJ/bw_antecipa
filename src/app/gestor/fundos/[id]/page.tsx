@@ -32,6 +32,7 @@ import { formatCNPJ } from '@/lib/utils'
 import { PoliticasDoFundo } from '@/components/politicas/PoliticasDoFundo'
 import { TemplatesDoFundo } from '@/components/templates/TemplatesDoFundo'
 import { useNotifications } from '@/components/notifications/notification-provider'
+import { useFundoAtivo } from '@/components/fundos/fundo-ativo-provider'
 
 type ConfigRow = {
   id: string
@@ -288,6 +289,7 @@ export default function FundoDetalhePage() {
   const params = useParams<{ id: string }>()
   const searchParams = useSearchParams()
   const notifications = useNotifications()
+  const { loading: loadingFundo, fundos: fundosAutorizados, bloqueado } = useFundoAtivo()
   const fundoId = params.id
   const tabParam = searchParams.get('tab')
   const activeTab = tabs.includes(tabParam as (typeof tabs)[number]) ? tabParam as (typeof tabs)[number] : 'dados'
@@ -316,6 +318,17 @@ export default function FundoDetalhePage() {
   const [isPending, startTransition] = useTransition()
 
   const loadData = useCallback(async () => {
+    if (loadingFundo) return
+    const autorizado = fundosAutorizados.some((fundoAutorizado) => fundoAutorizado.id === fundoId)
+    if (bloqueado || !autorizado) {
+      setFundo(null)
+      setConfigs([])
+      setIntegracoes([])
+      setExecucoesIntegracao([])
+      setCredenciaisPortalFidc([])
+      setLoading(false)
+      return
+    }
     const supabase = createClient()
     const [{ data: fundoData }, { data: configsData }, { data: integracoesData }, { data: execucoesData }, credenciaisResult] = await Promise.all([
       supabase.from('fundos').select('*').eq('id', fundoId).maybeSingle(),
@@ -336,7 +349,7 @@ export default function FundoDetalhePage() {
     setExecucoesIntegracao((execucoesData || []) as IntegracaoExecucaoRow[])
     setCredenciaisPortalFidc((credenciaisResult.success ? credenciaisResult.data || [] : []) as CredencialPortalFidcRow[])
     setLoading(false)
-  }, [fundoId])
+  }, [loadingFundo, bloqueado, fundosAutorizados, fundoId])
 
   // Sincroniza o detalhe do fundo com os dados remotos.
   // eslint-disable-next-line react-hooks/set-state-in-effect

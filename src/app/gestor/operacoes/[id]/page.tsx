@@ -34,6 +34,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useNotifications } from '@/components/notifications/notification-provider'
 import { OperacaoNotaFiscalCard, buildOperacaoNotaFiscalView, type OperacaoNotaFiscalView } from '@/components/operacoes/OperacaoNotaFiscalCard'
+import { useFundoAtivo } from '@/components/fundos/fundo-ativo-provider'
 
 interface Testemunha {
   id: string
@@ -44,6 +45,7 @@ interface Testemunha {
 interface OperacaoDetalhe {
   id: string
   cedente_id: string
+  cedente_fundo_id: string | null
   conta_escrow_id: string
   valor_bruto_total: number
   taxa_desconto: number
@@ -440,6 +442,7 @@ export default function OperacaoDetalheGestorPage() {
   const params = useParams()
   const router = useRouter()
   const notifications = useNotifications()
+  const { loading: loadingFundo, fundoAtivo, bloqueado } = useFundoAtivo()
   const opId = params.id as string
 
   const [op, setOp] = useState<OperacaoDetalhe | null>(null)
@@ -494,6 +497,15 @@ export default function OperacaoDetalheGestorPage() {
 
   useEffect(() => {
     const load = async () => {
+      if (loadingFundo) return
+      if (bloqueado || !fundoAtivo?.id) {
+        setOp(null)
+        setNfs([])
+        setEntregas([])
+        setTaxasConfig([])
+        setLoading(false)
+        return
+      }
       const supabase = createClient()
 
       const { data: opData } = await supabase
@@ -511,6 +523,25 @@ export default function OperacaoDetalheGestorPage() {
 
       if (opData) {
         const o = opData as OperacaoDetalhe
+        if (!o.cedente_fundo_id) {
+          setOp(null)
+          setLoading(false)
+          return
+        }
+
+        const { data: link } = await supabase
+          .from('cedente_fundos')
+          .select('id, fundo_id')
+          .eq('id', o.cedente_fundo_id)
+          .eq('fundo_id', fundoAtivo.id)
+          .maybeSingle()
+
+        if (!link) {
+          setOp(null)
+          setLoading(false)
+          return
+        }
+
         setOp(o)
         setTaxa(o.taxa_desconto)
         setValorLiquido(o.valor_liquido_desembolso)
@@ -553,7 +584,7 @@ export default function OperacaoDetalheGestorPage() {
       setLoading(false)
     }
     load()
-  }, [opId, carregarLogistica])
+  }, [opId, carregarLogistica, loadingFundo, bloqueado, fundoAtivo?.id])
 
   useEffect(() => {
     if (op && taxa >= 0 && nfs.length > 0) {

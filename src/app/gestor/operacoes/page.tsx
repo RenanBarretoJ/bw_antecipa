@@ -33,6 +33,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { ListNameCell } from '@/components/data-display/primitives'
+import { useFundoAtivo } from '@/components/fundos/fundo-ativo-provider'
 
 interface OperacaoGestor {
   id: string
@@ -42,6 +43,7 @@ interface OperacaoGestor {
   valor_liquido_desembolso: number
   data_vencimento: string
   status: string
+  cedente_fundo_id: string | null
   created_at: string
   aprovado_em: string | null
   aceite_sacado_exigido: boolean | null
@@ -92,6 +94,7 @@ function TableSkeleton() {
 }
 
 export default function OperacoesGestorPage() {
+  const { loading: loadingFundo, fundoAtivo, bloqueado } = useFundoAtivo()
   const [ops, setOps] = useState<OperacaoGestor[]>([])
   const [loading, setLoading] = useState(true)
   const [filtroStatus, setFiltroStatus] = useState('todos')
@@ -105,17 +108,34 @@ export default function OperacoesGestorPage() {
 
   useEffect(() => {
     const load = async () => {
+      if (loadingFundo) return
+      if (bloqueado || !fundoAtivo?.id) {
+        setOps([])
+        setLoading(false)
+        return
+      }
       const supabase = createClient()
+      const { data: linksData } = await supabase
+        .from('cedente_fundos')
+        .select('id')
+        .eq('fundo_id', fundoAtivo.id)
+      const linkIds = ((linksData || []) as Array<{ id: string }>).map((link) => link.id)
+      if (linkIds.length === 0) {
+        setOps([])
+        setLoading(false)
+        return
+      }
       const { data } = await supabase
         .from('operacoes')
-        .select('id, valor_bruto_total, taxa_desconto, prazo_dias, valor_liquido_desembolso, data_vencimento, status, created_at, aprovado_em, aceite_sacado_exigido, aceite_sacado_status, cedentes(razao_social, cnpj)')
+        .select('id, cedente_fundo_id, valor_bruto_total, taxa_desconto, prazo_dias, valor_liquido_desembolso, data_vencimento, status, created_at, aprovado_em, aceite_sacado_exigido, aceite_sacado_status, cedentes(razao_social, cnpj)')
+        .in('cedente_fundo_id', linkIds)
         .order('created_at', { ascending: false })
 
       setOps((data || []) as OperacaoGestor[])
       setLoading(false)
     }
     load()
-  }, [])
+  }, [loadingFundo, bloqueado, fundoAtivo?.id])
 
   const handleOrdenar = (campo: string) => {
     setOrdenacao((prev) => ({

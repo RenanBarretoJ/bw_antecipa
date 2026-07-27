@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import type {
+  CedenteFundoPolitica,
   CedenteFundo,
   Fundo,
   PoliticaOperacional,
@@ -12,6 +13,7 @@ import { CedenteFundoError, assertFundoAtivo, resolverCedenteFundoAtivo } from '
 export interface PoliticaResolvida {
   cedenteFundo: CedenteFundo
   fundo: Fundo
+  atribuicao: CedenteFundoPolitica | null
   politica: PoliticaOperacional
   versao: PoliticaOperacionalVersao
   requisitos: PoliticaRequisitoDocumental[]
@@ -24,6 +26,7 @@ export interface PoliticaSnapshot {
   politica_operacional_id: string
   politica_operacional_versao_id: string
   politica_versao: number
+  politica_atribuicao_id: string | null
   aceite_sacado_obrigatorio: boolean
   cessao_no_desembolso: boolean
   cria_acompanhamento_entrega: boolean
@@ -91,6 +94,7 @@ export function criarSnapshotPolitica(policy: PoliticaResolvida): { snapshot: Po
     politica_operacional_id: policy.politica.id,
     politica_operacional_versao_id: policy.versao.id,
     politica_versao: policy.versao.versao,
+    politica_atribuicao_id: policy.atribuicao?.id ?? null,
     aceite_sacado_obrigatorio: policy.versao.aceite_sacado_obrigatorio,
     cessao_no_desembolso: policy.versao.cessao_no_desembolso,
     cria_acompanhamento_entrega: policy.versao.cria_acompanhamento_entrega,
@@ -137,27 +141,70 @@ async function carregarPoliticaResolvida(
   cedenteFundo: CedenteFundo,
   fundo: Fundo,
 ): Promise<PoliticaResolvida> {
-  const { data: policies, error: policyError } = await supabase
-    .from('politicas_operacionais')
+  const now = new Date().toISOString()
+  let atribuicao: CedenteFundoPolitica | null = null
+  let politica: PoliticaOperacional | null = null
+
+  const { data: assignments, error: assignmentError } = await supabase
+    .from('cedente_fundo_politicas')
     .select('*')
     .eq('cedente_fundo_id', cedenteFundo.id)
     .eq('status', 'ativa')
+    .lte('vigente_desde', now)
+    .or(`vigente_ate.is.null,vigente_ate.gt.${now}`)
+    .order('vigente_desde', { ascending: false })
+    .limit(1)
 
-  if (policyError) throw new Error(`Erro ao buscar politica operacional: ${policyError.message}`)
-  if (!policies || policies.length !== 1) {
+  if (!assignmentError && assignments && assignments.length > 0) {
+    atribuicao = assignments[0] as CedenteFundoPolitica
+    const { data: policy, error: policyError } = await supabase
+      .from('politicas_operacionais')
+      .select('*')
+      .eq('id', atribuicao.politica_operacional_id)
+      .eq('fundo_id', fundo.id)
+      .eq('status', 'ativa')
+      .maybeSingle()
+
+    if (policyError) throw new Error(`Erro ao buscar politica operacional vinculada: ${policyError.message}`)
+    politica = (policy as PoliticaOperacional | null) ?? null
+  } else if (assignmentError && !['PGRST205', '42P01', '42703'].includes(String((assignmentError as { code?: string }).code || ''))) {
+    throw new Error(`Erro ao buscar politica operacional aplicavel: ${assignmentError.message}`)
+  }
+
+  const deveUsarFallbackLegado =
+    assignmentError && ['PGRST205', '42P01', '42703'].includes(String((assignmentError as { code?: string }).code || ''))
+
+  if (!politica && deveUsarFallbackLegado) {
+    const { data: policies, error: policyError } = await supabase
+      .from('politicas_operacionais')
+      .select('*')
+      .eq('cedente_fundo_id', cedenteFundo.id)
+      .eq('status', 'ativa')
+
+    if (policyError) throw new Error(`Erro ao buscar politica operacional: ${policyError.message}`)
+    if (!policies || policies.length !== 1) {
+      throw new CedenteFundoError(
+        assignmentError
+          ? 'Politica operacional pendente para este vinculo cedente-fundo.'
+          : 'Nao existe exatamente uma politica operacional ativa para o vinculo cedente-fundo.',
+        'POLITICA_CONTEXT_NOT_CONFIGURED',
+      )
+    }
+
+    politica = policies[0] as PoliticaOperacional
+  }
+
+  if (!politica) {
     throw new CedenteFundoError(
-      'Nao existe exatamente uma politica operacional ativa para o vinculo cedente-fundo.',
+      'Politica operacional pendente para este vinculo cedente-fundo.',
       'POLITICA_CONTEXT_NOT_CONFIGURED',
     )
   }
 
-  const politica = policies[0] as PoliticaOperacional
-  const now = new Date().toISOString()
   const { data: versions, error: versionError } = await supabase
     .from('politica_operacional_versoes')
     .select('*')
     .eq('politica_operacional_id', politica.id)
-    .eq('cedente_fundo_id', cedenteFundo.id)
     .not('publicada_em', 'is', null)
     .lte('vigente_desde', now)
     .or(`vigente_ate.is.null,vigente_ate.gt.${now}`)
@@ -177,7 +224,6 @@ async function carregarPoliticaResolvida(
     .from('politica_requisitos_documentais')
     .select('*')
     .eq('politica_operacional_versao_id', versao.id)
-    .eq('cedente_fundo_id', cedenteFundo.id)
     .eq('ativo', true)
     .order('ordem', { ascending: true })
     .order('codigo', { ascending: true })
@@ -187,6 +233,7 @@ async function carregarPoliticaResolvida(
   const resolvedPolicy = {
     cedenteFundo,
     fundo,
+    atribuicao,
     politica,
     versao,
     requisitos: (requirements || []) as PoliticaRequisitoDocumental[],
@@ -245,4 +292,11 @@ export async function resolverPoliticaAtivaPorVinculo(
   const fundo = fundoRow as Fundo
   assertFundoAtivo(fundo)
   return carregarPoliticaResolvida(context.supabase, cedenteFundo, fundo)
+}
+
+export async function obterPoliticaAplicavelAoCedenteFundo(
+  input: { cedenteId: string; cedenteFundoId: string; fundoId: string },
+  client?: AppSupabaseClient,
+): Promise<PoliticaResolvida> {
+  return resolverPoliticaAtivaPorVinculo(input, client)
 }

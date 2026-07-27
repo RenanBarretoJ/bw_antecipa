@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { PageContainer } from '@/components/layout/page-container'
 import { PageHeader } from '@/components/layout/page-header'
 import { DataTableContainer, EmptyState, MetricCard, ResponsiveActions, StatusBadge } from '@/components/data-display/primitives'
+import { useFundoAtivo } from '@/components/fundos/fundo-ativo-provider'
 
 interface GestorStats {
   totalCedentes: number
@@ -31,6 +32,7 @@ interface OperacaoRecente {
   valor_bruto_total: number
   valor_liquido_desembolso: number
   status: string
+  cedente_fundo_id: string | null
   aceite_sacado_exigido: boolean | null
   aceite_sacado_status: string | null
   created_at: string
@@ -49,6 +51,7 @@ function DashboardSkeleton() {
 }
 
 export default function GestorDashboard() {
+  const { loading: loadingFundo, fundoAtivo, bloqueado } = useFundoAtivo()
   const [stats, setStats] = useState<GestorStats>({
     totalCedentes: 0, cedentesAtivos: 0, docsPendentes: 0,
     opsAtivas: 0, opsSolicitadas: 0, opsInadimplentes: 0,
@@ -60,14 +63,49 @@ export default function GestorDashboard() {
 
   useEffect(() => {
     const load = async () => {
+      if (loadingFundo) return
+      if (bloqueado || !fundoAtivo?.id) {
+        setStats({
+          totalCedentes: 0, cedentesAtivos: 0, docsPendentes: 0,
+          opsAtivas: 0, opsSolicitadas: 0, opsInadimplentes: 0,
+          volumeAtivo: 0, volumeMes: 0, saldoEscrowTotal: 0, nfsPendentes: 0,
+          entregasEmTransito: 0, entregasComPendencia: 0, entregasEntregues: 0,
+        })
+        setOpsRecentes([])
+        setLoading(false)
+        return
+      }
+      setLoading(true)
       const supabase = createClient()
+      const { data: linksData } = await supabase
+        .from('cedente_fundos')
+        .select('id, cedente_id')
+        .eq('fundo_id', fundoAtivo.id)
+        .eq('status', 'ativo')
+
+      const links = (linksData || []) as Array<{ id: string; cedente_id: string }>
+      const linkIds = links.map((link) => link.id)
+      const cedenteIds = links.map((link) => link.cedente_id)
+
+      if (linkIds.length === 0) {
+        setStats({
+          totalCedentes: 0, cedentesAtivos: 0, docsPendentes: 0,
+          opsAtivas: 0, opsSolicitadas: 0, opsInadimplentes: 0,
+          volumeAtivo: 0, volumeMes: 0, saldoEscrowTotal: 0, nfsPendentes: 0,
+          entregasEmTransito: 0, entregasComPendencia: 0, entregasEntregues: 0,
+        })
+        setOpsRecentes([])
+        setLoading(false)
+        return
+      }
+
       const [cedentes, docs, ops, escrow, nfs, entregas] = await Promise.all([
-        supabase.from('cedentes').select('id, status'),
-        supabase.from('documentos').select('id, status').in('status', ['enviado', 'em_analise']),
-        supabase.from('operacoes').select('id, valor_bruto_total, valor_liquido_desembolso, status, created_at, aceite_sacado_exigido, aceite_sacado_status, cedentes(razao_social)').order('created_at', { ascending: false }),
-        supabase.from('contas_escrow').select('saldo_disponivel, saldo_bloqueado'),
-        supabase.from('notas_fiscais').select('id', { count: 'exact', head: true }).in('status', ['submetida', 'em_analise']),
-        supabase.from('nota_fiscal_entregas').select('id, status_entrega').neq('status_entrega', 'nao_aplicavel'),
+        supabase.from('cedentes').select('id, status').in('id', cedenteIds),
+        supabase.from('documentos').select('id, status, cedente_id').in('cedente_id', cedenteIds).in('status', ['enviado', 'em_analise']),
+        supabase.from('operacoes').select('id, cedente_fundo_id, valor_bruto_total, valor_liquido_desembolso, status, created_at, aceite_sacado_exigido, aceite_sacado_status, cedentes(razao_social)').in('cedente_fundo_id', linkIds).order('created_at', { ascending: false }),
+        supabase.from('contas_escrow').select('saldo_disponivel, saldo_bloqueado, cedente_id').in('cedente_id', cedenteIds),
+        supabase.from('notas_fiscais').select('id', { count: 'exact', head: true }).eq('fundo_id', fundoAtivo.id).in('status', ['submetida', 'em_analise']),
+        supabase.from('nota_fiscal_entregas').select('id, status_entrega, notas_fiscais!inner(fundo_id)').eq('notas_fiscais.fundo_id', fundoAtivo.id).neq('status_entrega', 'nao_aplicavel'),
       ])
 
       const cedsData = (cedentes.data || []) as Array<{ id: string; status: string }>
@@ -98,15 +136,15 @@ export default function GestorDashboard() {
       setLoading(false)
     }
     load()
-  }, [])
+  }, [loadingFundo, bloqueado, fundoAtivo?.id])
 
   if (loading) return <DashboardSkeleton />
 
   return (
     <PageContainer className="space-y-6">
       <PageHeader
-        title="Dashboard do Gestor"
-        description="Acompanhe a operação, os cedentes e os pontos que precisam de atenção."
+        title={fundoAtivo ? `Dashboard — ${fundoAtivo.nome}` : 'Dashboard do Gestor'}
+        description="Acompanhe a operação, os cedentes e os pontos que precisam de atenção no fundo ativo."
         eyebrow="Visão geral"
         action={<ResponsiveActions><Link href="/gestor/cedentes" className="inline-flex h-8 items-center rounded-lg border border-border bg-background px-3 text-sm font-medium hover:bg-muted">Ver cedentes</Link><Link href="/gestor/operacoes" className="inline-flex h-8 items-center rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/80">Operações</Link></ResponsiveActions>}
       />

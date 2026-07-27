@@ -10,10 +10,12 @@ import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@
 import { PageContainer } from '@/components/layout/page-container'
 import { PageHeader } from '@/components/layout/page-header'
 import { DataTableContainer, EmptyState, FilterBar, ListNameCell, LoadingState, StatusBadge } from '@/components/data-display/primitives'
+import { useFundoAtivo } from '@/components/fundos/fundo-ativo-provider'
 
 interface CedenteRow { id: string; cnpj: string; razao_social: string; status: string; created_at: string }
 
 export default function GestorCedentesPage() {
+  const { loading: loadingFundo, fundoAtivo, bloqueado } = useFundoAtivo()
   const [cedentes, setCedentes] = useState<CedenteRow[]>([])
   const [loading, setLoading] = useState(true)
   const [filtroStatus, setFiltroStatus] = useState('todos')
@@ -21,13 +23,35 @@ export default function GestorCedentesPage() {
 
   useEffect(() => {
     const load = async () => {
+      if (loadingFundo) return
+      if (bloqueado || !fundoAtivo?.id) {
+        setCedentes([])
+        setLoading(false)
+        return
+      }
       const supabase = createClient()
-      const { data } = await supabase.from('cedentes').select('id, cnpj, razao_social, status, created_at').order('created_at', { ascending: false })
+      const { data: links } = await supabase
+        .from('cedente_fundos')
+        .select('cedente_id')
+        .eq('fundo_id', fundoAtivo.id)
+
+      const cedenteIds = Array.from(new Set(((links || []) as Array<{ cedente_id: string | null }>).map((link) => link.cedente_id).filter(Boolean) as string[]))
+      if (cedenteIds.length === 0) {
+        setCedentes([])
+        setLoading(false)
+        return
+      }
+
+      const { data } = await supabase
+        .from('cedentes')
+        .select('id, cnpj, razao_social, status, created_at')
+        .in('id', cedenteIds)
+        .order('created_at', { ascending: false })
       setCedentes((data || []) as CedenteRow[])
       setLoading(false)
     }
     load()
-  }, [])
+  }, [loadingFundo, bloqueado, fundoAtivo?.id])
 
   const filtered = cedentes.filter((cedente) => {
     if (filtroStatus !== 'todos' && cedente.status !== filtroStatus) return false
@@ -40,7 +64,7 @@ export default function GestorCedentesPage() {
 
   return (
     <PageContainer className="space-y-6">
-      <PageHeader title="Cedentes" description="Acompanhe cadastro, status e documentos dos cedentes." eyebrow="Relacionamento" />
+      <PageHeader title="Cedentes" description={fundoAtivo ? `Acompanhe cadastro, status e documentos no fundo ${fundoAtivo.nome}.` : 'Acompanhe cadastro, status e documentos dos cedentes.'} eyebrow="Relacionamento" />
 
       <FilterBar search={busca} onSearch={setBusca} placeholder="Buscar por CNPJ ou razão social...">
         <Select value={filtroStatus} onValueChange={(value) => { if (value) setFiltroStatus(value) }}>

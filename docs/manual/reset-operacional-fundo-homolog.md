@@ -4,9 +4,16 @@ Este procedimento serve para limpar dados operacionais de um fundo específico e
 
 Não use este procedimento em produção.
 
-## O que o reset remove
+## Escopos de reset
 
-O reset remove dados operacionais ligados ao fundo informado, como:
+Existem dois escopos:
+
+- `operacional`, padrão: limpa apenas fluxo operacional e preserva configuração do fundo.
+- `full` ou `completo`: limpa fluxo operacional e também remove configurações do fundo para reconstrução completa em homologação.
+
+## O que o reset operacional remove
+
+O reset padrão remove dados operacionais ligados ao fundo informado, como:
 
 - operações;
 - vínculos `operacoes_nfs`;
@@ -22,9 +29,9 @@ O reset remove dados operacionais ligados ao fundo informado, como:
 - movimentos de escrow ligados às operações;
 - logs e notificações operacionais relacionados.
 
-## O que o reset preserva
+## O que o reset operacional preserva
 
-O reset não remove cadastros estruturais:
+O escopo padrão não remove cadastros estruturais:
 
 - fundos;
 - cedentes;
@@ -39,6 +46,31 @@ O reset não remove cadastros estruturais:
 - versões CNAB;
 - integrações do fundo;
 - credenciais.
+
+## O que o reset completo remove além do operacional
+
+Com `--scope full`, o reset remove também:
+
+- vínculos `cedente_fundo_politicas`;
+- políticas operacionais do fundo;
+- versões de políticas;
+- requisitos de políticas;
+- templates jurídicos;
+- versões de templates;
+- configurações CNAB;
+- versões CNAB;
+- sequências de remessa;
+- integrações do fundo;
+- versões de integração;
+- credenciais de integração.
+
+Mesmo no reset completo, são preservados:
+
+- o registro do fundo;
+- cedentes;
+- vínculos `cedente_fundos`;
+- usuários;
+- vínculos `usuario_fundos`.
 
 ## Pré-requisitos
 
@@ -127,7 +159,15 @@ Confira as contagens exibidas:
 - documentos gerados;
 - objetos de Storage.
 
-### 2. Reset apenas do banco
+Para prever também a limpeza completa das configurações do fundo:
+
+```bash
+npm run reset:operacional:fundo -- --fundo-id UUID_DO_FUNDO --mode preview --scope full
+```
+
+Use o preview completo quando a intenção for reconstruir do zero políticas, templates, CNAB e integrações daquele fundo em homologação.
+
+### 2. Reset operacional apenas do banco
 
 Para limpar o banco e preservar os arquivos físicos no Storage:
 
@@ -141,7 +181,7 @@ Exemplo:
 npm run reset:operacional:fundo -- --fundo-id a4eb203b-ca53-40fa-8701-e453720bb15b --mode reset --yes
 ```
 
-### 3. Reset do banco e Storage
+### 3. Reset operacional do banco e Storage
 
 Para limpar o banco e remover também os arquivos físicos mapeados no Storage:
 
@@ -153,9 +193,45 @@ Use essa opção quando quiser reutilizar uploads e evitar conflitos por paths a
 
 Importante: o banco é limpo primeiro. A remoção de Storage acontece depois via Supabase Storage API.
 
-### 4. Validação posterior
+### 4. Reset completo do fundo
 
-Após o reset:
+Para limpar operacao e configuracao do fundo:
+
+```bash
+npm run reset:operacional:fundo -- --fundo-id UUID_DO_FUNDO --mode reset --yes --scope full --confirm-full RESETAR_CONFIGURACOES
+```
+
+Esse comando remove, alem do fluxo operacional:
+
+- politicas operacionais;
+- vinculos de politica com cedente_fundo;
+- versoes e requisitos de politica;
+- templates juridicos;
+- versoes de templates;
+- configuracoes CNAB;
+- versoes CNAB;
+- sequencias de remessa;
+- integracoes do fundo;
+- versoes de integracao;
+- credenciais de integracao.
+
+Ele preserva:
+
+- fundo;
+- cedentes;
+- vinculos `cedente_fundos`;
+- usuarios;
+- vinculos `usuario_fundos`.
+
+Se quiser apagar tambem os arquivos fisicos do Storage no reset completo:
+
+```bash
+npm run reset:operacional:fundo -- --fundo-id UUID_DO_FUNDO --mode reset --yes --scope full --confirm-full RESETAR_CONFIGURACOES --delete-storage
+```
+
+### 5. Validacao posterior
+
+Apos o reset operacional:
 
 ```bash
 npm run reset:operacional:fundo -- --fundo-id UUID_DO_FUNDO --mode validate
@@ -167,14 +243,28 @@ Exemplo:
 npm run reset:operacional:fundo -- --fundo-id a4eb203b-ca53-40fa-8701-e453720bb15b --mode validate
 ```
 
-O esperado é:
+O esperado e:
 
-- zero operações restantes do fundo;
+- zero operacoes restantes do fundo;
 - zero entregas restantes;
 - zero remessas restantes;
 - zero documentos gerados restantes;
 - zero NFs do fundo, se `--apagar-notas=true`;
 - cadastros estruturais preservados.
+
+Apos reset completo, valide tambem o escopo completo:
+
+```bash
+npm run reset:operacional:fundo -- --fundo-id UUID_DO_FUNDO --mode validate --scope full
+```
+
+O esperado adicional e:
+
+- zero politicas restantes do fundo;
+- zero templates restantes;
+- zero configuracoes CNAB restantes;
+- zero integracoes restantes;
+- zero credenciais restantes.
 
 ## Preservar NFs
 
@@ -387,4 +477,12 @@ Reset recorrente apagando Storage:
 npm run reset:operacional:fundo -- --fundo-id UUID_DO_FUNDO --mode preview
 npm run reset:operacional:fundo -- --fundo-id UUID_DO_FUNDO --mode reset --yes --delete-storage
 npm run reset:operacional:fundo -- --fundo-id UUID_DO_FUNDO --mode validate
+```
+
+Reset completo recorrente:
+
+```bash
+npm run reset:operacional:fundo -- --fundo-id UUID_DO_FUNDO --mode preview --scope full
+npm run reset:operacional:fundo -- --fundo-id UUID_DO_FUNDO --mode reset --yes --scope full --confirm-full RESETAR_CONFIGURACOES
+npm run reset:operacional:fundo -- --fundo-id UUID_DO_FUNDO --mode validate --scope full
 ```

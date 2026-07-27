@@ -44,6 +44,7 @@ import {
 } from '@/components/ui/select'
 import { useNotifications } from '@/components/notifications/notification-provider'
 import { ListNameCell } from '@/components/data-display/primitives'
+import { useFundoAtivo } from '@/components/fundos/fundo-ativo-provider'
 
 interface NfGestorRecord {
   id: string
@@ -79,6 +80,7 @@ const statusConfig: Record<string, { label: string; icon: typeof CheckCircle; cl
 
 export default function NotasFiscaisGestorPage() {
   const notifications = useNotifications()
+  const { loading: loadingFundo, fundoAtivo, bloqueado } = useFundoAtivo()
   const [nfs, setNfs] = useState<NfGestorRecord[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -103,21 +105,36 @@ export default function NotasFiscaisGestorPage() {
   const [loadingLote, setLoadingLote] = useState(false)
 
   const reloadNfs = useCallback(async () => {
+    if (loadingFundo) return
+    if (bloqueado || !fundoAtivo?.id) {
+      setNfs([])
+      return
+    }
     const supabase = createClient()
     const { data } = await supabase
       .from('notas_fiscais')
       .select(NF_SELECT)
+      .eq('fundo_id', fundoAtivo.id)
       .order('created_at', { ascending: false })
     setNfs((data || []) as NfGestorRecord[])
-  }, [])
+  }, [loadingFundo, bloqueado, fundoAtivo])
 
   useEffect(() => {
     let mounted = true
     async function loadInitialNfs() {
+      if (loadingFundo) return
+      if (bloqueado || !fundoAtivo?.id) {
+        if (mounted) {
+          setNfs([])
+          setLoading(false)
+        }
+        return
+      }
       const supabase = createClient()
       const { data } = await supabase
         .from('notas_fiscais')
         .select(NF_SELECT)
+        .eq('fundo_id', fundoAtivo.id)
         .order('created_at', { ascending: false })
       if (!mounted) return
       setNfs((data || []) as NfGestorRecord[])
@@ -125,7 +142,7 @@ export default function NotasFiscaisGestorPage() {
     }
     void loadInitialNfs()
     return () => { mounted = false }
-  }, [reloadNfs])
+  }, [reloadNfs, loadingFundo, bloqueado, fundoAtivo])
 
   // Limpar seleção quando qualquer filtro muda
   useEffect(() => {

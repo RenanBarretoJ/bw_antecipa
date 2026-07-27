@@ -25,6 +25,7 @@ import { PageContainer } from '@/components/layout/page-container'
 import { PageHeader } from '@/components/layout/page-header'
 import { DetailField, DetailSection, FieldGrid, StatusBadge } from '@/components/data-display/primitives'
 import { useNotifications } from '@/components/notifications/notification-provider'
+import { useFundoAtivo } from '@/components/fundos/fundo-ativo-provider'
 
 interface CedenteDetail {
   id: string; cnpj: string; razao_social: string; nome_fantasia: string | null
@@ -102,6 +103,7 @@ const statusColors: Record<string, string> = {
 
 export default function CedenteDetalhePage({ params }: { params: Promise<{ id: string }> }) {
   const notifications = useNotifications()
+  const { loading: loadingFundo, fundoAtivo, fundos: fundosAutorizados, bloqueado } = useFundoAtivo()
   const { id } = use(params)
   const [cedente, setCedente] = useState<CedenteDetail | null>(null)
   const [docs, setDocs] = useState<DocRecord[]>([])
@@ -170,13 +172,41 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
   }
 
   const loadData = async () => {
+    if (loadingFundo) return
+    if (bloqueado || !fundoAtivo?.id) {
+      setCedente(null)
+      setDocs([])
+      setRepresentantes([])
+      setFundos([])
+      setLoading(false)
+      return
+    }
     const supabase = createClient()
+
+    const { data: linkAtivo } = await supabase
+      .from('cedente_fundos')
+      .select('id, fundo_id')
+      .eq('cedente_id', id)
+      .eq('fundo_id', fundoAtivo.id)
+      .maybeSingle()
+
+    if (!linkAtivo) {
+      setCedente(null)
+      setDocs([])
+      setRepresentantes([])
+      setFundos([])
+      setLoading(false)
+      return
+    }
 
     const { data: c } = await supabase.from('cedentes').select('*').eq('id', id).single()
     setCedente(c as CedenteDetail | null)
-    if (c) setFundoSelecionado((c as CedenteDetail).fundo_id ?? '')
+    if (c) setFundoSelecionado(linkAtivo.fundo_id)
 
-    const { data: fs } = await supabase.from('fundos').select('id, nome, cnpj, ativo').eq('ativo', true).order('nome')
+    const fundoIds = fundosAutorizados.map((fundoAutorizado) => fundoAutorizado.id)
+    const { data: fs } = fundoIds.length > 0
+      ? await supabase.from('fundos').select('id, nome, cnpj, ativo').eq('ativo', true).in('id', fundoIds).order('nome')
+      : { data: [] }
     setFundos((fs || []) as Fundo[])
 
     const { data: reps } = await supabase
@@ -245,7 +275,7 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
 
   // A tela sincroniza múltiplas coleções relacionadas ao cedente em uma única carga.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { loadData() }, [id])
+  useEffect(() => { loadData() }, [id, loadingFundo, bloqueado, fundoAtivo?.id, fundosAutorizados])
 
   useEffect(() => {
     notifyTransientMessage('cedente', message, () => setMessage(''))

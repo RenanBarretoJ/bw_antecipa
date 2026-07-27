@@ -6,6 +6,9 @@ import { registrarLog } from './auditoria'
 import { DOCUMENTO_V2_BUCKET, extensaoArquivo, mimeArquivo, nomeSeguro, sha256Arquivo } from '@/lib/documentos-v2/tipos'
 import { enviarObjetoDocumento, gerarCaminhoDocumentoLogistico, gerarUrlDocumento, removerObjetoDocumento } from '@/lib/documentos-v2/storage'
 import { parseCteXml } from '@/lib/logistica/cte-parser'
+import { obterFundoAtivoAutorizado } from './fundo-ativo'
+import { TIPOS_DOCUMENTAIS_CTE } from '@/lib/logistica/validacao-cte-config'
+import { mensagemValidacaoCte, validarCteContraNfes, type NfeParaValidacaoCte } from '@/lib/logistica/validacao-cte-nfe'
 
 export type LogisticaActionState = { success?: boolean; message?: string; data?: Record<string, unknown>; url?: string; nome?: string } | undefined
 
@@ -25,6 +28,98 @@ function normalizarCnpj(value: FormDataEntryValue | null): string | null {
   return digits || null
 }
 
+type NotaFiscalCteRow = {
+  id: string
+  cedente_id: string
+  cedente_fundo_id: string | null
+  fundo_id: string | null
+  chave_acesso: string | null
+  data_emissao: string | null
+  cnpj_emitente: string | null
+  razao_social_emitente: string | null
+  cnpj_destinatario: string | null
+  razao_social_destinatario: string | null
+  valor_bruto: number | null
+  descricao_itens: string | null
+}
+
+type EntregaCteRow = {
+  id: string
+  operacao_id: string
+  nota_fiscal_id: string
+  status_entrega: string
+}
+
+async function carregarContextoValidacaoCte(
+  notaFiscalIds: string[],
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  actorRole: string,
+) {
+  for (const notaFiscalId of notaFiscalIds) {
+    await requireNotaFiscalAccess(notaFiscalId, supabase)
+  }
+
+  const { data: nfs, error: nfsError } = await supabase
+    .from('notas_fiscais')
+    .select('id, cedente_id, cedente_fundo_id, fundo_id, chave_acesso, data_emissao, cnpj_emitente, razao_social_emitente, cnpj_destinatario, razao_social_destinatario, valor_bruto, descricao_itens')
+    .in('id', notaFiscalIds)
+
+  if (nfsError) throw new Error(`Erro ao consultar NF-e para validar CT-e: ${nfsError.message}`)
+  const nfRows = (nfs || []) as NotaFiscalCteRow[]
+  if (nfRows.length !== new Set(notaFiscalIds).size) throw new Error('Uma ou mais NF-e informadas nao foram encontradas.')
+
+  const fundos = new Set(nfRows.map((nf) => nf.fundo_id).filter(Boolean))
+  const cedentes = new Set(nfRows.map((nf) => nf.cedente_id).filter(Boolean))
+  const vinculos = new Set(nfRows.map((nf) => nf.cedente_fundo_id).filter(Boolean))
+  if (cedentes.size !== 1 || fundos.size !== 1 || vinculos.size !== 1) {
+    throw new Error('As NF-e do CT-e precisam pertencer ao mesmo cedente, fundo e vinculo cedente-fundo.')
+  }
+
+  const fundoId = [...fundos][0]
+  const cedenteFundoId = [...vinculos][0]
+  if (!fundoId || !cedenteFundoId) throw new Error('NF-e sem contexto de fundo ou vinculo cedente-fundo.')
+
+  if (actorRole === 'gestor') {
+    const fundoAtivo = await obterFundoAtivoAutorizado()
+    if (fundoAtivo.fundoId !== fundoId) throw new Error('NF-e fora do fundo ativo selecionado.')
+  }
+
+  const { data: entregas, error: entregasError } = await supabase
+    .from('nota_fiscal_entregas')
+    .select('id, operacao_id, nota_fiscal_id, status_entrega')
+    .in('nota_fiscal_id', notaFiscalIds)
+    .not('status_entrega', 'in', '(nao_aplicavel,cancelada,devolvida)')
+
+  if (entregasError) throw new Error(`Erro ao consultar acompanhamento logistico: ${entregasError.message}`)
+  const entregaRows = (entregas || []) as EntregaCteRow[]
+  if (entregaRows.length === 0) throw new Error('A NF-e nao possui acompanhamento logistico ativo para receber CT-e.')
+
+  const entregaIds = entregaRows.map((entrega) => entrega.id)
+  const { data: requisitos, error: requisitosError } = await supabase
+    .from('documento_requisito_instancias')
+    .select('id, tipo_documento_codigo_snapshot, escopo_snapshot, nota_fiscal_id, operacao_id, nota_fiscal_entrega_id, cedente_id, status')
+    .in('nota_fiscal_entrega_id', entregaIds)
+    .in('tipo_documento_codigo_snapshot', [...TIPOS_DOCUMENTAIS_CTE])
+    .not('status', 'in', '(cancelado,dispensado)')
+
+  if (requisitosError) throw new Error(`Erro ao validar requisito documental CT-e: ${requisitosError.message}`)
+  if (!requisitos?.length) {
+    throw new Error('CT-e nao esta configurado como requisito documental para esta NF/operação.')
+  }
+
+  for (const nfId of notaFiscalIds) {
+    const temRequisito = requisitos.some((req) => String((req as { nota_fiscal_entrega_id: string }).nota_fiscal_entrega_id) && entregaRows.some((entrega) => entrega.nota_fiscal_id === nfId && entrega.id === String((req as { nota_fiscal_entrega_id: string }).nota_fiscal_entrega_id)))
+    if (!temRequisito) throw new Error('Requisito CT-e nao pertence a uma das NF-e informadas.')
+  }
+
+  return {
+    nfs: nfRows,
+    entregas: entregaRows,
+    fundoId,
+    cedenteFundoId,
+  }
+}
+
 export async function enviarCte(formData: FormData): Promise<LogisticaActionState> {
   const notaFiscalIds = String(formData.get('notaFiscalIds') || '').split(',').map((id) => id.trim()).filter(Boolean)
   const arquivo = formData.get('arquivo')
@@ -38,6 +133,38 @@ export async function enviarCte(formData: FormData): Promise<LogisticaActionStat
 
   const parsed = tipoCodigo === 'cte_xml' ? await parseCteXml(arquivo) : null
   if (parsed && !parsed.valido) return { success: false, message: parsed.erros.join(' ') }
+
+  let resultadoValidacaoCte: ReturnType<typeof validarCteContraNfes> | null = null
+  if (tipoCodigo === 'cte_xml' && parsed) {
+    try {
+      const contextoValidacao = await carregarContextoValidacaoCte(notaFiscalIds, supabase, context.profile.role)
+      const { data: duplicado, error: duplicadoError } = parsed.chave_cte
+        ? await supabase.from('ctes').select('id').eq('chave_cte', parsed.chave_cte).maybeSingle()
+        : { data: null, error: null }
+      if (duplicadoError) throw new Error(`Erro ao validar duplicidade do CT-e: ${duplicadoError.message}`)
+      if (duplicado) return { success: false, message: 'Chave de CT-e ja cadastrada.' }
+
+      resultadoValidacaoCte = validarCteContraNfes({
+        cte: parsed,
+        nfs: contextoValidacao.nfs.map((nf): NfeParaValidacaoCte => ({
+          id: nf.id,
+          chave_acesso: nf.chave_acesso,
+          data_emissao: nf.data_emissao,
+          cnpj_emitente: nf.cnpj_emitente,
+          razao_social_emitente: nf.razao_social_emitente,
+          cnpj_destinatario: nf.cnpj_destinatario,
+          razao_social_destinatario: nf.razao_social_destinatario,
+          valor_bruto: nf.valor_bruto,
+          descricao_itens: nf.descricao_itens,
+        })),
+      })
+      if (resultadoValidacaoCte.status === 'rejeitado') {
+        return { success: false, message: mensagemValidacaoCte(resultadoValidacaoCte), data: { resultado_validacao: resultadoValidacaoCte } }
+      }
+    } catch (error) {
+      return { success: false, message: error instanceof Error ? error.message : 'Nao foi possivel validar o CT-e contra a NF-e.' }
+    }
+  }
 
   const hash = await sha256Arquivo(arquivo)
   const mimeType = mimeArquivo(arquivo)
@@ -70,13 +197,13 @@ export async function enviarCte(formData: FormData): Promise<LogisticaActionStat
       p_cnpj_remetente: parsed?.cnpj_remetente || normalizarCnpj(formData.get('cnpjRemetente')),
       p_cnpj_destinatario: parsed?.cnpj_destinatario || normalizarCnpj(formData.get('cnpjDestinatario')),
       p_valor_frete: parsed?.valor_frete ?? (Number(String(formData.get('valorFrete') || '0').replace(',', '.')) || null),
-      p_nivel_validacao: tipoCodigo === 'cte_xml' ? 'estrutural' : 'manual',
-      p_dados_extraidos: parsed ? { ...parsed } : {},
+      p_nivel_validacao: tipoCodigo === 'cte_xml' ? 'hibrido' : 'manual',
+      p_dados_extraidos: parsed ? { ...parsed, hash_sha256: hash, resultado_validacao: resultadoValidacaoCte } : {},
     })
     if (error) throw new Error(error.message)
     const result = data as Record<string, unknown>
     await registrarLog({ tipo_evento: 'CTE_ENVIADO', entidade_tipo: 'ctes', entidade_id: String(result.cte_id), dados_depois: { nota_fiscal_ids: notaFiscalIds, tipo: tipoCodigo } }).catch(() => {})
-    return { success: true, message: 'CT-e enviado para analise.', data: result }
+    return { success: true, message: resultadoValidacaoCte ? mensagemValidacaoCte(resultadoValidacaoCte) : 'CT-e enviado para analise.', data: result }
   } catch (error) {
     if (uploaded) await removerObjetoDocumento(path)
     return { success: false, message: error instanceof Error ? error.message : 'Nao foi possivel enviar o CT-e.' }
