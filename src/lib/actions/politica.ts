@@ -119,49 +119,42 @@ async function validarFundoAtivoAutorizado(fundoId: string) {
 async function validarPoliticaDoFundo(supabase: SupabaseFrom, fundoId: string, politicaId: string) {
   const { data, error } = await supabase
     .from('politicas_operacionais')
-    .select('id, fundo_id, cedente_fundo_id, status')
+    .select('id, fundo_id, status')
     .eq('id', politicaId)
     .maybeSingle()
-  const policy = data as unknown as { id: string; fundo_id?: string | null; cedente_fundo_id?: string | null; status: string } | null
+  const policy = data as unknown as { id: string; fundo_id: string | null; status: string } | null
   if (error) throw new Error(`Erro ao validar politica: ${error.message}`)
   if (!policy) throw new Error('Politica nao encontrada.')
-  if (policy.fundo_id && policy.fundo_id !== fundoId) throw new Error('Politica nao pertence ao fundo informado.')
-  if (!policy.fundo_id && policy.cedente_fundo_id) await validarCedenteFundoDoFundo(supabase, fundoId, policy.cedente_fundo_id)
+  if (!policy.fundo_id) throw new Error('Politica sem contexto de fundo.')
+  if (policy.fundo_id !== fundoId) throw new Error('Politica nao pertence ao fundo informado.')
   return policy
 }
 
 async function validarVersaoPoliticaDoFundo(supabase: Awaited<ReturnType<typeof requireGestor>>['supabase'], fundoId: string, versaoId: string) {
   const { data: version, error: versionError } = await supabase
     .from('politica_operacional_versoes')
-    .select('id, politica_operacional_id, fundo_id, cedente_fundo_id')
+    .select('id, politica_operacional_id, fundo_id')
     .eq('id', versaoId)
     .maybeSingle()
   if (versionError) throw new Error(`Erro ao validar versao da politica: ${versionError.message}`)
-  const versionData = version as { id: string; politica_operacional_id: string; fundo_id?: string | null; cedente_fundo_id?: string | null } | null
+  const versionData = version as { id: string; politica_operacional_id: string; fundo_id: string | null } | null
   if (!versionData) throw new Error('Versao de politica nao encontrada.')
-  if (versionData.fundo_id && versionData.fundo_id !== fundoId) throw new Error('Versao de politica nao pertence ao fundo informado.')
-  if (!versionData.fundo_id && versionData.cedente_fundo_id) await validarCedenteFundoDoFundo(supabase, fundoId, versionData.cedente_fundo_id)
+  if (!versionData.fundo_id) throw new Error('Versao de politica sem contexto de fundo.')
+  if (versionData.fundo_id !== fundoId) throw new Error('Versao de politica nao pertence ao fundo informado.')
   return versionData
 }
 
 async function loadPolicyContext(supabase: SupabaseFrom, politicaId: string) {
   const { data: policy, error } = await supabase
     .from('politicas_operacionais')
-    .select('id, fundo_id, cedente_fundo_id, status')
+    .select('id, fundo_id, status')
     .eq('id', politicaId)
     .maybeSingle()
   if (error) throw new Error(`Erro ao consultar politica: ${error.message}`)
   if (!policy) throw new Error('Politica nao encontrada.')
-  const policyData = policy as { id: string; fundo_id?: string | null; cedente_fundo_id?: string | null; status: string }
-  let fundoId = policyData.fundo_id || null
-  if (!fundoId && policyData.cedente_fundo_id) {
-    const { data: linkData, error: linkError } = await supabase.from('cedente_fundos').select('id, fundo_id, status').eq('id', policyData.cedente_fundo_id).maybeSingle()
-    if (linkError || !linkData) throw new Error('Vinculo cedente-fundo da politica nao encontrado.')
-    const link = linkData as { id: string; fundo_id: string; status: string }
-    fundoId = link.fundo_id
-  }
-  if (!fundoId) throw new Error('Politica sem contexto de fundo.')
-  return { ...policyData, fundo_id: fundoId }
+  const policyData = policy as { id: string; fundo_id: string | null; status: string }
+  if (!policyData.fundo_id) throw new Error('Politica sem contexto de fundo.')
+  return { ...policyData, fundo_id: policyData.fundo_id }
 }
 
 export async function criarPoliticaOperacional(
@@ -185,7 +178,6 @@ export async function criarPoliticaOperacional(
 
   const { data, error } = await supabase.from('politicas_operacionais').insert({
     fundo_id: linkData.fundo_id,
-    cedente_fundo_id: null,
     codigo: codigo.trim(),
     nome: nome.trim(),
     descricao: descricao?.trim() || null,
@@ -195,7 +187,7 @@ export async function criarPoliticaOperacional(
   } as never).select('id').single()
 
   if (error || !data) return result(`Erro ao criar politica: ${error?.message || 'registro nao retornado'}`)
-  await registrarLog({ tipo_evento: 'POLITICA_OPERACIONAL_CRIADA', entidade_tipo: 'politicas_operacionais', entidade_id: (data as { id: string }).id, dados_depois: { cedente_fundo_id: cedenteFundoId, codigo: codigo.trim() } })
+  await registrarLog({ tipo_evento: 'POLITICA_OPERACIONAL_CRIADA', entidade_tipo: 'politicas_operacionais', entidade_id: (data as { id: string }).id, dados_depois: { vinculo_origem_id: cedenteFundoId, fundo_id: linkData.fundo_id, codigo: codigo.trim() } })
   return { success: true, message: 'Politica criada como rascunho.', data: { id: (data as { id: string }).id } }
 }
 
@@ -212,7 +204,6 @@ export async function criarPoliticaDoFundo(
 
     const { data, error } = await context.supabase.from('politicas_operacionais').insert({
       fundo_id: fundoId,
-      cedente_fundo_id: null,
       codigo: codigo.trim(),
       nome: nome.trim(),
       descricao: descricao?.trim() || null,
@@ -248,7 +239,7 @@ export async function criarPoliticaOperacionalNoFundo(
 export async function criarVersaoPolitica(
   politicaId: string,
   input: CriarVersaoPoliticaInput,
-): Promise<PolicyActionState & { data?: { id: string; politica_operacional_id: string; cedente_fundo_id: string; versao: number; publicada_em: string | null; vigente_desde: string } }> {
+): Promise<PolicyActionState & { data?: { id: string; politica_operacional_id: string; fundo_id: string; versao: number; publicada_em: string | null; vigente_desde: string } }> {
   const context = await requireGestor()
   try {
     const supabase = context.supabase
@@ -278,7 +269,6 @@ export async function criarVersaoPolitica(
     const { data: created, error } = await supabase.from('politica_operacional_versoes').insert({
       politica_operacional_id: politicaId,
       fundo_id: policyData.fundo_id,
-      cedente_fundo_id: policyData.cedente_fundo_id ?? null,
       versao: version,
       status: 'rascunho',
       vigente_desde: input.vigente_desde || new Date().toISOString(),
@@ -289,11 +279,11 @@ export async function criarVersaoPolitica(
       regras: config.fluxo_operacional ? { fluxo_operacional: config.fluxo_operacional } : {},
       parametros: config,
       conteudo_hash: hash,
-    } as never).select('id, politica_operacional_id, fundo_id, cedente_fundo_id, versao, publicada_em, vigente_desde').single()
+    } as never).select('id, politica_operacional_id, fundo_id, versao, publicada_em, vigente_desde').single()
     if (error) return result(`Erro ao criar versao: ${error.message}`)
     if (!created) return result('Erro ao criar versao: registro nao retornado pelo banco.')
 
-    const createdVersion = created as { id: string; politica_operacional_id: string; cedente_fundo_id: string; versao: number; publicada_em: string | null; vigente_desde: string }
+    const createdVersion = created as { id: string; politica_operacional_id: string; fundo_id: string; versao: number; publicada_em: string | null; vigente_desde: string }
     const versionId = createdVersion.id
     if (normalized.length > 0) {
       const { error: requirementsError } = await supabase.from('politica_requisitos_documentais').insert(normalized.map((requirement) => ({
@@ -301,7 +291,6 @@ export async function criarVersaoPolitica(
         politica_operacional_versao_id: versionId,
         politica_operacional_id: politicaId,
         fundo_id: policyData.fundo_id,
-        cedente_fundo_id: policyData.cedente_fundo_id ?? null,
         momento_obrigatorio: requirement.momento_obrigatorio,
         categoria: requirement.categoria,
         bloqueia_fluxo: requirement.bloqueia_fluxo,
@@ -324,7 +313,7 @@ export async function criarVersaoPoliticaNoFundo(
   fundoId: string,
   politicaId: string,
   input: CriarVersaoPoliticaInput,
-): Promise<PolicyActionState & { data?: { id: string; politica_operacional_id: string; cedente_fundo_id: string; versao: number; publicada_em: string | null; vigente_desde: string } }> {
+): Promise<PolicyActionState & { data?: { id: string; politica_operacional_id: string; fundo_id: string; versao: number; publicada_em: string | null; vigente_desde: string } }> {
   try {
     const context = await requireGestor()
     await validarPoliticaDoFundo(context.supabase, fundoId, politicaId)
@@ -342,7 +331,7 @@ export async function publicarVersaoPolitica(versaoId: string): Promise<PolicyAc
     const { data: version, error: versionError } = await supabase.from('politica_operacional_versoes').select('*').eq('id', versaoId).maybeSingle()
     if (versionError) return result(`Erro ao consultar versao: ${versionError.message}`)
     if (!version) return result('Versao nao encontrada.')
-    const versionData = version as { id: string; politica_operacional_id: string; fundo_id?: string | null; cedente_fundo_id?: string | null; vigente_desde: string; publicada_em: string | null; versao: number }
+    const versionData = version as { id: string; politica_operacional_id: string; fundo_id?: string | null; vigente_desde: string; publicada_em: string | null; versao: number }
     if (versionData.publicada_em) return result('Esta versao ja foi publicada.')
     const policyContext = await loadPolicyContext(supabase, versionData.politica_operacional_id)
     if (versionData.fundo_id && policyContext.fundo_id !== versionData.fundo_id) return result('Versao de politica nao pertence ao fundo da politica.')
@@ -455,7 +444,6 @@ export async function duplicarPoliticaDoFundo(
       .from('politicas_operacionais')
       .insert({
         fundo_id: fundoId,
-        cedente_fundo_id: null,
         codigo: novoCodigo.trim(),
         nome: novoNome.trim(),
         descricao: (basePolicy as { descricao?: string | null }).descricao ?? null,

@@ -8,7 +8,7 @@ import type {
   PoliticaRequisitoDocumental,
 } from '@/types/database'
 import { requireCedenteAccess, type AppSupabaseClient } from '@/lib/auth/authorization'
-import { CedenteFundoError, assertFundoAtivo, resolverCedenteFundoAtivo } from '@/lib/fundos/cedente-fundo'
+import { CedenteFundoError, assertFundoAtivo, mensagemOperacionalSemPolitica, mensagemOperacionalSemVinculo, resolverCedenteFundoAtivo } from '@/lib/fundos/cedente-fundo'
 
 export interface PoliticaResolvida {
   cedenteFundo: CedenteFundo
@@ -167,36 +167,13 @@ async function carregarPoliticaResolvida(
 
     if (policyError) throw new Error(`Erro ao buscar politica operacional vinculada: ${policyError.message}`)
     politica = (policy as PoliticaOperacional | null) ?? null
-  } else if (assignmentError && !['PGRST205', '42P01', '42703'].includes(String((assignmentError as { code?: string }).code || ''))) {
+  } else if (assignmentError) {
     throw new Error(`Erro ao buscar politica operacional aplicavel: ${assignmentError.message}`)
-  }
-
-  const deveUsarFallbackLegado =
-    assignmentError && ['PGRST205', '42P01', '42703'].includes(String((assignmentError as { code?: string }).code || ''))
-
-  if (!politica && deveUsarFallbackLegado) {
-    const { data: policies, error: policyError } = await supabase
-      .from('politicas_operacionais')
-      .select('*')
-      .eq('cedente_fundo_id', cedenteFundo.id)
-      .eq('status', 'ativa')
-
-    if (policyError) throw new Error(`Erro ao buscar politica operacional: ${policyError.message}`)
-    if (!policies || policies.length !== 1) {
-      throw new CedenteFundoError(
-        assignmentError
-          ? 'Politica operacional pendente para este vinculo cedente-fundo.'
-          : 'Nao existe exatamente uma politica operacional ativa para o vinculo cedente-fundo.',
-        'POLITICA_CONTEXT_NOT_CONFIGURED',
-      )
-    }
-
-    politica = policies[0] as PoliticaOperacional
   }
 
   if (!politica) {
     throw new CedenteFundoError(
-      'Politica operacional pendente para este vinculo cedente-fundo.',
+      mensagemOperacionalSemPolitica(),
       'POLITICA_CONTEXT_NOT_CONFIGURED',
     )
   }
@@ -205,6 +182,8 @@ async function carregarPoliticaResolvida(
     .from('politica_operacional_versoes')
     .select('*')
     .eq('politica_operacional_id', politica.id)
+    .eq('fundo_id', fundo.id)
+    .eq('status', 'publicada')
     .not('publicada_em', 'is', null)
     .lte('vigente_desde', now)
     .or(`vigente_ate.is.null,vigente_ate.gt.${now}`)
@@ -214,7 +193,7 @@ async function carregarPoliticaResolvida(
   if (versionError) throw new Error(`Erro ao buscar versao da politica: ${versionError.message}`)
   if (!versions || versions.length !== 1) {
     throw new CedenteFundoError(
-      'Nao existe uma versao publicada e vigente para a politica operacional ativa.',
+      mensagemOperacionalSemPolitica(),
       'POLITICA_CONTEXT_NOT_CONFIGURED',
     )
   }
@@ -249,10 +228,10 @@ export async function resolverPoliticaAtiva(
   const context = await requireCedenteAccess(cedenteId, client)
   const resolved = await resolverCedenteFundoAtivo(cedenteId, context.supabase)
 
-  if (resolved.source !== 'bridge' || !resolved.cedenteFundo || !resolved.fundo) {
+  if (resolved.contextoStatus === 'sem_vinculo_fundo' || !resolved.cedenteFundo || !resolved.fundo) {
     throw new CedenteFundoError(
-      'O cedente precisa ter um vinculo cedente-fundo ativo para usar uma politica operacional.',
-      'POLITICA_CONTEXT_NOT_CONFIGURED',
+      mensagemOperacionalSemVinculo(),
+      'SEM_VINCULO_FUNDO',
     )
   }
 

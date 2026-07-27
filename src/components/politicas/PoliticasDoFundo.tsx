@@ -38,7 +38,7 @@ import {
 
 interface LinkRow { id: string; cedente_id: string; fundo_id: string; status: string; vigente_desde: string; vigente_ate?: string | null }
 interface CedenteRow { id: string; razao_social: string; cnpj: string }
-interface PolicyRow { id: string; fundo_id?: string | null; cedente_fundo_id?: string | null; codigo: string; nome: string; descricao: string | null; status: string; padrao?: boolean | null; created_at?: string | null; updated_at?: string | null }
+interface PolicyRow { id: string; fundo_id?: string | null; codigo: string; nome: string; descricao: string | null; status: string; padrao?: boolean | null; created_at?: string | null; updated_at?: string | null }
 interface VersionRow {
   id: string
   politica_operacional_id: string
@@ -169,7 +169,7 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
     const supabase = createClient()
     setLoading(true)
     const linkQuery = supabase.from('cedente_fundos').select('id, cedente_id, fundo_id, status, vigente_desde, vigente_ate').order('vigente_desde', { ascending: false })
-    const policyQuery = supabase.from('politicas_operacionais').select('id, fundo_id, cedente_fundo_id, codigo, nome, descricao, status, padrao, created_at, updated_at').order('created_at', { ascending: false })
+    const policyQuery = supabase.from('politicas_operacionais').select('id, fundo_id, codigo, nome, descricao, status, padrao, created_at, updated_at').order('created_at', { ascending: false })
     if (fundoId) {
       linkQuery.eq('fundo_id', fundoId)
       policyQuery.eq('fundo_id', fundoId)
@@ -184,7 +184,7 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
 
     const nextLinks = (linkResult.data || []) as LinkRow[]
     const linkIds = new Set(nextLinks.map((link) => link.id))
-    const nextPolicies = ((policyResult.data || []) as PolicyRow[]).filter((policy) => !fundoId || policy.fundo_id === fundoId || (policy.cedente_fundo_id && linkIds.has(policy.cedente_fundo_id)))
+    const nextPolicies = ((policyResult.data || []) as PolicyRow[]).filter((policy) => !fundoId || policy.fundo_id === fundoId)
     const policyIds = nextPolicies.map((policy) => policy.id)
 
     let versionResult: { data: unknown[] | null; error: { message?: string } | null } = { data: [], error: null }

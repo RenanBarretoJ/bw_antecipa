@@ -278,7 +278,6 @@ BEGIN
   SELECT po.id
   FROM public.politicas_operacionais po
   WHERE po.fundo_id = p_fundo_id
-     OR po.cedente_fundo_id IN (SELECT id FROM public.cedente_fundos WHERE fundo_id = p_fundo_id)
   ON CONFLICT DO NOTHING;
 
   INSERT INTO tmp_reset_politica_versoes(id)
@@ -421,8 +420,7 @@ BEGIN
         'politicas', (
           SELECT count(*)
           FROM public.politicas_operacionais po
-          JOIN public.cedente_fundos cf ON cf.id = po.cedente_fundo_id
-          WHERE cf.fundo_id = p_fundo_id
+          WHERE po.fundo_id = p_fundo_id
         ),
         'templates', (SELECT count(*) FROM public.templates_documentos WHERE fundo_id = p_fundo_id),
         'configuracoes_cnab', (SELECT count(*) FROM public.configuracoes_cnab WHERE fundo_id = p_fundo_id),
@@ -725,7 +723,6 @@ BEGIN
       SELECT count(*)
       FROM public.politicas_operacionais po
       WHERE po.fundo_id = p_fundo_id
-         OR po.cedente_fundo_id IN (SELECT id FROM public.cedente_fundos WHERE fundo_id = p_fundo_id)
     ),
     'templates_restantes', (SELECT count(*) FROM public.templates_documentos WHERE fundo_id = p_fundo_id),
     'configuracoes_cnab_restantes', (SELECT count(*) FROM public.configuracoes_cnab WHERE fundo_id = p_fundo_id),

@@ -9,7 +9,7 @@ import { registrarLog } from './auditoria'
 import { notificarGestores, notificarCedente } from './notificacao'
 import { buckets } from '@/lib/storage'
 import { uploadDocumentoSeRequerido } from '@/lib/documentos-v2/upload'
-import { CedenteFundoError, resolverCedenteFundoAtivo } from '@/lib/fundos/cedente-fundo'
+import { CedenteFundoError, mensagemOperacionalSemVinculo, resolverCedenteFundoAtivo } from '@/lib/fundos/cedente-fundo'
 import { decidirAcaoDuplicidadeNotaFiscal, mensagemDuplicidadeNotaFiscal } from '@/lib/notas-fiscais/upload-context'
 import { formatarDetalhesBloqueioEmitente, validarXmlNfeParaUploadCedente } from '@/lib/notas-fiscais/emitente-autorizado'
 import { obterFundoAtivoAutorizado } from '@/lib/actions/fundo-ativo'
@@ -92,8 +92,8 @@ async function resolverContextoUploadCedente(
       cedenteFundoId: resolved.cedenteFundo?.id,
       fundoId: resolved.cedenteFundo?.fundo_id ?? resolved.fundo?.id,
     }
-    if (resolved.source !== 'bridge' || !resolved.cedenteFundo || !resolved.fundo) {
-      return { error: 'Nenhum vinculo cedente-fundo ativo foi encontrado para este cedente.' }
+    if (resolved.contextoStatus === 'sem_vinculo_fundo' || !resolved.cedenteFundo || !resolved.fundo) {
+      return { error: mensagemOperacionalSemVinculo() }
     }
     if (resolved.cedenteFundo.status !== 'ativo') {
       return { error: 'O vinculo cedente-fundo deste cedente nao esta ativo.' }
@@ -114,6 +114,7 @@ async function resolverContextoUploadCedente(
       if (error.code === 'MULTIPLOS_VINCULOS_ATIVOS') {
         return { error: 'Ha mais de um vinculo ativo para este cedente; selecione o fundo antes de enviar NFs.' }
       }
+      if (error.code === 'SEM_VINCULO_FUNDO') return { error: mensagemOperacionalSemVinculo() }
       if (error.code === 'VINCULO_NOT_FOUND') return { error: error.message }
       if (error.code === 'FUNDO_NOT_FOUND') return { error: 'Fundo vinculado ao cedente nao encontrado.' }
       if (error.code === 'FUNDO_INATIVO') return { error: 'O fundo vinculado ao cedente esta inativo.' }

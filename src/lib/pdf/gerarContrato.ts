@@ -180,20 +180,19 @@ function gerarPathVersionadoDocumento({
 
 async function resolverFundoCedente(supabase: AdminSupabaseClient, ced: Record<string, unknown>): Promise<string> {
   const cedenteId = ced.id as string
-  const { data: linkAtivo, error } = await supabase
+  const { data: linksAtivos, error } = await supabase
     .from('cedente_fundos')
     .select('fundo_id')
     .eq('cedente_id', cedenteId)
     .eq('status', 'ativo')
     .order('vigente_desde', { ascending: false })
-    .limit(1)
-    .maybeSingle()
 
   if (error) throw new Error(`Erro ao resolver fundo do cedente: ${error.message}`)
-  const fundoBridge = (linkAtivo as { fundo_id?: string } | null)?.fundo_id
-  const fundoLegado = ced.fundo_id as string | null | undefined
-  const fundoId = fundoBridge || fundoLegado
-  if (!fundoId) throw new Error('Cedente sem fundo vinculado para resolver template juridico')
+  const rows = (linksAtivos || []) as Array<{ fundo_id?: string }>
+  if (rows.length === 0) throw new Error('Cedente sem fundo vinculado para resolver template juridico')
+  if (rows.length > 1) throw new Error('Cedente possui mais de um fundo ativo; informe o contexto operacional da operacao.')
+  const fundoId = rows[0]?.fundo_id
+  if (!fundoId) throw new Error('Vinculo cedente-fundo sem fundo informado.')
   return fundoId
 }
 
@@ -637,12 +636,12 @@ export async function gerarNotificacaoCessao(
 
   const { data: cedente } = await supabase
     .from('cedentes')
-    .select('id, razao_social, cnpj, fundo_id')
+    .select('id, razao_social, cnpj')
     .eq('id', op.cedente_id)
     .single()
 
   if (!cedente) throw new Error('Cedente da operacao nao encontrado')
-  const ced = cedente as { id: string; razao_social: string; cnpj: string; fundo_id: string | null }
+  const ced = cedente as { id: string; razao_social: string; cnpj: string }
 
   const dados = {
     cedente: {

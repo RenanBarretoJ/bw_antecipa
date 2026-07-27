@@ -1,8 +1,12 @@
 import type { CedenteFundo, Fundo } from '@/types/database'
+import { cookies } from 'next/headers'
 import { requireCedenteAccess, requireGestor, type AppSupabaseClient } from '@/lib/auth/authorization'
+import { requirePermissao } from '@/lib/auth/permissoes'
 import { registrarLog } from '@/lib/actions/auditoria'
+import { CEDENTE_FUNDO_ATIVO_COOKIE } from '@/lib/fundos/cedente-fundo-ativo'
 
-export type CedenteFundoResolutionSource = 'bridge' | 'legacy'
+export type CedenteFundoResolutionSource = 'cedente_fundos'
+export type StatusOnboardingCedente = 'aguardando_vinculo_fundo' | 'aguardando_politica' | 'apto_operar' | 'suspenso'
 
 export interface CedenteFundoResolution {
   cedenteId: string
@@ -10,10 +14,11 @@ export interface CedenteFundoResolution {
   fundo: Fundo | null
   source: CedenteFundoResolutionSource
   legacyFundoId: string | null
+  contextoStatus: 'ok' | 'sem_vinculo_fundo'
 }
 
 export interface CedenteFundoListItem extends CedenteFundoResolution {
-  status: CedenteFundo['status'] | 'legado'
+  status: CedenteFundo['status'] | 'sem_vinculo_fundo'
 }
 
 export class CedenteFundoError extends Error {
@@ -24,6 +29,7 @@ export class CedenteFundoError extends Error {
     | 'VINCULO_NOT_FOUND'
     | 'VINCULO_DUPLICADO'
     | 'MULTIPLOS_VINCULOS_ATIVOS'
+    | 'SEM_VINCULO_FUNDO'
     | 'POLITICA_CONTEXT_NOT_CONFIGURED'
 
   constructor(message: string, code: CedenteFundoError['code']) {
@@ -31,6 +37,14 @@ export class CedenteFundoError extends Error {
     this.name = 'CedenteFundoError'
     this.code = code
   }
+}
+
+export function mensagemOperacionalSemVinculo(): string {
+  return 'O cedente ainda nao foi vinculado a um fundo.'
+}
+
+export function mensagemOperacionalSemPolitica(): string {
+  return 'O vinculo com o fundo ainda nao possui politica operacional definida.'
 }
 
 async function loadFundo(client: AppSupabaseClient, fundoId: string): Promise<Fundo> {
@@ -47,21 +61,110 @@ async function loadFundo(client: AppSupabaseClient, fundoId: string): Promise<Fu
 
 export function assertFundoAtivo(fundo: Fundo): void {
   if (fundo.ativo !== true) {
-    throw new CedenteFundoError('O fundo selecionado está inativo.', 'FUNDO_INATIVO')
+    throw new CedenteFundoError('O fundo selecionado esta inativo.', 'FUNDO_INATIVO')
   }
 }
 
 export function selecionarVinculoAtivo(links: CedenteFundo[]): CedenteFundo | null {
   if (links.length > 1) {
     throw new CedenteFundoError(
-      'Mais de um vinculo ativo para este cedente; a politica precisa indicar o contexto do fundo.',
+      'Mais de um vinculo ativo para este cedente; selecione explicitamente o fundo operacional.',
       'MULTIPLOS_VINCULOS_ATIVOS',
     )
   }
   return links[0] || null
 }
 
-/** Resolve primeiro o bridge e só usa fundo_id como compatibilidade legada. */
+async function obterCedenteFundoAtivoSelecionado(): Promise<string | null> {
+  try {
+    const cookieStore = await cookies()
+    return cookieStore.get(CEDENTE_FUNDO_ATIVO_COOKIE)?.value || null
+  } catch {
+    return null
+  }
+}
+
+async function possuiPoliticaPublicadaVigente(client: AppSupabaseClient, cedenteFundoId: string): Promise<boolean> {
+  const now = new Date().toISOString()
+  const { data: assignments, error: assignmentError } = await client
+    .from('cedente_fundo_politicas')
+    .select('politica_operacional_id')
+    .eq('cedente_fundo_id', cedenteFundoId)
+    .eq('status', 'ativa')
+    .lte('vigente_desde', now)
+    .or(`vigente_ate.is.null,vigente_ate.gt.${now}`)
+    .order('vigente_desde', { ascending: false })
+    .limit(1)
+
+  if (assignmentError) {
+    throw new CedenteFundoError(`Erro ao consultar politica do vinculo: ${assignmentError.message}`, 'POLITICA_CONTEXT_NOT_CONFIGURED')
+  }
+
+  const politicaId = (assignments?.[0] as { politica_operacional_id?: string } | undefined)?.politica_operacional_id
+  if (!politicaId) return false
+
+  const { data: versions, error: versionError } = await client
+    .from('politica_operacional_versoes')
+    .select('id')
+    .eq('politica_operacional_id', politicaId)
+    .eq('status', 'publicada')
+    .not('publicada_em', 'is', null)
+    .lte('vigente_desde', now)
+    .or(`vigente_ate.is.null,vigente_ate.gt.${now}`)
+    .limit(1)
+
+  if (versionError) {
+    throw new CedenteFundoError(`Erro ao consultar versao publicada da politica: ${versionError.message}`, 'POLITICA_CONTEXT_NOT_CONFIGURED')
+  }
+  return Boolean(versions?.length)
+}
+
+export async function obterStatusCedenteFundo(
+  cedenteFundoId: string,
+  client?: AppSupabaseClient,
+): Promise<StatusOnboardingCedente> {
+  const context = await requireGestor(client)
+  const { data: link, error } = await context.supabase
+    .from('cedente_fundos')
+    .select('*')
+    .eq('id', cedenteFundoId)
+    .maybeSingle()
+
+  if (error) throw new CedenteFundoError(`Erro ao consultar vinculo cedente-fundo: ${error.message}`, 'VINCULO_NOT_FOUND')
+  if (!link) throw new CedenteFundoError('Vinculo cedente-fundo nao encontrado.', 'VINCULO_NOT_FOUND')
+
+  const vinculo = link as CedenteFundo
+  if (vinculo.status === 'suspenso') return 'suspenso'
+  if (vinculo.status !== 'ativo') return 'aguardando_vinculo_fundo'
+
+  return await possuiPoliticaPublicadaVigente(context.supabase, cedenteFundoId) ? 'apto_operar' : 'aguardando_politica'
+}
+
+export async function obterStatusOnboardingCedente(
+  cedenteId: string,
+  client?: AppSupabaseClient,
+): Promise<StatusOnboardingCedente> {
+  const context = await requireGestor(client)
+  const { data: links, error } = await context.supabase
+    .from('cedente_fundos')
+    .select('*')
+    .eq('cedente_id', cedenteId)
+    .order('vigente_desde', { ascending: false })
+
+  if (error) throw new CedenteFundoError(`Erro ao consultar vinculos do cedente: ${error.message}`, 'VINCULO_NOT_FOUND')
+
+  const rows = (links || []) as CedenteFundo[]
+  const activeLinks = rows.filter((link) => link.status === 'ativo')
+  if (activeLinks.length === 0) return rows.some((link) => link.status === 'suspenso') ? 'suspenso' : 'aguardando_vinculo_fundo'
+
+  for (const link of activeLinks) {
+    if (await possuiPoliticaPublicadaVigente(context.supabase, link.id)) return 'apto_operar'
+  }
+
+  return 'aguardando_politica'
+}
+
+/** Resolve exclusivamente por cedente_fundos. cedentes.fundo_id nao participa do fluxo operacional. */
 export async function resolverCedenteFundoAtivo(
   cedenteId: string,
   client?: AppSupabaseClient,
@@ -76,41 +179,51 @@ export async function resolverCedenteFundoAtivo(
     .eq('status', 'ativo')
     .order('vigente_desde', { ascending: false })
 
-  if (error) throw new CedenteFundoError(`Erro ao resolver vínculo cedente-fundo: ${error.message}`, 'VINCULO_NOT_FOUND')
+  if (error) throw new CedenteFundoError(`Erro ao resolver vinculo cedente-fundo: ${error.message}`, 'VINCULO_NOT_FOUND')
 
   const activeLinks = (links || []) as CedenteFundo[]
   if (activeLinks.length > 1) {
-    throw new CedenteFundoError(
-      'Há mais de um vínculo ativo para este cedente; a política precisa indicar o contexto do fundo.',
-      'MULTIPLOS_VINCULOS_ATIVOS',
-    )
-  }
-
-  if (activeLinks.length === 1) {
-    const link = activeLinks[0]
-    const fundo = await loadFundo(supabase, link.fundo_id)
+    const selectedCedenteFundoId = await obterCedenteFundoAtivoSelecionado()
+    const selectedLink = activeLinks.find((item) => item.id === selectedCedenteFundoId)
+    if (!selectedLink) {
+      throw new CedenteFundoError(
+        'Ha mais de um vinculo ativo para este cedente; selecione explicitamente o fundo operacional.',
+        'MULTIPLOS_VINCULOS_ATIVOS',
+      )
+    }
+    const fundo = await loadFundo(supabase, selectedLink.fundo_id)
     assertFundoAtivo(fundo)
     return {
       cedenteId,
-      cedenteFundo: link,
+      cedenteFundo: selectedLink,
       fundo,
-      source: 'bridge',
-      legacyFundoId: context.cedente.fundo_id,
+      source: 'cedente_fundos',
+      legacyFundoId: null,
+      contextoStatus: 'ok',
     }
   }
 
-  if (!context.cedente.fundo_id) {
-    return { cedenteId, cedenteFundo: null, fundo: null, source: 'legacy', legacyFundoId: null }
+  const link = selecionarVinculoAtivo(activeLinks)
+  if (!link) {
+    return {
+      cedenteId,
+      cedenteFundo: null,
+      fundo: null,
+      source: 'cedente_fundos',
+      legacyFundoId: null,
+      contextoStatus: 'sem_vinculo_fundo',
+    }
   }
 
-  const fundo = await loadFundo(supabase, context.cedente.fundo_id)
+  const fundo = await loadFundo(supabase, link.fundo_id)
   assertFundoAtivo(fundo)
   return {
     cedenteId,
-    cedenteFundo: null,
+    cedenteFundo: link,
     fundo,
-    source: 'legacy',
-    legacyFundoId: context.cedente.fundo_id,
+    source: 'cedente_fundos',
+    legacyFundoId: null,
+    contextoStatus: 'ok',
   }
 }
 
@@ -126,43 +239,33 @@ export async function listarFundosDoCedente(
     .eq('cedente_id', cedenteId)
     .order('vigente_desde', { ascending: false })
 
-  if (error) throw new CedenteFundoError(`Erro ao listar vínculos: ${error.message}`, 'VINCULO_NOT_FOUND')
+  if (error) throw new CedenteFundoError(`Erro ao listar vinculos: ${error.message}`, 'VINCULO_NOT_FOUND')
 
   const rows = (links || []) as CedenteFundo[]
   const fundos = new Map<string, Fundo>()
   for (const link of rows) fundos.set(link.fundo_id, await loadFundo(supabase, link.fundo_id))
 
-  const result: CedenteFundoListItem[] = rows.map((link) => ({
+  return rows.map((link) => ({
     cedenteId,
     cedenteFundo: link,
     fundo: fundos.get(link.fundo_id) || null,
-    source: 'bridge',
-    legacyFundoId: context.cedente.fundo_id,
+    source: 'cedente_fundos',
+    legacyFundoId: null,
+    contextoStatus: 'ok',
     status: link.status,
   }))
-
-  if (result.length === 0 && context.cedente.fundo_id) {
-    const fundo = await loadFundo(supabase, context.cedente.fundo_id)
-    result.push({
-      cedenteId,
-      cedenteFundo: null,
-      fundo,
-      source: 'legacy',
-      legacyFundoId: context.cedente.fundo_id,
-      status: 'legado',
-    })
-  }
-
-  return result
 }
 
 export async function vincularCedenteFundo(
   cedenteId: string,
   fundoId: string,
   client?: AppSupabaseClient,
+  options?: { motivo?: string },
 ): Promise<CedenteFundo> {
   const context = await requireGestor(client)
   const supabase = context.supabase
+  await requireCedenteAccess(cedenteId, supabase)
+  await requirePermissao(context, 'cedentes.vincular_fundo', { fundoId, client: supabase })
   const fundo = await loadFundo(supabase, fundoId)
   assertFundoAtivo(fundo)
 
@@ -184,30 +287,26 @@ export async function vincularCedenteFundo(
       fundo_id: fundoId,
       status: 'ativo',
       vigente_desde: now,
+      observacoes: options?.motivo?.trim() || null,
     })
     .select('*')
     .single()
 
   if (error || !link) {
-    if (error?.code === '23505') throw new CedenteFundoError('Este vínculo ativo já existe.', 'VINCULO_DUPLICADO')
-    throw new CedenteFundoError(`Erro ao criar vínculo: ${error?.message || 'registro não retornado'}`, 'VINCULO_NOT_FOUND')
-  }
-
-  const { error: legacyError } = await supabase
-    .from('cedentes')
-    .update({ fundo_id: fundoId })
-    .eq('id', cedenteId)
-
-  if (legacyError) {
-    await supabase.from('cedente_fundos').delete().eq('id', link.id)
-    throw new CedenteFundoError(`Vínculo criado, mas não foi possível sincronizar o campo legado: ${legacyError.message}`, 'VINCULO_NOT_FOUND')
+    if (error?.code === '23505') throw new CedenteFundoError('Este vinculo ativo ja existe.', 'VINCULO_DUPLICADO')
+    throw new CedenteFundoError(`Erro ao criar vinculo: ${error?.message || 'registro nao retornado'}`, 'VINCULO_NOT_FOUND')
   }
 
   await registrarLog({
     tipo_evento: 'CEDENTE_FUNDO_VINCULADO',
     entidade_tipo: 'cedente_fundos',
     entidade_id: link.id,
-    dados_depois: { cedente_id: cedenteId, fundo_id: fundoId, source: 'bridge' },
+    dados_depois: {
+      cedente_id: cedenteId,
+      fundo_id: fundoId,
+      source: 'cedente_fundos',
+      motivo: options?.motivo?.trim() || null,
+    },
   })
 
   return link as CedenteFundo
@@ -232,6 +331,7 @@ export async function suspenderCedenteFundo(
     if (activeLinks.length > 1) throw new CedenteFundoError('Informe o fundo para suspender um vinculo quando houver mais de um ativo.', 'MULTIPLOS_VINCULOS_ATIVOS')
     targetFundoId = (activeLinks[0] as { fundo_id: string }).fundo_id
   }
+  await requirePermissao(context, 'cedentes.vincular_fundo', { fundoId: targetFundoId, client: supabase })
 
   const { data, error } = await supabase
     .from('cedente_fundos')
@@ -241,16 +341,8 @@ export async function suspenderCedenteFundo(
     .eq('fundo_id', targetFundoId)
     .select('id, fundo_id')
 
-  if (error) throw new CedenteFundoError(`Erro ao suspender vínculo: ${error.message}`, 'VINCULO_NOT_FOUND')
-  if (!data || data.length === 0) throw new CedenteFundoError('Vínculo ativo não encontrado.', 'VINCULO_NOT_FOUND')
-
-  const { error: legacyError } = await supabase
-    .from('cedentes')
-    .update({ fundo_id: null })
-    .eq('id', cedenteId)
-    .eq('fundo_id', targetFundoId)
-
-  if (legacyError) throw new CedenteFundoError(`Vínculo suspenso, mas não foi possível sincronizar o campo legado: ${legacyError.message}`, 'VINCULO_NOT_FOUND')
+  if (error) throw new CedenteFundoError(`Erro ao suspender vinculo: ${error.message}`, 'VINCULO_NOT_FOUND')
+  if (!data || data.length === 0) throw new CedenteFundoError('Vinculo ativo nao encontrado.', 'VINCULO_NOT_FOUND')
 
   await registrarLog({
     tipo_evento: 'CEDENTE_FUNDO_SUSPENSO',

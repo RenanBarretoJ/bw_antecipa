@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CedenteFundoError, assertFundoAtivo, selecionarVinculoAtivo } from './cedente-fundo'
+import { CedenteFundoError, assertFundoAtivo, mensagemOperacionalSemPolitica, mensagemOperacionalSemVinculo, selecionarVinculoAtivo } from './cedente-fundo'
 import type { CedenteFundo, Fundo } from '@/types/database'
 
 const link = (id: string, status: CedenteFundo['status'] = 'ativo'): CedenteFundo => ({
@@ -25,5 +25,10 @@ describe('vinculo cedente-fundo', () => {
   it('distingue fundo ativo de fundo inativo', () => {
     expect(() => assertFundoAtivo(fund(true))).not.toThrow()
     expect(() => assertFundoAtivo(fund(false))).toThrow(/inativo/i)
+  })
+
+  it('centraliza mensagens operacionais de onboarding', () => {
+    expect(mensagemOperacionalSemVinculo()).toBe('O cedente ainda nao foi vinculado a um fundo.')
+    expect(mensagemOperacionalSemPolitica()).toBe('O vinculo com o fundo ainda nao possui politica operacional definida.')
   })
 })
