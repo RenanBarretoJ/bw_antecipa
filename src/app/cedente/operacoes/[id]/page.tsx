@@ -27,6 +27,7 @@ const timelineClasses = {
   atual: 'border-primary/40 bg-primary/10 text-primary',
   pendente: 'border-border bg-muted/40 text-muted-foreground',
   bloqueado: 'border-destructive/35 bg-destructive/10 text-destructive',
+  rejeitado: 'border-destructive/35 bg-destructive/10 text-destructive',
 }
 
 function formatDateOrDash(value: string | null) {
@@ -131,7 +132,7 @@ export default async function CedenteOperacaoDetalhePage({ params }: { params: P
           </CardContent>
         </Card>
 
-        <Card>
+        {detalhe.logistica.habilitada && <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2"><Truck size={18} /> Status logístico</CardTitle>
           </CardHeader>
@@ -152,7 +153,7 @@ export default async function CedenteOperacaoDetalhePage({ params }: { params: P
               <p className="font-medium">{detalhe.logistica.prazoMaisProximo ? `${formatDate(detalhe.logistica.prazoMaisProximo)} · ${prazoTexto(detalhe.logistica.diasPrazoMaisProximo)}` : 'Sem prazo aberto'}</p>
             </div>
           </CardContent>
-        </Card>
+        </Card>}
       </div>
 
       <Card>

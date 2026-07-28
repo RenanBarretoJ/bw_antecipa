@@ -35,6 +35,10 @@ export async function carregarDetalheOperacaoCedente(operacaoId: string): Promis
       termo_assinado_url,
       comprovante_pagamento_url,
       quitacao_assinada_url,
+      politica_snapshot,
+      conta_escrow_id,
+      remessa_gerado_em,
+      remessa_enviado_em,
       cedentes(razao_social, cnpj)
     `)
     .eq('id', operacaoId)

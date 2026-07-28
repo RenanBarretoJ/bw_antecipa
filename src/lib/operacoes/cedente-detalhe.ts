@@ -1,3 +1,10 @@
+import {
+  construirEtapasOperacao,
+  construirPendenciasOperacao,
+  obterCapacidadesOperacao,
+  type DocumentoOperacaoParaPolitica,
+} from '@/lib/operacoes/politica-operacao'
+
 export type OperacaoCedenteStatus =
   | 'solicitada'
   | 'em_analise'
@@ -41,6 +48,10 @@ export interface OperacaoCedenteRaw {
   termo_assinado_url: string | null
   comprovante_pagamento_url: string | null
   quitacao_assinada_url: string | null
+  politica_snapshot?: unknown | null
+  conta_escrow_id?: string | null
+  remessa_gerado_em?: string | null
+  remessa_enviado_em?: string | null
   cedentes: { razao_social: string; cnpj: string } | null
 }
 
@@ -112,7 +123,7 @@ export interface OperacaoCedenteDetalhe {
     statusLabel: string
     href: string
   }>
-  timeline: Array<{ key: string; label: string; status: 'concluido' | 'atual' | 'pendente' | 'bloqueado'; date: string | null }>
+  timeline: Array<{ key: string; label: string; status: 'concluido' | 'atual' | 'pendente' | 'bloqueado' | 'rejeitado'; date: string | null }>
   pendenciasCedente: Array<{
     id: string
     descricao: string
@@ -225,23 +236,25 @@ export function montarDetalheOperacaoCedente({
   const desembolsada = ['em_andamento', 'liquidada', 'inadimplente'].includes(operacao.status)
   const aprovada = !!operacao.aprovado_em || ['aprovada', 'em_andamento', 'liquidada', 'inadimplente'].includes(operacao.status)
   const documentacaoValidada = notasFiscais.length > 0 && notasFiscais.every((nf) => ['aprovada', 'em_antecipacao', 'aceita', 'liquidada'].includes(nf.status))
-  const pendenciasCedente = requisitos
-    .filter((requisito) => requisito.responsavel_upload_snapshot === 'cedente')
-    .filter((requisito) => ['pendente', 'vencido'].includes(requisito.status))
+  const documentosPolitica = requisitos as DocumentoOperacaoParaPolitica[]
+  const capacidades = obterCapacidadesOperacao(operacao, { documentos: documentosPolitica, logistica: entregas })
+  const pendenciasAplicaveis = construirPendenciasOperacao({ capacidades, documentos: documentosPolitica })
+  const pendenciasCedente = pendenciasAplicaveis
     .map((requisito) => {
       const nf = requisito.nota_fiscal_id ? nfById.get(requisito.nota_fiscal_id) : requisito.nota_fiscal_entrega_id ? nfById.get(entregaById.get(requisito.nota_fiscal_entrega_id)?.nota_fiscal_id || '') : null
-      const prazo = requisito.prazo_limite
+      const prazo = requisito.prazo_limite || null
       const situacao = calcularSituacaoPrazo(prazo, today)
-      const tipo = tipoDocumentoLabels[requisito.tipo_documento_codigo_snapshot] || requisito.tipo_documento_codigo_snapshot
+      const tipoCodigo = requisito.tipo_documento_codigo_snapshot || requisito.codigo || 'documento'
+      const tipo = tipoDocumentoLabels[tipoCodigo] || tipoCodigo
       return {
-        id: requisito.id,
+        id: requisito.id || `${tipoCodigo}-${requisito.nota_fiscal_id || requisito.nota_fiscal_entrega_id || 'operacao'}`,
         descricao: `${tipo}${requisito.obrigatorio ? ' obrigatório' : ' opcional'} pendente`,
-        notaFiscalId: nf?.id || requisito.nota_fiscal_id,
+        notaFiscalId: nf?.id || requisito.nota_fiscal_id || null,
         notaFiscalNumero: nf?.numero_nf || null,
-        prazo,
+        prazo: prazo || null,
         situacaoPrazo: situacao.situacaoPrazo,
         dias: situacao.dias,
-        status: requisito.status,
+        status: requisito.status || 'pendente',
         acaoHref: nf?.id ? `/cedente/notas-fiscais/${nf.id}` : null,
       }
     })
@@ -259,7 +272,7 @@ export function montarDetalheOperacaoCedente({
             ? 'Em trânsito'
             : 'Acompanhamento iniciado'
 
-  return {
+  const detalhe = {
     id: operacao.id,
     codigoCurto: operacao.id.slice(0, 8),
     status: operacao.status,
@@ -331,6 +344,23 @@ export function montarDetalheOperacaoCedente({
       ...(operacao.comprovante_pagamento_url ? [{ key: 'comprovante_pagamento' as const, label: 'Comprovante de pagamento', tipoDocumento: 'comprovante_pagamento' }] : []),
       ...(operacao.quitacao_assinada_url ? [{ key: 'quitacao_assinada' as const, label: 'Termo de quitação assinado', tipoDocumento: 'quitacao_assinada' }] : []),
     ],
+  }
+
+  return {
+    ...detalhe,
+    timeline: construirEtapasOperacao({ operacao, capacidades, documentos: documentosPolitica, logistica: entregas }).map((step) => ({
+      key: step.id,
+      label: step.titulo,
+      status: step.status === 'rejeitada' ? 'rejeitado' as const : step.status === 'concluida' ? 'concluido' as const : step.status === 'bloqueada' ? 'bloqueado' as const : step.status,
+      date: step.data,
+    })),
+    logistica: {
+      ...detalhe.logistica,
+      habilitada: capacidades.usaAcompanhamentoLogistico,
+      prazoMaisProximo: capacidades.usaAcompanhamentoLogistico ? detalhe.logistica.prazoMaisProximo : null,
+      diasPrazoMaisProximo: capacidades.usaAcompanhamentoLogistico ? detalhe.logistica.diasPrazoMaisProximo : null,
+      notas: capacidades.usaAcompanhamentoLogistico ? detalhe.logistica.notas : [],
+    },
   }
 }
 

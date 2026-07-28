@@ -41,6 +41,8 @@ import {
 } from '@/components/operacoes/OperacaoNotaFiscalCard'
 import { useFundoAtivo } from '@/components/fundos/fundo-ativo-provider'
 import { HistoricoTimelineCard } from '@/components/historico/HistoricoTimelineCard'
+import { obterCapacidadesOperacao, type CapabilitiesOperacao, type DocumentoOperacaoParaPolitica } from '@/lib/operacoes/politica-operacao'
+import { AndamentoOperacaoCard } from '@/components/operacoes/AndamentoOperacaoCard'
 
 interface Testemunha {
   id: string
@@ -76,6 +78,7 @@ interface OperacaoDetalhe {
   remessa_gerado_em: string | null
   remessa_enviado_em: string | null
   remessa_fromtis_id: string | null
+  politica_snapshot: unknown | null
   cedentes: {
     razao_social: string
     cnpj: string
@@ -124,6 +127,19 @@ interface LogisticaEntrega {
   notas_fiscais: { numero_nf: string; valor_bruto: number } | null
   canhotos: LogisticaDocumento[]
   cte_notas_fiscais: LogisticaCteLink[]
+}
+
+interface RequisitoOperacao {
+  id: string
+  tipo_documento_codigo_snapshot: string | null
+  escopo_snapshot: string | null
+  nota_fiscal_id: string | null
+  nota_fiscal_entrega_id: string | null
+  operacao_id: string | null
+  status: string | null
+  obrigatorio: boolean | null
+  prazo_limite: string | null
+  responsavel_upload_snapshot: string | null
 }
 
 type BadgeVariant = 'default' | 'secondary' | 'destructive' | 'outline' | 'ghost' | 'link'
@@ -324,12 +340,20 @@ function DocumentoAnaliseActions({
 
 function AcompanhamentoLogisticoCard({
   entregas,
+  habilitada,
+  exigeCteXml,
+  exigeCanhoto,
+  exigeComprovanteEntrega,
   onReload,
   setMessage,
   setMessageType,
 }: {
   entregas: LogisticaEntrega[]
-  onReload: () => Promise<void>
+  habilitada: boolean
+  exigeCteXml: boolean
+  exigeCanhoto: boolean
+  exigeComprovanteEntrega: boolean
+  onReload: () => Promise<void | LogisticaEntrega[]>
   setMessage: (message: string) => void
   setMessageType: (type: 'success' | 'error') => void
 }) {
@@ -342,7 +366,7 @@ function AcompanhamentoLogisticoCard({
     if (result?.success) await onReload()
   }
 
-  if (entregas.length === 0) return null
+  if (!habilitada) return null
 
   return (
     <Card>
@@ -353,6 +377,11 @@ function AcompanhamentoLogisticoCard({
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-0 space-y-3">
+        {entregas.length === 0 && (
+          <p className="rounded-lg border border-border bg-muted/20 p-3 text-sm text-muted-foreground">
+            O acompanhamento logístico será iniciado após o desembolso.
+          </p>
+        )}
         {entregas.map((entrega) => {
           const status = entregaStatusConfig[entrega.status_entrega] || entregaStatusConfig.em_transito
           const ctes = entrega.cte_notas_fiscais.map((link) => link.ctes).filter(Boolean) as LogisticaDocumento[]
@@ -362,7 +391,10 @@ function AcompanhamentoLogisticoCard({
                 <div>
                   <p className="font-semibold">NF {entrega.notas_fiscais?.numero_nf || entrega.nota_fiscal_id.slice(0, 8)}</p>
                   <p className="text-xs text-muted-foreground">
-                    CT-e ate {entrega.data_limite_cte ? formatDate(entrega.data_limite_cte) : 'sem prazo'} · Canhoto ate {entrega.data_limite_canhoto ? formatDate(entrega.data_limite_canhoto) : 'sem prazo'}
+                    {[
+                      exigeCteXml ? `CT-e até ${entrega.data_limite_cte ? formatDate(entrega.data_limite_cte) : 'sem prazo'}` : null,
+                      (exigeCanhoto || exigeComprovanteEntrega) ? `Comprovante até ${entrega.data_limite_canhoto ? formatDate(entrega.data_limite_canhoto) : 'sem prazo'}` : null,
+                    ].filter(Boolean).join(' · ') || 'Sem prazo documental configurado'}
                   </p>
                   {entrega.motivo_pendencia && <p className="text-xs text-destructive mt-1">{entrega.motivo_pendencia}</p>}
                 </div>
@@ -375,7 +407,7 @@ function AcompanhamentoLogisticoCard({
               </div>
 
               <div className="grid gap-3 md:grid-cols-2">
-                <div className="rounded-lg bg-background/60 border p-3">
+                {exigeCteXml && <div className="rounded-lg bg-background/60 border p-3">
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">CT-e</p>
                   {ctes.length === 0 ? (
                     <p className="text-sm text-muted-foreground">Nenhum CT-e enviado.</p>
@@ -386,12 +418,12 @@ function AcompanhamentoLogisticoCard({
                         <Badge variant={cte.status === 'rejeitado' ? 'destructive' : 'secondary'}>{cte.status}</Badge>
                       </div>
                       {cte.motivo_rejeicao && <p className="text-xs text-destructive">{cte.motivo_rejeicao}</p>}
-                      <DocumentoAnaliseActions tipo="cte" documento={cte} onReload={onReload} setMessage={setMessage} setMessageType={setMessageType} />
+                      <DocumentoAnaliseActions tipo="cte" documento={cte} onReload={async () => { await onReload() }} setMessage={setMessage} setMessageType={setMessageType} />
                     </div>
                   ))}
-                </div>
+                </div>}
 
-                <div className="rounded-lg bg-background/60 border p-3">
+                {(exigeCanhoto || exigeComprovanteEntrega) && <div className="rounded-lg bg-background/60 border p-3">
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Canhoto</p>
                   {entrega.canhotos.length === 0 ? (
                     <p className="text-sm text-muted-foreground">Nenhum canhoto enviado.</p>
@@ -402,10 +434,10 @@ function AcompanhamentoLogisticoCard({
                         <Badge variant={canhoto.status === 'rejeitado' ? 'destructive' : 'secondary'}>{canhoto.status}</Badge>
                       </div>
                       {canhoto.motivo_rejeicao && <p className="text-xs text-destructive">{canhoto.motivo_rejeicao}</p>}
-                      <DocumentoAnaliseActions tipo="canhoto" documento={canhoto} onReload={onReload} setMessage={setMessage} setMessageType={setMessageType} />
+                      <DocumentoAnaliseActions tipo="canhoto" documento={canhoto} onReload={async () => { await onReload() }} setMessage={setMessage} setMessageType={setMessageType} />
                     </div>
                   ))}
-                </div>
+                </div>}
               </div>
             </div>
           )
@@ -478,6 +510,7 @@ export default function OperacaoDetalheGestorPage() {
   const [op, setOp] = useState<OperacaoDetalhe | null>(null)
   const [nfs, setNfs] = useState<NfDaOperacao[]>([])
   const [entregas, setEntregas] = useState<LogisticaEntrega[]>([])
+  const [requisitos, setRequisitos] = useState<RequisitoOperacao[]>([])
   const [taxasConfig, setTaxasConfig] = useState<TaxaConfig[]>([])
   const [loading, setLoading] = useState(true)
   const [processing, setProcessing] = useState(false)
@@ -520,9 +553,15 @@ export default function OperacaoDetalheGestorPage() {
   const [desembolsando, setDesembolsando] = useState(false)
   const [nfSort, setNfSort] = useState<NotaFiscalSort>('vencimento')
 
+  const capacidades = useMemo<CapabilitiesOperacao>(() => obterCapacidadesOperacao(op || {}, {
+    documentos: requisitos as DocumentoOperacaoParaPolitica[],
+    logistica: entregas,
+  }), [op, requisitos, entregas])
+
   const carregarLogistica = useCallback(async () => {
     const data = await carregarResumoEntregaPorOperacao(opId)
     setEntregas(data as unknown as LogisticaEntrega[])
+    return data as unknown as LogisticaEntrega[]
   }, [opId])
 
   useEffect(() => {
@@ -590,8 +629,8 @@ export default function OperacaoDetalheGestorPage() {
           .select('nota_fiscal_id')
           .eq('operacao_id', opId)
 
+        const nfIds = (opNfs || []).map((n) => (n as { nota_fiscal_id: string }).nota_fiscal_id)
         if (opNfs) {
-          const nfIds = (opNfs as Array<{ nota_fiscal_id: string }>).map((n) => n.nota_fiscal_id)
           const { data: nfsData } = await supabase
             .from('notas_fiscais')
             .select('id, numero_nf, cnpj_destinatario, razao_social_destinatario, valor_bruto, valor_liquido, valor_antecipado, data_vencimento, status')
@@ -601,6 +640,24 @@ export default function OperacaoDetalheGestorPage() {
           setNfs((nfsData || []) as NfDaOperacao[])
         }
 
+        const requisitoQueries = [
+          supabase
+            .from('documento_requisito_instancias')
+            .select('id, tipo_documento_codigo_snapshot, escopo_snapshot, nota_fiscal_id, nota_fiscal_entrega_id, operacao_id, status, obrigatorio, prazo_limite, responsavel_upload_snapshot')
+            .eq('operacao_id', opId),
+        ]
+        if (nfIds.length > 0) {
+          requisitoQueries.push(
+            supabase
+              .from('documento_requisito_instancias')
+              .select('id, tipo_documento_codigo_snapshot, escopo_snapshot, nota_fiscal_id, nota_fiscal_entrega_id, operacao_id, status, obrigatorio, prazo_limite, responsavel_upload_snapshot')
+              .in('nota_fiscal_id', nfIds),
+          )
+        }
+        const requisitoResults = await Promise.all(requisitoQueries)
+        const requisitoRows = requisitoResults.flatMap((result) => (result.data || []) as unknown as RequisitoOperacao[])
+        setRequisitos(Array.from(new Map(requisitoRows.map((item) => [item.id, item])).values()))
+
         const { data: taxas } = await supabase
           .from('taxas_cedente')
           .select('prazo_min, prazo_max, taxa_percentual')
@@ -608,7 +665,15 @@ export default function OperacaoDetalheGestorPage() {
           .order('prazo_min', { ascending: true })
 
         setTaxasConfig((taxas || []) as TaxaConfig[])
-        await carregarLogistica()
+        const loadedEntregas = await carregarLogistica()
+        const entregaIds = loadedEntregas.map((entrega) => entrega.id)
+        if (entregaIds.length > 0) {
+          const { data: entregaRequirements } = await supabase
+            .from('documento_requisito_instancias')
+            .select('id, tipo_documento_codigo_snapshot, escopo_snapshot, nota_fiscal_id, nota_fiscal_entrega_id, operacao_id, status, obrigatorio, prazo_limite, responsavel_upload_snapshot')
+            .in('nota_fiscal_entrega_id', entregaIds)
+          setRequisitos((current) => Array.from(new Map([...current, ...((entregaRequirements || []) as unknown as RequisitoOperacao[])].map((item) => [item.id, item])).values()))
+        }
       }
 
       setLoading(false)
@@ -1066,9 +1131,20 @@ export default function OperacaoDetalheGestorPage() {
 
           <AcompanhamentoLogisticoCard
             entregas={entregas}
+            habilitada={capacidades.usaAcompanhamentoLogistico}
+            exigeCteXml={capacidades.exigeCteXml}
+            exigeCanhoto={capacidades.exigeCanhoto}
+            exigeComprovanteEntrega={capacidades.exigeComprovanteEntrega}
             onReload={carregarLogistica}
             setMessage={setMessage}
             setMessageType={setMessageType}
+          />
+          <AndamentoOperacaoCard
+            operacao={op}
+            capacidades={capacidades}
+            documentos={requisitos as DocumentoOperacaoParaPolitica[]}
+            logistica={entregas}
+            compact
           />
         </div>
 
