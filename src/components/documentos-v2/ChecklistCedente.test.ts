@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { compactHistorySummary, shouldShowPrazoBlock } from './ChecklistCedente'
+import { compactHistorySummary, isDocumentoAprovado, shouldShowPrazoBlock } from './ChecklistCedente'
 
 describe('ChecklistCedente compact helpers', () => {
   it('nao mostra prazo quando o marco ainda nao foi iniciado', () => {
@@ -65,5 +65,38 @@ describe('ChecklistCedente compact helpers', () => {
         { ...versao, id: 'v1', numero: 1 },
       ],
     } as never)).toBe('3 versões · Ver histórico')
+  })
+  it('nao trata requisito satisfeito como aprovado sem versao aprovada', () => {
+    expect(isDocumentoAprovado({
+      versaoAprovadaId: null,
+      versoes: [{
+        id: 'versao-enviada',
+        numero: 1,
+        nome: 'xml.xml',
+        status: 'enviado',
+        enviadoEm: '2026-07-27T21:35:00',
+        enviadoPorId: 'cedente-1',
+        enviadoPorNome: 'Cedente',
+        sha256: 'hash',
+        ultimaAnalise: null,
+      }],
+    } as never)).toBe(false)
+  })
+
+  it('trata como aprovado quando a versao atual foi aprovada', () => {
+    expect(isDocumentoAprovado({
+      versaoAprovadaId: 'versao-aprovada',
+      versoes: [{
+        id: 'versao-aprovada',
+        numero: 1,
+        nome: 'xml.xml',
+        status: 'aprovado',
+        enviadoEm: '2026-07-27T21:35:00',
+        enviadoPorId: 'cedente-1',
+        enviadoPorNome: 'Cedente',
+        sha256: 'hash',
+        ultimaAnalise: { resultado: 'aprovado' },
+      }],
+    } as never)).toBe(true)
   })
 })

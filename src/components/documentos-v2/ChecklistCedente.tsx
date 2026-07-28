@@ -22,7 +22,7 @@ const labels: Record<string, string> = {
   em_analise: 'Enviado — aguardando análise',
   aprovado: 'Aprovado',
   rejeitado: 'Rejeitado',
-  satisfeito: 'Aprovado',
+  satisfeito: 'Satisfeito',
   vencido: 'Vencido',
   dispensado: 'Dispensado',
   cancelado: 'Cancelado',
@@ -57,10 +57,18 @@ function acceptedFromFormats(formats?: string[]): string | undefined {
   }).join(',')
 }
 
+export function isDocumentoAprovado(item: Pick<ChecklistDocumentoItem, 'versaoAprovadaId' | 'versoes'>) {
+  const latest = item.versoes[0]
+  if (!latest) return false
+  if (item.versaoAprovadaId === latest.id) return true
+  if (latest.status === 'aprovado') return true
+  return latest.ultimaAnalise?.resultado === 'aprovado'
+}
+
 function statusVisual(item: ChecklistDocumentoItem) {
   const latest = item.versoes[0]
   const latestAnalysis = latest?.ultimaAnalise?.resultado
-  if (item.status === 'satisfeito' || latest?.status === 'aprovado') return { label: 'Aprovado', tone: 'text-success-foreground bg-success/15', icon: CheckCircle }
+  if (isDocumentoAprovado(item)) return { label: 'Aprovado', tone: 'text-success-foreground bg-success/15', icon: CheckCircle }
   if (item.status === 'vencido' || item.statusPrazo === 'vencido') return { label: 'Vencido', tone: 'text-destructive bg-destructive/10', icon: XCircle }
   if (latest?.status === 'rejeitado' || latestAnalysis === 'rejeitado' || latestAnalysis === 'requer_ajuste') return { label: 'Rejeitado', tone: 'text-destructive bg-destructive/10', icon: XCircle }
   if (latest?.status === 'em_analise' || latest?.status === 'enviado') return { label: 'Aguardando análise', tone: 'text-info-foreground bg-info/15', icon: Clock }
@@ -132,7 +140,7 @@ function RequirementCard({
   const [showUpload, setShowUpload] = useState(false)
   const visual = statusVisual(item)
   const StatusIcon = visual.icon
-  const canUpload = mode === 'cedente' && item.uploadPermitido && item.status !== 'satisfeito'
+  const canUpload = mode === 'cedente' && item.uploadPermitido && !isDocumentoAprovado(item)
   const accept = acceptedFromFormats(item.formatosAceitos)
   const latest = item.versoes[0]
   const canAnalyze = mode === 'gestor' && latest && !['aprovado', 'substituido', 'cancelado'].includes(latest.status)
@@ -398,7 +406,23 @@ export function ChecklistCedente({ notaFiscalId, mode = 'cedente' }: { notaFisca
   }, [checklist])
 
   if (loading) return <div className="rounded-xl border p-4 text-sm text-muted-foreground">Carregando checklist documental...</div>
-  if (!checklist || checklist.items.length === 0) return null
+  if (!checklist || checklist.items.length === 0) {
+    return (
+      <section className="mb-4 rounded-xl border bg-card p-4">
+        <div className="flex items-start gap-3">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-warning/15 text-warning-foreground">
+            <AlertTriangle size={17} />
+          </span>
+          <div>
+            <h2 className="font-semibold">Checklist documental não instanciado</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Esta NF ainda não recebeu os requisitos da política operacional. Verifique se existe política publicada vinculada ao fundo e ao cedente.
+            </p>
+          </div>
+        </div>
+      </section>
+    )
+  }
 
   return (
     <div className="mb-4 space-y-4">

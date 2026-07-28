@@ -1,6 +1,6 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient, createClient } from '@/lib/supabase/server'
 import { requireGestor, requireNotaFiscalAccess } from '@/lib/auth/authorization'
 import { registrarLog } from './auditoria'
 import { instanciarRequisitosDaNota } from '@/lib/documentos-v2/requisitos'
@@ -91,13 +91,18 @@ async function carregarChecklist(notaFiscalId: string): Promise<ChecklistDocumen
     await instanciarRequisitosDaNota(notaFiscalId, supabase)
   }
 
+  // A partir daqui o acesso à NF já foi validado com a sessão real do usuário.
+  // As leituras do checklist usam service role de forma estritamente escopada à NF
+  // para evitar divergência entre policies auxiliares de gestor e cedente.
+  const dataClient = createAdminClient()
+
   const [{ data: nfData }, { data: entregaData }] = await Promise.all([
-    supabase
+    dataClient
       .from('notas_fiscais')
       .select('id, status')
       .eq('id', notaFiscalId)
       .maybeSingle(),
-    supabase
+    dataClient
     .from('nota_fiscal_entregas')
     .select('id, status_entrega, cessao_efetivada_em, data_entrega, entrega_confirmada_em, motivo_pendencia, created_at')
     .eq('nota_fiscal_id', notaFiscalId)
@@ -109,13 +114,16 @@ async function carregarChecklist(notaFiscalId: string): Promise<ChecklistDocumen
   const notaFiscal = nfData as { id: string; status: string } | null
   const entrega = entregaData as { id: string; status_entrega: string; cessao_efetivada_em: string | null; data_entrega: string | null; entrega_confirmada_em: string | null; motivo_pendencia: string | null; created_at: string } | null
 
-  const { data: instances, error } = await supabase
+  const instancesQuery = dataClient
     .from('documento_requisito_instancias')
     .select('id, documento_tipo_id, tipo_documento_codigo_snapshot, escopo_snapshot, obrigatorio, status, documento_id, versao_aprovada_id, nota_fiscal_id, nota_fiscal_entrega_id, prazo_limite, quantidade_minima_snapshot, formatos_aceitos_snapshot')
-    .or([
+
+  const { data: instances, error } = await (entrega?.id
+    ? instancesQuery.or([
       `nota_fiscal_id.eq.${notaFiscalId}`,
-      entrega?.id ? `nota_fiscal_entrega_id.eq.${entrega.id}` : '',
+      `nota_fiscal_entrega_id.eq.${entrega.id}`,
     ].filter(Boolean).join(','))
+    : instancesQuery.eq('nota_fiscal_id', notaFiscalId))
     .order('id')
   if (error) throw new Error(`Erro ao carregar checklist: ${error.message}`)
 
@@ -127,12 +135,12 @@ async function carregarChecklist(notaFiscalId: string): Promise<ChecklistDocumen
   const docIds = rows.map((row) => row.documento_id).filter(Boolean) as string[]
   const [typesResult, versionsResult] = await Promise.all([
     typeIds.length || typeCodes.length
-      ? supabase.from('documento_tipos').select('id, codigo, nome').or([
+      ? dataClient.from('documento_tipos').select('id, codigo, nome').or([
         typeIds.length ? `id.in.(${typeIds.join(',')})` : '',
         typeCodes.length ? `codigo.in.(${typeCodes.join(',')})` : '',
       ].filter(Boolean).join(','))
       : Promise.resolve({ data: [], error: null }),
-    docIds.length ? supabase.from('documento_versoes').select('id, documento_id, numero_versao, status, nome_original, sha256, enviado_por, enviado_em, created_at').in('documento_id', docIds).order('numero_versao', { ascending: false }) : Promise.resolve({ data: [], error: null }),
+    docIds.length ? dataClient.from('documento_versoes').select('id, documento_id, numero_versao, status, nome_original, sha256, enviado_por, enviado_em, created_at').in('documento_id', docIds).order('numero_versao', { ascending: false }) : Promise.resolve({ data: [], error: null }),
   ])
   if (typesResult.error || versionsResult.error) throw new Error('Erro ao carregar tipos ou versoes documentais.')
   const types = new Map((typesResult.data || []).map((type) => [type.id, type]))
@@ -140,7 +148,7 @@ async function carregarChecklist(notaFiscalId: string): Promise<ChecklistDocumen
   const versions = (versionsResult.data || []) as Array<{ id: string; documento_id: string; numero_versao: number; status: string; nome_original: string; sha256: string; enviado_por: string; enviado_em: string; created_at: string }>
   const versionIds = versions.map((version) => version.id)
   const { data: analyses } = versionIds.length
-    ? await supabase.from('documento_analises').select('documento_versao_id, resultado, observacoes, analisado_por, analisado_em').in('documento_versao_id', versionIds).order('analisado_em', { ascending: false })
+    ? await dataClient.from('documento_analises').select('documento_versao_id, resultado, observacoes, analisado_por, analisado_em').in('documento_versao_id', versionIds).order('analisado_em', { ascending: false })
     : { data: [] }
   const analysisRows = (analyses || []) as Array<{ documento_versao_id: string; resultado: string; observacoes: string | null; analisado_por: string | null; analisado_em: string }>
   const profileIds = Array.from(new Set([
@@ -148,7 +156,7 @@ async function carregarChecklist(notaFiscalId: string): Promise<ChecklistDocumen
     ...analysisRows.map((analysis) => analysis.analisado_por).filter(Boolean),
   ] as string[]))
   const { data: profiles } = profileIds.length
-    ? await supabase.from('profiles').select('id, nome_completo, email').in('id', profileIds)
+    ? await dataClient.from('profiles').select('id, nome_completo, email').in('id', profileIds)
     : { data: [] }
   const profileNames = new Map((profiles || []).map((profile) => [profile.id, profile.nome_completo || profile.email]))
   const latestAnalysis = new Map<string, { resultado: string; observacoes: string | null; analisadoPorId: string | null; analisadoPorNome: string | null; analisadoEm: string }>()
@@ -206,8 +214,8 @@ async function carregarChecklist(notaFiscalId: string): Promise<ChecklistDocumen
   })
   const preCessao = items.filter((item) => item.fase === 'pre_cessao')
   const posCessao = items.filter((item) => item.fase === 'pos_cessao')
-  const posObrigatoriosPendentes = posCessao.filter((item) => item.obrigatorio && item.status !== 'satisfeito')
-  const preObrigatoriosPendentes = preCessao.filter((item) => item.obrigatorio && item.status !== 'satisfeito')
+  const posObrigatoriosPendentes = posCessao.filter((item) => item.obrigatorio && !documentoItemEstaAprovado(item))
+  const preObrigatoriosPendentes = preCessao.filter((item) => item.obrigatorio && !documentoItemEstaAprovado(item))
   const posStatus = !entrega
     ? 'nao_iniciado'
     : posCessao.some((item) => item.statusPrazo === 'vencido' || item.status === 'vencido')
@@ -218,7 +226,7 @@ async function carregarChecklist(notaFiscalId: string): Promise<ChecklistDocumen
           ? 'em_analise'
           : 'pendente'
   const proximoPrazo = items
-    .filter((item) => item.dataLimite && !['satisfeito', 'dispensado', 'cancelado'].includes(item.status))
+    .filter((item) => item.dataLimite && !documentoItemEstaAprovado(item) && !['dispensado', 'cancelado'].includes(item.status))
     .sort((a, b) => String(a.dataLimite).localeCompare(String(b.dataLimite)))[0] || null
   return {
     notaFiscalId,
@@ -262,17 +270,25 @@ async function carregarChecklist(notaFiscalId: string): Promise<ChecklistDocumen
   }
 }
 
+function documentoItemEstaAprovado(item: Pick<ChecklistDocumentoItem, 'versaoAprovadaId' | 'versoes'>) {
+  const latest = item.versoes[0]
+  if (!latest) return false
+  if (item.versaoAprovadaId === latest.id) return true
+  if (latest.status === 'aprovado') return true
+  return latest.ultimaAnalise?.resultado === 'aprovado'
+}
+
 function calcularElegibilidade(items: ChecklistDocumentoItem[]): ElegibilidadeDocumental {
   const mandatory = items.filter((item) => item.obrigatorio)
-  const pending = mandatory.filter((item) => item.status !== 'satisfeito')
+  const pending = mandatory.filter((item) => !documentoItemEstaAprovado(item))
   const rejected = mandatory.filter((item) => item.versoes.some((version) => version.status === 'rejeitado' || version.ultimaAnalise?.resultado === 'rejeitado' || version.ultimaAnalise?.resultado === 'requer_ajuste'))
-  const reviewing = mandatory.filter((item) => item.status !== 'satisfeito' && item.versoes.some((version) => version.status === 'em_analise' || version.ultimaAnalise?.resultado === 'pendente'))
+  const reviewing = mandatory.filter((item) => !documentoItemEstaAprovado(item) && item.versoes.some((version) => version.status === 'em_analise' || version.status === 'enviado' || version.ultimaAnalise?.resultado === 'pendente'))
   return {
     elegivel: pending.length === 0,
     requisitosPendentes: pending.map((item) => item.nome),
     requisitosRejeitados: rejected.map((item) => item.nome),
     requisitosEmAnalise: reviewing.map((item) => item.nome),
-    motivos: pending.map((item) => `${item.nome}: ${item.status === 'pendente' ? 'aguardando documento aprovado' : item.status}`),
+    motivos: pending.map((item) => `${item.nome}: ${item.versoes.length > 0 ? 'aguardando aprovacao do gestor' : 'aguardando documento aprovado'}`),
   }
 }
 

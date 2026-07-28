@@ -37,6 +37,12 @@ type NotaFiscalParaCteUpload = {
   descricao_itens: string | null
 }
 
+type ResultadoValidacaoCteUpload = {
+  parsedCte: Awaited<ReturnType<typeof parseCteXml>>
+  resultadoValidacaoCte: ReturnType<typeof validarCteContraNfes>
+  nfParaCte: NotaFiscalParaCteUpload
+} | null
+
 async function carregarNotaParaValidacaoCte(input: {
   notaFiscalId: string
   client: AppSupabaseClient
@@ -61,6 +67,59 @@ async function carregarNotaParaValidacaoCte(input: {
   return typed
 }
 
+async function validarCteXmlContraNotaSeNecessario(input: {
+  notaFiscalId: string
+  arquivo: File
+  codigoSnapshot: string
+  tipoCodigo: string
+  client: AppSupabaseClient
+  actorRole: string
+  validarDuplicidadeCte?: boolean
+}): Promise<ResultadoValidacaoCteUpload> {
+  const deveValidarCteXml = ['cte', 'cte_xml'].includes(input.codigoSnapshot) && input.tipoCodigo === 'cte_xml'
+  if (!deveValidarCteXml) return null
+
+  const parsedCte = await parseCteXml(input.arquivo)
+  if (!parsedCte.valido) throw new Error(parsedCte.erros.join(' '))
+
+  const nfParaCte = await carregarNotaParaValidacaoCte({
+    notaFiscalId: input.notaFiscalId,
+    client: input.client,
+    actorRole: input.actorRole,
+  })
+
+  if (input.validarDuplicidadeCte && parsedCte.chave_cte) {
+    const { data: duplicado, error: duplicadoError } = await input.client
+      .from('ctes')
+      .select('id')
+      .eq('chave_cte', parsedCte.chave_cte)
+      .maybeSingle()
+    if (duplicadoError) throw new Error(`Erro ao validar duplicidade do CT-e: ${duplicadoError.message}`)
+    if (duplicado) throw new Error('Chave de CT-e ja cadastrada.')
+  }
+
+  const resultadoValidacaoCte = validarCteContraNfes({
+    cte: parsedCte,
+    nfs: [{
+      id: nfParaCte.id,
+      chave_acesso: nfParaCte.chave_acesso,
+      data_emissao: nfParaCte.data_emissao,
+      cnpj_emitente: nfParaCte.cnpj_emitente,
+      razao_social_emitente: nfParaCte.razao_social_emitente,
+      cnpj_destinatario: nfParaCte.cnpj_destinatario,
+      razao_social_destinatario: nfParaCte.razao_social_destinatario,
+      valor_bruto: nfParaCte.valor_bruto,
+      descricao_itens: nfParaCte.descricao_itens,
+    } satisfies NfeParaValidacaoCte],
+  })
+
+  if (resultadoValidacaoCte.status === 'rejeitado') {
+    throw new Error(mensagemValidacaoCte(resultadoValidacaoCte))
+  }
+
+  return { parsedCte, resultadoValidacaoCte, nfParaCte }
+}
+
 export async function uploadDocumentoDaNota(
   input: UploadDocumentoNotaInput,
   client: AppSupabaseClient,
@@ -76,20 +135,19 @@ export async function uploadDocumentoDaNota(
     .eq('nota_fiscal_id', input.notaFiscalId)
     .maybeSingle()
   if (requirementError || !requirement) throw new Error('Requisito documental nao encontrado para esta NF.')
-  let documentoTipoId = (requirement as { documento_tipo_id: string | null }).documento_tipo_id
-  if (!documentoTipoId) {
-    const codigoCatalogo = normalizarCodigoDocumentoCatalogo(requirement.tipo_documento_codigo_snapshot, extensaoArquivo(input.arquivo.name))
-    const { data: resolvedType, error: resolvedTypeError } = await client
-      .from('documento_tipos')
-      .select('id')
-      .eq('codigo', codigoCatalogo)
-      .eq('ativo', true)
-      .maybeSingle()
+  const codigoCatalogo = normalizarCodigoDocumentoCatalogo(requirement.tipo_documento_codigo_snapshot, extensaoArquivo(input.arquivo.name))
+  const { data: resolvedType, error: resolvedTypeError } = await client
+    .from('documento_tipos')
+    .select('id, codigo')
+    .eq('codigo', codigoCatalogo)
+    .eq('ativo', true)
+    .maybeSingle()
 
-    if (resolvedTypeError) throw new Error(`Erro ao resolver tipo documental ${codigoCatalogo}: ${resolvedTypeError.message}`)
-    if (!resolvedType) throw new Error(`Tipo documental ${codigoCatalogo} nao esta catalogado ou esta inativo.`)
+  if (resolvedTypeError) throw new Error(`Erro ao resolver tipo documental ${codigoCatalogo}: ${resolvedTypeError.message}`)
+  if (!resolvedType) throw new Error(`Tipo documental ${codigoCatalogo} nao esta catalogado ou esta inativo.`)
 
-    documentoTipoId = (resolvedType as { id: string }).id
+  const documentoTipoId = (resolvedType as { id: string; codigo: string }).id
+  if ((requirement as { documento_tipo_id: string | null }).documento_tipo_id !== documentoTipoId) {
     await client
       .from('documento_requisito_instancias')
       .update({ documento_tipo_id: documentoTipoId } as never)
@@ -107,6 +165,14 @@ export async function uploadDocumentoDaNota(
   const tipoData = tipo as TipoDocumentoV2
   const validationError = validarArquivoContraTipo(input.arquivo, tipoData)
   if (validationError) throw new Error(validationError)
+  const validacaoCte = await validarCteXmlContraNotaSeNecessario({
+    notaFiscalId: input.notaFiscalId,
+    arquivo: input.arquivo,
+    codigoSnapshot: String(requirement.tipo_documento_codigo_snapshot),
+    tipoCodigo: String(tipoData.codigo),
+    client,
+    actorRole: context.profile.role,
+  })
 
   const hash = await sha256Arquivo(input.arquivo)
   const mimeType = mimeArquivo(input.arquivo)
@@ -146,13 +212,26 @@ export async function uploadDocumentoDaNota(
         nota_fiscal_id: input.notaFiscalId,
         tipo: requirement.tipo_documento_codigo_snapshot,
         sha256_igual: result.sha256_igual,
+        validacao_cte: validacaoCte?.resultadoValidacaoCte
+          ? {
+            status: validacaoCte.resultadoValidacaoCte.status,
+            checks: validacaoCte.resultadoValidacaoCte.checks,
+            chaves_nfe_referenciadas: validacaoCte.resultadoValidacaoCte.chavesNfeReferenciadas,
+            bloqueios: validacaoCte.resultadoValidacaoCte.bloqueios,
+            alertas: validacaoCte.resultadoValidacaoCte.alertas,
+          }
+          : null,
         fundo_id: input.contexto?.fundoId ?? null,
         cedente_fundo_id: input.contexto?.cedenteFundoId ?? null,
         entidade_tipo: input.contexto?.entidadeTipo ?? 'nota_fiscal',
         entidade_id: input.contexto?.entidadeId ?? input.notaFiscalId,
       },
     }).catch(() => {})
-    return { ...result, nome: input.arquivo.name }
+    return {
+      ...result,
+      nome: input.arquivo.name,
+      message: validacaoCte?.resultadoValidacaoCte ? mensagemValidacaoCte(validacaoCte.resultadoValidacaoCte) : undefined,
+    }
   } catch (error) {
     if (uploaded) await removerObjetoDocumento(path)
     throw error
@@ -187,20 +266,19 @@ export async function uploadDocumentoDaEntrega(
   if (requirementError) throw new Error(`Erro ao validar requisito documental: ${requirementError.message}`)
   if (!requirement) throw new Error('Requisito documental de entrega nao encontrado para esta NF.')
 
-  let documentoTipoId = (requirement as { documento_tipo_id: string | null }).documento_tipo_id
   const codigoSnapshot = String(requirement.tipo_documento_codigo_snapshot)
-  if (!documentoTipoId) {
-    const codigoCatalogo = normalizarCodigoDocumentoCatalogo(codigoSnapshot, extensaoArquivo(input.arquivo.name))
-    const { data: resolvedType, error: resolvedTypeError } = await client
-      .from('documento_tipos')
-      .select('id')
-      .eq('codigo', codigoCatalogo)
-      .eq('ativo', true)
-      .maybeSingle()
-    if (resolvedTypeError) throw new Error(`Erro ao resolver tipo documental ${codigoCatalogo}: ${resolvedTypeError.message}`)
-    if (!resolvedType) throw new Error(`Tipo documental ${codigoCatalogo} nao esta catalogado ou esta inativo.`)
+  const codigoCatalogo = normalizarCodigoDocumentoCatalogo(codigoSnapshot, extensaoArquivo(input.arquivo.name))
+  const { data: resolvedType, error: resolvedTypeError } = await client
+    .from('documento_tipos')
+    .select('id, codigo')
+    .eq('codigo', codigoCatalogo)
+    .eq('ativo', true)
+    .maybeSingle()
+  if (resolvedTypeError) throw new Error(`Erro ao resolver tipo documental ${codigoCatalogo}: ${resolvedTypeError.message}`)
+  if (!resolvedType) throw new Error(`Tipo documental ${codigoCatalogo} nao esta catalogado ou esta inativo.`)
 
-    documentoTipoId = (resolvedType as { id: string }).id
+  const documentoTipoId = (resolvedType as { id: string; codigo: string }).id
+  if ((requirement as { documento_tipo_id: string | null }).documento_tipo_id !== documentoTipoId) {
     await client
       .from('documento_requisito_instancias')
       .update({ documento_tipo_id: documentoTipoId } as never)
@@ -220,50 +298,16 @@ export async function uploadDocumentoDaEntrega(
   const validationError = validarArquivoContraTipo(input.arquivo, tipoData)
   if (validationError) throw new Error(validationError)
 
-  const deveValidarCteXml = ['cte', 'cte_xml'].includes(codigoSnapshot) && String(tipoData.codigo) === 'cte_xml'
-  let resultadoValidacaoCte: ReturnType<typeof validarCteContraNfes> | null = null
-  let parsedCte: Awaited<ReturnType<typeof parseCteXml>> | null = null
-  let nfParaCte: NotaFiscalParaCteUpload | null = null
-
-  if (deveValidarCteXml) {
-    parsedCte = await parseCteXml(input.arquivo)
-    if (!parsedCte.valido) throw new Error(parsedCte.erros.join(' '))
-
-    nfParaCte = await carregarNotaParaValidacaoCte({
-      notaFiscalId: input.notaFiscalId,
-      client,
-      actorRole: context.profile.role,
-    })
-
-    if (parsedCte.chave_cte) {
-      const { data: duplicado, error: duplicadoError } = await client
-        .from('ctes')
-        .select('id')
-        .eq('chave_cte', parsedCte.chave_cte)
-        .maybeSingle()
-      if (duplicadoError) throw new Error(`Erro ao validar duplicidade do CT-e: ${duplicadoError.message}`)
-      if (duplicado) throw new Error('Chave de CT-e ja cadastrada.')
-    }
-
-    resultadoValidacaoCte = validarCteContraNfes({
-      cte: parsedCte,
-      nfs: [{
-        id: nfParaCte.id,
-        chave_acesso: nfParaCte.chave_acesso,
-        data_emissao: nfParaCte.data_emissao,
-        cnpj_emitente: nfParaCte.cnpj_emitente,
-        razao_social_emitente: nfParaCte.razao_social_emitente,
-        cnpj_destinatario: nfParaCte.cnpj_destinatario,
-        razao_social_destinatario: nfParaCte.razao_social_destinatario,
-        valor_bruto: nfParaCte.valor_bruto,
-        descricao_itens: nfParaCte.descricao_itens,
-      } satisfies NfeParaValidacaoCte],
-    })
-
-    if (resultadoValidacaoCte.status === 'rejeitado') {
-      throw new Error(mensagemValidacaoCte(resultadoValidacaoCte))
-    }
-  }
+  const validacaoCte = await validarCteXmlContraNotaSeNecessario({
+    notaFiscalId: input.notaFiscalId,
+    arquivo: input.arquivo,
+    codigoSnapshot,
+    tipoCodigo: String(tipoData.codigo),
+    client,
+    actorRole: context.profile.role,
+    validarDuplicidadeCte: true,
+  })
+  const deveValidarCteXml = !!validacaoCte
 
   const hash = await sha256Arquivo(input.arquivo)
   const mimeType = mimeArquivo(input.arquivo)
@@ -278,7 +322,7 @@ export async function uploadDocumentoDaEntrega(
   try {
     await enviarObjetoDocumento(path, input.arquivo, mimeType)
     uploaded = true
-    if (deveValidarCteXml && parsedCte) {
+    if (deveValidarCteXml && validacaoCte) {
       const { data, error } = await client.rpc('registrar_cte_documento', {
         p_nota_fiscal_ids: [input.notaFiscalId],
         p_documento_tipo_codigo: 'cte_xml',
@@ -288,16 +332,16 @@ export async function uploadDocumentoDaEntrega(
         p_sha256: hash,
         p_bucket: DOCUMENTO_V2_BUCKET,
         p_path: path,
-        p_chave_cte: parsedCte.chave_cte,
-        p_numero: parsedCte.numero,
-        p_serie: parsedCte.serie,
-        p_data_emissao: parsedCte.data_emissao,
-        p_cnpj_transportadora: parsedCte.cnpj_transportadora,
-        p_cnpj_remetente: parsedCte.cnpj_remetente,
-        p_cnpj_destinatario: parsedCte.cnpj_destinatario,
-        p_valor_frete: parsedCte.valor_frete,
+        p_chave_cte: validacaoCte.parsedCte.chave_cte,
+        p_numero: validacaoCte.parsedCte.numero,
+        p_serie: validacaoCte.parsedCte.serie,
+        p_data_emissao: validacaoCte.parsedCte.data_emissao,
+        p_cnpj_transportadora: validacaoCte.parsedCte.cnpj_transportadora,
+        p_cnpj_remetente: validacaoCte.parsedCte.cnpj_remetente,
+        p_cnpj_destinatario: validacaoCte.parsedCte.cnpj_destinatario,
+        p_valor_frete: validacaoCte.parsedCte.valor_frete,
         p_nivel_validacao: 'hibrido',
-        p_dados_extraidos: { ...parsedCte, hash_sha256: hash, resultado_validacao: resultadoValidacaoCte },
+        p_dados_extraidos: { ...validacaoCte.parsedCte, hash_sha256: hash, resultado_validacao: validacaoCte.resultadoValidacaoCte },
       } as never)
       if (error) throw new Error(`Erro ao registrar CT-e validado: ${error.message}`)
       const result = data as Record<string, unknown>
@@ -309,12 +353,12 @@ export async function uploadDocumentoDaEntrega(
           nota_fiscal_id: input.notaFiscalId,
           nota_fiscal_entrega_id: input.entregaId,
           requisito_id: input.requisitoId,
-          status_validacao: resultadoValidacaoCte?.status,
-          fundo_id: nfParaCte?.fundo_id ?? null,
-          cedente_fundo_id: nfParaCte?.cedente_fundo_id ?? null,
+          status_validacao: validacaoCte.resultadoValidacaoCte.status,
+          fundo_id: validacaoCte.nfParaCte.fundo_id,
+          cedente_fundo_id: validacaoCte.nfParaCte.cedente_fundo_id,
         },
       }).catch(() => {})
-      return { ...result, nome: input.arquivo.name, message: resultadoValidacaoCte ? mensagemValidacaoCte(resultadoValidacaoCte) : undefined }
+      return { ...result, nome: input.arquivo.name, message: mensagemValidacaoCte(validacaoCte.resultadoValidacaoCte) }
     }
 
     const { data: latest } = requirement.documento_id
