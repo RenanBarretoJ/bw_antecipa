@@ -33,8 +33,14 @@ import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useNotifications } from '@/components/notifications/notification-provider'
-import { OperacaoNotaFiscalCard, buildOperacaoNotaFiscalView, type OperacaoNotaFiscalView } from '@/components/operacoes/OperacaoNotaFiscalCard'
+import {
+  OperacaoNotaFiscalCard,
+  buildOperacaoNotaFiscalView,
+  resolveStatusCurtoDaNota,
+  type OperacaoNotaFiscalView,
+} from '@/components/operacoes/OperacaoNotaFiscalCard'
 import { useFundoAtivo } from '@/components/fundos/fundo-ativo-provider'
+import { HistoricoTimelineCard } from '@/components/historico/HistoricoTimelineCard'
 
 interface Testemunha {
   id: string
@@ -122,6 +128,30 @@ interface LogisticaEntrega {
 
 type BadgeVariant = 'default' | 'secondary' | 'destructive' | 'outline' | 'ghost' | 'link'
 type NotaFiscalSort = 'vencimento' | 'numero' | 'sacado' | 'valor' | 'status'
+
+function csvCell(value: string | number | null | undefined) {
+  const raw = value === null || value === undefined ? '' : String(value)
+  const escaped = raw.replace(/"/g, '""')
+  return /[;"\n\r]/.test(escaped) ? `"${escaped}"` : escaped
+}
+
+function csvCurrency(value: number | null | undefined) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return ''
+  return value.toFixed(2).replace('.', ',')
+}
+
+function downloadCsv(filename: string, rows: Array<Array<string | number | null | undefined>>) {
+  const csv = ['sep=;', ...rows.map((row) => row.map(csvCell).join(';'))].join('\r\n')
+  const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
+}
 
 const statusConfig: Record<string, { label: string; variant: BadgeVariant; className: string; icon: typeof CheckCircle }> = {
   solicitada: { label: 'Solicitada', variant: 'secondary', className: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400', icon: Clock },
@@ -642,6 +672,61 @@ export default function OperacaoDetalheGestorPage() {
     antecipado: notasFiscaisView.reduce((acc, nf) => acc + nf.valor_antecipado, 0),
   }), [notasFiscaisView])
 
+  const aceiteDispensado = !!op && (op.aceite_sacado_exigido === false || op.aceite_sacado_status === 'dispensado')
+  const todasAceitas = aceiteDispensado || (nfs.length > 0 && nfs.every((nf) => nf.status === 'aceita'))
+
+  const handleExportarNfsCsv = useCallback(() => {
+    if (!op || notasFiscaisView.length === 0) {
+      notifications.notify({
+        type: 'info',
+        message: 'Esta operacao ainda nao possui NFs para exportar.',
+        dedupeKey: `operacao:${opId}:csv-vazio`,
+      })
+      return
+    }
+
+    const rows: Array<Array<string | number | null | undefined>> = [
+      [
+        'Operacao',
+        'Cedente',
+        'CNPJ cedente',
+        'Numero NF',
+        'Sacado',
+        'CNPJ sacado',
+        'Valor bruto',
+        'Valor antecipado',
+        'Prazo dias',
+        'Vencimento',
+        'Status NF',
+        'Status logistico',
+      ],
+      ...notasFiscaisView.map((nf) => {
+        const entregaStatus = entregaPorNfId.get(nf.id)?.status_entrega ?? null
+        return [
+          op.id,
+          op.cedentes.razao_social,
+          formatCNPJ(op.cedentes.cnpj),
+          nf.numero_nf,
+          nf.razao_social_destinatario,
+          formatCNPJ(nf.cnpj_destinatario),
+          csvCurrency(nf.valor_bruto),
+          csvCurrency(nf.valor_antecipado),
+          nf.prazo_dias,
+          formatDate(nf.data_vencimento),
+          resolveStatusCurtoDaNota(nf.status, entregaStatus, aceiteDispensado),
+          entregaStatus ? entregaStatusConfig[entregaStatus]?.label ?? entregaStatus : '',
+        ]
+      }),
+    ]
+
+    downloadCsv(`operacao-${op.id.slice(0, 8)}-notas-fiscais.csv`, rows)
+    notifications.notify({
+      type: 'success',
+      message: 'CSV das NFs exportado.',
+      dedupeKey: `operacao:${op.id}:csv-exportado`,
+    })
+  }, [aceiteDispensado, entregaPorNfId, notasFiscaisView, notifications, op, opId])
+
   const aplicarTaxaConfig = (t: TaxaConfig) => {
     setTaxa(t.taxa_percentual)
   }
@@ -835,16 +920,14 @@ export default function OperacaoDetalheGestorPage() {
   const canAnalyze = op.status === 'solicitada' || op.status === 'em_analise'
   const canDisburse = op.status === 'aprovada'
   const canRemoveNf = ['solicitada', 'em_analise'].includes(op.status)
-  const aceiteDispensado = op.aceite_sacado_exigido === false || op.aceite_sacado_status === 'dispensado'
-  const todasAceitas = aceiteDispensado || (nfs.length > 0 && nfs.every((nf) => nf.status === 'aceita'))
 
   // Seção de documentos visível para aprovada, em_andamento, liquidada, inadimplente
   const showDocs = ['aprovada', 'em_andamento', 'liquidada', 'inadimplente'].includes(op.status)
 
   return (
-    <div className="mx-auto max-w-7xl">
+    <div className="mx-auto max-w-7xl space-y-6 pb-10">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Link href="/gestor/operacoes">
             <Button variant="ghost" size="icon">
@@ -927,7 +1010,18 @@ export default function OperacaoDetalheGestorPage() {
                 <p className="text-sm text-muted-foreground">
                   {notasFiscaisView.length === 1 ? '1 NF vinculada' : `${notasFiscaisView.length} NFs vinculadas`}
                 </p>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleExportarNfsCsv}
+                    disabled={notasFiscaisView.length === 0}
+                    className="h-9 gap-2"
+                  >
+                    <FileDown size={14} />
+                    Exportar CSV
+                  </Button>
                   <span className="text-sm text-muted-foreground">Ordenar por</span>
                   <Select value={nfSort} onValueChange={(value) => setNfSort(value as NotaFiscalSort)}>
                     <SelectTrigger className="h-9 w-[170px]">
@@ -1518,6 +1612,8 @@ export default function OperacaoDetalheGestorPage() {
           )}
         </aside>
       </div>
+
+      <HistoricoTimelineCard entidade="operacao" entidadeId={opId} />
     </div>
   )
 }

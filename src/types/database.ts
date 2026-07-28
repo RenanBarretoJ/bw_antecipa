@@ -453,6 +453,29 @@ export interface EventoEntrega {
   created_at: string
 }
 
+export interface EventoDominio {
+  id: string
+  tenant_id: string | null
+  fundo_id: string | null
+  cedente_id: string | null
+  cedente_fundo_id: string | null
+  nota_fiscal_id: string | null
+  operacao_id: string | null
+  tipo_evento: string
+  categoria: string
+  ator_usuario_id: string | null
+  ator_nome_snapshot: string
+  ator_perfil_snapshot: string
+  origem: string
+  descricao: string
+  metadata: Record<string, unknown>
+  visibilidade: string
+  correlation_id: string | null
+  origem_evento: string | null
+  origem_registro_id: string | null
+  created_at: string
+}
+
 export interface Cte {
   id: string
   fundo_id: string | null
@@ -1046,6 +1069,7 @@ export interface Database {
       documento_analises: { Row: DocumentoAnalise & Record<string, unknown>; Insert: InsertShape<DocumentoAnalise, 'documento_versao_id' | 'resultado'> & Record<string, unknown>; Update: UpdateShape<DocumentoAnalise> & Record<string, unknown>; Relationships: [] }
       nota_fiscal_entregas: { Row: NotaFiscalEntrega & Record<string, unknown>; Insert: InsertShape<NotaFiscalEntrega, 'operacao_id' | 'nota_fiscal_id' | 'status_entrega'> & Record<string, unknown>; Update: UpdateShape<NotaFiscalEntrega> & Record<string, unknown>; Relationships: [] }
       eventos_entrega: { Row: EventoEntrega & Record<string, unknown>; Insert: InsertShape<EventoEntrega, 'nota_fiscal_entrega_id' | 'tipo_evento'> & Record<string, unknown>; Update: UpdateShape<EventoEntrega> & Record<string, unknown>; Relationships: [] }
+      eventos_dominio: { Row: EventoDominio & Record<string, unknown>; Insert: InsertShape<EventoDominio, 'tipo_evento' | 'categoria' | 'descricao'> & Record<string, unknown>; Update: UpdateShape<EventoDominio> & Record<string, unknown>; Relationships: [] }
       ctes: { Row: Cte & Record<string, unknown>; Insert: InsertShape<Cte, 'cedente_id' | 'formato_origem' | 'nivel_validacao'> & Record<string, unknown>; Update: UpdateShape<Cte> & Record<string, unknown>; Relationships: [] }
       cte_notas_fiscais: { Row: CteNotaFiscal & Record<string, unknown>; Insert: InsertShape<CteNotaFiscal, 'cte_id' | 'nota_fiscal_id'> & Record<string, unknown>; Update: Partial<CteNotaFiscal> & Record<string, unknown>; Relationships: [] }
       canhotos: { Row: Canhoto & Record<string, unknown>; Insert: InsertShape<Canhoto, 'nota_fiscal_entrega_id'> & Record<string, unknown>; Update: UpdateShape<Canhoto> & Record<string, unknown>; Relationships: [] }

@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { DataTableContainer, DetailField, EmptyState, ListNameCell } from '@/components/data-display/primitives'
 import { BotaoDownloadArquivoOperacao } from '@/components/contratos/BotaoDownloadArquivoOperacao'
+import { HistoricoTimelineCard } from '@/components/historico/HistoricoTimelineCard'
 
 const statusClasses: Record<string, string> = {
   solicitada: 'bg-blue-100 text-blue-700 border-transparent dark:bg-blue-500/15 dark:text-blue-200',
@@ -76,7 +77,7 @@ export default async function CedenteOperacaoDetalhePage({ params }: { params: P
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="mx-auto max-w-6xl space-y-6 pb-10">
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div className="flex items-start gap-3">
           <Link href="/cedente/operacoes" className="inline-flex size-10 items-center justify-center rounded-lg hover:bg-muted" aria-label="Voltar para operações">
@@ -266,6 +267,8 @@ export default async function CedenteOperacaoDetalhePage({ params }: { params: P
           )}
         </CardContent>
       </Card>
+
+      <HistoricoTimelineCard entidade="operacao" entidadeId={id} />
     </div>
   )
 }

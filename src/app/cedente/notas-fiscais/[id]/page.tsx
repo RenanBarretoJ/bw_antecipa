@@ -22,6 +22,7 @@ import {
 import { ChecklistCedente } from '@/components/documentos-v2/ChecklistCedente'
 import { useNotifications } from '@/components/notifications/notification-provider'
 import { ArquivoOriginalCompacto } from '@/components/notas-fiscais/ArquivoOriginalCompacto'
+import { HistoricoTimelineCard } from '@/components/historico/HistoricoTimelineCard'
 
 interface NfCompleta {
   id: string
@@ -424,9 +425,9 @@ export default function NfDetalhePage() {
   const StatusIcon = status.icon
 
   return (
-    <div className="max-w-5xl mx-auto">
+    <div className="max-w-5xl mx-auto space-y-6 pb-10">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Link href="/cedente/notas-fiscais" className="p-2 hover:bg-gray-100 rounded-lg">
             <ArrowLeft size={20} />
@@ -791,6 +792,8 @@ export default function NfDetalhePage() {
       ) : (
         <ReadOnlyNfDetails nf={nf} previewUrl={previewUrl} />
       )}
+
+      <HistoricoTimelineCard entidade="nota_fiscal" entidadeId={nfId} />
     </div>
   )
 }

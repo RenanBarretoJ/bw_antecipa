@@ -1,7 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { requireAuthenticated, requireGestor } from '@/lib/auth/authorization'
+import { requireAuthenticated, requireGestor, type AppSupabaseClient } from '@/lib/auth/authorization'
 import { exigirSessaoElevada } from '@/lib/auth/mfa'
 import { registrarLog } from './auditoria'
 import { criarNotificacao, notificarCedente, notificarGestores } from './notificacao'
@@ -11,12 +11,42 @@ import { verificarElegibilidadeDocumental } from '@/lib/actions/documento-v2'
 import { validarElegibilidadeAprovacao, validarElegibilidadeSolicitacao } from '@/lib/operacoes/elegibilidade'
 import { montarIdempotencyKeySolicitacaoOperacao } from '@/lib/operacoes/idempotencia'
 import { obterFundoAtivoAutorizado } from '@/lib/actions/fundo-ativo'
+import { carregarContextoEventoOperacao, registrarEventoDominio } from '@/lib/eventos-dominio/registrar'
 
 export type OperacaoActionState = {
   success?: boolean
   message?: string
   data?: Record<string, unknown>
 } | undefined
+
+async function registrarEventoOperacao(
+  supabase: AppSupabaseClient,
+  operacaoId: string,
+  input: {
+    tipo_evento: string
+    categoria: 'operacao' | 'aprovacao' | 'reprovacao' | 'desembolso' | 'logistica'
+    descricao: string
+    metadata?: Record<string, unknown>
+    visibilidade?: 'interno' | 'cedente' | 'ambos'
+    origem?: string
+  },
+) {
+  const contextoEvento = await carregarContextoEventoOperacao(supabase, operacaoId)
+  await registrarEventoDominio({
+    ...contextoEvento,
+    tipo_evento: input.tipo_evento,
+    categoria: input.categoria,
+    descricao: input.descricao,
+    metadata: {
+      status: contextoEvento.status,
+      valor_bruto_total: contextoEvento.valor_bruto_total,
+      quantidade_nfs: contextoEvento.quantidade_nfs,
+      ...input.metadata,
+    },
+    visibilidade: input.visibilidade ?? 'ambos',
+    origem: input.origem ?? 'operacao_action',
+  }, supabase)
+}
 
 // ============================================================
 // CEDENTE — Solicitar antecipacao
@@ -224,6 +254,20 @@ export async function solicitarAntecipacao(nfIds: string[]): Promise<OperacaoAct
     })
   }
 
+  if (!opData.idempotentReplay) {
+    await registrarEventoOperacao(supabase, opData.id, {
+      tipo_evento: 'operacao_solicitada',
+      categoria: 'operacao',
+      descricao: 'Operacao de antecipacao solicitada pelo cedente.',
+      metadata: {
+        valor_bruto_total: valorBrutoTotal,
+        valor_liquido_desembolso: valorLiquidoDesembolso,
+        quantidade_nfs: nfsTyped.length,
+        aceite_sacado_status: aceiteSacadoStatus,
+      },
+    })
+  }
+
   return {
     success: true,
     message: opData.idempotentReplay
@@ -351,6 +395,20 @@ export async function aprovarOperacao(
     }
   }
 
+  if (!idempotentReplay) {
+    await registrarEventoOperacao(supabase, operacaoId, {
+      tipo_evento: 'operacao_aprovada',
+      categoria: 'aprovacao',
+      descricao: 'Operacao aprovada pela gestora.',
+      metadata: {
+        taxa_desconto: taxaDesconto,
+        valor_liquido_desembolso: valorLiquidoDesembolso,
+        status_anterior: opData.status,
+        status_novo: 'aprovada',
+      },
+    })
+  }
+
   return {
     success: true,
     message: idempotentReplay
@@ -427,6 +485,16 @@ export async function desembolsarOperacao(operacaoId: string): Promise<OperacaoA
       logistica: desembolso,
     },
   })
+  await registrarEventoOperacao(supabase, operacaoId, {
+    tipo_evento: 'operacao_desembolsada',
+    categoria: 'desembolso',
+    descricao: 'Desembolso confirmado pela gestora.',
+    metadata: {
+      status_anterior: 'aprovada',
+      status_novo: 'em_andamento',
+      valor_liquido_desembolso: opData.valor_liquido_desembolso,
+    },
+  })
 
   return { success: true, message: `Desembolso de ${formatBRL(opData.valor_liquido_desembolso)} confirmado.` }
 }
@@ -489,6 +557,12 @@ export async function reprovarOperacao(operacaoId: string, motivo: string): Prom
     entidade_id: operacaoId,
     dados_antes: { status: opData.status },
     dados_depois: { status: 'reprovada', motivo },
+  })
+  await registrarEventoOperacao(supabase, operacaoId, {
+    tipo_evento: 'operacao_reprovada',
+    categoria: 'reprovacao',
+    descricao: 'Operacao reprovada pela gestora.',
+    metadata: { status_anterior: opData.status, status_novo: 'reprovada', motivo_resumido: motivo.slice(0, 120) },
   })
 
   return { success: true, message: 'Operacao reprovada.' }
@@ -553,6 +627,12 @@ export async function cancelarOperacao(operacaoId: string): Promise<OperacaoActi
     entidade_id: operacaoId,
     dados_antes: { status: opData.status },
     dados_depois: { status: 'cancelada' },
+  })
+  await registrarEventoOperacao(supabase, operacaoId, {
+    tipo_evento: 'operacao_cancelada',
+    categoria: 'operacao',
+    descricao: 'Operacao cancelada pelo cedente.',
+    metadata: { status_anterior: opData.status, status_novo: 'cancelada' },
   })
 
   return { success: true, message: 'Operacao cancelada. NFs disponiveis para nova solicitacao.' }
@@ -705,6 +785,13 @@ export async function removerNfDaOperacao(
       'operacao_cancelada',
     )
 
+    await registrarEventoOperacao(supabase, operacaoId, {
+      tipo_evento: 'nota_fiscal_removida_operacao',
+      categoria: 'operacao',
+      descricao: `NF ${nfData.numero_nf} removida da operacao; operacao cancelada.`,
+      metadata: { numero_nf: nfData.numero_nf, operacao_cancelada: true, status_novo: 'cancelada' },
+    })
+
     const aviso = wasEmAndamento ? ' ATENCAO: A operacao ja estava em andamento — verifique o saldo da conta escrow.' : ''
     return { success: true, message: `NF ${nfData.numero_nf} removida. Operacao cancelada pois nao havia mais NFs.${aviso}` }
   }
@@ -750,6 +837,13 @@ export async function removerNfDaOperacao(
     `A NF ${nfData.numero_nf} foi removida da operacao pelo gestor. O valor bruto da operacao foi recalculado para ${formatBRL(novoValorBruto)}.`,
     'nf_removida_operacao',
   )
+
+  await registrarEventoOperacao(supabase, operacaoId, {
+    tipo_evento: 'nota_fiscal_removida_operacao',
+    categoria: 'operacao',
+    descricao: `NF ${nfData.numero_nf} removida da operacao.`,
+    metadata: { numero_nf: nfData.numero_nf, novo_valor_bruto: novoValorBruto },
+  })
 
   const aviso = wasEmAndamento ? ' ATENCAO: A operacao ja estava em andamento — os termos financeiros precisam ser ajustados manualmente.' : ''
   return { success: true, message: `NF ${nfData.numero_nf} removida. Novo valor bruto: ${formatBRL(novoValorBruto)}.${aviso}` }

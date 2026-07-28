@@ -10,6 +10,7 @@ import { normalizarCodigoDocumentoCatalogo } from '@/lib/documentos-v2/tipos'
 import { calcularPrazoDocumento, type StatusPrazoDocumento } from '@/lib/documentos-v2/prazos'
 import { calcularStatusLogisticoDocumental, type StatusLogisticoResumo } from '@/lib/documentos-v2/resumo-operacional'
 import { faseDocumentalPorEscopo } from '@/lib/documentos-v2/requisitos-pos-cessao'
+import { carregarContextoEventoDocumentoVersao, registrarEventoDominio } from '@/lib/eventos-dominio/registrar'
 import type { DocumentoAnaliseResultado } from '@/lib/types/domain'
 
 export interface ChecklistDocumentoItem {
@@ -352,6 +353,23 @@ export async function analisarVersaoDocumento(versaoId: string, resultado: Docum
   })
   if (error) return { success: false, message: error.message }
   await registrarLog({ tipo_evento: 'DOCUMENTO_V2_ANALISADO', entidade_tipo: 'documento_versoes', entidade_id: versaoId, dados_depois: { resultado, observacoes } }).catch(() => {})
+  const contextoEvento = await carregarContextoEventoDocumentoVersao(context.supabase, versaoId)
+  const aprovado = resultado === 'aprovado'
+  await registrarEventoDominio({
+    ...contextoEvento,
+    tipo_evento: aprovado ? 'documento_aprovado' : 'documento_rejeitado',
+    categoria: aprovado ? 'aprovacao' : 'reprovacao',
+    descricao: aprovado ? `${contextoEvento.documento_nome ?? 'Documento'} aprovado.` : `${contextoEvento.documento_nome ?? 'Documento'} rejeitado.`,
+    metadata: {
+      documento: contextoEvento.documento_nome,
+      tipo_documento: contextoEvento.documento_tipo,
+      numero_versao: contextoEvento.numero_versao,
+      resultado,
+      motivo_resumido: observacoes ? observacoes.slice(0, 120) : null,
+    },
+    visibilidade: 'ambos',
+    origem: 'analise_documental',
+  }, context.supabase)
   return { success: true, data }
 }
 

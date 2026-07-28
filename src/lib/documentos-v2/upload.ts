@@ -7,6 +7,7 @@ import { instanciarRequisitosDaNota, type ContextoDocumentoNotaFiscal } from './
 import { parseCteXml } from '@/lib/logistica/cte-parser'
 import { mensagemValidacaoCte, validarCteContraNfes, type NfeParaValidacaoCte } from '@/lib/logistica/validacao-cte-nfe'
 import { obterFundoAtivoAutorizado } from '@/lib/actions/fundo-ativo'
+import { carregarContextoEventoNota, registrarEventoDominio } from '@/lib/eventos-dominio/registrar'
 
 export interface UploadDocumentoNotaInput {
   notaFiscalId: string
@@ -227,6 +228,24 @@ export async function uploadDocumentoDaNota(
         entidade_id: input.contexto?.entidadeId ?? input.notaFiscalId,
       },
     }).catch(() => {})
+    const contextoEvento = await carregarContextoEventoNota(client, input.notaFiscalId)
+    await registrarEventoDominio({
+      ...contextoEvento,
+      tipo_evento: tipoData.codigo === 'nf_xml' ? 'xml_nfe_enviado' : tipoData.codigo === 'nf_danfe_pdf' ? 'danfe_enviado' : 'documento_enviado',
+      categoria: 'documento',
+      descricao: `${tipoData.nome} enviado para analise.`,
+      metadata: {
+        numero_nf: contextoEvento.numero_nf,
+        documento: tipoData.nome,
+        tipo_documento: tipoData.codigo,
+        numero_versao: result.numero_versao,
+        status: 'aguardando_analise',
+      },
+      visibilidade: 'ambos',
+      origem: 'upload_documento_nota',
+      origem_evento: 'documento_versoes',
+      origem_registro_id: String(result.versao_id),
+    }, client)
     return {
       ...result,
       nome: input.arquivo.name,
@@ -358,6 +377,26 @@ export async function uploadDocumentoDaEntrega(
           cedente_fundo_id: validacaoCte.nfParaCte.cedente_fundo_id,
         },
       }).catch(() => {})
+      await registrarEventoDominio({
+        tenant_id: validacaoCte.nfParaCte.fundo_id,
+        fundo_id: validacaoCte.nfParaCte.fundo_id,
+        cedente_id: validacaoCte.nfParaCte.cedente_id,
+        cedente_fundo_id: validacaoCte.nfParaCte.cedente_fundo_id,
+        nota_fiscal_id: input.notaFiscalId,
+        tipo_evento: 'cte_xml_enviado',
+        categoria: 'logistica',
+        descricao: 'CT-e XML validado e enviado para analise.',
+        metadata: {
+          documento: 'CT-e XML',
+          tipo_documento: 'cte_xml',
+          status_validacao: validacaoCte.resultadoValidacaoCte.status,
+          numero: validacaoCte.parsedCte.numero,
+        },
+        visibilidade: 'ambos',
+        origem: 'upload_documento_entrega',
+        origem_evento: 'documento_versoes',
+        origem_registro_id: String(result.versao_id ?? result.documento_versao_id ?? result.cte_id),
+      }, client)
       return { ...result, nome: input.arquivo.name, message: mensagemValidacaoCte(validacaoCte.resultadoValidacaoCte) }
     }
 
@@ -393,6 +432,24 @@ export async function uploadDocumentoDaEntrega(
         cedente_fundo_id: result.cedente_fundo_id ?? null,
       },
     }).catch(() => {})
+    const contextoEvento = await carregarContextoEventoNota(client, input.notaFiscalId)
+    await registrarEventoDominio({
+      ...contextoEvento,
+      tipo_evento: codigoSnapshot === 'canhoto' ? 'canhoto_enviado' : 'documento_pos_cessao_enviado',
+      categoria: 'logistica',
+      descricao: `${tipoData.nome} enviado para analise.`,
+      metadata: {
+        numero_nf: contextoEvento.numero_nf,
+        documento: tipoData.nome,
+        tipo_documento: tipoData.codigo,
+        numero_versao: result.numero_versao,
+        status: 'aguardando_analise',
+      },
+      visibilidade: 'ambos',
+      origem: 'upload_documento_entrega',
+      origem_evento: 'documento_versoes',
+      origem_registro_id: String(result.versao_id),
+    }, client)
     return { ...result, nome: input.arquivo.name }
   } catch (error) {
     if (uploaded) await removerObjetoDocumento(path)

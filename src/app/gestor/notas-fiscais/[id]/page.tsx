@@ -27,6 +27,7 @@ import { ChecklistGestor } from '@/components/documentos-v2/ChecklistGestor'
 import { useNotifications } from '@/components/notifications/notification-provider'
 import { ArquivoOriginalCompacto } from '@/components/notas-fiscais/ArquivoOriginalCompacto'
 import { useFundoAtivo } from '@/components/fundos/fundo-ativo-provider'
+import { HistoricoTimelineCard } from '@/components/historico/HistoricoTimelineCard'
 
 interface NfCompleta {
   id: string
@@ -239,9 +240,9 @@ export default function NfDetalheGestorPage() {
   const impostos = nf.valor_icms + nf.valor_iss + nf.valor_pis + nf.valor_cofins + nf.valor_ipi
 
   return (
-    <div className="max-w-5xl mx-auto">
+    <div className="max-w-5xl mx-auto space-y-6 pb-10">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Link href="/gestor/notas-fiscais">
             <Button variant="ghost" size="icon">
@@ -537,6 +538,8 @@ export default function NfDetalheGestorPage() {
           </div>
         </div>
       </div>
+
+      <HistoricoTimelineCard entidade="nota_fiscal" entidadeId={nfId} />
     </div>
   )
 }

@@ -1,7 +1,7 @@
 'use server'
 
 import { createAdminClient, createClient } from '@/lib/supabase/server'
-import { requireAuthenticated, requireGestor as requireGestorBase } from '@/lib/auth/authorization'
+import { requireAuthenticated, requireGestor as requireGestorBase, type AppSupabaseClient } from '@/lib/auth/authorization'
 import { exigirSessaoElevada } from '@/lib/auth/mfa'
 import { notaFiscalSchema, type NotaFiscalFormData } from '@/lib/validations/nf'
 import { extractDanfeFromPdf, type NfPdfExtracted } from '@/lib/pdf-nf-parser'
@@ -13,6 +13,7 @@ import { CedenteFundoError, mensagemOperacionalSemVinculo, resolverCedenteFundoA
 import { decidirAcaoDuplicidadeNotaFiscal, mensagemDuplicidadeNotaFiscal } from '@/lib/notas-fiscais/upload-context'
 import { formatarDetalhesBloqueioEmitente, validarXmlNfeParaUploadCedente } from '@/lib/notas-fiscais/emitente-autorizado'
 import { obterFundoAtivoAutorizado } from '@/lib/actions/fundo-ativo'
+import { carregarContextoEventoNota, registrarEventoDominio } from '@/lib/eventos-dominio/registrar'
 
 export type NfActionState = {
   success?: boolean
@@ -30,6 +31,34 @@ async function requireGestor() {
   const context = await requireGestorBase()
   await exigirSessaoElevada(context)
   return context
+}
+
+async function registrarEventoNotaFiscal(
+  supabase: AppSupabaseClient,
+  nfId: string,
+  input: {
+    tipo_evento: string
+    categoria: 'operacao' | 'aprovacao' | 'reprovacao' | 'analise'
+    descricao: string
+    metadata?: Record<string, unknown>
+    visibilidade?: 'interno' | 'cedente' | 'ambos'
+    origem?: string
+  },
+) {
+  const contextoEvento = await carregarContextoEventoNota(supabase, nfId)
+  await registrarEventoDominio({
+    ...contextoEvento,
+    tipo_evento: input.tipo_evento,
+    categoria: input.categoria,
+    descricao: input.descricao,
+    metadata: {
+      numero_nf: contextoEvento.numero_nf,
+      status: contextoEvento.status,
+      ...input.metadata,
+    },
+    visibilidade: input.visibilidade ?? 'ambos',
+    origem: input.origem ?? 'nota_fiscal_action',
+  }, supabase)
 }
 
 type CedenteUploadContext = {
@@ -398,6 +427,17 @@ async function processarArquivo(
           cedente_fundo_id: context.cedenteFundoId,
         },
       }).catch(() => {})
+      await registrarEventoNotaFiscal(supabase, nfData.id, {
+        tipo_evento: 'nota_fiscal_cadastrada',
+        categoria: 'operacao',
+        descricao: 'Nota fiscal cadastrada por upload de XML.',
+        metadata: {
+          status_novo: 'submetida',
+          valor_bruto: parsed.valor_bruto,
+          tipo_documento: 'nf_xml',
+        },
+        origem: 'upload_nf_xml',
+      })
 
       return { ok: true, id: nfData.id, isRascunho: false }
 
@@ -465,6 +505,18 @@ async function processarArquivo(
           return { ok: false, error: `${arquivo.name}: nao foi possivel registrar o DANFE no repositorio documental - ${error instanceof Error ? error.message : 'erro desconhecido'}` }
         }
       }
+
+      await registrarEventoNotaFiscal(supabase, nfData.id, {
+        tipo_evento: 'nota_fiscal_cadastrada',
+        categoria: 'operacao',
+        descricao: isPdf ? 'Nota fiscal cadastrada por upload de PDF.' : 'Nota fiscal cadastrada por upload.',
+        metadata: {
+          status_novo: 'rascunho',
+          valor_bruto: extracted.valor_bruto ?? 0,
+          tipo_documento: isPdf ? 'nf_danfe_pdf' : 'arquivo',
+        },
+        origem: isPdf ? 'upload_nf_pdf' : 'upload_nf_arquivo',
+      })
 
       return { ok: true, id: nfData.id, isRascunho: true }
     }
@@ -636,6 +688,13 @@ export async function criarNFManual(formData: FormData): Promise<NfActionState> 
     entidade_id: nfData.id,
     dados_depois: { numero_nf, valor_bruto, cnpj_destinatario, fundo_id: context.fundoId, cedente_fundo_id: context.cedenteFundoId } as Record<string, unknown>,
   })
+  await registrarEventoNotaFiscal(supabase, nfData.id, {
+    tipo_evento: 'nota_fiscal_cadastrada',
+    categoria: 'operacao',
+    descricao: 'Nota fiscal cadastrada manualmente pelo cedente.',
+    metadata: { status_novo: 'submetida', valor_bruto, tipo_documento: arquivo.type === 'application/pdf' ? 'nf_danfe_pdf' : 'arquivo' },
+    origem: 'upload_nf_manual',
+  })
 
   await notificarGestores(
     'Nova NF enviada',
@@ -763,6 +822,12 @@ export async function submeterNF(nfId: string): Promise<NfActionState> {
     tipo_evento: 'NF_SUBMETIDA',
     entidade_tipo: 'notas_fiscais',
     entidade_id: nfId,
+  })
+  await registrarEventoNotaFiscal(supabase, nfId, {
+    tipo_evento: 'nota_fiscal_submetida',
+    categoria: 'operacao',
+    descricao: 'Nota fiscal submetida para analise.',
+    metadata: { status_novo: 'submetida' },
   })
 
   await notificarGestores(
@@ -913,6 +978,12 @@ export async function aprovarNF(nfId: string): Promise<NfActionState> {
     dados_antes: { status: nfData.status },
     dados_depois: { status: 'aprovada' },
   })
+  await registrarEventoNotaFiscal(supabase, nfId, {
+    tipo_evento: 'nota_fiscal_aprovada',
+    categoria: 'aprovacao',
+    descricao: 'Nota fiscal aprovada pela gestora.',
+    metadata: { status_anterior: nfData.status, status_novo: 'aprovada' },
+  })
 
   return { success: true, message: 'NF aprovada com sucesso!' }
 }
@@ -965,6 +1036,12 @@ export async function reprovarNF(nfId: string, motivo: string): Promise<NfAction
     dados_antes: { status: nfData.status },
     dados_depois: { status: 'cancelada', motivo },
   })
+  await registrarEventoNotaFiscal(supabase, nfId, {
+    tipo_evento: 'nota_fiscal_reprovada',
+    categoria: 'reprovacao',
+    descricao: 'Nota fiscal reprovada pela gestora.',
+    metadata: { status_anterior: nfData.status, status_novo: 'cancelada', motivo_resumido: motivo.slice(0, 120) },
+  })
 
   return { success: true, message: 'NF reprovada.' }
 }
@@ -1009,6 +1086,12 @@ export async function resubmeterNFAjustada(nfId: string): Promise<NfActionState>
     entidade_id: nfId,
     dados_antes: { status: 'requer_ajuste' },
     dados_depois: { status: 'submetida' },
+  })
+  await registrarEventoNotaFiscal(supabase, nfId, {
+    tipo_evento: 'nota_fiscal_resubmetida',
+    categoria: 'operacao',
+    descricao: 'Nota fiscal resubmetida apos ajuste.',
+    metadata: { status_anterior: 'requer_ajuste', status_novo: 'submetida' },
   })
 
   await notificarGestores(
@@ -1077,6 +1160,12 @@ export async function solicitarAjusteNF(nfId: string, motivo: string): Promise<N
     entidade_id: nfId,
     dados_antes: { status: nfData.status },
     dados_depois: { status: 'requer_ajuste', motivo_ajuste: motivo.trim() },
+  })
+  await registrarEventoNotaFiscal(supabase, nfId, {
+    tipo_evento: 'nota_fiscal_ajuste_solicitado',
+    categoria: 'analise',
+    descricao: 'Ajuste solicitado na nota fiscal.',
+    metadata: { status_anterior: nfData.status, status_novo: 'requer_ajuste', motivo_resumido: motivo.trim().slice(0, 120) },
   })
 
   return { success: true, message: 'Ajuste solicitado. Cedente sera notificado.' }
