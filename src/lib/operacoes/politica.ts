@@ -9,6 +9,7 @@ import type {
 } from '@/types/database'
 import { requireCedenteAccess, type AppSupabaseClient } from '@/lib/auth/authorization'
 import { CedenteFundoError, assertFundoAtivo, mensagemOperacionalSemPolitica, mensagemOperacionalSemVinculo, resolverCedenteFundoAtivo } from '@/lib/fundos/cedente-fundo'
+import { createAdminClient } from '@/lib/supabase/server'
 
 export interface PoliticaResolvida {
   cedenteFundo: CedenteFundo
@@ -137,15 +138,22 @@ export function validarContextoOperacional(policy: PoliticaResolvida): void {
 }
 
 async function carregarPoliticaResolvida(
-  supabase: AppSupabaseClient,
+  _supabase: AppSupabaseClient,
   cedenteFundo: CedenteFundo,
   fundo: Fundo,
 ): Promise<PoliticaResolvida> {
   const now = new Date().toISOString()
+  // O acesso do cedente ao vinculo/fundo ja foi validado antes desta funcao.
+  // A politica operacional, suas versoes e requisitos pertencem ao fundo e sao
+  // aplicados ao cedente via cedente_fundo_politicas. Usamos client
+  // administrativo apenas para ler essa configuracao operacional server-side,
+  // evitando que policies legadas baseadas em cedente_fundo_id NULL ocultem uma
+  // versao publicada valida do proprio vinculo.
+  const policyClient = createAdminClient()
   let atribuicao: CedenteFundoPolitica | null = null
   let politica: PoliticaOperacional | null = null
 
-  const { data: assignments, error: assignmentError } = await supabase
+  const { data: assignments, error: assignmentError } = await policyClient
     .from('cedente_fundo_politicas')
     .select('*')
     .eq('cedente_fundo_id', cedenteFundo.id)
@@ -157,7 +165,7 @@ async function carregarPoliticaResolvida(
 
   if (!assignmentError && assignments && assignments.length > 0) {
     atribuicao = assignments[0] as CedenteFundoPolitica
-    const { data: policy, error: policyError } = await supabase
+    const { data: policy, error: policyError } = await policyClient
       .from('politicas_operacionais')
       .select('*')
       .eq('id', atribuicao.politica_operacional_id)
@@ -178,7 +186,7 @@ async function carregarPoliticaResolvida(
     )
   }
 
-  const { data: versions, error: versionError } = await supabase
+  const { data: versions, error: versionError } = await policyClient
     .from('politica_operacional_versoes')
     .select('*')
     .eq('politica_operacional_id', politica.id)
@@ -199,7 +207,7 @@ async function carregarPoliticaResolvida(
   }
 
   const versao = versions[0] as PoliticaOperacionalVersao
-  const { data: requirements, error: requirementError } = await supabase
+  const { data: requirements, error: requirementError } = await policyClient
     .from('politica_requisitos_documentais')
     .select('*')
     .eq('politica_operacional_versao_id', versao.id)

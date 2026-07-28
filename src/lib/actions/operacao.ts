@@ -5,7 +5,7 @@ import { requireAuthenticated, requireGestor, type AppSupabaseClient } from '@/l
 import { exigirSessaoElevada } from '@/lib/auth/mfa'
 import { registrarLog } from './auditoria'
 import { criarNotificacao, notificarCedente, notificarGestores } from './notificacao'
-import { criarSnapshotPolitica, resolverPoliticaAtiva, statusAceiteInicial } from '@/lib/operacoes/politica'
+import { criarSnapshotPolitica, resolverPoliticaAtivaPorVinculo, statusAceiteInicial } from '@/lib/operacoes/politica'
 import { CedenteFundoError } from '@/lib/fundos/cedente-fundo'
 import { verificarElegibilidadeDocumental } from '@/lib/actions/documento-v2'
 import { validarElegibilidadeAprovacao, validarElegibilidadeSolicitacao } from '@/lib/operacoes/elegibilidade'
@@ -75,18 +75,6 @@ export async function solicitarAntecipacao(nfIds: string[]): Promise<OperacaoAct
     return { success: false, message: 'Seu cadastro precisa estar ativo para solicitar antecipacoes.' }
   }
 
-  // A operacao nova precisa capturar o contexto vigente antes de qualquer alteracao operacional.
-  let politicaContexto
-  try {
-    politicaContexto = await resolverPoliticaAtiva(ced.id, supabase)
-  } catch (error) {
-    if (error instanceof CedenteFundoError) return { success: false, message: error.message }
-    return { success: false, message: 'Nao foi possivel resolver a politica operacional vigente.' }
-  }
-  const politicaSnapshot = criarSnapshotPolitica(politicaContexto)
-  const aceiteSacadoExigido = politicaContexto.versao.aceite_sacado_obrigatorio
-  const aceiteSacadoStatus = statusAceiteInicial(aceiteSacadoExigido)
-
   // Buscar conta escrow
   const { data: escrow } = await supabase
     .from('contas_escrow')
@@ -100,7 +88,7 @@ export async function solicitarAntecipacao(nfIds: string[]): Promise<OperacaoAct
   // Buscar NFs selecionadas — devem ser aprovadas e pertencer ao cedente
   const { data: nfs } = await supabase
     .from('notas_fiscais')
-    .select('id, valor_bruto, data_vencimento, status, numero_nf, cnpj_destinatario, razao_social_destinatario')
+    .select('id, valor_bruto, data_vencimento, status, numero_nf, cnpj_destinatario, razao_social_destinatario, cedente_fundo_id, fundo_id')
     .in('id', nfIds)
     .eq('cedente_id', ced.id)
     .eq('status', 'aprovada')
@@ -111,7 +99,8 @@ export async function solicitarAntecipacao(nfIds: string[]): Promise<OperacaoAct
 
   const nfsTyped = nfs as Array<{
     id: string; valor_bruto: number; data_vencimento: string; status: string;
-    numero_nf: string; cnpj_destinatario: string; razao_social_destinatario: string
+    numero_nf: string; cnpj_destinatario: string; razao_social_destinatario: string;
+    cedente_fundo_id: string | null; fundo_id: string | null
   }>
 
   if (nfsTyped.length !== nfIds.length) {
@@ -122,6 +111,32 @@ export async function solicitarAntecipacao(nfIds: string[]): Promise<OperacaoAct
   }
 
   // Calcular por NF: prazo individual → taxa individual → valor antecipado individual
+  const cedenteFundoIds = [...new Set(nfsTyped.map((nf) => nf.cedente_fundo_id).filter(Boolean))]
+  const fundoIds = [...new Set(nfsTyped.map((nf) => nf.fundo_id).filter(Boolean))]
+  if (cedenteFundoIds.length !== 1 || fundoIds.length !== 1) {
+    return {
+      success: false,
+      message: 'As NFs selecionadas precisam pertencer ao mesmo fundo operacional.',
+    }
+  }
+
+  // A operacao nova precisa capturar o contexto vigente do vinculo das proprias NFs.
+  // No multi-fundo, resolver pelo cedente genericamente pode selecionar outro vinculo ativo/cookie.
+  let politicaContexto
+  try {
+    politicaContexto = await resolverPoliticaAtivaPorVinculo({
+      cedenteId: ced.id,
+      cedenteFundoId: cedenteFundoIds[0]!,
+      fundoId: fundoIds[0]!,
+    }, supabase)
+  } catch (error) {
+    if (error instanceof CedenteFundoError) return { success: false, message: error.message }
+    return { success: false, message: 'Nao foi possivel resolver a politica operacional vigente.' }
+  }
+  const politicaSnapshot = criarSnapshotPolitica(politicaContexto)
+  const aceiteSacadoExigido = politicaContexto.versao.aceite_sacado_obrigatorio
+  const aceiteSacadoStatus = statusAceiteInicial(aceiteSacadoExigido)
+
   const elegibilidades = await Promise.all(nfsTyped.map(async (nf) => ({
     nf,
     resultado: await verificarElegibilidadeDocumental(nf.id),
