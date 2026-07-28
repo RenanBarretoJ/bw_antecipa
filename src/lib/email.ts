@@ -198,4 +198,20 @@ export const emailTemplates = {
       <p>Confira o extrato atualizado no portal.</p>
     `),
   }),
+
+  // Seguranca
+  senhaAlterada: (nome: string, dataHora: string, navegador: string, ipAproximado: string) => ({
+    subject: 'Sua senha foi alterada',
+    html: baseTemplate(`
+      <h2 style="color: #1e3a5f;">Senha alterada</h2>
+      <p>Ola <strong>${nome}</strong>,</p>
+      <p>Sua senha de acesso ao BW Antecipa foi alterada.</p>
+      <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 16px; margin: 16px 0;">
+        <p><strong>Data e hora:</strong> ${dataHora}</p>
+        <p><strong>Navegador:</strong> ${navegador}</p>
+        <p><strong>IP aproximado:</strong> ${ipAproximado}</p>
+      </div>
+      <p>Se nao foi voce, entre em contato imediatamente com a equipe Better With.</p>
+    `),
+  }),
 }

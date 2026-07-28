@@ -117,6 +117,7 @@ export interface Profile {
   ultima_autenticacao_forte_em: string | null
   mfa_reset_em: string | null
   sessoes_revogadas_em: string | null
+  senha_alterada_em: string | null
   created_at: string
   updated_at: string
 }

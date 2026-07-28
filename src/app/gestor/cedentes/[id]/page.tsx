@@ -26,6 +26,7 @@ import { PageHeader } from '@/components/layout/page-header'
 import { DetailField, DetailSection, FieldGrid, StatusBadge } from '@/components/data-display/primitives'
 import { useNotifications } from '@/components/notifications/notification-provider'
 import { useFundoAtivo } from '@/components/fundos/fundo-ativo-provider'
+import { FilePreviewContent } from '@/components/notas-fiscais/FilePreviewContent'
 
 interface CedenteDetail {
   id: string; cnpj: string; razao_social: string; nome_fantasia: string | null
@@ -1116,15 +1117,7 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
             </div>
 
             <div className="flex-1 overflow-auto p-4">
-              {modal.previewUrl ? (
-                modal.doc.nome_arquivo?.toLowerCase().endsWith('.pdf') ? (
-                  <iframe src={modal.previewUrl} className="w-full h-[500px] border rounded" />
-                ) : (
-                  <img src={modal.previewUrl} alt={modal.doc.nome_arquivo || ''} className="max-w-full mx-auto rounded" />
-                )
-              ) : (
-                <p className="text-muted-foreground text-center py-10">Nao foi possivel carregar o preview.</p>
-              )}
+              <FilePreviewContent url={modal.previewUrl} filePath={modal.doc.nome_arquivo} title={modal.doc.nome_arquivo || 'Documento'} className="h-[500px]" />
             </div>
 
             {(modal.doc.status === 'enviado' || modal.doc.status === 'em_analise') && (

@@ -1,10 +1,14 @@
 'use client'
 
-import { useEffect, useState, useTransition } from 'react'
+import { useActionState, useCallback, useEffect, useMemo, useState, useTransition } from 'react'
 import Link from 'next/link'
-import { KeyRound, Loader2, RefreshCcw, ShieldCheck, Smartphone, UsersRound, type LucideIcon } from 'lucide-react'
+import { CheckCircle2, Eye, EyeOff, KeyRound, Loader2, LockKeyhole, RefreshCcw, ShieldCheck, Smartphone, UsersRound, XCircle, type LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { desativarMfaProprio, encerrarOutrasSessoes, listarFatoresMfa, regenerarCodigosRecuperacao, type MfaActionState } from '@/app/actions/mfa'
+import { alterarSenhaAutenticado, solicitarNonceAlteracaoSenha, type PasswordActionState } from '@/app/actions/password'
+import { avaliarForcaSenha } from '@/lib/auth/password'
 import { useNotifications } from '@/components/notifications/notification-provider'
 
 type Factor = { id: string; friendlyName: string; status: string }
@@ -14,17 +18,29 @@ export function SecurityPage() {
   const notifications = useNotifications()
   const [data, setData] = useState<SecurityData | null>(null)
   const [codes, setCodes] = useState<string[]>([])
+  const [newPassword, setNewPassword] = useState('')
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false)
+  const [showNewPassword, setShowNewPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [showNonce, setShowNonce] = useState(false)
   const [isPending, startTransition] = useTransition()
+  const [passwordState, passwordAction, passwordPending] = useActionState<PasswordActionState | undefined, FormData>(alterarSenhaAutenticado, undefined)
+  const passwordStrength = useMemo(() => avaliarForcaSenha(newPassword), [newPassword])
 
-  async function load() {
+  const load = useCallback(async () => {
     const result = await listarFatoresMfa()
     if (result.success && result.data) setData(result.data)
     else notifications.fromActionResult(result, 'Não foi possível carregar os dados de segurança.')
-  }
+  }, [notifications])
 
   // Sincroniza a tela de seguranca com o estado remoto do Supabase Auth.
   // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { void load() }, [])
+  useEffect(() => { void load() }, [load])
+
+  useEffect(() => {
+    if (!passwordState?.message) return
+    notifications.fromActionResult(passwordState)
+  }, [notifications, passwordState])
 
   function run(action: () => Promise<MfaActionState<{ recoveryCodes?: string[] } | unknown>>) {
     startTransition(async () => {
@@ -89,6 +105,48 @@ export function SecurityPage() {
 
           <section className="grid gap-4 md:grid-cols-2">
             <div className="rounded-2xl border border-border bg-card p-5">
+              <div className="flex items-start gap-3">
+                <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary"><LockKeyhole size={18} /></div>
+                <div>
+                  <h2 className="font-semibold">Alterar senha</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">Valide a senha atual e defina uma nova senha forte. Outras sessoes serao encerradas.</p>
+                </div>
+              </div>
+              <form action={passwordAction} className="mt-5 space-y-4">
+                <PasswordInput id="currentPassword" name="currentPassword" label="Senha atual" show={showCurrentPassword} setShow={setShowCurrentPassword} autoComplete="current-password" error={passwordState?.errors?.currentPassword?.[0]} />
+                <PasswordInput id="password" name="password" label="Nova senha" show={showNewPassword} setShow={setShowNewPassword} value={newPassword} onChange={setNewPassword} autoComplete="new-password" error={passwordState?.errors?.password?.[0]} />
+                <PasswordInput id="confirmPassword" name="confirmPassword" label="Confirmar nova senha" show={showConfirmPassword} setShow={setShowConfirmPassword} autoComplete="new-password" error={passwordState?.errors?.confirmPassword?.[0]} />
+                {showNonce ? (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="nonce">Codigo de reautenticacao</Label>
+                    <Input id="nonce" name="nonce" inputMode="numeric" autoComplete="one-time-code" placeholder="Informe apenas se solicitado pelo Supabase" className="h-10" />
+                    <p className="text-xs text-muted-foreground">Use este campo somente quando o Supabase exigir nonce para troca de senha recente.</p>
+                  </div>
+                ) : null}
+                <div className="rounded-xl border border-border bg-background p-3">
+                  <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-muted">
+                    <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${(passwordStrength.score / 5) * 100}%` }} />
+                  </div>
+                  <div className="grid gap-1.5 text-xs text-muted-foreground">
+                    {passwordStrength.checks.map((check) => (
+                      <span key={check.key} className="inline-flex items-center gap-2">
+                        {check.valid ? <CheckCircle2 size={13} className="text-success-foreground" /> : <XCircle size={13} className="text-muted-foreground/60" />}
+                        {check.label}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <Button type="button" variant="outline" disabled={isPending || passwordPending || !estado?.sessaoElevadaValida} onClick={() => run(async () => {
+                  setShowNonce(true)
+                  return solicitarNonceAlteracaoSenha()
+                })} className="w-full">
+                  Solicitar codigo de reautenticacao
+                </Button>
+                <Button type="submit" disabled={passwordPending} className="w-full">{passwordPending ? <><Loader2 size={16} className="animate-spin" /> Alterando...</> : 'Alterar senha'}</Button>
+              </form>
+            </div>
+
+            <div className="rounded-2xl border border-border bg-card p-5">
               <h2 className="font-semibold">Codigos de recuperacao</h2>
               <p className="mt-2 text-sm text-muted-foreground">Gerar novos codigos invalida todos os codigos anteriores nao utilizados.</p>
               <Button type="button" className="mt-4" variant="outline" disabled={isPending || !estado?.sessaoElevadaValida || !mfaAtivo} onClick={() => run(regenerarCodigosRecuperacao)}>Gerar novos codigos</Button>
@@ -103,6 +161,32 @@ export function SecurityPage() {
           </section>
         </>
       )}
+    </div>
+  )
+}
+
+function PasswordInput({ id, name, label, show, setShow, value, onChange, autoComplete, error }: {
+  id: string
+  name: string
+  label: string
+  show: boolean
+  setShow: (value: boolean) => void
+  value?: string
+  onChange?: (value: string) => void
+  autoComplete?: string
+  error?: string
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor={id}>{label}</Label>
+      <div className="relative">
+        <KeyRound size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        <Input id={id} name={name} type={show ? 'text' : 'password'} value={value} onChange={onChange ? (event) => onChange(event.target.value) : undefined} autoComplete={autoComplete} required className="h-10 pl-10 pr-10" aria-invalid={!!error} />
+        <button type="button" onClick={() => setShow(!show)} className="absolute right-2 top-1/2 flex size-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label={show ? 'Ocultar senha' : 'Mostrar senha'}>
+          {show ? <EyeOff size={16} /> : <Eye size={16} />}
+        </button>
+      </div>
+      {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   )
 }

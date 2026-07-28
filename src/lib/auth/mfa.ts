@@ -3,6 +3,7 @@ import type { SupabaseClient, User } from '@supabase/supabase-js'
 import { createAdminClient, createClient } from '@/lib/supabase/server'
 import type { AppSupabaseClient, AuthContext } from '@/lib/auth/authorization'
 import { AuthorizationError, requireAuthenticated } from '@/lib/auth/authorization'
+import { obterFluxoAutenticacao } from '@/lib/auth/auth-flow-server'
 import type { Database, Profile, UserRole } from '@/types/database'
 
 export const MFA_ELEVATED_SESSION_WINDOW_MS = 15 * 60 * 1000
@@ -30,6 +31,25 @@ export type EventoSegurancaTipo =
   | 'ACESSO_CREDENCIAL_NEGADO'
   | 'ACESSO_NEGADO'
   | 'RATE_LIMIT_BLOQUEADO'
+  | 'PASSWORD_RESET_REQUESTED'
+  | 'PASSWORD_RESET_EMAIL_SENT'
+  | 'PASSWORD_RESET_LINK_OPENED'
+  | 'PASSWORD_RESET_LINK_INVALID'
+  | 'PASSWORD_RESET_LINK_EXPIRED'
+  | 'PASSWORD_RECOVERY_SESSION_CREATED'
+  | 'PASSWORD_RECOVERY_SESSION_CLEARED'
+  | 'PASSWORD_RESET_COMPLETED'
+  | 'PASSWORD_RESET_ABORTED'
+  | 'PASSWORD_CHANGED'
+  | 'PASSWORD_CHANGE_FAILED'
+  | 'PASSWORD_REAUTH_NONCE_REQUESTED'
+  | 'MFA_SETUP_REQUIRED_AFTER_RESET'
+  | 'MFA_CHALLENGE_AFTER_PASSWORD_RESET'
+  | 'MFA_VERIFIED_AFTER_PASSWORD_RESET'
+  | 'MFA_FAILED_AFTER_PASSWORD_RESET'
+  | 'RECOVERY_CODE_USED'
+  | 'MFA_REENROLL_REQUIRED'
+  | 'AUTH_FLOW_BLOCKED_ROUTE_ATTEMPT'
 
 export type MfaEstadoUsuario = {
   exigeMfa: boolean
@@ -37,6 +57,7 @@ export type MfaEstadoUsuario = {
   aalAtual: AuthenticatorAssuranceLevel
   aalProximo: AuthenticatorAssuranceLevel
   sessaoElevadaValida: boolean
+  sessaoElevadaMetodo: 'totp' | 'recovery_code' | 'admin_reset' | null
   fatoresTotp: Array<{ id: string; friendly_name?: string | null; status?: string | null; factor_type?: string | null }>
   recoveryCodesRestantes: number
 }
@@ -128,7 +149,7 @@ export async function obterEstadoMfaUsuario(client?: AppSupabaseClient): Promise
     supabase.auth.mfa.listFactors(),
     context.supabase
       .from('sessoes_elevadas')
-      .select('expira_em')
+      .select('expira_em, metodo')
       .eq('user_id', context.user.id)
       .gt('expira_em', nowIso())
       .maybeSingle(),
@@ -150,6 +171,7 @@ export async function obterEstadoMfaUsuario(client?: AppSupabaseClient): Promise
     aalAtual: normalizeAal(aalData?.currentLevel),
     aalProximo: normalizeAal(aalData?.nextLevel),
     sessaoElevadaValida: !!elevated,
+    sessaoElevadaMetodo: (elevated as { metodo?: 'totp' | 'recovery_code' | 'admin_reset' } | null)?.metodo || null,
     fatoresTotp,
     recoveryCodesRestantes: recoveryCount || 0,
   }
@@ -170,8 +192,21 @@ export async function exigirMfaConfigurado(client?: AppSupabaseClient) {
 
 export async function exigirSessaoElevada(context?: AuthContext) {
   const authContext = context ?? await requireAuthenticated()
+  const fluxo = await obterFluxoAutenticacao()
+  if (fluxo) {
+    await registrarEventoSeguranca({
+      tipo_evento: 'ACESSO_NEGADO',
+      usuario_id: authContext.user.id,
+      ator_usuario_id: authContext.user.id,
+      severidade: 'warning',
+      dados: { motivo: 'fluxo_autenticacao_restrito', fluxo },
+    })
+    throw new AuthorizationError('Sessao em fluxo restrito nao pode executar esta acao.', 'FORBIDDEN')
+  }
+
   const estado = await obterEstadoMfaUsuario(authContext.supabase)
-  if (estado.exigeMfa && (!estado.possuiFatorVerificado || estado.aalAtual !== 'aal2' || !estado.sessaoElevadaValida)) {
+  const segundoFatorValido = estado.sessaoElevadaValida && estado.aalAtual === 'aal2' && estado.sessaoElevadaMetodo === 'totp'
+  if (estado.exigeMfa && (!estado.possuiFatorVerificado || !segundoFatorValido)) {
     await registrarEventoSeguranca({
       tipo_evento: 'ACESSO_NEGADO',
       usuario_id: authContext.user.id,
@@ -182,6 +217,10 @@ export async function exigirSessaoElevada(context?: AuthContext) {
     throw new AuthorizationError('Sessao elevada por MFA obrigatoria para esta acao.', 'FORBIDDEN')
   }
   return estado
+}
+
+export async function exigirSessaoOperacionalAal2(context?: AuthContext) {
+  return exigirSessaoElevada(context)
 }
 
 export async function registrarSessaoElevada(userId: string, metodo: 'totp' | 'recovery_code' | 'admin_reset', factorId?: string | null) {
@@ -217,6 +256,9 @@ export async function registrarEventoSeguranca(input: {
   severidade?: 'info' | 'warning' | 'critical'
   entidade_tipo?: string | null
   entidade_id?: string | null
+  ip_hash?: string | null
+  user_agent_hash?: string | null
+  correlation_id?: string | null
   dados?: Record<string, unknown>
 }) {
   const admin = createAdminClient()
@@ -229,6 +271,9 @@ export async function registrarEventoSeguranca(input: {
     severidade: input.severidade || 'info',
     entidade_tipo: input.entidade_tipo || null,
     entidade_id: input.entidade_id || null,
+    ip_hash: input.ip_hash || null,
+    user_agent_hash: input.user_agent_hash || null,
+    correlation_id: input.correlation_id || null,
     dados: input.dados || {},
   } as never)
 }
@@ -288,8 +333,8 @@ export async function usarRecoveryCode(userId: string, code: string) {
     .is('usado_em', null)
 
   if (error) return false
-  await registrarSessaoElevada(userId, 'recovery_code')
   await registrarEventoSeguranca({ tipo_evento: 'MFA_RECOVERY_USADO', usuario_id: userId, ator_usuario_id: userId, severidade: 'warning' })
+  await registrarEventoSeguranca({ tipo_evento: 'RECOVERY_CODE_USED', usuario_id: userId, ator_usuario_id: userId, severidade: 'warning' })
   return true
 }
 

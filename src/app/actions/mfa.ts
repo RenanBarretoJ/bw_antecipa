@@ -3,6 +3,7 @@
 import { redirect } from 'next/navigation'
 import { createAdminClient, createClient } from '@/lib/supabase/server'
 import { requireAuthenticated } from '@/lib/auth/authorization'
+import { limparFluxoAutenticacao, marcarFluxoAutenticacao } from '@/lib/auth/auth-flow-server'
 import {
   exigirSessaoElevada,
   getCurrentUserOrThrow,
@@ -44,6 +45,7 @@ type MfaClient = Awaited<ReturnType<typeof createClient>> & {
       verify(input: { factorId: string; challengeId: string; code: string }): Promise<{ data: unknown; error: SupabaseMfaError | null }>
       listFactors(): Promise<{ data: { totp?: unknown[]; all?: unknown[] } | null; error: SupabaseMfaError | null }>
       unenroll(input: { factorId: string }): Promise<{ data: unknown; error: SupabaseMfaError | null }>
+      getAuthenticatorAssuranceLevel(): Promise<{ data: { currentLevel: string | null; nextLevel: string | null } | null; error: SupabaseMfaError | null }>
     }
   }
 }
@@ -207,12 +209,15 @@ export async function verificarDesafioMfa(_prevState: MfaActionState | undefined
   const { user, supabase } = await getCurrentUserOrThrow()
   const factorId = String(formData.get('factorId') || '')
   const code = sanitizarCodigoTotp(String(formData.get('code') || ''))
+  const contexto = String(formData.get('contexto') || '')
+  const isPasswordReset = contexto === 'password_reset'
 
   if (!factorId || !validarFormatoCodigoTotp(code)) return result('Codigo MFA invalido.')
   const limited = await verificarRateLimit({ escopo: 'mfa_totp', identifier: user.id, limite: 5 })
   if (!limited.allowed) return result('Muitas tentativas de MFA. Aguarde antes de tentar novamente.')
 
   const client = asMfaClient(supabase)
+  const aalAntes = await client.auth.mfa.getAuthenticatorAssuranceLevel()
   const challenge = await client.auth.mfa.challenge({ factorId })
   if (challenge.error || !challenge.data?.id) {
     await registrarTentativaRateLimit({ escopo: 'mfa_totp', identifier: user.id, sucesso: false })
@@ -223,24 +228,50 @@ export async function verificarDesafioMfa(_prevState: MfaActionState | undefined
   if (verified.error) {
     await registrarTentativaRateLimit({ escopo: 'mfa_totp', identifier: user.id, sucesso: false })
     await registrarEventoSeguranca({ tipo_evento: 'MFA_FALHA', usuario_id: user.id, ator_usuario_id: user.id, severidade: 'warning' })
+    if (isPasswordReset) await registrarEventoSeguranca({ tipo_evento: 'MFA_FAILED_AFTER_PASSWORD_RESET', usuario_id: user.id, ator_usuario_id: user.id, severidade: 'warning' })
     return result('Codigo MFA invalido.')
   }
 
   await registrarSessaoElevada(user.id, 'totp', factorId)
+  const aalDepois = await client.auth.mfa.getAuthenticatorAssuranceLevel()
   await registrarTentativaRateLimit({ escopo: 'mfa_totp', identifier: user.id, sucesso: true })
+  if (isPasswordReset) {
+    await registrarEventoSeguranca({
+      tipo_evento: 'MFA_VERIFIED_AFTER_PASSWORD_RESET',
+      usuario_id: user.id,
+      ator_usuario_id: user.id,
+      dados: {
+        aal_antes: aalAntes.data || null,
+        aal_depois: aalDepois.data || null,
+      },
+    })
+  }
   return result('Sessao elevada com sucesso.', true)
 }
 
 export async function usarCodigoRecuperacaoMfa(_prevState: MfaActionState | undefined, formData: FormData): Promise<MfaActionState> {
   const { user } = await getCurrentUserOrThrow()
   const code = String(formData.get('recoveryCode') || '').trim()
+  const contexto = String(formData.get('contexto') || '')
+  const isPasswordReset = contexto === 'password_reset'
   const limited = await verificarRateLimit({ escopo: 'mfa_recovery', identifier: user.id, limite: 5 })
   if (!limited.allowed) return result('Muitas tentativas de recuperacao. Aguarde antes de tentar novamente.')
 
   const ok = await usarRecoveryCode(user.id, code)
   await registrarTentativaRateLimit({ escopo: 'mfa_recovery', identifier: user.id, sucesso: ok })
+  if (isPasswordReset) {
+    await registrarEventoSeguranca({
+      tipo_evento: ok ? 'MFA_VERIFIED_AFTER_PASSWORD_RESET' : 'MFA_FAILED_AFTER_PASSWORD_RESET',
+      usuario_id: user.id,
+      ator_usuario_id: user.id,
+      severidade: ok ? 'info' : 'warning',
+      dados: { metodo: 'recovery_code' },
+    })
+  }
   if (!ok) return result('Codigo de recuperacao invalido ou ja utilizado.')
-  return result('Codigo de recuperacao aceito. Sessao elevada.', true)
+  await marcarFluxoAutenticacao('mfa_recovery_temporary')
+  await registrarEventoSeguranca({ tipo_evento: 'MFA_REENROLL_REQUIRED', usuario_id: user.id, ator_usuario_id: user.id, severidade: 'warning' })
+  return result('Codigo de recuperacao aceito. Reconfigure o MFA antes de acessar o portal.', true)
 }
 
 export async function regenerarCodigosRecuperacao(): Promise<MfaActionState<{ recoveryCodes: string[] }>> {
@@ -491,7 +522,15 @@ export async function listarFatoresMfa(): Promise<MfaActionState<{ fatores: Arra
   return result('Fatores carregados.', true, { fatores, estado })
 }
 
-export async function redirecionarAposMfa() {
+function normalizarNextAposMfa(next?: string | FormData | null) {
+  if (next instanceof FormData) return null
+  if (!next) return null
+  if (next === '/redefinir-senha') return next
+  return null
+}
+
+export async function redirecionarAposMfa(next?: string | FormData | null) {
   const context = await requireAuthenticated()
-  redirect(requireRoleRedirect(context.profile.role))
+  await limparFluxoAutenticacao()
+  redirect(normalizarNextAposMfa(next) || requireRoleRedirect(context.profile.role))
 }

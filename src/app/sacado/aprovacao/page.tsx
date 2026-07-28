@@ -27,6 +27,7 @@ import { Label } from '@/components/ui/label'
 import { buckets } from '@/lib/storage'
 import { useNotifications } from '@/components/notifications/notification-provider'
 import { ListNameCell } from '@/components/data-display/primitives'
+import { FilePreviewContent } from '@/components/notas-fiscais/FilePreviewContent'
 
 interface NfCessao {
   id: string
@@ -570,15 +571,7 @@ export default function AprovacaoCessaoPage() {
               </Button>
             </div>
             <div className="flex-1 overflow-auto p-4">
-              {preview.url ? (
-                preview.nf.arquivo_url?.toLowerCase().endsWith('.pdf') ? (
-                  <iframe src={preview.url} className="w-full h-[600px] border rounded" />
-                ) : (
-                  <img src={preview.url} alt={`NF ${preview.nf.numero_nf}`} className="max-w-full mx-auto rounded" />
-                )
-              ) : (
-                <p className="text-muted-foreground text-center py-10">Nao foi possivel carregar o arquivo.</p>
-              )}
+              <FilePreviewContent url={preview.url} filePath={preview.nf.arquivo_url} title={`NF ${preview.nf.numero_nf}`} className="h-[600px]" />
             </div>
           </div>
         </div>

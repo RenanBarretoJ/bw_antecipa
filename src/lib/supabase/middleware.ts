@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { AUTH_FLOW_COOKIE, getAuthFlowRedirect, isMfaSetupAllowedPath, isPasswordRecoveryAllowedPath, lerAuthFlowCookieAssinado } from '@/lib/auth/auth-flow'
 
 type MiddlewareSupabaseClient = ReturnType<typeof createServerClient>
 
@@ -25,11 +26,14 @@ export async function updateSession(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
   const pathname = request.nextUrl.pathname
-  const publicRoutes = ['/', '/login', '/cadastro']
+  const authFlowCookie = request.cookies.get(AUTH_FLOW_COOKIE)?.value
+  const authFlow = await lerAuthFlowCookieAssinado(authFlowCookie)
+  const publicRoutes = ['/', '/login', '/cadastro', '/esqueci-senha', '/redefinir-senha', '/auth/confirm']
   const isPublicRoute = publicRoutes.some((route) => pathname === route)
-  const authRoutes = ['/login', '/cadastro']
+  const authRoutes = ['/login', '/cadastro', '/esqueci-senha']
   const isAuthRoute = authRoutes.some((route) => pathname === route)
   const isMfaRoute = pathname.startsWith('/mfa')
+  const isPasswordRecoveryRoute = pathname === '/redefinir-senha'
   const isServerActionRequest = request.method === 'POST' && request.headers.has('next-action')
 
   // Server Actions usam um protocolo próprio de resposta do Next.js. Se o proxy
@@ -38,6 +42,32 @@ export async function updateSession(request: NextRequest) {
   // Autorização e MFA continuam sendo validados nas actions server-side.
   if (isServerActionRequest) return supabaseResponse
 
+  if (authFlow) {
+    const allowed = authFlow === 'password_recovery'
+      ? isPasswordRecoveryAllowedPath(pathname)
+      : isMfaSetupAllowedPath(pathname)
+
+    if (!user && pathname !== '/redefinir-senha' && pathname !== '/esqueci-senha' && pathname !== '/login') {
+      const url = request.nextUrl.clone()
+      url.pathname = '/login'
+      const response = NextResponse.redirect(url)
+      response.cookies.set(AUTH_FLOW_COOKIE, '', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 0,
+      })
+      return response
+    }
+
+    if (user && !allowed) {
+      const url = request.nextUrl.clone()
+      url.pathname = getAuthFlowRedirect(authFlow)
+      return NextResponse.redirect(url)
+    }
+  }
+
   if (!user && !isPublicRoute) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
@@ -45,6 +75,12 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (user && isAuthRoute) {
+    if (authFlow) {
+      const url = request.nextUrl.clone()
+      url.pathname = getAuthFlowRedirect(authFlow)
+      return NextResponse.redirect(url)
+    }
+
     const { data: profile } = await supabase
       .from('profiles')
       .select('role, mfa_obrigatorio_override')
@@ -65,7 +101,7 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  if (user && !isMfaRoute) {
+  if (user && !isMfaRoute && !isPasswordRecoveryRoute) {
     const roleFromPath = getRoleFromPath(pathname)
 
     if (roleFromPath) {
@@ -156,18 +192,19 @@ async function getMfaRedirect({
   const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
   const aalAtual = aal?.currentLevel === 'aal2' ? 'aal2' : 'aal1'
 
-  if ((exigeMfa || possuiFator) && aalAtual !== 'aal2') return '/mfa/desafio'
+  const { data: sessao } = await supabase
+    .from('sessoes_elevadas')
+    .select('expira_em, metodo')
+    .eq('user_id', userId)
+    .gt('expira_em', new Date().toISOString())
+    .maybeSingle()
 
-  if (exigeMfa) {
-    const { data: sessao } = await supabase
-      .from('sessoes_elevadas')
-      .select('expira_em')
-      .eq('user_id', userId)
-      .gt('expira_em', new Date().toISOString())
-      .maybeSingle()
+  const sessaoElevada = sessao as { metodo?: string } | null
+  const segundoFatorValido = aalAtual === 'aal2' && sessaoElevada?.metodo === 'totp'
 
-    if (!sessao) return '/mfa/desafio'
-  }
+  if ((exigeMfa || possuiFator) && !segundoFatorValido) return '/mfa/desafio'
+
+  if (exigeMfa && !sessao) return '/mfa/desafio'
 
   return null
 }

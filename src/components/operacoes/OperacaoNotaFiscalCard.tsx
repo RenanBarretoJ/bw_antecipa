@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react'
 import Link from 'next/link'
 import { ExternalLink, Loader2, MoreVertical } from 'lucide-react'
-import { formatCNPJ, formatCurrency, formatDate } from '@/lib/utils'
+import { cn, formatCNPJ, formatCurrency, formatDate } from '@/lib/utils'
 
 export interface OperacaoNotaFiscalView {
   id: string
@@ -58,6 +58,7 @@ export function OperacaoNotaFiscalCard({
   canRemove,
   removing,
   onRemove,
+  menuPlacement = 'bottom',
 }: {
   notaFiscal: OperacaoNotaFiscalView
   statusNode: ReactNode
@@ -65,6 +66,7 @@ export function OperacaoNotaFiscalCard({
   canRemove?: boolean
   removing?: boolean
   onRemove?: () => void
+  menuPlacement?: 'top' | 'bottom'
 }) {
   return (
     <article className="rounded-xl border bg-card p-4 shadow-sm">
@@ -95,11 +97,16 @@ export function OperacaoNotaFiscalCard({
           >
             Ver NF
           </Link>
-          <details className="relative">
+          <details className="relative z-10 open:z-50">
             <summary className="inline-flex h-8 w-8 cursor-pointer list-none items-center justify-center rounded-md border border-border bg-background hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label="Mais ações">
               <MoreVertical size={15} />
             </summary>
-            <div className="absolute right-0 z-20 mt-2 min-w-44 rounded-lg border bg-popover p-1 text-sm shadow-lg">
+            <div
+              className={cn(
+                'absolute right-0 z-50 min-w-44 rounded-lg border bg-popover p-1 text-sm shadow-lg',
+                menuPlacement === 'top' ? 'bottom-full mb-2' : 'mt-2',
+              )}
+            >
               <Link href={href} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 rounded-md px-3 py-2 hover:bg-muted">
                 <ExternalLink size={14} />
                 Abrir em nova aba

@@ -1,6 +1,7 @@
 'use client'
 
-import { useActionState, useEffect, useState } from 'react'
+import { Suspense, useActionState, useEffect, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { KeyRound, Loader2, ShieldCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,6 +12,18 @@ import { listarFatoresMfa, redirecionarAposMfa, usarCodigoRecuperacaoMfa, verifi
 type Factor = { id: string; friendlyName: string; status: string }
 
 export default function MfaChallengePage() {
+  return (
+    <Suspense fallback={<MfaChallengeShell message="Carregando desafio MFA..." />}>
+      <MfaChallengeContent />
+    </Suspense>
+  )
+}
+
+function MfaChallengeContent() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const next = searchParams.get('next')
+  const isPasswordReset = next === '/redefinir-senha'
   const [factors, setFactors] = useState<Factor[]>([])
   const [loading, setLoading] = useState(true)
   const [loadMessage, setLoadMessage] = useState('')
@@ -31,8 +44,9 @@ export default function MfaChallengePage() {
   }, [])
 
   useEffect(() => {
-    if (state?.success || recoveryState?.success) void redirecionarAposMfa()
-  }, [state?.success, recoveryState?.success])
+    if (state?.success) void redirecionarAposMfa(next)
+    if (recoveryState?.success) router.replace('/mfa/setup?contexto=recovery_code')
+  }, [next, recoveryState?.success, router, state?.success])
 
   const selectedFactor = factors[0]
 
@@ -54,6 +68,7 @@ export default function MfaChallengePage() {
         {selectedFactor ? (
           <form action={formAction} className="mt-6 space-y-4">
             <input type="hidden" name="factorId" value={selectedFactor.id} />
+            {isPasswordReset && <input type="hidden" name="contexto" value="password_reset" />}
             <div>
               <Label htmlFor="code">Codigo TOTP</Label>
               <div className="relative mt-2">
@@ -72,6 +87,7 @@ export default function MfaChallengePage() {
         <details className="mt-6 rounded-xl border border-border bg-background p-4">
           <summary className="cursor-pointer text-sm font-semibold">Usar codigo de recuperacao</summary>
           <form action={recoveryAction} className="mt-4 space-y-3">
+            {isPasswordReset && <input type="hidden" name="contexto" value="password_reset" />}
             <Input name="recoveryCode" placeholder="XXXX-XXXX-XXXX" className="font-mono uppercase" required />
             {recoveryState?.message && <p className={`text-sm ${recoveryState.success ? 'text-success-foreground' : 'text-destructive'}`}>{recoveryState.message}</p>}
             <Button type="submit" variant="outline" disabled={recoveryPending} className="w-full">{recoveryPending ? 'Validando...' : 'Validar recuperacao'}</Button>
@@ -81,6 +97,16 @@ export default function MfaChallengePage() {
         <form action={logout} className="mt-6 text-center">
           <button type="submit" className="text-xs text-primary underline">Sair e entrar com outra conta</button>
         </form>
+      </section>
+    </main>
+  )
+}
+
+function MfaChallengeShell({ message }: { message: string }) {
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-background px-6 py-10 text-foreground">
+      <section className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8">
+        <div className="flex items-center gap-3 text-sm text-muted-foreground"><Loader2 className="animate-spin" size={16} /> {message}</div>
       </section>
     </main>
   )

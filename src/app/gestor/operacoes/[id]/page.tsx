@@ -977,7 +977,7 @@ export default function OperacaoDetalheGestorPage() {
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-6">
           {/* NFs da operacao */}
-          <Card>
+          <Card className="overflow-visible">
             <CardHeader className="pb-3">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div>
@@ -985,9 +985,6 @@ export default function OperacaoDetalheGestorPage() {
                     <FileText size={18} />
                     Notas Fiscais ({notasFiscaisView.length})
                   </CardTitle>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Conferência operacional sem rolagem horizontal. A ação principal fica sempre visível.
-                  </p>
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-3 lg:min-w-[420px]">
                   <div className="rounded-lg border bg-background px-3 py-2">
@@ -1038,11 +1035,12 @@ export default function OperacaoDetalheGestorPage() {
                 </div>
               </div>
               <div className="space-y-3">
-                {notasFiscaisView.map((nf) => (
+                {notasFiscaisView.map((nf, index) => (
                   <OperacaoNotaFiscalCard
                     key={nf.id}
                     notaFiscal={nf}
                     href={`/gestor/notas-fiscais/${nf.id}`}
+                    menuPlacement={index === notasFiscaisView.length - 1 ? 'top' : 'bottom'}
                     canRemove={canRemoveNf}
                     removing={removendoNf === nf.id}
                     onRemove={() => handleRemoverNf(nf.id)}

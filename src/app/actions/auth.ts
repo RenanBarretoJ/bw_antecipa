@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { loginSchema, cadastroSchema } from '@/lib/validations/auth'
 import { obterEstadoMfaUsuario } from '@/lib/auth/mfa'
+import { limparFluxoAutenticacao } from '@/lib/auth/auth-flow-server'
 import { registrarTentativaRateLimit, verificarRateLimit } from '@/lib/security/rate-limit'
 
 export type AuthState = {
@@ -124,6 +125,9 @@ export async function signup(_prevState: AuthState, formData: FormData): Promise
 
 export async function logout() {
   const supabase = await createClient()
-  await supabase.auth.signOut()
+  await Promise.allSettled([
+    supabase.auth.signOut(),
+    limparFluxoAutenticacao(),
+  ])
   redirect('/login')
 }

@@ -7,6 +7,8 @@ export type RateLimitEscopo =
   | 'mfa_setup'
   | 'mfa_totp'
   | 'mfa_recovery'
+  | 'password_reset'
+  | 'password_change'
   | 'portal_fidc_test'
   | 'portal_fidc_send'
   | 'critical_action'

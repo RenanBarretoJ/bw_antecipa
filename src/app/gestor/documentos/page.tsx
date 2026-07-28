@@ -40,6 +40,7 @@ import {
 import { useNotifications } from '@/components/notifications/notification-provider'
 import { ListNameCell } from '@/components/data-display/primitives'
 import { useFundoAtivo } from '@/components/fundos/fundo-ativo-provider'
+import { FilePreviewContent } from '@/components/notas-fiscais/FilePreviewContent'
 
 interface DocGestor {
   id: string
@@ -334,15 +335,7 @@ export default function DocumentosGestorPage() {
               </Button>
             </div>
             <div className="flex-1 overflow-auto p-4">
-              {modal.previewUrl ? (
-                modal.doc.nome_arquivo?.toLowerCase().endsWith('.pdf') ? (
-                  <iframe src={modal.previewUrl} className="w-full h-[500px] border rounded" />
-                ) : (
-                  <img src={modal.previewUrl} alt={modal.doc.nome_arquivo || ''} className="max-w-full mx-auto rounded" />
-                )
-              ) : (
-                <p className="text-muted-foreground text-center py-10">Nao foi possivel carregar o preview.</p>
-              )}
+              <FilePreviewContent url={modal.previewUrl} filePath={modal.doc.nome_arquivo} title={modal.doc.nome_arquivo || 'Documento'} className="h-[500px]" />
             </div>
             <div className="p-4 border-t border-border space-y-3">
               <div className="flex gap-3">

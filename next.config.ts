@@ -30,6 +30,7 @@ const nextConfig: NextConfig = {
               "font-src 'self' data:",
               "style-src 'self' 'unsafe-inline'",
               `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''}`,
+              "frame-src 'self' blob: data:",
               "object-src 'none'",
               "base-uri 'self'",
               "form-action 'self'",
