@@ -1,8 +1,9 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { confirmarPagamento } from '@/lib/actions/sacado'
+import { carregarPortalSacado } from '@/lib/actions/sacado-portal'
+import { filtrarOperacoesSacadoPorStatus, type SacadoPortalOperacao } from '@/lib/sacado/portal-domain'
 import { formatCurrency, formatCNPJ, formatDate } from '@/lib/utils'
 import {
   Wallet,
@@ -19,17 +20,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useNotifications } from '@/components/notifications/notification-provider'
 import { ListNameCell } from '@/components/data-display/primitives'
-
-interface OperacaoSacado {
-  id: string
-  valor_bruto_total: number
-  valor_liquido_desembolso: number
-  data_vencimento: string
-  status: string
-  created_at: string
-  cedentes: { razao_social: string; cnpj: string } | null
-  contas_escrow: { identificador: string } | null
-}
 
 const statusConfig: Record<string, { label: string; className: string }> = {
   em_andamento: { label: 'A pagar', className: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
@@ -59,41 +49,40 @@ function LoadingSkeleton() {
 
 export default function HistoricoPagamentosPage() {
   const notifications = useNotifications()
-  const [operacoes, setOperacoes] = useState<OperacaoSacado[]>([])
+  const [operacoes, setOperacoes] = useState<SacadoPortalOperacao[]>([])
   const [loading, setLoading] = useState(true)
   const [filtro, setFiltro] = useState('todos')
   const [busca, setBusca] = useState('')
   const [sending, setSending] = useState<string | null>(null)
 
   const loadOps = useCallback(async () => {
-    const supabase = createClient()
-    const { data } = await supabase
-      .from('operacoes')
-      .select('id, valor_bruto_total, valor_liquido_desembolso, data_vencimento, status, created_at, cedentes(razao_social, cnpj), contas_escrow(identificador)')
-      .in('status', ['em_andamento', 'liquidada', 'inadimplente'])
-      .order('data_vencimento', { ascending: true })
-
-    setOperacoes((data || []) as OperacaoSacado[])
+    const result = await carregarPortalSacado()
+    if (!result.success) {
+      notifications.error(result.message ?? 'Não foi possível carregar os pagamentos.')
+      setOperacoes([])
+      setLoading(false)
+      return
+    }
+    setOperacoes(filtrarOperacoesSacadoPorStatus(result.data?.operacoes ?? [], ['em_andamento', 'liquidada', 'inadimplente']))
     setLoading(false)
-  }, [])
+  }, [notifications])
 
   useEffect(() => {
     let mounted = true
     async function loadInitialOps() {
-      const supabase = createClient()
-      const { data } = await supabase
-        .from('operacoes')
-        .select('id, valor_bruto_total, valor_liquido_desembolso, data_vencimento, status, created_at, cedentes(razao_social, cnpj), contas_escrow(identificador)')
-        .in('status', ['em_andamento', 'liquidada', 'inadimplente'])
-        .order('data_vencimento', { ascending: true })
-
+      const result = await carregarPortalSacado()
       if (!mounted) return
-      setOperacoes((data || []) as OperacaoSacado[])
+      if (!result.success) {
+        notifications.error(result.message ?? 'Não foi possível carregar os pagamentos.')
+        setOperacoes([])
+      } else {
+        setOperacoes(filtrarOperacoesSacadoPorStatus(result.data?.operacoes ?? [], ['em_andamento', 'liquidada', 'inadimplente']))
+      }
       setLoading(false)
     }
     void loadInitialOps()
     return () => { mounted = false }
-  }, [])
+  }, [notifications])
 
   const handleConfirmarPagamento = async (opId: string) => {
     setSending(opId)

@@ -28,7 +28,7 @@ export interface AuthContext {
 
 type CedenteContext = AuthContext & { cedente: Cedente }
 type OperacaoContext = AuthContext & { operacao: Pick<Operacao, 'id' | 'cedente_id'> }
-type NotaFiscalContext = AuthContext & { notaFiscal: Pick<NotaFiscal, 'id' | 'cedente_id'> }
+type NotaFiscalContext = AuthContext & { notaFiscal: Pick<NotaFiscal, 'id' | 'cedente_id' | 'cnpj_destinatario'> }
 
 /** Pure rule exported for unit tests and for callers that already have a profile. */
 export function assertRole(actualRole: UserRole, allowedRoles: readonly UserRole[]): void {
@@ -107,6 +107,17 @@ async function loadCedente(client: AppSupabaseClient, cedenteId: string): Promis
   return data as Cedente
 }
 
+async function getSacadoCnpjDoUsuario(client: AppSupabaseClient, userId: string): Promise<string | null> {
+  const { data } = await client
+    .from('sacados')
+    .select('cnpj')
+    .eq('user_id', userId)
+    .maybeSingle()
+
+  const cnpj = String((data as { cnpj?: string } | null)?.cnpj ?? '').replace(/\D/g, '')
+  return cnpj.length === 14 ? cnpj : null
+}
+
 /** Resolve the owner or active delegated access of a cedente. */
 export async function requireCedenteAccess(
   cedenteId: string,
@@ -166,6 +177,25 @@ export async function requireOperationAccess(
     throw new AuthorizationError('Operação não encontrada.', 'NOT_FOUND')
   }
 
+  if (context.profile.role === 'sacado') {
+    const sacadoCnpj = await getSacadoCnpjDoUsuario(context.supabase, context.user.id)
+    if (!sacadoCnpj) throw new AuthorizationError('Sacado nÃ£o encontrado.', 'FORBIDDEN')
+
+    const { data: vinculo } = await context.supabase
+      .from('operacoes_nfs')
+      .select('nota_fiscal_id, notas_fiscais!inner(cnpj_destinatario)')
+      .eq('operacao_id', operacaoId)
+      .eq('notas_fiscais.cnpj_destinatario', sacadoCnpj)
+      .limit(1)
+      .maybeSingle()
+
+    if (!vinculo) {
+      throw new AuthorizationError('OperaÃ§Ã£o nÃ£o vinculada ao sacado autenticado.', 'FORBIDDEN')
+    }
+
+    return { ...context, operacao: operacao as Pick<Operacao, 'id' | 'cedente_id'> }
+  }
+
   await requireCedenteAccess(operacao.cedente_id, context.supabase)
   return { ...context, operacao: operacao as Pick<Operacao, 'id' | 'cedente_id'> }
 }
@@ -177,7 +207,7 @@ export async function requireNotaFiscalAccess(
   const context = await requireAuthenticated(client)
   const { data: notaFiscal, error } = await context.supabase
     .from('notas_fiscais')
-    .select('id, cedente_id')
+    .select('id, cedente_id, cnpj_destinatario')
     .eq('id', notaFiscalId)
     .maybeSingle()
 
@@ -185,8 +215,18 @@ export async function requireNotaFiscalAccess(
     throw new AuthorizationError('Nota fiscal não encontrada.', 'NOT_FOUND')
   }
 
+  if (context.profile.role === 'sacado') {
+    const sacadoCnpj = await getSacadoCnpjDoUsuario(context.supabase, context.user.id)
+    const nfCnpj = String((notaFiscal as { cnpj_destinatario?: string }).cnpj_destinatario ?? '').replace(/\D/g, '')
+    if (!sacadoCnpj || nfCnpj !== sacadoCnpj) {
+      throw new AuthorizationError('Nota fiscal nÃ£o vinculada ao sacado autenticado.', 'FORBIDDEN')
+    }
+
+    return { ...context, notaFiscal: notaFiscal as Pick<NotaFiscal, 'id' | 'cedente_id' | 'cnpj_destinatario'> }
+  }
+
   await requireCedenteAccess(notaFiscal.cedente_id, context.supabase)
-  return { ...context, notaFiscal: notaFiscal as Pick<NotaFiscal, 'id' | 'cedente_id'> }
+  return { ...context, notaFiscal: notaFiscal as Pick<NotaFiscal, 'id' | 'cedente_id' | 'cnpj_destinatario'> }
 }
 
 export function isRegisteredStoragePath(path: string, registeredPaths: readonly (string | null | undefined)[]): boolean {

@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { requireRole } from '@/lib/auth/authorization'
 import { registrarLog } from './auditoria'
 import { notificarGestores } from './notificacao'
+import { carregarContextoEventoNota, carregarContextoEventoOperacao, registrarEventoDominio } from '@/lib/eventos-dominio/registrar'
 
 export type SacadoActionState = {
   success?: boolean
@@ -22,7 +23,10 @@ async function getSacadoDoUsuario() {
     .single()
 
   if (!sacado) return null
-  return sacado as { id: string; cnpj: string; razao_social: string; user_id: string }
+  return {
+    ...(sacado as { id: string; cnpj: string; razao_social: string; user_id: string }),
+    cnpj: String((sacado as { cnpj: string }).cnpj ?? '').replace(/\D/g, ''),
+  }
 }
 
 async function executarAceite(nfIds: string[], acao: 'aceitar' | 'contestar', motivo?: string) {
@@ -40,11 +44,71 @@ async function executarAceite(nfIds: string[], acao: 'aceitar' | 'contestar', mo
   return { data: data as Record<string, unknown> }
 }
 
+function arrayDeStrings(value: unknown): string[] {
+  return Array.isArray(value) ? value.map(String).filter(Boolean) : []
+}
+
+async function registrarEventosAceiteSacado(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  data: Record<string, unknown> | undefined,
+  acao: 'aceitar' | 'contestar',
+  motivo?: string,
+) {
+  const notaFiscalIds = arrayDeStrings(data?.nota_fiscal_ids)
+  const operacaoIds = arrayDeStrings(data?.operacao_ids)
+  const operacaoId = operacaoIds[0] ?? null
+
+  await Promise.all(notaFiscalIds.map(async (notaFiscalId) => {
+    const contexto = await carregarContextoEventoNota(supabase, notaFiscalId)
+    await registrarEventoDominio({
+      ...contexto,
+      operacao_id: operacaoId,
+      tipo_evento: acao === 'aceitar' ? 'cessao_aceita_sacado' : 'cessao_contestada_sacado',
+      categoria: acao === 'aceitar' ? 'aprovacao' : 'reprovacao',
+      descricao: acao === 'aceitar'
+        ? `Sacado aceitou a cessão da NF ${contexto.numero_nf ?? notaFiscalId}.`
+        : `Sacado contestou a cessão da NF ${contexto.numero_nf ?? notaFiscalId}.`,
+      metadata: {
+        acao,
+        motivo: acao === 'contestar' ? motivo ?? null : null,
+        numero_nf: contexto.numero_nf ?? null,
+      },
+      visibilidade: 'ambos',
+      origem: 'portal_sacado',
+      origem_evento: 'processar_aceite_sacado',
+      origem_registro_id: notaFiscalId,
+    }, supabase)
+  }))
+}
+
+async function registrarEventoPagamentoSacado(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  operacaoId: string,
+  comprovante?: string,
+) {
+  const contexto = await carregarContextoEventoOperacao(supabase, operacaoId)
+  await registrarEventoDominio({
+    ...contexto,
+    tipo_evento: 'pagamento_informado_sacado',
+    categoria: 'conclusao',
+    descricao: `Sacado informou pagamento da operação #${operacaoId.substring(0, 8)}.`,
+    metadata: {
+      comprovante_informado: !!comprovante,
+      status_operacao: contexto.status ?? null,
+    },
+    visibilidade: 'ambos',
+    origem: 'portal_sacado',
+    origem_evento: 'confirmar_pagamento_sacado',
+    origem_registro_id: operacaoId,
+  }, supabase)
+}
+
 // O banco valida a operação relacionada, o sacado e o status dentro de uma RPC transacional.
 export async function aprovarCessao(nfId: string): Promise<SacadoActionState> {
   await requireRole('sacado')
   const result = await executarAceite([nfId], 'aceitar')
   if (result.errorMessage) return { success: false, message: result.errorMessage }
+  await registrarEventosAceiteSacado(await createClient(), result.data, 'aceitar')
   return { success: true, message: 'Cessão aceita com sucesso.' }
 }
 
@@ -54,6 +118,7 @@ export async function aprovarCessaoLote(nfIds: string[]): Promise<SacadoActionSt
   const ids = [...new Set(nfIds)]
   const result = await executarAceite(ids, 'aceitar')
   if (result.errorMessage) return { success: false, message: result.errorMessage }
+  await registrarEventosAceiteSacado(await createClient(), result.data, 'aceitar')
   return { success: true, message: `${ids.length} cessão(ões) aprovada(s) com sucesso.`, aprovadas: ids.length, invalidas: 0 }
 }
 
@@ -62,6 +127,7 @@ export async function contestarCessao(nfId: string, motivo: string): Promise<Sac
   if (!motivo?.trim()) return { success: false, message: 'Motivo da contestação é obrigatório.' }
   const result = await executarAceite([nfId], 'contestar', motivo.trim())
   if (result.errorMessage) return { success: false, message: result.errorMessage }
+  await registrarEventosAceiteSacado(await createClient(), result.data, 'contestar', motivo.trim())
   return { success: true, message: 'Contestação registrada. O gestor foi notificado.' }
 }
 
@@ -95,6 +161,20 @@ export async function confirmarPagamento(operacaoId: string, comprovante?: strin
     return { success: false, message: 'Operacao nao vinculada a voce.' }
   }
 
+  const { data: operacao } = await supabase
+    .from('operacoes')
+    .select('status')
+    .eq('id', operacaoId)
+    .maybeSingle()
+
+  if (!operacao) {
+    return { success: false, message: 'Operacao nao encontrada.' }
+  }
+
+  if (!['em_andamento', 'inadimplente'].includes(String((operacao as { status?: string }).status ?? ''))) {
+    return { success: false, message: 'Esta operacao ainda nao esta aberta para confirmacao de pagamento.' }
+  }
+
   // Notificar gestor
   await notificarGestores(
     'Sacado informou pagamento',
@@ -108,6 +188,7 @@ export async function confirmarPagamento(operacaoId: string, comprovante?: strin
     entidade_id: operacaoId,
     dados_depois: { sacado_cnpj: sacado.cnpj, comprovante: comprovante || null },
   })
+  await registrarEventoPagamentoSacado(supabase, operacaoId, comprovante)
 
   return { success: true, message: 'Pagamento informado. O gestor ira confirmar a liquidacao.' }
 }

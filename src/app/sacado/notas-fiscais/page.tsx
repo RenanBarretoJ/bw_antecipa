@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency, formatCNPJ, formatDate } from '@/lib/utils'
+import { carregarPortalSacado } from '@/lib/actions/sacado-portal'
 import { buckets } from '@/lib/storage'
 import { Receipt, Search, Eye, X, Loader2 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
@@ -12,6 +13,8 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { ListNameCell } from '@/components/data-display/primitives'
 import { FilePreviewContent } from '@/components/notas-fiscais/FilePreviewContent'
+import { useNotifications } from '@/components/notifications/notification-provider'
+import { operacaoAbertaParaPagamento } from '@/lib/sacado/portal-domain'
 import {
   Table,
   TableBody,
@@ -31,7 +34,8 @@ interface NfSacado {
   data_vencimento: string
   status: string
   arquivo_url: string | null
-  operacao_id: string
+  operacao_id: string | null
+  operacao_status: string | null
   aceite_sacado_exigido: boolean | null
   aceite_sacado_status: string | null
 }
@@ -64,6 +68,7 @@ function LoadingSkeleton() {
 }
 
 export default function NfsRecebidasSacadoPage() {
+  const notifications = useNotifications()
   const [nfs, setNfs] = useState<NfSacado[]>([])
   const [loading, setLoading] = useState(true)
   const [busca, setBusca] = useState('')
@@ -73,41 +78,46 @@ export default function NfsRecebidasSacadoPage() {
 
   useEffect(() => {
     const load = async () => {
-      const supabase = createClient()
-      const { data: operations } = await supabase
-        .from('operacoes')
-        .select('id, aceite_sacado_exigido, aceite_sacado_status, status')
-        .in('status', ['solicitada', 'em_analise', 'aprovada', 'em_andamento', 'liquidada', 'inadimplente', 'reprovada', 'cancelada'])
-      const operationIds = ((operations || []) as Array<{ id: string }>).map((operation) => operation.id)
-      const { data: links } = operationIds.length
-        ? await supabase.from('operacoes_nfs').select('operacao_id, nota_fiscal_id').in('operacao_id', operationIds)
-        : { data: [] }
-      const linkByNf = new Map(((links || []) as Array<{ operacao_id: string; nota_fiscal_id: string }>).map((link) => [link.nota_fiscal_id, link.operacao_id]))
-      const operationById = new Map(((operations || []) as Array<{ id: string; aceite_sacado_exigido: boolean | null; aceite_sacado_status: string | null }>).map((operation) => [operation.id, operation]))
-      const nfIds = Array.from(linkByNf.keys())
-      const { data } = await supabase
-        .from('notas_fiscais')
-        .select('id, numero_nf, cnpj_emitente, razao_social_emitente, valor_bruto, data_emissao, data_vencimento, status, arquivo_url')
-        .in('id', nfIds.length ? nfIds : ['00000000-0000-0000-0000-000000000000'])
-        .order('data_vencimento', { ascending: true })
-
-      setNfs(((data || []) as Omit<NfSacado, 'operacao_id' | 'aceite_sacado_exigido' | 'aceite_sacado_status'>[]).map((nf) => {
-        const operation = operationById.get(linkByNf.get(nf.id) || '')
-        return { ...nf, operacao_id: linkByNf.get(nf.id) || '', aceite_sacado_exigido: operation?.aceite_sacado_exigido ?? null, aceite_sacado_status: operation?.aceite_sacado_status ?? null }
-      }))
+      const result = await carregarPortalSacado()
+      if (!result.success) {
+        notifications.error(result.message ?? 'Não foi possível carregar as NFs recebidas.')
+        setNfs([])
+        setLoading(false)
+        return
+      }
+      setNfs((result.data?.nfsRecebidas ?? result.data?.nfs ?? []).map((nf) => ({
+        id: nf.id,
+        numero_nf: nf.numero_nf,
+        cnpj_emitente: nf.cnpj_emitente,
+        razao_social_emitente: nf.razao_social_emitente,
+        valor_bruto: nf.valor_bruto,
+        data_emissao: nf.data_emissao ?? '',
+        data_vencimento: nf.data_vencimento,
+        status: nf.status,
+        arquivo_url: nf.arquivo_url ?? null,
+        operacao_id: nf.operacao_id,
+        operacao_status: nf.operacao_status,
+        aceite_sacado_exigido: nf.aceite_sacado_exigido,
+        aceite_sacado_status: nf.aceite_sacado_status,
+      })))
       setLoading(false)
     }
     load()
-  }, [])
+  }, [notifications])
 
   const openPreview = async (nf: NfSacado) => {
     if (!nf.arquivo_url) return
     setLoadingPreview(true)
     const supabase = createClient()
-    const { data } = await supabase.storage
+    const { data, error } = await supabase.storage
       .from(buckets.notasFiscais)
       .createSignedUrl(nf.arquivo_url, 3600)
-    setPreview({ nf, url: data?.signedUrl || '' })
+    if (error || !data?.signedUrl) {
+      notifications.error('Não foi possível abrir o arquivo original da NF.')
+      setLoadingPreview(false)
+      return
+    }
+    setPreview({ nf, url: data.signedUrl })
     setLoadingPreview(false)
   }
 
@@ -139,15 +149,15 @@ export default function NfsRecebidasSacadoPage() {
         </div>
         <div className="bg-purple-50 rounded-xl p-4">
           <p className="text-xs font-medium text-purple-600">Cedidas</p>
-          <p className="text-2xl font-bold text-purple-700 tabular-nums">{nfs.filter((n) => n.status === 'em_antecipacao').length}</p>
+          <p className="text-2xl font-bold text-purple-700 tabular-nums">{nfs.filter((n) => operacaoAbertaParaPagamento(n.operacao_status)).length}</p>
         </div>
         <div className="bg-green-50 rounded-xl p-4">
           <p className="text-xs font-medium text-green-600">Liquidadas</p>
-          <p className="text-2xl font-bold text-green-700 tabular-nums">{nfs.filter((n) => n.status === 'liquidada').length}</p>
+          <p className="text-2xl font-bold text-green-700 tabular-nums">{nfs.filter((n) => n.operacao_status === 'liquidada' || n.status === 'liquidada').length}</p>
         </div>
         <div className="bg-red-50 rounded-xl p-4">
           <p className="text-xs font-medium text-red-600">Vencidas</p>
-          <p className="text-2xl font-bold text-red-700 tabular-nums">{nfs.filter((n) => n.status === 'em_antecipacao' && n.data_vencimento < hoje).length}</p>
+          <p className="text-2xl font-bold text-red-700 tabular-nums">{nfs.filter((n) => operacaoAbertaParaPagamento(n.operacao_status) && n.data_vencimento < hoje).length}</p>
         </div>
       </div>
 
@@ -204,7 +214,7 @@ export default function NfsRecebidasSacadoPage() {
             <TableBody>
               {nfsFiltradas.map((nf) => {
                 const st = statusConfig[nf.status]
-                const vencido = nf.status === 'em_antecipacao' && nf.data_vencimento < hoje
+                const vencido = operacaoAbertaParaPagamento(nf.operacao_status) && nf.data_vencimento < hoje
                 return (
                   <TableRow key={nf.id} className={vencido ? 'bg-red-50/50' : ''}>
                     <TableCell className="px-4 py-3 font-medium text-foreground">{nf.numero_nf}</TableCell>

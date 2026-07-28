@@ -1,9 +1,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { formatCurrency, formatCNPJ, formatDate, parseLocalDate } from '@/lib/utils'
 import Link from 'next/link'
+import { carregarPortalSacado } from '@/lib/actions/sacado-portal'
+import { calcularDashboardSacado, type SacadoPortalNotaFiscal, type SacadoPortalOperacao } from '@/lib/sacado/portal-domain'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -19,43 +20,20 @@ import {
   CreditCard,
 } from 'lucide-react'
 
-interface NfSacado {
-  id: string
-  numero_nf: string
-  cnpj_emitente: string
-  razao_social_emitente: string
-  valor_bruto: number
-  data_vencimento: string
-  status: string
-  cedente_id: string
-  operacao_id: string
-}
-
-interface OperacaoSacado {
-  id: string
-  valor_bruto_total: number
-  valor_liquido_desembolso: number
-  data_vencimento: string
-  status: string
-  aceite_sacado_exigido: boolean | null
-  aceite_sacado_status: string | null
-  cedentes: { razao_social: string; cnpj: string }
-  contas_escrow: { identificador: string } | null
-}
-
 interface VencimentoDia {
   data: string
-  nfs: NfSacado[]
+  nfs: SacadoPortalNotaFiscal[]
   total: number
 }
 
 interface CedenteAgrupado {
   cnpj: string
   razao_social: string
-  nfs: NfSacado[]
+  nfs: SacadoPortalNotaFiscal[]
   totalDevido: number
   proximoVencimento: string
   contaEscrow: string | null
+  operacoesCount: number
 }
 
 function DashboardSkeleton() {
@@ -70,41 +48,31 @@ function DashboardSkeleton() {
 }
 
 export default function SacadoDashboard() {
-  const [nfs, setNfs] = useState<NfSacado[]>([])
-  const [operacoes, setOperacoes] = useState<OperacaoSacado[]>([])
+  const [nfs, setNfs] = useState<SacadoPortalNotaFiscal[]>([])
+  const [operacoes, setOperacoes] = useState<SacadoPortalOperacao[]>([])
   const [loading, setLoading] = useState(true)
+  const [erro, setErro] = useState<string | null>(null)
 
   useEffect(() => {
     const load = async () => {
-      const supabase = createClient()
-
-      const { data: opsData } = await supabase
-        .from('operacoes')
-        .select('id, valor_bruto_total, valor_liquido_desembolso, data_vencimento, status, aceite_sacado_exigido, aceite_sacado_status, cedentes(razao_social, cnpj), contas_escrow(identificador)')
-        .in('status', ['solicitada', 'em_analise', 'aprovada', 'em_andamento', 'liquidada', 'inadimplente'])
-        .order('data_vencimento', { ascending: true })
-
-      setOperacoes((opsData || []) as OperacaoSacado[])
-      const operationIds = ((opsData || []) as Array<{ id: string }>).map((operation) => operation.id)
-      const { data: links } = operationIds.length
-        ? await supabase.from('operacoes_nfs').select('operacao_id, nota_fiscal_id').in('operacao_id', operationIds)
-        : { data: [] }
-      const linkByNf = new Map(((links || []) as Array<{ operacao_id: string; nota_fiscal_id: string }>).map((link) => [link.nota_fiscal_id, link.operacao_id]))
-      const nfIds = Array.from(linkByNf.keys())
-      const { data: nfsData } = await supabase
-        .from('notas_fiscais')
-        .select('id, numero_nf, cnpj_emitente, razao_social_emitente, valor_bruto, data_vencimento, status, cedente_id')
-        .in('id', nfIds.length ? nfIds : ['00000000-0000-0000-0000-000000000000'])
-        .in('status', ['em_antecipacao', 'aprovada', 'aceita', 'liquidada'])
-        .order('data_vencimento', { ascending: true })
-      setNfs(((nfsData || []) as Omit<NfSacado, 'operacao_id'>[]).map((nf) => ({ ...nf, operacao_id: linkByNf.get(nf.id) || '' })))
+      const result = await carregarPortalSacado()
+      if (!result.success) {
+        setErro(result.message ?? 'Não foi possível carregar o dashboard do sacado.')
+        setNfs([])
+        setOperacoes([])
+      } else {
+        setErro(null)
+        setNfs(result.data?.nfs ?? [])
+        setOperacoes(result.data?.operacoes ?? [])
+      }
       setLoading(false)
     }
     load()
   }, [])
 
   const cedenteMap = new Map<string, CedenteAgrupado>()
-  const nfsAtivas = nfs.filter((n) => n.status === 'em_antecipacao')
+  const hoje = new Date().toISOString().split('T')[0]
+  const { nfsAtivas, totalDevido, vencimentosHoje, vencidos, proximos7d } = calcularDashboardSacado(nfs, hoje)
 
   for (const nf of nfsAtivas) {
     const key = nf.cnpj_emitente
@@ -117,11 +85,13 @@ export default function SacadoDashboard() {
         totalDevido: 0,
         proximoVencimento: nf.data_vencimento,
         contaEscrow: op?.contas_escrow?.identificador || null,
+        operacoesCount: 0,
       })
     }
     const c = cedenteMap.get(key)!
     c.nfs.push(nf)
     c.totalDevido += nf.valor_bruto
+    c.operacoesCount = new Set(c.nfs.map((item) => item.operacao_id)).size
     if (nf.data_vencimento < c.proximoVencimento) {
       c.proximoVencimento = nf.data_vencimento
     }
@@ -141,17 +111,6 @@ export default function SacadoDashboard() {
   }
   const vencimentos = Array.from(vencimentoMap.values())
     .sort((a, b) => a.data.localeCompare(b.data))
-
-  const totalDevido = nfsAtivas.reduce((acc, n) => acc + n.valor_bruto, 0)
-  const hoje = new Date().toISOString().split('T')[0]
-  const vencimentosHoje = nfsAtivas.filter((n) => n.data_vencimento === hoje)
-  const vencidos = nfsAtivas.filter((n) => n.data_vencimento < hoje)
-  const proximos7d = nfsAtivas.filter((n) => {
-    const venc = parseLocalDate(n.data_vencimento)
-    const em7d = new Date()
-    em7d.setDate(em7d.getDate() + 7)
-    return venc >= parseLocalDate(hoje) && venc <= em7d
-  })
 
   const getDiasAteVencimento = (data: string) => {
     return Math.ceil((parseLocalDate(data).getTime() - parseLocalDate(hoje).getTime()) / (1000 * 60 * 60 * 24))
@@ -187,6 +146,12 @@ export default function SacadoDashboard() {
         <h1 className="text-2xl font-bold text-foreground">Dashboard do Sacado</h1>
         <p className="text-muted-foreground text-sm">Acompanhe seus pagamentos e vencimentos</p>
       </div>
+
+      {erro && (
+        <Card className="border-destructive/30 bg-destructive/5">
+          <CardContent className="py-3 text-sm text-destructive">{erro}</CardContent>
+        </Card>
+      )}
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -312,7 +277,7 @@ export default function SacadoDashboard() {
                     </div>
                     <div className="text-right">
                       <p className="text-lg font-bold text-foreground tabular-nums">{formatCurrency(ced.totalDevido)}</p>
-                      <p className="text-xs text-muted-foreground">{ced.nfs.length} NF(s)</p>
+                      <p className="text-xs text-muted-foreground">{ced.nfs.length} NF(s) · {ced.operacoesCount} operação(ões)</p>
                     </div>
                   </div>
 

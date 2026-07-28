@@ -16,6 +16,7 @@ import {
   CheckCircle,
   XCircle,
 } from 'lucide-react'
+import { useNotifications } from '@/components/notifications/notification-provider'
 
 interface Notificacao {
   id: string
@@ -120,6 +121,7 @@ function NotificacaoSkeleton() {
 }
 
 export default function SacadoNotificacoes() {
+  const notifications = useNotifications()
   const [notificacoes, setNotificacoes] = useState<Notificacao[]>([])
   const [loading, setLoading] = useState(true)
   const [filtro, setFiltro] = useState<Filtro>('todas')
@@ -128,27 +130,41 @@ export default function SacadoNotificacoes() {
 
   const carregarNotificacoes = useCallback(async (uid: string) => {
     const supabase = createClient()
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('notificacoes')
       .select('id, titulo, mensagem, tipo, lida, created_at')
       .eq('usuario_id', uid)
       .order('created_at', { ascending: false })
 
+    if (error) throw new Error(error.message)
     setNotificacoes((data as Notificacao[]) || [])
   }, [])
 
   useEffect(() => {
+    const supabase = createClient()
+    let channel: ReturnType<typeof supabase.channel> | null = null
+    let mounted = true
+
     const init = async () => {
-      const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      if (!mounted) return
+      if (!user) {
+        setLoading(false)
+        return
+      }
 
       setUsuarioId(user.id)
-      await carregarNotificacoes(user.id)
+      try {
+        await carregarNotificacoes(user.id)
+      } catch (error) {
+        notifications.error(error instanceof Error ? error.message : 'Não foi possível carregar as notificações.')
+        setNotificacoes([])
+      }
+      if (!mounted) return
       setLoading(false)
 
       // Realtime subscription
-      const channel = supabase
+      channel = supabase
         .channel('sacado-notificacoes')
         .on(
           'postgres_changes',
@@ -163,21 +179,26 @@ export default function SacadoNotificacoes() {
           }
         )
         .subscribe()
-
-      return () => {
-        supabase.removeChannel(channel)
-      }
     }
 
     init()
-  }, [carregarNotificacoes])
+
+    return () => {
+      mounted = false
+      if (channel) {
+        void supabase.removeChannel(channel)
+      }
+    }
+  }, [carregarNotificacoes, notifications])
 
   const marcarComoLida = async (id: string) => {
+    if (!usuarioId) return
     const supabase = createClient()
     await supabase
       .from('notificacoes')
       .update({ lida: true } as never)
       .eq('id', id)
+      .eq('usuario_id', usuarioId)
 
     setNotificacoes((prev) =>
       prev.map((n) => (n.id === id ? { ...n, lida: true } : n))

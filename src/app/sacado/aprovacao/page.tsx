@@ -1,8 +1,10 @@
 'use client'
 
-import { useEffect, useState, useMemo, Fragment } from 'react'
+import { useCallback, useEffect, useState, useMemo, Fragment } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { aprovarCessao, aprovarCessaoLote, contestarCessao } from '@/lib/actions/sacado'
+import { carregarPortalSacado } from '@/lib/actions/sacado-portal'
+import { nfPendenteAceiteSacado } from '@/lib/sacado/portal-domain'
 import { formatCurrency, formatCNPJ, formatDate } from '@/lib/utils'
 import {
   CheckCircle,
@@ -87,57 +89,55 @@ export default function AprovacaoCessaoPage() {
   const [filtroValorMax, setFiltroValorMax] = useState('')
   const [showFiltros, setShowFiltros] = useState(false)
 
-  const loadData = async () => {
-    const supabase = createClient()
+  const loadData = useCallback(async () => {
+    const result = await carregarPortalSacado()
+    if (!result.success) {
+      notifications.error(result.message ?? 'Não foi possível carregar as cessões pendentes.')
+      setNfs([])
+      setContas([])
+      setLoading(false)
+      return
+    }
 
-    const { data: operacoes } = await supabase
-      .from('operacoes')
-      .select('id, aceite_sacado_exigido, aceite_sacado_status, status')
-      .in('status', ['solicitada', 'em_analise'])
-
-    const operacoesAceite = ((operacoes || []) as Array<{ id: string; aceite_sacado_exigido: boolean | null; aceite_sacado_status: string | null; status: string }>)
-      .filter((operation) => operation.aceite_sacado_exigido !== false && operation.aceite_sacado_status !== 'dispensado')
-    const operacaoIds = operacoesAceite.map((operation) => operation.id)
-    const { data: links } = operacaoIds.length
-      ? await supabase.from('operacoes_nfs').select('operacao_id, nota_fiscal_id').in('operacao_id', operacaoIds)
-      : { data: [] }
-    const linkByNf = new Map(((links || []) as Array<{ operacao_id: string; nota_fiscal_id: string }>).map((link) => [link.nota_fiscal_id, link.operacao_id]))
-    const operationById = new Map(operacoesAceite.map((operation) => [operation.id, operation]))
-    const nfIds = Array.from(linkByNf.keys())
-    const { data: nfsData } = await supabase
-      .from('notas_fiscais')
-      .select('id, numero_nf, cnpj_emitente, razao_social_emitente, valor_bruto, data_vencimento, status, cedente_id, arquivo_url')
-      .in('id', nfIds.length ? nfIds : ['00000000-0000-0000-0000-000000000000'])
-      .eq('status', 'em_antecipacao')
-      .order('data_vencimento', { ascending: true })
-
-    setNfs(((nfsData || []) as Omit<NfCessao, 'operacao_id' | 'aceite_sacado_status'>[]).map((nf) => {
-      const operacaoId = linkByNf.get(nf.id) || ''
-      return { ...nf, operacao_id: operacaoId, aceite_sacado_status: operationById.get(operacaoId)?.aceite_sacado_status || 'pendente' }
-    }))
-
-    const { data: contasData } = await supabase
-      .from('contas_escrow')
-      .select('cedente_id, identificador')
-
-    setContas((contasData || []) as ContaInfo[])
+    const pendentes = (result.data?.nfs ?? []).filter(nfPendenteAceiteSacado)
+    setNfs(pendentes.map((nf) => ({
+      id: nf.id,
+      numero_nf: nf.numero_nf,
+      cnpj_emitente: nf.cnpj_emitente,
+      razao_social_emitente: nf.razao_social_emitente,
+      valor_bruto: nf.valor_bruto,
+      data_vencimento: nf.data_vencimento,
+      status: nf.status,
+      cedente_id: nf.cedente_id,
+      arquivo_url: nf.arquivo_url ?? null,
+      operacao_id: nf.operacao_id,
+      aceite_sacado_status: nf.aceite_sacado_status ?? 'pendente',
+    })))
+    setContas((result.data?.operacoes ?? [])
+      .filter((operacao) => operacao.contas_escrow?.identificador)
+      .map((operacao) => ({ cedente_id: operacao.cedente_id, identificador: operacao.contas_escrow?.identificador ?? '' })))
     setLoading(false)
-  }
+  }, [notifications])
 
   useEffect(() => {
     queueMicrotask(() => {
       void loadData()
     })
-  }, [])
+  }, [loadData])
 
   const openPreview = async (nf: NfCessao) => {
     if (!nf.arquivo_url) return
     setLoadingPreview(true)
     const supabase = createClient()
-    const { data } = await supabase.storage
+    const { data, error } = await supabase.storage
       .from(buckets.notasFiscais)
       .createSignedUrl(nf.arquivo_url, 3600)
-    setPreview({ nf, url: data?.signedUrl || '' })
+    if (error || !data?.signedUrl) {
+      notifications.error('Não foi possível abrir o arquivo da NF.')
+      setLoadingPreview(false)
+      return
+    }
+    setPreview({ nf, url: data.signedUrl })
     setLoadingPreview(false)
   }
 
