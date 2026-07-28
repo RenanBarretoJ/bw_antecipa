@@ -8,16 +8,17 @@ import {
 } from '@/lib/auth/mfa'
 
 describe('MFA policy and helpers', () => {
-  it('requires MFA for gestor and consultor by default', () => {
+  it('requires MFA for every supported role by default', () => {
     expect(usuarioExigeMfaPorPerfil('gestor')).toBe(true)
     expect(usuarioExigeMfaPorPerfil('consultor')).toBe(true)
-    expect(usuarioExigeMfaPorPerfil('cedente')).toBe(false)
-    expect(usuarioExigeMfaPorPerfil('sacado')).toBe(false)
+    expect(usuarioExigeMfaPorPerfil('cedente')).toBe(true)
+    expect(usuarioExigeMfaPorPerfil('sacado')).toBe(true)
   })
 
-  it('respects explicit override without using user identity constants', () => {
+  it('does not allow override=false to disable mandatory MFA', () => {
     expect(usuarioExigeMfaPorPerfil('cedente', true)).toBe(true)
-    expect(usuarioExigeMfaPorPerfil('gestor', false)).toBe(false)
+    expect(usuarioExigeMfaPorPerfil('gestor', false)).toBe(true)
+    expect(usuarioExigeMfaPorPerfil('sacado', false)).toBe(true)
   })
 
   it('accepts only six digit TOTP codes after sanitization', () => {

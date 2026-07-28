@@ -171,15 +171,7 @@ async function getMfaRedirect({
 }) {
   if (pathname.startsWith('/mfa')) return null
 
-  let exigeMfa = override ?? (role === 'gestor' || role === 'consultor')
-
-  if (!exigeMfa && role === 'cedente') {
-    const [{ data: cedenteProprio }, { data: acessoAdmin }] = await Promise.all([
-      supabase.from('cedentes').select('id').eq('user_id', userId).maybeSingle(),
-      supabase.from('cedente_acessos').select('id').eq('user_id', userId).eq('ativo', true).eq('perfil', 'administrador').maybeSingle(),
-    ])
-    exigeMfa = !!cedenteProprio || !!acessoAdmin
-  }
+  const exigeMfa = override === true || ['gestor', 'cedente', 'sacado', 'consultor'].includes(role)
 
   const { data: factors } = await supabase.auth.mfa.listFactors()
   const possuiFator = (factors?.totp || []).some((factor: unknown) => {

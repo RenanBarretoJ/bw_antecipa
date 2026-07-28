@@ -284,25 +284,17 @@ export async function regenerarCodigosRecuperacao(): Promise<MfaActionState<{ re
 
 export async function desativarMfaProprio(factorId: string): Promise<MfaActionState> {
   const context = await requireAuthenticated()
-  await exigirSessaoElevada(context)
-  const estado = await obterEstadoMfaUsuario(context.supabase)
-  if (estado.exigeMfa) {
-    await registrarEventoSeguranca({
-      tipo_evento: 'ACESSO_NEGADO',
-      usuario_id: context.user.id,
-      ator_usuario_id: context.user.id,
-      severidade: 'warning',
-      dados: { motivo: 'tentativa_desativacao_mfa_obrigatorio' },
-    })
-    return result('MFA obrigatorio nao pode ser desativado pelo usuario.')
-  }
-
-  const { error } = await asMfaClient(context.supabase).auth.mfa.unenroll({ factorId })
-  if (error) return result('Nao foi possivel desativar o MFA.')
-
-  await createAdminClient().from('profiles').update({ mfa_ativado_em: null, mfa_reset_em: new Date().toISOString() } as never).eq('id', context.user.id)
-  await registrarEventoSeguranca({ tipo_evento: 'MFA_DESATIVADO', usuario_id: context.user.id, ator_usuario_id: context.user.id, severidade: 'warning' })
-  return result('MFA desativado.', true)
+  await registrarEventoSeguranca({
+    tipo_evento: 'ACESSO_NEGADO',
+    usuario_id: context.user.id,
+    ator_usuario_id: context.user.id,
+    severidade: 'warning',
+    dados: {
+      motivo: 'tentativa_desativacao_mfa_obrigatorio',
+      factor_id_informado: !!factorId,
+    },
+  })
+  return result('MFA obrigatorio nao pode ser desativado pelo usuario.')
 }
 
 export async function solicitarResetMfaAdministrativo(usuarioId: string, motivo: string, evidencia?: string): Promise<MfaActionState<{ solicitacaoId: string }>> {

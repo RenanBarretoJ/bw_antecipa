@@ -6,7 +6,7 @@ import { CheckCircle2, Eye, EyeOff, KeyRound, Loader2, LockKeyhole, RefreshCcw, 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { desativarMfaProprio, encerrarOutrasSessoes, listarFatoresMfa, regenerarCodigosRecuperacao, type MfaActionState } from '@/app/actions/mfa'
+import { encerrarOutrasSessoes, listarFatoresMfa, regenerarCodigosRecuperacao, type MfaActionState } from '@/app/actions/mfa'
 import { alterarSenhaAutenticado, solicitarNonceAlteracaoSenha, type PasswordActionState } from '@/app/actions/password'
 import { avaliarForcaSenha } from '@/lib/auth/password'
 import { useNotifications } from '@/components/notifications/notification-provider'
@@ -91,14 +91,12 @@ export function SecurityPage() {
                     <p className="font-semibold">{factor.friendlyName}</p>
                     <p className="text-xs text-muted-foreground">Status: {factor.status}</p>
                   </div>
-                  {mfaObrigatorio ? (
-                    <span className="rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">Obrigatorio pela politica</span>
-                  ) : (
-                    <Button type="button" variant="destructive" size="sm" disabled={isPending || !estado?.sessaoElevadaValida} onClick={() => run(() => desativarMfaProprio(factor.id))}>Desativar MFA</Button>
-                  )}
+                  <span className="rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                    Obrigatorio pela politica
+                  </span>
                 </div>
               ))}
-              {mfaObrigatorio && <p className="text-xs text-muted-foreground">MFA e obrigatorio para este perfil. A desativacao nao fica disponivel para o proprio usuario; reset ou excecao deve ser tratado por fluxo administrativo.</p>}
+              {mfaObrigatorio && <p className="text-xs text-muted-foreground">MFA e obrigatorio para todos os perfis. A desativacao nao fica disponivel para o proprio usuario; reset deve ser tratado por fluxo administrativo auditado.</p>}
               {!estado?.sessaoElevadaValida && <p className="text-xs text-muted-foreground">Para regenerar codigos, validar sessoes ou encerrar outras sessoes, valide sua sessao em <Link href="/mfa/desafio" className="text-primary underline">MFA</Link>.</p>}
             </div>
           </section>
