@@ -10,11 +10,13 @@ import { normalizarCodigoDocumentoCatalogo } from '@/lib/documentos-v2/tipos'
 import { calcularPrazoDocumento, type StatusPrazoDocumento } from '@/lib/documentos-v2/prazos'
 import { calcularStatusLogisticoDocumental, type StatusLogisticoResumo } from '@/lib/documentos-v2/resumo-operacional'
 import { faseDocumentalPorEscopo } from '@/lib/documentos-v2/requisitos-pos-cessao'
+import { resolverEstadoChecklistDocumental, type RequisitoChecklistAplicavel } from '@/lib/documentos-v2/checklist-state'
 import { carregarContextoEventoDocumentoVersao, registrarEventoDominio } from '@/lib/eventos-dominio/registrar'
 import type { DocumentoAnaliseResultado } from '@/lib/types/domain'
 
 export interface ChecklistDocumentoItem {
   id: string
+  politicaRequisitoId: string
   codigo: string
   nome: string
   descricao: string
@@ -52,6 +54,7 @@ export interface ChecklistDocumentoItem {
 export interface ChecklistDocumento {
   notaFiscalId: string
   items: ChecklistDocumentoItem[]
+  estadoChecklist: ReturnType<typeof resolverEstadoChecklistDocumental>
   preCessao: ChecklistDocumentoItem[]
   posCessao: ChecklistDocumentoItem[]
   entrega: { id: string; status: string; dataInicioPrazo: string | null; motivoPendencia: string | null; dataEntrega: string | null; entregaConfirmadaEm: string | null } | null
@@ -88,9 +91,10 @@ export interface ElegibilidadeDocumental {
 async function carregarChecklist(notaFiscalId: string): Promise<ChecklistDocumento> {
   const supabase = await createClient()
   const context = await requireNotaFiscalAccess(notaFiscalId, supabase)
-  if (context.profile.role === 'cedente' || context.profile.role === 'gestor') {
-    await instanciarRequisitosDaNota(notaFiscalId, supabase)
-  }
+  const instanciacao = context.profile.role === 'cedente' || context.profile.role === 'gestor'
+    ? await instanciarRequisitosDaNota(notaFiscalId, supabase)
+    : null
+  const politicaVersaoId = instanciacao?.politica.versao.id || null
 
   // A partir daqui o acesso à NF já foi validado com a sessão real do usuário.
   // As leituras do checklist usam service role de forma estritamente escopada à NF
@@ -117,7 +121,7 @@ async function carregarChecklist(notaFiscalId: string): Promise<ChecklistDocumen
 
   const instancesQuery = dataClient
     .from('documento_requisito_instancias')
-    .select('id, documento_tipo_id, tipo_documento_codigo_snapshot, escopo_snapshot, obrigatorio, status, documento_id, versao_aprovada_id, nota_fiscal_id, nota_fiscal_entrega_id, prazo_limite, quantidade_minima_snapshot, formatos_aceitos_snapshot')
+    .select('id, politica_requisito_id, politica_operacional_versao_id, politica_operacional_id, politica_versao, documento_tipo_id, tipo_documento_codigo_snapshot, escopo_snapshot, obrigatorio, status, documento_id, versao_aprovada_id, nota_fiscal_id, nota_fiscal_entrega_id, prazo_limite, quantidade_minima_snapshot, formatos_aceitos_snapshot')
 
   const { data: instances, error } = await (entrega?.id
     ? instancesQuery.or([
@@ -129,8 +133,16 @@ async function carregarChecklist(notaFiscalId: string): Promise<ChecklistDocumen
   if (error) throw new Error(`Erro ao carregar checklist: ${error.message}`)
 
   const rows = (instances || []) as Array<{
-    id: string; documento_tipo_id: string | null; tipo_documento_codigo_snapshot: string; escopo_snapshot: string; obrigatorio: boolean; status: string; documento_id: string | null; versao_aprovada_id: string | null; nota_fiscal_id: string | null; nota_fiscal_entrega_id: string | null; prazo_limite: string | null; quantidade_minima_snapshot: number; formatos_aceitos_snapshot: string[]
+    id: string; politica_requisito_id: string; politica_operacional_versao_id: string | null; politica_operacional_id: string | null; politica_versao: number | null; documento_tipo_id: string | null; tipo_documento_codigo_snapshot: string; escopo_snapshot: string; obrigatorio: boolean; status: string; documento_id: string | null; versao_aprovada_id: string | null; nota_fiscal_id: string | null; nota_fiscal_entrega_id: string | null; prazo_limite: string | null; quantidade_minima_snapshot: number; formatos_aceitos_snapshot: string[]
   }>
+  const { data: policyRequirementRows, error: policyRequirementsError } = politicaVersaoId
+    ? await dataClient
+      .from('politica_requisitos_documentais')
+      .select('id, codigo, tipo_documento_codigo, escopo, obrigatorio, ativo')
+      .eq('politica_operacional_versao_id', politicaVersaoId)
+      .in('escopo', entrega ? ['nf_pre_cessao', 'pos_cessao', 'entrega'] : ['nf_pre_cessao'])
+    : { data: [], error: null }
+  if (policyRequirementsError) throw new Error(`Erro ao carregar requisitos da politica: ${policyRequirementsError.message}`)
   const typeIds = rows.map((row) => row.documento_tipo_id).filter(Boolean) as string[]
   const typeCodes = Array.from(new Set(rows.map((row) => normalizarCodigoDocumentoCatalogo(row.tipo_documento_codigo_snapshot))))
   const docIds = rows.map((row) => row.documento_id).filter(Boolean) as string[]
@@ -183,6 +195,7 @@ async function carregarChecklist(notaFiscalId: string): Promise<ChecklistDocumen
     })
     return {
       id: row.id,
+      politicaRequisitoId: row.politica_requisito_id,
       codigo: row.tipo_documento_codigo_snapshot,
       nome: type?.nome || row.tipo_documento_codigo_snapshot,
       descricao: fase === 'pos_cessao'
@@ -213,27 +226,72 @@ async function carregarChecklist(notaFiscalId: string): Promise<ChecklistDocumen
       })),
     }
   })
-  const preCessao = items.filter((item) => item.fase === 'pre_cessao')
-  const posCessao = items.filter((item) => item.fase === 'pos_cessao')
-  const posObrigatoriosPendentes = posCessao.filter((item) => item.obrigatorio && !documentoItemEstaAprovado(item))
-  const preObrigatoriosPendentes = preCessao.filter((item) => item.obrigatorio && !documentoItemEstaAprovado(item))
+  const requisitosDaPolitica: RequisitoChecklistAplicavel[] = (policyRequirementRows || []).length > 0
+    ? (policyRequirementRows || []).map((row) => ({
+      id: row.id,
+      codigo: row.codigo,
+      tipoDocumentoCodigo: row.tipo_documento_codigo,
+      escopo: row.escopo,
+      obrigatorio: row.obrigatorio,
+      ativo: row.ativo,
+    }))
+    : rows
+      .filter((row) => row.politica_operacional_versao_id)
+      .filter((row) => ['nf_pre_cessao', 'pos_cessao', 'entrega'].includes(row.escopo_snapshot))
+      .map((row) => ({
+        id: row.politica_requisito_id,
+        codigo: row.tipo_documento_codigo_snapshot,
+        tipoDocumentoCodigo: row.tipo_documento_codigo_snapshot,
+        escopo: row.escopo_snapshot,
+        obrigatorio: row.obrigatorio,
+        ativo: true,
+      }))
+      .filter((row, index, all) => all.findIndex((item) => item.id === row.id) === index)
+  const estadoChecklist = resolverEstadoChecklistDocumental({
+    politicaSnapshot: Boolean(politicaVersaoId || rows.some((row) => row.politica_operacional_versao_id)),
+    requisitosAplicaveis: requisitosDaPolitica,
+    instancias: items.map((item) => ({
+      requisitoId: item.politicaRequisitoId,
+      codigo: item.codigo,
+      obrigatorio: item.obrigatorio,
+      status: item.status,
+      versaoAprovadaId: item.versaoAprovadaId,
+      versoes: item.versoes.map((version) => ({ status: version.status, ultimaAnalise: version.ultimaAnalise ? { resultado: version.ultimaAnalise.resultado } : null })),
+    })),
+  })
+  const requisitosVisiveis = new Set(estadoChecklist.requisitosAplicaveis.map((item) => item.id))
+  const itensVisiveis = items.filter((item) => requisitosVisiveis.has(item.politicaRequisitoId))
+  const preCessaoVisivel = itensVisiveis.filter((item) => item.fase === 'pre_cessao')
+  const posCessaoVisivel = itensVisiveis.filter((item) => item.fase === 'pos_cessao')
+  const posObrigatoriosPendentes = posCessaoVisivel.filter((item) => item.obrigatorio && !documentoItemEstaAprovado(item))
+  const preObrigatoriosPendentes = preCessaoVisivel.filter((item) => item.obrigatorio && !documentoItemEstaAprovado(item))
   const posStatus = !entrega
     ? 'nao_iniciado'
-    : posCessao.some((item) => item.statusPrazo === 'vencido' || item.status === 'vencido')
+    : posCessaoVisivel.some((item) => item.statusPrazo === 'vencido' || item.status === 'vencido')
       ? 'vencido'
-      : posObrigatoriosPendentes.length === 0 && posCessao.length > 0
+      : posObrigatoriosPendentes.length === 0 && posCessaoVisivel.length > 0
         ? 'concluido'
-        : posCessao.some((item) => item.versoes.some((version) => version.status === 'em_analise' || version.status === 'enviado'))
+        : posCessaoVisivel.some((item) => item.versoes.some((version) => version.status === 'em_analise' || version.status === 'enviado'))
           ? 'em_analise'
           : 'pendente'
   const proximoPrazo = items
-    .filter((item) => item.dataLimite && !documentoItemEstaAprovado(item) && !['dispensado', 'cancelado'].includes(item.status))
+    .filter((item) => itensVisiveis.includes(item) && item.dataLimite && !documentoItemEstaAprovado(item) && !['dispensado', 'cancelado'].includes(item.status))
     .sort((a, b) => String(a.dataLimite).localeCompare(String(b.dataLimite)))[0] || null
+  const elegibilidade = ['sem_politica', 'nao_instanciado', 'erro'].includes(estadoChecklist.estado)
+    ? {
+      elegivel: false,
+      requisitosPendentes: [],
+      requisitosRejeitados: [],
+      requisitosEmAnalise: [],
+      motivos: [estadoChecklist.mensagemGestor || 'A documentação desta nota ainda não está pronta para análise.'],
+    }
+    : calcularElegibilidade(preCessaoVisivel)
   return {
     notaFiscalId,
-    items,
-    preCessao,
-    posCessao,
+    items: itensVisiveis,
+    estadoChecklist,
+    preCessao: preCessaoVisivel,
+    posCessao: posCessaoVisivel,
     entrega: entrega ? {
       id: entrega.id,
       status: entrega.status_entrega,
@@ -242,9 +300,9 @@ async function carregarChecklist(notaFiscalId: string): Promise<ChecklistDocumen
       dataEntrega: entrega.data_entrega,
       entregaConfirmadaEm: entrega.entrega_confirmada_em,
     } : null,
-    elegibilidade: calcularElegibilidade(preCessao),
+    elegibilidade,
     posCessaoResumo: {
-      existe: posCessao.length > 0,
+      existe: posCessaoVisivel.length > 0,
       obrigatoriosPendentes: posObrigatoriosPendentes.length,
       status: posStatus,
     },
@@ -253,8 +311,8 @@ async function carregarChecklist(notaFiscalId: string): Promise<ChecklistDocumen
       statusLogistico: calcularStatusLogisticoDocumental({
         entregaStatus: entrega?.status_entrega || null,
         nfStatus: notaFiscal?.status || null,
-        possuiRequisitosPosCessao: posCessao.length > 0,
-        possuiDocumentoPosCessaoEnviado: posCessao.some((item) => item.versoes.length > 0),
+        possuiRequisitosPosCessao: posCessaoVisivel.length > 0,
+        possuiDocumentoPosCessaoEnviado: posCessaoVisivel.some((item) => item.versoes.length > 0),
         posCessaoVencida: posStatus === 'vencido',
       }),
       pendenciasPreCessao: preObrigatoriosPendentes.length,

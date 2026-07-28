@@ -11,6 +11,11 @@ export interface ContextoDocumentoNotaFiscal {
   entidadeId: string
 }
 
+export interface InstanciacaoRequisitosDaNotaResultado {
+  politica: { politica: PoliticaOperacional; versao: PoliticaOperacionalVersao }
+  resultado: unknown
+}
+
 async function resolverPoliticaDocumentalPorContexto(input: {
   cedenteId: string
   cedenteFundoId: string
@@ -89,7 +94,7 @@ export async function instanciarRequisitosDaNota(
   notaFiscalId: string,
   client: AppSupabaseClient,
   contexto?: ContextoDocumentoNotaFiscal,
-) {
+): Promise<InstanciacaoRequisitosDaNotaResultado | null> {
   try {
     const { data: notaFiscal, error: notaFiscalError } = await client
       .from('notas_fiscais')

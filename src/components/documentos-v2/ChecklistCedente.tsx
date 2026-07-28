@@ -406,7 +406,12 @@ export function ChecklistCedente({ notaFiscalId, mode = 'cedente' }: { notaFisca
   }, [checklist])
 
   if (loading) return <div className="rounded-xl border p-4 text-sm text-muted-foreground">Carregando checklist documental...</div>
-  if (!checklist || checklist.items.length === 0) {
+  if (!checklist) return null
+
+  if (checklist.estadoChecklist.estado === 'nao_aplicavel') return null
+
+  if (checklist.estadoChecklist.estado === 'sem_politica' || checklist.estadoChecklist.estado === 'nao_instanciado') {
+    if (mode === 'cedente') return null
     return (
       <section className="mb-4 rounded-xl border bg-card p-4">
         <div className="flex items-start gap-3">
@@ -414,15 +419,19 @@ export function ChecklistCedente({ notaFiscalId, mode = 'cedente' }: { notaFisca
             <AlertTriangle size={17} />
           </span>
           <div>
-            <h2 className="font-semibold">Checklist documental não instanciado</h2>
+            <h2 className="font-semibold">
+              {checklist.estadoChecklist.estado === 'nao_instanciado' ? 'Requisitos documentais pendentes de geração' : 'Política documental não configurada'}
+            </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Esta NF ainda não recebeu os requisitos da política operacional. Verifique se existe política publicada vinculada ao fundo e ao cedente.
+              {checklist.estadoChecklist.mensagemGestor}
             </p>
           </div>
         </div>
       </section>
     )
   }
+
+  if (checklist.items.length === 0) return null
 
   return (
     <div className="mb-4 space-y-4">

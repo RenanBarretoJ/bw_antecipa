@@ -139,6 +139,7 @@ export const DELIVERY_EVENT_TYPES = [
   'canhoto_aprovado',
   'canhoto_rejeitado',
   'canhoto_atrasado',
+  'documento_entrega_enviado',
   'entrega_confirmada',
   'entrega_com_pendencia',
   'devolucao_registrada',
