@@ -37,8 +37,22 @@ function fundoLabel(row: OnboardingCedente, fundos: FundoResumo[]) {
   return fundos.find((fundo) => fundo.id === link.fundo_id)?.nome || 'Fundo sem acesso'
 }
 
-function RowActions({ row, onVincularFundo, onDefinirPolitica, onDetalhes }: Props & { row: OnboardingCedente }) {
+function RowActions({
+  row,
+  onVincularFundo,
+  onDefinirPolitica,
+  onDetalhes,
+  compact = false,
+}: Props & { row: OnboardingCedente; compact?: boolean }) {
   if (row.onboardingStatus === 'aguardando_vinculo_fundo') {
+    if (compact) {
+      return (
+        <Button type="button" size="icon-sm" onClick={() => onVincularFundo(row)} title="Vincular fundo" aria-label="Vincular fundo">
+          <Link2 className="size-3.5" aria-hidden="true" />
+        </Button>
+      )
+    }
+
     return (
       <Button type="button" size="sm" onClick={() => onVincularFundo(row)} title="Vincular fundo">
         <Link2 className="size-3.5" aria-hidden="true" />
@@ -48,10 +62,27 @@ function RowActions({ row, onVincularFundo, onDefinirPolitica, onDetalhes }: Pro
   }
 
   if (row.onboardingStatus === 'aguardando_politica') {
+    if (compact) {
+      return (
+        <Button type="button" size="icon-sm" onClick={() => onDefinirPolitica(row)} title="Definir politica" aria-label="Definir politica">
+          <ShieldCheck className="size-3.5" aria-hidden="true" />
+        </Button>
+      )
+    }
+
     return (
       <Button type="button" size="sm" onClick={() => onDefinirPolitica(row)} title="Definir politica">
         <ShieldCheck className="size-3.5" aria-hidden="true" />
         Definir
+      </Button>
+    )
+  }
+
+  if (compact) {
+    const label = row.onboardingStatus === 'apto_operar' ? 'Ver vinculos' : 'Revisar'
+    return (
+      <Button type="button" variant="outline" size="icon-sm" onClick={() => onDetalhes(row)} title={label} aria-label={label}>
+        <Eye className="size-3.5" aria-hidden="true" />
       </Button>
     )
   }
@@ -69,20 +100,20 @@ export function OnboardingCedentesTable(props: Props) {
 
   return (
     <>
-      <Card className="hidden overflow-hidden md:block">
+      <Card className="hidden overflow-hidden lg:block">
         <CardContent className="p-0">
           <Table className="w-full table-fixed">
             <colgroup>
-              <col className="w-[28%]" />
-              <col className="w-[11%]" />
-              <col className="w-[18%]" />
-              <col className="w-[18%]" />
+              <col className="w-[23%]" />
               <col className="w-[12%]" />
-              <col className="w-[13%]" />
+              <col className="w-[18%]" />
+              <col className="w-[18%]" />
+              <col className="w-[14%]" />
+              <col className="w-[15%]" />
             </colgroup>
             <TableHeader>
               <TableRow>
-                <TableHead className="px-4">Cedente</TableHead>
+                <TableHead className="px-3">Cedente</TableHead>
                 <TableHead>Situação</TableHead>
                 <TableHead>Fundo</TableHead>
                 <TableHead>Política</TableHead>
@@ -97,7 +128,7 @@ export function OnboardingCedentesTable(props: Props) {
                 const nextAction = nextActionLabel(row)
                 return (
                   <TableRow key={row.id}>
-                    <TableCell className="overflow-hidden px-4">
+                    <TableCell className="min-w-0 overflow-hidden px-3">
                       <button type="button" className="block w-full min-w-0 text-left" onClick={() => onDetalhes(row)}>
                         <div className="min-w-0">
                           <p className="truncate font-semibold leading-5" title={row.razao_social}>{row.razao_social}</p>
@@ -105,13 +136,13 @@ export function OnboardingCedentesTable(props: Props) {
                         </div>
                       </button>
                     </TableCell>
-                    <TableCell className="overflow-hidden">
-                      <Badge variant={status.variant}>{status.label}</Badge>
+                    <TableCell className="min-w-0 overflow-hidden">
+                      <Badge variant={status.variant} className="max-w-full truncate whitespace-nowrap">{status.label}</Badge>
                     </TableCell>
-                    <TableCell className="overflow-hidden">
+                    <TableCell className="min-w-0 overflow-hidden">
                       <span className="block truncate" title={fundo}>{fundo}</span>
                     </TableCell>
-                    <TableCell className="overflow-hidden">
+                    <TableCell className="min-w-0 overflow-hidden">
                       {row.politicaPrincipal ? (
                         <span className="block truncate" title={`${row.politicaPrincipal.nome} · v${row.versaoPrincipal?.versao || '-'}`}>
                           {row.politicaPrincipal.nome} · v{row.versaoPrincipal?.versao || '-'}
@@ -120,15 +151,15 @@ export function OnboardingCedentesTable(props: Props) {
                         <span className="block truncate text-muted-foreground">Nao definida</span>
                       )}
                     </TableCell>
-                    <TableCell className="overflow-hidden">
+                    <TableCell className="min-w-0 overflow-hidden">
                       <span className="block truncate" title={nextAction}>{nextAction}</span>
                     </TableCell>
-                    <TableCell className="px-4">
-                      <div className="flex min-w-0 justify-end gap-1.5">
+                    <TableCell className="px-3">
+                      <div className="flex min-w-0 justify-end gap-1">
                         <Button type="button" variant="ghost" size="icon-sm" onClick={() => onDetalhes(row)} aria-label="Ver detalhes do cedente">
                           <SlidersHorizontal className="size-4" aria-hidden="true" />
                         </Button>
-                        <RowActions {...props} row={row} />
+                        <RowActions {...props} row={row} compact />
                       </div>
                     </TableCell>
                   </TableRow>
@@ -139,7 +170,7 @@ export function OnboardingCedentesTable(props: Props) {
         </CardContent>
       </Card>
 
-      <div className="grid gap-3 md:hidden">
+      <div className="grid gap-3 lg:hidden">
         {rows.map((row) => {
           const status = statusMeta[row.onboardingStatus]
           const fundo = fundoLabel(row, fundos)
