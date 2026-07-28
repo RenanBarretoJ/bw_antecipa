@@ -1,6 +1,7 @@
 import { normalizarCodigoDocumentoCatalogo } from './tipos'
+import { DOCUMENTOS_BASE_DA_NF, reconciliarDocumentosBaseComChecklist } from './reconciliacao'
 
-export const DOCUMENTOS_BASE_DA_NF = ['nf_xml', 'nf_danfe_pdf'] as const
+export { DOCUMENTOS_BASE_DA_NF }
 
 export type EstadoChecklistDocumental =
   | 'nao_aplicavel'
@@ -24,7 +25,9 @@ export interface InstanciaChecklistDocumental {
   codigo: string
   obrigatorio: boolean
   status: string
+  documentoId?: string | null
   versaoAprovadaId: string | null
+  nivelValidacao?: string | null
   versoes: Array<{
     status: string
     ultimaAnalise?: { resultado: string } | null
@@ -47,9 +50,17 @@ function codigoDocumento(requisito: Pick<RequisitoChecklistAplicavel, 'codigo' |
   return normalizarCodigoDocumentoCatalogo(requisito.tipoDocumentoCodigo || requisito.codigo)
 }
 
-function instanciaConcluida(instancia: InstanciaChecklistDocumental) {
+function instanciaConcluida(instancia: InstanciaChecklistDocumental | undefined) {
+  if (!instancia) return false
   if (instancia.versaoAprovadaId) return true
   if (['satisfeito', 'aprovado', 'validado', 'concluido'].includes(instancia.status.toLowerCase())) return true
+  const latest = instancia.versoes[0]
+  return latest?.status === 'aprovado' || latest?.ultimaAnalise?.resultado === 'aprovado'
+}
+
+function instanciaBaseConcluida(instancia: InstanciaChecklistDocumental | undefined) {
+  if (!instancia?.documentoId) return false
+  if (instancia.versaoAprovadaId) return true
   const latest = instancia.versoes[0]
   return latest?.status === 'aprovado' || latest?.ultimaAnalise?.resultado === 'aprovado'
 }
@@ -80,7 +91,27 @@ export function resolverEstadoChecklistDocumental(input: {
   }
 
   const baseCodes = new Set((input.documentosBaseDaNf || DOCUMENTOS_BASE_DA_NF).map((code) => normalizarCodigoDocumentoCatalogo(code)))
-  const requisitos = input.requisitosAplicaveis.filter((requisito) => requisito.ativo && !baseCodes.has(codigoDocumento(requisito)))
+  const porRequisito = new Map(input.instancias.map((instancia) => [instancia.requisitoId, instancia]))
+  const reconciliacaoBase = reconciliarDocumentosBaseComChecklist({
+    requisitos: input.requisitosAplicaveis,
+    instancias: input.instancias.map((instancia) => ({
+      requisitoId: instancia.requisitoId,
+      documentoId: instancia.documentoId,
+      versaoAprovadaId: instancia.versaoAprovadaId,
+      status: instancia.status,
+      versoes: instancia.versoes,
+    })),
+    documentosBase: Array.from(baseCodes),
+  })
+  const baseSatisfeitos = new Set(reconciliacaoBase.itens.filter((item) => item.status === 'satisfeito').map((item) => item.requisitoId))
+  const requisitos = input.requisitosAplicaveis.filter((requisito) => {
+    if (!requisito.ativo) return false
+    const codigo = codigoDocumento(requisito)
+    if (!baseCodes.has(codigo)) return true
+    // A polÃ­tica continua contendo XML/DANFE. Eles sÃ³ deixam o checklist
+    // visual depois que uma evidÃªncia-base foi reconciliada.
+    return !baseSatisfeitos.has(requisito.id) && !instanciaBaseConcluida(porRequisito.get(requisito.id))
+  })
 
   if (requisitos.length === 0) {
     return {
@@ -94,27 +125,30 @@ export function resolverEstadoChecklistDocumental(input: {
     }
   }
 
-  const porRequisito = new Map(input.instancias.map((instancia) => [instancia.requisitoId, instancia]))
   const semInstancia = requisitos.some((requisito) => !porRequisito.has(requisito.id))
   if (semInstancia) {
+    const possuiBasePendente = requisitos.some((requisito) => baseCodes.has(codigoDocumento(requisito)))
     return {
       estado: 'nao_instanciado',
       requisitosAplicaveis: requisitos,
       total: requisitos.length,
       concluidos: 0,
       pendentes: requisitos.filter((requisito) => requisito.obrigatorio).length,
-      deveExibirCard: false,
+      deveExibirCard: possuiBasePendente,
       deveExibirAlerta: true,
       mensagemGestor: 'Há requisitos documentais aplicáveis que ainda não foram gerados para esta nota.',
       mensagemCedente: 'Os requisitos documentais desta nota ainda estão sendo configurados.',
     }
   }
 
+  const requisitoConcluido = (requisito: RequisitoChecklistAplicavel) => {
+    if (baseCodes.has(codigoDocumento(requisito))) return baseSatisfeitos.has(requisito.id)
+    return instanciaConcluida(porRequisito.get(requisito.id))
+  }
   const concluidos = requisitos.filter((requisito) => {
-    const instancia = porRequisito.get(requisito.id)
-    return instancia ? instanciaConcluida(instancia) : false
+    return requisitoConcluido(requisito)
   }).length
-  const pendentes = requisitos.filter((requisito) => requisito.obrigatorio && !instanciaConcluida(porRequisito.get(requisito.id)!)).length
+  const pendentes = requisitos.filter((requisito) => requisito.obrigatorio && !requisitoConcluido(requisito)).length
   const completo = pendentes === 0
 
   return {

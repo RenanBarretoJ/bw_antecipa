@@ -94,7 +94,7 @@ export async function carregarDetalheOperacaoCedente(operacaoId: string): Promis
   if (notaFiscalIds.length > 0) {
     const { data } = await supabase
       .from('documento_requisito_instancias')
-      .select('id, tipo_documento_codigo_snapshot, escopo_snapshot, nota_fiscal_id, nota_fiscal_entrega_id, operacao_id, status, obrigatorio, prazo_limite, responsavel_upload_snapshot')
+      .select('id, tipo_documento_codigo_snapshot, escopo_snapshot, nota_fiscal_id, nota_fiscal_entrega_id, operacao_id, status, versao_aprovada_id, obrigatorio, prazo_limite, responsavel_upload_snapshot')
       .in('nota_fiscal_id', notaFiscalIds)
     requisitos.push(...((data || []) as RequisitoCedenteRaw[]))
   }
@@ -102,14 +102,14 @@ export async function carregarDetalheOperacaoCedente(operacaoId: string): Promis
   if (entregaIds.length > 0) {
     const { data } = await supabase
       .from('documento_requisito_instancias')
-      .select('id, tipo_documento_codigo_snapshot, escopo_snapshot, nota_fiscal_id, nota_fiscal_entrega_id, operacao_id, status, obrigatorio, prazo_limite, responsavel_upload_snapshot')
+      .select('id, tipo_documento_codigo_snapshot, escopo_snapshot, nota_fiscal_id, nota_fiscal_entrega_id, operacao_id, status, versao_aprovada_id, obrigatorio, prazo_limite, responsavel_upload_snapshot')
       .in('nota_fiscal_entrega_id', entregaIds)
     requisitos.push(...((data || []) as RequisitoCedenteRaw[]))
   }
 
   const { data: requisitosOperacao } = await supabase
     .from('documento_requisito_instancias')
-    .select('id, tipo_documento_codigo_snapshot, escopo_snapshot, nota_fiscal_id, nota_fiscal_entrega_id, operacao_id, status, obrigatorio, prazo_limite, responsavel_upload_snapshot')
+    .select('id, tipo_documento_codigo_snapshot, escopo_snapshot, nota_fiscal_id, nota_fiscal_entrega_id, operacao_id, status, versao_aprovada_id, obrigatorio, prazo_limite, responsavel_upload_snapshot')
     .eq('operacao_id', operacaoId)
   requisitos.push(...((requisitosOperacao || []) as RequisitoCedenteRaw[]))
 

@@ -137,6 +137,7 @@ interface RequisitoOperacao {
   nota_fiscal_entrega_id: string | null
   operacao_id: string | null
   status: string | null
+  versao_aprovada_id: string | null
   obrigatorio: boolean | null
   prazo_limite: string | null
   responsavel_upload_snapshot: string | null
@@ -643,14 +644,14 @@ export default function OperacaoDetalheGestorPage() {
         const requisitoQueries = [
           supabase
             .from('documento_requisito_instancias')
-            .select('id, tipo_documento_codigo_snapshot, escopo_snapshot, nota_fiscal_id, nota_fiscal_entrega_id, operacao_id, status, obrigatorio, prazo_limite, responsavel_upload_snapshot')
+            .select('id, tipo_documento_codigo_snapshot, escopo_snapshot, nota_fiscal_id, nota_fiscal_entrega_id, operacao_id, status, versao_aprovada_id, obrigatorio, prazo_limite, responsavel_upload_snapshot')
             .eq('operacao_id', opId),
         ]
         if (nfIds.length > 0) {
           requisitoQueries.push(
             supabase
               .from('documento_requisito_instancias')
-              .select('id, tipo_documento_codigo_snapshot, escopo_snapshot, nota_fiscal_id, nota_fiscal_entrega_id, operacao_id, status, obrigatorio, prazo_limite, responsavel_upload_snapshot')
+              .select('id, tipo_documento_codigo_snapshot, escopo_snapshot, nota_fiscal_id, nota_fiscal_entrega_id, operacao_id, status, versao_aprovada_id, obrigatorio, prazo_limite, responsavel_upload_snapshot')
               .in('nota_fiscal_id', nfIds),
           )
         }
@@ -670,7 +671,7 @@ export default function OperacaoDetalheGestorPage() {
         if (entregaIds.length > 0) {
           const { data: entregaRequirements } = await supabase
             .from('documento_requisito_instancias')
-            .select('id, tipo_documento_codigo_snapshot, escopo_snapshot, nota_fiscal_id, nota_fiscal_entrega_id, operacao_id, status, obrigatorio, prazo_limite, responsavel_upload_snapshot')
+            .select('id, tipo_documento_codigo_snapshot, escopo_snapshot, nota_fiscal_id, nota_fiscal_entrega_id, operacao_id, status, versao_aprovada_id, obrigatorio, prazo_limite, responsavel_upload_snapshot')
             .in('nota_fiscal_entrega_id', entregaIds)
           setRequisitos((current) => Array.from(new Map([...current, ...((entregaRequirements || []) as unknown as RequisitoOperacao[])].map((item) => [item.id, item])).values()))
         }

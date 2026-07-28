@@ -442,6 +442,13 @@ async function processarArquivo(
       return { ok: true, id: nfData.id, isRascunho: false }
 
     } else {
+      if (isPdf) {
+        const earlyExtracted = await extractDanfeFromPdf(Buffer.from(await arquivo.arrayBuffer()))
+        if (!earlyExtracted.chave_acesso && !earlyExtracted.numero_nf) {
+          return { ok: false, error: `${arquivo.name}: o PDF nao foi reconhecido como DANFE de uma NF.` }
+        }
+      }
+
       const { error: uploadError } = await supabase.storage
         .from(buckets.notasFiscais).upload(filePath, arquivo)
       if (uploadError) {

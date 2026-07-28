@@ -255,6 +255,7 @@ async function carregarChecklist(notaFiscalId: string): Promise<ChecklistDocumen
       codigo: item.codigo,
       obrigatorio: item.obrigatorio,
       status: item.status,
+      documentoId: item.documentoId,
       versaoAprovadaId: item.versaoAprovadaId,
       versoes: item.versoes.map((version) => ({ status: version.status, ultimaAnalise: version.ultimaAnalise ? { resultado: version.ultimaAnalise.resultado } : null })),
     })),

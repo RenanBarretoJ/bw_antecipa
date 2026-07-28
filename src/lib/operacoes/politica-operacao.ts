@@ -53,6 +53,7 @@ export interface DocumentoOperacaoParaPolitica {
   tipo_documento_codigo_snapshot?: string | null
   escopo_snapshot?: string | null
   status?: string | null
+  versao_aprovada_id?: string | null
   obrigatorio?: boolean | null
   responsavel_upload_snapshot?: string | null
   prazo_limite?: string | null
@@ -189,6 +190,7 @@ export function obterCapacidadesOperacao(
 }
 
 function documentoConcluido(documento: DocumentoOperacaoParaPolitica): boolean {
+  if (documento.versao_aprovada_id) return true
   return ['satisfeito', 'aprovado', 'aceita', 'validado', 'concluido', 'publicado'].includes(String(documento.status ?? '').toLowerCase())
 }
 

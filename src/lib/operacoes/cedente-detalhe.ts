@@ -86,6 +86,7 @@ export interface RequisitoCedenteRaw {
   nota_fiscal_entrega_id: string | null
   operacao_id: string | null
   status: RequisitoCedenteStatus
+  versao_aprovada_id?: string | null
   obrigatorio: boolean
   prazo_limite: string | null
   responsavel_upload_snapshot: string

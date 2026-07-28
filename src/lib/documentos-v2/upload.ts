@@ -8,6 +8,7 @@ import { parseCteXml } from '@/lib/logistica/cte-parser'
 import { mensagemValidacaoCte, validarCteContraNfes, type NfeParaValidacaoCte } from '@/lib/logistica/validacao-cte-nfe'
 import { obterFundoAtivoAutorizado } from '@/lib/actions/fundo-ativo'
 import { carregarContextoEventoNota, registrarEventoDominio } from '@/lib/eventos-dominio/registrar'
+import { validarDocumentoBaseDaNota } from './base-documentos'
 
 export interface UploadDocumentoNotaInput {
   notaFiscalId: string
@@ -166,10 +167,34 @@ export async function uploadDocumentoDaNota(
   const tipoData = tipo as TipoDocumentoV2
   const validationError = validarArquivoContraTipo(input.arquivo, tipoData)
   if (validationError) throw new Error(validationError)
+
+  const codigoSnapshot = String(requirement.tipo_documento_codigo_snapshot)
+  if (codigoSnapshot === 'nf_xml' || codigoSnapshot === 'nf_danfe_pdf') {
+    const { data: notaFiscalBase, error: notaFiscalBaseError } = await client
+      .from('notas_fiscais')
+      .select('chave_acesso, numero_nf, serie, cnpj_emitente, cnpj_destinatario')
+      .eq('id', input.notaFiscalId)
+      .maybeSingle()
+    if (notaFiscalBaseError) throw new Error(`Erro ao consultar a NF para validar o documento-base: ${notaFiscalBaseError.message}`)
+    if (!notaFiscalBase) throw new Error('NF nao encontrada para validar o documento-base.')
+
+    await validarDocumentoBaseDaNota({
+      codigo: codigoSnapshot,
+      arquivo: input.arquivo,
+      referencia: {
+        chaveAcesso: notaFiscalBase.chave_acesso,
+        numero: notaFiscalBase.numero_nf,
+        serie: notaFiscalBase.serie,
+        cnpjEmitente: notaFiscalBase.cnpj_emitente,
+        cnpjDestinatario: notaFiscalBase.cnpj_destinatario,
+      },
+    })
+  }
+
   const validacaoCte = await validarCteXmlContraNotaSeNecessario({
     notaFiscalId: input.notaFiscalId,
     arquivo: input.arquivo,
-    codigoSnapshot: String(requirement.tipo_documento_codigo_snapshot),
+    codigoSnapshot,
     tipoCodigo: String(tipoData.codigo),
     client,
     actorRole: context.profile.role,
