@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { aprovarOperacao, desembolsarOperacao, reprovarOperacao, removerNfDaOperacao, salvarTestemunhasOperacao, salvarTermoAssinado, salvarComprovantePagamento, salvarNotificacaoAssinada, salvarQuitacaoAssinada } from '@/lib/actions/operacao'
 import { liquidarOperacao, marcarInadimplente } from '@/lib/actions/liquidacao'
@@ -506,6 +506,11 @@ function PageSkeleton() {
 
 export default function OperacaoDetalheGestorPage() {
   const params = useParams()
+  const searchParams = useSearchParams()
+  const returnToParam = searchParams.get('returnTo')
+  const returnTo = returnToParam === '/gestor/operacoes' || returnToParam?.startsWith('/gestor/operacoes?')
+    ? returnToParam
+    : '/gestor/operacoes'
   const router = useRouter()
   const notifications = useNotifications()
   const { loading: loadingFundo, fundoAtivo, bloqueado } = useFundoAtivo()
@@ -644,24 +649,6 @@ export default function OperacaoDetalheGestorPage() {
           setNfs((nfsData || []) as NfDaOperacao[])
         }
 
-        const requisitoQueries = [
-          supabase
-            .from('documento_requisito_instancias')
-            .select('id, tipo_documento_codigo_snapshot, escopo_snapshot, nota_fiscal_id, nota_fiscal_entrega_id, operacao_id, status, versao_aprovada_id, obrigatorio, prazo_limite, responsavel_upload_snapshot')
-            .eq('operacao_id', opId),
-        ]
-        if (nfIds.length > 0) {
-          requisitoQueries.push(
-            supabase
-              .from('documento_requisito_instancias')
-              .select('id, tipo_documento_codigo_snapshot, escopo_snapshot, nota_fiscal_id, nota_fiscal_entrega_id, operacao_id, status, versao_aprovada_id, obrigatorio, prazo_limite, responsavel_upload_snapshot')
-              .in('nota_fiscal_id', nfIds),
-          )
-        }
-        const requisitoResults = await Promise.all(requisitoQueries)
-        const requisitoRows = requisitoResults.flatMap((result) => (result.data || []) as unknown as RequisitoOperacao[])
-        setRequisitos(Array.from(new Map(requisitoRows.map((item) => [item.id, item])).values()))
-
         const { data: taxas } = await supabase
           .from('taxas_cedente')
           .select('prazo_min, prazo_max, taxa_percentual')
@@ -671,13 +658,18 @@ export default function OperacaoDetalheGestorPage() {
         setTaxasConfig((taxas || []) as TaxaConfig[])
         const loadedEntregas = await carregarLogistica()
         const entregaIds = loadedEntregas.map((entrega) => entrega.id)
-        if (entregaIds.length > 0) {
-          const { data: entregaRequirements } = await supabase
-            .from('documento_requisito_instancias')
-            .select('id, tipo_documento_codigo_snapshot, escopo_snapshot, nota_fiscal_id, nota_fiscal_entrega_id, operacao_id, status, versao_aprovada_id, obrigatorio, prazo_limite, responsavel_upload_snapshot')
-            .in('nota_fiscal_entrega_id', entregaIds)
-          setRequisitos((current) => Array.from(new Map([...current, ...((entregaRequirements || []) as unknown as RequisitoOperacao[])].map((item) => [item.id, item])).values()))
-        }
+        const filtrosRequisitos = [
+          `operacao_id.eq.${opId}`,
+          nfIds.length ? `nota_fiscal_id.in.(${nfIds.join(',')})` : '',
+          entregaIds.length ? `nota_fiscal_entrega_id.in.(${entregaIds.join(',')})` : '',
+        ].filter(Boolean)
+        const { data: requisitosData } = await supabase
+          .from('documento_requisito_instancias')
+          .select('id, tipo_documento_codigo_snapshot, escopo_snapshot, nota_fiscal_id, nota_fiscal_entrega_id, operacao_id, status, versao_aprovada_id, obrigatorio, prazo_limite, responsavel_upload_snapshot')
+          .or(filtrosRequisitos.join(','))
+        setRequisitos(Array.from(new Map(
+          ((requisitosData || []) as unknown as RequisitoOperacao[]).map((item) => [item.id, item]),
+        ).values()))
       }
 
       setLoading(false)
@@ -979,7 +971,7 @@ export default function OperacaoDetalheGestorPage() {
     return (
       <div className="text-center py-20">
         <p className="text-muted-foreground">Operacao nao encontrada.</p>
-        <Link href="/gestor/operacoes" className="text-primary mt-2 inline-block">Voltar</Link>
+        <Link href={returnTo} className="text-primary mt-2 inline-block">Voltar</Link>
       </div>
     )
   }
@@ -998,7 +990,7 @@ export default function OperacaoDetalheGestorPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Link href="/gestor/operacoes">
+          <Link href={returnTo}>
             <Button variant="ghost" size="icon">
               <ArrowLeft size={20} />
             </Button>

@@ -1,0 +1,207 @@
+import 'server-only'
+
+import {
+  buildOffsetRange,
+  buildPaginatedResult,
+  buildPaginationMeta,
+  type PaginatedResult,
+  type SearchParamsRecord,
+} from '@/lib/pagination'
+import { assertRole, requireAuthenticated } from '@/lib/auth/authorization'
+import { resolverCedenteFundoAtivo } from '@/lib/fundos/cedente-fundo'
+import type { NotaFiscalElegibilidadeComDados } from '@/lib/notas-fiscais/listagem'
+import type { ElegibilidadeDocumental } from '@/lib/actions/documento-v2'
+import { carregarElegibilidadeDocumentalOperacaoEmLote } from './elegibilidade-documental.server'
+import {
+  parseFiltrosNovaSolicitacao,
+  type FiltrosNovaSolicitacao,
+} from './nova-solicitacao'
+
+export type NfCandidataOperacao = NotaFiscalElegibilidadeComDados & {
+  cnpjDestinatario: string
+  destinatario: string
+  vencimento: string
+  elegibilidade: ElegibilidadeDocumental
+}
+
+export type ResultadoNovaSolicitacao = {
+  candidatas: PaginatedResult<NfCandidataOperacao>
+  taxas: Array<{ prazo_min: number; prazo_max: number; taxa_percentual: number }>
+  filtros: FiltrosNovaSolicitacao
+}
+
+type NfRow = {
+  id: string
+  status: string
+  numero_nf: string
+  data_emissao: string
+  data_vencimento: string
+  cnpj_emitente: string
+  razao_social_emitente: string
+  cnpj_destinatario: string
+  razao_social_destinatario: string
+  valor_bruto: number
+}
+
+async function resolverVersaoPolitica(
+  client: Awaited<ReturnType<typeof requireAuthenticated>>['supabase'],
+  cedenteFundoId: string,
+  fundoId: string,
+) {
+  const agora = new Date().toISOString()
+  const { data: atribuicao, error: atribuicaoError } = await client
+    .from('cedente_fundo_politicas')
+    .select('politica_operacional_id')
+    .eq('cedente_fundo_id', cedenteFundoId)
+    .eq('status', 'ativa')
+    .lte('vigente_desde', agora)
+    .or(`vigente_ate.is.null,vigente_ate.gt.${agora}`)
+    .order('vigente_desde', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (atribuicaoError) throw new Error(`Nao foi possivel consultar a politica do vinculo: ${atribuicaoError.message}`)
+  if (!atribuicao) throw new Error('O vinculo com o fundo ainda nao possui politica operacional definida.')
+
+  const { data: versao, error: versaoError } = await client
+    .from('politica_operacional_versoes')
+    .select('id')
+    .eq('politica_operacional_id', atribuicao.politica_operacional_id)
+    .eq('fundo_id', fundoId)
+    .eq('status', 'publicada')
+    .not('publicada_em', 'is', null)
+    .lte('vigente_desde', agora)
+    .or(`vigente_ate.is.null,vigente_ate.gt.${agora}`)
+    .order('versao', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (versaoError) throw new Error(`Nao foi possivel consultar a politica publicada: ${versaoError.message}`)
+  if (!versao) throw new Error('A politica operacional do fundo ainda nao possui versao publicada vigente.')
+  return versao.id
+}
+
+function mapNota(row: NfRow): NotaFiscalElegibilidadeComDados {
+  return {
+    id: row.id,
+    status: row.status,
+    numero: row.numero_nf,
+    dataEmissao: row.data_emissao,
+    dataVencimento: row.data_vencimento,
+    cnpjEmitente: row.cnpj_emitente,
+    razaoSocialEmitente: row.razao_social_emitente,
+    cnpjDestinatario: row.cnpj_destinatario,
+    razaoSocialDestinatario: row.razao_social_destinatario,
+    valorBruto: Number(row.valor_bruto || 0),
+  }
+}
+
+function buscaPostgrestSegura(value: string) {
+  return value.replace(/[,%().'"\\]/g, ' ').replace(/\s+/g, ' ').trim()
+}
+
+export async function carregarNovaSolicitacaoOperacao(
+  searchParams: SearchParamsRecord,
+): Promise<ResultadoNovaSolicitacao> {
+  const auth = await requireAuthenticated()
+  assertRole(auth.profile.role, ['cedente'])
+  const filtros = parseFiltrosNovaSolicitacao(searchParams)
+  const { data: cedente, error: cedenteError } = await auth.supabase
+    .from('cedentes')
+    .select('id, status')
+    .eq('user_id', auth.user.id)
+    .maybeSingle()
+  if (cedenteError) throw new Error(`Nao foi possivel consultar o cedente: ${cedenteError.message}`)
+  if (!cedente || cedente.status !== 'ativo') throw new Error('O cadastro do cedente precisa estar ativo.')
+
+  const contexto = await resolverCedenteFundoAtivo(cedente.id, auth.supabase)
+  if (!contexto.cedenteFundo || !contexto.fundo) throw new Error('O cedente nao possui fundo operacional ativo.')
+  const politicaVersaoId = await resolverVersaoPolitica(
+    auth.supabase,
+    contexto.cedenteFundo.id,
+    contexto.fundo.id,
+  )
+  const paginaSolicitada = filtros.page
+  const limite = filtros.pageSize
+  let { from, to } = buildOffsetRange({ page: paginaSolicitada, pageSize: limite })
+
+  const consultar = (inicio: number, fim: number) => {
+    let query = auth.supabase
+      .from('notas_fiscais')
+      .select('id, status, numero_nf, data_emissao, data_vencimento, cnpj_emitente, razao_social_emitente, cnpj_destinatario, razao_social_destinatario, valor_bruto', { count: 'exact' })
+      .eq('cedente_id', cedente.id)
+      .eq('cedente_fundo_id', contexto.cedenteFundo!.id)
+      .eq('fundo_id', contexto.fundo!.id)
+      .eq('status', 'aprovada')
+    const busca = buscaPostgrestSegura(filtros.q)
+    if (busca) {
+      const digitos = busca.replace(/\D/g, '')
+      query = query.or([
+        `numero_nf.ilike.%${busca}%`,
+        `razao_social_destinatario.ilike.%${busca}%`,
+        digitos ? `cnpj_destinatario.ilike.%${digitos}%` : '',
+      ].filter(Boolean).join(','))
+    }
+    return query
+      .order(filtros.sort, { ascending: filtros.direction === 'asc' })
+      .order('id', { ascending: filtros.direction === 'asc' })
+      .range(inicio, fim)
+  }
+
+  let resultado = await consultar(from, to)
+  if (resultado.error) throw new Error(`Nao foi possivel carregar as NFs candidatas: ${resultado.error.message}`)
+  const total = resultado.count || 0
+  const meta = buildPaginationMeta({
+    page: paginaSolicitada,
+    pageSize: limite,
+    total,
+    currentItemCount: resultado.data?.length || 0,
+  })
+  if (meta.wasPageAdjusted && total > 0) {
+    ;({ from, to } = buildOffsetRange({ page: meta.page, pageSize: limite }))
+    resultado = await consultar(from, to)
+    if (resultado.error) throw new Error(`Nao foi possivel ajustar a pagina de NFs: ${resultado.error.message}`)
+  }
+
+  const rows = (resultado.data || []) as NfRow[]
+  const notas = rows.map(mapNota)
+  const elegibilidades = await carregarElegibilidadeDocumentalOperacaoEmLote({
+    client: auth.supabase,
+    notas,
+    politicaVersaoId,
+  })
+  const candidatas = rows.map((row): NfCandidataOperacao => ({
+    ...mapNota(row),
+    cnpjDestinatario: row.cnpj_destinatario,
+    destinatario: row.razao_social_destinatario,
+    vencimento: row.data_vencimento,
+    elegibilidade: elegibilidades.get(row.id) || {
+      elegivel: false,
+      requisitosPendentes: [],
+      requisitosRejeitados: [],
+      requisitosEmAnalise: [],
+      motivos: ['Nao foi possivel determinar a elegibilidade documental.'],
+      totalObrigatorios: 0,
+      concluidosObrigatorios: 0,
+      pendentesObrigatorios: 0,
+    },
+  }))
+  const { data: taxas, error: taxasError } = await auth.supabase
+    .from('taxas_cedente')
+    .select('prazo_min, prazo_max, taxa_percentual')
+    .eq('cedente_id', cedente.id)
+    .order('prazo_min', { ascending: true })
+  if (taxasError) throw new Error(`Nao foi possivel carregar as taxas: ${taxasError.message}`)
+
+  return {
+    candidatas: buildPaginatedResult(candidatas, {
+      page: meta.page,
+      pageSize: limite,
+      total,
+    }),
+    taxas: (taxas || []).map((item) => ({
+      prazo_min: Number(item.prazo_min),
+      prazo_max: Number(item.prazo_max),
+      taxa_percentual: Number(item.taxa_percentual),
+    })),
+    filtros,
+  }
+}

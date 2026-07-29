@@ -91,30 +91,19 @@ export async function carregarDetalheOperacaoCedente(operacaoId: string): Promis
 
   const entregaIds = ((entregas || []) as Array<{ id: string }>).map((entrega) => entrega.id)
 
-  const requisitos: RequisitoCedenteRaw[] = []
-  if (notaFiscalIds.length > 0) {
-    const { data } = await supabase
-      .from('documento_requisito_instancias')
-      .select('id, tipo_documento_codigo_snapshot, escopo_snapshot, nota_fiscal_id, nota_fiscal_entrega_id, operacao_id, status, versao_aprovada_id, obrigatorio, prazo_limite, responsavel_upload_snapshot')
-      .in('nota_fiscal_id', notaFiscalIds)
-    requisitos.push(...((data || []) as RequisitoCedenteRaw[]))
-  }
-
-  if (entregaIds.length > 0) {
-    const { data } = await supabase
-      .from('documento_requisito_instancias')
-      .select('id, tipo_documento_codigo_snapshot, escopo_snapshot, nota_fiscal_id, nota_fiscal_entrega_id, operacao_id, status, versao_aprovada_id, obrigatorio, prazo_limite, responsavel_upload_snapshot')
-      .in('nota_fiscal_entrega_id', entregaIds)
-    requisitos.push(...((data || []) as RequisitoCedenteRaw[]))
-  }
-
-  const { data: requisitosOperacao } = await supabase
+  const filtrosRequisitos = [
+    `operacao_id.eq.${operacaoId}`,
+    notaFiscalIds.length ? `nota_fiscal_id.in.(${notaFiscalIds.join(',')})` : '',
+    entregaIds.length ? `nota_fiscal_entrega_id.in.(${entregaIds.join(',')})` : '',
+  ].filter(Boolean)
+  const { data: requisitosData, error: requisitosError } = await supabase
     .from('documento_requisito_instancias')
     .select('id, tipo_documento_codigo_snapshot, escopo_snapshot, nota_fiscal_id, nota_fiscal_entrega_id, operacao_id, status, versao_aprovada_id, obrigatorio, prazo_limite, responsavel_upload_snapshot')
-    .eq('operacao_id', operacaoId)
-  requisitos.push(...((requisitosOperacao || []) as RequisitoCedenteRaw[]))
-
-  const requisitosUnicos = Array.from(new Map(requisitos.map((requisito) => [requisito.id, requisito])).values())
+    .or(filtrosRequisitos.join(','))
+  if (requisitosError) throw new Error(`Nao foi possivel carregar os requisitos da operacao: ${requisitosError.message}`)
+  const requisitosUnicos = Array.from(new Map(
+    ((requisitosData || []) as RequisitoCedenteRaw[]).map((requisito) => [requisito.id, requisito]),
+  ).values())
 
   return montarDetalheOperacaoCedente({
     operacao: op,

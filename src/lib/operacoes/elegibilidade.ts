@@ -1,6 +1,5 @@
 import type { AceiteSacadoStatus } from '@/lib/types/domain'
 import type { AppSupabaseClient } from '@/lib/auth/authorization'
-import { verificarElegibilidadeDocumental } from '@/lib/actions/documento-v2'
 
 export type DocumentacaoStatus = 'satisfeita' | 'incompleta' | 'nao_verificada' | 'legado'
 
@@ -13,6 +12,7 @@ export interface EstadoOperacional {
   legado: boolean
   contexto_valido: boolean
   snapshot_consistente: boolean
+  politica_operacional_versao_id?: string | null
   nfs: Array<{ id: string; numero_nf: string; cedente_id: string; status: string; valor_bruto: number; valor_liquido: number | null; data_vencimento: string }>
 }
 
@@ -137,6 +137,7 @@ async function carregarEstado(client: AppSupabaseClient, operacaoId: string): Pr
     legado: legacy,
     contexto_valido: op.contexto_configuracao_status !== 'completo' || (!!op.cedente_fundo_id && !!op.politica_operacional_id && !!op.politica_operacional_versao_id && !!op.politica_versao && !!op.politica_snapshot && !!op.politica_snapshot_hash && !!op.contexto_capturado_em),
     snapshot_consistente: snapshotConsistente(op),
+    politica_operacional_versao_id: op.politica_operacional_versao_id,
     nfs: (nfs || []) as NfContexto[],
   }
 }
@@ -184,9 +185,33 @@ export async function validarElegibilidadeAprovacao(client: AppSupabaseClient, o
   if (!Number.isFinite(liquido) || liquido <= 0) gate.bloqueios.push('O valor líquido de desembolso deve ser maior que zero.')
   if (!Number.isFinite(gate.estado.nfs.reduce((total, nf) => total + nf.valor_bruto, 0)) || gate.estado.nfs.some((nf) => !Number.isFinite(nf.valor_bruto) || nf.valor_bruto <= 0)) gate.bloqueios.push('A operação possui valor financeiro de NF inválido.')
 
-  const documental = await Promise.all(gate.estado.nfs.map(async (nf) => {
-    try { return await verificarElegibilidadeDocumental(nf.id) } catch { return null }
-  }))
+  let documental: Array<{ elegivel: boolean } | null> = []
+  if (gate.estado.politica_operacional_versao_id) {
+    try {
+      const { carregarElegibilidadeDocumentalOperacaoEmLote } = await import('./elegibilidade-documental.server')
+      const lote = await carregarElegibilidadeDocumentalOperacaoEmLote({
+        client,
+        politicaVersaoId: gate.estado.politica_operacional_versao_id,
+        notas: gate.estado.nfs.map((nf) => ({
+          id: nf.id,
+          status: nf.status,
+          numero: nf.numero_nf,
+          dataEmissao: null,
+          dataVencimento: nf.data_vencimento,
+          cnpjEmitente: null,
+          razaoSocialEmitente: null,
+          cnpjDestinatario: null,
+          razaoSocialDestinatario: null,
+          valorBruto: nf.valor_bruto,
+        })),
+      })
+      documental = gate.estado.nfs.map((nf) => lote.get(nf.id) || null)
+    } catch {
+      documental = gate.estado.nfs.map(() => null)
+    }
+  } else {
+    documental = gate.estado.nfs.map(() => null)
+  }
   const naoVerificado = documental.some((item) => item === null)
   const incompleta = documental.some((item) => item !== null && !item.elegivel)
   gate.documentacao_status = naoVerificado ? 'nao_verificada' : incompleta ? 'incompleta' : gate.estado.legado ? 'legado' : 'satisfeita'

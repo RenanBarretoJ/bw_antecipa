@@ -1,17 +1,18 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { requireAuthenticated, requireGestor, type AppSupabaseClient } from '@/lib/auth/authorization'
+import { assertRole, requireAuthenticated, requireGestor, type AppSupabaseClient } from '@/lib/auth/authorization'
 import { exigirSessaoElevada } from '@/lib/auth/mfa'
 import { registrarLog } from './auditoria'
 import { criarNotificacao, notificarCedente, notificarGestores } from './notificacao'
 import { criarSnapshotPolitica, resolverPoliticaAtivaPorVinculo, statusAceiteInicial } from '@/lib/operacoes/politica'
 import { CedenteFundoError } from '@/lib/fundos/cedente-fundo'
-import { verificarElegibilidadeDocumental } from '@/lib/actions/documento-v2'
 import { validarElegibilidadeAprovacao, validarElegibilidadeSolicitacao } from '@/lib/operacoes/elegibilidade'
+import { carregarElegibilidadeDocumentalOperacaoEmLote } from '@/lib/operacoes/elegibilidade-documental.server'
 import { montarIdempotencyKeySolicitacaoOperacao } from '@/lib/operacoes/idempotencia'
 import { obterFundoAtivoAutorizado } from '@/lib/actions/fundo-ativo'
 import { carregarContextoEventoOperacao, registrarEventoDominio } from '@/lib/eventos-dominio/registrar'
+import { calcularAntecipacaoEmLote } from '@/lib/operacoes/calculo'
 
 export type OperacaoActionState = {
   success?: boolean
@@ -53,10 +54,10 @@ async function registrarEventoOperacao(
 // ============================================================
 
 export async function solicitarAntecipacao(nfIds: string[]): Promise<OperacaoActionState> {
-  await requireAuthenticated()
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { success: false, message: 'Nao autenticado.' }
+  const auth = await requireAuthenticated()
+  assertRole(auth.profile.role, ['cedente'])
+  const supabase = auth.supabase
+  const user = auth.user
 
   if (!nfIds || nfIds.length === 0) {
     return { success: false, message: 'Selecione ao menos uma NF.' }
@@ -66,7 +67,8 @@ export async function solicitarAntecipacao(nfIds: string[]): Promise<OperacaoAct
   const { data: cedente } = await supabase
     .from('cedentes')
     .select('id, cnpj, razao_social, status')
-    .single()
+    .eq('user_id', user.id)
+    .maybeSingle()
 
   if (!cedente) return { success: false, message: 'Cadastro de cedente nao encontrado.' }
   const ced = cedente as { id: string; cnpj: string; razao_social: string; status: string }
@@ -137,15 +139,50 @@ export async function solicitarAntecipacao(nfIds: string[]): Promise<OperacaoAct
   const aceiteSacadoExigido = politicaContexto.versao.aceite_sacado_obrigatorio
   const aceiteSacadoStatus = statusAceiteInicial(aceiteSacadoExigido)
 
-  const elegibilidades = await Promise.all(nfsTyped.map(async (nf) => ({
+  let elegibilidadePorNf
+  try {
+    elegibilidadePorNf = await carregarElegibilidadeDocumentalOperacaoEmLote({
+      client: supabase,
+      politicaVersaoId: politicaContexto.versao.id,
+      notas: nfsTyped.map((nf) => ({
+        id: nf.id,
+        status: nf.status,
+        numero: nf.numero_nf,
+        dataEmissao: null,
+        dataVencimento: nf.data_vencimento,
+        cnpjEmitente: null,
+        razaoSocialEmitente: null,
+        cnpjDestinatario: nf.cnpj_destinatario,
+        razaoSocialDestinatario: nf.razao_social_destinatario,
+        valorBruto: Number(nf.valor_bruto),
+      })),
+    })
+  } catch (error) {
+    return {
+      success: false,
+      message: 'Nao foi possivel revalidar a documentacao das NFs selecionadas.',
+      data: {
+        detalhe: error instanceof Error ? error.message : 'Falha documental nao identificada.',
+      },
+    }
+  }
+  const elegibilidades = nfsTyped.map((nf) => ({
     nf,
-    resultado: await verificarElegibilidadeDocumental(nf.id),
-  })))
+    resultado: elegibilidadePorNf.get(nf.id)!,
+  }))
   const inelegiveis = elegibilidades.filter(({ resultado }) => !resultado.elegivel)
   if (inelegiveis.length > 0) {
     return {
       success: false,
       message: inelegiveis.map(({ nf, resultado }) => `NF ${nf.numero_nf}: ${resultado.motivos.join(', ')}`).join(' | '),
+      data: {
+        nfsInelegiveis: inelegiveis.map(({ nf, resultado }) => ({
+          notaFiscalId: nf.id,
+          numero: nf.numero_nf,
+          motivos: resultado.motivos,
+          requisitosPendentes: resultado.requisitosPendentes,
+        })),
+      },
     }
   }
 
@@ -157,8 +194,6 @@ export async function solicitarAntecipacao(nfIds: string[]): Promise<OperacaoAct
   })
   if (!solicitacaoGate.elegivel) return { success: false, message: solicitacaoGate.bloqueios.join(' ') }
 
-  const hoje = new Date()
-
   // Buscar todas as taxas do cedente em uma unica query
   const { data: todasTaxas } = await supabase
     .from('taxas_cedente')
@@ -167,27 +202,23 @@ export async function solicitarAntecipacao(nfIds: string[]): Promise<OperacaoAct
 
   const taxasDisp = (todasTaxas || []) as Array<{ prazo_min: number; prazo_max: number; taxa_percentual: number }>
 
-  const nfsCalculadas = nfsTyped.map((nf) => {
-    const prazoDias = Math.max(1, Math.ceil(
-      (new Date(nf.data_vencimento).getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24)
-    ))
-    const taxaConfig = taxasDisp.find((t) => prazoDias >= t.prazo_min && prazoDias <= t.prazo_max)
-    const taxa = taxaConfig?.taxa_percentual || 0
-    const fator = Math.pow(1 + taxa / 100, prazoDias / 30)
-    const valorAntecipado = Math.round((nf.valor_bruto / fator) * 100) / 100
-    return { ...nf, prazoDias, taxa, valorAntecipado }
+  const calculo = calcularAntecipacaoEmLote({
+    notas: nfsTyped.map((nf) => ({
+      id: nf.id,
+      valorBruto: Number(nf.valor_bruto),
+      vencimento: nf.data_vencimento,
+    })),
+    taxas: taxasDisp,
+    agoraMs: Date.now(),
   })
-
-  const valorBrutoTotal = nfsCalculadas.reduce((acc, nf) => acc + nf.valor_bruto, 0)
-  const valorLiquidoDesembolso = nfsCalculadas.reduce((acc, nf) => acc + nf.valorAntecipado, 0)
-
-  // Taxa e prazo medios ponderados (referencia para a operacao)
-  const taxaMedia = valorBrutoTotal > 0
-    ? nfsCalculadas.reduce((acc, nf) => acc + nf.taxa * nf.valor_bruto, 0) / valorBrutoTotal
-    : 0
-  const prazoMedio = valorBrutoTotal > 0
-    ? Math.round(nfsCalculadas.reduce((acc, nf) => acc + nf.prazoDias * nf.valor_bruto, 0) / valorBrutoTotal)
-    : 0
+  const nfsCalculadas = nfsTyped.map((nf) => ({
+    ...nf,
+    ...calculo.notas.find((item) => item.id === nf.id)!,
+  }))
+  const valorBrutoTotal = calculo.valorBrutoTotal
+  const valorLiquidoDesembolso = calculo.valorLiquidoTotal
+  const taxaMedia = calculo.taxaMedia
+  const prazoMedio = calculo.prazoMedio
   const dataVencimento = nfsCalculadas.reduce(
     (max, nf) => nf.data_vencimento > max ? nf.data_vencimento : max,
     nfsCalculadas[0].data_vencimento

@@ -38,8 +38,19 @@ function prazoTexto(dias: number | null) {
   return `Restam ${dias} dia(s)`
 }
 
-export default async function CedenteOperacaoDetalhePage({ params }: { params: Promise<{ id: string }> }) {
+export default async function CedenteOperacaoDetalhePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ returnTo?: string | string[] }>
+}) {
   const { id } = await params
+  const rawReturnTo = (await searchParams).returnTo
+  const returnToParam = Array.isArray(rawReturnTo) ? rawReturnTo[0] : rawReturnTo
+  const returnTo = returnToParam === '/cedente/operacoes' || returnToParam?.startsWith('/cedente/operacoes?')
+    ? returnToParam
+    : '/cedente/operacoes'
   let detalhe
 
   try {
@@ -56,7 +67,7 @@ export default async function CedenteOperacaoDetalhePage({ params }: { params: P
                 <p className="font-semibold">Acesso não permitido.</p>
                 <p className="mt-1 text-sm">{error.message}</p>
                 <Link
-                  href="/cedente/operacoes"
+                  href={returnTo}
                   className="mt-4 inline-flex h-10 items-center rounded-lg border border-border bg-background px-4 text-sm font-medium hover:bg-muted"
                 >
                   Voltar para operações
@@ -74,7 +85,7 @@ export default async function CedenteOperacaoDetalhePage({ params }: { params: P
     <div className="mx-auto max-w-6xl space-y-6 pb-10">
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div className="flex items-start gap-3">
-          <Link href="/cedente/operacoes" className="inline-flex size-10 items-center justify-center rounded-lg hover:bg-muted" aria-label="Voltar para operações">
+          <Link href={returnTo} className="inline-flex size-10 items-center justify-center rounded-lg hover:bg-muted" aria-label="Voltar para operações">
             <ArrowLeft size={20} />
           </Link>
           <div className="min-w-0">

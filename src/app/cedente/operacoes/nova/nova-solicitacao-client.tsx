@@ -1,0 +1,197 @@
+'use client'
+
+import { useEffect, useMemo, useState, useTransition } from 'react'
+import Link from 'next/link'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { ArrowLeft, Calculator, CheckSquare, Loader2, Receipt, Search, Send, Square } from 'lucide-react'
+import { solicitarAntecipacao } from '@/lib/actions/operacao'
+import type { NfCandidataOperacao, ResultadoNovaSolicitacao } from '@/lib/operacoes/nova-solicitacao.server'
+import { buildListUrl } from '@/lib/pagination'
+import { calcularAntecipacaoEmLote } from '@/lib/operacoes/calculo'
+import { formatCNPJ, formatCurrency, formatDate } from '@/lib/utils'
+import { ListPagination } from '@/components/pagination'
+import { useNotifications } from '@/components/notifications/notification-provider'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+
+export default function NovaSolicitacaoClient({ resultado }: { resultado: ResultadoNovaSolicitacao }) {
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const notifications = useNotifications()
+  const [isPending, startTransition] = useTransition()
+  const [submitting, setSubmitting] = useState(false)
+  const [selected, setSelected] = useState<Map<string, NfCandidataOperacao>>(new Map())
+  const [todayMs] = useState(() => Date.now())
+  const [busca, setBusca] = useState(resultado.filtros.q)
+  const params = useMemo(() => Object.fromEntries(searchParams.entries()), [searchParams])
+  const pagina = resultado.candidatas.items
+  const elegiveisPagina = pagina.filter((item) => item.elegibilidade.elegivel)
+
+  const navegar = (updates: Record<string, string | number | null>) => {
+    startTransition(() => router.replace(buildListUrl(pathname, params, updates)))
+  }
+  useEffect(() => {
+    if (busca === resultado.filtros.q) return
+    const timer = window.setTimeout(() => navegar({ q: busca || null, page: 1 }), 350)
+    return () => window.clearTimeout(timer)
+    // navegar depende dos search params atuais e nao deve reiniciar o debounce.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [busca, resultado.filtros.q])
+  useEffect(() => {
+    const inelegiveisAtuais = new Set(
+      pagina.filter((item) => !item.elegibilidade.elegivel).map((item) => item.id),
+    )
+    if (!inelegiveisAtuais.size) return
+    setSelected((atual) => {
+      if (![...inelegiveisAtuais].some((id) => atual.has(id))) return atual
+      const proximo = new Map(atual)
+      for (const id of inelegiveisAtuais) proximo.delete(id)
+      return proximo
+    })
+  }, [pagina])
+  const toggle = (nf: NfCandidataOperacao) => {
+    if (!nf.elegibilidade.elegivel) return
+    setSelected((atual) => {
+      const proximo = new Map(atual)
+      if (proximo.has(nf.id)) proximo.delete(nf.id)
+      else proximo.set(nf.id, nf)
+      return proximo
+    })
+  }
+  const todasDaPagina = elegiveisPagina.length > 0 && elegiveisPagina.every((item) => selected.has(item.id))
+  const togglePagina = () => setSelected((atual) => {
+    const proximo = new Map(atual)
+    for (const item of elegiveisPagina) {
+      if (todasDaPagina) proximo.delete(item.id)
+      else proximo.set(item.id, item)
+    }
+    return proximo
+  })
+
+  const calculo = calcularAntecipacaoEmLote({
+    notas: [...selected.values()].map((nf) => ({
+      id: nf.id,
+      valorBruto: nf.valorBruto,
+      vencimento: nf.vencimento,
+    })),
+    taxas: resultado.taxas,
+    agoraMs: todayMs,
+  })
+  const valorBruto = calculo.valorBrutoTotal
+  const valorLiquido = calculo.valorLiquidoTotal
+
+  const enviar = async () => {
+    if (!selected.size) return notifications.error('Selecione ao menos uma NF.')
+    setSubmitting(true)
+    const result = await solicitarAntecipacao([...selected.keys()])
+    notifications.fromActionResult(result, 'Solicitacao criada.')
+    if (result?.success) router.push('/cedente/operacoes')
+    setSubmitting(false)
+  }
+
+  return (
+    <div className="mx-auto max-w-5xl">
+      <div className="mb-6 flex items-center gap-3">
+        <Link href="/cedente/operacoes"><Button variant="ghost" size="icon"><ArrowLeft /></Button></Link>
+        <div>
+          <h1 className="text-2xl font-bold">Nova solicitacao de antecipacao</h1>
+          <p className="text-muted-foreground">Selecione NFs aprovadas e documentalmente elegiveis.</p>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <Card className="mb-4">
+            <CardContent className="flex flex-col gap-3 py-4 sm:flex-row">
+              <div className="relative min-w-0 flex-1">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={busca}
+                  onChange={(event) => setBusca(event.target.value)}
+                  placeholder="Buscar por NF, sacado ou CNPJ..."
+                  className="pl-9"
+                />
+              </div>
+              <Select
+                value={`${resultado.filtros.sort}:${resultado.filtros.direction}`}
+                onValueChange={(value) => {
+                  if (!value) return
+                  const [sort, direction] = value.split(':')
+                  navegar({ sort, direction, page: 1 })
+                }}
+              >
+                <SelectTrigger className="w-full sm:w-56"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="data_vencimento:asc">Vencimento mais proximo</SelectItem>
+                  <SelectItem value="data_vencimento:desc">Vencimento mais distante</SelectItem>
+                  <SelectItem value="valor_bruto:desc">Maior valor</SelectItem>
+                  <SelectItem value="valor_bruto:asc">Menor valor</SelectItem>
+                  <SelectItem value="numero_nf:asc">Numero da NF</SelectItem>
+                </SelectContent>
+              </Select>
+            </CardContent>
+          </Card>
+          {!pagina.length ? (
+            <Card><CardContent className="p-12 text-center">
+              <Receipt size={44} className="mx-auto mb-3 text-muted-foreground/40" />
+              <p className="text-muted-foreground">Nenhuma NF aprovada disponivel para antecipacao.</p>
+            </CardContent></Card>
+          ) : (
+            <Card className={isPending ? 'opacity-70' : ''}>
+              <div className="flex items-center justify-between border-b bg-muted/50 px-4 py-3">
+                <button type="button" onClick={togglePagina} className="flex items-center gap-2 text-sm">
+                  {todasDaPagina ? <CheckSquare size={16} className="text-primary" /> : <Square size={16} />}
+                  {todasDaPagina ? 'Desmarcar pagina' : 'Selecionar elegiveis da pagina'}
+                </button>
+                <span className="text-sm text-muted-foreground">{selected.size} selecionada(s)</span>
+              </div>
+              <div className="divide-y">
+                {pagina.map((nf) => {
+                  const marcado = selected.has(nf.id)
+                  const bloqueado = !nf.elegibilidade.elegivel
+                  return <button
+                    type="button"
+                    key={nf.id}
+                    onClick={() => toggle(nf)}
+                    disabled={bloqueado}
+                    className={`flex w-full items-center gap-4 px-4 py-3 text-left ${marcado ? 'bg-primary/5' : 'hover:bg-muted/40'} disabled:cursor-not-allowed disabled:opacity-60`}
+                  >
+                    {marcado ? <CheckSquare size={18} className="shrink-0 text-primary" /> : <Square size={18} className="shrink-0 text-muted-foreground/40" />}
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium" title={nf.destinatario}>NF {nf.numero} · {nf.destinatario}</p>
+                      <p className="text-xs text-muted-foreground">CNPJ {formatCNPJ(nf.cnpjDestinatario)} · Venc. {formatDate(nf.vencimento)}</p>
+                      {bloqueado && <p className="mt-1 text-xs text-destructive">{nf.elegibilidade.motivos.join(', ')}</p>}
+                    </div>
+                    <strong className="shrink-0 tabular-nums">{formatCurrency(nf.valorBruto)}</strong>
+                  </button>
+                })}
+              </div>
+              <ListPagination
+                className="border-t px-4 py-3"
+                pagination={resultado.candidatas.pagination}
+                disabled={isPending}
+                onPageChange={(page) => navegar({ page })}
+                onPageSizeChange={(pageSize) => navegar({ pageSize, page: 1 })}
+              />
+            </Card>
+          )}
+        </div>
+        <Card className="h-fit lg:sticky lg:top-6">
+          <CardHeader><CardTitle className="flex items-center gap-2"><Calculator size={18} />Resumo da operacao</CardTitle></CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            <div className="flex justify-between"><span className="text-muted-foreground">NFs selecionadas</span><strong>{selected.size}</strong></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Valor bruto</span><strong>{formatCurrency(valorBruto)}</strong></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Desconto estimado</span><span className="text-destructive">{formatCurrency(valorBruto - valorLiquido)}</span></div>
+            <div className="flex justify-between border-t pt-3"><strong>Valor liquido estimado</strong><strong className="text-lg text-green-700">{formatCurrency(valorLiquido)}</strong></div>
+            <Button className="mt-4 w-full" disabled={!selected.size || submitting} onClick={enviar}>
+              {submitting ? <Loader2 className="animate-spin" /> : <Send />}
+              {submitting ? 'Solicitando...' : 'Solicitar antecipacao'}
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
+}
