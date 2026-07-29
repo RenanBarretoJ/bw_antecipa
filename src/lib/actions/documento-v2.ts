@@ -19,6 +19,7 @@ import {
 } from '@/lib/documentos-v2/satisfacao-requisito'
 import { carregarContextoEventoDocumentoVersao, registrarEventoDominio } from '@/lib/eventos-dominio/registrar'
 import type { DocumentoAnaliseResultado, PoliticaNivelValidacao } from '@/lib/types/domain'
+import { revalidatePath } from 'next/cache'
 
 const DOCUMENTOS_COM_VALIDACAO_ESTRUTURAL_NO_UPLOAD = new Set([
   'nf_xml',
@@ -524,6 +525,11 @@ export async function analisarVersaoDocumento(versaoId: string, resultado: Docum
     visibilidade: 'ambos',
     origem: 'analise_documental',
   }, context.supabase)
+  revalidatePath('/gestor/documentos')
+  if (contextoEvento.nota_fiscal_id) {
+    revalidatePath('/gestor/notas-fiscais')
+    revalidatePath(`/gestor/notas-fiscais/${contextoEvento.nota_fiscal_id}`)
+  }
   return { success: true, data }
 }
 

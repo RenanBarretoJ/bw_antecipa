@@ -6,6 +6,9 @@ import { exigirSessaoElevada } from '@/lib/auth/mfa'
 import { registrarLog } from './auditoria'
 import { notificarCedente } from './notificacao'
 import { suspenderCedenteFundo, vincularCedenteFundo } from '@/lib/fundos/cedente-fundo'
+import { resolverContextoFundoGestor } from '@/lib/gestor/contexto-fundo.server'
+import { buckets } from '@/lib/storage'
+import { revalidatePath } from 'next/cache'
 
 const tipoLabelsDoc: Record<string, string> = {
   contrato_social: 'Contrato Social',
@@ -22,6 +25,8 @@ const tipoLabelsDoc: Record<string, string> = {
 export type GestorActionState = {
   success?: boolean
   message?: string
+  url?: string
+  nome?: string
 } | undefined
 
 async function requireGestor() {
@@ -35,32 +40,39 @@ export async function analisarDocumento(
   decisao: 'aprovado' | 'reprovado',
   motivo?: string
 ): Promise<GestorActionState> {
-  await requireGestor()
+  const context = await requireGestor()
   if (decisao === 'reprovado' && (!motivo || motivo.trim().length === 0)) {
     return { success: false, message: 'Motivo da reprovacao e obrigatorio.' }
   }
 
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    return { success: false, message: 'Usuario nao autenticado.' }
-  }
+  const supabase = context.supabase
+  const user = context.user
+  const fundo = await resolverContextoFundoGestor(context)
 
   // Buscar documento atual
-  const { data: docAtual } = await supabase
+  const { data: docAtual, error: docError } = await supabase
     .from('documentos')
-    .select('*, cedentes(user_id, razao_social, cnpj)')
+    .select('id, tipo, status, cedente_id, cedentes(user_id, razao_social, cnpj)')
     .eq('id', documentoId)
-    .single()
+    .maybeSingle()
 
-  if (!docAtual) {
+  if (docError || !docAtual) {
     return { success: false, message: 'Documento nao encontrado.' }
   }
 
   const doc = docAtual as {
     id: string; tipo: string; status: string; cedente_id: string;
     cedentes: { user_id: string; razao_social: string; cnpj: string }
+  }
+  const { data: vinculo, error: vinculoError } = await supabase
+    .from('cedente_fundos')
+    .select('id')
+    .eq('cedente_id', doc.cedente_id)
+    .eq('fundo_id', fundo.fundoId)
+    .eq('status', 'ativo')
+    .maybeSingle()
+  if (vinculoError || !vinculo) {
+    return { success: false, message: 'Documento nao pertence ao fundo ativo.' }
   }
 
   const dadosAntes = { status: doc.status }
@@ -97,7 +109,51 @@ export async function analisarDocumento(
     `documento_${statusLabel}`,
   )
 
+  revalidatePath('/gestor/documentos')
   return { success: true, message: `Documento ${statusLabel} com sucesso.` }
+}
+
+export async function gerarUrlDocumentoGestor(
+  documentoId: string,
+): Promise<GestorActionState> {
+  const context = await requireGestor()
+  const fundo = await resolverContextoFundoGestor(context)
+  const { data, error } = await context.supabase
+    .from('documentos')
+    .select('id, cedente_id, url_arquivo, nome_arquivo')
+    .eq('id', documentoId)
+    .maybeSingle()
+
+  if (error || !data) {
+    return { success: false, message: 'Documento nao encontrado.' }
+  }
+
+  const { data: vinculo, error: vinculoError } = await context.supabase
+    .from('cedente_fundos')
+    .select('id')
+    .eq('cedente_id', data.cedente_id)
+    .eq('fundo_id', fundo.fundoId)
+    .eq('status', 'ativo')
+    .maybeSingle()
+  if (vinculoError || !vinculo) {
+    return { success: false, message: 'Documento nao pertence ao fundo ativo.' }
+  }
+  if (!data.url_arquivo) {
+    return { success: false, message: 'O documento ainda nao possui arquivo.' }
+  }
+
+  const { data: signed, error: signedError } = await context.supabase.storage
+    .from(buckets.documentos)
+    .createSignedUrl(data.url_arquivo, 60 * 10)
+  if (signedError || !signed?.signedUrl) {
+    return { success: false, message: 'Nao foi possivel abrir o documento.' }
+  }
+
+  return {
+    success: true,
+    url: signed.signedUrl,
+    nome: data.nome_arquivo || 'Documento',
+  }
 }
 
 export async function aprovarCedente(cedenteId: string): Promise<GestorActionState> {

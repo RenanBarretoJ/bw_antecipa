@@ -1,7 +1,7 @@
 'use server'
 
 import { createAdminClient, createClient } from '@/lib/supabase/server'
-import { requireAuthenticated, requireGestor as requireGestorBase, type AppSupabaseClient } from '@/lib/auth/authorization'
+import { requireAuthenticated, requireGestor as requireGestorBase, type AppSupabaseClient, type AuthContext } from '@/lib/auth/authorization'
 import { exigirSessaoElevada } from '@/lib/auth/mfa'
 import { notaFiscalSchema, type NotaFiscalFormData } from '@/lib/validations/nf'
 import { extractDanfeFromPdf, type NfPdfExtracted } from '@/lib/pdf-nf-parser'
@@ -18,6 +18,8 @@ import { listarChecklistDaNota } from '@/lib/actions/documento-v2'
 import { avaliarElegibilidadeSubmissaoNf } from '@/lib/notas-fiscais/elegibilidade-submissao'
 import { avaliarElegibilidadeAprovacaoNf } from '@/lib/notas-fiscais/elegibilidade-aprovacao'
 import { revalidatePath } from 'next/cache'
+import { resolverContextoFundoGestor } from '@/lib/gestor/contexto-fundo.server'
+import { carregarResumoDocumentalDasNotas } from '@/lib/notas-fiscais/resumo-documental-gestor.server'
 
 export type NfActionState = {
   success?: boolean
@@ -29,6 +31,18 @@ export type NfActionState = {
   data?: {
     id: string
     parsed?: Record<string, unknown>
+  }
+  lote?: {
+    totalRecebidas: number
+    totalAprovadas: number
+    totalFalhas: number
+    resultados: Array<{
+      notaFiscalId: string
+      success: boolean
+      code?: string
+      message?: string
+      pendencias?: string[]
+    }>
   }
 } | undefined
 
@@ -1051,21 +1065,9 @@ export async function excluirRascunhos(nfIds: string[]): Promise<NfActionState> 
 
 // Gestor: aprovar NF
 export async function aprovarNF(nfId: string): Promise<NfActionState> {
-  await requireGestor()
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { success: false, message: 'Nao autenticado.' }
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (!profile || (profile as { role: string }).role !== 'gestor') {
-    return { success: false, message: 'Acesso negado.' }
-  }
-  const acessoNf = await validarNfsNoFundoAtivo(supabase, [nfId])
+  const context = await requireGestor()
+  const supabase = context.supabase
+  const acessoNf = await validarNfsNoFundoAtivo(supabase, [nfId], context)
   if (!acessoNf?.success) return acessoNf
 
   const { data: nfAntes } = await supabase
@@ -1079,10 +1081,14 @@ export async function aprovarNF(nfId: string): Promise<NfActionState> {
   }
 
   const nfData = nfAntes as { status: string; numero_nf: string; cedente_id: string }
-  const checklist = await listarChecklistDaNota(nfId)
+  const checklist = await carregarResumoDocumentalDasNotas(supabase, [nfId])
+  const documentos = checklist.avaliacoes.get(nfId)
+  if (!documentos) {
+    return { success: false, message: 'Nao foi possivel validar o checklist documental da NF.' }
+  }
   const avaliacaoAprovacao = avaliarElegibilidadeAprovacaoNf({
     status: nfData.status,
-    documentos: checklist.elegibilidadeAprovacao,
+    documentos,
   })
   if (!avaliacaoAprovacao.elegivel) {
     return {
@@ -1121,20 +1127,20 @@ export async function aprovarNF(nfId: string): Promise<NfActionState> {
     metadata: { status_anterior: nfData.status, status_novo: 'aprovada' },
   })
 
+  revalidatePath('/gestor/notas-fiscais')
+  revalidatePath(`/gestor/notas-fiscais/${nfId}`)
   return { success: true, message: 'NF aprovada com sucesso!' }
 }
 
 // Gestor: reprovar NF
 export async function reprovarNF(nfId: string, motivo: string): Promise<NfActionState> {
-  await requireGestor()
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { success: false, message: 'Nao autenticado.' }
+  const context = await requireGestor()
+  const supabase = context.supabase
 
   if (!motivo || motivo.trim().length === 0) {
     return { success: false, message: 'Motivo da reprovacao e obrigatorio.' }
   }
-  const acessoNf = await validarNfsNoFundoAtivo(supabase, [nfId])
+  const acessoNf = await validarNfsNoFundoAtivo(supabase, [nfId], context)
   if (!acessoNf?.success) return acessoNf
 
   const { data: nfAntes } = await supabase
@@ -1179,6 +1185,8 @@ export async function reprovarNF(nfId: string, motivo: string): Promise<NfAction
     metadata: { status_anterior: nfData.status, status_novo: 'cancelada', motivo_resumido: motivo.slice(0, 120) },
   })
 
+  revalidatePath('/gestor/notas-fiscais')
+  revalidatePath(`/gestor/notas-fiscais/${nfId}`)
   return { success: true, message: 'NF reprovada.' }
 }
 
@@ -1241,25 +1249,14 @@ export async function resubmeterNFAjustada(nfId: string): Promise<NfActionState>
 
 // Gestor: solicitar ajuste na NF (devolve ao cedente para correcao)
 export async function solicitarAjusteNF(nfId: string, motivo: string): Promise<NfActionState> {
-  await requireGestor()
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { success: false, message: 'Nao autenticado.' }
+  const context = await requireGestor()
+  const supabase = context.supabase
 
   if (!motivo || motivo.trim().length === 0) {
     return { success: false, message: 'Motivo do ajuste e obrigatorio.' }
   }
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (!profile || (profile as { role: string }).role !== 'gestor') {
-    return { success: false, message: 'Acesso negado.' }
-  }
-  const acessoNf = await validarNfsNoFundoAtivo(supabase, [nfId])
+  const acessoNf = await validarNfsNoFundoAtivo(supabase, [nfId], context)
   if (!acessoNf?.success) return acessoNf
 
   const { data: nfAntes } = await supabase
@@ -1304,45 +1301,95 @@ export async function solicitarAjusteNF(nfId: string, motivo: string): Promise<N
     metadata: { status_anterior: nfData.status, status_novo: 'requer_ajuste', motivo_resumido: motivo.trim().slice(0, 120) },
   })
 
+  revalidatePath('/gestor/notas-fiscais')
+  revalidatePath(`/gestor/notas-fiscais/${nfId}`)
   return { success: true, message: 'Ajuste solicitado. Cedente sera notificado.' }
 }
 
 export async function aprovarNFsLote(ids: string[]): Promise<NfActionState> {
-  if (!ids.length) return { success: false, message: 'Nenhuma NF selecionada.' }
+  const idsUnicos = Array.from(new Set(ids.map((id) => id.trim()).filter(Boolean)))
+  if (!idsUnicos.length) return { success: false, message: 'Nenhuma NF selecionada.' }
 
-  await requireGestor()
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { success: false, message: 'Nao autenticado.' }
-
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-  if (!profile || (profile as { role: string }).role !== 'gestor') return { success: false, message: 'Acesso negado.' }
-  const acessoNfs = await validarNfsNoFundoAtivo(supabase, ids)
-  if (!acessoNfs?.success) return acessoNfs
-
-  const { data: elegíveis } = await supabase
+  const context = await requireGestor()
+  const supabase = context.supabase
+  const fundo = await resolverContextoFundoGestor(context)
+  const { data: nfsData, error: nfsError } = await supabase
     .from('notas_fiscais')
-    .select('id, numero_nf, cedente_id, status')
-    .in('id', ids)
-    .in('status', ['submetida', 'em_analise'])
+    .select('id, numero_nf, cedente_id, status, fundo_id')
+    .in('id', idsUnicos)
 
-  if (!elegíveis || elegíveis.length === 0) {
-    return { success: false, message: 'Nenhuma NF elegivel (status deve ser submetida ou em analise).' }
+  if (nfsError) return { success: false, message: `Erro ao validar as NFs: ${nfsError.message}` }
+  const nfs = (nfsData || []) as Array<{
+    id: string
+    numero_nf: string
+    cedente_id: string
+    status: string
+    fundo_id: string | null
+  }>
+  const porId = new Map(nfs.map((nf) => [nf.id, nf]))
+  const resultadosIniciais = idsUnicos.map((notaFiscalId) => {
+    const nf = porId.get(notaFiscalId)
+    if (!nf) return { notaFiscalId, success: false, code: 'nf_nao_encontrada', message: 'NF nao encontrada ou sem acesso.' }
+    if (nf.fundo_id !== fundo.fundoId) return { notaFiscalId, success: false, code: 'fundo_invalido', message: 'NF nao pertence ao fundo ativo.' }
+    if (!['submetida', 'em_analise'].includes(nf.status)) return { notaFiscalId, success: false, code: 'status_incompativel', message: 'Status deve ser submetida ou em analise.' }
+    return { notaFiscalId, success: true }
+  })
+  const falhasIniciais = resultadosIniciais.filter((item) => !item.success)
+  if (falhasIniciais.length > 0) {
+    return {
+      success: false,
+      message: 'A aprovacao em lote e atomica. Uma ou mais NFs nao podem ser aprovadas.',
+      lote: {
+        totalRecebidas: idsUnicos.length,
+        totalAprovadas: 0,
+        totalFalhas: falhasIniciais.length,
+        resultados: resultadosIniciais,
+      },
+    }
   }
 
-  const nfs = elegíveis as { id: string; numero_nf: string; cedente_id: string; status: string }[]
-  const avaliacoesDocumentais = await Promise.all(nfs.map(async (nf) => ({
-    nf,
-    avaliacao: avaliarElegibilidadeAprovacaoNf({
-      status: nf.status,
-      documentos: (await listarChecklistDaNota(nf.id)).elegibilidadeAprovacao,
-    }),
-  })))
+  const documentacao = await carregarResumoDocumentalDasNotas(supabase, idsUnicos)
+  const avaliacoesDocumentais = nfs.map((nf) => {
+    const documentos = documentacao.avaliacoes.get(nf.id)
+    const avaliacao = documentos
+      ? avaliarElegibilidadeAprovacaoNf({ status: nf.status, documentos })
+      : {
+        elegivel: false,
+        bloqueios: [{
+          codigo: 'documentos_nao_aprovados' as const,
+          mensagem: 'Checklist documental nao encontrado.',
+        }],
+      }
+    return { nf, documentos, avaliacao }
+  })
   const bloqueadas = avaliacoesDocumentais.filter((item) => !item.avaliacao.elegivel)
   if (bloqueadas.length > 0) {
+    const bloqueadasPorId = new Map(bloqueadas.map((item) => [item.nf.id, item]))
     return {
       success: false,
       message: `Aprovação bloqueada. NFs com documentos obrigatórios sem aprovação: ${bloqueadas.map((item) => item.nf.numero_nf).join(', ')}.`,
+      lote: {
+        totalRecebidas: idsUnicos.length,
+        totalAprovadas: 0,
+        totalFalhas: bloqueadas.length,
+        resultados: idsUnicos.map((notaFiscalId) => {
+          const bloqueada = bloqueadasPorId.get(notaFiscalId)
+          return bloqueada
+            ? {
+              notaFiscalId,
+              success: false,
+              code: 'documentos_nao_aprovados',
+              message: bloqueada.avaliacao.bloqueios.map((item) => item.mensagem).join(' '),
+              pendencias: bloqueada.documentos?.requisitosPendentes || [],
+            }
+            : {
+              notaFiscalId,
+              success: false,
+              code: 'lote_atomico_bloqueado',
+              message: 'Nao aprovada porque outra NF do lote possui bloqueio.',
+            }
+        }),
+      },
     }
   }
   const idsAprovados = nfs.map((n) => n.id)
@@ -1379,27 +1426,34 @@ export async function aprovarNFsLote(ids: string[]): Promise<NfActionState> {
     dados_depois: { ids: idsAprovados, quantidade: idsAprovados.length },
   })
 
-  return { success: true, message: `${idsAprovados.length} NF(s) aprovada(s) com sucesso!` }
+  revalidatePath('/gestor/notas-fiscais')
+  for (const id of idsAprovados) revalidatePath(`/gestor/notas-fiscais/${id}`)
+  return {
+    success: true,
+    message: `${idsAprovados.length} NF(s) aprovada(s) com sucesso!`,
+    lote: {
+      totalRecebidas: idsUnicos.length,
+      totalAprovadas: idsAprovados.length,
+      totalFalhas: 0,
+      resultados: idsAprovados.map((notaFiscalId) => ({ notaFiscalId, success: true })),
+    },
+  }
 }
 
 export async function reprovarNFsLote(ids: string[], motivo: string): Promise<NfActionState> {
-  if (!ids.length) return { success: false, message: 'Nenhuma NF selecionada.' }
+  const idsUnicos = Array.from(new Set(ids.map((id) => id.trim()).filter(Boolean)))
+  if (!idsUnicos.length) return { success: false, message: 'Nenhuma NF selecionada.' }
   if (!motivo.trim()) return { success: false, message: 'Motivo obrigatorio.' }
 
-  await requireGestor()
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { success: false, message: 'Nao autenticado.' }
-
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-  if (!profile || (profile as { role: string }).role !== 'gestor') return { success: false, message: 'Acesso negado.' }
-  const acessoNfs = await validarNfsNoFundoAtivo(supabase, ids)
+  const context = await requireGestor()
+  const supabase = context.supabase
+  const acessoNfs = await validarNfsNoFundoAtivo(supabase, idsUnicos, context)
   if (!acessoNfs?.success) return acessoNfs
 
   const { data: elegíveis } = await supabase
     .from('notas_fiscais')
     .select('id, numero_nf, cedente_id')
-    .in('id', ids)
+    .in('id', idsUnicos)
     .in('status', ['submetida', 'em_analise'])
 
   if (!elegíveis || elegíveis.length === 0) {
@@ -1440,14 +1494,19 @@ export async function reprovarNFsLote(ids: string[], motivo: string): Promise<Nf
     dados_depois: { ids: idsReprovados, quantidade: idsReprovados.length, motivo },
   })
 
+  revalidatePath('/gestor/notas-fiscais')
+  for (const id of idsReprovados) revalidatePath(`/gestor/notas-fiscais/${id}`)
   return { success: true, message: `${idsReprovados.length} NF(s) reprovada(s).` }
 }
 
 async function validarNfsNoFundoAtivo(
   supabase: Awaited<ReturnType<typeof createClient>>,
   nfIds: string[],
+  authContext?: AuthContext,
 ): Promise<NfActionState> {
-  const contexto = await obterFundoAtivoAutorizado()
+  const contexto = authContext
+    ? { fundoId: (await resolverContextoFundoGestor(authContext)).fundoId }
+    : await obterFundoAtivoAutorizado()
   if (!contexto.fundoId) return { success: false, message: 'Selecione um fundo ativo antes de executar esta ação.' }
 
   const idsUnicos = Array.from(new Set(nfIds.filter(Boolean)))
