@@ -5,9 +5,17 @@ import {
 } from './elegibilidade-submissao'
 import { resolverSatisfacaoRequisitoParaSubmissao } from '@/lib/documentos-v2/satisfacao-requisito'
 import { normalizarCodigoDocumentoCatalogo } from '@/lib/documentos-v2/codigos'
+import {
+  ALLOWED_PAGE_SIZES,
+  buildOffsetRange,
+  normalizePage,
+  normalizePageSize,
+  parseSortParams,
+  type AllowedPageSize,
+} from '@/lib/pagination'
 
-export const LIMITES_LISTAGEM_NF = [10, 20, 40] as const
-export type LimiteListagemNf = (typeof LIMITES_LISTAGEM_NF)[number]
+export const LIMITES_LISTAGEM_NF = ALLOWED_PAGE_SIZES
+export type LimiteListagemNf = AllowedPageSize
 
 export const CAMPOS_ORDENACAO_LISTAGEM_NF = [
   'created_at',
@@ -196,22 +204,26 @@ export function estadoSubmissaoPorStatus(
 }
 
 export function normalizarLimiteListagemNf(value: number): LimiteListagemNf {
-  return LIMITES_LISTAGEM_NF.includes(value as LimiteListagemNf)
-    ? value as LimiteListagemNf
-    : 10
+  return normalizePageSize(value)
 }
 
 export function calcularIntervaloPagina(pagina: number, limite: LimiteListagemNf) {
-  const paginaNormalizada = Number.isInteger(pagina) && pagina > 0 ? pagina : 1
-  const inicio = (paginaNormalizada - 1) * limite
+  const { from, to } = buildOffsetRange({
+    page: normalizePage(pagina),
+    pageSize: limite,
+  })
+
   return {
-    inicio,
-    fim: inicio + limite - 1,
+    inicio: from,
+    fim: to,
   }
 }
 
 export function normalizarCampoOrdenacaoListagemNf(value: string): CampoOrdenacaoListagemNf {
-  return CAMPOS_ORDENACAO_LISTAGEM_NF.includes(value as CampoOrdenacaoListagemNf)
-    ? value as CampoOrdenacaoListagemNf
-    : 'created_at'
+  return parseSortParams({
+    sort: value,
+    direction: undefined,
+    allowedFields: CAMPOS_ORDENACAO_LISTAGEM_NF,
+    defaultField: 'created_at',
+  }).field
 }
