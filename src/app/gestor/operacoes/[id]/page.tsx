@@ -63,8 +63,11 @@ interface OperacaoDetalhe {
   status: string
   aceite_sacado_exigido: boolean | null
   aceite_sacado_status: string | null
+  aceite_sacado_em: string | null
   motivo_reprovacao: string | null
   aprovado_em: string | null
+  cessao_efetivada_em: string | null
+  liquidada_em: string | null
   created_at: string
   testemunha_1_id: string | null
   testemunha_2_id: string | null

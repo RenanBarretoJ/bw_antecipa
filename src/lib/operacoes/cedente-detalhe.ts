@@ -3,6 +3,7 @@ import {
   construirPendenciasOperacao,
   obterCapacidadesOperacao,
   type DocumentoOperacaoParaPolitica,
+  type EtapaOperacao,
 } from '@/lib/operacoes/politica-operacao'
 
 export type OperacaoCedenteStatus =
@@ -40,6 +41,7 @@ export interface OperacaoCedenteRaw {
   status: OperacaoCedenteStatus
   aceite_sacado_exigido: boolean | null
   aceite_sacado_status: string | null
+  aceite_sacado_em: string | null
   aprovado_em: string | null
   cessao_efetivada_em: string | null
   liquidada_em: string | null
@@ -124,7 +126,7 @@ export interface OperacaoCedenteDetalhe {
     statusLabel: string
     href: string
   }>
-  timeline: Array<{ key: string; label: string; status: 'concluido' | 'atual' | 'pendente' | 'bloqueado' | 'rejeitado'; date: string | null }>
+  timeline: EtapaOperacao[]
   pendenciasCedente: Array<{
     id: string
     descricao: string
@@ -211,13 +213,6 @@ function prazoMaisProximo(entrega: EntregaCedenteRaw) {
   return prazos.sort()[0] || null
 }
 
-function statusTimeline(done: boolean, active: boolean, blocked = false): 'concluido' | 'atual' | 'pendente' | 'bloqueado' {
-  if (blocked) return 'bloqueado'
-  if (done) return 'concluido'
-  if (active) return 'atual'
-  return 'pendente'
-}
-
 export function montarDetalheOperacaoCedente({
   operacao,
   notasFiscais,
@@ -233,10 +228,7 @@ export function montarDetalheOperacaoCedente({
 }): OperacaoCedenteDetalhe {
   const nfById = new Map(notasFiscais.map((nf) => [nf.id, nf]))
   const entregaById = new Map(entregas.map((entrega) => [entrega.id, entrega]))
-  const liquidada = operacao.status === 'liquidada'
   const desembolsada = ['em_andamento', 'liquidada', 'inadimplente'].includes(operacao.status)
-  const aprovada = !!operacao.aprovado_em || ['aprovada', 'em_andamento', 'liquidada', 'inadimplente'].includes(operacao.status)
-  const documentacaoValidada = notasFiscais.length > 0 && notasFiscais.every((nf) => ['aprovada', 'em_antecipacao', 'aceita', 'liquidada'].includes(nf.status))
   const documentosPolitica = requisitos as DocumentoOperacaoParaPolitica[]
   const capacidades = obterCapacidadesOperacao(operacao, { documentos: documentosPolitica, logistica: entregas })
   const pendenciasAplicaveis = construirPendenciasOperacao({ capacidades, documentos: documentosPolitica })
@@ -308,16 +300,12 @@ export function montarDetalheOperacaoCedente({
       statusLabel: nfStatusLabels[nf.status] || nf.status.replaceAll('_', ' '),
       href: `/cedente/notas-fiscais/${nf.id}`,
     })),
-    timeline: [
-      { key: 'solicitacao', label: 'Solicitação enviada', status: 'concluido', date: operacao.created_at },
-      { key: 'documentacao', label: 'Documentação validada', status: statusTimeline(documentacaoValidada, ['solicitada', 'em_analise'].includes(operacao.status)), date: documentacaoValidada ? operacao.aprovado_em : null },
-      { key: 'aprovacao', label: 'Operação aprovada', status: statusTimeline(aprovada, operacao.status === 'em_analise'), date: operacao.aprovado_em },
-      { key: 'desembolso', label: 'Desembolso realizado', status: statusTimeline(desembolsada, operacao.status === 'aprovada'), date: operacao.cessao_efetivada_em },
-      { key: 'transito', label: 'Entrega em acompanhamento', status: statusTimeline(entregas.length > 0, desembolsada && entregas.length === 0), date: entregas[0]?.data_entrega || null },
-      { key: 'comprovante', label: 'Comprovante de entrega recebido', status: statusTimeline(entregas.some((entrega) => ['aguardando_validacao', 'entregue'].includes(entrega.status_entrega)), entregas.some((entrega) => entrega.status_entrega === 'em_transito')), date: null },
-      { key: 'entrega', label: 'Entrega confirmada', status: statusTimeline(entregas.length > 0 && entregas.every((entrega) => entrega.status_entrega === 'entregue'), false), date: entregas.find((entrega) => entrega.entrega_confirmada_em)?.entrega_confirmada_em || null },
-      { key: 'liquidacao', label: 'Liquidação concluída', status: statusTimeline(liquidada, operacao.status === 'em_andamento'), date: operacao.liquidada_em },
-    ],
+    timeline: construirEtapasOperacao({
+      operacao,
+      capacidades,
+      documentos: documentosPolitica,
+      logistica: entregas,
+    }),
     pendenciasCedente,
     logistica: {
       habilitada: entregas.length > 0,
@@ -349,12 +337,6 @@ export function montarDetalheOperacaoCedente({
 
   return {
     ...detalhe,
-    timeline: construirEtapasOperacao({ operacao, capacidades, documentos: documentosPolitica, logistica: entregas }).map((step) => ({
-      key: step.id,
-      label: step.titulo,
-      status: step.status === 'rejeitada' ? 'rejeitado' as const : step.status === 'concluida' ? 'concluido' as const : step.status === 'bloqueada' ? 'bloqueado' as const : step.status,
-      date: step.data,
-    })),
     logistica: {
       ...detalhe.logistica,
       habilitada: capacidades.usaAcompanhamentoLogistico,

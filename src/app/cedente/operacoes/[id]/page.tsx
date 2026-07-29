@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { AlertCircle, ArrowLeft, Banknote, CalendarDays, CheckCircle2, Clock3, FileText, ReceiptText, Truck } from 'lucide-react'
+import { AlertCircle, ArrowLeft, Banknote, CheckCircle2, FileText, ReceiptText, Truck } from 'lucide-react'
 import { AuthorizationError } from '@/lib/auth/authorization'
 import { carregarDetalheOperacaoCedente } from '@/lib/operacoes/cedente-detalhe.server'
 import { formatCNPJ, formatCurrency, formatDate } from '@/lib/utils'
@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { DataTableContainer, DetailField, EmptyState, ListNameCell } from '@/components/data-display/primitives'
 import { BotaoDownloadArquivoOperacao } from '@/components/contratos/BotaoDownloadArquivoOperacao'
 import { HistoricoTimelineCard } from '@/components/historico/HistoricoTimelineCard'
+import { AndamentoOperacaoCard } from '@/components/operacoes/AndamentoOperacaoCard'
 
 const statusClasses: Record<string, string> = {
   solicitada: 'bg-blue-100 text-blue-700 border-transparent dark:bg-blue-500/15 dark:text-blue-200',
@@ -20,14 +21,6 @@ const statusClasses: Record<string, string> = {
   inadimplente: 'bg-red-100 text-red-700 border-transparent dark:bg-red-500/15 dark:text-red-200',
   reprovada: 'bg-red-100 text-red-700 border-transparent dark:bg-red-500/15 dark:text-red-200',
   cancelada: 'bg-muted text-muted-foreground border-transparent',
-}
-
-const timelineClasses = {
-  concluido: 'border-success/40 bg-success/10 text-success-foreground',
-  atual: 'border-primary/40 bg-primary/10 text-primary',
-  pendente: 'border-border bg-muted/40 text-muted-foreground',
-  bloqueado: 'border-destructive/35 bg-destructive/10 text-destructive',
-  rejeitado: 'border-destructive/35 bg-destructive/10 text-destructive',
 }
 
 function formatDateOrDash(value: string | null) {
@@ -201,26 +194,7 @@ export default async function CedenteOperacaoDetalhePage({ params }: { params: P
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Clock3 size={18} /> Andamento da operação</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ol className="space-y-3">
-              {detalhe.timeline.map((step) => (
-                <li key={step.key} className={`flex items-start gap-3 rounded-xl border p-3 ${timelineClasses[step.status]}`}>
-                  <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-background/70">
-                    {step.status === 'concluido' ? <CheckCircle2 size={16} /> : step.status === 'atual' ? <Clock3 size={16} /> : <CalendarDays size={16} />}
-                  </span>
-                  <div>
-                    <p className="text-sm font-semibold">{step.label}</p>
-                    <p className="text-xs opacity-80">{step.date ? formatDateTimeOrDash(step.date) : step.status === 'pendente' ? 'Pendente' : 'Em acompanhamento'}</p>
-                  </div>
-                </li>
-              ))}
-            </ol>
-          </CardContent>
-        </Card>
+        <AndamentoOperacaoCard etapas={detalhe.timeline} />
 
         <Card>
           <CardHeader>

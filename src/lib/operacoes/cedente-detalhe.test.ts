@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { contemCampoTecnicoExposto, montarDetalheOperacaoCedente, type EntregaCedenteRaw, type NotaFiscalCedenteRaw, type OperacaoCedenteRaw, type RequisitoCedenteRaw } from './cedente-detalhe'
+import { construirEtapasCronologicasOperacao, obterCapacidadesOperacao } from './politica-operacao'
 
 const operacaoBase: OperacaoCedenteRaw = {
   id: '22608637-7555-40dc-b4d7-0c9d2a551256',
@@ -13,6 +14,7 @@ const operacaoBase: OperacaoCedenteRaw = {
   status: 'em_andamento',
   aceite_sacado_exigido: false,
   aceite_sacado_status: 'dispensado',
+  aceite_sacado_em: null,
   aprovado_em: '2026-07-22T12:00:00.000Z',
   cessao_efetivada_em: '2026-07-23T12:00:00.000Z',
   liquidada_em: null,
@@ -66,7 +68,7 @@ describe('detalhe da operação para cedente', () => {
 
     expect(detalhe.financeiro.valorLiquidoAprovado).toBe(9300)
     expect(detalhe.financeiro.valorEfetivamenteDesembolsado).toBeNull()
-    expect(detalhe.timeline.find((step) => step.key === 'desembolso')?.status).toBe('atual')
+    expect(detalhe.timeline.find((step) => step.id === 'desembolso')?.status).toBe('atual')
   })
 
   it('inclui NFs corretas com link para a tela do cedente', () => {
@@ -130,8 +132,43 @@ describe('detalhe da operação para cedente', () => {
       requisitos: [],
     })
 
-    expect(detalhe.timeline.find((step) => step.key === 'liquidacao')).toMatchObject({ status: 'concluido', date: '2026-09-14T12:00:00.000Z' })
+    expect(detalhe.timeline.find((step) => step.id === 'liquidacao')).toMatchObject({
+      status: 'concluida',
+      concluidaEm: '2026-09-14T12:00:00.000Z',
+    })
     expect(detalhe.comprovantes.map((item) => item.key)).toContain('quitacao_assinada')
+  })
+
+  it('usa no cedente a mesma sequência construída pelo domínio compartilhado', () => {
+    const detalhe = montarDetalheOperacaoCedente({
+      operacao: operacaoBase,
+      notasFiscais: nfs,
+      entregas,
+      requisitos: [],
+    })
+    const capacidades = obterCapacidadesOperacao(operacaoBase, {
+      documentos: [],
+      logistica: entregas,
+    })
+
+    expect(detalhe.timeline).toEqual(construirEtapasCronologicasOperacao({
+      operacao: operacaoBase,
+      capacidades,
+      documentos: [],
+      logistica: entregas,
+    }))
+  })
+
+  it('não expõe Pagamento identificado apesar do comprovante legado existir', () => {
+    const detalhe = montarDetalheOperacaoCedente({
+      operacao: operacaoBase,
+      notasFiscais: nfs,
+      entregas: [],
+      requisitos: [],
+    })
+
+    expect(operacaoBase.comprovante_pagamento_url).toBeTruthy()
+    expect(detalhe.timeline.some((step) => step.id === 'pagamento')).toBe(false)
   })
 
   it('não expõe campos técnicos de CNAB, integração ou Portal FIDC na projeção', () => {

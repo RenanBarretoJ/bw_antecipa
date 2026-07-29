@@ -27,6 +27,7 @@ export async function carregarDetalheOperacaoCedente(operacaoId: string): Promis
       status,
       aceite_sacado_exigido,
       aceite_sacado_status,
+      aceite_sacado_em,
       aprovado_em,
       cessao_efetivada_em,
       liquidada_em,

@@ -19,20 +19,35 @@ function iconFor(status: EtapaOperacao['status']) {
   return <CalendarDays size={16} />
 }
 
-export function AndamentoOperacaoCard({
-  operacao,
-  capacidades,
-  documentos,
-  logistica,
-  compact = false,
-}: {
-  operacao: OperacaoParaPolitica
-  capacidades: CapabilitiesOperacao
-  documentos: DocumentoOperacaoParaPolitica[]
-  logistica: LogisticaOperacaoParaPolitica[]
+type AndamentoOperacaoCardProps = {
   compact?: boolean
-}) {
-  const etapas = construirEtapasOperacao({ operacao, capacidades, documentos, logistica })
+} & (
+  | {
+      etapas: EtapaOperacao[]
+      operacao?: never
+      capacidades?: never
+      documentos?: never
+      logistica?: never
+    }
+  | {
+      etapas?: never
+      operacao: OperacaoParaPolitica
+      capacidades: CapabilitiesOperacao
+      documentos: DocumentoOperacaoParaPolitica[]
+      logistica: LogisticaOperacaoParaPolitica[]
+    }
+)
+
+export function AndamentoOperacaoCard(props: AndamentoOperacaoCardProps) {
+  const compact = props.compact ?? false
+  const etapas = 'etapas' in props && props.etapas
+    ? props.etapas
+    : construirEtapasOperacao({
+      operacao: props.operacao,
+      capacidades: props.capacidades,
+      documentos: props.documentos,
+      logistica: props.logistica,
+    })
 
   return (
     <Card>
@@ -48,7 +63,15 @@ export function AndamentoOperacaoCard({
               </span>
               <div className="min-w-0">
                 <p className="text-sm font-semibold">{step.titulo}</p>
-                <p className="text-xs opacity-80">{step.data ? new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(step.data)) : step.descricao}</p>
+                <p className="text-xs opacity-80">{step.descricao}</p>
+                {step.concluidaEm && (
+                  <time className="mt-1 block text-xs font-medium opacity-80" dateTime={step.concluidaEm}>
+                    {new Intl.DateTimeFormat('pt-BR', {
+                      dateStyle: 'short',
+                      timeStyle: 'short',
+                    }).format(new Date(step.concluidaEm))}
+                  </time>
+                )}
               </div>
             </li>
           ))}
