@@ -1122,6 +1122,12 @@ export interface Database {
       get_user_cedente_id: { Args: Record<string, never>; Returns: string | null }
       get_user_sacado_cnpj: { Args: Record<string, never>; Returns: string | null }
       get_user_operacao_ids: { Args: Record<string, never>; Returns: string[] }
+      carregar_dashboard_sacado: { Args: Record<string, never>; Returns: Record<string, unknown> }
+      carregar_indicadores_nfs_sacado: { Args: Record<string, never>; Returns: Record<string, unknown> }
+      listar_cedentes_aprovacao_sacado: {
+        Args: Record<string, never>
+        Returns: Array<{ id: string; nome: string; cnpj: string }>
+      }
       listar_onboarding_cedentes_paginado: {
         Args: {
           p_fundo_id: string

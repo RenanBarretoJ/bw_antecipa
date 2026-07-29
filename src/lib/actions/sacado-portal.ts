@@ -1,6 +1,5 @@
 'use server'
 
-import { requireRole, type AppSupabaseClient } from '@/lib/auth/authorization'
 import {
   listarNfsRecebidasComContextoOperacional,
   vincularNfsComOperacoes,
@@ -9,6 +8,8 @@ import {
   type SacadoPortalNotaFiscalRecebida,
   type SacadoPortalOperacao,
 } from '@/lib/sacado/portal-domain'
+import { resolverContextoSacado } from '@/lib/sacado/contexto.server'
+import { buckets } from '@/lib/storage'
 
 type SacadoPortalData = {
   nfs: SacadoPortalNotaFiscal[]
@@ -22,41 +23,18 @@ export type SacadoPortalResult = {
   data?: SacadoPortalData
 }
 
-type SacadoContexto = {
-  id: string
-  cnpj: string
-  razao_social: string
-}
-
 function normalizarCnpj(cnpj: string | null | undefined): string {
   return String(cnpj ?? '').replace(/\D/g, '')
 }
 
-async function resolverSacadoAutenticado(): Promise<SacadoContexto & { supabase: AppSupabaseClient }> {
-  const context = await requireRole('sacado')
-  const { data: sacado, error } = await context.supabase
-    .from('sacados')
-    .select('id, cnpj, razao_social')
-    .eq('user_id', context.user.id)
-    .maybeSingle()
-
-  if (error) throw new Error(`Erro ao consultar sacado: ${error.message}`)
-  if (!sacado) throw new Error('Sacado autenticado não encontrado.')
-
-  const cnpj = normalizarCnpj((sacado as { cnpj?: string }).cnpj)
-  if (cnpj.length !== 14) throw new Error('CNPJ do sacado autenticado está inválido.')
-
-  return {
-    supabase: context.supabase,
-    id: String((sacado as { id: string }).id),
-    cnpj,
-    razao_social: String((sacado as { razao_social?: string }).razao_social ?? ''),
-  }
-}
-
+/**
+ * @deprecated Carregador amplo preservado apenas para consumidores ainda não
+ * migrados. As quatro rotas do Escopo 4 usam casos de uso específicos.
+ */
 export async function carregarPortalSacado(): Promise<SacadoPortalResult> {
   try {
-    const { supabase, cnpj } = await resolverSacadoAutenticado()
+    const { auth, cnpj } = await resolverContextoSacado()
+    const supabase = auth.supabase
 
     const { data: nfsRaw, error: nfsError } = await supabase
       .from('notas_fiscais')
@@ -143,6 +121,47 @@ export async function carregarPortalSacado(): Promise<SacadoPortalResult> {
     return {
       success: false,
       message: error instanceof Error ? error.message : 'Não foi possível carregar o portal do sacado.',
+    }
+  }
+}
+
+export type ArquivoNotaSacadoResult = {
+  success: boolean
+  message?: string
+  url?: string
+}
+
+export async function obterUrlArquivoNotaSacado(
+  notaFiscalId: string,
+): Promise<ArquivoNotaSacadoResult> {
+  try {
+    const { auth, cnpj } = await resolverContextoSacado()
+    const { data: nota, error } = await auth.supabase
+      .from('notas_fiscais')
+      .select('id, cnpj_destinatario, arquivo_url')
+      .eq('id', notaFiscalId)
+      .maybeSingle()
+
+    if (error) throw new Error(`Nao foi possivel consultar o arquivo da NF: ${error.message}`)
+    if (!nota || String(nota.cnpj_destinatario).replace(/\D/g, '') !== cnpj) {
+      return { success: false, message: 'Nota fiscal nao vinculada ao sacado autenticado.' }
+    }
+    if (!nota.arquivo_url) {
+      return { success: false, message: 'Esta nota fiscal nao possui arquivo original.' }
+    }
+
+    const { data, error: signedError } = await auth.supabase.storage
+      .from(buckets.notasFiscais)
+      .createSignedUrl(nota.arquivo_url, 600)
+
+    if (signedError || !data?.signedUrl) {
+      throw new Error(signedError?.message || 'Falha ao gerar a URL temporaria.')
+    }
+    return { success: true, url: data.signedUrl }
+  } catch (error) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Nao foi possivel abrir o arquivo da NF.',
     }
   }
 }
