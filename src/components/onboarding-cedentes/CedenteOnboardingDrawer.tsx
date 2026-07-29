@@ -1,16 +1,18 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { CalendarDays, Link2, ShieldCheck, UserRound } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
-import { formatCnpj, shortName } from './utils'
-import type { FundoResumo, OnboardingCedente } from './types'
+import { useNotifications } from '@/components/notifications/notification-provider'
+import { carregarContextoOnboardingCedente } from '@/lib/actions/onboarding-cedentes'
+import { formatCnpj } from './utils'
+import type { ContextoOnboardingCedente, OnboardingCedente } from './types'
 
 type Props = {
   open: boolean
   cedente: OnboardingCedente | null
-  fundos: FundoResumo[]
   onOpenChange: (open: boolean) => void
   onVincularFundo: (cedente: OnboardingCedente) => void
   onDefinirPolitica: (cedente: OnboardingCedente) => void
@@ -28,23 +30,58 @@ function formatDate(value: string | null | undefined) {
   return new Intl.DateTimeFormat('pt-BR').format(new Date(value))
 }
 
-export function CedenteOnboardingDrawer({ open, cedente, fundos, onOpenChange, onVincularFundo, onDefinirPolitica }: Props) {
+export function CedenteOnboardingDrawer({
+  open,
+  cedente,
+  onOpenChange,
+  onVincularFundo,
+  onDefinirPolitica,
+}: Props) {
+  const notifications = useNotifications()
+  const [contexto, setContexto] = useState<ContextoOnboardingCedente | null>(null)
+
+  useEffect(() => {
+    if (!open || !cedente) return
+    let active = true
+    void carregarContextoOnboardingCedente(cedente.id).then((result) => {
+      if (!active) return
+      if (!result.success || !result.data) {
+        notifications.error(result.message || 'Nao foi possivel carregar os detalhes do cedente.')
+        return
+      }
+      setContexto(result.data)
+    })
+    return () => {
+      active = false
+    }
+  }, [cedente, notifications, open])
+
+  const loading = Boolean(open && cedente && contexto?.cedente.id !== cedente.id)
+
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet
+      open={open}
+      onOpenChange={(value) => {
+        if (!value) setContexto(null)
+        onOpenChange(value)
+      }}
+    >
       <SheetContent className="w-full overflow-auto sm:max-w-xl">
         <SheetHeader>
           <SheetTitle>Detalhes do cedente</SheetTitle>
-          <SheetDescription>Contexto operacional para liberar o cedente no fundo correto.</SheetDescription>
+          <SheetDescription>Contexto operacional carregado sob demanda para o fundo ativo.</SheetDescription>
         </SheetHeader>
 
-        {cedente && (
+        {loading ? (
+          <p className="mx-4 rounded-xl border p-4 text-sm text-muted-foreground">Carregando detalhes...</p>
+        ) : contexto && cedente ? (
           <div className="space-y-4 px-4 pb-6">
             <section className="rounded-xl border bg-card p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Cedente</p>
-                  <h3 className="mt-1 truncate text-lg font-semibold" title={cedente.razao_social}>{cedente.razao_social}</h3>
-                  <p className="text-sm text-muted-foreground">{cedente.nome_fantasia || 'Nome fantasia nao informado'}</p>
+                  <h3 className="mt-1 truncate text-lg font-semibold" title={contexto.cedente.razaoSocial}>{contexto.cedente.razaoSocial}</h3>
+                  <p className="truncate text-sm text-muted-foreground">{contexto.cedente.nomeFantasia || 'Nome fantasia nao informado'}</p>
                 </div>
                 <Badge variant={cedente.onboardingStatus === 'apto_operar' ? 'secondary' : 'outline'}>
                   {statusLabel[cedente.onboardingStatus]}
@@ -53,11 +90,11 @@ export function CedenteOnboardingDrawer({ open, cedente, fundos, onOpenChange, o
               <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
                 <div>
                   <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">CNPJ</p>
-                  <p className="font-medium">{formatCnpj(cedente.cnpj)}</p>
+                  <p className="font-medium">{formatCnpj(contexto.cedente.cnpj)}</p>
                 </div>
                 <div>
                   <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Cadastro</p>
-                  <p className="font-medium">{formatDate(cedente.created_at)}</p>
+                  <p className="font-medium">{formatDate(contexto.cedente.createdAt)}</p>
                 </div>
               </div>
             </section>
@@ -65,71 +102,65 @@ export function CedenteOnboardingDrawer({ open, cedente, fundos, onOpenChange, o
             <section className="rounded-xl border bg-card p-4">
               <div className="mb-3 flex items-center gap-2">
                 <Link2 className="size-4 text-primary" aria-hidden="true" />
-                <h3 className="font-semibold">Vínculos com fundos</h3>
+                <h3 className="font-semibold">Vinculo no fundo ativo</h3>
               </div>
-              {[...cedente.activeLinks, ...cedente.suspendedLinks].length === 0 ? (
-                <p className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">Nenhum fundo vinculado.</p>
-              ) : (
-                <div className="divide-y rounded-lg border">
-                  {[...cedente.activeLinks, ...cedente.suspendedLinks].map((link) => {
-                    const fundo = fundos.find((item) => item.id === link.fundo_id)
-                    return (
-                      <div key={link.id} className="grid gap-2 p-3 text-sm">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="truncate font-medium" title={fundo?.nome}>{shortName(fundo?.nome || 'Fundo sem acesso', 44)}</p>
-                          <Badge variant={link.status === 'ativo' ? 'secondary' : 'outline'}>{link.status}</Badge>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          Vigente desde {formatDate(link.vigente_desde)}{link.vigente_ate ? ` ate ${formatDate(link.vigente_ate)}` : ''}
-                        </p>
-                      </div>
-                    )
-                  })}
+              {contexto.vinculo ? (
+                <div className="grid gap-2 rounded-lg border p-3 text-sm">
+                  <div className="flex min-w-0 items-center justify-between gap-2">
+                    <p className="truncate font-medium" title={contexto.fundo.nome}>{contexto.fundo.nome}</p>
+                    <Badge variant={contexto.vinculo.status === 'ativo' ? 'secondary' : 'outline'}>{contexto.vinculo.status}</Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Vigente desde {formatDate(contexto.vinculo.vigenteDesde)}
+                    {contexto.vinculo.vigenteAte ? ` ate ${formatDate(contexto.vinculo.vigenteAte)}` : ''}
+                  </p>
                 </div>
+              ) : (
+                <p className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">Nenhum vinculo no fundo ativo.</p>
               )}
             </section>
 
             <section className="rounded-xl border bg-card p-4">
               <div className="mb-3 flex items-center gap-2">
                 <ShieldCheck className="size-4 text-primary" aria-hidden="true" />
-                <h3 className="font-semibold">Política operacional</h3>
+                <h3 className="font-semibold">Politica operacional</h3>
               </div>
-              {cedente.politicaPrincipal && cedente.versaoPrincipal ? (
+              {contexto.politicaAtual ? (
                 <div className="rounded-lg border p-3 text-sm">
-                  <p className="font-medium">{cedente.politicaPrincipal.nome}</p>
+                  <p className="font-medium">{contexto.politicaAtual.nome}</p>
                   <p className="mt-1 text-muted-foreground">
-                    Versão v{cedente.versaoPrincipal.versao} · {cedente.requisitoCount} requisito(s)
+                    Versao v{contexto.politicaAtual.numeroVersao} · {contexto.politicaAtual.requisitoCount} requisito(s)
                   </p>
                   <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
                     <CalendarDays className="size-3.5" aria-hidden="true" />
-                    Publicada em {formatDate(cedente.versaoPrincipal.publicada_em)}
+                    Publicada em {formatDate(contexto.politicaAtual.publicadaEm)}
                   </p>
                 </div>
               ) : (
-                <p className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">Nenhuma política vigente definida.</p>
+                <p className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">Nenhuma politica vigente definida.</p>
               )}
             </section>
 
             <section className="rounded-xl border bg-card p-4">
               <div className="mb-3 flex items-center gap-2">
                 <UserRound className="size-4 text-primary" aria-hidden="true" />
-                <h3 className="font-semibold">Próxima ação recomendada</h3>
+                <h3 className="font-semibold">Proxima acao recomendada</h3>
               </div>
               {cedente.onboardingStatus === 'aguardando_vinculo_fundo' && (
                 <Button type="button" className="w-full" onClick={() => onVincularFundo(cedente)}>Vincular fundo</Button>
               )}
               {cedente.onboardingStatus === 'aguardando_politica' && (
-                <Button type="button" className="w-full" onClick={() => onDefinirPolitica(cedente)}>Definir política</Button>
+                <Button type="button" className="w-full" onClick={() => onDefinirPolitica(cedente)}>Definir politica</Button>
               )}
               {cedente.onboardingStatus === 'apto_operar' && (
-                <p className="text-sm text-muted-foreground">Cedente apto a operar nos vínculos configurados.</p>
+                <p className="text-sm text-muted-foreground">Cedente apto a operar no fundo ativo.</p>
               )}
               {cedente.onboardingStatus === 'suspenso' && (
-                <p className="text-sm text-muted-foreground">Revise os vínculos suspensos no detalhe do cedente antes de liberar novas operações.</p>
+                <p className="text-sm text-muted-foreground">Revise o vinculo suspenso antes de liberar novas operacoes.</p>
               )}
             </section>
           </div>
-        )}
+        ) : null}
       </SheetContent>
     </Sheet>
   )

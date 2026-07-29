@@ -1122,6 +1122,20 @@ export interface Database {
       get_user_cedente_id: { Args: Record<string, never>; Returns: string | null }
       get_user_sacado_cnpj: { Args: Record<string, never>; Returns: string | null }
       get_user_operacao_ids: { Args: Record<string, never>; Returns: string[] }
+      listar_onboarding_cedentes_paginado: {
+        Args: {
+          p_fundo_id: string
+          p_page?: number
+          p_page_size?: number
+          p_busca?: string | null
+          p_etapa?: string
+          p_status_cadastral?: string | null
+          p_politica_id?: string | null
+          p_sort?: string
+          p_direction?: string
+        }
+        Returns: Record<string, unknown>
+      }
       instanciar_requisitos_nota: { Args: { p_nota_fiscal_id: string; p_politica_operacional_id: string; p_politica_versao_id: string }; Returns: Record<string, unknown> }
       obter_politica_aplicavel_cedente_fundo: { Args: { p_cedente_fundo_id: string; p_data_referencia?: string }; Returns: Record<string, unknown> }
       registrar_documento_upload: { Args: { p_nota_fiscal_id: string; p_requisito_id: string; p_documento_tipo_id: string; p_nome_original: string; p_mime_type: string; p_tamanho_bytes: number; p_sha256: string; p_bucket: string; p_path: string; p_enviado_por: string; p_substitui_versao_id?: string | null }; Returns: Record<string, unknown> }

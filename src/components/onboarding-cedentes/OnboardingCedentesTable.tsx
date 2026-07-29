@@ -6,11 +6,10 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { formatCnpj } from './utils'
-import type { FundoResumo, OnboardingCedente } from './types'
+import type { OnboardingCedente } from './types'
 
 type Props = {
   rows: OnboardingCedente[]
-  fundos: FundoResumo[]
   onVincularFundo: (cedente: OnboardingCedente) => void
   onDefinirPolitica: (cedente: OnboardingCedente) => void
   onDetalhes: (cedente: OnboardingCedente) => void
@@ -26,15 +25,8 @@ const statusMeta = {
 function nextActionLabel(row: OnboardingCedente) {
   if (row.onboardingStatus === 'aguardando_vinculo_fundo') return 'Vincular fundo'
   if (row.onboardingStatus === 'aguardando_politica') return 'Definir politica'
-  if (row.onboardingStatus === 'apto_operar') return 'Ver vinculos'
+  if (row.onboardingStatus === 'apto_operar') return 'Ver vinculo'
   return 'Revisar'
-}
-
-function fundoLabel(row: OnboardingCedente, fundos: FundoResumo[]) {
-  if (row.fundoPrincipal) return row.fundoPrincipal.nome
-  const link = row.activeLinks[0] || row.suspendedLinks[0]
-  if (!link) return 'Nao definido'
-  return fundos.find((fundo) => fundo.id === link.fundo_id)?.nome || 'Fundo sem acesso'
 }
 
 function RowActions({
@@ -44,59 +36,32 @@ function RowActions({
   onDetalhes,
   compact = false,
 }: Props & { row: OnboardingCedente; compact?: boolean }) {
+  const size = compact ? 'icon-sm' : 'sm'
   if (row.onboardingStatus === 'aguardando_vinculo_fundo') {
-    if (compact) {
-      return (
-        <Button type="button" size="icon-sm" onClick={() => onVincularFundo(row)} title="Vincular fundo" aria-label="Vincular fundo">
-          <Link2 className="size-3.5" aria-hidden="true" />
-        </Button>
-      )
-    }
-
     return (
-      <Button type="button" size="sm" onClick={() => onVincularFundo(row)} title="Vincular fundo">
+      <Button type="button" size={size} onClick={() => onVincularFundo(row)} title="Vincular fundo" aria-label="Vincular fundo">
         <Link2 className="size-3.5" aria-hidden="true" />
-        Vincular
+        {!compact && 'Vincular'}
       </Button>
     )
   }
-
   if (row.onboardingStatus === 'aguardando_politica') {
-    if (compact) {
-      return (
-        <Button type="button" size="icon-sm" onClick={() => onDefinirPolitica(row)} title="Definir politica" aria-label="Definir politica">
-          <ShieldCheck className="size-3.5" aria-hidden="true" />
-        </Button>
-      )
-    }
-
     return (
-      <Button type="button" size="sm" onClick={() => onDefinirPolitica(row)} title="Definir politica">
+      <Button type="button" size={size} onClick={() => onDefinirPolitica(row)} title="Definir politica" aria-label="Definir politica">
         <ShieldCheck className="size-3.5" aria-hidden="true" />
-        Definir
+        {!compact && 'Definir'}
       </Button>
     )
   }
-
-  if (compact) {
-    const label = row.onboardingStatus === 'apto_operar' ? 'Ver vinculos' : 'Revisar'
-    return (
-      <Button type="button" variant="outline" size="icon-sm" onClick={() => onDetalhes(row)} title={label} aria-label={label}>
-        <Eye className="size-3.5" aria-hidden="true" />
-      </Button>
-    )
-  }
-
   return (
-    <Button type="button" variant="outline" size="sm" onClick={() => onDetalhes(row)} title={row.onboardingStatus === 'apto_operar' ? 'Ver vinculos' : 'Revisar'}>
+    <Button type="button" variant="outline" size={size} onClick={() => onDetalhes(row)} title="Ver detalhes" aria-label="Ver detalhes">
       <Eye className="size-3.5" aria-hidden="true" />
-      {row.onboardingStatus === 'apto_operar' ? 'Ver' : 'Revisar'}
+      {!compact && (row.onboardingStatus === 'apto_operar' ? 'Ver' : 'Revisar')}
     </Button>
   )
 }
-
 export function OnboardingCedentesTable(props: Props) {
-  const { rows, fundos, onDetalhes } = props
+  const { rows, onDetalhes } = props
 
   return (
     <>
@@ -114,26 +79,24 @@ export function OnboardingCedentesTable(props: Props) {
             <TableHeader>
               <TableRow>
                 <TableHead className="px-3">Cedente</TableHead>
-                <TableHead>Situação</TableHead>
+                <TableHead>Situacao</TableHead>
                 <TableHead>Fundo</TableHead>
-                <TableHead>Política</TableHead>
-                <TableHead>Próxima ação</TableHead>
-                <TableHead className="px-4 text-right">Ações</TableHead>
+                <TableHead>Politica</TableHead>
+                <TableHead>Proxima acao</TableHead>
+                <TableHead className="px-4 text-right">Acoes</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {rows.map((row) => {
                 const status = statusMeta[row.onboardingStatus]
-                const fundo = fundoLabel(row, fundos)
+                const fundo = row.fundo?.nome || 'Nao definido'
                 const nextAction = nextActionLabel(row)
                 return (
                   <TableRow key={row.id}>
                     <TableCell className="min-w-0 overflow-hidden px-3">
                       <button type="button" className="block w-full min-w-0 text-left" onClick={() => onDetalhes(row)}>
-                        <div className="min-w-0">
-                          <p className="truncate font-semibold leading-5" title={row.razao_social}>{row.razao_social}</p>
-                          <p className="truncate text-xs leading-4 text-muted-foreground" title={formatCnpj(row.cnpj)}>{formatCnpj(row.cnpj)}</p>
-                        </div>
+                        <p className="truncate font-semibold leading-5" title={row.razaoSocial}>{row.razaoSocial}</p>
+                        <p className="truncate text-xs leading-4 text-muted-foreground" title={formatCnpj(row.cnpj)}>{formatCnpj(row.cnpj)}</p>
                       </button>
                     </TableCell>
                     <TableCell className="min-w-0 overflow-hidden">
@@ -143,13 +106,11 @@ export function OnboardingCedentesTable(props: Props) {
                       <span className="block truncate" title={fundo}>{fundo}</span>
                     </TableCell>
                     <TableCell className="min-w-0 overflow-hidden">
-                      {row.politicaPrincipal ? (
-                        <span className="block truncate" title={`${row.politicaPrincipal.nome} · v${row.versaoPrincipal?.versao || '-'}`}>
-                          {row.politicaPrincipal.nome} · v{row.versaoPrincipal?.versao || '-'}
+                      {row.politica ? (
+                        <span className="block truncate" title={`${row.politica.nome} · v${row.politica.numeroVersao}`}>
+                          {row.politica.nome} · v{row.politica.numeroVersao}
                         </span>
-                      ) : (
-                        <span className="block truncate text-muted-foreground">Nao definida</span>
-                      )}
+                      ) : <span className="block truncate text-muted-foreground">Nao definida</span>}
                     </TableCell>
                     <TableCell className="min-w-0 overflow-hidden">
                       <span className="block truncate" title={nextAction}>{nextAction}</span>
@@ -173,21 +134,21 @@ export function OnboardingCedentesTable(props: Props) {
       <div className="grid gap-3 lg:hidden">
         {rows.map((row) => {
           const status = statusMeta[row.onboardingStatus]
-          const fundo = fundoLabel(row, fundos)
+          const fundo = row.fundo?.nome || 'Nao definido'
           return (
             <Card key={row.id} className="overflow-hidden">
               <CardContent className="space-y-3 p-4">
                 <div className="flex min-w-0 items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-semibold" title={row.razao_social}>{row.razao_social}</p>
-                    <p className="truncate text-xs text-muted-foreground" title={formatCnpj(row.cnpj)}>{formatCnpj(row.cnpj)}</p>
+                    <p className="truncate font-semibold" title={row.razaoSocial}>{row.razaoSocial}</p>
+                    <p className="truncate text-xs text-muted-foreground">{formatCnpj(row.cnpj)}</p>
                   </div>
                   <Badge variant={status.variant} className="shrink-0">{status.label}</Badge>
                 </div>
                 <div className="grid min-w-0 gap-2 text-sm">
                   <p className="min-w-0 truncate" title={fundo}><span className="text-muted-foreground">Fundo:</span> {fundo}</p>
-                  <p className="min-w-0 truncate" title={row.politicaPrincipal?.nome || undefined}>
-                    <span className="text-muted-foreground">Politica:</span> {row.politicaPrincipal?.nome || 'Nao definida'}
+                  <p className="min-w-0 truncate" title={row.politica?.nome}>
+                    <span className="text-muted-foreground">Politica:</span> {row.politica?.nome || 'Nao definida'}
                   </p>
                 </div>
                 <div className="flex flex-wrap justify-end gap-2">

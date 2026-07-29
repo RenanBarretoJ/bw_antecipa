@@ -8,11 +8,169 @@ import { requirePermissao } from '@/lib/auth/permissoes'
 import { registrarLog } from '@/lib/actions/auditoria'
 import { createAdminClient } from '@/lib/supabase/server'
 import { vincularCedenteFundo, type StatusOnboardingCedente } from '@/lib/fundos/cedente-fundo'
+import { resolverFundoAtivoOnboarding } from '@/lib/onboarding-cedentes/contexto.server'
+import type { ContextoOnboardingCedente, PoliticaOnboardingOpcao } from '@/lib/onboarding-cedentes/listagem'
 
 export type OnboardingCedenteActionState = {
   success: boolean
   message: string
   data?: { cedenteFundoId?: string; status?: StatusOnboardingCedente }
+}
+
+export type ContextoOnboardingActionState = {
+  success: boolean
+  message: string
+  data?: ContextoOnboardingCedente
+}
+
+export async function carregarContextoOnboardingCedente(
+  cedenteIdInput: string,
+): Promise<ContextoOnboardingActionState> {
+  try {
+    const context = await requireGestor()
+    const fundo = await resolverFundoAtivoOnboarding(context)
+    const cedenteId = cedenteIdInput?.trim()
+    if (!cedenteId) return { success: false, message: 'Informe o cedente.' }
+    if (!fundo) return { success: false, message: 'Nenhum fundo ativo autorizado foi encontrado.' }
+
+    const [cedenteResult, vinculoResult] = await Promise.all([
+      context.supabase
+        .from('cedentes')
+        .select('id, razao_social, nome_fantasia, cnpj, status, created_at')
+        .eq('id', cedenteId)
+        .maybeSingle(),
+      context.supabase
+        .from('cedente_fundos')
+        .select('id, status, vigente_desde, vigente_ate')
+        .eq('cedente_id', cedenteId)
+        .eq('fundo_id', fundo.id)
+        .in('status', ['ativo', 'suspenso'])
+        .or(`vigente_ate.is.null,vigente_ate.gt.${new Date().toISOString()}`)
+        .order('vigente_desde', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ])
+
+    if (cedenteResult.error) throw new Error(`Erro ao consultar cedente: ${cedenteResult.error.message}`)
+    if (vinculoResult.error) throw new Error(`Erro ao consultar vinculo: ${vinculoResult.error.message}`)
+    if (!cedenteResult.data) return { success: false, message: 'Cedente nao encontrado.' }
+
+    const vinculo = vinculoResult.data
+    if (!vinculo) {
+      const { count, error } = await context.supabase
+        .from('cedente_fundos')
+        .select('id', { count: 'exact', head: true })
+        .eq('cedente_id', cedenteId)
+        .in('status', ['ativo', 'suspenso'])
+      if (error) throw new Error(`Erro ao validar escopo do cedente: ${error.message}`)
+      if ((count || 0) > 0) return { success: false, message: 'Cedente fora do contexto do fundo ativo.' }
+    }
+
+    const { data: politicas, error: politicasError } = await context.supabase
+      .from('politicas_operacionais')
+      .select('id, nome, codigo')
+      .eq('fundo_id', fundo.id)
+      .eq('status', 'ativa')
+      .order('nome', { ascending: true })
+    if (politicasError) throw new Error(`Erro ao consultar politicas: ${politicasError.message}`)
+
+    const politicaIds = (politicas || []).map((politica) => politica.id)
+    const { data: versoes, error: versoesError } = politicaIds.length
+      ? await context.supabase
+        .from('politica_operacional_versoes')
+        .select('id, politica_operacional_id, versao, publicada_em')
+        .in('politica_operacional_id', politicaIds)
+        .eq('fundo_id', fundo.id)
+        .eq('status', 'publicada')
+        .not('publicada_em', 'is', null)
+        .lte('vigente_desde', new Date().toISOString())
+        .is('vigente_ate', null)
+        .order('versao', { ascending: false })
+      : { data: [], error: null }
+    if (versoesError) throw new Error(`Erro ao consultar versoes publicadas: ${versoesError.message}`)
+
+    const versaoAtualPorPolitica = new Map<string, (typeof versoes)[number]>()
+    for (const versao of versoes || []) {
+      if (!versaoAtualPorPolitica.has(versao.politica_operacional_id)) {
+        versaoAtualPorPolitica.set(versao.politica_operacional_id, versao)
+      }
+    }
+    const versaoIds = [...versaoAtualPorPolitica.values()].map((versao) => versao.id)
+    const { data: requisitos, error: requisitosError } = versaoIds.length
+      ? await context.supabase
+        .from('politica_requisitos_documentais')
+        .select('politica_operacional_versao_id')
+        .in('politica_operacional_versao_id', versaoIds)
+        .eq('ativo', true)
+      : { data: [], error: null }
+    if (requisitosError) throw new Error(`Erro ao contar requisitos: ${requisitosError.message}`)
+
+    const requisitoCount = new Map<string, number>()
+    for (const requisito of requisitos || []) {
+      requisitoCount.set(
+        requisito.politica_operacional_versao_id,
+        (requisitoCount.get(requisito.politica_operacional_versao_id) || 0) + 1,
+      )
+    }
+
+    const politicasDisponiveis = (politicas || []).flatMap((politica): PoliticaOnboardingOpcao[] => {
+      const versao = versaoAtualPorPolitica.get(politica.id)
+      if (!versao?.publicada_em) return []
+      return [{
+        id: politica.id,
+        nome: politica.nome,
+        codigo: politica.codigo,
+        versaoId: versao.id,
+        numeroVersao: versao.versao,
+        publicadaEm: versao.publicada_em,
+        requisitoCount: requisitoCount.get(versao.id) || 0,
+      }]
+    })
+
+    let politicaAtual: PoliticaOnboardingOpcao | null = null
+    if (vinculo?.status === 'ativo') {
+      const { data: atribuicao, error: atribuicaoError } = await context.supabase
+        .from('cedente_fundo_politicas')
+        .select('politica_operacional_id')
+        .eq('cedente_fundo_id', vinculo.id)
+        .eq('status', 'ativa')
+        .is('vigente_ate', null)
+        .order('vigente_desde', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (atribuicaoError) throw new Error(`Erro ao consultar politica atribuida: ${atribuicaoError.message}`)
+      politicaAtual = politicasDisponiveis.find((politica) => politica.id === atribuicao?.politica_operacional_id) || null
+    }
+
+    return {
+      success: true,
+      message: 'Contexto carregado.',
+      data: {
+        cedente: {
+          id: cedenteResult.data.id,
+          razaoSocial: cedenteResult.data.razao_social,
+          nomeFantasia: cedenteResult.data.nome_fantasia,
+          cnpj: cedenteResult.data.cnpj,
+          statusCadastral: cedenteResult.data.status,
+          createdAt: cedenteResult.data.created_at,
+        },
+        fundo,
+        vinculo: vinculo ? {
+          id: vinculo.id,
+          status: vinculo.status,
+          vigenteDesde: vinculo.vigente_desde,
+          vigenteAte: vinculo.vigente_ate,
+        } : null,
+        politicaAtual,
+        politicasDisponiveis,
+      },
+    }
+  } catch (error) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Nao foi possivel carregar o contexto do cedente.',
+    }
+  }
 }
 
 export async function vincularCedenteAoFundo(input: {
@@ -31,6 +189,10 @@ export async function vincularCedenteAoFundo(input: {
   if (!fundoId) return { success: false, message: 'Informe o fundo.' }
 
   try {
+    const fundoAtivo = await resolverFundoAtivoOnboarding(context)
+    if (!fundoAtivo || fundoAtivo.id !== fundoId) {
+      return { success: false, message: 'O fundo informado nao corresponde ao fundo ativo autorizado.' }
+    }
     await requirePermissao(context, 'cedentes.vincular_fundo', { fundoId })
 
     const { data: cedente, error: cedenteError } = await context.supabase
@@ -100,10 +262,6 @@ export async function vincularCedenteAoFundo(input: {
     }
 
     revalidatePath('/gestor/onboarding-cedentes')
-    revalidatePath('/gestor/cedentes')
-    revalidatePath(`/gestor/cedentes/${cedenteId}`)
-    revalidatePath(`/gestor/fundos/${fundoId}`)
-
     return {
       success: true,
       message: 'Cedente vinculado ao fundo. Configure a politica operacional para liberar operacoes.',
