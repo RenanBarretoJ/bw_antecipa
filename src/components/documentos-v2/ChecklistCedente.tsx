@@ -65,6 +65,12 @@ export function isDocumentoAprovado(item: Pick<ChecklistDocumentoItem, 'versaoAp
   return latest.ultimaAnalise?.resultado === 'aprovado'
 }
 
+export function canAnalyzeDocumentVersion(mode: ChecklistMode, versionStatus: string | null | undefined) {
+  return mode === 'gestor'
+    && Boolean(versionStatus)
+    && !['aprovado', 'substituido', 'cancelado'].includes(String(versionStatus))
+}
+
 function statusVisual(item: ChecklistDocumentoItem) {
   const latest = item.versoes[0]
   const latestAnalysis = latest?.ultimaAnalise?.resultado
@@ -143,7 +149,7 @@ function RequirementCard({
   const canUpload = mode === 'cedente' && item.uploadPermitido && !isDocumentoAprovado(item)
   const accept = acceptedFromFormats(item.formatosAceitos)
   const latest = item.versoes[0]
-  const canAnalyze = mode === 'gestor' && latest && !['aprovado', 'substituido', 'cancelado'].includes(latest.status)
+  const canAnalyze = canAnalyzeDocumentVersion(mode, latest?.status)
   const shouldShowUpload = canUpload && (item.versoes.length === 0 || showUpload || visual.label === 'Rejeitado')
   const showPrazo = shouldShowPrazoBlock(item)
   const historySummary = compactHistorySummary(item)
@@ -340,7 +346,20 @@ function OperationalSummary({ checklist }: { checklist: ChecklistDocumento }) {
   )
 }
 
-export function ChecklistCedente({ notaFiscalId, mode = 'cedente' }: { notaFiscalId: string; mode?: ChecklistMode }) {
+export type ChecklistEligibilitySummary = Pick<
+  ChecklistDocumento['elegibilidade'],
+  'elegivel' | 'requisitosPendentes' | 'totalObrigatorios' | 'concluidosObrigatorios' | 'pendentesObrigatorios'
+>
+
+export function ChecklistCedente({
+  notaFiscalId,
+  mode = 'cedente',
+  onEligibilityChange,
+}: {
+  notaFiscalId: string
+  mode?: ChecklistMode
+  onEligibilityChange?: (eligibility: ChecklistEligibilitySummary) => void
+}) {
   const notifications = useNotifications()
   const [checklist, setChecklist] = useState<ChecklistDocumento | null>(null)
   const [loading, setLoading] = useState(true)
@@ -349,13 +368,21 @@ export function ChecklistCedente({ notaFiscalId, mode = 'cedente' }: { notaFisca
 
   const load = useCallback(async () => {
     try {
-      setChecklist(await listarChecklistDaNota(notaFiscalId))
+      const nextChecklist = await listarChecklistDaNota(notaFiscalId)
+      setChecklist(nextChecklist)
+      onEligibilityChange?.({
+        elegivel: nextChecklist.elegibilidade.elegivel,
+        requisitosPendentes: nextChecklist.elegibilidade.requisitosPendentes,
+        totalObrigatorios: nextChecklist.elegibilidade.totalObrigatorios,
+        concluidosObrigatorios: nextChecklist.elegibilidade.concluidosObrigatorios,
+        pendentesObrigatorios: nextChecklist.elegibilidade.pendentesObrigatorios,
+      })
     } catch (error) {
       notifications.error(error instanceof Error ? error.message : 'Não foi possível carregar o checklist.')
     } finally {
       setLoading(false)
     }
-  }, [notaFiscalId, notifications])
+  }, [notaFiscalId, notifications, onEligibilityChange])
 
   useEffect(() => { void load() }, [load])
 
@@ -436,6 +463,11 @@ export function ChecklistCedente({ notaFiscalId, mode = 'cedente' }: { notaFisca
   return (
     <div className="mb-4 space-y-4">
       {mode === 'gestor' && <OperationalSummary checklist={checklist} />}
+      {mode === 'gestor' && checklist.resumoOperacional.statusAntecipacao === 'rascunho' && (
+        <div className="rounded-lg border border-info/30 bg-info/10 px-3 py-2.5 text-sm text-info-foreground">
+          A NF ainda não foi submetida pelo cedente. Os documentos podem ser consultados e analisados, mas a análise formal da NF ainda não foi iniciada.
+        </div>
+      )}
 
       <section className="rounded-xl border bg-card p-4">
         <div className="mb-3 flex items-start justify-between gap-3">
@@ -446,9 +478,16 @@ export function ChecklistCedente({ notaFiscalId, mode = 'cedente' }: { notaFisca
             </p>
           </div>
           <span className={`rounded-full px-2 py-1 text-xs font-medium ${checklist.elegibilidade.elegivel ? 'bg-success/15 text-success-foreground' : 'bg-warning/15 text-warning-foreground'}`}>
-            {checklist.elegibilidade.elegivel ? 'Elegível documentalmente' : 'Pendências documentais'}
+            {checklist.elegibilidade.elegivel
+              ? mode === 'cedente' ? 'Pronta para submissão' : 'Documentos obrigatórios presentes'
+              : 'Pendências documentais'}
           </span>
         </div>
+        {mode === 'cedente' && checklist.elegibilidade.elegivel && checklist.preCessao.length > 0 && (
+          <p className="mb-3 rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-sm text-success-foreground">
+            Todos os documentos obrigatórios desta etapa foram enviados. A nota pode ser submetida para análise.
+          </p>
+        )}
         {checklist.preCessao.length === 0 ? (
           <p className="text-sm text-muted-foreground">Não há requisitos pré-cessão configurados para esta NF.</p>
         ) : (

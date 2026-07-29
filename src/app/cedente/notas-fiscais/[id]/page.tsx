@@ -19,7 +19,7 @@ import {
   Wrench,
   Truck,
 } from 'lucide-react'
-import { ChecklistCedente } from '@/components/documentos-v2/ChecklistCedente'
+import { ChecklistCedente, type ChecklistEligibilitySummary } from '@/components/documentos-v2/ChecklistCedente'
 import { useNotifications } from '@/components/notifications/notification-provider'
 import { ArquivoOriginalCompacto } from '@/components/notas-fiscais/ArquivoOriginalCompacto'
 import { HistoricoTimelineCard } from '@/components/historico/HistoricoTimelineCard'
@@ -47,6 +47,8 @@ interface NfCompleta {
   arquivo_url: string | null
   status: string
   motivo_ajuste: string | null
+  submetida_em?: string | null
+  submetida_por?: string | null
   created_at: string
 }
 
@@ -203,6 +205,14 @@ export default function NfDetalhePage() {
   const [saving, setSaving] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [resubmitting, setResubmitting] = useState(false)
+  const [confirmSubmitOpen, setConfirmSubmitOpen] = useState(false)
+  const [submissionReadiness, setSubmissionReadiness] = useState<ChecklistEligibilitySummary>({
+    elegivel: false,
+    requisitosPendentes: [],
+    totalObrigatorios: 0,
+    concluidosObrigatorios: 0,
+    pendentesObrigatorios: 0,
+  })
   const [message, setMessage] = useState('')
   const [messageType, setMessageType] = useState<'success' | 'error'>('success')
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
@@ -359,9 +369,15 @@ export default function NfDetalhePage() {
     }
   }
 
-  const handleSubmit = async () => {
+  const handleSubmitRequest = async () => {
     const saved = await handleSave()
     if (!saved) return
+
+    setConfirmSubmitOpen(true)
+  }
+
+  const handleSubmit = async () => {
+    setConfirmSubmitOpen(false)
 
     setSubmitting(true)
     const result = await submeterNF(nfId)
@@ -471,8 +487,9 @@ export default function NfDetalhePage() {
               </button>
             ) : (
               <button
-                onClick={handleSubmit}
-                disabled={submitting || saving}
+                onClick={handleSubmitRequest}
+                disabled={submitting || saving || !submissionReadiness.elegivel}
+                title={!submissionReadiness.elegivel ? 'Conclua os requisitos pre-cessao obrigatorios antes de submeter.' : undefined}
                 className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
               >
                 <Send size={16} />
@@ -483,7 +500,7 @@ export default function NfDetalhePage() {
         )}
       </div>
 
-      <ChecklistCedente notaFiscalId={nfId} />
+      <ChecklistCedente notaFiscalId={nfId} onEligibilityChange={setSubmissionReadiness} />
 
       {nf.status === 'requer_ajuste' && nf.motivo_ajuste && (
         <div className="mb-4 p-4 rounded-lg text-sm bg-orange-50 border border-orange-300 text-orange-800">
@@ -793,7 +810,45 @@ export default function NfDetalhePage() {
         <ReadOnlyNfDetails nf={nf} previewUrl={previewUrl} />
       )}
 
+      {nf.status === 'rascunho' && !submissionReadiness.elegivel && (
+        <p className="text-sm text-muted-foreground">
+          Complete os requisitos pré-cessão obrigatórios para habilitar a submissão.
+        </p>
+      )}
+      {nf.status === 'rascunho' && submissionReadiness.elegivel && (
+        <p className="text-sm text-success-foreground">
+          Esta NF está pronta para submissão. A análise só começará após a confirmação abaixo.
+        </p>
+      )}
+      {nf.status === 'submetida' && nf.submetida_em && (
+        <p className="text-sm text-muted-foreground">
+          Submetida para análise em {formatDate(nf.submetida_em)}.
+        </p>
+      )}
+
       <HistoricoTimelineCard entidade="nota_fiscal" entidadeId={nfId} />
+
+      {confirmSubmitOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="confirmar-submissao-nf">
+          <div className="w-full max-w-md rounded-xl border bg-card p-5 shadow-xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 id="confirmar-submissao-nf" className="text-lg font-semibold text-foreground">Submeter NF para análise?</h2>
+                <p className="mt-1 text-sm text-muted-foreground">A NF deixará de ser um rascunho e ficará disponível para análise da gestora.</p>
+              </div>
+              <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => setConfirmSubmitOpen(false)} aria-label="Fechar confirmação">×</button>
+            </div>
+            <div className="mt-4 rounded-lg border bg-muted/30 p-3 text-sm">
+              <div className="flex justify-between gap-3"><span className="text-muted-foreground">NF</span><span className="font-medium">{nf.numero_nf || 'Sem número'}</span></div>
+              <div className="mt-2 flex justify-between gap-3"><span className="text-muted-foreground">Documentos obrigatórios</span><span className="font-medium">{submissionReadiness.concluidosObrigatorios}/{submissionReadiness.totalObrigatorios} concluídos</span></div>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button type="button" className="rounded-lg border px-4 py-2 text-sm font-medium text-foreground hover:bg-muted" onClick={() => setConfirmSubmitOpen(false)}>Cancelar</button>
+              <button type="button" className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50" onClick={handleSubmit} disabled={submitting}>{submitting ? 'Submetendo...' : 'Confirmar submissão'}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

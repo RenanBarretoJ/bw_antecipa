@@ -115,6 +115,7 @@ export default function NotasFiscaisGestorPage() {
       .from('notas_fiscais')
       .select(NF_SELECT)
       .eq('fundo_id', fundoAtivo.id)
+      .neq('status', 'rascunho')
       .order('created_at', { ascending: false })
     setNfs((data || []) as NfGestorRecord[])
   }, [loadingFundo, bloqueado, fundoAtivo])
@@ -135,6 +136,7 @@ export default function NotasFiscaisGestorPage() {
         .from('notas_fiscais')
         .select(NF_SELECT)
         .eq('fundo_id', fundoAtivo.id)
+        .neq('status', 'rascunho')
         .order('created_at', { ascending: false })
       if (!mounted) return
       setNfs((data || []) as NfGestorRecord[])

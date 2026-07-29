@@ -11,8 +11,20 @@ import { calcularPrazoDocumento, type StatusPrazoDocumento } from '@/lib/documen
 import { calcularStatusLogisticoDocumental, type StatusLogisticoResumo } from '@/lib/documentos-v2/resumo-operacional'
 import { faseDocumentalPorEscopo } from '@/lib/documentos-v2/requisitos-pos-cessao'
 import { resolverEstadoChecklistDocumental, type RequisitoChecklistAplicavel } from '@/lib/documentos-v2/checklist-state'
+import {
+  resolverSatisfacaoRequisitoParaAprovacao,
+  resolverSatisfacaoRequisitoParaSubmissao,
+  type SatisfacaoRequisitoAprovacao,
+  type SatisfacaoRequisitoSubmissao,
+} from '@/lib/documentos-v2/satisfacao-requisito'
 import { carregarContextoEventoDocumentoVersao, registrarEventoDominio } from '@/lib/eventos-dominio/registrar'
-import type { DocumentoAnaliseResultado } from '@/lib/types/domain'
+import type { DocumentoAnaliseResultado, PoliticaNivelValidacao } from '@/lib/types/domain'
+
+const DOCUMENTOS_COM_VALIDACAO_ESTRUTURAL_NO_UPLOAD = new Set([
+  'nf_xml',
+  'nf_danfe_pdf',
+  'cte_xml',
+])
 
 export interface ChecklistDocumentoItem {
   id: string
@@ -24,6 +36,8 @@ export interface ChecklistDocumentoItem {
   escopo: string
   obrigatorio: boolean
   status: string
+  nivelValidacao: PoliticaNivelValidacao
+  momentoObrigatorio: string
   statusPrazo: StatusPrazoDocumento
   prazoDias: number | null
   marcoPrazo: string | null
@@ -37,6 +51,8 @@ export interface ChecklistDocumentoItem {
   documentoId: string | null
   versaoAprovadaId: string | null
   entregaId: string | null
+  satisfacaoSubmissao: SatisfacaoRequisitoSubmissao
+  satisfacaoAprovacao: SatisfacaoRequisitoAprovacao
   versoes: Array<{
     id: string
     numero: number
@@ -59,6 +75,7 @@ export interface ChecklistDocumento {
   posCessao: ChecklistDocumentoItem[]
   entrega: { id: string; status: string; dataInicioPrazo: string | null; motivoPendencia: string | null; dataEntrega: string | null; entregaConfirmadaEm: string | null } | null
   elegibilidade: ElegibilidadeDocumental
+  elegibilidadeAprovacao: ElegibilidadeDocumental
   posCessaoResumo: {
     existe: boolean
     obrigatoriosPendentes: number
@@ -86,6 +103,9 @@ export interface ElegibilidadeDocumental {
   requisitosRejeitados: string[]
   requisitosEmAnalise: string[]
   motivos: string[]
+  totalObrigatorios: number
+  concluidosObrigatorios: number
+  pendentesObrigatorios: number
 }
 
 async function carregarChecklist(notaFiscalId: string): Promise<ChecklistDocumento> {
@@ -121,7 +141,7 @@ async function carregarChecklist(notaFiscalId: string): Promise<ChecklistDocumen
 
   const instancesQuery = dataClient
     .from('documento_requisito_instancias')
-    .select('id, politica_requisito_id, politica_operacional_versao_id, politica_operacional_id, politica_versao, documento_tipo_id, tipo_documento_codigo_snapshot, escopo_snapshot, obrigatorio, status, documento_id, versao_aprovada_id, nota_fiscal_id, nota_fiscal_entrega_id, prazo_limite, quantidade_minima_snapshot, formatos_aceitos_snapshot')
+    .select('id, politica_requisito_id, politica_operacional_versao_id, politica_operacional_id, politica_versao, documento_tipo_id, tipo_documento_codigo_snapshot, escopo_snapshot, obrigatorio, status, documento_id, versao_aprovada_id, nota_fiscal_id, nota_fiscal_entrega_id, prazo_limite, quantidade_minima_snapshot, formatos_aceitos_snapshot, nivel_validacao_snapshot')
 
   const { data: instances, error } = await (entrega?.id
     ? instancesQuery.or([
@@ -133,12 +153,12 @@ async function carregarChecklist(notaFiscalId: string): Promise<ChecklistDocumen
   if (error) throw new Error(`Erro ao carregar checklist: ${error.message}`)
 
   const rows = (instances || []) as Array<{
-    id: string; politica_requisito_id: string; politica_operacional_versao_id: string | null; politica_operacional_id: string | null; politica_versao: number | null; documento_tipo_id: string | null; tipo_documento_codigo_snapshot: string; escopo_snapshot: string; obrigatorio: boolean; status: string; documento_id: string | null; versao_aprovada_id: string | null; nota_fiscal_id: string | null; nota_fiscal_entrega_id: string | null; prazo_limite: string | null; quantidade_minima_snapshot: number; formatos_aceitos_snapshot: string[]
+    id: string; politica_requisito_id: string; politica_operacional_versao_id: string | null; politica_operacional_id: string | null; politica_versao: number | null; documento_tipo_id: string | null; tipo_documento_codigo_snapshot: string; escopo_snapshot: string; obrigatorio: boolean; status: string; documento_id: string | null; versao_aprovada_id: string | null; nota_fiscal_id: string | null; nota_fiscal_entrega_id: string | null; prazo_limite: string | null; quantidade_minima_snapshot: number; formatos_aceitos_snapshot: string[]; nivel_validacao_snapshot: string
   }>
   const { data: policyRequirementRows, error: policyRequirementsError } = politicaVersaoId
     ? await dataClient
       .from('politica_requisitos_documentais')
-      .select('id, codigo, tipo_documento_codigo, escopo, obrigatorio, ativo')
+      .select('id, codigo, tipo_documento_codigo, escopo, obrigatorio, ativo, nivel_validacao, momento_obrigatorio, bloqueia_fluxo')
       .eq('politica_operacional_versao_id', politicaVersaoId)
       .in('escopo', entrega ? ['nf_pre_cessao', 'pos_cessao', 'entrega'] : ['nf_pre_cessao'])
     : { data: [], error: null }
@@ -183,11 +203,63 @@ async function carregarChecklist(notaFiscalId: string): Promise<ChecklistDocumen
     })
   }
 
+  const policyRequirements = (policyRequirementRows || []) as Array<{
+    id: string
+    codigo: string
+    tipo_documento_codigo: string
+    escopo: string
+    obrigatorio: boolean
+    ativo: boolean
+    nivel_validacao: PoliticaNivelValidacao
+    momento_obrigatorio: string | null
+    bloqueia_fluxo: boolean
+  }>
+  const policyRequirementById = new Map(policyRequirements.map((requirement) => [requirement.id, requirement]))
+
   const items = rows.map((row) => {
     const type = row.documento_tipo_id
       ? types.get(row.documento_tipo_id)
       : typesByCode.get(normalizarCodigoDocumentoCatalogo(row.tipo_documento_codigo_snapshot))
     const fase: ChecklistDocumentoItem['fase'] = faseDocumentalPorEscopo(row.escopo_snapshot)
+    const policyRequirement = policyRequirementById.get(row.politica_requisito_id)
+    const nivelValidacao = (row.nivel_validacao_snapshot || policyRequirement?.nivel_validacao || 'manual') as PoliticaNivelValidacao
+    const momentoObrigatorio = policyRequirement?.momento_obrigatorio || row.escopo_snapshot
+    const bloqueiaFluxo = policyRequirement?.bloqueia_fluxo ?? row.obrigatorio
+    const itemVersions = versions
+      .filter((version) => version.documento_id === row.documento_id)
+      .map((version) => ({
+        id: version.id,
+        numero: version.numero_versao,
+        status: version.status,
+        nome: version.nome_original,
+        sha256: version.sha256,
+        enviadoPorId: version.enviado_por,
+        enviadoPorNome: profileNames.get(version.enviado_por) || null,
+        enviadoEm: version.enviado_em,
+        criadoEm: version.created_at,
+        ultimaAnalise: latestAnalysis.get(version.id) || null,
+      }))
+    const codigoCatalogo = normalizarCodigoDocumentoCatalogo(row.tipo_documento_codigo_snapshot)
+    const latestVersion = itemVersions[0]
+    const validacaoEstruturalOk = Boolean(
+      latestVersion
+      && DOCUMENTOS_COM_VALIDACAO_ESTRUTURAL_NO_UPLOAD.has(codigoCatalogo)
+      && ['enviado', 'em_analise', 'aprovado'].includes(latestVersion.status)
+      && !['rejeitado', 'requer_ajuste'].includes(latestVersion.ultimaAnalise?.resultado || ''),
+    )
+    const satisfacaoInput = {
+      requisitoId: row.politica_requisito_id,
+      tipoDocumento: codigoCatalogo,
+      obrigatorio: row.obrigatorio,
+      bloqueiaFluxo,
+      momento: momentoObrigatorio,
+      regraValidade: nivelValidacao,
+      statusInstancia: row.status,
+      documentoId: row.documento_id,
+      versaoAprovadaId: row.versao_aprovada_id,
+      validacaoEstruturalOk,
+      versoes: itemVersions,
+    }
     const prazo = calcularPrazoDocumento({
       status: row.status,
       prazoLimite: row.prazo_limite,
@@ -205,29 +277,22 @@ async function carregarChecklist(notaFiscalId: string): Promise<ChecklistDocumen
       escopo: row.escopo_snapshot,
       obrigatorio: row.obrigatorio,
       status: row.status,
+      nivelValidacao,
+      momentoObrigatorio,
       ...prazo,
-      bloqueiaFluxo: row.obrigatorio && fase === 'pos_cessao',
+      bloqueiaFluxo,
       formatosAceitos: row.formatos_aceitos_snapshot || [],
       uploadPermitido: !!type,
       documentoId: row.documento_id,
       versaoAprovadaId: row.versao_aprovada_id,
       entregaId: row.nota_fiscal_entrega_id,
-      versoes: versions.filter((version) => version.documento_id === row.documento_id).map((version) => ({
-        id: version.id,
-        numero: version.numero_versao,
-        status: version.status,
-        nome: version.nome_original,
-        sha256: version.sha256,
-        enviadoPorId: version.enviado_por,
-        enviadoPorNome: profileNames.get(version.enviado_por) || null,
-        enviadoEm: version.enviado_em,
-        criadoEm: version.created_at,
-        ultimaAnalise: latestAnalysis.get(version.id) || null,
-      })),
+      satisfacaoSubmissao: resolverSatisfacaoRequisitoParaSubmissao(satisfacaoInput),
+      satisfacaoAprovacao: resolverSatisfacaoRequisitoParaAprovacao(satisfacaoInput),
+      versoes: itemVersions,
     }
   })
   const requisitosDaPolitica: RequisitoChecklistAplicavel[] = (policyRequirementRows || []).length > 0
-    ? (policyRequirementRows || []).map((row) => ({
+    ? policyRequirements.map((row) => ({
       id: row.id,
       codigo: row.codigo,
       tipoDocumentoCodigo: row.tipo_documento_codigo,
@@ -257,6 +322,7 @@ async function carregarChecklist(notaFiscalId: string): Promise<ChecklistDocumen
       status: item.status,
       documentoId: item.documentoId,
       versaoAprovadaId: item.versaoAprovadaId,
+      nivelValidacao: item.nivelValidacao,
       versoes: item.versoes.map((version) => ({ status: version.status, ultimaAnalise: version.ultimaAnalise ? { resultado: version.ultimaAnalise.resultado } : null })),
     })),
   })
@@ -278,15 +344,23 @@ async function carregarChecklist(notaFiscalId: string): Promise<ChecklistDocumen
   const proximoPrazo = items
     .filter((item) => itensVisiveis.includes(item) && item.dataLimite && !documentoItemEstaAprovado(item) && !['dispensado', 'cancelado'].includes(item.status))
     .sort((a, b) => String(a.dataLimite).localeCompare(String(b.dataLimite)))[0] || null
-  const elegibilidade = ['sem_politica', 'nao_instanciado', 'erro'].includes(estadoChecklist.estado)
-    ? {
-      elegivel: false,
-      requisitosPendentes: [],
-      requisitosRejeitados: [],
-      requisitosEmAnalise: [],
-      motivos: [estadoChecklist.mensagemGestor || 'A documentação desta nota ainda não está pronta para análise.'],
-    }
-    : calcularElegibilidade(preCessaoVisivel)
+  const elegibilidadeIndisponivel: ElegibilidadeDocumental = {
+    elegivel: false,
+    requisitosPendentes: [],
+    requisitosRejeitados: [],
+    requisitosEmAnalise: [],
+    motivos: [estadoChecklist.mensagemGestor || 'A documentação desta nota ainda não está pronta para análise.'],
+    totalObrigatorios: 0,
+    concluidosObrigatorios: 0,
+    pendentesObrigatorios: estadoChecklist.pendentes,
+  }
+  const checklistIndisponivel = ['sem_politica', 'nao_instanciado', 'erro'].includes(estadoChecklist.estado)
+  const elegibilidade = checklistIndisponivel
+    ? elegibilidadeIndisponivel
+    : calcularElegibilidadeSubmissao(preCessaoVisivel)
+  const elegibilidadeAprovacao = checklistIndisponivel
+    ? { ...elegibilidadeIndisponivel, motivos: [...elegibilidadeIndisponivel.motivos] }
+    : calcularElegibilidadeAprovacao(preCessaoVisivel)
   return {
     notaFiscalId,
     items: itensVisiveis,
@@ -302,6 +376,7 @@ async function carregarChecklist(notaFiscalId: string): Promise<ChecklistDocumen
       entregaConfirmadaEm: entrega.entrega_confirmada_em,
     } : null,
     elegibilidade,
+    elegibilidadeAprovacao,
     posCessaoResumo: {
       existe: posCessaoVisivel.length > 0,
       obrigatoriosPendentes: posObrigatoriosPendentes.length,
@@ -330,25 +405,45 @@ async function carregarChecklist(notaFiscalId: string): Promise<ChecklistDocumen
   }
 }
 
-function documentoItemEstaAprovado(item: Pick<ChecklistDocumentoItem, 'versaoAprovadaId' | 'versoes'>) {
-  const latest = item.versoes[0]
-  if (!latest) return false
-  if (item.versaoAprovadaId === latest.id) return true
-  if (latest.status === 'aprovado') return true
-  return latest.ultimaAnalise?.resultado === 'aprovado'
+function documentoItemEstaAprovado(item: Pick<ChecklistDocumentoItem, 'satisfacaoAprovacao'>) {
+  return item.satisfacaoAprovacao.aprovado
 }
 
-function calcularElegibilidade(items: ChecklistDocumentoItem[]): ElegibilidadeDocumental {
-  const mandatory = items.filter((item) => item.obrigatorio)
-  const pending = mandatory.filter((item) => !documentoItemEstaAprovado(item))
-  const rejected = mandatory.filter((item) => item.versoes.some((version) => version.status === 'rejeitado' || version.ultimaAnalise?.resultado === 'rejeitado' || version.ultimaAnalise?.resultado === 'requer_ajuste'))
-  const reviewing = mandatory.filter((item) => !documentoItemEstaAprovado(item) && item.versoes.some((version) => version.status === 'em_analise' || version.status === 'enviado' || version.ultimaAnalise?.resultado === 'pendente'))
+function requisitosQueBloqueiam(items: ChecklistDocumentoItem[]) {
+  return items.filter((item) => item.obrigatorio || item.bloqueiaFluxo)
+}
+
+function calcularElegibilidadeSubmissao(items: ChecklistDocumentoItem[]): ElegibilidadeDocumental {
+  const mandatory = requisitosQueBloqueiam(items)
+  const pending = mandatory.filter((item) => !item.satisfacaoSubmissao.satisfazSubmissao)
+  const rejected = mandatory.filter((item) => ['rejeitado', 'ajuste_solicitado'].includes(item.satisfacaoSubmissao.statusAnalise))
+  const reviewing = mandatory.filter((item) => item.satisfacaoSubmissao.statusAnalise === 'aguardando_analise')
   return {
     elegivel: pending.length === 0,
     requisitosPendentes: pending.map((item) => item.nome),
     requisitosRejeitados: rejected.map((item) => item.nome),
     requisitosEmAnalise: reviewing.map((item) => item.nome),
-    motivos: pending.map((item) => `${item.nome}: ${item.versoes.length > 0 ? 'aguardando aprovacao do gestor' : 'aguardando documento aprovado'}`),
+    motivos: pending.map((item) => `${item.nome}: ${item.satisfacaoSubmissao.motivoBloqueio || 'requisito documental pendente'}`),
+    totalObrigatorios: mandatory.length,
+    concluidosObrigatorios: mandatory.length - pending.length,
+    pendentesObrigatorios: pending.length,
+  }
+}
+
+function calcularElegibilidadeAprovacao(items: ChecklistDocumentoItem[]): ElegibilidadeDocumental {
+  const mandatory = requisitosQueBloqueiam(items)
+  const pending = mandatory.filter((item) => !item.satisfacaoAprovacao.aprovado)
+  const rejected = mandatory.filter((item) => ['rejeitado', 'ajuste_solicitado'].includes(item.satisfacaoAprovacao.statusAnalise))
+  const reviewing = mandatory.filter((item) => item.satisfacaoAprovacao.statusAnalise === 'aguardando_analise')
+  return {
+    elegivel: pending.length === 0,
+    requisitosPendentes: pending.map((item) => item.nome),
+    requisitosRejeitados: rejected.map((item) => item.nome),
+    requisitosEmAnalise: reviewing.map((item) => item.nome),
+    motivos: pending.map((item) => `${item.nome}: ${item.satisfacaoAprovacao.motivoBloqueio || 'aprovação documental pendente'}`),
+    totalObrigatorios: mandatory.length,
+    concluidosObrigatorios: mandatory.length - pending.length,
+    pendentesObrigatorios: pending.length,
   }
 }
 
@@ -433,5 +528,9 @@ export async function analisarVersaoDocumento(versaoId: string, resultado: Docum
 }
 
 export async function verificarElegibilidadeDocumental(notaFiscalId: string): Promise<ElegibilidadeDocumental> {
+  return (await carregarChecklist(notaFiscalId)).elegibilidadeAprovacao
+}
+
+export async function verificarElegibilidadeSubmissaoDocumental(notaFiscalId: string): Promise<ElegibilidadeDocumental> {
   return (await carregarChecklist(notaFiscalId)).elegibilidade
 }

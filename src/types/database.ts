@@ -842,6 +842,8 @@ export interface NotaFiscal {
   valor_antecipado: number | null
   aprovacao_sacado_em: string | null
   aprovada_gestor_em: string | null
+  submetida_em: string | null
+  submetida_por: string | null
   motivo_ajuste: string | null
   created_at: string
   updated_at: string

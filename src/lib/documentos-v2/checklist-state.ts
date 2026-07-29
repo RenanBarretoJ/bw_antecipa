@@ -58,17 +58,10 @@ function instanciaConcluida(instancia: InstanciaChecklistDocumental | undefined)
   return latest?.status === 'aprovado' || latest?.ultimaAnalise?.resultado === 'aprovado'
 }
 
-function instanciaBaseConcluida(instancia: InstanciaChecklistDocumental | undefined) {
-  if (!instancia?.documentoId) return false
-  if (instancia.versaoAprovadaId) return true
-  const latest = instancia.versoes[0]
-  return latest?.status === 'aprovado' || latest?.ultimaAnalise?.resultado === 'aprovado'
-}
-
 /**
  * Resolve o estado documental sem transformar uma lista vazia em erro.
- * Requisitos de XML/DANFE são evidências base da própria NF e não entram no
- * checklist complementar exibido nas telas de detalhe.
+ * XML e DANFE podem ser satisfeitos pela evidência base da própria NF, mas
+ * continuam no checklist para manter o lastro visível ao cedente e ao gestor.
  */
 export function resolverEstadoChecklistDocumental(input: {
   politicaSnapshot: boolean
@@ -99,19 +92,13 @@ export function resolverEstadoChecklistDocumental(input: {
       documentoId: instancia.documentoId,
       versaoAprovadaId: instancia.versaoAprovadaId,
       status: instancia.status,
+      nivelValidacao: instancia.nivelValidacao,
       versoes: instancia.versoes,
     })),
     documentosBase: Array.from(baseCodes),
   })
   const baseSatisfeitos = new Set(reconciliacaoBase.itens.filter((item) => item.status === 'satisfeito').map((item) => item.requisitoId))
-  const requisitos = input.requisitosAplicaveis.filter((requisito) => {
-    if (!requisito.ativo) return false
-    const codigo = codigoDocumento(requisito)
-    if (!baseCodes.has(codigo)) return true
-    // A polÃ­tica continua contendo XML/DANFE. Eles sÃ³ deixam o checklist
-    // visual depois que uma evidÃªncia-base foi reconciliada.
-    return !baseSatisfeitos.has(requisito.id) && !instanciaBaseConcluida(porRequisito.get(requisito.id))
-  })
+  const requisitos = input.requisitosAplicaveis.filter((requisito) => requisito.ativo)
 
   if (requisitos.length === 0) {
     return {

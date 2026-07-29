@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { uploadNFs, excluirRascunho, excluirRascunhos } from '@/lib/actions/nota-fiscal'
+import { verificarElegibilidadeSubmissaoDocumental } from '@/lib/actions/documento-v2'
 import { formatCurrency, formatCNPJ, formatDate } from '@/lib/utils'
 import Link from 'next/link'
 import {
@@ -56,6 +57,7 @@ interface NfRecord {
   arquivo_url: string | null
   created_at: string
   entrega_status?: string | null
+  pronta_para_submissao?: boolean
 }
 
 const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; className: string; icon: typeof CheckCircle }> = {
@@ -69,6 +71,7 @@ const statusConfig: Record<string, { label: string; variant: 'default' | 'second
   contestada:    { label: 'Contestada',         variant: 'outline',     className: 'bg-orange-100 text-orange-700 border-orange-200',  icon: AlertCircle },
   cancelada:     { label: 'Cancelada',          variant: 'destructive', className: 'bg-red-100 text-red-700 border-red-200',           icon: XCircle },
   requer_ajuste: { label: 'Requer Ajuste',      variant: 'outline',     className: 'bg-orange-100 text-orange-700 border-orange-200',  icon: Wrench },
+  pronta_para_submissao: { label: 'Pronta para submissao', variant: 'secondary', className: 'bg-indigo-100 text-indigo-700 border-indigo-200', icon: CheckCircle },
 }
 
 const entregaStatusConfig: Record<string, { label: string; className: string; icon: typeof CheckCircle }> = {
@@ -174,7 +177,22 @@ export default function NotasFiscaisCedentePage() {
         .map((entrega) => [entrega.nota_fiscal_id, entrega.status_entrega]),
     )
 
-    setNfs(rows.map((nf) => ({ ...nf, entrega_status: entregaPorNf.get(nf.id) || null })))
+    const rascunhos = rows.filter((nf) => nf.status === 'rascunho')
+    const prontidaoEntries = await Promise.all(rascunhos.map(async (nf) => {
+      try {
+        const elegibilidade = await verificarElegibilidadeSubmissaoDocumental(nf.id)
+        return [nf.id, elegibilidade.elegivel] as const
+      } catch {
+        return [nf.id, false] as const
+      }
+    }))
+    const prontidaoPorNf = new Map(prontidaoEntries)
+
+    setNfs(rows.map((nf) => ({
+      ...nf,
+      entrega_status: entregaPorNf.get(nf.id) || null,
+      pronta_para_submissao: nf.status === 'rascunho' ? prontidaoPorNf.get(nf.id) === true : false,
+    })))
     setLoading(false)
   }
 
@@ -234,8 +252,8 @@ export default function NotasFiscaisCedentePage() {
       if (result.rascunhos && result.rascunhos.length > 0) {
         const xmlCount = (result.ids?.length ?? 0) - result.rascunhos.length
         const parts: string[] = []
-        if (xmlCount > 0) parts.push(`${xmlCount} XML(s) submetido(s) automaticamente`)
-        parts.push(`${result.rascunhos.length} PDF(s) salvo(s) como rascunho — clique em "Preencher" em cada um para adicionar os dados`)
+        if (xmlCount > 0) parts.push(`${xmlCount} NF(s) salva(s) como rascunho — revise os dados e submeta manualmente`)
+        if (result.rascunhos.length > 0) parts.push(`${result.rascunhos.length} NF(s) salva(s) como rascunho — clique em "Preencher" em cada uma para revisar os dados`)
         notifications.success(parts.join('. ') + '.')
       } else {
         notifications.fromActionResult(result, 'NFs enviadas com sucesso!')
@@ -674,6 +692,8 @@ export default function NotasFiscaisCedentePage() {
                 const entregaStatus = nf.entrega_status
                 const status = entregaStatus && entregaStatusConfig[entregaStatus]
                   ? entregaStatusConfig[entregaStatus]
+                  : nf.status === 'rascunho' && nf.pronta_para_submissao
+                    ? statusConfig.pronta_para_submissao
                   : statusConfig[nf.status] || statusConfig.rascunho
                 const StatusIcon = status.icon
                 return (

@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { compactHistorySummary, isDocumentoAprovado, shouldShowPrazoBlock } from './ChecklistCedente'
+import { canAnalyzeDocumentVersion, compactHistorySummary, isDocumentoAprovado, shouldShowPrazoBlock } from './ChecklistCedente'
 
 describe('ChecklistCedente compact helpers', () => {
+  it('permite ao gestor analisar documento enviado sem depender do status da NF', () => {
+    expect(canAnalyzeDocumentVersion('gestor', 'em_analise')).toBe(true)
+    expect(canAnalyzeDocumentVersion('gestor', 'enviado')).toBe(true)
+    expect(canAnalyzeDocumentVersion('cedente', 'em_analise')).toBe(false)
+    expect(canAnalyzeDocumentVersion('gestor', 'aprovado')).toBe(false)
+  })
+
   it('nao mostra prazo quando o marco ainda nao foi iniciado', () => {
     expect(shouldShowPrazoBlock({
       dataLimite: '2026-08-02',

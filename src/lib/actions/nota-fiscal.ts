@@ -14,9 +14,14 @@ import { decidirAcaoDuplicidadeNotaFiscal, mensagemDuplicidadeNotaFiscal } from 
 import { formatarDetalhesBloqueioEmitente, validarXmlNfeParaUploadCedente } from '@/lib/notas-fiscais/emitente-autorizado'
 import { obterFundoAtivoAutorizado } from '@/lib/actions/fundo-ativo'
 import { carregarContextoEventoNota, registrarEventoDominio } from '@/lib/eventos-dominio/registrar'
+import { listarChecklistDaNota } from '@/lib/actions/documento-v2'
+import { avaliarElegibilidadeSubmissaoNf } from '@/lib/notas-fiscais/elegibilidade-submissao'
+import { avaliarElegibilidadeAprovacaoNf } from '@/lib/notas-fiscais/elegibilidade-aprovacao'
+import { revalidatePath } from 'next/cache'
 
 export type NfActionState = {
   success?: boolean
+  code?: string
   errors?: Record<string, string[]>
   message?: string
   ids?: string[]
@@ -43,6 +48,9 @@ async function registrarEventoNotaFiscal(
     metadata?: Record<string, unknown>
     visibilidade?: 'interno' | 'cedente' | 'ambos'
     origem?: string
+    origem_evento?: string | null
+    origem_registro_id?: string | null
+    correlation_id?: string | null
   },
 ) {
   const contextoEvento = await carregarContextoEventoNota(supabase, nfId)
@@ -58,6 +66,9 @@ async function registrarEventoNotaFiscal(
     },
     visibilidade: input.visibilidade ?? 'ambos',
     origem: input.origem ?? 'nota_fiscal_action',
+    origem_evento: input.origem_evento ?? null,
+    origem_registro_id: input.origem_registro_id ?? null,
+    correlation_id: input.correlation_id ?? null,
   }, supabase)
 }
 
@@ -386,7 +397,7 @@ async function processarArquivo(
           descricao_itens: parsed.descricao_itens || null,
           condicao_pagamento: parsed.condicao_pagamento || null,
           arquivo_url: filePath,
-          status: 'submetida',
+           status: 'rascunho',
         } as never)
         .select('id').single()
 
@@ -418,7 +429,7 @@ async function processarArquivo(
         return { ok: false, error: `${arquivo.name}: nao foi possivel registrar o XML no repositorio documental - ${error instanceof Error ? error.message : 'erro desconhecido'}` }
       }
       registrarLog({
-        tipo_evento: 'NF_CADASTRADA',
+        tipo_evento: 'NF_SALVA_RASCUNHO',
         entidade_tipo: 'notas_fiscais',
         entidade_id: nfData.id,
         dados_depois: {
@@ -428,18 +439,18 @@ async function processarArquivo(
         },
       }).catch(() => {})
       await registrarEventoNotaFiscal(supabase, nfData.id, {
-        tipo_evento: 'nota_fiscal_cadastrada',
+        tipo_evento: 'nota_fiscal_salva_como_rascunho',
         categoria: 'operacao',
         descricao: 'Nota fiscal cadastrada por upload de XML.',
         metadata: {
-          status_novo: 'submetida',
+          status_novo: 'rascunho',
           valor_bruto: parsed.valor_bruto,
           tipo_documento: 'nf_xml',
         },
         origem: 'upload_nf_xml',
       })
 
-      return { ok: true, id: nfData.id, isRascunho: false }
+      return { ok: true, id: nfData.id, isRascunho: true }
 
     } else {
       if (isPdf) {
@@ -514,7 +525,7 @@ async function processarArquivo(
       }
 
       await registrarEventoNotaFiscal(supabase, nfData.id, {
-        tipo_evento: 'nota_fiscal_cadastrada',
+        tipo_evento: 'nota_fiscal_salva_como_rascunho',
         categoria: 'operacao',
         descricao: isPdf ? 'Nota fiscal cadastrada por upload de PDF.' : 'Nota fiscal cadastrada por upload.',
         metadata: {
@@ -564,21 +575,13 @@ export async function uploadNFs(formData: FormData): Promise<NfActionState> {
   }
 
   // Notificação não bloqueia a resposta ao usuário
-  if (nfsCriadas.length > 0) {
-    notificarGestores(
-      'Novas NFs enviadas',
-      `O cedente ${context.cedente.razao_social} enviou ${nfsCriadas.length} nota(s) fiscal(is) para analise.`,
-      'nf_enviada'
-    ).catch(() => {})
-  }
-
   if (erros.length > 0 && nfsCriadas.length === 0) {
     return { success: false, message: erros.join('\n') }
   }
 
   const msg = nfsCriadas.length === 1
-    ? '1 nota fiscal enviada com sucesso!'
-    : `${nfsCriadas.length} notas fiscais enviadas com sucesso!`
+    ? '1 nota fiscal salva como rascunho!'
+    : `${nfsCriadas.length} notas fiscais salvas como rascunho!`
 
   return {
     success: true,
@@ -660,7 +663,7 @@ export async function criarNFManual(formData: FormData): Promise<NfActionState> 
       descricao_itens: descricao_itens || null,
       condicao_pagamento: condicao_pagamento || null,
       arquivo_url: filePath,
-      status: 'submetida',
+           status: 'rascunho',
     } as never)
     .select('id')
     .single()
@@ -690,26 +693,20 @@ export async function criarNFManual(formData: FormData): Promise<NfActionState> 
   }
 
   await registrarLog({
-    tipo_evento: 'NF_CADASTRADA',
+    tipo_evento: 'NF_SALVA_RASCUNHO',
     entidade_tipo: 'notas_fiscais',
     entidade_id: nfData.id,
     dados_depois: { numero_nf, valor_bruto, cnpj_destinatario, fundo_id: context.fundoId, cedente_fundo_id: context.cedenteFundoId } as Record<string, unknown>,
   })
   await registrarEventoNotaFiscal(supabase, nfData.id, {
-    tipo_evento: 'nota_fiscal_cadastrada',
+    tipo_evento: 'nota_fiscal_salva_como_rascunho',
     categoria: 'operacao',
     descricao: 'Nota fiscal cadastrada manualmente pelo cedente.',
-    metadata: { status_novo: 'submetida', valor_bruto, tipo_documento: arquivo.type === 'application/pdf' ? 'nf_danfe_pdf' : 'arquivo' },
+    metadata: { status_novo: 'rascunho', valor_bruto, tipo_documento: arquivo.type === 'application/pdf' ? 'nf_danfe_pdf' : 'arquivo' },
     origem: 'upload_nf_manual',
   })
 
-  await notificarGestores(
-    'Nova NF enviada',
-    `O cedente ${cedente.razao_social} enviou a NF ${numero_nf} para analise.`,
-    'nf_enviada'
-  )
-
-  return { success: true, message: 'Nota fiscal enviada com sucesso!', ids: [nfData.id] }
+  return { success: true, message: 'Nota fiscal salva como rascunho!', ids: [nfData.id], rascunhos: [nfData.id] }
 }
 
 // Salvar/atualizar dados de NF rascunho (preenchimento manual para PDF)
@@ -785,65 +782,183 @@ export async function salvarDadosNF(nfId: string, data: NotaFiscalFormData): Pro
   return { success: true, message: 'Dados da NF salvos com sucesso.' }
 }
 
-// Submeter NF rascunho para analise
+// Submeter NF rascunho para analise. A transicao so ocorre por esta acao explicita.
 export async function submeterNF(nfId: string): Promise<NfActionState> {
   await requireAuthenticated()
   const supabase = await createClient()
-  const cedente = await getCedenteDoUsuario()
+  const contextoUsuario = await getCedenteComUsuario(supabase)
 
-  if (!cedente) {
+  if (!contextoUsuario) {
     return { success: false, message: 'Cadastro de cedente nao encontrado.' }
   }
+  const { cedente, userId } = contextoUsuario
 
-  // Buscar NF para validar se esta completa
-  const { data: nf } = await supabase
+  const { data: nf, error: nfError } = await supabase
     .from('notas_fiscais')
     .select('*')
     .eq('id', nfId)
     .eq('cedente_id', cedente.id)
-    .eq('status', 'rascunho')
-    .single()
+    .maybeSingle()
 
-  if (!nf) {
-    return { success: false, message: 'NF nao encontrada ou nao esta em rascunho.' }
+  if (nfError) return { success: false, message: `Nao foi possivel carregar a NF para submissao: ${nfError.message}` }
+  if (!nf) return { success: false, code: 'NF_NOT_FOUND', message: 'NF nao encontrada ou nao pertence ao cedente autenticado.' }
+
+  const nfData = nf as Record<string, unknown> & {
+    id: string
+    status: string
+    cedente_fundo_id: string | null
+    fundo_id: string | null
+    numero_nf: string | null
   }
 
-  const nfData = nf as Record<string, unknown>
-
-  // Validar campos obrigatorios
-  if (!nfData.numero_nf || !nfData.cnpj_destinatario || !nfData.razao_social_destinatario || !(nfData.valor_bruto as number > 0)) {
-    return { success: false, message: 'Preencha todos os campos obrigatorios antes de submeter.' }
+  if (nfData.status !== 'rascunho') {
+    return { success: false, code: 'NF_NOT_RASCUNHO', message: `A NF ${nfData.numero_nf || nfId} nao esta em rascunho e nao pode ser submetida novamente.` }
   }
 
-  const { error } = await supabase
+  if (!nfData.cedente_fundo_id || !nfData.fundo_id) {
+    return { success: false, code: 'CONTEXTO_INVALIDO', message: 'O vinculo cedente-fundo da NF nao esta configurado.' }
+  }
+
+  const [{ data: vinculo, error: vinculoError }, { data: fundo, error: fundoError }] = await Promise.all([
+    supabase
+      .from('cedente_fundos')
+      .select('id, status, fundo_id')
+      .eq('id', nfData.cedente_fundo_id)
+      .eq('cedente_id', cedente.id)
+      .eq('fundo_id', nfData.fundo_id)
+      .maybeSingle(),
+    supabase
+      .from('fundos')
+      .select('id, ativo')
+      .eq('id', nfData.fundo_id)
+      .maybeSingle(),
+  ])
+  if (vinculoError || fundoError) {
+    return { success: false, code: 'CONTEXTO_INVALIDO', message: `Nao foi possivel validar o vinculo ativo da NF: ${(vinculoError || fundoError)?.message}` }
+  }
+
+  let operacaoIncompativel = false
+  const { data: operacaoLink } = await supabase
+    .from('operacoes_nfs')
+    .select('operacao_id')
+    .eq('nota_fiscal_id', nfId)
+    .limit(1)
+    .maybeSingle()
+  if (operacaoLink?.operacao_id) {
+    const { data: operacao } = await supabase.from('operacoes').select('status').eq('id', operacaoLink.operacao_id).maybeSingle()
+    operacaoIncompativel = !!operacao && !['cancelada', 'reprovada'].includes(String((operacao as { status?: string }).status))
+  }
+
+  let checklist
+  try {
+    checklist = await listarChecklistDaNota(nfId)
+  } catch (error) {
+    return { success: false, code: 'CHECKLIST_ERROR', message: `Nao foi possivel revalidar os requisitos documentais: ${error instanceof Error ? error.message : 'erro desconhecido'}` }
+  }
+
+  const estadosSemPolitica = new Set(['sem_politica', 'nao_instanciado', 'erro'])
+  const avaliacao = avaliarElegibilidadeSubmissaoNf({
+    status: nfData.status,
+    contexto: {
+      cedenteFundoAtivo: !!vinculo && (vinculo as { status: string }).status === 'ativo',
+      fundoAtivo: !!fundo && (fundo as { ativo: boolean }).ativo === true,
+    },
+    politica: { publicadaVigente: !estadosSemPolitica.has(checklist.estadoChecklist.estado) },
+    requisitos: {
+      instanciados: !estadosSemPolitica.has(checklist.estadoChecklist.estado),
+      preCessao: checklist.preCessao.map((item) => ({
+        nome: item.nome,
+        obrigatorio: item.obrigatorio,
+        satisfazSubmissao: item.satisfacaoSubmissao.satisfazSubmissao,
+        bloqueiaFluxo: item.bloqueiaFluxo,
+      })),
+      validacaoEstruturalOk: checklist.estadoChecklist.estado !== 'erro',
+      erroFiscal: null,
+    },
+    dadosObrigatoriosCompletos: Boolean(
+      nfData.numero_nf
+      && nfData.data_emissao
+      && nfData.data_vencimento
+      && nfData.cnpj_emitente
+      && nfData.razao_social_emitente
+      && nfData.cnpj_destinatario
+      && nfData.razao_social_destinatario
+      && Number(nfData.valor_bruto) > 0,
+    ),
+    operacaoIncompativel,
+  })
+
+  if (!avaliacao.elegivel) {
+    return {
+      success: false,
+      code: 'NF_INELEGIVEL_SUBMISSAO',
+      message: avaliacao.bloqueios.map((bloqueio) => bloqueio.mensagem).join(' '),
+    }
+  }
+
+  const submetidaEm = new Date().toISOString()
+  const { data: atualizada, error: updateError } = await supabase
     .from('notas_fiscais')
-    .update({ status: 'submetida' } as never)
+    .update({ status: 'submetida', submetida_em: submetidaEm, submetida_por: userId } as never)
     .eq('id', nfId)
     .eq('cedente_id', cedente.id)
+    .eq('status', 'rascunho')
+    .select('id, status, submetida_em, submetida_por')
+    .maybeSingle()
 
-  if (error) {
-    return { success: false, message: `Erro ao submeter: ${error.message}` }
+  if (updateError) {
+    return { success: false, code: 'NF_SUBMISSAO_ERROR', message: `Erro ao submeter: ${updateError.message}` }
+  }
+  if (!atualizada) {
+    const { data: estadoAtual } = await supabase.from('notas_fiscais').select('status').eq('id', nfId).eq('cedente_id', cedente.id).maybeSingle()
+    if ((estadoAtual as { status?: string } | null)?.status === 'submetida') {
+      return { success: false, code: 'NF_ALREADY_SUBMITTED', message: 'Esta NF ja foi submetida para analise.' }
+    }
+    return { success: false, code: 'NF_CONCORRENCIA', message: 'A NF foi alterada por outra acao. Atualize a tela e tente novamente.' }
   }
 
   await registrarLog({
     tipo_evento: 'NF_SUBMETIDA',
     entidade_tipo: 'notas_fiscais',
     entidade_id: nfId,
+    dados_antes: { status: 'rascunho' },
+    dados_depois: {
+      status: 'submetida',
+      submetida_em: submetidaEm,
+      submetida_por: userId,
+      obrigatorios_total: avaliacao.obrigatorios.total,
+      obrigatorios_concluidos: avaliacao.obrigatorios.concluidos,
+    },
   })
   await registrarEventoNotaFiscal(supabase, nfId, {
     tipo_evento: 'nota_fiscal_submetida',
     categoria: 'operacao',
     descricao: 'Nota fiscal submetida para analise.',
-    metadata: { status_novo: 'submetida' },
+    metadata: {
+      status_anterior: 'rascunho',
+      status_novo: 'submetida',
+      submetida_em: submetidaEm,
+      submetida_por: userId,
+      obrigatorios_total: avaliacao.obrigatorios.total,
+      obrigatorios_concluidos: avaliacao.obrigatorios.concluidos,
+      obrigatorios_pendentes: avaliacao.obrigatorios.pendentes,
+    },
+    origem: 'submissao_manual_cedente',
+    origem_evento: 'nota_fiscal_submissao',
+    origem_registro_id: nfId,
   })
 
   await notificarGestores(
     'NF submetida para analise',
-    `O cedente ${cedente.razao_social} submeteu a NF ${nfData.numero_nf} para analise.`,
-    'nf_submetida'
+    `O cedente ${cedente.razao_social} submeteu a NF ${nfData.numero_nf || nfId} para analise.`,
+    'nf_submetida',
+    `nf:${nfId}:submetida`
   )
 
-  return { success: true, message: 'NF submetida para analise com sucesso!' }
+  revalidatePath(`/cedente/notas-fiscais/${nfId}`)
+  revalidatePath('/cedente/notas-fiscais')
+  revalidatePath('/gestor/notas-fiscais')
+  return { success: true, code: 'NF_SUBMITTED', message: 'NF submetida para analise com sucesso!', data: { id: nfId } }
 }
 
 // Cedente: excluir rascunho
@@ -961,6 +1076,17 @@ export async function aprovarNF(nfId: string): Promise<NfActionState> {
   }
 
   const nfData = nfAntes as { status: string; numero_nf: string; cedente_id: string }
+  const checklist = await listarChecklistDaNota(nfId)
+  const avaliacaoAprovacao = avaliarElegibilidadeAprovacaoNf({
+    status: nfData.status,
+    documentos: checklist.elegibilidadeAprovacao,
+  })
+  if (!avaliacaoAprovacao.elegivel) {
+    return {
+      success: false,
+      message: avaliacaoAprovacao.bloqueios.map((bloqueio) => bloqueio.mensagem).join(' '),
+    }
+  }
 
   const { error } = await supabase
     .from('notas_fiscais')
@@ -1193,7 +1319,7 @@ export async function aprovarNFsLote(ids: string[]): Promise<NfActionState> {
 
   const { data: elegíveis } = await supabase
     .from('notas_fiscais')
-    .select('id, numero_nf, cedente_id')
+    .select('id, numero_nf, cedente_id, status')
     .in('id', ids)
     .in('status', ['submetida', 'em_analise'])
 
@@ -1201,7 +1327,21 @@ export async function aprovarNFsLote(ids: string[]): Promise<NfActionState> {
     return { success: false, message: 'Nenhuma NF elegivel (status deve ser submetida ou em analise).' }
   }
 
-  const nfs = elegíveis as { id: string; numero_nf: string; cedente_id: string }[]
+  const nfs = elegíveis as { id: string; numero_nf: string; cedente_id: string; status: string }[]
+  const avaliacoesDocumentais = await Promise.all(nfs.map(async (nf) => ({
+    nf,
+    avaliacao: avaliarElegibilidadeAprovacaoNf({
+      status: nf.status,
+      documentos: (await listarChecklistDaNota(nf.id)).elegibilidadeAprovacao,
+    }),
+  })))
+  const bloqueadas = avaliacoesDocumentais.filter((item) => !item.avaliacao.elegivel)
+  if (bloqueadas.length > 0) {
+    return {
+      success: false,
+      message: `Aprovação bloqueada. NFs com documentos obrigatórios sem aprovação: ${bloqueadas.map((item) => item.nf.numero_nf).join(', ')}.`,
+    }
+  }
   const idsAprovados = nfs.map((n) => n.id)
 
   const { error } = await supabase

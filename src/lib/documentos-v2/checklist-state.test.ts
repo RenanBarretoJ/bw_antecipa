@@ -34,7 +34,7 @@ describe('resolverEstadoChecklistDocumental', () => {
     expect(result.deveExibirAlerta).toBe(true)
   })
 
-  it('oculta XML e DANFE somente depois da reconciliacao', () => {
+  it('mantem XML e DANFE visiveis depois da reconciliacao', () => {
     const result = resolverEstadoChecklistDocumental({
       politicaSnapshot: true,
       requisitosAplicaveis: [requisito('nf_xml'), requisito('nf_danfe_pdf'), requisito('pedido_compra')],
@@ -45,8 +45,24 @@ describe('resolverEstadoChecklistDocumental', () => {
       ],
     })
 
-    expect(result.requisitosAplicaveis.map((item) => item.codigo)).toEqual(['pedido_compra'])
+    expect(result.requisitosAplicaveis.map((item) => item.codigo)).toEqual(['nf_xml', 'nf_danfe_pdf', 'pedido_compra'])
     expect(result.estado).toBe('pendente')
+  })
+
+  it('mantem documento-base aguardando analise visivel no checklist', () => {
+    const result = resolverEstadoChecklistDocumental({
+      politicaSnapshot: true,
+      requisitosAplicaveis: [requisito('nf_xml')],
+      instancias: [{
+        ...instancia('nf_xml'),
+        documentoId: 'documento-base',
+        versoes: [{ status: 'em_analise', ultimaAnalise: null }],
+      }],
+    })
+
+    expect(result.requisitosAplicaveis.map((item) => item.codigo)).toEqual(['nf_xml'])
+    expect(result.estado).toBe('pendente')
+    expect(result.deveExibirCard).toBe(true)
   })
 
   it('nao considera base satisfeita quando a instancia nao possui documento', () => {
