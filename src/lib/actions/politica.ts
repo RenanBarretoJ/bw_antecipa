@@ -5,15 +5,10 @@ import { requireGestor } from '@/lib/auth/authorization'
 import { exigirSessaoElevada } from '@/lib/auth/mfa'
 import { createClient } from '@/lib/supabase/server'
 import {
-  POLICY_DOCUMENT_CODES,
-  POLICY_REQUIREMENT_SCOPES,
-  POLICY_RESPONSIBLES,
-  POLICY_VALIDATION_LEVELS,
-  type PoliticaNivelValidacao,
-  type PoliticaRequisitoEscopo,
-  type PoliticaResponsavel,
-  type PoliticaTipoDocumentoCodigo,
-} from '@/lib/types/domain'
+  normalizarRequisitoDocumental,
+  normalizarRequisitoLegadoParaEdicao,
+  type PoliticaRequisitoInput,
+} from '@/lib/politicas/requisitos-documentais'
 import { stableStringify, validarConfiguracaoPublica } from '@/lib/operacoes/politica'
 import { registrarLog } from './auditoria'
 import { obterFundoAtivoAutorizado } from './fundo-ativo'
@@ -21,24 +16,7 @@ import { obterFundoAtivoAutorizado } from './fundo-ativo'
 type PolicyActionState = { success?: boolean; message?: string }
 type SupabaseFrom = Awaited<ReturnType<typeof requireGestor>>['supabase']
 
-export interface PoliticaRequisitoInput {
-  codigo: string
-  escopo: PoliticaRequisitoEscopo
-  tipo_documento_codigo: PoliticaTipoDocumentoCodigo
-  obrigatorio?: boolean
-  quantidade_minima?: number
-  formatos_aceitos?: string[]
-  nivel_validacao?: PoliticaNivelValidacao
-  prazo_dias_corridos?: number | null
-  momento_obrigatorio?: string | null
-  categoria?: string | null
-  bloqueia_fluxo?: boolean
-  observacoes?: string | null
-  responsavel_upload: PoliticaResponsavel
-  responsavel_aprovacao: PoliticaResponsavel
-  ordem?: number
-  ativo?: boolean
-}
+export type { PoliticaRequisitoInput } from '@/lib/politicas/requisitos-documentais'
 
 export interface CriarVersaoPoliticaInput {
   vigente_desde?: string
@@ -53,43 +31,7 @@ function result(message: string, success = false): PolicyActionState {
   return { success, message }
 }
 
-function validEnum<T extends string>(value: string, values: readonly T[], label: string): T {
-  if (!values.includes(value as T)) throw new Error(`${label} invalido.`)
-  return value as T
-}
-
-function normalizeRequirement(input: PoliticaRequisitoInput, index: number) {
-  const codigo = input.codigo.trim()
-  if (!codigo) throw new Error(`O codigo do requisito ${index + 1} e obrigatorio.`)
-  if (codigo.length > 80) throw new Error(`O codigo do requisito ${index + 1} excede 80 caracteres.`)
-
-  const quantidade = input.quantidade_minima ?? 1
-  if (!Number.isInteger(quantidade) || quantidade < 1) throw new Error(`Quantidade invalida no requisito ${codigo}.`)
-
-  const prazo = input.prazo_dias_corridos ?? null
-  if (prazo !== null && (!Number.isInteger(prazo) || prazo < 0)) throw new Error(`Prazo invalido no requisito ${codigo}.`)
-
-  return {
-    codigo,
-    escopo: validEnum(input.escopo, POLICY_REQUIREMENT_SCOPES, `Escopo do requisito ${codigo}`),
-    tipo_documento_codigo: validEnum(input.tipo_documento_codigo, POLICY_DOCUMENT_CODES, `Tipo documental do requisito ${codigo}`),
-    obrigatorio: input.obrigatorio ?? true,
-    quantidade_minima: quantidade,
-    formatos_aceitos: [...new Set((input.formatos_aceitos || []).map((format) => format.trim().toLowerCase()).filter(Boolean))],
-    nivel_validacao: validEnum(input.nivel_validacao || 'manual', POLICY_VALIDATION_LEVELS, `Nivel de validacao do requisito ${codigo}`),
-    prazo_dias_corridos: prazo,
-    momento_obrigatorio: input.momento_obrigatorio?.trim() || input.escopo,
-    categoria: input.categoria?.trim() || input.escopo,
-    bloqueia_fluxo: input.bloqueia_fluxo ?? (input.obrigatorio ?? true),
-    observacoes: input.observacoes?.trim() || null,
-    responsavel_upload: validEnum(input.responsavel_upload, POLICY_RESPONSIBLES, `Responsavel pelo upload do requisito ${codigo}`),
-    responsavel_aprovacao: validEnum(input.responsavel_aprovacao, POLICY_RESPONSIBLES, `Responsavel pela aprovacao do requisito ${codigo}`),
-    ordem: input.ordem ?? index,
-    ativo: input.ativo ?? true,
-  }
-}
-
-function hashVersao(input: CriarVersaoPoliticaInput, requisitos: ReturnType<typeof normalizeRequirement>[]): string {
+function hashVersao(input: CriarVersaoPoliticaInput, requisitos: ReturnType<typeof normalizarRequisitoDocumental>[]): string {
   return createHash('sha256').update(stableStringify({
     aceite_sacado_obrigatorio: input.aceite_sacado_obrigatorio,
     cessao_no_desembolso: input.cessao_no_desembolso,
@@ -246,7 +188,7 @@ export async function criarVersaoPolitica(
     const policyData = await loadPolicyContext(supabase, politicaId)
     if (policyData.status === 'arquivada' || policyData.status === 'desativada') return result('Nao e possivel criar versao para politica arquivada.')
 
-    const normalized = input.requisitos.map(normalizeRequirement)
+    const normalized = input.requisitos.map(normalizarRequisitoDocumental)
     const codes = new Set<string>()
     for (const requirement of normalized) {
       if (codes.has(requirement.codigo)) return result(`Requisito duplicado: ${requirement.codigo}.`)
@@ -483,24 +425,8 @@ export async function duplicarPoliticaDoFundo(
         .order('ordem', { ascending: true })
       if (requirementsError) return result(`Politica duplicada, mas nao foi possivel consultar requisitos base: ${requirementsError.message}`)
 
-      const requisitos = ((baseRequirements || []) as Array<Record<string, unknown>>).map((item) => ({
-        codigo: String(item.codigo || ''),
-        escopo: item.escopo as PoliticaRequisitoEscopo,
-        tipo_documento_codigo: item.tipo_documento_codigo as PoliticaTipoDocumentoCodigo,
-        obrigatorio: Boolean(item.obrigatorio),
-        quantidade_minima: Number(item.quantidade_minima || 1),
-        formatos_aceitos: Array.isArray(item.formatos_aceitos) ? item.formatos_aceitos as string[] : [],
-        nivel_validacao: item.nivel_validacao as PoliticaNivelValidacao,
-        prazo_dias_corridos: item.prazo_dias_corridos == null ? null : Number(item.prazo_dias_corridos),
-        momento_obrigatorio: item.momento_obrigatorio == null ? null : String(item.momento_obrigatorio),
-        categoria: item.categoria == null ? null : String(item.categoria),
-        bloqueia_fluxo: item.bloqueia_fluxo == null ? Boolean(item.obrigatorio) : Boolean(item.bloqueia_fluxo),
-        observacoes: item.observacoes == null ? null : String(item.observacoes),
-        responsavel_upload: item.responsavel_upload as PoliticaResponsavel,
-        responsavel_aprovacao: item.responsavel_aprovacao as PoliticaResponsavel,
-        ordem: Number(item.ordem || 0),
-        ativo: Boolean(item.ativo ?? true),
-      }))
+      const requisitos = ((baseRequirements || []) as Array<Record<string, unknown>>)
+        .map(normalizarRequisitoLegadoParaEdicao)
 
       const versionResult = await criarVersaoPolitica(newPolicyId, {
         aceite_sacado_obrigatorio: base.aceite_sacado_obrigatorio,

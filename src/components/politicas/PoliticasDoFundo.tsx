@@ -11,8 +11,13 @@ import {
   publicarVersaoPoliticaNoFundo,
   vincularPoliticaAoCedenteFundo,
   type CriarVersaoPoliticaInput,
-  type PoliticaRequisitoInput,
 } from '@/lib/actions/politica'
+import {
+  normalizarRequisitoLegadoParaEdicao,
+  resolverMomentoObrigatorioLegado,
+  type PoliticaMomentoObrigatorio,
+  type PoliticaRequisitoInput,
+} from '@/lib/politicas/requisitos-documentais'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -29,7 +34,7 @@ import {
   mapOperationalSelectionsToLegacyFlags,
   policyDocumentOptions,
   policyResponsibleLabels,
-  policyScopeLabels,
+  policyMomentLabels,
   policyValidationLabels,
   shouldClosePublishModal,
   shouldCloseVersionModalAfterCreate,
@@ -63,9 +68,11 @@ interface RequirementRow {
   fundo_id?: string | null
   cedente_fundo_id?: string | null
   codigo: string
-  escopo: PoliticaRequisitoInput['escopo']
+  escopo: PoliticaMomentoObrigatorio
+  momento_obrigatorio: string | null
   tipo_documento_codigo: PoliticaRequisitoInput['tipo_documento_codigo']
   prazo_dias_corridos: number | null
+  observacoes: string | null
   responsavel_upload: PoliticaRequisitoInput['responsavel_upload']
   responsavel_aprovacao: PoliticaRequisitoInput['responsavel_aprovacao']
   nivel_validacao?: PoliticaRequisitoInput['nivel_validacao']
@@ -96,7 +103,7 @@ const defaultSelections: PoliticaOperationalSelections = {
 
 const emptyRequirement = (index = 0): PoliticaRequisitoInput => ({
   codigo: `requisito_${index + 1}`,
-  escopo: 'nf_pre_cessao',
+  momento_obrigatorio: 'nf_pre_cessao',
   tipo_documento_codigo: 'nf_xml',
   obrigatorio: true,
   quantidade_minima: 1,
@@ -125,20 +132,7 @@ function versionStatus(version: VersionRow) {
 }
 
 function cloneRequirements(rows: RequirementRow[]): PoliticaRequisitoInput[] {
-  return rows.map((requirement, index) => ({
-    codigo: requirement.codigo,
-    escopo: requirement.escopo,
-    tipo_documento_codigo: requirement.tipo_documento_codigo,
-    obrigatorio: requirement.obrigatorio,
-    quantidade_minima: requirement.quantidade_minima || 1,
-    formatos_aceitos: requirement.formatos_aceitos || [],
-    nivel_validacao: requirement.nivel_validacao || 'manual',
-    prazo_dias_corridos: requirement.prazo_dias_corridos,
-    responsavel_upload: requirement.responsavel_upload,
-    responsavel_aprovacao: requirement.responsavel_aprovacao,
-    ordem: requirement.ordem ?? index,
-    ativo: requirement.ativo ?? true,
-  }))
+  return rows.map((requirement, index) => normalizarRequisitoLegadoParaEdicao({ ...requirement }, index))
 }
 
 export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId?: string; showFundoInLabel?: boolean }) {
@@ -198,7 +192,7 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
           .order('versao', { ascending: false }),
         supabase
           .from('politica_requisitos_documentais')
-          .select('id, politica_operacional_versao_id, politica_operacional_id, fundo_id, cedente_fundo_id, codigo, escopo, tipo_documento_codigo, prazo_dias_corridos, responsavel_upload, responsavel_aprovacao, nivel_validacao, formatos_aceitos, quantidade_minima, obrigatorio, ordem, ativo')
+          .select('id, politica_operacional_versao_id, politica_operacional_id, fundo_id, cedente_fundo_id, codigo, escopo, momento_obrigatorio, tipo_documento_codigo, prazo_dias_corridos, observacoes, responsavel_upload, responsavel_aprovacao, nivel_validacao, formatos_aceitos, quantidade_minima, obrigatorio, ordem, ativo')
           .in('politica_operacional_id', policyIds)
           .order('ordem'),
       ]) as [{ data: unknown[] | null; error: { message?: string } | null }, { data: unknown[] | null; error: { message?: string } | null }]
@@ -571,15 +565,13 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
                     <h3 className="font-semibold">Requisito {index + 1}</h3>
                     <Button type="button" variant="ghost" size="sm" onClick={() => setRequirementsForm((items) => items.filter((_, itemIndex) => itemIndex !== index))}><Trash2 size={14} className="mr-1" /> Remover</Button>
                   </div>
-                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                     <div><Label>Tipo de documento</Label><select className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground" value={requirement.tipo_documento_codigo} onChange={(event) => setRequirementDocument(index, event.target.value as PoliticaRequisitoInput['tipo_documento_codigo'])}>{policyDocumentOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></div>
-                    <div><Label>Categoria</Label><select className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground" value={requirement.escopo} onChange={(event) => updateRequirement(index, { escopo: event.target.value as PoliticaRequisitoInput['escopo'] })}>{Object.entries(policyScopeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
-                    <div><Label>Momento obrigatorio</Label><select className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground" value={requirement.escopo} onChange={(event) => updateRequirement(index, { escopo: event.target.value as PoliticaRequisitoInput['escopo'] })}>{Object.entries(policyScopeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
+                    <div><Label>Momento obrigatorio</Label><select className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground" value={requirement.momento_obrigatorio} onChange={(event) => updateRequirement(index, { momento_obrigatorio: event.target.value as PoliticaMomentoObrigatorio })}>{Object.entries(policyMomentLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
                     <div><Label>Responsavel</Label><select className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground" value={requirement.responsavel_upload} onChange={(event) => updateRequirement(index, { responsavel_upload: event.target.value as PoliticaRequisitoInput['responsavel_upload'] })}>{Object.entries(policyResponsibleLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
                     <div><Label>Obrigatoriedade</Label><select className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground" value={requirement.obrigatorio ? 'sim' : 'nao'} onChange={(event) => updateRequirement(index, { obrigatorio: event.target.value === 'sim' })}><option value="sim">Obrigatorio</option><option value="nao">Opcional</option></select></div>
                     <div><Label>Prazo</Label><Input type="number" value={requirement.prazo_dias_corridos ?? ''} onChange={(event) => updateRequirement(index, { prazo_dias_corridos: event.target.value ? Number(event.target.value) : null })} placeholder="Sem prazo" /></div>
                     <div><Label>Regra de validade</Label><select className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground" value={requirement.nivel_validacao || 'manual'} onChange={(event) => updateRequirement(index, { nivel_validacao: event.target.value as PoliticaRequisitoInput['nivel_validacao'] })}>{Object.entries(policyValidationLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
-                    <div><Label>Bloqueia fluxo</Label><select className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground" value={requirement.obrigatorio ? 'sim' : 'nao'} onChange={(event) => updateRequirement(index, { obrigatorio: event.target.value === 'sim' })}><option value="sim">Sim</option><option value="nao">Nao</option></select></div>
                   </div>
                 </div>
               ))}
@@ -600,7 +592,7 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
                   {requirementsForm.map((requirement, index) => (
                     <div key={`${index}-${requirement.codigo}`} className="grid gap-2 px-4 py-3 text-sm md:grid-cols-[minmax(180px,1fr)_140px_140px_120px]">
                       <span className="font-medium">{documentLabel(requirement.tipo_documento_codigo)}</span>
-                      <span className="text-muted-foreground">{policyScopeLabels[requirement.escopo]}</span>
+                      <span className="text-muted-foreground">{policyMomentLabels[requirement.momento_obrigatorio]}</span>
                       <span className="text-muted-foreground">{policyResponsibleLabels[requirement.responsavel_upload]}</span>
                       <StatusBadge status={requirement.obrigatorio ? 'Obrigatorio' : 'Opcional'} />
                     </div>
@@ -640,7 +632,7 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
                   {(requirementsByVersion.get(detailsVersion.id) || []).map((requirement) => (
                     <div key={requirement.id} className="grid gap-2 px-4 py-3 text-sm md:grid-cols-[minmax(180px,1fr)_140px_140px_120px]">
                       <span className="font-medium">{documentLabel(requirement.tipo_documento_codigo)}</span>
-                      <span className="text-muted-foreground">{policyScopeLabels[requirement.escopo]}</span>
+                      <span className="text-muted-foreground">{policyMomentLabels[resolverMomentoObrigatorioLegado(requirement)]}</span>
                       <span className="text-muted-foreground">{policyResponsibleLabels[requirement.responsavel_upload]}</span>
                       <StatusBadge status={requirement.obrigatorio ? 'Obrigatorio' : 'Opcional'} />
                     </div>

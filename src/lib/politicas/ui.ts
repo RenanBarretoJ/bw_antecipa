@@ -1,4 +1,7 @@
-import type { PoliticaRequisitoInput } from '@/lib/actions/politica'
+import type {
+  PoliticaMomentoObrigatorio,
+  PoliticaRequisitoInput,
+} from '@/lib/politicas/requisitos-documentais'
 import type { PoliticaTipoDocumentoCodigo } from '@/lib/types/domain'
 
 export type AceiteSacadoOption = 'nao_exigido' | 'antes_cessao' | 'antes_desembolso'
@@ -40,7 +43,7 @@ export const policyDocumentOptions: Array<{ value: PoliticaTipoDocumentoCodigo; 
   { value: 'outro', label: 'Outro', formatos: ['pdf'] },
 ]
 
-export const policyScopeLabels: Record<PoliticaRequisitoInput['escopo'], string> = {
+export const policyMomentLabels: Record<PoliticaMomentoObrigatorio, string> = {
   nf_pre_cessao: 'NF pré-cessão',
   operacao: 'Operação',
   pos_cessao: 'Pós-cessão',
