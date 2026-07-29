@@ -583,6 +583,7 @@ export async function uploadNFs(formData: FormData): Promise<NfActionState> {
     ? '1 nota fiscal salva como rascunho!'
     : `${nfsCriadas.length} notas fiscais salvas como rascunho!`
 
+  revalidatePath('/cedente/notas-fiscais')
   return {
     success: true,
     message: erros.length > 0 ? `${msg} (${erros.length} erro(s): ${erros.join('; ')})` : msg,
@@ -1000,6 +1001,7 @@ export async function excluirRascunho(nfId: string): Promise<NfActionState> {
     return { success: false, message: `Erro ao excluir: ${error.message}` }
   }
 
+  revalidatePath('/cedente/notas-fiscais')
   return { success: true, message: 'Rascunho excluido.' }
 }
 
@@ -1043,6 +1045,7 @@ export async function excluirRascunhos(nfIds: string[]): Promise<NfActionState> 
     return { success: false, message: `Erro ao excluir: ${error.message}` }
   }
 
+  revalidatePath('/cedente/notas-fiscais')
   return { success: true, message: `${idsConfirmados.length} rascunho(s) excluido(s).` }
 }
 

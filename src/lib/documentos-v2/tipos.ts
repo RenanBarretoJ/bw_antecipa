@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+export { normalizarCodigoDocumentoCatalogo } from './codigos'
 
 export const DOCUMENTO_V2_BUCKET = 'documentos-v2'
 export const DOCUMENTOS_V2_SUPORTADOS = ['nf_xml', 'nf_danfe_pdf', 'nf_pedido_compra', 'cte', 'cte_xml', 'cte_pdf_dacte', 'canhoto', 'comprovante_entrega'] as const
@@ -18,11 +19,6 @@ export interface TipoDocumentoV2 {
 export function extensaoArquivo(nome: string): string {
   const index = nome.lastIndexOf('.')
   return index >= 0 ? nome.slice(index + 1).toLowerCase() : ''
-}
-
-export function normalizarCodigoDocumentoCatalogo(codigo: string, extensaoPreferida?: string): string {
-  if (codigo === 'cte') return extensaoPreferida === 'pdf' ? 'cte_pdf_dacte' : 'cte_xml'
-  return codigo
 }
 
 export function mimeArquivo(file: File): string {
