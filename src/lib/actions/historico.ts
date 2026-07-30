@@ -3,22 +3,19 @@
 import { requireNotaFiscalAccess, requireOperationAccess } from '@/lib/auth/authorization'
 import { obterFundoAtivoAutorizado } from '@/lib/actions/fundo-ativo'
 import { resumirMetadataHistorico, type HistoricoCategoria, type HistoricoEventoView } from '@/lib/eventos-dominio/formatters'
+import { encodeCursor, parseCursor } from '@/lib/pagination/cursor'
+import { buildDescendingCreatedAtCursorFilter } from '@/lib/pagination/keyset'
+import type { CursorResult } from '@/lib/pagination/types'
 
 type EntidadeHistorico = 'nota_fiscal' | 'operacao'
 type FiltroHistorico = 'todos' | 'documento' | 'aprovacao' | 'operacao' | 'logistica'
 
-export type HistoricoCursor = {
-  createdAt: string
-}
+export type HistoricoCursor = string
 
-export type HistoricoResult = {
+export type HistoricoPaginaResult = {
   success: boolean
   message?: string
-  data?: {
-    eventos: HistoricoEventoView[]
-    nextCursor: HistoricoCursor | null
-    total?: number | null
-  }
+  data?: CursorResult<HistoricoEventoView> & { total?: number }
 }
 
 function filtroCategorias(filtro: FiltroHistorico): HistoricoCategoria[] | null {
@@ -53,51 +50,14 @@ async function prepararConsulta(entidade: EntidadeHistorico, entidadeId: string)
   return { supabase: context.supabase, field, fundoAtivo }
 }
 
-export async function carregarResumoHistorico(entidade: EntidadeHistorico, entidadeId: string): Promise<HistoricoResult> {
-  try {
-    const { supabase, field, fundoAtivo } = await prepararConsulta(entidade, entidadeId)
-    let countQuery = supabase
-      .from('eventos_dominio')
-      .select('id', { count: 'exact', head: true })
-      .eq(field, entidadeId)
-
-    let latestQuery = supabase
-      .from('eventos_dominio')
-      .select('id, tipo_evento, categoria, ator_nome_snapshot, ator_perfil_snapshot, origem, descricao, metadata, visibilidade, created_at')
-      .eq(field, entidadeId)
-      .order('created_at', { ascending: false })
-      .order('id', { ascending: false })
-      .limit(1)
-
-    if (fundoAtivo?.fundoId) {
-      countQuery = countQuery.eq('fundo_id', fundoAtivo.fundoId)
-      latestQuery = latestQuery.eq('fundo_id', fundoAtivo.fundoId)
-    }
-
-    const [{ count, error: countError }, { data, error: latestError }] = await Promise.all([countQuery, latestQuery])
-    if (countError) return { success: false, message: countError.message }
-    if (latestError) return { success: false, message: latestError.message }
-
-    return {
-      success: true,
-      data: {
-        eventos: (data ?? []).map((row) => mapEvento(row as Record<string, unknown>)),
-        nextCursor: null,
-        total: count ?? 0,
-      },
-    }
-  } catch (error) {
-    return { success: false, message: error instanceof Error ? error.message : 'Nao foi possivel carregar o historico.' }
-  }
-}
-
 export async function carregarEventosHistorico(input: {
   entidade: EntidadeHistorico
   entidadeId: string
   filtro?: FiltroHistorico
   cursor?: HistoricoCursor | null
   limit?: number
-}): Promise<HistoricoResult> {
+  incluirTotal?: boolean
+}): Promise<HistoricoPaginaResult> {
   try {
     const limit = Math.min(Math.max(input.limit ?? 20, 1), 50)
     const { supabase, field, fundoAtivo } = await prepararConsulta(input.entidade, input.entidadeId)
@@ -105,17 +65,22 @@ export async function carregarEventosHistorico(input: {
 
     let query = supabase
       .from('eventos_dominio')
-      .select('id, tipo_evento, categoria, ator_nome_snapshot, ator_perfil_snapshot, origem, descricao, metadata, visibilidade, created_at')
+      .select(
+        'id, tipo_evento, categoria, ator_nome_snapshot, ator_perfil_snapshot, origem, descricao, metadata, visibilidade, created_at',
+        { count: input.incluirTotal ? 'exact' : undefined },
+      )
       .eq(field, input.entidadeId)
       .order('created_at', { ascending: false })
       .order('id', { ascending: false })
       .limit(limit + 1)
 
     if (categorias) query = query.in('categoria', categorias)
-    if (input.cursor?.createdAt) query = query.lt('created_at', input.cursor.createdAt)
+    const cursor = input.cursor ? parseCursor(input.cursor) : null
+    if (input.cursor && !cursor) return { success: false, message: 'Cursor de historico invalido.' }
+    if (cursor) query = query.or(buildDescendingCreatedAtCursorFilter(cursor))
     if (fundoAtivo?.fundoId) query = query.eq('fundo_id', fundoAtivo.fundoId)
 
-    const { data, error } = await query
+    const { data, error, count } = await query
     if (error) return { success: false, message: error.message }
 
     const rows = (data ?? []) as Array<Record<string, unknown>>
@@ -124,8 +89,12 @@ export async function carregarEventosHistorico(input: {
     return {
       success: true,
       data: {
-        eventos: pageRows.map(mapEvento),
-        nextCursor: rows.length > limit && last ? { createdAt: String(last.created_at) } : null,
+        items: pageRows.map(mapEvento),
+        hasMore: rows.length > limit,
+        nextCursor: rows.length > limit && last
+          ? encodeCursor({ createdAt: String(last.created_at), id: String(last.id) })
+          : null,
+        ...(input.incluirTotal ? { total: count ?? 0 } : {}),
       },
     }
   } catch (error) {

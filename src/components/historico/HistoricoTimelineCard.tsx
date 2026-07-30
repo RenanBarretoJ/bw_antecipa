@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useMemo, useState, useTransition } from 'react'
+import { useMemo, useState, useTransition } from 'react'
 import { AlertCircle, CheckCircle2, ChevronDown, Clock3, FileText, History, Loader2, Send, ShieldCheck, Truck } from 'lucide-react'
-import { carregarEventosHistorico, carregarResumoHistorico, type HistoricoCursor } from '@/lib/actions/historico'
+import { carregarEventosHistorico, type HistoricoCursor } from '@/lib/actions/historico'
 import { formatEventTime, groupHistoricoByDate, type HistoricoEventoView } from '@/lib/eventos-dominio/formatters'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -87,23 +87,7 @@ export function HistoricoTimelineCard({ entidade, entidadeId, className }: Props
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
-  useEffect(() => {
-    let active = true
-    carregarResumoHistorico(entidade, entidadeId).then((result) => {
-      if (!active) return
-      if (!result.success) {
-        setError(result.message ?? 'Não foi possível carregar o histórico.')
-        return
-      }
-      setTotal(result.data?.total ?? 0)
-      setUltimoEvento(result.data?.eventos[0] ?? null)
-    })
-    return () => {
-      active = false
-    }
-  }, [entidade, entidadeId])
-
-  function loadPage(reset = false, nextFilter = filtro) {
+  function loadPage(reset = false, nextFilter = filtro, incluirTotal = false) {
     startTransition(async () => {
       setError(null)
       const result = await carregarEventosHistorico({
@@ -112,20 +96,30 @@ export function HistoricoTimelineCard({ entidade, entidadeId, className }: Props
         filtro: nextFilter,
         cursor: reset ? null : cursor,
         limit: 20,
+        incluirTotal,
       })
       if (!result.success) {
         setError(result.message ?? 'Não foi possível carregar o histórico.')
         return
       }
-      setEventos((current) => reset ? (result.data?.eventos ?? []) : [...current, ...(result.data?.eventos ?? [])])
+      setEventos((current) => {
+        const incoming = result.data?.items ?? []
+        if (reset) return incoming
+        const ids = new Set(current.map((event) => event.id))
+        return [...current, ...incoming.filter((event) => !ids.has(event.id))]
+      })
       setCursor(result.data?.nextCursor ?? null)
+      if (typeof result.data?.total === 'number') setTotal(result.data.total)
+      if (reset) setUltimoEvento(result.data?.items[0] ?? null)
     })
   }
 
   function toggleExpanded() {
     const next = !expanded
     setExpanded(next)
-    if (next && eventos.length === 0) loadPage(true)
+    if (next && eventos.length === 0) {
+      loadPage(true, filtro, total === null)
+    }
   }
 
   function changeFilter(nextFilter: FiltroHistorico) {
@@ -147,7 +141,11 @@ export function HistoricoTimelineCard({ entidade, entidadeId, className }: Props
             {total !== null && <Badge variant="secondary" className="h-5 text-[11px]">{total}</Badge>}
           </CardTitle>
           <p className="mt-1 truncate text-xs text-muted-foreground">
-            {ultimoEvento ? `Último evento: ${ultimoEvento.descricao}` : 'Nenhum evento operacional registrado.'}
+            {ultimoEvento
+              ? `Último evento: ${ultimoEvento.descricao}`
+              : total === 0
+                ? 'Nenhum evento operacional registrado.'
+                : 'Expanda para consultar o histórico operacional.'}
           </p>
         </div>
         <Button type="button" variant="outline" size="sm" onClick={toggleExpanded} aria-expanded={expanded}>
