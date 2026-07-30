@@ -18,6 +18,8 @@
     "perf9a:seed": "node scripts/perf9a/seed-homolog.mjs",
     "perf9a:cleanup": "node scripts/perf9a/cleanup-homolog.mjs",
     "perf9a:verify": "node scripts/perf9a/verify-homolog.mjs",
+    "perf9b:verify": "node scripts/perf9a/verify-escopo9b-homolog.mjs",
+    "perf9b:explain": "node scripts/perf9a/explain-escopo9b-homolog.mjs",
     "reset:operacional:fundo": "node scripts/reset-operacional-fundo.mjs",
     "reset:operacional:fundo:install-rpc": "node scripts/install-reset-operacional-rpc.mjs"
   },

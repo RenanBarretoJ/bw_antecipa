@@ -337,6 +337,16 @@ alterar versões de forma ampla.
 - [ ] Validar URLs assinadas.
 - [ ] Executar validações finais e reclassificar o parecer.
 
+## Atualização posterior — Escopo 9B
+
+O Escopo 9B corrigiu as policies de isolamento em migration incremental e a
+matriz autenticada foi repetida com sessões AAL2 reais. O resultado da matriz
+9B está documentado em
+`docs/performance/relatorio-escopo-9b-isolamento-rls.md`.
+
+Esta atualização não altera o parecer histórico do Escopo 9A: o gate completo
+de homologação ainda precisa ser retomado e executado integralmente.
+
 ## 16. Parecer
 
 **NO-GO para produção.**
@@ -350,3 +360,11 @@ O 9A deve permanecer interrompido até uma correção explícita das policies,
 seguida da repetição integral dos gates. Como Realtime, 26 rotas, navegador,
 Profiler, EXPLAIN pós-volume, golden financeiro e URLs assinadas não foram
 executados depois do bloqueador, nenhum parecer menos restritivo é defensável.
+
+## 17. Referência ao Escopo 9B
+
+O bloqueador de isolamento registrado neste relatório foi tratado
+exclusivamente no Escopo 9B, com policies RLS incrementais, helpers privados e
+matriz autenticada AAL2. O 9A continua sem parecer de produção; a evidência
+posterior e as limitações remanescentes estão em
+[`relatorio-escopo-9b-isolamento-rls.md`](./relatorio-escopo-9b-isolamento-rls.md).
