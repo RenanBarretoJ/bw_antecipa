@@ -200,7 +200,11 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
       return
     }
 
-    const { data: c } = await supabase.from('cedentes').select('*').eq('id', id).single()
+    const { data: c } = await supabase
+      .from('cedentes')
+      .select('id, cnpj, razao_social, nome_fantasia, cep, logradouro, numero, complemento, bairro, cidade, estado, telefone_comercial, email_comercial, cnae, banco, agencia, conta, tipo_conta, status, habilitar_escrow, coobrigacao, fundo_id, created_at, contrato_url, contrato_assinado_url')
+      .eq('id', id)
+      .single()
     setCedente(c as CedenteDetail | null)
     if (c) setFundoSelecionado(linkAtivo.fundo_id)
 
@@ -215,14 +219,12 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
       .select('id, nome, cpf, rg, cargo, email, telefone, principal')
       .eq('cedente_id', id)
       .order('principal', { ascending: false })
+      .limit(20)
 
     setRepresentantes((reps || []) as RepresentanteRecord[])
 
     const { data: d } = await supabase
-      .from('documentos')
-      .select('id, tipo, versao, status, nome_arquivo, url_arquivo, motivo_reprovacao, created_at, representante_id, analisado_em, atualizacao_solicitada_em')
-      .eq('cedente_id', id)
-      .order('tipo').order('versao', { ascending: false })
+      .rpc('listar_documentos_atuais_cedente', { p_cedente_id: id })
 
     setDocs((d || []) as DocRecord[])
 
@@ -232,6 +234,7 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
       .select('prazo_min, prazo_max, taxa_percentual')
       .eq('cedente_id', id)
       .order('prazo_min', { ascending: true })
+      .limit(40)
 
     setTaxas((t || []) as Array<{ prazo_min: number; prazo_max: number; taxa_percentual: number }>)
 
@@ -252,6 +255,7 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
       .select('id, user_id, perfil, ativo, created_at')
       .eq('cedente_id', id)
       .order('created_at', { ascending: true })
+      .limit(50)
 
     if (ac && ac.length > 0) {
       const userIds = (ac as { user_id: string }[]).map((a) => a.user_id)
