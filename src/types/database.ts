@@ -1142,6 +1142,49 @@ export interface Database {
         }
         Returns: Record<string, unknown>
       }
+      dashboard_gestor_resumo: {
+        Args: { p_fundo_id: string }
+        Returns: Record<string, unknown>
+      }
+      dashboard_cedente_resumo: {
+        Args: { p_cedente_fundo_id: string }
+        Returns: Record<string, unknown>
+      }
+      dashboard_consultor_resumo: {
+        Args: Record<string, never>
+        Returns: Record<string, unknown>
+      }
+      relatorio_gestor_analitico: {
+        Args: {
+          p_fundo_id: string
+          p_mes: string
+          p_busca?: string | null
+          p_status?: string | null
+          p_cedente_id?: string | null
+          p_data_inicial?: string | null
+          p_data_final?: string | null
+          p_offset?: number
+          p_page_size?: number
+          p_sort?: string
+          p_direction?: string
+        }
+        Returns: Record<string, unknown>
+      }
+      relatorio_consultor_analitico: {
+        Args: {
+          p_mes: string
+          p_busca?: string | null
+          p_status?: string | null
+          p_cedente_id?: string | null
+          p_data_inicial?: string | null
+          p_data_final?: string | null
+          p_offset?: number
+          p_page_size?: number
+          p_sort?: string
+          p_direction?: string
+        }
+        Returns: Record<string, unknown>
+      }
       instanciar_requisitos_nota: { Args: { p_nota_fiscal_id: string; p_politica_operacional_id: string; p_politica_versao_id: string }; Returns: Record<string, unknown> }
       listar_documentos_atuais_cedente: { Args: { p_cedente_id: string }; Returns: Array<{ id: string; tipo: string; versao: number; status: string; nome_arquivo: string | null; url_arquivo: string | null; motivo_reprovacao: string | null; created_at: string; representante_id: string | null; analisado_em: string | null; atualizacao_solicitada_em: string | null }> }
       obter_politica_aplicavel_cedente_fundo: { Args: { p_cedente_fundo_id: string; p_data_referencia?: string }; Returns: Record<string, unknown> }
