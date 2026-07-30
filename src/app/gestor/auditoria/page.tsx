@@ -36,31 +36,83 @@ export default async function AuditoriaPage({ searchParams }: { searchParams: Se
       </div>
 
       <Card className="mb-4">
-        <CardContent className="pt-4">
-          <form method="get" className="grid gap-3 lg:grid-cols-12">
-            <label className="relative lg:col-span-4">
-              <span className="sr-only">Buscar</span>
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input name="q" defaultValue={filtros.q} placeholder="Buscar por evento ou entidade..." className="h-11 pl-9" />
-            </label>
-            <Input name="tipo" defaultValue={filtros.tipo} placeholder="Tipo de evento" className="h-11 lg:col-span-2" />
-            <Input name="entidade" defaultValue={filtros.entidadeTipo} placeholder="Entidade" className="h-11 lg:col-span-2" />
-            <Input name="ator" defaultValue={filtros.ator} placeholder="Ator" className="h-11 lg:col-span-2" />
-            <div className="flex items-center gap-2 lg:col-span-2">
-              <Calendar className="size-4 shrink-0 text-muted-foreground" />
-              <Input aria-label="Data inicial" name="dataInicial" type="date" defaultValue={filtros.dataInicial} className="h-11 min-w-0" />
+        <CardContent>
+          <form method="get" className="space-y-4">
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-12">
+              <label className="relative md:col-span-2 xl:col-span-4">
+                <span className="sr-only">Buscar</span>
+                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  name="q"
+                  defaultValue={filtros.q}
+                  placeholder="Buscar por evento ou entidade..."
+                  className="h-11 pl-9"
+                />
+              </label>
+              <Input
+                aria-label="Tipo de evento"
+                name="tipo"
+                defaultValue={filtros.tipo}
+                placeholder="Tipo de evento"
+                className="h-11 xl:col-span-3"
+              />
+              <Input
+                aria-label="Entidade"
+                name="entidade"
+                defaultValue={filtros.entidadeTipo}
+                placeholder="Entidade"
+                className="h-11 xl:col-span-3"
+              />
+              <Input
+                aria-label="Ator"
+                name="ator"
+                defaultValue={filtros.ator}
+                placeholder="Ator"
+                className="h-11 xl:col-span-2"
+              />
             </div>
-            <div className="flex items-center gap-2 lg:col-span-4 lg:col-start-7">
-              <span className="text-xs text-muted-foreground">até</span>
-              <Input aria-label="Data final" name="dataFinal" type="date" defaultValue={filtros.dataFinal} className="h-11 min-w-0" />
-              <Button type="submit">Aplicar filtros</Button>
-              <Button
-                render={<Link href="/gestor/auditoria" />}
-                variant="outline"
-                nativeButton={false}
-              >
-                Limpar
-              </Button>
+
+            <div className="flex flex-col gap-4 border-t border-border pt-4 lg:flex-row lg:items-end lg:justify-between">
+              <fieldset className="w-full min-w-0 lg:max-w-xl">
+                <legend className="mb-2 flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                  <Calendar className="size-4" />
+                  Período
+                </legend>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="min-w-0 space-y-1">
+                    <span className="text-xs text-muted-foreground">De</span>
+                    <Input
+                      name="dataInicial"
+                      type="date"
+                      defaultValue={filtros.dataInicial}
+                      className="h-11"
+                    />
+                  </label>
+                  <label className="min-w-0 space-y-1">
+                    <span className="text-xs text-muted-foreground">Até</span>
+                    <Input
+                      name="dataFinal"
+                      type="date"
+                      defaultValue={filtros.dataFinal}
+                      className="h-11"
+                    />
+                  </label>
+                </div>
+              </fieldset>
+
+              <div className="flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row">
+                <Button
+                  render={<Link href="/gestor/auditoria" />}
+                  variant="outline"
+                  nativeButton={false}
+                  className="h-11 sm:min-w-24"
+                >
+                  Limpar
+                </Button>
+                <Button type="submit" className="h-11 sm:min-w-32">
+                  Aplicar filtros
+                </Button>
+              </div>
             </div>
           </form>
         </CardContent>
