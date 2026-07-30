@@ -59,17 +59,32 @@ export async function notificarCedente(cedenteId: string, titulo: string, mensag
     const vinculados = ((acessos || []) as { user_id: string }[]).map((a) => a.user_id)
     const userIds = [...new Set([ownerUserId, ...vinculados])]
 
-    // Inserir individualmente para que falha de um nao bloqueie os demais
-    await Promise.allSettled(
-      userIds.map(async (uid) => {
-        const { error } = await admin
+    const notificacoesLote = userIds.map((uid) => ({
+      usuario_id: uid,
+      titulo,
+      mensagem,
+      tipo,
+      ...(dedupeKey ? { dedupe_key: `${dedupeKey}:${uid}` } : {}),
+    }))
+
+    const { error: notificacoesError } = dedupeKey
+      ? await admin
           .from('notificacoes')
-          .insert({ usuario_id: uid, titulo, mensagem, tipo, dedupe_key: dedupeKey ? `${dedupeKey}:${uid}` : undefined } as never)
-        if (error) {
-          console.error('[notificarCedente] Falha ao inserir para', uid, ':', error.message)
-        }
+          .upsert(notificacoesLote as never[], {
+            onConflict: 'usuario_id,dedupe_key',
+            ignoreDuplicates: true,
+          })
+      : await admin
+          .from('notificacoes')
+          .insert(notificacoesLote as never[])
+
+    if (notificacoesError) {
+      console.error('[notificarCedente] Falha ao inserir notificacoes:', notificacoesError.message, {
+        cedenteId,
+        tipo,
+        count: notificacoesLote.length,
       })
-    )
+    }
 
     tentarEnviarEmail(ownerUserId, tipo, titulo, mensagem).catch(() => {})
   } catch (err) {
