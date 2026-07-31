@@ -32,7 +32,7 @@ export async function recontarNotificacoesNaoLidas() {
 
 export async function marcarNotificacaoComoLida(notificacaoId: string) {
   const context = await requireAuthenticated()
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(notificacaoId)) {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(notificacaoId)) {
     return { success: false, message: 'Notificacao invalida.' }
   }
 

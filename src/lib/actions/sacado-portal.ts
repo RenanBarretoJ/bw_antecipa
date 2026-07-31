@@ -9,7 +9,7 @@ import {
   type SacadoPortalOperacao,
 } from '@/lib/sacado/portal-domain'
 import { resolverContextoSacado } from '@/lib/sacado/contexto.server'
-import { buckets } from '@/lib/storage'
+import { obterUrlArquivoNotaFiscal } from '@/lib/actions/arquivo-nota-fiscal'
 
 type SacadoPortalData = {
   nfs: SacadoPortalNotaFiscal[]
@@ -134,34 +134,5 @@ export type ArquivoNotaSacadoResult = {
 export async function obterUrlArquivoNotaSacado(
   notaFiscalId: string,
 ): Promise<ArquivoNotaSacadoResult> {
-  try {
-    const { auth, cnpj } = await resolverContextoSacado()
-    const { data: nota, error } = await auth.supabase
-      .from('notas_fiscais')
-      .select('id, cnpj_destinatario, arquivo_url')
-      .eq('id', notaFiscalId)
-      .maybeSingle()
-
-    if (error) throw new Error(`Nao foi possivel consultar o arquivo da NF: ${error.message}`)
-    if (!nota || String(nota.cnpj_destinatario).replace(/\D/g, '') !== cnpj) {
-      return { success: false, message: 'Nota fiscal nao vinculada ao sacado autenticado.' }
-    }
-    if (!nota.arquivo_url) {
-      return { success: false, message: 'Esta nota fiscal nao possui arquivo original.' }
-    }
-
-    const { data, error: signedError } = await auth.supabase.storage
-      .from(buckets.notasFiscais)
-      .createSignedUrl(nota.arquivo_url, 600)
-
-    if (signedError || !data?.signedUrl) {
-      throw new Error(signedError?.message || 'Falha ao gerar a URL temporaria.')
-    }
-    return { success: true, url: data.signedUrl }
-  } catch (error) {
-    return {
-      success: false,
-      message: error instanceof Error ? error.message : 'Nao foi possivel abrir o arquivo da NF.',
-    }
-  }
+  return obterUrlArquivoNotaFiscal(notaFiscalId)
 }

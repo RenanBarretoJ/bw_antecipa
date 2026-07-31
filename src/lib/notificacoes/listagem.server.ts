@@ -45,7 +45,9 @@ export async function carregarNotificacoesUsuario(input: {
     : await requireAuthenticated()
   const limit = Math.min(Math.max(input.limit ?? 20, 1), 40)
   const cursor = input.cursor ? parseCursor(input.cursor) : null
-  if (input.cursor && !cursor) throw new Error('Cursor de notificacoes invalido.')
+  if (input.cursor && !cursor) {
+    console.warn('[notificacoes] Cursor invalido ignorado; primeira pagina sera carregada.')
+  }
 
   let query = context.supabase
     .from('notificacoes')

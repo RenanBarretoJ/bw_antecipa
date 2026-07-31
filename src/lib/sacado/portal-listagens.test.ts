@@ -238,10 +238,14 @@ describe('arquitetura do Escopo 4', () => {
 
   it('gera URL assinada somente sob demanda e revalida o destinatário', () => {
     const action = ler('src/lib/actions/sacado-portal.ts')
+    const sharedAction = ler('src/lib/actions/arquivo-nota-fiscal.ts')
+    const authorization = ler('src/lib/auth/authorization.ts')
     const loader = ler('src/lib/sacado/portal-loaders.server.ts')
     expect(action).toContain('obterUrlArquivoNotaSacado')
-    expect(action).toContain('createSignedUrl')
-    expect(action).toContain('cnpj_destinatario')
+    expect(action).toContain('obterUrlArquivoNotaFiscal(notaFiscalId)')
+    expect(sharedAction).toContain('requireNotaFiscalAccess(notaFiscalId)')
+    expect(sharedAction).toContain('createSignedUrl')
+    expect(authorization).toContain('cnpj_destinatario')
     expect(loader).not.toContain('createSignedUrl')
   })
 

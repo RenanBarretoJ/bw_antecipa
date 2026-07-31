@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { aprovarNF, reprovarNF, solicitarAjusteNF } from '@/lib/actions/nota-fiscal'
+import { obterUrlArquivoNotaFiscal } from '@/lib/actions/arquivo-nota-fiscal'
 import { formatCurrency, formatCNPJ, formatDate, parseLocalDate } from '@/lib/utils'
-import { buckets } from '@/lib/storage'
 import Link from 'next/link'
 import {
   ArrowLeft,
@@ -130,10 +130,8 @@ export default function NfDetalheGestorPage() {
         setNf(nfData)
 
         if (nfData.arquivo_url) {
-          const { data: signedData } = await supabase.storage
-            .from(buckets.notasFiscais)
-            .createSignedUrl(nfData.arquivo_url, 3600)
-          if (signedData) setPreviewUrl(signedData.signedUrl)
+          const signed = await obterUrlArquivoNotaFiscal(nfData.id)
+          if (signed.success && signed.url) setPreviewUrl(signed.url)
         }
       }
 

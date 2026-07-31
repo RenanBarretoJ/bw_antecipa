@@ -513,3 +513,16 @@ Próximos bloqueios mínimos antes de nova avaliação:
    correções.
 
 Não executar commit ou push nesta entrega, conforme o escopo 9A.2.
+
+## Atualização posterior — Escopo 9C
+
+Os bloqueadores críticos registrados neste relatório foram tratados e
+retestados no Escopo 9C. O histórico e o parecer NO-GO desta execução 9A.2
+permanecem inalterados. Consulte o relatório posterior:
+
+[`relatorio-escopo-9c-bloqueadores-9a2.md`](./relatorio-escopo-9c-bloqueadores-9a2.md).
+
+## Atualização posterior — Escopo 9A.3
+
+A homologação final e o parecer de produção estão documentados em
+[`relatorio-homologacao-escopo-9a-final.md`](./relatorio-homologacao-escopo-9a-final.md).

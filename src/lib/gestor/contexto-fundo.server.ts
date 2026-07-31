@@ -2,7 +2,11 @@ import 'server-only'
 
 import { cookies } from 'next/headers'
 import type { AuthContext } from '@/lib/auth/authorization'
-import { FUNDO_ATIVO_COOKIE } from '@/lib/fundos/fundo-ativo'
+import {
+  escolherFundoInicial,
+  FUNDO_ATIVO_COOKIE,
+  type FundoAutorizado,
+} from '@/lib/fundos/fundo-ativo'
 
 export type ContextoFundoGestor = {
   fundoId: string
@@ -15,6 +19,7 @@ type UsuarioFundoRow = {
   fundo_id: string
   perfil_no_fundo: string
   status: string
+  principal: boolean
   fundos: {
     id: string
     nome: string
@@ -24,9 +29,9 @@ type UsuarioFundoRow = {
 }
 
 /**
- * Resolve o fundo a partir do cookie HttpOnly e o revalida contra
- * usuario_fundos. O contexto autenticado e recebido para evitar uma segunda
- * leitura de sessao/perfil no mesmo request.
+ * Resolve o fundo no servidor antes de qualquer consulta dependente. O cookie
+ * e apenas uma preferencia: quando ausente, invalido ou nao autorizado, a
+ * selecao cai no fundo principal/primeiro fundo ativo autorizado.
  */
 export async function resolverContextoFundoGestor(
   auth: AuthContext,
@@ -35,30 +40,38 @@ export async function resolverContextoFundoGestor(
     throw new Error('O perfil do gestor nao esta ativo.')
   }
 
-  const fundoId = (await cookies()).get(FUNDO_ATIVO_COOKIE)?.value
-  if (!fundoId) throw new Error('Selecione um fundo ativo para continuar.')
+  const cookieFundoId = (await cookies()).get(FUNDO_ATIVO_COOKIE)?.value || null
 
   const { data, error } = await auth.supabase
     .from('usuario_fundos')
-    .select('fundo_id, perfil_no_fundo, status, fundos(id, nome, cnpj, ativo)')
+    .select('fundo_id, perfil_no_fundo, status, principal, fundos(id, nome, cnpj, ativo)')
     .eq('usuario_id', auth.user.id)
-    .eq('fundo_id', fundoId)
     .eq('status', 'ativo')
-    .maybeSingle()
+    .order('principal', { ascending: false })
+    .order('created_at', { ascending: true })
 
   if (error) {
     throw new Error(`Nao foi possivel validar o fundo ativo: ${error.message}`)
   }
 
-  const row = data as unknown as UsuarioFundoRow | null
-  if (!row?.fundos || row.fundos.ativo === false) {
-    throw new Error('O fundo ativo nao esta autorizado para este gestor.')
-  }
+  const fundos = ((data || []) as unknown as UsuarioFundoRow[])
+    .filter((row) => row.fundos && row.fundos.ativo !== false)
+    .map((row): FundoAutorizado => ({
+      id: row.fundo_id,
+      nome: row.fundos?.nome || row.fundo_id,
+      cnpj: row.fundos?.cnpj || null,
+      status: row.status,
+      perfilNoFundo: row.perfil_no_fundo,
+      principal: row.principal,
+    }))
+  const selecionado = escolherFundoInicial({ fundos, cookieFundoId })
+
+  if (!selecionado) throw new Error('Nenhum fundo ativo autorizado foi encontrado para este gestor.')
 
   return {
-    fundoId: row.fundo_id,
-    fundoNome: row.fundos.nome,
-    fundoCnpj: row.fundos.cnpj,
-    perfilNoFundo: row.perfil_no_fundo,
+    fundoId: selecionado.id,
+    fundoNome: selecionado.nome,
+    fundoCnpj: selecionado.cnpj,
+    perfilNoFundo: selecionado.perfilNoFundo,
   }
 }
