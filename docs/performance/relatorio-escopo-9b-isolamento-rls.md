@@ -190,7 +190,7 @@ Após a aplicação:
 
 Foi executado:
 
-    npm run perf9b:verify
+    npm run perf9b:verify -- --env-file .env.homolog
 
 O verificador reutiliza a massa PERF9A existente e autentica os usuários reais
 de homologação com senha e TOTP. A sessão é elevada e confirmada com
@@ -220,7 +220,7 @@ Cobertura da matriz:
 
 Evidência restrita, fora do repositório:
 
-    %LOCALAPPDATA%/BWAntecipa/perf9a/evidence/rls-escopo9b-fhgkmggthxikfpogrvaa-2026-07-30T20-30-21.150Z.json
+    %LOCALAPPDATA%/BWAntecipa/perf9a/evidence/rls-escopo9b-fhgkmggthxikfpogrvaa-2026-07-30T20-29-45.319Z.json
 
 Não são armazenados tokens, senhas, segredos ou códigos TOTP nessa evidência.
 
@@ -249,7 +249,7 @@ separadamente durante o diagnóstico.
 
 Evidência restrita:
 
-    %LOCALAPPDATA%/BWAntecipa/perf9a/evidence/explain-escopo9b-fhgkmggthxikfpogrvaa-2026-07-30T20-32-44.676Z.json
+    %LOCALAPPDATA%/BWAntecipa/perf9a/evidence/explain-escopo9b-fhgkmggthxikfpogrvaa-2026-07-30T20-31-20.535Z.json
 
 Nenhum índice novo foi criado neste escopo.
 
@@ -263,8 +263,8 @@ Executadas durante esta entrega:
 | node --check scripts/perf9a/explain-escopo9b-homolog.mjs | Aprovado |
 | npx vitest run src/lib/performance/escopo9b.test.ts | Aprovado: 5 testes |
 | git diff --check | Aprovado |
-| npm run perf9b:verify | Aprovado: 50/50 |
-| npm run perf9b:explain | Aprovado |
+| npm run perf9b:verify -- --env-file .env.homolog | Aprovado: 50/50 |
+| npm run perf9b:explain -- --env-file .env.homolog | Aprovado |
 
 As validações gerais `npx tsc --noEmit`, `npm test -- --run`, `npm run lint`
 e `npx next build --webpack` também foram executadas e aprovadas nesta

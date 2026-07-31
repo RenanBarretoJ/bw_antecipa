@@ -368,3 +368,7 @@ exclusivamente no Escopo 9B, com policies RLS incrementais, helpers privados e
 matriz autenticada AAL2. O 9A continua sem parecer de produção; a evidência
 posterior e as limitações remanescentes estão em
 [`relatorio-escopo-9b-isolamento-rls.md`](./relatorio-escopo-9b-isolamento-rls.md).
+
+A retomada posterior dos gates, sem substituir este parecer histórico, está
+documentada em
+[`relatorio-homologacao-escopo-9a-retomada.md`](./relatorio-homologacao-escopo-9a-retomada.md).

@@ -25,7 +25,7 @@ const nextConfig: NextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              `connect-src 'self' ${supabaseOrigin} https://*.supabase.co`,
+              `connect-src 'self' ${supabaseOrigin} https://*.supabase.co wss://*.supabase.co`,
               "img-src 'self' data: blob:",
               "font-src 'self' data:",
               "style-src 'self' 'unsafe-inline'",
