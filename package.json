@@ -20,6 +20,14 @@
     "perf9a:verify": "node scripts/perf9a/verify-homolog.mjs",
     "perf9b:verify": "node scripts/perf9a/verify-escopo9b-homolog.mjs",
     "perf9b:explain": "node scripts/perf9a/explain-escopo9b-homolog.mjs",
+    "perf9c:storage": "node scripts/perf9a/storage-escopo9c-homolog.mjs",
+    "perf9c:smoke": "node scripts/perf9a/smoke-escopo9c-browser.mjs",
+    "perf9d:audit": "node scripts/perf9d/audit-homolog.mjs",
+    "perf9d:artifacts": "node scripts/perf9d/generate-artifacts.mjs",
+    "perf9d:clean-room": "node scripts/perf9d/clean-room.mjs",
+    "perf9e:artifacts": "node scripts/perf9e/generate-artifacts.mjs",
+    "perf9e:clean-room": "node scripts/perf9e/database-clean-room.mjs",
+    "perf9e:clean-room:full-stack": "node scripts/perf9e/clean-room.mjs",
     "reset:operacional:fundo": "node scripts/reset-operacional-fundo.mjs",
     "reset:operacional:fundo:install-rpc": "node scripts/install-reset-operacional-rpc.mjs"
   },
@@ -58,7 +66,7 @@
     "eslint": "^9",
     "eslint-config-next": "^16.2.6",
     "pg": "^8.22.0",
-    "supabase": "^2.88.1",
+    "supabase": "2.111.0",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.10"
