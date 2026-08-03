@@ -11,7 +11,7 @@ import {
   type NotificacaoPagina,
 } from './contracts'
 
-const SELECT_FIELDS = 'id, titulo, mensagem, tipo, lida, created_at'
+const SELECT_FIELDS = 'id, titulo, mensagem, tipo, lida, entidade_tipo, entidade_id, href, created_at'
 
 export async function contarNotificacoesDoContext(context: AuthContext): Promise<NotificacaoContadores> {
   const [totalResult, unreadResult] = await Promise.all([

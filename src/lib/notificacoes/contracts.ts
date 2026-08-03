@@ -49,6 +49,10 @@ export function compactarNotificacao(row: unknown): NotificacaoListagemItem | nu
     || typeof value.lida !== 'boolean'
   ) return null
 
+  const href = typeof value.href === 'string' && value.href.startsWith('/') && !value.href.startsWith('//')
+    ? value.href
+    : null
+
   return {
     id: value.id,
     createdAt: value.created_at,
@@ -56,9 +60,9 @@ export function compactarNotificacao(row: unknown): NotificacaoListagemItem | nu
     mensagem: value.mensagem,
     tipo: value.tipo,
     lida: value.lida,
-    entidadeTipo: null,
-    entidadeId: null,
-    href: null,
+    entidadeTipo: typeof value.entidade_tipo === 'string' ? value.entidade_tipo : null,
+    entidadeId: typeof value.entidade_id === 'string' && UUID_PATTERN.test(value.entidade_id) ? value.entidade_id : null,
+    href,
   }
 }
 

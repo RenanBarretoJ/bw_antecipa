@@ -8,14 +8,15 @@
   "remoteReadOnly": true,
   "mutationExecuted": false,
   "counts": {
-    "local": 73,
+    "local": 74,
     "remoteHistory": 5,
     "classifications": {
       "divergent": 2,
       "indeterminate": 45,
       "materially_fully_applied_without_history": 14,
       "materially_partially_applied": 8,
-      "registered_and_equivalent": 4
+      "registered_and_equivalent": 4,
+      "local_pending_review": 1
     },
     "remoteObjectsWithoutLocalOrigin": 86
   },
@@ -3653,6 +3654,62 @@
       },
       "classification": "materially_fully_applied_without_history",
       "reconciliationDecision": "candidata após controle formal"
+    },
+    {
+      "order": 74,
+      "version": "20260731171219",
+      "name": "postergacao_upload_canhoto",
+      "path": "supabase/migrations/20260731171219_postergacao_upload_canhoto.sql",
+      "sha256": "20659024f3a732f232deacc1d8ad387db9a47cbf48fe3373c8613a9697a89bb7",
+      "canonicalStatementSha256": "601ca73f8855a37b08604648ee0e1c4e5e1747b893fcf5512323a647e6a3ff92",
+      "bytes": 22554,
+      "statements": 31,
+      "dependencies": [
+        "public.canhotos",
+        "public.cedente_fundos",
+        "public.cedentes",
+        "public.documento_requisito_instancias",
+        "public.documento_versoes",
+        "public.eventos_dominio",
+        "public.eventos_entrega",
+        "public.fundos",
+        "public.logs_auditoria",
+        "public.nota_fiscal_entregas",
+        "public.notas_fiscais",
+        "public.notificacoes",
+        "public.operacoes",
+        "public.politica_operacional_versoes",
+        "public.profiles",
+        "public.usuario_fundos"
+      ],
+      "expectationCounts": {
+        "precondition_block": 1,
+        "column": 2,
+        "dynamic_sql_block": 2,
+        "function": 3,
+        "table": 1,
+        "index": 2,
+        "trigger": 1,
+        "rls_enabled": 1,
+        "policy": 3,
+        "unparsed_ddl": 4,
+        "constraint": 1,
+        "grant": 2,
+        "schema_cache_reload": 1
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": true,
+        "explicitTransaction": true,
+        "dynamicSql": true,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {},
+      "classification": "local_pending_review",
+      "reconciliationDecision": "aplicar primeiro em homologacao e validar a RPC antes de promover"
     }
   ]
 }

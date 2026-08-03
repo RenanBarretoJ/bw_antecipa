@@ -283,6 +283,8 @@ export interface PoliticaOperacionalVersao {
   aceite_sacado_obrigatorio: boolean
   cessao_no_desembolso: boolean
   cria_acompanhamento_entrega: boolean
+  permite_postergacao_upload_canhoto: boolean
+  limite_postergacao_upload_canhoto_dias: number | null
   configuracao: Record<string, unknown>
   regras: Record<string, unknown>
   parametros: Record<string, unknown>
@@ -451,6 +453,26 @@ export interface EventoEntrega {
   registrado_por: string | null
   ator_tipo: AuditoriaAtorTipo
   dados: Record<string, unknown>
+  created_at: string
+}
+
+export interface NotaFiscalEntregaPostergacaoCanhoto {
+  id: string
+  nota_fiscal_entrega_id: string
+  nota_fiscal_id: string
+  operacao_id: string
+  fundo_id: string
+  cedente_id: string
+  cedente_fundo_id: string
+  politica_operacional_versao_id: string
+  politica_snapshot_hash: string
+  prazo_original_upload_canhoto: string
+  nova_previsao_upload_canhoto: string
+  motivo_postergacao: string
+  limite_postergacao_dias_aplicado: number
+  postergacao_comunicada_em: string
+  postergacao_comunicada_por: string
+  utilizada: boolean
   created_at: string
 }
 
@@ -1054,6 +1076,9 @@ export interface Notificacao {
   mensagem: string
   tipo: string
   dedupe_key: string | null
+  entidade_tipo: string | null
+  entidade_id: string | null
+  href: string | null
   lida: boolean
   created_at: string
 }
@@ -1071,6 +1096,7 @@ export interface Database {
       cedente_fundo_politicas: { Row: CedenteFundoPolitica & Record<string, unknown>; Insert: InsertShape<CedenteFundoPolitica, 'cedente_fundo_id' | 'politica_operacional_id'> & Record<string, unknown>; Update: UpdateShape<CedenteFundoPolitica> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'cedente_fundo_politicas_cedente_fundo_id_fkey'; columns: ['cedente_fundo_id']; isOneToOne: false; referencedRelation: 'cedente_fundos'; referencedColumns: ['id'] }, { foreignKeyName: 'cedente_fundo_politicas_politica_operacional_id_fkey'; columns: ['politica_operacional_id']; isOneToOne: false; referencedRelation: 'politicas_operacionais'; referencedColumns: ['id'] }] }
       documento_analises: { Row: DocumentoAnalise & Record<string, unknown>; Insert: InsertShape<DocumentoAnalise, 'documento_versao_id' | 'resultado'> & Record<string, unknown>; Update: UpdateShape<DocumentoAnalise> & Record<string, unknown>; Relationships: [] }
       nota_fiscal_entregas: { Row: NotaFiscalEntrega & Record<string, unknown>; Insert: InsertShape<NotaFiscalEntrega, 'operacao_id' | 'nota_fiscal_id' | 'status_entrega'> & Record<string, unknown>; Update: UpdateShape<NotaFiscalEntrega> & Record<string, unknown>; Relationships: [] }
+      nota_fiscal_entrega_postergacoes_canhoto: { Row: NotaFiscalEntregaPostergacaoCanhoto & Record<string, unknown>; Insert: InsertShape<NotaFiscalEntregaPostergacaoCanhoto, 'nota_fiscal_entrega_id' | 'nota_fiscal_id' | 'operacao_id' | 'fundo_id' | 'cedente_id' | 'cedente_fundo_id' | 'politica_operacional_versao_id' | 'politica_snapshot_hash' | 'prazo_original_upload_canhoto' | 'nova_previsao_upload_canhoto' | 'motivo_postergacao' | 'limite_postergacao_dias_aplicado' | 'postergacao_comunicada_por'> & Record<string, unknown>; Update: UpdateShape<NotaFiscalEntregaPostergacaoCanhoto> & Record<string, unknown>; Relationships: [] }
       eventos_entrega: { Row: EventoEntrega & Record<string, unknown>; Insert: InsertShape<EventoEntrega, 'nota_fiscal_entrega_id' | 'tipo_evento'> & Record<string, unknown>; Update: UpdateShape<EventoEntrega> & Record<string, unknown>; Relationships: [] }
       eventos_dominio: { Row: EventoDominio & Record<string, unknown>; Insert: InsertShape<EventoDominio, 'tipo_evento' | 'categoria' | 'descricao'> & Record<string, unknown>; Update: UpdateShape<EventoDominio> & Record<string, unknown>; Relationships: [] }
       ctes: { Row: Cte & Record<string, unknown>; Insert: InsertShape<Cte, 'cedente_id' | 'formato_origem' | 'nivel_validacao'> & Record<string, unknown>; Update: UpdateShape<Cte> & Record<string, unknown>; Relationships: [] }
@@ -1197,6 +1223,7 @@ export interface Database {
       desembolsar_operacao_com_logistica: { Args: { p_operacao_id: string }; Returns: Record<string, unknown> }
       registrar_cte_documento: { Args: { p_nota_fiscal_ids: string[]; p_documento_tipo_codigo: string; p_nome_original: string; p_mime_type: string; p_tamanho_bytes: number; p_sha256: string; p_bucket: string; p_path: string; p_chave_cte?: string | null; p_numero?: string | null; p_serie?: string | null; p_data_emissao?: string | null; p_cnpj_transportadora?: string | null; p_cnpj_remetente?: string | null; p_cnpj_destinatario?: string | null; p_valor_frete?: number | null; p_nivel_validacao?: string; p_dados_extraidos?: Record<string, unknown> }; Returns: Record<string, unknown> }
       registrar_canhoto_documento: { Args: { p_nota_fiscal_entrega_id: string; p_nome_original: string; p_mime_type: string; p_tamanho_bytes: number; p_sha256: string; p_bucket: string; p_path: string; p_data_assinatura?: string | null; p_nome_recebedor?: string | null; p_documento_recebedor?: string | null; p_possui_assinatura?: boolean; p_possui_ressalva?: boolean; p_descricao_ressalva?: string | null }; Returns: Record<string, unknown> }
+      comunicar_postergacao_upload_canhoto: { Args: { p_nota_fiscal_id: string; p_nova_previsao: string; p_motivo: string }; Returns: Record<string, unknown> }
       analisar_cte_documento: { Args: { p_cte_id: string; p_documento_versao_id: string; p_resultado: string; p_motivo?: string | null }; Returns: Record<string, unknown> }
       revalidar_cte_nota_fiscal: { Args: { p_cte_id: string; p_nota_fiscal_id: string }; Returns: Record<string, unknown> }
       analisar_canhoto_documento: { Args: { p_canhoto_id: string; p_documento_versao_id: string; p_resultado: string; p_motivo?: string | null }; Returns: Record<string, unknown> }

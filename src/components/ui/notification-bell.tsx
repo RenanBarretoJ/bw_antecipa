@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Bell } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import {
@@ -25,6 +26,7 @@ function timeAgo(dateStr: string) {
 }
 
 export function NotificationBell({ userId }: { userId: string }) {
+  const router = useRouter()
   const [items, setItems] = useState<NotificacaoListagemItem[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [open, setOpen] = useState(false)
@@ -142,7 +144,13 @@ export function NotificationBell({ userId }: { userId: string }) {
               <button
                 type="button"
                 key={item.id}
-                onClick={() => markAsRead(item)}
+                onClick={async () => {
+                  await markAsRead(item)
+                  if (item.href) {
+                    setOpen(false)
+                    router.push(item.href)
+                  }
+                }}
                 className={`w-full border-b border-border px-4 py-3 text-left transition-colors hover:bg-muted ${!item.lida ? 'bg-primary/5' : ''}`}
               >
                 <div className="flex items-start justify-between gap-2">

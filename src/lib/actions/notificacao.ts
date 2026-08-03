@@ -9,14 +9,17 @@ interface NotificacaoInput {
   mensagem: string
   tipo: string
   dedupe_key?: string
+  entidade_tipo?: string
+  entidade_id?: string
+  href?: string
 }
 
-export async function criarNotificacao({ usuario_id, titulo, mensagem, tipo, dedupe_key }: NotificacaoInput) {
+export async function criarNotificacao({ usuario_id, titulo, mensagem, tipo, dedupe_key, entidade_tipo, entidade_id, href }: NotificacaoInput) {
   try {
     const supabase = await createClient()
     const { error } = await supabase
       .from('notificacoes')
-      .insert({ usuario_id, titulo, mensagem, tipo, dedupe_key } as never)
+      .insert({ usuario_id, titulo, mensagem, tipo, dedupe_key, entidade_tipo, entidade_id, href } as never)
 
     if (error) {
       console.error('[criarNotificacao] Falha ao inserir:', error.message, { usuario_id, tipo })

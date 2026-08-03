@@ -16,7 +16,7 @@ import {
 const POSTGRES_IMAGE = 'public.ecr.aws/supabase/postgres:17.6.1.156'
 const STORAGE_IMAGE = 'public.ecr.aws/supabase/storage-api:v1.67.20'
 const STORAGE_CORE_MAX_MIGRATION = 46
-const EXPECTED_ACTIVE_MIGRATIONS = 73
+const EXPECTED_ACTIVE_MIGRATIONS = 74
 const args = parseArgs()
 const repositoryRoot = process.cwd()
 const candidatePath = resolve(repositoryRoot, 'scripts/perf9e/bootstrap/schema-base-candidate.sql')

@@ -11,7 +11,7 @@ const candidatePath = resolve(repositoryRoot, 'scripts/perf9e/bootstrap/schema-b
 const migrationDirectory = resolve(repositoryRoot, 'supabase/migrations')
 const SOURCE_COMMIT = '94e84e618fa0fbc96312441c847a37aa44afc744'
 const SOURCE_BLOB = '06f6c4f4d1b6c12d1f7afb60f3cd451042503a07'
-const EXPECTED_MIGRATIONS = 73
+const EXPECTED_MIGRATIONS = 74
 
 const cleanEvidence = readLatestCleanEvidence()
 const auditEvidence = readLatestAuditEvidence()
@@ -339,7 +339,7 @@ function buildReport() {
 
 **NO-GO PARA CUTOVER DEFINITION.**
 
-A origem histórica do schema-base foi reconstruída, o candidato foi mantido fora da cadeia ativa e a instalação \`bootstrap + 73 migrations\` foi concluída com sucesso em **dois bancos descartáveis independentes**. Os dumps e catálogos finais são idênticos entre os ciclos.
+A origem histórica do schema-base foi reconstruída, o candidato foi mantido fora da cadeia ativa e a instalação \`bootstrap + ${EXPECTED_MIGRATIONS} migrations\` foi concluída com sucesso em **dois bancos descartáveis independentes**. Os dumps e catálogos finais são idênticos entre os ciclos.
 
 O cutover ainda não pode ser definido porque a instalação limpa não reproduz integralmente homologação. O desvio mais crítico é RLS desabilitada em \`public.devedores_solidarios\` no clean-room, embora esteja habilitada em homologação. Além disso, o stack Supabase completo não pôde ser iniciado no Docker Desktop desta estação; a prova executada cobre PostgreSQL, schema Storage e checks funcionais reduzidos, mas não comprova Auth/Storage API em execução integrada.
 
@@ -370,7 +370,7 @@ Cada ciclo:
 2. provisionou o núcleo Storage compatível com a configuração local;
 3. criou o helper padrão de plataforma \`auth.jwt()\` exigido pelo fluxo MFA;
 4. aplicou o bootstrap candidato;
-5. aplicou as 73 migrations ativas na ordem canônica;
+5. aplicou as ${EXPECTED_MIGRATIONS} migrations ativas na ordem canônica;
 6. registrou o histórico local;
 7. executou checks funcionais reduzidos de RLS/multifundo/Storage;
 8. gerou dump e catálogo normalizados;
@@ -417,7 +417,7 @@ A classificação 9D não foi reescrita. O 9E demonstra que a cadeia, quando par
 
 ## 7. Referências futuras na RPC de reset
 
-A migration \`20260723182639_reset_operacional_fundo_homolog_rpc.sql\` referencia objetos criados posteriormente, incluindo \`eventos_dominio\` e \`cedente_fundo_politicas\`. Ela aplica porque PL/pgSQL posterga parte da resolução de relações até a execução da função. No estado intermediário da cadeia, porém, a RPC não é segura para execução. Ao final dos 73 arquivos as referências existem e o schema converge.
+A migration \`20260723182639_reset_operacional_fundo_homolog_rpc.sql\` referencia objetos criados posteriormente, incluindo \`eventos_dominio\` e \`cedente_fundo_politicas\`. Ela aplica porque PL/pgSQL posterga parte da resolução de relações até a execução da função. No estado intermediário da cadeia, porém, a RPC não é segura para execução. Ao final dos ${EXPECTED_MIGRATIONS} arquivos as referências existem e o schema converge.
 
 Recomendação: em evolução futura, mover a criação/substituição final da RPC para depois das dependências ou adicionar uma migration incremental que a recrie no ponto correto. Não reordenar migrations já aplicadas.
 
@@ -453,7 +453,7 @@ Achados centrais:
 
 - ☑ origem histórica do baseline comprovada;
 - ☑ candidato fora da cadeia ativa;
-- ☑ 73 migrations aplicadas duas vezes do zero;
+- ☑ ${EXPECTED_MIGRATIONS} migrations aplicadas duas vezes do zero;
 - ☑ dumps e catálogos reproduzíveis;
 - ☑ checks reduzidos 9B/9C aprovados;
 - ☑ diff homologação versus clean-room concluído;

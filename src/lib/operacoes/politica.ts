@@ -31,6 +31,8 @@ export interface PoliticaSnapshot {
   aceite_sacado_obrigatorio: boolean
   cessao_no_desembolso: boolean
   cria_acompanhamento_entrega: boolean
+  permite_postergacao_upload_canhoto?: boolean
+  limite_postergacao_upload_canhoto_dias?: number | null
   configuracao: Record<string, unknown>
   requisitos: Array<{
     id: string
@@ -99,6 +101,8 @@ export function criarSnapshotPolitica(policy: PoliticaResolvida): { snapshot: Po
     aceite_sacado_obrigatorio: policy.versao.aceite_sacado_obrigatorio,
     cessao_no_desembolso: policy.versao.cessao_no_desembolso,
     cria_acompanhamento_entrega: policy.versao.cria_acompanhamento_entrega,
+    permite_postergacao_upload_canhoto: policy.versao.permite_postergacao_upload_canhoto,
+    limite_postergacao_upload_canhoto_dias: policy.versao.limite_postergacao_upload_canhoto_dias,
     configuracao: policy.versao.configuracao,
     requisitos: [...policy.requisitos]
       .sort((left, right) => left.ordem - right.ordem || left.codigo.localeCompare(right.codigo))

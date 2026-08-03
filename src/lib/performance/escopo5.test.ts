@@ -54,7 +54,7 @@ describe('performance scope 5 structure', () => {
     const loader = source('src/lib/notificacoes/listagem.server.ts')
     const actions = source('src/lib/actions/notificacoes-listagem.ts')
     expect(loader).toContain(".eq('usuario_id', context.user.id)")
-    expect(loader).toContain("const SELECT_FIELDS = 'id, titulo, mensagem, tipo, lida, created_at'")
+    expect(loader).toContain("const SELECT_FIELDS = 'id, titulo, mensagem, tipo, lida, entidade_tipo, entidade_id, href, created_at'")
     expect(loader).not.toContain("select('*')")
     expect(actions).not.toContain('usuarioId:')
     expect(actions).toContain(".eq('usuario_id', context.user.id)")

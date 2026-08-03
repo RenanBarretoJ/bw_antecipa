@@ -334,11 +334,14 @@ export function NotificacoesPageClient({
                         <Badge className={cn('gap-1 border-transparent', config.badgeClass)}>
                           <TypeIcon className="size-2.5" />{config.label}
                         </Badge>
-                        {!item.lida && (
-                          <Button variant="ghost" size="sm" onClick={() => markOne(item)} disabled={markingId === item.id} className="h-7 gap-1.5 px-2.5 text-xs">
-                            <Check className="size-3" />{markingId === item.id ? 'Marcando...' : 'Marcar como lida'}
-                          </Button>
-                        )}
+                        <div className="flex items-center gap-2">
+                          {item.href && <Button render={<Link href={item.href} />} variant="outline" size="sm" className="h-7 px-2.5 text-xs">Abrir detalhe</Button>}
+                          {!item.lida && (
+                            <Button variant="ghost" size="sm" onClick={() => markOne(item)} disabled={markingId === item.id} className="h-7 gap-1.5 px-2.5 text-xs">
+                              <Check className="size-3" />{markingId === item.id ? 'Marcando...' : 'Marcar como lida'}
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>

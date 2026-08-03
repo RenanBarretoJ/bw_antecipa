@@ -59,6 +59,8 @@ interface VersionRow {
   aceite_sacado_obrigatorio: boolean
   cessao_no_desembolso: boolean
   cria_acompanhamento_entrega: boolean
+  permite_postergacao_upload_canhoto: boolean
+  limite_postergacao_upload_canhoto_dias: number | null
   configuracao?: Record<string, unknown> | null
 }
 interface RequirementRow {
@@ -157,6 +159,7 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
   const [policyForm, setPolicyForm] = useState({ codigo: '', nome: '', descricao: '' })
   const [linkForm, setLinkForm] = useState({ politicaId: '', vigenteDesde: new Date().toISOString().slice(0, 10), motivo: '' })
   const [operationalSelections, setOperationalSelections] = useState<PoliticaOperationalSelections>(defaultSelections)
+  const [postponementForm, setPostponementForm] = useState({ permite: false, limiteDias: '' })
   const [requirementsForm, setRequirementsForm] = useState<PoliticaRequisitoInput[]>([])
 
   const loadData = useCallback(async () => {
@@ -187,7 +190,7 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
       ;[versionResult, requirementResult] = await Promise.all([
         supabase
           .from('politica_operacional_versoes')
-          .select('id, politica_operacional_id, fundo_id, cedente_fundo_id, versao, status, publicada_em, publicada_por, vigente_desde, vigente_ate, created_at, aceite_sacado_obrigatorio, cessao_no_desembolso, cria_acompanhamento_entrega, configuracao')
+          .select('id, politica_operacional_id, fundo_id, cedente_fundo_id, versao, status, publicada_em, publicada_por, vigente_desde, vigente_ate, created_at, aceite_sacado_obrigatorio, cessao_no_desembolso, cria_acompanhamento_entrega, permite_postergacao_upload_canhoto, limite_postergacao_upload_canhoto_dias, configuracao')
           .in('politica_operacional_id', policyIds)
           .order('versao', { ascending: false }),
         supabase
@@ -289,6 +292,10 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
     const source = base || currentVersion(policy.id) || versionsByPolicy.get(policy.id)?.find((version) => versionStatus(version) === 'rascunho') || null
     const sourceRequirements = source ? requirementsByVersion.get(source.id) || [] : []
     setOperationalSelections(source ? mapLegacyFlagsToOperationalSelections(source) : defaultSelections)
+    setPostponementForm(source ? {
+      permite: source.permite_postergacao_upload_canhoto === true,
+      limiteDias: source.limite_postergacao_upload_canhoto_dias?.toString() || '',
+    } : { permite: false, limiteDias: '' })
     setRequirementsForm(source ? cloneRequirements(sourceRequirements) : [emptyRequirement(0)])
     setVersionStep('fluxo')
     setVersionModalOpen(true)
@@ -299,6 +306,10 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
     const flags = mapOperationalSelectionsToLegacyFlags(operationalSelections)
     const payload: CriarVersaoPoliticaInput = {
       ...flags,
+      permite_postergacao_upload_canhoto: postponementForm.permite,
+      limite_postergacao_upload_canhoto_dias: postponementForm.permite && postponementForm.limiteDias
+        ? Number(postponementForm.limiteDias)
+        : null,
       configuracao: {
         fluxo_operacional: operationalSelections,
         requisito_ui_schema: 'bw-antecipa.politica-operacional-ui.v2',
@@ -554,6 +565,39 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
                   ))}
                 </div>
               </div>
+              <div className="rounded-xl border border-border bg-background p-4 lg:col-span-3">
+                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                  <div>
+                    <Label>Postergação do upload do canhoto</Label>
+                    <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+                      Permite ao cedente comunicar uma única nova previsão após a cessão. O prazo original permanece visível e a comunicação não depende de aprovação do gestor.
+                    </p>
+                  </div>
+                  <label className="flex shrink-0 items-center gap-2 text-sm font-medium">
+                    <input
+                      type="checkbox"
+                      checked={postponementForm.permite}
+                      onChange={(event) => setPostponementForm((current) => ({ ...current, permite: event.target.checked }))}
+                    />
+                    Permitir postergação do upload do canhoto
+                  </label>
+                </div>
+                {postponementForm.permite && (
+                  <div className="mt-4 max-w-xs">
+                    <Label htmlFor="limite-postergacao-canhoto">Limite máximo de postergação em dias corridos</Label>
+                    <Input
+                      id="limite-postergacao-canhoto"
+                      type="number"
+                      min={1}
+                      step={1}
+                      value={postponementForm.limiteDias}
+                      onChange={(event) => setPostponementForm((current) => ({ ...current, limiteDias: event.target.value }))}
+                      placeholder="5 (padrão)"
+                    />
+                    <p className="mt-1 text-xs text-muted-foreground">Se não informado, o limite aplicado será de 5 dias corridos.</p>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -585,6 +629,7 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
                 <DetailField label="Aceite do sacado" value={describeAceiteSacado(operationalSelections.aceiteSacado)} />
                 <DetailField label="Momento da cessao" value={describeMomentoCessao(operationalSelections.momentoCessao)} />
                 <DetailField label="Entrega" value={describeAcompanhamentoEntrega(operationalSelections.acompanhamentoEntrega)} />
+                <DetailField label="Postergação do canhoto" value={postponementForm.permite ? `Permitida uma vez · limite ${postponementForm.limiteDias || '5'} dias` : 'Não permitida'} />
               </div>
               <div className="rounded-xl border border-border">
                 <div className="border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Requisitos</div>

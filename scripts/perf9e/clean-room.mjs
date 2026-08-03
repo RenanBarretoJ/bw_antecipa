@@ -18,7 +18,7 @@ const args = parseArgs()
 const repositoryRoot = process.cwd()
 const candidatePath = resolve(repositoryRoot, 'scripts/perf9e/bootstrap/schema-base-candidate.sql')
 const cliScript = resolve(repositoryRoot, 'node_modules/supabase/dist/supabase.js')
-const expectedActiveMigrations = 73
+const expectedActiveMigrations = 74
 
 try {
   await main()

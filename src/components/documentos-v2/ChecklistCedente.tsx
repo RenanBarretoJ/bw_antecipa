@@ -9,9 +9,14 @@ import {
   type ChecklistDocumento,
   type ChecklistDocumentoItem,
 } from '@/lib/actions/documento-v2'
-import { AlertTriangle, CheckCircle, ChevronDown, ChevronUp, Clock, Eye, FileText, Loader2, MoreVertical, ShieldAlert, Truck, Upload, XCircle } from 'lucide-react'
+import { comunicarPostergacaoUploadCanhoto } from '@/lib/actions/postergacao-canhoto'
+import { validarNovaPrevisaoCanhoto, type StatusPrazoUploadCanhoto } from '@/lib/logistica/postergacao-canhoto'
+import { AlertTriangle, CalendarClock, CheckCircle, ChevronDown, ChevronUp, Clock, Eye, FileText, Loader2, MoreVertical, ShieldAlert, Truck, Upload, XCircle } from 'lucide-react'
 import { DocumentDropzone } from './DocumentDropzone'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { useNotifications } from '@/components/notifications/notification-provider'
 
 type ChecklistMode = 'cedente' | 'gestor'
@@ -47,6 +52,15 @@ const logisticoLabels: Record<ChecklistDocumento['resumoOperacional']['statusLog
   em_atraso: 'Em atraso',
   cancelada: 'Cancelada',
   devolvida: 'Devolvida',
+}
+
+const prazoCanhotoLabels: Record<StatusPrazoUploadCanhoto, string> = {
+  sem_prazo: 'Sem prazo',
+  pendente: 'Dentro do prazo',
+  vence_hoje: 'Vence hoje',
+  vencido: 'Prazo vencido',
+  atendido_no_prazo: 'Upload no prazo',
+  atendido_em_atraso: 'Upload em atraso',
 }
 
 function acceptedFromFormats(formats?: string[]): string | undefined {
@@ -346,6 +360,182 @@ function OperationalSummary({ checklist }: { checklist: ChecklistDocumento }) {
   )
 }
 
+function CanhotoPostponementCard({
+  notaFiscalId,
+  mode,
+  data,
+  onSaved,
+}: {
+  notaFiscalId: string
+  mode: ChecklistMode
+  data: NonNullable<ChecklistDocumento['postergacaoCanhoto']>
+  onSaved: () => Promise<void>
+}) {
+  const notifications = useNotifications()
+  const [open, setOpen] = useState(false)
+  const [reviewing, setReviewing] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [novaPrevisao, setNovaPrevisao] = useState('')
+  const [motivo, setMotivo] = useState('')
+
+  const reset = () => {
+    setReviewing(false)
+    setNovaPrevisao('')
+    setMotivo('')
+  }
+
+  const review = () => {
+    if (!data.avaliacao.dataMinima || !data.avaliacao.dataMaxima) return
+    const error = validarNovaPrevisaoCanhoto({
+      novaPrevisao,
+      prazoOriginal: data.prazoOriginal,
+      hoje: data.dataReferencia,
+      dataMinima: data.avaliacao.dataMinima,
+      dataMaxima: data.avaliacao.dataMaxima,
+    })
+    if (error) return notifications.warning(error)
+    if (!motivo.trim()) return notifications.warning('Informe o motivo da nova previsão.')
+    setReviewing(true)
+  }
+
+  const submit = async () => {
+    setSubmitting(true)
+    const result = await comunicarPostergacaoUploadCanhoto({ notaFiscalId, novaPrevisao, motivo })
+    notifications.fromActionResult(result)
+    if (result.success) {
+      await onSaved()
+      setOpen(false)
+      reset()
+    }
+    setSubmitting(false)
+  }
+
+  const statusTone = (status: StatusPrazoUploadCanhoto | null) => status === 'vencido' || status === 'atendido_em_atraso'
+    ? 'text-destructive'
+    : status === 'atendido_no_prazo'
+      ? 'text-success-foreground'
+      : 'text-foreground'
+
+  return (
+    <div className="mb-3 rounded-xl border bg-background p-3">
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div className="flex min-w-0 items-start gap-3">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-info/15 text-info-foreground">
+            <CalendarClock size={17} />
+          </span>
+          <div>
+            <p className="font-semibold">Previsão de upload do canhoto</p>
+            <p className="text-sm text-muted-foreground">O prazo original permanece preservado para acompanhamento de atraso.</p>
+          </div>
+        </div>
+        {mode === 'cedente' && data.avaliacao.permitida && (
+          <Button type="button" size="sm" variant="outline" onClick={() => setOpen(true)}>
+            <CalendarClock size={14} />
+            Informar nova previsão de upload
+          </Button>
+        )}
+      </div>
+
+      <div className="mt-3 grid gap-3 rounded-lg border bg-card p-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+        <div>
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">Prazo original</p>
+          <p className="font-medium">{formatDateBR(data.prazoOriginal)}</p>
+          <p className={`text-xs ${statusTone(data.statusPrazoOriginal)}`}>{prazoCanhotoLabels[data.statusPrazoOriginal]}</p>
+        </div>
+        <div>
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">Nova previsão</p>
+          <p className="font-medium">{formatDateBR(data.novaPrevisao) || 'Não informada'}</p>
+          {data.statusNovaPrevisao && <p className={`text-xs ${statusTone(data.statusNovaPrevisao)}`}>{prazoCanhotoLabels[data.statusNovaPrevisao]}</p>}
+        </div>
+        <div>
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">Primeiro upload</p>
+          <p className="font-medium">{formatDateBR(data.primeiroUploadEm) || 'Ainda não realizado'}</p>
+        </div>
+        <div>
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">Comunicação</p>
+          <p className="font-medium">{formatDateBR(data.comunicadaEm) || 'Não utilizada'}</p>
+          {mode === 'gestor' && data.comunicadaPorNome && <p className="truncate text-xs text-muted-foreground" title={data.comunicadaPorNome}>{data.comunicadaPorNome}</p>}
+        </div>
+      </div>
+
+      {data.motivo && (
+        <div className="mt-3 rounded-lg bg-muted/40 px-3 py-2 text-sm">
+          <span className="font-medium">Motivo informado: </span>{data.motivo}
+        </div>
+      )}
+      {mode === 'gestor' && data.limiteDiasAplicado && (
+        <p className="mt-2 text-xs text-muted-foreground">Limite aplicado pelo snapshot: {data.limiteDiasAplicado} dias corridos. A comunicação não exige aprovação.</p>
+      )}
+
+      <Dialog open={open} onOpenChange={(value) => { setOpen(value); if (!value) reset() }}>
+        <DialogContent className="sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>{reviewing ? 'Confirmar nova previsão' : 'Informar nova previsão de upload'}</DialogTitle>
+            <DialogDescription>
+              Esta comunicação pode ser feita uma única vez e não altera o prazo original do canhoto.
+            </DialogDescription>
+          </DialogHeader>
+
+          {!reviewing ? (
+            <div className="space-y-4">
+              <div className="grid gap-3 rounded-lg border bg-muted/30 p-3 text-sm sm:grid-cols-2">
+                <div><p className="text-xs uppercase text-muted-foreground">Prazo original</p><p className="font-medium">{formatDateBR(data.prazoOriginal)}</p></div>
+                <div><p className="text-xs uppercase text-muted-foreground">Data máxima</p><p className="font-medium">{formatDateBR(data.avaliacao.dataMaxima)}</p></div>
+              </div>
+              <div>
+                <Label htmlFor="nova-previsao-canhoto">Nova previsão</Label>
+                <Input
+                  id="nova-previsao-canhoto"
+                  type="date"
+                  min={data.avaliacao.dataMinima || undefined}
+                  max={data.avaliacao.dataMaxima || undefined}
+                  value={novaPrevisao}
+                  onChange={(event) => setNovaPrevisao(event.target.value)}
+                />
+                <p className="mt-1 text-xs text-muted-foreground">Intervalo permitido: {formatDateBR(data.avaliacao.dataMinima)} a {formatDateBR(data.avaliacao.dataMaxima)}.</p>
+              </div>
+              <div>
+                <Label htmlFor="motivo-postergacao-canhoto">Motivo</Label>
+                <textarea
+                  id="motivo-postergacao-canhoto"
+                  value={motivo}
+                  maxLength={1000}
+                  onChange={(event) => setMotivo(event.target.value)}
+                  className="mt-2 min-h-24 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  placeholder="Explique por que o upload será realizado em uma nova data."
+                />
+              </div>
+              <div className="rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning-foreground">
+                Depois de confirmada, a nova previsão não poderá ser editada ou informada novamente. O primeiro upload do canhoto também encerra definitivamente essa opção.
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3 rounded-lg border bg-muted/30 p-4 text-sm">
+              <div><p className="text-xs uppercase text-muted-foreground">Nova previsão</p><p className="font-semibold">{formatDateBR(novaPrevisao)}</p></div>
+              <div><p className="text-xs uppercase text-muted-foreground">Motivo</p><p>{motivo.trim()}</p></div>
+              <p className="font-medium text-warning-foreground">Confirme somente se os dados estiverem corretos. Esta ação é irreversível.</p>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => reviewing ? setReviewing(false) : setOpen(false)} disabled={submitting}>
+              {reviewing ? 'Voltar' : 'Cancelar'}
+            </Button>
+            {reviewing ? (
+              <Button type="button" onClick={submit} disabled={submitting}>
+                {submitting && <Loader2 size={14} className="animate-spin" />}
+                Confirmar comunicação
+              </Button>
+            ) : (
+              <Button type="button" onClick={review} disabled={!novaPrevisao || !motivo.trim()}>Revisar comunicação</Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
+
 export type ChecklistEligibilitySummary = Pick<
   ChecklistDocumento['elegibilidade'],
   'elegivel' | 'requisitosPendentes' | 'totalObrigatorios' | 'concluidosObrigatorios' | 'pendentesObrigatorios'
@@ -520,6 +710,14 @@ export function ChecklistCedente({
                 {checklist.entrega.motivoPendencia && <span className="text-destructive">{checklist.entrega.motivoPendencia}</span>}
               </div>
             </div>
+          )}
+          {checklist.postergacaoCanhoto && (
+            <CanhotoPostponementCard
+              notaFiscalId={notaFiscalId}
+              mode={mode}
+              data={checklist.postergacaoCanhoto}
+              onSaved={load}
+            />
           )}
           {checklist.posCessao.length === 0 ? (
             <p className="rounded-lg border bg-background p-3 text-sm text-muted-foreground">Os documentos pós-cessão serão liberados após o desembolso.</p>

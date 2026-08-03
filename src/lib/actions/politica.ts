@@ -23,6 +23,8 @@ export interface CriarVersaoPoliticaInput {
   aceite_sacado_obrigatorio: boolean
   cessao_no_desembolso: boolean
   cria_acompanhamento_entrega: boolean
+  permite_postergacao_upload_canhoto: boolean
+  limite_postergacao_upload_canhoto_dias: number | null
   configuracao?: Record<string, unknown>
   requisitos: PoliticaRequisitoInput[]
 }
@@ -36,6 +38,8 @@ function hashVersao(input: CriarVersaoPoliticaInput, requisitos: ReturnType<type
     aceite_sacado_obrigatorio: input.aceite_sacado_obrigatorio,
     cessao_no_desembolso: input.cessao_no_desembolso,
     cria_acompanhamento_entrega: input.cria_acompanhamento_entrega,
+    permite_postergacao_upload_canhoto: input.permite_postergacao_upload_canhoto,
+    limite_postergacao_upload_canhoto_dias: input.limite_postergacao_upload_canhoto_dias,
     configuracao: input.configuracao || {},
     requisitos,
   })).digest('hex')
@@ -205,6 +209,17 @@ export async function criarVersaoPolitica(
     if (lastError) return result(`Erro ao consultar ultima versao: ${lastError.message}`)
     const version = ((last as { versao: number } | null)?.versao || 0) + 1
     const config = input.configuracao || {}
+    if (input.limite_postergacao_upload_canhoto_dias !== null
+      && (!Number.isInteger(input.limite_postergacao_upload_canhoto_dias) || input.limite_postergacao_upload_canhoto_dias <= 0)) {
+      return result('O limite de postergação do canhoto deve ser um número inteiro positivo.')
+    }
+    const exigeCanhoto = normalized.some((requirement) => requirement.ativo
+      && requirement.obrigatorio
+      && ['pos_cessao', 'entrega'].includes(requirement.momento_obrigatorio)
+      && ['canhoto', 'comprovante_entrega'].includes(requirement.tipo_documento_codigo))
+    if (input.permite_postergacao_upload_canhoto && !exigeCanhoto) {
+      return result('A postergação só pode ser habilitada quando houver canhoto obrigatório no pós-cessão.')
+    }
     validarConfiguracaoPublica(config)
     const payload = { ...input, configuracao: config, requisitos: normalized }
     const hash = hashVersao(payload, normalized)
@@ -217,6 +232,10 @@ export async function criarVersaoPolitica(
       aceite_sacado_obrigatorio: input.aceite_sacado_obrigatorio,
       cessao_no_desembolso: input.cessao_no_desembolso,
       cria_acompanhamento_entrega: input.cria_acompanhamento_entrega,
+      permite_postergacao_upload_canhoto: input.permite_postergacao_upload_canhoto,
+      limite_postergacao_upload_canhoto_dias: input.permite_postergacao_upload_canhoto
+        ? input.limite_postergacao_upload_canhoto_dias
+        : null,
       configuracao: config,
       regras: config.fluxo_operacional ? { fluxo_operacional: config.fluxo_operacional } : {},
       parametros: config,
@@ -415,6 +434,8 @@ export async function duplicarPoliticaDoFundo(
         aceite_sacado_obrigatorio: boolean
         cessao_no_desembolso: boolean
         cria_acompanhamento_entrega: boolean
+        permite_postergacao_upload_canhoto: boolean
+        limite_postergacao_upload_canhoto_dias: number | null
         configuracao: Record<string, unknown>
       }
       const { data: baseRequirements, error: requirementsError } = await context.supabase
@@ -432,6 +453,8 @@ export async function duplicarPoliticaDoFundo(
         aceite_sacado_obrigatorio: base.aceite_sacado_obrigatorio,
         cessao_no_desembolso: base.cessao_no_desembolso,
         cria_acompanhamento_entrega: base.cria_acompanhamento_entrega,
+        permite_postergacao_upload_canhoto: base.permite_postergacao_upload_canhoto,
+        limite_postergacao_upload_canhoto_dias: base.limite_postergacao_upload_canhoto_dias,
         configuracao: base.configuracao || {},
         requisitos,
       })

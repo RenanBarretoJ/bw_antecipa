@@ -20,6 +20,13 @@ import {
 import { carregarContextoEventoDocumentoVersao, registrarEventoDominio } from '@/lib/eventos-dominio/registrar'
 import type { DocumentoAnaliseResultado, PoliticaNivelValidacao } from '@/lib/types/domain'
 import { revalidatePath } from 'next/cache'
+import {
+  avaliarPossibilidadePostergacaoCanhoto,
+  calcularStatusPrazoUploadCanhoto,
+  snapshotExigeCanhoto,
+  type AvaliacaoPostergacaoCanhoto,
+  type StatusPrazoUploadCanhoto,
+} from '@/lib/logistica/postergacao-canhoto'
 
 const DOCUMENTOS_COM_VALIDACAO_ESTRUTURAL_NO_UPLOAD = new Set([
   'nf_xml',
@@ -75,6 +82,20 @@ export interface ChecklistDocumento {
   preCessao: ChecklistDocumentoItem[]
   posCessao: ChecklistDocumentoItem[]
   entrega: { id: string; status: string; dataInicioPrazo: string | null; motivoPendencia: string | null; dataEntrega: string | null; entregaConfirmadaEm: string | null } | null
+  postergacaoCanhoto: {
+    dataReferencia: string
+    prazoOriginal: string
+    statusPrazoOriginal: StatusPrazoUploadCanhoto
+    novaPrevisao: string | null
+    statusNovaPrevisao: StatusPrazoUploadCanhoto | null
+    motivo: string | null
+    comunicadaEm: string | null
+    comunicadaPorId: string | null
+    comunicadaPorNome: string | null
+    limiteDiasAplicado: number | null
+    primeiroUploadEm: string | null
+    avaliacao: AvaliacaoPostergacaoCanhoto
+  } | null
   elegibilidade: ElegibilidadeDocumental
   elegibilidadeAprovacao: ElegibilidadeDocumental
   posCessaoResumo: {
@@ -122,7 +143,7 @@ async function carregarChecklist(notaFiscalId: string): Promise<ChecklistDocumen
   // para evitar divergência entre policies auxiliares de gestor e cedente.
   const dataClient = createAdminClient()
 
-  const [{ data: nfData }, { data: entregaData }] = await Promise.all([
+  const [{ data: nfData }, { data: entregaData }, { data: postergacaoData, error: postergacaoError }] = await Promise.all([
     dataClient
       .from('notas_fiscais')
       .select('id, status')
@@ -130,15 +151,48 @@ async function carregarChecklist(notaFiscalId: string): Promise<ChecklistDocumen
       .maybeSingle(),
     dataClient
     .from('nota_fiscal_entregas')
-    .select('id, status_entrega, cessao_efetivada_em, data_entrega, entrega_confirmada_em, motivo_pendencia, created_at')
+    .select('id, operacao_id, status_entrega, cessao_efetivada_em, data_limite_canhoto, data_entrega, entrega_confirmada_em, motivo_pendencia, created_at')
     .eq('nota_fiscal_id', notaFiscalId)
     .not('status_entrega', 'eq', 'nao_aplicavel')
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle(),
+    dataClient
+      .from('nota_fiscal_entrega_postergacoes_canhoto')
+      .select('id, nota_fiscal_entrega_id, prazo_original_upload_canhoto, nova_previsao_upload_canhoto, motivo_postergacao, limite_postergacao_dias_aplicado, postergacao_comunicada_em, postergacao_comunicada_por')
+      .eq('nota_fiscal_id', notaFiscalId)
+      .maybeSingle(),
   ])
+  if (postergacaoError) throw new Error(`Erro ao carregar postergação do canhoto: ${postergacaoError.message}`)
   const notaFiscal = nfData as { id: string; status: string } | null
-  const entrega = entregaData as { id: string; status_entrega: string; cessao_efetivada_em: string | null; data_entrega: string | null; entrega_confirmada_em: string | null; motivo_pendencia: string | null; created_at: string } | null
+  const entrega = entregaData as { id: string; operacao_id: string; status_entrega: string; cessao_efetivada_em: string | null; data_limite_canhoto: string | null; data_entrega: string | null; entrega_confirmada_em: string | null; motivo_pendencia: string | null; created_at: string } | null
+  const postergacao = postergacaoData as {
+    id: string
+    nota_fiscal_entrega_id: string
+    prazo_original_upload_canhoto: string
+    nova_previsao_upload_canhoto: string
+    motivo_postergacao: string
+    limite_postergacao_dias_aplicado: number
+    postergacao_comunicada_em: string
+    postergacao_comunicada_por: string
+  } | null
+
+  const [{ data: operationData }, { data: legacyCanhotos }] = entrega
+    ? await Promise.all([
+      dataClient
+        .from('operacoes')
+        .select('id, politica_snapshot, politica_snapshot_hash, politica_operacional_versao_id, cessao_efetivada_em')
+        .eq('id', entrega.operacao_id)
+        .maybeSingle(),
+      dataClient
+        .from('canhotos')
+        .select('created_at')
+        .eq('nota_fiscal_entrega_id', entrega.id)
+        .order('created_at', { ascending: true })
+        .limit(1),
+    ])
+    : [{ data: null }, { data: [] }]
+  const operation = operationData as { id: string; politica_snapshot: Record<string, unknown> | null; politica_snapshot_hash: string | null; politica_operacional_versao_id: string | null; cessao_efetivada_em: string | null } | null
 
   const instancesQuery = dataClient
     .from('documento_requisito_instancias')
@@ -188,6 +242,7 @@ async function carregarChecklist(notaFiscalId: string): Promise<ChecklistDocumen
   const profileIds = Array.from(new Set([
     ...versions.map((version) => version.enviado_por).filter(Boolean),
     ...analysisRows.map((analysis) => analysis.analisado_por).filter(Boolean),
+    ...(postergacao?.postergacao_comunicada_por ? [postergacao.postergacao_comunicada_por] : []),
   ] as string[]))
   const { data: profiles } = profileIds.length
     ? await dataClient.from('profiles').select('id, nome_completo, email').in('id', profileIds)
@@ -342,6 +397,40 @@ async function carregarChecklist(notaFiscalId: string): Promise<ChecklistDocumen
         : posCessaoVisivel.some((item) => item.versoes.some((version) => version.status === 'em_analise' || version.status === 'enviado'))
           ? 'em_analise'
           : 'pendente'
+  const canhotoItems = posCessaoVisivel.filter((item) => ['canhoto', 'comprovante_entrega'].includes(normalizarCodigoDocumentoCatalogo(item.codigo)))
+  const firstDocumentUpload = canhotoItems
+    .flatMap((item) => item.versoes)
+    .map((version) => version.criadoEm)
+    .filter(Boolean)
+    .sort()[0] || null
+  const firstLegacyUpload = ((legacyCanhotos || []) as Array<{ created_at: string }>)[0]?.created_at || null
+  const primeiroUploadCanhotoEm = [firstDocumentUpload, firstLegacyUpload].filter(Boolean).sort()[0] || null
+  const hoje = new Date().toISOString().slice(0, 10)
+  const snapshot = operation?.politica_snapshot ?? null
+  const prazoOriginalCanhoto = postergacao?.prazo_original_upload_canhoto || entrega?.data_limite_canhoto || null
+  const postergacaoCanhoto = entrega && prazoOriginalCanhoto && snapshotExigeCanhoto(snapshot) ? {
+    dataReferencia: hoje,
+    prazoOriginal: prazoOriginalCanhoto,
+    statusPrazoOriginal: calcularStatusPrazoUploadCanhoto({ prazo: prazoOriginalCanhoto, hoje, primeiroUploadEm: primeiroUploadCanhotoEm }),
+    novaPrevisao: postergacao?.nova_previsao_upload_canhoto || null,
+    statusNovaPrevisao: postergacao?.nova_previsao_upload_canhoto
+      ? calcularStatusPrazoUploadCanhoto({ prazo: postergacao.nova_previsao_upload_canhoto, hoje, primeiroUploadEm: primeiroUploadCanhotoEm })
+      : null,
+    motivo: postergacao?.motivo_postergacao || null,
+    comunicadaEm: postergacao?.postergacao_comunicada_em || null,
+    comunicadaPorId: postergacao?.postergacao_comunicada_por || null,
+    comunicadaPorNome: postergacao?.postergacao_comunicada_por ? profileNames.get(postergacao.postergacao_comunicada_por) || null : null,
+    limiteDiasAplicado: postergacao?.limite_postergacao_dias_aplicado || null,
+    primeiroUploadEm: primeiroUploadCanhotoEm,
+    avaliacao: avaliarPossibilidadePostergacaoCanhoto({
+      snapshot,
+      prazoOriginal: prazoOriginalCanhoto,
+      hoje,
+      postergacaoJaUtilizada: Boolean(postergacao),
+      primeiroUploadEm: primeiroUploadCanhotoEm,
+      notaCedida: Boolean(entrega.cessao_efetivada_em && operation?.cessao_efetivada_em),
+    }),
+  } : null
   const proximoPrazo = items
     .filter((item) => itensVisiveis.includes(item) && item.dataLimite && !documentoItemEstaAprovado(item) && !['dispensado', 'cancelado'].includes(item.status))
     .sort((a, b) => String(a.dataLimite).localeCompare(String(b.dataLimite)))[0] || null
@@ -376,6 +465,7 @@ async function carregarChecklist(notaFiscalId: string): Promise<ChecklistDocumen
       dataEntrega: entrega.data_entrega,
       entregaConfirmadaEm: entrega.entrega_confirmada_em,
     } : null,
+    postergacaoCanhoto,
     elegibilidade,
     elegibilidadeAprovacao,
     posCessaoResumo: {
