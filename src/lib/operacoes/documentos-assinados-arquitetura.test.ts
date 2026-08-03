@@ -51,4 +51,14 @@ describe('arquitetura do upload de documentos assinados', () => {
     expect(componente).toContain('window.confirm')
     expect(componente).toContain('disabled={enviando')
   })
+
+  it('mantem a linha responsiva e reduz a substituicao a uma acao acessivel por icone', () => {
+    expect(componente).toContain('className="flex w-full min-w-0 items-center gap-2"')
+    expect(componente).toContain('className="min-w-0 flex-1 gap-2 text-xs"')
+    expect(componente).toContain('size="icon-sm"')
+    expect(componente).toContain('title="Substituir documento"')
+    expect(componente).toContain('aria-label="Substituir documento"')
+    expect(componente).toContain('className="min-w-0 truncate"')
+    expect(componente).not.toContain("'Substituir'")
+  })
 })

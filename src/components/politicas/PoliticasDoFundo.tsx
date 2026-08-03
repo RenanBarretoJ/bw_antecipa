@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Copy, FileCog, History, Link2, Plus, Send, ShieldCheck, Star, Trash2 } from 'lucide-react'
+import { CalendarClock, Copy, FileCog, History, Link2, Plus, Send, ShieldCheck, Star, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import {
   criarPoliticaDoFundo,
@@ -565,37 +565,56 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
                   ))}
                 </div>
               </div>
-              <div className="rounded-xl border border-border bg-background p-4 lg:col-span-3">
-                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                  <div>
-                    <Label>Postergação do upload do canhoto</Label>
-                    <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-                      Permite ao cedente comunicar uma única nova previsão após a cessão. O prazo original permanece visível e a comunicação não depende de aprovação do gestor.
-                    </p>
+              <div className="overflow-hidden rounded-xl border border-border bg-background lg:col-span-3">
+                <div className="flex flex-col gap-4 border-b border-border px-4 py-4 sm:px-5 md:flex-row md:items-center md:justify-between">
+                  <div className="flex min-w-0 items-start gap-3">
+                    <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                      <CalendarClock size={18} />
+                    </div>
+                    <div className="min-w-0">
+                      <Label className="text-sm font-semibold">Postergação do envio do Comprovante de Entrega</Label>
+                      <p className="mt-1 max-w-3xl text-sm leading-relaxed text-muted-foreground">
+                        Permite que o cedente comunique uma única nova previsão após a cessão. O prazo original continua válido para acompanhamento e a comunicação não exige aprovação.
+                      </p>
+                    </div>
                   </div>
-                  <label className="flex shrink-0 items-center gap-2 text-sm font-medium">
+                  <label className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2.5 text-sm font-medium md:w-auto md:min-w-56">
+                    <span>Permitir postergação</span>
                     <input
                       type="checkbox"
                       checked={postponementForm.permite}
                       onChange={(event) => setPostponementForm((current) => ({ ...current, permite: event.target.checked }))}
+                      className="size-4 accent-primary"
                     />
-                    Permitir postergação do upload do canhoto
                   </label>
                 </div>
-                {postponementForm.permite && (
-                  <div className="mt-4 max-w-xs">
-                    <Label htmlFor="limite-postergacao-canhoto">Limite máximo de postergação em dias corridos</Label>
-                    <Input
-                      id="limite-postergacao-canhoto"
-                      type="number"
-                      min={1}
-                      step={1}
-                      value={postponementForm.limiteDias}
-                      onChange={(event) => setPostponementForm((current) => ({ ...current, limiteDias: event.target.value }))}
-                      placeholder="5 (padrão)"
-                    />
-                    <p className="mt-1 text-xs text-muted-foreground">Se não informado, o limite aplicado será de 5 dias corridos.</p>
+                {postponementForm.permite ? (
+                  <div className="grid gap-4 bg-muted/10 px-4 py-4 sm:px-5 md:grid-cols-[minmax(240px,320px)_minmax(0,1fr)] md:items-end">
+                    <div className="min-w-0">
+                      <Label htmlFor="limite-postergacao-canhoto">Limite da nova previsão</Label>
+                      <div className="relative mt-2">
+                        <Input
+                          id="limite-postergacao-canhoto"
+                          type="number"
+                          min={1}
+                          step={1}
+                          value={postponementForm.limiteDias}
+                          onChange={(event) => setPostponementForm((current) => ({ ...current, limiteDias: event.target.value }))}
+                          placeholder="5"
+                          className="pr-24"
+                        />
+                        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">dias corridos</span>
+                      </div>
+                    </div>
+                    <div className="rounded-lg border border-primary/15 bg-primary/5 px-3 py-2.5 text-sm text-muted-foreground">
+                      <p className="font-medium text-foreground">Como funciona</p>
+                      <p className="mt-1 leading-relaxed">O limite é contado a partir do prazo original. Se o campo ficar vazio, serão considerados 5 dias corridos.</p>
+                    </div>
                   </div>
+                ) : (
+                  <p className="bg-muted/10 px-4 py-3 text-sm text-muted-foreground sm:px-5">
+                    Ative esta opção para permitir uma única nova previsão de envio do Comprovante de Entrega.
+                  </p>
                 )}
               </div>
             </div>

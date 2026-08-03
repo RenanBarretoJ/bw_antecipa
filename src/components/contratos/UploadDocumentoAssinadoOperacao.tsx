@@ -92,7 +92,7 @@ export function UploadDocumentoAssinadoOperacao({
   }
 
   return (
-    <div className="space-y-1">
+    <div className="w-full min-w-0">
       <input
         ref={inputRef}
         type="file"
@@ -103,27 +103,27 @@ export function UploadDocumentoAssinadoOperacao({
       />
 
       {disponivel ? (
-        <div className="flex items-center gap-2">
+        <div className="flex w-full min-w-0 items-center gap-2">
           <Button
             variant="outline"
             size="sm"
             onClick={handleDownload}
             disabled={baixando || enviando}
-            className="gap-2 flex-1 text-xs"
+            className="min-w-0 flex-1 gap-2 text-xs"
           >
             {baixando ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
-            {label}
+            <span className="min-w-0 truncate">{label}</span>
           </Button>
           <Button
             variant="ghost"
-            size="sm"
+            size="icon-sm"
             onClick={abrirSeletor}
             disabled={enviando || baixando}
-            title="Substituir arquivo"
-            className="text-xs gap-1 text-muted-foreground"
+            title="Substituir documento"
+            aria-label="Substituir documento"
+            className="shrink-0 text-muted-foreground"
           >
             {enviando ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
-            {enviando ? 'Substituindo...' : 'Substituir'}
           </Button>
         </div>
       ) : (
@@ -132,12 +132,12 @@ export function UploadDocumentoAssinadoOperacao({
           size="sm"
           onClick={abrirSeletor}
           disabled={enviando}
-          className="w-full gap-2 text-xs border-dashed"
+          className="w-full min-w-0 gap-2 border-dashed text-xs"
         >
           {enviando ? (
             <><Loader2 size={13} className="animate-spin" /> Enviando...</>
           ) : (
-            <><Paperclip size={13} /> Anexar {label}</>
+            <><Paperclip size={13} /><span className="min-w-0 truncate">Anexar {label}</span></>
           )}
         </Button>
       )}
