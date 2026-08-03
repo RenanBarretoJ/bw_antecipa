@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { aprovarOperacao, desembolsarOperacao, reprovarOperacao, removerNfDaOperacao, salvarTestemunhasOperacao, salvarTermoAssinado, salvarComprovantePagamento, salvarNotificacaoAssinada, salvarQuitacaoAssinada } from '@/lib/actions/operacao'
+import { aprovarOperacao, desembolsarOperacao, reprovarOperacao, removerNfDaOperacao, salvarTestemunhasOperacao, salvarQuitacaoAssinada } from '@/lib/actions/operacao'
 import { liquidarOperacao, marcarInadimplente } from '@/lib/actions/liquidacao'
 import { analisarCanhoto, analisarCte, baixarVersaoLogistica, carregarResumoEntregaPorOperacao, registrarPendenciaEntrega } from '@/lib/actions/logistica'
 import { formatCurrency, formatCNPJ, formatDate } from '@/lib/utils'
@@ -29,6 +29,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { BotaoDownloadContrato } from '@/components/contratos/BotaoDownloadContrato'
 import { UploadDocumentoAssinado } from '@/components/contratos/UploadDocumentoAssinado'
+import { UploadDocumentoAssinadoOperacao } from '@/components/contratos/UploadDocumentoAssinadoOperacao'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -1403,42 +1404,26 @@ export default function OperacaoDetalheGestorPage() {
 
                   <p className="text-xs font-medium text-muted-foreground border-t pt-3">Documentos assinados</p>
                   <div className="flex flex-col gap-2">
-                    <UploadDocumentoAssinado
+                    <UploadDocumentoAssinadoOperacao
                       label="Termo de Cessao Assinado"
                       storagePath={termoAssinadoUrl}
-                      uploadPath={`operacoes/${op.id}/termo-cessao-assinado.pdf`}
-                      tipoEntidade="operacao"
-                      entidadeId={op.id}
-                      tipoDocumento="termo_assinado"
-                      onSuccess={async (path) => {
-                        await salvarTermoAssinado(op.id, path)
-                        setTermoAssinadoUrl(path)
-                      }}
+                      operacaoId={op.id}
+                      tipoDocumento="TERMO_CESSAO_ASSINADO"
+                      onSuccess={() => setTermoAssinadoUrl('registrado')}
                     />
-                    <UploadDocumentoAssinado
+                    <UploadDocumentoAssinadoOperacao
                       label="Notificacao ao Sacado Assinada"
                       storagePath={notificacaoAssinadaUrl}
-                      uploadPath={`operacoes/${op.id}/notificacao-cessao-assinada.pdf`}
-                      tipoEntidade="operacao"
-                      entidadeId={op.id}
-                      tipoDocumento="notificacao_assinada"
-                      onSuccess={async (path) => {
-                        await salvarNotificacaoAssinada(op.id, path)
-                        setNotificacaoAssinadaUrl(path)
-                      }}
+                      operacaoId={op.id}
+                      tipoDocumento="NOTIFICACAO_SACADO_ASSINADA"
+                      onSuccess={() => setNotificacaoAssinadaUrl('registrado')}
                     />
-                    <UploadDocumentoAssinado
+                    <UploadDocumentoAssinadoOperacao
                       label="Comprovante de Desembolso (TED)"
                       storagePath={comprovanteUrl}
-                      uploadPath={`operacoes/${op.id}/comprovante-pagamento.pdf`}
-                      tipoEntidade="operacao"
-                      entidadeId={op.id}
-                      tipoDocumento="comprovante_pagamento"
-                      accept="application/pdf,image/jpeg,image/png"
-                      onSuccess={async (path) => {
-                        await salvarComprovantePagamento(op.id, path)
-                        setComprovanteUrl(path)
-                      }}
+                      operacaoId={op.id}
+                      tipoDocumento="COMPROVANTE_DESEMBOLSO_TED"
+                      onSuccess={() => setComprovanteUrl('registrado')}
                     />
                   </div>
 
@@ -1580,42 +1565,26 @@ export default function OperacaoDetalheGestorPage() {
                     </div>
                     <p className="text-xs font-medium text-muted-foreground border-t pt-3">Documentos assinados</p>
                     <div className="flex flex-col gap-2">
-                      <UploadDocumentoAssinado
+                      <UploadDocumentoAssinadoOperacao
                         label="Termo de Cessao Assinado"
                         storagePath={termoAssinadoUrl}
-                        uploadPath={`operacoes/${op.id}/termo-cessao-assinado.pdf`}
-                        tipoEntidade="operacao"
-                        entidadeId={op.id}
-                        tipoDocumento="termo_assinado"
-                        onSuccess={async (path) => {
-                          await salvarTermoAssinado(op.id, path)
-                          setTermoAssinadoUrl(path)
-                        }}
+                        operacaoId={op.id}
+                        tipoDocumento="TERMO_CESSAO_ASSINADO"
+                        onSuccess={() => setTermoAssinadoUrl('registrado')}
                       />
-                      <UploadDocumentoAssinado
+                      <UploadDocumentoAssinadoOperacao
                         label="Notificacao ao Sacado Assinada"
                         storagePath={notificacaoAssinadaUrl}
-                        uploadPath={`operacoes/${op.id}/notificacao-cessao-assinada.pdf`}
-                        tipoEntidade="operacao"
-                        entidadeId={op.id}
-                        tipoDocumento="notificacao_assinada"
-                        onSuccess={async (path) => {
-                          await salvarNotificacaoAssinada(op.id, path)
-                          setNotificacaoAssinadaUrl(path)
-                        }}
+                        operacaoId={op.id}
+                        tipoDocumento="NOTIFICACAO_SACADO_ASSINADA"
+                        onSuccess={() => setNotificacaoAssinadaUrl('registrado')}
                       />
-                      <UploadDocumentoAssinado
+                      <UploadDocumentoAssinadoOperacao
                         label="Comprovante de Pagamento"
                         storagePath={comprovanteUrl}
-                        uploadPath={`operacoes/${op.id}/comprovante-pagamento.pdf`}
-                        tipoEntidade="operacao"
-                        entidadeId={op.id}
-                        tipoDocumento="comprovante_pagamento"
-                        accept="application/pdf,image/jpeg,image/png"
-                        onSuccess={async (path) => {
-                          await salvarComprovantePagamento(op.id, path)
-                          setComprovanteUrl(path)
-                        }}
+                        operacaoId={op.id}
+                        tipoDocumento="COMPROVANTE_DESEMBOLSO_TED"
+                        onSuccess={() => setComprovanteUrl('registrado')}
                       />
                       {op.status === 'liquidada' && (
                         <UploadDocumentoAssinado

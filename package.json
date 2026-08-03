@@ -22,6 +22,7 @@
     "perf9b:explain": "node scripts/perf9a/explain-escopo9b-homolog.mjs",
     "perf9c:storage": "node scripts/perf9a/storage-escopo9c-homolog.mjs",
     "perf9c:smoke": "node scripts/perf9a/smoke-escopo9c-browser.mjs",
+    "perf9c:documentos-assinados": "node scripts/perf9a/documentos-assinados-operacao-homolog.mjs",
     "perf9d:audit": "node scripts/perf9d/audit-homolog.mjs",
     "perf9d:artifacts": "node scripts/perf9d/generate-artifacts.mjs",
     "perf9d:clean-room": "node scripts/perf9d/clean-room.mjs",
