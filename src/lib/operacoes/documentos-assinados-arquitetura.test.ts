@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 const componente = readFileSync(resolve(process.cwd(), 'src/components/contratos/UploadDocumentoAssinadoOperacao.tsx'), 'utf8')
 const rota = readFileSync(resolve(process.cwd(), 'src/app/api/operacoes/[id]/documentos-assinados/route.ts'), 'utf8')
 const servidor = readFileSync(resolve(process.cwd(), 'src/lib/operacoes/documentos-assinados.server.ts'), 'utf8')
-const pagina = readFileSync(resolve(process.cwd(), 'src/app/gestor/operacoes/[id]/page.tsx'), 'utf8')
+const pagina = readFileSync(resolve(process.cwd(), 'src/app/gestor/operacoes/[id]/OperacaoDetalheGestorClient.tsx'), 'utf8')
 const actions = readFileSync(resolve(process.cwd(), 'src/lib/actions/operacao.ts'), 'utf8')
 
 describe('arquitetura do upload de documentos assinados', () => {

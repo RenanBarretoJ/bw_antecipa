@@ -345,7 +345,7 @@ export async function carregarResumoEntregaPorOperacao(operacaoId: string) {
   const supabase = await createClient()
   const { data } = await supabase
     .from('nota_fiscal_entregas')
-    .select('*, notas_fiscais(numero_nf, valor_bruto), canhotos(*), eventos_entrega(*), cte_notas_fiscais(ctes(*))')
+    .select('id, nota_fiscal_id, status_entrega, cessao_efetivada_em, data_limite_cte, data_limite_canhoto, data_entrega, entrega_confirmada_em, motivo_pendencia, created_at, updated_at')
     .eq('operacao_id', operacaoId)
     .order('created_at', { ascending: true })
   return data || []
