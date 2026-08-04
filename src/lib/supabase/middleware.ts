@@ -90,7 +90,6 @@ export async function updateSession(request: NextRequest) {
     const role = String(profile?.role || 'cedente')
     const mfaRedirect = await getMfaRedirect({
       supabase,
-      userId: user.id,
       role,
       override: (profile as { mfa_obrigatorio_override?: boolean | null } | null)?.mfa_obrigatorio_override,
       pathname,
@@ -121,7 +120,6 @@ export async function updateSession(request: NextRequest) {
 
       const mfaRedirect = await getMfaRedirect({
         supabase,
-        userId: user.id,
         role: userRole,
         override: (profile as { mfa_obrigatorio_override?: boolean | null } | null)?.mfa_obrigatorio_override,
         pathname,
@@ -158,13 +156,11 @@ function getRoleFromPath(pathname: string): string | null {
 
 async function getMfaRedirect({
   supabase,
-  userId,
   role,
   override,
   pathname,
 }: {
   supabase: MiddlewareSupabaseClient
-  userId: string
   role: string
   override?: boolean | null
   pathname: string
@@ -184,19 +180,17 @@ async function getMfaRedirect({
   const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
   const aalAtual = aal?.currentLevel === 'aal2' ? 'aal2' : 'aal1'
 
-  const { data: sessao } = await supabase
-    .from('sessoes_elevadas')
-    .select('expira_em, metodo')
-    .eq('user_id', userId)
-    .gt('expira_em', new Date().toISOString())
-    .maybeSingle()
+  const { data: sessaoData, error: sessaoError } = await supabase.rpc('obter_sessao_mfa_atual')
+  const sessao = (Array.isArray(sessaoData) ? sessaoData[0] : sessaoData) as { status?: string; metodo?: string } | null
+  const segundoFatorValido = !sessaoError && aalAtual === 'aal2' && sessao?.status === 'valid' && sessao.metodo === 'totp'
 
-  const sessaoElevada = sessao as { metodo?: string } | null
-  const segundoFatorValido = aalAtual === 'aal2' && sessaoElevada?.metodo === 'totp'
+  if (['expired', 'revoked', 'session_invalid'].includes(sessao?.status || '')) {
+    await supabase.rpc('revogar_sessao_mfa_atual', { p_motivo: sessao?.status || 'sessao_invalida' })
+    await supabase.auth.signOut({ scope: 'local' })
+    return '/login'
+  }
 
   if ((exigeMfa || possuiFator) && !segundoFatorValido) return '/mfa/desafio'
-
-  if (exigeMfa && !sessao) return '/mfa/desafio'
 
   return null
 }

@@ -10,12 +10,14 @@ import { encerrarOutrasSessoes, listarFatoresMfa, regenerarCodigosRecuperacao, t
 import { alterarSenhaAutenticado, solicitarNonceAlteracaoSenha, type PasswordActionState } from '@/app/actions/password'
 import { avaliarForcaSenha } from '@/lib/auth/password'
 import { useNotifications } from '@/components/notifications/notification-provider'
+import { useRouter } from 'next/navigation'
 
 type Factor = { id: string; friendlyName: string; status: string }
 type SecurityData = NonNullable<Awaited<ReturnType<typeof listarFatoresMfa>>['data']>
 
 export function SecurityPage() {
   const notifications = useNotifications()
+  const router = useRouter()
   const [data, setData] = useState<SecurityData | null>(null)
   const [codes, setCodes] = useState<string[]>([])
   const [newPassword, setNewPassword] = useState('')
@@ -23,6 +25,8 @@ export function SecurityPage() {
   const [showNewPassword, setShowNewPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [showNonce, setShowNonce] = useState(false)
+  const [recoveryMfaCode, setRecoveryMfaCode] = useState('')
+  const [sessionsMfaCode, setSessionsMfaCode] = useState('')
   const [isPending, startTransition] = useTransition()
   const [passwordState, passwordAction, passwordPending] = useActionState<PasswordActionState | undefined, FormData>(alterarSenhaAutenticado, undefined)
   const passwordStrength = useMemo(() => avaliarForcaSenha(newPassword), [newPassword])
@@ -40,7 +44,8 @@ export function SecurityPage() {
   useEffect(() => {
     if (!passwordState?.message) return
     notifications.fromActionResult(passwordState)
-  }, [notifications, passwordState])
+    if (passwordState.success && passwordState.redirectTo) router.replace(passwordState.redirectTo)
+  }, [notifications, passwordState, router])
 
   function run(action: () => Promise<MfaActionState<{ recoveryCodes?: string[] } | unknown>>) {
     startTransition(async () => {
@@ -114,6 +119,11 @@ export function SecurityPage() {
                 <PasswordInput id="currentPassword" name="currentPassword" label="Senha atual" show={showCurrentPassword} setShow={setShowCurrentPassword} autoComplete="current-password" error={passwordState?.errors?.currentPassword?.[0]} />
                 <PasswordInput id="password" name="password" label="Nova senha" show={showNewPassword} setShow={setShowNewPassword} value={newPassword} onChange={setNewPassword} autoComplete="new-password" error={passwordState?.errors?.password?.[0]} />
                 <PasswordInput id="confirmPassword" name="confirmPassword" label="Confirmar nova senha" show={showConfirmPassword} setShow={setShowConfirmPassword} autoComplete="new-password" error={passwordState?.errors?.confirmPassword?.[0]} />
+                <div className="space-y-1.5">
+                  <Label htmlFor="passwordMfaCode">Código TOTP para confirmar</Label>
+                  <Input id="passwordMfaCode" name="mfaCode" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} required placeholder="000000" className="h-10 font-mono tracking-[0.2em]" aria-invalid={!!passwordState?.errors?.mfaCode} />
+                  {passwordState?.errors?.mfaCode?.[0] && <p className="text-xs text-destructive">{passwordState.errors.mfaCode[0]}</p>}
+                </div>
                 {showNonce ? (
                   <div className="space-y-1.5">
                     <Label htmlFor="nonce">Codigo de reautenticacao</Label>
@@ -147,14 +157,18 @@ export function SecurityPage() {
             <div className="rounded-2xl border border-border bg-card p-5">
               <h2 className="font-semibold">Codigos de recuperacao</h2>
               <p className="mt-2 text-sm text-muted-foreground">Gerar novos codigos invalida todos os codigos anteriores nao utilizados.</p>
-              <Button type="button" className="mt-4" variant="outline" disabled={isPending || !estado?.sessaoElevadaValida || !mfaAtivo} onClick={() => run(regenerarCodigosRecuperacao)}>Gerar novos codigos</Button>
+              <Label htmlFor="recoveryMfaCode" className="mt-4 block">Código TOTP para confirmar</Label>
+              <Input id="recoveryMfaCode" value={recoveryMfaCode} onChange={(event) => setRecoveryMfaCode(event.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" placeholder="000000" className="mt-2 font-mono tracking-[0.2em]" />
+              <Button type="button" className="mt-3" variant="outline" disabled={isPending || !estado?.sessaoElevadaValida || !mfaAtivo || recoveryMfaCode.length !== 6} onClick={() => run(async () => { const response = await regenerarCodigosRecuperacao(recoveryMfaCode); if (response.success) setRecoveryMfaCode(''); return response })}>Gerar novos codigos</Button>
               {codes.length > 0 && <div className="mt-4 grid gap-2">{codes.map((code) => <code key={code} className="rounded-lg border border-border bg-background px-3 py-2 text-center font-mono text-sm">{code}</code>)}</div>}
             </div>
 
             <div className="rounded-2xl border border-border bg-card p-5">
               <h2 className="font-semibold">Sessoes</h2>
               <p className="mt-2 text-sm text-muted-foreground">Encerre outras sessoes autenticadas da sua conta apos troca de dispositivo, perda de acesso ou suspeita de uso indevido.</p>
-              <Button type="button" className="mt-4" variant="outline" disabled={isPending || !estado?.sessaoElevadaValida} onClick={() => run(encerrarOutrasSessoes)}><UsersRound size={16} /> Encerrar outras sessoes</Button>
+              <Label htmlFor="sessionsMfaCode" className="mt-4 block">Código TOTP para confirmar</Label>
+              <Input id="sessionsMfaCode" value={sessionsMfaCode} onChange={(event) => setSessionsMfaCode(event.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" placeholder="000000" className="mt-2 font-mono tracking-[0.2em]" />
+              <Button type="button" className="mt-3" variant="outline" disabled={isPending || !estado?.sessaoElevadaValida || sessionsMfaCode.length !== 6} onClick={() => run(async () => { const response = await encerrarOutrasSessoes(sessionsMfaCode); if (response.success) setSessionsMfaCode(''); return response })}><UsersRound size={16} /> Encerrar outras sessoes</Button>
             </div>
           </section>
         </>

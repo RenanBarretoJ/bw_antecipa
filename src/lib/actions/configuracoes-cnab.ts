@@ -2,6 +2,7 @@
 
 import { requireGestor } from '@/lib/auth/authorization'
 import { exigirSessaoElevada, registrarEventoSeguranca } from '@/lib/auth/mfa'
+import { autorizarEConsumirAcaoSensivel } from '@/lib/auth/sensitive-action'
 import { registrarLog } from '@/lib/actions/auditoria'
 import { createAdminClient } from '@/lib/supabase/server'
 import { montarConfiguracaoLegadoParaCadastro, normalizarConfiguracaoCnabInput, validarConfiguracaoCnab } from '@/lib/cnab/resolver-configuracao'
@@ -358,6 +359,8 @@ export async function cadastrarCredencialPortalFidc(fundoId: string, input: {
   nome: string
   usuario: string
   senha: string
+  mfaCode: string
+  credencialAnteriorId?: string | null
 }): Promise<ActionState<{ id: string }>> {
   try {
     const context = await requireGestor()
@@ -366,6 +369,19 @@ export async function cadastrarCredencialPortalFidc(fundoId: string, input: {
     if (!['homologacao', 'producao'].includes(input.ambiente)) return result('Ambiente invalido.')
     if (input.nome.trim().length < 2) return result('Nome da credencial e obrigatorio.')
     if (!input.usuario.trim() || !input.senha) return result('Usuario e senha sao obrigatorios.')
+    if (input.credencialAnteriorId) {
+      const { data: anterior, error: anteriorError } = await createAdminClient()
+        .from('credenciais_integracao')
+        .select('id')
+        .eq('id', input.credencialAnteriorId)
+        .eq('fundo_id', fundoId)
+        .maybeSingle()
+      if (anteriorError || !anterior) return result('Credencial anterior nao encontrada para este fundo.')
+    }
+    const actionType = input.credencialAnteriorId
+      ? 'rotacionar_credencial_integracao'
+      : 'cadastrar_credencial_integracao'
+    await autorizarEConsumirAcaoSensivel(context, actionType, input.mfaCode)
 
     const integracaoId = await obterOuCriarIntegracaoPortalFidc(fundoId, context.user.id)
     const usuario = criptografarPortalFidcValor(input.usuario.trim())
@@ -393,8 +409,8 @@ export async function cadastrarCredencialPortalFidc(fundoId: string, input: {
 
     if (error || !data) return result(`Erro ao cadastrar credencial: ${error?.message || 'registro nao retornado'}`)
     const id = (data as { id: string }).id
-    await registrarEventoSeguranca({ tipo_evento: 'CREDENCIAL_CRIADA', usuario_id: context.user.id, ator_usuario_id: context.user.id, severidade: 'warning', entidade_tipo: 'credenciais_integracao', entidade_id: id, dados: { fundo_id: fundoId, integracao_fundo_id: integracaoId, ambiente: input.ambiente, chave_versao: chaveVersao } })
-    await registrarLog({ tipo_evento: 'CREDENCIAL_CRIADA', entidade_tipo: 'credenciais_integracao', entidade_id: id, dados_depois: { fundo_id: fundoId, integracao_fundo_id: integracaoId, ambiente: input.ambiente, status: 'rascunho' } })
+    await registrarEventoSeguranca({ tipo_evento: 'CREDENCIAL_CRIADA', usuario_id: context.user.id, ator_usuario_id: context.user.id, severidade: 'warning', entidade_tipo: 'credenciais_integracao', entidade_id: id, dados: { fundo_id: fundoId, integracao_fundo_id: integracaoId, ambiente: input.ambiente, chave_versao: chaveVersao, credencial_anterior_id: input.credencialAnteriorId || null } })
+    await registrarLog({ tipo_evento: 'CREDENCIAL_CRIADA', entidade_tipo: 'credenciais_integracao', entidade_id: id, dados_depois: { fundo_id: fundoId, integracao_fundo_id: integracaoId, ambiente: input.ambiente, status: 'rascunho', credencial_anterior_id: input.credencialAnteriorId || null } })
     return result('Credencial criptografada cadastrada como rascunho.', true, { id })
   } catch (error) {
     await registrarEventoSeguranca({ tipo_evento: 'ACESSO_CREDENCIAL_NEGADO', severidade: 'warning', entidade_tipo: 'credenciais_integracao', dados: { fundo_id: fundoId, erro: error instanceof Error ? error.message : 'erro_desconhecido' } })
@@ -402,11 +418,12 @@ export async function cadastrarCredencialPortalFidc(fundoId: string, input: {
   }
 }
 
-export async function ativarCredencialPortalFidc(fundoId: string, credencialId: string, motivo?: string): Promise<ActionState> {
+export async function ativarCredencialPortalFidc(fundoId: string, credencialId: string, motivo?: string, mfaCode = ''): Promise<ActionState> {
   try {
     const context = await requireGestor()
     await exigirSessaoElevada(context)
     await assertFundoGestor(context, fundoId)
+    await autorizarEConsumirAcaoSensivel(context, 'ativar_credencial_integracao', mfaCode)
     const admin = createAdminClient()
     const now = new Date().toISOString()
     const { data: credencial } = await admin
@@ -450,12 +467,13 @@ export async function ativarCredencialPortalFidc(fundoId: string, credencialId: 
   }
 }
 
-export async function revogarCredencialPortalFidc(fundoId: string, credencialId: string, motivo: string): Promise<ActionState> {
+export async function revogarCredencialPortalFidc(fundoId: string, credencialId: string, motivo: string, mfaCode = ''): Promise<ActionState> {
   try {
     const context = await requireGestor()
     await exigirSessaoElevada(context)
     await assertFundoGestor(context, fundoId)
     if (motivo.trim().length < 10) return result('Informe um motivo com pelo menos 10 caracteres.')
+    await autorizarEConsumirAcaoSensivel(context, 'revogar_credencial_integracao', mfaCode)
     const admin = createAdminClient()
     const now = new Date().toISOString()
 

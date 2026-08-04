@@ -1033,13 +1033,28 @@ export interface MfaRecoveryCode {
 
 export interface SessaoElevada {
   user_id: string
+  session_id: string
   aal: 'aal2'
   metodo: 'totp' | 'recovery_code' | 'admin_reset'
   factor_id: string | null
   elevada_em: string
   expira_em: string
+  revogada_em: string | null
+  motivo_revogacao: string | null
   created_at: string
   updated_at: string
+}
+
+export interface AutorizacaoAcaoSensivel {
+  id: string
+  user_id: string
+  session_id: string
+  action_type: string
+  nonce_hash: string
+  criada_em: string
+  expira_em: string
+  consumida_em: string | null
+  revogada_em: string | null
 }
 
 export interface SegurancaRateLimit {
@@ -1141,6 +1156,7 @@ export interface Database {
       cedente_acessos: { Row: CedenteAcesso & Record<string, unknown>; Insert: InsertShape<CedenteAcesso, 'cedente_id' | 'user_id'> & Record<string, unknown>; Update: UpdateShape<CedenteAcesso> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'cedente_acessos_cedente_id_fkey'; columns: ['cedente_id']; isOneToOne: false; referencedRelation: 'cedentes'; referencedColumns: ['id'] }, { foreignKeyName: 'cedente_acessos_user_id_fkey'; columns: ['user_id']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] }] }
       logs_auditoria: { Row: LogAuditoria & Record<string, unknown>; Insert: InsertShape<LogAuditoria, 'tipo_evento' | 'entidade_tipo' | 'ator_tipo' | 'origem'> & Record<string, unknown>; Update: UpdateShape<LogAuditoria> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'logs_auditoria_usuario_id_fkey'; columns: ['usuario_id']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] }] }
       notificacoes: { Row: Notificacao & Record<string, unknown>; Insert: InsertShape<Notificacao, 'usuario_id' | 'titulo' | 'mensagem' | 'tipo'> & Record<string, unknown>; Update: UpdateShape<Notificacao> & Record<string, unknown>; Relationships: [] }
+      autorizacoes_acoes_sensiveis: { Row: AutorizacaoAcaoSensivel & Record<string, unknown>; Insert: InsertShape<AutorizacaoAcaoSensivel, 'user_id' | 'session_id' | 'action_type' | 'nonce_hash' | 'expira_em'> & Record<string, unknown>; Update: UpdateShape<AutorizacaoAcaoSensivel> & Record<string, unknown>; Relationships: [] }
     }
     Views: Record<string, never>
     Functions: {
@@ -1231,6 +1247,11 @@ export interface Database {
       reparar_requisitos_pos_cessao_operacao: { Args: { p_operacao_id: string }; Returns: Record<string, unknown> }
       reservar_sequencial_remessa: { Args: { p_configuracao_cnab_id: string; p_data_referencia: string }; Returns: number }
       usuario_pode_ler_remessa_cnab: { Args: { p_remessa_id: string }; Returns: boolean }
+      registrar_sessao_mfa_atual: { Args: { p_factor_id: string }; Returns: Array<{ session_id: string; elevada_em: string; expira_em: string }> }
+      obter_sessao_mfa_atual: { Args: Record<string, never>; Returns: Array<{ session_id: string | null; status: string; elevada_em: string | null; expira_em: string | null; server_now: string; metodo: string | null; factor_id: string | null }> }
+      revogar_sessao_mfa_atual: { Args: { p_motivo?: string }; Returns: boolean }
+      criar_autorizacao_acao_sensivel: { Args: { p_action_type: string; p_nonce_hash: string }; Returns: Array<{ expira_em: string }> }
+      consumir_autorizacao_acao_sensivel: { Args: { p_action_type: string; p_nonce_hash: string }; Returns: boolean }
     }
     Enums: {
       user_role: UserRole

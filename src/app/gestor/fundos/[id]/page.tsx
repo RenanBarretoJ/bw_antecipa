@@ -256,6 +256,8 @@ type CredencialForm = {
   nome: string
   usuario: string
   senha: string
+  mfaCode: string
+  credencialAnteriorId: string | null
 }
 
 const defaultCredencialForm: CredencialForm = {
@@ -263,6 +265,8 @@ const defaultCredencialForm: CredencialForm = {
   nome: '',
   usuario: '',
   senha: '',
+  mfaCode: '',
+  credencialAnteriorId: null,
 }
 
 const tabs = ['dados', 'politica', 'templates', 'cnab', 'integracoes'] as const
@@ -313,6 +317,9 @@ export default function FundoDetalhePage() {
   const [credencialForm, setCredencialForm] = useState(defaultCredencialForm)
   const [motivoRevogacao, setMotivoRevogacao] = useState('')
   const [credencialRevogacao, setCredencialRevogacao] = useState<CredencialPortalFidcRow | null>(null)
+  const [credencialAtivacao, setCredencialAtivacao] = useState<CredencialPortalFidcRow | null>(null)
+  const [mfaRevogacaoCode, setMfaRevogacaoCode] = useState('')
+  const [mfaAtivacaoCode, setMfaAtivacaoCode] = useState('')
   const [credencialRotacaoId, setCredencialRotacaoId] = useState('')
   const [historicoIntegracaoTab, setHistoricoIntegracaoTab] = useState<'versoes' | 'execucoes'>('versoes')
   const [isPending, startTransition] = useTransition()
@@ -547,15 +554,23 @@ export default function FundoDetalhePage() {
   }
 
   function ativarCredencial(credencialId: string) {
-    runAction(() => ativarCredencialPortalFidc(fundoId, credencialId, 'Ativacao pelo cadastro do fundo'))
+    runAction(async () => {
+      const action = await ativarCredencialPortalFidc(fundoId, credencialId, 'Ativacao pelo cadastro do fundo', mfaAtivacaoCode)
+      if (action.success) {
+        setCredencialAtivacao(null)
+        setMfaAtivacaoCode('')
+      }
+      return action
+    })
   }
 
   function revogarCredencial(credencialId: string) {
     runAction(async () => {
-      const action = await revogarCredencialPortalFidc(fundoId, credencialId, motivoRevogacao)
+      const action = await revogarCredencialPortalFidc(fundoId, credencialId, motivoRevogacao, mfaRevogacaoCode)
       if (action.success) {
         setMotivoRevogacao('')
         setCredencialRevogacao(null)
+        setMfaRevogacaoCode('')
       }
       return action
     })
@@ -564,11 +579,13 @@ export default function FundoDetalhePage() {
   function abrirRevogacaoCredencial(credencial: CredencialPortalFidcRow) {
     setCredencialRevogacao(credencial)
     setMotivoRevogacao('')
+    setMfaRevogacaoCode('')
   }
 
   function fecharRevogacaoCredencial() {
     setCredencialRevogacao(null)
     setMotivoRevogacao('')
+    setMfaRevogacaoCode('')
   }
 
   function alterarAmbienteIntegracao(ambiente: 'homologacao' | 'producao') {
@@ -590,6 +607,8 @@ export default function FundoDetalhePage() {
       nome: `${credencial.nome} - rotação`,
       usuario: '',
       senha: '',
+      mfaCode: '',
+      credencialAnteriorId: credencial.id,
     })
   }
 
@@ -953,7 +972,7 @@ export default function FundoDetalhePage() {
                             <RotateCcw className="mr-1.5 size-3.5" /> Rotacionar
                           </Button>
                           {credencial.status !== 'ativa' && credencial.status !== 'revogada' && (
-                            <Button type="button" size="sm" onClick={() => ativarCredencial(credencial.id)} disabled={isPending}>Ativar</Button>
+                            <Button type="button" size="sm" onClick={() => { setCredencialAtivacao(credencial); setMfaAtivacaoCode('') }} disabled={isPending}>Ativar</Button>
                           )}
                           {credencial.status !== 'revogada' && (
                             <Button type="button" size="sm" variant="outline" onClick={() => abrirRevogacaoCredencial(credencial)} disabled={isPending}>Revogar</Button>
@@ -984,7 +1003,8 @@ export default function FundoDetalhePage() {
                   <div><Label>Nome</Label><Input value={credencialForm.nome} onChange={(e) => setCredencialForm((p) => ({ ...p, nome: e.target.value }))} placeholder="Portal FIDC homologação" /></div>
                   <div><Label>Usuário</Label><Input value={credencialForm.usuario} onChange={(e) => setCredencialForm((p) => ({ ...p, usuario: e.target.value }))} autoComplete="off" /></div>
                   <div><Label>Senha</Label><Input type="password" value={credencialForm.senha} onChange={(e) => setCredencialForm((p) => ({ ...p, senha: e.target.value }))} autoComplete="new-password" placeholder="Informe nova senha" /></div>
-                  <Button type="button" className="w-full" disabled={isPending} onClick={() => cadastrarCredencial()}>Cadastrar credencial</Button>
+                  <div><Label>Código TOTP para confirmar</Label><Input value={credencialForm.mfaCode} onChange={(e) => setCredencialForm((p) => ({ ...p, mfaCode: e.target.value.replace(/\D/g, '').slice(0, 6) }))} inputMode="numeric" autoComplete="one-time-code" placeholder="000000" className="font-mono tracking-[0.2em]" /></div>
+                  <Button type="button" className="w-full" disabled={isPending || credencialForm.mfaCode.length !== 6} onClick={() => cadastrarCredencial()}>Cadastrar credencial</Button>
                 </div>
               </div>
             </div>
@@ -1114,13 +1134,29 @@ export default function FundoDetalhePage() {
                 <div><Label>Nome</Label><Input value={credencialForm.nome} onChange={(e) => setCredencialForm((p) => ({ ...p, nome: e.target.value }))} placeholder="Portal FIDC produção - rotação" /></div>
                 <div><Label>Usuário</Label><Input value={credencialForm.usuario} onChange={(e) => setCredencialForm((p) => ({ ...p, usuario: e.target.value }))} autoComplete="off" /></div>
                 <div><Label>Nova senha</Label><Input type="password" value={credencialForm.senha} onChange={(e) => setCredencialForm((p) => ({ ...p, senha: e.target.value }))} autoComplete="new-password" placeholder="Informe a nova senha" /></div>
+                <div className="sm:col-span-2"><Label>Código TOTP para confirmar</Label><Input value={credencialForm.mfaCode} onChange={(e) => setCredencialForm((p) => ({ ...p, mfaCode: e.target.value.replace(/\D/g, '').slice(0, 6) }))} inputMode="numeric" autoComplete="one-time-code" placeholder="000000" className="font-mono tracking-[0.2em]" /></div>
               </div>
               <div className="rounded-xl border border-info/25 bg-info/10 p-3 text-xs text-muted-foreground">
                 Próximo passo recomendado: cadastrar a nova credencial, ativá-la, testar conexão e só então revogar a credencial antiga.
               </div>
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => { setCredencialRotacaoId(''); setCredencialForm(defaultCredencialForm) }}>Cancelar</Button>
-                <Button type="button" disabled={isPending || !credencialForm.nome.trim() || !credencialForm.usuario.trim() || !credencialForm.senha} onClick={() => cadastrarCredencial({ fecharRotacao: true })}>Cadastrar nova credencial</Button>
+                <Button type="button" disabled={isPending || !credencialForm.nome.trim() || !credencialForm.usuario.trim() || !credencialForm.senha || credencialForm.mfaCode.length !== 6} onClick={() => cadastrarCredencial({ fecharRotacao: true })}>Cadastrar nova credencial</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={!!credencialAtivacao} onOpenChange={(open) => { if (!open) { setCredencialAtivacao(null); setMfaAtivacaoCode('') } }}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Ativar credencial</DialogTitle>
+                <DialogDescription>Confirme esta ação sensível com um código atual do seu aplicativo autenticador.</DialogDescription>
+              </DialogHeader>
+              {credencialAtivacao && <div className="rounded-xl border border-border bg-muted/40 p-3 text-sm"><p className="font-semibold">{credencialAtivacao.nome}</p><p className="mt-1 text-xs text-muted-foreground">{ambienteLabel(credencialAtivacao.ambiente)}</p></div>}
+              <div className="space-y-2"><Label>Código TOTP</Label><Input value={mfaAtivacaoCode} onChange={(event) => setMfaAtivacaoCode(event.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" placeholder="000000" className="font-mono tracking-[0.2em]" /></div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => { setCredencialAtivacao(null); setMfaAtivacaoCode('') }}>Cancelar</Button>
+                <Button type="button" disabled={isPending || !credencialAtivacao || mfaAtivacaoCode.length !== 6} onClick={() => credencialAtivacao && ativarCredencial(credencialAtivacao.id)}>Confirmar ativação</Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -1159,9 +1195,10 @@ export default function FundoDetalhePage() {
                 />
                 <p className="text-xs text-muted-foreground">Mínimo de 10 caracteres. Esse motivo ficará registrado para auditoria.</p>
               </div>
+              <div className="space-y-2"><Label>Código TOTP para confirmar</Label><Input value={mfaRevogacaoCode} onChange={(event) => setMfaRevogacaoCode(event.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" placeholder="000000" className="font-mono tracking-[0.2em]" /></div>
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={fecharRevogacaoCredencial}>Cancelar</Button>
-                <Button type="button" variant="destructive" disabled={isPending || !credencialRevogacao || credencialRevogacaoEmUso || motivoRevogacao.trim().length < 10} onClick={() => credencialRevogacao && revogarCredencial(credencialRevogacao.id)}>Confirmar revogação</Button>
+                <Button type="button" variant="destructive" disabled={isPending || !credencialRevogacao || credencialRevogacaoEmUso || motivoRevogacao.trim().length < 10 || mfaRevogacaoCode.length !== 6} onClick={() => credencialRevogacao && revogarCredencial(credencialRevogacao.id)}>Confirmar revogação</Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>

@@ -5,7 +5,6 @@ import { createAdminClient, createClient } from '@/lib/supabase/server'
 import { requireAuthenticated } from '@/lib/auth/authorization'
 import { limparFluxoAutenticacao, marcarFluxoAutenticacao } from '@/lib/auth/auth-flow-server'
 import {
-  exigirSessaoElevada,
   getCurrentUserOrThrow,
   obterEstadoMfaUsuario,
   registrarEventoSeguranca,
@@ -17,6 +16,7 @@ import {
 } from '@/lib/auth/mfa'
 import { requireRoleRedirect } from '@/lib/auth/role-routing'
 import { registrarTentativaRateLimit, verificarRateLimit } from '@/lib/security/rate-limit'
+import { autorizarEConsumirAcaoSensivel } from '@/lib/auth/sensitive-action'
 
 export type MfaActionState<T = unknown> = {
   success: boolean
@@ -198,7 +198,7 @@ export async function confirmarConfiguracaoMfa(_prevState: MfaActionState<{ reco
   }
 
   const recoveryCodes = await substituirRecoveryCodes(user.id)
-  await registrarSessaoElevada(user.id, 'totp', factorId)
+  await registrarSessaoElevada(user.id, 'totp', factorId, supabase)
   await createAdminClient().from('profiles').update({ mfa_ativado_em: new Date().toISOString() } as never).eq('id', user.id)
   await registrarEventoSeguranca({ tipo_evento: 'MFA_ATIVADO', usuario_id: user.id, ator_usuario_id: user.id })
   await registrarTentativaRateLimit({ escopo: 'mfa_totp', identifier: user.id, sucesso: true })
@@ -221,6 +221,7 @@ export async function verificarDesafioMfa(_prevState: MfaActionState | undefined
   const challenge = await client.auth.mfa.challenge({ factorId })
   if (challenge.error || !challenge.data?.id) {
     await registrarTentativaRateLimit({ escopo: 'mfa_totp', identifier: user.id, sucesso: false })
+    await registrarEventoSeguranca({ tipo_evento: 'MFA_LOGIN_FALHOU', usuario_id: user.id, ator_usuario_id: user.id, severidade: 'warning', dados: { etapa: 'challenge' } })
     return result('Nao foi possivel validar o MFA.')
   }
 
@@ -228,11 +229,12 @@ export async function verificarDesafioMfa(_prevState: MfaActionState | undefined
   if (verified.error) {
     await registrarTentativaRateLimit({ escopo: 'mfa_totp', identifier: user.id, sucesso: false })
     await registrarEventoSeguranca({ tipo_evento: 'MFA_FALHA', usuario_id: user.id, ator_usuario_id: user.id, severidade: 'warning' })
+    await registrarEventoSeguranca({ tipo_evento: 'MFA_LOGIN_FALHOU', usuario_id: user.id, ator_usuario_id: user.id, severidade: 'warning', dados: { etapa: 'verify' } })
     if (isPasswordReset) await registrarEventoSeguranca({ tipo_evento: 'MFA_FAILED_AFTER_PASSWORD_RESET', usuario_id: user.id, ator_usuario_id: user.id, severidade: 'warning' })
     return result('Codigo MFA invalido.')
   }
 
-  await registrarSessaoElevada(user.id, 'totp', factorId)
+  await registrarSessaoElevada(user.id, 'totp', factorId, supabase)
   const aalDepois = await client.auth.mfa.getAuthenticatorAssuranceLevel()
   await registrarTentativaRateLimit({ escopo: 'mfa_totp', identifier: user.id, sucesso: true })
   if (isPasswordReset) {
@@ -274,9 +276,13 @@ export async function usarCodigoRecuperacaoMfa(_prevState: MfaActionState | unde
   return result('Codigo de recuperacao aceito. Reconfigure o MFA antes de acessar o portal.', true)
 }
 
-export async function regenerarCodigosRecuperacao(): Promise<MfaActionState<{ recoveryCodes: string[] }>> {
+export async function regenerarCodigosRecuperacao(mfaCode: string): Promise<MfaActionState<{ recoveryCodes: string[] }>> {
   const context = await requireAuthenticated()
-  await exigirSessaoElevada(context)
+  try {
+    await autorizarEConsumirAcaoSensivel(context, 'regenerar_recovery_codes', mfaCode)
+  } catch (error) {
+    return result(error instanceof Error ? error.message : 'Não foi possível confirmar esta ação.')
+  }
   const recoveryCodes = await substituirRecoveryCodes(context.user.id)
   await registrarEventoSeguranca({ tipo_evento: 'MFA_RECOVERY_REGENERADO', usuario_id: context.user.id, ator_usuario_id: context.user.id, severidade: 'warning' })
   return result('Novos codigos gerados. Eles serao exibidos somente agora.', true, { recoveryCodes })
@@ -297,10 +303,11 @@ export async function desativarMfaProprio(factorId: string): Promise<MfaActionSt
   return result('MFA obrigatorio nao pode ser desativado pelo usuario.')
 }
 
-export async function solicitarResetMfaAdministrativo(usuarioId: string, motivo: string, evidencia?: string): Promise<MfaActionState<{ solicitacaoId: string }>> {
+export async function solicitarResetMfaAdministrativo(usuarioId: string, motivo: string, evidencia?: string, mfaCode = ''): Promise<MfaActionState<{ solicitacaoId: string }>> {
   const context = await requireAuthenticated()
   assertGestor(context)
-  await exigirSessaoElevada(context)
+  try { await autorizarEConsumirAcaoSensivel(context, 'reset_mfa_administrativo', mfaCode) }
+  catch (error) { return result(error instanceof Error ? error.message : 'Não foi possível confirmar esta ação.') }
 
   const motivoValidado = validarMotivoResetMfa(motivo)
   const admin = createAdminClient()
@@ -356,10 +363,11 @@ export async function solicitarResetMfaAdministrativo(usuarioId: string, motivo:
   return result('Solicitacao de reset MFA criada. Outro gestor deve aprovar e executar.', true, { solicitacaoId })
 }
 
-export async function aprovarExecutarResetMfaAdministrativo(solicitacaoId: string): Promise<MfaActionState> {
+export async function aprovarExecutarResetMfaAdministrativo(solicitacaoId: string, mfaCode = ''): Promise<MfaActionState> {
   const context = await requireAuthenticated()
   assertGestor(context)
-  await exigirSessaoElevada(context)
+  try { await autorizarEConsumirAcaoSensivel(context, 'reset_mfa_administrativo', mfaCode) }
+  catch (error) { return result(error instanceof Error ? error.message : 'Não foi possível confirmar esta ação.') }
 
   const admin = createAdminClient()
   const now = new Date().toISOString()
@@ -451,10 +459,11 @@ export async function aprovarExecutarResetMfaAdministrativo(solicitacaoId: strin
   return result(`Reset MFA executado. Fatores removidos: ${removed}.`, true)
 }
 
-export async function rejeitarResetMfaAdministrativo(solicitacaoId: string, motivo: string): Promise<MfaActionState> {
+export async function rejeitarResetMfaAdministrativo(solicitacaoId: string, motivo: string, mfaCode = ''): Promise<MfaActionState> {
   const context = await requireAuthenticated()
   assertGestor(context)
-  await exigirSessaoElevada(context)
+  try { await autorizarEConsumirAcaoSensivel(context, 'reset_mfa_administrativo', mfaCode) }
+  catch (error) { return result(error instanceof Error ? error.message : 'Não foi possível confirmar esta ação.') }
 
   const motivoValidado = validarMotivoResetMfa(motivo)
   const admin = createAdminClient()
@@ -496,17 +505,26 @@ export async function rejeitarResetMfaAdministrativo(solicitacaoId: string, moti
   return result('Solicitacao de reset MFA rejeitada.', true)
 }
 
-export async function encerrarOutrasSessoes(): Promise<MfaActionState> {
+export async function encerrarOutrasSessoes(mfaCode: string): Promise<MfaActionState> {
   const context = await requireAuthenticated()
-  await exigirSessaoElevada(context)
+  let authorization: Awaited<ReturnType<typeof autorizarEConsumirAcaoSensivel>>
+  try { authorization = await autorizarEConsumirAcaoSensivel(context, 'encerrar_outras_sessoes', mfaCode) }
+  catch (error) { return result(error instanceof Error ? error.message : 'Não foi possível confirmar esta ação.') }
   await context.supabase.auth.signOut({ scope: 'others' })
+  const now = new Date().toISOString()
+  if (authorization.sessionId) {
+    await createAdminClient().from('sessoes_elevadas').update({ revogada_em: now, motivo_revogacao: 'encerrar_outras_sessoes', updated_at: now } as never).eq('user_id', context.user.id).neq('session_id', authorization.sessionId).is('revogada_em', null)
+  }
   await createAdminClient().from('profiles').update({ sessoes_revogadas_em: new Date().toISOString() } as never).eq('id', context.user.id)
   await registrarEventoSeguranca({ tipo_evento: 'SESSOES_REVOGADAS', usuario_id: context.user.id, ator_usuario_id: context.user.id, severidade: 'warning' })
   return result('Outras sessoes encerradas.', true)
 }
 
 export async function listarFatoresMfa(): Promise<MfaActionState<{ fatores: Array<{ id: string; friendlyName: string; status: string }>; estado: Awaited<ReturnType<typeof obterEstadoMfaUsuario>> }>> {
-  const context = await requireAuthenticated()
+  // O desafio TOTP começa em AAL1 e precisa conhecer o fator antes de elevar a
+  // sessão. Esta exceção permite somente a leitura dos fatores do próprio
+  // usuário; ações operacionais e sensíveis continuam no gate MFA padrão.
+  const context = await requireAuthenticated(undefined, { allowMfaPending: true })
   const { data, error } = await asMfaClient(context.supabase).auth.mfa.listFactors()
   if (error) return result('Nao foi possivel listar fatores MFA.')
   const estado = await obterEstadoMfaUsuario(context.supabase)

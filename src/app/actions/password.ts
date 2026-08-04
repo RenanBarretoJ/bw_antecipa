@@ -6,6 +6,7 @@ import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { createAdminClient, createClient } from '@/lib/supabase/server'
 import { requireAuthenticated } from '@/lib/auth/authorization'
 import { exigirSessaoOperacionalAal2, hashSeguranca, obterEstadoMfaUsuario, registrarEventoSeguranca } from '@/lib/auth/mfa'
+import { autorizarEConsumirAcaoSensivel } from '@/lib/auth/sensitive-action'
 import { requireRoleRedirect } from '@/lib/auth/role-routing'
 import { avaliarForcaSenha, criarAtributosUpdateSenha, validarNovaSenha } from '@/lib/auth/password'
 import { limparFluxoAutenticacao, marcarFluxoAutenticacao, obterFluxoAutenticacao } from '@/lib/auth/auth-flow-server'
@@ -346,6 +347,7 @@ export async function alterarSenhaAutenticado(_prevState: PasswordActionState | 
   const password = String(formData.get('password') || '')
   const confirmPassword = String(formData.get('confirmPassword') || '')
   const nonce = String(formData.get('nonce') || '').trim() || null
+  const mfaCode = String(formData.get('mfaCode') || '')
   const validation = validarNovaSenha({ password, confirmPassword, currentPassword })
   if (!currentPassword) validation.errors.currentPassword = ['Informe a senha atual.']
   if (!validation.valid || Object.keys(validation.errors).length > 0) return fieldErrors(validation.errors)
@@ -368,6 +370,13 @@ export async function alterarSenhaAutenticado(_prevState: PasswordActionState | 
     return { success: false, message: 'Senha atual invalida.', errors: { currentPassword: ['Senha atual invalida.'] }, notification: { type: 'error', message: 'Senha atual invalida.' } }
   }
 
+  try {
+    await autorizarEConsumirAcaoSensivel(context, 'alterar_senha', mfaCode)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Não foi possível confirmar o MFA para alterar a senha.'
+    return { success: false, message, errors: { mfaCode: [message] }, notification: { type: 'error', message } }
+  }
+
   const { error } = await context.supabase.auth.updateUser(criarAtributosUpdateSenha(password, nonce))
   if (error) {
     await registrarTentativaRateLimit({ escopo: 'password_change', identifier: context.user.id, sucesso: false })
@@ -386,6 +395,8 @@ export async function alterarSenhaAutenticado(_prevState: PasswordActionState | 
   await Promise.all([
     context.supabase.auth.signOut({ scope: 'others' }),
     createAdminClient().from('profiles').update({ senha_alterada_em: now, sessoes_revogadas_em: now } as never).eq('id', context.user.id),
+    createAdminClient().from('sessoes_elevadas').update({ revogada_em: now, motivo_revogacao: 'alteracao_senha', updated_at: now } as never).eq('user_id', context.user.id).is('revogada_em', null),
+    createAdminClient().from('autorizacoes_acoes_sensiveis').update({ revogada_em: now } as never).eq('user_id', context.user.id).is('revogada_em', null),
   ])
   await registrarEventoSenha({ tipo: 'PASSWORD_CHANGED', userId: context.user.id, audit, dados: { sessoes_antigas_revogadas: true } })
   await notificarSenhaAlterada({
@@ -396,7 +407,8 @@ export async function alterarSenhaAutenticado(_prevState: PasswordActionState | 
     origem: 'authenticated_change',
   })
 
-  return { success: true, message: 'Senha alterada com sucesso.', notification: { type: 'success', message: 'Senha alterada com sucesso.' } }
+  await context.supabase.auth.signOut({ scope: 'local' })
+  return { success: true, message: 'Senha alterada com sucesso. Entre novamente.', redirectTo: '/login', notification: { type: 'success', message: 'Senha alterada com sucesso. Entre novamente.' } }
 }
 
 export async function solicitarNonceAlteracaoSenha(): Promise<PasswordActionState> {

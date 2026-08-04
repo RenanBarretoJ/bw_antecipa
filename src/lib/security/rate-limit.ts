@@ -12,6 +12,7 @@ export type RateLimitEscopo =
   | 'portal_fidc_test'
   | 'portal_fidc_send'
   | 'critical_action'
+  | 'mfa_sensitive'
 
 export type RateLimitResult = {
   allowed: boolean

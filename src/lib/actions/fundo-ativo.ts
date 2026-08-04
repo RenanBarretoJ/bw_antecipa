@@ -3,6 +3,7 @@
 import { cookies } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { requireAuthenticated } from '@/lib/auth/authorization'
 import {
   FUNDO_ATIVO_COOKIE,
   escolherFundoInicial,
@@ -31,17 +32,8 @@ type UsuarioFundoRow = {
 
 async function getUserAndProfile() {
   const supabase = await createClient()
-  const { data: { user }, error: userError } = await supabase.auth.getUser()
-  if (userError || !user) throw new Error('Usuário não autenticado.')
-
-  const { data: profile, error: profileError } = await supabase
-    .from('profiles')
-    .select('id, role')
-    .eq('id', user.id)
-    .maybeSingle()
-
-  if (profileError) throw new Error(`Erro ao consultar perfil: ${profileError.message}`)
-  if (!profile || (profile as { role?: string }).role !== 'gestor') throw new Error('Contexto de fundo ativo é exclusivo para gestores.')
+  const { user, profile } = await requireAuthenticated(supabase)
+  if (profile.role !== 'gestor') throw new Error('Contexto de fundo ativo é exclusivo para gestores.')
 
   return {
     supabase,

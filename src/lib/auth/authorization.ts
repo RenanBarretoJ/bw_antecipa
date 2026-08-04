@@ -26,6 +26,11 @@ export interface AuthContext {
   profile: Pick<Profile, 'id' | 'role' | 'status' | 'nome_completo' | 'email' | 'mfa_obrigatorio_override' | 'mfa_ativado_em' | 'ultima_autenticacao_forte_em'>
 }
 
+type RequireAuthenticatedOptions = {
+  /** Usado exclusivamente pelas rotas que configuram ou confirmam o próprio MFA. */
+  allowMfaPending?: boolean
+}
+
 type CedenteContext = AuthContext & { cedente: Cedente }
 type OperacaoContext = AuthContext & { operacao: Pick<Operacao, 'id' | 'cedente_id'> }
 type NotaFiscalContext = AuthContext & { notaFiscal: Pick<NotaFiscal, 'id' | 'cedente_id' | 'cnpj_destinatario'> }
@@ -54,7 +59,7 @@ export function canAccessCedente({
   return role === 'consultor' && hasConsultorLink
 }
 
-export async function requireAuthenticated(client?: AppSupabaseClient): Promise<AuthContext> {
+export async function requireAuthenticated(client?: AppSupabaseClient, options: RequireAuthenticatedOptions = {}): Promise<AuthContext> {
   const supabase = client ?? await createClient()
   const { data, error } = await supabase.auth.getUser()
 
@@ -70,6 +75,22 @@ export async function requireAuthenticated(client?: AppSupabaseClient): Promise<
 
   if (profileError || !profile) {
     throw new AuthorizationError('Perfil do usuário não encontrado.', 'FORBIDDEN')
+  }
+
+  if (profile.status !== 'ativo') {
+    throw new AuthorizationError('Perfil de usuário inativo.', 'FORBIDDEN')
+  }
+
+  if (!options.allowMfaPending && ['gestor', 'consultor', 'cedente', 'sacado'].includes(String(profile.role))) {
+    const { data: mfaRows, error: mfaError } = await supabase.rpc('obter_sessao_mfa_atual')
+    const mfaSession = (Array.isArray(mfaRows) ? mfaRows[0] : mfaRows) as { status?: string } | null
+    if (mfaError) throw new AuthorizationError('Não foi possível validar a sessão de segurança.', 'FORBIDDEN')
+    if (mfaSession?.status !== 'valid') {
+      const message = mfaSession?.status === 'expired'
+        ? 'Sua sessão de segurança de 24 horas expirou. Entre novamente para continuar.'
+        : 'Confirme o MFA desta sessão para continuar.'
+      throw new AuthorizationError(message, 'FORBIDDEN')
+    }
   }
 
   return {

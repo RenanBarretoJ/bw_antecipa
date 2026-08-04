@@ -67,7 +67,9 @@ export async function login(_prevState: AuthState, formData: FormData): Promise<
     redirect('/mfa/setup')
   }
 
-  if ((estadoMfa.exigeMfa || estadoMfa.possuiFatorVerificado) && estadoMfa.aalAtual !== 'aal2') {
+  if ((estadoMfa.exigeMfa || estadoMfa.possuiFatorVerificado) && (
+    estadoMfa.aalAtual !== 'aal2' || !estadoMfa.sessaoElevadaValida || estadoMfa.sessaoElevadaMetodo !== 'totp'
+  )) {
     redirect('/mfa/desafio')
   }
 
@@ -126,8 +128,9 @@ export async function signup(_prevState: AuthState, formData: FormData): Promise
 export async function logout() {
   const supabase = await createClient()
   await Promise.allSettled([
-    supabase.auth.signOut(),
+    supabase.rpc('revogar_sessao_mfa_atual', { p_motivo: 'logout_usuario' }),
     limparFluxoAutenticacao(),
   ])
+  await supabase.auth.signOut({ scope: 'local' })
   redirect('/login')
 }

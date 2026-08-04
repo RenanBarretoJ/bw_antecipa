@@ -5,12 +5,41 @@ import type { AppSupabaseClient, AuthContext } from '@/lib/auth/authorization'
 import { AuthorizationError, requireAuthenticated } from '@/lib/auth/authorization'
 import { obterFluxoAutenticacao } from '@/lib/auth/auth-flow-server'
 import type { Database, Profile, UserRole } from '@/types/database'
+import { avaliarValidadeSessaoMfa, MFA_SESSION_DURATION_MS, type MfaSessionStatus } from '@/lib/auth/mfa-session'
 
-export const MFA_ELEVATED_SESSION_WINDOW_MS = 15 * 60 * 1000
+export const MFA_ELEVATED_SESSION_WINDOW_MS = MFA_SESSION_DURATION_MS
 export const MFA_RECOVERY_CODE_COUNT = 10
 export const MFA_TOTP_CODE_PATTERN = /^\d{6}$/
+export const MFA_SESSION_EXPIRED_MESSAGE = 'Sua sessão de segurança de 24 horas expirou. Entre novamente para continuar.'
+
+export const ACAO_SENSIVEL_TIPOS = [
+  'alterar_senha',
+  'alterar_email',
+  'regenerar_recovery_codes',
+  'encerrar_outras_sessoes',
+  'reset_mfa_administrativo',
+  'cadastrar_credencial_integracao',
+  'rotacionar_credencial_integracao',
+  'ativar_credencial_integracao',
+  'revogar_credencial_integracao',
+] as const
+
+export type AcaoSensivelTipo = typeof ACAO_SENSIVEL_TIPOS[number]
+export type { MfaSessionStatus } from '@/lib/auth/mfa-session'
 
 export type AuthenticatorAssuranceLevel = 'aal1' | 'aal2'
+
+export class MfaSessionError extends AuthorizationError {
+  readonly mfaCode: 'MFA_REQUIRED' | 'MFA_SESSION_EXPIRED' | 'MFA_SESSION_REVOKED' | 'MFA_SESSION_INVALID'
+  readonly expiraEm: string | null
+
+  constructor(message: string, mfaCode: MfaSessionError['mfaCode'], expiraEm: string | null = null) {
+    super(message, 'FORBIDDEN')
+    this.name = 'MfaSessionError'
+    this.mfaCode = mfaCode
+    this.expiraEm = expiraEm
+  }
+}
 
 export type EventoSegurancaTipo =
   | 'MFA_ENROLL_INICIADO'
@@ -50,6 +79,14 @@ export type EventoSegurancaTipo =
   | 'RECOVERY_CODE_USED'
   | 'MFA_REENROLL_REQUIRED'
   | 'AUTH_FLOW_BLOCKED_ROUTE_ATTEMPT'
+  | 'MFA_LOGIN_VALIDADO'
+  | 'MFA_LOGIN_FALHOU'
+  | 'SESSAO_MFA_EXPIRADA'
+  | 'SESSAO_MFA_REVOGADA'
+  | 'MFA_ACAO_SENSIVEL_VALIDADA'
+  | 'MFA_ACAO_SENSIVEL_FALHOU'
+  | 'AUTORIZACAO_SENSIVEL_CONSUMIDA'
+  | 'AUTORIZACAO_SENSIVEL_REUTILIZACAO_BLOQUEADA'
 
 export type MfaEstadoUsuario = {
   exigeMfa: boolean
@@ -57,6 +94,11 @@ export type MfaEstadoUsuario = {
   aalAtual: AuthenticatorAssuranceLevel
   aalProximo: AuthenticatorAssuranceLevel
   sessaoElevadaValida: boolean
+  sessaoId: string | null
+  sessaoStatus: MfaSessionStatus
+  sessaoElevadaEm: string | null
+  sessaoExpiraEm: string | null
+  serverNow: string
   sessaoElevadaMetodo: 'totp' | 'recovery_code' | 'admin_reset' | null
   fatoresTotp: Array<{ id: string; friendly_name?: string | null; status?: string | null; factor_type?: string | null }>
   recoveryCodesRestantes: number
@@ -96,12 +138,12 @@ function nowIso() {
   return new Date().toISOString()
 }
 
-function expirationIso(windowMs = MFA_ELEVATED_SESSION_WINDOW_MS) {
-  return new Date(Date.now() + windowMs).toISOString()
-}
-
 function mfaClient(client: SupabaseClient<Database>): MfaClient {
   return client as MfaClient
+}
+
+export function isAcaoSensivelTipo(value: string): value is AcaoSensivelTipo {
+  return (ACAO_SENSIVEL_TIPOS as readonly string[]).includes(value)
 }
 
 function normalizeAal(value: string | null | undefined): AuthenticatorAssuranceLevel {
@@ -142,17 +184,12 @@ export async function usuarioExigeMfa(context: Pick<AuthContext, 'supabase' | 'u
 }
 
 export async function obterEstadoMfaUsuario(client?: AppSupabaseClient): Promise<MfaEstadoUsuario> {
-  const context = await requireAuthenticated(client)
+  const context = await requireAuthenticated(client, { allowMfaPending: true })
   const supabase = mfaClient(context.supabase)
-  const [{ data: aalData }, { data: factorsData }, { data: elevated }, { count: recoveryCount }] = await Promise.all([
+  const [{ data: aalData }, { data: factorsData }, { data: sessaoData, error: sessaoError }, { count: recoveryCount }] = await Promise.all([
     supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
     supabase.auth.mfa.listFactors(),
-    context.supabase
-      .from('sessoes_elevadas')
-      .select('expira_em, metodo')
-      .eq('user_id', context.user.id)
-      .gt('expira_em', nowIso())
-      .maybeSingle(),
+    context.supabase.rpc('obter_sessao_mfa_atual'),
     context.supabase
       .from('mfa_recovery_codes')
       .select('id', { count: 'exact', head: true })
@@ -164,14 +201,30 @@ export async function obterEstadoMfaUsuario(client?: AppSupabaseClient): Promise
   const fatoresTotp = (factorsData?.totp || []).map(normalizeFactor).filter((factor) => factor.id)
   const possuiFatorVerificado = fatoresTotp.some((factor) => factor.status === 'verified')
   const exigeMfa = await usuarioExigeMfa(context)
+  if (sessaoError) throw new Error(`Erro ao validar sessao MFA: ${sessaoError.message}`)
+  const sessao = (Array.isArray(sessaoData) ? sessaoData[0] : sessaoData) as {
+    session_id?: string | null
+    status?: MfaSessionStatus
+    elevada_em?: string | null
+    expira_em?: string | null
+    server_now?: string
+    metodo?: 'totp' | 'recovery_code' | 'admin_reset' | null
+  } | null
+  const serverNow = sessao?.server_now || nowIso()
+  const sessaoStatus = sessao?.status || 'missing'
 
   return {
     exigeMfa,
     possuiFatorVerificado,
     aalAtual: normalizeAal(aalData?.currentLevel),
     aalProximo: normalizeAal(aalData?.nextLevel),
-    sessaoElevadaValida: !!elevated,
-    sessaoElevadaMetodo: (elevated as { metodo?: 'totp' | 'recovery_code' | 'admin_reset' } | null)?.metodo || null,
+    sessaoElevadaValida: avaliarValidadeSessaoMfa({ status: sessaoStatus, expiraEm: sessao?.expira_em || null, serverNow }),
+    sessaoId: sessao?.session_id || null,
+    sessaoStatus,
+    sessaoElevadaEm: sessao?.elevada_em || null,
+    sessaoExpiraEm: sessao?.expira_em || null,
+    serverNow,
+    sessaoElevadaMetodo: sessao?.metodo || null,
     fatoresTotp,
     recoveryCodesRestantes: recoveryCount || 0,
   }
@@ -191,7 +244,14 @@ export async function exigirMfaConfigurado(client?: AppSupabaseClient) {
 }
 
 export async function exigirSessaoElevada(context?: AuthContext) {
-  const authContext = context ?? await requireAuthenticated()
+  return requireSessaoMfaValida(context)
+}
+
+export async function requireSessaoMfaValida(context?: AuthContext) {
+  const authContext = context ?? await requireAuthenticated(undefined, { allowMfaPending: true })
+  if (authContext.profile.status !== 'ativo') {
+    throw new AuthorizationError('Perfil de usuario inativo.', 'FORBIDDEN')
+  }
   const fluxo = await obterFluxoAutenticacao()
   if (fluxo) {
     await registrarEventoSeguranca({
@@ -207,6 +267,10 @@ export async function exigirSessaoElevada(context?: AuthContext) {
   const estado = await obterEstadoMfaUsuario(authContext.supabase)
   const segundoFatorValido = estado.sessaoElevadaValida && estado.aalAtual === 'aal2' && estado.sessaoElevadaMetodo === 'totp'
   if (estado.exigeMfa && (!estado.possuiFatorVerificado || !segundoFatorValido)) {
+    if (estado.sessaoStatus === 'expired') {
+      await authContext.supabase.rpc('revogar_sessao_mfa_atual', { p_motivo: 'expiracao_24h' })
+      throw new MfaSessionError(MFA_SESSION_EXPIRED_MESSAGE, 'MFA_SESSION_EXPIRED', estado.sessaoExpiraEm)
+    }
     await registrarEventoSeguranca({
       tipo_evento: 'ACESSO_NEGADO',
       usuario_id: authContext.user.id,
@@ -214,37 +278,31 @@ export async function exigirSessaoElevada(context?: AuthContext) {
       severidade: 'warning',
       dados: { motivo: 'sessao_elevada_requerida', aal: estado.aalAtual },
     })
-    throw new AuthorizationError('Sessao elevada por MFA obrigatoria para esta acao.', 'FORBIDDEN')
+    const code = estado.sessaoStatus === 'revoked' ? 'MFA_SESSION_REVOKED' : estado.sessaoStatus === 'session_invalid' ? 'MFA_SESSION_INVALID' : 'MFA_REQUIRED'
+    throw new MfaSessionError('Confirme o MFA desta sessão para continuar.', code, estado.sessaoExpiraEm)
   }
   return estado
 }
 
 export async function exigirSessaoOperacionalAal2(context?: AuthContext) {
-  return exigirSessaoElevada(context)
+  return requireSessaoMfaValida(context)
 }
 
-export async function registrarSessaoElevada(userId: string, metodo: 'totp' | 'recovery_code' | 'admin_reset', factorId?: string | null) {
-  const admin = createAdminClient()
-  const elevatedAt = nowIso()
-  const { error } = await admin.from('sessoes_elevadas').upsert({
-    user_id: userId,
-    aal: 'aal2',
-    metodo,
-    factor_id: factorId || null,
-    elevada_em: elevatedAt,
-    expira_em: expirationIso(),
-    updated_at: elevatedAt,
-  } as never)
-
-  if (error) throw new Error(`Erro ao registrar sessao elevada: ${error.message}`)
-
-  await admin.from('profiles').update({ ultima_autenticacao_forte_em: elevatedAt } as never).eq('id', userId)
+export async function registrarSessaoElevada(userId: string, metodo: 'totp', factorId: string, client?: AppSupabaseClient) {
+  const context = await requireAuthenticated(client, { allowMfaPending: true })
+  if (context.user.id !== userId || metodo !== 'totp') throw new AuthorizationError('Contexto MFA invalido.', 'FORBIDDEN')
+  const { data, error } = await context.supabase.rpc('registrar_sessao_mfa_atual', { p_factor_id: factorId })
+  const registrada = Array.isArray(data) ? data[0] : data
+  if (error || !registrada) throw new Error(`Erro ao registrar sessao elevada: ${error?.message || 'registro nao retornado'}`)
+  const elevatedAt = registrada.elevada_em
+  await createAdminClient().from('profiles').update({ ultima_autenticacao_forte_em: elevatedAt } as never).eq('id', userId)
   await registrarEventoSeguranca({
-    tipo_evento: 'SESSAO_ELEVADA',
+    tipo_evento: 'MFA_LOGIN_VALIDADO',
     usuario_id: userId,
     ator_usuario_id: userId,
-    dados: { metodo, janela_minutos: MFA_ELEVATED_SESSION_WINDOW_MS / 60000 },
+    dados: { metodo, session_id: registrada.session_id, expira_em: registrada.expira_em, janela_horas: 24 },
   })
+  return registrada
 }
 
 export async function registrarEventoSeguranca(input: {

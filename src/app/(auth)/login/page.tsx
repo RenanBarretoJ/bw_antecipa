@@ -17,8 +17,13 @@ export default function LoginPage() {
   const [lockoutUntil, setLockoutUntil] = useState<number | null>(null)
   const [lockoutRemaining, setLockoutRemaining] = useState(0)
   const [showPassword, setShowPassword] = useState(false)
+  const [sessionExpired, setSessionExpired] = useState(false)
   const formRef = useRef<HTMLFormElement>(null)
   const isLockedOut = lockoutUntil !== null && Date.now() < lockoutUntil
+
+  useEffect(() => {
+    setSessionExpired(new URLSearchParams(window.location.search).get('motivo') === 'mfa_expirada')
+  }, [])
 
   useEffect(() => {
     if (!lockoutUntil) return
@@ -71,6 +76,8 @@ export default function LoginPage() {
         <div className="w-full max-w-[448px]">
           <div className="mb-12 flex items-center gap-3 lg:hidden"><div className="flex size-10 items-center justify-center rounded-xl bg-white text-sm font-bold text-black">BW</div><div className="leading-tight"><p className="font-semibold tracking-tight">Antecipa</p><p className="text-xs text-white/55">BETTER WITH</p></div></div>
           <div className="mb-8"><h2 className="text-3xl font-bold tracking-tight">Bem-vindo de volta</h2><p className="mt-2 text-sm text-white/60">Entre com suas credenciais para acessar o portal.</p></div>
+
+          {sessionExpired && <div role="status" className="mb-5 rounded-lg border border-amber-200/40 bg-amber-300/15 p-3 text-sm text-amber-50">Sua sessão de segurança de 24 horas expirou. Entre novamente para continuar.</div>}
 
           {isLockedOut ? <div className="rounded-xl border border-red-400/30 bg-red-400/10 p-5 text-center"><ShieldCheck size={28} className="mx-auto mb-2 text-red-300" /><p className="font-semibold text-red-200">Acesso temporariamente bloqueado</p><p className="mt-1 text-sm text-red-200/75">Muitas tentativas falhas. Tente novamente em <span className="font-mono font-bold">{Math.floor(lockoutRemaining / 60)}:{String(lockoutRemaining % 60).padStart(2, '0')}</span></p></div> : <form ref={formRef} action={handleSubmit} className="space-y-6">
             <div className="space-y-2"><Label htmlFor="email" className="text-sm text-white">E-mail</Label><div className="relative"><Mail size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-black" /><Input id="email" name="email" type="email" autoComplete="email" required placeholder="voce@empresa.com.br" className="h-10 border-white/30 bg-white/10 pl-10 text-white placeholder:text-white/65 focus-visible:border-white/60 focus-visible:ring-white/25" aria-invalid={!!state?.errors?.email} /></div>{state?.errors?.email && <p className="text-sm text-red-200">{state.errors.email[0]}</p>}</div>
