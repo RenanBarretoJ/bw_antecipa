@@ -305,7 +305,7 @@ function formatSupabaseError(error) {
   if (error.code === 'PGRST202') {
     lines.push('')
     lines.push('A RPC reset_operacional_fundo_homolog nao existe no banco ou ainda nao entrou no schema cache do PostgREST.')
-    lines.push('Aplique a migration supabase/migrations/20260723182639_reset_operacional_fundo_homolog_rpc.sql em homolog e rode novamente.')
+    lines.push('Execute npm run reset:operacional:fundo:install-rpc ou aplique as migrations pendentes em homolog e rode novamente.')
     lines.push('Se a migration ja foi aplicada, aguarde alguns segundos ou recarregue o schema cache do PostgREST.')
   }
 

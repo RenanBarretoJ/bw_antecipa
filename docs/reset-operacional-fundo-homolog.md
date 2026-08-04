@@ -22,6 +22,7 @@ O reset padrão remove dados operacionais ligados ao fundo informado, como:
 - versões documentais;
 - instâncias de requisitos documentais;
 - entregas/logística;
+- comunicações de postergação do comprovante de entrega;
 - CT-es e canhotos;
 - documentos jurídicos gerados;
 - remessas CNAB;
@@ -119,6 +120,10 @@ Esse comando aplica a função:
 ```sql
 public.reset_operacional_fundo_homolog(...)
 ```
+
+O instalador recompõe a versão base mais recente da RPC e o wrapper corretivo
+que remove, na mesma transação, as postergações imutáveis antes das entregas,
+NFs, operações e versões de política correspondentes.
 
 A RPC é usada pelo comando de reset para manter o banco transacional. O Node não faz deletes tabela a tabela pela API.
 

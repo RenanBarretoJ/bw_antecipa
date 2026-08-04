@@ -21,9 +21,10 @@ function main() {
     return
   }
 
-  const migrationPath = resolve(process.cwd(), 'supabase/migrations/20260723182639_reset_operacional_fundo_homolog_rpc.sql')
-  if (!existsSync(migrationPath)) {
-    throw new Error(`Migration da RPC nao encontrada: ${migrationPath}`)
+  const baseMigrationPath = resolve(process.cwd(), 'supabase/migrations/20260728153646_reset_operacional_eventos_dominio.sql')
+  const correctionMigrationPath = resolve(process.cwd(), 'supabase/migrations/20260804103235_corrigir_reset_postergacoes_canhoto.sql')
+  for (const migrationPath of [baseMigrationPath, correctionMigrationPath]) {
+    if (!existsSync(migrationPath)) throw new Error(`Migration da RPC nao encontrada: ${migrationPath}`)
   }
 
   const dbUrl = process.env.SUPABASE_DB_URL || process.env.DATABASE_URL || buildDbUrlFromSupabaseEnv()
@@ -37,27 +38,15 @@ function main() {
   }
 
   console.log('\nAplicando RPC reset_operacional_fundo_homolog no banco configurado...')
-  console.log('Arquivo:', migrationPath)
+  console.log('Base:', baseMigrationPath)
+  console.log('Correcao:', correctionMigrationPath)
   console.log('Destino:', maskDbUrl(dbUrl))
 
+  const sqlFiles = createSingleStatementSqlFiles(baseMigrationPath, correctionMigrationPath, Date.now())
+
   const result = process.platform === 'win32'
-    ? runSupabaseCliOnWindows(dbUrl, migrationPath)
-    : spawnSync('npx', [
-      'supabase',
-      'db',
-      'query',
-      '--db-url',
-      dbUrl,
-      '--file',
-      migrationPath,
-      '--output',
-      'table',
-      '--yes',
-    ], {
-      cwd: process.cwd(),
-      stdio: 'inherit',
-      shell: false,
-    })
+    ? runSupabaseCliOnWindows(dbUrl, sqlFiles)
+    : runSupabaseCliSequentially(dbUrl, sqlFiles)
 
   if (result.error) throw result.error
   if (result.status !== 0) throw new Error(`Falha ao aplicar RPC. Exit code: ${result.status}`)
@@ -65,10 +54,8 @@ function main() {
   console.log('\nRPC aplicada. Se o preview ainda retornar PGRST202, aguarde alguns segundos para o schema cache atualizar e rode novamente.')
 }
 
-function runSupabaseCliOnWindows(dbUrl, migrationPath) {
-  const tempDirSuffix = Date.now()
+function runSupabaseCliOnWindows(dbUrl, sqlFiles) {
   const tempPsPath = resolve(tmpdir(), `bw-antecipa-install-rpc-${Date.now()}.ps1`)
-  const sqlFiles = createSingleStatementSqlFiles(migrationPath, tempDirSuffix)
 
   const commandLines = sqlFiles.map((file) => (
     `npx supabase db query --db-url $env:BW_RESET_DB_URL --file ${quotePowerShell(file)} --output table --yes`
@@ -98,17 +85,37 @@ function runSupabaseCliOnWindows(dbUrl, migrationPath) {
   })
 }
 
-function createSingleStatementSqlFiles(migrationPath, suffix) {
-  const sql = readFileSync(migrationPath, 'utf8')
-  const functionMatch = sql.match(/CREATE OR REPLACE FUNCTION[\s\S]+?\n\$\$;/)
-  if (!functionMatch) {
-    throw new Error('Nao foi possivel extrair CREATE OR REPLACE FUNCTION da migration.')
+function runSupabaseCliSequentially(dbUrl, sqlFiles) {
+  let result = { status: 0, error: null }
+
+  for (const file of sqlFiles) {
+    result = spawnSync('npx', [
+      'supabase', 'db', 'query', '--db-url', dbUrl,
+      '--file', file, '--output', 'table', '--yes',
+    ], { cwd: process.cwd(), stdio: 'inherit', shell: false })
+    if (result.error || result.status !== 0) return result
   }
+
+  return result
+}
+
+function createSingleStatementSqlFiles(baseMigrationPath, correctionMigrationPath, suffix) {
+  const baseSql = readFileSync(baseMigrationPath, 'utf8')
+  const correctionSql = readFileSync(correctionMigrationPath, 'utf8')
+  const baseFunction = extractResetFunction(baseSql, 'base')
+  const wrapperFunction = extractResetFunction(correctionSql, 'corretiva')
 
   const statements = [
     'DROP FUNCTION IF EXISTS public.reset_operacional_fundo_homolog(uuid, text, boolean, text);',
-    functionMatch[0],
+    'DROP FUNCTION IF EXISTS public.reset_operacional_fundo_homolog(uuid, text, boolean, text, text);',
+    'DROP FUNCTION IF EXISTS public.reset_operacional_fundo_homolog_sem_postergacoes(uuid, text, boolean, text, text);',
+    baseFunction,
+    'ALTER FUNCTION public.reset_operacional_fundo_homolog(uuid, text, boolean, text, text) RENAME TO reset_operacional_fundo_homolog_sem_postergacoes;',
+    wrapperFunction,
+    "COMMENT ON FUNCTION public.reset_operacional_fundo_homolog(uuid, text, boolean, text, text) IS 'Wrapper transacional de homologacao que remove postergacoes imutaveis antes do reset operacional do fundo.';",
+    'REVOKE ALL ON FUNCTION public.reset_operacional_fundo_homolog_sem_postergacoes(uuid, text, boolean, text, text) FROM PUBLIC, anon, authenticated, service_role;',
     'REVOKE ALL ON FUNCTION public.reset_operacional_fundo_homolog(uuid, text, boolean, text, text) FROM PUBLIC;',
+    'REVOKE ALL ON FUNCTION public.reset_operacional_fundo_homolog(uuid, text, boolean, text, text) FROM anon, authenticated;',
     'GRANT EXECUTE ON FUNCTION public.reset_operacional_fundo_homolog(uuid, text, boolean, text, text) TO service_role;',
   ]
 
@@ -117,6 +124,14 @@ function createSingleStatementSqlFiles(migrationPath, suffix) {
     writeFileSync(file, statement, 'utf8')
     return file
   })
+}
+
+function extractResetFunction(sql, origem) {
+  const match = sql.match(
+    /create\s+or\s+replace\s+function\s+public\.reset_operacional_fundo_homolog\s*\([\s\S]+?\r?\n\$\$;/i,
+  )
+  if (!match) throw new Error(`Nao foi possivel extrair a funcao da migration ${origem}.`)
+  return match[0]
 }
 
 function quotePowerShell(value) {
