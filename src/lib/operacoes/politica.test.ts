@@ -47,4 +47,22 @@ describe('snapshot de politica operacional', () => {
     expect(statusAceiteInicial(true)).toBe('pendente')
     expect(statusAceiteInicial(false)).toBe('dispensado')
   })
+
+  it('preserva o snapshot historico quando a politica recebe requisitos posteriores', () => {
+    const configuracao = policy()
+    const historico = criarSnapshotPolitica(configuracao)
+
+    configuracao.requisitos.push({
+      ...configuracao.requisitos[0],
+      id: 'req-2',
+      codigo: 'PEDIDO-COMPRA',
+      tipo_documento_codigo: 'nf_pedido_compra',
+      ordem: 2,
+    })
+    const atual = criarSnapshotPolitica(configuracao)
+
+    expect(historico.snapshot.requisitos.map((item) => item.id)).toEqual(['req-1'])
+    expect(atual.snapshot.requisitos.map((item) => item.id)).toEqual(['req-1', 'req-2'])
+    expect(historico.hash).not.toBe(atual.hash)
+  })
 })

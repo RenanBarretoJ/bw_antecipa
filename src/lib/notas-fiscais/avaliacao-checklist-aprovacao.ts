@@ -1,9 +1,25 @@
 import type { PoliticaNivelValidacao } from '@/lib/types/domain'
 import { resolverSatisfacaoRequisitoParaAprovacao } from '@/lib/documentos-v2/satisfacao-requisito'
 
-export type RequisitoAprovacaoComDados = {
-  notaFiscalId: string
-  requisitoId: string
+export type FontePoliticaDocumentalNota = 'politica_publicada' | 'snapshot_operacao'
+
+export type EstadoElegibilidadeDocumentalNota =
+  | 'nao_aplicavel'
+  | 'completo'
+  | 'pendente'
+  | 'nao_instanciado'
+  | 'configuracao_invalida'
+  | 'arquivo_original_ausente'
+
+export type PoliticaDocumentalResolvidaNota = {
+  resolvida: boolean
+  fonte: FontePoliticaDocumentalNota | null
+  politicaId: string | null
+  versaoId: string | null
+}
+
+export type RequisitoEsperadoAprovacao = {
+  id: string
   nome: string
   tipoDocumento: string
   escopo: string
@@ -11,6 +27,13 @@ export type RequisitoAprovacaoComDados = {
   bloqueiaFluxo: boolean
   momento: string
   regraValidade: PoliticaNivelValidacao
+  ativo: boolean
+}
+
+export type InstanciaRequisitoAprovacao = {
+  notaFiscalId: string
+  requisitoId: string
+  politicaVersaoId: string | null
   statusInstancia: string
   documentoId: string | null
   versaoAprovadaId: string | null
@@ -22,79 +45,124 @@ export type RequisitoAprovacaoComDados = {
 }
 
 export type AvaliacaoChecklistAprovacao = {
+  aplicavel: boolean
   elegivel: boolean
+  estado: EstadoElegibilidadeDocumentalNota
+  fontePolitica: FontePoliticaDocumentalNota | null
   requisitosPendentes: string[]
   requisitosRejeitados: string[]
   requisitosEmAnalise: string[]
+  ausentesMaterializacao: string[]
+  errosConfiguracao: string[]
   motivos: string[]
+  totalEsperados: number
   totalObrigatorios: number
   concluidosObrigatorios: number
   pendentesObrigatorios: number
   possuiRejeicao: boolean
+  arquivoOriginalValido: boolean
+}
+
+export function arquivoOriginalDaNotaValido(caminho: string | null | undefined): boolean {
+  if (!caminho?.trim()) return false
+  const caminhoSemParametros = caminho.trim().split(/[?#]/, 1)[0]
+  return /\.(pdf|xml)$/i.test(caminhoSemParametros)
 }
 
 /**
- * Regra pura usada pela listagem e pelas aprovacoes individual e em lote.
- * Recebe somente dados ja autorizados e nao executa I/O.
+ * Gate documental formal da NF. A politica e os requisitos esperados precisam
+ * ter sido resolvidos antes da chamada; uma colecao vazia so significa
+ * "nao aplicavel" quando a politica foi efetivamente identificada.
  */
-export function avaliarChecklistDaNotaComDados(input: {
+export function avaliarElegibilidadeDocumentalDaNota(input: {
   notaFiscalId: string
-  requisitos: RequisitoAprovacaoComDados[]
+  politica: PoliticaDocumentalResolvidaNota
+  requisitosEsperados: RequisitoEsperadoAprovacao[]
+  instancias: InstanciaRequisitoAprovacao[]
+  arquivoOriginal: string | null
 }): AvaliacaoChecklistAprovacao {
-  const requisitosDaNota = input.requisitos.filter(
-    (item) => item.notaFiscalId === input.notaFiscalId && item.escopo === 'nf_pre_cessao',
+  const arquivoOriginalValido = arquivoOriginalDaNotaValido(input.arquivoOriginal)
+  const requisitosAplicaveis = input.requisitosEsperados.filter(
+    (item) => item.ativo && item.escopo === 'nf_pre_cessao',
   )
-
-  if (requisitosDaNota.length === 0) {
-    return {
-      elegivel: false,
-      requisitosPendentes: ['Checklist documental'],
-      requisitosRejeitados: [],
-      requisitosEmAnalise: [],
-      motivos: ['Checklist documental da NF ainda nao foi instanciado.'],
-      totalObrigatorios: 0,
-      concluidosObrigatorios: 0,
-      pendentesObrigatorios: 1,
-      possuiRejeicao: false,
-    }
-  }
-
-  const obrigatorios = requisitosDaNota.filter(
+  const obrigatorios = requisitosAplicaveis.filter(
     (item) => item.obrigatorio || item.bloqueiaFluxo,
   )
-  const avaliados = obrigatorios.map((item) => ({
-    item,
-    satisfacao: resolverSatisfacaoRequisitoParaAprovacao({
-      requisitoId: item.requisitoId,
-      tipoDocumento: item.tipoDocumento,
-      obrigatorio: item.obrigatorio,
-      bloqueiaFluxo: item.bloqueiaFluxo,
-      momento: item.momento,
-      regraValidade: item.regraValidade,
-      statusInstancia: item.statusInstancia,
-      documentoId: item.documentoId,
-      versaoAprovadaId: item.versaoAprovadaId,
-      versoes: item.versaoAtual ? [item.versaoAtual] : [],
-    }),
-  }))
-
-  const pendentes = avaliados.filter(({ satisfacao }) => !satisfacao.aprovado)
-  const rejeitados = avaliados.filter(({ satisfacao }) =>
-    ['rejeitado', 'ajuste_solicitado'].includes(satisfacao.statusAnalise))
-  const emAnalise = avaliados.filter(
+  const instanciaPorRequisito = new Map(
+    input.instancias
+      .filter((item) => (
+        item.notaFiscalId === input.notaFiscalId
+        && item.politicaVersaoId === input.politica.versaoId
+      ))
+      .map((item) => [item.requisitoId, item]),
+  )
+  const ausentes = obrigatorios.filter((item) => !instanciaPorRequisito.has(item.id))
+  const materializados = obrigatorios
+    .filter((item) => instanciaPorRequisito.has(item.id))
+    .map((item) => {
+      const instancia = instanciaPorRequisito.get(item.id)!
+      return {
+        item,
+        satisfacao: resolverSatisfacaoRequisitoParaAprovacao({
+          requisitoId: item.id,
+          tipoDocumento: item.tipoDocumento,
+          obrigatorio: item.obrigatorio,
+          bloqueiaFluxo: item.bloqueiaFluxo,
+          momento: item.momento,
+          regraValidade: item.regraValidade,
+          statusInstancia: instancia.statusInstancia,
+          documentoId: instancia.documentoId,
+          versaoAprovadaId: instancia.versaoAprovadaId,
+          versoes: instancia.versaoAtual ? [instancia.versaoAtual] : [],
+        }),
+      }
+    })
+  const pendentesMaterializados = materializados.filter(({ satisfacao }) => !satisfacao.aprovado)
+  const rejeitados = pendentesMaterializados.filter(({ satisfacao }) => (
+    satisfacao.statusAnalise === 'rejeitado'
+    || satisfacao.statusAnalise === 'ajuste_solicitado'
+  ))
+  const emAnalise = pendentesMaterializados.filter(
     ({ satisfacao }) => satisfacao.statusAnalise === 'aguardando_analise',
   )
+  const requisitosPendentes = [
+    ...ausentes.map((item) => item.nome),
+    ...pendentesMaterializados.map(({ item }) => item.nome),
+  ]
+  const errosConfiguracao = input.politica.resolvida
+    ? []
+    : ['Nao foi possivel identificar a politica documental aplicavel a NF.']
+  const motivos = [
+    ...ausentes.map((item) => `${item.nome}: requisito documental nao materializado.`),
+    ...pendentesMaterializados.map(({ item, satisfacao }) => (
+      `${item.nome}: ${satisfacao.motivoBloqueio || 'aprovacao documental pendente'}`
+    )),
+  ]
+
+  let estado: EstadoElegibilidadeDocumentalNota
+  if (!input.politica.resolvida) estado = 'configuracao_invalida'
+  else if (!arquivoOriginalValido) estado = 'arquivo_original_ausente'
+  else if (ausentes.length > 0) estado = 'nao_instanciado'
+  else if (pendentesMaterializados.length > 0) estado = 'pendente'
+  else if (requisitosAplicaveis.length === 0) estado = 'nao_aplicavel'
+  else estado = 'completo'
 
   return {
-    elegivel: pendentes.length === 0,
-    requisitosPendentes: pendentes.map(({ item }) => item.nome),
+    aplicavel: input.politica.resolvida && requisitosAplicaveis.length > 0,
+    elegivel: ['nao_aplicavel', 'completo'].includes(estado),
+    estado,
+    fontePolitica: input.politica.fonte,
+    requisitosPendentes,
     requisitosRejeitados: rejeitados.map(({ item }) => item.nome),
     requisitosEmAnalise: emAnalise.map(({ item }) => item.nome),
-    motivos: pendentes.map(({ item, satisfacao }) =>
-      `${item.nome}: ${satisfacao.motivoBloqueio || 'aprovacao documental pendente'}`),
+    ausentesMaterializacao: ausentes.map((item) => item.nome),
+    errosConfiguracao,
+    motivos,
+    totalEsperados: requisitosAplicaveis.length,
     totalObrigatorios: obrigatorios.length,
-    concluidosObrigatorios: obrigatorios.length - pendentes.length,
-    pendentesObrigatorios: pendentes.length,
+    concluidosObrigatorios: obrigatorios.length - requisitosPendentes.length,
+    pendentesObrigatorios: requisitosPendentes.length,
     possuiRejeicao: rejeitados.length > 0,
+    arquivoOriginalValido,
   }
 }

@@ -1,24 +1,33 @@
+import type { EstadoElegibilidadeDocumentalNota } from './avaliacao-checklist-aprovacao'
+
 export interface EntradaElegibilidadeAprovacaoNf {
   status: string
   documentos: {
     elegivel: boolean
+    estado: EstadoElegibilidadeDocumentalNota
     requisitosPendentes: string[]
     requisitosRejeitados: string[]
     requisitosEmAnalise: string[]
+    ausentesMaterializacao: string[]
   }
 }
 
 export interface AvaliacaoElegibilidadeAprovacaoNf {
   elegivel: boolean
   bloqueios: Array<{
-    codigo: 'nf_nao_submetida' | 'documentos_nao_aprovados'
+    codigo:
+      | 'nf_nao_submetida'
+      | 'politica_documental_nao_resolvida'
+      | 'arquivo_original_ausente'
+      | 'requisitos_nao_instanciados'
+      | 'documentos_nao_aprovados'
     mensagem: string
   }>
 }
 
 /**
- * A decisão formal de aprovação da NF é posterior à submissão e exige que a
- * análise dos documentos obrigatórios esteja concluída.
+ * A decisao formal de aprovacao da NF e posterior a submissao e mantem os
+ * bloqueios de configuracao, arquivo e documentos separados.
  */
 export function avaliarElegibilidadeAprovacaoNf(
   input: EntradaElegibilidadeAprovacaoNf,
@@ -28,15 +37,31 @@ export function avaliarElegibilidadeAprovacaoNf(
   if (!['submetida', 'em_analise'].includes(input.status)) {
     bloqueios.push({
       codigo: 'nf_nao_submetida',
-      mensagem: 'A NF precisa ser submetida pelo cedente antes da aprovação formal.',
+      mensagem: 'A NF precisa ser submetida pelo cedente antes da aprovacao formal.',
     })
   }
 
-  if (!input.documentos.elegivel) {
-    const pendencias = input.documentos.requisitosPendentes.join(', ') || 'checklist documental pendente'
+  if (input.documentos.estado === 'configuracao_invalida') {
+    bloqueios.push({
+      codigo: 'politica_documental_nao_resolvida',
+      mensagem: 'Nao foi possivel identificar a politica documental aplicavel a NF.',
+    })
+  } else if (input.documentos.estado === 'arquivo_original_ausente') {
+    bloqueios.push({
+      codigo: 'arquivo_original_ausente',
+      mensagem: 'A NF nao possui arquivo original PDF ou XML valido.',
+    })
+  } else if (input.documentos.estado === 'nao_instanciado') {
+    const requisitos = input.documentos.ausentesMaterializacao.join(', ')
+    bloqueios.push({
+      codigo: 'requisitos_nao_instanciados',
+      mensagem: `Nao foi possivel preparar os requisitos documentais da politica para esta NF: ${requisitos}.`,
+    })
+  } else if (!input.documentos.elegivel) {
+    const pendencias = input.documentos.requisitosPendentes.join(', ')
     bloqueios.push({
       codigo: 'documentos_nao_aprovados',
-      mensagem: `A NF ainda possui documentos obrigatórios sem aprovação: ${pendencias}.`,
+      mensagem: `A NF ainda possui documentos obrigatorios sem aprovacao: ${pendencias}.`,
     })
   }
 

@@ -1084,7 +1084,7 @@ export async function aprovarNF(nfId: string): Promise<NfActionState> {
   const checklist = await carregarResumoDocumentalDasNotas(supabase, [nfId])
   const documentos = checklist.avaliacoes.get(nfId)
   if (!documentos) {
-    return { success: false, message: 'Nao foi possivel validar o checklist documental da NF.' }
+    return { success: false, message: 'Nao foi possivel avaliar a documentacao aplicavel a NF.' }
   }
   const avaliacaoAprovacao = avaliarElegibilidadeAprovacaoNf({
     status: nfData.status,
@@ -1356,8 +1356,8 @@ export async function aprovarNFsLote(ids: string[]): Promise<NfActionState> {
       : {
         elegivel: false,
         bloqueios: [{
-          codigo: 'documentos_nao_aprovados' as const,
-          mensagem: 'Checklist documental nao encontrado.',
+          codigo: 'politica_documental_nao_resolvida' as const,
+          mensagem: 'Nao foi possivel identificar a politica documental aplicavel a NF.',
         }],
       }
     return { nf, documentos, avaliacao }
@@ -1367,7 +1367,7 @@ export async function aprovarNFsLote(ids: string[]): Promise<NfActionState> {
     const bloqueadasPorId = new Map(bloqueadas.map((item) => [item.nf.id, item]))
     return {
       success: false,
-      message: `Aprovação bloqueada. NFs com documentos obrigatórios sem aprovação: ${bloqueadas.map((item) => item.nf.numero_nf).join(', ')}.`,
+      message: `Aprovacao em lote bloqueada. Verifique as pendencias das NFs: ${bloqueadas.map((item) => item.nf.numero_nf).join(', ')}.`,
       lote: {
         totalRecebidas: idsUnicos.length,
         totalAprovadas: 0,
@@ -1378,9 +1378,12 @@ export async function aprovarNFsLote(ids: string[]): Promise<NfActionState> {
             ? {
               notaFiscalId,
               success: false,
-              code: 'documentos_nao_aprovados',
+              code: bloqueada.avaliacao.bloqueios[0]?.codigo || 'documentos_nao_aprovados',
               message: bloqueada.avaliacao.bloqueios.map((item) => item.mensagem).join(' '),
-              pendencias: bloqueada.documentos?.requisitosPendentes || [],
+              pendencias: Array.from(new Set([
+                ...(bloqueada.documentos?.ausentesMaterializacao || []),
+                ...(bloqueada.documentos?.requisitosPendentes || []),
+              ])),
             }
             : {
               notaFiscalId,

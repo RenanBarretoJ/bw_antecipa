@@ -34,6 +34,17 @@ function requisito(overrides: Partial<RequisitoElegibilidadeComDados> = {}): Req
 }
 
 describe('elegibilidade documental em lote para operacoes', () => {
+  it('mantem aprovavel a operacao cujo snapshot nao possui requisitos documentais', () => {
+    const resultado = avaliarElegibilidadeDocumentalParaOperacao({
+      notaFiscal: nota,
+      requisitos: [],
+    })
+
+    expect(resultado.elegivel).toBe(true)
+    expect(resultado.totalObrigatorios).toBe(0)
+    expect(resultado.requisitosPendentes).toEqual([])
+  })
+
   it('bloqueia documento ausente', () => {
     const resultado = avaliarElegibilidadeDocumentalParaOperacao({ notaFiscal: nota, requisitos: [requisito()] })
     expect(resultado.elegivel).toBe(false)

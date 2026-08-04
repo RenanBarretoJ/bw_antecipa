@@ -145,4 +145,30 @@ describe('listagem de NFs do gestor', () => {
     expect(loteSource).not.toMatch(/\.map\(\s*async/)
     expect(loteSource).toContain('A aprovacao em lote e atomica')
   })
+
+  it('usa o mesmo gate canonico na aprovacao individual e em lote', () => {
+    const actionSource = readFileSync(
+      join(process.cwd(), 'src/lib/actions/nota-fiscal.ts'),
+      'utf8',
+    )
+    const gateSource = readFileSync(
+      join(process.cwd(), 'src/lib/notas-fiscais/resumo-documental-gestor.server.ts'),
+      'utf8',
+    )
+
+    expect(actionSource.match(/carregarResumoDocumentalDasNotas\(/g)).toHaveLength(2)
+    expect(actionSource.match(/avaliarElegibilidadeAprovacaoNf\(/g)).toHaveLength(2)
+    expect(gateSource).toContain('avaliarElegibilidadeDocumentalDaNota({')
+    expect(gateSource).toContain(".from('cedente_fundo_politicas')")
+    expect(gateSource).toContain(".from('politica_requisitos_documentais')")
+    expect(gateSource).toContain('arquivo_url')
+    expect(gateSource).not.toContain('createAdminClient')
+    expect(gateSource).not.toContain('createServiceRoleClient')
+    const avaliacaoEmLote = gateSource.slice(
+      gateSource.indexOf('const avaliacoes = new Map'),
+      gateSource.indexOf('return { avaliacoes'),
+    )
+    expect(avaliacaoEmLote).not.toContain('.from(')
+    expect(gateSource).not.toMatch(/HEALTH|FORMAPLAN|RLX/i)
+  })
 })
