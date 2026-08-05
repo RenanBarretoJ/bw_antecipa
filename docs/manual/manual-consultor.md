@@ -1,274 +1,234 @@
-# Manual do Consultor — Portal BW Antecipa
+# Manual do Consultor — BW Antecipa
 
-**Versão 1.1 — Abril de 2026**
+**Versão 2.0 — Agosto de 2026**
 
----
+Este manual descreve a consulta da carteira atribuída ao perfil **Consultor**. O perfil é de acompanhamento: não aprova, reprova, cadastra, altera ou desembolsa operações.
 
 ## Sumário
 
-1. [Visão Geral](#1-visão-geral)
-2. [Dashboard — Painel Principal](#2-dashboard--painel-principal)
-3. [Minha Carteira](#3-minha-carteira)
-4. [Operações](#4-operações)
-5. [Extratos Escrow](#5-extratos-escrow)
-6. [Relatórios e Comissões](#6-relatórios-e-comissões)
-7. [Notificações](#7-notificações)
-8. [Dúvidas Frequentes](#8-dúvidas-frequentes)
+1. [Acesso e segurança](#1-acesso-e-segurança)
+2. [Navegação e limite de acesso](#2-navegação-e-limite-de-acesso)
+3. [Dashboard](#3-dashboard)
+4. [Minha Carteira](#4-minha-carteira)
+5. [Operações](#5-operações)
+6. [Extratos Escrow](#6-extratos-escrow)
+7. [Relatórios e comissões](#7-relatórios-e-comissões)
+8. [Notificações e segurança da conta](#8-notificações-e-segurança-da-conta)
+9. [Status apresentados](#9-status-apresentados)
+10. [Dúvidas frequentes](#10-dúvidas-frequentes)
 
----
+## 1. Acesso e segurança
 
-## 1. Visão Geral
+### 1.1 Entrar no portal
 
-O portal do consultor oferece visibilidade sobre a carteira de cedentes vinculados ao seu perfil, as operações de antecipação em andamento, os saldos escrow e as comissões estimadas por período.
+1. Informe e-mail e senha.
+2. Confirme o código de seis dígitos do aplicativo autenticador.
+3. Se o MFA ainda não estiver configurado, conclua a configuração e guarde os códigos de recuperação.
 
-O acesso é **somente leitura** — você acompanha o andamento das operações, mas as aprovações e ações operacionais são realizadas pelo gestor BW.
+Todo novo login exige senha e TOTP. A confirmação vale somente para a sessão atual; outro navegador ou dispositivo exige novo código.
 
----
+### 1.2 Sessão de 24 horas
 
-## 2. Dashboard — Painel Principal
+- A sessão de segurança permanece válida por **24 horas corridas**.
+- Atualizar a página ou navegar não reinicia o prazo.
+- Ao completar 24 horas, o logout ocorre automaticamente.
+- Para continuar, entre novamente com senha e TOTP.
+- Ações comuns não solicitam novo código durante a janela válida.
+- Ações sensíveis podem pedir nova confirmação.
+- O logout voluntário encerra somente a sessão atual.
 
-A tela inicial resume sua carteira com os principais indicadores.
+Não compartilhe senha, TOTP ou códigos de recuperação. Encerre a sessão ao terminar, especialmente em computador compartilhado.
 
-### 2.1 Indicadores principais
+## 2. Navegação e limite de acesso
 
-| Indicador | O que mostra |
-|---|---|
-| Cedentes Ativos | Total na sua carteira e quantos estão ativos |
-| Operações Ativas | Quantidade e volume total em R$ |
-| Volume do Mês | Operações criadas no mês corrente |
-| Comissão Estimada | Estimativa de comissão sobre operações em andamento |
+O menu do Consultor contém:
 
-### 2.2 Minha Carteira (resumo)
+- **Dashboard**;
+- **Minha Carteira**;
+- **Operações**;
+- **Extratos Escrow**;
+- **Relatórios**;
+- **Notificações**;
+- **Minha Segurança**.
 
-Lista os primeiros 5 cedentes da sua carteira com razão social, CNPJ, status e percentual de comissão configurado. Para ver todos, clique em **"Ver todos"**.
+O Consultor visualiza somente os cedentes e dados financeiros autorizados da própria carteira. Não existe seletor de fundo para esse perfil na interface atual.
 
-### 2.3 Operações Recentes
+O acesso é de consulta. O Consultor não pode:
 
-Lista os 5 últimos pedidos de antecipação dos seus cedentes com cedente, data, status e valor bruto. Para ver todas, clique em **"Ver todas"**.
+- vincular cedentes a fundos;
+- configurar políticas, documentos, CNAB ou integrações;
+- aprovar ou reprovar NFs;
+- aprovar, reprovar, desembolsar ou liquidar operações;
+- movimentar contas escrow;
+- acessar cedentes de outra carteira.
 
-### 2.4 Acesso rápido
+## 3. Dashboard
 
-Três atalhos no rodapé do Dashboard levam para: **Carteira**, **Operações** e **Relatórios**.
+O **Dashboard do Consultor** apresenta:
 
----
+- cedentes ativos e total da carteira;
+- operações ativas e respectivo volume;
+- volume do mês de operações não canceladas;
+- comissão estimada sobre operações em andamento;
+- cedentes recentes da carteira;
+- operações recentes;
+- atalhos para carteira, operações e relatórios.
 
-## 3. Minha Carteira
+Os valores são indicadores de acompanhamento. A comissão exibida é uma estimativa; o valor final é confirmado pelo gestor.
 
-Acesse **Carteira** no menu lateral para ver todos os cedentes vinculados ao seu perfil.
+## 4. Minha Carteira
 
-### 3.1 Indicadores
+Em **Minha Carteira**, consulte os cedentes sob sua responsabilidade.
 
-- **Total de cedentes** na carteira
-- **Cedentes ativos** (habilitados para operar)
-- **Volume total operado** (soma histórica das operações)
+A tela apresenta:
 
-### 3.2 Busca
+- total de cedentes;
+- quantidade de cedentes ativos;
+- volume total operado;
+- busca por razão social, nome fantasia ou CNPJ;
+- status do cedente;
+- CNPJ e nome fantasia;
+- volume operado;
+- operações ativas;
+- percentual de comissão cadastrado para o vínculo.
 
-Use o campo de busca para filtrar por razão social, CNPJ ou nome fantasia.
+Os dados são resumidos. O perfil não possui acesso irrestrito a todo o cadastro ou documentação do cedente.
 
-### 3.3 Informações por cedente
+## 5. Operações
 
-Para cada cedente da carteira, você vê:
+Em **Operações**, acompanhe as solicitações relacionadas à carteira autorizada.
 
-| Campo | Descrição |
-|---|---|
-| Razão Social | Nome registrado da empresa |
-| CNPJ | Formatado |
-| Status | Ativo, Pendente, Em Análise, Reprovado ou Bloqueado |
-| Volume Operado | Soma de todas as operações do cedente |
-| Operações Ativas | Quantidade de operações em andamento |
-| Comissão | Percentual configurado (em verde) |
+A tela oferece:
 
-### 3.4 Status do cedente
+- indicadores de total, pendências, operações em andamento e valor ativo;
+- busca por operação ou cedente;
+- filtro por status;
+- ordenação;
+- paginação;
+- valores bruto e líquido;
+- taxa, prazo, vencimento e status, quando disponíveis.
+
+O Consultor não vê botões de aprovação, reprovação, cancelamento, desembolso ou liquidação. Caso identifique divergência, comunique o gestor responsável.
+
+## 6. Extratos Escrow
+
+Em **Extratos Escrow**, o Consultor acessa, em somente leitura, as contas dos cedentes da própria carteira quando elas existirem.
+
+É possível:
+
+- buscar por identificador, cedente ou CNPJ;
+- filtrar por **Ativa**, **Bloqueada** ou **Encerrada**;
+- filtrar por cedente;
+- consultar valores disponível e bloqueado;
+- navegar por páginas;
+- selecionar **Extrato** para consultar os movimentos apresentados.
+
+Escrow não é obrigatório para todos os cedentes ou fundos. Se não houver conta configurada na carteira, a tela poderá ficar vazia. O Consultor não pode realizar movimentações.
+
+## 7. Relatórios e comissões
+
+Em **Relatórios**, a tela **Relatórios e comissões** apresenta a performance da carteira no período selecionado.
+
+Os indicadores incluem:
+
+- volume no mês;
+- quantidade de operações no mês;
+- comissão estimada no mês;
+- volume acumulado de operações em andamento e liquidadas;
+- cedentes ativos.
+
+Use os filtros de período e status. A tabela **Comissões por cedente** mostra:
+
+- cedente e CNPJ;
+- status;
+- volume e operações do mês;
+- percentual cadastrado;
+- comissão estimada;
+- volume total;
+- paginação.
+
+A plataforma realiza o cálculo com os dados vigentes da carteira. Não aplique uma fórmula manual universal. Os valores finais são confirmados pelo gestor.
+
+## 8. Notificações e segurança da conta
+
+O sino do cabeçalho mostra avisos recentes. Em **Notificações**, filtre entre **Todas**, **Não lidas** e **Lidas**, abra o destino indicado e marque mensagens como lidas.
+
+Em **Minha Segurança**, é possível:
+
+- consultar o MFA configurado;
+- trocar a senha com as confirmações solicitadas;
+- gerar novos códigos de recuperação;
+- encerrar outras sessões.
+
+O MFA é obrigatório e não pode ser desativado pelo próprio usuário.
+
+## 9. Status apresentados
+
+### Cedente
 
 | Status | Significado |
 |---|---|
-| Ativo | Cadastro aprovado, pode solicitar antecipações |
-| Pendente | Cadastro enviado, aguardando análise do gestor |
-| Em Análise | Em revisão pelo gestor |
-| Reprovado | Cadastro não aprovado |
-| Bloqueado | Operação suspensa |
+| Pendente | Cadastro ou vínculo ainda em preparação. |
+| Em análise | Avaliação em andamento. |
+| Ativo | Cedente ativo na carteira. |
+| Reprovado | Cadastro ou vínculo recusado. |
+| Bloqueado | Operação temporariamente impedida. |
 
----
-
-## 4. Operações
-
-Acesse **Operações** no menu lateral para acompanhar todas as solicitações de antecipação dos seus cedentes.
-
-### 4.1 Filtros disponíveis
-
-- **Busca** por razão social ou CNPJ do cedente
-- **Status:** Todos, Em Andamento, Liquidadas, Solicitadas
-
-### 4.2 Informações por operação
-
-| Coluna | Descrição |
-|---|---|
-| ID | Primeiros 8 caracteres do identificador |
-| Cedente | Razão social e CNPJ |
-| Valor Bruto | Soma das NFs incluídas |
-| Taxa | % a.m. aplicada (ou "—" se não definida) |
-| Valor Líquido | Valor que o cedente receberá (em verde) |
-| Vencimento | Data de vencimento da operação |
-| Status | Status atual da operação |
-| Criada em | Data da solicitação |
-
-### 4.3 Status das operações
+### Operação
 
 | Status | Significado |
 |---|---|
-| Solicitada | Aguardando análise do gestor |
-| Em Análise | Em revisão |
-| Aprovada | Gestor aprovou os termos; aguardando desembolso |
-| Em Andamento | Desembolso realizado; valor creditado ao cedente |
-| Liquidada | Sacado pagou; operação encerrada |
-| Inadimplente | Vencida e não paga |
-| Reprovada | Rejeitada pelo gestor |
-| Cancelada | Cancelada pelo cedente ou gestor |
+| Solicitada | Aguardando análise do gestor. |
+| Em análise | Solicitação em conferência. |
+| Aprovada | Aprovada e aguardando próximas etapas. |
+| Em andamento | Operação desembolsada ou em execução. |
+| Liquidada | Operação concluída financeiramente. |
+| Inadimplente | Pagamento vencido ou não realizado. |
+| Reprovada | Solicitação recusada. |
+| Cancelada | Solicitação encerrada por cancelamento. |
 
-> Esta página é somente leitura. Para qualquer ação sobre as operações, o cedente ou o gestor devem ser acionados.
+### Conta escrow
 
----
-
-## 5. Extratos Escrow
-
-Acesse **Escrow** no menu lateral para visualizar os saldos e movimentos das contas escrow dos seus cedentes.
-
-### 5.1 Lista de contas
-
-A tabela exibe todas as contas escrow dos cedentes da sua carteira:
-
-| Coluna | Descrição |
+| Status | Significado |
 |---|---|
-| Identificador | Código da conta (em monospace) |
-| Cedente | Razão social e CNPJ |
-| Disponível | Saldo livre para movimentação (verde) |
-| Bloqueado | Saldo retido como garantia (amarelo) |
-| Status | Ativa ou Inativa |
+| Ativa | Conta disponível para consulta no fluxo atual. |
+| Bloqueada | Conta temporariamente indisponível. |
+| Encerrada | Conta sem novas movimentações. |
 
-Use a busca para filtrar por identificador, razão social ou CNPJ.
+## 10. Dúvidas frequentes
 
----
+### Por que fui desconectado?
 
-### 5.2 Extrato detalhado de uma conta
+A sessão completou 24 horas, houve logout ou a autenticação deixou de ser válida. Entre novamente com senha e TOTP.
 
-Clique em **"Ver extrato"** na linha de qualquer conta para acessar o histórico de movimentos.
+### Por que o TOTP foi solicitado novamente?
 
-**Informações da conta:**
-- Identificador, cedente e CNPJ
-- Saldo disponível e bloqueado
+Você iniciou um novo login, mudou de navegador ou dispositivo, completou 24 horas de sessão ou iniciou uma ação sensível.
 
-**Filtros de período:**
-- Data início e data fim
+### Por que não existe seletor de fundo?
 
-**Cada linha do extrato:**
+O perfil Consultor é organizado pela carteira atribuída e não possui seletor de fundo na interface atual.
 
-| Campo | Descrição |
-|---|---|
-| Data | Data e hora da movimentação |
-| Tipo | Crédito (verde) ou Débito (vermelho) |
-| Descrição | Descrição da movimentação |
-| Valor | Com sinal + (crédito) ou − (débito), colorido |
-| Saldo Após | Saldo da conta após o movimento |
+### Por que não vejo determinado cedente?
 
-> Esta visualização é **somente leitura**. Nenhuma movimentação pode ser realizada pelo consultor.
+O portal mostra somente cedentes vinculados à sua carteira. Solicite ao gestor a revisão da atribuição.
 
----
+### Por que não vejo uma operação?
 
-## 6. Relatórios e Comissões
+A operação pode pertencer a um cedente fora da carteira ou não estar disponível no conjunto autorizado.
 
-Acesse **Relatórios** no menu lateral para acompanhar sua performance e comissões por período.
+### Posso aprovar uma NF ou operação?
 
-### 6.1 Selecionar período
+Não. O perfil Consultor é de acompanhamento e não possui ações operacionais.
 
-Escolha o mês no dropdown no topo da página. Apenas meses com operações registradas são exibidos.
+### A comissão exibida é o valor definitivo?
 
-### 6.2 KPIs do período
+Não. É uma estimativa calculada com os dados vigentes. O valor final é confirmado pelo gestor.
 
-| Indicador | O que calcula |
-|---|---|
-| Volume no Mês | Soma dos valores líquidos das operações do mês |
-| Comissão no Mês | Comissão estimada sobre o volume do mês |
-| Volume Acumulado | Soma histórica de todas as operações |
-| Cedentes Ativos | Quantidade de cedentes com operações no período |
+### Por que não há conta em Extratos Escrow?
 
-### 6.3 Tabela de comissões por cedente
+O recurso pode não estar configurado para o cedente. Escrow não é universal.
 
-A tabela mostra o desempenho individual de cada cedente e a comissão calculada:
+### Posso movimentar uma conta escrow?
 
-| Coluna | Descrição |
-|---|---|
-| Cedente | Razão social e CNPJ |
-| Status | Status atual do cedente |
-| Volume no Mês | Soma das operações do mês |
-| Ops no Mês | Quantidade de operações |
-| % Comissão | Percentual acordado |
-| Comissão | Valor estimado (em verde, em negrito) |
-| Volume Total | Volume histórico acumulado |
-
-A última linha da tabela exibe os **totais consolidados** de comissão e volume.
-
-Os cedentes com maior comissão no mês aparecem no topo da tabela.
-
-### 6.4 Como a comissão é calculada
-
-```
-Comissão = Volume Líquido do Mês × Percentual de Comissão / 100
-```
-
-Apenas operações com status **"Em Andamento"** e **"Liquidada"** são incluídas no cálculo.
-
-> **Atenção:** Os valores exibidos são **estimados**. Os valores finais de comissão são confirmados e pagos pelo gestor BW conforme acordado contratualmente.
-
----
-
-## 7. Notificações
-
-Acesse **Notificações** no menu lateral para ver alertas e atualizações sobre sua carteira.
-
-### 7.1 Tipos de notificações
-
-| Tipo | Cor | Exemplos |
-|---|---|---|
-| Sucesso | Verde | Operação liquidada, novo cedente ativo |
-| Alerta | Amarelo | Cessão contestada, cedente inadimplente |
-| Erro | Vermelho | Falha em algum processo |
-| Info | Azul | Atualizações gerais |
-
-### 7.2 Gerenciar notificações
-
-- Notificações não lidas têm destaque visual (borda azul e ponto indicador)
-- Clique em **"Marcar como lida"** para arquivar individualmente
-- Clique em **"Marcar todas como lidas"** para limpar todas de uma vez
-- Use as abas **"Todas"**, **"Não lidas"** e **"Lidas"** para filtrar
-
-As notificações chegam em **tempo real** — não é necessário recarregar a página.
-
----
-
-## 8. Dúvidas Frequentes
-
-**Posso realizar alguma ação nas operações ou documentos dos cedentes?**
-Não. O portal do consultor é inteiramente somente leitura. Aprovações, análises e ações operacionais são realizadas exclusivamente pelo gestor BW.
-
-**Como sei quando uma operação de um cedente foi aprovada?**
-Você receberá uma notificação automática. Também pode verificar a aba **Operações** filtrada por **"Em Andamento"**.
-
-**Meu percentual de comissão está incorreto. O que fazer?**
-O percentual de comissão é configurado pelo gestor BW no cadastro do vínculo entre você e o cedente. Entre em contato com o time BW para solicitar a correção.
-
-**Por que um cedente da minha carteira está com status "Pendente"?**
-O cadastro foi enviado mas ainda não foi analisado ou aprovado pelo gestor. Você pode acompanhar a mudança de status na página **Carteira**.
-
-**Os valores de comissão exibidos nos relatórios são os definitivos?**
-Não. São estimativas baseadas nas operações em andamento e liquidadas no período. Os valores confirmados para pagamento são definidos pelo gestor BW.
-
-**Um cedente da minha carteira teve uma NF contestada pelo sacado. Serei notificado?**
-Sim. O sistema envia notificações automáticas para eventos relevantes da sua carteira, incluindo contestações.
-
-**Não estou vendo o extrato de um cedente específico. Por quê?**
-A conta escrow do cedente pode ainda não ter sido criada (isso ocorre automaticamente após a aprovação do cadastro) ou o cedente pode não ter operações com movimentações ainda.
-
----
-
-*Para suporte, entre em contato com a equipe BW Antecipa.*
+Não. A tela do Consultor é somente leitura.
