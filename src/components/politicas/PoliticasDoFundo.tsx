@@ -24,6 +24,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { DetailField, DetailSection, EmptyState, LoadingState, StatusBadge } from '@/components/data-display/primitives'
 import { useNotifications } from '@/components/notifications/notification-provider'
+import { METODOS_CALCULO_LABELS, METODOS_CALCULO_NOVAS_POLITICAS, type MetodoCalculoNovaPolitica } from '@/lib/operacoes/calculo'
 import {
   createPolicyInternalCode,
   describeAceiteSacado,
@@ -61,6 +62,7 @@ interface VersionRow {
   cria_acompanhamento_entrega: boolean
   permite_postergacao_upload_canhoto: boolean
   limite_postergacao_upload_canhoto_dias: number | null
+  metodo_calculo_financeiro: MetodoCalculoNovaPolitica | null
   configuracao?: Record<string, unknown> | null
 }
 interface RequirementRow {
@@ -160,6 +162,7 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
   const [linkForm, setLinkForm] = useState({ politicaId: '', vigenteDesde: new Date().toISOString().slice(0, 10), motivo: '' })
   const [operationalSelections, setOperationalSelections] = useState<PoliticaOperationalSelections>(defaultSelections)
   const [postponementForm, setPostponementForm] = useState({ permite: false, limiteDias: '' })
+  const [calculationMethod, setCalculationMethod] = useState<MetodoCalculoNovaPolitica | ''>('')
   const [requirementsForm, setRequirementsForm] = useState<PoliticaRequisitoInput[]>([])
 
   const loadData = useCallback(async () => {
@@ -190,7 +193,7 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
       ;[versionResult, requirementResult] = await Promise.all([
         supabase
           .from('politica_operacional_versoes')
-          .select('id, politica_operacional_id, fundo_id, cedente_fundo_id, versao, status, publicada_em, publicada_por, vigente_desde, vigente_ate, created_at, aceite_sacado_obrigatorio, cessao_no_desembolso, cria_acompanhamento_entrega, permite_postergacao_upload_canhoto, limite_postergacao_upload_canhoto_dias, configuracao')
+          .select('id, politica_operacional_id, fundo_id, cedente_fundo_id, versao, status, publicada_em, publicada_por, vigente_desde, vigente_ate, created_at, aceite_sacado_obrigatorio, cessao_no_desembolso, cria_acompanhamento_entrega, permite_postergacao_upload_canhoto, limite_postergacao_upload_canhoto_dias, metodo_calculo_financeiro, configuracao')
           .in('politica_operacional_id', policyIds)
           .order('versao', { ascending: false }),
         supabase
@@ -296,6 +299,7 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
       permite: source.permite_postergacao_upload_canhoto === true,
       limiteDias: source.limite_postergacao_upload_canhoto_dias?.toString() || '',
     } : { permite: false, limiteDias: '' })
+    setCalculationMethod(source?.metodo_calculo_financeiro || '')
     setRequirementsForm(source ? cloneRequirements(sourceRequirements) : [emptyRequirement(0)])
     setVersionStep('fluxo')
     setVersionModalOpen(true)
@@ -310,6 +314,7 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
       limite_postergacao_upload_canhoto_dias: postponementForm.permite && postponementForm.limiteDias
         ? Number(postponementForm.limiteDias)
         : null,
+      metodo_calculo_financeiro: calculationMethod || null,
       configuracao: {
         fluxo_operacional: operationalSelections,
         requisito_ui_schema: 'bw-antecipa.politica-operacional-ui.v2',
@@ -450,7 +455,12 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
             {versions.map((version) => (
               <div key={version.id} className="grid gap-3 px-4 py-3 text-sm lg:grid-cols-[160px_minmax(180px,1fr)_110px_160px_120px_minmax(220px,1fr)] lg:items-center">
                 <span className="text-xs text-muted-foreground">{formatDateTime(version.publicada_em || version.created_at || version.vigente_desde)}</span>
-                <span className="font-medium">{policyName(version.politica_operacional_id)}</span>
+                <span className="min-w-0">
+                  <span className="block truncate font-medium">{policyName(version.politica_operacional_id)}</span>
+                  <span className="block truncate text-xs text-muted-foreground">
+                    {version.metodo_calculo_financeiro ? METODOS_CALCULO_LABELS[version.metodo_calculo_financeiro] : 'Legado - dias reais / 30'}
+                  </span>
+                </span>
                 <span>v{version.versao}</span>
                 <StatusBadge status={versionStatus(version)} label={versionStatus(version) === 'substituida' ? 'Substituida' : undefined} />
                 <span>{(requirementsByVersion.get(version.id) || []).length}</span>
@@ -617,6 +627,23 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
                   </p>
                 )}
               </div>
+              <div className="rounded-xl border border-border bg-background p-4 lg:col-span-3">
+                <Label>Metodo de calculo financeiro</Label>
+                <p className="mt-1 text-sm text-muted-foreground">A taxa comercial permanece mensal. O metodo sera congelado no snapshot das novas operacoes.</p>
+                <div className="mt-3 grid gap-3 md:grid-cols-3">
+                  {METODOS_CALCULO_NOVAS_POLITICAS.map((method) => (
+                    <label key={method} className={`cursor-pointer rounded-lg border p-3 ${calculationMethod === method ? 'border-primary bg-primary/5' : 'border-border'}`}>
+                      <span className="flex items-start gap-2 text-sm font-medium">
+                        <input type="radio" checked={calculationMethod === method} onChange={() => setCalculationMethod(method)} className="mt-0.5" />
+                        {METODOS_CALCULO_LABELS[method]}
+                      </span>
+                      <span className="mt-1 block pl-6 text-xs text-muted-foreground">
+                        {method === 'DIAS_UTEIS_252' ? 'Conta dias uteis pelo calendario ANBIMA.' : method === 'TRINTA_360' ? 'Utiliza base de calculo de 360 dias.' : 'Conta dias civis reais sobre base fixa de 365 dias.'}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
 
@@ -649,6 +676,7 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
                 <DetailField label="Momento da cessao" value={describeMomentoCessao(operationalSelections.momentoCessao)} />
                 <DetailField label="Entrega" value={describeAcompanhamentoEntrega(operationalSelections.acompanhamentoEntrega)} />
                 <DetailField label="Postergação do canhoto" value={postponementForm.permite ? `Permitida uma vez · limite ${postponementForm.limiteDias || '5'} dias` : 'Não permitida'} />
+                <DetailField label="Metodo de calculo" value={calculationMethod ? METODOS_CALCULO_LABELS[calculationMethod] : 'Nao selecionado'} />
               </div>
               <div className="rounded-xl border border-border">
                 <div className="border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Requisitos</div>
@@ -689,6 +717,7 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
                 <DetailField label="Aceite do sacado" value={describeAceiteSacado(mapLegacyFlagsToOperationalSelections(detailsVersion).aceiteSacado)} />
                 <DetailField label="Momento da cessao" value={describeMomentoCessao(mapLegacyFlagsToOperationalSelections(detailsVersion).momentoCessao)} />
                 <DetailField label="Acompanhamento de entrega" value={describeAcompanhamentoEntrega(mapLegacyFlagsToOperationalSelections(detailsVersion).acompanhamentoEntrega)} />
+                <DetailField label="Metodo de calculo" value={detailsVersion.metodo_calculo_financeiro ? METODOS_CALCULO_LABELS[detailsVersion.metodo_calculo_financeiro] : 'Legado - dias reais / 30'} />
               </div>
               <div className="rounded-xl border border-border">
                 <div className="border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Requisitos documentais</div>
@@ -720,11 +749,12 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
               <DetailField label="Nova versao" value={`v${publishVersion.versao}`} />
               <DetailField label="Versao substituida" value={currentVersion(publishVersion.politica_operacional_id) ? `v${currentVersion(publishVersion.politica_operacional_id)?.versao}` : 'Nenhuma'} />
               <DetailField label="Requisitos" value={`${(requirementsByVersion.get(publishVersion.id) || []).length}`} />
+              <DetailField label="Metodo de calculo" value={publishVersion.metodo_calculo_financeiro ? METODOS_CALCULO_LABELS[publishVersion.metodo_calculo_financeiro] : 'Nao selecionado'} />
             </div>
           )}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setPublishVersion(null)}>Cancelar</Button>
-            <Button type="button" onClick={confirmPublish} disabled={busy}>Confirmar publicacao</Button>
+            <Button type="button" onClick={confirmPublish} disabled={busy || !publishVersion?.metodo_calculo_financeiro}>Confirmar publicacao</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

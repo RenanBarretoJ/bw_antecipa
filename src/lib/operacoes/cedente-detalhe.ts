@@ -34,9 +34,9 @@ export interface OperacaoCedenteRaw {
   cedente_id: string
   cedente_fundo_id: string | null
   valor_bruto_total: number
-  taxa_desconto: number
+  taxa_desconto: number | null
   prazo_dias: number
-  valor_liquido_desembolso: number
+  valor_liquido_desembolso: number | null
   data_vencimento: string
   status: OperacaoCedenteStatus
   aceite_sacado_exigido: boolean | null
@@ -105,9 +105,9 @@ export interface OperacaoCedenteDetalhe {
   possuiPendenciaCedente: boolean
   financeiro: {
     valorBrutoSolicitado: number
-    valorLiquidoAprovado: number
+    valorLiquidoAprovado: number | null
     valorEfetivamenteDesembolsado: number | null
-    taxaAplicada: number
+    taxaAplicada: number | null
     prazoDias: number
     vencimento: string
     aprovadoEm: string | null

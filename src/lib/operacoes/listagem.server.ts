@@ -27,9 +27,9 @@ type OperacaoRow = {
   cedente_id: string
   cedente_fundo_id: string | null
   valor_bruto_total: number
-  taxa_desconto: number
+  taxa_desconto: number | null
   prazo_dias: number
-  valor_liquido_desembolso: number
+  valor_liquido_desembolso: number | null
   data_vencimento: string
   status: string
   created_at: string
@@ -161,9 +161,9 @@ function mapRow(row: OperacaoRow): OperacaoListagemItem {
     cedenteNome: cedente?.razao_social || 'Cedente nao informado',
     cedenteCnpj: cedente?.cnpj || '',
     valorBruto: Number(row.valor_bruto_total || 0),
-    taxaDesconto: Number(row.taxa_desconto || 0),
+    taxaDesconto: row.taxa_desconto === null ? null : Number(row.taxa_desconto),
     prazoDias: Number(row.prazo_dias || 0),
-    valorLiquido: Number(row.valor_liquido_desembolso || 0),
+    valorLiquido: row.valor_liquido_desembolso === null ? null : Number(row.valor_liquido_desembolso),
     vencimento: row.data_vencimento,
     status: row.status,
     criadoEm: row.created_at,

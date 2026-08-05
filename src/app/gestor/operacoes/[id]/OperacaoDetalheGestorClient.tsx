@@ -26,7 +26,6 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { BotaoDownloadContrato } from '@/components/contratos/BotaoDownloadContrato'
 import { UploadDocumentoAssinado } from '@/components/contratos/UploadDocumentoAssinado'
 import { UploadDocumentoAssinadoOperacao } from '@/components/contratos/UploadDocumentoAssinadoOperacao'
@@ -44,6 +43,11 @@ import { useFundoAtivo } from '@/components/fundos/fundo-ativo-provider'
 import { HistoricoTimelineCard } from '@/components/historico/HistoricoTimelineCard'
 import { obterCapacidadesOperacao, type CapabilitiesOperacao, type DocumentoOperacaoParaPolitica } from '@/lib/operacoes/politica-operacao'
 import { AndamentoOperacaoCard } from '@/components/operacoes/AndamentoOperacaoCard'
+import {
+  calcularAntecipacaoEmLote,
+  METODOS_CALCULO_LABELS,
+  resolverMetodoCalculo,
+} from '@/lib/operacoes/calculo'
 
 interface Testemunha {
   id: string
@@ -57,9 +61,13 @@ interface OperacaoDetalhe {
   cedente_fundo_id: string | null
   conta_escrow_id: string
   valor_bruto_total: number
-  taxa_desconto: number
+  taxa_desconto: number | null
   prazo_dias: number
-  valor_liquido_desembolso: number
+  valor_liquido_desembolso: number | null
+  metodo_calculo_financeiro: string | null
+  calculo_data_base: string | null
+  calculo_versao_motor: number | null
+  calculo_memoria: Record<string, unknown> | null
   data_vencimento: string
   status: string
   aceite_sacado_exigido: boolean | null
@@ -132,6 +140,16 @@ interface RequisitoOperacao {
   obrigatorio: boolean | null
   prazo_limite: string | null
   responsavel_upload_snapshot: string | null
+}
+
+interface MemoriaCalculoNf {
+  nota_fiscal_id: string
+  dias_aplicados: number
+  vencimento_contratual: string
+  vencimento_calculo: string
+  valor_nominal: number
+  valor_presente: number
+  desconto: number
 }
 
 type BadgeVariant = 'default' | 'secondary' | 'destructive' | 'outline' | 'ghost' | 'link'
@@ -328,10 +346,12 @@ function PageSkeleton() {
 export default function OperacaoDetalheGestorClient({
   opId,
   returnTo,
+  dataBaseServidor,
   acompanhamentoLogistico,
 }: {
   opId: string
   returnTo: string
+  dataBaseServidor: string
   acompanhamentoLogistico: ReactNode
 }) {
   const router = useRouter()
@@ -343,6 +363,7 @@ export default function OperacaoDetalheGestorClient({
   const [entregas, setEntregas] = useState<LogisticaEntrega[]>([])
   const [requisitos, setRequisitos] = useState<RequisitoOperacao[]>([])
   const [taxasConfig, setTaxasConfig] = useState<TaxaConfig[]>([])
+  const [memoriasCalculo, setMemoriasCalculo] = useState<MemoriaCalculoNf[]>([])
   const [loading, setLoading] = useState(true)
   const [processing, setProcessing] = useState(false)
   const [removendoNf, setRemovendoNf] = useState<string | null>(null)
@@ -360,8 +381,7 @@ export default function OperacaoDetalheGestorClient({
   }, [message, messageType, notifications])
 
   // Campos de aprovacao
-  const [taxa, setTaxa] = useState(0)
-  const [valorLiquido, setValorLiquido] = useState(0)
+  const [taxa, setTaxa] = useState<number | null>(null)
   const [showReprovar, setShowReprovar] = useState(false)
   const [motivo, setMotivo] = useState('')
 
@@ -444,7 +464,6 @@ export default function OperacaoDetalheGestorClient({
 
         setOp(o)
         setTaxa(o.taxa_desconto)
-        setValorLiquido(o.valor_liquido_desembolso)
         if (o.testemunha_1_id) setTest1Id(o.testemunha_1_id)
         if (o.testemunha_2_id) setTest2Id(o.testemunha_2_id)
         setTermoAssinadoUrl(o.termo_assinado_url)
@@ -478,6 +497,13 @@ export default function OperacaoDetalheGestorClient({
           .order('prazo_min', { ascending: true })
 
         setTaxasConfig((taxas || []) as TaxaConfig[])
+
+        const { data: memorias } = await supabase
+          .from('operacao_calculo_nfs')
+          .select('nota_fiscal_id, dias_aplicados, vencimento_contratual, vencimento_calculo, valor_nominal, valor_presente, desconto')
+          .eq('operacao_id', opId)
+          .order('vencimento_contratual', { ascending: true })
+        setMemoriasCalculo((memorias || []) as MemoriaCalculoNf[])
         const loadedEntregas = await carregarLogistica()
         const entregaIds = loadedEntregas.map((entrega) => entrega.id)
         const filtrosRequisitos = [
@@ -499,29 +525,57 @@ export default function OperacaoDetalheGestorClient({
     load()
   }, [opId, carregarLogistica, loadingFundo, bloqueado, fundoAtivo?.id])
 
-  useEffect(() => {
-    if (op && taxa >= 0 && nfs.length > 0) {
-      const hoje = new Date()
-      const total = nfs.reduce((acc, nf) => {
-        const prazoDias = Math.max(1, Math.ceil(
-          (new Date(nf.data_vencimento).getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24)
-        ))
-        const fator = (1 + taxa / 100) ** (prazoDias / 30)
-        const base = nf.valor_liquido || nf.valor_bruto
-        return acc + Math.round((base / fator) * 100) / 100
-      }, 0)
-      setValorLiquido(Math.max(0, Math.round(total * 100) / 100))
-    }
-  }, [taxa, nfs, op])
+  const metodoCalculo = useMemo(() => {
+    const snapshot = op?.politica_snapshot as { calculo_financeiro?: { metodo?: string } } | null
+    return resolverMetodoCalculo(op?.metodo_calculo_financeiro ?? snapshot?.calculo_financeiro?.metodo)
+  }, [op?.metodo_calculo_financeiro, op?.politica_snapshot])
 
-  const calcularValorAntecipado = useCallback((valorBase: number, dataVencimento: string): number => {
-    if (taxa < 0) return valorBase
-    const prazoDias = Math.max(1, Math.ceil(
-      (new Date(dataVencimento).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
-    ))
-    const fator = Math.pow(1 + taxa / 100, prazoDias / 30)
-    return Math.round((valorBase / fator) * 100) / 100
-  }, [taxa])
+  const prazoReferencia = useMemo(() => {
+    if (!op || nfs.length === 0) return null
+    const dataBase = ['solicitada', 'em_analise'].includes(op.status)
+      ? dataBaseServidor
+      : op.calculo_data_base || dataBaseServidor
+    try {
+      const calculo = calcularAntecipacaoEmLote({
+        notas: nfs.map((nf) => ({ id: nf.id, valorBruto: nf.valor_bruto, vencimento: nf.data_vencimento })),
+        taxaMensal: null,
+        dataBase,
+        metodo: metodoCalculo,
+      })
+      return Math.max(...calculo.notas.map((item) => item.dias))
+    } catch {
+      return null
+    }
+  }, [dataBaseServidor, metodoCalculo, nfs, op])
+
+  const taxasAplicaveis = useMemo(() => prazoReferencia === null
+    ? []
+    : taxasConfig.filter((item) => prazoReferencia >= item.prazo_min && prazoReferencia <= item.prazo_max),
+  [prazoReferencia, taxasConfig])
+  const taxaEhAplicavel = taxa !== null && taxasAplicaveis.some((item) => item.taxa_percentual === taxa)
+
+  const calculoFinanceiro = useMemo(() => {
+    if (!op || taxa === null || !taxaEhAplicavel || nfs.length === 0) return null
+    const dataBase = ['solicitada', 'em_analise'].includes(op.status)
+      ? dataBaseServidor
+      : op.calculo_data_base || dataBaseServidor
+    try {
+      return calcularAntecipacaoEmLote({
+        notas: nfs.map((nf) => ({ id: nf.id, valorBruto: nf.valor_bruto, vencimento: nf.data_vencimento })),
+        taxaMensal: taxa,
+        dataBase,
+        metodo: metodoCalculo,
+      })
+    } catch {
+      return null
+    }
+  }, [dataBaseServidor, metodoCalculo, nfs, op, taxa, taxaEhAplicavel])
+
+  const valorLiquido = calculoFinanceiro?.valorLiquidoTotal ?? op?.valor_liquido_desembolso ?? null
+  const valorAntecipadoPorNf = useMemo(
+    () => new Map((calculoFinanceiro?.notas || []).map((item) => [item.notaFiscalId, item.valorPresente ?? item.valorNominal])),
+    [calculoFinanceiro],
+  )
 
   const entregaPorNfId = useMemo(() => new Map(entregas.map((entrega) => [entrega.nota_fiscal_id, entrega])), [entregas])
 
@@ -537,7 +591,7 @@ export default function OperacaoDetalheGestorClient({
         status: nf.status,
       },
       valorAntecipado: (op?.status === 'solicitada' || op?.status === 'em_analise')
-        ? calcularValorAntecipado(nf.valor_liquido || nf.valor_bruto, nf.data_vencimento)
+        ? (valorAntecipadoPorNf.get(nf.id) ?? nf.valor_bruto)
         : (nf.valor_antecipado ?? nf.valor_liquido ?? nf.valor_bruto),
     }))
 
@@ -548,7 +602,7 @@ export default function OperacaoDetalheGestorClient({
       if (nfSort === 'status') return a.status.localeCompare(b.status, 'pt-BR')
       return new Date(a.data_vencimento).getTime() - new Date(b.data_vencimento).getTime()
     })
-  }, [nfs, nfSort, op?.status, calcularValorAntecipado])
+  }, [nfs, nfSort, op?.status, valorAntecipadoPorNf])
 
   const totaisNfs = useMemo(() => ({
     bruto: notasFiscaisView.reduce((acc, nf) => acc + nf.valor_bruto, 0),
@@ -615,11 +669,11 @@ export default function OperacaoDetalheGestorClient({
   }
 
   const handleAprovar = async () => {
-    if (taxa < 0) { setMessage('Taxa invalida.'); setMessageType('error'); return }
-    if (valorLiquido <= 0) { setMessage('Valor liquido invalido.'); setMessageType('error'); return }
+    if (taxa === null || taxa < 0 || !taxaEhAplicavel) { setMessage('Selecione uma taxa configurada para o prazo atual da operacao.'); setMessageType('error'); return }
+    if (valorLiquido === null || valorLiquido <= 0) { setMessage('Valor liquido invalido.'); setMessageType('error'); return }
 
     setProcessing(true)
-    const result = await aprovarOperacao(opId, taxa, valorLiquido)
+    const result = await aprovarOperacao(opId, taxa)
     if (result?.success) {
       setMessage(result.message || 'Aprovada!')
       setMessageType('success')
@@ -970,11 +1024,11 @@ export default function OperacaoDetalheGestorClient({
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-0 space-y-4">
-                {taxasConfig.length > 0 && (
+                {taxasAplicaveis.length > 0 ? (
                   <div>
-                    <p className="text-xs font-medium text-muted-foreground mb-2">Taxas pre-configuradas</p>
+                    <p className="text-xs font-medium text-muted-foreground mb-2">Selecione uma taxa configurada</p>
                     <div className="space-y-1">
-                      {taxasConfig.map((t, i) => (
+                      {taxasAplicaveis.map((t, i) => (
                         <button
                           key={i}
                           onClick={() => aplicarTaxaConfig(t)}
@@ -990,32 +1044,20 @@ export default function OperacaoDetalheGestorClient({
                       ))}
                     </div>
                   </div>
+                ) : (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+                    Nenhuma taxa foi configurada para o prazo desta operacao. A solicitacao permanece registrada, mas a aprovacao fica bloqueada ate a configuracao da faixa correspondente.
+                  </div>
                 )}
 
-                <div className="space-y-4">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="taxa">Taxa (% a.m.)</Label>
-                    <Input
-                      id="taxa"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={taxa}
-                      onChange={(e) => setTaxa(parseFloat(e.target.value) || 0)}
-                      className="h-11 tabular-nums"
-                    />
+                <div className="grid grid-cols-2 gap-3 rounded-lg border bg-muted/30 p-3 text-sm">
+                  <div>
+                    <span className="block text-xs text-muted-foreground">Metodo de calculo</span>
+                    <strong>{METODOS_CALCULO_LABELS[metodoCalculo]}</strong>
                   </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="valorLiquido">Valor Liquido Desembolso</Label>
-                    <Input
-                      id="valorLiquido"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={valorLiquido}
-                      onChange={(e) => setValorLiquido(parseFloat(e.target.value) || 0)}
-                      className="h-11 tabular-nums"
-                    />
+                  <div>
+                    <span className="block text-xs text-muted-foreground">Taxa mensal</span>
+                    <strong className="tabular-nums">{taxa === null ? 'Nao configurada' : `${taxa}% a.m.`}</strong>
                   </div>
                 </div>
 
@@ -1085,12 +1127,12 @@ export default function OperacaoDetalheGestorClient({
                     <span className="font-medium tabular-nums">{formatCurrency(op.valor_bruto_total)}</span>
                   </div>
                   <div className="flex justify-between text-destructive">
-                    <span className="tabular-nums">(-) Desconto ({taxa}% a.m., prazo por NF)</span>
-                    <span className="tabular-nums">{formatCurrency(op.valor_bruto_total - valorLiquido)}</span>
+                    <span className="tabular-nums">(-) Desconto ({taxa === null ? 'sem taxa' : `${taxa}% a.m.`}, prazo por NF)</span>
+                    <span className="tabular-nums">{valorLiquido === null ? 'Pendente' : formatCurrency(op.valor_bruto_total - valorLiquido)}</span>
                   </div>
                   <div className="flex justify-between border-t pt-2">
                     <span className="font-semibold">Liquido</span>
-                    <span className="font-bold text-green-700 dark:text-green-400 text-lg tabular-nums">{formatCurrency(valorLiquido)}</span>
+                    <span className="font-bold text-green-700 dark:text-green-400 text-lg tabular-nums">{valorLiquido === null ? 'Pendente' : formatCurrency(valorLiquido)}</span>
                   </div>
                 </div>
 
@@ -1102,7 +1144,7 @@ export default function OperacaoDetalheGestorClient({
                   )}
                   <Button
                     onClick={handleAprovar}
-                    disabled={processing || !todasAceitas}
+                    disabled={processing || !todasAceitas || taxa === null || !calculoFinanceiro}
                     className="w-full bg-teal-600 hover:bg-teal-700 text-white h-11 disabled:opacity-50"
                   >
                     {processing ? <Loader2 size={16} className="animate-spin" /> : <ArrowRight size={16} />}
@@ -1135,21 +1177,49 @@ export default function OperacaoDetalheGestorClient({
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Taxa</span>
-                  <span className="font-medium tabular-nums">{op.taxa_desconto}% a.m.</span>
+                  <span className="font-medium tabular-nums">{op.taxa_desconto === null ? 'Nao definida' : `${op.taxa_desconto}% a.m.`}</span>
                 </div>
+                <div className="flex justify-between gap-4">
+                  <span className="text-muted-foreground">Metodo</span>
+                  <span className="text-right font-medium">{METODOS_CALCULO_LABELS[metodoCalculo]}</span>
+                </div>
+                {op.calculo_data_base && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Data-base</span>
+                    <span className="font-medium">{formatDate(op.calculo_data_base)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Prazo</span>
                   <span className="font-medium tabular-nums">{op.prazo_dias} dias</span>
                 </div>
                 <div className="flex justify-between border-t pt-2">
                   <span className="font-semibold">Valor Liquido</span>
-                  <span className="font-bold text-green-700 dark:text-green-400 tabular-nums">{formatCurrency(op.valor_liquido_desembolso)}</span>
+                  <span className="font-bold text-green-700 dark:text-green-400 tabular-nums">{op.valor_liquido_desembolso === null ? 'Pendente' : formatCurrency(op.valor_liquido_desembolso)}</span>
                 </div>
                 {op.aprovado_em && (
                   <div className="flex justify-between text-muted-foreground text-xs mt-2">
                     <span>Aprovada em</span>
                     <span>{formatDate(op.aprovado_em)}</span>
                   </div>
+                )}
+                {memoriasCalculo.length > 0 && (
+                  <details className="rounded-lg border p-3 text-xs">
+                    <summary className="cursor-pointer font-medium">Ver memoria de calculo por NF</summary>
+                    <div className="mt-3 space-y-2">
+                      {memoriasCalculo.map((memoria) => (
+                        <div key={memoria.nota_fiscal_id} className="rounded-md bg-muted/50 p-2">
+                          <strong>NF {nfs.find((nf) => nf.id === memoria.nota_fiscal_id)?.numero_nf || memoria.nota_fiscal_id.slice(0, 8)}</strong>
+                          <div className="mt-1 grid grid-cols-2 gap-1 text-muted-foreground">
+                            <span>{memoria.dias_aplicados} dia(s)</span>
+                            <span className="text-right">VP {formatCurrency(memoria.valor_presente)}</span>
+                            <span>Nominal {formatCurrency(memoria.valor_nominal)}</span>
+                            <span className="text-right">Desconto {formatCurrency(memoria.desconto)}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
                 )}
 
                 <div className="border-t pt-4 mt-2 space-y-3">
@@ -1271,21 +1341,49 @@ export default function OperacaoDetalheGestorClient({
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Taxa</span>
-                  <span className="font-medium tabular-nums">{op.taxa_desconto}% a.m.</span>
+                  <span className="font-medium tabular-nums">{op.taxa_desconto === null ? 'Nao definida' : `${op.taxa_desconto}% a.m.`}</span>
                 </div>
+                <div className="flex justify-between gap-4">
+                  <span className="text-muted-foreground">Metodo</span>
+                  <span className="text-right font-medium">{METODOS_CALCULO_LABELS[metodoCalculo]}</span>
+                </div>
+                {op.calculo_data_base && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Data-base</span>
+                    <span className="font-medium">{formatDate(op.calculo_data_base)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Prazo</span>
                   <span className="font-medium tabular-nums">{op.prazo_dias} dias</span>
                 </div>
                 <div className="flex justify-between border-t pt-2">
                   <span className="font-semibold">Valor Liquido</span>
-                  <span className="font-bold text-green-700 dark:text-green-400 tabular-nums">{formatCurrency(op.valor_liquido_desembolso)}</span>
+                  <span className="font-bold text-green-700 dark:text-green-400 tabular-nums">{op.valor_liquido_desembolso === null ? 'Pendente' : formatCurrency(op.valor_liquido_desembolso)}</span>
                 </div>
                 {op.aprovado_em && (
                   <div className="flex justify-between text-muted-foreground text-xs mt-2">
                     <span>Aprovada em</span>
                     <span>{formatDate(op.aprovado_em)}</span>
                   </div>
+                )}
+                {memoriasCalculo.length > 0 && (
+                  <details className="rounded-lg border p-3 text-xs">
+                    <summary className="cursor-pointer font-medium">Ver memoria de calculo por NF</summary>
+                    <div className="mt-3 space-y-2">
+                      {memoriasCalculo.map((memoria) => (
+                        <div key={memoria.nota_fiscal_id} className="rounded-md bg-muted/50 p-2">
+                          <strong>NF {nfs.find((nf) => nf.id === memoria.nota_fiscal_id)?.numero_nf || memoria.nota_fiscal_id.slice(0, 8)}</strong>
+                          <div className="mt-1 grid grid-cols-2 gap-1 text-muted-foreground">
+                            <span>{memoria.dias_aplicados} dia(s)</span>
+                            <span className="text-right">VP {formatCurrency(memoria.valor_presente)}</span>
+                            <span>Nominal {formatCurrency(memoria.valor_nominal)}</span>
+                            <span className="text-right">Desconto {formatCurrency(memoria.desconto)}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
                 )}
 
                 {(op.status === 'em_andamento' || op.status === 'inadimplente') && (

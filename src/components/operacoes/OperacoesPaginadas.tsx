@@ -277,9 +277,9 @@ export function OperacoesPaginadas({
                         <ListNameCell name={item.cedenteNome} subline={formatCNPJ(item.cedenteCnpj)} />
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 font-medium tabular-nums">{formatCurrency(item.valorBruto)}</td>
-                      <td className="whitespace-nowrap px-4 py-3 tabular-nums">{item.taxaDesconto > 0 ? `${item.taxaDesconto}%` : '—'}</td>
+                      <td className="whitespace-nowrap px-4 py-3 tabular-nums">{item.taxaDesconto === null ? 'A definir' : `${item.taxaDesconto}%`}</td>
                       <td className="whitespace-nowrap px-4 py-3 tabular-nums">{item.prazoDias}d</td>
-                      <td className="whitespace-nowrap px-4 py-3 font-bold text-green-700 tabular-nums dark:text-green-400">{formatCurrency(item.valorLiquido)}</td>
+                      <td className="whitespace-nowrap px-4 py-3 font-bold text-green-700 tabular-nums dark:text-green-400">{item.valorLiquido === null ? 'Pendente' : formatCurrency(item.valorLiquido)}</td>
                       <td className="px-4 py-3"><Badge className={status.className}>{status.label}</Badge></td>
                       <td className="whitespace-nowrap px-4 py-3 text-sm text-muted-foreground">{formatDate(item.criadoEm)}</td>
                       {perfil !== 'consultor' && <td className="whitespace-nowrap px-4 py-3">

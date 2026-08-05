@@ -285,6 +285,7 @@ export interface PoliticaOperacionalVersao {
   cria_acompanhamento_entrega: boolean
   permite_postergacao_upload_canhoto: boolean
   limite_postergacao_upload_canhoto_dias: number | null
+  metodo_calculo_financeiro: import('@/lib/operacoes/calculo').MetodoCalculoNovaPolitica | null
   configuracao: Record<string, unknown>
   regras: Record<string, unknown>
   parametros: Record<string, unknown>
@@ -890,9 +891,13 @@ export interface Operacao {
   cessao_efetivada_em: string | null
   solicitacao_idempotency_key: string | null
   valor_bruto_total: number
-  taxa_desconto: number
+  taxa_desconto: number | null
   prazo_dias: number
-  valor_liquido_desembolso: number
+  valor_liquido_desembolso: number | null
+  metodo_calculo_financeiro: import('@/lib/operacoes/calculo').MetodoCalculoFinanceiro | null
+  calculo_data_base: string | null
+  calculo_versao_motor: number | null
+  calculo_memoria: Record<string, unknown> | null
   data_vencimento: string
   status: OperacaoStatus
   aprovado_por: string | null
@@ -926,6 +931,33 @@ export interface Operacao {
 export interface OperacaoNf {
   operacao_id: string
   nota_fiscal_id: string
+}
+
+export interface OperacaoCalculoNf {
+  id: string
+  operacao_id: string
+  nota_fiscal_id: string
+  fundo_id: string
+  cedente_id: string
+  metodo_calculo_financeiro: import('@/lib/operacoes/calculo').MetodoCalculoFinanceiro
+  valor_nominal: number
+  taxa_mensal: number
+  data_base: string
+  vencimento_contratual: string
+  vencimento_calculo: string
+  base_calculo: 30 | 252 | 360 | 365
+  calendario: string | null
+  dias_corridos_reais: number
+  dias_uteis: number | null
+  dias_financeiros: number | null
+  dias_aplicados: number
+  expoente: number
+  fator: number
+  valor_presente: number
+  desconto: number
+  regra_arredondamento: string
+  versao_motor: number
+  created_at: string
 }
 
 export interface TaxaCedente {
@@ -1146,8 +1178,9 @@ export interface Database {
       politica_requisitos_documentais: { Row: PoliticaRequisitoDocumental & Record<string, unknown>; Insert: InsertShape<PoliticaRequisitoDocumental, 'politica_operacional_versao_id' | 'politica_operacional_id' | 'fundo_id' | 'codigo' | 'escopo' | 'tipo_documento_codigo' | 'responsavel_upload' | 'responsavel_aprovacao'> & Record<string, unknown>; Update: UpdateShape<PoliticaRequisitoDocumental> & Record<string, unknown>; Relationships: [] }
       devedores_solidarios: { Row: DevedorSolidario & Record<string, unknown>; Insert: InsertShape<DevedorSolidario, 'cedente_id' | 'nome' | 'doc_numero' | 'cpf'> & Record<string, unknown>; Update: UpdateShape<DevedorSolidario> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'devedores_solidarios_cedente_id_fkey'; columns: ['cedente_id']; isOneToOne: false; referencedRelation: 'cedentes'; referencedColumns: ['id'] }] }
       notas_fiscais: { Row: NotaFiscal & Record<string, unknown>; Insert: InsertShape<NotaFiscal, 'cedente_id' | 'numero_nf' | 'data_emissao' | 'data_vencimento' | 'cnpj_emitente' | 'razao_social_emitente' | 'cnpj_destinatario' | 'razao_social_destinatario' | 'valor_bruto'> & Record<string, unknown>; Update: UpdateShape<NotaFiscal> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'notas_fiscais_cedente_id_fkey'; columns: ['cedente_id']; isOneToOne: false; referencedRelation: 'cedentes'; referencedColumns: ['id'] }] }
-      operacoes: { Row: Operacao & Record<string, unknown>; Insert: InsertShape<Operacao, 'cedente_id' | 'valor_bruto_total' | 'taxa_desconto' | 'prazo_dias' | 'valor_liquido_desembolso' | 'data_vencimento'> & Record<string, unknown>; Update: UpdateShape<Operacao> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'operacoes_cedente_id_fkey'; columns: ['cedente_id']; isOneToOne: false; referencedRelation: 'cedentes'; referencedColumns: ['id'] }, { foreignKeyName: 'operacoes_conta_escrow_id_fkey'; columns: ['conta_escrow_id']; isOneToOne: false; referencedRelation: 'contas_escrow'; referencedColumns: ['id'] }, { foreignKeyName: 'operacoes_aprovado_por_fkey'; columns: ['aprovado_por']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] }, { foreignKeyName: 'operacoes_testemunha_1_id_fkey'; columns: ['testemunha_1_id']; isOneToOne: false; referencedRelation: 'testemunhas'; referencedColumns: ['id'] }, { foreignKeyName: 'operacoes_testemunha_2_id_fkey'; columns: ['testemunha_2_id']; isOneToOne: false; referencedRelation: 'testemunhas'; referencedColumns: ['id'] }] }
+      operacoes: { Row: Operacao & Record<string, unknown>; Insert: InsertShape<Operacao, 'cedente_id' | 'valor_bruto_total' | 'prazo_dias' | 'data_vencimento'> & Record<string, unknown>; Update: UpdateShape<Operacao> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'operacoes_cedente_id_fkey'; columns: ['cedente_id']; isOneToOne: false; referencedRelation: 'cedentes'; referencedColumns: ['id'] }, { foreignKeyName: 'operacoes_conta_escrow_id_fkey'; columns: ['conta_escrow_id']; isOneToOne: false; referencedRelation: 'contas_escrow'; referencedColumns: ['id'] }, { foreignKeyName: 'operacoes_aprovado_por_fkey'; columns: ['aprovado_por']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] }, { foreignKeyName: 'operacoes_testemunha_1_id_fkey'; columns: ['testemunha_1_id']; isOneToOne: false; referencedRelation: 'testemunhas'; referencedColumns: ['id'] }, { foreignKeyName: 'operacoes_testemunha_2_id_fkey'; columns: ['testemunha_2_id']; isOneToOne: false; referencedRelation: 'testemunhas'; referencedColumns: ['id'] }] }
       operacoes_nfs: { Row: OperacaoNf & Record<string, unknown>; Insert: OperacaoNf & Record<string, unknown>; Update: Partial<OperacaoNf> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'operacoes_nfs_operacao_id_fkey'; columns: ['operacao_id']; isOneToOne: false; referencedRelation: 'operacoes'; referencedColumns: ['id'] }, { foreignKeyName: 'operacoes_nfs_nota_fiscal_id_fkey'; columns: ['nota_fiscal_id']; isOneToOne: false; referencedRelation: 'notas_fiscais'; referencedColumns: ['id'] }] }
+      operacao_calculo_nfs: { Row: OperacaoCalculoNf & Record<string, unknown>; Insert: InsertShape<OperacaoCalculoNf, 'operacao_id' | 'nota_fiscal_id' | 'fundo_id' | 'cedente_id' | 'metodo_calculo_financeiro' | 'valor_nominal' | 'taxa_mensal' | 'data_base' | 'vencimento_contratual' | 'vencimento_calculo' | 'base_calculo' | 'dias_corridos_reais' | 'dias_aplicados' | 'expoente' | 'fator' | 'valor_presente' | 'desconto' | 'versao_motor'> & Record<string, unknown>; Update: UpdateShape<OperacaoCalculoNf> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'operacao_calculo_nfs_operacao_id_fkey'; columns: ['operacao_id']; isOneToOne: false; referencedRelation: 'operacoes'; referencedColumns: ['id'] }, { foreignKeyName: 'operacao_calculo_nfs_nota_fiscal_id_fkey'; columns: ['nota_fiscal_id']; isOneToOne: false; referencedRelation: 'notas_fiscais'; referencedColumns: ['id'] }] }
       taxas_cedente: { Row: TaxaCedente & Record<string, unknown>; Insert: InsertShape<TaxaCedente, 'cedente_id' | 'prazo_min' | 'prazo_max' | 'taxa_percentual'> & Record<string, unknown>; Update: UpdateShape<TaxaCedente> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'taxas_cedente_cedente_id_fkey'; columns: ['cedente_id']; isOneToOne: false; referencedRelation: 'cedentes'; referencedColumns: ['id'] }] }
       consultor_cedente: { Row: ConsultorCedente & Record<string, unknown>; Insert: InsertShape<ConsultorCedente, 'consultor_id' | 'cedente_id'> & Record<string, unknown>; Update: UpdateShape<ConsultorCedente> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'consultor_cedente_consultor_id_fkey'; columns: ['consultor_id']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] }, { foreignKeyName: 'consultor_cedente_cedente_id_fkey'; columns: ['cedente_id']; isOneToOne: false; referencedRelation: 'cedentes'; referencedColumns: ['id'] }] }
       sacados: { Row: Sacado & Record<string, unknown>; Insert: InsertShape<Sacado, 'user_id' | 'cnpj' | 'razao_social'> & Record<string, unknown>; Update: UpdateShape<Sacado> & Record<string, unknown>; Relationships: [] }
@@ -1234,8 +1267,8 @@ export interface Database {
       registrar_documento_entrega_upload: { Args: { p_nota_fiscal_entrega_id: string; p_requisito_id: string; p_documento_tipo_id: string; p_nome_original: string; p_mime_type: string; p_tamanho_bytes: number; p_sha256: string; p_bucket: string; p_path: string; p_enviado_por: string; p_substitui_versao_id?: string | null }; Returns: Record<string, unknown> }
       analisar_documento_versao: { Args: { p_documento_versao_id: string; p_resultado: string; p_observacoes?: string | null; p_dados_estruturados?: Record<string, unknown> }; Returns: Record<string, unknown> }
       processar_aceite_sacado: { Args: { p_nota_fiscal_ids: string[]; p_acao: string; p_motivo?: string | null }; Returns: Record<string, unknown> }
-      solicitar_operacao_antecipacao_atomica: { Args: { p_cedente_id: string; p_cedente_fundo_id: string; p_politica_operacional_id: string; p_politica_operacional_versao_id: string; p_politica_versao: number; p_politica_snapshot: Record<string, unknown>; p_politica_snapshot_hash: string; p_aceite_sacado_exigido: boolean; p_aceite_sacado_status: string; p_nota_fiscal_ids: string[]; p_valor_bruto_total: number; p_taxa_desconto: number; p_prazo_dias: number; p_valor_liquido_desembolso: number; p_data_vencimento: string; p_idempotency_key: string }; Returns: Record<string, unknown> }
-      aprovar_operacao_atomica: { Args: { p_operacao_id: string; p_taxa_desconto: number; p_valor_liquido_desembolso: number }; Returns: Record<string, unknown> }
+      solicitar_operacao_antecipacao_atomica: { Args: { p_cedente_id: string; p_cedente_fundo_id: string; p_politica_operacional_id: string; p_politica_operacional_versao_id: string; p_politica_versao: number; p_politica_snapshot: Record<string, unknown>; p_politica_snapshot_hash: string; p_aceite_sacado_exigido: boolean; p_aceite_sacado_status: string; p_nota_fiscal_ids: string[]; p_valor_bruto_total: number; p_taxa_desconto: number | null; p_prazo_dias: number; p_valor_liquido_desembolso: number | null; p_data_vencimento: string; p_idempotency_key: string }; Returns: Record<string, unknown> }
+      aprovar_operacao_atomica: { Args: { p_operacao_id: string; p_taxa_desconto: number }; Returns: Record<string, unknown> }
       desembolsar_operacao_com_logistica: { Args: { p_operacao_id: string }; Returns: Record<string, unknown> }
       registrar_cte_documento: { Args: { p_nota_fiscal_ids: string[]; p_documento_tipo_codigo: string; p_nome_original: string; p_mime_type: string; p_tamanho_bytes: number; p_sha256: string; p_bucket: string; p_path: string; p_chave_cte?: string | null; p_numero?: string | null; p_serie?: string | null; p_data_emissao?: string | null; p_cnpj_transportadora?: string | null; p_cnpj_remetente?: string | null; p_cnpj_destinatario?: string | null; p_valor_frete?: number | null; p_nivel_validacao?: string; p_dados_extraidos?: Record<string, unknown> }; Returns: Record<string, unknown> }
       registrar_canhoto_documento: { Args: { p_nota_fiscal_entrega_id: string; p_nome_original: string; p_mime_type: string; p_tamanho_bytes: number; p_sha256: string; p_bucket: string; p_path: string; p_data_assinatura?: string | null; p_nome_recebedor?: string | null; p_documento_recebedor?: string | null; p_possui_assinatura?: boolean; p_possui_ressalva?: boolean; p_descricao_ressalva?: string | null }; Returns: Record<string, unknown> }

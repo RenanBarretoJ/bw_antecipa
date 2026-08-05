@@ -41,7 +41,7 @@ type OperacaoContexto = {
   aceite_sacado_exigido: boolean | null
   aceite_sacado_status: AceiteSacadoStatus | null
   valor_bruto_total: number
-  valor_liquido_desembolso: number
+  valor_liquido_desembolso: number | null
 }
 
 type NfContexto = {
@@ -175,14 +175,14 @@ export function validarElegibilidadeSolicitacao(input: { snapshot: Record<string
   return { elegivel: bloqueios.length === 0, bloqueios, avisos: [], aceite_exigido: input.aceiteSacadoObrigatorio, aceite_status: input.aceiteSacadoObrigatorio ? 'pendente' : 'dispensado', documentacao_status: 'nao_verificada' }
 }
 
-export async function validarElegibilidadeAprovacao(client: AppSupabaseClient, operacaoId: string, valores?: { taxaDesconto?: number; valorLiquidoDesembolso?: number }): Promise<GateOperacional> {
+export async function validarElegibilidadeAprovacao(client: AppSupabaseClient, operacaoId: string, valores?: { taxaDesconto?: number | null }): Promise<GateOperacional> {
   const gate = await obterEstadoOperacional(client, operacaoId)
   if (!gate.estado) return gate
 
-  const taxa = valores?.taxaDesconto ?? 0
-  const liquido = valores?.valorLiquidoDesembolso ?? gate.estado.nfs.reduce((total, nf) => total + (nf.valor_liquido ?? nf.valor_bruto), 0)
-  if (!Number.isFinite(taxa) || taxa < 0) gate.bloqueios.push('A taxa de desconto é inválida.')
-  if (!Number.isFinite(liquido) || liquido <= 0) gate.bloqueios.push('O valor líquido de desembolso deve ser maior que zero.')
+  const taxa = valores?.taxaDesconto
+  if (taxa === null || taxa === undefined || !Number.isFinite(taxa) || taxa < 0) {
+    gate.bloqueios.push('A taxa de desconto é inválida.')
+  }
   if (!Number.isFinite(gate.estado.nfs.reduce((total, nf) => total + nf.valor_bruto, 0)) || gate.estado.nfs.some((nf) => !Number.isFinite(nf.valor_bruto) || nf.valor_bruto <= 0)) gate.bloqueios.push('A operação possui valor financeiro de NF inválido.')
 
   let documental: Array<{ elegivel: boolean } | null> = []

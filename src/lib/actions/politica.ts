@@ -12,6 +12,7 @@ import {
 import { stableStringify, validarConfiguracaoPublica } from '@/lib/operacoes/politica'
 import { registrarLog } from './auditoria'
 import { obterFundoAtivoAutorizado } from './fundo-ativo'
+import type { MetodoCalculoNovaPolitica } from '@/lib/operacoes/calculo'
 
 type PolicyActionState = { success?: boolean; message?: string }
 type SupabaseFrom = Awaited<ReturnType<typeof requireGestor>>['supabase']
@@ -25,6 +26,7 @@ export interface CriarVersaoPoliticaInput {
   cria_acompanhamento_entrega: boolean
   permite_postergacao_upload_canhoto: boolean
   limite_postergacao_upload_canhoto_dias: number | null
+  metodo_calculo_financeiro: MetodoCalculoNovaPolitica | null
   configuracao?: Record<string, unknown>
   requisitos: PoliticaRequisitoInput[]
 }
@@ -40,6 +42,7 @@ function hashVersao(input: CriarVersaoPoliticaInput, requisitos: ReturnType<type
     cria_acompanhamento_entrega: input.cria_acompanhamento_entrega,
     permite_postergacao_upload_canhoto: input.permite_postergacao_upload_canhoto,
     limite_postergacao_upload_canhoto_dias: input.limite_postergacao_upload_canhoto_dias,
+    metodo_calculo_financeiro: input.metodo_calculo_financeiro,
     configuracao: input.configuracao || {},
     requisitos,
   })).digest('hex')
@@ -236,6 +239,7 @@ export async function criarVersaoPolitica(
       limite_postergacao_upload_canhoto_dias: input.permite_postergacao_upload_canhoto
         ? input.limite_postergacao_upload_canhoto_dias
         : null,
+      metodo_calculo_financeiro: input.metodo_calculo_financeiro,
       configuracao: config,
       regras: config.fluxo_operacional ? { fluxo_operacional: config.fluxo_operacional } : {},
       parametros: config,
@@ -292,8 +296,9 @@ export async function publicarVersaoPolitica(versaoId: string): Promise<PolicyAc
     const { data: version, error: versionError } = await supabase.from('politica_operacional_versoes').select('*').eq('id', versaoId).maybeSingle()
     if (versionError) return result(`Erro ao consultar versao: ${versionError.message}`)
     if (!version) return result('Versao nao encontrada.')
-    const versionData = version as { id: string; politica_operacional_id: string; fundo_id?: string | null; vigente_desde: string; publicada_em: string | null; versao: number }
+    const versionData = version as { id: string; politica_operacional_id: string; fundo_id?: string | null; vigente_desde: string; publicada_em: string | null; versao: number; metodo_calculo_financeiro?: MetodoCalculoNovaPolitica | null }
     if (versionData.publicada_em) return result('Esta versao ja foi publicada.')
+    if (!versionData.metodo_calculo_financeiro) return result('Selecione o metodo de calculo financeiro antes de publicar.')
     const policyContext = await loadPolicyContext(supabase, versionData.politica_operacional_id)
     if (versionData.fundo_id && policyContext.fundo_id !== versionData.fundo_id) return result('Versao de politica nao pertence ao fundo da politica.')
     const now = new Date().toISOString()
@@ -436,6 +441,7 @@ export async function duplicarPoliticaDoFundo(
         cria_acompanhamento_entrega: boolean
         permite_postergacao_upload_canhoto: boolean
         limite_postergacao_upload_canhoto_dias: number | null
+        metodo_calculo_financeiro: MetodoCalculoNovaPolitica | null
         configuracao: Record<string, unknown>
       }
       const { data: baseRequirements, error: requirementsError } = await context.supabase
@@ -455,6 +461,7 @@ export async function duplicarPoliticaDoFundo(
         cria_acompanhamento_entrega: base.cria_acompanhamento_entrega,
         permite_postergacao_upload_canhoto: base.permite_postergacao_upload_canhoto,
         limite_postergacao_upload_canhoto_dias: base.limite_postergacao_upload_canhoto_dias,
+        metodo_calculo_financeiro: base.metodo_calculo_financeiro,
         configuracao: base.configuracao || {},
         requisitos,
       })

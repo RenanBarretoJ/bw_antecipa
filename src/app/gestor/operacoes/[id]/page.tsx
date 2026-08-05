@@ -1,4 +1,5 @@
 import { AcompanhamentoLogisticoOperacao, normalizarFiltroLogistico } from '@/components/operacoes/AcompanhamentoLogisticoOperacao'
+import { obterDataCivilOperacional } from '@/lib/operacoes/data-operacional.server'
 import OperacaoDetalheGestorClient from './OperacaoDetalheGestorClient'
 
 type SearchParams = Record<string, string | string[] | undefined>
@@ -31,6 +32,7 @@ export default async function OperacaoDetalheGestorPage({
     <OperacaoDetalheGestorClient
       opId={id}
       returnTo={returnTo}
+      dataBaseServidor={obterDataCivilOperacional()}
       acompanhamentoLogistico={(
         <AcompanhamentoLogisticoOperacao
           operacaoId={id}

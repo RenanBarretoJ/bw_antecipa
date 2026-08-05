@@ -24,7 +24,6 @@ export default function NovaSolicitacaoClient({ resultado }: { resultado: Result
   const [isPending, startTransition] = useTransition()
   const [submitting, setSubmitting] = useState(false)
   const [selected, setSelected] = useState<Map<string, NfCandidataOperacao>>(new Map())
-  const [todayMs] = useState(() => Date.now())
   const [busca, setBusca] = useState(resultado.filtros.q)
   const params = useMemo(() => Object.fromEntries(searchParams.entries()), [searchParams])
   const pagina = resultado.candidatas.items
@@ -78,7 +77,8 @@ export default function NovaSolicitacaoClient({ resultado }: { resultado: Result
       vencimento: nf.vencimento,
     })),
     taxas: resultado.taxas,
-    agoraMs: todayMs,
+    dataBase: resultado.dataBase,
+    metodo: resultado.metodoCalculo,
   })
   const valorBruto = calculo.valorBrutoTotal
   const valorLiquido = calculo.valorLiquidoTotal
@@ -183,8 +183,18 @@ export default function NovaSolicitacaoClient({ resultado }: { resultado: Result
           <CardContent className="space-y-3 text-sm">
             <div className="flex justify-between"><span className="text-muted-foreground">NFs selecionadas</span><strong>{selected.size}</strong></div>
             <div className="flex justify-between"><span className="text-muted-foreground">Valor bruto</span><strong>{formatCurrency(valorBruto)}</strong></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">Desconto estimado</span><span className="text-destructive">{formatCurrency(valorBruto - valorLiquido)}</span></div>
-            <div className="flex justify-between border-t pt-3"><strong>Valor liquido estimado</strong><strong className="text-lg text-green-700">{formatCurrency(valorLiquido)}</strong></div>
+            {valorLiquido === null ? (
+              <div className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-warning-foreground">
+                <p className="font-medium">Taxa pendente de definicao</p>
+                <p className="mt-1 text-xs">A solicitacao pode ser enviada. O valor sera calculado antes da aprovacao.</p>
+              </div>
+            ) : (
+              <>
+                <div className="flex justify-between"><span className="text-muted-foreground">Desconto estimado</span><span className="text-destructive">{formatCurrency(valorBruto - valorLiquido)}</span></div>
+                <div className="flex justify-between border-t pt-3"><strong>Valor liquido estimado</strong><strong className="text-lg text-green-700">{formatCurrency(valorLiquido)}</strong></div>
+                <p className="text-xs text-muted-foreground">Estimativa pela data da solicitacao. A aprovacao sera recalculada na data da decisao.</p>
+              </>
+            )}
             <Button className="mt-4 w-full" disabled={!selected.size || submitting} onClick={enviar}>
               {submitting ? <Loader2 className="animate-spin" /> : <Send />}
               {submitting ? 'Solicitando...' : 'Solicitar antecipacao'}

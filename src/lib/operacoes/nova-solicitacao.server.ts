@@ -16,6 +16,8 @@ import {
   parseFiltrosNovaSolicitacao,
   type FiltrosNovaSolicitacao,
 } from './nova-solicitacao'
+import { obterDataCivilOperacional } from './data-operacional.server'
+import type { MetodoCalculoNovaPolitica } from './calculo'
 
 export type NfCandidataOperacao = NotaFiscalElegibilidadeComDados & {
   cnpjDestinatario: string
@@ -28,6 +30,8 @@ export type ResultadoNovaSolicitacao = {
   candidatas: PaginatedResult<NfCandidataOperacao>
   taxas: Array<{ prazo_min: number; prazo_max: number; taxa_percentual: number }>
   filtros: FiltrosNovaSolicitacao
+  dataBase: string
+  metodoCalculo: MetodoCalculoNovaPolitica | null
 }
 
 type NfRow = {
@@ -64,7 +68,7 @@ async function resolverVersaoPolitica(
 
   const { data: versao, error: versaoError } = await client
     .from('politica_operacional_versoes')
-    .select('id')
+    .select('id, metodo_calculo_financeiro')
     .eq('politica_operacional_id', atribuicao.politica_operacional_id)
     .eq('fundo_id', fundoId)
     .eq('status', 'publicada')
@@ -76,7 +80,7 @@ async function resolverVersaoPolitica(
     .maybeSingle()
   if (versaoError) throw new Error(`Nao foi possivel consultar a politica publicada: ${versaoError.message}`)
   if (!versao) throw new Error('A politica operacional do fundo ainda nao possui versao publicada vigente.')
-  return versao.id
+  return versao as { id: string; metodo_calculo_financeiro: MetodoCalculoNovaPolitica | null }
 }
 
 function mapNota(row: NfRow): NotaFiscalElegibilidadeComDados {
@@ -114,11 +118,12 @@ export async function carregarNovaSolicitacaoOperacao(
 
   const contexto = await resolverCedenteFundoAtivo(cedente.id, auth.supabase)
   if (!contexto.cedenteFundo || !contexto.fundo) throw new Error('O cedente nao possui fundo operacional ativo.')
-  const politicaVersaoId = await resolverVersaoPolitica(
+  const politicaVersao = await resolverVersaoPolitica(
     auth.supabase,
     contexto.cedenteFundo.id,
     contexto.fundo.id,
   )
+  const dataBase = obterDataCivilOperacional()
   const paginaSolicitada = filtros.page
   const limite = filtros.pageSize
   let { from, to } = buildOffsetRange({ page: paginaSolicitada, pageSize: limite })
@@ -131,6 +136,7 @@ export async function carregarNovaSolicitacaoOperacao(
       .eq('cedente_fundo_id', contexto.cedenteFundo!.id)
       .eq('fundo_id', contexto.fundo!.id)
       .eq('status', 'aprovada')
+      .gte('data_vencimento', dataBase)
     const busca = buscaPostgrestSegura(filtros.q)
     if (busca) {
       const digitos = busca.replace(/\D/g, '')
@@ -166,7 +172,7 @@ export async function carregarNovaSolicitacaoOperacao(
   const elegibilidades = await carregarElegibilidadeDocumentalOperacaoEmLote({
     client: auth.supabase,
     notas,
-    politicaVersaoId,
+    politicaVersaoId: politicaVersao.id,
   })
   const candidatas = rows.map((row): NfCandidataOperacao => ({
     ...mapNota(row),
@@ -203,5 +209,7 @@ export async function carregarNovaSolicitacaoOperacao(
       taxa_percentual: Number(item.taxa_percentual),
     })),
     filtros,
+    dataBase,
+    metodoCalculo: politicaVersao.metodo_calculo_financeiro,
   }
 }

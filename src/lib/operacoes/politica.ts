@@ -10,6 +10,7 @@ import type {
 import { requireCedenteAccess, type AppSupabaseClient } from '@/lib/auth/authorization'
 import { CedenteFundoError, assertFundoAtivo, mensagemOperacionalSemPolitica, mensagemOperacionalSemVinculo, resolverCedenteFundoAtivo } from '@/lib/fundos/cedente-fundo'
 import { createAdminClient } from '@/lib/supabase/server'
+import { criarConfiguracaoCalculoSnapshot } from './calculo'
 
 export interface PoliticaResolvida {
   cedenteFundo: CedenteFundo
@@ -33,6 +34,7 @@ export interface PoliticaSnapshot {
   cria_acompanhamento_entrega: boolean
   permite_postergacao_upload_canhoto?: boolean
   limite_postergacao_upload_canhoto_dias?: number | null
+  calculo_financeiro: ReturnType<typeof criarConfiguracaoCalculoSnapshot>
   configuracao: Record<string, unknown>
   requisitos: Array<{
     id: string
@@ -103,6 +105,7 @@ export function criarSnapshotPolitica(policy: PoliticaResolvida): { snapshot: Po
     cria_acompanhamento_entrega: policy.versao.cria_acompanhamento_entrega,
     permite_postergacao_upload_canhoto: policy.versao.permite_postergacao_upload_canhoto,
     limite_postergacao_upload_canhoto_dias: policy.versao.limite_postergacao_upload_canhoto_dias,
+    calculo_financeiro: criarConfiguracaoCalculoSnapshot(policy.versao.metodo_calculo_financeiro),
     configuracao: policy.versao.configuracao,
     requisitos: [...policy.requisitos]
       .sort((left, right) => left.ordem - right.ordem || left.codigo.localeCompare(right.codigo))

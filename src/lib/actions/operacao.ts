@@ -13,6 +13,7 @@ import { montarIdempotencyKeySolicitacaoOperacao } from '@/lib/operacoes/idempot
 import { obterFundoAtivoAutorizado } from '@/lib/actions/fundo-ativo'
 import { carregarContextoEventoOperacao, registrarEventoDominio } from '@/lib/eventos-dominio/registrar'
 import { calcularAntecipacaoEmLote } from '@/lib/operacoes/calculo'
+import { obterDataCivilOperacional } from '@/lib/operacoes/data-operacional.server'
 
 export type OperacaoActionState = {
   success?: boolean
@@ -112,7 +113,7 @@ export async function solicitarAntecipacao(nfIds: string[]): Promise<OperacaoAct
     }
   }
 
-  // Calcular por NF: prazo individual → taxa individual → valor antecipado individual
+  // Calcular por NF: prazo individual -> taxa unica da operacao -> valor presente individual.
   const cedenteFundoIds = [...new Set(nfsTyped.map((nf) => nf.cedente_fundo_id).filter(Boolean))]
   const fundoIds = [...new Set(nfsTyped.map((nf) => nf.fundo_id).filter(Boolean))]
   if (cedenteFundoIds.length !== 1 || fundoIds.length !== 1) {
@@ -202,18 +203,24 @@ export async function solicitarAntecipacao(nfIds: string[]): Promise<OperacaoAct
 
   const taxasDisp = (todasTaxas || []) as Array<{ prazo_min: number; prazo_max: number; taxa_percentual: number }>
 
-  const calculo = calcularAntecipacaoEmLote({
-    notas: nfsTyped.map((nf) => ({
-      id: nf.id,
-      valorBruto: Number(nf.valor_bruto),
-      vencimento: nf.data_vencimento,
-    })),
-    taxas: taxasDisp,
-    agoraMs: Date.now(),
-  })
+  let calculo
+  try {
+    calculo = calcularAntecipacaoEmLote({
+      notas: nfsTyped.map((nf) => ({
+        id: nf.id,
+        valorBruto: Number(nf.valor_bruto),
+        vencimento: nf.data_vencimento,
+      })),
+      taxas: taxasDisp,
+      dataBase: obterDataCivilOperacional(),
+      metodo: politicaContexto.versao.metodo_calculo_financeiro,
+    })
+  } catch (error) {
+    return { success: false, message: error instanceof Error ? error.message : 'Nao foi possivel calcular a operacao.' }
+  }
   const nfsCalculadas = nfsTyped.map((nf) => ({
     ...nf,
-    ...calculo.notas.find((item) => item.id === nf.id)!,
+    ...calculo.notas.find((item) => item.notaFiscalId === nf.id)!,
   }))
   const valorBrutoTotal = calculo.valorBrutoTotal
   const valorLiquidoDesembolso = calculo.valorLiquidoTotal
@@ -246,7 +253,7 @@ export async function solicitarAntecipacao(nfIds: string[]): Promise<OperacaoAct
     p_valor_bruto_total: valorBrutoTotal,
     p_taxa_desconto: taxaMedia,
     p_prazo_dias: prazoMedio,
-    p_valor_liquido_desembolso: Math.max(0, valorLiquidoDesembolso),
+    p_valor_liquido_desembolso: valorLiquidoDesembolso,
     p_data_vencimento: dataVencimento,
     p_idempotency_key: idempotencyKey,
   } as never)
@@ -318,11 +325,11 @@ export async function solicitarAntecipacao(nfIds: string[]): Promise<OperacaoAct
     success: true,
     message: opData.idempotentReplay
       ? 'Solicitacao ja havia sido registrada; exibindo a operacao existente.'
+      : taxaMedia === null
+      ? 'Solicitacao criada! O gestor definira a taxa e o valor liquido antes da aprovacao.'
       : !aceiteSacadoExigido
       ? 'Solicitacao criada e encaminhada para analise da gestora.'
-      : taxaMedia > 0
-      ? `Solicitacao criada! Valor liquido estimado: ${formatBRL(valorLiquidoDesembolso)}.`
-      : 'Solicitacao criada! O gestor definira a taxa e valor liquido.',
+      : `Solicitacao criada! Valor liquido estimado: ${formatBRL(valorLiquidoDesembolso as number)}.`,
     data: { operacaoId: opData.id },
   }
 }
@@ -334,7 +341,6 @@ export async function solicitarAntecipacao(nfIds: string[]): Promise<OperacaoAct
 export async function aprovarOperacao(
   operacaoId: string,
   taxaDesconto: number,
-  valorLiquidoDesembolso: number
 ): Promise<OperacaoActionState> {
   const context = await requireGestor()
   await exigirSessaoElevada(context)
@@ -349,7 +355,6 @@ export async function aprovarOperacao(
   }
 
   if (taxaDesconto < 0) return { success: false, message: 'Taxa deve ser >= 0.' }
-  if (valorLiquidoDesembolso <= 0) return { success: false, message: 'Valor liquido deve ser > 0.' }
   const acessoOperacao = await validarOperacaoNoFundoAtivo(supabase, operacaoId)
   if (!acessoOperacao?.success) return acessoOperacao
 
@@ -367,8 +372,22 @@ export async function aprovarOperacao(
     cedentes: { user_id: string; razao_social: string; cnpj: string }
   }
 
-  const operacaoJaAprovada = opData.status === 'aprovada'
-  if (!operacaoJaAprovada && opData.status !== 'solicitada' && opData.status !== 'em_analise') {
+  const { data: taxaConfigurada, error: taxaError } = await supabase
+    .from('taxas_cedente')
+    .select('id')
+    .eq('cedente_id', opData.cedente_id)
+    .eq('taxa_percentual', taxaDesconto)
+    .limit(1)
+    .maybeSingle()
+  if (taxaError) return { success: false, message: `Nao foi possivel validar a taxa configurada: ${taxaError.message}` }
+  if (!taxaConfigurada) {
+    return { success: false, message: 'Selecione uma taxa configurada para este cedente antes de aprovar.' }
+  }
+
+  if (opData.status === 'aprovada') {
+    return { success: false, message: 'A operacao ja foi aprovada e nao pode ser aprovada novamente.' }
+  }
+  if (opData.status !== 'solicitada' && opData.status !== 'em_analise') {
     return { success: false, message: `Operacao com status "${opData.status}" nao pode ser aprovada.` }
   }
 
@@ -391,30 +410,29 @@ export async function aprovarOperacao(
       cnpj_destinatario: string; razao_social_destinatario: string
     }>
 
-  if (!operacaoJaAprovada) {
-    const gate = await validarElegibilidadeAprovacao(supabase, operacaoId, {
-      taxaDesconto,
-      valorLiquidoDesembolso,
-    })
-    if (!gate.elegivel) return { success: false, message: gate.bloqueios.join(' ') }
-  }
+  const gate = await validarElegibilidadeAprovacao(supabase, operacaoId, {
+    taxaDesconto,
+  })
+  if (!gate.elegivel) return { success: false, message: gate.bloqueios.join(' ') }
 
   const { data: aprovacao, error: aprovacaoError } = await supabase.rpc('aprovar_operacao_atomica', {
     p_operacao_id: operacaoId,
     p_taxa_desconto: taxaDesconto,
-    p_valor_liquido_desembolso: valorLiquidoDesembolso,
   } as never)
 
   if (aprovacaoError) return { success: false, message: `Erro ao aprovar: ${aprovacaoError.message}` }
-  const aprovacaoResultado = aprovacao as { idempotent_replay?: boolean } | null
-  const idempotentReplay = !!aprovacaoResultado?.idempotent_replay
+  const aprovacaoResultado = aprovacao as {
+    valor_liquido_desembolso?: number
+    metodo_calculo_financeiro?: string
+    data_base?: string
+  } | null
 
   // Calcular prazo medio ponderado a partir dos vencimentos individuais (referencia)
   // Atualizar operacao (sem desembolso ainda — status vai para aprovada)
   // A atualizacao da operacao foi feita pela RPC transacional.
 
   // Calcular e salvar taxa_desagio e valor_antecipado por NF com prazo individual
-  if (!idempotentReplay && nfsTyped.length > 0) {
+  if (nfsTyped.length > 0) {
     // Notificar sacados (fila historica preservada nesta fase).
     const sacadosCnpjs = [...new Set(nfsTyped.map((n) => n.cnpj_destinatario))]
     for (const cnpj of sacadosCnpjs) {
@@ -441,25 +459,23 @@ export async function aprovarOperacao(
     }
   }
 
-  if (!idempotentReplay) {
-    await registrarEventoOperacao(supabase, operacaoId, {
-      tipo_evento: 'operacao_aprovada',
-      categoria: 'aprovacao',
-      descricao: 'Operacao aprovada pela gestora.',
-      metadata: {
-        taxa_desconto: taxaDesconto,
-        valor_liquido_desembolso: valorLiquidoDesembolso,
-        status_anterior: opData.status,
-        status_novo: 'aprovada',
-      },
-    })
-  }
+  await registrarEventoOperacao(supabase, operacaoId, {
+    tipo_evento: 'operacao_aprovada',
+    categoria: 'aprovacao',
+    descricao: 'Operacao aprovada pela gestora.',
+    metadata: {
+      taxa_desconto: taxaDesconto,
+      valor_liquido_desembolso: aprovacaoResultado?.valor_liquido_desembolso ?? null,
+      metodo_calculo_financeiro: aprovacaoResultado?.metodo_calculo_financeiro ?? null,
+      data_base: aprovacaoResultado?.data_base ?? null,
+      status_anterior: opData.status,
+      status_novo: 'aprovada',
+    },
+  })
 
   return {
     success: true,
-    message: idempotentReplay
-      ? 'Operacao ja estava aprovada.'
-      : `Operacao aprovada. Envie os documentos assinados e o comprovante TED para desembolsar.`,
+    message: 'Operacao aprovada. Envie os documentos assinados e o comprovante TED para desembolsar.',
   }
 }
 
@@ -761,11 +777,14 @@ export async function removerNfDaOperacao(
   if (!op) return { success: false, message: 'Operacao nao encontrada.' }
   const opData = op as {
     id: string; status: string; cedente_id: string; conta_escrow_id: string;
-    valor_bruto_total: number; taxa_desconto: number;
+    valor_bruto_total: number; taxa_desconto: number | null;
+    metodo_calculo_financeiro: string | null; calculo_data_base: string | null;
     cedentes: { user_id: string; razao_social: string }
   }
 
-  const statusPermitidos = ['solicitada', 'em_analise', 'em_andamento']
+  // Valores aprovados e a memoria por NF sao historicos. Remover uma NF depois
+  // da aprovacao exigiria uma nova decisao operacional, nao um recalculo oculto.
+  const statusPermitidos = ['solicitada', 'em_analise']
   if (!statusPermitidos.includes(opData.status)) {
     return { success: false, message: `Nao e possivel remover NFs de uma operacao com status "${opData.status}".` }
   }
@@ -808,8 +827,6 @@ export async function removerNfDaOperacao(
     .select('nota_fiscal_id')
     .eq('operacao_id', operacaoId)
 
-  const wasEmAndamento = opData.status === 'em_andamento'
-
   if (!restantes || restantes.length === 0) {
     // Sem NFs restantes — cancelar operacao
     await supabase
@@ -838,49 +855,52 @@ export async function removerNfDaOperacao(
       metadata: { numero_nf: nfData.numero_nf, operacao_cancelada: true, status_novo: 'cancelada' },
     })
 
-    const aviso = wasEmAndamento ? ' ATENCAO: A operacao ja estava em andamento — verifique o saldo da conta escrow.' : ''
-    return { success: true, message: `NF ${nfData.numero_nf} removida. Operacao cancelada pois nao havia mais NFs.${aviso}` }
+    return { success: true, message: `NF ${nfData.numero_nf} removida. Operacao cancelada pois nao havia mais NFs.` }
   }
 
-  // Recalcular valor_bruto_total e valor_liquido_desembolso com NFs restantes
+  // Recalcular apenas a previa pre-aprovacao com o dominio financeiro central.
+  // A aprovacao refara o calculo atomicamente com sua propria data-base.
   const nfIdsRestantes = (restantes as Array<{ nota_fiscal_id: string }>).map((n) => n.nota_fiscal_id)
   const { data: nfsRestantes } = await supabase
     .from('notas_fiscais')
-    .select('valor_bruto, valor_liquido, data_vencimento')
+    .select('id, valor_bruto, data_vencimento')
     .in('id', nfIdsRestantes)
 
-  const hoje = new Date()
-  const taxaDesconto = opData.taxa_desconto || 0
-  const nfsRestantesTyped = (nfsRestantes || []) as Array<{ valor_bruto: number; valor_liquido: number | null; data_vencimento: string }>
-
-  const novoValorBruto = nfsRestantesTyped.reduce((acc, n) => acc + (n.valor_bruto || 0), 0)
-  const novoValorLiquido = Math.round(
-    nfsRestantesTyped.reduce((acc, n) => {
-      const prazoDias = Math.max(1, Math.ceil(
-        (new Date(n.data_vencimento).getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24)
-      ))
-      const fator = Math.pow(1 + taxaDesconto / 100, prazoDias / 30)
-      const base = n.valor_liquido || n.valor_bruto
-      return acc + base / fator
-    }, 0) * 100
-  ) / 100
+  const nfsRestantesTyped = (nfsRestantes || []) as Array<{
+    id: string
+    valor_bruto: number
+    data_vencimento: string
+  }>
+  const previaAtualizada = calcularAntecipacaoEmLote({
+    notas: nfsRestantesTyped.map((item) => ({
+      id: item.id,
+      valorBruto: Number(item.valor_bruto),
+      vencimento: item.data_vencimento,
+    })),
+    taxaMensal: opData.taxa_desconto,
+    dataBase: opData.calculo_data_base || obterDataCivilOperacional(),
+    metodo: opData.metodo_calculo_financeiro,
+  })
 
   await supabase
     .from('operacoes')
-    .update({ valor_bruto_total: novoValorBruto, valor_liquido_desembolso: novoValorLiquido } as never)
+    .update({
+      valor_bruto_total: previaAtualizada.valorBrutoTotal,
+      valor_liquido_desembolso: previaAtualizada.valorLiquidoTotal,
+    } as never)
     .eq('id', operacaoId)
 
   await registrarLog({
     tipo_evento: 'NF_REMOVIDA_OPERACAO',
     entidade_tipo: 'operacoes',
     entidade_id: operacaoId,
-    dados_depois: { nf_removida: nfData.numero_nf, novo_valor_bruto: novoValorBruto },
+    dados_depois: { nf_removida: nfData.numero_nf, novo_valor_bruto: previaAtualizada.valorBrutoTotal },
   })
 
   await notificarCedente(
     opData.cedente_id,
     'NF removida da operacao',
-    `A NF ${nfData.numero_nf} foi removida da operacao pelo gestor. O valor bruto da operacao foi recalculado para ${formatBRL(novoValorBruto)}.`,
+    `A NF ${nfData.numero_nf} foi removida da operacao pelo gestor. O valor bruto da operacao foi recalculado para ${formatBRL(previaAtualizada.valorBrutoTotal)}.`,
     'nf_removida_operacao',
   )
 
@@ -888,11 +908,10 @@ export async function removerNfDaOperacao(
     tipo_evento: 'nota_fiscal_removida_operacao',
     categoria: 'operacao',
     descricao: `NF ${nfData.numero_nf} removida da operacao.`,
-    metadata: { numero_nf: nfData.numero_nf, novo_valor_bruto: novoValorBruto },
+    metadata: { numero_nf: nfData.numero_nf, novo_valor_bruto: previaAtualizada.valorBrutoTotal },
   })
 
-  const aviso = wasEmAndamento ? ' ATENCAO: A operacao ja estava em andamento — os termos financeiros precisam ser ajustados manualmente.' : ''
-  return { success: true, message: `NF ${nfData.numero_nf} removida. Novo valor bruto: ${formatBRL(novoValorBruto)}.${aviso}` }
+  return { success: true, message: `NF ${nfData.numero_nf} removida. Novo valor bruto: ${formatBRL(previaAtualizada.valorBrutoTotal)}.` }
 }
 
 export async function salvarTestemunhasOperacao(

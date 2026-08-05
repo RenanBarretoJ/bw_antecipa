@@ -42,9 +42,9 @@ export type OperacaoListagemItem = {
   cedenteNome: string
   cedenteCnpj: string
   valorBruto: number
-  taxaDesconto: number
+  taxaDesconto: number | null
   prazoDias: number
-  valorLiquido: number
+  valorLiquido: number | null
   vencimento: string
   status: string
   criadoEm: string
@@ -135,7 +135,7 @@ export function calcularMetricasPaginaOperacoes(
     emAndamento: itens.filter((item) => item.status === 'em_andamento').length,
     volumeAtivo: itens
       .filter((item) => item.status === 'em_andamento')
-      .reduce((total, item) => total + item.valorLiquido, 0),
+      .reduce((total, item) => total + (item.valorLiquido ?? 0), 0),
   }
 }
 

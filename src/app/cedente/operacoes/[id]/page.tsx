@@ -115,7 +115,7 @@ export default async function CedenteOperacaoDetalhePage({
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Card><CardContent className="pt-5"><DetailField label="Valor bruto solicitado" value={formatCurrency(detalhe.financeiro.valorBrutoSolicitado)} /></CardContent></Card>
-        <Card><CardContent className="pt-5"><DetailField label="Valor líquido aprovado" value={formatCurrency(detalhe.financeiro.valorLiquidoAprovado)} /></CardContent></Card>
+        <Card><CardContent className="pt-5"><DetailField label="Valor líquido aprovado" value={detalhe.financeiro.valorLiquidoAprovado === null ? 'Pendente' : formatCurrency(detalhe.financeiro.valorLiquidoAprovado)} /></CardContent></Card>
         <Card><CardContent className="pt-5"><DetailField label="Valor desembolsado" value={detalhe.financeiro.valorEfetivamenteDesembolsado !== null ? formatCurrency(detalhe.financeiro.valorEfetivamenteDesembolsado) : 'Ainda não desembolsado'} /></CardContent></Card>
         <Card><CardContent className="pt-5"><DetailField label="Vencimento" value={formatDateOrDash(detalhe.financeiro.vencimento)} /></CardContent></Card>
       </div>
@@ -127,7 +127,7 @@ export default async function CedenteOperacaoDetalhePage({
           </CardHeader>
           <CardContent>
             <dl className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              <DetailField label="Taxa aplicada" value={detalhe.financeiro.taxaAplicada > 0 ? `${detalhe.financeiro.taxaAplicada}% a.m.` : 'A definir'} />
+              <DetailField label="Taxa aplicada" value={detalhe.financeiro.taxaAplicada === null ? 'A definir' : `${detalhe.financeiro.taxaAplicada}% a.m.`} />
               <DetailField label="Prazo" value={`${detalhe.financeiro.prazoDias} dias`} />
               <DetailField label="Aprovação" value={formatDateTimeOrDash(detalhe.financeiro.aprovadoEm)} />
               <DetailField label="Desembolso" value={formatDateTimeOrDash(detalhe.financeiro.desembolsadoEm)} />
