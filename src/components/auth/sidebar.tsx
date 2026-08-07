@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, Users, FileText, CreditCard, Wallet, BarChart3, Settings,
   ShieldCheck, FileCheck, Receipt, Banknote, Bell, CheckSquare, History, Briefcase,
-  Building2, UserCog, UserPlus,
+  Building2, UserCog, UserPlus, Truck,
 } from 'lucide-react'
 import { PortalSidebar, type PortalSidebarItem } from '@/components/layout/portal-sidebar'
 
@@ -15,6 +15,7 @@ export const gestorMenuItems: SidebarItem[] = [
   { label: 'Documentos', href: '/gestor/documentos', icon: FileText },
   { label: 'Notas Fiscais', href: '/gestor/notas-fiscais', icon: Receipt },
   { label: 'Operacoes', href: '/gestor/operacoes', icon: CreditCard },
+  { label: 'Logistica', href: '/gestor/logistica', icon: Truck },
   { label: 'Escrow', href: '/gestor/escrow', icon: Wallet },
   { label: 'Fundos', href: '/gestor/fundos', icon: Building2 },
   { label: 'Relatorios', href: '/gestor/relatorios', icon: BarChart3 },
