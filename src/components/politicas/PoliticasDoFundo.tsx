@@ -60,6 +60,7 @@ interface VersionRow {
   aceite_sacado_obrigatorio: boolean
   cessao_no_desembolso: boolean
   cria_acompanhamento_entrega: boolean
+  exigir_status_logistico_pre_cessao: boolean
   permite_postergacao_upload_canhoto: boolean
   limite_postergacao_upload_canhoto_dias: number | null
   metodo_calculo_financeiro: MetodoCalculoNovaPolitica | null
@@ -162,6 +163,7 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
   const [linkForm, setLinkForm] = useState({ politicaId: '', vigenteDesde: new Date().toISOString().slice(0, 10), motivo: '' })
   const [operationalSelections, setOperationalSelections] = useState<PoliticaOperationalSelections>(defaultSelections)
   const [postponementForm, setPostponementForm] = useState({ permite: false, limiteDias: '' })
+  const [requirePreCessionLogisticStatus, setRequirePreCessionLogisticStatus] = useState(false)
   const [calculationMethod, setCalculationMethod] = useState<MetodoCalculoNovaPolitica | ''>('')
   const [requirementsForm, setRequirementsForm] = useState<PoliticaRequisitoInput[]>([])
 
@@ -193,7 +195,7 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
       ;[versionResult, requirementResult] = await Promise.all([
         supabase
           .from('politica_operacional_versoes')
-          .select('id, politica_operacional_id, fundo_id, cedente_fundo_id, versao, status, publicada_em, publicada_por, vigente_desde, vigente_ate, created_at, aceite_sacado_obrigatorio, cessao_no_desembolso, cria_acompanhamento_entrega, permite_postergacao_upload_canhoto, limite_postergacao_upload_canhoto_dias, metodo_calculo_financeiro, configuracao')
+          .select('id, politica_operacional_id, fundo_id, cedente_fundo_id, versao, status, publicada_em, publicada_por, vigente_desde, vigente_ate, created_at, aceite_sacado_obrigatorio, cessao_no_desembolso, cria_acompanhamento_entrega, exigir_status_logistico_pre_cessao, permite_postergacao_upload_canhoto, limite_postergacao_upload_canhoto_dias, metodo_calculo_financeiro, configuracao')
           .in('politica_operacional_id', policyIds)
           .order('versao', { ascending: false }),
         supabase
@@ -299,6 +301,7 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
       permite: source.permite_postergacao_upload_canhoto === true,
       limiteDias: source.limite_postergacao_upload_canhoto_dias?.toString() || '',
     } : { permite: false, limiteDias: '' })
+    setRequirePreCessionLogisticStatus(source?.exigir_status_logistico_pre_cessao === true)
     setCalculationMethod(source?.metodo_calculo_financeiro || '')
     setRequirementsForm(source ? cloneRequirements(sourceRequirements) : [emptyRequirement(0)])
     setVersionStep('fluxo')
@@ -310,6 +313,7 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
     const flags = mapOperationalSelectionsToLegacyFlags(operationalSelections)
     const payload: CriarVersaoPoliticaInput = {
       ...flags,
+      exigir_status_logistico_pre_cessao: requirePreCessionLogisticStatus,
       permite_postergacao_upload_canhoto: postponementForm.permite,
       limite_postergacao_upload_canhoto_dias: postponementForm.permite && postponementForm.limiteDias
         ? Number(postponementForm.limiteDias)
@@ -576,6 +580,25 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
                 </div>
               </div>
               <div className="overflow-hidden rounded-xl border border-border bg-background lg:col-span-3">
+                <div className="flex flex-col gap-3 px-4 py-4 sm:px-5 md:flex-row md:items-center md:justify-between">
+                  <div className="min-w-0">
+                    <Label className="text-sm font-semibold">Gate logistico antes da cessao</Label>
+                    <p className="mt-1 max-w-3xl text-sm leading-relaxed text-muted-foreground">
+                      Quando ativo, a operacao somente avanca se houver CT-e/DACTE ou Comprovante de Entrega aprovado. O envio antecipado continua opcional quando este gate estiver desligado.
+                    </p>
+                  </div>
+                  <label className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2.5 text-sm font-medium md:w-auto md:min-w-64">
+                    <span>Exigir status logistico</span>
+                    <input
+                      type="checkbox"
+                      checked={requirePreCessionLogisticStatus}
+                      onChange={(event) => setRequirePreCessionLogisticStatus(event.target.checked)}
+                      className="size-4 accent-primary"
+                    />
+                  </label>
+                </div>
+              </div>
+              <div className="overflow-hidden rounded-xl border border-border bg-background lg:col-span-3">
                 <div className="flex flex-col gap-4 border-b border-border px-4 py-4 sm:px-5 md:flex-row md:items-center md:justify-between">
                   <div className="flex min-w-0 items-start gap-3">
                     <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -675,6 +698,7 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
                 <DetailField label="Aceite do sacado" value={describeAceiteSacado(operationalSelections.aceiteSacado)} />
                 <DetailField label="Momento da cessao" value={describeMomentoCessao(operationalSelections.momentoCessao)} />
                 <DetailField label="Entrega" value={describeAcompanhamentoEntrega(operationalSelections.acompanhamentoEntrega)} />
+                <DetailField label="Gate logistico pre-cessao" value={requirePreCessionLogisticStatus ? 'Exigido' : 'Nao exigido'} />
                 <DetailField label="Postergação do canhoto" value={postponementForm.permite ? `Permitida uma vez · limite ${postponementForm.limiteDias || '5'} dias` : 'Não permitida'} />
                 <DetailField label="Metodo de calculo" value={calculationMethod ? METODOS_CALCULO_LABELS[calculationMethod] : 'Nao selecionado'} />
               </div>
@@ -718,6 +742,7 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
                 <DetailField label="Momento da cessao" value={describeMomentoCessao(mapLegacyFlagsToOperationalSelections(detailsVersion).momentoCessao)} />
                 <DetailField label="Acompanhamento de entrega" value={describeAcompanhamentoEntrega(mapLegacyFlagsToOperationalSelections(detailsVersion).acompanhamentoEntrega)} />
                 <DetailField label="Metodo de calculo" value={detailsVersion.metodo_calculo_financeiro ? METODOS_CALCULO_LABELS[detailsVersion.metodo_calculo_financeiro] : 'Legado - dias reais / 30'} />
+                <DetailField label="Gate logistico pre-cessao" value={detailsVersion.exigir_status_logistico_pre_cessao ? 'Exigido' : 'Nao exigido'} />
               </div>
               <div className="rounded-xl border border-border">
                 <div className="border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Requisitos documentais</div>

@@ -25,7 +25,7 @@ export function gerarCaminhoDocumentoLogistico({
   nomeOriginal,
 }: {
   cedenteId: string
-  contextoTipo: 'cte' | 'entrega'
+  contextoTipo: 'cte' | 'entrega' | 'antecipado'
   contextoId: string
   tipoCodigo: string
   nomeOriginal: string

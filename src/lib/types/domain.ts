@@ -49,6 +49,10 @@ export const NF_STATUSES = [
 ] as const
 export type NfStatus = (typeof NF_STATUSES)[number]
 
+export function isNfStatus(value: unknown): value is NfStatus {
+  return typeof value === 'string' && NF_STATUSES.includes(value as NfStatus)
+}
+
 export const OPERACAO_STATUSES = [
   'solicitada',
   'em_analise',

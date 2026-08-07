@@ -283,6 +283,7 @@ export interface PoliticaOperacionalVersao {
   aceite_sacado_obrigatorio: boolean
   cessao_no_desembolso: boolean
   cria_acompanhamento_entrega: boolean
+  exigir_status_logistico_pre_cessao: boolean
   permite_postergacao_upload_canhoto: boolean
   limite_postergacao_upload_canhoto_dias: number | null
   metodo_calculo_financeiro: import('@/lib/operacoes/calculo').MetodoCalculoNovaPolitica | null
@@ -316,6 +317,7 @@ export interface PoliticaRequisitoDocumental {
   categoria: string | null
   bloqueia_fluxo: boolean
   observacoes: string | null
+  familia_documental: import('@/lib/logistica/evidencias-logisticas').FamiliaDocumentalLogistica | null
   responsavel_upload: PoliticaResponsavel
   responsavel_aprovacao: PoliticaResponsavel
   ordem: number
@@ -426,6 +428,55 @@ export interface DocumentoAnalise {
   observacoes: string | null
   dados_estruturados: Record<string, unknown>
   analisado_em: string
+  created_at: string
+}
+
+export interface EvidenciaLogisticaAntecipada {
+  id: string
+  nota_fiscal_id: string
+  fundo_id: string
+  cedente_id: string
+  cedente_fundo_id: string
+  politica_operacional_versao_id: string
+  politica_requisito_id: string
+  familia_documental: import('@/lib/logistica/evidencias-logisticas').FamiliaDocumentalLogistica
+  documento_id: string
+  documento_versao_atual_id: string
+  primeiro_upload_em: string
+  ultimo_upload_em: string
+  criado_por: string
+  created_at: string
+  updated_at: string
+}
+
+export interface EvidenciaLogisticaVersao {
+  id: string
+  evidencia_logistica_id: string
+  documento_id: string
+  documento_versao_id: string
+  created_at: string
+}
+
+export interface OperacaoNfLogisticaMemoria {
+  id: string
+  operacao_id: string
+  nota_fiscal_id: string
+  fundo_id: string
+  politica_operacional_versao_id: string
+  politica_snapshot_hash: string | null
+  etapa: 'criacao' | 'aprovacao'
+  gate_exigido: boolean
+  status_logistico: import('@/lib/logistica/evidencias-logisticas').StatusLogisticoPreCessao
+  familia_vencedora: import('@/lib/logistica/evidencias-logisticas').FamiliaDocumentalLogistica | null
+  documento_id: string | null
+  documento_versao_id: string | null
+  documento_analise_id: string | null
+  analisado_por: string | null
+  analisado_em: string | null
+  fundamento: string
+  regra_classificacao: string
+  versao_resolvedor: number
+  memoria: Record<string, unknown>
   created_at: string
 }
 
@@ -1142,6 +1193,9 @@ export interface Database {
       documento_requisito_instancias: { Row: DocumentoRequisitoInstancia & Record<string, unknown>; Insert: InsertShape<DocumentoRequisitoInstancia, 'politica_requisito_id' | 'politica_operacional_id' | 'politica_operacional_versao_id' | 'politica_versao' | 'tipo_documento_codigo_snapshot' | 'escopo_snapshot' | 'cedente_id' | 'obrigatorio' | 'nivel_validacao_snapshot' | 'quantidade_minima_snapshot' | 'responsavel_upload_snapshot' | 'responsavel_aprovacao_snapshot'> & Record<string, unknown>; Update: UpdateShape<DocumentoRequisitoInstancia> & Record<string, unknown>; Relationships: [] }
       cedente_fundo_politicas: { Row: CedenteFundoPolitica & Record<string, unknown>; Insert: InsertShape<CedenteFundoPolitica, 'cedente_fundo_id' | 'politica_operacional_id'> & Record<string, unknown>; Update: UpdateShape<CedenteFundoPolitica> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'cedente_fundo_politicas_cedente_fundo_id_fkey'; columns: ['cedente_fundo_id']; isOneToOne: false; referencedRelation: 'cedente_fundos'; referencedColumns: ['id'] }, { foreignKeyName: 'cedente_fundo_politicas_politica_operacional_id_fkey'; columns: ['politica_operacional_id']; isOneToOne: false; referencedRelation: 'politicas_operacionais'; referencedColumns: ['id'] }] }
       documento_analises: { Row: DocumentoAnalise & Record<string, unknown>; Insert: InsertShape<DocumentoAnalise, 'documento_versao_id' | 'resultado'> & Record<string, unknown>; Update: UpdateShape<DocumentoAnalise> & Record<string, unknown>; Relationships: [] }
+      evidencias_logisticas_antecipadas: { Row: EvidenciaLogisticaAntecipada & Record<string, unknown>; Insert: InsertShape<EvidenciaLogisticaAntecipada, 'nota_fiscal_id' | 'fundo_id' | 'cedente_id' | 'cedente_fundo_id' | 'politica_operacional_versao_id' | 'politica_requisito_id' | 'familia_documental' | 'documento_id' | 'documento_versao_atual_id' | 'criado_por'> & Record<string, unknown>; Update: UpdateShape<EvidenciaLogisticaAntecipada> & Record<string, unknown>; Relationships: [] }
+      evidencia_logistica_versoes: { Row: EvidenciaLogisticaVersao & Record<string, unknown>; Insert: InsertShape<EvidenciaLogisticaVersao, 'evidencia_logistica_id' | 'documento_id' | 'documento_versao_id'> & Record<string, unknown>; Update: UpdateShape<EvidenciaLogisticaVersao> & Record<string, unknown>; Relationships: [] }
+      operacao_nf_logistica_memorias: { Row: OperacaoNfLogisticaMemoria & Record<string, unknown>; Insert: InsertShape<OperacaoNfLogisticaMemoria, 'operacao_id' | 'nota_fiscal_id' | 'fundo_id' | 'politica_operacional_versao_id' | 'etapa' | 'gate_exigido' | 'status_logistico' | 'fundamento' | 'regra_classificacao' | 'versao_resolvedor'> & Record<string, unknown>; Update: UpdateShape<OperacaoNfLogisticaMemoria> & Record<string, unknown>; Relationships: [] }
       nota_fiscal_entregas: { Row: NotaFiscalEntrega & Record<string, unknown>; Insert: InsertShape<NotaFiscalEntrega, 'operacao_id' | 'nota_fiscal_id' | 'status_entrega'> & Record<string, unknown>; Update: UpdateShape<NotaFiscalEntrega> & Record<string, unknown>; Relationships: [] }
       nota_fiscal_entrega_postergacoes_canhoto: { Row: NotaFiscalEntregaPostergacaoCanhoto & Record<string, unknown>; Insert: InsertShape<NotaFiscalEntregaPostergacaoCanhoto, 'nota_fiscal_entrega_id' | 'nota_fiscal_id' | 'operacao_id' | 'fundo_id' | 'cedente_id' | 'cedente_fundo_id' | 'politica_operacional_versao_id' | 'politica_snapshot_hash' | 'prazo_original_upload_canhoto' | 'nova_previsao_upload_canhoto' | 'motivo_postergacao' | 'limite_postergacao_dias_aplicado' | 'postergacao_comunicada_por'> & Record<string, unknown>; Update: UpdateShape<NotaFiscalEntregaPostergacaoCanhoto> & Record<string, unknown>; Relationships: [] }
       eventos_entrega: { Row: EventoEntrega & Record<string, unknown>; Insert: InsertShape<EventoEntrega, 'nota_fiscal_entrega_id' | 'tipo_evento'> & Record<string, unknown>; Update: UpdateShape<EventoEntrega> & Record<string, unknown>; Relationships: [] }
@@ -1265,6 +1319,9 @@ export interface Database {
       obter_politica_aplicavel_cedente_fundo: { Args: { p_cedente_fundo_id: string; p_data_referencia?: string }; Returns: Record<string, unknown> }
       registrar_documento_upload: { Args: { p_nota_fiscal_id: string; p_requisito_id: string; p_documento_tipo_id: string; p_nome_original: string; p_mime_type: string; p_tamanho_bytes: number; p_sha256: string; p_bucket: string; p_path: string; p_enviado_por: string; p_substitui_versao_id?: string | null }; Returns: Record<string, unknown> }
       registrar_documento_entrega_upload: { Args: { p_nota_fiscal_entrega_id: string; p_requisito_id: string; p_documento_tipo_id: string; p_nome_original: string; p_mime_type: string; p_tamanho_bytes: number; p_sha256: string; p_bucket: string; p_path: string; p_enviado_por: string; p_substitui_versao_id?: string | null }; Returns: Record<string, unknown> }
+      registrar_documento_logistico_antecipado: { Args: { p_nota_fiscal_ids: string[]; p_politica_requisito_id: string; p_documento_tipo_codigo: string; p_nome_original: string; p_mime_type: string; p_tamanho_bytes: number; p_sha256: string; p_bucket: string; p_path: string; p_dados_logisticos?: Record<string, unknown> }; Returns: Record<string, unknown> }
+      avaliar_gate_logistico_pre_cessao_nfs: { Args: { p_nota_fiscal_ids: string[] }; Returns: Array<{ nota_fiscal_id: string; politica_operacional_versao_id: string | null; gate_exigido: boolean; status: string; permitido: boolean }> }
+      excluir_notas_fiscais_rascunho_cedente: { Args: { p_nota_fiscal_ids: string[] }; Returns: { ids_excluidos: string[]; total_excluido: number; storage_objects: Array<{ bucket: string; path: string }> } }
       analisar_documento_versao: { Args: { p_documento_versao_id: string; p_resultado: string; p_observacoes?: string | null; p_dados_estruturados?: Record<string, unknown> }; Returns: Record<string, unknown> }
       processar_aceite_sacado: { Args: { p_nota_fiscal_ids: string[]; p_acao: string; p_motivo?: string | null }; Returns: Record<string, unknown> }
       solicitar_operacao_antecipacao_atomica: { Args: { p_cedente_id: string; p_cedente_fundo_id: string; p_politica_operacional_id: string; p_politica_operacional_versao_id: string; p_politica_versao: number; p_politica_snapshot: Record<string, unknown>; p_politica_snapshot_hash: string; p_aceite_sacado_exigido: boolean; p_aceite_sacado_status: string; p_nota_fiscal_ids: string[]; p_valor_bruto_total: number; p_taxa_desconto: number | null; p_prazo_dias: number; p_valor_liquido_desembolso: number | null; p_data_vencimento: string; p_idempotency_key: string }; Returns: Record<string, unknown> }

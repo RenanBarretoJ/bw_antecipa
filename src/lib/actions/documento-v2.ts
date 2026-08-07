@@ -6,6 +6,7 @@ import { registrarLog } from './auditoria'
 import { instanciarRequisitosDaNota } from '@/lib/documentos-v2/requisitos'
 import { gerarUrlDocumento } from '@/lib/documentos-v2/storage'
 import { uploadDocumentoDaEntrega, uploadDocumentoDaNota } from '@/lib/documentos-v2/upload'
+import { uploadDocumentoLogisticoAntecipado } from '@/lib/logistica/upload-antecipado.server'
 import { normalizarCodigoDocumentoCatalogo } from '@/lib/documentos-v2/tipos'
 import { calcularPrazoDocumento, type StatusPrazoDocumento } from '@/lib/documentos-v2/prazos'
 import { calcularStatusLogisticoDocumental, type StatusLogisticoResumo } from '@/lib/documentos-v2/resumo-operacional'
@@ -27,6 +28,16 @@ import {
   type AvaliacaoPostergacaoCanhoto,
   type StatusPrazoUploadCanhoto,
 } from '@/lib/logistica/postergacao-canhoto'
+import {
+  classificarStatusLogisticoPreCessao,
+  resolverFamiliaDocumentalLogistica,
+  type FamiliaDocumentalLogistica,
+  type StatusLogisticoPreCessao,
+} from '@/lib/logistica/evidencias-logisticas'
+import {
+  carregarNfsCandidatasCteSeAplicavel,
+  possuiRequisitoCteAntecipavel,
+} from '@/lib/logistica/candidatas-cte.server'
 
 const DOCUMENTOS_COM_VALIDACAO_ESTRUTURAL_NO_UPLOAD = new Set([
   'nf_xml',
@@ -59,6 +70,10 @@ export interface ChecklistDocumentoItem {
   documentoId: string | null
   versaoAprovadaId: string | null
   entregaId: string | null
+  envioAntecipado: boolean
+  familiaDocumental: FamiliaDocumentalLogistica | null
+  nfsCompartilhamento: Array<{ id: string; numero: string; chaveAcesso: string | null }>
+  erroNfsCompartilhamento: string | null
   satisfacaoSubmissao: SatisfacaoRequisitoSubmissao
   satisfacaoAprovacao: SatisfacaoRequisitoAprovacao
   versoes: Array<{
@@ -80,7 +95,12 @@ export interface ChecklistDocumento {
   items: ChecklistDocumentoItem[]
   estadoChecklist: ReturnType<typeof resolverEstadoChecklistDocumental>
   preCessao: ChecklistDocumentoItem[]
+  logisticaAntecipada: ChecklistDocumentoItem[]
   posCessao: ChecklistDocumentoItem[]
+  gateLogisticoPreCessao: {
+    exigido: boolean
+    status: StatusLogisticoPreCessao
+  }
   entrega: { id: string; status: string; dataInicioPrazo: string | null; motivoPendencia: string | null; dataEntrega: string | null; entregaConfirmadaEm: string | null } | null
   postergacaoCanhoto: {
     dataReferencia: string
@@ -133,10 +153,6 @@ export interface ElegibilidadeDocumental {
 async function carregarChecklist(notaFiscalId: string): Promise<ChecklistDocumento> {
   const supabase = await createClient()
   const context = await requireNotaFiscalAccess(notaFiscalId, supabase)
-  const instanciacao = context.profile.role === 'cedente' || context.profile.role === 'gestor'
-    ? await instanciarRequisitosDaNota(notaFiscalId, supabase)
-    : null
-  const politicaVersaoId = instanciacao?.politica.versao.id || null
 
   // A partir daqui o acesso à NF já foi validado com a sessão real do usuário.
   // As leituras do checklist usam service role de forma estritamente escopada à NF
@@ -146,7 +162,7 @@ async function carregarChecklist(notaFiscalId: string): Promise<ChecklistDocumen
   const [{ data: nfData }, { data: entregaData }, { data: postergacaoData, error: postergacaoError }] = await Promise.all([
     dataClient
       .from('notas_fiscais')
-      .select('id, status')
+      .select('id, status, cedente_id, cedente_fundo_id, fundo_id')
       .eq('id', notaFiscalId)
       .maybeSingle(),
     dataClient
@@ -164,7 +180,7 @@ async function carregarChecklist(notaFiscalId: string): Promise<ChecklistDocumen
       .maybeSingle(),
   ])
   if (postergacaoError) throw new Error(`Erro ao carregar postergação do canhoto: ${postergacaoError.message}`)
-  const notaFiscal = nfData as { id: string; status: string } | null
+  const notaFiscal = nfData as { id: string; status: string; cedente_id: string; cedente_fundo_id: string | null; fundo_id: string | null } | null
   const entrega = entregaData as { id: string; operacao_id: string; status_entrega: string; cessao_efetivada_em: string | null; data_limite_canhoto: string | null; data_entrega: string | null; entrega_confirmada_em: string | null; motivo_pendencia: string | null; created_at: string } | null
   const postergacao = postergacaoData as {
     id: string
@@ -177,22 +193,41 @@ async function carregarChecklist(notaFiscalId: string): Promise<ChecklistDocumen
     postergacao_comunicada_por: string
   } | null
 
-  const [{ data: operationData }, { data: legacyCanhotos }] = entrega
-    ? await Promise.all([
-      dataClient
-        .from('operacoes')
-        .select('id, politica_snapshot, politica_snapshot_hash, politica_operacional_versao_id, cessao_efetivada_em')
-        .eq('id', entrega.operacao_id)
-        .maybeSingle(),
-      dataClient
-        .from('canhotos')
-        .select('created_at')
-        .eq('nota_fiscal_entrega_id', entrega.id)
-        .order('created_at', { ascending: true })
-        .limit(1),
-    ])
-    : [{ data: null }, { data: [] }]
-  const operation = operationData as { id: string; politica_snapshot: Record<string, unknown> | null; politica_snapshot_hash: string | null; politica_operacional_versao_id: string | null; cessao_efetivada_em: string | null } | null
+  const { data: operationLinks, error: operationLinksError } = await dataClient
+    .from('operacoes_nfs')
+    .select('operacao_id')
+    .eq('nota_fiscal_id', notaFiscalId)
+  if (operationLinksError) throw new Error(`Erro ao carregar vinculo operacional da NF: ${operationLinksError.message}`)
+
+  const operationIds = Array.from(new Set((operationLinks || []).map((link) => link.operacao_id as string)))
+  const { data: operationsData, error: operationsError } = operationIds.length
+    ? await dataClient
+      .from('operacoes')
+      .select('id, status, politica_snapshot, politica_snapshot_hash, politica_operacional_versao_id, cessao_efetivada_em, created_at')
+      .in('id', operationIds)
+      .order('created_at', { ascending: false })
+    : { data: [], error: null }
+  if (operationsError) throw new Error(`Erro ao carregar operacao da NF: ${operationsError.message}`)
+  const operations = (operationsData || []) as Array<{ id: string; status: string; politica_snapshot: Record<string, unknown> | null; politica_snapshot_hash: string | null; politica_operacional_versao_id: string | null; cessao_efetivada_em: string | null; created_at: string }>
+  const operation = (entrega
+    ? operations.find((item) => item.id === entrega.operacao_id)
+    : operations.find((item) => !['cancelada', 'reprovada'].includes(item.status)) || operations[0]) || null
+
+  // Fora de uma operacao, o checklist acompanha a versao publicada atual. Dentro
+  // da operacao, a versao congelada e a unica fonte de verdade permitida.
+  const instanciacao = !operation && (context.profile.role === 'cedente' || context.profile.role === 'gestor')
+    ? await instanciarRequisitosDaNota(notaFiscalId, supabase)
+    : null
+  const politicaVersaoId = operation?.politica_operacional_versao_id || instanciacao?.politica.versao.id || null
+
+  const { data: legacyCanhotos } = entrega
+    ? await dataClient
+      .from('canhotos')
+      .select('created_at')
+      .eq('nota_fiscal_entrega_id', entrega.id)
+      .order('created_at', { ascending: true })
+      .limit(1)
+    : { data: [] }
 
   const instancesQuery = dataClient
     .from('documento_requisito_instancias')
@@ -213,14 +248,109 @@ async function carregarChecklist(notaFiscalId: string): Promise<ChecklistDocumen
   const { data: policyRequirementRows, error: policyRequirementsError } = politicaVersaoId
     ? await dataClient
       .from('politica_requisitos_documentais')
-      .select('id, codigo, tipo_documento_codigo, escopo, obrigatorio, ativo, nivel_validacao, momento_obrigatorio, bloqueia_fluxo')
+      .select('id, codigo, tipo_documento_codigo, escopo, obrigatorio, ativo, nivel_validacao, momento_obrigatorio, bloqueia_fluxo, formatos_aceitos, familia_documental')
       .eq('politica_operacional_versao_id', politicaVersaoId)
-      .in('escopo', entrega ? ['nf_pre_cessao', 'pos_cessao', 'entrega'] : ['nf_pre_cessao'])
+      .in('escopo', ['nf_pre_cessao', 'pos_cessao', 'entrega'])
     : { data: [], error: null }
   if (policyRequirementsError) throw new Error(`Erro ao carregar requisitos da politica: ${policyRequirementsError.message}`)
-  const typeIds = rows.map((row) => row.documento_tipo_id).filter(Boolean) as string[]
+
+  const policyRequirements = (policyRequirementRows || []) as Array<{
+    id: string
+    codigo: string
+    tipo_documento_codigo: string
+    escopo: string
+    obrigatorio: boolean
+    ativo: boolean
+    nivel_validacao: PoliticaNivelValidacao
+    momento_obrigatorio: string | null
+    bloqueia_fluxo: boolean
+    formatos_aceitos: string[] | null
+    familia_documental: FamiliaDocumentalLogistica | null
+  }>
+
+  const [{ data: policyVersionData, error: policyVersionError }, { data: evidenceData, error: evidenceError }] = await Promise.all([
+    politicaVersaoId
+      ? dataClient
+        .from('politica_operacional_versoes')
+        .select('id, exigir_status_logistico_pre_cessao')
+        .eq('id', politicaVersaoId)
+        .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+    politicaVersaoId
+      ? dataClient
+        .from('evidencias_logisticas_antecipadas')
+        .select('id, nota_fiscal_id, politica_requisito_id, familia_documental, documento_id, documento_versao_atual_id, created_at, updated_at')
+        .eq('nota_fiscal_id', notaFiscalId)
+        .eq('politica_operacional_versao_id', politicaVersaoId)
+      : Promise.resolve({ data: [], error: null }),
+  ])
+  if (policyVersionError) throw new Error(`Erro ao carregar configuracao logistica da politica: ${policyVersionError.message}`)
+  if (evidenceError) throw new Error(`Erro ao carregar evidencias logisticas antecipadas: ${evidenceError.message}`)
+
+  const evidences = (evidenceData || []) as Array<{
+    id: string
+    nota_fiscal_id: string
+    politica_requisito_id: string
+    familia_documental: FamiliaDocumentalLogistica
+    documento_id: string
+    documento_versao_atual_id: string
+    created_at: string
+    updated_at: string
+  }>
+  const evidenceIds = evidences.map((evidence) => evidence.id)
+  const { data: evidenceHistoryData, error: evidenceHistoryError } = evidenceIds.length
+    ? await dataClient
+      .from('evidencia_logistica_versoes')
+      .select('id, evidencia_logistica_id, documento_id, documento_versao_id, created_at')
+      .in('evidencia_logistica_id', evidenceIds)
+      .order('created_at', { ascending: false })
+    : { data: [], error: null }
+  if (evidenceHistoryError) throw new Error(`Erro ao carregar historico das evidencias logisticas: ${evidenceHistoryError.message}`)
+  const evidenceHistory = (evidenceHistoryData || []) as Array<{ id: string; evidencia_logistica_id: string; documento_id: string; documento_versao_id: string; created_at: string }>
+  const evidenceDocumentIds = Array.from(new Set(evidenceHistory.map((item) => item.documento_id)))
+  const { data: evidenceDocumentsData, error: evidenceDocumentsError } = evidenceDocumentIds.length
+    ? await dataClient.from('documentos_repositorio').select('id, documento_tipo_id').in('id', evidenceDocumentIds)
+    : { data: [], error: null }
+  if (evidenceDocumentsError) throw new Error(`Erro ao carregar documentos das evidencias logisticas: ${evidenceDocumentsError.message}`)
+  const evidenceDocuments = (evidenceDocumentsData || []) as Array<{ id: string; documento_tipo_id: string }>
+
+  const cteAntecipavel = !entrega && possuiRequisitoCteAntecipavel(policyRequirements)
+  if (cteAntecipavel && (!notaFiscal?.cedente_fundo_id || !notaFiscal.fundo_id || !notaFiscal.cedente_id)) {
+    throw new Error('A NF nao possui contexto completo de cedente e fundo para o compartilhamento de CT-e.')
+  }
+  const sharingNfsResult = notaFiscal?.cedente_fundo_id && notaFiscal.fundo_id
+    ? await carregarNfsCandidatasCteSeAplicavel({
+      client: dataClient,
+      contexto: {
+        notaFiscalId,
+        cedenteId: notaFiscal.cedente_id,
+        cedenteFundoId: notaFiscal.cedente_fundo_id,
+        fundoId: notaFiscal.fundo_id,
+      },
+      requisitos: entrega ? [] : policyRequirements,
+    })
+    : { aplicavel: false, candidatas: [], erro: null }
+  if (sharingNfsResult.erro) {
+    console.warn('[checklist-documental][candidatas-cte]', {
+      nota_fiscal_id: notaFiscalId,
+      erro: sharingNfsResult.erro,
+    })
+  }
+  const sharingNfs = sharingNfsResult.candidatas.map((nf) => ({
+    id: nf.id,
+    numero: nf.numero,
+    chaveAcesso: nf.chaveAcesso,
+  }))
+
+  const typeIds = [
+    ...rows.map((row) => row.documento_tipo_id).filter(Boolean),
+    ...evidenceDocuments.map((document) => document.documento_tipo_id).filter(Boolean),
+  ] as string[]
   const typeCodes = Array.from(new Set(rows.map((row) => normalizarCodigoDocumentoCatalogo(row.tipo_documento_codigo_snapshot))))
-  const docIds = rows.map((row) => row.documento_id).filter(Boolean) as string[]
+  const docIds = Array.from(new Set([
+    ...rows.map((row) => row.documento_id).filter(Boolean) as string[],
+    ...evidenceDocumentIds,
+  ]))
   const [typesResult, versionsResult] = await Promise.all([
     typeIds.length || typeCodes.length
       ? dataClient.from('documento_tipos').select('id, codigo, nome').or([
@@ -259,20 +389,9 @@ async function carregarChecklist(notaFiscalId: string): Promise<ChecklistDocumen
     })
   }
 
-  const policyRequirements = (policyRequirementRows || []) as Array<{
-    id: string
-    codigo: string
-    tipo_documento_codigo: string
-    escopo: string
-    obrigatorio: boolean
-    ativo: boolean
-    nivel_validacao: PoliticaNivelValidacao
-    momento_obrigatorio: string | null
-    bloqueia_fluxo: boolean
-  }>
   const policyRequirementById = new Map(policyRequirements.map((requirement) => [requirement.id, requirement]))
 
-  const items = rows.map((row) => {
+  const items: ChecklistDocumentoItem[] = rows.map((row) => {
     const type = row.documento_tipo_id
       ? types.get(row.documento_tipo_id)
       : typesByCode.get(normalizarCodigoDocumentoCatalogo(row.tipo_documento_codigo_snapshot))
@@ -342,13 +461,125 @@ async function carregarChecklist(notaFiscalId: string): Promise<ChecklistDocumen
       documentoId: row.documento_id,
       versaoAprovadaId: row.versao_aprovada_id,
       entregaId: row.nota_fiscal_entrega_id,
+      envioAntecipado: false,
+      familiaDocumental: policyRequirement?.familia_documental || resolverFamiliaDocumentalLogistica(row.tipo_documento_codigo_snapshot),
+      nfsCompartilhamento: [],
+      erroNfsCompartilhamento: null,
       satisfacaoSubmissao: resolverSatisfacaoRequisitoParaSubmissao(satisfacaoInput),
       satisfacaoAprovacao: resolverSatisfacaoRequisitoParaAprovacao(satisfacaoInput),
       versoes: itemVersions,
     }
   })
+
+  const documentTypeIdByDocumentId = new Map(evidenceDocuments.map((document) => [document.id, document.documento_tipo_id]))
+  const earlyItems: ChecklistDocumentoItem[] = entrega ? [] : policyRequirements
+    .filter((requirement) => requirement.ativo && ['pos_cessao', 'entrega'].includes(requirement.escopo))
+    .map((requirement) => ({ requirement, family: requirement.familia_documental || resolverFamiliaDocumentalLogistica(requirement.tipo_documento_codigo) }))
+    .filter((entry): entry is { requirement: typeof policyRequirements[number]; family: FamiliaDocumentalLogistica } => Boolean(entry.family))
+    .map(({ requirement, family }) => {
+      const evidence = evidences.find((item) => item.politica_requisito_id === requirement.id && item.familia_documental === family) || null
+      const orderedHistory = evidenceHistory
+        .filter((history) => history.evidencia_logistica_id === evidence?.id)
+      const itemVersions = orderedHistory
+        .map((history, index) => {
+          const version = versions.find((candidate) => candidate.id === history.documento_versao_id)
+          if (!version) return null
+          return {
+          id: version.id,
+          // Cada substituicao pode criar um novo documento fisico. A numeracao
+          // exibida e a sequencia logica append-only desta evidencia.
+          numero: orderedHistory.length - index,
+          status: version.status,
+          nome: version.nome_original,
+          sha256: version.sha256,
+          enviadoPorId: version.enviado_por,
+          enviadoPorNome: profileNames.get(version.enviado_por) || null,
+          enviadoEm: version.enviado_em,
+          criadoEm: version.created_at,
+          ultimaAnalise: latestAnalysis.get(version.id) || null,
+          }
+        })
+        .filter((version): version is NonNullable<typeof version> => Boolean(version))
+      const currentVersion = itemVersions.find((version) => version.id === evidence?.documento_versao_atual_id) || itemVersions[0] || null
+      const approved = Boolean(currentVersion && (currentVersion.status === 'aprovado' || currentVersion.ultimaAnalise?.resultado === 'aprovado'))
+      const rejected = Boolean(currentVersion && (currentVersion.status === 'rejeitado' || ['rejeitado', 'requer_ajuste'].includes(currentVersion.ultimaAnalise?.resultado || '')))
+      const status = approved ? 'satisfeito' : rejected ? 'rejeitado' : currentVersion ? 'em_analise' : 'pendente'
+      const typeId = evidence?.documento_id ? documentTypeIdByDocumentId.get(evidence.documento_id) : null
+      const type = typeId ? types.get(typeId) : null
+      const formatosAceitos = family === 'cte'
+        ? ['xml', 'pdf']
+        : (requirement.formatos_aceitos?.length ? requirement.formatos_aceitos : ['pdf', 'jpg', 'jpeg', 'png'])
+      const satisfactionInput = {
+        requisitoId: requirement.id,
+        tipoDocumento: requirement.tipo_documento_codigo,
+        obrigatorio: requirement.obrigatorio,
+        bloqueiaFluxo: false,
+        momento: requirement.momento_obrigatorio || requirement.escopo,
+        regraValidade: requirement.nivel_validacao,
+        statusInstancia: status,
+        documentoId: evidence?.documento_id || null,
+        versaoAprovadaId: approved ? currentVersion?.id || null : null,
+        validacaoEstruturalOk: approved,
+        versoes: itemVersions,
+      }
+      return {
+        id: `antecipado:${requirement.id}`,
+        politicaRequisitoId: requirement.id,
+        codigo: requirement.tipo_documento_codigo,
+        nome: family === 'cte' ? 'CT-e / DACTE' : 'Comprovante de entrega',
+        descricao: 'Documento logistico oficialmente pos-cessao, disponivel para envio antecipado sem duplicar o requisito da politica.',
+        fase: 'pos_cessao',
+        escopo: requirement.escopo,
+        obrigatorio: requirement.obrigatorio,
+        status,
+        nivelValidacao: requirement.nivel_validacao,
+        momentoObrigatorio: requirement.momento_obrigatorio || requirement.escopo,
+        statusPrazo: 'nao_iniciado',
+        prazoDias: null,
+        marcoPrazo: null,
+        dataInicioPrazo: null,
+        dataLimite: null,
+        prazoTexto: null,
+        prazoDetalhe: null,
+        bloqueiaFluxo: false,
+        formatosAceitos,
+        uploadPermitido: family === 'cte' || Boolean(type || formatosAceitos.length),
+        documentoId: evidence?.documento_id || null,
+        versaoAprovadaId: approved ? currentVersion?.id || null : null,
+        entregaId: null,
+        envioAntecipado: true,
+        familiaDocumental: family,
+        nfsCompartilhamento: family === 'cte' ? sharingNfs : [],
+        erroNfsCompartilhamento: family === 'cte' ? sharingNfsResult.erro : null,
+        satisfacaoSubmissao: resolverSatisfacaoRequisitoParaSubmissao(satisfactionInput),
+        satisfacaoAprovacao: resolverSatisfacaoRequisitoParaAprovacao(satisfactionInput),
+        versoes: itemVersions,
+      }
+    })
+
+  const classificacaoLogistica = classificarStatusLogisticoPreCessao(evidenceHistory.flatMap((history) => {
+    const evidence = evidences.find((item) => item.id === history.evidencia_logistica_id)
+    if (!evidence) return []
+    const version = versions.find((item) => item.id === history.documento_versao_id)
+    const analysis = version ? latestAnalysis.get(version.id) : null
+    return [{
+      familia: evidence.familia_documental,
+      documentoId: history.documento_id,
+      versaoId: history.documento_versao_id,
+      versaoStatus: version?.status || 'em_analise',
+      analiseResultado: analysis?.resultado || null,
+      analisadoEm: analysis?.analisadoEm || null,
+      analisadoPor: analysis?.analisadoPorId || null,
+    }]
+  }))
+  const snapshotGate = operation?.politica_snapshot?.exigir_status_logistico_pre_cessao
+  const gateLogisticoExigido = typeof snapshotGate === 'boolean'
+    ? snapshotGate
+    : Boolean((policyVersionData as { exigir_status_logistico_pre_cessao?: boolean } | null)?.exigir_status_logistico_pre_cessao)
   const requisitosDaPolitica: RequisitoChecklistAplicavel[] = (policyRequirementRows || []).length > 0
-    ? policyRequirements.map((row) => ({
+    ? policyRequirements
+      .filter((row) => entrega || row.escopo === 'nf_pre_cessao')
+      .map((row) => ({
       id: row.id,
       codigo: row.codigo,
       tipoDocumentoCodigo: row.tipo_documento_codigo,
@@ -453,10 +684,15 @@ async function carregarChecklist(notaFiscalId: string): Promise<ChecklistDocumen
     : calcularElegibilidadeAprovacao(preCessaoVisivel)
   return {
     notaFiscalId,
-    items: itensVisiveis,
+    items: [...itensVisiveis, ...earlyItems],
     estadoChecklist,
     preCessao: preCessaoVisivel,
+    logisticaAntecipada: earlyItems,
     posCessao: posCessaoVisivel,
+    gateLogisticoPreCessao: {
+      exigido: gateLogisticoExigido,
+      status: classificacaoLogistica.status,
+    },
     entrega: entrega ? {
       id: entrega.id,
       status: entrega.status_entrega,
@@ -546,13 +782,23 @@ export async function enviarDocumentoDaNota(formData: FormData) {
   const notaFiscalId = String(formData.get('notaFiscalId') || '')
   const requisitoId = String(formData.get('requisitoId') || '')
   const entregaId = String(formData.get('entregaId') || '')
+  const envioAntecipado = String(formData.get('envioAntecipado') || '') === 'true'
+  const notaFiscalIds = Array.from(new Set(
+    String(formData.get('notaFiscalIds') || notaFiscalId)
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean)
+      .concat(notaFiscalId),
+  ))
   const arquivo = formData.get('arquivo')
   if (!notaFiscalId || !requisitoId || !(arquivo instanceof File)) return { success: false, message: 'NF, requisito e arquivo sao obrigatorios.' }
   try {
     const client = await createClient()
-    const result = entregaId
-      ? await uploadDocumentoDaEntrega({ notaFiscalId, entregaId, requisitoId, arquivo }, client)
-      : await uploadDocumentoDaNota({ notaFiscalId, requisitoId, arquivo }, client)
+    const result = envioAntecipado
+      ? await uploadDocumentoLogisticoAntecipado({ notaFiscalIds, politicaRequisitoId: requisitoId, arquivo }, client)
+      : entregaId
+        ? await uploadDocumentoDaEntrega({ notaFiscalId, entregaId, requisitoId, arquivo }, client)
+        : await uploadDocumentoDaNota({ notaFiscalId, requisitoId, arquivo }, client)
     const resultMessage = (result as { message?: unknown }).message
     return { success: true, message: typeof resultMessage === 'string' ? resultMessage : 'Documento enviado para analise.', data: result }
   } catch (error) {

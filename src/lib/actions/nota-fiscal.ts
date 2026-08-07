@@ -870,6 +870,13 @@ export async function submeterNF(nfId: string): Promise<NfActionState> {
   } catch (error) {
     return { success: false, code: 'CHECKLIST_ERROR', message: `Nao foi possivel revalidar os requisitos documentais: ${error instanceof Error ? error.message : 'erro desconhecido'}` }
   }
+  if (checklist.gateLogisticoPreCessao.exigido && checklist.gateLogisticoPreCessao.status === 'INDETERMINADA') {
+    return {
+      success: false,
+      code: 'LOGISTICA_PRE_CESSAO_PENDENTE',
+      message: 'A politica exige CT-e/DACTE ou Comprovante de Entrega aprovado antes da submissao.',
+    }
+  }
 
   const estadosSemPolitica = new Set(['sem_politica', 'nao_instanciado', 'erro'])
   const avaliacao = avaliarElegibilidadeSubmissaoNf({
@@ -976,91 +983,88 @@ export async function submeterNF(nfId: string): Promise<NfActionState> {
   return { success: true, code: 'NF_SUBMITTED', message: 'NF submetida para analise com sucesso!', data: { id: nfId } }
 }
 
-// Cedente: excluir rascunho
-export async function excluirRascunho(nfId: string): Promise<NfActionState> {
-  await requireAuthenticated()
-  const supabase = await createClient()
-  const cedente = await getCedenteDoUsuario()
+type ExclusaoRascunhosRpc = {
+  ids_excluidos?: string[]
+  total_excluido?: number
+  storage_objects?: Array<{ bucket?: string; path?: string }>
+}
 
-  if (!cedente) {
-    return { success: false, message: 'Cadastro de cedente nao encontrado.' }
+function mensagemErroExclusaoRascunho(message: string) {
+  if (message.includes('Somente notas fiscais em rascunho')) {
+    return 'Somente notas fiscais em rascunho podem ser excluidas.'
   }
-
-  const { data: nf } = await supabase
-    .from('notas_fiscais')
-    .select('id, arquivo_url')
-    .eq('id', nfId)
-    .eq('cedente_id', cedente.id)
-    .eq('status', 'rascunho')
-    .single()
-
-  if (!nf) {
-    return { success: false, message: 'Rascunho nao encontrado ou ja foi submetido.' }
+  if (message.includes('movimentacao operacional')) {
+    return 'Esta nota fiscal ja possui movimentacao operacional e nao pode ser excluida.'
   }
-
-  const nfData = nf as { id: string; arquivo_url: string | null }
-
-  // Remover arquivo do storage antes de excluir o registro
-  if (nfData.arquivo_url) {
-    await supabase.storage.from(buckets.notasFiscais).remove([nfData.arquivo_url])
+  if (message.includes('nao foram encontradas para este cedente')) {
+    return 'Rascunho nao encontrado ou sem acesso para este cedente.'
   }
+  if (message.includes('Cadastro de cedente nao encontrado')) {
+    return 'Cadastro de cedente nao encontrado.'
+  }
+  return 'Nao foi possivel excluir o rascunho. Tente novamente.'
+}
 
-  const { error } = await supabase
-    .from('notas_fiscais')
-    .delete()
-    .eq('id', nfId)
-    .eq('cedente_id', cedente.id)
+async function excluirRascunhosDoCedente(nfIds: string[]): Promise<NfActionState> {
+  const ids = Array.from(new Set(nfIds.filter(Boolean)))
+  if (ids.length === 0) return { success: false, message: 'Nenhuma NF selecionada.' }
+
+  const context = await requireAuthenticated()
+  const { data, error } = await context.supabase.rpc('excluir_notas_fiscais_rascunho_cedente', {
+    p_nota_fiscal_ids: ids,
+  })
 
   if (error) {
-    return { success: false, message: `Erro ao excluir: ${error.message}` }
+    console.error('[excluirRascunhosDoCedente] Falha transacional:', {
+      codigo: error.code,
+      total_solicitado: ids.length,
+    })
+    return { success: false, message: mensagemErroExclusaoRascunho(error.message) }
+  }
+
+  const resultado = (data || {}) as ExclusaoRascunhosRpc
+  const idsExcluidos = resultado.ids_excluidos || []
+  if (idsExcluidos.length !== ids.length) {
+    return { success: false, message: 'Nao foi possivel confirmar a exclusao de todos os rascunhos.' }
+  }
+
+  const pathsPorBucket = new Map<string, string[]>()
+  for (const object of resultado.storage_objects || []) {
+    if (!object.bucket || !object.path) continue
+    pathsPorBucket.set(object.bucket, [...(pathsPorBucket.get(object.bucket) || []), object.path])
+  }
+
+  const admin = createAdminClient()
+  for (const [bucket, paths] of pathsPorBucket.entries()) {
+    const { error: storageError } = await admin.storage.from(bucket).remove(paths)
+    if (storageError) {
+      console.error('[excluirRascunhosDoCedente] Falha ao limpar Storage apos commit:', {
+        bucket,
+        total_objetos: paths.length,
+        codigo: storageError.name,
+      })
+    }
   }
 
   revalidatePath('/cedente/notas-fiscais')
-  return { success: true, message: 'Rascunho excluido.' }
+  revalidatePath('/gestor/notas-fiscais')
+  return {
+    success: true,
+    ids: idsExcluidos,
+    message: idsExcluidos.length === 1
+      ? 'Rascunho excluido.'
+      : `${idsExcluidos.length} rascunho(s) excluido(s).`,
+  }
+}
+
+// Cedente: excluir rascunho
+export async function excluirRascunho(nfId: string): Promise<NfActionState> {
+  return excluirRascunhosDoCedente([nfId])
 }
 
 // Cedente: excluir múltiplos rascunhos em lote
 export async function excluirRascunhos(nfIds: string[]): Promise<NfActionState> {
-  if (!nfIds.length) return { success: false, message: 'Nenhuma NF selecionada.' }
-
-  await requireAuthenticated()
-  const supabase = await createClient()
-  const cedente = await getCedenteDoUsuario()
-
-  if (!cedente) {
-    return { success: false, message: 'Cadastro de cedente nao encontrado.' }
-  }
-
-  const { data: nfs } = await supabase
-    .from('notas_fiscais')
-    .select('id, arquivo_url')
-    .in('id', nfIds)
-    .eq('cedente_id', cedente.id)
-    .eq('status', 'rascunho')
-
-  if (!nfs || nfs.length === 0) {
-    return { success: false, message: 'Nenhum rascunho encontrado.' }
-  }
-
-  const nfsData = nfs as { id: string; arquivo_url: string | null }[]
-  const arquivos = nfsData.map((n) => n.arquivo_url).filter(Boolean) as string[]
-  if (arquivos.length > 0) {
-    await supabase.storage.from(buckets.notasFiscais).remove(arquivos)
-  }
-
-  const idsConfirmados = nfsData.map((n) => n.id)
-  const { error } = await supabase
-    .from('notas_fiscais')
-    .delete()
-    .in('id', idsConfirmados)
-    .eq('cedente_id', cedente.id)
-
-  if (error) {
-    return { success: false, message: `Erro ao excluir: ${error.message}` }
-  }
-
-  revalidatePath('/cedente/notas-fiscais')
-  return { success: true, message: `${idsConfirmados.length} rascunho(s) excluido(s).` }
+  return excluirRascunhosDoCedente(nfIds)
 }
 
 // Gestor: aprovar NF
@@ -1085,6 +1089,16 @@ export async function aprovarNF(nfId: string): Promise<NfActionState> {
   const documentos = checklist.avaliacoes.get(nfId)
   if (!documentos) {
     return { success: false, message: 'Nao foi possivel avaliar a documentacao aplicavel a NF.' }
+  }
+  const { data: gateLogisticoData, error: gateLogisticoError } = await supabase.rpc('avaliar_gate_logistico_pre_cessao_nfs', {
+    p_nota_fiscal_ids: [nfId],
+  })
+  if (gateLogisticoError) {
+    return { success: false, message: `Nao foi possivel validar o gate logistico da NF: ${gateLogisticoError.message}` }
+  }
+  const gateLogistico = ((gateLogisticoData || []) as Array<{ gate_exigido: boolean; status: string; permitido: boolean }>)[0]
+  if (gateLogistico?.gate_exigido && !gateLogistico.permitido) {
+    return { success: false, code: 'LOGISTICA_PRE_CESSAO_PENDENTE', message: 'A politica exige CT-e/DACTE ou Comprovante de Entrega aprovado antes da aprovacao da NF.' }
   }
   const avaliacaoAprovacao = avaliarElegibilidadeAprovacaoNf({
     status: nfData.status,
@@ -1344,6 +1358,34 @@ export async function aprovarNFsLote(ids: string[]): Promise<NfActionState> {
         totalAprovadas: 0,
         totalFalhas: falhasIniciais.length,
         resultados: resultadosIniciais,
+      },
+    }
+  }
+
+  const { data: gatesLogisticosData, error: gatesLogisticosError } = await supabase.rpc('avaliar_gate_logistico_pre_cessao_nfs', {
+    p_nota_fiscal_ids: idsUnicos,
+  })
+  if (gatesLogisticosError) return { success: false, message: `Nao foi possivel validar o gate logistico das NFs: ${gatesLogisticosError.message}` }
+  const gatesLogisticos = (gatesLogisticosData || []) as Array<{ nota_fiscal_id: string; gate_exigido: boolean; status: string; permitido: boolean }>
+  const bloqueiosLogisticos = gatesLogisticos.filter((item) => item.gate_exigido && !item.permitido)
+  if (bloqueiosLogisticos.length > 0) {
+    const idsBloqueados = new Set(bloqueiosLogisticos.map((item) => item.nota_fiscal_id))
+    return {
+      success: false,
+      code: 'LOGISTICA_PRE_CESSAO_PENDENTE',
+      message: 'A aprovacao em lote foi bloqueada: uma ou mais NFs exigem CT-e/DACTE ou Comprovante de Entrega aprovado.',
+      lote: {
+        totalRecebidas: idsUnicos.length,
+        totalAprovadas: 0,
+        totalFalhas: idsBloqueados.size,
+        resultados: idsUnicos.map((notaFiscalId) => ({
+          notaFiscalId,
+          success: false,
+          code: idsBloqueados.has(notaFiscalId) ? 'logistica_pre_cessao_pendente' : 'lote_atomico_bloqueado',
+          message: idsBloqueados.has(notaFiscalId)
+            ? 'Evidencia logistica aprovada obrigatoria antes da aprovacao.'
+            : 'Nao aprovada porque outra NF do lote possui bloqueio logistico.',
+        })),
       },
     }
   }

@@ -141,6 +141,7 @@ function TechnicalDetails({ version }: { version: ChecklistDocumentoItem['versoe
 
 function RequirementCard({
   item,
+  notaFiscalId,
   mode,
   sending,
   processing,
@@ -149,15 +150,17 @@ function RequirementCard({
   onAnalyze,
 }: {
   item: ChecklistDocumentoItem
+  notaFiscalId: string
   mode: ChecklistMode
   sending: string | null
   processing: string | null
-  onUpload: (item: ChecklistDocumentoItem, file: File) => Promise<void>
+  onUpload: (item: ChecklistDocumentoItem, file: File, notaFiscalIds?: string[]) => Promise<void>
   onDownload: (versionId: string) => Promise<void>
   onAnalyze: (versionId: string, result: 'aprovado' | 'rejeitado' | 'requer_ajuste') => Promise<void>
 }) {
   const [expanded, setExpanded] = useState(false)
   const [showUpload, setShowUpload] = useState(false)
+  const [selectedNfIds, setSelectedNfIds] = useState<string[]>([notaFiscalId])
   const visual = statusVisual(item)
   const StatusIcon = visual.icon
   const canUpload = mode === 'cedente' && item.uploadPermitido && !isDocumentoAprovado(item)
@@ -272,13 +275,46 @@ function RequirementCard({
               </div>
             )}
 
+            {item.erroNfsCompartilhamento && (
+              <div className="flex items-start gap-2 rounded-lg border border-warning/35 bg-warning/10 p-3 text-sm text-warning-foreground">
+                <AlertTriangle className="mt-0.5 shrink-0" size={15} />
+                <span>{item.erroNfsCompartilhamento} O checklist e o envio individual continuam disponiveis.</span>
+              </div>
+            )}
+
+            {mode === 'cedente' && item.envioAntecipado && item.familiaDocumental === 'cte' && item.nfsCompartilhamento.length > 1 && (
+              <fieldset className="rounded-lg border bg-background p-3">
+                <legend className="px-1 text-sm font-medium text-foreground">Notas fiscais vinculadas ao CT-e</legend>
+                <p className="mb-2 text-xs text-muted-foreground">Selecione todas as NFs deste contexto que constam no mesmo CT-e. A NF atual permanece obrigatoria.</p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {item.nfsCompartilhamento.map((nf) => {
+                    const current = nf.id === notaFiscalId
+                    const checked = current || selectedNfIds.includes(nf.id)
+                    return (
+                      <label key={nf.id} className="flex min-w-0 items-center gap-2 rounded-md border px-2.5 py-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          disabled={current}
+                          onChange={(event) => setSelectedNfIds((ids) => event.target.checked
+                            ? Array.from(new Set([...ids, nf.id]))
+                            : ids.filter((id) => id !== nf.id))}
+                        />
+                        <span className="truncate" title={nf.chaveAcesso || undefined}>NF {nf.numero}</span>
+                      </label>
+                    )
+                  })}
+                </div>
+              </fieldset>
+            )}
+
             {shouldShowUpload && (
               <DocumentDropzone
                 accept={accept}
                 sending={sending === item.id}
                 label={item.versoes.length ? 'Selecione o arquivo da nova versão' : 'Arraste o arquivo aqui ou clique para selecionar'}
                 onUpload={async (file) => {
-                  await onUpload(item, file)
+                  await onUpload(item, file, selectedNfIds)
                   setShowUpload(false)
                 }}
               />
@@ -568,7 +604,8 @@ export function ChecklistCedente({
         pendentesObrigatorios: nextChecklist.elegibilidade.pendentesObrigatorios,
       })
     } catch (error) {
-      notifications.error(error instanceof Error ? error.message : 'Não foi possível carregar o checklist.')
+      const message = error instanceof Error ? error.message : 'Não foi possível carregar o checklist.'
+      notifications.error(message, { dedupeKey: `checklist:${notaFiscalId}:${message}` })
     } finally {
       setLoading(false)
     }
@@ -576,11 +613,15 @@ export function ChecklistCedente({
 
   useEffect(() => { void load() }, [load])
 
-  const upload = async (item: ChecklistDocumentoItem, file: File) => {
+  const upload = async (item: ChecklistDocumentoItem, file: File, notaFiscalIds?: string[]) => {
     setSending(item.id)
     const form = new FormData()
     form.set('notaFiscalId', notaFiscalId)
-    form.set('requisitoId', item.id)
+    form.set('requisitoId', item.envioAntecipado ? item.politicaRequisitoId : item.id)
+    if (item.envioAntecipado) {
+      form.set('envioAntecipado', 'true')
+      form.set('notaFiscalIds', Array.from(new Set([notaFiscalId, ...(notaFiscalIds || [])])).join(','))
+    }
     if (item.entregaId) form.set('entregaId', item.entregaId)
     form.set('arquivo', file)
     const result = await enviarDocumentoDaNota(form)
@@ -683,11 +724,39 @@ export function ChecklistCedente({
         ) : (
           <div className="space-y-2">
             {checklist.preCessao.map((item) => (
-              <RequirementCard key={item.id} item={item} mode={mode} sending={sending} processing={processing} onUpload={upload} onDownload={download} onAnalyze={analyze} />
+              <RequirementCard key={item.id} item={item} notaFiscalId={notaFiscalId} mode={mode} sending={sending} processing={processing} onUpload={upload} onDownload={download} onAnalyze={analyze} />
             ))}
           </div>
         )}
       </section>
+
+      {checklist.logisticaAntecipada.length > 0 && (
+        <section className="rounded-xl border bg-card p-4">
+          <div className="mb-3 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+            <div>
+              <h2 className="font-semibold">Envio antecipado de documentos logisticos</h2>
+              <p className="text-sm text-muted-foreground">
+                {checklist.gateLogisticoPreCessao.exigido
+                  ? 'A politica exige uma evidencia logistica aprovada antes da cessao.'
+                  : 'Envio antecipado — opcional nesta etapa. O requisito oficial continua sendo pos-cessao.'}
+              </p>
+            </div>
+            <span className={`inline-flex w-fit items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${checklist.gateLogisticoPreCessao.status === 'INDETERMINADA' ? 'bg-warning/15 text-warning-foreground' : 'bg-info/15 text-info-foreground'}`}>
+              <Truck size={13} />
+              {checklist.gateLogisticoPreCessao.status === 'ENTREGUE'
+                ? 'Entrega comprovada'
+                : checklist.gateLogisticoPreCessao.status === 'EM_TRANSITO'
+                  ? 'Em transito'
+                  : 'Situacao nao determinada'}
+            </span>
+          </div>
+          <div className="space-y-2">
+            {checklist.logisticaAntecipada.map((item) => (
+              <RequirementCard key={item.id} item={item} notaFiscalId={notaFiscalId} mode={mode} sending={sending} processing={processing} onUpload={upload} onDownload={download} onAnalyze={analyze} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {(checklist.posCessao.length > 0 || checklist.entrega || mode === 'gestor') && (
         <section className="rounded-xl border bg-card p-4">
@@ -724,7 +793,7 @@ export function ChecklistCedente({
           ) : (
             <div className="space-y-2">
               {checklist.posCessao.map((item) => (
-                <RequirementCard key={item.id} item={item} mode={mode} sending={sending} processing={processing} onUpload={upload} onDownload={download} onAnalyze={analyze} />
+                <RequirementCard key={item.id} item={item} notaFiscalId={notaFiscalId} mode={mode} sending={sending} processing={processing} onUpload={upload} onDownload={download} onAnalyze={analyze} />
               ))}
             </div>
           )}

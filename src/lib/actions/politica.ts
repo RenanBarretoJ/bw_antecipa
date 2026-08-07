@@ -13,6 +13,7 @@ import { stableStringify, validarConfiguracaoPublica } from '@/lib/operacoes/pol
 import { registrarLog } from './auditoria'
 import { obterFundoAtivoAutorizado } from './fundo-ativo'
 import type { MetodoCalculoNovaPolitica } from '@/lib/operacoes/calculo'
+import { validarUnicidadeFamiliasLogisticas } from '@/lib/logistica/evidencias-logisticas'
 
 type PolicyActionState = { success?: boolean; message?: string }
 type SupabaseFrom = Awaited<ReturnType<typeof requireGestor>>['supabase']
@@ -24,6 +25,7 @@ export interface CriarVersaoPoliticaInput {
   aceite_sacado_obrigatorio: boolean
   cessao_no_desembolso: boolean
   cria_acompanhamento_entrega: boolean
+  exigir_status_logistico_pre_cessao: boolean
   permite_postergacao_upload_canhoto: boolean
   limite_postergacao_upload_canhoto_dias: number | null
   metodo_calculo_financeiro: MetodoCalculoNovaPolitica | null
@@ -40,6 +42,7 @@ function hashVersao(input: CriarVersaoPoliticaInput, requisitos: ReturnType<type
     aceite_sacado_obrigatorio: input.aceite_sacado_obrigatorio,
     cessao_no_desembolso: input.cessao_no_desembolso,
     cria_acompanhamento_entrega: input.cria_acompanhamento_entrega,
+    exigir_status_logistico_pre_cessao: input.exigir_status_logistico_pre_cessao,
     permite_postergacao_upload_canhoto: input.permite_postergacao_upload_canhoto,
     limite_postergacao_upload_canhoto_dias: input.limite_postergacao_upload_canhoto_dias,
     metodo_calculo_financeiro: input.metodo_calculo_financeiro,
@@ -196,10 +199,17 @@ export async function criarVersaoPolitica(
     if (policyData.status === 'arquivada' || policyData.status === 'desativada') return result('Nao e possivel criar versao para politica arquivada.')
 
     const normalized = input.requisitos.map(normalizarRequisitoDocumental)
+    validarUnicidadeFamiliasLogisticas(normalized)
     const codes = new Set<string>()
     for (const requirement of normalized) {
       if (codes.has(requirement.codigo)) return result(`Requisito duplicado: ${requirement.codigo}.`)
       codes.add(requirement.codigo)
+    }
+    if (input.exigir_status_logistico_pre_cessao
+      && !normalized.some((requirement) => requirement.ativo
+        && ['pos_cessao', 'entrega'].includes(requirement.momento_obrigatorio)
+        && ['cte', 'cte_xml', 'cte_pdf_dacte', 'cte_dacte_pdf', 'dacte', 'canhoto', 'comprovante_entrega', 'comprovante_de_entrega'].includes(requirement.tipo_documento_codigo))) {
+      return result('O gate logistico exige ao menos um requisito oficial de CT-e/DACTE ou Comprovante de Entrega no pos-cessao.')
     }
 
     const { data: last, error: lastError } = await supabase
@@ -235,6 +245,7 @@ export async function criarVersaoPolitica(
       aceite_sacado_obrigatorio: input.aceite_sacado_obrigatorio,
       cessao_no_desembolso: input.cessao_no_desembolso,
       cria_acompanhamento_entrega: input.cria_acompanhamento_entrega,
+      exigir_status_logistico_pre_cessao: input.exigir_status_logistico_pre_cessao,
       permite_postergacao_upload_canhoto: input.permite_postergacao_upload_canhoto,
       limite_postergacao_upload_canhoto_dias: input.permite_postergacao_upload_canhoto
         ? input.limite_postergacao_upload_canhoto_dias
@@ -439,6 +450,7 @@ export async function duplicarPoliticaDoFundo(
         aceite_sacado_obrigatorio: boolean
         cessao_no_desembolso: boolean
         cria_acompanhamento_entrega: boolean
+        exigir_status_logistico_pre_cessao: boolean
         permite_postergacao_upload_canhoto: boolean
         limite_postergacao_upload_canhoto_dias: number | null
         metodo_calculo_financeiro: MetodoCalculoNovaPolitica | null
@@ -459,6 +471,7 @@ export async function duplicarPoliticaDoFundo(
         aceite_sacado_obrigatorio: base.aceite_sacado_obrigatorio,
         cessao_no_desembolso: base.cessao_no_desembolso,
         cria_acompanhamento_entrega: base.cria_acompanhamento_entrega,
+        exigir_status_logistico_pre_cessao: base.exigir_status_logistico_pre_cessao,
         permite_postergacao_upload_canhoto: base.permite_postergacao_upload_canhoto,
         limite_postergacao_upload_canhoto_dias: base.limite_postergacao_upload_canhoto_dias,
         metodo_calculo_financeiro: base.metodo_calculo_financeiro,

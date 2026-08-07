@@ -32,6 +32,7 @@ export interface PoliticaSnapshot {
   aceite_sacado_obrigatorio: boolean
   cessao_no_desembolso: boolean
   cria_acompanhamento_entrega: boolean
+  exigir_status_logistico_pre_cessao: boolean
   permite_postergacao_upload_canhoto?: boolean
   limite_postergacao_upload_canhoto_dias?: number | null
   calculo_financeiro: ReturnType<typeof criarConfiguracaoCalculoSnapshot>
@@ -51,6 +52,7 @@ export interface PoliticaSnapshot {
     responsavel_aprovacao: string
     ordem: number
     ativo: boolean
+    familia_documental: import('@/lib/logistica/evidencias-logisticas').FamiliaDocumentalLogistica | null
   }>
 }
 
@@ -103,6 +105,7 @@ export function criarSnapshotPolitica(policy: PoliticaResolvida): { snapshot: Po
     aceite_sacado_obrigatorio: policy.versao.aceite_sacado_obrigatorio,
     cessao_no_desembolso: policy.versao.cessao_no_desembolso,
     cria_acompanhamento_entrega: policy.versao.cria_acompanhamento_entrega,
+    exigir_status_logistico_pre_cessao: policy.versao.exigir_status_logistico_pre_cessao,
     permite_postergacao_upload_canhoto: policy.versao.permite_postergacao_upload_canhoto,
     limite_postergacao_upload_canhoto_dias: policy.versao.limite_postergacao_upload_canhoto_dias,
     calculo_financeiro: criarConfiguracaoCalculoSnapshot(policy.versao.metodo_calculo_financeiro),
@@ -124,6 +127,7 @@ export function criarSnapshotPolitica(policy: PoliticaResolvida): { snapshot: Po
         responsavel_aprovacao: requirement.responsavel_aprovacao,
         ordem: requirement.ordem,
         ativo: requirement.ativo,
+        familia_documental: requirement.familia_documental,
       })),
   }
 
