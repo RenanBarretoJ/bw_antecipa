@@ -145,6 +145,7 @@ export const DELIVERY_EVENT_TYPES = [
   'canhoto_atrasado',
   'canhoto_postergacao_comunicada',
   'documento_entrega_enviado',
+  'entrega_em_validacao',
   'entrega_confirmada',
   'entrega_com_pendencia',
   'devolucao_registrada',
