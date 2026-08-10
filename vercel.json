@@ -7,6 +7,10 @@
     {
       "path": "/api/cron/documentos-vencidos",
       "schedule": "30 8 * * *"
+    },
+    {
+      "path": "/api/cron/comunicacoes",
+      "schedule": "0 11 * * *"
     }
   ],
   "functions": {

@@ -33,6 +33,7 @@ import { PoliticasDoFundo } from '@/components/politicas/PoliticasDoFundo'
 import { TemplatesDoFundo } from '@/components/templates/TemplatesDoFundo'
 import { useNotifications } from '@/components/notifications/notification-provider'
 import { useFundoAtivo } from '@/components/fundos/fundo-ativo-provider'
+import { ComunicacoesDoFundo } from '@/components/comunicacoes/ComunicacoesDoFundo'
 
 type ConfigRow = {
   id: string
@@ -269,7 +270,7 @@ const defaultCredencialForm: CredencialForm = {
   credencialAnteriorId: null,
 }
 
-const tabs = ['dados', 'politica', 'templates', 'cnab', 'integracoes'] as const
+const tabs = ['dados', 'politica', 'templates', 'cnab', 'integracoes', 'comunicacoes'] as const
 
 const portalFidcEndpointDefaults: Record<'homologacao' | 'producao', string> = {
   homologacao: '',
@@ -627,7 +628,7 @@ export default function FundoDetalhePage() {
       <div className="flex flex-wrap gap-2 rounded-xl border border-border bg-card p-2">
         {tabs.map((tab) => (
           <Link key={tab} href={`/gestor/fundos/${fundoId}?tab=${tab}`} className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${activeTab === tab ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}>
-            {tab === 'dados' ? 'Dados gerais' : tab === 'politica' ? 'Política operacional' : tab === 'templates' ? 'Templates jurídicos' : tab === 'cnab' ? 'CNAB' : 'Integrações'}
+            {tab === 'dados' ? 'Dados gerais' : tab === 'politica' ? 'Política operacional' : tab === 'templates' ? 'Templates jurídicos' : tab === 'cnab' ? 'CNAB' : tab === 'integracoes' ? 'Integrações' : 'Comunicações'}
           </Link>
         ))}
       </div>
@@ -652,6 +653,9 @@ export default function FundoDetalhePage() {
       )}
       {activeTab === 'templates' && (
         <TemplatesDoFundo fundoId={fundoId} showFundoSelector={false} />
+      )}
+      {activeTab === 'comunicacoes' && (
+        <ComunicacoesDoFundo fundoId={fundoId} />
       )}
 
       {activeTab === 'cnab' && (

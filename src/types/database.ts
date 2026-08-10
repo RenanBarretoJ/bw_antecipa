@@ -1181,9 +1181,155 @@ export interface Notificacao {
   created_at: string
 }
 
+export interface ComunicacaoConfiguracao {
+  id: string
+  fundo_id: string
+  pausada: boolean
+  criada_por: string
+  criada_em: string
+  atualizada_em: string
+}
+
+export interface ComunicacaoConfiguracaoVersao {
+  id: string
+  configuracao_id: string
+  fundo_id: string
+  numero_versao: number
+  status: 'rascunho' | 'publicada' | 'inativa'
+  logistica_habilitada: boolean
+  cte_habilitado: boolean
+  comprovante_habilitado: boolean
+  financeiro_habilitado: boolean
+  regua_logistica: Record<string, unknown>
+  regua_financeira: Record<string, unknown>
+  somente_dias_uteis: boolean
+  horario_envio: string
+  timezone: string
+  ativada_em: string | null
+  publicada_em: string | null
+  publicada_por: string | null
+  criada_por: string
+  criada_em: string
+  atualizada_em: string
+}
+
+export interface ComunicacaoTemplateVersao {
+  id: string
+  configuracao_versao_id: string
+  fundo_id: string
+  categoria: string
+  modo: 'padrao' | 'personalizado'
+  assunto: string | null
+  corpo_html: string | null
+  corpo_texto: string | null
+  conteudo_hash: string
+  criada_por: string
+  criada_em: string
+}
+
+export interface ComunicacaoExecucao {
+  id: string
+  data_referencia: string
+  modo: 'producao' | 'controlado'
+  status: 'PROCESSANDO' | 'CONCLUIDA' | 'FALHA'
+  encontrada: number
+  agrupada: number
+  enviada: number
+  falha: number
+  bloqueada: number
+  iniciada_em: string
+  finalizada_em: string | null
+  erro_sanitizado: string | null
+}
+
+export interface Comunicacao {
+  id: string
+  fundo_id: string
+  configuracao_versao_id: string
+  template_versao_id: string
+  execucao_id: string | null
+  familia: 'LOGISTICA' | 'FINANCEIRO'
+  categoria: string
+  status: 'PENDENTE' | 'PROCESSANDO' | 'ENVIADA' | 'FALHA' | 'BLOQUEADA' | 'CANCELADA'
+  remetente_nome: string
+  destinatario_nome: string
+  destinatario_email: string | null
+  destinatario_hash: string | null
+  copias: unknown[]
+  assunto: string
+  corpo_html: string
+  corpo_texto: string
+  conteudo_hash: string
+  message_id: string
+  idempotency_key: string
+  data_efetiva: string
+  bloqueio_motivo: string | null
+  provider_id: string | null
+  criada_em: string
+  enviada_em: string | null
+  atualizada_em: string
+}
+
+export interface ComunicacaoItem {
+  id: string
+  comunicacao_id: string
+  fundo_id: string
+  familia: 'LOGISTICA' | 'FINANCEIRO'
+  item_key: string
+  entidade_tipo: string
+  entidade_id: string | null
+  nota_fiscal_id: string | null
+  operacao_id: string | null
+  etapa: string
+  data_obrigacao: string
+  data_nominal: string
+  data_efetiva: string
+  motivo_ajuste: string | null
+  snapshot: Record<string, unknown>
+  criada_em: string
+}
+
+export interface ComunicacaoItemEstagio {
+  id: string
+  fundo_id: string
+  familia: 'LOGISTICA' | 'FINANCEIRO'
+  item_key: string
+  etapa: string
+  data_obrigacao: string
+  data_nominal: string
+  data_efetiva: string
+  motivo_ajuste: string | null
+  status: 'PENDENTE' | 'COMUNICADO' | 'NAO_APLICAVEL' | 'CANCELADO'
+  comunicacao_id: string | null
+  rejeicao_versao_id: string | null
+  criada_em: string
+  comunicada_em: string | null
+}
+
+export interface ComunicacaoTentativa {
+  id: string
+  comunicacao_id: string
+  numero_tentativa: number
+  status: 'PROCESSANDO' | 'ENVIADA' | 'FALHA'
+  provider: string
+  provider_id: string | null
+  erro_codigo: string | null
+  erro_sanitizado: string | null
+  iniciada_em: string
+  finalizada_em: string | null
+}
+
 export interface Database {
   public: {
     Tables: {
+      comunicacao_configuracoes: { Row: ComunicacaoConfiguracao & Record<string, unknown>; Insert: InsertShape<ComunicacaoConfiguracao, 'fundo_id' | 'criada_por'> & Record<string, unknown>; Update: UpdateShape<ComunicacaoConfiguracao> & Record<string, unknown>; Relationships: [] }
+      comunicacao_configuracao_versoes: { Row: ComunicacaoConfiguracaoVersao & Record<string, unknown>; Insert: InsertShape<ComunicacaoConfiguracaoVersao, 'configuracao_id' | 'fundo_id' | 'numero_versao' | 'criada_por'> & Record<string, unknown>; Update: UpdateShape<ComunicacaoConfiguracaoVersao> & Record<string, unknown>; Relationships: [] }
+      comunicacao_template_versoes: { Row: ComunicacaoTemplateVersao & Record<string, unknown>; Insert: InsertShape<ComunicacaoTemplateVersao, 'configuracao_versao_id' | 'fundo_id' | 'categoria' | 'conteudo_hash' | 'criada_por'> & Record<string, unknown>; Update: UpdateShape<ComunicacaoTemplateVersao> & Record<string, unknown>; Relationships: [] }
+      comunicacao_execucoes: { Row: ComunicacaoExecucao & Record<string, unknown>; Insert: InsertShape<ComunicacaoExecucao, 'data_referencia'> & Record<string, unknown>; Update: UpdateShape<ComunicacaoExecucao> & Record<string, unknown>; Relationships: [] }
+      comunicacoes: { Row: Comunicacao & Record<string, unknown>; Insert: InsertShape<Comunicacao, 'fundo_id' | 'configuracao_versao_id' | 'template_versao_id' | 'familia' | 'categoria' | 'destinatario_nome' | 'assunto' | 'corpo_html' | 'corpo_texto' | 'conteudo_hash' | 'message_id' | 'idempotency_key' | 'data_efetiva'> & Record<string, unknown>; Update: UpdateShape<Comunicacao> & Record<string, unknown>; Relationships: [] }
+      comunicacao_itens: { Row: ComunicacaoItem & Record<string, unknown>; Insert: InsertShape<ComunicacaoItem, 'comunicacao_id' | 'fundo_id' | 'familia' | 'item_key' | 'entidade_tipo' | 'etapa' | 'data_obrigacao' | 'data_nominal' | 'data_efetiva'> & Record<string, unknown>; Update: UpdateShape<ComunicacaoItem> & Record<string, unknown>; Relationships: [] }
+      comunicacao_item_estagios: { Row: ComunicacaoItemEstagio & Record<string, unknown>; Insert: InsertShape<ComunicacaoItemEstagio, 'fundo_id' | 'familia' | 'item_key' | 'etapa' | 'data_obrigacao' | 'data_nominal' | 'data_efetiva'> & Record<string, unknown>; Update: UpdateShape<ComunicacaoItemEstagio> & Record<string, unknown>; Relationships: [] }
+      comunicacao_tentativas: { Row: ComunicacaoTentativa & Record<string, unknown>; Insert: InsertShape<ComunicacaoTentativa, 'comunicacao_id' | 'numero_tentativa' | 'status'> & Record<string, unknown>; Update: UpdateShape<ComunicacaoTentativa> & Record<string, unknown>; Relationships: [] }
       profiles: { Row: Profile & Record<string, unknown>; Insert: InsertShape<Profile, 'id' | 'nome_completo' | 'email'> & Record<string, unknown>; Update: UpdateShape<Profile> & Record<string, unknown>; Relationships: [] }
       cedentes: { Row: Cedente & Record<string, unknown>; Insert: InsertShape<Cedente, 'user_id' | 'cnpj' | 'razao_social'> & Record<string, unknown>; Update: UpdateShape<Cedente> & Record<string, unknown>; Relationships: [] }
       documento_tipos: { Row: DocumentoTipoRepositorio & Record<string, unknown>; Insert: InsertShape<DocumentoTipoRepositorio, 'codigo' | 'nome' | 'dominio'> & Record<string, unknown>; Update: UpdateShape<DocumentoTipoRepositorio> & Record<string, unknown>; Relationships: [] }
@@ -1247,6 +1393,10 @@ export interface Database {
     }
     Views: Record<string, never>
     Functions: {
+      publicar_configuracao_comunicacoes: { Args: { p_versao_id: string }; Returns: ComunicacaoConfiguracaoVersao }
+      criar_rascunho_configuracao_comunicacoes: { Args: { p_fundo_id: string; p_base_versao_id: string | null; p_templates_padrao: Array<Record<string, unknown>> }; Returns: string }
+      iniciar_execucao_comunicacoes: { Args: { p_data_referencia: string }; Returns: string | null }
+      registrar_comunicacao_operacional: { Args: { p_comunicacao: Record<string, unknown>; p_itens: Array<Record<string, unknown>> }; Returns: string | null }
       get_user_role: { Args: Record<string, never>; Returns: string }
       get_user_cedente_id: { Args: Record<string, never>; Returns: string | null }
       get_user_sacado_cnpj: { Args: Record<string, never>; Returns: string | null }
