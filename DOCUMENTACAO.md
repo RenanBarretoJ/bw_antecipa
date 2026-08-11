@@ -581,6 +581,6 @@ As verificações server-side reutilizáveis estão em `src/lib/auth/authorizati
 
 Os logs passaram a diferenciar `usuario`, `sistema`, `integracao` e `cron`, com `usuario_id` nullable, `origem` e `ator_identificador`. A mudança está na migration `supabase/migrations/20260720203009_fase1_auditoria_atores_origem.sql`; a gravação tipada está em `src/lib/actions/auditoria.ts` e `src/lib/auth/audit-actor.ts`; os crons e a API escrow usam ator explícito.
 
-Foi criada uma base Vitest (`vitest.config.ts`, script `npm test`) com testes de autenticação/role, igualdade exata de paths registrados e atores de auditoria. A dívida transacional financeira está documentada em `docs/technical-debt-financial-transactions.md`; desembolso, liquidação e escrow não foram refatorados.
+Foi criada uma base Vitest (`vitest.config.ts`, script `npm test`) com testes de autenticação/role, igualdade exata de paths registrados e atores de auditoria. A dívida transacional financeira está documentada em `docs/financeiro/technical-debt-financial-transactions.md`; desembolso, liquidação e escrow não foram refatorados.
 
 Na validação desta fase, `tsc`, testes, build e lint direcionado aos arquivos alterados passaram. O lint global ainda acusa erros preexistentes em telas/scripts não alterados, principalmente regras React Compiler do Next.js 16 e `require()` legado; eles permanecem como pendência fora do escopo. A validação SQL local não pôde ser executada porque não havia PostgreSQL local disponível em `127.0.0.1:54322`.

@@ -25,7 +25,7 @@ políticas operacionais.
 
 ### Cedentes do gestor
 
-A página [`/gestor/cedentes`](../src/app/gestor/cedentes/page.tsx) era um Client
+A página [`/gestor/cedentes`](../../src/app/gestor/cedentes/page.tsx) era um Client
 Component. Na montagem, ela:
 
 1. aguardava o contexto de fundo no navegador;
@@ -175,12 +175,12 @@ respostas antigas ignoradas
 
 ## Listagem de cedentes
 
-A rota [`src/app/gestor/cedentes/page.tsx`](../src/app/gestor/cedentes/page.tsx)
+A rota [`src/app/gestor/cedentes/page.tsx`](../../src/app/gestor/cedentes/page.tsx)
 passou a ser um Server Component fino. Ela normaliza os `searchParams`, chama o
 loader e entrega o resultado ao componente interativo.
 
 O contrato e a normalização estão em
-[`src/lib/cedentes/gestor-listagem.ts`](../src/lib/cedentes/gestor-listagem.ts):
+[`src/lib/cedentes/gestor-listagem.ts`](../../src/lib/cedentes/gestor-listagem.ts):
 
 - página inicial `1`;
 - tamanhos permitidos `10`, `20` e `40`;
@@ -191,7 +191,7 @@ O contrato e a normalização estão em
 - direção limitada a `asc` ou `desc`.
 
 O loader
-[`carregarCedentesGestorPaginados`](../src/lib/cedentes/gestor-listagem.server.ts)
+[`carregarCedentesGestorPaginados`](../../src/lib/cedentes/gestor-listagem.server.ts)
 usa `cedente_fundos` como fonte de verdade e:
 
 1. exige gestor;
@@ -208,7 +208,7 @@ CNPJ, razão social, status, cadastro e política ativa resumida. Não contém
 representantes, documentos, acessos, taxas, snapshots, arquivos ou históricos.
 
 O componente
-[`CedentesGestorListagem`](../src/components/cedentes/CedentesGestorListagem.tsx)
+[`CedentesGestorListagem`](../../src/components/cedentes/CedentesGestorListagem.tsx)
 mantém filtros e paginação na URL. Busca e alteração de filtros voltam para a
 página 1, e o link de detalhe preserva o endereço de retorno completo.
 
@@ -216,7 +216,7 @@ página 1, e o link de detalhe preserva o endereço de retorno completo.
 
 O detalhe não foi redesenhado. As mudanças foram limitadas às coleções
 diretamente relacionadas em
-[`src/app/gestor/cedentes/[id]/page.tsx`](../src/app/gestor/cedentes/%5Bid%5D/page.tsx):
+[`src/app/gestor/cedentes/[id]/page.tsx`](../../src/app/gestor/cedentes/%5Bid%5D/page.tsx):
 
 - o cadastro principal passou de `select("*")` para campos explícitos;
 - representantes legais foram limitados a 20;
@@ -226,7 +226,7 @@ diretamente relacionadas em
   `listar_documentos_atuais_cedente`.
 
 A RPC criada em
-[`20260730143000_performance_escopo6_escrow_rls.sql`](../supabase/migrations/20260730143000_performance_escopo6_escrow_rls.sql)
+[`20260730143000_performance_escopo6_escrow_rls.sql`](../../supabase/migrations/20260730143000_performance_escopo6_escrow_rls.sql)
 usa `DISTINCT ON (tipo, representante_id)` e ordenação por versão, data e ID
 decrescentes. Assim, a tela recebe somente a versão atual de cada documento e
 representante, sem antecipar o histórico completo.
@@ -238,12 +238,12 @@ dependendo da RLS da tabela `documentos`.
 ## Listagens de escrow
 
 As rotas
-[`/gestor/escrow`](../src/app/gestor/escrow/page.tsx) e
-[`/consultor/escrow`](../src/app/consultor/escrow/page.tsx) passaram a usar o
+[`/gestor/escrow`](../../src/app/gestor/escrow/page.tsx) e
+[`/consultor/escrow`](../../src/app/consultor/escrow/page.tsx) passaram a usar o
 mesmo componente e o mesmo domínio de paginação.
 
 O contrato em
-[`src/lib/escrow/listagem.ts`](../src/lib/escrow/listagem.ts) expõe somente:
+[`src/lib/escrow/listagem.ts`](../../src/lib/escrow/listagem.ts) expõe somente:
 
 - conta e cedente;
 - identificador;
@@ -256,7 +256,7 @@ Não são retornados movimentos, dados bancários completos, credenciais, CNAB,
 conciliações ou payloads externos.
 
 O loader
-[`carregarEscrowPaginado`](../src/lib/escrow/listagem.server.ts):
+[`carregarEscrowPaginado`](../../src/lib/escrow/listagem.server.ts):
 
 - exige o perfil recebido pela rota;
 - resolve o fundo ativo no perfil gestor;
@@ -284,9 +284,9 @@ Nenhum desses valores é apresentado como saldo consolidado do fundo.
 ## Movimentos incrementais e extrato
 
 O domínio compartilhado está em
-[`src/lib/escrow/movimentos.ts`](../src/lib/escrow/movimentos.ts), e a leitura
+[`src/lib/escrow/movimentos.ts`](../../src/lib/escrow/movimentos.ts), e a leitura
 autorizada em
-[`src/lib/escrow/movimentos.server.ts`](../src/lib/escrow/movimentos.server.ts).
+[`src/lib/escrow/movimentos.server.ts`](../../src/lib/escrow/movimentos.server.ts).
 
 O cursor contém:
 
@@ -316,12 +316,12 @@ A autorização é refeita em toda leitura, inclusive no botão “Carregar mais
 - cedente: perfil cedente e conta pertencente ao próprio cadastro.
 
 A action
-[`carregarMaisMovimentosEscrow`](../src/lib/actions/escrow.ts) não confia no
+[`carregarMaisMovimentosEscrow`](../../src/lib/actions/escrow.ts) não confia no
 perfil informado para ampliar acesso. O loader chama `requireRole(perfil)` e
 valida novamente a conta e o vínculo.
 
 O componente
-[`EscrowDetalhe`](../src/components/escrow/EscrowDetalhe.tsx) é compartilhado
+[`EscrowDetalhe`](../../src/components/escrow/EscrowDetalhe.tsx) é compartilhado
 pelos três portais. Os saldos atual, disponível e bloqueado vêm da conta
 persistida; eles não são recalculados pelos 20 movimentos.
 
@@ -329,14 +329,14 @@ Os cards “Créditos carregados” e “Débitos carregados” somam somente os
 carregados e são rotulados dessa forma. Eles não representam totais globais ou
 totais exatos do período.
 
-A rota [`/cedente/extrato`](../src/app/cedente/extrato/page.tsx) agora faz a
+A rota [`/cedente/extrato`](../../src/app/cedente/extrato/page.tsx) agora faz a
 carga inicial no servidor, confirma que escrow está habilitado, resolve a conta
 do próprio cedente e entrega a primeira página ao componente compartilhado.
 
 ## Seletores remotos
 
 O componente
-[`RemoteEntitySelector`](../src/components/selectors/RemoteEntitySelector.tsx)
+[`RemoteEntitySelector`](../../src/components/selectors/RemoteEntitySelector.tsx)
 é usado para:
 
 - política na listagem de cedentes;
@@ -355,7 +355,7 @@ Comportamento:
 - nenhum polling.
 
 A action
-[`buscarOpcoesEscopo`](../src/lib/actions/selectors.ts):
+[`buscarOpcoesEscopo`](../../src/lib/actions/selectors.ts):
 
 - autentica novamente;
 - deriva perfil e usuário da sessão;
@@ -369,7 +369,7 @@ A action
 
 O seletor global de fundo ativo não foi convertido para busca remota. Ele
 continua recebendo do
-[`FundoAtivoProvider`](../src/components/fundos/fundo-ativo-provider.tsx) todos
+[`FundoAtivoProvider`](../../src/components/fundos/fundo-ativo-provider.tsx) todos
 os fundos autorizados do usuário consultados em `usuario_fundos`, pois essa
 coleção também sustenta a escolha inicial e a troca do contexto global.
 
@@ -385,7 +385,7 @@ segunda implementação remota para esse catálogo sem evidência de crescimento
 ## Autorização, RLS e multifundo
 
 A migration incremental
-[`20260730143000_performance_escopo6_escrow_rls.sql`](../supabase/migrations/20260730143000_performance_escopo6_escrow_rls.sql)
+[`20260730143000_performance_escopo6_escrow_rls.sql`](../../supabase/migrations/20260730143000_performance_escopo6_escrow_rls.sql)
 contém:
 
 - RLS habilitada e grants explícitos em `consultor_cedente`;
@@ -491,10 +491,10 @@ Foram adicionados testes unitários para:
 
 Arquivos:
 
-- [`src/lib/cedentes/gestor-listagem.test.ts`](../src/lib/cedentes/gestor-listagem.test.ts);
-- [`src/lib/escrow/listagem.test.ts`](../src/lib/escrow/listagem.test.ts);
-- [`src/lib/escrow/movimentos.test.ts`](../src/lib/escrow/movimentos.test.ts);
-- [`src/lib/selectors/remote.test.ts`](../src/lib/selectors/remote.test.ts).
+- [`src/lib/cedentes/gestor-listagem.test.ts`](../../src/lib/cedentes/gestor-listagem.test.ts);
+- [`src/lib/escrow/listagem.test.ts`](../../src/lib/escrow/listagem.test.ts);
+- [`src/lib/escrow/movimentos.test.ts`](../../src/lib/escrow/movimentos.test.ts);
+- [`src/lib/selectors/remote.test.ts`](../../src/lib/selectors/remote.test.ts).
 
 ## Validações técnicas executadas
 
@@ -521,37 +521,37 @@ Não foram executados:
 
 ### Páginas
 
-- [`src/app/gestor/cedentes/page.tsx`](../src/app/gestor/cedentes/page.tsx)
-- [`src/app/gestor/cedentes/[id]/page.tsx`](../src/app/gestor/cedentes/%5Bid%5D/page.tsx)
-- [`src/app/gestor/escrow/page.tsx`](../src/app/gestor/escrow/page.tsx)
-- [`src/app/gestor/escrow/[id]/page.tsx`](../src/app/gestor/escrow/%5Bid%5D/page.tsx)
-- [`src/app/consultor/escrow/page.tsx`](../src/app/consultor/escrow/page.tsx)
-- [`src/app/consultor/escrow/[id]/page.tsx`](../src/app/consultor/escrow/%5Bid%5D/page.tsx)
-- [`src/app/cedente/extrato/page.tsx`](../src/app/cedente/extrato/page.tsx)
+- [`src/app/gestor/cedentes/page.tsx`](../../src/app/gestor/cedentes/page.tsx)
+- [`src/app/gestor/cedentes/[id]/page.tsx`](../../src/app/gestor/cedentes/%5Bid%5D/page.tsx)
+- [`src/app/gestor/escrow/page.tsx`](../../src/app/gestor/escrow/page.tsx)
+- [`src/app/gestor/escrow/[id]/page.tsx`](../../src/app/gestor/escrow/%5Bid%5D/page.tsx)
+- [`src/app/consultor/escrow/page.tsx`](../../src/app/consultor/escrow/page.tsx)
+- [`src/app/consultor/escrow/[id]/page.tsx`](../../src/app/consultor/escrow/%5Bid%5D/page.tsx)
+- [`src/app/cedente/extrato/page.tsx`](../../src/app/cedente/extrato/page.tsx)
 
 ### Componentes
 
-- [`src/components/cedentes/CedentesGestorListagem.tsx`](../src/components/cedentes/CedentesGestorListagem.tsx)
-- [`src/components/escrow/EscrowListagem.tsx`](../src/components/escrow/EscrowListagem.tsx)
-- [`src/components/escrow/EscrowDetalhe.tsx`](../src/components/escrow/EscrowDetalhe.tsx)
-- [`src/components/selectors/RemoteEntitySelector.tsx`](../src/components/selectors/RemoteEntitySelector.tsx)
+- [`src/components/cedentes/CedentesGestorListagem.tsx`](../../src/components/cedentes/CedentesGestorListagem.tsx)
+- [`src/components/escrow/EscrowListagem.tsx`](../../src/components/escrow/EscrowListagem.tsx)
+- [`src/components/escrow/EscrowDetalhe.tsx`](../../src/components/escrow/EscrowDetalhe.tsx)
+- [`src/components/selectors/RemoteEntitySelector.tsx`](../../src/components/selectors/RemoteEntitySelector.tsx)
 
 ### Domínio, loaders e actions
 
-- [`src/lib/cedentes/gestor-listagem.ts`](../src/lib/cedentes/gestor-listagem.ts)
-- [`src/lib/cedentes/gestor-listagem.server.ts`](../src/lib/cedentes/gestor-listagem.server.ts)
-- [`src/lib/escrow/listagem.ts`](../src/lib/escrow/listagem.ts)
-- [`src/lib/escrow/listagem.server.ts`](../src/lib/escrow/listagem.server.ts)
-- [`src/lib/escrow/movimentos.ts`](../src/lib/escrow/movimentos.ts)
-- [`src/lib/escrow/movimentos.server.ts`](../src/lib/escrow/movimentos.server.ts)
-- [`src/lib/actions/escrow.ts`](../src/lib/actions/escrow.ts)
-- [`src/lib/actions/selectors.ts`](../src/lib/actions/selectors.ts)
-- [`src/lib/selectors/remote.ts`](../src/lib/selectors/remote.ts)
-- [`src/types/database.ts`](../src/types/database.ts)
+- [`src/lib/cedentes/gestor-listagem.ts`](../../src/lib/cedentes/gestor-listagem.ts)
+- [`src/lib/cedentes/gestor-listagem.server.ts`](../../src/lib/cedentes/gestor-listagem.server.ts)
+- [`src/lib/escrow/listagem.ts`](../../src/lib/escrow/listagem.ts)
+- [`src/lib/escrow/listagem.server.ts`](../../src/lib/escrow/listagem.server.ts)
+- [`src/lib/escrow/movimentos.ts`](../../src/lib/escrow/movimentos.ts)
+- [`src/lib/escrow/movimentos.server.ts`](../../src/lib/escrow/movimentos.server.ts)
+- [`src/lib/actions/escrow.ts`](../../src/lib/actions/escrow.ts)
+- [`src/lib/actions/selectors.ts`](../../src/lib/actions/selectors.ts)
+- [`src/lib/selectors/remote.ts`](../../src/lib/selectors/remote.ts)
+- [`src/types/database.ts`](../../src/types/database.ts)
 
 ### Persistência
 
-- [`supabase/migrations/20260730143000_performance_escopo6_escrow_rls.sql`](../supabase/migrations/20260730143000_performance_escopo6_escrow_rls.sql)
+- [`supabase/migrations/20260730143000_performance_escopo6_escrow_rls.sql`](../../supabase/migrations/20260730143000_performance_escopo6_escrow_rls.sql)
 
 ## Riscos e pendências
 

@@ -16,7 +16,7 @@ Fontes de código usadas nesta documentação:
 - Integração Fromtis: `src/lib/fromtis/remessa.ts`
 - Templates por fundo: `src/components/templates/TemplatesDoFundo.tsx`
 - Políticas por fundo: `src/components/politicas/PoliticasDoFundo.tsx`
-- Mapeamento posicional: `docs/cnab-field-mapping.md`
+- Mapeamento posicional: `docs/cnab/cnab-field-mapping.md`
 
 ## 1. Objetivo da fase
 

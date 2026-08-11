@@ -32,8 +32,8 @@ O modelo é suficientemente detalhado para iniciar a implementação da Fase 2, 
 Foram analisados:
 
 - `DOCUMENTACAO.md`, documentação técnica do estado atual;
-- `docs/plano-tecnico-multifundo-fase-0.md`, plano arquitetural da Fase 0;
-- `docs/technical-debt-financial-transactions.md`, mapeamento das escritas financeiras;
+- `docs/architecture/plano-tecnico-multifundo-fase-0.md`, plano arquitetural da Fase 0;
+- `docs/financeiro/technical-debt-financial-transactions.md`, mapeamento das escritas financeiras;
 - `supabase/schema.sql`, schema base e RLS inicial;
 - `supabase/homolog_setup.sql`, setup alternativo de homologação;
 - `supabase/migrations/003_storage_buckets_env.sql` até `016_termo_quitacao.sql`;

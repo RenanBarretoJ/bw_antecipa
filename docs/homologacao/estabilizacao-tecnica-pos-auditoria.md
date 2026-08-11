@@ -132,7 +132,7 @@ A documentação da Fase 7 foi ajustada para refletir a decisão operacional atu
 
 Arquivo:
 
-- `docs/fase-7-relatorio-executivo-arquitetural.md`
+- `docs/cnab/fase-7-relatorio-executivo-arquitetural.md`
 
 ### Branding residual
 

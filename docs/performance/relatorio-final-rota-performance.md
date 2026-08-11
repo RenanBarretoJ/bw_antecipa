@@ -74,12 +74,12 @@ O NO-GO deve ser reavaliado após o checklist da seção 18.
 Documentação preexistente:
 
 - `docs/development/paginacao-e-cursores.md`;
-- `docs/performance-escopo-1-operacoes-elegibilidade.md`;
-- `docs/performance-escopo-2-onboarding-cedentes.md`;
-- `docs/performance-escopo-3-notas-documentos-gestor.md`;
-- `docs/performance-escopo-4-portal-sacado.md`;
-- `docs/performance-escopo-5-auditoria-historicos-notificacoes.md`;
-- `docs/performance-escopo-6-cedentes-escrow-seletores.md`;
+- `docs/performance/performance-escopo-1-operacoes-elegibilidade.md`;
+- `docs/performance/performance-escopo-2-onboarding-cedentes.md`;
+- `docs/performance/performance-escopo-3-notas-documentos-gestor.md`;
+- `docs/performance/performance-escopo-4-portal-sacado.md`;
+- `docs/performance/performance-escopo-5-auditoria-historicos-notificacoes.md`;
+- `docs/performance/performance-escopo-6-cedentes-escrow-seletores.md`;
 - `docs/development/performance-escopo-7-dashboards-relatorios.md`.
 
 ## 3. Migrations
