@@ -11,6 +11,7 @@ import { requireCedenteAccess, type AppSupabaseClient } from '@/lib/auth/authori
 import { CedenteFundoError, assertFundoAtivo, mensagemOperacionalSemPolitica, mensagemOperacionalSemVinculo, resolverCedenteFundoAtivo } from '@/lib/fundos/cedente-fundo'
 import { createAdminClient } from '@/lib/supabase/server'
 import { criarConfiguracaoCalculoSnapshot } from './calculo'
+import type { TipoAtivoFinanceiro } from '@/lib/duplicatas/types'
 
 export interface PoliticaResolvida {
   cedenteFundo: CedenteFundo
@@ -35,6 +36,7 @@ export interface PoliticaSnapshot {
   exigir_status_logistico_pre_cessao: boolean
   permite_postergacao_upload_canhoto?: boolean
   limite_postergacao_upload_canhoto_dias?: number | null
+  tipo_ativo_financeiro: TipoAtivoFinanceiro
   calculo_financeiro: ReturnType<typeof criarConfiguracaoCalculoSnapshot>
   configuracao: Record<string, unknown>
   requisitos: Array<{
@@ -108,6 +110,7 @@ export function criarSnapshotPolitica(policy: PoliticaResolvida): { snapshot: Po
     exigir_status_logistico_pre_cessao: policy.versao.exigir_status_logistico_pre_cessao,
     permite_postergacao_upload_canhoto: policy.versao.permite_postergacao_upload_canhoto,
     limite_postergacao_upload_canhoto_dias: policy.versao.limite_postergacao_upload_canhoto_dias,
+    tipo_ativo_financeiro: policy.versao.tipo_ativo_financeiro || 'NOTA_FISCAL',
     calculo_financeiro: criarConfiguracaoCalculoSnapshot(policy.versao.metodo_calculo_financeiro),
     configuracao: policy.versao.configuracao,
     requisitos: [...policy.requisitos]

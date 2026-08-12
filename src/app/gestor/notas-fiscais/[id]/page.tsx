@@ -28,6 +28,7 @@ import { useNotifications } from '@/components/notifications/notification-provid
 import { ArquivoOriginalCompacto } from '@/components/notas-fiscais/ArquivoOriginalCompacto'
 import { useFundoAtivo } from '@/components/fundos/fundo-ativo-provider'
 import { HistoricoTimelineCard } from '@/components/historico/HistoricoTimelineCard'
+import { DuplicatasDaNota } from '@/components/duplicatas/DuplicatasDaNota'
 
 interface NfCompleta {
   id: string
@@ -371,6 +372,8 @@ export default function NfDetalheGestorPage() {
       )}
 
       <ChecklistGestor notaFiscalId={nfId} />
+
+      <DuplicatasDaNota notaFiscalId={nfId} mode="gestor" />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Dados — 2 colunas */}

@@ -23,6 +23,7 @@ import { ChecklistCedente, type ChecklistEligibilitySummary } from '@/components
 import { useNotifications } from '@/components/notifications/notification-provider'
 import { ArquivoOriginalCompacto } from '@/components/notas-fiscais/ArquivoOriginalCompacto'
 import { HistoricoTimelineCard } from '@/components/historico/HistoricoTimelineCard'
+import { DuplicatasDaNota } from '@/components/duplicatas/DuplicatasDaNota'
 
 interface NfCompleta {
   id: string
@@ -497,6 +498,8 @@ export default function NfDetalhePage() {
       </div>
 
       <ChecklistCedente notaFiscalId={nfId} onEligibilityChange={setSubmissionReadiness} />
+
+      <DuplicatasDaNota notaFiscalId={nfId} mode="cedente" editable={isEditable} />
 
       {nf.status === 'requer_ajuste' && nf.motivo_ajuste && (
         <div className="mb-4 p-4 rounded-lg text-sm bg-orange-50 border border-orange-300 text-orange-800">

@@ -287,6 +287,7 @@ export interface PoliticaOperacionalVersao {
   permite_postergacao_upload_canhoto: boolean
   limite_postergacao_upload_canhoto_dias: number | null
   metodo_calculo_financeiro: import('@/lib/operacoes/calculo').MetodoCalculoNovaPolitica | null
+  tipo_ativo_financeiro: import('@/lib/duplicatas/types').TipoAtivoFinanceiro
   configuracao: Record<string, unknown>
   regras: Record<string, unknown>
   parametros: Record<string, unknown>
@@ -296,6 +297,33 @@ export interface PoliticaOperacionalVersao {
   substituida_em: string | null
   created_at: string
   updated_at: string
+}
+
+export type Duplicata = import('@/lib/duplicatas/types').DuplicataRegistro
+
+export type DuplicataVersao = import('@/lib/duplicatas/types').DuplicataVersaoRegistro
+
+export interface DuplicataCorrecao {
+  id: string
+  duplicata_id: string
+  duplicata_versao_id: string
+  campo: import('@/lib/duplicatas/types').CampoDuplicata
+  valor_original: unknown
+  valor_corrigido: unknown
+  motivo: string
+  corrigido_por: string
+  corrigido_em: string
+}
+
+export interface DuplicataValidacao {
+  id: string
+  duplicata_id: string
+  duplicata_versao_id: string
+  resultado: 'VALIDADA' | 'REJEITADA'
+  resultado_confronto: Record<string, unknown>
+  observacoes: string | null
+  validado_por: string
+  validado_em: string
 }
 
 export interface PoliticaRequisitoDocumental {
@@ -1375,6 +1403,10 @@ export interface Database {
       cedente_fundos: { Row: CedenteFundo & Record<string, unknown>; Insert: InsertShape<CedenteFundo, 'cedente_id' | 'fundo_id'> & Record<string, unknown>; Update: UpdateShape<CedenteFundo> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'cedente_fundos_cedente_id_fkey'; columns: ['cedente_id']; isOneToOne: false; referencedRelation: 'cedentes'; referencedColumns: ['id'] }, { foreignKeyName: 'cedente_fundos_fundo_id_fkey'; columns: ['fundo_id']; isOneToOne: false; referencedRelation: 'fundos'; referencedColumns: ['id'] }] }
       politicas_operacionais: { Row: PoliticaOperacional & Record<string, unknown>; Insert: InsertShape<PoliticaOperacional, 'fundo_id' | 'codigo' | 'nome' | 'created_by'> & Record<string, unknown>; Update: UpdateShape<PoliticaOperacional> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'politicas_operacionais_fundo_id_fkey'; columns: ['fundo_id']; isOneToOne: false; referencedRelation: 'fundos'; referencedColumns: ['id'] }, { foreignKeyName: 'politicas_operacionais_created_by_fkey'; columns: ['created_by']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] }] }
       politica_operacional_versoes: { Row: PoliticaOperacionalVersao & Record<string, unknown>; Insert: InsertShape<PoliticaOperacionalVersao, 'politica_operacional_id' | 'fundo_id' | 'versao' | 'vigente_desde' | 'conteudo_hash'> & Record<string, unknown>; Update: UpdateShape<PoliticaOperacionalVersao> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'politica_operacional_versoes_politica_operacional_id_fkey'; columns: ['politica_operacional_id']; isOneToOne: false; referencedRelation: 'politicas_operacionais'; referencedColumns: ['id'] }, { foreignKeyName: 'politica_operacional_versoes_fundo_id_fkey'; columns: ['fundo_id']; isOneToOne: false; referencedRelation: 'fundos'; referencedColumns: ['id'] }, { foreignKeyName: 'politica_operacional_versoes_publicada_por_fkey'; columns: ['publicada_por']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] }] }
+      duplicatas: { Row: Duplicata & Record<string, unknown>; Insert: InsertShape<Duplicata, 'fundo_id' | 'cedente_fundo_id' | 'cedente_id' | 'nota_fiscal_id' | 'criado_por'> & Record<string, unknown>; Update: UpdateShape<Duplicata> & Record<string, unknown>; Relationships: [] }
+      duplicata_versoes: { Row: DuplicataVersao & Record<string, unknown>; Insert: InsertShape<DuplicataVersao, 'duplicata_id' | 'nota_fiscal_id' | 'numero_versao' | 'path' | 'nome_original' | 'mime_type' | 'tamanho_bytes' | 'sha256' | 'enviado_por'> & Record<string, unknown>; Update: UpdateShape<DuplicataVersao> & Record<string, unknown>; Relationships: [] }
+      duplicata_correcoes: { Row: DuplicataCorrecao & Record<string, unknown>; Insert: InsertShape<DuplicataCorrecao, 'duplicata_id' | 'duplicata_versao_id' | 'campo' | 'valor_corrigido' | 'motivo' | 'corrigido_por'> & Record<string, unknown>; Update: UpdateShape<DuplicataCorrecao> & Record<string, unknown>; Relationships: [] }
+      duplicata_validacoes: { Row: DuplicataValidacao & Record<string, unknown>; Insert: InsertShape<DuplicataValidacao, 'duplicata_id' | 'duplicata_versao_id' | 'resultado' | 'resultado_confronto' | 'validado_por'> & Record<string, unknown>; Update: UpdateShape<DuplicataValidacao> & Record<string, unknown>; Relationships: [] }
       politica_requisitos_documentais: { Row: PoliticaRequisitoDocumental & Record<string, unknown>; Insert: InsertShape<PoliticaRequisitoDocumental, 'politica_operacional_versao_id' | 'politica_operacional_id' | 'fundo_id' | 'codigo' | 'escopo' | 'tipo_documento_codigo' | 'responsavel_upload' | 'responsavel_aprovacao'> & Record<string, unknown>; Update: UpdateShape<PoliticaRequisitoDocumental> & Record<string, unknown>; Relationships: [] }
       devedores_solidarios: { Row: DevedorSolidario & Record<string, unknown>; Insert: InsertShape<DevedorSolidario, 'cedente_id' | 'nome' | 'doc_numero' | 'cpf'> & Record<string, unknown>; Update: UpdateShape<DevedorSolidario> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'devedores_solidarios_cedente_id_fkey'; columns: ['cedente_id']; isOneToOne: false; referencedRelation: 'cedentes'; referencedColumns: ['id'] }] }
       notas_fiscais: { Row: NotaFiscal & Record<string, unknown>; Insert: InsertShape<NotaFiscal, 'cedente_id' | 'numero_nf' | 'data_emissao' | 'data_vencimento' | 'cnpj_emitente' | 'razao_social_emitente' | 'cnpj_destinatario' | 'razao_social_destinatario' | 'valor_bruto'> & Record<string, unknown>; Update: UpdateShape<NotaFiscal> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'notas_fiscais_cedente_id_fkey'; columns: ['cedente_id']; isOneToOne: false; referencedRelation: 'cedentes'; referencedColumns: ['id'] }] }
@@ -1468,6 +1500,9 @@ export interface Database {
       listar_documentos_atuais_cedente: { Args: { p_cedente_id: string }; Returns: Array<{ id: string; tipo: string; versao: number; status: string; nome_arquivo: string | null; url_arquivo: string | null; motivo_reprovacao: string | null; created_at: string; representante_id: string | null; analisado_em: string | null; atualizacao_solicitada_em: string | null }> }
       obter_politica_aplicavel_cedente_fundo: { Args: { p_cedente_fundo_id: string; p_data_referencia?: string }; Returns: Record<string, unknown> }
       registrar_documento_upload: { Args: { p_nota_fiscal_id: string; p_requisito_id: string; p_documento_tipo_id: string; p_nome_original: string; p_mime_type: string; p_tamanho_bytes: number; p_sha256: string; p_bucket: string; p_path: string; p_enviado_por: string; p_substitui_versao_id?: string | null }; Returns: Record<string, unknown> }
+      registrar_duplicata_versao: { Args: Record<string, unknown>; Returns: Array<{ duplicata_id: string; duplicata_versao_id: string; numero_versao: number }> }
+      corrigir_duplicata: { Args: { p_duplicata_id: string; p_campos: Record<string, unknown>; p_motivo: string; p_resultado_confronto: import('@/lib/duplicatas/types').ResultadoConfrontoDuplicata }; Returns: Record<string, unknown> }
+      validar_duplicata: { Args: { p_duplicata_id: string; p_resultado: 'VALIDADA' | 'REJEITADA'; p_observacoes: string | null; p_resultado_confronto: Record<string, unknown> }; Returns: Record<string, unknown> }
       registrar_documento_entrega_upload: { Args: { p_nota_fiscal_entrega_id: string; p_requisito_id: string; p_documento_tipo_id: string; p_nome_original: string; p_mime_type: string; p_tamanho_bytes: number; p_sha256: string; p_bucket: string; p_path: string; p_enviado_por: string; p_substitui_versao_id?: string | null }; Returns: Record<string, unknown> }
       registrar_documento_logistico_antecipado: { Args: { p_nota_fiscal_ids: string[]; p_politica_requisito_id: string; p_documento_tipo_codigo: string; p_nome_original: string; p_mime_type: string; p_tamanho_bytes: number; p_sha256: string; p_bucket: string; p_path: string; p_dados_logisticos?: Record<string, unknown> }; Returns: Record<string, unknown> }
       avaliar_gate_logistico_pre_cessao_nfs: { Args: { p_nota_fiscal_ids: string[] }; Returns: Array<{ nota_fiscal_id: string; politica_operacional_versao_id: string | null; gate_exigido: boolean; status: string; permitido: boolean }> }

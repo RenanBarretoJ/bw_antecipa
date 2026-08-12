@@ -9,6 +9,7 @@ import { registrarLog } from './auditoria'
 import { notificarGestores, notificarCedente } from './notificacao'
 import { buckets } from '@/lib/storage'
 import { uploadDocumentoSeRequerido } from '@/lib/documentos-v2/upload'
+import { avaliarGateDuplicatasDaNota } from '@/lib/duplicatas/gate.server'
 import { CedenteFundoError, mensagemOperacionalSemVinculo, resolverCedenteFundoAtivo } from '@/lib/fundos/cedente-fundo'
 import { decidirAcaoDuplicidadeNotaFiscal, mensagemDuplicidadeNotaFiscal } from '@/lib/notas-fiscais/upload-context'
 import { formatarDetalhesBloqueioEmitente, validarXmlNfeParaUploadCedente } from '@/lib/notas-fiscais/emitente-autorizado'
@@ -824,6 +825,11 @@ export async function submeterNF(nfId: string): Promise<NfActionState> {
     cedente_fundo_id: string | null
     fundo_id: string | null
     numero_nf: string | null
+    data_emissao: string
+    data_vencimento: string
+    cnpj_emitente: string
+    cnpj_destinatario: string
+    valor_bruto: number
   }
 
   if (nfData.status !== 'rascunho') {
@@ -916,6 +922,28 @@ export async function submeterNF(nfId: string): Promise<NfActionState> {
       code: 'NF_INELEGIVEL_SUBMISSAO',
       message: avaliacao.bloqueios.map((bloqueio) => bloqueio.mensagem).join(' '),
     }
+  }
+
+  try {
+    const gateDuplicatas = await avaliarGateDuplicatasDaNota({
+      supabase,
+      nota: {
+        id: nfData.id,
+        cedente_id: cedente.id,
+        cedente_fundo_id: nfData.cedente_fundo_id,
+        fundo_id: nfData.fundo_id,
+        numero_nf: nfData.numero_nf || '',
+        data_emissao: nfData.data_emissao,
+        data_vencimento: nfData.data_vencimento,
+        cnpj_emitente: nfData.cnpj_emitente,
+        cnpj_destinatario: nfData.cnpj_destinatario,
+        valor_bruto: Number(nfData.valor_bruto),
+      },
+      etapa: 'submissao',
+    })
+    if (!gateDuplicatas.permitido) return { success: false, code: 'DUPLICATAS_PENDENTES', message: gateDuplicatas.mensagem || 'As duplicatas da NF possuem pendencias.' }
+  } catch (error) {
+    return { success: false, code: 'DUPLICATAS_ERROR', message: error instanceof Error ? error.message : 'Nao foi possivel validar as duplicatas da NF.' }
   }
 
   const submetidaEm = new Date().toISOString()
@@ -1111,6 +1139,19 @@ export async function aprovarNF(nfId: string): Promise<NfActionState> {
     }
   }
 
+  try {
+    const { data: nfContexto, error: nfContextoError } = await supabase
+      .from('notas_fiscais')
+      .select('id, cedente_id, cedente_fundo_id, fundo_id, numero_nf, data_emissao, data_vencimento, cnpj_emitente, cnpj_destinatario, valor_bruto')
+      .eq('id', nfId)
+      .single()
+    if (nfContextoError || !nfContexto) throw new Error(nfContextoError?.message || 'NF nao encontrada.')
+    const gateDuplicatas = await avaliarGateDuplicatasDaNota({ supabase, nota: nfContexto, etapa: 'aprovacao' })
+    if (!gateDuplicatas.permitido) return { success: false, code: 'DUPLICATAS_PENDENTES', message: gateDuplicatas.mensagem || 'As duplicatas da NF possuem pendencias.' }
+  } catch (error) {
+    return { success: false, code: 'DUPLICATAS_ERROR', message: error instanceof Error ? error.message : 'Nao foi possivel validar as duplicatas da NF.' }
+  }
+
   const { error } = await supabase
     .from('notas_fiscais')
     .update({ status: 'aprovada', aprovada_gestor_em: new Date().toISOString() } as never)
@@ -1216,7 +1257,7 @@ export async function resubmeterNFAjustada(nfId: string): Promise<NfActionState>
 
   const { data: nf } = await supabase
     .from('notas_fiscais')
-    .select('id, numero_nf, status')
+    .select('id, numero_nf, status, cedente_id, cedente_fundo_id, fundo_id, data_emissao, data_vencimento, cnpj_emitente, cnpj_destinatario, valor_bruto')
     .eq('id', nfId)
     .eq('cedente_id', cedente.id)
     .eq('status', 'requer_ajuste')
@@ -1226,7 +1267,28 @@ export async function resubmeterNFAjustada(nfId: string): Promise<NfActionState>
     return { success: false, message: 'NF nao encontrada ou nao esta aguardando ajuste.' }
   }
 
-  const nfData = nf as { id: string; numero_nf: string; status: string }
+  const nfData = nf as {
+    id: string
+    numero_nf: string
+    status: string
+    cedente_id: string
+    cedente_fundo_id: string | null
+    fundo_id: string | null
+    data_emissao: string
+    data_vencimento: string
+    cnpj_emitente: string
+    cnpj_destinatario: string
+    valor_bruto: number
+  }
+
+  try {
+    const gateDuplicatas = await avaliarGateDuplicatasDaNota({ supabase, nota: nfData, etapa: 'submissao' })
+    if (!gateDuplicatas.permitido) {
+      return { success: false, code: 'DUPLICATAS_PENDENTES', message: gateDuplicatas.mensagem || 'As duplicatas da NF possuem pendencias.' }
+    }
+  } catch (error) {
+    return { success: false, code: 'DUPLICATAS_ERROR', message: error instanceof Error ? error.message : 'Nao foi possivel validar as duplicatas da NF.' }
+  }
 
   const { error } = await supabase
     .from('notas_fiscais')
@@ -1329,7 +1391,7 @@ export async function aprovarNFsLote(ids: string[]): Promise<NfActionState> {
   const fundo = await resolverContextoFundoGestor(context)
   const { data: nfsData, error: nfsError } = await supabase
     .from('notas_fiscais')
-    .select('id, numero_nf, cedente_id, status, fundo_id')
+    .select('id, numero_nf, cedente_id, cedente_fundo_id, status, fundo_id, data_emissao, data_vencimento, cnpj_emitente, cnpj_destinatario, valor_bruto')
     .in('id', idsUnicos)
 
   if (nfsError) return { success: false, message: `Erro ao validar as NFs: ${nfsError.message}` }
@@ -1337,8 +1399,14 @@ export async function aprovarNFsLote(ids: string[]): Promise<NfActionState> {
     id: string
     numero_nf: string
     cedente_id: string
+    cedente_fundo_id: string | null
     status: string
     fundo_id: string | null
+    data_emissao: string
+    data_vencimento: string
+    cnpj_emitente: string
+    cnpj_destinatario: string
+    valor_bruto: number
   }>
   const porId = new Map(nfs.map((nf) => [nf.id, nf]))
   const resultadosIniciais = idsUnicos.map((notaFiscalId) => {
@@ -1388,6 +1456,34 @@ export async function aprovarNFsLote(ids: string[]): Promise<NfActionState> {
         })),
       },
     }
+  }
+
+  try {
+    const gatesDuplicatas = await Promise.all(nfs.map((nota) =>
+      avaliarGateDuplicatasDaNota({ supabase, nota, etapa: 'aprovacao' })
+        .then((gate) => ({ nota, gate }))))
+    const bloqueadasPorDuplicata = gatesDuplicatas.filter(({ gate }) => !gate.permitido)
+    if (bloqueadasPorDuplicata.length > 0) {
+      const porIdDuplicata = new Map(bloqueadasPorDuplicata.map(({ nota, gate }) => [nota.id, gate]))
+      return {
+        success: false,
+        code: 'DUPLICATAS_PENDENTES',
+        message: 'A aprovacao em lote foi bloqueada: uma ou mais NFs possuem pendencias de Duplicata Mercantil.',
+        lote: {
+          totalRecebidas: idsUnicos.length,
+          totalAprovadas: 0,
+          totalFalhas: bloqueadasPorDuplicata.length,
+          resultados: idsUnicos.map((notaFiscalId) => ({
+            notaFiscalId,
+            success: false,
+            code: porIdDuplicata.has(notaFiscalId) ? 'duplicatas_pendentes' : 'lote_atomico_bloqueado',
+            message: porIdDuplicata.get(notaFiscalId)?.mensagem || 'Nao aprovada porque outra NF do lote possui pendencia de duplicata.',
+          })),
+        },
+      }
+    }
+  } catch (error) {
+    return { success: false, code: 'DUPLICATAS_ERROR', message: error instanceof Error ? error.message : 'Nao foi possivel validar as duplicatas do lote.' }
   }
 
   const documentacao = await carregarResumoDocumentalDasNotas(supabase, idsUnicos)

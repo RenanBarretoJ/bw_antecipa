@@ -25,6 +25,7 @@ import { Label } from '@/components/ui/label'
 import { DetailField, DetailSection, EmptyState, LoadingState, StatusBadge } from '@/components/data-display/primitives'
 import { useNotifications } from '@/components/notifications/notification-provider'
 import { METODOS_CALCULO_LABELS, METODOS_CALCULO_NOVAS_POLITICAS, type MetodoCalculoNovaPolitica } from '@/lib/operacoes/calculo'
+import type { TipoAtivoFinanceiro } from '@/lib/duplicatas/types'
 import {
   createPolicyInternalCode,
   describeAceiteSacado,
@@ -64,6 +65,7 @@ interface VersionRow {
   permite_postergacao_upload_canhoto: boolean
   limite_postergacao_upload_canhoto_dias: number | null
   metodo_calculo_financeiro: MetodoCalculoNovaPolitica | null
+  tipo_ativo_financeiro: TipoAtivoFinanceiro
   configuracao?: Record<string, unknown> | null
 }
 interface RequirementRow {
@@ -165,6 +167,7 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
   const [postponementForm, setPostponementForm] = useState({ permite: false, limiteDias: '' })
   const [requirePreCessionLogisticStatus, setRequirePreCessionLogisticStatus] = useState(false)
   const [calculationMethod, setCalculationMethod] = useState<MetodoCalculoNovaPolitica | ''>('')
+  const [financialAssetType, setFinancialAssetType] = useState<TipoAtivoFinanceiro>('NOTA_FISCAL')
   const [requirementsForm, setRequirementsForm] = useState<PoliticaRequisitoInput[]>([])
 
   const loadData = useCallback(async () => {
@@ -195,7 +198,7 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
       ;[versionResult, requirementResult] = await Promise.all([
         supabase
           .from('politica_operacional_versoes')
-          .select('id, politica_operacional_id, fundo_id, cedente_fundo_id, versao, status, publicada_em, publicada_por, vigente_desde, vigente_ate, created_at, aceite_sacado_obrigatorio, cessao_no_desembolso, cria_acompanhamento_entrega, exigir_status_logistico_pre_cessao, permite_postergacao_upload_canhoto, limite_postergacao_upload_canhoto_dias, metodo_calculo_financeiro, configuracao')
+          .select('id, politica_operacional_id, fundo_id, cedente_fundo_id, versao, status, publicada_em, publicada_por, vigente_desde, vigente_ate, created_at, aceite_sacado_obrigatorio, cessao_no_desembolso, cria_acompanhamento_entrega, exigir_status_logistico_pre_cessao, permite_postergacao_upload_canhoto, limite_postergacao_upload_canhoto_dias, metodo_calculo_financeiro, tipo_ativo_financeiro, configuracao')
           .in('politica_operacional_id', policyIds)
           .order('versao', { ascending: false }),
         supabase
@@ -303,6 +306,7 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
     } : { permite: false, limiteDias: '' })
     setRequirePreCessionLogisticStatus(source?.exigir_status_logistico_pre_cessao === true)
     setCalculationMethod(source?.metodo_calculo_financeiro || '')
+    setFinancialAssetType(source?.tipo_ativo_financeiro || 'NOTA_FISCAL')
     setRequirementsForm(source ? cloneRequirements(sourceRequirements) : [emptyRequirement(0)])
     setVersionStep('fluxo')
     setVersionModalOpen(true)
@@ -319,6 +323,7 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
         ? Number(postponementForm.limiteDias)
         : null,
       metodo_calculo_financeiro: calculationMethod || null,
+      tipo_ativo_financeiro: financialAssetType,
       configuracao: {
         fluxo_operacional: operationalSelections,
         requisito_ui_schema: 'bw-antecipa.politica-operacional-ui.v2',
@@ -667,6 +672,24 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
                   ))}
                 </div>
               </div>
+              <div className="rounded-xl border border-border bg-background p-4 lg:col-span-3">
+                <Label>Ativo financeiro da operacao</Label>
+                <p className="mt-1 text-sm text-muted-foreground">A escolha e versionada. Fundos em Nota Fiscal preservam o fluxo atual; Duplicata Mercantil habilita o cadastro de titulos vinculados a cada NF.</p>
+                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                  {([
+                    ['NOTA_FISCAL', 'Nota Fiscal', 'A NF permanece como documento fiscal e referencia operacional do fluxo atual.'],
+                    ['DUPLICATA_MERCANTIL', 'Duplicata Mercantil', 'A NF sera o lastro fiscal e cada duplicata sera tratada como ativo financeiro.'],
+                  ] as const).map(([value, label, description]) => (
+                    <label key={value} className={`cursor-pointer rounded-lg border p-3 ${financialAssetType === value ? 'border-primary bg-primary/5' : 'border-border'}`}>
+                      <span className="flex items-start gap-2 text-sm font-medium">
+                        <input type="radio" checked={financialAssetType === value} onChange={() => setFinancialAssetType(value)} className="mt-0.5" />
+                        {label}
+                      </span>
+                      <span className="mt-1 block pl-6 text-xs text-muted-foreground">{description}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
 
@@ -701,6 +724,7 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
                 <DetailField label="Gate logistico pre-cessao" value={requirePreCessionLogisticStatus ? 'Exigido' : 'Nao exigido'} />
                 <DetailField label="Postergação do canhoto" value={postponementForm.permite ? `Permitida uma vez · limite ${postponementForm.limiteDias || '5'} dias` : 'Não permitida'} />
                 <DetailField label="Metodo de calculo" value={calculationMethod ? METODOS_CALCULO_LABELS[calculationMethod] : 'Nao selecionado'} />
+                <DetailField label="Ativo financeiro" value={financialAssetType === 'DUPLICATA_MERCANTIL' ? 'Duplicata Mercantil' : 'Nota Fiscal'} />
               </div>
               <div className="rounded-xl border border-border">
                 <div className="border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Requisitos</div>
@@ -742,6 +766,7 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
                 <DetailField label="Momento da cessao" value={describeMomentoCessao(mapLegacyFlagsToOperationalSelections(detailsVersion).momentoCessao)} />
                 <DetailField label="Acompanhamento de entrega" value={describeAcompanhamentoEntrega(mapLegacyFlagsToOperationalSelections(detailsVersion).acompanhamentoEntrega)} />
                 <DetailField label="Metodo de calculo" value={detailsVersion.metodo_calculo_financeiro ? METODOS_CALCULO_LABELS[detailsVersion.metodo_calculo_financeiro] : 'Legado - dias reais / 30'} />
+                <DetailField label="Ativo financeiro" value={detailsVersion.tipo_ativo_financeiro === 'DUPLICATA_MERCANTIL' ? 'Duplicata Mercantil' : 'Nota Fiscal'} />
                 <DetailField label="Gate logistico pre-cessao" value={detailsVersion.exigir_status_logistico_pre_cessao ? 'Exigido' : 'Nao exigido'} />
               </div>
               <div className="rounded-xl border border-border">
@@ -775,6 +800,7 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
               <DetailField label="Versao substituida" value={currentVersion(publishVersion.politica_operacional_id) ? `v${currentVersion(publishVersion.politica_operacional_id)?.versao}` : 'Nenhuma'} />
               <DetailField label="Requisitos" value={`${(requirementsByVersion.get(publishVersion.id) || []).length}`} />
               <DetailField label="Metodo de calculo" value={publishVersion.metodo_calculo_financeiro ? METODOS_CALCULO_LABELS[publishVersion.metodo_calculo_financeiro] : 'Nao selecionado'} />
+              <DetailField label="Ativo financeiro" value={publishVersion.tipo_ativo_financeiro === 'DUPLICATA_MERCANTIL' ? 'Duplicata Mercantil' : 'Nota Fiscal'} />
             </div>
           )}
           <DialogFooter>

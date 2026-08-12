@@ -14,6 +14,7 @@ import { registrarLog } from './auditoria'
 import { obterFundoAtivoAutorizado } from './fundo-ativo'
 import type { MetodoCalculoNovaPolitica } from '@/lib/operacoes/calculo'
 import { validarUnicidadeFamiliasLogisticas } from '@/lib/logistica/evidencias-logisticas'
+import type { TipoAtivoFinanceiro } from '@/lib/duplicatas/types'
 
 type PolicyActionState = { success?: boolean; message?: string }
 type SupabaseFrom = Awaited<ReturnType<typeof requireGestor>>['supabase']
@@ -29,6 +30,7 @@ export interface CriarVersaoPoliticaInput {
   permite_postergacao_upload_canhoto: boolean
   limite_postergacao_upload_canhoto_dias: number | null
   metodo_calculo_financeiro: MetodoCalculoNovaPolitica | null
+  tipo_ativo_financeiro: TipoAtivoFinanceiro
   configuracao?: Record<string, unknown>
   requisitos: PoliticaRequisitoInput[]
 }
@@ -46,6 +48,7 @@ function hashVersao(input: CriarVersaoPoliticaInput, requisitos: ReturnType<type
     permite_postergacao_upload_canhoto: input.permite_postergacao_upload_canhoto,
     limite_postergacao_upload_canhoto_dias: input.limite_postergacao_upload_canhoto_dias,
     metodo_calculo_financeiro: input.metodo_calculo_financeiro,
+    tipo_ativo_financeiro: input.tipo_ativo_financeiro,
     configuracao: input.configuracao || {},
     requisitos,
   })).digest('hex')
@@ -251,6 +254,7 @@ export async function criarVersaoPolitica(
         ? input.limite_postergacao_upload_canhoto_dias
         : null,
       metodo_calculo_financeiro: input.metodo_calculo_financeiro,
+      tipo_ativo_financeiro: input.tipo_ativo_financeiro,
       configuracao: config,
       regras: config.fluxo_operacional ? { fluxo_operacional: config.fluxo_operacional } : {},
       parametros: config,
@@ -454,6 +458,7 @@ export async function duplicarPoliticaDoFundo(
         permite_postergacao_upload_canhoto: boolean
         limite_postergacao_upload_canhoto_dias: number | null
         metodo_calculo_financeiro: MetodoCalculoNovaPolitica | null
+        tipo_ativo_financeiro?: TipoAtivoFinanceiro
         configuracao: Record<string, unknown>
       }
       const { data: baseRequirements, error: requirementsError } = await context.supabase
@@ -475,6 +480,7 @@ export async function duplicarPoliticaDoFundo(
         permite_postergacao_upload_canhoto: base.permite_postergacao_upload_canhoto,
         limite_postergacao_upload_canhoto_dias: base.limite_postergacao_upload_canhoto_dias,
         metodo_calculo_financeiro: base.metodo_calculo_financeiro,
+        tipo_ativo_financeiro: base.tipo_ativo_financeiro || 'NOTA_FISCAL',
         configuracao: base.configuracao || {},
         requisitos,
       })
