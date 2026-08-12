@@ -31,6 +31,7 @@
     "perf9e:clean-room:full-stack": "node scripts/perf9e/clean-room.mjs",
     "reset:operacional:fundo": "node scripts/reset-operacional-fundo.mjs",
     "reset:operacional:fundo:install-rpc": "node scripts/install-reset-operacional-rpc.mjs",
+    "reset:geral:homolog": "node scripts/homologacao/reset-geral-homolog.mjs",
     "homolog:logistica:seed": "node scripts/homologacao/central-logistica/seed.mjs",
     "homolog:logistica:verify": "node scripts/homologacao/central-logistica/verify.mjs",
     "homolog:logistica:cleanup": "node scripts/homologacao/central-logistica/cleanup.mjs",
