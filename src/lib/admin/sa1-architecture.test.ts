@@ -67,19 +67,20 @@ describe('arquitetura SA1 de fundos', () => {
     expect(communications).toContain('if (!fund) return []')
   })
 
-  it('exibe somente visao geral e fundos no menu administrativo', () => {
+  it('preserva visao geral e fundos ao adicionar o modulo SA2 de usuarios', () => {
     const adminMenu = menu.slice(menu.indexOf('export const adminMenuItems'))
     expect(adminMenu).toContain("href: '/admin'")
     expect(adminMenu).toContain("href: '/admin/fundos'")
-    expect(adminMenu).not.toContain("href: '/admin/usuarios'")
+    expect(adminMenu).toContain("href: '/admin/usuarios'")
   })
 
-  it('mantem listagem paginada e detalhe restrito a geral e auditoria', () => {
+  it('mantem listagem paginada e acrescenta gestores sem expor configuracao operacional', () => {
     expect(adminListPage).toContain('porPagina')
     expect(adminListPage).toContain('<option value="20">')
     expect(adminListPage).toContain('<option value="50">')
     expect(adminListPage).toContain('<option value="100">')
     expect(adminDetailPage).toContain('>Geral</Link>')
+    expect(adminDetailPage).toContain('>Gestores</Link>')
     expect(adminDetailPage).toContain('>Auditoria</Link>')
     expect(adminDetailPage).not.toContain('Excluir fundo')
     expect(adminDetailPage).not.toContain('CNAB')

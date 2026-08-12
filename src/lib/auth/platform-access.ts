@@ -55,9 +55,10 @@ export async function listarPapeisAtivosUsuario(
 export async function usuarioPossuiFundoAtivo(client: SupabaseClient<Database>, userId: string): Promise<boolean> {
   const { data, error } = await client
     .from('usuario_fundos')
-    .select('id')
+    .select('id, fundos!inner(id)')
     .eq('usuario_id', userId)
     .eq('status', 'ativo')
+    .eq('fundos.ativo', true)
     .limit(1)
     .maybeSingle()
 

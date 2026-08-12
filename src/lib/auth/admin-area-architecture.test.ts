@@ -10,7 +10,7 @@ const fundLoaders = source('src/lib/admin/fundos.server.ts')
 const shell = source('src/components/admin/admin-shell.tsx')
 const sidebar = source('src/components/auth/sidebar.tsx')
 
-describe('area administrativa SA0 e SA1', () => {
+describe('area administrativa SA0, SA1 e SA2', () => {
   it('envia anonimo para login e reconhece /admin no proxy', () => {
     expect(middleware).toContain("if (!user && !isPublicRoute)")
     expect(middleware).toContain("url.pathname = '/login'")
@@ -19,7 +19,8 @@ describe('area administrativa SA0 e SA1', () => {
 
   it('mantem guard server-side como barreira final', () => {
     expect(layout).toContain('await requireSuperAdmin()')
-    expect(page).toContain('await carregarResumoAdminFundos()')
+    expect(page).toContain('carregarResumoAdminFundos()')
+    expect(page).toContain('carregarResumoAdminUsuarios()')
     expect(fundLoaders).toContain('await requireSuperAdmin()')
   })
 
@@ -31,12 +32,13 @@ describe('area administrativa SA0 e SA1', () => {
     expect(adminSources).not.toContain('FundoAtivoProvider')
   })
 
-  it('renderiza somente visao geral e fundos na sidebar administrativa', () => {
+  it('renderiza somente visao geral, fundos e usuarios na sidebar administrativa', () => {
     const adminMenu = sidebar.slice(sidebar.indexOf('export const adminMenuItems'))
     expect(adminMenu).toContain("href: '/admin'")
     expect(adminMenu).toContain("href: '/admin/fundos'")
-    expect(adminMenu).not.toMatch(/Usuarios|Integracoes|Auditoria global|Sistema/)
-    expect((adminMenu.match(/href:/g) || [])).toHaveLength(2)
+    expect(adminMenu).toContain("href: '/admin/usuarios'")
+    expect(adminMenu).not.toMatch(/Integracoes|Auditoria global|Sistema/)
+    expect((adminMenu.match(/href:/g) || [])).toHaveLength(3)
   })
 
   it('mantem componentes de icone dentro da fronteira client', () => {

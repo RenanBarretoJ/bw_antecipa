@@ -1,7 +1,10 @@
 'use server'
 
+import { randomUUID } from 'node:crypto'
 import { redirect } from 'next/navigation'
 import { createAdminClient, createClient } from '@/lib/supabase/server'
+import { requireSuperAdmin } from '@/lib/auth/admin-authorization'
+import { removerFatoresMfaAuth } from '@/lib/admin/auth-admin.server'
 import { requireAuthenticated } from '@/lib/auth/authorization'
 import { limparFluxoAutenticacao, marcarFluxoAutenticacao } from '@/lib/auth/auth-flow-server'
 import {
@@ -28,13 +31,6 @@ type SupabaseMfaError = {
   message: string
   code?: string
   status?: number
-}
-
-type AdminMfaFactor = {
-  id?: string
-  status?: string
-  factor_type?: string
-  type?: string
 }
 
 type MfaClient = Awaited<ReturnType<typeof createClient>> & {
@@ -75,12 +71,6 @@ function parseFactor(factor: unknown) {
     friendlyName: typeof value.friendly_name === 'string' ? value.friendly_name : 'Autenticador',
     status: typeof value.status === 'string' ? value.status : '',
     factorType: typeof value.factor_type === 'string' ? value.factor_type : typeof value.type === 'string' ? value.type : '',
-  }
-}
-
-function assertGestor(context: Awaited<ReturnType<typeof requireAuthenticated>>) {
-  if (context.profile.role !== 'gestor') {
-    throw new Error('Apenas gestores podem executar esta acao.')
   }
 }
 
@@ -304,8 +294,7 @@ export async function desativarMfaProprio(factorId: string): Promise<MfaActionSt
 }
 
 export async function solicitarResetMfaAdministrativo(usuarioId: string, motivo: string, evidencia?: string, mfaCode = ''): Promise<MfaActionState<{ solicitacaoId: string }>> {
-  const context = await requireAuthenticated()
-  assertGestor(context)
+  const context = await requireSuperAdmin()
   try { await autorizarEConsumirAcaoSensivel(context, 'reset_mfa_administrativo', mfaCode) }
   catch (error) { return result(error instanceof Error ? error.message : 'Não foi possível confirmar esta ação.') }
 
@@ -356,16 +345,15 @@ export async function solicitarResetMfaAdministrativo(usuarioId: string, motivo:
   await notificarUsuarioResetMfa(
     usuarioId,
     'Reset de MFA solicitado',
-    'Um gestor solicitou reset administrativo do seu MFA. A execucao depende de aprovacao de outro gestor.',
+    'Um Super Admin solicitou reset administrativo do seu MFA. A execucao depende de aprovacao de outro Super Admin.',
     `mfa-reset-solicitado:${solicitacaoId}`,
   )
 
-  return result('Solicitacao de reset MFA criada. Outro gestor deve aprovar e executar.', true, { solicitacaoId })
+  return result('Solicitacao de reset MFA criada. Outro Super Admin deve aprovar e executar.', true, { solicitacaoId })
 }
 
 export async function aprovarExecutarResetMfaAdministrativo(solicitacaoId: string, mfaCode = ''): Promise<MfaActionState> {
-  const context = await requireAuthenticated()
-  assertGestor(context)
+  const context = await requireSuperAdmin()
   try { await autorizarEConsumirAcaoSensivel(context, 'reset_mfa_administrativo', mfaCode) }
   catch (error) { return result(error instanceof Error ? error.message : 'Não foi possível confirmar esta ação.') }
 
@@ -382,62 +370,43 @@ export async function aprovarExecutarResetMfaAdministrativo(solicitacaoId: strin
 
   const reset = solicitacao as { usuario_id: string; solicitante_id: string; motivo: string }
   if (reset.solicitante_id === context.user.id) {
-    return result('Aprovador deve ser um gestor diferente do solicitante.')
+    return result('Aprovador deve ser um Super Admin diferente do solicitante.')
   }
 
-  const { data: factorsData, error: listError } = await admin.auth.admin.mfa.listFactors({ userId: reset.usuario_id })
-  if (listError) {
-    await admin.from('mfa_reset_solicitacoes').update({
-      status: 'erro',
-      aprovador_id: context.user.id,
-      aprovado_em: now,
-      erro_execucao: listError.message,
-      updated_at: now,
-    } as never).eq('id', solicitacaoId)
-    return result(`Nao foi possivel listar fatores MFA: ${listError.message}`)
-  }
-
-  const factors = ((factorsData?.factors || []) as AdminMfaFactor[]).filter((factor) => !!factor.id)
   let removed = 0
-  for (const factor of factors) {
-    const { error } = await admin.auth.admin.mfa.deleteFactor({ userId: reset.usuario_id, id: factor.id! })
-    if (error) {
-      await admin.from('mfa_reset_solicitacoes').update({
-        status: 'erro',
-        aprovador_id: context.user.id,
-        aprovado_em: now,
-        fatores_removidos: removed,
-        erro_execucao: error.message,
-        updated_at: now,
-      } as never).eq('id', solicitacaoId)
-      await registrarEventoSeguranca({
-        tipo_evento: 'MFA_RESET_ADMINISTRATIVO',
-        usuario_id: reset.usuario_id,
-        ator_usuario_id: context.user.id,
-        severidade: 'critical',
-        entidade_tipo: 'mfa_reset_solicitacoes',
-        entidade_id: solicitacaoId,
-        dados: { etapa: 'erro', fator_id: factor.id, erro: error.message },
-      })
-      return result(`Reset MFA interrompido: ${error.message}`)
-    }
-    removed += 1
+  try {
+    removed = (await removerFatoresMfaAuth(reset.usuario_id)).removidos
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Falha ao remover fatores MFA.'
+    await admin.from('mfa_reset_solicitacoes').update({
+      status: 'erro', aprovador_id: context.user.id, aprovado_em: now,
+      fatores_removidos: removed, erro_execucao: message, updated_at: now,
+    } as never).eq('id', solicitacaoId)
+    return result('Reset MFA interrompido. Verifique os logs administrativos.')
   }
 
-  await Promise.all([
-    admin.from('mfa_recovery_codes').update({ invalidado_em: now } as never).eq('user_id', reset.usuario_id).is('usado_em', null).is('invalidado_em', null),
-    admin.from('sessoes_elevadas').delete().eq('user_id', reset.usuario_id),
-    admin.from('profiles').update({ mfa_ativado_em: null, mfa_reset_em: now, sessoes_revogadas_em: now } as never).eq('id', reset.usuario_id),
-    admin.from('mfa_reset_solicitacoes').update({
-      status: 'executado',
-      aprovador_id: context.user.id,
-      aprovado_em: now,
-      executado_em: now,
-      fatores_removidos: removed,
-      erro_execucao: null,
-      updated_at: now,
-    } as never).eq('id', solicitacaoId),
-  ])
+  const { error: finalizeError } = await context.supabase.rpc('admin_concluir_reset_mfa', {
+    p_usuario_id: reset.usuario_id,
+    p_fatores_removidos: removed,
+    p_correlation_id: randomUUID(),
+  })
+  if (finalizeError) {
+    await admin.from('mfa_reset_solicitacoes').update({
+      status: 'erro', aprovador_id: context.user.id, aprovado_em: now,
+      fatores_removidos: removed, erro_execucao: 'Falha ao concluir reset no catalogo da aplicacao', updated_at: now,
+    } as never).eq('id', solicitacaoId)
+    return result('Reset MFA interrompido. Verifique os logs administrativos.')
+  }
+
+  await admin.from('mfa_reset_solicitacoes').update({
+    status: 'executado',
+    aprovador_id: context.user.id,
+    aprovado_em: now,
+    executado_em: now,
+    fatores_removidos: removed,
+    erro_execucao: null,
+    updated_at: now,
+  } as never).eq('id', solicitacaoId)
 
   await registrarEventoSeguranca({
     tipo_evento: 'MFA_RESET_ADMINISTRATIVO',
@@ -460,8 +429,7 @@ export async function aprovarExecutarResetMfaAdministrativo(solicitacaoId: strin
 }
 
 export async function rejeitarResetMfaAdministrativo(solicitacaoId: string, motivo: string, mfaCode = ''): Promise<MfaActionState> {
-  const context = await requireAuthenticated()
-  assertGestor(context)
+  const context = await requireSuperAdmin()
   try { await autorizarEConsumirAcaoSensivel(context, 'reset_mfa_administrativo', mfaCode) }
   catch (error) { return result(error instanceof Error ? error.message : 'Não foi possível confirmar esta ação.') }
 
@@ -479,7 +447,7 @@ export async function rejeitarResetMfaAdministrativo(solicitacaoId: string, moti
 
   const reset = solicitacao as { usuario_id: string; solicitante_id: string }
   if (reset.solicitante_id === context.user.id) {
-    return result('Rejeicao deve ser feita por um gestor diferente do solicitante.')
+    return result('Rejeicao deve ser feita por um Super Admin diferente do solicitante.')
   }
 
   const { error } = await admin.from('mfa_reset_solicitacoes').update({

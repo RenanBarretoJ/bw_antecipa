@@ -1500,6 +1500,23 @@ export interface Database {
       }; Returns: Record<string, unknown> }
       admin_ativar_fundo: { Args: { p_fundo_id: string; p_updated_at_esperado: string }; Returns: Record<string, unknown> }
       admin_desativar_fundo: { Args: { p_fundo_id: string; p_updated_at_esperado: string }; Returns: Record<string, unknown> }
+      admin_resumo_usuarios: { Args: Record<string, never>; Returns: Record<string, unknown> }
+      admin_listar_usuarios: { Args: { p_busca?: string | null; p_papel?: string; p_status?: string; p_super_admin?: string; p_pagina?: number; p_por_pagina?: number }; Returns: Record<string, unknown> }
+      admin_obter_usuario: { Args: { p_usuario_id: string }; Returns: Record<string, unknown> | null }
+      admin_obter_usuario_por_email: { Args: { p_email: string }; Returns: Record<string, unknown> | null }
+      admin_listar_fundos_usuario: { Args: { p_usuario_id: string }; Returns: Array<Record<string, unknown>> }
+      admin_listar_gestores_fundo: { Args: { p_fundo_id: string }; Returns: Array<Record<string, unknown>> }
+      admin_listar_auditoria_usuario: { Args: { p_usuario_id: string }; Returns: Array<Record<string, unknown>> }
+      admin_vincular_gestor_fundo: { Args: { p_usuario_id: string; p_fundo_id: string; p_correlation_id: string }; Returns: Record<string, unknown> }
+      admin_vincular_gestor_fundos: { Args: { p_usuario_id: string; p_fundo_ids: string[]; p_correlation_id: string }; Returns: Record<string, unknown> }
+      admin_revogar_gestor_fundo: { Args: { p_usuario_id: string; p_fundo_id: string; p_correlation_id: string }; Returns: Record<string, unknown> }
+      admin_reativar_gestor_fundo: { Args: { p_usuario_id: string; p_fundo_id: string; p_correlation_id: string }; Returns: Record<string, unknown> }
+      admin_conceder_super_admin: { Args: { p_usuario_id: string; p_correlation_id: string }; Returns: Record<string, unknown> }
+      admin_revogar_super_admin: { Args: { p_usuario_id: string; p_correlation_id: string }; Returns: Record<string, unknown> }
+      admin_desativar_usuario: { Args: { p_usuario_id: string; p_correlation_id: string }; Returns: Record<string, unknown> }
+      admin_reativar_usuario: { Args: { p_usuario_id: string; p_correlation_id: string }; Returns: Record<string, unknown> }
+      admin_concluir_reset_mfa: { Args: { p_usuario_id: string; p_fatores_removidos: number; p_correlation_id: string }; Returns: Record<string, unknown> }
+      admin_finalizar_convite_usuario: { Args: { p_usuario_id: string; p_tipo: string; p_nome: string; p_fundo_ids?: string[]; p_correlation_id: string }; Returns: Record<string, unknown> }
       publicar_configuracao_comunicacoes: { Args: { p_versao_id: string }; Returns: ComunicacaoConfiguracaoVersao }
       criar_rascunho_configuracao_comunicacoes: { Args: { p_fundo_id: string; p_base_versao_id: string | null; p_templates_padrao: Array<Record<string, unknown>> }; Returns: string }
       iniciar_execucao_comunicacoes: { Args: { p_data_referencia: string }; Returns: string | null }

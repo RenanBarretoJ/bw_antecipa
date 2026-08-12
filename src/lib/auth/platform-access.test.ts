@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { resolverDestinoAposAutenticacao, usuarioPodeAcessarArea, type PlataformaAccessSnapshot } from './platform-access'
+import type { SupabaseClient } from '@supabase/supabase-js'
+import type { Database } from '@/types/database'
+import { resolverDestinoAposAutenticacao, usuarioPodeAcessarArea, usuarioPossuiFundoAtivo, type PlataformaAccessSnapshot } from './platform-access'
 
 describe('destino pos-autenticacao multi-role', () => {
   it('prioriza a area independente do Super Admin', () => {
@@ -59,5 +61,21 @@ describe('destino pos-autenticacao multi-role', () => {
     }
     expect(usuarioPodeAcessarArea(access, 'admin')).toBe(true)
     expect(usuarioPodeAcessarArea(access, 'gestor')).toBe(true)
+  })
+
+  it('considera operacional somente vinculo ativo com fundo estruturalmente ativo', async () => {
+    const filtros: Array<[string, unknown]> = []
+    const query = {
+      select: () => query,
+      eq: (campo: string, valor: unknown) => { filtros.push([campo, valor]); return query },
+      limit: () => query,
+      maybeSingle: async () => ({ data: { id: 'vinculo-1' }, error: null }),
+    }
+    const client = { from: () => query } as unknown as SupabaseClient<Database>
+
+    await expect(usuarioPossuiFundoAtivo(client, 'usuario-1')).resolves.toBe(true)
+    expect(filtros).toContainEqual(['usuario_id', 'usuario-1'])
+    expect(filtros).toContainEqual(['status', 'ativo'])
+    expect(filtros).toContainEqual(['fundos.ativo', true])
   })
 })
