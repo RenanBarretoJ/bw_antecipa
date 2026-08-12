@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { requireGestor, requireRole } from '@/lib/auth/authorization'
+import { isCedenteAprovado } from '@/lib/auth/cedente-onboarding-access'
 import { resolverCedenteFundoAtivo } from '@/lib/fundos/cedente-fundo'
 import { resolverContextoFundoGestor } from '@/lib/gestor/contexto-fundo.server'
 import { buildOffsetRange, buildPaginatedResult } from '@/lib/pagination'
@@ -56,20 +57,20 @@ export async function carregarDashboardGestor(): Promise<GestorDashboardData> {
   } as GestorDashboardData
 }
 
-export async function carregarDashboardCedente(): Promise<CedenteDashboardData> {
+export async function carregarDashboardCedente(): Promise<CedenteDashboardData | null> {
   const auth = await requireRole('cedente')
   const { data: cedente, error: cedenteError } = await auth.supabase
     .from('cedentes')
-    .select('id')
+    .select('id, status')
     .eq('user_id', auth.user.id)
     .maybeSingle()
 
   if (cedenteError) throw new Error(`Nao foi possivel resolver o cedente autenticado: ${cedenteError.message}`)
-  if (!cedente) throw new Error('Cedente autenticado nao encontrado.')
+  if (!cedente || !isCedenteAprovado(cedente.status)) return null
 
   const contexto = await resolverCedenteFundoAtivo(cedente.id, auth.supabase)
   if (!contexto.cedenteFundo || !contexto.fundo) {
-    throw new Error('O cedente nao possui fundo operacional ativo.')
+    return null
   }
 
   const { data, error } = await auth.supabase.rpc('dashboard_cedente_resumo', {

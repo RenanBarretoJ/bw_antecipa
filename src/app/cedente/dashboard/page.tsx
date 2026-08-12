@@ -1,5 +1,6 @@
 import { connection } from 'next/server'
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { AlertTriangle, ArrowRight, Banknote, FileCheck, Plus, Receipt, Wallet } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -19,6 +20,7 @@ const statusLabel: Record<string, string> = {
 export default async function CedenteDashboard() {
   await connection()
   const stats = await carregarDashboardCedente()
+  if (!stats) redirect('/cedente/cadastro')
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">

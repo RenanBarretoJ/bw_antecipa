@@ -12,4 +12,9 @@ describe('redirecionamento por role', () => {
   it('usa cedente como fallback quando o perfil não está disponível', () => {
     expect(requireRoleRedirect(null)).toBe('/cedente/dashboard')
   })
+
+  it('encaminha o cedente sem cadastro empresarial para o onboarding', () => {
+    expect(requireRoleRedirect('cedente', { cedenteAprovado: false })).toBe('/cedente/cadastro')
+    expect(requireRoleRedirect('cedente', { cedenteAprovado: true })).toBe('/cedente/dashboard')
+  })
 })

@@ -3,12 +3,16 @@
 import { useEffect, useState } from 'react'
 import { PortalLayout } from '@/components/auth/portal-layout'
 import { cedenteMenuItems, type SidebarItem } from '@/components/auth/sidebar'
+import { isCedenteAprovado, isCedentePathPermitidoDuranteOnboarding } from '@/lib/auth/cedente-onboarding-access'
 import { createClient } from '@/lib/supabase/client'
 
 const cedenteMenuSemExtrato = cedenteMenuItems.filter((item) => item.href !== '/cedente/extrato')
+const cedenteMenuDuranteOnboarding = cedenteMenuItems.filter((item) => (
+  isCedentePathPermitidoDuranteOnboarding(item.href)
+))
 
 export default function CedenteLayout({ children }: { children: React.ReactNode }) {
-  const [menuItems, setMenuItems] = useState<SidebarItem[]>(cedenteMenuSemExtrato)
+  const [menuItems, setMenuItems] = useState<SidebarItem[]>(cedenteMenuDuranteOnboarding)
 
   useEffect(() => {
     const loadEscrow = async () => {
@@ -18,12 +22,12 @@ export default function CedenteLayout({ children }: { children: React.ReactNode 
 
       const { data } = await supabase
         .from('cedentes')
-        .select('habilitar_escrow')
-        .single()
+        .select('status, habilitar_escrow')
+        .eq('user_id', user.id)
+        .maybeSingle()
 
-      if (data && (data as { habilitar_escrow: boolean }).habilitar_escrow) {
-        setMenuItems(cedenteMenuItems)
-      }
+      if (!isCedenteAprovado(data?.status)) return
+      setMenuItems(data?.habilitar_escrow ? cedenteMenuItems : cedenteMenuSemExtrato)
     }
 
     loadEscrow()

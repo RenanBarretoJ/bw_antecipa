@@ -5,11 +5,15 @@ import { redirect } from 'next/navigation'
 import { loginSchema, cadastroSchema } from '@/lib/validations/auth'
 import { obterEstadoMfaUsuario } from '@/lib/auth/mfa'
 import { limparFluxoAutenticacao } from '@/lib/auth/auth-flow-server'
+import { isCedenteAprovado } from '@/lib/auth/cedente-onboarding-access'
+import { requireRoleRedirect } from '@/lib/auth/role-routing'
+import { buildSignupFeedback } from '@/lib/auth/signup-feedback'
 import { registrarTentativaRateLimit, verificarRateLimit } from '@/lib/security/rate-limit'
 
 export type AuthState = {
   errors?: Record<string, string[]>
   message?: string
+  authenticated?: boolean
 } | undefined
 
 export async function login(_prevState: AuthState, formData: FormData): Promise<AuthState> {
@@ -73,14 +77,21 @@ export async function login(_prevState: AuthState, formData: FormData): Promise<
     redirect('/mfa/desafio')
   }
 
-  const dashboards: Record<string, string> = {
-    gestor: '/gestor/dashboard',
-    cedente: '/cedente/dashboard',
-    sacado: '/sacado/dashboard',
-    consultor: '/consultor/dashboard',
+  if (role === 'cedente') {
+    const { data: cedente, error: cedenteError } = await supabase
+      .from('cedentes')
+      .select('id, status')
+      .eq('user_id', user.id)
+      .maybeSingle()
+
+    if (!cedenteError) {
+      redirect(requireRoleRedirect('cedente', {
+        cedenteAprovado: isCedenteAprovado(cedente?.status),
+      }))
+    }
   }
 
-  redirect(dashboards[role] || '/cedente/dashboard')
+  redirect(requireRoleRedirect(role as 'gestor' | 'cedente' | 'sacado' | 'consultor'))
 }
 
 export async function signup(_prevState: AuthState, formData: FormData): Promise<AuthState> {
@@ -101,7 +112,7 @@ export async function signup(_prevState: AuthState, formData: FormData): Promise
 
   const supabase = await createClient()
 
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email: validated.data.email,
     password: validated.data.password,
     options: {
@@ -120,9 +131,7 @@ export async function signup(_prevState: AuthState, formData: FormData): Promise
     return { message: `Erro ao criar conta: ${error.message}` }
   }
 
-  return {
-    message: 'Conta criada com sucesso! Verifique seu e-mail para confirmar o cadastro.',
-  }
+  return buildSignupFeedback(Boolean(data.session))
 }
 
 export async function logout() {

@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { AUTH_FLOW_COOKIE, getAuthFlowRedirect, isMfaSetupAllowedPath, isPasswordRecoveryAllowedPath, lerAuthFlowCookieAssinado } from '@/lib/auth/auth-flow'
+import { resolverRedirectOnboardingCedente } from '@/lib/auth/cedente-onboarding-access'
 
 type MiddlewareSupabaseClient = ReturnType<typeof createServerClient>
 
@@ -129,6 +130,24 @@ export async function updateSession(request: NextRequest) {
         const url = request.nextUrl.clone()
         url.pathname = mfaRedirect
         return NextResponse.redirect(url)
+      }
+
+      if (userRole === 'cedente') {
+        const { data: cedente } = await supabase
+          .from('cedentes')
+          .select('status')
+          .eq('user_id', user.id)
+          .maybeSingle()
+        const onboardingRedirect = resolverRedirectOnboardingCedente({
+          pathname,
+          status: cedente?.status,
+        })
+
+        if (onboardingRedirect) {
+          const url = request.nextUrl.clone()
+          url.pathname = onboardingRedirect
+          return NextResponse.redirect(url)
+        }
       }
     }
   }
