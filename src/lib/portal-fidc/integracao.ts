@@ -48,8 +48,8 @@ export type PortalFidcVersaoResolvida = {
 type PortalFidcCredenciais = {
   username: string
   password: string
-  source?: 'banco' | 'env_fallback'
-  credencialIntegracaoId?: string | null
+  source: 'banco'
+  credencialIntegracaoId: string
 }
 
 type RemessaPortalFidc = {
@@ -81,35 +81,22 @@ function sanitizeLogMessage(message: string, max = 700) {
     .slice(0, max)
 }
 
-export function portalFidcCredentialEnvName(credentialRef: string, suffix: 'USERNAME' | 'PASSWORD') {
-  const normalized = credentialRef.trim().replace(/[^A-Za-z0-9_]/g, '_').replace(/^_+|_+$/g, '').toUpperCase()
-  return `PORTAL_FIDC_CREDENTIAL_${normalized}_${suffix}`
-}
-
-export function resolverCredenciaisPortalFidc(integracao: Pick<PortalFidcVersaoResolvida, 'credentialRef' | 'secretName'>): PortalFidcCredenciais {
-  const ref = (integracao.secretName || integracao.credentialRef).trim()
-  const username = process.env[portalFidcCredentialEnvName(ref, 'USERNAME')]
-  const password = process.env[portalFidcCredentialEnvName(ref, 'PASSWORD')]
-  if (!username || !password) {
-    throw Object.assign(new Error(`Credenciais do Portal FIDC nao encontradas para a referencia ${integracao.credentialRef}.`), { categoria: 'autenticacao' })
-  }
-  return { username, password, source: 'env_fallback', credencialIntegracaoId: null }
-}
-
 async function resolverCredenciaisPortalFidcBanco(
   admin: AdminClient,
   integracao: Pick<PortalFidcVersaoResolvida, 'id' | 'integracaoId' | 'fundoId' | 'ambiente' | 'credentialRef' | 'secretName' | 'credencialIntegracaoId'>,
 ): Promise<PortalFidcCredenciais | null> {
-  let query = admin
+  if (!integracao.credencialIntegracaoId) {
+    throw Object.assign(new Error('A versao publicada do Portal FIDC nao possui credencial vinculada.'), { categoria: 'autenticacao' })
+  }
+
+  const query = admin
     .from('credenciais_integracao')
     .select('id, fundo_id, integracao_fundo_id, ambiente, status, usuario_criptografado, senha_criptografada, chave_versao')
     .eq('fundo_id', integracao.fundoId)
     .eq('integracao_fundo_id', integracao.integracaoId)
     .eq('ambiente', integracao.ambiente)
     .eq('status', 'ativa')
-
-  if (integracao.credencialIntegracaoId) query = query.eq('id', integracao.credencialIntegracaoId)
-  else query = query.order('ativada_em', { ascending: false }).limit(1)
+    .eq('id', integracao.credencialIntegracaoId)
 
   const { data, error } = await query.maybeSingle()
   if (error) {
@@ -155,17 +142,15 @@ async function resolverCredenciaisPortalFidcBanco(
 export async function resolverCredenciaisPortalFidcSeguras(admin: AdminClient, integracao: PortalFidcVersaoResolvida): Promise<PortalFidcCredenciais> {
   const credencialBanco = await resolverCredenciaisPortalFidcBanco(admin, integracao)
   if (credencialBanco) return credencialBanco
-
-  const credencialEnv = resolverCredenciaisPortalFidc(integracao)
   await registrarEventoSeguranca({
-    tipo_evento: 'CREDENCIAL_USADA',
+    tipo_evento: 'ACESSO_CREDENCIAL_NEGADO',
     ator_tipo: 'integracao',
-    severidade: 'warning',
+    severidade: 'critical',
     entidade_tipo: 'integracao_fundo_versoes',
     entidade_id: integracao.id,
-    dados: { fundo_id: integracao.fundoId, integracao_fundo_id: integracao.integracaoId, ambiente: integracao.ambiente, fallback_env: true },
+    dados: { fundo_id: integracao.fundoId, integracao_fundo_id: integracao.integracaoId, ambiente: integracao.ambiente },
   })
-  return credencialEnv
+  throw Object.assign(new Error('A credencial vinculada a esta versao do Portal FIDC esta ausente, inativa ou revogada.'), { categoria: 'autenticacao' })
 }
 
 export async function resolverVersaoPortalFidc(
@@ -173,6 +158,18 @@ export async function resolverVersaoPortalFidc(
   fundoId: string,
   versaoId?: string,
 ): Promise<PortalFidcVersaoResolvida> {
+  if (!versaoId) {
+    const { data: fundo, error: fundoError } = await admin
+      .from('fundos')
+      .select('id, ativo')
+      .eq('id', fundoId)
+      .maybeSingle()
+    if (fundoError) throw new Error(`Erro ao validar o fundo do Portal FIDC: ${fundoError.message}`)
+    if (!fundo || fundo.ativo !== true) {
+      throw Object.assign(new Error('O fundo esta inativo e nao pode executar integracoes operacionais.'), { categoria: 'configuracao' })
+    }
+  }
+
   const query = admin
     .from('integracoes_fundo')
     .select('id, fundo_id, provedor, status, integracao_fundo_versoes(*)')

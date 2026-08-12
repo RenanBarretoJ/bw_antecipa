@@ -34,6 +34,12 @@ export const ACAO_SENSIVEL_TIPOS = [
   'reativar_usuario',
   'conceder_super_admin',
   'revogar_super_admin',
+  'criar_integracao_versao',
+  'publicar_integracao',
+  'desativar_integracao',
+  'testar_integracao',
+  'atualizar_cnab',
+  'atualizar_codigo_originador',
 ] as const
 
 export type AcaoSensivelTipo = typeof ACAO_SENSIVEL_TIPOS[number]

@@ -1,38 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import {
-  mapearStatusPortalFidc,
-  portalFidcCredentialEnvName,
-  resolverCredenciaisPortalFidc,
-  sha256Hex,
-} from '@/lib/portal-fidc/integracao'
+import { mapearStatusPortalFidc, sha256Hex } from '@/lib/portal-fidc/integracao'
 
 describe('Portal FIDC integration helpers', () => {
-  it('monta nomes de variaveis por credential_ref sem usar credencial global implicita', () => {
-    expect(portalFidcCredentialEnvName('portal_fidc_fundo_abc_homologacao', 'USERNAME')).toBe('PORTAL_FIDC_CREDENTIAL_PORTAL_FIDC_FUNDO_ABC_HOMOLOGACAO_USERNAME')
-    expect(portalFidcCredentialEnvName('portal fidc/fundo-abc', 'PASSWORD')).toBe('PORTAL_FIDC_CREDENTIAL_PORTAL_FIDC_FUNDO_ABC_PASSWORD')
-  })
-
-  it('nao retorna segredo nem valor de variavel em erro de credencial ausente', () => {
-    const ref = 'portal_fidc_sem_secret'
-    delete process.env[portalFidcCredentialEnvName(ref, 'USERNAME')]
-    delete process.env[portalFidcCredentialEnvName(ref, 'PASSWORD')]
-
-    expect(() => resolverCredenciaisPortalFidc({ credentialRef: ref, secretName: null })).toThrow(/referencia portal_fidc_sem_secret/i)
-  })
-
-  it('resolve credenciais apenas pela referencia configurada', () => {
-    const ref = 'portal_fidc_teste'
-    process.env[portalFidcCredentialEnvName(ref, 'USERNAME')] = 'usuario-teste'
-    process.env[portalFidcCredentialEnvName(ref, 'PASSWORD')] = 'senha-teste'
-
-    expect(resolverCredenciaisPortalFidc({ credentialRef: ref, secretName: null })).toMatchObject({
-      username: 'usuario-teste',
-      password: 'senha-teste',
-      source: 'env_fallback',
-    })
-
-    delete process.env[portalFidcCredentialEnvName(ref, 'USERNAME')]
-    delete process.env[portalFidcCredentialEnvName(ref, 'PASSWORD')]
+  it('nao mantem fallback de credencial por ambiente', async () => {
+    const source = await import('node:fs/promises').then((fs) => fs.readFile(new URL('./integracao.ts', import.meta.url), 'utf8'))
+    expect(source).not.toContain('PORTAL_FIDC_CREDENTIAL_')
+    expect(source).not.toContain("source: 'env_fallback'")
+    expect(source).toContain('credencial_integracao_id')
   })
 
   it('mapeia estados externos conhecidos e preserva desconhecidos como pendentes', () => {

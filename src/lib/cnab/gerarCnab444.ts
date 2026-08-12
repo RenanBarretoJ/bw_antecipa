@@ -72,12 +72,13 @@ async function resolverFundoHistoricoDaOperacao(
   const fundoId = (link as { fundo_id: string }).fundo_id
   const { data: fundo, error: fundoError } = await supabase
     .from('fundos')
-    .select('id, nome, cnpj')
+    .select('id, nome, cnpj, ativo')
     .eq('id', fundoId)
     .maybeSingle()
 
   if (fundoError || !fundo) throw new Error('Fundo historico da operacao nao encontrado.')
-  const row = fundo as { id: string; nome: string; cnpj: string }
+  const row = fundo as { id: string; nome: string; cnpj: string; ativo: boolean | null }
+  if (row.ativo !== true) throw new Error('Fundo inativo nao pode gerar remessa CNAB operacional.')
   return { id: row.id, nome: row.nome, cnpj: row.cnpj }
 }
 

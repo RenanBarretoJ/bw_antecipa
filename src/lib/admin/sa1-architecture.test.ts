@@ -46,7 +46,7 @@ describe('arquitetura SA1 de fundos', () => {
     expect(gestorActions).not.toContain('export async function toggleAtivoFundo(')
     expect(gestorPage).not.toContain('Novo fundo')
     expect(gestorPage).not.toContain('Desativar')
-    expect(gestorPage).toContain('Dados estruturais sao administrados pela plataforma')
+    expect(gestorPage).toContain("redirect('/gestor/configuracoes')")
   })
 
   it('exige MFA fresco, usa concorrencia otimista e audita todas as mutacoes', () => {
@@ -74,16 +74,17 @@ describe('arquitetura SA1 de fundos', () => {
     expect(adminMenu).toContain("href: '/admin/usuarios'")
   })
 
-  it('mantem listagem paginada e acrescenta gestores sem expor configuracao operacional', () => {
+  it('mantem listagem paginada e centraliza configuracao tecnica no Super Admin', () => {
     expect(adminListPage).toContain('porPagina')
     expect(adminListPage).toContain('<option value="20">')
     expect(adminListPage).toContain('<option value="50">')
     expect(adminListPage).toContain('<option value="100">')
     expect(adminDetailPage).toContain('>Geral</Link>')
     expect(adminDetailPage).toContain('>Gestores</Link>')
+    expect(adminDetailPage).toContain('>Integracoes</Link>')
+    expect(adminDetailPage).toContain('>CNAB</Link>')
     expect(adminDetailPage).toContain('>Auditoria</Link>')
     expect(adminDetailPage).not.toContain('Excluir fundo')
-    expect(adminDetailPage).not.toContain('CNAB')
     expect(adminDetailPage).not.toContain('Templates juridicos')
   })
 })

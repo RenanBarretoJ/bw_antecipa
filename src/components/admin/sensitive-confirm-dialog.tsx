@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -16,6 +16,7 @@ export function SensitiveConfirmDialog({
   destructive = false,
   pending,
   onConfirm,
+  children,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -25,6 +26,7 @@ export function SensitiveConfirmDialog({
   destructive?: boolean
   pending: boolean
   onConfirm: (mfaCode: string) => void
+  children?: ReactNode
 }) {
   const [mfaCode, setMfaCode] = useState('')
 
@@ -41,6 +43,7 @@ export function SensitiveConfirmDialog({
           <Label htmlFor="admin-sensitive-mfa" className="mb-2">Codigo TOTP</Label>
           <Input id="admin-sensitive-mfa" value={mfaCode} onChange={(event) => setMfaCode(event.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" className="font-mono tracking-[0.35em]" autoFocus />
         </div>
+        {children}
         <DialogFooter>
           <Button variant="outline" onClick={() => close(false)} disabled={pending}>Cancelar</Button>
           <Button variant={destructive ? 'destructive' : 'default'} onClick={() => onConfirm(mfaCode)} disabled={pending || mfaCode.length !== 6}>{pending && <Loader2 className="animate-spin" />}{confirmLabel}</Button>
