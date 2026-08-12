@@ -36,6 +36,8 @@ describe('SA3 - configuracoes tecnicas por fundo', () => {
     expect(migration).toContain('private.usuario_e_super_admin()')
     expect(migration).toContain('REVOKE ALL ON TABLE public.configuracoes_cnab FROM authenticated')
     expect(migration).toContain('p_execucoes_offset integer DEFAULT 0')
+    expect(migration).toContain('pg_catalog.pg_get_function_identity_arguments(p.oid)')
+    expect(migration).not.toContain('public.admin_salvar_cnab_rascunho(uuid,uuid,uuid')
     expect(migration).toContain('GRANT EXECUTE ON FUNCTION %s TO authenticated')
     expect(actions).toContain('autorizarEConsumirAcaoSensivel')
     expect(actions).not.toMatch(/createAdminClient|service[_-]?role/i)

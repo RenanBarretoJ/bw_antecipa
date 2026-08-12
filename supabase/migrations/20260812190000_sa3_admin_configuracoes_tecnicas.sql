@@ -887,25 +887,43 @@ GRANT EXECUTE ON FUNCTION public.usuario_pode_ler_integracao_execucao(uuid) TO a
 
 DO $$
 DECLARE
+  v_function_names text[] := ARRAY[
+    'admin_obter_configuracoes_tecnicas_fundo',
+    'admin_cadastrar_credencial_integracao',
+    'admin_ativar_credencial_integracao',
+    'admin_revogar_credencial_integracao',
+    'admin_salvar_integracao_rascunho',
+    'admin_publicar_integracao_versao',
+    'admin_desativar_integracao_versao',
+    'admin_salvar_cnab_rascunho',
+    'admin_publicar_cnab_versao',
+    'admin_desativar_cnab_versao',
+    'admin_preparar_teste_integracao',
+    'admin_finalizar_teste_integracao'
+  ];
   v_signature text;
+  v_found integer := 0;
 BEGIN
-  FOREACH v_signature IN ARRAY ARRAY[
-    'public.admin_obter_configuracoes_tecnicas_fundo(uuid,integer,integer)',
-    'public.admin_cadastrar_credencial_integracao(uuid,text,text,text,text,text,text,uuid,uuid)',
-    'public.admin_ativar_credencial_integracao(uuid,uuid,uuid)',
-    'public.admin_revogar_credencial_integracao(uuid,uuid,text,uuid)',
-    'public.admin_salvar_integracao_rascunho(uuid,uuid,text,text,text,uuid,jsonb,timestamptz,uuid)',
-    'public.admin_publicar_integracao_versao(uuid,uuid,uuid)',
-    'public.admin_desativar_integracao_versao(uuid,uuid,uuid)',
-    'public.admin_salvar_cnab_rascunho(uuid,uuid,uuid,text,text,text,text,text,text,text,text,text,text,text,text,text,text,text,text,text,jsonb,text,timestamptz,uuid)',
-    'public.admin_publicar_cnab_versao(uuid,uuid,uuid)',
-    'public.admin_desativar_cnab_versao(uuid,uuid,uuid)',
-    'public.admin_preparar_teste_integracao(uuid,uuid,uuid)',
-    'public.admin_finalizar_teste_integracao(uuid,uuid,text,text,text,text,integer,uuid)'
-  ] LOOP
+  FOR v_signature IN
+    SELECT format(
+      '%I.%I(%s)',
+      n.nspname,
+      p.proname,
+      pg_catalog.pg_get_function_identity_arguments(p.oid)
+    )
+    FROM pg_catalog.pg_proc p
+    JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public'
+      AND p.proname = ANY(v_function_names)
+  LOOP
     EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC, anon', v_signature);
     EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO authenticated', v_signature);
+    v_found := v_found + 1;
   END LOOP;
+
+  IF v_found <> cardinality(v_function_names) THEN
+    RAISE EXCEPTION 'SA3 esperava % funcoes administrativas, mas encontrou %.', cardinality(v_function_names), v_found;
+  END IF;
 END;
 $$;
 
