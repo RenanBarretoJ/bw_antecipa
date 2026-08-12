@@ -32,6 +32,7 @@
     "reset:operacional:fundo": "node scripts/reset-operacional-fundo.mjs",
     "reset:operacional:fundo:install-rpc": "node scripts/install-reset-operacional-rpc.mjs",
     "reset:geral:homolog": "node scripts/homologacao/reset-geral-homolog.mjs",
+    "bootstrap:super-admin:homolog": "node scripts/homologacao/bootstrap-super-admin.mjs",
     "homolog:logistica:seed": "node scripts/homologacao/central-logistica/seed.mjs",
     "homolog:logistica:verify": "node scripts/homologacao/central-logistica/verify.mjs",
     "homolog:logistica:cleanup": "node scripts/homologacao/central-logistica/cleanup.mjs",

@@ -5,8 +5,8 @@ import { redirect } from 'next/navigation'
 import { loginSchema, cadastroSchema } from '@/lib/validations/auth'
 import { obterEstadoMfaUsuario } from '@/lib/auth/mfa'
 import { limparFluxoAutenticacao } from '@/lib/auth/auth-flow-server'
-import { isCedenteAprovado } from '@/lib/auth/cedente-onboarding-access'
-import { requireRoleRedirect } from '@/lib/auth/role-routing'
+import { carregarAcessoPlataforma, resolverDestinoAposAutenticacao } from '@/lib/auth/platform-access'
+import type { UserRole } from '@/types/database'
 import { buildSignupFeedback } from '@/lib/auth/signup-feedback'
 import { registrarTentativaRateLimit, verificarRateLimit } from '@/lib/security/rate-limit'
 
@@ -77,21 +77,8 @@ export async function login(_prevState: AuthState, formData: FormData): Promise<
     redirect('/mfa/desafio')
   }
 
-  if (role === 'cedente') {
-    const { data: cedente, error: cedenteError } = await supabase
-      .from('cedentes')
-      .select('id, status')
-      .eq('user_id', user.id)
-      .maybeSingle()
-
-    if (!cedenteError) {
-      redirect(requireRoleRedirect('cedente', {
-        cedenteAprovado: isCedenteAprovado(cedente?.status),
-      }))
-    }
-  }
-
-  redirect(requireRoleRedirect(role as 'gestor' | 'cedente' | 'sacado' | 'consultor'))
+  const access = await carregarAcessoPlataforma(supabase, user.id, role as UserRole)
+  redirect(resolverDestinoAposAutenticacao(access))
 }
 
 export async function signup(_prevState: AuthState, formData: FormData): Promise<AuthState> {

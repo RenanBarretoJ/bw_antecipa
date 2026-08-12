@@ -9,7 +9,7 @@ function fakeClient({
   profileStatus = 'ativo',
 }: {
   userId: string | null
-  role?: 'gestor' | 'cedente' | 'sacado' | 'consultor'
+  role?: 'gestor' | 'cedente' | 'sacado' | 'consultor' | 'super_admin'
   mfaStatus?: string
   profileStatus?: string
 }): AppSupabaseClient {
@@ -59,6 +59,13 @@ describe('autorização server-side', () => {
       code: 'FORBIDDEN',
       status: 403,
       message: 'Sua sessão de segurança de 24 horas expirou. Entre novamente para continuar.',
+    })
+  })
+
+  it('aplica o gate MFA de 24 horas ao Super Admin', async () => {
+    await expect(requireAuthenticated(fakeClient({ userId: 'admin-1', role: 'super_admin', mfaStatus: 'expired' }))).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+      status: 403,
     })
   })
 

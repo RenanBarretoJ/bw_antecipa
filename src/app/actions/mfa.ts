@@ -14,7 +14,7 @@ import {
   usarRecoveryCode,
   validarFormatoCodigoTotp,
 } from '@/lib/auth/mfa'
-import { requireRoleRedirect } from '@/lib/auth/role-routing'
+import { carregarAcessoPlataforma, resolverDestinoAposAutenticacao } from '@/lib/auth/platform-access'
 import { registrarTentativaRateLimit, verificarRateLimit } from '@/lib/security/rate-limit'
 import { autorizarEConsumirAcaoSensivel } from '@/lib/auth/sensitive-action'
 
@@ -542,5 +542,8 @@ function normalizarNextAposMfa(next?: string | FormData | null) {
 export async function redirecionarAposMfa(next?: string | FormData | null) {
   const context = await requireAuthenticated()
   await limparFluxoAutenticacao()
-  redirect(normalizarNextAposMfa(next) || requireRoleRedirect(context.profile.role))
+  const explicitNext = normalizarNextAposMfa(next)
+  if (explicitNext) redirect(explicitNext)
+  const access = await carregarAcessoPlataforma(context.supabase, context.user.id, context.profile.role)
+  redirect(resolverDestinoAposAutenticacao(access))
 }

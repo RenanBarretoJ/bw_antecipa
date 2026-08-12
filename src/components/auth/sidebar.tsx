@@ -2,6 +2,7 @@ import {
   LayoutDashboard, Users, FileText, CreditCard, Wallet, BarChart3, Settings,
   ShieldCheck, FileCheck, Receipt, Banknote, Bell, CheckSquare, History, Briefcase,
   Building2, UserCog, UserPlus, Truck, Mails,
+  Shield,
 } from 'lucide-react'
 import { PortalSidebar, type PortalSidebarItem } from '@/components/layout/portal-sidebar'
 
@@ -54,4 +55,8 @@ export const consultorMenuItems: SidebarItem[] = [
   { label: 'Relatorios', href: '/consultor/relatorios', icon: BarChart3 },
   { label: 'Notificacoes', href: '/consultor/notificacoes', icon: Bell },
   { label: 'Minha Seguranca', href: '/consultor/minha-conta/seguranca', icon: UserCog },
+]
+
+export const adminMenuItems: SidebarItem[] = [
+  { label: 'Visao geral', href: '/admin', icon: Shield },
 ]

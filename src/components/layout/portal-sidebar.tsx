@@ -11,10 +11,11 @@ export interface PortalSidebarItem {
   icon: LucideIcon
 }
 
-const roleLabels: Record<string, string> = { gestor: 'Gestor', cedente: 'Cedente', sacado: 'Sacado', consultor: 'Consultor' }
+const roleLabels: Record<string, string> = { gestor: 'Gestor', cedente: 'Cedente', sacado: 'Sacado', consultor: 'Consultor', super_admin: 'Super Admin' }
 const roleColors: Record<string, string> = {
   gestor: 'bg-sidebar-accent text-sidebar-accent-foreground', cedente: 'bg-sidebar-accent text-sidebar-accent-foreground',
   sacado: 'bg-sidebar-accent text-sidebar-accent-foreground', consultor: 'bg-sidebar-accent text-sidebar-accent-foreground',
+  super_admin: 'bg-sidebar-accent text-sidebar-accent-foreground',
 }
 
 export function PortalSidebar({ items, role, open = false, onClose }: { items: PortalSidebarItem[]; role: string; open?: boolean; onClose?: () => void }) {

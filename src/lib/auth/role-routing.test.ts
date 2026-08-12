@@ -7,6 +7,7 @@ describe('redirecionamento por role', () => {
     expect(requireRoleRedirect('cedente')).toBe('/cedente/dashboard')
     expect(requireRoleRedirect('sacado')).toBe('/sacado/dashboard')
     expect(requireRoleRedirect('consultor')).toBe('/consultor/dashboard')
+    expect(requireRoleRedirect('super_admin')).toBe('/admin')
   })
 
   it('usa cedente como fallback quando o perfil não está disponível', () => {

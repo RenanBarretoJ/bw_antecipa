@@ -28,10 +28,12 @@ NEXT_PUBLIC_APP_ENV=homolog
 NEXT_PUBLIC_SUPABASE_URL=...
 SUPABASE_SERVICE_ROLE_KEY=...
 SUPABASE_DB_URL=...
+SUPABASE_PRODUCTION_PROJECT_REF=...
 ```
 
-A URL da API e a conexão PostgreSQL devem pertencer ao mesmo projeto. O script
-valida essa correspondência antes de qualquer alteração.
+A URL da API e a conexão PostgreSQL devem pertencer ao mesmo projeto. A ref de
+produção é obrigatória para o bootstrap recusar explicitamente esse destino. O
+script valida essas correspondências antes de qualquer alteração.
 
 ## 1. Executar o preview
 
@@ -58,16 +60,31 @@ correspondem ou quando a frase não é exata.
 
 ## 3. Após o reset
 
-O ambiente ficará sem usuários. Cadastre novamente os perfis necessários para
-testar o fluxo desde o início. Como o cadastro público cria perfil de cedente,
-o primeiro gestor deverá ser provisionado pelo procedimento administrativo já
-adotado pelo projeto antes de iniciar aprovações.
+O ambiente ficará sem usuários e fundos. O primeiro acesso administrativo deve
+ser reconstruído pelo bootstrap de Super Admin, que não depende de fundo nem de
+`usuario_fundos`.
+
+Primeiro execute o preview:
+
+```powershell
+npm run bootstrap:super-admin:homolog -- --email admin@empresa.com --expected-project-ref SEU_PROJECT_REF
+```
+
+Depois execute apenas o comando confirmado pelo preview:
+
+```powershell
+npm run bootstrap:super-admin:homolog -- --email admin@empresa.com --execute --expected-project-ref SEU_PROJECT_REF --confirm PROVISIONAR_SUPER_ADMIN_HOMOLOG_SEU_PROJECT_REF
+```
+
+O fluxo usa convite do Supabase Auth e não recebe senha por argumento. Após o
+convite, conclua o acesso, configure o MFA/TOTP e confirme que `/admin` abre com
+zero fundos. A criação do primeiro fundo pertence ao escopo administrativo SA1.
 
 Depois, valide ao menos:
 
-1. cadastro e confirmação de e-mail;
-2. configuração do MFA;
-3. criação do fundo e autorização do gestor;
+1. convite e confirmação do primeiro Super Admin;
+2. configuração do MFA e acesso a `/admin`;
+3. criação do fundo e autorização do gestor quando SA1 estiver disponível;
 4. onboarding e vínculo do cedente;
 5. política, templates, CNAB e integração do fundo;
 6. importação e aprovação de NF;

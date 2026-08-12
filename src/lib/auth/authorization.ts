@@ -81,7 +81,7 @@ export async function requireAuthenticated(client?: AppSupabaseClient, options: 
     throw new AuthorizationError('Perfil de usuário inativo.', 'FORBIDDEN')
   }
 
-  if (!options.allowMfaPending && ['gestor', 'consultor', 'cedente', 'sacado'].includes(String(profile.role))) {
+  if (!options.allowMfaPending && ['gestor', 'consultor', 'cedente', 'sacado', 'super_admin'].includes(String(profile.role))) {
     const { data: mfaRows, error: mfaError } = await supabase.rpc('obter_sessao_mfa_atual')
     const mfaSession = (Array.isArray(mfaRows) ? mfaRows[0] : mfaRows) as { status?: string } | null
     if (mfaError) throw new AuthorizationError('Não foi possível validar a sessão de segurança.', 'FORBIDDEN')

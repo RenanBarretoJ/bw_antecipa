@@ -14,6 +14,7 @@ export function requireRoleRedirect(
     cedente: '/cedente/dashboard',
     sacado: '/sacado/dashboard',
     consultor: '/consultor/dashboard',
+    super_admin: '/admin',
   }
   return dashboards[resolvedRole]
 }

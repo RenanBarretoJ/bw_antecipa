@@ -2,6 +2,8 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { AUTH_FLOW_COOKIE, getAuthFlowRedirect, isMfaSetupAllowedPath, isPasswordRecoveryAllowedPath, lerAuthFlowCookieAssinado } from '@/lib/auth/auth-flow'
 import { resolverRedirectOnboardingCedente } from '@/lib/auth/cedente-onboarding-access'
+import { carregarAcessoPlataforma, resolverDestinoAposAutenticacao, usuarioPodeAcessarArea, type PortalArea } from '@/lib/auth/platform-access'
+import type { UserRole } from '@/types/database'
 
 type MiddlewareSupabaseClient = ReturnType<typeof createServerClient>
 
@@ -88,7 +90,7 @@ export async function updateSession(request: NextRequest) {
       .eq('id', user.id)
       .single()
 
-    const role = String(profile?.role || 'cedente')
+    const role = String(profile?.role || 'cedente') as UserRole
     const mfaRedirect = await getMfaRedirect({
       supabase,
       role,
@@ -96,8 +98,9 @@ export async function updateSession(request: NextRequest) {
       pathname,
     })
 
+    const access = await carregarAcessoPlataforma(supabase, user.id, role)
     const url = request.nextUrl.clone()
-    url.pathname = mfaRedirect || getDashboardByRole(role)
+    url.pathname = mfaRedirect || resolverDestinoAposAutenticacao(access)
     return NextResponse.redirect(url)
   }
 
@@ -111,11 +114,14 @@ export async function updateSession(request: NextRequest) {
         .eq('id', user.id)
         .single()
 
-      const userRole = String(profile?.role || 'cedente')
+      const userRole = String(profile?.role || 'cedente') as UserRole
+      const access = await carregarAcessoPlataforma(supabase, user.id, userRole)
 
-      if (roleFromPath !== userRole) {
+      const areaAutorizada = usuarioPodeAcessarArea(access, roleFromPath)
+
+      if (!areaAutorizada) {
         const url = request.nextUrl.clone()
-        url.pathname = getDashboardByRole(userRole)
+        url.pathname = resolverDestinoAposAutenticacao(access)
         return NextResponse.redirect(url)
       }
 
@@ -130,6 +136,19 @@ export async function updateSession(request: NextRequest) {
         const url = request.nextUrl.clone()
         url.pathname = mfaRedirect
         return NextResponse.redirect(url)
+      }
+
+      if (roleFromPath === 'gestor') {
+        if (!access.gestorPossuiFundoAtivo && pathname !== '/gestor/sem-fundo') {
+          const url = request.nextUrl.clone()
+          url.pathname = '/gestor/sem-fundo'
+          return NextResponse.redirect(url)
+        }
+        if (access.gestorPossuiFundoAtivo && pathname === '/gestor/sem-fundo') {
+          const url = request.nextUrl.clone()
+          url.pathname = '/gestor/dashboard'
+          return NextResponse.redirect(url)
+        }
       }
 
       if (userRole === 'cedente') {
@@ -155,18 +174,8 @@ export async function updateSession(request: NextRequest) {
   return supabaseResponse
 }
 
-function getDashboardByRole(role: string): string {
-  const dashboards: Record<string, string> = {
-    gestor: '/gestor/dashboard',
-    cedente: '/cedente/dashboard',
-    sacado: '/sacado/dashboard',
-    consultor: '/consultor/dashboard',
-  }
-  return dashboards[role] || '/cedente/dashboard'
-}
-
-function getRoleFromPath(pathname: string): string | null {
-  const roles = ['gestor', 'cedente', 'sacado', 'consultor']
+function getRoleFromPath(pathname: string): PortalArea | null {
+  const roles: PortalArea[] = ['gestor', 'cedente', 'sacado', 'consultor', 'admin']
   for (const role of roles) {
     if (pathname.startsWith(`/${role}`)) return role
   }
@@ -186,7 +195,7 @@ async function getMfaRedirect({
 }) {
   if (pathname.startsWith('/mfa')) return null
 
-  const exigeMfa = override === true || ['gestor', 'cedente', 'sacado', 'consultor'].includes(role)
+  const exigeMfa = override === true || ['gestor', 'cedente', 'sacado', 'consultor', 'super_admin'].includes(role)
 
   const { data: factors } = await supabase.auth.mfa.listFactors()
   const possuiFator = (factors?.totp || []).some((factor: unknown) => {

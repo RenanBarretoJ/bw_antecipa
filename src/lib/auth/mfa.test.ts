@@ -14,6 +14,7 @@ describe('MFA policy and helpers', () => {
     expect(usuarioExigeMfaPorPerfil('consultor')).toBe(true)
     expect(usuarioExigeMfaPorPerfil('cedente')).toBe(true)
     expect(usuarioExigeMfaPorPerfil('sacado')).toBe(true)
+    expect(usuarioExigeMfaPorPerfil('super_admin')).toBe(true)
   })
 
   it('does not allow override=false to disable mandatory MFA', () => {

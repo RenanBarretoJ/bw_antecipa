@@ -122,6 +122,40 @@ export interface Profile {
   updated_at: string
 }
 
+export interface UsuarioPapel {
+  usuario_id: string
+  papel: UserRole
+  ativo: boolean
+  origem: 'perfil_primario' | 'bootstrap_homolog' | 'administracao'
+  atribuido_por: string | null
+  atribuido_em: string
+  revogado_em: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface UsuarioFundo {
+  id: string
+  usuario_id: string
+  fundo_id: string
+  perfil_no_fundo: string
+  status: 'ativo' | 'suspenso' | 'revogado'
+  principal: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface PlataformaAuditoria {
+  id: string
+  tipo_evento: string
+  ator_usuario_id: string | null
+  usuario_alvo_id: string | null
+  origem: string
+  correlation_id: string
+  dados: Record<string, unknown>
+  created_at: string
+}
+
 export interface Cedente {
   id: string
   user_id: string
@@ -1359,6 +1393,9 @@ export interface Database {
       comunicacao_item_estagios: { Row: ComunicacaoItemEstagio & Record<string, unknown>; Insert: InsertShape<ComunicacaoItemEstagio, 'fundo_id' | 'familia' | 'item_key' | 'etapa' | 'data_obrigacao' | 'data_nominal' | 'data_efetiva'> & Record<string, unknown>; Update: UpdateShape<ComunicacaoItemEstagio> & Record<string, unknown>; Relationships: [] }
       comunicacao_tentativas: { Row: ComunicacaoTentativa & Record<string, unknown>; Insert: InsertShape<ComunicacaoTentativa, 'comunicacao_id' | 'numero_tentativa' | 'status'> & Record<string, unknown>; Update: UpdateShape<ComunicacaoTentativa> & Record<string, unknown>; Relationships: [] }
       profiles: { Row: Profile & Record<string, unknown>; Insert: InsertShape<Profile, 'id' | 'nome_completo' | 'email'> & Record<string, unknown>; Update: UpdateShape<Profile> & Record<string, unknown>; Relationships: [] }
+      usuario_papeis: { Row: UsuarioPapel & Record<string, unknown>; Insert: InsertShape<UsuarioPapel, 'usuario_id' | 'papel'> & Record<string, unknown>; Update: UpdateShape<UsuarioPapel> & Record<string, unknown>; Relationships: [] }
+      usuario_fundos: { Row: UsuarioFundo & Record<string, unknown>; Insert: InsertShape<UsuarioFundo, 'usuario_id' | 'fundo_id'> & Record<string, unknown>; Update: UpdateShape<UsuarioFundo> & Record<string, unknown>; Relationships: [] }
+      plataforma_auditoria: { Row: PlataformaAuditoria & Record<string, unknown>; Insert: InsertShape<PlataformaAuditoria, 'tipo_evento' | 'origem'> & Record<string, unknown>; Update: UpdateShape<PlataformaAuditoria> & Record<string, unknown>; Relationships: [] }
       cedentes: { Row: Cedente & Record<string, unknown>; Insert: InsertShape<Cedente, 'user_id' | 'cnpj' | 'razao_social'> & Record<string, unknown>; Update: UpdateShape<Cedente> & Record<string, unknown>; Relationships: [] }
       documento_tipos: { Row: DocumentoTipoRepositorio & Record<string, unknown>; Insert: InsertShape<DocumentoTipoRepositorio, 'codigo' | 'nome' | 'dominio'> & Record<string, unknown>; Update: UpdateShape<DocumentoTipoRepositorio> & Record<string, unknown>; Relationships: [] }
       documentos_repositorio: { Row: DocumentoRepositorio & Record<string, unknown>; Insert: InsertShape<DocumentoRepositorio, 'documento_tipo_id' | 'criado_por'> & Record<string, unknown>; Update: UpdateShape<DocumentoRepositorio> & Record<string, unknown>; Relationships: [] }

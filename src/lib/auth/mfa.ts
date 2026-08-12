@@ -127,7 +127,7 @@ export function validarFormatoCodigoTotp(code: string) {
 
 export function usuarioExigeMfaPorPerfil(role: UserRole, override?: boolean | null) {
   if (override === true) return true
-  return ['gestor', 'consultor', 'cedente', 'sacado'].includes(role)
+  return ['gestor', 'consultor', 'cedente', 'sacado', 'super_admin'].includes(role)
 }
 
 export function hashSeguranca(value: string) {

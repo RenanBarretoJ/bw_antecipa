@@ -4,7 +4,7 @@
  * Os valores devem permanecer alinhados ao schema base e às migrations aplicadas.
  */
 
-export const USER_ROLES = ['gestor', 'cedente', 'sacado', 'consultor'] as const
+export const USER_ROLES = ['gestor', 'cedente', 'sacado', 'consultor', 'super_admin'] as const
 export type UserRole = (typeof USER_ROLES)[number]
 
 export const USER_STATUSES = ['ativo', 'inativo', 'bloqueado'] as const
