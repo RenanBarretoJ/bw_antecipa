@@ -6,10 +6,11 @@ const source = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf
 const middleware = source('src/lib/supabase/middleware.ts')
 const layout = source('src/app/admin/layout.tsx')
 const page = source('src/app/admin/page.tsx')
+const fundLoaders = source('src/lib/admin/fundos.server.ts')
 const shell = source('src/components/admin/admin-shell.tsx')
 const sidebar = source('src/components/auth/sidebar.tsx')
 
-describe('area administrativa SA0', () => {
+describe('area administrativa SA0 e SA1', () => {
   it('envia anonimo para login e reconhece /admin no proxy', () => {
     expect(middleware).toContain("if (!user && !isPublicRoute)")
     expect(middleware).toContain("url.pathname = '/login'")
@@ -18,7 +19,8 @@ describe('area administrativa SA0', () => {
 
   it('mantem guard server-side como barreira final', () => {
     expect(layout).toContain('await requireSuperAdmin()')
-    expect(page).toContain('await requireSuperAdmin()')
+    expect(page).toContain('await carregarResumoAdminFundos()')
+    expect(fundLoaders).toContain('await requireSuperAdmin()')
   })
 
   it('nao resolve fundo nem usuario_fundos na arvore administrativa', () => {
@@ -29,11 +31,12 @@ describe('area administrativa SA0', () => {
     expect(adminSources).not.toContain('FundoAtivoProvider')
   })
 
-  it('renderiza somente a visao geral na sidebar administrativa', () => {
+  it('renderiza somente visao geral e fundos na sidebar administrativa', () => {
     const adminMenu = sidebar.slice(sidebar.indexOf('export const adminMenuItems'))
     expect(adminMenu).toContain("href: '/admin'")
-    expect(adminMenu).not.toMatch(/Fundos|Usuarios|Integracoes|Auditoria global|Sistema/)
-    expect((adminMenu.match(/href:/g) || [])).toHaveLength(1)
+    expect(adminMenu).toContain("href: '/admin/fundos'")
+    expect(adminMenu).not.toMatch(/Usuarios|Integracoes|Auditoria global|Sistema/)
+    expect((adminMenu.match(/href:/g) || [])).toHaveLength(2)
   })
 
   it('mantem componentes de icone dentro da fronteira client', () => {

@@ -277,6 +277,8 @@ export interface Fundo {
   contato_email: string | null
   ativo: boolean | null
   created_at: string | null
+  created_by?: string | null
+  updated_at?: string
 }
 
 export interface CedenteFundo {
@@ -1462,6 +1464,42 @@ export interface Database {
     }
     Views: Record<string, never>
     Functions: {
+      admin_resumo_fundos: { Args: Record<string, never>; Returns: Record<string, unknown> }
+      admin_listar_fundos: { Args: { p_busca?: string | null; p_status?: string; p_pagina?: number; p_por_pagina?: number }; Returns: Record<string, unknown> }
+      admin_obter_fundo: { Args: { p_fundo_id: string }; Returns: Record<string, unknown> | null }
+      admin_listar_auditoria_fundo: { Args: { p_fundo_id: string }; Returns: Array<Record<string, unknown>> }
+      admin_criar_fundo: { Args: {
+        p_nome: string
+        p_cnpj: string
+        p_administradora_nome: string
+        p_administradora_cnpj: string
+        p_gestora_nome: string
+        p_gestora_cnpj: string
+        p_custodiante_nome?: string | null
+        p_custodiante_cnpj?: string | null
+        p_administradora_endereco?: string | null
+        p_administradora_ato_declaratorio?: string | null
+        p_contato_nome?: string | null
+        p_contato_email?: string | null
+      }; Returns: Record<string, unknown> }
+      admin_atualizar_fundo: { Args: {
+        p_fundo_id: string
+        p_updated_at_esperado: string
+        p_nome: string
+        p_cnpj: string
+        p_administradora_nome: string
+        p_administradora_cnpj: string
+        p_gestora_nome: string
+        p_gestora_cnpj: string
+        p_custodiante_nome?: string | null
+        p_custodiante_cnpj?: string | null
+        p_administradora_endereco?: string | null
+        p_administradora_ato_declaratorio?: string | null
+        p_contato_nome?: string | null
+        p_contato_email?: string | null
+      }; Returns: Record<string, unknown> }
+      admin_ativar_fundo: { Args: { p_fundo_id: string; p_updated_at_esperado: string }; Returns: Record<string, unknown> }
+      admin_desativar_fundo: { Args: { p_fundo_id: string; p_updated_at_esperado: string }; Returns: Record<string, unknown> }
       publicar_configuracao_comunicacoes: { Args: { p_versao_id: string }; Returns: ComunicacaoConfiguracaoVersao }
       criar_rascunho_configuracao_comunicacoes: { Args: { p_fundo_id: string; p_base_versao_id: string | null; p_templates_padrao: Array<Record<string, unknown>> }; Returns: string }
       iniciar_execucao_comunicacoes: { Args: { p_data_referencia: string }; Returns: string | null }

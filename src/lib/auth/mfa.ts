@@ -22,6 +22,10 @@ export const ACAO_SENSIVEL_TIPOS = [
   'rotacionar_credencial_integracao',
   'ativar_credencial_integracao',
   'revogar_credencial_integracao',
+  'criar_fundo',
+  'atualizar_fundo_estrutural',
+  'ativar_fundo',
+  'desativar_fundo',
 ] as const
 
 export type AcaoSensivelTipo = typeof ACAO_SENSIVEL_TIPOS[number]

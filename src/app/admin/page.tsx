@@ -1,29 +1,32 @@
-import { Building2, KeyRound, ShieldCheck } from 'lucide-react'
+import Link from 'next/link'
+import { Building2, CircleOff, ShieldCheck } from 'lucide-react'
 import { MetricCard } from '@/components/data-display/primitives'
 import { PageContainer } from '@/components/layout/page-container'
 import { PageHeader } from '@/components/layout/page-header'
-import { requireSuperAdmin } from '@/lib/auth/admin-authorization'
+import { carregarResumoAdminFundos } from '@/lib/admin/fundos.server'
+
+const linkButton = 'inline-flex h-9 items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/80'
 
 export default async function AdminPage() {
-  await requireSuperAdmin()
+  const resumo = await carregarResumoAdminFundos()
 
   return (
     <PageContainer className="space-y-6">
       <PageHeader
         eyebrow="Administracao da plataforma"
-        title="BW Antecipa"
-        description="Fundacao administrativa ativa e isolada dos contextos operacionais por fundo."
+        title="Visao geral"
+        description="Administracao estrutural independente do contexto operacional de fundos."
+        action={<Link href="/admin/fundos/novo" className={linkButton}>Cadastrar fundo</Link>}
       />
-
       <div className="grid gap-4 md:grid-cols-3">
-        <MetricCard label="Fundacao administrativa" value="Ativa" description="Acesso validado por papel complementar" icon={ShieldCheck} tone="success" />
-        <MetricCard label="Seguranca" value="MFA obrigatorio" description="Sessao forte com validade operacional" icon={KeyRound} tone="primary" />
-        <MetricCard label="Contexto de fundo" value="Independente" description="Nenhum fundo e selecionado nesta area" icon={Building2} tone="info" />
+        <MetricCard label="Fundos cadastrados" value={resumo.total} description="Estruturas registradas na plataforma" icon={Building2} tone="primary" />
+        <MetricCard label="Fundos ativos" value={resumo.ativos} description="Disponiveis para contextos operacionais" icon={ShieldCheck} tone="success" />
+        <MetricCard label="Fundos inativos" value={resumo.inativos} description="Preservados e fora da operacao" icon={CircleOff} tone="warning" />
       </div>
-
       <section className="rounded-xl border border-border bg-card p-5 shadow-sm">
-        <h2 className="font-semibold">Escopo do SA0</h2>
-        <p className="mt-2 text-sm text-muted-foreground">Esta area confirma a fundacao do Super Admin. Cadastros globais, gestao de usuarios e operacoes administrativas adicionais pertencem aos proximos escopos.</p>
+        <h2 className="font-semibold">Administracao de fundos</h2>
+        <p className="mt-2 text-sm text-muted-foreground">Crie e mantenha a identidade estrutural dos fundos. Politicas, templates, CNAB e integracoes continuam no contexto operacional do gestor.</p>
+        <Link href="/admin/fundos" className="mt-4 inline-flex text-sm font-semibold text-primary hover:underline">Ver todos os fundos</Link>
       </section>
     </PageContainer>
   )

@@ -127,7 +127,7 @@ async function carregarConfiguracoes(fundoId?: string): Promise<ConfigAtiva[]> {
   const versionIds = versions.map((row) => row.id)
   const [{ data: roots, error: rootError }, { data: funds, error: fundError }, { data: templates, error: templateError }] = await Promise.all([
     admin.from('comunicacao_configuracoes').select('id, fundo_id, pausada').in('id', configIds),
-    admin.from('fundos').select('id, nome, gestora_nome').in('id', fundoIds),
+    admin.from('fundos').select('id, nome, gestora_nome').in('id', fundoIds).eq('ativo', true),
     admin.from('comunicacao_template_versoes').select('*').in('configuracao_versao_id', versionIds),
   ])
   if (rootError || fundError || templateError) throw new Error(`Falha ao resolver configuracao publicada: ${rootError?.message || fundError?.message || templateError?.message}`)
@@ -145,6 +145,7 @@ async function carregarConfiguracoes(fundoId?: string): Promise<ConfigAtiva[]> {
       templateMap.set(categoria, { id: template.id, template: resolved })
     }
     const fund = fundsMap.get(row.fundo_id)
+    if (!fund) return []
     return [{
       id: row.id,
       fundoId: row.fundo_id,

@@ -59,4 +59,5 @@ export const consultorMenuItems: SidebarItem[] = [
 
 export const adminMenuItems: SidebarItem[] = [
   { label: 'Visao geral', href: '/admin', icon: Shield },
+  { label: 'Fundos', href: '/admin/fundos', icon: Building2 },
 ]
