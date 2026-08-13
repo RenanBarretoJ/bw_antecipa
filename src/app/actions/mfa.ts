@@ -274,7 +274,13 @@ export async function regenerarCodigosRecuperacao(mfaCode: string): Promise<MfaA
     return result(error instanceof Error ? error.message : 'Não foi possível confirmar esta ação.')
   }
   const recoveryCodes = await substituirRecoveryCodes(context.user.id)
-  await registrarEventoSeguranca({ tipo_evento: 'MFA_RECOVERY_REGENERADO', usuario_id: context.user.id, ator_usuario_id: context.user.id, severidade: 'warning' })
+  await registrarEventoSeguranca({
+    tipo_evento: 'MFA_RECOVERY_REGENERADO',
+    usuario_id: context.user.id,
+    ator_usuario_id: context.user.id,
+    severidade: 'warning',
+    dados: { origem: 'minha_seguranca' },
+  })
   return result('Novos codigos gerados. Eles serao exibidos somente agora.', true, { recoveryCodes })
 }
 
@@ -484,11 +490,21 @@ export async function encerrarOutrasSessoes(mfaCode: string): Promise<MfaActionS
     await createAdminClient().from('sessoes_elevadas').update({ revogada_em: now, motivo_revogacao: 'encerrar_outras_sessoes', updated_at: now } as never).eq('user_id', context.user.id).neq('session_id', authorization.sessionId).is('revogada_em', null)
   }
   await createAdminClient().from('profiles').update({ sessoes_revogadas_em: new Date().toISOString() } as never).eq('id', context.user.id)
-  await registrarEventoSeguranca({ tipo_evento: 'SESSOES_REVOGADAS', usuario_id: context.user.id, ator_usuario_id: context.user.id, severidade: 'warning' })
+  await registrarEventoSeguranca({
+    tipo_evento: 'SESSOES_REVOGADAS',
+    usuario_id: context.user.id,
+    ator_usuario_id: context.user.id,
+    severidade: 'warning',
+    dados: { origem: 'minha_seguranca' },
+  })
   return result('Outras sessoes encerradas.', true)
 }
 
-export async function listarFatoresMfa(): Promise<MfaActionState<{ fatores: Array<{ id: string; friendlyName: string; status: string }>; estado: Awaited<ReturnType<typeof obterEstadoMfaUsuario>> }>> {
+export async function listarFatoresMfa(): Promise<MfaActionState<{
+  fatores: Array<{ id: string; friendlyName: string; status: string }>
+  estado: Awaited<ReturnType<typeof obterEstadoMfaUsuario>>
+  conta: { status: string; mfaConfiguradoEm: string | null; senhaAlteradaEm: string | null }
+}>> {
   // O desafio TOTP começa em AAL1 e precisa conhecer o fator antes de elevar a
   // sessão. Esta exceção permite somente a leitura dos fatores do próprio
   // usuário; ações operacionais e sensíveis continuam no gate MFA padrão.
@@ -497,7 +513,15 @@ export async function listarFatoresMfa(): Promise<MfaActionState<{ fatores: Arra
   if (error) return result('Nao foi possivel listar fatores MFA.')
   const estado = await obterEstadoMfaUsuario(context.supabase)
   const fatores = (data?.totp || []).map(parseFactor).filter((factor) => factor.id && factor.status === 'verified')
-  return result('Fatores carregados.', true, { fatores, estado })
+  return result('Fatores carregados.', true, {
+    fatores,
+    estado,
+    conta: {
+      status: context.profile.status,
+      mfaConfiguradoEm: context.profile.mfa_ativado_em,
+      senhaAlteradaEm: context.profile.senha_alterada_em,
+    },
+  })
 }
 
 function normalizarNextAposMfa(next?: string | FormData | null) {

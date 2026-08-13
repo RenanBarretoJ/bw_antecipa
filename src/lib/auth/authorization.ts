@@ -23,7 +23,7 @@ export class AuthorizationError extends Error {
 export interface AuthContext {
   supabase: AppSupabaseClient
   user: User
-  profile: Pick<Profile, 'id' | 'role' | 'status' | 'nome_completo' | 'email' | 'mfa_obrigatorio_override' | 'mfa_ativado_em' | 'ultima_autenticacao_forte_em'>
+  profile: Pick<Profile, 'id' | 'role' | 'status' | 'nome_completo' | 'email' | 'mfa_obrigatorio_override' | 'mfa_ativado_em' | 'ultima_autenticacao_forte_em' | 'senha_alterada_em'>
 }
 
 type RequireAuthenticatedOptions = {
@@ -69,7 +69,7 @@ export async function requireAuthenticated(client?: AppSupabaseClient, options: 
 
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
-    .select('id, role, status, nome_completo, email, mfa_obrigatorio_override, mfa_ativado_em, ultima_autenticacao_forte_em')
+    .select('id, role, status, nome_completo, email, mfa_obrigatorio_override, mfa_ativado_em, ultima_autenticacao_forte_em, senha_alterada_em')
     .eq('id', data.user.id)
     .maybeSingle()
 
@@ -96,7 +96,7 @@ export async function requireAuthenticated(client?: AppSupabaseClient, options: 
   return {
     supabase,
     user: data.user,
-    profile: profile as Pick<Profile, 'id' | 'role' | 'status' | 'nome_completo' | 'email' | 'mfa_obrigatorio_override' | 'mfa_ativado_em' | 'ultima_autenticacao_forte_em'>,
+    profile: profile as Pick<Profile, 'id' | 'role' | 'status' | 'nome_completo' | 'email' | 'mfa_obrigatorio_override' | 'mfa_ativado_em' | 'ultima_autenticacao_forte_em' | 'senha_alterada_em'>,
   }
 }
 

@@ -64,7 +64,7 @@ describe('MFA session architecture', () => {
   })
 
   it('allows factor discovery before TOTP without relaxing the post-challenge gate', () => {
-    const listarFatores = mfaActions.match(/export async function listarFatoresMfa[\s\S]*?\n}\n\nfunction normalizarNextAposMfa/)?.[0] || ''
+    const listarFatores = mfaActions.match(/export async function listarFatoresMfa[\s\S]*?\r?\n}\r?\n\r?\nfunction normalizarNextAposMfa/)?.[0] || ''
     const redirecionar = mfaActions.match(/export async function redirecionarAposMfa[\s\S]*$/)?.[0] || ''
 
     expect(listarFatores).toContain('allowMfaPending: true')

@@ -59,4 +59,5 @@ export const adminMenuItems: SidebarItem[] = [
   { label: 'Visao geral', href: '/admin', icon: Shield },
   { label: 'Fundos', href: '/admin/fundos', icon: Building2 },
   { label: 'Usuarios & Acessos', href: '/admin/usuarios', icon: UserCog },
+  { label: 'Minha Seguranca', href: '/admin/minha-seguranca', icon: ShieldCheck },
 ]

@@ -1,5 +1,5 @@
-import { SecurityPage } from '@/components/auth/security-page'
+import { redirect } from 'next/navigation'
 
 export default function AdminSegurancaPage() {
-  return <SecurityPage />
+  redirect('/admin/minha-seguranca')
 }

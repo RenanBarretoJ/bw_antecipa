@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { encerrarOutrasSessoes, listarFatoresMfa, regenerarCodigosRecuperacao, type MfaActionState } from '@/app/actions/mfa'
 import { alterarSenhaAutenticado, solicitarNonceAlteracaoSenha, type PasswordActionState } from '@/app/actions/password'
 import { avaliarForcaSenha } from '@/lib/auth/password'
+import { formatarDataSeguranca, formatarTempoRestanteSessaoMfa } from '@/lib/auth/security-display'
 import { useNotifications } from '@/components/notifications/notification-provider'
 import { useRouter } from 'next/navigation'
 
@@ -61,6 +62,11 @@ export function SecurityPage() {
   const fatores = data?.fatores || []
   const mfaAtivo = !!estado?.possuiFatorVerificado
   const mfaObrigatorio = !!estado?.exigeMfa
+  const sessaoForteValida = estado?.aalAtual === 'aal2' && !!estado?.sessaoElevadaValida
+  const tempoRestante = estado
+    ? formatarTempoRestanteSessaoMfa(estado.serverNow, estado.sessaoExpiraEm)
+    : 'Nao disponivel'
+  const contaAtiva = data?.conta.status === 'ativo'
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-6 px-4 pb-10 sm:px-6 lg:px-8">
@@ -75,10 +81,10 @@ export function SecurityPage() {
       ) : (
         <>
           <section className="grid gap-4 md:grid-cols-4">
-            <MetricCard icon={ShieldCheck} label="MFA obrigatorio" value={estado?.exigeMfa ? 'Sim' : 'Nao'} />
-            <MetricCard icon={Smartphone} label="MFA configurado" value={mfaAtivo ? 'Sim' : 'Nao'} />
-            <MetricCard icon={KeyRound} label="Sessao elevada" value={estado?.aalAtual === 'aal2' && estado.sessaoElevadaValida ? 'AAL2 valida' : 'Requer codigo'} />
-            <MetricCard icon={RefreshCcw} label="Recovery codes" value={`${estado?.recoveryCodesRestantes || 0} restantes`} />
+            <MetricCard icon={ShieldCheck} label="Conta" value={contaAtiva ? 'Ativa' : 'Inativa'} />
+            <MetricCard icon={Smartphone} label="MFA" value={mfaAtivo ? 'Configurado' : 'Nao configurado'} />
+            <MetricCard icon={KeyRound} label="Sessao operacional" value={sessaoForteValida ? 'Valida' : 'Requer codigo'} />
+            <MetricCard icon={RefreshCcw} label="Expira em" value={sessaoForteValida ? tempoRestante : 'Nao disponivel'} />
           </section>
 
           <section className="rounded-2xl border border-border bg-card">
@@ -102,6 +108,13 @@ export function SecurityPage() {
                 </div>
               ))}
               {mfaObrigatorio && <p className="text-xs text-muted-foreground">MFA e obrigatorio para todos os perfis. A desativacao nao fica disponivel para o proprio usuario; reset deve ser tratado por fluxo administrativo auditado.</p>}
+              {(data.conta.mfaConfiguradoEm || data.conta.senhaAlteradaEm) && (
+                <div className="grid gap-2 rounded-xl border border-border bg-background p-3 text-xs text-muted-foreground sm:grid-cols-2">
+                  {data.conta.mfaConfiguradoEm && <p>MFA configurado em {formatarDataSeguranca(data.conta.mfaConfiguradoEm)}.</p>}
+                  {data.conta.senhaAlteradaEm && <p>Ultima alteracao de senha em {formatarDataSeguranca(data.conta.senhaAlteradaEm)}.</p>}
+                </div>
+              )}
+              {estado?.sessaoElevadaEm && <p className="text-xs text-muted-foreground">Sessao forte confirmada em {formatarDataSeguranca(estado.sessaoElevadaEm)}. A janela fixa nao e renovada ao visitar ou atualizar esta pagina.</p>}
               {!estado?.sessaoElevadaValida && <p className="text-xs text-muted-foreground">Para regenerar codigos, validar sessoes ou encerrar outras sessoes, valide sua sessao em <Link href="/mfa/desafio" className="text-primary underline">MFA</Link>.</p>}
             </div>
           </section>

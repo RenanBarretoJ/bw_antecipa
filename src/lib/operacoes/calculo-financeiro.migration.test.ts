@@ -61,7 +61,7 @@ describe('contrato de persistencia do calculo financeiro', () => {
 
   it('recalcula na RPC com data de Sao Paulo e sem valor liquido do cliente', () => {
     const chamadaAprovacao = action.match(/supabase\.rpc\('aprovar_operacao_atomica',[\s\S]*?\}\s+as never\)/)?.[0]
-    expect(migration).toContain('public.aprovar_operacao_atomica(\n  p_operacao_id uuid,\n  p_taxa_desconto numeric')
+    expect(migration).toMatch(/public\.aprovar_operacao_atomica\(\r?\n\s+p_operacao_id uuid,\r?\n\s+p_taxa_desconto numeric/)
     expect(migration).toContain("timezone('america/sao_paulo'")
     expect(migration).toContain('private.calcular_memoria_financeira_nf')
     expect(migration).toContain('for update of o')

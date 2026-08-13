@@ -32,13 +32,14 @@ describe('area administrativa SA0, SA1 e SA2', () => {
     expect(adminSources).not.toContain('FundoAtivoProvider')
   })
 
-  it('renderiza somente visao geral, fundos e usuarios na sidebar administrativa', () => {
+  it('renderiza somente as quatro entradas administrativas previstas ate o SA4', () => {
     const adminMenu = sidebar.slice(sidebar.indexOf('export const adminMenuItems'))
     expect(adminMenu).toContain("href: '/admin'")
     expect(adminMenu).toContain("href: '/admin/fundos'")
     expect(adminMenu).toContain("href: '/admin/usuarios'")
+    expect(adminMenu).toContain("href: '/admin/minha-seguranca'")
     expect(adminMenu).not.toMatch(/Integracoes|Auditoria global|Sistema/)
-    expect((adminMenu.match(/href:/g) || [])).toHaveLength(3)
+    expect((adminMenu.match(/href:/g) || [])).toHaveLength(4)
   })
 
   it('mantem componentes de icone dentro da fronteira client', () => {

@@ -12,7 +12,7 @@ const platformAccess = readFileSync('src/lib/auth/platform-access.ts', 'utf8')
 const mfaActions = readFileSync('src/app/actions/mfa.ts', 'utf8')
 
 describe('arquitetura SA2 de usuarios e acessos', () => {
-  it('mantem menu administrativo com as tres entradas previstas', () => {
+  it('preserva as entradas SA2 no menu administrativo ampliado pelo SA4', () => {
     const adminMenu = menu.slice(menu.indexOf('export const adminMenuItems'))
     expect(adminMenu).toContain("href: '/admin'")
     expect(adminMenu).toContain("href: '/admin/fundos'")

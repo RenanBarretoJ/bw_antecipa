@@ -398,7 +398,12 @@ export async function alterarSenhaAutenticado(_prevState: PasswordActionState | 
     createAdminClient().from('sessoes_elevadas').update({ revogada_em: now, motivo_revogacao: 'alteracao_senha', updated_at: now } as never).eq('user_id', context.user.id).is('revogada_em', null),
     createAdminClient().from('autorizacoes_acoes_sensiveis').update({ revogada_em: now } as never).eq('user_id', context.user.id).is('revogada_em', null),
   ])
-  await registrarEventoSenha({ tipo: 'PASSWORD_CHANGED', userId: context.user.id, audit, dados: { sessoes_antigas_revogadas: true } })
+  await registrarEventoSenha({
+    tipo: 'PASSWORD_CHANGED',
+    userId: context.user.id,
+    audit,
+    dados: { sessoes_antigas_revogadas: true, origem: 'minha_seguranca' },
+  })
   await notificarSenhaAlterada({
     userId: context.user.id,
     email: context.profile.email,
