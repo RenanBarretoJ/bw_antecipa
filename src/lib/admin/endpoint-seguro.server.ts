@@ -21,7 +21,7 @@ function ipv6Privado(address: string) {
 
 export function enderecoRedePrivada(address: string) {
   const family = isIP(address)
-  return family === 4 ? ipv4Privado(address) : family === 6 ? ipv6Privado(address) : true
+  return family === 4 ? ipv4Privado(address) : family === 6 ? ipv6Privado(address) : false
 }
 
 export async function validarEndpointTecnicoSeguro(raw: string) {

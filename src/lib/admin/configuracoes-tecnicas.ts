@@ -46,7 +46,7 @@ export type AdminCredencialIntegracao = {
   integracao_fundo_id: string
   ambiente: 'homologacao' | 'producao'
   nome: string
-  status: string
+  status: AdminCredencialStatus
   chave_versao: string
   criada_em: string
   ativada_em: string | null
@@ -56,6 +56,15 @@ export type AdminCredencialIntegracao = {
   usuario_mascarado: string | null
   created_at: string
   updated_at: string
+}
+
+export type AdminCredencialStatus = 'rascunho' | 'ativa' | 'substituida' | 'revogada'
+export type AdminCredencialAcao = 'ativar' | 'rotacionar' | 'revogar'
+
+export function obterAcoesCredencial(status: AdminCredencialStatus): AdminCredencialAcao[] {
+  if (status === 'rascunho') return ['ativar']
+  if (status === 'ativa') return ['rotacionar', 'revogar']
+  return []
 }
 
 export type AdminCnabVersao = {
@@ -127,6 +136,23 @@ const mfaCode = z.string().regex(/^\d{6}$/, 'Informe o codigo TOTP de 6 digitos.
 const ambiente = z.enum(['homologacao', 'producao'])
 const jsonObject = z.record(z.string(), z.unknown())
 
+const endpointRascunho = z.string().trim().max(1000).default('').superRefine((value, context) => {
+  if (!value) return
+  try {
+    const url = new URL(value)
+    if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) {
+      context.addIssue({ code: 'custom', message: 'Informe uma URL HTTP ou HTTPS valida, sem credenciais.' })
+    }
+  } catch {
+    context.addIssue({ code: 'custom', message: 'A URL do endpoint nao e valida.' })
+  }
+})
+
+const credencialOpcional = z.preprocess(
+  (value) => value === '' || value === null || value === undefined ? null : value,
+  uuid.nullable(),
+)
+
 export const adminCredencialSchema = z.object({
   fundoId: uuid,
   ambiente,
@@ -141,12 +167,11 @@ export const adminIntegracaoRascunhoSchema = z.object({
   fundoId: uuid,
   versaoId: uuid.nullable().optional(),
   ambiente,
-  endpointBase: z.url().max(1000),
-  identificadorCliente: z.string().trim().min(1).max(200),
-  credencialIntegracaoId: uuid,
+  endpointBase: endpointRascunho,
+  identificadorCliente: z.string().trim().max(200).default(''),
+  credencialIntegracaoId: credencialOpcional,
   configuracaoNaoSensivel: jsonObject.default({}),
   updatedAtEsperado: z.iso.datetime().nullable().optional(),
-  mfaCode,
 })
 
 export const adminCnabRascunhoSchema = z.object({
@@ -173,8 +198,32 @@ export const adminCnabRascunhoSchema = z.object({
   tipoRecebivel: z.string().trim().min(1).max(30),
   configuracao: jsonObject.default({}),
   updatedAtEsperado: z.iso.datetime().nullable().optional(),
-  mfaCode,
 })
+
+export type IntegracaoPublicavel = Pick<
+  AdminIntegracaoVersao,
+  'ambiente' | 'endpoint_base' | 'identificador_cliente' | 'codigo_originador' | 'credencial_integracao_id'
+>
+
+export function obterPendenciaPublicacaoIntegracao(
+  versao: IntegracaoPublicavel,
+  credenciais: AdminCredencialIntegracao[],
+): string | null {
+  if (!versao.endpoint_base.trim()) return 'Informe o endpoint HTTPS antes de publicar.'
+  try {
+    if (new URL(versao.endpoint_base).protocol !== 'https:') return 'Informe o endpoint HTTPS antes de publicar.'
+  } catch {
+    return 'Informe um endpoint HTTPS valido antes de publicar.'
+  }
+  if (!versao.identificador_cliente.trim()) return 'Informe o identificador do cliente antes de publicar.'
+  if (!versao.credencial_integracao_id) return 'Selecione uma credencial ativa antes de publicar.'
+  const credencial = credenciais.find((item) => item.id === versao.credencial_integracao_id)
+  if (!credencial || credencial.status !== 'ativa' || credencial.ambiente !== versao.ambiente) {
+    return 'Selecione uma credencial ativa compativel com o ambiente antes de publicar.'
+  }
+  if (!versao.codigo_originador?.trim()) return 'Publique a configuracao CNAB antes de publicar a integracao.'
+  return null
+}
 
 export const adminTechnicalConfirmationSchema = z.object({
   fundoId: uuid,

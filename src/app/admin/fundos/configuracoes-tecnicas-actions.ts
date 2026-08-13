@@ -11,6 +11,8 @@ import {
   adminIntegracaoRascunhoSchema,
   adminTechnicalConfirmationSchema,
   mascararIdentificador,
+  obterPendenciaPublicacaoIntegracao,
+  type AdminConfiguracoesTecnicasFundo,
   type AdminTechnicalActionResult,
 } from '@/lib/admin/configuracoes-tecnicas'
 import { validarEndpointTecnicoSeguro } from '@/lib/admin/endpoint-seguro.server'
@@ -49,13 +51,22 @@ function respostaErro(message: string, correlationId?: string): AdminTechnicalAc
 function mapearErro(error: unknown, correlationId: string): AdminTechnicalActionResult {
   if (error instanceof AuthorizationError) return respostaErro(error.message, correlationId)
   const value = error as RpcError
+  const message = error instanceof Error ? error.message : value?.message
+  if (message?.startsWith('O endpoint tecnico') || message?.startsWith('O dominio do endpoint')) {
+    return respostaErro(message, correlationId)
+  }
   if (value?.code === '42501') return respostaErro('Acesso restrito ao Super Admin.', correlationId)
   if (value?.code === 'P0002') return respostaErro('Configuracao tecnica nao encontrada neste fundo.', correlationId)
   if (value?.code === '40001') return respostaErro('A configuracao foi alterada em outra sessao. Recarregue e tente novamente.', correlationId)
   if (value?.code === '23505') return respostaErro('Ja existe uma configuracao ativa equivalente.', correlationId)
   if (value?.code === '23514' || value?.code === '22023') return respostaErro(value.message || 'A configuracao informada e invalida.', correlationId)
-  console.error('[admin/sa3]', { correlationId, code: value?.code || 'unexpected' })
+  console.error('[admin/sa3]', { correlationId, code: value?.code || 'unexpected', message: message || 'sem mensagem' })
   return respostaErro('Nao foi possivel concluir a configuracao tecnica.', correlationId)
+}
+
+function mapearErroAtivacaoCredencial(error: unknown, correlationId: string): AdminTechnicalActionResult {
+  const mapped = mapearErro(error, correlationId)
+  return respostaErro(`Nao foi possivel ativar a credencial: ${mapped.message}`, correlationId)
 }
 
 function sucesso(message: string, id: string): AdminTechnicalActionResult {
@@ -111,11 +122,11 @@ export async function ativarCredencialAdmin(input: unknown): Promise<AdminTechni
       p_credencial_id: parsed.data.id,
       p_correlation_id: correlationId,
     })
-    if (error) return mapearErro(error, correlationId)
+    if (error) return mapearErroAtivacaoCredencial(error, correlationId)
     atualizarTela(parsed.data.fundoId)
-    return sucesso('Credencial ativada.', parsed.data.id)
+    return sucesso('Credencial ativada com sucesso.', parsed.data.id)
   } catch (error) {
-    return mapearErro(error, correlationId)
+    return mapearErroAtivacaoCredencial(error, correlationId)
   }
 }
 
@@ -150,10 +161,9 @@ export async function salvarIntegracaoRascunhoAdmin(input: unknown): Promise<Adm
   const correlationId = randomUUID()
   try {
     const parsed = adminIntegracaoRascunhoSchema.safeParse(input)
-    if (!parsed.success) return respostaErro('Revise a configuracao da integracao.', correlationId)
+    if (!parsed.success) return respostaErro(parsed.error.issues[0]?.message || 'Revise a configuracao da integracao.', correlationId)
     const context = await requireSuperAdmin()
-    await autorizarEConsumirAcaoSensivel(context, 'criar_integracao_versao', parsed.data.mfaCode)
-    const endpoint = await validarEndpointTecnicoSeguro(parsed.data.endpointBase)
+    const endpoint = parsed.data.endpointBase ? new URL(parsed.data.endpointBase).toString() : ''
     const { data, error } = await context.supabase.rpc('admin_salvar_integracao_rascunho', {
       p_fundo_id: parsed.data.fundoId,
       p_versao_id: parsed.data.versaoId || null,
@@ -174,12 +184,36 @@ export async function salvarIntegracaoRascunhoAdmin(input: unknown): Promise<Adm
   }
 }
 
+async function validarIntegracaoParaPublicacao(
+  context: Awaited<ReturnType<typeof requireSuperAdmin>>,
+  fundoId: string,
+  versaoId: string,
+) {
+  const { data, error } = await context.supabase.rpc('admin_obter_configuracoes_tecnicas_fundo', {
+    p_fundo_id: fundoId,
+    p_execucoes_limite: 1,
+    p_execucoes_offset: 0,
+  })
+  if (error || !data) throw error || new Error('Configuracao da integracao nao encontrada.')
+  const state = data as AdminConfiguracoesTecnicasFundo
+  const versao = state.integracoes.flatMap((item) => item.versoes).find((item) => item.id === versaoId)
+  if (!versao) return 'Configuracao da integracao nao encontrada neste fundo.'
+  const pendencia = obterPendenciaPublicacaoIntegracao(versao, state.credenciais)
+  if (pendencia) return pendencia
+  await validarEndpointTecnicoSeguro(versao.endpoint_base)
+  return null
+}
+
 async function executarAcaoVersaoIntegracao(input: unknown, acao: 'publicar' | 'desativar') {
   const correlationId = randomUUID()
   try {
     const parsed = adminTechnicalConfirmationSchema.safeParse(input)
     if (!parsed.success) return respostaErro('Confirmacao invalida.', correlationId)
     const context = await requireSuperAdmin()
+    if (acao === 'publicar') {
+      const pendencia = await validarIntegracaoParaPublicacao(context, parsed.data.fundoId, parsed.data.id)
+      if (pendencia) return respostaErro(pendencia, correlationId)
+    }
     await autorizarEConsumirAcaoSensivel(context, acao === 'publicar' ? 'publicar_integracao' : 'desativar_integracao', parsed.data.mfaCode)
     const rpc = acao === 'publicar' ? 'admin_publicar_integracao_versao' : 'admin_desativar_integracao_versao'
     const { error } = await context.supabase.rpc(rpc, {
@@ -274,7 +308,6 @@ export async function salvarCnabRascunhoAdmin(input: unknown): Promise<AdminTech
     const parsed = adminCnabRascunhoSchema.safeParse(input)
     if (!parsed.success) return respostaErro('Revise os parametros CNAB.', correlationId)
     const context = await requireSuperAdmin()
-    await autorizarEConsumirAcaoSensivel(context, 'atualizar_codigo_originador', parsed.data.mfaCode)
     const conteudoHash = createHash('sha256').update(JSON.stringify({
       layout: parsed.data.layout,
       versaoLayout: parsed.data.versaoLayout,

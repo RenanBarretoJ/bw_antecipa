@@ -1550,7 +1550,7 @@ export interface Database {
           p_ambiente: string
           p_endpoint_base: string
           p_identificador_cliente: string
-          p_credencial_integracao_id: string
+          p_credencial_integracao_id: string | null
           p_configuracao_nao_sensivel?: Record<string, unknown>
           p_updated_at_esperado?: string | null
           p_correlation_id?: string | null

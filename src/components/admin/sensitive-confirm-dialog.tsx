@@ -13,6 +13,7 @@ export function SensitiveConfirmDialog({
   title,
   description,
   confirmLabel,
+  pendingLabel,
   destructive = false,
   pending,
   onConfirm,
@@ -23,6 +24,7 @@ export function SensitiveConfirmDialog({
   title: string
   description: string
   confirmLabel: string
+  pendingLabel?: string
   destructive?: boolean
   pending: boolean
   onConfirm: (mfaCode: string) => void
@@ -46,7 +48,7 @@ export function SensitiveConfirmDialog({
         {children}
         <DialogFooter>
           <Button variant="outline" onClick={() => close(false)} disabled={pending}>Cancelar</Button>
-          <Button variant={destructive ? 'destructive' : 'default'} onClick={() => onConfirm(mfaCode)} disabled={pending || mfaCode.length !== 6}>{pending && <Loader2 className="animate-spin" />}{confirmLabel}</Button>
+          <Button variant={destructive ? 'destructive' : 'default'} onClick={() => onConfirm(mfaCode)} disabled={pending || mfaCode.length !== 6}>{pending && <Loader2 className="animate-spin" />}{pending ? pendingLabel || confirmLabel : confirmLabel}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import type { AdminConfiguracoesTecnicasFundo } from '@/lib/admin/configuracoes-tecnicas'
+import { executarMutacaoTecnica } from '@/lib/admin/executar-mutacao-tecnica'
 
 export function FundoCnabTecnico({ state }: { state: AdminConfiguracoesTecnicasFundo }) {
   const router = useRouter()
@@ -28,11 +29,11 @@ export function FundoCnabTecnico({ state }: { state: AdminConfiguracoesTecnicasF
     startTransition(async () => {
       let extra: Record<string, unknown> = {}
       try { extra = JSON.parse(String(formData.get('configuracao') || '{}')) as Record<string, unknown> } catch { notifications.error('O JSON de parametros adicionais nao e valido.'); return }
-      const result = await salvarCnabRascunhoAdmin({
+      const result = await executarMutacaoTecnica(() => salvarCnabRascunhoAdmin({
         fundoId: state.fundo.id, configuracaoId: config?.id || null, versaoId: draft?.id || null,
         codigo: formData.get('codigo'), nome: formData.get('nome'), descricao: formData.get('descricao') || null,
-        layout: 'cnab444', versaoLayout: formData.get('versaoLayout'), codigoBanco: formData.get('codigoBanco'), banco: formData.get('banco'), agencia: formData.get('agencia'), conta: formData.get('conta'), digitoConta: formData.get('digitoConta'), carteira: formData.get('carteira'), convenio: formData.get('convenio'), codigoOriginador: formData.get('codigoOriginador'), codigoEmpresa: formData.get('codigoEmpresa'), tipoInscricao: formData.get('tipoInscricao'), numeroInscricao: formData.get('numeroInscricao'), especieTitulo: formData.get('especieTitulo'), tipoRecebivel: formData.get('tipoRecebivel'), configuracao: extra, updatedAtEsperado: draft?.updated_at || null, mfaCode: formData.get('mfaCode'),
-      })
+        layout: 'cnab444', versaoLayout: formData.get('versaoLayout'), codigoBanco: formData.get('codigoBanco'), banco: formData.get('banco'), agencia: formData.get('agencia'), conta: formData.get('conta'), digitoConta: formData.get('digitoConta'), carteira: formData.get('carteira'), convenio: formData.get('convenio'), codigoOriginador: formData.get('codigoOriginador'), codigoEmpresa: formData.get('codigoEmpresa'), tipoInscricao: formData.get('tipoInscricao'), numeroInscricao: formData.get('numeroInscricao'), especieTitulo: formData.get('especieTitulo'), tipoRecebivel: formData.get('tipoRecebivel'), configuracao: extra, updatedAtEsperado: draft?.updated_at || null,
+      }))
       notifications.fromActionResult(result)
       if (result.success) router.refresh()
     })
@@ -42,7 +43,7 @@ export function FundoCnabTecnico({ state }: { state: AdminConfiguracoesTecnicasF
     if (!confirm) return
     startTransition(async () => {
       const fn = confirm.action === 'publish' ? publicarCnabAdmin : desativarCnabAdmin
-      const result = await fn({ fundoId: state.fundo.id, id: confirm.id, mfaCode })
+      const result = await executarMutacaoTecnica(() => fn({ fundoId: state.fundo.id, id: confirm.id, mfaCode }))
       notifications.fromActionResult(result)
       if (result.success) { setConfirm(null); router.refresh() }
     })
@@ -62,9 +63,8 @@ export function FundoCnabTecnico({ state }: { state: AdminConfiguracoesTecnicasF
         <label className="space-y-1"><Label>Layout</Label><Input value="CNAB 444" disabled /></label>
         <label className="space-y-1 md:col-span-2 lg:col-span-3"><Label>Descricao</Label><Input name="descricao" defaultValue={config?.descricao || ''} /></label>
         {fields.map(([name, label, value, numeric]) => <label key={name} className="space-y-1"><Label>{label}</Label><Input name={name} required={name !== 'digitoConta'} defaultValue={value} inputMode={numeric ? 'numeric' : undefined} /></label>)}
-        <label className="space-y-1"><Label>Codigo TOTP</Label><Input name="mfaCode" required inputMode="numeric" pattern="[0-9]{6}" maxLength={6} /></label>
         <label className="space-y-1 md:col-span-2 lg:col-span-3"><Label>Parametros adicionais (JSON)</Label><textarea name="configuracao" defaultValue={JSON.stringify(base?.configuracao || {}, null, 2)} className="min-h-24 w-full rounded-lg border border-input bg-background p-3 font-mono text-xs" /></label>
-        <Button className="md:w-fit" disabled={pending}>{pending && <Loader2 className="animate-spin" />}Salvar rascunho</Button>
+        <Button type="submit" className="md:w-fit" disabled={pending}>{pending && <Loader2 className="animate-spin" />}Salvar rascunho</Button>
       </form>
     </CardContent></Card>
     <Card><CardHeader><CardTitle>Historico de versoes</CardTitle><CardDescription>Versoes publicadas permanecem imutaveis e remessas antigas conservam a referencia usada.</CardDescription></CardHeader><CardContent>{versions.length === 0 ? <EmptyState title="Nenhuma versao CNAB" description="Salve o primeiro rascunho para iniciar." icon={FileCode2} /> : <div className="divide-y divide-border">{versions.map((version) => <div key={version.id} className="flex flex-wrap items-center gap-3 py-3"><div className="min-w-0 flex-1"><p className="font-semibold">v{version.versao} · {version.layout} {version.versao_layout}</p><p className="text-xs text-muted-foreground">Originador {version.codigo_originador} · hash {version.conteudo_hash.slice(0, 12)}…</p></div><StatusBadge status={version.status === 'publicada' ? 'ativo' : version.status === 'rascunho' ? 'pendente' : 'desativada'} label={version.status} />{version.status === 'rascunho' && <Button size="sm" onClick={() => setConfirm({ action: 'publish', id: version.id })}>Publicar</Button>}{version.status === 'publicada' && <Button size="sm" variant="destructive" onClick={() => setConfirm({ action: 'disable', id: version.id })}>Desativar</Button>}</div>)}</div>}</CardContent></Card>
