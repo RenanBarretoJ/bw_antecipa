@@ -43,6 +43,46 @@ describe('SA3 - configuracoes tecnicas por fundo', () => {
     expect(actions).not.toMatch(/createAdminClient|service[_-]?role/i)
   })
 
+  it('preserva o receiver do cliente Supabase em todas as RPCs do SA3', () => {
+    const loader = source('src/lib/admin/configuracoes-tecnicas.server.ts')
+    const actions = source('src/app/admin/fundos/configuracoes-tecnicas-actions.ts')
+    const sa3Sources = `${loader}\n${actions}`
+
+    expect(loader).toContain("context.supabase.rpc('admin_obter_configuracoes_tecnicas_fundo'")
+    expect(actions.match(/context\.supabase\.rpc\(/g)).toHaveLength(10)
+    expect(sa3Sources).not.toMatch(/const\s+\w+\s*=\s*context\.supabase\.rpc/)
+    expect(sa3Sources).not.toMatch(/(?:supabase|client)\.rpc\s+as/)
+    expect(sa3Sources).not.toContain('callAdminRpc')
+    expect(sa3Sources).not.toContain('.rpc.bind(')
+  })
+
+  it('mantem as RPCs do SA3 no contrato tipado do banco', () => {
+    const database = source('src/types/database.ts')
+    const rpcNames = [
+      'admin_obter_configuracoes_tecnicas_fundo',
+      'admin_cadastrar_credencial_integracao',
+      'admin_ativar_credencial_integracao',
+      'admin_revogar_credencial_integracao',
+      'admin_salvar_integracao_rascunho',
+      'admin_publicar_integracao_versao',
+      'admin_desativar_integracao_versao',
+      'admin_salvar_cnab_rascunho',
+      'admin_publicar_cnab_versao',
+      'admin_desativar_cnab_versao',
+      'admin_preparar_teste_integracao',
+      'admin_finalizar_teste_integracao',
+    ]
+
+    for (const rpcName of rpcNames) expect(database).toContain(`${rpcName}:`)
+  })
+
+  it('carrega configuracoes tecnicas apenas nas abas Integracoes e CNAB', () => {
+    const page = source('src/app/admin/fundos/[id]/page.tsx')
+    expect(page).toContain("tab === 'integracoes' || tab === 'cnab'")
+    expect(page).toContain('<FundoIntegracoesTecnicas state={technical}')
+    expect(page).toContain('<FundoCnabTecnico state={technical}')
+  })
+
   it('respeita os status canonicos e bloqueia CNAB operacional de fundo inativo', () => {
     const migration = source('supabase/migrations/20260812190000_sa3_admin_configuracoes_tecnicas.sql')
     const cnabRuntime = source('src/lib/cnab/gerarCnab444.ts')

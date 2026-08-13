@@ -1517,6 +1517,109 @@ export interface Database {
       admin_reativar_usuario: { Args: { p_usuario_id: string; p_correlation_id: string }; Returns: Record<string, unknown> }
       admin_concluir_reset_mfa: { Args: { p_usuario_id: string; p_fatores_removidos: number; p_correlation_id: string }; Returns: Record<string, unknown> }
       admin_finalizar_convite_usuario: { Args: { p_usuario_id: string; p_tipo: string; p_nome: string; p_fundo_ids?: string[]; p_correlation_id: string }; Returns: Record<string, unknown> }
+      admin_obter_configuracoes_tecnicas_fundo: {
+        Args: { p_fundo_id: string; p_execucoes_limite?: number; p_execucoes_offset?: number }
+        Returns: Record<string, unknown>
+      }
+      admin_cadastrar_credencial_integracao: {
+        Args: {
+          p_fundo_id: string
+          p_ambiente: string
+          p_nome: string
+          p_usuario_criptografado: string
+          p_senha_criptografada: string
+          p_chave_versao: string
+          p_usuario_mascarado: string
+          p_credencial_anterior_id?: string | null
+          p_correlation_id?: string | null
+        }
+        Returns: Record<string, unknown>
+      }
+      admin_ativar_credencial_integracao: {
+        Args: { p_fundo_id: string; p_credencial_id: string; p_correlation_id?: string | null }
+        Returns: Record<string, unknown>
+      }
+      admin_revogar_credencial_integracao: {
+        Args: { p_fundo_id: string; p_credencial_id: string; p_motivo: string; p_correlation_id?: string | null }
+        Returns: Record<string, unknown>
+      }
+      admin_salvar_integracao_rascunho: {
+        Args: {
+          p_fundo_id: string
+          p_versao_id: string | null
+          p_ambiente: string
+          p_endpoint_base: string
+          p_identificador_cliente: string
+          p_credencial_integracao_id: string
+          p_configuracao_nao_sensivel?: Record<string, unknown>
+          p_updated_at_esperado?: string | null
+          p_correlation_id?: string | null
+        }
+        Returns: Record<string, unknown>
+      }
+      admin_publicar_integracao_versao: {
+        Args: { p_fundo_id: string; p_versao_id: string; p_correlation_id?: string | null }
+        Returns: Record<string, unknown>
+      }
+      admin_desativar_integracao_versao: {
+        Args: { p_fundo_id: string; p_versao_id: string; p_correlation_id?: string | null }
+        Returns: Record<string, unknown>
+      }
+      admin_salvar_cnab_rascunho: {
+        Args: {
+          p_fundo_id: string
+          p_configuracao_id: string | null
+          p_versao_id: string | null
+          p_codigo: string
+          p_nome: string
+          p_descricao: string | null
+          p_layout: string
+          p_versao_layout: string
+          p_codigo_banco: string
+          p_banco: string
+          p_agencia: string
+          p_conta: string
+          p_digito_conta: string
+          p_carteira: string
+          p_convenio: string
+          p_codigo_originador: string
+          p_codigo_empresa: string
+          p_tipo_inscricao: string
+          p_numero_inscricao: string
+          p_especie_titulo: string
+          p_tipo_recebivel: string
+          p_configuracao: Record<string, unknown>
+          p_conteudo_hash: string
+          p_updated_at_esperado?: string | null
+          p_correlation_id?: string | null
+        }
+        Returns: Record<string, unknown>
+      }
+      admin_publicar_cnab_versao: {
+        Args: { p_fundo_id: string; p_versao_id: string; p_correlation_id?: string | null }
+        Returns: Record<string, unknown>
+      }
+      admin_desativar_cnab_versao: {
+        Args: { p_fundo_id: string; p_versao_id: string; p_correlation_id?: string | null }
+        Returns: Record<string, unknown>
+      }
+      admin_preparar_teste_integracao: {
+        Args: { p_fundo_id: string; p_versao_id: string; p_correlation_id?: string | null }
+        Returns: Record<string, unknown>
+      }
+      admin_finalizar_teste_integracao: {
+        Args: {
+          p_fundo_id: string
+          p_execucao_id: string
+          p_status: string
+          p_codigo_resposta: string
+          p_mensagem_resumida: string
+          p_erro_categoria: string
+          p_duracao_ms: number
+          p_correlation_id?: string | null
+        }
+        Returns: Record<string, unknown>
+      }
       publicar_configuracao_comunicacoes: { Args: { p_versao_id: string }; Returns: ComunicacaoConfiguracaoVersao }
       criar_rascunho_configuracao_comunicacoes: { Args: { p_fundo_id: string; p_base_versao_id: string | null; p_templates_padrao: Array<Record<string, unknown>> }; Returns: string }
       iniciar_execucao_comunicacoes: { Args: { p_data_referencia: string }; Returns: string | null }

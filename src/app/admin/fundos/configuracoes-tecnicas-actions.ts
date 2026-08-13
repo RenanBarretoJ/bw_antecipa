@@ -20,10 +20,18 @@ import {
 } from '@/lib/portal-fidc/credenciais'
 
 type RpcError = { code?: string; message?: string }
-type RpcResult = Promise<{ data: unknown; error: RpcError | null }>
 
-function callAdminRpc(client: { rpc: unknown }, name: string, args: Record<string, unknown>): RpcResult {
-  return (client.rpc as (rpcName: string, rpcArgs: Record<string, unknown>) => RpcResult)(name, args)
+function rpcRecord(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error('Resposta administrativa invalida.')
+  }
+  return value as Record<string, unknown>
+}
+
+function rpcString(value: unknown, field: string): string {
+  const result = rpcRecord(value)[field]
+  if (typeof result !== 'string' || !result) throw new Error('Resposta administrativa incompleta.')
+  return result
 }
 
 function respostaErro(message: string, correlationId?: string): AdminTechnicalActionResult {
@@ -71,7 +79,7 @@ export async function cadastrarCredencialAdmin(input: unknown): Promise<AdminTec
     const senha = criptografarPortalFidcValor(parsed.data.senha)
     if (usuario.chaveVersao !== senha.chaveVersao) throw new Error('Versao criptografica inconsistente.')
 
-    const { data, error } = await callAdminRpc(context.supabase, 'admin_cadastrar_credencial_integracao', {
+    const { data, error } = await context.supabase.rpc('admin_cadastrar_credencial_integracao', {
       p_fundo_id: parsed.data.fundoId,
       p_ambiente: parsed.data.ambiente,
       p_nome: parsed.data.nome,
@@ -83,9 +91,9 @@ export async function cadastrarCredencialAdmin(input: unknown): Promise<AdminTec
       p_correlation_id: correlationId,
     })
     if (error) return mapearErro(error, correlationId)
-    const result = data as unknown as { id: string }
+    const resultId = rpcString(data, 'id')
     atualizarTela(parsed.data.fundoId)
-    return sucesso(parsed.data.credencialAnteriorId ? 'Nova credencial de rotacao cadastrada.' : 'Credencial cadastrada.', result.id)
+    return sucesso(parsed.data.credencialAnteriorId ? 'Nova credencial de rotacao cadastrada.' : 'Credencial cadastrada.', resultId)
   } catch (error) {
     return mapearErro(error, correlationId)
   }
@@ -98,7 +106,7 @@ export async function ativarCredencialAdmin(input: unknown): Promise<AdminTechni
     if (!parsed.success) return respostaErro('Confirmacao invalida.', correlationId)
     const context = await requireSuperAdmin()
     await autorizarEConsumirAcaoSensivel(context, 'ativar_credencial_integracao', parsed.data.mfaCode)
-    const { error } = await callAdminRpc(context.supabase, 'admin_ativar_credencial_integracao', {
+    const { error } = await context.supabase.rpc('admin_ativar_credencial_integracao', {
       p_fundo_id: parsed.data.fundoId,
       p_credencial_id: parsed.data.id,
       p_correlation_id: correlationId,
@@ -118,18 +126,18 @@ export async function revogarCredencialAdmin(input: unknown): Promise<AdminTechn
     if (!parsed.success || !parsed.data.motivo || parsed.data.motivo.length < 10) return respostaErro('Informe um motivo com pelo menos 10 caracteres.', correlationId)
     const context = await requireSuperAdmin()
     await autorizarEConsumirAcaoSensivel(context, 'revogar_credencial_integracao', parsed.data.mfaCode)
-    const { data, error } = await callAdminRpc(context.supabase, 'admin_revogar_credencial_integracao', {
+    const { data, error } = await context.supabase.rpc('admin_revogar_credencial_integracao', {
       p_fundo_id: parsed.data.fundoId,
       p_credencial_id: parsed.data.id,
       p_motivo: parsed.data.motivo,
       p_correlation_id: correlationId,
     })
     if (error) return mapearErro(error, correlationId)
-    const result = data as unknown as { impacta_versao_publicada?: boolean }
+    const impactaVersaoPublicada = rpcRecord(data).impacta_versao_publicada === true
     atualizarTela(parsed.data.fundoId)
     return {
       ...sucesso('Credencial revogada.', parsed.data.id),
-      notification: result.impacta_versao_publicada
+      notification: impactaVersaoPublicada
         ? { type: 'warning', message: 'Credencial revogada. A integracao publicada ficou indisponivel.' }
         : { type: 'success', message: 'Credencial revogada.' },
     }
@@ -146,7 +154,7 @@ export async function salvarIntegracaoRascunhoAdmin(input: unknown): Promise<Adm
     const context = await requireSuperAdmin()
     await autorizarEConsumirAcaoSensivel(context, 'criar_integracao_versao', parsed.data.mfaCode)
     const endpoint = await validarEndpointTecnicoSeguro(parsed.data.endpointBase)
-    const { data, error } = await callAdminRpc(context.supabase, 'admin_salvar_integracao_rascunho', {
+    const { data, error } = await context.supabase.rpc('admin_salvar_integracao_rascunho', {
       p_fundo_id: parsed.data.fundoId,
       p_versao_id: parsed.data.versaoId || null,
       p_ambiente: parsed.data.ambiente,
@@ -158,9 +166,9 @@ export async function salvarIntegracaoRascunhoAdmin(input: unknown): Promise<Adm
       p_correlation_id: correlationId,
     })
     if (error) return mapearErro(error, correlationId)
-    const result = data as unknown as { id: string }
+    const resultId = rpcString(data, 'id')
     atualizarTela(parsed.data.fundoId)
-    return sucesso('Rascunho da integracao salvo.', result.id)
+    return sucesso('Rascunho da integracao salvo.', resultId)
   } catch (error) {
     return mapearErro(error, correlationId)
   }
@@ -174,7 +182,7 @@ async function executarAcaoVersaoIntegracao(input: unknown, acao: 'publicar' | '
     const context = await requireSuperAdmin()
     await autorizarEConsumirAcaoSensivel(context, acao === 'publicar' ? 'publicar_integracao' : 'desativar_integracao', parsed.data.mfaCode)
     const rpc = acao === 'publicar' ? 'admin_publicar_integracao_versao' : 'admin_desativar_integracao_versao'
-    const { error } = await callAdminRpc(context.supabase, rpc, {
+    const { error } = await context.supabase.rpc(rpc, {
       p_fundo_id: parsed.data.fundoId,
       p_versao_id: parsed.data.id,
       p_correlation_id: correlationId,
@@ -205,18 +213,18 @@ export async function testarIntegracaoAdmin(input: unknown): Promise<AdminTechni
     if (!parsed.success) return respostaErro('Confirmacao invalida.', correlationId)
     context = await requireSuperAdmin()
     await autorizarEConsumirAcaoSensivel(context, 'testar_integracao', parsed.data.mfaCode)
-    const { data, error } = await callAdminRpc(context.supabase, 'admin_preparar_teste_integracao', {
+    const { data, error } = await context.supabase.rpc('admin_preparar_teste_integracao', {
       p_fundo_id: parsed.data.fundoId,
       p_versao_id: parsed.data.id,
       p_correlation_id: correlationId,
     })
     if (error || !data) return mapearErro(error || new Error('Teste nao preparado.'), correlationId)
-    const prepared = data as unknown as {
-      execucao_id: string
-      endpoint_base: string
-      usuario_criptografado: string
-      senha_criptografada: string
-      chave_versao: string
+    const prepared = {
+      execucao_id: rpcString(data, 'execucao_id'),
+      endpoint_base: rpcString(data, 'endpoint_base'),
+      usuario_criptografado: rpcString(data, 'usuario_criptografado'),
+      senha_criptografada: rpcString(data, 'senha_criptografada'),
+      chave_versao: rpcString(data, 'chave_versao'),
     }
     execucaoId = prepared.execucao_id
     const endpoint = await validarEndpointTecnicoSeguro(prepared.endpoint_base)
@@ -229,7 +237,7 @@ export async function testarIntegracaoAdmin(input: unknown): Promise<AdminTechni
       signal: AbortSignal.timeout(15_000),
     })
     const ok = response.status < 500 && response.status !== 401 && response.status !== 403
-    const { error: finishError } = await callAdminRpc(context.supabase, 'admin_finalizar_teste_integracao', {
+    const { error: finishError } = await context.supabase.rpc('admin_finalizar_teste_integracao', {
       p_fundo_id: parsed.data.fundoId,
       p_execucao_id: execucaoId,
       p_status: ok ? 'sucesso' : 'erro',
@@ -245,7 +253,7 @@ export async function testarIntegracaoAdmin(input: unknown): Promise<AdminTechni
   } catch (error) {
     if (context && execucaoId) {
       const timeout = error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')
-      await callAdminRpc(context.supabase, 'admin_finalizar_teste_integracao', {
+      await context.supabase.rpc('admin_finalizar_teste_integracao', {
         p_fundo_id: (input as { fundoId?: string })?.fundoId || '',
         p_execucao_id: execucaoId,
         p_status: timeout ? 'timeout' : 'erro',
@@ -285,7 +293,7 @@ export async function salvarCnabRascunhoAdmin(input: unknown): Promise<AdminTech
       tipoRecebivel: parsed.data.tipoRecebivel,
       configuracao: parsed.data.configuracao,
     })).digest('hex')
-    const { data, error } = await callAdminRpc(context.supabase, 'admin_salvar_cnab_rascunho', {
+    const { data, error } = await context.supabase.rpc('admin_salvar_cnab_rascunho', {
       p_fundo_id: parsed.data.fundoId,
       p_configuracao_id: parsed.data.configuracaoId || null,
       p_versao_id: parsed.data.versaoId || null,
@@ -313,9 +321,9 @@ export async function salvarCnabRascunhoAdmin(input: unknown): Promise<AdminTech
       p_correlation_id: correlationId,
     })
     if (error) return mapearErro(error, correlationId)
-    const result = data as unknown as { id: string }
+    const resultId = rpcString(data, 'id')
     atualizarTela(parsed.data.fundoId)
-    return sucesso('Rascunho CNAB salvo.', result.id)
+    return sucesso('Rascunho CNAB salvo.', resultId)
   } catch (error) {
     return mapearErro(error, correlationId)
   }
@@ -329,7 +337,7 @@ async function executarAcaoVersaoCnab(input: unknown, acao: 'publicar' | 'desati
     const context = await requireSuperAdmin()
     await autorizarEConsumirAcaoSensivel(context, 'atualizar_cnab', parsed.data.mfaCode)
     const rpc = acao === 'publicar' ? 'admin_publicar_cnab_versao' : 'admin_desativar_cnab_versao'
-    const { error } = await callAdminRpc(context.supabase, rpc, {
+    const { error } = await context.supabase.rpc(rpc, {
       p_fundo_id: parsed.data.fundoId,
       p_versao_id: parsed.data.id,
       p_correlation_id: correlationId,
