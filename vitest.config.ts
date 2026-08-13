@@ -9,6 +9,11 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
-    include: ['src/**/*.test.ts', 'scripts/perf9d/**/*.test.mjs', 'scripts/perf9e/**/*.test.mjs'],
+    include: [
+      'src/**/*.test.ts',
+      'scripts/perf9d/**/*.test.mjs',
+      'scripts/perf9e/**/*.test.mjs',
+      'scripts/homologacao/rlx-golden/**/*.test.mjs',
+    ],
   },
 })

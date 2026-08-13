@@ -1,0 +1,5 @@
+{
+  "first": "D-1/estoque.csv",
+  "duplicate": "duplicados/estoque-D-1-copia.csv",
+  "expected": "DUPLICATE_HASH"
+}

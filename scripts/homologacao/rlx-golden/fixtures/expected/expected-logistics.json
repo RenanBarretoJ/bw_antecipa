@@ -1,0 +1,631 @@
+{
+  "schema": "rlx_expected_logistics_v1",
+  "datasetVersion": "RLX_GOLDEN_V1",
+  "derivation": {
+    "ENTREGUE": "comprovante_entrega aprovado",
+    "EM_TRANSITO": "cte_xml aprovado e sem comprovante_entrega aprovado",
+    "INDETERMINADA": "evidencia insuficiente, pendente ou rejeitada"
+  },
+  "counts": {
+    "ENTREGUE": 49,
+    "EM_TRANSITO": 49,
+    "INDETERMINADA": 25
+  },
+  "cases": [
+    {
+      "noteId": "5d5bbc72-e332-eeac-565d-6b455b407982",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "ENTREGUE"
+    },
+    {
+      "noteId": "8b61e0a5-9aed-9654-6603-3b58849beed2",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "ENTREGUE"
+    },
+    {
+      "noteId": "9bed122b-fe0f-275e-a3dc-03ff1bf9c655",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "ENTREGUE"
+    },
+    {
+      "noteId": "3a8e9366-d622-54b3-2ff9-6fdebad840df",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "ENTREGUE"
+    },
+    {
+      "noteId": "75641a81-2adf-c28b-4fad-8b3b5727b77f",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "ENTREGUE"
+    },
+    {
+      "noteId": "2b9764ac-af3a-c72e-c827-862699123c31",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "ENTREGUE"
+    },
+    {
+      "noteId": "46aa3b79-044f-7e15-54ed-cbd279cc154d",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "ENTREGUE"
+    },
+    {
+      "noteId": "a37e8079-2b16-5087-ff45-ce0bb890d478",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "ENTREGUE"
+    },
+    {
+      "noteId": "e5c04486-8dfc-4d73-b33c-0d93a1ccd5a5",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "ENTREGUE"
+    },
+    {
+      "noteId": "3f9f8ec9-cc42-0306-8376-056246398ea0",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "ENTREGUE"
+    },
+    {
+      "noteId": "09256c22-fec0-1f23-3bc6-70e09a62feba",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "ENTREGUE"
+    },
+    {
+      "noteId": "916d2f56-9be1-f025-0336-0a4e98799f42",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "ENTREGUE"
+    },
+    {
+      "noteId": "f02daf44-d92a-f45b-f3dc-493f6f69717d",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "ENTREGUE"
+    },
+    {
+      "noteId": "dfd545f0-e4da-7afe-0919-df9419ed7c7b",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "ENTREGUE"
+    },
+    {
+      "noteId": "ff8ff174-c1b4-3dda-b855-34cb24882992",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "ENTREGUE"
+    },
+    {
+      "noteId": "fa2ba238-434e-16c5-b74a-e40ac08c1f6b",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "ENTREGUE"
+    },
+    {
+      "noteId": "de46d4a8-4d9e-ffda-96d9-3b011dec7d35",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "ENTREGUE"
+    },
+    {
+      "noteId": "4ce02b29-794f-e43d-a149-b0e301551839",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "ENTREGUE"
+    },
+    {
+      "noteId": "4c4fefea-cefb-3f55-efe1-74f50fe5c26a",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "ENTREGUE"
+    },
+    {
+      "noteId": "abbb75d9-ad16-6b35-bab9-c908394eca5b",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "ENTREGUE"
+    },
+    {
+      "noteId": "aea7dbac-9f65-edac-f427-3c4306435c06",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "ENTREGUE"
+    },
+    {
+      "noteId": "572c3100-5131-8b94-2227-f89d3ff42b16",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "ENTREGUE"
+    },
+    {
+      "noteId": "8d106117-c8de-fd36-3474-fa8099d80b77",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "ENTREGUE"
+    },
+    {
+      "noteId": "a19dde05-13c2-7da3-3ae9-1abd6330d79c",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "ENTREGUE"
+    },
+    {
+      "noteId": "dfb6f003-ae41-a81f-14c5-791304bbaa98",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "ENTREGUE"
+    },
+    {
+      "noteId": "2195face-1e60-78b8-a185-f6ace589bd72",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "ENTREGUE"
+    },
+    {
+      "noteId": "ac78b739-708e-e9e6-1874-f2daf9e9bc0b",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "ENTREGUE"
+    },
+    {
+      "noteId": "e0bdadaa-d18b-a6ec-92f7-0e74c0934017",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "ENTREGUE"
+    },
+    {
+      "noteId": "575e20fc-188c-cc95-75fb-3469ee1edf58",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "ENTREGUE"
+    },
+    {
+      "noteId": "217ef03a-921c-a65b-f6b8-ddc82530030f",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "ENTREGUE"
+    },
+    {
+      "noteId": "eee08e6d-7b13-e9ca-3a76-55cceeda1864",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "ENTREGUE"
+    },
+    {
+      "noteId": "d4a00d62-e093-1505-98d8-2590f51f62c6",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "ENTREGUE"
+    },
+    {
+      "noteId": "3cd7a6a4-ecd3-c7a8-2c66-ff864b61b304",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "ENTREGUE"
+    },
+    {
+      "noteId": "4e2d5670-4702-a91f-528b-7d7273191038",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "ENTREGUE"
+    },
+    {
+      "noteId": "2bc98a7a-2d0d-85ed-a584-c568245f4720",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "ENTREGUE"
+    },
+    {
+      "noteId": "d2e5c76b-6849-0b28-f1a1-e6184c61da70",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "ENTREGUE"
+    },
+    {
+      "noteId": "ae1bcafd-fd9f-9685-f656-c9de7fc8c8d0",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "ENTREGUE"
+    },
+    {
+      "noteId": "fdc776f7-efa3-c63e-7e38-006be53f4069",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "ENTREGUE"
+    },
+    {
+      "noteId": "daa5ad1e-a78a-0c4d-74b1-e05126459b40",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "ENTREGUE"
+    },
+    {
+      "noteId": "3d46dda1-210a-b2f5-eb2a-c60fd9c6c894",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "ENTREGUE"
+    },
+    {
+      "noteId": "3d51b7a7-38ba-6876-af25-cfc288ae32e3",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "ENTREGUE"
+    },
+    {
+      "noteId": "8cc3ca22-589c-f55a-f487-9a4b322000cb",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "ENTREGUE"
+    },
+    {
+      "noteId": "5f7dbe94-7157-0af5-030d-3446ada93820",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "ENTREGUE"
+    },
+    {
+      "noteId": "662d350e-ab3e-374f-940c-38fd48749ec2",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "EM_TRANSITO"
+    },
+    {
+      "noteId": "e8e2b695-30c5-3f1c-96a4-2c19f9e25497",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "EM_TRANSITO"
+    },
+    {
+      "noteId": "09089891-8829-52db-4da1-6018900b8b47",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "EM_TRANSITO"
+    },
+    {
+      "noteId": "d98020da-89c4-1b16-68b3-eab77de2eca9",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "EM_TRANSITO"
+    },
+    {
+      "noteId": "1936787a-efd7-c782-3f5b-082828eeac9b",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "EM_TRANSITO"
+    },
+    {
+      "noteId": "cad6f3df-52cc-2094-d508-2bc59e116348",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "EM_TRANSITO"
+    },
+    {
+      "noteId": "3e0c6f72-9dc2-7fe3-7a79-e2c67ef2e589",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "EM_TRANSITO"
+    },
+    {
+      "noteId": "12a53db8-68ce-392b-0268-fd54c9119e07",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "EM_TRANSITO"
+    },
+    {
+      "noteId": "ca561434-1b30-5bb1-3309-18212584b534",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "EM_TRANSITO"
+    },
+    {
+      "noteId": "ab19ea1c-a0f6-8214-e68b-a63837d867b1",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "EM_TRANSITO"
+    },
+    {
+      "noteId": "de33312a-b15c-e7fe-15c5-63743ef6b3b4",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "EM_TRANSITO"
+    },
+    {
+      "noteId": "4f17d9fe-033d-b7a9-e501-3e9cad7d5e49",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "EM_TRANSITO"
+    },
+    {
+      "noteId": "db0454f9-700f-2830-6c4a-abb7f2dc3d3e",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "EM_TRANSITO"
+    },
+    {
+      "noteId": "38c19b6f-6dfa-0824-5d2f-aff51f657f0d",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "EM_TRANSITO"
+    },
+    {
+      "noteId": "9b0a2796-a8ec-d4a3-69ea-c17950130e37",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "EM_TRANSITO"
+    },
+    {
+      "noteId": "85ccbc2f-7266-568f-128a-6788b6b3b477",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "EM_TRANSITO"
+    },
+    {
+      "noteId": "4b505636-f744-f861-e1ee-94b422453077",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "EM_TRANSITO"
+    },
+    {
+      "noteId": "8b0a77a2-2b31-197e-6099-9187cc142d5c",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "EM_TRANSITO"
+    },
+    {
+      "noteId": "0df883e3-3515-8053-44f3-ff10dc98be95",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "EM_TRANSITO"
+    },
+    {
+      "noteId": "aca9c924-abdd-68bc-8f30-acc8351851ad",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "EM_TRANSITO"
+    },
+    {
+      "noteId": "2bd6887c-1c21-e20c-8367-fa822e1279dc",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "EM_TRANSITO"
+    },
+    {
+      "noteId": "9a35a162-e661-18b4-306d-3ff175ed4c60",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "EM_TRANSITO"
+    },
+    {
+      "noteId": "484d16a9-62e5-4704-11e9-705db954ed38",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "EM_TRANSITO"
+    },
+    {
+      "noteId": "eac35e00-6750-73d9-3bd9-9f9e19932186",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "EM_TRANSITO"
+    },
+    {
+      "noteId": "2f6cbcbc-4a5d-f00d-13fa-40e647bdb430",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "EM_TRANSITO"
+    },
+    {
+      "noteId": "8138552d-8208-6351-ceff-bb1a9bd5b67e",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "EM_TRANSITO"
+    },
+    {
+      "noteId": "64404421-e1cb-0a11-7aa8-da83fd25089c",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "EM_TRANSITO"
+    },
+    {
+      "noteId": "6c8ed394-23db-97dc-23d4-ba2648eea52a",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "EM_TRANSITO"
+    },
+    {
+      "noteId": "b9e3703d-e1b1-6844-7379-97419591cdf8",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "EM_TRANSITO"
+    },
+    {
+      "noteId": "4d0af497-d6f1-67c0-db6e-8bec1eb5e8fb",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "EM_TRANSITO"
+    },
+    {
+      "noteId": "00bddbb7-6e36-b428-ab3d-0e39557bb7da",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "EM_TRANSITO"
+    },
+    {
+      "noteId": "fc961ded-77ae-1caa-1cad-563394e73f11",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "EM_TRANSITO"
+    },
+    {
+      "noteId": "d8203ec4-4724-c169-e414-c95cf14989f0",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "EM_TRANSITO"
+    },
+    {
+      "noteId": "fcc88975-bed6-e909-8392-b45d84686e31",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "EM_TRANSITO"
+    },
+    {
+      "noteId": "a4584712-f5d9-174e-157b-05eaded012c5",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "EM_TRANSITO"
+    },
+    {
+      "noteId": "1a074fc4-7fe4-6ce7-0e04-d30bf80a9db7",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "EM_TRANSITO"
+    },
+    {
+      "noteId": "f40244a4-805b-5a90-67ea-bb4a7afcbac1",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "EM_TRANSITO"
+    },
+    {
+      "noteId": "4c5b594a-9c8f-d252-26f9-b793111c0e43",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "EM_TRANSITO"
+    },
+    {
+      "noteId": "83492d03-2be6-3d30-38ed-55b2bcd47e79",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "EM_TRANSITO"
+    },
+    {
+      "noteId": "026c2792-bab9-b5a9-6074-a0c8f5f9eec2",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "EM_TRANSITO"
+    },
+    {
+      "noteId": "e2a68391-6a4d-6825-2be5-4954d68dc374",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "EM_TRANSITO"
+    },
+    {
+      "noteId": "551535c2-545d-6797-0c97-a2986f60e022",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "EM_TRANSITO"
+    },
+    {
+      "noteId": "4c3ad599-c85b-6581-af9b-dfb6eac68d8b",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "EM_TRANSITO"
+    },
+    {
+      "noteId": "3e1d7fa5-627c-c1f9-0156-2f7efc65f2e2",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "INDETERMINADA"
+    },
+    {
+      "noteId": "efca5710-9f4d-e748-c6b1-5d4231d84d77",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "INDETERMINADA"
+    },
+    {
+      "noteId": "129a5db2-913c-8afa-bf5f-02d46e890dd3",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "INDETERMINADA"
+    },
+    {
+      "noteId": "d1d8a1d0-7efb-b298-40c9-5b59445bccff",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "INDETERMINADA"
+    },
+    {
+      "noteId": "c2cd1703-1d8f-9ae2-0dc1-791435966358",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "INDETERMINADA"
+    },
+    {
+      "noteId": "eeadf19b-dd7b-7107-8c91-fff3825c987c",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "INDETERMINADA"
+    },
+    {
+      "noteId": "be089e25-6770-6602-161d-838b07246ed2",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "INDETERMINADA"
+    },
+    {
+      "noteId": "7148d2af-5c51-118a-ad5f-4af59559777a",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "INDETERMINADA"
+    },
+    {
+      "noteId": "a4d75f51-9da3-19e1-41fa-ef08a80c7f67",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "INDETERMINADA"
+    },
+    {
+      "noteId": "dd8fd18c-aa52-6e53-514f-6b40fbb9837a",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "INDETERMINADA"
+    },
+    {
+      "noteId": "307bb117-be9a-92fe-9827-3a9c31e881a3",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "INDETERMINADA"
+    },
+    {
+      "noteId": "da86d1c0-2661-ffe7-f8e2-e26d838eb2cb",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "INDETERMINADA"
+    },
+    {
+      "noteId": "26b39d0f-6df8-a3cd-d5f9-a58498e025ea",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "INDETERMINADA"
+    },
+    {
+      "noteId": "50f8a3c4-df7f-9a85-d47b-33817ed4215d",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "INDETERMINADA"
+    },
+    {
+      "noteId": "99bcc028-a692-6c5a-a07d-c62979e58aab",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "INDETERMINADA"
+    },
+    {
+      "noteId": "3cfa4bd8-ca49-ff44-264d-186f8cea0abb",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "INDETERMINADA"
+    },
+    {
+      "noteId": "39e1a494-eba7-3729-9175-e248efefef92",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "INDETERMINADA"
+    },
+    {
+      "noteId": "df2f0701-c910-61de-89a5-4c6418aea7d0",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "INDETERMINADA"
+    },
+    {
+      "noteId": "cc9f8613-25af-be12-a779-c393687167df",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "INDETERMINADA"
+    },
+    {
+      "noteId": "f9da47cd-e449-55ff-3425-08486603c1b6",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "INDETERMINADA"
+    },
+    {
+      "noteId": "a170a478-d91b-01a7-c175-37421ead1577",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "INDETERMINADA"
+    },
+    {
+      "noteId": "1e5bcdb5-053c-f356-0969-a9c55d0eafa9",
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "expected": "INDETERMINADA"
+    },
+    {
+      "noteId": "d20ce89b-5869-f406-2c5c-24986c946e6d",
+      "fundId": "e84fdd30-39ed-de86-292e-0d8d9d92d759",
+      "expected": "ENTREGUE"
+    },
+    {
+      "noteId": "6171f074-126a-9ece-fbfe-10902760d861",
+      "fundId": "e84fdd30-39ed-de86-292e-0d8d9d92d759",
+      "expected": "ENTREGUE"
+    },
+    {
+      "noteId": "8a6828a4-36be-4faf-36e9-9ff8ed1c54ed",
+      "fundId": "e84fdd30-39ed-de86-292e-0d8d9d92d759",
+      "expected": "ENTREGUE"
+    },
+    {
+      "noteId": "925e548e-b934-6e9e-1996-0570ad10c62f",
+      "fundId": "e84fdd30-39ed-de86-292e-0d8d9d92d759",
+      "expected": "ENTREGUE"
+    },
+    {
+      "noteId": "4ea5af45-965b-2d3f-6c6f-58ea7982395f",
+      "fundId": "e84fdd30-39ed-de86-292e-0d8d9d92d759",
+      "expected": "ENTREGUE"
+    },
+    {
+      "noteId": "d3da6daf-b864-2744-bd77-2cd43757cfbd",
+      "fundId": "e84fdd30-39ed-de86-292e-0d8d9d92d759",
+      "expected": "ENTREGUE"
+    },
+    {
+      "noteId": "67fcb3d9-f2cf-0380-eadd-7ca072fe6ccb",
+      "fundId": "e84fdd30-39ed-de86-292e-0d8d9d92d759",
+      "expected": "EM_TRANSITO"
+    },
+    {
+      "noteId": "bd3954fa-cbcc-3fd3-c104-20459b02b1b4",
+      "fundId": "e84fdd30-39ed-de86-292e-0d8d9d92d759",
+      "expected": "EM_TRANSITO"
+    },
+    {
+      "noteId": "b0bb208c-8acc-c747-239a-580adbb10efc",
+      "fundId": "e84fdd30-39ed-de86-292e-0d8d9d92d759",
+      "expected": "EM_TRANSITO"
+    },
+    {
+      "noteId": "0ac6fda2-1de1-d7d7-4589-710142e11c1a",
+      "fundId": "e84fdd30-39ed-de86-292e-0d8d9d92d759",
+      "expected": "EM_TRANSITO"
+    },
+    {
+      "noteId": "0c3f2547-d015-7f23-7940-a665e661bfd1",
+      "fundId": "e84fdd30-39ed-de86-292e-0d8d9d92d759",
+      "expected": "EM_TRANSITO"
+    },
+    {
+      "noteId": "8d70a02e-8acf-6acc-a133-f77153182ed0",
+      "fundId": "e84fdd30-39ed-de86-292e-0d8d9d92d759",
+      "expected": "EM_TRANSITO"
+    },
+    {
+      "noteId": "405dfbd2-861c-1844-293c-b138f744d0a0",
+      "fundId": "e84fdd30-39ed-de86-292e-0d8d9d92d759",
+      "expected": "INDETERMINADA"
+    },
+    {
+      "noteId": "4baba0c5-26e8-7ecc-93ba-e329cd99ed47",
+      "fundId": "e84fdd30-39ed-de86-292e-0d8d9d92d759",
+      "expected": "INDETERMINADA"
+    },
+    {
+      "noteId": "be648d3c-870d-f13b-0bda-26eacfcd778b",
+      "fundId": "e84fdd30-39ed-de86-292e-0d8d9d92d759",
+      "expected": "INDETERMINADA"
+    }
+  ]
+}
