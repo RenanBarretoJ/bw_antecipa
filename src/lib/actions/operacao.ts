@@ -14,6 +14,7 @@ import { obterFundoAtivoAutorizado } from '@/lib/actions/fundo-ativo'
 import { carregarContextoEventoOperacao, registrarEventoDominio } from '@/lib/eventos-dominio/registrar'
 import { calcularAntecipacaoEmLote } from '@/lib/operacoes/calculo'
 import { obterDataCivilOperacional } from '@/lib/operacoes/data-operacional.server'
+import { executarGateRisco } from '@/lib/financeiro/risco/processor.server'
 
 export type OperacaoActionState = {
   success?: boolean
@@ -415,13 +416,47 @@ export async function aprovarOperacao(
   })
   if (!gate.elegivel) return { success: false, message: gate.bloqueios.join(' ') }
 
-  const { data: aprovacao, error: aprovacaoError } = await supabase.rpc('aprovar_operacao_atomica', {
+  const fundoId = String(acessoOperacao.data?.fundoId || '')
+  if (!fundoId) return { success: false, message: 'Nao foi possivel resolver o fundo da operacao para o gate de risco.' }
+
+  let risco
+  try {
+    risco = await executarGateRisco({
+      fundoId,
+      operacaoId,
+      taxaDesconto,
+      dataOperacional: obterDataCivilOperacional(),
+      atorUsuarioId: user.id,
+      origem: 'APROVACAO_OPERACAO',
+    })
+  } catch (error) {
+    return { success: false, message: `A avaliacao de risco nao pode ser concluida: ${error instanceof Error ? error.message : 'falha desconhecida'}` }
+  }
+
+  if (risco.classification.decision === 'BLOQUEADO') {
+    return {
+      success: false,
+      message: `Operacao bloqueada pelo gate de risco: ${risco.classification.reasons.map((reason) => reason.code).join(', ')}.`,
+      data: { riscoExecucaoId: risco.execution.id },
+    }
+  }
+  if (risco.classification.decision === 'REVISAO_MANUAL' && risco.review?.status !== 'LIBERADA') {
+    return {
+      success: false,
+      message: 'A operacao exige revisao manual do risco antes da aprovacao.',
+      data: { riscoExecucaoId: risco.execution.id, riscoRevisaoId: risco.review?.id || null },
+    }
+  }
+
+  const { data: aprovacao, error: aprovacaoError } = await supabase.rpc('aprovar_operacao_com_risco_atomica', {
     p_operacao_id: operacaoId,
     p_taxa_desconto: taxaDesconto,
-  } as never)
+    p_risco_execucao_id: risco.execution.id,
+    p_assinatura_inputs: risco.signature,
+  })
 
   if (aprovacaoError) return { success: false, message: `Erro ao aprovar: ${aprovacaoError.message}` }
-  const aprovacaoResultado = aprovacao as {
+  const aprovacaoResultado = aprovacao as unknown as {
     valor_liquido_desembolso?: number
     metodo_calculo_financeiro?: string
     data_base?: string
@@ -995,7 +1030,7 @@ async function validarOperacaoNoFundoAtivo(
   if (linkError) return { success: false, message: `Erro ao validar acesso ao fundo: ${linkError.message}` }
   if (!link) return { success: false, message: 'Operação não pertence ao fundo ativo.' }
 
-  return { success: true }
+  return { success: true, data: { fundoId: contexto.fundoId } }
 }
 
 function formatBRL(value: number): string {

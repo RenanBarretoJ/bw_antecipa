@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Calculator, GitCompareArrows, Link2, Play, Search, Truck, Unlink } from 'lucide-react'
+import { Calculator, GitCompareArrows, Link2, Play, Search, ShieldCheck, Truck, Unlink } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -15,12 +15,15 @@ import {
   executarMatchingAction,
   executarPosicaoLogisticaAction,
   executarExposicaoAction,
+  executarGateRiscoAction,
+  decidirRevisaoRiscoAction,
   pesquisarNotasParaMatchingAction,
   revogarMatchManualAction,
   simularExposicaoAction,
 } from '@/lib/actions/conciliacao'
 import { cn } from '@/lib/utils'
 import type { ConciliacaoDashboard, ConciliacaoTab, MatchingViewRow } from '@/lib/financeiro/conciliacao/loaders.server'
+import { RISK_REASON_CODES } from '@/lib/financeiro/risco/types'
 
 const tabs: Array<{ id: ConciliacaoTab; label: string }> = [
   { id: 'visao-geral', label: 'Visao geral' },
@@ -28,6 +31,7 @@ const tabs: Array<{ id: ConciliacaoTab; label: string }> = [
   { id: 'conciliacao', label: 'Conciliacao' },
   { id: 'logistica', label: 'Logistica' },
   { id: 'exposicao', label: 'Exposicao' },
+  { id: 'risco', label: 'Risco' },
   { id: 'excecoes', label: 'Excecoes' },
 ]
 
@@ -53,8 +57,8 @@ function date(value: string | null | undefined) {
 }
 
 function badge(status: string) {
-  const ok = ['MATCH_FORTE', 'MANTIDO_CORRETO', 'ENTRADA_INCORPORADA', 'SAIDA_REFLETIDA', 'CONCLUIDA'].includes(status)
-  const warning = ['AMBIGUO', 'BASE_INCOMPLETA', 'PROCESSANDO', 'EM_TRANSITO', 'INDETERMINADA'].includes(status)
+  const ok = ['MATCH_FORTE', 'MANTIDO_CORRETO', 'ENTRADA_INCORPORADA', 'SAIDA_REFLETIDA', 'CONCLUIDA', 'APTO', 'LIBERADA', 'INFORMATIVO'].includes(status)
+  const warning = ['AMBIGUO', 'BASE_INCOMPLETA', 'PROCESSANDO', 'EM_TRANSITO', 'INDETERMINADA', 'REVISAO_MANUAL', 'PENDENTE', 'REVISAO', 'NAO_APLICAVEL'].includes(status)
   const logisticsOk = status === 'ENTREGUE'
   return cn(
     'inline-flex rounded-full px-2 py-0.5 text-xs font-medium',
@@ -99,6 +103,10 @@ export function ConciliacaoFinanceiraClient({ dashboard }: { dashboard: Concilia
   const [totp, setTotp] = useState('')
   const [simulationOperationId, setSimulationOperationId] = useState('')
   const [simulation, setSimulation] = useState<Record<string, unknown> | null>(null)
+  const [riskReview, setRiskReview] = useState<ConciliacaoDashboard['risco']['rows'][number] | null>(null)
+  const [riskDecision, setRiskDecision] = useState<'LIBERADA' | 'RECUSADA'>('LIBERADA')
+  const [riskJustification, setRiskJustification] = useState('')
+  const [riskTotp, setRiskTotp] = useState('')
 
   const matchingCoverage = dashboard.matchingExecucao?.total_registros
     ? Math.round((dashboard.matchingExecucao.matched / dashboard.matchingExecucao.total_registros) * 100)
@@ -161,6 +169,9 @@ export function ConciliacaoFinanceiraClient({ dashboard }: { dashboard: Concilia
           <Button variant="outline" disabled={pending || !dashboard.filtros.dataReferencia} onClick={() => run(() => executarExposicaoAction({ dataReferencia: dashboard.filtros.dataReferencia }))}>
             <Calculator /> Calcular exposicao
           </Button>
+          <Button variant="outline" disabled={pending || !dashboard.filtros.dataReferencia} onClick={() => run(() => executarGateRiscoAction({ dataReferencia: dashboard.filtros.dataReferencia }))}>
+            <ShieldCheck /> Atualizar risco
+          </Button>
         </div>
       </header>
 
@@ -187,7 +198,7 @@ export function ConciliacaoFinanceiraClient({ dashboard }: { dashboard: Concilia
             </select>
             <select name="status" defaultValue={dashboard.filtros.status} className="h-8 rounded-lg border border-input bg-background px-2 text-sm">
               <option value="">Todos os status</option>
-              {['MATCH_FORTE', 'AMBIGUO', 'NAO_CONCILIADO', 'CONFLITO', 'MANTIDO_CORRETO', 'ENTRADA_INCORPORADA', 'ENTRADA_NAO_INCORPORADA', 'SAIDA_REFLETIDA', 'SAIDA_SEM_LIQUIDACAO', 'LIQUIDADO_AINDA_NO_ESTOQUE', 'DIVERGENCIA_VALOR', 'ENTREGUE', 'EM_TRANSITO', 'INDETERMINADA', 'SEM_MATCH_FINANCEIRO_NF', 'INCLUIDA_EM_TRANSITO', 'JA_INCORPORADO_ESTOQUE', 'OPERACAO_NAO_INCORPORADA', 'VALOR_AUSENTE'].map((item) => <option key={item}>{item}</option>)}
+              {['MATCH_FORTE', 'AMBIGUO', 'NAO_CONCILIADO', 'CONFLITO', 'MANTIDO_CORRETO', 'ENTRADA_INCORPORADA', 'ENTRADA_NAO_INCORPORADA', 'SAIDA_REFLETIDA', 'SAIDA_SEM_LIQUIDACAO', 'LIQUIDADO_AINDA_NO_ESTOQUE', 'DIVERGENCIA_VALOR', 'ENTREGUE', 'EM_TRANSITO', 'INDETERMINADA', 'SEM_MATCH_FINANCEIRO_NF', 'INCLUIDA_EM_TRANSITO', 'JA_INCORPORADO_ESTOQUE', 'OPERACAO_NAO_INCORPORADA', 'VALOR_AUSENTE', 'APTO', 'REVISAO_MANUAL', 'BLOQUEADO', 'NAO_APLICAVEL', 'AVALIACAO_RISCO_INDISPONIVEL'].map((item) => <option key={item}>{item}</option>)}
             </select>
             <select name="metodo" defaultValue={dashboard.filtros.metodo} className="h-8 rounded-lg border border-input bg-background px-2 text-sm">
               <option value="">Todos os metodos</option>
@@ -213,6 +224,27 @@ export function ConciliacaoFinanceiraClient({ dashboard }: { dashboard: Concilia
               <Input name="vencimentoDe" type="date" defaultValue={dashboard.filtros.vencimentoDe} aria-label="Vencimento inicial" />
               <Input name="vencimentoAte" type="date" defaultValue={dashboard.filtros.vencimentoAte} aria-label="Vencimento final" />
               <Button type="submit" variant="outline">Aplicar filtros logisticos</Button>
+            </form>
+          )}
+          {dashboard.filtros.tab === 'risco' && (
+            <form method="get" className="mt-3 grid gap-2 border-t pt-3 sm:grid-cols-2 xl:grid-cols-3">
+              <input type="hidden" name="tab" value="risco" />
+              <input type="hidden" name="data" value={dashboard.filtros.dataReferencia} />
+              <input type="hidden" name="q" value={dashboard.filtros.q} />
+              <input type="hidden" name="status" value={dashboard.filtros.status} />
+              <select name="motivo" defaultValue={dashboard.filtros.riskReason} className="h-8 rounded-lg border border-input bg-background px-2 text-sm" aria-label="Motivo de risco">
+                <option value="">Todos os motivos</option>
+                {RISK_REASON_CODES.map((item) => <option key={item} value={item}>{item}</option>)}
+              </select>
+              <Input name="operacao" defaultValue={dashboard.filtros.riskOperation} placeholder="UUID da operacao" />
+              <Input name="cedente" defaultValue={dashboard.filtros.cedente} placeholder="Cedente ou CNPJ" />
+              <Input name="politica" defaultValue={dashboard.filtros.riskPolicy} placeholder="UUID da politica publicada" />
+              <Input name="dataDe" type="date" defaultValue={dashboard.filtros.riskCreatedFrom} aria-label="Avaliacao criada a partir de" />
+              <Input name="dataAte" type="date" defaultValue={dashboard.filtros.riskCreatedTo} aria-label="Avaliacao criada ate" />
+              <div className="flex gap-2 sm:col-span-2 xl:col-span-3">
+                <Button type="submit" variant="outline">Aplicar filtros de risco</Button>
+                <Button render={<Link href={currentQuery(dashboard, 'risco')} />} nativeButton={false} variant="outline">Limpar filtros de risco</Button>
+              </div>
             </form>
           )}
         </CardContent>
@@ -271,8 +303,16 @@ export function ConciliacaoFinanceiraClient({ dashboard }: { dashboard: Concilia
           })}
         />
       )}
+      {dashboard.filtros.tab === 'risco' && (
+        <RiskView dashboard={dashboard} onReview={(row) => {
+          setRiskReview(row)
+          setRiskDecision('LIBERADA')
+          setRiskJustification('')
+          setRiskTotp('')
+        }} />
+      )}
 
-      <Pagination dashboard={dashboard} total={dashboard.filtros.tab === 'exposicao' ? dashboard.exposicao.total : dashboard.filtros.tab === 'logistica' ? dashboard.logistica.total : dashboard.filtros.tab === 'conciliacao' ? dashboard.conciliacao.total : dashboard.filtros.tab === 'matching' ? dashboard.matching.total : Math.max(dashboard.matching.total, dashboard.conciliacao.total, dashboard.logistica.total)} />
+      <Pagination dashboard={dashboard} total={dashboard.filtros.tab === 'risco' ? dashboard.risco.total : dashboard.filtros.tab === 'exposicao' ? dashboard.exposicao.total : dashboard.filtros.tab === 'logistica' ? dashboard.logistica.total : dashboard.filtros.tab === 'conciliacao' ? dashboard.conciliacao.total : dashboard.filtros.tab === 'matching' ? dashboard.matching.total : Math.max(dashboard.matching.total, dashboard.conciliacao.total, dashboard.logistica.total)} />
 
       <Dialog open={Boolean(manualRow)} onOpenChange={(open) => { if (!open) setManualRow(null) }}>
         <DialogContent className="sm:max-w-3xl">
@@ -326,6 +366,22 @@ export function ConciliacaoFinanceiraClient({ dashboard }: { dashboard: Concilia
             <Button variant="outline" onClick={() => setRevokeRow(null)}>Cancelar</Button>
             <Button variant="destructive" disabled={pending || !revokeRow?.vinculo?.id || reason.trim().length < 5 || totp.length !== 6} onClick={() => revokeRow?.vinculo?.id && run(() => revogarMatchManualAction({ vinculoId: revokeRow.vinculo!.id, motivo: reason, codigoTotp: totp }), () => setRevokeRow(null))}><Unlink /> Revogar</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(riskReview)} onOpenChange={(open) => { if (!open) setRiskReview(null) }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Revisao manual de risco</DialogTitle><DialogDescription>A decisao exige justificativa, TOTP fresco e fica vinculada ao snapshot avaliado. Uma nova avaliacao expira esta liberacao.</DialogDescription></DialogHeader>
+          {riskReview && <div className="grid gap-2 rounded-lg border bg-muted/30 p-3 text-sm sm:grid-cols-2">
+            <div><span className="text-muted-foreground">Operacao</span><p className="font-mono text-xs">{riskReview.operacao_id || 'Nao vinculada'}</p></div>
+            <div><span className="text-muted-foreground">Decisao automatica</span><p className="font-medium">{riskReview.decisao || riskReview.status_tecnico}</p></div>
+            <div><span className="text-muted-foreground">Exposicao projetada</span><p className="font-medium">{riskReview.exposicao_projetada_pct == null ? 'Indeterminada' : percentValue(riskReview.exposicao_projetada_pct)}</p></div>
+            <div><span className="text-muted-foreground">Motivos</span><p className="font-medium">{riskReview.motivos.map((item) => item.codigo).join(', ') || 'Nenhum'}</p></div>
+          </div>}
+          <label className="space-y-1"><span className="text-sm font-medium">Decisao</span><select className="h-9 w-full rounded-lg border border-input bg-background px-3 text-sm" value={riskDecision} onChange={(event) => setRiskDecision(event.target.value as 'LIBERADA' | 'RECUSADA')}><option value="LIBERADA">Liberar operacao</option><option value="RECUSADA">Recusar operacao</option></select></label>
+          <label className="space-y-1"><span className="text-sm font-medium">Justificativa</span><Input value={riskJustification} onChange={(event) => setRiskJustification(event.target.value)} maxLength={1000} /></label>
+          <label className="space-y-1"><span className="text-sm font-medium">Codigo TOTP</span><Input value={riskTotp} onChange={(event) => setRiskTotp(event.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" /></label>
+          <DialogFooter><Button variant="outline" onClick={() => setRiskReview(null)}>Cancelar</Button><Button disabled={pending || !riskReview?.revisao || riskJustification.trim().length < 5 || riskTotp.length !== 6} onClick={() => riskReview?.revisao && run(() => decidirRevisaoRiscoAction({ revisaoId: riskReview.revisao!.id, decisao: riskDecision, justificativa: riskJustification, codigoTotp: riskTotp }), () => setRiskReview(null))}>Confirmar decisao</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
@@ -465,6 +521,68 @@ function ExposureView({ dashboard, operationId, onOperationId, simulation, pendi
   </div>
 }
 
+function RiskView({ dashboard, onReview }: {
+  dashboard: ConciliacaoDashboard
+  onReview: (row: ConciliacaoDashboard['risco']['rows'][number]) => void
+}) {
+  const execution = dashboard.riscoExecucao
+  const evaluatedAt = execution?.finalizado_em || execution?.created_at
+  return <div className="space-y-4">
+    <Card>
+      <CardContent className="grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-5">
+        <div><span className="text-muted-foreground">Fundo</span><p className="font-medium">{dashboard.fundo.nome}</p></div>
+        <div><span className="text-muted-foreground">Data operacional</span><p className="font-medium">{date(execution?.data_operacional || dashboard.filtros.dataReferencia)}</p></div>
+        <div><span className="text-muted-foreground">Politica congelada</span><p className="truncate font-mono text-xs" title={execution?.politica_operacional_versao_id || ''}>{execution?.politica_operacional_versao_id || 'Nao aplicavel'}</p></div>
+        <div><span className="text-muted-foreground">Regra</span><p className="font-medium">{execution?.regra_versao || 'Sem avaliacao'}</p></div>
+        <div><span className="text-muted-foreground">Ultima avaliacao</span><p className="font-medium">{evaluatedAt ? new Date(evaluatedAt).toLocaleString('pt-BR') : 'Nao realizada'}</p></div>
+      </CardContent>
+    </Card>
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <SummaryCard label="Decisao atual" value={execution?.decisao || (execution?.aplicavel === false ? 'NAO_APLICAVEL' : 'Sem avaliacao')} tone={execution?.decisao === 'BLOQUEADO' ? 'danger' : execution?.decisao === 'REVISAO_MANUAL' ? 'warning' : 'success'} />
+      <SummaryCard label="PL D-2" value={execution?.patrimonio_liquido_d2 == null ? 'Indisponivel' : money(execution.patrimonio_liquido_d2)} />
+      <SummaryCard label="Exposicao atual" value={execution?.exposicao_atual_pct == null ? 'Indeterminada' : percentValue(execution.exposicao_atual_pct)} />
+      <SummaryCard label="Exposicao projetada" value={execution?.exposicao_projetada_pct == null ? 'Nao calculada' : percentValue(execution.exposicao_projetada_pct)} />
+      <SummaryCard label="Limite" value={execution?.limite_pct == null ? 'Nao configurado' : percentValue(execution.limite_pct)} />
+      <SummaryCard label="Em transito" value={execution?.exposicao_atual_valor == null ? 'Indisponivel' : money(execution.exposicao_atual_valor)} />
+      <SummaryCard label="Indeterminadas" value={execution?.quantidade_indeterminada || 0} tone={execution?.quantidade_indeterminada ? 'warning' : 'success'} />
+      <SummaryCard label="Sem match" value={execution?.quantidade_sem_match || 0} tone={execution?.quantidade_sem_match ? 'danger' : 'success'} />
+      <SummaryCard label="Operacoes nao incorporadas" value={execution?.quantidade_operacao_nao_incorporada || 0} tone={execution?.quantidade_operacao_nao_incorporada ? 'danger' : 'success'} />
+      <SummaryCard label="Revisoes pendentes" value={dashboard.risco.revisoesPendentes} tone={dashboard.risco.revisoesPendentes ? 'warning' : 'success'} />
+      <SummaryCard label="Operacoes bloqueadas" value={dashboard.risco.operacoesBloqueadas} tone={dashboard.risco.operacoesBloqueadas ? 'danger' : 'success'} />
+    </div>
+    <Card>
+      <CardHeader><CardTitle>Avaliacoes de risco ({dashboard.risco.total})</CardTitle></CardHeader>
+      <CardContent className="space-y-3">
+        {dashboard.risco.rows.map((row) => <div key={row.id} className="rounded-xl border border-border p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2"><span className={badge(row.decisao || row.status_tecnico)}>{row.decisao || row.status_tecnico}</span><span className="text-xs text-muted-foreground">{row.escopo} · {row.origem} · {row.regra_versao}</span></div>
+              <p className="mt-2 text-sm">Atual: <strong>{row.exposicao_atual_pct == null ? 'indeterminada' : percentValue(row.exposicao_atual_pct)}</strong> · Projetada: <strong>{row.exposicao_projetada_pct == null ? 'nao calculada' : percentValue(row.exposicao_projetada_pct)}</strong> · Limite: <strong>{row.limite_pct == null ? 'nao configurado' : percentValue(row.limite_pct)}</strong></p>
+              <p className="mt-1 text-xs text-muted-foreground">{new Date(row.created_at).toLocaleString('pt-BR')} · assinatura {row.assinatura_inputs.slice(0, 12)}…</p>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">{row.operacao_id && <Button render={<Link href={`/gestor/operacoes/${row.operacao_id}`} />} nativeButton={false} size="sm" variant="outline">Ver operacao</Button>}{row.revisao?.status === 'PENDENTE' && <Button size="sm" onClick={() => onReview(row)}>Revisar</Button>}{row.revisao && row.revisao.status !== 'PENDENTE' && <span className={badge(row.revisao.status)}>{row.revisao.status}</span>}</div>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">{row.motivos.length ? row.motivos.map((reason) => <span key={reason.id} className={badge(reason.severidade)} title={JSON.stringify(reason.detalhes)}>{reason.codigo}{reason.quantidade != null ? ` (${reason.quantidade})` : ''}</span>) : <span className="text-sm text-muted-foreground">Nenhum motivo restritivo registrado.</span>}</div>
+          <details className="mt-3 rounded-lg border bg-muted/20 px-3 py-2 text-sm">
+            <summary className="cursor-pointer font-medium">Snapshot historico da avaliacao</summary>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div><span className="text-muted-foreground">Snapshot P2.5</span><p className="break-all font-mono text-xs">{row.exposicao_execucao_id || 'Indisponivel'}</p></div>
+              <div><span className="text-muted-foreground">PL D-2</span><p className="font-medium">{row.patrimonio_liquido_d2 == null ? 'Indisponivel' : money(row.patrimonio_liquido_d2)}</p></div>
+              <div><span className="text-muted-foreground">Exposicao atual</span><p className="font-medium">{row.exposicao_atual_valor == null ? 'Indeterminada' : money(row.exposicao_atual_valor)}</p></div>
+              <div><span className="text-muted-foreground">Operacao projetada</span><p className="font-medium">{row.operacao_valor_aquisicao == null ? 'Nao calculada' : money(row.operacao_valor_aquisicao)}</p></div>
+              <div><span className="text-muted-foreground">Em transito na operacao</span><p className="font-medium">{row.operacao_valor_em_transito == null ? 'Nao calculado' : money(row.operacao_valor_em_transito)}</p></div>
+              <div><span className="text-muted-foreground">Indeterminadas / sem match</span><p className="font-medium">{row.quantidade_indeterminada} / {row.quantidade_sem_match}</p></div>
+              <div><span className="text-muted-foreground">Politica</span><p className="break-all font-mono text-xs">{row.politica_operacional_versao_id || 'Nao aplicavel'}</p></div>
+              <div><span className="text-muted-foreground">Assinatura dos inputs</span><p className="break-all font-mono text-xs">{row.assinatura_inputs}</p></div>
+            </div>
+          </details>
+        </div>)}
+        {!dashboard.risco.rows.length && <p className="py-10 text-center text-muted-foreground">Nenhuma avaliacao de risco para os filtros informados.</p>}
+      </CardContent>
+    </Card>
+  </div>
+}
+
 function Pagination({ dashboard, total }: { dashboard: ConciliacaoDashboard; total: number }) {
   const pages = Math.max(1, Math.ceil(total / dashboard.filtros.pageSize))
   if (pages <= 1) return null
@@ -481,6 +599,11 @@ function Pagination({ dashboard, total }: { dashboard: ConciliacaoDashboard; tot
     if (dashboard.filtros.idRecebivel) params.set('idRecebivel', dashboard.filtros.idRecebivel)
     if (dashboard.filtros.vencimentoDe) params.set('vencimentoDe', dashboard.filtros.vencimentoDe)
     if (dashboard.filtros.vencimentoAte) params.set('vencimentoAte', dashboard.filtros.vencimentoAte)
+    if (dashboard.filtros.riskReason) params.set('motivo', dashboard.filtros.riskReason)
+    if (dashboard.filtros.riskOperation) params.set('operacao', dashboard.filtros.riskOperation)
+    if (dashboard.filtros.riskPolicy) params.set('politica', dashboard.filtros.riskPolicy)
+    if (dashboard.filtros.riskCreatedFrom) params.set('dataDe', dashboard.filtros.riskCreatedFrom)
+    if (dashboard.filtros.riskCreatedTo) params.set('dataAte', dashboard.filtros.riskCreatedTo)
     return `/gestor/conciliacao?${params.toString()}`
   }
   return <div className="flex items-center justify-between text-sm text-muted-foreground"><span>Pagina {dashboard.filtros.page} de {pages}</span><div className="flex gap-2"><Button render={<Link href={href(Math.max(1, dashboard.filtros.page - 1))} />} nativeButton={false} variant="outline" disabled={dashboard.filtros.page <= 1}>Anterior</Button><Button render={<Link href={href(Math.min(pages, dashboard.filtros.page + 1))} />} nativeButton={false} variant="outline" disabled={dashboard.filtros.page >= pages}>Proxima</Button></div></div>

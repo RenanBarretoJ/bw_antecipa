@@ -12,6 +12,7 @@ import {
 } from '@/lib/financeiro/conciliacao/processor.server'
 import { executarPosicaoLogisticaFinanceira } from '@/lib/financeiro/logistica/processor.server'
 import { executarExposicaoFinanceira, simularExposicaoOperacao } from '@/lib/financeiro/exposicao/processor.server'
+import { executarGateRisco } from '@/lib/financeiro/risco/processor.server'
 
 export type ConciliacaoActionResult = {
   success: boolean
@@ -38,6 +39,12 @@ const revokeSchema = z.object({
 })
 const noteSearchSchema = z.object({ q: z.string().trim().min(2).max(120) })
 const simulationSchema = z.object({ operacaoId: z.string().uuid() })
+const riskReviewSchema = z.object({
+  revisaoId: z.string().uuid(),
+  decisao: z.enum(['LIBERADA', 'RECUSADA']),
+  justificativa: z.string().trim().min(5).max(1000),
+  codigoTotp: z.string().regex(/^\d{6}$/),
+})
 
 function failure(message: string, correlationId: string, error?: unknown): ConciliacaoActionResult {
   console.error('[rlx/conciliacao]', {
@@ -147,6 +154,60 @@ export async function executarExposicaoAction(input: unknown): Promise<Conciliac
     return { success: true, message, data: result, notification: { type: warning ? 'warning' : 'success', message } }
   } catch (error) {
     return failure('Nao foi possivel calcular a exposicao financeira.', correlationId, error)
+  }
+}
+
+export async function executarGateRiscoAction(input: unknown): Promise<ConciliacaoActionResult> {
+  const correlationId = randomUUID()
+  try {
+    const parsed = executionSchema.safeParse(input)
+    if (!parsed.success) return failure('Informe uma data operacional valida.', correlationId)
+    const { context, fundoId } = await gestorNoFundoAtivo()
+    const result = await executarGateRisco({
+      fundoId,
+      dataOperacional: parsed.data.dataReferencia,
+      atorUsuarioId: context.user.id,
+      origem: 'CENTRAL_RISCO',
+    })
+    revalidatePath('/gestor/conciliacao')
+    const message = result.classification.applicable
+      ? `Gate de risco concluido: ${result.classification.decision}.`
+      : 'Gate de risco nao aplicavel para a politica vigente.'
+    return {
+      success: true,
+      message,
+      data: { riscoExecucaoId: result.execution.id, decisao: result.classification.decision },
+      notification: { type: result.classification.decision === 'BLOQUEADO' ? 'warning' : 'success', message },
+    }
+  } catch (error) {
+    return failure('Nao foi possivel executar o gate de risco.', correlationId, error)
+  }
+}
+
+export async function decidirRevisaoRiscoAction(input: unknown): Promise<ConciliacaoActionResult> {
+  const correlationId = randomUUID()
+  try {
+    const parsed = riskReviewSchema.safeParse(input)
+    if (!parsed.success) return failure('Revise a decisao, a justificativa e o codigo TOTP.', correlationId)
+    const { context, fundoId } = await gestorNoFundoAtivo()
+    const review = await context.supabase.from('risco_revisoes').select('id,fundo_id,status')
+      .eq('id', parsed.data.revisaoId).eq('fundo_id', fundoId).maybeSingle()
+    if (review.error) throw review.error
+    if (!review.data) throw new Error('Revisao de risco nao encontrada no fundo ativo.')
+    if (review.data.status !== 'PENDENTE') throw new Error('A revisao de risco nao esta mais pendente.')
+    await autorizarEConsumirAcaoSensivel(context, 'revisar_risco_operacao', parsed.data.codigoTotp)
+    const { data, error } = await context.supabase.rpc('decidir_revisao_risco', {
+      p_revisao_id: parsed.data.revisaoId,
+      p_decisao: parsed.data.decisao,
+      p_justificativa: parsed.data.justificativa,
+      p_correlation_id: correlationId,
+    })
+    if (error || data !== true) throw error || new Error('A decisao da revisao nao foi confirmada.')
+    revalidatePath('/gestor/conciliacao')
+    const message = parsed.data.decisao === 'LIBERADA' ? 'Operacao liberada na revisao de risco.' : 'Operacao recusada na revisao de risco.'
+    return { success: true, message, notification: { type: 'success', message } }
+  } catch (error) {
+    return failure('Nao foi possivel concluir a revisao de risco.', correlationId, error)
   }
 }
 

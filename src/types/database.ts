@@ -326,6 +326,13 @@ export interface PoliticaOperacionalVersao {
   tipo_ativo_financeiro: import('@/lib/duplicatas/types').TipoAtivoFinanceiro
   controle_exposicao_logistica_ativo: boolean
   limite_exposicao_em_transito_pct: number | string | null
+  gate_risco_ativo: boolean
+  limite_inclusivo: boolean
+  tratamento_pl_indisponivel: 'BLOQUEAR'
+  tratamento_indeterminada: 'REVISAO_MANUAL'
+  tratamento_sem_match: 'BLOQUEAR'
+  tratamento_operacao_nao_incorporada: 'BLOQUEAR'
+  tratamento_liquidacao_parcial: 'SINALIZAR'
   configuracao: Record<string, unknown>
   regras: Record<string, unknown>
   parametros: Record<string, unknown>
@@ -1757,6 +1764,74 @@ export interface ExposicaoOverlayItem {
   created_at: string
 }
 
+export interface RiscoExecucao {
+  id: string
+  fundo_id: string
+  operacao_id: string | null
+  escopo: 'FUNDO' | 'OPERACAO'
+  origem: 'CENTRAL_RISCO' | 'APROVACAO_OPERACAO'
+  regra_versao: 'GATE_RISCO_V1'
+  politica_operacional_versao_id: string | null
+  exposicao_execucao_id: string | null
+  data_operacional: string
+  logistica_as_of: string | null
+  overlay_as_of: string
+  operacao_updated_at_snapshot: string | null
+  taxa_desconto_snapshot: number | string | null
+  aplicavel: boolean
+  status_tecnico: import('@/lib/financeiro/risco/types').RiskTechnicalStatus
+  decisao: import('@/lib/financeiro/risco/types').RiskDecision | null
+  limite_pct: number | string | null
+  limite_inclusivo: true
+  patrimonio_liquido_d2: number | string | null
+  exposicao_atual_valor: number | string | null
+  exposicao_atual_pct: number | string | null
+  operacao_valor_aquisicao: number | string | null
+  operacao_valor_em_transito: number | string | null
+  operacao_valor_indeterminado: number | string | null
+  exposicao_projetada_valor: number | string | null
+  exposicao_projetada_pct: number | string | null
+  quantidade_indeterminada: number
+  quantidade_sem_match: number
+  quantidade_valor_aquisicao_ausente: number
+  quantidade_operacao_nao_incorporada: number
+  liquidacao_parcial_presente: boolean
+  assinatura_inputs: string
+  detalhes: Record<string, unknown>
+  correlation_id: string
+  criado_por: string | null
+  iniciado_em: string
+  finalizado_em: string
+  created_at: string
+}
+
+export interface RiscoMotivo {
+  id: string
+  risco_execucao_id: string
+  fundo_id: string
+  codigo: import('@/lib/financeiro/risco/types').RiskReasonCode
+  severidade: import('@/lib/financeiro/risco/types').RiskReasonSeverity
+  valor_numerico: number | string | null
+  valor_monetario: number | string | null
+  quantidade: number | null
+  detalhes: Record<string, unknown>
+  created_at: string
+}
+
+export interface RiscoRevisao {
+  id: string
+  risco_execucao_id: string
+  fundo_id: string
+  operacao_id: string
+  status: 'PENDENTE' | 'LIBERADA' | 'RECUSADA' | 'EXPIRADA'
+  assinatura_inputs: string
+  justificativa: string | null
+  revisado_por: string | null
+  revisado_em: string | null
+  created_at: string
+  updated_at: string
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -1851,6 +1926,9 @@ export interface Database {
       posicao_logistica_resultados: { Row: PosicaoLogisticaResultado & Record<string, unknown>; Insert: Partial<PosicaoLogisticaResultado> & Pick<PosicaoLogisticaResultado, 'execucao_id' | 'fundo_id' | 'estoque_importacao_id' | 'estoque_posicao_id' | 'matching_status' | 'matching_metodo' | 'status_vinculo' | 'valor_aquisicao_qualidade' | 'fundamento'> & Record<string, unknown>; Update: Partial<PosicaoLogisticaResultado> & Record<string, unknown>; Relationships: [] }
       exposicao_execucoes: { Row: ExposicaoExecucao & Record<string, unknown>; Insert: Partial<ExposicaoExecucao> & Pick<ExposicaoExecucao, 'fundo_id' | 'data_operacional' | 'data_referencia_estoque' | 'data_referencia_pl' | 'overlay_as_of' | 'assinatura_execucao' | 'status'> & Record<string, unknown>; Update: Partial<ExposicaoExecucao> & Record<string, unknown>; Relationships: [] }
       exposicao_overlay_itens: { Row: ExposicaoOverlayItem & Record<string, unknown>; Insert: Partial<ExposicaoOverlayItem> & Pick<ExposicaoOverlayItem, 'execucao_id' | 'fundo_id' | 'operacao_id' | 'nota_fiscal_id' | 'operacao_economica_em' | 'status_logistico' | 'motivo'> & Record<string, unknown>; Update: Partial<ExposicaoOverlayItem> & Record<string, unknown>; Relationships: [] }
+      risco_execucoes: { Row: RiscoExecucao & Record<string, unknown>; Insert: Partial<RiscoExecucao> & Pick<RiscoExecucao, 'fundo_id' | 'escopo' | 'origem' | 'data_operacional' | 'overlay_as_of' | 'aplicavel' | 'status_tecnico' | 'assinatura_inputs'> & Record<string, unknown>; Update: Partial<RiscoExecucao> & Record<string, unknown>; Relationships: [] }
+      risco_motivos: { Row: RiscoMotivo & Record<string, unknown>; Insert: Partial<RiscoMotivo> & Pick<RiscoMotivo, 'risco_execucao_id' | 'fundo_id' | 'codigo' | 'severidade'> & Record<string, unknown>; Update: Partial<RiscoMotivo> & Record<string, unknown>; Relationships: [] }
+      risco_revisoes: { Row: RiscoRevisao & Record<string, unknown>; Insert: Partial<RiscoRevisao> & Pick<RiscoRevisao, 'risco_execucao_id' | 'fundo_id' | 'operacao_id' | 'assinatura_inputs'> & Record<string, unknown>; Update: Partial<RiscoRevisao> & Record<string, unknown>; Relationships: [] }
     }
     Views: Record<string, never>
     Functions: {
@@ -2114,7 +2192,10 @@ export interface Database {
       analisar_documento_versao: { Args: { p_documento_versao_id: string; p_resultado: string; p_observacoes?: string | null; p_dados_estruturados?: Record<string, unknown> }; Returns: Record<string, unknown> }
       processar_aceite_sacado: { Args: { p_nota_fiscal_ids: string[]; p_acao: string; p_motivo?: string | null }; Returns: Record<string, unknown> }
       solicitar_operacao_antecipacao_atomica: { Args: { p_cedente_id: string; p_cedente_fundo_id: string; p_politica_operacional_id: string; p_politica_operacional_versao_id: string; p_politica_versao: number; p_politica_snapshot: Record<string, unknown>; p_politica_snapshot_hash: string; p_aceite_sacado_exigido: boolean; p_aceite_sacado_status: string; p_nota_fiscal_ids: string[]; p_valor_bruto_total: number; p_taxa_desconto: number | null; p_prazo_dias: number; p_valor_liquido_desembolso: number | null; p_data_vencimento: string; p_idempotency_key: string }; Returns: Record<string, unknown> }
-      aprovar_operacao_atomica: { Args: { p_operacao_id: string; p_taxa_desconto: number }; Returns: Record<string, unknown> }
+      simular_memoria_financeira_operacao: { Args: { p_operacao_id: string; p_taxa_desconto: number }; Returns: Record<string, unknown> }
+      persistir_risco_execucao: { Args: { p_payload: Record<string, unknown> }; Returns: string }
+      decidir_revisao_risco: { Args: { p_revisao_id: string; p_decisao: string; p_justificativa: string; p_correlation_id: string }; Returns: boolean }
+      aprovar_operacao_com_risco_atomica: { Args: { p_operacao_id: string; p_taxa_desconto: number; p_risco_execucao_id: string; p_assinatura_inputs: string }; Returns: Record<string, unknown> }
       desembolsar_operacao_com_logistica: { Args: { p_operacao_id: string }; Returns: Record<string, unknown> }
       registrar_cte_documento: { Args: { p_nota_fiscal_ids: string[]; p_documento_tipo_codigo: string; p_nome_original: string; p_mime_type: string; p_tamanho_bytes: number; p_sha256: string; p_bucket: string; p_path: string; p_chave_cte?: string | null; p_numero?: string | null; p_serie?: string | null; p_data_emissao?: string | null; p_cnpj_transportadora?: string | null; p_cnpj_remetente?: string | null; p_cnpj_destinatario?: string | null; p_valor_frete?: number | null; p_nivel_validacao?: string; p_dados_extraidos?: Record<string, unknown> }; Returns: Record<string, unknown> }
       registrar_canhoto_documento: { Args: { p_nota_fiscal_entrega_id: string; p_nome_original: string; p_mime_type: string; p_tamanho_bytes: number; p_sha256: string; p_bucket: string; p_path: string; p_data_assinatura?: string | null; p_nome_recebedor?: string | null; p_documento_recebedor?: string | null; p_possui_assinatura?: boolean; p_possui_ressalva?: boolean; p_descricao_ressalva?: string | null }; Returns: Record<string, unknown> }

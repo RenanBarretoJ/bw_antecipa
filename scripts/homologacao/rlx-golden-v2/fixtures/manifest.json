@@ -25,6 +25,7 @@
   "counts": {
     "notes": 110,
     "operations_d0": 10,
+    "risk_candidate_operations": 1,
     "boleto_documents": 110,
     "matching_scenarios": 9,
     "reconciliation_scenarios": 10
@@ -169,6 +170,11 @@
       "path": "expected/expected-exposure.json",
       "sha256": "ef72c0a3511678f3bbc7b12961748d5e84b8cdca2d33009ecb03543f5a7ea3d1",
       "bytes": 277
+    },
+    {
+      "path": "expected/expected-risk-gate.json",
+      "sha256": "62519a9fb76a25ca1f2cd8f0bdc462fba34b35c757b8f81d8ca55e46d686132a",
+      "bytes": 1246
     }
   ]
 }

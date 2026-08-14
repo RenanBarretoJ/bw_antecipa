@@ -202,6 +202,9 @@ async function seedDatabase(users, manager) {
     'permite_postergacao_upload_canhoto', 'limite_postergacao_upload_canhoto_dias',
     'metodo_calculo_financeiro', 'exigir_status_logistico_pre_cessao', 'tipo_ativo_financeiro',
     'controle_exposicao_logistica_ativo', 'limite_exposicao_em_transito_pct',
+    'gate_risco_ativo', 'limite_inclusivo', 'tratamento_pl_indisponivel',
+    'tratamento_indeterminada', 'tratamento_sem_match',
+    'tratamento_operacao_nao_incorporada', 'tratamento_liquidacao_parcial',
   ], dataset.funds.map((fund) => ({
     id: fund.policyVersionId, politica_operacional_id: fund.policyId, cedente_fundo_id: null, fundo_id: fund.id,
     versao: 1, vigente_desde: `${BUSINESS_DATES['D-4']}T09:00:00-03:00`,
@@ -212,6 +215,10 @@ async function seedDatabase(users, manager) {
     metodo_calculo_financeiro: 'DIAS_UTEIS_252', exigir_status_logistico_pre_cessao: false,
     tipo_ativo_financeiro: 'NOTA_FISCAL',
     controle_exposicao_logistica_ativo: true, limite_exposicao_em_transito_pct: 40,
+    gate_risco_ativo: true, limite_inclusivo: true,
+    tratamento_pl_indisponivel: 'BLOQUEAR', tratamento_indeterminada: 'REVISAO_MANUAL',
+    tratamento_sem_match: 'BLOQUEAR', tratamento_operacao_nao_incorporada: 'BLOQUEAR',
+    tratamento_liquidacao_parcial: 'SINALIZAR',
   })), { conflict: 'ON CONFLICT (id) DO NOTHING' })
   const requirements = policyRequirementRows(typeIds)
   const requirementExisting = await db.query(`SELECT id FROM public.politica_requisitos_documentais WHERE id=ANY($1)`, [requirements.map((item) => item.id)])
@@ -284,7 +291,8 @@ async function seedDatabase(users, manager) {
   })), { conflict: 'ON CONFLICT (id) DO NOTHING', batchSize: 50 })
   await db.query(`SET LOCAL session_replication_role='origin'`)
 
-  const operationRows = dataset.operations.map((operation) => {
+  const seedOperations = [...dataset.operations, dataset.riskCandidateOperation]
+  const operationRows = seedOperations.map((operation) => {
     const snapshot = policySnapshot(operation.note.fund)
     return {
       id: operation.id, cedente_id: operation.note.cedent.id, cedente_fundo_id: operation.note.cedent.linkId,
@@ -299,7 +307,7 @@ async function seedDatabase(users, manager) {
     }
   })
   await insertRows(db, 'operacoes', Object.keys(operationRows[0]), operationRows, { conflict: 'ON CONFLICT (id) DO NOTHING' })
-  await insertRows(db, 'operacoes_nfs', ['operacao_id', 'nota_fiscal_id'], dataset.operations.map((operation) => ({ operacao_id: operation.id, nota_fiscal_id: operation.note.id })), { conflict: 'ON CONFLICT DO NOTHING' })
+  await insertRows(db, 'operacoes_nfs', ['operacao_id', 'nota_fiscal_id'], seedOperations.map((operation) => ({ operacao_id: operation.id, nota_fiscal_id: operation.note.id })), { conflict: 'ON CONFLICT DO NOTHING' })
   await db.query(`SELECT set_config('app.calculo_aprovacao','true',true)`)
   for (const operation of dataset.operations) {
     const result = await db.query(`SELECT private.calcular_memoria_financeira_nf($1,$2,$3,$4,$5,'DIAS_UTEIS_252') memoria`, [operation.note.id, operation.note.value, operation.rate, BASE_DATE, operation.note.dueDate])

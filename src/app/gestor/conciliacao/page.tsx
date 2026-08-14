@@ -15,7 +15,7 @@ function positiveInteger(value: string, fallback: number) {
 export default async function ConciliacaoPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams
   const rawTab = single(params.tab)
-  const tab: ConciliacaoTab = ['matching', 'conciliacao', 'logistica', 'exposicao', 'excecoes'].includes(rawTab)
+  const tab: ConciliacaoTab = ['matching', 'conciliacao', 'logistica', 'exposicao', 'risco', 'excecoes'].includes(rawTab)
     ? rawTab as ConciliacaoTab
     : 'visao-geral'
   const filters: ConciliacaoFilters = {
@@ -31,6 +31,11 @@ export default async function ConciliacaoPage({ searchParams }: { searchParams: 
     idRecebivel: single(params.idRecebivel),
     vencimentoDe: single(params.vencimentoDe),
     vencimentoAte: single(params.vencimentoAte),
+    riskReason: single(params.motivo),
+    riskOperation: single(params.operacao),
+    riskPolicy: single(params.politica),
+    riskCreatedFrom: single(params.dataDe),
+    riskCreatedTo: single(params.dataAte),
     page: positiveInteger(single(params.page), 1),
     pageSize: Math.min(50, positiveInteger(single(params.pageSize), 20)),
   }

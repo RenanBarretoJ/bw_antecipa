@@ -321,6 +321,26 @@ export function buildFixtureFiles(dataset = buildGoldenV2()) {
     scenarios_percent: [25, 37, 39.8, 40, 42],
     description: 'Contrato descritivo; nenhuma regra de concentracao de 40% e inferida.',
   }, null, 2)}\n`)
+  files.set('expected/expected-risk-gate.json', `${JSON.stringify({
+    schema: 'expected_risk_gate_v1',
+    dataset_version: DATASET_VERSION,
+    rule_version: 'GATE_RISCO_V1',
+    policy: { active: true, limit_percent: '40', inclusive: true },
+    baseline: {
+      net_asset_value_d2: '50000000.00',
+      known_transit_exposure: '0.00',
+      indeterminate: { count: 12, value: '147803.45', expected_reason: 'EXPOSICAO_INDETERMINADA' },
+      unmatched: { count: 3, value: '1021648.91', expected_reason: 'POSICAO_SEM_MATCH' },
+      expected_decision: 'BLOQUEADO',
+    },
+    scenarios: [
+      { percent: '25', exposure_value: '12500000.00', expected_decision: 'APTO' },
+      { percent: '37', exposure_value: '18500000.00', expected_decision: 'APTO' },
+      { percent: '39.8', exposure_value: '19900000.00', expected_decision: 'APTO' },
+      { percent: '40', exposure_value: '20000000.00', expected_decision: 'APTO', expected_reason: 'NO_LIMITE' },
+      { percent: '42', exposure_value: '21000000.00', expected_decision: 'BLOQUEADO', expected_reason: 'EXPOSICAO_ACIMA_LIMITE' },
+    ],
+  }, null, 2)}\n`)
   return files
 }
 
@@ -332,6 +352,7 @@ export function buildManifest(dataset = buildGoldenV2(), files = buildFixtureFil
     counts: {
       notes: dataset.notes.length,
       operations_d0: dataset.operations.length,
+      risk_candidate_operations: dataset.riskCandidateOperation ? 1 : 0,
       boleto_documents: dataset.boletoDocuments.length,
       matching_scenarios: dataset.matching.length,
       reconciliation_scenarios: dataset.reconciliation.length,

@@ -174,6 +174,14 @@ export function buildGoldenV2() {
     createdAt: `${BASE_DATE}T${String(9 + Math.floor(index / 4)).padStart(2, '0')}:${String((index * 7) % 60).padStart(2, '0')}:00-03:00`,
     approvedAt: `${BASE_DATE}T${String(12 + Math.floor(index / 5)).padStart(2, '0')}:${String((index * 11) % 60).padStart(2, '0')}:00-03:00`,
   }))
+  const riskCandidateOperation = {
+    id: uid('operation:risk-candidate'),
+    note: mainNotes[0],
+    rate: 1.79,
+    logistics: 'INDETERMINADA',
+    createdAt: `${BASE_DATE}T15:30:00-03:00`,
+    approvedAt: null,
+  }
   const operationByNote = new Map(operations.map((operation) => [operation.note.id, operation]))
   for (const note of notes) note.operation = operationByNote.get(note.id) ?? null
 
@@ -285,6 +293,7 @@ export function buildGoldenV2() {
     mainNotes,
     adversarialNotes,
     operations,
+    riskCandidateOperation,
     boletoDocuments,
     matching,
     reconciliation,

@@ -6,7 +6,7 @@ import { deterministicUuid } from '../rlx-golden/helpers.mjs'
 const { env, execute, confirmation } = initializeMutation('CLEANUP_V2')
 const dataset = buildGoldenV2()
 const exact = {
-  operations: dataset.operations.map((item) => item.id),
+  operations: [...dataset.operations.map((item) => item.id), dataset.riskCandidateOperation.id],
   deliveries: dataset.operations.map((item) => item.note.id),
   documents: dataset.boletoDocuments.map((item) => item.id),
   versions: dataset.boletoDocuments.map((item) => item.versionId),
@@ -50,6 +50,11 @@ try {
     await db.query(`SET LOCAL session_replication_role='replica'`)
     const funds = dataset.funds.map((item) => item.id)
     const scopedDeletes = [
+      `DELETE FROM public.risco_revisoes WHERE fundo_id=ANY($1)`,
+      `DELETE FROM public.risco_motivos WHERE fundo_id=ANY($1)`,
+      `DELETE FROM public.risco_execucoes WHERE fundo_id=ANY($1)`,
+      `DELETE FROM public.exposicao_overlay_itens WHERE fundo_id=ANY($1)`,
+      `DELETE FROM public.exposicao_execucoes WHERE fundo_id=ANY($1)`,
       `DELETE FROM public.posicao_logistica_resultados WHERE fundo_id=ANY($1)`,
       `DELETE FROM public.posicao_logistica_execucoes WHERE fundo_id=ANY($1)`,
       `DELETE FROM public.matching_candidatos WHERE fundo_id=ANY($1)`,

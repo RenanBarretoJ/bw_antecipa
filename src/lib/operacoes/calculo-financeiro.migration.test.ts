@@ -20,6 +20,10 @@ const approvalHardeningMigration = readFileSync(
   ),
   'utf8',
 ).toLowerCase()
+const riskGateMigration = readFileSync(
+  join(process.cwd(), 'supabase/migrations/20260814230000_p2_6_gate_risco_decisao_operacional.sql'),
+  'utf8',
+).toLowerCase()
 
 const action = readFileSync(join(process.cwd(), 'src/lib/actions/operacao.ts'), 'utf8')
 const managerClient = readFileSync(
@@ -60,7 +64,7 @@ describe('contrato de persistencia do calculo financeiro', () => {
   })
 
   it('recalcula na RPC com data de Sao Paulo e sem valor liquido do cliente', () => {
-    const chamadaAprovacao = action.match(/supabase\.rpc\('aprovar_operacao_atomica',[\s\S]*?\}\s+as never\)/)?.[0]
+    const chamadaAprovacao = action.match(/supabase\.rpc\('aprovar_operacao_com_risco_atomica',[\s\S]*?\}\s+as never\)/)?.[0]
     expect(migration).toMatch(/public\.aprovar_operacao_atomica\(\r?\n\s+p_operacao_id uuid,\r?\n\s+p_taxa_desconto numeric/)
     expect(migration).toContain("timezone('america/sao_paulo'")
     expect(migration).toContain('private.calcular_memoria_financeira_nf')
@@ -69,6 +73,8 @@ describe('contrato de persistencia do calculo financeiro', () => {
     expect(chamadaAprovacao).toBeDefined()
     expect(chamadaAprovacao).not.toContain('p_valor_liquido_desembolso')
     expect(chamadaAprovacao).not.toContain('p_valor_liquido')
+    expect(chamadaAprovacao).toContain('p_risco_execucao_id')
+    expect(chamadaAprovacao).toContain('p_assinatura_inputs')
     expect(migration).toContain("set_config('app.calculo_aprovacao', 'true', true)")
     expect(migration).toContain('previa_valor_liquido_solicitacao')
     expect(migration).toContain('diferenca_previa_aprovacao')
@@ -149,5 +155,14 @@ describe('contrato de persistencia do calculo financeiro', () => {
     expect(approvalHardeningMigration).toContain(
       'aprovacao financeira deve ocorrer pela rpc atomica',
     )
+  })
+
+  it('torna o gate de risco obrigatorio e revoga as rotas atomicas anteriores', () => {
+    expect(riskGateMigration).toContain('create or replace function public.aprovar_operacao_com_risco_atomica')
+    expect(riskGateMigration).toContain('revoke all on function public.aprovar_operacao_atomica(uuid,numeric) from public,anon,authenticated')
+    expect(riskGateMigration).toContain("v_risco.regra_versao<>'gate_risco_v1'")
+    expect(riskGateMigration).toContain('v_risco.operacao_updated_at_snapshot is distinct from v_op.updated_at')
+    expect(riskGateMigration).toContain("v_risco.decisao='bloqueado'")
+    expect(action).not.toContain("supabase.rpc('aprovar_operacao_atomica'")
   })
 })

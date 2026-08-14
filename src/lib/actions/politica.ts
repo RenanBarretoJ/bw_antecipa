@@ -34,6 +34,13 @@ export interface CriarVersaoPoliticaInput {
   tipo_ativo_financeiro: TipoAtivoFinanceiro
   controle_exposicao_logistica_ativo: boolean
   limite_exposicao_em_transito_pct: string | null
+  gate_risco_ativo: boolean
+  limite_inclusivo: true
+  tratamento_pl_indisponivel: 'BLOQUEAR'
+  tratamento_indeterminada: 'REVISAO_MANUAL'
+  tratamento_sem_match: 'BLOQUEAR'
+  tratamento_operacao_nao_incorporada: 'BLOQUEAR'
+  tratamento_liquidacao_parcial: 'SINALIZAR'
   configuracao?: Record<string, unknown>
   requisitos: PoliticaRequisitoInput[]
 }
@@ -54,6 +61,13 @@ function hashVersao(input: CriarVersaoPoliticaInput, requisitos: ReturnType<type
     tipo_ativo_financeiro: input.tipo_ativo_financeiro,
     controle_exposicao_logistica_ativo: input.controle_exposicao_logistica_ativo,
     limite_exposicao_em_transito_pct: input.limite_exposicao_em_transito_pct,
+    gate_risco_ativo: input.gate_risco_ativo,
+    limite_inclusivo: input.limite_inclusivo,
+    tratamento_pl_indisponivel: input.tratamento_pl_indisponivel,
+    tratamento_indeterminada: input.tratamento_indeterminada,
+    tratamento_sem_match: input.tratamento_sem_match,
+    tratamento_operacao_nao_incorporada: input.tratamento_operacao_nao_incorporada,
+    tratamento_liquidacao_parcial: input.tratamento_liquidacao_parcial,
     configuracao: input.configuracao || {},
     requisitos,
   })).digest('hex')
@@ -250,6 +264,9 @@ export async function criarVersaoPolitica(
         return result('Informe um limite de exposicao valido.')
       }
     }
+    if (input.gate_risco_ativo && !input.controle_exposicao_logistica_ativo) {
+      return result('O gate de risco exige o controle de exposicao logistica ativo.')
+    }
     const payload = { ...input, configuracao: config, requisitos: normalized }
     const hash = hashVersao(payload, normalized)
     const { data: created, error } = await supabase.from('politica_operacional_versoes').insert({
@@ -272,6 +289,13 @@ export async function criarVersaoPolitica(
       limite_exposicao_em_transito_pct: input.controle_exposicao_logistica_ativo
         ? input.limite_exposicao_em_transito_pct
         : null,
+      gate_risco_ativo: input.gate_risco_ativo,
+      limite_inclusivo: true,
+      tratamento_pl_indisponivel: 'BLOQUEAR',
+      tratamento_indeterminada: 'REVISAO_MANUAL',
+      tratamento_sem_match: 'BLOQUEAR',
+      tratamento_operacao_nao_incorporada: 'BLOQUEAR',
+      tratamento_liquidacao_parcial: 'SINALIZAR',
       configuracao: config,
       regras: config.fluxo_operacional ? { fluxo_operacional: config.fluxo_operacional } : {},
       parametros: config,
@@ -478,6 +502,7 @@ export async function duplicarPoliticaDoFundo(
         tipo_ativo_financeiro?: TipoAtivoFinanceiro
         controle_exposicao_logistica_ativo?: boolean
         limite_exposicao_em_transito_pct?: number | string | null
+        gate_risco_ativo?: boolean
         configuracao: Record<string, unknown>
       }
       const { data: baseRequirements, error: requirementsError } = await context.supabase
@@ -504,6 +529,13 @@ export async function duplicarPoliticaDoFundo(
         limite_exposicao_em_transito_pct: base.limite_exposicao_em_transito_pct == null
           ? null
           : String(base.limite_exposicao_em_transito_pct),
+        gate_risco_ativo: base.gate_risco_ativo === true,
+        limite_inclusivo: true,
+        tratamento_pl_indisponivel: 'BLOQUEAR',
+        tratamento_indeterminada: 'REVISAO_MANUAL',
+        tratamento_sem_match: 'BLOQUEAR',
+        tratamento_operacao_nao_incorporada: 'BLOQUEAR',
+        tratamento_liquidacao_parcial: 'SINALIZAR',
         configuracao: base.configuracao || {},
         requisitos,
       })

@@ -68,6 +68,7 @@ interface VersionRow {
   tipo_ativo_financeiro: TipoAtivoFinanceiro
   controle_exposicao_logistica_ativo: boolean
   limite_exposicao_em_transito_pct: number | string | null
+  gate_risco_ativo: boolean
   configuracao?: Record<string, unknown> | null
 }
 interface RequirementRow {
@@ -170,7 +171,7 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
   const [requirePreCessionLogisticStatus, setRequirePreCessionLogisticStatus] = useState(false)
   const [calculationMethod, setCalculationMethod] = useState<MetodoCalculoNovaPolitica | ''>('')
   const [financialAssetType, setFinancialAssetType] = useState<TipoAtivoFinanceiro>('NOTA_FISCAL')
-  const [exposureControl, setExposureControl] = useState({ ativo: false, limite: '' })
+  const [exposureControl, setExposureControl] = useState({ ativo: false, limite: '', gateAtivo: false })
   const [requirementsForm, setRequirementsForm] = useState<PoliticaRequisitoInput[]>([])
 
   const loadData = useCallback(async () => {
@@ -201,7 +202,7 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
       ;[versionResult, requirementResult] = await Promise.all([
         supabase
           .from('politica_operacional_versoes')
-          .select('id, politica_operacional_id, fundo_id, cedente_fundo_id, versao, status, publicada_em, publicada_por, vigente_desde, vigente_ate, created_at, aceite_sacado_obrigatorio, cessao_no_desembolso, cria_acompanhamento_entrega, exigir_status_logistico_pre_cessao, permite_postergacao_upload_canhoto, limite_postergacao_upload_canhoto_dias, metodo_calculo_financeiro, tipo_ativo_financeiro, controle_exposicao_logistica_ativo, limite_exposicao_em_transito_pct, configuracao')
+          .select('id, politica_operacional_id, fundo_id, cedente_fundo_id, versao, status, publicada_em, publicada_por, vigente_desde, vigente_ate, created_at, aceite_sacado_obrigatorio, cessao_no_desembolso, cria_acompanhamento_entrega, exigir_status_logistico_pre_cessao, permite_postergacao_upload_canhoto, limite_postergacao_upload_canhoto_dias, metodo_calculo_financeiro, tipo_ativo_financeiro, controle_exposicao_logistica_ativo, limite_exposicao_em_transito_pct, gate_risco_ativo, configuracao')
           .in('politica_operacional_id', policyIds)
           .order('versao', { ascending: false }),
         supabase
@@ -313,6 +314,7 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
     setExposureControl({
       ativo: source?.controle_exposicao_logistica_ativo === true,
       limite: source?.limite_exposicao_em_transito_pct == null ? '' : String(source.limite_exposicao_em_transito_pct),
+      gateAtivo: source?.gate_risco_ativo === true,
     })
     setRequirementsForm(source ? cloneRequirements(sourceRequirements) : [emptyRequirement(0)])
     setVersionStep('fluxo')
@@ -333,6 +335,13 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
       tipo_ativo_financeiro: financialAssetType,
       controle_exposicao_logistica_ativo: exposureControl.ativo,
       limite_exposicao_em_transito_pct: exposureControl.ativo ? exposureControl.limite : null,
+      gate_risco_ativo: exposureControl.ativo && exposureControl.gateAtivo,
+      limite_inclusivo: true,
+      tratamento_pl_indisponivel: 'BLOQUEAR',
+      tratamento_indeterminada: 'REVISAO_MANUAL',
+      tratamento_sem_match: 'BLOQUEAR',
+      tratamento_operacao_nao_incorporada: 'BLOQUEAR',
+      tratamento_liquidacao_parcial: 'SINALIZAR',
       configuracao: {
         fluxo_operacional: operationalSelections,
         requisito_ui_schema: 'bw-antecipa.politica-operacional-ui.v2',
@@ -707,7 +716,7 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
                   </div>
                   <label className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2.5 text-sm font-medium md:w-auto md:min-w-56">
                     <span>Ativar controle</span>
-                    <input type="checkbox" checked={exposureControl.ativo} onChange={(event) => setExposureControl((current) => ({ ...current, ativo: event.target.checked }))} className="size-4 accent-primary" />
+                    <input type="checkbox" checked={exposureControl.ativo} onChange={(event) => setExposureControl((current) => ({ ...current, ativo: event.target.checked, gateAtivo: event.target.checked ? current.gateAtivo : false }))} className="size-4 accent-primary" />
                   </label>
                 </div>
                 {exposureControl.ativo ? (
@@ -716,7 +725,13 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
                       <Label htmlFor="limite-exposicao">Limite de exposicao em transito (%)</Label>
                       <Input id="limite-exposicao" inputMode="decimal" value={exposureControl.limite} onChange={(event) => setExposureControl((current) => ({ ...current, limite: event.target.value }))} placeholder="40" className="mt-2" />
                     </div>
-                    <p className="rounded-lg border border-primary/15 bg-primary/5 px-3 py-2.5 text-sm text-muted-foreground">O limite e congelado na versao publicada e no snapshot de cada execucao. Exatamente no limite gera <strong>NO_LIMITE</strong>, sem decisao de elegibilidade.</p>
+                    <div className="space-y-3">
+                      <p className="rounded-lg border border-primary/15 bg-primary/5 px-3 py-2.5 text-sm text-muted-foreground">O limite e congelado na versao publicada e no snapshot de cada execucao. Exatamente no limite permanece apto e registra <strong>NO_LIMITE</strong>.</p>
+                      <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-background px-3 py-3 text-sm">
+                        <input type="checkbox" checked={exposureControl.gateAtivo} onChange={(event) => setExposureControl((current) => ({ ...current, gateAtivo: event.target.checked }))} className="mt-0.5 size-4 accent-primary" />
+                        <span><strong className="block text-foreground">Aplicar limite como gate de risco na aprovacao</strong><span className="text-muted-foreground">Operacoes acima do limite serao bloqueadas; exposicao indeterminada exigira revisao manual.</span></span>
+                      </label>
+                    </div>
                   </div>
                 ) : <p className="bg-muted/10 px-4 py-3 text-sm text-muted-foreground sm:px-5">Sem controle ativo, a execucao P2.5 sera registrada como nao aplicavel.</p>}
               </div>
