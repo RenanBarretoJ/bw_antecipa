@@ -40,7 +40,13 @@
     "homolog:rlx:golden:fixtures": "node scripts/homologacao/rlx-golden/generate-fixtures.mjs",
     "homolog:rlx:golden:seed": "node scripts/homologacao/rlx-golden/seed.mjs",
     "homolog:rlx:golden:verify": "node scripts/homologacao/rlx-golden/verify.mjs",
-    "homolog:rlx:golden:cleanup": "node scripts/homologacao/rlx-golden/cleanup.mjs"
+    "homolog:rlx:golden:cleanup": "node scripts/homologacao/rlx-golden/cleanup.mjs",
+    "homolog:rlx:financeiro": "node scripts/homologacao/rlx-financeiro/ingest-golden.mjs",
+    "homolog:rlx:financeiro:verify": "node scripts/homologacao/rlx-financeiro/verify.mjs",
+    "homolog:rlx:financeiro:verify-security": "node scripts/homologacao/rlx-financeiro/verify-security.mjs",
+    "homolog:rlx:capabilities:verify": "node scripts/homologacao/rlx-financeiro/verify-capabilities.mjs",
+    "homolog:rlx:financeiro:validate-migration": "node scripts/homologacao/rlx-financeiro/validate-migration.mjs",
+    "homolog:rlx:financeiro:apply-migration": "node scripts/homologacao/rlx-financeiro/apply-migration.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.3.0",
@@ -50,6 +56,7 @@
     "@supabase/supabase-js": "^2.99.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "csv-parse": "7.0.1",
     "decimal.js": "^10.6.0",
     "handlebars": "^4.7.8",
     "jszip": "^3.10.1",
@@ -82,6 +89,7 @@
     "pg": "^8.22.0",
     "supabase": "2.111.0",
     "tailwindcss": "^4",
+    "tsx": "4.20.6",
     "typescript": "^5",
     "vitest": "^4.1.10"
   }
