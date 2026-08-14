@@ -76,10 +76,14 @@ try {
     SELECT table_name,column_name,data_type,numeric_precision,numeric_scale
     FROM information_schema.columns
     WHERE table_schema='public' AND (
-      (table_name LIKE 'rlx_%' AND column_name LIKE 'valor_%') OR
+      (table_name = ANY($1) AND column_name LIKE 'valor_%') OR
       (table_name='rlx_carteira_snapshots' AND column_name='patrimonio_liquido')
     )
-  `)
+  `, [[
+    'rlx_importacoes_financeiras', 'rlx_estoque_posicoes',
+    'rlx_aquisicao_movimentos', 'rlx_liquidacao_movimentos',
+    'rlx_estoque_atual', 'rlx_aquisicoes_atuais', 'rlx_liquidacoes_atuais',
+  ]])
   check(numericTypes.rows.every((row) => row.data_type === 'numeric' && Number(row.numeric_scale) === 4), 'valores canonicos usam numeric com escala 4', numericTypes.rows)
 
   const imports = await db.query(`

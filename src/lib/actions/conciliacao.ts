@@ -10,6 +10,7 @@ import {
   executarConciliacaoFinanceira,
   executarMatchingFinanceiro,
 } from '@/lib/rlx/conciliacao/processor.server'
+import { executarPosicaoLogisticaFinanceira } from '@/lib/rlx/logistica/processor.server'
 
 export type ConciliacaoActionResult = {
   success: boolean
@@ -101,6 +102,29 @@ export async function executarConciliacaoAction(input: unknown): Promise<Concili
     }
   } catch (error) {
     return failure('Nao foi possivel executar a conciliacao financeira.', correlationId, error)
+  }
+}
+
+export async function executarPosicaoLogisticaAction(input: unknown): Promise<ConciliacaoActionResult> {
+  const correlationId = randomUUID()
+  try {
+    const parsed = executionSchema.safeParse(input)
+    if (!parsed.success) return failure('Informe uma data de referencia valida.', correlationId)
+    const { context, fundoId } = await gestorNoFundoAtivo()
+    const result = await executarPosicaoLogisticaFinanceira({
+      fundoId,
+      dataReferencia: parsed.data.dataReferencia,
+      atorUsuarioId: context.user.id,
+    })
+    revalidatePath('/gestor/conciliacao')
+    return {
+      success: true,
+      message: 'Posicao logistica financeira executada.',
+      data: result,
+      notification: { type: 'success', message: 'Posicao logistica financeira executada.' },
+    }
+  } catch (error) {
+    return failure('Nao foi possivel executar a posicao logistica financeira.', correlationId, error)
   }
 }
 

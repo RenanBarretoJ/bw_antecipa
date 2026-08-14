@@ -63,6 +63,7 @@ async function schemaGate() {
     'cedente_fundo_politicas', 'documento_tipos', 'documentos_repositorio', 'documento_versoes',
     'documento_analises', 'documento_vinculos', 'documento_requisito_instancias',
     'operacoes', 'operacoes_nfs', 'operacao_calculo_nfs', 'nota_fiscal_entregas',
+    'ctes', 'cte_notas_fiscais', 'canhotos',
     'rlx_titulo_nf_vinculos', 'rlx_titulo_nf_vinculo_chaves',
   ]
   const result = await db.query(`SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_name=ANY($1)`, [required])
@@ -329,6 +330,97 @@ async function seedDatabase(users, manager) {
     motivo_pendencia: operation.logistics === 'INDETERMINADA' ? `Cenario logistico futuro ${DATASET_VERSION}` : null,
     created_at: operation.approvedAt, updated_at: operation.approvedAt,
   })), { conflict: 'ON CONFLICT (id) DO NOTHING' })
+
+  // expected-logistics valida a ponte canonica de evidencias. O status da entrega
+  // nao e usado como atalho: cada caso possui a mesma evidencia que existiria no fluxo real.
+  const logisticsFixtures = dataset.operations
+    .filter((operation) => operation.logistics !== 'INDETERMINADA')
+    .map((operation) => {
+      const family = operation.logistics === 'ENTREGUE' ? 'comprovante_entrega' : 'cte'
+      const documentCode = family === 'cte' ? 'cte_xml' : 'comprovante_entrega'
+      return {
+        operation,
+        family,
+        documentCode,
+        documentId: deterministicUuid(`${DATASET_VERSION}:logistics-document:${family}:${operation.note.id}`),
+        versionId: deterministicUuid(`${DATASET_VERSION}:logistics-version:${family}:${operation.note.id}:1`),
+        analysisId: deterministicUuid(`${DATASET_VERSION}:logistics-analysis:${family}:${operation.note.id}:1`),
+        entityId: deterministicUuid(`${DATASET_VERSION}:${family}:${operation.note.id}`),
+      }
+    })
+  await insertRows(db, 'documentos_repositorio', ['id', 'documento_tipo_id', 'status', 'criado_por', 'created_at', 'updated_at'], logisticsFixtures.map((item) => ({
+    id: item.documentId, documento_tipo_id: typeIds.get(item.documentCode), status: 'aprovado',
+    criado_por: users.get(item.operation.note.cedent.userKey).id, created_at: item.operation.approvedAt, updated_at: item.operation.approvedAt,
+  })), { conflict: 'ON CONFLICT (id) DO NOTHING' })
+  await insertRows(db, 'documento_versoes', [
+    'id', 'documento_id', 'numero_versao', 'bucket', 'path', 'nome_original', 'mime_type',
+    'tamanho_bytes', 'sha256', 'status', 'substitui_versao_id', 'enviado_por', 'enviado_em', 'created_at',
+  ], logisticsFixtures.map((item) => ({
+    id: item.versionId, documento_id: item.documentId, numero_versao: 1, bucket: 'documentos-v2',
+    path: `qa/${DATASET_VERSION}/${item.family}/${item.operation.note.id}.pdf`,
+    nome_original: `${item.family}-${item.operation.note.number}.pdf`, mime_type: 'application/pdf',
+    tamanho_bytes: 2048, sha256: sha256(`${DATASET_VERSION}:${item.family}:${item.operation.note.id}:1`),
+    status: 'aprovado', substitui_versao_id: null, enviado_por: users.get(item.operation.note.cedent.userKey).id,
+    enviado_em: item.operation.approvedAt, created_at: item.operation.approvedAt,
+  })), { conflict: 'ON CONFLICT (id) DO NOTHING' })
+  await insertRows(db, 'documento_analises', ['id', 'documento_versao_id', 'resultado', 'analisado_por', 'ator_tipo', 'observacoes', 'dados_estruturados', 'analisado_em', 'created_at'], logisticsFixtures.map((item) => ({
+    id: item.analysisId, documento_versao_id: item.versionId, resultado: 'aprovado', analisado_por: actor.id,
+    ator_tipo: 'usuario', observacoes: `Evidencia logistica sintetica ${DATASET_VERSION}`,
+    dados_estruturados: { qa_dataset: DATASET_VERSION, familia: item.family, nota_fiscal_id: item.operation.note.id },
+    analisado_em: item.operation.approvedAt, created_at: item.operation.approvedAt,
+  })), { conflict: 'ON CONFLICT (id) DO NOTHING' })
+  const cteFixtures = logisticsFixtures.filter((item) => item.family === 'cte')
+  await insertRows(db, 'ctes', [
+    'id', 'cedente_id', 'fundo_id', 'cedente_fundo_id', 'chave_cte', 'numero', 'serie', 'data_emissao',
+    'formato_origem', 'nivel_validacao', 'status', 'analisado_por', 'analisado_em', 'documento_id',
+    'documento_versao_atual_id', 'documento_versao_aprovada_id', 'dados_extraidos', 'created_at', 'updated_at',
+  ], cteFixtures.map((item) => ({
+    id: item.entityId, cedente_id: item.operation.note.cedent.id, fundo_id: item.operation.note.fund.id,
+    cedente_fundo_id: item.operation.note.cedent.linkId, chave_cte: item.operation.note.key,
+    numero: item.operation.note.number, serie: '1', data_emissao: BASE_DATE,
+    formato_origem: 'xml', nivel_validacao: 'estrutural', status: 'aprovado', analisado_por: actor.id,
+    analisado_em: item.operation.approvedAt, documento_id: item.documentId,
+    documento_versao_atual_id: item.versionId, documento_versao_aprovada_id: item.versionId,
+    dados_extraidos: { qa_dataset: DATASET_VERSION }, created_at: item.operation.approvedAt, updated_at: item.operation.approvedAt,
+  })), { conflict: 'ON CONFLICT (id) DO NOTHING' })
+  await insertRows(db, 'cte_notas_fiscais', ['cte_id', 'nota_fiscal_id', 'chave_nfe_referenciada', 'status_validacao', 'resultado_validacao', 'divergencias', 'validado_em', 'created_at'], cteFixtures.map((item) => ({
+    cte_id: item.entityId, nota_fiscal_id: item.operation.note.id,
+    chave_nfe_referenciada: item.operation.note.key, status_validacao: 'aprovado',
+    resultado_validacao: { qa_dataset: DATASET_VERSION }, divergencias: [],
+    validado_em: item.operation.approvedAt, created_at: item.operation.approvedAt,
+  })), { conflict: 'ON CONFLICT DO NOTHING' })
+  const proofFixtures = logisticsFixtures.filter((item) => item.family === 'comprovante_entrega')
+  await insertRows(db, 'canhotos', [
+    'id', 'nota_fiscal_entrega_id', 'status', 'data_assinatura', 'nome_recebedor', 'possui_assinatura',
+    'possui_ressalva', 'recebido_em', 'analisado_por', 'analisado_em', 'documento_id',
+    'documento_versao_atual_id', 'documento_versao_aprovada_id', 'created_at', 'updated_at',
+  ], proofFixtures.map((item) => ({
+    id: item.entityId, nota_fiscal_entrega_id: deterministicUuid(`${DATASET_VERSION}:delivery:${item.operation.note.id}`),
+    status: 'aprovado', data_assinatura: BASE_DATE, nome_recebedor: 'QA RLX V2 RECEBEDOR',
+    possui_assinatura: true, possui_ressalva: false, recebido_em: item.operation.approvedAt,
+    analisado_por: actor.id, analisado_em: item.operation.approvedAt, documento_id: item.documentId,
+    documento_versao_atual_id: item.versionId, documento_versao_aprovada_id: item.versionId,
+    created_at: item.operation.approvedAt, updated_at: item.operation.approvedAt,
+  })), { conflict: 'ON CONFLICT (id) DO NOTHING' })
+
+  // O seed e idempotente inclusive quando as entregas ja existiam antes da
+  // materializacao das evidencias canonicas adicionada pelo P2.4. Reafirma o
+  // estado descritivo declarado pelo Golden somente depois de criar CT-es e
+  // comprovantes, pois triggers logisticos podem ter reavaliado a entrega.
+  for (const operation of dataset.operations) {
+    const deliveryStatus = operation.logistics === 'ENTREGUE'
+      ? 'entregue'
+      : operation.logistics === 'EM_TRANSITO'
+        ? 'em_transito'
+        : 'aguardando_validacao'
+    await db.query(`UPDATE public.nota_fiscal_entregas
+      SET status_entrega=$2, updated_at=$3
+      WHERE id=$1`, [
+      deterministicUuid(`${DATASET_VERSION}:delivery:${operation.note.id}`),
+      deliveryStatus,
+      operation.approvedAt,
+    ])
+  }
 
   const seeds = crosswalkSeeds()
   await insertRows(db, 'rlx_titulo_nf_vinculos', [

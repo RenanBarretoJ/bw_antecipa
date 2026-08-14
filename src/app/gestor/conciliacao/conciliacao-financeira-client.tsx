@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { GitCompareArrows, Link2, Play, Search, Unlink } from 'lucide-react'
+import { GitCompareArrows, Link2, Play, Search, Truck, Unlink } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -13,6 +13,7 @@ import {
   confirmarMatchManualAction,
   executarConciliacaoAction,
   executarMatchingAction,
+  executarPosicaoLogisticaAction,
   pesquisarNotasParaMatchingAction,
   revogarMatchManualAction,
 } from '@/lib/actions/conciliacao'
@@ -23,6 +24,7 @@ const tabs: Array<{ id: ConciliacaoTab; label: string }> = [
   { id: 'visao-geral', label: 'Visao geral' },
   { id: 'matching', label: 'Matching' },
   { id: 'conciliacao', label: 'Conciliacao' },
+  { id: 'logistica', label: 'Logistica' },
   { id: 'excecoes', label: 'Excecoes' },
 ]
 
@@ -49,12 +51,13 @@ function date(value: string | null | undefined) {
 
 function badge(status: string) {
   const ok = ['MATCH_FORTE', 'MANTIDO_CORRETO', 'ENTRADA_INCORPORADA', 'SAIDA_REFLETIDA', 'CONCLUIDA'].includes(status)
-  const warning = ['AMBIGUO', 'BASE_INCOMPLETA', 'PROCESSANDO'].includes(status)
+  const warning = ['AMBIGUO', 'BASE_INCOMPLETA', 'PROCESSANDO', 'EM_TRANSITO', 'INDETERMINADA'].includes(status)
+  const logisticsOk = status === 'ENTREGUE'
   return cn(
     'inline-flex rounded-full px-2 py-0.5 text-xs font-medium',
-    ok && 'bg-success/15 text-success-foreground',
+    (ok || logisticsOk) && 'bg-success/15 text-success-foreground',
     warning && 'bg-warning/20 text-warning-foreground',
-    !ok && !warning && 'bg-destructive/10 text-destructive',
+    !ok && !logisticsOk && !warning && 'bg-destructive/10 text-destructive',
   )
 }
 
@@ -147,6 +150,9 @@ export function ConciliacaoFinanceiraClient({ dashboard }: { dashboard: Concilia
           <Button disabled={pending || !dashboard.filtros.dataReferencia} onClick={() => run(() => executarConciliacaoAction({ dataReferencia: dashboard.filtros.dataReferencia }))}>
             <GitCompareArrows /> Executar conciliacao
           </Button>
+          <Button variant="outline" disabled={pending || !dashboard.filtros.dataReferencia} onClick={() => run(() => executarPosicaoLogisticaAction({ dataReferencia: dashboard.filtros.dataReferencia }))}>
+            <Truck /> Atualizar logistica
+          </Button>
         </div>
       </header>
 
@@ -173,7 +179,7 @@ export function ConciliacaoFinanceiraClient({ dashboard }: { dashboard: Concilia
             </select>
             <select name="status" defaultValue={dashboard.filtros.status} className="h-8 rounded-lg border border-input bg-background px-2 text-sm">
               <option value="">Todos os status</option>
-              {['MATCH_FORTE', 'AMBIGUO', 'NAO_CONCILIADO', 'CONFLITO', 'MANTIDO_CORRETO', 'ENTRADA_INCORPORADA', 'ENTRADA_NAO_INCORPORADA', 'SAIDA_REFLETIDA', 'SAIDA_SEM_LIQUIDACAO', 'LIQUIDADO_AINDA_NO_ESTOQUE', 'DIVERGENCIA_VALOR'].map((item) => <option key={item}>{item}</option>)}
+              {['MATCH_FORTE', 'AMBIGUO', 'NAO_CONCILIADO', 'CONFLITO', 'MANTIDO_CORRETO', 'ENTRADA_INCORPORADA', 'ENTRADA_NAO_INCORPORADA', 'SAIDA_REFLETIDA', 'SAIDA_SEM_LIQUIDACAO', 'LIQUIDADO_AINDA_NO_ESTOQUE', 'DIVERGENCIA_VALOR', 'ENTREGUE', 'EM_TRANSITO', 'INDETERMINADA', 'SEM_MATCH_FINANCEIRO_NF'].map((item) => <option key={item}>{item}</option>)}
             </select>
             <select name="metodo" defaultValue={dashboard.filtros.metodo} className="h-8 rounded-lg border border-input bg-background px-2 text-sm">
               <option value="">Todos os metodos</option>
@@ -184,6 +190,23 @@ export function ConciliacaoFinanceiraClient({ dashboard }: { dashboard: Concilia
               <Button render={<Link href={currentQuery(dashboard, dashboard.filtros.tab)} />} nativeButton={false} variant="outline">Limpar</Button>
             </div>
           </form>
+          {dashboard.filtros.tab === 'logistica' && (
+            <form method="get" className="mt-3 grid gap-2 border-t pt-3 sm:grid-cols-2 xl:grid-cols-4">
+              <input type="hidden" name="tab" value="logistica" />
+              <input type="hidden" name="data" value={dashboard.filtros.dataReferencia} />
+              <input type="hidden" name="q" value={dashboard.filtros.q} />
+              <input type="hidden" name="status" value={dashboard.filtros.status} />
+              <input type="hidden" name="metodo" value={dashboard.filtros.metodo} />
+              <Input name="cedente" defaultValue={dashboard.filtros.cedente} placeholder="Cedente" />
+              <Input name="sacado" defaultValue={dashboard.filtros.sacado} placeholder="Sacado" />
+              <Input name="seuNumero" defaultValue={dashboard.filtros.seuNumero} placeholder="Seu numero" />
+              <Input name="idRecebivel" defaultValue={dashboard.filtros.idRecebivel} placeholder="ID recebivel" />
+              <Input name="nf" defaultValue={dashboard.filtros.notaFiscal} placeholder="UUID da NF" />
+              <Input name="vencimentoDe" type="date" defaultValue={dashboard.filtros.vencimentoDe} aria-label="Vencimento inicial" />
+              <Input name="vencimentoAte" type="date" defaultValue={dashboard.filtros.vencimentoAte} aria-label="Vencimento final" />
+              <Button type="submit" variant="outline">Aplicar filtros logisticos</Button>
+            </form>
+          )}
         </CardContent>
       </Card>
 
@@ -223,8 +246,11 @@ export function ConciliacaoFinanceiraClient({ dashboard }: { dashboard: Concilia
       {(dashboard.filtros.tab === 'conciliacao' || dashboard.filtros.tab === 'excecoes') && (
         <ReconciliationTable rows={dashboard.conciliacao.rows} total={dashboard.conciliacao.total} />
       )}
+      {(dashboard.filtros.tab === 'logistica' || dashboard.filtros.tab === 'excecoes') && (
+        <LogisticsView dashboard={dashboard} />
+      )}
 
-      <Pagination dashboard={dashboard} total={dashboard.filtros.tab === 'conciliacao' ? dashboard.conciliacao.total : dashboard.filtros.tab === 'matching' ? dashboard.matching.total : Math.max(dashboard.matching.total, dashboard.conciliacao.total)} />
+      <Pagination dashboard={dashboard} total={dashboard.filtros.tab === 'logistica' ? dashboard.logistica.total : dashboard.filtros.tab === 'conciliacao' ? dashboard.conciliacao.total : dashboard.filtros.tab === 'matching' ? dashboard.matching.total : Math.max(dashboard.matching.total, dashboard.conciliacao.total, dashboard.logistica.total)} />
 
       <Dialog open={Boolean(manualRow)} onOpenChange={(open) => { if (!open) setManualRow(null) }}>
         <DialogContent className="sm:max-w-3xl">
@@ -316,6 +342,33 @@ function ReconciliationTable({ rows, total }: { rows: ConciliacaoDashboard['conc
   )
 }
 
+function LogisticsView({ dashboard }: { dashboard: ConciliacaoDashboard }) {
+  const execution = dashboard.logisticaExecucao
+  const cards = [
+    ['Posicao total', execution?.total_posicoes || 0, execution?.valor_total_aquisicao],
+    ['Matched', execution?.posicoes_matched || 0, execution?.valor_matched],
+    ['Sem match', execution?.posicoes_sem_match || 0, execution?.valor_sem_match],
+    ['Entregue', execution?.posicoes_entregues || 0, execution?.valor_entregue],
+    ['Em transito', execution?.posicoes_em_transito || 0, execution?.valor_em_transito],
+    ['Indeterminada', execution?.posicoes_indeterminadas || 0, execution?.valor_indeterminado],
+  ] as const
+  return <div className="space-y-4">
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+      {cards.map(([label, count, value]) => <Card size="sm" key={label}><CardContent><p className="text-xs uppercase text-muted-foreground">{label}</p><p className="mt-1 text-xl font-semibold tabular-nums">{count}</p><p className="text-xs font-medium tabular-nums text-muted-foreground">{value === null || value === undefined ? 'Valor nao informado' : money(value)}</p></CardContent></Card>)}
+    </div>
+    <Card>
+      <CardHeader><CardTitle>Posicao logistica ({dashboard.logistica.total})</CardTitle></CardHeader>
+      <CardContent>
+        {execution && <div className="mb-4 grid gap-2 rounded-lg bg-muted p-3 text-sm sm:grid-cols-3"><div><span className="text-muted-foreground">Estoque</span><p className="font-mono text-xs">{execution.estoque_importacao_id.slice(0, 8)}</p></div><div><span className="text-muted-foreground">Logistica as-of</span><p>{new Date(execution.logistica_as_of).toLocaleString('pt-BR')}</p></div><div><span className="text-muted-foreground">Regra</span><p>{execution.regra_versao}</p></div></div>}
+        <div className="overflow-x-auto"><table className="w-full min-w-[1100px] text-left text-sm"><thead className="border-b text-xs uppercase text-muted-foreground"><tr><th className="py-2 pr-3">Titulo / NF</th><th className="pr-3">Cedente</th><th className="pr-3">Sacado</th><th className="pr-3">Aquisicao</th><th className="pr-3">Matching</th><th className="pr-3">Logistica</th><th className="pr-3">Evidencia</th><th>Vencimento</th></tr></thead><tbody className="divide-y">
+          {dashboard.logistica.rows.map((row) => <tr key={row.id}><td className="max-w-48 truncate py-3 pr-3" title={row.id_recebivel || row.seu_numero || ''}><p className="font-mono text-xs">{row.id_recebivel || row.seu_numero || row.numero_documento || '—'}</p>{row.nota_fiscal_id ? <Link className="text-xs font-medium text-primary hover:underline" href={`/gestor/notas-fiscais/${row.nota_fiscal_id}`}>Ver NF</Link> : <Link className="text-xs font-medium text-primary hover:underline" href={currentQuery(dashboard, 'matching')}>Resolver matching</Link>}</td><td className="max-w-44 truncate pr-3" title={row.cedente_nome || ''}>{row.cedente_nome || '—'}</td><td className="max-w-44 truncate pr-3" title={row.sacado_nome || ''}>{row.sacado_nome || '—'}</td><td className="pr-3 tabular-nums">{row.valor_aquisicao === null ? <span className="text-warning-foreground">Ausente</span> : money(row.valor_aquisicao)}</td><td className="pr-3"><span className={badge(row.matching_status)}>{row.matching_status}</span></td><td className="pr-3">{row.status_logistico ? <span className={badge(row.status_logistico)}>{row.status_logistico}</span> : <span className={badge(row.status_vinculo)}>{row.status_vinculo}</span>}</td><td className="max-w-44 truncate pr-3" title={row.fundamento}>{row.evidencia_familia || row.fundamento}</td><td>{date(row.data_vencimento)}</td></tr>)}
+        </tbody></table></div>
+        {!dashboard.logistica.rows.length && <p className="py-10 text-center text-muted-foreground">Nenhum snapshot logistico para os filtros informados.</p>}
+      </CardContent>
+    </Card>
+  </div>
+}
+
 function Pagination({ dashboard, total }: { dashboard: ConciliacaoDashboard; total: number }) {
   const pages = Math.max(1, Math.ceil(total / dashboard.filtros.pageSize))
   if (pages <= 1) return null
@@ -325,6 +378,13 @@ function Pagination({ dashboard, total }: { dashboard: ConciliacaoDashboard; tot
     if (dashboard.filtros.status) params.set('status', dashboard.filtros.status)
     if (dashboard.filtros.metodo) params.set('metodo', dashboard.filtros.metodo)
     if (dashboard.filtros.q) params.set('q', dashboard.filtros.q)
+    if (dashboard.filtros.cedente) params.set('cedente', dashboard.filtros.cedente)
+    if (dashboard.filtros.sacado) params.set('sacado', dashboard.filtros.sacado)
+    if (dashboard.filtros.notaFiscal) params.set('nf', dashboard.filtros.notaFiscal)
+    if (dashboard.filtros.seuNumero) params.set('seuNumero', dashboard.filtros.seuNumero)
+    if (dashboard.filtros.idRecebivel) params.set('idRecebivel', dashboard.filtros.idRecebivel)
+    if (dashboard.filtros.vencimentoDe) params.set('vencimentoDe', dashboard.filtros.vencimentoDe)
+    if (dashboard.filtros.vencimentoAte) params.set('vencimentoAte', dashboard.filtros.vencimentoAte)
     return `/gestor/conciliacao?${params.toString()}`
   }
   return <div className="flex items-center justify-between text-sm text-muted-foreground"><span>Pagina {dashboard.filtros.page} de {pages}</span><div className="flex gap-2"><Button render={<Link href={href(Math.max(1, dashboard.filtros.page - 1))} />} nativeButton={false} variant="outline" disabled={dashboard.filtros.page <= 1}>Anterior</Button><Button render={<Link href={href(Math.min(pages, dashboard.filtros.page + 1))} />} nativeButton={false} variant="outline" disabled={dashboard.filtros.page >= pages}>Proxima</Button></div></div>

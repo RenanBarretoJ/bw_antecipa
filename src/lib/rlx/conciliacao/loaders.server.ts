@@ -8,10 +8,12 @@ import type {
   RlxMatchingCandidato,
   RlxMatchingExecucao,
   RlxMatchingResultado,
+  RlxPosicaoLogisticaExecucao,
+  RlxPosicaoLogisticaResultado,
   RlxTituloNfVinculo,
 } from '@/types/database'
 
-export type ConciliacaoTab = 'visao-geral' | 'matching' | 'conciliacao' | 'excecoes'
+export type ConciliacaoTab = 'visao-geral' | 'matching' | 'conciliacao' | 'logistica' | 'excecoes'
 
 export type ConciliacaoFilters = {
   tab: ConciliacaoTab
@@ -19,6 +21,13 @@ export type ConciliacaoFilters = {
   status: string
   metodo: string
   q: string
+  cedente: string
+  sacado: string
+  notaFiscal: string
+  seuNumero: string
+  idRecebivel: string
+  vencimentoDe: string
+  vencimentoAte: string
   page: number
   pageSize: number
 }
@@ -34,11 +43,14 @@ export type ConciliacaoDashboard = {
   datasDisponiveis: string[]
   matchingExecucao: RlxMatchingExecucao | null
   conciliacaoExecucao: RlxConciliacaoExecucao | null
+  logisticaExecucao: RlxPosicaoLogisticaExecucao | null
   matching: { rows: MatchingViewRow[]; total: number }
   conciliacao: { rows: RlxConciliacaoResultado[]; total: number }
+  logistica: { rows: RlxPosicaoLogisticaResultado[]; total: number }
 }
 
 const MATCH_EXCEPTIONS: readonly RlxMatchingResultado['status'][] = ['AMBIGUO', 'NAO_CONCILIADO', 'CONFLITO']
+const MATCH_STATUSES: readonly RlxMatchingResultado['status'][] = ['MATCH_FORTE', ...MATCH_EXCEPTIONS]
 const RECON_EXCEPTIONS = [
   'DIVERGENCIA_VALOR',
   'ENTRADA_NAO_INCORPORADA',
@@ -50,6 +62,10 @@ const RECON_EXCEPTIONS = [
 
 function safeSearch(value: string) {
   return value.replace(/[,%()]/g, ' ').trim().slice(0, 120)
+}
+
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
 }
 
 async function gestorContext() {
@@ -68,13 +84,15 @@ async function availableDates(
   supabase: Awaited<ReturnType<typeof requireGestor>>['supabase'],
   fundoId: string,
 ) {
-  const [matching, reconciliation] = await Promise.all([
+  const [matching, reconciliation, logistics] = await Promise.all([
     supabase.from('rlx_matching_execucoes').select('data_referencia').eq('fundo_id', fundoId).order('data_referencia', { ascending: false }).limit(60),
     supabase.from('rlx_conciliacao_execucoes').select('data_referencia').eq('fundo_id', fundoId).order('data_referencia', { ascending: false }).limit(60),
+    supabase.from('rlx_posicao_logistica_execucoes').select('data_referencia').eq('fundo_id', fundoId).order('data_referencia', { ascending: false }).limit(60),
   ])
   if (matching.error) throw new Error(`Nao foi possivel consultar as datas de matching: ${matching.error.message}`)
   if (reconciliation.error) throw new Error(`Nao foi possivel consultar as datas de conciliacao: ${reconciliation.error.message}`)
-  return [...new Set([...(matching.data || []), ...(reconciliation.data || [])].map((row) => String(row.data_referencia)))].sort().reverse()
+  if (logistics.error) throw new Error(`Nao foi possivel consultar as datas logisticas: ${logistics.error.message}`)
+  return [...new Set([...(matching.data || []), ...(reconciliation.data || []), ...(logistics.data || [])].map((row) => String(row.data_referencia)))].sort().reverse()
 }
 
 async function latestExecutions(
@@ -84,17 +102,55 @@ async function latestExecutions(
 ) {
   let matching = supabase.from('rlx_matching_execucoes').select('*').eq('fundo_id', fundoId).order('created_at', { ascending: false }).limit(1)
   let reconciliation = supabase.from('rlx_conciliacao_execucoes').select('*').eq('fundo_id', fundoId).order('created_at', { ascending: false }).limit(1)
+  let logistics = supabase.from('rlx_posicao_logistica_execucoes').select('*').eq('fundo_id', fundoId).order('created_at', { ascending: false }).limit(1)
   if (dataReferencia) {
     matching = matching.eq('data_referencia', dataReferencia)
     reconciliation = reconciliation.eq('data_referencia', dataReferencia)
+    logistics = logistics.eq('data_referencia', dataReferencia)
   }
-  const [matchingResult, reconciliationResult] = await Promise.all([matching.maybeSingle(), reconciliation.maybeSingle()])
+  const [matchingResult, reconciliationResult, logisticsResult] = await Promise.all([matching.maybeSingle(), reconciliation.maybeSingle(), logistics.maybeSingle()])
   if (matchingResult.error) throw new Error(`Nao foi possivel carregar a execucao de matching: ${matchingResult.error.message}`)
   if (reconciliationResult.error) throw new Error(`Nao foi possivel carregar a execucao de conciliacao: ${reconciliationResult.error.message}`)
+  if (logisticsResult.error) throw new Error(`Nao foi possivel carregar a execucao logistica: ${logisticsResult.error.message}`)
   return {
     matching: matchingResult.data as RlxMatchingExecucao | null,
     reconciliation: reconciliationResult.data as RlxConciliacaoExecucao | null,
+    logistics: logisticsResult.data as RlxPosicaoLogisticaExecucao | null,
   }
+}
+
+async function logisticsRows(input: {
+  supabase: Awaited<ReturnType<typeof requireGestor>>['supabase']
+  fundoId: string
+  executionId: string | null
+  filters: ConciliacaoFilters
+}) {
+  if (!input.executionId) return { rows: [], total: 0 }
+  if (input.filters.notaFiscal && !isUuid(input.filters.notaFiscal)) return { rows: [], total: 0 }
+  const from = (input.filters.page - 1) * input.filters.pageSize
+  let query = input.supabase.from('rlx_posicao_logistica_resultados').select('*', { count: 'exact' })
+    .eq('fundo_id', input.fundoId).eq('execucao_id', input.executionId)
+    .order('criado_em', { ascending: false }).range(from, from + input.filters.pageSize - 1)
+  if (input.filters.tab === 'excecoes') {
+    query = query.or('status_vinculo.eq.SEM_MATCH_FINANCEIRO_NF,status_logistico.eq.INDETERMINADA,valor_aquisicao_qualidade.eq.AUSENTE,nf_compartilhada_entre_posicoes.eq.true')
+  } else if (input.filters.status) {
+    if (input.filters.status === 'SEM_MATCH_FINANCEIRO_NF') query = query.eq('status_vinculo', 'SEM_MATCH_FINANCEIRO_NF')
+    else if (MATCH_STATUSES.includes(input.filters.status as RlxMatchingResultado['status'])) query = query.eq('matching_status', input.filters.status as RlxMatchingResultado['status'])
+    else query = query.eq('status_logistico', input.filters.status as Exclude<RlxPosicaoLogisticaResultado['status_logistico'], null>)
+  }
+  if (input.filters.metodo) query = query.eq('matching_metodo', input.filters.metodo)
+  const q = safeSearch(input.filters.q)
+  if (q) query = query.or(`id_recebivel.ilike.%${q}%,seu_numero.ilike.%${q}%,numero_documento.ilike.%${q}%,cedente_nome.ilike.%${q}%,sacado_nome.ilike.%${q}%`)
+  if (input.filters.cedente) query = query.ilike('cedente_nome', `%${safeSearch(input.filters.cedente)}%`)
+  if (input.filters.sacado) query = query.ilike('sacado_nome', `%${safeSearch(input.filters.sacado)}%`)
+  if (input.filters.notaFiscal) query = query.eq('nota_fiscal_id', input.filters.notaFiscal)
+  if (input.filters.seuNumero) query = query.ilike('seu_numero', `%${safeSearch(input.filters.seuNumero)}%`)
+  if (input.filters.idRecebivel) query = query.ilike('id_recebivel', `%${safeSearch(input.filters.idRecebivel)}%`)
+  if (input.filters.vencimentoDe) query = query.gte('data_vencimento', input.filters.vencimentoDe)
+  if (input.filters.vencimentoAte) query = query.lte('data_vencimento', input.filters.vencimentoAte)
+  const { data, error, count } = await query
+  if (error) throw new Error(`Nao foi possivel listar a posicao logistica: ${error.message}`)
+  return { rows: (data || []) as RlxPosicaoLogisticaResultado[], total: count || 0 }
 }
 
 async function matchingRows(input: {
@@ -184,9 +240,10 @@ export async function carregarConciliacaoGestor(filters: ConciliacaoFilters): Pr
   const requestedDate = filters.dataReferencia || dates[0] || ''
   const executions = await latestExecutions(context.supabase, fundo.id, requestedDate)
   const normalizedFilters = { ...filters, dataReferencia: requestedDate }
-  const [matching, reconciliation] = await Promise.all([
+  const [matching, reconciliation, logistics] = await Promise.all([
     matchingRows({ supabase: context.supabase, fundoId: fundo.id, executionId: executions.matching?.id || null, filters: normalizedFilters }),
     reconciliationRows({ supabase: context.supabase, fundoId: fundo.id, executionId: executions.reconciliation?.id || null, filters: normalizedFilters }),
+    logisticsRows({ supabase: context.supabase, fundoId: fundo.id, executionId: executions.logistics?.id || null, filters: normalizedFilters }),
   ])
   return {
     fundo,
@@ -194,7 +251,9 @@ export async function carregarConciliacaoGestor(filters: ConciliacaoFilters): Pr
     datasDisponiveis: dates,
     matchingExecucao: executions.matching,
     conciliacaoExecucao: executions.reconciliation,
+    logisticaExecucao: executions.logistics,
     matching,
     conciliacao: reconciliation,
+    logistica: logistics,
   }
 }

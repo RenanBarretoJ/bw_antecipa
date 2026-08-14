@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { createAdminClient, connectDb, initializeMutation, runtimeManifestPath } from './runtime.mjs'
 import { DATASET_VERSION, PROVIDER, buildGoldenV2 } from './scenario-definitions.mjs'
+import { deterministicUuid } from '../rlx-golden/helpers.mjs'
 
 const { env, execute, confirmation } = initializeMutation('CLEANUP_V2')
 const dataset = buildGoldenV2()
@@ -17,6 +18,18 @@ const exact = {
   policyVersions: dataset.funds.map((item) => item.policyVersionId),
   requirements: dataset.funds.flatMap((item) => Object.values(item.requirementIds)),
 }
+const logistics = dataset.operations
+  .filter((operation) => operation.logistics !== 'INDETERMINADA')
+  .map((operation) => {
+    const family = operation.logistics === 'ENTREGUE' ? 'comprovante_entrega' : 'cte'
+    return {
+      family,
+      documentId: deterministicUuid(`${DATASET_VERSION}:logistics-document:${family}:${operation.note.id}`),
+      versionId: deterministicUuid(`${DATASET_VERSION}:logistics-version:${family}:${operation.note.id}:1`),
+      analysisId: deterministicUuid(`${DATASET_VERSION}:logistics-analysis:${family}:${operation.note.id}:1`),
+      entityId: deterministicUuid(`${DATASET_VERSION}:${family}:${operation.note.id}`),
+    }
+  })
 let db
 
 try {
@@ -37,6 +50,8 @@ try {
     await db.query(`SET LOCAL session_replication_role='replica'`)
     const funds = dataset.funds.map((item) => item.id)
     const scopedDeletes = [
+      `DELETE FROM public.rlx_posicao_logistica_resultados WHERE fundo_id=ANY($1)`,
+      `DELETE FROM public.rlx_posicao_logistica_execucoes WHERE fundo_id=ANY($1)`,
       `DELETE FROM public.rlx_matching_candidatos WHERE fundo_id=ANY($1)`,
       `DELETE FROM public.rlx_conciliacao_resultados WHERE fundo_id=ANY($1)`,
       `DELETE FROM public.rlx_matching_resultados WHERE fundo_id=ANY($1)`,
@@ -54,15 +69,22 @@ try {
       `DELETE FROM public.rlx_importacoes_financeiras WHERE fundo_id=ANY($1)`,
     ]
     for (const sql of scopedDeletes) await db.query(sql, [funds])
+    const cteIds = logistics.filter((item) => item.family === 'cte').map((item) => item.entityId)
+    const proofIds = logistics.filter((item) => item.family === 'comprovante_entrega').map((item) => item.entityId)
+    if (cteIds.length) {
+      await db.query(`DELETE FROM public.cte_notas_fiscais WHERE cte_id=ANY($1)`, [cteIds])
+      await db.query(`DELETE FROM public.ctes WHERE id=ANY($1)`, [cteIds])
+    }
+    if (proofIds.length) await db.query(`DELETE FROM public.canhotos WHERE id=ANY($1)`, [proofIds])
     await db.query(`DELETE FROM public.nota_fiscal_entregas WHERE nota_fiscal_id=ANY($1)`, [dataset.notes.map((item) => item.id)])
     await db.query(`DELETE FROM public.operacao_calculo_nfs WHERE operacao_id=ANY($1)`, [exact.operations])
     await db.query(`DELETE FROM public.operacoes_nfs WHERE operacao_id=ANY($1)`, [exact.operations])
     await db.query(`DELETE FROM public.operacoes WHERE id=ANY($1)`, [exact.operations])
     await db.query(`DELETE FROM public.documento_requisito_instancias WHERE id=ANY($1)`, [exact.instances])
-    await db.query(`DELETE FROM public.documento_analises WHERE id=ANY($1)`, [exact.analyses])
+    await db.query(`DELETE FROM public.documento_analises WHERE id=ANY($1)`, [[...exact.analyses, ...logistics.map((item) => item.analysisId)]])
     await db.query(`DELETE FROM public.documento_vinculos WHERE id=ANY($1)`, [exact.links])
-    await db.query(`DELETE FROM public.documento_versoes WHERE id=ANY($1)`, [exact.versions])
-    await db.query(`DELETE FROM public.documentos_repositorio WHERE id=ANY($1)`, [exact.documents])
+    await db.query(`DELETE FROM public.documento_versoes WHERE id=ANY($1)`, [[...exact.versions, ...logistics.map((item) => item.versionId)]])
+    await db.query(`DELETE FROM public.documentos_repositorio WHERE id=ANY($1)`, [[...exact.documents, ...logistics.map((item) => item.documentId)]])
     await db.query(`DELETE FROM public.notas_fiscais WHERE id=ANY($1)`, [dataset.notes.map((item) => item.id)])
     await db.query(`DELETE FROM public.cedente_fundo_politicas WHERE id=ANY($1)`, [exact.assignments])
     await db.query(`DELETE FROM public.politica_requisitos_documentais WHERE id=ANY($1)`, [exact.requirements])

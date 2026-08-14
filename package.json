@@ -56,7 +56,12 @@
     "homolog:rlx:golden:v2:cleanup": "node scripts/homologacao/rlx-golden-v2/cleanup.mjs",
     "homolog:rlx:capabilities:verify": "node scripts/homologacao/rlx-financeiro/verify-capabilities.mjs",
     "homolog:rlx:financeiro:validate-migration": "node scripts/homologacao/rlx-financeiro/validate-migration.mjs",
-    "homolog:rlx:financeiro:apply-migration": "node scripts/homologacao/rlx-financeiro/apply-migration.mjs"
+    "homolog:rlx:financeiro:apply-migration": "node scripts/homologacao/rlx-financeiro/apply-migration.mjs",
+    "homolog:rlx:logistica:validate-migration": "node scripts/homologacao/rlx-logistica-financeira/validate-migration.mjs",
+    "homolog:rlx:logistica:apply-migration": "node scripts/homologacao/rlx-logistica-financeira/apply-migration.mjs",
+    "homolog:rlx:logistica:run": "node scripts/homologacao/rlx-logistica-financeira/run.mjs",
+    "homolog:rlx:logistica:verify": "node scripts/homologacao/rlx-logistica-financeira/verify.mjs",
+    "homolog:rlx:logistica:verify-security": "node scripts/homologacao/rlx-logistica-financeira/verify-security.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.3.0",
