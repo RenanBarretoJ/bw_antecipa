@@ -802,6 +802,8 @@ export interface IntegracaoFundo {
   id: string
   fundo_id: string
   provedor: IntegracaoFundoProvedor
+  provider_key: string
+  system_name: string
   nome: string
   status: IntegracaoFundoStatus
   created_by: string
@@ -821,12 +823,25 @@ export interface IntegracaoFundoVersao {
   configuracao_nao_sensivel: Record<string, unknown>
   credential_ref: string
   credencial_integracao_id: string | null
+  adapter_key: string | null
   secret_name: string | null
   vault_key: string | null
   vigente_desde: string
   vigente_ate: string | null
   publicada_por: string | null
   publicada_em: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface IntegracaoFundoVersaoCapacidade {
+  id: string
+  integracao_fundo_versao_id: string
+  fundo_id: string
+  ambiente: IntegracaoAmbiente
+  capability: 'CESSAO_ENVIO' | 'ESTOQUE' | 'AQUISICOES' | 'LIQUIDACOES' | 'CARTEIRA'
+  disponivel_desde: string | null
+  disponivel_ate: string | null
   created_at: string
 }
 
@@ -1383,6 +1398,91 @@ export interface ComunicacaoTentativa {
   finalizada_em: string | null
 }
 
+export interface RlxImportacaoFinanceira {
+  id: string
+  fundo_id: string
+  provedor: string
+  tipo_base: 'CARTEIRA' | 'ESTOQUE' | 'AQUISICOES' | 'LIQUIDACOES'
+  data_referencia: string
+  layout_nome: string
+  versao_layout: string
+  status: 'RECEBIDA' | 'VALIDANDO' | 'VALIDA' | 'PUBLICADA' | 'FALHA' | 'RETIFICADA' | 'CANCELADA'
+  completude: 'COMPLETO_COM_DADOS' | 'COMPLETO_VAZIO' | 'INCOMPLETO'
+  origem: 'MANUAL' | 'CRON' | 'GOLDEN_DATASET'
+  integracao_fundo_versao_id: string | null
+  hash_conteudo: string
+  nome_arquivo: string | null
+  mime_type: string | null
+  tamanho_bytes: number
+  storage_bucket: string | null
+  storage_path: string | null
+  encoding_detectado: string
+  linhas_total: number
+  linhas_validas: number
+  linhas_invalidas: number
+  linhas_warning: number
+  linhas_publicadas: number
+  valor_total: number | string | null
+  erros: unknown[]
+  metadados: Record<string, unknown>
+  correlation_id: string
+  criado_por: string | null
+  recebida_em: string
+  validacao_iniciada_em: string | null
+  validacao_concluida_em: string | null
+  publicada_em: string | null
+  substituida_em: string | null
+  cancelada_em: string | null
+  substitui_importacao_id: string | null
+  finalizada_em: string | null
+  erro_sanitizado: string | null
+  declaracao_sem_movimento: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface RlxImportacaoArquivo {
+  id: string
+  importacao_id: string
+  fundo_id: string
+  ordem: number
+  nome_arquivo: string
+  mime_type: string
+  tamanho_bytes: number
+  hash_conteudo: string
+  storage_bucket: string
+  storage_path: string
+  criado_em: string
+}
+
+export interface RlxImportacaoLinha {
+  id: string
+  importacao_id: string
+  fundo_id: string
+  numero_linha: number
+  status: 'VALIDA' | 'INVALIDA' | 'WARNING'
+  dados_brutos: Record<string, unknown>
+  dados_normalizados: Record<string, unknown>
+  erros: string[]
+  avisos: string[]
+  criada_em: string
+}
+
+export interface RlxImportacaoCiclo {
+  id: string
+  fundo_id: string
+  data_operacional: string
+  origem: 'CRON' | 'MANUAL' | 'GOLDEN_DATASET'
+  status: 'INICIADO' | 'CONCLUIDO' | 'PARCIAL' | 'FALHA'
+  tentativas: number
+  processadas: number
+  falhas: number
+  detalhes: Record<string, unknown>
+  correlation_id: string
+  iniciada_em: string
+  concluida_em: string | null
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -1423,6 +1523,7 @@ export interface Database {
       configuracao_cnab_versoes: { Row: ConfiguracaoCnabVersao & Record<string, unknown>; Insert: InsertShape<ConfiguracaoCnabVersao, 'configuracao_cnab_id' | 'versao' | 'vigente_desde' | 'layout' | 'versao_layout' | 'codigo_banco' | 'banco' | 'agencia' | 'conta' | 'digito_conta' | 'carteira' | 'convenio' | 'codigo_originador' | 'codigo_empresa' | 'tipo_inscricao' | 'numero_inscricao' | 'especie_titulo' | 'tipo_recebivel' | 'conteudo_hash'> & Record<string, unknown>; Update: UpdateShape<ConfiguracaoCnabVersao> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'configuracao_cnab_versoes_configuracao_cnab_id_fkey'; columns: ['configuracao_cnab_id']; isOneToOne: false; referencedRelation: 'configuracoes_cnab'; referencedColumns: ['id'] }, { foreignKeyName: 'configuracao_cnab_versoes_publicada_por_fkey'; columns: ['publicada_por']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] }] }
       integracoes_fundo: { Row: IntegracaoFundo & Record<string, unknown>; Insert: InsertShape<IntegracaoFundo, 'fundo_id' | 'provedor' | 'nome' | 'created_by'> & Record<string, unknown>; Update: UpdateShape<IntegracaoFundo> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'integracoes_fundo_fundo_id_fkey'; columns: ['fundo_id']; isOneToOne: false; referencedRelation: 'fundos'; referencedColumns: ['id'] }, { foreignKeyName: 'integracoes_fundo_created_by_fkey'; columns: ['created_by']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] }] }
       integracao_fundo_versoes: { Row: IntegracaoFundoVersao & Record<string, unknown>; Insert: InsertShape<IntegracaoFundoVersao, 'integracao_fundo_id' | 'versao' | 'ambiente' | 'identificador_cliente' | 'endpoint_base' | 'credential_ref' | 'vigente_desde'> & Record<string, unknown>; Update: UpdateShape<IntegracaoFundoVersao> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'integracao_fundo_versoes_integracao_fundo_id_fkey'; columns: ['integracao_fundo_id']; isOneToOne: false; referencedRelation: 'integracoes_fundo'; referencedColumns: ['id'] }, { foreignKeyName: 'integracao_fundo_versoes_publicada_por_fkey'; columns: ['publicada_por']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] }] }
+      integracao_fundo_versao_capacidades: { Row: IntegracaoFundoVersaoCapacidade & Record<string, unknown>; Insert: InsertShape<IntegracaoFundoVersaoCapacidade, 'integracao_fundo_versao_id' | 'fundo_id' | 'ambiente' | 'capability'> & Record<string, unknown>; Update: UpdateShape<IntegracaoFundoVersaoCapacidade> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'integracao_fundo_versao_capacidades_integracao_fundo_versao_id_fkey'; columns: ['integracao_fundo_versao_id']; isOneToOne: false; referencedRelation: 'integracao_fundo_versoes'; referencedColumns: ['id'] }, { foreignKeyName: 'integracao_fundo_versao_capacidades_fundo_id_fkey'; columns: ['fundo_id']; isOneToOne: false; referencedRelation: 'fundos'; referencedColumns: ['id'] }] }
       credenciais_integracao: { Row: CredencialIntegracao & Record<string, unknown>; Insert: InsertShape<CredencialIntegracao, 'fundo_id' | 'integracao_fundo_id' | 'ambiente' | 'nome' | 'usuario_criptografado' | 'senha_criptografada' | 'chave_versao' | 'criada_por'> & Record<string, unknown>; Update: UpdateShape<CredencialIntegracao> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'credenciais_integracao_fundo_id_fkey'; columns: ['fundo_id']; isOneToOne: false; referencedRelation: 'fundos'; referencedColumns: ['id'] }, { foreignKeyName: 'credenciais_integracao_integracao_fundo_id_fkey'; columns: ['integracao_fundo_id']; isOneToOne: false; referencedRelation: 'integracoes_fundo'; referencedColumns: ['id'] }, { foreignKeyName: 'credenciais_integracao_criada_por_fkey'; columns: ['criada_por']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] }, { foreignKeyName: 'credenciais_integracao_substituida_por_fkey'; columns: ['substituida_por']; isOneToOne: false; referencedRelation: 'credenciais_integracao'; referencedColumns: ['id'] }] }
       integracao_execucoes: { Row: IntegracaoExecucao & Record<string, unknown>; Insert: InsertShape<IntegracaoExecucao, 'fundo_id' | 'integracao_fundo_versao_id' | 'tipo_execucao' | 'ambiente'> & Record<string, unknown>; Update: UpdateShape<IntegracaoExecucao> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'integracao_execucoes_fundo_id_fkey'; columns: ['fundo_id']; isOneToOne: false; referencedRelation: 'fundos'; referencedColumns: ['id'] }, { foreignKeyName: 'integracao_execucoes_integracao_fundo_versao_id_fkey'; columns: ['integracao_fundo_versao_id']; isOneToOne: false; referencedRelation: 'integracao_fundo_versoes'; referencedColumns: ['id'] }, { foreignKeyName: 'integracao_execucoes_remessa_cnab_id_fkey'; columns: ['remessa_cnab_id']; isOneToOne: false; referencedRelation: 'remessas_cnab'; referencedColumns: ['id'] }, { foreignKeyName: 'integracao_execucoes_operacao_id_fkey'; columns: ['operacao_id']; isOneToOne: false; referencedRelation: 'operacoes'; referencedColumns: ['id'] }] }
       retornos_integracao: { Row: RetornoIntegracao & Record<string, unknown>; Insert: InsertShape<RetornoIntegracao, 'fundo_id' | 'integracao_execucao_id' | 'tipo_retorno' | 'storage_path' | 'tamanho_bytes' | 'sha256'> & Record<string, unknown>; Update: UpdateShape<RetornoIntegracao> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'retornos_integracao_fundo_id_fkey'; columns: ['fundo_id']; isOneToOne: false; referencedRelation: 'fundos'; referencedColumns: ['id'] }, { foreignKeyName: 'retornos_integracao_integracao_execucao_id_fkey'; columns: ['integracao_execucao_id']; isOneToOne: false; referencedRelation: 'integracao_execucoes'; referencedColumns: ['id'] }, { foreignKeyName: 'retornos_integracao_remessa_cnab_id_fkey'; columns: ['remessa_cnab_id']; isOneToOne: false; referencedRelation: 'remessas_cnab'; referencedColumns: ['id'] }] }
@@ -1461,12 +1562,19 @@ export interface Database {
       logs_auditoria: { Row: LogAuditoria & Record<string, unknown>; Insert: InsertShape<LogAuditoria, 'tipo_evento' | 'entidade_tipo' | 'ator_tipo' | 'origem'> & Record<string, unknown>; Update: UpdateShape<LogAuditoria> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'logs_auditoria_usuario_id_fkey'; columns: ['usuario_id']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] }] }
       notificacoes: { Row: Notificacao & Record<string, unknown>; Insert: InsertShape<Notificacao, 'usuario_id' | 'titulo' | 'mensagem' | 'tipo'> & Record<string, unknown>; Update: UpdateShape<Notificacao> & Record<string, unknown>; Relationships: [] }
       autorizacoes_acoes_sensiveis: { Row: AutorizacaoAcaoSensivel & Record<string, unknown>; Insert: InsertShape<AutorizacaoAcaoSensivel, 'user_id' | 'session_id' | 'action_type' | 'nonce_hash' | 'expira_em'> & Record<string, unknown>; Update: UpdateShape<AutorizacaoAcaoSensivel> & Record<string, unknown>; Relationships: [] }
+      rlx_importacoes_financeiras: { Row: RlxImportacaoFinanceira & Record<string, unknown>; Insert: Partial<RlxImportacaoFinanceira> & Pick<RlxImportacaoFinanceira, 'fundo_id' | 'provedor' | 'tipo_base' | 'data_referencia' | 'layout_nome' | 'versao_layout' | 'hash_conteudo'> & Record<string, unknown>; Update: Partial<RlxImportacaoFinanceira> & Record<string, unknown>; Relationships: [] }
+      rlx_importacao_arquivos: { Row: RlxImportacaoArquivo & Record<string, unknown>; Insert: Partial<RlxImportacaoArquivo> & Pick<RlxImportacaoArquivo, 'importacao_id' | 'fundo_id' | 'nome_arquivo' | 'mime_type' | 'tamanho_bytes' | 'hash_conteudo' | 'storage_path'> & Record<string, unknown>; Update: Partial<RlxImportacaoArquivo> & Record<string, unknown>; Relationships: [] }
+      rlx_importacao_linhas: { Row: RlxImportacaoLinha & Record<string, unknown>; Insert: Partial<RlxImportacaoLinha> & Pick<RlxImportacaoLinha, 'importacao_id' | 'fundo_id' | 'numero_linha' | 'status' | 'dados_brutos'> & Record<string, unknown>; Update: Partial<RlxImportacaoLinha> & Record<string, unknown>; Relationships: [] }
+      rlx_importacao_ciclos: { Row: RlxImportacaoCiclo & Record<string, unknown>; Insert: Partial<RlxImportacaoCiclo> & Pick<RlxImportacaoCiclo, 'fundo_id' | 'data_operacional' | 'origem' | 'status'> & Record<string, unknown>; Update: Partial<RlxImportacaoCiclo> & Record<string, unknown>; Relationships: [] }
     }
     Views: Record<string, never>
     Functions: {
       admin_resumo_fundos: { Args: Record<string, never>; Returns: Record<string, unknown> }
       admin_listar_fundos: { Args: { p_busca?: string | null; p_status?: string; p_pagina?: number; p_por_pagina?: number }; Returns: Record<string, unknown> }
       admin_obter_fundo: { Args: { p_fundo_id: string }; Returns: Record<string, unknown> | null }
+      publicar_importacao_financeira: { Args: { p_importacao_id: string; p_correlation_id?: string | null }; Returns: Record<string, unknown> }
+      registrar_importacao_financeira_sem_movimento: { Args: { p_fundo_id: string; p_tipo_base: string; p_data_referencia: string; p_provedor: string; p_layout_nome: string; p_versao_layout: string; p_origem?: string; p_correlation_id?: string | null }; Returns: Record<string, unknown> }
+      iniciar_ciclo_importacao_financeira_rlx: { Args: { p_fundo_id: string; p_data_operacional: string; p_origem?: 'CRON'; p_correlation_id?: string | null }; Returns: string | null }
       admin_listar_auditoria_fundo: { Args: { p_fundo_id: string }; Returns: Array<Record<string, unknown>> }
       admin_criar_fundo: { Args: {
         p_nome: string
@@ -1524,6 +1632,7 @@ export interface Database {
       admin_cadastrar_credencial_integracao: {
         Args: {
           p_fundo_id: string
+          p_integracao_fundo_id: string
           p_ambiente: string
           p_nome: string
           p_usuario_criptografado: string
@@ -1546,7 +1655,12 @@ export interface Database {
       admin_salvar_integracao_rascunho: {
         Args: {
           p_fundo_id: string
+          p_integracao_fundo_id: string | null
           p_versao_id: string | null
+          p_provider_key: string
+          p_system_name: string
+          p_adapter_key: string | null
+          p_capabilities: string[]
           p_ambiente: string
           p_endpoint_base: string
           p_identificador_cliente: string
@@ -1563,6 +1677,10 @@ export interface Database {
       }
       admin_desativar_integracao_versao: {
         Args: { p_fundo_id: string; p_versao_id: string; p_correlation_id?: string | null }
+        Returns: Record<string, unknown>
+      }
+      resolver_integracao_por_capability: {
+        Args: { p_fundo_id: string; p_ambiente: string; p_capability: string }
         Returns: Record<string, unknown>
       }
       admin_salvar_cnab_rascunho: {

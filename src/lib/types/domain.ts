@@ -186,7 +186,8 @@ export const CNAB_REMESSA_STATUSES = ['gerada', 'validada', 'enviada', 'aceita',
 export type CnabRemessaStatus = (typeof CNAB_REMESSA_STATUSES)[number]
 
 export const INTEGRACAO_FUNDO_PROVEDORES = ['fromtis', 'sinqia'] as const
-export type IntegracaoFundoProvedor = (typeof INTEGRACAO_FUNDO_PROVEDORES)[number]
+/** Campo legado preservado para compatibilidade; novas identidades usam provider_key flexivel. */
+export type IntegracaoFundoProvedor = string
 
 export const INTEGRACAO_FUNDO_STATUSES = ['rascunho', 'ativa', 'desativada'] as const
 export type IntegracaoFundoStatus = (typeof INTEGRACAO_FUNDO_STATUSES)[number]

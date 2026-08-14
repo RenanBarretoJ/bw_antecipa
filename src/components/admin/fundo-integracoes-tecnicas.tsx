@@ -3,7 +3,7 @@
 import { useMemo, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Activity, KeyRound, Loader2, PlugZap, ShieldAlert } from 'lucide-react'
+import { Activity, KeyRound, Loader2, PlugZap, Plus, ShieldAlert } from 'lucide-react'
 import {
   ativarCredencialAdmin,
   cadastrarCredencialAdmin,
@@ -24,21 +24,39 @@ import {
   obterAcoesCredencial,
   type AdminConfiguracoesTecnicasFundo,
   type AdminCredencialIntegracao,
+  type AdminIntegracao,
   type AdminIntegracaoVersao,
 } from '@/lib/admin/configuracoes-tecnicas'
 import { executarMutacaoTecnica } from '@/lib/admin/executar-mutacao-tecnica'
+import {
+  draftIdentityForEditor,
+  editIntegrationEditorState,
+  initialIntegrationEditorState,
+  newIntegrationEditorState,
+  type IntegrationEditorState,
+} from '@/lib/admin/integracao-editor'
+import {
+  INTEGRATION_CAPABILITIES,
+  INTEGRATION_CAPABILITY_LABELS,
+  SINQIA_PORTAL_FIDC_CAPABILITIES,
+  type IntegrationCapability,
+} from '@/lib/integracoes/capabilities'
+import { possuiCapabilityFinanceira } from '@/lib/integracoes/configuracao-financeira'
 
 type Confirmation = { kind: 'activate' | 'revoke' | 'publish' | 'disable' | 'test'; id: string } | null
-
 const date = (value?: string | null) => value ? new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value)) : 'Nao informado'
 
 function IntegrationDraftForm({
+  integration,
   defaultVersion,
+  fundCnpj,
   activeCredentials,
   pending,
   onSubmit,
 }: {
+  integration?: AdminIntegracao
   defaultVersion?: AdminIntegracaoVersao
+  fundCnpj: string
   activeCredentials: AdminCredencialIntegracao[]
   pending: boolean
   onSubmit: (formData: FormData) => void
@@ -48,7 +66,13 @@ function IntegrationDraftForm({
   const [endpoint, setEndpoint] = useState(defaultVersion?.endpoint_base || '')
   const [clientId, setClientId] = useState(defaultVersion?.identificador_cliente || '')
   const [config, setConfig] = useState(JSON.stringify(defaultVersion?.configuracao_nao_sensivel || {}, null, 2))
+  const [adapterKey, setAdapterKey] = useState(defaultVersion?.adapter_key || '')
+  const [capabilities, setCapabilities] = useState<IntegrationCapability[]>(defaultVersion?.capabilities || [])
+  const [providerKey, setProviderKey] = useState(integration?.provider_key || 'CUSTOM')
+  const [systemName, setSystemName] = useState(integration?.system_name || '')
   const compatibleCredentials = activeCredentials.filter((item) => item.ambiente === environment)
+  const usesFinancialReports = possuiCapabilityFinanceira(capabilities)
+  const normalizedFundCnpj = fundCnpj.replace(/\D/g, '')
 
   function changeEnvironment(value: 'homologacao' | 'producao') {
     setEnvironment(value)
@@ -56,12 +80,21 @@ function IntegrationDraftForm({
     if (!selectedCredential || selectedCredential.ambiente !== value) setCredentialId('')
   }
 
+  function toggleCapability(capability: IntegrationCapability) {
+    setCapabilities((current) => current.includes(capability) ? current.filter((item) => item !== capability) : [...current, capability])
+  }
+
   return <form action={onSubmit} className="grid gap-3 md:grid-cols-2">
+    <label className="space-y-1"><Label>Provider</Label><Input name="providerKey" value={providerKey} onChange={(event) => setProviderKey(event.target.value)} readOnly={Boolean(integration?.versoes.some((item) => item.status !== 'rascunho'))} required /></label>
+    <label className="space-y-1"><Label>Nome do sistema</Label><Input name="systemName" value={systemName} onChange={(event) => setSystemName(event.target.value)} readOnly={Boolean(integration?.versoes.some((item) => item.status !== 'rascunho'))} required /></label>
+    <label className="space-y-1 md:col-span-2"><Label>Adapter</Label><select name="adapterKey" value={adapterKey} onChange={(event) => { setAdapterKey(event.target.value); if (event.target.value === 'sinqia_portal_fidc') setCapabilities((current) => current.filter((item) => SINQIA_PORTAL_FIDC_CAPABILITIES.includes(item as typeof SINQIA_PORTAL_FIDC_CAPABILITIES[number]))) }} className="h-10 w-full rounded-lg border border-input bg-background px-3"><option value="">Adapter nao disponivel (somente rascunho)</option><option value="sinqia_portal_fidc">Portal FIDC / Sinqia</option></select></label>
+    <fieldset className="space-y-2 md:col-span-2"><legend className="text-sm font-medium">Capabilities</legend><div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">{INTEGRATION_CAPABILITIES.map((capability) => { const disabled = adapterKey === 'sinqia_portal_fidc' && !SINQIA_PORTAL_FIDC_CAPABILITIES.includes(capability as typeof SINQIA_PORTAL_FIDC_CAPABILITIES[number]); return <label key={capability} className={`flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm ${disabled ? 'opacity-50' : ''}`}><input type="checkbox" name="capabilities" value={capability} checked={capabilities.includes(capability)} disabled={disabled} onChange={() => toggleCapability(capability)} />{INTEGRATION_CAPABILITY_LABELS[capability]}</label> })}</div></fieldset>
     <label className="space-y-1"><Label>Ambiente</Label><select name="ambiente" value={environment} onChange={(event) => changeEnvironment(event.target.value as 'homologacao' | 'producao')} className="h-10 w-full rounded-lg border border-input bg-background px-3"><option value="homologacao">Homologacao</option><option value="producao">Producao</option></select></label>
     <label className="space-y-1"><Label>Credencial ativa</Label><select name="credencialIntegracaoId" value={compatibleCredentials.some((item) => item.id === credentialId) ? credentialId : ''} onChange={(event) => setCredentialId(event.target.value)} className="h-10 w-full rounded-lg border border-input bg-background px-3"><option value="">Nenhuma por enquanto</option>{compatibleCredentials.map((item) => <option key={item.id} value={item.id}>{item.nome}</option>)}</select></label>
     <label className="space-y-1 md:col-span-2"><Label>Endpoint</Label><Input name="endpointBase" type="url" placeholder="Pode ser informado antes da publicacao" value={endpoint} onChange={(event) => setEndpoint(event.target.value)} /></label>
     <label className="space-y-1"><Label>Identificador do cliente</Label><Input name="identificadorCliente" placeholder="Obrigatorio somente para publicar" value={clientId} onChange={(event) => setClientId(event.target.value)} /></label>
-    <label className="space-y-1 md:col-span-2"><Label>Configuracao nao sensivel (JSON)</Label><textarea name="configuracao" value={config} onChange={(event) => setConfig(event.target.value)} className="min-h-24 w-full rounded-lg border border-input bg-background p-3 font-mono text-xs" /></label>
+    {usesFinancialReports && <label className="space-y-1"><Label>CNPJ do fundo para relatorios financeiros</Label><Input value={normalizedFundCnpj} readOnly aria-readonly="true" /><span className="block text-xs text-muted-foreground">Obtido do cadastro do fundo e preservado automaticamente nesta versao.</span></label>}
+    <label className="space-y-1 md:col-span-2"><Label>Configuracao nao sensivel (JSON)</Label><textarea name="configuracao" value={config} onChange={(event) => setConfig(event.target.value)} className="min-h-24 w-full rounded-lg border border-input bg-background p-3 font-mono text-xs" /><span className="block text-xs text-muted-foreground">Parametros tecnicos adicionais. O CNPJ dos relatorios financeiros e controlado pelo cadastro do fundo.</span></label>
     <Button type="submit" className="md:w-fit" disabled={pending}>{pending && <Loader2 className="animate-spin" />}Salvar rascunho</Button>
   </form>
 }
@@ -73,12 +106,17 @@ export function FundoIntegracoesTecnicas({ state, execPage }: { state: AdminConf
   const [confirmation, setConfirmation] = useState<Confirmation>(null)
   const [reason, setReason] = useState('')
   const [rotationId, setRotationId] = useState<string | null>(null)
+  const [createFormGeneration, setCreateFormGeneration] = useState(0)
+  const [editor, setEditor] = useState<IntegrationEditorState>(() => initialIntegrationEditorState(state.integracoes[0]?.id))
   const credentialFormRef = useRef<HTMLFormElement>(null)
-  const integration = state.integracoes.find((item) => item.provedor === 'fromtis') || state.integracoes[0]
+  const draftCardRef = useRef<HTMLDivElement>(null)
+  const selectedIntegrationId = editor.mode === 'edit' ? editor.integrationId : null
+  const integration = state.integracoes.find((item) => item.id === selectedIntegrationId)
   const versions = integration?.versoes || []
   const draft = versions.find((item) => item.status === 'rascunho')
   const published = versions.find((item) => item.status === 'publicada')
-  const activeCredentials = state.credenciais.filter((item) => item.status === 'ativa')
+  const integrationCredentials = state.credenciais.filter((item) => item.integracao_fundo_id === integration?.id)
+  const activeCredentials = integrationCredentials.filter((item) => item.status === 'ativa')
   const defaultVersion = draft || published
   const confirmContent = useMemo(() => ({
     activate: ['Ativar credencial', 'A credencial passara a poder ser utilizada por versoes tecnicas deste ambiente.', 'Ativar credencial'],
@@ -87,6 +125,12 @@ export function FundoIntegracoesTecnicas({ state, execPage }: { state: AdminConf
     disable: ['Desativar integracao', 'A versao deixara de estar disponivel para execucoes operacionais.', 'Desativar'],
     test: ['Testar integracao', 'O teste usara exatamente a versao e a credencial vinculada, sem fallback.', 'Executar teste'],
   }), [])
+
+  function beginCreateIntegration() {
+    setEditor(newIntegrationEditorState())
+    setCreateFormGeneration((current) => current + 1)
+    requestAnimationFrame(() => draftCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+  }
 
   function refresh(result: Awaited<ReturnType<typeof ativarCredencialAdmin>>) {
     notifications.fromActionResult(result)
@@ -113,9 +157,11 @@ export function FundoIntegracoesTecnicas({ state, execPage }: { state: AdminConf
   }
 
   function createCredential(formData: FormData) {
+    if (!integration) { notifications.warning('Salve a integracao antes de cadastrar credenciais.'); return }
     startTransition(async () => {
       const result = await executarMutacaoTecnica(() => cadastrarCredencialAdmin({
         fundoId: state.fundo.id,
+        integracaoFundoId: integration.id,
         ambiente: formData.get('ambiente'),
         nome: formData.get('nome'),
         usuario: formData.get('usuario'),
@@ -133,21 +179,33 @@ export function FundoIntegracoesTecnicas({ state, execPage }: { state: AdminConf
   }
 
   function saveDraft(formData: FormData) {
+    const lifecycle = editor.mode
+    const identity = draftIdentityForEditor(editor, draft)
     startTransition(async () => {
       let config: Record<string, unknown> = {}
       try { config = JSON.parse(String(formData.get('configuracao') || '{}')) as Record<string, unknown> } catch { notifications.error('O JSON de configuracao nao e valido.'); return }
       const result = await executarMutacaoTecnica(() => salvarIntegracaoRascunhoAdmin({
         fundoId: state.fundo.id,
-        versaoId: draft?.id || null,
+        integracaoFundoId: identity.integrationId,
+        versaoId: identity.versionId,
+        providerKey: formData.get('providerKey'),
+        systemName: formData.get('systemName'),
+        adapterKey: formData.get('adapterKey'),
+        capabilities: formData.getAll('capabilities'),
         ambiente: formData.get('ambiente'),
         endpointBase: formData.get('endpointBase'),
         identificadorCliente: formData.get('identificadorCliente'),
         credencialIntegracaoId: formData.get('credencialIntegracaoId'),
         configuracaoNaoSensivel: config,
-        updatedAtEsperado: draft?.updated_at || null,
+        updatedAtEsperado: identity.updatedAt,
       }))
       notifications.fromActionResult(result)
-      if (result.success) router.refresh()
+      if (result.success) {
+        if (lifecycle === 'create' && result.data?.integrationId) {
+          setEditor(editIntegrationEditorState(result.data.integrationId))
+        }
+        router.refresh()
+      }
     })
   }
 
@@ -155,26 +213,30 @@ export function FundoIntegracoesTecnicas({ state, execPage }: { state: AdminConf
     {!state.fundo.ativo && <div className="flex gap-3 rounded-xl border border-warning/40 bg-warning/10 p-4 text-sm"><ShieldAlert className="size-5 shrink-0 text-warning-foreground" /><p>Fundo inativo: configuracoes e testes tecnicos continuam permitidos, mas execucoes operacionais permanecem bloqueadas.</p></div>}
 
     <Card>
-      <CardHeader><CardTitle className="flex items-center gap-2"><PlugZap className="size-5" />Portal FIDC / Sinqia</CardTitle><CardDescription>Visao tecnica versionada por fundo. Nao existe credencial ou endpoint global de fallback.</CardDescription></CardHeader>
-      <CardContent><FieldGrid><DetailField label="Status tecnico" value={published ? 'Configurado' : 'Nao configurado'} /><DetailField label="Versao publicada" value={published ? `v${published.versao}` : 'Nao publicada'} /><DetailField label="Ambiente" value={published?.ambiente || 'Nao definido'} /><DetailField label="Endpoint" value={published?.endpoint_base || 'Nao definido'} /><DetailField label="Credencial vinculada" value={published?.credencial_integracao_id ? `${state.credenciais.find((item) => item.id === published.credencial_integracao_id)?.nome || 'Nao encontrada'} · ${state.credenciais.find((item) => item.id === published.credencial_integracao_id)?.status || 'invalida'}` : 'Nao definida'} /></FieldGrid></CardContent>
+      <CardHeader><div className="flex flex-wrap items-start justify-between gap-3"><div><CardTitle className="flex items-center gap-2"><PlugZap className="size-5" />Integracoes tecnicas</CardTitle><CardDescription>Fontes versionadas por capability, fundo e ambiente. Nao existe fallback automatico.</CardDescription></div><Button type="button" variant="outline" onClick={beginCreateIntegration}><Plus />Nova integracao</Button></div></CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-5">{INTEGRATION_CAPABILITIES.map((capability) => { const source = state.integracoes.flatMap((item) => item.versoes.map((version) => ({ item, version }))).find(({ version }) => version.status === 'publicada' && version.active_capabilities.includes(capability)); return <div key={capability} className="rounded-lg border border-border p-3"><p className="text-xs font-semibold text-muted-foreground">{INTEGRATION_CAPABILITY_LABELS[capability]}</p><p className="mt-1 truncate text-sm font-medium">{source?.item.system_name || 'Nao configurada'}</p><p className="truncate text-xs text-muted-foreground">{source?.item.provider_key || 'Sem fonte publicada'}</p></div> })}</div>
+        {state.integracoes.length > 0 && <div className="divide-y divide-border rounded-xl border border-border px-4">{state.integracoes.map((item) => { const current = item.versoes.find((version) => version.status === 'publicada'); return <button type="button" key={item.id} onClick={() => setEditor(editIntegrationEditorState(item.id))} className={`flex w-full items-center gap-3 py-3 text-left ${selectedIntegrationId === item.id ? 'text-primary' : ''}`}><div className="min-w-0 flex-1"><p className="truncate font-semibold">{item.system_name}</p><p className="truncate text-xs text-muted-foreground">Provider: {item.provider_key} · {current?.ambiente || 'sem versao publicada'} · {(current?.capabilities || []).map((capability) => INTEGRATION_CAPABILITY_LABELS[capability]).join(', ') || 'sem capabilities publicadas'}</p></div><StatusBadge status={current ? 'ativo' : 'pendente'} label={current ? 'Configurada' : 'Rascunho'} /></button> })}</div>}
+        {integration && <FieldGrid><DetailField label="Integracao selecionada" value={`${integration.system_name} / ${integration.provider_key}`} /><DetailField label="Versao publicada" value={published ? `v${published.versao}` : 'Nao publicada'} /><DetailField label="Adapter" value={defaultVersion?.adapter_key || 'Nao implementado'} /><DetailField label="Ambiente" value={defaultVersion?.ambiente || 'Nao definido'} /></FieldGrid>}
+      </CardContent>
     </Card>
 
     <Card>
       <CardHeader><CardTitle className="flex items-center gap-2"><KeyRound className="size-5" />Credenciais</CardTitle><CardDescription>Somente metadados mascarados sao exibidos. Segredos nunca retornam ao navegador.</CardDescription></CardHeader>
       <CardContent className="space-y-4">
-        {state.credenciais.length === 0 ? <EmptyState title="Nenhuma credencial" description="Cadastre uma credencial por ambiente antes de configurar a integracao." icon={KeyRound} /> : <div className="divide-y divide-border rounded-xl border border-border px-4">
-          {state.credenciais.map((credential) => {
-            const foiRotacionada = state.credenciais.some((item) => item.substituida_por === credential.id)
+        {!integration ? <EmptyState title={editor.mode === 'create' ? 'Salve a integracao primeiro' : 'Nenhuma integracao selecionada'} description={editor.mode === 'create' ? 'Depois do primeiro salvamento, as credenciais serao liberadas para esta integracao.' : 'Selecione uma integracao existente ou inicie uma nova configuracao.'} icon={KeyRound} /> : integrationCredentials.length === 0 ? <EmptyState title="Nenhuma credencial" description="Cadastre uma credencial por ambiente para esta integracao." icon={KeyRound} /> : <div className="divide-y divide-border rounded-xl border border-border px-4">
+          {integrationCredentials.map((credential) => {
+            const foiRotacionada = integrationCredentials.some((item) => item.substituida_por === credential.id)
             const actions = obterAcoesCredencial(credential.status)
             return <div key={credential.id} className="flex flex-wrap items-center gap-3 py-3">
-            <div className="min-w-0 flex-1"><p className="truncate font-semibold">{credential.nome}</p><p className="text-xs text-muted-foreground">Portal FIDC · {credential.ambiente} · {credential.usuario_mascarado || 'usuario protegido'}</p><p className="text-xs text-muted-foreground">Criada em {date(credential.criada_em)} · ultima rotacao {foiRotacionada ? date(credential.ativada_em) : 'nao realizada'} · ultimo uso {date(credential.ultimo_uso_em)}</p></div>
+            <div className="min-w-0 flex-1"><p className="truncate font-semibold">{credential.nome}</p><p className="text-xs text-muted-foreground">{integration.system_name} · {credential.ambiente} · {credential.usuario_mascarado || 'usuario protegido'}</p><p className="text-xs text-muted-foreground">Criada em {date(credential.criada_em)} · ultima rotacao {foiRotacionada ? date(credential.ativada_em) : 'nao realizada'} · ultimo uso {date(credential.ultimo_uso_em)}</p></div>
             <StatusBadge status={credential.status === 'ativa' ? 'ativo' : credential.status === 'revogada' ? 'reprovada' : credential.status === 'substituida' ? 'desativada' : 'pendente'} label={credential.status} />
-            {actions.includes('ativar') && <Button size="sm" variant="outline" onClick={() => setConfirmation({ kind: 'activate', id: credential.id })}>Ativar</Button>}
-            {actions.includes('rotacionar') && <Button size="sm" variant="outline" onClick={() => setRotationId(credential.id)}>Rotacionar</Button>}
-            {actions.includes('revogar') && <Button size="sm" variant="destructive" onClick={() => setConfirmation({ kind: 'revoke', id: credential.id })}>Revogar</Button>}
+            {actions.includes('ativar') && <Button type="button" size="sm" variant="outline" onClick={() => setConfirmation({ kind: 'activate', id: credential.id })}>Ativar</Button>}
+            {actions.includes('rotacionar') && <Button type="button" size="sm" variant="outline" onClick={() => setRotationId(credential.id)}>Rotacionar</Button>}
+            {actions.includes('revogar') && <Button type="button" size="sm" variant="destructive" onClick={() => setConfirmation({ kind: 'revoke', id: credential.id })}>Revogar</Button>}
           </div>})}
         </div>}
-        <form ref={credentialFormRef} action={createCredential} className="grid gap-3 rounded-xl border border-border bg-muted/20 p-4 md:grid-cols-2">
+        {integration && <form ref={credentialFormRef} action={createCredential} className="grid gap-3 rounded-xl border border-border bg-muted/20 p-4 md:grid-cols-2">
           <div className="md:col-span-2"><p className="font-semibold">{rotationId ? 'Rotacionar credencial' : 'Nova credencial'}</p>{rotationId && <p className="text-xs text-muted-foreground">A credencial anterior sera substituida somente apos a ativacao da nova.</p>}</div>
           <label className="space-y-1"><Label>Ambiente</Label><select name="ambiente" defaultValue="homologacao" className="h-10 w-full rounded-lg border border-input bg-background px-3"><option value="homologacao">Homologacao</option><option value="producao">Producao</option></select></label>
           <label className="space-y-1"><Label>Nome</Label><Input name="nome" required maxLength={120} /></label>
@@ -182,19 +244,23 @@ export function FundoIntegracoesTecnicas({ state, execPage }: { state: AdminConf
           <label className="space-y-1"><Label>Senha</Label><Input name="senha" type="password" required autoComplete="new-password" /></label>
           <label className="space-y-1"><Label>Codigo TOTP</Label><Input name="mfaCode" required inputMode="numeric" pattern="[0-9]{6}" maxLength={6} autoComplete="one-time-code" /></label>
           <div className="flex items-end gap-2"><Button type="submit" disabled={pending}>{pending && <Loader2 className="animate-spin" />}{rotationId ? 'Cadastrar rotacao' : 'Cadastrar credencial'}</Button>{rotationId && <Button type="button" variant="outline" onClick={() => setRotationId(null)}>Cancelar</Button>}</div>
-        </form>
+        </form>}
       </CardContent>
     </Card>
 
-    <Card>
-      <CardHeader><CardTitle>Configuracao da integracao</CardTitle><CardDescription>Salvar cria ou atualiza somente o rascunho. Publicacao e teste exigem confirmacao TOTP separada. O teste e tecnico e nao cria remessa nem representa operacao real.</CardDescription></CardHeader>
-      <CardContent className="space-y-4">
-        <IntegrationDraftForm key={`${defaultVersion?.id || 'novo'}:${defaultVersion?.updated_at || 'inicial'}`} defaultVersion={defaultVersion} activeCredentials={activeCredentials} pending={pending} onSubmit={saveDraft} />
-        <div className="divide-y divide-border rounded-xl border border-border px-4">
-          {versions.map((version) => <div key={version.id} className="flex flex-wrap items-center gap-3 py-3"><div className="min-w-0 flex-1"><p className="font-semibold">Versao {version.versao} · {version.ambiente}</p><p className="truncate text-xs text-muted-foreground" title={version.endpoint_base}>{version.endpoint_base}</p></div><StatusBadge status={version.status === 'publicada' ? 'ativo' : version.status === 'rascunho' ? 'pendente' : 'desativada'} label={version.status} /><Button size="sm" variant="outline" onClick={() => setConfirmation({ kind: 'test', id: version.id })}>Testar</Button>{version.status === 'rascunho' && <Button size="sm" onClick={() => setConfirmation({ kind: 'publish', id: version.id })}>Publicar</Button>}{version.status === 'publicada' && <Button size="sm" variant="destructive" onClick={() => setConfirmation({ kind: 'disable', id: version.id })}>Desativar</Button>}</div>)}
-        </div>
-      </CardContent>
-    </Card>
+    <div ref={draftCardRef} className="scroll-mt-6">
+      <Card>
+        <CardHeader><CardTitle>{editor.mode === 'create' ? 'Nova integracao tecnica' : 'Configuracao da integracao'}</CardTitle><CardDescription>Salvar cria ou atualiza somente o rascunho. Publicacao e teste exigem confirmacao TOTP separada. O teste e tecnico e nao cria remessa nem representa operacao real.</CardDescription></CardHeader>
+        <CardContent className="space-y-4">
+          {editor.mode === 'none'
+            ? <EmptyState title="Nenhuma integracao selecionada" description="Selecione uma integracao acima ou clique em Nova integracao para iniciar um rascunho." icon={PlugZap} />
+            : <IntegrationDraftForm key={`${editor.mode}:${editor.mode === 'create' ? createFormGeneration : 0}:${integration?.id || 'novo'}:${defaultVersion?.id || 'novo'}:${defaultVersion?.updated_at || 'inicial'}`} integration={integration} defaultVersion={defaultVersion} fundCnpj={state.fundo.cnpj} activeCredentials={activeCredentials} pending={pending} onSubmit={saveDraft} />}
+          <div className="divide-y divide-border rounded-xl border border-border px-4">
+            {versions.map((version) => <div key={version.id} className="flex flex-wrap items-center gap-3 py-3"><div className="min-w-0 flex-1"><p className="font-semibold">Versao {version.versao} · {version.ambiente}</p><p className="truncate text-xs text-muted-foreground" title={version.endpoint_base}>{version.endpoint_base || 'Endpoint nao informado'} · {version.capabilities.map((capability) => INTEGRATION_CAPABILITY_LABELS[capability]).join(', ') || 'sem capabilities'}</p></div><StatusBadge status={version.status === 'publicada' ? 'ativo' : version.status === 'rascunho' ? 'pendente' : 'desativada'} label={version.status} /><Button type="button" size="sm" variant="outline" disabled={!version.adapter_key} title={!version.adapter_key ? 'Teste indisponivel: adapter nao implementado' : undefined} onClick={() => setConfirmation({ kind: 'test', id: version.id })}>Testar</Button>{version.status === 'rascunho' && <Button type="button" size="sm" disabled={!version.adapter_key} onClick={() => setConfirmation({ kind: 'publish', id: version.id })}>Publicar</Button>}{version.status === 'publicada' && <Button type="button" size="sm" variant="destructive" onClick={() => setConfirmation({ kind: 'disable', id: version.id })}>Desativar</Button>}</div>)}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
 
     <Card><CardHeader><CardTitle className="flex items-center gap-2"><Activity className="size-5" />Execucoes recentes</CardTitle><CardDescription>Testes tecnicos e execucoes operacionais permanecem identificados separadamente.</CardDescription></CardHeader><CardContent>{state.execucoes.length === 0 ? <EmptyState title="Nenhuma execucao" description="Os testes e envios aparecerao aqui." icon={Activity} /> : <><div className="divide-y divide-border">{state.execucoes.map((item) => <div key={item.id} className="grid gap-2 py-3 sm:grid-cols-[120px_120px_minmax(0,1fr)_180px]"><StatusBadge status={item.status === 'sucesso' ? 'ativo' : item.status === 'erro' ? 'reprovada' : 'pendente'} label={item.status} /><span className="text-sm font-medium">{item.tipo_execucao}</span><span className="truncate text-sm text-muted-foreground">{item.mensagem_resumida || 'Sem mensagem'}</span><span className="text-sm text-muted-foreground sm:text-right">{date(item.iniciada_em)}</span></div>)}</div><div className="mt-4 flex items-center justify-between border-t border-border pt-4 text-sm"><span>{state.execucoes_total} execucao(oes)</span><div className="flex gap-2"><Link aria-disabled={execPage === 1} className={`rounded-lg border border-border px-3 py-2 ${execPage === 1 ? 'pointer-events-none opacity-50' : 'hover:bg-muted'}`} href={`/admin/fundos/${state.fundo.id}?tab=integracoes&execPage=${execPage - 1}`}>Anterior</Link><Link aria-disabled={execPage * 20 >= state.execucoes_total} className={`rounded-lg border border-border px-3 py-2 ${execPage * 20 >= state.execucoes_total ? 'pointer-events-none opacity-50' : 'hover:bg-muted'}`} href={`/admin/fundos/${state.fundo.id}?tab=integracoes&execPage=${execPage + 1}`}>Proxima</Link></div></div></>}</CardContent></Card>
 

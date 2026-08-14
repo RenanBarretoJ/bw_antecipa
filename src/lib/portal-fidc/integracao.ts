@@ -3,6 +3,8 @@ import { createHash } from 'crypto'
 import { createAdminClient } from '@/lib/supabase/server'
 import { buckets } from '@/lib/storage'
 import { registrarEventoSeguranca } from '@/lib/auth/mfa'
+import { integrationProviderRegistry, resolverMetodoEnvioOperacional } from '@/lib/integracoes/registry.server'
+import { integrationRuntimeEnvironment, resolverIntegracaoPorCapability } from '@/lib/integracoes/resolver.server'
 import { descriptografarPortalFidcValor } from '@/lib/portal-fidc/credenciais'
 
 export const PORTAL_FIDC_PROVIDER = 'fromtis'
@@ -159,62 +161,91 @@ export async function resolverVersaoPortalFidc(
   versaoId?: string,
 ): Promise<PortalFidcVersaoResolvida> {
   if (!versaoId) {
-    const { data: fundo, error: fundoError } = await admin
-      .from('fundos')
-      .select('id, ativo')
-      .eq('id', fundoId)
-      .maybeSingle()
-    if (fundoError) throw new Error(`Erro ao validar o fundo do Portal FIDC: ${fundoError.message}`)
-    if (!fundo || fundo.ativo !== true) {
-      throw Object.assign(new Error('O fundo esta inativo e nao pode executar integracoes operacionais.'), { categoria: 'configuracao' })
+    const resolved = await resolverIntegracaoPorCapability({
+      fundoId,
+      ambiente: integrationRuntimeEnvironment(),
+      capability: 'CESSAO_ENVIO',
+    }, admin)
+    if (resolved.status !== 'CONFIGURADA') {
+      throw Object.assign(new Error(`Integracao para cessao indisponivel: ${resolved.reason}.`), { categoria: 'configuracao' })
+    }
+    const version = resolved.integrationVersion
+    if (version.adapterKey !== 'sinqia_portal_fidc') {
+      throw Object.assign(new Error('A fonte publicada para cessao nao utiliza o adapter Portal FIDC suportado.'), { categoria: 'configuracao' })
+    }
+    if (resolverMetodoEnvioOperacional(version.adapterKey, 'CESSAO_ENVIO') !== 'CNAB') {
+      throw Object.assign(new Error('A integracao publicada para cessao nao possui metodo CNAB suportado.'), { categoria: 'configuracao' })
+    }
+    return {
+      id: version.integrationVersionId,
+      integracaoId: version.integrationId,
+      fundoId: version.fundoId,
+      provedor: version.providerKey,
+      versao: version.version,
+      ambiente: version.environment,
+      status: 'publicada',
+      endpointBase: version.endpointBase,
+      identificadorCliente: version.clientIdentifier,
+      codigoOriginador: version.originatorCode,
+      credentialRef: version.credentialReference,
+      credencialIntegracaoId: version.credentialId,
+      secretName: null,
+      vaultKey: null,
+      configuracao: version.config,
     }
   }
 
-  const query = admin
+  const { data: rawVersion, error: versionError } = await admin
+    .from('integracao_fundo_versoes')
+    .select('*')
+    .eq('id', versaoId)
+    .maybeSingle()
+  if (versionError) throw new Error(`Erro ao resolver versao historica da integracao: ${versionError.message}`)
+  const version = rawVersion as unknown as Record<string, unknown> | null
+  if (!version) throw new Error('Versao de integracao nao encontrada.')
+
+  const { data: rawIntegration, error: integrationError } = await admin
     .from('integracoes_fundo')
-    .select('id, fundo_id, provedor, status, integracao_fundo_versoes(*)')
+    .select('id,fundo_id,provider_key,system_name')
+    .eq('id', String(version.integracao_fundo_id))
     .eq('fundo_id', fundoId)
-    .eq('provedor', PORTAL_FIDC_PROVIDER)
-    .eq('status', 'ativa')
+    .maybeSingle()
+  if (integrationError) throw new Error(`Erro ao validar integracao historica: ${integrationError.message}`)
+  const integration = rawIntegration as unknown as Record<string, unknown> | null
+  if (!integration) throw new Error('Versao de integracao nao pertence ao fundo informado.')
 
-  const { data, error } = await query.maybeSingle()
-  if (error) throw new Error(`Erro ao resolver configuracao do Portal FIDC: ${error.message}`)
-
-  const integracao = data as unknown as {
-    id: string
-    fundo_id: string
-    provedor: string
-    status: string
-    integracao_fundo_versoes?: Array<Record<string, unknown>>
-  } | null
-
-  const now = Date.now()
-  const versoes = (integracao?.integracao_fundo_versoes || [])
-    .filter((versao) => versaoId ? String(versao.id) === versaoId : versao.status === 'publicada')
-    .filter((versao) => versaoId ? true : new Date(String(versao.vigente_desde)).getTime() <= now)
-    .filter((versao) => versaoId ? true : !versao.vigente_ate || new Date(String(versao.vigente_ate)).getTime() > now)
-    .sort((a, b) => Number(b.versao) - Number(a.versao))
-
-  const vigente = versoes[0]
-  if (!integracao || !vigente) throw new Error('Configuracao do Portal FIDC publicada e vigente nao encontrada para o fundo.')
-  if (!versaoId && vigente.status !== 'publicada') throw new Error('Configuracao do Portal FIDC nao esta publicada.')
+  const { data: capability, error: capabilityError } = await admin
+    .from('integracao_fundo_versao_capacidades')
+    .select('capability')
+    .eq('integracao_fundo_versao_id', versaoId)
+    .eq('capability', 'CESSAO_ENVIO')
+    .maybeSingle()
+  if (capabilityError) throw new Error(`Erro ao validar capability historica: ${capabilityError.message}`)
+  if (!capability) throw new Error('Versao historica nao fornece a capability CESSAO_ENVIO.')
+  const adapterKey = typeof version.adapter_key === 'string' ? version.adapter_key : null
+  if (!integrationProviderRegistry.supports(adapterKey, 'CESSAO_ENVIO')) {
+    throw new Error('Adapter da versao historica nao suporta CESSAO_ENVIO.')
+  }
+  if (!adapterKey || resolverMetodoEnvioOperacional(adapterKey, 'CESSAO_ENVIO') !== 'CNAB') {
+    throw new Error('Versao historica de cessao nao possui metodo CNAB suportado.')
+  }
 
   return {
-    id: String(vigente.id),
-    integracaoId: String(integracao.id),
-    fundoId: String(integracao.fundo_id),
-    provedor: String(integracao.provedor),
-    versao: Number(vigente.versao),
-    ambiente: String(vigente.ambiente) as 'homologacao' | 'producao',
-    status: String(vigente.status),
-    endpointBase: String(vigente.endpoint_base),
-    identificadorCliente: String(vigente.identificador_cliente),
-    codigoOriginador: vigente.codigo_originador ? String(vigente.codigo_originador) : null,
-    credentialRef: String(vigente.credential_ref),
-    credencialIntegracaoId: vigente.credencial_integracao_id ? String(vigente.credencial_integracao_id) : null,
-    secretName: vigente.secret_name ? String(vigente.secret_name) : null,
-    vaultKey: vigente.vault_key ? String(vigente.vault_key) : null,
-    configuracao: (vigente.configuracao_nao_sensivel as Record<string, unknown> | null) || {},
+    id: versaoId,
+    integracaoId: String(integration.id),
+    fundoId,
+    provedor: String(integration.provider_key),
+    versao: Number(version.versao),
+    ambiente: String(version.ambiente) as 'homologacao' | 'producao',
+    status: String(version.status),
+    endpointBase: String(version.endpoint_base),
+    identificadorCliente: String(version.identificador_cliente || ''),
+    codigoOriginador: version.codigo_originador ? String(version.codigo_originador) : null,
+    credentialRef: String(version.credential_ref),
+    credencialIntegracaoId: version.credencial_integracao_id ? String(version.credencial_integracao_id) : null,
+    secretName: null,
+    vaultKey: null,
+    configuracao: (version.configuracao_nao_sensivel as Record<string, unknown> | null) || {},
   }
 }
 

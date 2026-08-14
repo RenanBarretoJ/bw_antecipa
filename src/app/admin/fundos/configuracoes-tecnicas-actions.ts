@@ -16,6 +16,8 @@ import {
   type AdminTechnicalActionResult,
 } from '@/lib/admin/configuracoes-tecnicas'
 import { validarEndpointTecnicoSeguro } from '@/lib/admin/endpoint-seguro.server'
+import { integrationProviderRegistry } from '@/lib/integracoes/registry.server'
+import { prepararConfiguracaoFinanceiraDoFundo, possuiCapabilityFinanceira } from '@/lib/integracoes/configuracao-financeira'
 import {
   criptografarPortalFidcValor,
   descriptografarPortalFidcValor,
@@ -52,7 +54,7 @@ function mapearErro(error: unknown, correlationId: string): AdminTechnicalAction
   if (error instanceof AuthorizationError) return respostaErro(error.message, correlationId)
   const value = error as RpcError
   const message = error instanceof Error ? error.message : value?.message
-  if (message?.startsWith('O endpoint tecnico') || message?.startsWith('O dominio do endpoint')) {
+  if (message?.startsWith('O endpoint tecnico') || message?.startsWith('O dominio do endpoint') || message?.startsWith('O CNPJ cadastrado do fundo')) {
     return respostaErro(message, correlationId)
   }
   if (value?.code === '42501') return respostaErro('Acesso restrito ao Super Admin.', correlationId)
@@ -92,6 +94,7 @@ export async function cadastrarCredencialAdmin(input: unknown): Promise<AdminTec
 
     const { data, error } = await context.supabase.rpc('admin_cadastrar_credencial_integracao', {
       p_fundo_id: parsed.data.fundoId,
+      p_integracao_fundo_id: parsed.data.integracaoFundoId,
       p_ambiente: parsed.data.ambiente,
       p_nome: parsed.data.nome,
       p_usuario_criptografado: usuario.ciphertext,
@@ -161,24 +164,56 @@ export async function salvarIntegracaoRascunhoAdmin(input: unknown): Promise<Adm
   const correlationId = randomUUID()
   try {
     const parsed = adminIntegracaoRascunhoSchema.safeParse(input)
-    if (!parsed.success) return respostaErro(parsed.error.issues[0]?.message || 'Revise a configuracao da integracao.', correlationId)
+    if (!parsed.success) {
+      const issue = parsed.error.issues[0]
+      const validationMessages: Record<string, string> = {
+        FUNDO_ID_INVALIDO: 'O fundo informado e invalido.',
+        INTEGRACAO_ID_INVALIDO: 'A integracao selecionada e invalida.',
+        VERSAO_ID_INVALIDO: 'A versao selecionada e invalida.',
+      }
+      return respostaErro(validationMessages[issue?.message] || issue?.message || 'Revise a configuracao da integracao.', correlationId)
+    }
+    const creating = parsed.data.integracaoFundoId == null
     const context = await requireSuperAdmin()
     const endpoint = parsed.data.endpointBase ? new URL(parsed.data.endpointBase).toString() : ''
+    let configuracaoNaoSensivel = parsed.data.configuracaoNaoSensivel
+    if (possuiCapabilityFinanceira(parsed.data.capabilities)) {
+      const { data: fundo, error: fundoError } = await context.supabase
+        .from('fundos')
+        .select('cnpj')
+        .eq('id', parsed.data.fundoId)
+        .maybeSingle()
+      if (fundoError) return mapearErro(fundoError, correlationId)
+      if (!fundo) return respostaErro('O fundo informado nao foi encontrado.', correlationId)
+      configuracaoNaoSensivel = prepararConfiguracaoFinanceiraDoFundo({
+        configuracao: configuracaoNaoSensivel,
+        capabilities: parsed.data.capabilities,
+        cnpjFundo: fundo.cnpj,
+      })
+    }
     const { data, error } = await context.supabase.rpc('admin_salvar_integracao_rascunho', {
       p_fundo_id: parsed.data.fundoId,
+      p_integracao_fundo_id: parsed.data.integracaoFundoId || null,
       p_versao_id: parsed.data.versaoId || null,
+      p_provider_key: parsed.data.providerKey,
+      p_system_name: parsed.data.systemName,
+      p_adapter_key: parsed.data.adapterKey,
+      p_capabilities: parsed.data.capabilities,
       p_ambiente: parsed.data.ambiente,
       p_endpoint_base: endpoint,
       p_identificador_cliente: parsed.data.identificadorCliente,
       p_credencial_integracao_id: parsed.data.credencialIntegracaoId,
-      p_configuracao_nao_sensivel: parsed.data.configuracaoNaoSensivel,
+      p_configuracao_nao_sensivel: configuracaoNaoSensivel,
       p_updated_at_esperado: parsed.data.updatedAtEsperado || null,
       p_correlation_id: correlationId,
     })
     if (error) return mapearErro(error, correlationId)
     const resultId = rpcString(data, 'id')
     atualizarTela(parsed.data.fundoId)
-    return sucesso('Rascunho da integracao salvo.', resultId)
+    return {
+      ...sucesso(creating ? 'Rascunho criado com sucesso.' : 'Rascunho atualizado com sucesso.', resultId),
+      data: { id: resultId, integrationId: rpcString(data, 'integracao_id') },
+    }
   } catch (error) {
     return mapearErro(error, correlationId)
   }
@@ -196,11 +231,29 @@ async function validarIntegracaoParaPublicacao(
   })
   if (error || !data) throw error || new Error('Configuracao da integracao nao encontrada.')
   const state = data as AdminConfiguracoesTecnicasFundo
-  const versao = state.integracoes.flatMap((item) => item.versoes).find((item) => item.id === versaoId)
+  const integracao = state.integracoes.find((item) => item.versoes.some((versao) => versao.id === versaoId))
+  const versao = integracao?.versoes.find((item) => item.id === versaoId)
   if (!versao) return 'Configuracao da integracao nao encontrada neste fundo.'
-  const pendencia = obterPendenciaPublicacaoIntegracao(versao, state.credenciais)
+  const adapter = integrationProviderRegistry.get(versao.adapter_key)
+  if (!adapter) return 'Adapter nao implementado. O rascunho pode ser mantido, mas nao publicado.'
+  const unsupported = versao.capabilities.find((capability) => !adapter.supports.includes(capability))
+  if (unsupported) return `O adapter ${adapter.label} nao implementa a capability ${unsupported}.`
+  const pendencia = obterPendenciaPublicacaoIntegracao(versao, state.credenciais, adapter)
   if (pendencia) return pendencia
-  await validarEndpointTecnicoSeguro(versao.endpoint_base)
+  if (adapter.requiresCredential) {
+    const credential = state.credenciais.find((item) => item.id === versao.credencial_integracao_id)
+    if (!credential || credential.integracao_fundo_id !== integracao?.id) {
+      return 'A credencial selecionada nao pertence a esta integracao.'
+    }
+  }
+  const adapterPendencia = adapter.validatePublication({
+    capabilities: versao.capabilities,
+    clientIdentifier: versao.identificador_cliente,
+    originatorCode: versao.codigo_originador,
+    config: versao.configuracao_nao_sensivel,
+  })
+  if (adapterPendencia) return adapterPendencia
+  if (adapter.requiresEndpoint) await validarEndpointTecnicoSeguro(versao.endpoint_base)
   return null
 }
 
@@ -246,6 +299,16 @@ export async function testarIntegracaoAdmin(input: unknown): Promise<AdminTechni
     const parsed = adminTechnicalConfirmationSchema.safeParse(input)
     if (!parsed.success) return respostaErro('Confirmacao invalida.', correlationId)
     context = await requireSuperAdmin()
+    const { data: configData, error: configError } = await context.supabase.rpc('admin_obter_configuracoes_tecnicas_fundo', {
+      p_fundo_id: parsed.data.fundoId,
+      p_execucoes_limite: 1,
+      p_execucoes_offset: 0,
+    })
+    if (configError || !configData) return mapearErro(configError || new Error('Configuracao nao encontrada.'), correlationId)
+    const configState = configData as AdminConfiguracoesTecnicasFundo
+    const version = configState.integracoes.flatMap((item) => item.versoes).find((item) => item.id === parsed.data.id)
+    const adapter = integrationProviderRegistry.get(version?.adapter_key)
+    if (!adapter) return respostaErro('Teste indisponivel: adapter nao implementado.', correlationId)
     await autorizarEConsumirAcaoSensivel(context, 'testar_integracao', parsed.data.mfaCode)
     const { data, error } = await context.supabase.rpc('admin_preparar_teste_integracao', {
       p_fundo_id: parsed.data.fundoId,
@@ -264,26 +327,20 @@ export async function testarIntegracaoAdmin(input: unknown): Promise<AdminTechni
     const endpoint = await validarEndpointTecnicoSeguro(prepared.endpoint_base)
     const username = descriptografarPortalFidcValor(prepared.usuario_criptografado, prepared.chave_versao)
     const password = descriptografarPortalFidcValor(prepared.senha_criptografada, prepared.chave_versao)
-    const response = await fetch(endpoint, {
-      method: 'GET',
-      headers: { username, password },
-      cache: 'no-store',
-      signal: AbortSignal.timeout(15_000),
-    })
-    const ok = response.status < 500 && response.status !== 401 && response.status !== 403
+    const result = await adapter.testConnection({ endpoint, username, password, timeoutMs: 15_000 })
     const { error: finishError } = await context.supabase.rpc('admin_finalizar_teste_integracao', {
       p_fundo_id: parsed.data.fundoId,
       p_execucao_id: execucaoId,
-      p_status: ok ? 'sucesso' : 'erro',
-      p_codigo_resposta: String(response.status),
-      p_mensagem_resumida: `Teste tecnico HTTP ${response.status}.`,
-      p_erro_categoria: ok ? '' : response.status === 401 || response.status === 403 ? 'autenticacao' : 'resposta_inesperada',
+      p_status: result.ok ? 'sucesso' : 'erro',
+      p_codigo_resposta: result.statusCode,
+      p_mensagem_resumida: result.message,
+      p_erro_categoria: result.errorCategory,
       p_duracao_ms: Date.now() - inicio,
       p_correlation_id: correlationId,
     })
     if (finishError) return mapearErro(finishError, correlationId)
     atualizarTela(parsed.data.fundoId)
-    return ok ? sucesso('Teste tecnico concluido com sucesso.', execucaoId) : respostaErro(`O endpoint respondeu HTTP ${response.status}.`, correlationId)
+    return result.ok ? sucesso('Teste tecnico concluido com sucesso.', execucaoId) : respostaErro(`O endpoint respondeu HTTP ${result.statusCode}.`, correlationId)
   } catch (error) {
     if (context && execucaoId) {
       const timeout = error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')

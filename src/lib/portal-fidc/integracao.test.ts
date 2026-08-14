@@ -1,5 +1,7 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { mapearStatusPortalFidc, sha256Hex } from '@/lib/portal-fidc/integracao'
+
+vi.mock('server-only', () => ({}))
 
 describe('Portal FIDC integration helpers', () => {
   it('nao mantem fallback de credencial por ambiente', async () => {

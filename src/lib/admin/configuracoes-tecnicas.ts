@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { INTEGRATION_CAPABILITIES, type IntegrationCapability } from '@/lib/integracoes/capabilities'
 
 export type AdminTechnicalNotification = {
   type: 'success' | 'error' | 'warning' | 'info'
@@ -9,7 +10,7 @@ export type AdminTechnicalNotification = {
 export type AdminTechnicalActionResult = {
   success: boolean
   message: string
-  data?: { id: string }
+  data?: { id: string; integrationId?: string }
   fieldErrors?: Record<string, string[]>
   notification?: AdminTechnicalNotification
 }
@@ -19,6 +20,9 @@ export type AdminIntegracaoVersao = {
   versao: number
   ambiente: 'homologacao' | 'producao'
   status: string
+  adapter_key: string | null
+  capabilities: IntegrationCapability[]
+  active_capabilities: IntegrationCapability[]
   identificador_cliente: string
   codigo_originador: string | null
   endpoint_base: string
@@ -34,6 +38,8 @@ export type AdminIntegracaoVersao = {
 export type AdminIntegracao = {
   id: string
   provedor: string
+  provider_key: string
+  system_name: string
   nome: string
   status: string
   created_at: string
@@ -131,7 +137,11 @@ export type AdminConfiguracoesTecnicasFundo = {
   execucoes_total: number
 }
 
-const uuid = z.uuid('Identificador invalido.')
+// PostgreSQL aceita o formato canonico do tipo uuid sem exigir os bits de
+// versao e variante da RFC. Parte dos IDs legados do projeto usa esse formato.
+const POSTGRES_UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const uuidComMensagem = (message: string) => z.string().trim().regex(POSTGRES_UUID_PATTERN, message)
+const uuid = uuidComMensagem('Identificador invalido.')
 const mfaCode = z.string().regex(/^\d{6}$/, 'Informe o codigo TOTP de 6 digitos.')
 const ambiente = z.enum(['homologacao', 'producao'])
 const jsonObject = z.record(z.string(), z.unknown())
@@ -155,6 +165,7 @@ const credencialOpcional = z.preprocess(
 
 export const adminCredencialSchema = z.object({
   fundoId: uuid,
+  integracaoFundoId: uuid,
   ambiente,
   nome: z.string().trim().min(2).max(120),
   usuario: z.string().trim().min(1).max(300),
@@ -164,8 +175,13 @@ export const adminCredencialSchema = z.object({
 })
 
 export const adminIntegracaoRascunhoSchema = z.object({
-  fundoId: uuid,
-  versaoId: uuid.nullable().optional(),
+  fundoId: uuidComMensagem('FUNDO_ID_INVALIDO'),
+  integracaoFundoId: uuidComMensagem('INTEGRACAO_ID_INVALIDO').nullable().optional(),
+  versaoId: uuidComMensagem('VERSAO_ID_INVALIDO').nullable().optional(),
+  providerKey: z.string().trim().toUpperCase().regex(/^[A-Z][A-Z0-9_]{1,63}$/),
+  systemName: z.string().trim().min(2).max(160),
+  adapterKey: z.preprocess((value) => value === '' || value == null ? null : value, z.string().trim().regex(/^[a-z][a-z0-9_]{1,79}$/).nullable()),
+  capabilities: z.array(z.enum(INTEGRATION_CAPABILITIES)).default([]),
   ambiente,
   endpointBase: endpointRascunho,
   identificadorCliente: z.string().trim().max(200).default(''),
@@ -202,26 +218,34 @@ export const adminCnabRascunhoSchema = z.object({
 
 export type IntegracaoPublicavel = Pick<
   AdminIntegracaoVersao,
-  'ambiente' | 'endpoint_base' | 'identificador_cliente' | 'codigo_originador' | 'credencial_integracao_id'
+  'ambiente' | 'endpoint_base' | 'identificador_cliente' | 'codigo_originador' | 'credencial_integracao_id' | 'adapter_key' | 'capabilities'
 >
 
 export function obterPendenciaPublicacaoIntegracao(
   versao: IntegracaoPublicavel,
   credenciais: AdminCredencialIntegracao[],
+  requirements: { requiresEndpoint: boolean; requiresCredential: boolean } = {
+    requiresEndpoint: true,
+    requiresCredential: true,
+  },
 ): string | null {
-  if (!versao.endpoint_base.trim()) return 'Informe o endpoint HTTPS antes de publicar.'
-  try {
-    if (new URL(versao.endpoint_base).protocol !== 'https:') return 'Informe o endpoint HTTPS antes de publicar.'
-  } catch {
-    return 'Informe um endpoint HTTPS valido antes de publicar.'
+  if (!versao.adapter_key) return 'Esta integracao ainda nao possui adapter implementado.'
+  if (versao.capabilities.length === 0) return 'Selecione ao menos uma capability antes de publicar.'
+  if (requirements.requiresEndpoint) {
+    if (!versao.endpoint_base.trim()) return 'Informe o endpoint HTTPS antes de publicar.'
+    try {
+      if (new URL(versao.endpoint_base).protocol !== 'https:') return 'Informe o endpoint HTTPS antes de publicar.'
+    } catch {
+      return 'Informe um endpoint HTTPS valido antes de publicar.'
+    }
   }
-  if (!versao.identificador_cliente.trim()) return 'Informe o identificador do cliente antes de publicar.'
-  if (!versao.credencial_integracao_id) return 'Selecione uma credencial ativa antes de publicar.'
-  const credencial = credenciais.find((item) => item.id === versao.credencial_integracao_id)
-  if (!credencial || credencial.status !== 'ativa' || credencial.ambiente !== versao.ambiente) {
-    return 'Selecione uma credencial ativa compativel com o ambiente antes de publicar.'
+  if (requirements.requiresCredential) {
+    if (!versao.credencial_integracao_id) return 'Selecione uma credencial ativa antes de publicar.'
+    const credencial = credenciais.find((item) => item.id === versao.credencial_integracao_id)
+    if (!credencial || credencial.status !== 'ativa' || credencial.ambiente !== versao.ambiente) {
+      return 'Selecione uma credencial ativa compativel com o ambiente antes de publicar.'
+    }
   }
-  if (!versao.codigo_originador?.trim()) return 'Publique a configuracao CNAB antes de publicar a integracao.'
   return null
 }
 

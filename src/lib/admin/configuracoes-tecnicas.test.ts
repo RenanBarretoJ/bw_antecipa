@@ -16,7 +16,7 @@ const source = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf
 
 describe('SA3 - configuracoes tecnicas por fundo', () => {
   it('valida credenciais e preserva codigo originador como texto', () => {
-    expect(adminCredencialSchema.safeParse({ fundoId: crypto.randomUUID(), ambiente: 'homologacao', nome: 'Portal HML', usuario: 'user', senha: 'secret', mfaCode: '123456' }).success).toBe(true)
+    expect(adminCredencialSchema.safeParse({ fundoId: crypto.randomUUID(), integracaoFundoId: crypto.randomUUID(), ambiente: 'homologacao', nome: 'Portal HML', usuario: 'user', senha: 'secret', mfaCode: '123456' }).success).toBe(true)
     const parsed = adminCnabRascunhoSchema.safeParse({ fundoId: crypto.randomUUID(), configuracaoId: null, versaoId: null, codigo: 'cnab_principal', nome: 'CNAB', descricao: null, layout: 'cnab444', versaoLayout: '1', codigoBanco: '001', banco: 'Banco', agencia: '0001', conta: '0000123', digitoConta: '0', carteira: '1', convenio: '0002', codigoOriginador: '000000500497', codigoEmpresa: '0003', tipoInscricao: '2', numeroInscricao: '00123456000100', especieTitulo: 'DM', tipoRecebivel: 'duplicata', configuracao: {}, updatedAtEsperado: null })
     expect(parsed.success).toBe(true)
     if (parsed.success) expect(parsed.data.codigoOriginador).toBe('000000500497')
@@ -25,6 +25,11 @@ describe('SA3 - configuracoes tecnicas por fundo', () => {
   it('permite rascunho de integracao incompleto, sem credencial, endpoint ou TOTP', () => {
     const parsed = adminIntegracaoRascunhoSchema.safeParse({
       fundoId: crypto.randomUUID(),
+      integracaoFundoId: null,
+      providerKey: 'CUSTOM',
+      systemName: 'Sistema futuro',
+      adapterKey: null,
+      capabilities: [],
       ambiente: 'homologacao',
       endpointBase: '',
       identificadorCliente: '',
@@ -32,17 +37,63 @@ describe('SA3 - configuracoes tecnicas por fundo', () => {
       configuracaoNaoSensivel: {},
     })
     expect(parsed.success).toBe(true)
-    if (parsed.success) expect(parsed.data.credencialIntegracaoId).toBeNull()
+    if (parsed.success) {
+      expect(parsed.data.credencialIntegracaoId).toBeNull()
+      expect(parsed.data.capabilities).toEqual([])
+    }
+  })
+
+  it('aceita UUID canonico do PostgreSQL sem impor bits RFC', () => {
+    const parsed = adminIntegracaoRascunhoSchema.safeParse({
+      fundoId: 'e84fdd30-39ed-de86-292e-0d8d9d92d759',
+      integracaoFundoId: null,
+      versaoId: null,
+      providerKey: 'CUSTOM',
+      systemName: 'PORTAL FIDC',
+      adapterKey: null,
+      capabilities: [],
+      ambiente: 'homologacao',
+      endpointBase: 'https://teste.com.br/',
+      identificadorCliente: 'teste',
+      credencialIntegracaoId: null,
+      configuracaoNaoSensivel: {},
+      updatedAtEsperado: null,
+    })
+
+    expect(parsed.success).toBe(true)
+  })
+
+  it('identifica separadamente fundo, integracao e versao invalidos', () => {
+    const base = {
+      fundoId: crypto.randomUUID(), integracaoFundoId: null, versaoId: null,
+      providerKey: 'CUSTOM', systemName: 'PORTAL FIDC', adapterKey: null, capabilities: [],
+      ambiente: 'homologacao', endpointBase: 'https://teste.com.br', identificadorCliente: 'teste',
+      credencialIntegracaoId: null, configuracaoNaoSensivel: {}, updatedAtEsperado: null,
+    }
+
+    const fundo = adminIntegracaoRascunhoSchema.safeParse({ ...base, fundoId: 'new' })
+    const integracao = adminIntegracaoRascunhoSchema.safeParse({ ...base, integracaoFundoId: 'new' })
+    const versao = adminIntegracaoRascunhoSchema.safeParse({ ...base, versaoId: 'new' })
+
+    expect(fundo.success ? null : fundo.error.issues[0]?.message).toBe('FUNDO_ID_INVALIDO')
+    expect(integracao.success ? null : integracao.error.issues[0]?.message).toBe('INTEGRACAO_ID_INVALIDO')
+    expect(versao.success ? null : versao.error.issues[0]?.message).toBe('VERSAO_ID_INVALIDO')
   })
 
   it('bloqueia URL malformada no rascunho e permite HTTP para completar depois', () => {
-    expect(adminIntegracaoRascunhoSchema.safeParse({ fundoId: crypto.randomUUID(), ambiente: 'producao', endpointBase: 'http://example.com', identificadorCliente: '', credencialIntegracaoId: null, configuracaoNaoSensivel: {} }).success).toBe(true)
-    expect(adminIntegracaoRascunhoSchema.safeParse({ fundoId: crypto.randomUUID(), ambiente: 'producao', endpointBase: 'endpoint-invalido', identificadorCliente: '', credencialIntegracaoId: null, configuracaoNaoSensivel: {} }).success).toBe(false)
+    const base = { fundoId: crypto.randomUUID(), integracaoFundoId: null, providerKey: 'CUSTOM', systemName: 'Sistema futuro', adapterKey: null, capabilities: ['ESTOQUE'], ambiente: 'producao', identificadorCliente: '', credencialIntegracaoId: null, configuracaoNaoSensivel: {} }
+    expect(adminIntegracaoRascunhoSchema.safeParse({ ...base, endpointBase: 'http://example.com' }).success).toBe(true)
+    expect(adminIntegracaoRascunhoSchema.safeParse({ ...base, endpointBase: 'endpoint-invalido' }).success).toBe(false)
   })
 
   it('bloqueia configuracao JSON que nao seja objeto', () => {
     const parsed = adminIntegracaoRascunhoSchema.safeParse({
       fundoId: crypto.randomUUID(),
+      integracaoFundoId: null,
+      providerKey: 'CUSTOM',
+      systemName: 'Sistema futuro',
+      adapterKey: null,
+      capabilities: ['ESTOQUE'],
       ambiente: 'homologacao',
       endpointBase: '',
       identificadorCliente: '',
@@ -64,6 +115,7 @@ describe('SA3 - configuracoes tecnicas por fundo', () => {
   it('separa pendencias de publicacao da validacao permissiva do rascunho', () => {
     const base = {
       id: crypto.randomUUID(), versao: 1, ambiente: 'homologacao' as const, status: 'rascunho',
+      adapter_key: 'sinqia_portal_fidc', capabilities: ['CESSAO_ENVIO'] as const, active_capabilities: [] as const,
       endpoint_base: '', identificador_cliente: '', codigo_originador: null,
       credencial_integracao_id: null, configuracao_nao_sensivel: {}, vigente_desde: '', vigente_ate: null,
       publicada_em: null, created_at: '', updated_at: '',
@@ -111,7 +163,7 @@ describe('SA3 - configuracoes tecnicas por fundo', () => {
     const sa3Sources = `${loader}\n${actions}`
 
     expect(loader).toContain("context.supabase.rpc('admin_obter_configuracoes_tecnicas_fundo'")
-    expect(actions.match(/context\.supabase\.rpc\(/g)).toHaveLength(11)
+    expect(actions.match(/context\.supabase\.rpc\(/g)).toHaveLength(12)
     expect(sa3Sources).not.toMatch(/const\s+\w+\s*=\s*context\.supabase\.rpc/)
     expect(sa3Sources).not.toMatch(/(?:supabase|client)\.rpc\s+as/)
     expect(sa3Sources).not.toContain('callAdminRpc')
@@ -138,11 +190,13 @@ describe('SA3 - configuracoes tecnicas por fundo', () => {
     for (const rpcName of rpcNames) expect(database).toContain(`${rpcName}:`)
   })
 
-  it('carrega configuracoes tecnicas apenas nas abas Integracoes e CNAB', () => {
+  it('carrega configuracoes tecnicas apenas nas abas Integracoes e Envios Operacionais', () => {
     const page = source('src/app/admin/fundos/[id]/page.tsx')
-    expect(page).toContain("tab === 'integracoes' || tab === 'cnab'")
+    expect(page).toContain("tab === 'integracoes' || tab === 'envios'")
     expect(page).toContain('<FundoIntegracoesTecnicas state={technical}')
-    expect(page).toContain('<FundoCnabTecnico state={technical}')
+    expect(page).toContain('<FundoEnviosOperacionais state={technical}')
+    expect(page).toContain("requestedTab === 'cnab'")
+    expect(page).toContain('tab=envios')
   })
 
   it('respeita os status canonicos e bloqueia CNAB operacional de fundo inativo', () => {
@@ -167,7 +221,7 @@ describe('SA3 - configuracoes tecnicas por fundo', () => {
     expect(obterAcoesCredencial('revogada')).toEqual([])
     expect(ui).toContain('obterAcoesCredencial(credential.status)')
     expect(ui).not.toContain("credential.status === 'pendente'")
-    expect(ui).toContain("state.credenciais.filter((item) => item.status === 'ativa')")
+    expect(ui).toContain("integrationCredentials.filter((item) => item.status === 'ativa')")
     expect(ui).toContain("pendingLabel={confirmation.kind === 'activate' ? 'Ativando...' : undefined}")
   })
 
@@ -213,8 +267,8 @@ describe('SA3 - configuracoes tecnicas por fundo', () => {
     const cnabRuntime = source('src/lib/cnab/resolver-configuracao.ts')
     const migration = source('supabase/migrations/20260813150432_corrigir_semantica_rascunhos_sa3.sql')
 
-    expect(portalRuntime).toContain("versao.status === 'publicada'")
-    expect(portalRuntime).toContain("vigente.status !== 'publicada'")
+    expect(portalRuntime).toContain("capability: 'CESSAO_ENVIO'")
+    expect(portalRuntime).toContain("resolved.status !== 'CONFIGURADA'")
     expect(cnabRuntime).toContain("versao.status === 'publicada'")
     expect(migration).toContain("AND v.status = 'rascunho'")
     expect(migration).toContain("SET status = 'substituida', vigente_ate = v_agora")
@@ -246,6 +300,24 @@ describe('SA3 - configuracoes tecnicas por fundo', () => {
     expect(cnab.match(/<Button type="submit"/g)).toHaveLength(1)
     expect(integracoes).toContain('executarMutacaoTecnica')
     expect(cnab).toContain('executarMutacaoTecnica')
+  })
+
+  it('separa visualmente CREATE, EDIT e nenhuma selecao sem sentinel de UUID', () => {
+    const ui = source('src/components/admin/fundo-integracoes-tecnicas.tsx')
+    const lifecycle = source('src/lib/admin/integracao-editor.ts')
+
+    expect(lifecycle).toContain("mode: 'none'")
+    expect(lifecycle).toContain("mode: 'create'")
+    expect(lifecycle).toContain("mode: 'edit'")
+    expect(lifecycle).not.toContain("integrationId: 'new'")
+    expect(lifecycle).not.toContain("integrationId: 'novo'")
+    expect(ui).toContain('function beginCreateIntegration()')
+    expect(ui).toContain("setEditor(newIntegrationEditorState())")
+    expect(ui).toContain('setCreateFormGeneration((current) => current + 1)')
+    expect(ui).toContain('onClick={beginCreateIntegration}')
+    expect(ui).toContain("setEditor(editIntegrationEditorState(result.data.integrationId))")
+    expect(ui).toContain("editor.mode === 'create' ? 'Nova integracao tecnica'")
+    expect(ui).toContain('Nenhuma integracao selecionada')
   })
 
   it('nao retorna ciphertext nos DTOs administrativos', () => {
