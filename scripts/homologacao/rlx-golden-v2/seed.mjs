@@ -64,7 +64,7 @@ async function schemaGate() {
     'documento_analises', 'documento_vinculos', 'documento_requisito_instancias',
     'operacoes', 'operacoes_nfs', 'operacao_calculo_nfs', 'nota_fiscal_entregas',
     'ctes', 'cte_notas_fiscais', 'canhotos',
-    'rlx_titulo_nf_vinculos', 'rlx_titulo_nf_vinculo_chaves',
+    'titulo_nf_vinculos', 'titulo_nf_vinculo_chaves',
   ]
   const result = await db.query(`SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_name=ANY($1)`, [required])
   const found = new Set(result.rows.map((row) => row.table_name))
@@ -201,6 +201,7 @@ async function seedDatabase(users, manager) {
     'configuracao', 'conteudo_hash', 'status', 'regras', 'parametros',
     'permite_postergacao_upload_canhoto', 'limite_postergacao_upload_canhoto_dias',
     'metodo_calculo_financeiro', 'exigir_status_logistico_pre_cessao', 'tipo_ativo_financeiro',
+    'controle_exposicao_logistica_ativo', 'limite_exposicao_em_transito_pct',
   ], dataset.funds.map((fund) => ({
     id: fund.policyVersionId, politica_operacional_id: fund.policyId, cedente_fundo_id: null, fundo_id: fund.id,
     versao: 1, vigente_desde: `${BUSINESS_DATES['D-4']}T09:00:00-03:00`,
@@ -210,6 +211,7 @@ async function seedDatabase(users, manager) {
     permite_postergacao_upload_canhoto: true, limite_postergacao_upload_canhoto_dias: 30,
     metodo_calculo_financeiro: 'DIAS_UTEIS_252', exigir_status_logistico_pre_cessao: false,
     tipo_ativo_financeiro: 'NOTA_FISCAL',
+    controle_exposicao_logistica_ativo: true, limite_exposicao_em_transito_pct: 40,
   })), { conflict: 'ON CONFLICT (id) DO NOTHING' })
   const requirements = policyRequirementRows(typeIds)
   const requirementExisting = await db.query(`SELECT id FROM public.politica_requisitos_documentais WHERE id=ANY($1)`, [requirements.map((item) => item.id)])
@@ -423,7 +425,7 @@ async function seedDatabase(users, manager) {
   }
 
   const seeds = crosswalkSeeds()
-  await insertRows(db, 'rlx_titulo_nf_vinculos', [
+  await insertRows(db, 'titulo_nf_vinculos', [
     'id', 'fundo_id', 'provedor', 'identidade_externa', 'nota_fiscal_id', 'status', 'origem', 'metodo', 'regra_versao', 'evidencias', 'candidate_count',
   ], seeds.map((seed) => ({
     id: deterministicUuid(`${DATASET_VERSION}:crosswalk:${seed.scenario}`), fundo_id: dataset.mainFund.id,
@@ -431,7 +433,7 @@ async function seedDatabase(users, manager) {
     status: 'ATIVO', origem: 'AUTOMATICO', metodo: seed.type, regra_versao: 'RLX_MATCH_V1',
     evidencias: { qa_dataset: DATASET_VERSION, scenario_id: seed.scenario }, candidate_count: 1,
   })), { conflict: 'ON CONFLICT DO NOTHING' })
-  await insertRows(db, 'rlx_titulo_nf_vinculo_chaves', ['id', 'vinculo_id', 'fundo_id', 'provedor', 'tipo_chave', 'valor_normalizado', 'fonte'], seeds.map((seed) => ({
+  await insertRows(db, 'titulo_nf_vinculo_chaves', ['id', 'vinculo_id', 'fundo_id', 'provedor', 'tipo_chave', 'valor_normalizado', 'fonte'], seeds.map((seed) => ({
     id: deterministicUuid(`${DATASET_VERSION}:crosswalk-key:${seed.scenario}`),
     vinculo_id: deterministicUuid(`${DATASET_VERSION}:crosswalk:${seed.scenario}`), fundo_id: dataset.mainFund.id,
     provedor: PROVIDER, tipo_chave: seed.type, valor_normalizado: String(seed.value).toUpperCase(), fonte: 'SEED_GOLDEN_V2',

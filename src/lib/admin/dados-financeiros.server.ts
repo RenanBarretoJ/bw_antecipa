@@ -2,12 +2,12 @@ import 'server-only'
 
 import { requireSuperAdmin } from '@/lib/auth/admin-authorization'
 import type { AdminDadosFinanceirosFundo, AdminImportacaoFinanceira } from './dados-financeiros'
-import type { RlxTipoBase } from '@/lib/rlx/ingestao/types'
+import type { TipoBaseFinanceiro } from '@/lib/financeiro/ingestao/types'
 
 export async function obterDadosFinanceirosAdminFundo(fundoId: string): Promise<AdminDadosFinanceirosFundo> {
   const context = await requireSuperAdmin()
   const { data, error } = await context.supabase
-    .from('rlx_importacoes_financeiras')
+    .from('importacoes_financeiras')
     .select('id,tipo_base,data_referencia,provedor,origem,integracao_fundo_versao_id,layout_nome,versao_layout,status,completude,nome_arquivo,hash_conteudo,encoding_detectado,linhas_total,linhas_validas,linhas_invalidas,linhas_warning,linhas_publicadas,valor_total,erros,recebida_em,publicada_em,substitui_importacao_id,declaracao_sem_movimento')
     .eq('fundo_id', fundoId)
     .order('recebida_em', { ascending: false })
@@ -16,7 +16,7 @@ export async function obterDadosFinanceirosAdminFundo(fundoId: string): Promise<
   const ids = (data || []).map((item) => item.id)
   const { data: lineSamples, error: lineError } = ids.length
     ? await context.supabase
-        .from('rlx_importacao_linhas')
+        .from('importacao_linhas')
         .select('importacao_id,numero_linha,status,erros,avisos')
         .in('importacao_id', ids)
         .in('status', ['INVALIDA', 'WARNING'])
@@ -64,7 +64,7 @@ export async function obterDadosFinanceirosAdminFundo(fundoId: string): Promise<
       amostras_linhas: samplesByImport.get(item.id) || [],
     }
   }) as AdminImportacaoFinanceira[]
-  const vigentes: Partial<Record<RlxTipoBase, AdminImportacaoFinanceira>> = {}
+  const vigentes: Partial<Record<TipoBaseFinanceiro, AdminImportacaoFinanceira>> = {}
   for (const item of importacoes) {
     if (item.status === 'PUBLICADA' && !vigentes[item.tipo_base]) vigentes[item.tipo_base] = item
   }

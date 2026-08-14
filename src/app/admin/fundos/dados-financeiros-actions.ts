@@ -5,8 +5,8 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { requireSuperAdmin } from '@/lib/auth/admin-authorization'
 import { autorizarEConsumirAcaoSensivel } from '@/lib/auth/sensitive-action'
-import { ingerirArquivoFinanceiroRlx } from '@/lib/rlx/ingestao/ingestao.server'
-import { RLX_TIPOS_BASE } from '@/lib/rlx/ingestao/types'
+import { ingerirArquivoFinanceiro } from '@/lib/financeiro/ingestao/ingestao.server'
+import { TIPOS_BASE_FINANCEIROS } from '@/lib/financeiro/ingestao/types'
 
 type ActionResult = {
   success: boolean
@@ -18,7 +18,7 @@ type ActionResult = {
 const uploadSchema = z.object({
   fundoId: z.string().uuid(),
   provedor: z.string().trim().min(2).max(64).regex(/^[a-z0-9][a-z0-9._-]+$/i),
-  tipoBase: z.enum(RLX_TIPOS_BASE),
+  tipoBase: z.enum(TIPOS_BASE_FINANCEIROS),
   dataReferencia: z.iso.date(),
 })
 
@@ -72,7 +72,7 @@ export async function importarBaseFinanceiraAction(formData: FormData): Promise<
     if (!parsed.success) return errorResult('Revise os dados da importacao.')
     const arquivo = formData.get('arquivo')
     if (!(arquivo instanceof File)) return errorResult('Selecione um arquivo CSV.')
-    const result = await ingerirArquivoFinanceiroRlx({
+    const result = await ingerirArquivoFinanceiro({
       ...parsed.data,
       arquivo: new Uint8Array(await arquivo.arrayBuffer()),
       nomeArquivo: arquivo.name,

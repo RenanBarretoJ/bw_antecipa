@@ -1,8 +1,8 @@
-import type { RlxCompletude, RlxTipoBase } from '@/lib/rlx/ingestao/types'
+import type { CompletudeImportacaoFinanceira, TipoBaseFinanceiro } from '@/lib/financeiro/ingestao/types'
 
 export interface AdminImportacaoFinanceira {
   id: string
-  tipo_base: RlxTipoBase
+  tipo_base: TipoBaseFinanceiro
   data_referencia: string
   provedor: string
   origem: 'MANUAL' | 'CRON' | 'GOLDEN_DATASET'
@@ -11,7 +11,7 @@ export interface AdminImportacaoFinanceira {
   layout_nome: string
   versao_layout: string
   status: string
-  completude: RlxCompletude
+  completude: CompletudeImportacaoFinanceira
   nome_arquivo: string | null
   hash_conteudo: string
   encoding_detectado: string
@@ -37,5 +37,5 @@ export interface AdminImportacaoFinanceira {
 export interface AdminDadosFinanceirosFundo {
   fundoId: string
   importacoes: AdminImportacaoFinanceira[]
-  vigentes: Partial<Record<RlxTipoBase, AdminImportacaoFinanceira>>
+  vigentes: Partial<Record<TipoBaseFinanceiro, AdminImportacaoFinanceira>>
 }

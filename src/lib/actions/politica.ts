@@ -15,6 +15,7 @@ import { obterFundoAtivoAutorizado } from './fundo-ativo'
 import type { MetodoCalculoNovaPolitica } from '@/lib/operacoes/calculo'
 import { validarUnicidadeFamiliasLogisticas } from '@/lib/logistica/evidencias-logisticas'
 import type { TipoAtivoFinanceiro } from '@/lib/duplicatas/types'
+import Decimal from 'decimal.js'
 
 type PolicyActionState = { success?: boolean; message?: string }
 type SupabaseFrom = Awaited<ReturnType<typeof requireGestor>>['supabase']
@@ -31,6 +32,8 @@ export interface CriarVersaoPoliticaInput {
   limite_postergacao_upload_canhoto_dias: number | null
   metodo_calculo_financeiro: MetodoCalculoNovaPolitica | null
   tipo_ativo_financeiro: TipoAtivoFinanceiro
+  controle_exposicao_logistica_ativo: boolean
+  limite_exposicao_em_transito_pct: string | null
   configuracao?: Record<string, unknown>
   requisitos: PoliticaRequisitoInput[]
 }
@@ -49,6 +52,8 @@ function hashVersao(input: CriarVersaoPoliticaInput, requisitos: ReturnType<type
     limite_postergacao_upload_canhoto_dias: input.limite_postergacao_upload_canhoto_dias,
     metodo_calculo_financeiro: input.metodo_calculo_financeiro,
     tipo_ativo_financeiro: input.tipo_ativo_financeiro,
+    controle_exposicao_logistica_ativo: input.controle_exposicao_logistica_ativo,
+    limite_exposicao_em_transito_pct: input.limite_exposicao_em_transito_pct,
     configuracao: input.configuracao || {},
     requisitos,
   })).digest('hex')
@@ -237,6 +242,14 @@ export async function criarVersaoPolitica(
       return result('A postergação só pode ser habilitada quando houver canhoto obrigatório no pós-cessão.')
     }
     validarConfiguracaoPublica(config)
+    if (input.controle_exposicao_logistica_ativo) {
+      try {
+        const limit = new Decimal(input.limite_exposicao_em_transito_pct || '')
+        if (limit.lte(0) || limit.gt(100)) return result('Informe um limite de exposicao maior que zero e menor ou igual a 100%.')
+      } catch {
+        return result('Informe um limite de exposicao valido.')
+      }
+    }
     const payload = { ...input, configuracao: config, requisitos: normalized }
     const hash = hashVersao(payload, normalized)
     const { data: created, error } = await supabase.from('politica_operacional_versoes').insert({
@@ -255,6 +268,10 @@ export async function criarVersaoPolitica(
         : null,
       metodo_calculo_financeiro: input.metodo_calculo_financeiro,
       tipo_ativo_financeiro: input.tipo_ativo_financeiro,
+      controle_exposicao_logistica_ativo: input.controle_exposicao_logistica_ativo,
+      limite_exposicao_em_transito_pct: input.controle_exposicao_logistica_ativo
+        ? input.limite_exposicao_em_transito_pct
+        : null,
       configuracao: config,
       regras: config.fluxo_operacional ? { fluxo_operacional: config.fluxo_operacional } : {},
       parametros: config,
@@ -459,6 +476,8 @@ export async function duplicarPoliticaDoFundo(
         limite_postergacao_upload_canhoto_dias: number | null
         metodo_calculo_financeiro: MetodoCalculoNovaPolitica | null
         tipo_ativo_financeiro?: TipoAtivoFinanceiro
+        controle_exposicao_logistica_ativo?: boolean
+        limite_exposicao_em_transito_pct?: number | string | null
         configuracao: Record<string, unknown>
       }
       const { data: baseRequirements, error: requirementsError } = await context.supabase
@@ -481,6 +500,10 @@ export async function duplicarPoliticaDoFundo(
         limite_postergacao_upload_canhoto_dias: base.limite_postergacao_upload_canhoto_dias,
         metodo_calculo_financeiro: base.metodo_calculo_financeiro,
         tipo_ativo_financeiro: base.tipo_ativo_financeiro || 'NOTA_FISCAL',
+        controle_exposicao_logistica_ativo: base.controle_exposicao_logistica_ativo === true,
+        limite_exposicao_em_transito_pct: base.limite_exposicao_em_transito_pct == null
+          ? null
+          : String(base.limite_exposicao_em_transito_pct),
         configuracao: base.configuracao || {},
         requisitos,
       })

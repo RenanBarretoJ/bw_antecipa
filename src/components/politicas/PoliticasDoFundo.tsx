@@ -66,6 +66,8 @@ interface VersionRow {
   limite_postergacao_upload_canhoto_dias: number | null
   metodo_calculo_financeiro: MetodoCalculoNovaPolitica | null
   tipo_ativo_financeiro: TipoAtivoFinanceiro
+  controle_exposicao_logistica_ativo: boolean
+  limite_exposicao_em_transito_pct: number | string | null
   configuracao?: Record<string, unknown> | null
 }
 interface RequirementRow {
@@ -168,6 +170,7 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
   const [requirePreCessionLogisticStatus, setRequirePreCessionLogisticStatus] = useState(false)
   const [calculationMethod, setCalculationMethod] = useState<MetodoCalculoNovaPolitica | ''>('')
   const [financialAssetType, setFinancialAssetType] = useState<TipoAtivoFinanceiro>('NOTA_FISCAL')
+  const [exposureControl, setExposureControl] = useState({ ativo: false, limite: '' })
   const [requirementsForm, setRequirementsForm] = useState<PoliticaRequisitoInput[]>([])
 
   const loadData = useCallback(async () => {
@@ -198,7 +201,7 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
       ;[versionResult, requirementResult] = await Promise.all([
         supabase
           .from('politica_operacional_versoes')
-          .select('id, politica_operacional_id, fundo_id, cedente_fundo_id, versao, status, publicada_em, publicada_por, vigente_desde, vigente_ate, created_at, aceite_sacado_obrigatorio, cessao_no_desembolso, cria_acompanhamento_entrega, exigir_status_logistico_pre_cessao, permite_postergacao_upload_canhoto, limite_postergacao_upload_canhoto_dias, metodo_calculo_financeiro, tipo_ativo_financeiro, configuracao')
+          .select('id, politica_operacional_id, fundo_id, cedente_fundo_id, versao, status, publicada_em, publicada_por, vigente_desde, vigente_ate, created_at, aceite_sacado_obrigatorio, cessao_no_desembolso, cria_acompanhamento_entrega, exigir_status_logistico_pre_cessao, permite_postergacao_upload_canhoto, limite_postergacao_upload_canhoto_dias, metodo_calculo_financeiro, tipo_ativo_financeiro, controle_exposicao_logistica_ativo, limite_exposicao_em_transito_pct, configuracao')
           .in('politica_operacional_id', policyIds)
           .order('versao', { ascending: false }),
         supabase
@@ -307,6 +310,10 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
     setRequirePreCessionLogisticStatus(source?.exigir_status_logistico_pre_cessao === true)
     setCalculationMethod(source?.metodo_calculo_financeiro || '')
     setFinancialAssetType(source?.tipo_ativo_financeiro || 'NOTA_FISCAL')
+    setExposureControl({
+      ativo: source?.controle_exposicao_logistica_ativo === true,
+      limite: source?.limite_exposicao_em_transito_pct == null ? '' : String(source.limite_exposicao_em_transito_pct),
+    })
     setRequirementsForm(source ? cloneRequirements(sourceRequirements) : [emptyRequirement(0)])
     setVersionStep('fluxo')
     setVersionModalOpen(true)
@@ -324,6 +331,8 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
         : null,
       metodo_calculo_financeiro: calculationMethod || null,
       tipo_ativo_financeiro: financialAssetType,
+      controle_exposicao_logistica_ativo: exposureControl.ativo,
+      limite_exposicao_em_transito_pct: exposureControl.ativo ? exposureControl.limite : null,
       configuracao: {
         fluxo_operacional: operationalSelections,
         requisito_ui_schema: 'bw-antecipa.politica-operacional-ui.v2',
@@ -690,6 +699,27 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
                   ))}
                 </div>
               </div>
+              <div className="overflow-hidden rounded-xl border border-border bg-background lg:col-span-3">
+                <div className="flex flex-col gap-4 border-b border-border px-4 py-4 sm:px-5 md:flex-row md:items-center md:justify-between">
+                  <div className="min-w-0">
+                    <Label className="text-sm font-semibold">Controle de exposicao logistica</Label>
+                    <p className="mt-1 max-w-3xl text-sm text-muted-foreground">Configura o limite matematico de referencia usado pelo P2.5. A classificacao nao aprova nem bloqueia operacoes.</p>
+                  </div>
+                  <label className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2.5 text-sm font-medium md:w-auto md:min-w-56">
+                    <span>Ativar controle</span>
+                    <input type="checkbox" checked={exposureControl.ativo} onChange={(event) => setExposureControl((current) => ({ ...current, ativo: event.target.checked }))} className="size-4 accent-primary" />
+                  </label>
+                </div>
+                {exposureControl.ativo ? (
+                  <div className="grid gap-4 bg-muted/10 px-4 py-4 sm:px-5 md:grid-cols-[minmax(240px,320px)_minmax(0,1fr)] md:items-end">
+                    <div>
+                      <Label htmlFor="limite-exposicao">Limite de exposicao em transito (%)</Label>
+                      <Input id="limite-exposicao" inputMode="decimal" value={exposureControl.limite} onChange={(event) => setExposureControl((current) => ({ ...current, limite: event.target.value }))} placeholder="40" className="mt-2" />
+                    </div>
+                    <p className="rounded-lg border border-primary/15 bg-primary/5 px-3 py-2.5 text-sm text-muted-foreground">O limite e congelado na versao publicada e no snapshot de cada execucao. Exatamente no limite gera <strong>NO_LIMITE</strong>, sem decisao de elegibilidade.</p>
+                  </div>
+                ) : <p className="bg-muted/10 px-4 py-3 text-sm text-muted-foreground sm:px-5">Sem controle ativo, a execucao P2.5 sera registrada como nao aplicavel.</p>}
+              </div>
             </div>
           )}
 
@@ -725,6 +755,7 @@ export function PoliticasDoFundo({ fundoId, showFundoInLabel = true }: { fundoId
                 <DetailField label="Postergação do canhoto" value={postponementForm.permite ? `Permitida uma vez · limite ${postponementForm.limiteDias || '5'} dias` : 'Não permitida'} />
                 <DetailField label="Metodo de calculo" value={calculationMethod ? METODOS_CALCULO_LABELS[calculationMethod] : 'Nao selecionado'} />
                 <DetailField label="Ativo financeiro" value={financialAssetType === 'DUPLICATA_MERCANTIL' ? 'Duplicata Mercantil' : 'Nota Fiscal'} />
+                <DetailField label="Exposicao logistica" value={exposureControl.ativo ? `Ativa · limite ${exposureControl.limite || 'nao informado'}%` : 'Nao aplicavel'} />
               </div>
               <div className="rounded-xl border border-border">
                 <div className="border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Requisitos</div>

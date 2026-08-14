@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { GitCompareArrows, Link2, Play, Search, Truck, Unlink } from 'lucide-react'
+import { Calculator, GitCompareArrows, Link2, Play, Search, Truck, Unlink } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -14,17 +14,20 @@ import {
   executarConciliacaoAction,
   executarMatchingAction,
   executarPosicaoLogisticaAction,
+  executarExposicaoAction,
   pesquisarNotasParaMatchingAction,
   revogarMatchManualAction,
+  simularExposicaoAction,
 } from '@/lib/actions/conciliacao'
 import { cn } from '@/lib/utils'
-import type { ConciliacaoDashboard, ConciliacaoTab, MatchingViewRow } from '@/lib/rlx/conciliacao/loaders.server'
+import type { ConciliacaoDashboard, ConciliacaoTab, MatchingViewRow } from '@/lib/financeiro/conciliacao/loaders.server'
 
 const tabs: Array<{ id: ConciliacaoTab; label: string }> = [
   { id: 'visao-geral', label: 'Visao geral' },
   { id: 'matching', label: 'Matching' },
   { id: 'conciliacao', label: 'Conciliacao' },
   { id: 'logistica', label: 'Logistica' },
+  { id: 'exposicao', label: 'Exposicao' },
   { id: 'excecoes', label: 'Excecoes' },
 ]
 
@@ -94,6 +97,8 @@ export function ConciliacaoFinanceiraClient({ dashboard }: { dashboard: Concilia
   const [query, setQuery] = useState('')
   const [reason, setReason] = useState('')
   const [totp, setTotp] = useState('')
+  const [simulationOperationId, setSimulationOperationId] = useState('')
+  const [simulation, setSimulation] = useState<Record<string, unknown> | null>(null)
 
   const matchingCoverage = dashboard.matchingExecucao?.total_registros
     ? Math.round((dashboard.matchingExecucao.matched / dashboard.matchingExecucao.total_registros) * 100)
@@ -153,6 +158,9 @@ export function ConciliacaoFinanceiraClient({ dashboard }: { dashboard: Concilia
           <Button variant="outline" disabled={pending || !dashboard.filtros.dataReferencia} onClick={() => run(() => executarPosicaoLogisticaAction({ dataReferencia: dashboard.filtros.dataReferencia }))}>
             <Truck /> Atualizar logistica
           </Button>
+          <Button variant="outline" disabled={pending || !dashboard.filtros.dataReferencia} onClick={() => run(() => executarExposicaoAction({ dataReferencia: dashboard.filtros.dataReferencia }))}>
+            <Calculator /> Calcular exposicao
+          </Button>
         </div>
       </header>
 
@@ -179,7 +187,7 @@ export function ConciliacaoFinanceiraClient({ dashboard }: { dashboard: Concilia
             </select>
             <select name="status" defaultValue={dashboard.filtros.status} className="h-8 rounded-lg border border-input bg-background px-2 text-sm">
               <option value="">Todos os status</option>
-              {['MATCH_FORTE', 'AMBIGUO', 'NAO_CONCILIADO', 'CONFLITO', 'MANTIDO_CORRETO', 'ENTRADA_INCORPORADA', 'ENTRADA_NAO_INCORPORADA', 'SAIDA_REFLETIDA', 'SAIDA_SEM_LIQUIDACAO', 'LIQUIDADO_AINDA_NO_ESTOQUE', 'DIVERGENCIA_VALOR', 'ENTREGUE', 'EM_TRANSITO', 'INDETERMINADA', 'SEM_MATCH_FINANCEIRO_NF'].map((item) => <option key={item}>{item}</option>)}
+              {['MATCH_FORTE', 'AMBIGUO', 'NAO_CONCILIADO', 'CONFLITO', 'MANTIDO_CORRETO', 'ENTRADA_INCORPORADA', 'ENTRADA_NAO_INCORPORADA', 'SAIDA_REFLETIDA', 'SAIDA_SEM_LIQUIDACAO', 'LIQUIDADO_AINDA_NO_ESTOQUE', 'DIVERGENCIA_VALOR', 'ENTREGUE', 'EM_TRANSITO', 'INDETERMINADA', 'SEM_MATCH_FINANCEIRO_NF', 'INCLUIDA_EM_TRANSITO', 'JA_INCORPORADO_ESTOQUE', 'OPERACAO_NAO_INCORPORADA', 'VALOR_AUSENTE'].map((item) => <option key={item}>{item}</option>)}
             </select>
             <select name="metodo" defaultValue={dashboard.filtros.metodo} className="h-8 rounded-lg border border-input bg-background px-2 text-sm">
               <option value="">Todos os metodos</option>
@@ -249,8 +257,22 @@ export function ConciliacaoFinanceiraClient({ dashboard }: { dashboard: Concilia
       {(dashboard.filtros.tab === 'logistica' || dashboard.filtros.tab === 'excecoes') && (
         <LogisticsView dashboard={dashboard} />
       )}
+      {dashboard.filtros.tab === 'exposicao' && (
+        <ExposureView
+          dashboard={dashboard}
+          operationId={simulationOperationId}
+          onOperationId={setSimulationOperationId}
+          simulation={simulation}
+          pending={pending}
+          onSimulate={() => run(async () => {
+            const result = await simularExposicaoAction({ operacaoId: simulationOperationId })
+            if (result.success) setSimulation(result.data || null)
+            return result
+          })}
+        />
+      )}
 
-      <Pagination dashboard={dashboard} total={dashboard.filtros.tab === 'logistica' ? dashboard.logistica.total : dashboard.filtros.tab === 'conciliacao' ? dashboard.conciliacao.total : dashboard.filtros.tab === 'matching' ? dashboard.matching.total : Math.max(dashboard.matching.total, dashboard.conciliacao.total, dashboard.logistica.total)} />
+      <Pagination dashboard={dashboard} total={dashboard.filtros.tab === 'exposicao' ? dashboard.exposicao.total : dashboard.filtros.tab === 'logistica' ? dashboard.logistica.total : dashboard.filtros.tab === 'conciliacao' ? dashboard.conciliacao.total : dashboard.filtros.tab === 'matching' ? dashboard.matching.total : Math.max(dashboard.matching.total, dashboard.conciliacao.total, dashboard.logistica.total)} />
 
       <Dialog open={Boolean(manualRow)} onOpenChange={(open) => { if (!open) setManualRow(null) }}>
         <DialogContent className="sm:max-w-3xl">
@@ -364,6 +386,80 @@ function LogisticsView({ dashboard }: { dashboard: ConciliacaoDashboard }) {
           {dashboard.logistica.rows.map((row) => <tr key={row.id}><td className="max-w-48 truncate py-3 pr-3" title={row.id_recebivel || row.seu_numero || ''}><p className="font-mono text-xs">{row.id_recebivel || row.seu_numero || row.numero_documento || '—'}</p>{row.nota_fiscal_id ? <Link className="text-xs font-medium text-primary hover:underline" href={`/gestor/notas-fiscais/${row.nota_fiscal_id}`}>Ver NF</Link> : <Link className="text-xs font-medium text-primary hover:underline" href={currentQuery(dashboard, 'matching')}>Resolver matching</Link>}</td><td className="max-w-44 truncate pr-3" title={row.cedente_nome || ''}>{row.cedente_nome || '—'}</td><td className="max-w-44 truncate pr-3" title={row.sacado_nome || ''}>{row.sacado_nome || '—'}</td><td className="pr-3 tabular-nums">{row.valor_aquisicao === null ? <span className="text-warning-foreground">Ausente</span> : money(row.valor_aquisicao)}</td><td className="pr-3"><span className={badge(row.matching_status)}>{row.matching_status}</span></td><td className="pr-3">{row.status_logistico ? <span className={badge(row.status_logistico)}>{row.status_logistico}</span> : <span className={badge(row.status_vinculo)}>{row.status_vinculo}</span>}</td><td className="max-w-44 truncate pr-3" title={row.fundamento}>{row.evidencia_familia || row.fundamento}</td><td>{date(row.data_vencimento)}</td></tr>)}
         </tbody></table></div>
         {!dashboard.logistica.rows.length && <p className="py-10 text-center text-muted-foreground">Nenhum snapshot logistico para os filtros informados.</p>}
+      </CardContent>
+    </Card>
+  </div>
+}
+
+function percentValue(value: string | number | null | undefined) {
+  if (value === null || value === undefined) return 'Nao calculado'
+  return `${new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 4, maximumFractionDigits: 6 }).format(Number(value))}%`
+}
+
+function ExposureView({ dashboard, operationId, onOperationId, simulation, pending, onSimulate }: {
+  dashboard: ConciliacaoDashboard
+  operationId: string
+  onOperationId: (value: string) => void
+  simulation: Record<string, unknown> | null
+  pending: boolean
+  onSimulate: () => void
+}) {
+  const execution = dashboard.exposicaoExecucao
+  const neutralClassification = execution?.classificacao_limite || execution?.status || 'SEM_EXECUCAO'
+  const cards = [
+    ['PL D-2', money(execution?.patrimonio_liquido_d2)],
+    ['Posicao D-1', money(execution?.valor_posicao_total)],
+    ['Em transito no Estoque', money(execution?.valor_em_transito_estoque)],
+    ['Overlay intraday em transito', money(execution?.overlay_em_transito)],
+    ['Exposicao conhecida em transito', money(execution?.exposicao_em_transito_total)],
+    ['Percentual', percentValue(execution?.percentual_exposicao)],
+    ['Limite de referencia', percentValue(execution?.limite_referencia_pct)],
+    ['Classificacao matematica', neutralClassification],
+  ] as const
+  return <div className="space-y-4">
+    <Card>
+      <CardHeader><CardTitle>Exposicao conhecida em transito</CardTitle></CardHeader>
+      <CardContent className="grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-6">
+        <div><span className="text-muted-foreground">Data operacional</span><p className="font-medium">{date(execution?.data_operacional)}</p></div>
+        <div><span className="text-muted-foreground">Estoque ref. D-1</span><p className="font-medium">{date(execution?.data_referencia_estoque)}</p></div>
+        <div><span className="text-muted-foreground">PL ref. D-2</span><p className="font-medium">{date(execution?.data_referencia_pl)}</p></div>
+        <div><span className="text-muted-foreground">Logistica as-of</span><p className="font-medium">{execution?.logistica_as_of ? new Date(execution.logistica_as_of).toLocaleString('pt-BR') : 'Nao disponivel'}</p></div>
+        <div><span className="text-muted-foreground">Overlay as-of</span><p className="font-medium">{execution?.overlay_as_of ? new Date(execution.overlay_as_of).toLocaleString('pt-BR') : 'Nao disponivel'}</p></div>
+        <div><span className="text-muted-foreground">Regra</span><p className="font-medium">{execution?.regra_versao || 'Nao executada'}</p></div>
+      </CardContent>
+    </Card>
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      {cards.map(([label, value]) => <SummaryCard key={label} label={label} value={value} />)}
+    </div>
+    <Card>
+      <CardHeader><CardTitle>Qualidade e categorias fora do numerador</CardTitle></CardHeader>
+      <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div><p className="text-xs text-muted-foreground">Indeterminada</p><p className="font-semibold">{execution?.quantidade_indeterminada || 0} · {money(execution?.valor_indeterminado)}</p></div>
+        <div><p className="text-xs text-muted-foreground">Sem match</p><p className="font-semibold">{execution?.quantidade_sem_match || 0} · {money(execution?.valor_sem_match)}</p></div>
+        <div><p className="text-xs text-muted-foreground">Valor ausente</p><p className="font-semibold">{execution?.quantidade_valor_aquisicao_ausente || 0}</p></div>
+        <div><p className="text-xs text-muted-foreground">Operacoes nao incorporadas</p><p className="font-semibold">{execution?.quantidade_nao_incorporada || 0} · {money(execution?.operacoes_nao_incorporadas_valor)}</p></div>
+        <div className="sm:col-span-2 xl:col-span-4"><p className="text-xs text-muted-foreground">Flags de qualidade</p><p className="font-medium">{execution?.flags_qualidade?.length ? execution.flags_qualidade.join(' · ') : 'Nenhuma flag registrada'}</p></div>
+      </CardContent>
+    </Card>
+    <Card>
+      <CardHeader><CardTitle>Simular impacto</CardTitle></CardHeader>
+      <CardContent className="space-y-3">
+        <p className="text-sm text-muted-foreground">Simulacao somente leitura. Nenhum status, remessa ou cessao e alterado.</p>
+        <div className="flex flex-col gap-2 sm:flex-row"><Input value={operationId} onChange={(event) => onOperationId(event.target.value)} placeholder="UUID da operacao" /><Button variant="outline" disabled={pending || !/^[0-9a-f-]{36}$/i.test(operationId)} onClick={onSimulate}><Calculator /> Simular</Button></div>
+        {simulation && <div className="grid gap-3 rounded-lg bg-muted p-3 text-sm sm:grid-cols-3">
+          <div><span className="text-muted-foreground">Atual</span><p className="font-semibold">{percentValue(String(simulation.percentualAtual))} · {String(simulation.classificacaoAtual)}</p></div>
+          <div><span className="text-muted-foreground">Adicional em transito</span><p className="font-semibold">{money(String(simulation.valorAdicionalEmTransito))}</p></div>
+          <div><span className="text-muted-foreground">Projetado</span><p className="font-semibold">{percentValue(String(simulation.percentualProjetado))} · {String(simulation.classificacaoProjetada)}</p></div>
+        </div>}
+      </CardContent>
+    </Card>
+    <Card>
+      <CardHeader><CardTitle>Overlay intraday ({dashboard.exposicao.total})</CardTitle></CardHeader>
+      <CardContent className="overflow-x-auto">
+        <table className="w-full min-w-[900px] text-left text-sm"><thead className="border-b text-xs uppercase text-muted-foreground"><tr><th className="py-2 pr-3">Operacao</th><th className="pr-3">NF</th><th className="pr-3">Valor aquisicao</th><th className="pr-3">Status logistico</th><th className="pr-3">Ja no estoque?</th><th className="pr-3">No numerador?</th><th>Motivo</th></tr></thead><tbody className="divide-y">
+          {dashboard.exposicao.rows.map((row) => <tr key={row.id}><td className="py-3 pr-3"><Link className="font-mono text-xs text-primary hover:underline" href={`/gestor/operacoes/${row.operacao_id}`}>{row.operacao_id.slice(0, 8)}</Link></td><td className="pr-3"><Link className="font-mono text-xs text-primary hover:underline" href={`/gestor/notas-fiscais/${row.nota_fiscal_id}`}>{row.nota_fiscal_id.slice(0, 8)}</Link></td><td className="pr-3 tabular-nums">{row.valor_aquisicao == null ? 'Ausente' : money(row.valor_aquisicao)}</td><td className="pr-3"><span className={badge(row.status_logistico)}>{row.status_logistico}</span></td><td className="pr-3">{row.ja_incorporado_estoque ? 'Sim' : 'Nao'}</td><td className="pr-3">{row.incluido_no_numerador ? 'Sim' : 'Nao'}</td><td>{row.motivo}</td></tr>)}
+        </tbody></table>
+        {!dashboard.exposicao.rows.length && <p className="py-10 text-center text-muted-foreground">Nenhum item de overlay nesta execucao.</p>}
       </CardContent>
     </Card>
   </div>

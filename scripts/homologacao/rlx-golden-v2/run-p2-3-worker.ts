@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { executarConciliacaoFinanceira, executarMatchingFinanceiro } from '../../../src/lib/rlx/conciliacao/processor.server'
+import { executarConciliacaoFinanceira, executarMatchingFinanceiro } from '../../../src/lib/financeiro/conciliacao/processor.server'
 import { DATASET_VERSION, buildGoldenV2 } from './scenario-definitions.mjs'
 
 function admin() {

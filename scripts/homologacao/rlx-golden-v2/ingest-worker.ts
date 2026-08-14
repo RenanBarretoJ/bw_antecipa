@@ -1,17 +1,17 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import {
-  ingerirArquivoFinanceiroRlx,
-  publicarImportacaoFinanceiraRlx,
-} from '../../../src/lib/rlx/ingestao/ingestao.server'
-import type { RlxTipoBase } from '../../../src/lib/rlx/ingestao/types'
+  ingerirArquivoFinanceiro,
+  publicarImportacaoFinanceira,
+} from '../../../src/lib/financeiro/ingestao/ingestao.server'
+import type { TipoBaseFinanceiro } from '../../../src/lib/financeiro/ingestao/types'
 import { FIXTURES_ROOT } from './fixtures.mjs'
 import { DATASET_VERSION, PROVIDER, buildGoldenV2 } from './scenario-definitions.mjs'
 
 type Result = {
   scenario: string
   fundId: string
-  type: RlxTipoBase
+  type: TipoBaseFinanceiro
   date: string
   importId: string
   status: string
@@ -25,12 +25,12 @@ const phase = process.argv.find((item) => item.startsWith('--phase='))?.split('=
 async function ingest(input: {
   scenario: string
   fundId: string
-  type: RlxTipoBase
+  type: TipoBaseFinanceiro
   date: string
   fixture: string
 }) : Promise<Result> {
   const fixturePath = resolve(FIXTURES_ROOT, input.fixture)
-  const result = await ingerirArquivoFinanceiroRlx({
+  const result = await ingerirArquivoFinanceiro({
     fundoId: input.fundId,
     provedor: PROVIDER,
     tipoBase: input.type,
@@ -41,7 +41,7 @@ async function ingest(input: {
     mimeType: 'text/csv',
   })
   if (result.status === 'FALHA') throw new Error(`${input.scenario}: validacao P2.2 falhou.`)
-  if (!result.duplicada && result.status === 'VALIDA') await publicarImportacaoFinanceiraRlx(result.importacaoId)
+  if (!result.duplicada && result.status === 'VALIDA') await publicarImportacaoFinanceira(result.importacaoId)
   return {
     scenario: input.scenario, fundId: input.fundId, type: input.type, date: input.date,
     importId: result.importacaoId, status: result.status, completeness: result.resultado.completude,

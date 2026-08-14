@@ -9,8 +9,9 @@ import { autorizarEConsumirAcaoSensivel } from '@/lib/auth/sensitive-action'
 import {
   executarConciliacaoFinanceira,
   executarMatchingFinanceiro,
-} from '@/lib/rlx/conciliacao/processor.server'
-import { executarPosicaoLogisticaFinanceira } from '@/lib/rlx/logistica/processor.server'
+} from '@/lib/financeiro/conciliacao/processor.server'
+import { executarPosicaoLogisticaFinanceira } from '@/lib/financeiro/logistica/processor.server'
+import { executarExposicaoFinanceira, simularExposicaoOperacao } from '@/lib/financeiro/exposicao/processor.server'
 
 export type ConciliacaoActionResult = {
   success: boolean
@@ -36,6 +37,7 @@ const revokeSchema = z.object({
   codigoTotp: z.string().regex(/^\d{6}$/),
 })
 const noteSearchSchema = z.object({ q: z.string().trim().min(2).max(120) })
+const simulationSchema = z.object({ operacaoId: z.string().uuid() })
 
 function failure(message: string, correlationId: string, error?: unknown): ConciliacaoActionResult {
   console.error('[rlx/conciliacao]', {
@@ -128,6 +130,48 @@ export async function executarPosicaoLogisticaAction(input: unknown): Promise<Co
   }
 }
 
+export async function executarExposicaoAction(input: unknown): Promise<ConciliacaoActionResult> {
+  const correlationId = randomUUID()
+  try {
+    const parsed = executionSchema.safeParse(input)
+    if (!parsed.success) return failure('Informe uma data operacional valida.', correlationId)
+    const { context, fundoId } = await gestorNoFundoAtivo()
+    const result = await executarExposicaoFinanceira({
+      fundoId,
+      dataOperacional: parsed.data.dataReferencia,
+      atorUsuarioId: context.user.id,
+    })
+    revalidatePath('/gestor/conciliacao')
+    const warning = result.status !== 'CALCULADA'
+    const message = warning ? `Exposicao registrada com status ${result.status}.` : 'Exposicao financeira calculada.'
+    return { success: true, message, data: result, notification: { type: warning ? 'warning' : 'success', message } }
+  } catch (error) {
+    return failure('Nao foi possivel calcular a exposicao financeira.', correlationId, error)
+  }
+}
+
+export async function simularExposicaoAction(input: unknown): Promise<ConciliacaoActionResult> {
+  const correlationId = randomUUID()
+  try {
+    const parsed = simulationSchema.safeParse(input)
+    if (!parsed.success) return failure('Selecione uma operacao valida para simular.', correlationId)
+    const { context, fundoId } = await gestorNoFundoAtivo()
+    const result = await simularExposicaoOperacao({
+      fundoId,
+      operacaoId: parsed.data.operacaoId,
+      atorUsuarioId: context.user.id,
+    })
+    return {
+      success: true,
+      message: 'Simulacao concluida sem alterar a operacao.',
+      data: result,
+      notification: { type: 'info', message: 'Simulacao concluida sem alterar a operacao.' },
+    }
+  } catch (error) {
+    return failure('Nao foi possivel simular a exposicao.', correlationId, error)
+  }
+}
+
 export async function pesquisarNotasParaMatchingAction(input: unknown): Promise<ConciliacaoActionResult> {
   const correlationId = randomUUID()
   try {
@@ -165,7 +209,7 @@ export async function confirmarMatchManualAction(input: unknown): Promise<Concil
     if (!parsed.success) return failure('Revise a nota, o motivo e o codigo TOTP.', correlationId)
     const { context } = await gestorNoFundoAtivo()
     await autorizarEConsumirAcaoSensivel(context, 'confirmar_match_manual', parsed.data.codigoTotp)
-    const { data, error } = await context.supabase.rpc('rlx_confirmar_match_manual', {
+    const { data, error } = await context.supabase.rpc('confirmar_match_manual', {
       p_matching_resultado_id: parsed.data.matchingResultadoId,
       p_nota_fiscal_id: parsed.data.notaFiscalId,
       p_motivo: parsed.data.motivo,
@@ -191,7 +235,7 @@ export async function revogarMatchManualAction(input: unknown): Promise<Concilia
     if (!parsed.success) return failure('Revise o motivo e o codigo TOTP.', correlationId)
     const { context } = await gestorNoFundoAtivo()
     await autorizarEConsumirAcaoSensivel(context, 'revogar_match_manual', parsed.data.codigoTotp)
-    const { data, error } = await context.supabase.rpc('rlx_revogar_match_manual', {
+    const { data, error } = await context.supabase.rpc('revogar_match_manual', {
       p_vinculo_id: parsed.data.vinculoId,
       p_motivo: parsed.data.motivo,
       p_correlation_id: correlationId,

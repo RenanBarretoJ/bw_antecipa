@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 
 const migration = readFileSync(resolve(process.cwd(), 'supabase/migrations/20260813210000_p2_2_1_integracoes_capabilities.sql'), 'utf8')
 const portalRuntime = readFileSync(resolve(process.cwd(), 'src/lib/portal-fidc/integracao.ts'), 'utf8')
-const ingestion = readFileSync(resolve(process.cwd(), 'src/lib/rlx/ingestao/ingestao.server.ts'), 'utf8')
+const ingestion = readFileSync(resolve(process.cwd(), 'src/lib/financeiro/ingestao/ingestao.server.ts'), 'utf8')
 
 describe('P2.2.1 - schema de integracoes por capability', () => {
   it('normaliza capabilities por versao e limita uma fonte ativa por contexto', () => {

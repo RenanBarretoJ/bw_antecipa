@@ -1,7 +1,7 @@
 {
   "crons": [
     {
-      "path": "/api/cron/rlx-financeiro",
+      "path": "/api/cron/financeiro",
       "schedule": "30 12 * * 1-5"
     },
     {

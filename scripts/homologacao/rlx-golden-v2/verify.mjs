@@ -55,8 +55,8 @@ try {
   check((logisticsCounts.get('em_transito') || 0) > 0, 'logistica preserva EM_TRANSITO', logistics.rows)
   check((logisticsCounts.get('aguardando_validacao') || 0) > 0, 'logistica preserva INDETERMINADA descritiva', logistics.rows)
 
-  const matchingExecs = await latestExecutions('rlx_matching_execucoes')
-  const reconExecs = await latestExecutions('rlx_conciliacao_execucoes')
+  const matchingExecs = await latestExecutions('matching_execucoes')
+  const reconExecs = await latestExecutions('conciliacao_execucoes')
   check(matchingExecs.length === 2, 'duas execucoes historicas de matching A/B', matchingExecs.map((item) => item.id))
   check(reconExecs.length === 2, 'duas execucoes historicas de conciliacao A/B', reconExecs.map((item) => item.id))
   if (matchingExecs.length < 2 || reconExecs.length < 2) throw new Error('Execute as fases A e B antes da verificacao.')
@@ -68,7 +68,7 @@ try {
 
   const verifyMatchingPhase = async (execution, phase) => {
     const matchingRows = await db.query(`SELECT r.*,count(c.id)::int AS candidate_rows
-    FROM public.rlx_matching_resultados r LEFT JOIN public.rlx_matching_candidatos c ON c.matching_resultado_id=r.id
+    FROM public.matching_resultados r LEFT JOIN public.matching_candidatos c ON c.matching_resultado_id=r.id
     WHERE r.execucao_id=$1 GROUP BY r.id`, [execution.id])
     for (const expected of expectedMatching.cases.filter((item) => item.fund_id === dataset.mainFund.id)) {
       const actual = matchingRows.rows.filter((item) => item.origem_registro === expected.origin && normalize(item.identidade_externa) === expected.external_identity)
@@ -95,7 +95,7 @@ try {
     coalesce(sum(valor_referencia) FILTER (WHERE status='NAO_CONCILIADO'),0)::numeric AS valor_nao_conciliado,
     count(*) FILTER (WHERE status='CONFLITO')::int AS conflitos,
     coalesce(sum(valor_referencia) FILTER (WHERE status='CONFLITO'),0)::numeric AS valor_conflito
-    FROM public.rlx_matching_resultados WHERE execucao_id=$1 AND origem_registro='ESTOQUE'`, [matchingB.id])
+    FROM public.matching_resultados WHERE execucao_id=$1 AND origem_registro='ESTOQUE'`, [matchingB.id])
   const actualCoverage = stockCoverage.rows[0]
   const expectedCoverage = expectedMatching.stock_d1_aggregates
   const decimalEqual = (left, right) => Math.abs(Number(left) - Number(right)) < 0.005
@@ -109,7 +109,7 @@ try {
   check(Number(((actualCoverage.matched / actualCoverage.total) * 100).toFixed(4)) === expectedCoverage.coverage_percent, 'cobertura estoque D-1: percentual por quantidade', actualCoverage)
   check(Number(((Number(actualCoverage.valor_matched) / Number(actualCoverage.valor_total)) * 100).toFixed(4)) === expectedCoverage.coverage_value_percent, 'cobertura estoque D-1: percentual por valor', actualCoverage)
 
-  const reconRows = await db.query(`SELECT * FROM public.rlx_conciliacao_resultados WHERE execucao_id=$1`, [reconB.id])
+  const reconRows = await db.query(`SELECT * FROM public.conciliacao_resultados WHERE execucao_id=$1`, [reconB.id])
   for (const expected of expectedRecon.cases) {
     const actual = reconRows.rows.find((item) => normalize(item.identidade_externa) === expected.external_identity)
     check(Boolean(actual), `conciliacao ${expected.scenario_id}: resultado existe`)
@@ -120,7 +120,7 @@ try {
   check(!reconRows.rows.some((item) => /^(RETIFICACAO_|DIA_SEM_|ARQUIVO_DUPLICADO)/.test(item.status)), 'status de importacao nao contamina titulo')
 
   const imports = await db.query(`SELECT id,fundo_id,tipo_base,data_referencia::text,status,completude,hash_conteudo,substitui_importacao_id,storage_bucket,storage_path
-    FROM public.rlx_importacoes_financeiras WHERE fundo_id=ANY($1) AND provedor=$2 ORDER BY tipo_base,data_referencia,created_at`, [dataset.funds.map((item) => item.id), PROVIDER])
+    FROM public.importacoes_financeiras WHERE fundo_id=ANY($1) AND provedor=$2 ORDER BY tipo_base,data_referencia,created_at`, [dataset.funds.map((item) => item.id), PROVIDER])
   const d1Stock = imports.rows.filter((item) => item.tipo_base === 'ESTOQUE' && item.data_referencia === BUSINESS_DATES['D-1'] && item.fundo_id !== dataset.adversarialFund.id)
   check(d1Stock.length >= 2 && d1Stock.some((item) => item.substitui_importacao_id), 'estoque D-1 possui retificacao encadeada')
   const d1Acq = imports.rows.filter((item) => item.tipo_base === 'AQUISICOES' && item.data_referencia === BUSINESS_DATES['D-1'])

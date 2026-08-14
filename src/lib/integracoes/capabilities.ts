@@ -1,4 +1,4 @@
-import type { RlxTipoBase } from '@/lib/rlx/ingestao/types'
+import type { TipoBaseFinanceiro } from '@/lib/financeiro/ingestao/types'
 
 export const INTEGRATION_CAPABILITIES = [
   'CESSAO_ENVIO',
@@ -38,10 +38,10 @@ export function isIntegrationCapability(value: unknown): value is IntegrationCap
   return typeof value === 'string' && INTEGRATION_CAPABILITIES.includes(value as IntegrationCapability)
 }
 
-export function tipoFinanceiroParaCapability(tipo: RlxTipoBase): FinancialIntegrationCapability {
+export function tipoFinanceiroParaCapability(tipo: TipoBaseFinanceiro): FinancialIntegrationCapability {
   return tipo
 }
 
-export function capabilityParaTipoFinanceiro(capability: FinancialIntegrationCapability): RlxTipoBase {
+export function capabilityParaTipoFinanceiro(capability: FinancialIntegrationCapability): TipoBaseFinanceiro {
   return capability
 }

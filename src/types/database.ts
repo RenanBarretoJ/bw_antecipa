@@ -324,6 +324,8 @@ export interface PoliticaOperacionalVersao {
   limite_postergacao_upload_canhoto_dias: number | null
   metodo_calculo_financeiro: import('@/lib/operacoes/calculo').MetodoCalculoNovaPolitica | null
   tipo_ativo_financeiro: import('@/lib/duplicatas/types').TipoAtivoFinanceiro
+  controle_exposicao_logistica_ativo: boolean
+  limite_exposicao_em_transito_pct: number | string | null
   configuracao: Record<string, unknown>
   regras: Record<string, unknown>
   parametros: Record<string, unknown>
@@ -1398,7 +1400,7 @@ export interface ComunicacaoTentativa {
   finalizada_em: string | null
 }
 
-export interface RlxImportacaoFinanceira {
+export interface ImportacaoFinanceira {
   id: string
   fundo_id: string
   provedor: string
@@ -1441,7 +1443,7 @@ export interface RlxImportacaoFinanceira {
   updated_at: string
 }
 
-export interface RlxImportacaoArquivo {
+export interface ImportacaoArquivo {
   id: string
   importacao_id: string
   fundo_id: string
@@ -1455,7 +1457,7 @@ export interface RlxImportacaoArquivo {
   criado_em: string
 }
 
-export interface RlxImportacaoLinha {
+export interface ImportacaoLinha {
   id: string
   importacao_id: string
   fundo_id: string
@@ -1468,7 +1470,7 @@ export interface RlxImportacaoLinha {
   criada_em: string
 }
 
-export interface RlxImportacaoCiclo {
+export interface ImportacaoCiclo {
   id: string
   fundo_id: string
   data_operacional: string
@@ -1483,7 +1485,7 @@ export interface RlxImportacaoCiclo {
   concluida_em: string | null
 }
 
-export interface RlxMatchingExecucao {
+export interface MatchingExecucao {
   id: string
   fundo_id: string
   data_referencia: string
@@ -1508,7 +1510,7 @@ export interface RlxMatchingExecucao {
   created_at: string
 }
 
-export interface RlxTituloNfVinculo {
+export interface TituloNfVinculo {
   id: string
   fundo_id: string
   provedor: string
@@ -1530,7 +1532,7 @@ export interface RlxTituloNfVinculo {
   correlation_id: string
 }
 
-export interface RlxTituloNfVinculoChave {
+export interface TituloNfVinculoChave {
   id: string
   vinculo_id: string
   fundo_id: string
@@ -1541,7 +1543,7 @@ export interface RlxTituloNfVinculoChave {
   criado_em: string
 }
 
-export interface RlxMatchingResultado {
+export interface MatchingResultado {
   id: string
   execucao_id: string
   fundo_id: string
@@ -1569,7 +1571,7 @@ export interface RlxMatchingResultado {
   criado_em: string
 }
 
-export interface RlxMatchingCandidato {
+export interface MatchingCandidato {
   id: string
   matching_resultado_id: string
   fundo_id: string
@@ -1580,7 +1582,7 @@ export interface RlxMatchingCandidato {
   criado_em: string
 }
 
-export interface RlxConciliacaoExecucao {
+export interface ConciliacaoExecucao {
   id: string
   fundo_id: string
   data_referencia: string
@@ -1602,7 +1604,7 @@ export interface RlxConciliacaoExecucao {
   created_at: string
 }
 
-export interface RlxConciliacaoResultado {
+export interface ConciliacaoResultado {
   id: string
   execucao_id: string
   fundo_id: string
@@ -1623,7 +1625,7 @@ export interface RlxConciliacaoResultado {
   criado_em: string
 }
 
-export interface RlxPosicaoLogisticaExecucao {
+export interface PosicaoLogisticaExecucao {
   id: string
   fundo_id: string
   data_referencia: string
@@ -1655,14 +1657,14 @@ export interface RlxPosicaoLogisticaExecucao {
   created_at: string
 }
 
-export interface RlxPosicaoLogisticaResultado {
+export interface PosicaoLogisticaResultado {
   id: string
   execucao_id: string
   fundo_id: string
   estoque_importacao_id: string
   estoque_posicao_id: string
   matching_resultado_id: string
-  matching_status: RlxMatchingResultado['status']
+  matching_status: MatchingResultado['status']
   matching_metodo: string
   status_vinculo: 'MATCHED_FINANCEIRO_NF' | 'SEM_MATCH_FINANCEIRO_NF'
   vinculo_id: string | null
@@ -1688,6 +1690,71 @@ export interface RlxPosicaoLogisticaResultado {
   evidencias: Record<string, unknown>
   detalhes: Record<string, unknown>
   criado_em: string
+}
+
+export interface ExposicaoExecucao {
+  id: string
+  fundo_id: string
+  data_operacional: string
+  data_referencia_estoque: string
+  data_referencia_pl: string
+  posicao_logistica_execucao_id: string | null
+  carteira_importacao_id: string | null
+  carteira_snapshot_id: string | null
+  politica_operacional_versao_id: string | null
+  logistica_as_of: string | null
+  overlay_as_of: string
+  regra_versao: 'RLX_EXPOSICAO_V1'
+  limite_referencia_pct: number | string | null
+  assinatura_execucao: string
+  status: import('@/lib/financeiro/exposicao/types').ExposureExecutionStatus
+  quantidade_posicao: number
+  quantidade_entregue: number
+  quantidade_em_transito_estoque: number
+  quantidade_indeterminada: number
+  quantidade_sem_match: number
+  quantidade_valor_aquisicao_ausente: number
+  quantidade_overlay: number
+  quantidade_ja_incorporada: number
+  quantidade_nao_incorporada: number
+  valor_posicao_total: number | string | null
+  valor_entregue: number | string | null
+  valor_em_transito_estoque: number | string | null
+  valor_indeterminado: number | string | null
+  valor_sem_match: number | string | null
+  overlay_total: number | string | null
+  overlay_em_transito: number | string | null
+  overlay_entregue: number | string | null
+  overlay_indeterminado: number | string | null
+  operacoes_ja_incorporadas_valor: number | string | null
+  operacoes_nao_incorporadas_valor: number | string | null
+  exposicao_em_transito_total: number | string | null
+  patrimonio_liquido_d2: number | string | null
+  percentual_exposicao: number | string | null
+  classificacao_limite: import('@/lib/financeiro/exposicao/types').ExposureLimitClassification | null
+  flags_qualidade: import('@/lib/financeiro/exposicao/types').ExposureQualityFlag[]
+  detalhes: Record<string, unknown>
+  correlation_id: string
+  criado_por: string | null
+  iniciado_em: string
+  finalizado_em: string
+  created_at: string
+}
+
+export interface ExposicaoOverlayItem {
+  id: string
+  execucao_id: string
+  fundo_id: string
+  operacao_id: string
+  nota_fiscal_id: string
+  operacao_economica_em: string
+  valor_aquisicao: number | string | null
+  status_logistico: 'ENTREGUE' | 'EM_TRANSITO' | 'INDETERMINADA'
+  ja_incorporado_estoque: boolean
+  incluido_no_numerador: boolean
+  motivo: import('@/lib/financeiro/exposicao/types').ExposureOverlayReason
+  evidencias: Record<string, unknown>
+  created_at: string
 }
 
 export interface Database {
@@ -1769,19 +1836,21 @@ export interface Database {
       logs_auditoria: { Row: LogAuditoria & Record<string, unknown>; Insert: InsertShape<LogAuditoria, 'tipo_evento' | 'entidade_tipo' | 'ator_tipo' | 'origem'> & Record<string, unknown>; Update: UpdateShape<LogAuditoria> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'logs_auditoria_usuario_id_fkey'; columns: ['usuario_id']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] }] }
       notificacoes: { Row: Notificacao & Record<string, unknown>; Insert: InsertShape<Notificacao, 'usuario_id' | 'titulo' | 'mensagem' | 'tipo'> & Record<string, unknown>; Update: UpdateShape<Notificacao> & Record<string, unknown>; Relationships: [] }
       autorizacoes_acoes_sensiveis: { Row: AutorizacaoAcaoSensivel & Record<string, unknown>; Insert: InsertShape<AutorizacaoAcaoSensivel, 'user_id' | 'session_id' | 'action_type' | 'nonce_hash' | 'expira_em'> & Record<string, unknown>; Update: UpdateShape<AutorizacaoAcaoSensivel> & Record<string, unknown>; Relationships: [] }
-      rlx_importacoes_financeiras: { Row: RlxImportacaoFinanceira & Record<string, unknown>; Insert: Partial<RlxImportacaoFinanceira> & Pick<RlxImportacaoFinanceira, 'fundo_id' | 'provedor' | 'tipo_base' | 'data_referencia' | 'layout_nome' | 'versao_layout' | 'hash_conteudo'> & Record<string, unknown>; Update: Partial<RlxImportacaoFinanceira> & Record<string, unknown>; Relationships: [] }
-      rlx_importacao_arquivos: { Row: RlxImportacaoArquivo & Record<string, unknown>; Insert: Partial<RlxImportacaoArquivo> & Pick<RlxImportacaoArquivo, 'importacao_id' | 'fundo_id' | 'nome_arquivo' | 'mime_type' | 'tamanho_bytes' | 'hash_conteudo' | 'storage_path'> & Record<string, unknown>; Update: Partial<RlxImportacaoArquivo> & Record<string, unknown>; Relationships: [] }
-      rlx_importacao_linhas: { Row: RlxImportacaoLinha & Record<string, unknown>; Insert: Partial<RlxImportacaoLinha> & Pick<RlxImportacaoLinha, 'importacao_id' | 'fundo_id' | 'numero_linha' | 'status' | 'dados_brutos'> & Record<string, unknown>; Update: Partial<RlxImportacaoLinha> & Record<string, unknown>; Relationships: [] }
-      rlx_importacao_ciclos: { Row: RlxImportacaoCiclo & Record<string, unknown>; Insert: Partial<RlxImportacaoCiclo> & Pick<RlxImportacaoCiclo, 'fundo_id' | 'data_operacional' | 'origem' | 'status'> & Record<string, unknown>; Update: Partial<RlxImportacaoCiclo> & Record<string, unknown>; Relationships: [] }
-      rlx_matching_execucoes: { Row: RlxMatchingExecucao & Record<string, unknown>; Insert: Partial<RlxMatchingExecucao> & Pick<RlxMatchingExecucao, 'fundo_id' | 'data_referencia' | 'input_import_ids' | 'assinatura_execucao'> & Record<string, unknown>; Update: Partial<RlxMatchingExecucao> & Record<string, unknown>; Relationships: [] }
-      rlx_titulo_nf_vinculos: { Row: RlxTituloNfVinculo & Record<string, unknown>; Insert: Partial<RlxTituloNfVinculo> & Pick<RlxTituloNfVinculo, 'fundo_id' | 'provedor' | 'identidade_externa' | 'nota_fiscal_id' | 'origem' | 'metodo'> & Record<string, unknown>; Update: Partial<RlxTituloNfVinculo> & Record<string, unknown>; Relationships: [] }
-      rlx_titulo_nf_vinculo_chaves: { Row: RlxTituloNfVinculoChave & Record<string, unknown>; Insert: Partial<RlxTituloNfVinculoChave> & Pick<RlxTituloNfVinculoChave, 'vinculo_id' | 'fundo_id' | 'provedor' | 'tipo_chave' | 'valor_normalizado' | 'fonte'> & Record<string, unknown>; Update: Partial<RlxTituloNfVinculoChave> & Record<string, unknown>; Relationships: [] }
-      rlx_matching_resultados: { Row: RlxMatchingResultado & Record<string, unknown>; Insert: Partial<RlxMatchingResultado> & Pick<RlxMatchingResultado, 'execucao_id' | 'fundo_id' | 'provedor' | 'origem_registro' | 'origem_registro_id' | 'identidade_externa' | 'status' | 'metodo'> & Record<string, unknown>; Update: Partial<RlxMatchingResultado> & Record<string, unknown>; Relationships: [] }
-      rlx_matching_candidatos: { Row: RlxMatchingCandidato & Record<string, unknown>; Insert: Partial<RlxMatchingCandidato> & Pick<RlxMatchingCandidato, 'matching_resultado_id' | 'fundo_id' | 'nota_fiscal_id' | 'ordem' | 'metodo'> & Record<string, unknown>; Update: Partial<RlxMatchingCandidato> & Record<string, unknown>; Relationships: [] }
-      rlx_conciliacao_execucoes: { Row: RlxConciliacaoExecucao & Record<string, unknown>; Insert: Partial<RlxConciliacaoExecucao> & Pick<RlxConciliacaoExecucao, 'fundo_id' | 'data_referencia' | 'assinatura_execucao'> & Record<string, unknown>; Update: Partial<RlxConciliacaoExecucao> & Record<string, unknown>; Relationships: [] }
-      rlx_conciliacao_resultados: { Row: RlxConciliacaoResultado & Record<string, unknown>; Insert: Partial<RlxConciliacaoResultado> & Pick<RlxConciliacaoResultado, 'execucao_id' | 'fundo_id' | 'identidade_externa' | 'provedor' | 'status'> & Record<string, unknown>; Update: Partial<RlxConciliacaoResultado> & Record<string, unknown>; Relationships: [] }
-      rlx_posicao_logistica_execucoes: { Row: RlxPosicaoLogisticaExecucao & Record<string, unknown>; Insert: Partial<RlxPosicaoLogisticaExecucao> & Pick<RlxPosicaoLogisticaExecucao, 'fundo_id' | 'data_referencia' | 'estoque_importacao_id' | 'matching_execucao_id' | 'logistica_as_of' | 'fingerprint_logistico' | 'assinatura_execucao'> & Record<string, unknown>; Update: Partial<RlxPosicaoLogisticaExecucao> & Record<string, unknown>; Relationships: [] }
-      rlx_posicao_logistica_resultados: { Row: RlxPosicaoLogisticaResultado & Record<string, unknown>; Insert: Partial<RlxPosicaoLogisticaResultado> & Pick<RlxPosicaoLogisticaResultado, 'execucao_id' | 'fundo_id' | 'estoque_importacao_id' | 'estoque_posicao_id' | 'matching_status' | 'matching_metodo' | 'status_vinculo' | 'valor_aquisicao_qualidade' | 'fundamento'> & Record<string, unknown>; Update: Partial<RlxPosicaoLogisticaResultado> & Record<string, unknown>; Relationships: [] }
+      importacoes_financeiras: { Row: ImportacaoFinanceira & Record<string, unknown>; Insert: Partial<ImportacaoFinanceira> & Pick<ImportacaoFinanceira, 'fundo_id' | 'provedor' | 'tipo_base' | 'data_referencia' | 'layout_nome' | 'versao_layout' | 'hash_conteudo'> & Record<string, unknown>; Update: Partial<ImportacaoFinanceira> & Record<string, unknown>; Relationships: [] }
+      importacao_arquivos: { Row: ImportacaoArquivo & Record<string, unknown>; Insert: Partial<ImportacaoArquivo> & Pick<ImportacaoArquivo, 'importacao_id' | 'fundo_id' | 'nome_arquivo' | 'mime_type' | 'tamanho_bytes' | 'hash_conteudo' | 'storage_path'> & Record<string, unknown>; Update: Partial<ImportacaoArquivo> & Record<string, unknown>; Relationships: [] }
+      importacao_linhas: { Row: ImportacaoLinha & Record<string, unknown>; Insert: Partial<ImportacaoLinha> & Pick<ImportacaoLinha, 'importacao_id' | 'fundo_id' | 'numero_linha' | 'status' | 'dados_brutos'> & Record<string, unknown>; Update: Partial<ImportacaoLinha> & Record<string, unknown>; Relationships: [] }
+      importacao_ciclos: { Row: ImportacaoCiclo & Record<string, unknown>; Insert: Partial<ImportacaoCiclo> & Pick<ImportacaoCiclo, 'fundo_id' | 'data_operacional' | 'origem' | 'status'> & Record<string, unknown>; Update: Partial<ImportacaoCiclo> & Record<string, unknown>; Relationships: [] }
+      matching_execucoes: { Row: MatchingExecucao & Record<string, unknown>; Insert: Partial<MatchingExecucao> & Pick<MatchingExecucao, 'fundo_id' | 'data_referencia' | 'input_import_ids' | 'assinatura_execucao'> & Record<string, unknown>; Update: Partial<MatchingExecucao> & Record<string, unknown>; Relationships: [] }
+      titulo_nf_vinculos: { Row: TituloNfVinculo & Record<string, unknown>; Insert: Partial<TituloNfVinculo> & Pick<TituloNfVinculo, 'fundo_id' | 'provedor' | 'identidade_externa' | 'nota_fiscal_id' | 'origem' | 'metodo'> & Record<string, unknown>; Update: Partial<TituloNfVinculo> & Record<string, unknown>; Relationships: [] }
+      titulo_nf_vinculo_chaves: { Row: TituloNfVinculoChave & Record<string, unknown>; Insert: Partial<TituloNfVinculoChave> & Pick<TituloNfVinculoChave, 'vinculo_id' | 'fundo_id' | 'provedor' | 'tipo_chave' | 'valor_normalizado' | 'fonte'> & Record<string, unknown>; Update: Partial<TituloNfVinculoChave> & Record<string, unknown>; Relationships: [] }
+      matching_resultados: { Row: MatchingResultado & Record<string, unknown>; Insert: Partial<MatchingResultado> & Pick<MatchingResultado, 'execucao_id' | 'fundo_id' | 'provedor' | 'origem_registro' | 'origem_registro_id' | 'identidade_externa' | 'status' | 'metodo'> & Record<string, unknown>; Update: Partial<MatchingResultado> & Record<string, unknown>; Relationships: [] }
+      matching_candidatos: { Row: MatchingCandidato & Record<string, unknown>; Insert: Partial<MatchingCandidato> & Pick<MatchingCandidato, 'matching_resultado_id' | 'fundo_id' | 'nota_fiscal_id' | 'ordem' | 'metodo'> & Record<string, unknown>; Update: Partial<MatchingCandidato> & Record<string, unknown>; Relationships: [] }
+      conciliacao_execucoes: { Row: ConciliacaoExecucao & Record<string, unknown>; Insert: Partial<ConciliacaoExecucao> & Pick<ConciliacaoExecucao, 'fundo_id' | 'data_referencia' | 'assinatura_execucao'> & Record<string, unknown>; Update: Partial<ConciliacaoExecucao> & Record<string, unknown>; Relationships: [] }
+      conciliacao_resultados: { Row: ConciliacaoResultado & Record<string, unknown>; Insert: Partial<ConciliacaoResultado> & Pick<ConciliacaoResultado, 'execucao_id' | 'fundo_id' | 'identidade_externa' | 'provedor' | 'status'> & Record<string, unknown>; Update: Partial<ConciliacaoResultado> & Record<string, unknown>; Relationships: [] }
+      posicao_logistica_execucoes: { Row: PosicaoLogisticaExecucao & Record<string, unknown>; Insert: Partial<PosicaoLogisticaExecucao> & Pick<PosicaoLogisticaExecucao, 'fundo_id' | 'data_referencia' | 'estoque_importacao_id' | 'matching_execucao_id' | 'logistica_as_of' | 'fingerprint_logistico' | 'assinatura_execucao'> & Record<string, unknown>; Update: Partial<PosicaoLogisticaExecucao> & Record<string, unknown>; Relationships: [] }
+      posicao_logistica_resultados: { Row: PosicaoLogisticaResultado & Record<string, unknown>; Insert: Partial<PosicaoLogisticaResultado> & Pick<PosicaoLogisticaResultado, 'execucao_id' | 'fundo_id' | 'estoque_importacao_id' | 'estoque_posicao_id' | 'matching_status' | 'matching_metodo' | 'status_vinculo' | 'valor_aquisicao_qualidade' | 'fundamento'> & Record<string, unknown>; Update: Partial<PosicaoLogisticaResultado> & Record<string, unknown>; Relationships: [] }
+      exposicao_execucoes: { Row: ExposicaoExecucao & Record<string, unknown>; Insert: Partial<ExposicaoExecucao> & Pick<ExposicaoExecucao, 'fundo_id' | 'data_operacional' | 'data_referencia_estoque' | 'data_referencia_pl' | 'overlay_as_of' | 'assinatura_execucao' | 'status'> & Record<string, unknown>; Update: Partial<ExposicaoExecucao> & Record<string, unknown>; Relationships: [] }
+      exposicao_overlay_itens: { Row: ExposicaoOverlayItem & Record<string, unknown>; Insert: Partial<ExposicaoOverlayItem> & Pick<ExposicaoOverlayItem, 'execucao_id' | 'fundo_id' | 'operacao_id' | 'nota_fiscal_id' | 'operacao_economica_em' | 'status_logistico' | 'motivo'> & Record<string, unknown>; Update: Partial<ExposicaoOverlayItem> & Record<string, unknown>; Relationships: [] }
     }
     Views: Record<string, never>
     Functions: {
@@ -1790,12 +1859,13 @@ export interface Database {
       admin_obter_fundo: { Args: { p_fundo_id: string }; Returns: Record<string, unknown> | null }
       publicar_importacao_financeira: { Args: { p_importacao_id: string; p_correlation_id?: string | null }; Returns: Record<string, unknown> }
       registrar_importacao_financeira_sem_movimento: { Args: { p_fundo_id: string; p_tipo_base: string; p_data_referencia: string; p_provedor: string; p_layout_nome: string; p_versao_layout: string; p_origem?: string; p_correlation_id?: string | null }; Returns: Record<string, unknown> }
-      rlx_persistir_matching_execucao: { Args: { p_payload: Record<string, unknown> }; Returns: string }
-      rlx_persistir_conciliacao_execucao: { Args: { p_payload: Record<string, unknown> }; Returns: string }
-      rlx_persistir_posicao_logistica_execucao: { Args: { p_payload: Record<string, unknown> }; Returns: string }
-      rlx_confirmar_match_manual: { Args: { p_matching_resultado_id: string; p_nota_fiscal_id: string; p_motivo: string; p_correlation_id?: string }; Returns: string }
-      rlx_revogar_match_manual: { Args: { p_vinculo_id: string; p_motivo: string; p_correlation_id?: string }; Returns: boolean }
-      iniciar_ciclo_importacao_financeira_rlx: { Args: { p_fundo_id: string; p_data_operacional: string; p_origem?: 'CRON'; p_correlation_id?: string | null }; Returns: string | null }
+      persistir_matching_execucao: { Args: { p_payload: Record<string, unknown> }; Returns: string }
+      persistir_conciliacao_execucao: { Args: { p_payload: Record<string, unknown> }; Returns: string }
+      persistir_posicao_logistica_execucao: { Args: { p_payload: Record<string, unknown> }; Returns: string }
+      persistir_exposicao_execucao: { Args: { p_payload: Record<string, unknown> }; Returns: string }
+      confirmar_match_manual: { Args: { p_matching_resultado_id: string; p_nota_fiscal_id: string; p_motivo: string; p_correlation_id?: string }; Returns: string }
+      revogar_match_manual: { Args: { p_vinculo_id: string; p_motivo: string; p_correlation_id?: string }; Returns: boolean }
+      iniciar_ciclo_importacao_financeira: { Args: { p_fundo_id: string; p_data_operacional: string; p_origem?: 'CRON'; p_correlation_id?: string | null }; Returns: string | null }
       admin_listar_auditoria_fundo: { Args: { p_fundo_id: string }; Returns: Array<Record<string, unknown>> }
       admin_criar_fundo: { Args: {
         p_nome: string

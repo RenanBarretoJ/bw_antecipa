@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import type { AdminDadosFinanceirosFundo } from '@/lib/admin/dados-financeiros'
-import { RLX_TIPOS_BASE } from '@/lib/rlx/ingestao/types'
+import { TIPOS_BASE_FINANCEIROS } from '@/lib/financeiro/ingestao/types'
 
 const formatDate = (value: string | null) => value ? new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value)) : 'Nao publicada'
 const formatValue = (value: string | number | null) => value == null ? 'Nao calculado' : new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value))
@@ -52,7 +52,7 @@ export function FundoDadosFinanceiros({ state }: { state: AdminDadosFinanceirosF
     <Card>
       <CardHeader><CardTitle className="flex items-center gap-2"><Database className="size-5" />Bases financeiras vigentes</CardTitle><CardDescription>Somente publicacoes atomicas aparecem como fonte canonica. Arquivos e staging permanecem restritos ao Super Admin.</CardDescription></CardHeader>
       <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        {RLX_TIPOS_BASE.map((type) => {
+        {TIPOS_BASE_FINANCEIROS.map((type) => {
           const item = state.vigentes[type]
           return <div key={type} className="rounded-xl border border-border p-4"><p className="text-xs font-semibold tracking-wide text-muted-foreground">{type}</p><p className="mt-2 font-semibold">{item ? item.data_referencia : 'Nao publicada'}</p><p className="text-sm text-muted-foreground">{item ? `${item.linhas_publicadas} linhas · ${formatValue(item.valor_total)}` : 'Sem base vigente'}</p><p className="mt-1 truncate text-xs text-muted-foreground" title={item?.fonte || 'Nao configurada'}>Fonte: {item?.fonte || 'Nao configurada'}</p></div>
         })}
@@ -63,7 +63,7 @@ export function FundoDadosFinanceiros({ state }: { state: AdminDadosFinanceirosF
       <CardHeader><CardTitle>Importacao manual</CardTitle><CardDescription>O arquivo bruto e preservado de forma privada. A validacao nao publica dados automaticamente.</CardDescription></CardHeader>
       <CardContent><form action={upload} className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
         <input type="hidden" name="fundoId" value={state.fundoId} />
-        <label className="space-y-1"><Label>Base</Label><select name="tipoBase" required className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm">{RLX_TIPOS_BASE.map((type) => <option key={type}>{type}</option>)}</select></label>
+        <label className="space-y-1"><Label>Base</Label><select name="tipoBase" required className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm">{TIPOS_BASE_FINANCEIROS.map((type) => <option key={type}>{type}</option>)}</select></label>
         <label className="space-y-1"><Label>Data de referencia</Label><Input name="dataReferencia" type="date" required /></label>
         <label className="space-y-1"><Label>Provedor</Label><Input name="provedor" defaultValue="rlx" required pattern="[a-zA-Z0-9._-]+" /></label>
         <label className="space-y-1 xl:col-span-2"><Label>Arquivo CSV</Label><Input name="arquivo" type="file" accept=".csv,text/csv,text/plain" required /></label>

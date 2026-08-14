@@ -39,34 +39,34 @@ try {
     (SELECT count(*)::int FROM public.notas_fiscais WHERE id=ANY($2)) AS notas,
     (SELECT count(*)::int FROM public.operacoes WHERE id=ANY($4)) AS operacoes,
     (SELECT count(*)::int FROM public.documentos_repositorio WHERE id=ANY($5)) AS boletos,
-    (SELECT count(*)::int FROM public.rlx_importacoes_financeiras WHERE fundo_id=ANY($1) AND provedor=$3) AS importacoes`,
+    (SELECT count(*)::int FROM public.importacoes_financeiras WHERE fundo_id=ANY($1) AND provedor=$3) AS importacoes`,
     [dataset.funds.map((item) => item.id), dataset.notes.map((item) => item.id), PROVIDER, exact.operations, exact.documents])
   console.log(JSON.stringify({ dataset: DATASET_VERSION, mode: execute ? 'execute' : 'preview', counts: counts.rows[0] }, null, 2))
   if (!execute) {
     console.log(`Dry-run concluido. Para limpar apenas V2: --execute --expected-project-ref ${env.projectRef} --confirm ${confirmation}`)
   } else {
-    const storage = await db.query(`SELECT storage_bucket,storage_path FROM public.rlx_importacao_arquivos WHERE fundo_id=ANY($1)`, [dataset.funds.map((item) => item.id)])
+    const storage = await db.query(`SELECT storage_bucket,storage_path FROM public.importacao_arquivos WHERE fundo_id=ANY($1)`, [dataset.funds.map((item) => item.id)])
     await db.query('BEGIN')
     await db.query(`SET LOCAL session_replication_role='replica'`)
     const funds = dataset.funds.map((item) => item.id)
     const scopedDeletes = [
-      `DELETE FROM public.rlx_posicao_logistica_resultados WHERE fundo_id=ANY($1)`,
-      `DELETE FROM public.rlx_posicao_logistica_execucoes WHERE fundo_id=ANY($1)`,
-      `DELETE FROM public.rlx_matching_candidatos WHERE fundo_id=ANY($1)`,
-      `DELETE FROM public.rlx_conciliacao_resultados WHERE fundo_id=ANY($1)`,
-      `DELETE FROM public.rlx_matching_resultados WHERE fundo_id=ANY($1)`,
-      `DELETE FROM public.rlx_conciliacao_execucoes WHERE fundo_id=ANY($1)`,
-      `DELETE FROM public.rlx_matching_execucoes WHERE fundo_id=ANY($1)`,
-      `DELETE FROM public.rlx_titulo_nf_vinculo_chaves WHERE fundo_id=ANY($1)`,
-      `DELETE FROM public.rlx_titulo_nf_vinculos WHERE fundo_id=ANY($1)`,
-      `DELETE FROM public.rlx_estoque_posicoes WHERE fundo_id=ANY($1)`,
-      `DELETE FROM public.rlx_aquisicao_movimentos WHERE fundo_id=ANY($1)`,
-      `DELETE FROM public.rlx_liquidacao_movimentos WHERE fundo_id=ANY($1)`,
-      `DELETE FROM public.rlx_carteira_snapshots WHERE fundo_id=ANY($1)`,
-      `DELETE FROM public.rlx_importacao_linhas WHERE fundo_id=ANY($1)`,
-      `DELETE FROM public.rlx_importacao_arquivos WHERE fundo_id=ANY($1)`,
-      `DELETE FROM public.rlx_importacao_ciclos WHERE fundo_id=ANY($1)`,
-      `DELETE FROM public.rlx_importacoes_financeiras WHERE fundo_id=ANY($1)`,
+      `DELETE FROM public.posicao_logistica_resultados WHERE fundo_id=ANY($1)`,
+      `DELETE FROM public.posicao_logistica_execucoes WHERE fundo_id=ANY($1)`,
+      `DELETE FROM public.matching_candidatos WHERE fundo_id=ANY($1)`,
+      `DELETE FROM public.conciliacao_resultados WHERE fundo_id=ANY($1)`,
+      `DELETE FROM public.matching_resultados WHERE fundo_id=ANY($1)`,
+      `DELETE FROM public.conciliacao_execucoes WHERE fundo_id=ANY($1)`,
+      `DELETE FROM public.matching_execucoes WHERE fundo_id=ANY($1)`,
+      `DELETE FROM public.titulo_nf_vinculo_chaves WHERE fundo_id=ANY($1)`,
+      `DELETE FROM public.titulo_nf_vinculos WHERE fundo_id=ANY($1)`,
+      `DELETE FROM public.estoque_posicoes WHERE fundo_id=ANY($1)`,
+      `DELETE FROM public.aquisicao_movimentos WHERE fundo_id=ANY($1)`,
+      `DELETE FROM public.liquidacao_movimentos WHERE fundo_id=ANY($1)`,
+      `DELETE FROM public.carteira_snapshots WHERE fundo_id=ANY($1)`,
+      `DELETE FROM public.importacao_linhas WHERE fundo_id=ANY($1)`,
+      `DELETE FROM public.importacao_arquivos WHERE fundo_id=ANY($1)`,
+      `DELETE FROM public.importacao_ciclos WHERE fundo_id=ANY($1)`,
+      `DELETE FROM public.importacoes_financeiras WHERE fundo_id=ANY($1)`,
     ]
     for (const sql of scopedDeletes) await db.query(sql, [funds])
     const cteIds = logistics.filter((item) => item.family === 'cte').map((item) => item.entityId)
