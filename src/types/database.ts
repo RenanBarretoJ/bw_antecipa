@@ -1483,6 +1483,146 @@ export interface RlxImportacaoCiclo {
   concluida_em: string | null
 }
 
+export interface RlxMatchingExecucao {
+  id: string
+  fundo_id: string
+  data_referencia: string
+  regra_versao: string
+  input_import_ids: string[]
+  assinatura_execucao: string
+  status: 'PROCESSANDO' | 'CONCLUIDA' | 'FALHA'
+  total_registros: number
+  matched: number
+  ambiguos: number
+  nao_conciliados: number
+  conflitos: number
+  valor_total: number | string
+  valor_matched: number | string
+  valor_ambiguo: number | string
+  valor_nao_conciliado: number | string
+  detalhes: Record<string, unknown>
+  iniciado_em: string
+  finalizado_em: string | null
+  correlation_id: string
+  criado_por: string | null
+  created_at: string
+}
+
+export interface RlxTituloNfVinculo {
+  id: string
+  fundo_id: string
+  provedor: string
+  identidade_externa: string
+  nota_fiscal_id: string
+  status: 'ATIVO' | 'REVOGADO'
+  origem: 'AUTOMATICO' | 'MANUAL'
+  metodo: 'CHAVE_NFE' | 'SEU_NUMERO' | 'COMPOSTO' | 'ID_RECEBIVEL' | 'MANUAL'
+  regra_versao: string
+  evidencias: Record<string, unknown>
+  candidate_count: number
+  criado_em: string
+  criado_por: string | null
+  confirmado_em: string | null
+  confirmado_por: string | null
+  revogado_em: string | null
+  revogado_por: string | null
+  motivo_revogacao: string | null
+  correlation_id: string
+}
+
+export interface RlxTituloNfVinculoChave {
+  id: string
+  vinculo_id: string
+  fundo_id: string
+  provedor: string
+  tipo_chave: 'CHAVE_NFE' | 'ID_RECEBIVEL' | 'SEU_NUMERO' | 'EXTERNAL_TITLE_KEY' | 'DOCUMENTO' | 'NOSSO_NUMERO'
+  valor_normalizado: string
+  fonte: string
+  criado_em: string
+}
+
+export interface RlxMatchingResultado {
+  id: string
+  execucao_id: string
+  fundo_id: string
+  provedor: string
+  origem_registro: 'ESTOQUE' | 'AQUISICAO' | 'LIQUIDACAO'
+  origem_registro_id: string
+  identidade_externa: string
+  id_recebivel: string | null
+  seu_numero: string | null
+  chave_nfe: string | null
+  numero_documento: string | null
+  cedente_documento: string | null
+  cedente_nome: string | null
+  sacado_documento: string | null
+  sacado_nome: string | null
+  data_vencimento: string | null
+  valor_referencia: number | string | null
+  tipo_recebivel: string | null
+  status: 'MATCH_FORTE' | 'AMBIGUO' | 'NAO_CONCILIADO' | 'CONFLITO'
+  metodo: 'CHAVE_NFE' | 'SEU_NUMERO' | 'COMPOSTO' | 'ID_RECEBIVEL' | 'AMBIGUO' | 'NAO_CONCILIADO' | 'CONFLITO'
+  nota_fiscal_id: string | null
+  vinculo_id: string | null
+  candidate_count: number
+  evidencias: Record<string, unknown>
+  criado_em: string
+}
+
+export interface RlxMatchingCandidato {
+  id: string
+  matching_resultado_id: string
+  fundo_id: string
+  nota_fiscal_id: string
+  ordem: number
+  metodo: string
+  evidencias: Record<string, unknown>
+  criado_em: string
+}
+
+export interface RlxConciliacaoExecucao {
+  id: string
+  fundo_id: string
+  data_referencia: string
+  regra_versao: string
+  estoque_d2_importacao_id: string | null
+  estoque_d1_importacao_id: string | null
+  aquisicoes_d1_importacao_id: string | null
+  liquidacoes_d1_importacao_id: string | null
+  matching_execucao_id: string | null
+  assinatura_execucao: string
+  status: 'PROCESSANDO' | 'CONCLUIDA' | 'BASE_INCOMPLETA' | 'FALHA'
+  contagens: Record<string, number>
+  valores_agregados: Record<string, string | number>
+  detalhes: Record<string, unknown>
+  iniciado_em: string
+  finalizado_em: string | null
+  correlation_id: string
+  criado_por: string | null
+  created_at: string
+}
+
+export interface RlxConciliacaoResultado {
+  id: string
+  execucao_id: string
+  fundo_id: string
+  identidade_externa: string
+  provedor: string
+  vinculo_id: string | null
+  nota_fiscal_id: string | null
+  presente_d2: boolean
+  presente_d1: boolean
+  valor_aquisicao_d2: number | string | null
+  valor_aquisicao_d1: number | string | null
+  aquisicoes_count: number
+  aquisicoes_valor: number | string
+  liquidacoes_count: number
+  liquidacoes_valor_pago: number | string
+  status: string
+  detalhes: Record<string, unknown>
+  criado_em: string
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -1566,6 +1706,13 @@ export interface Database {
       rlx_importacao_arquivos: { Row: RlxImportacaoArquivo & Record<string, unknown>; Insert: Partial<RlxImportacaoArquivo> & Pick<RlxImportacaoArquivo, 'importacao_id' | 'fundo_id' | 'nome_arquivo' | 'mime_type' | 'tamanho_bytes' | 'hash_conteudo' | 'storage_path'> & Record<string, unknown>; Update: Partial<RlxImportacaoArquivo> & Record<string, unknown>; Relationships: [] }
       rlx_importacao_linhas: { Row: RlxImportacaoLinha & Record<string, unknown>; Insert: Partial<RlxImportacaoLinha> & Pick<RlxImportacaoLinha, 'importacao_id' | 'fundo_id' | 'numero_linha' | 'status' | 'dados_brutos'> & Record<string, unknown>; Update: Partial<RlxImportacaoLinha> & Record<string, unknown>; Relationships: [] }
       rlx_importacao_ciclos: { Row: RlxImportacaoCiclo & Record<string, unknown>; Insert: Partial<RlxImportacaoCiclo> & Pick<RlxImportacaoCiclo, 'fundo_id' | 'data_operacional' | 'origem' | 'status'> & Record<string, unknown>; Update: Partial<RlxImportacaoCiclo> & Record<string, unknown>; Relationships: [] }
+      rlx_matching_execucoes: { Row: RlxMatchingExecucao & Record<string, unknown>; Insert: Partial<RlxMatchingExecucao> & Pick<RlxMatchingExecucao, 'fundo_id' | 'data_referencia' | 'input_import_ids' | 'assinatura_execucao'> & Record<string, unknown>; Update: Partial<RlxMatchingExecucao> & Record<string, unknown>; Relationships: [] }
+      rlx_titulo_nf_vinculos: { Row: RlxTituloNfVinculo & Record<string, unknown>; Insert: Partial<RlxTituloNfVinculo> & Pick<RlxTituloNfVinculo, 'fundo_id' | 'provedor' | 'identidade_externa' | 'nota_fiscal_id' | 'origem' | 'metodo'> & Record<string, unknown>; Update: Partial<RlxTituloNfVinculo> & Record<string, unknown>; Relationships: [] }
+      rlx_titulo_nf_vinculo_chaves: { Row: RlxTituloNfVinculoChave & Record<string, unknown>; Insert: Partial<RlxTituloNfVinculoChave> & Pick<RlxTituloNfVinculoChave, 'vinculo_id' | 'fundo_id' | 'provedor' | 'tipo_chave' | 'valor_normalizado' | 'fonte'> & Record<string, unknown>; Update: Partial<RlxTituloNfVinculoChave> & Record<string, unknown>; Relationships: [] }
+      rlx_matching_resultados: { Row: RlxMatchingResultado & Record<string, unknown>; Insert: Partial<RlxMatchingResultado> & Pick<RlxMatchingResultado, 'execucao_id' | 'fundo_id' | 'provedor' | 'origem_registro' | 'origem_registro_id' | 'identidade_externa' | 'status' | 'metodo'> & Record<string, unknown>; Update: Partial<RlxMatchingResultado> & Record<string, unknown>; Relationships: [] }
+      rlx_matching_candidatos: { Row: RlxMatchingCandidato & Record<string, unknown>; Insert: Partial<RlxMatchingCandidato> & Pick<RlxMatchingCandidato, 'matching_resultado_id' | 'fundo_id' | 'nota_fiscal_id' | 'ordem' | 'metodo'> & Record<string, unknown>; Update: Partial<RlxMatchingCandidato> & Record<string, unknown>; Relationships: [] }
+      rlx_conciliacao_execucoes: { Row: RlxConciliacaoExecucao & Record<string, unknown>; Insert: Partial<RlxConciliacaoExecucao> & Pick<RlxConciliacaoExecucao, 'fundo_id' | 'data_referencia' | 'assinatura_execucao'> & Record<string, unknown>; Update: Partial<RlxConciliacaoExecucao> & Record<string, unknown>; Relationships: [] }
+      rlx_conciliacao_resultados: { Row: RlxConciliacaoResultado & Record<string, unknown>; Insert: Partial<RlxConciliacaoResultado> & Pick<RlxConciliacaoResultado, 'execucao_id' | 'fundo_id' | 'identidade_externa' | 'provedor' | 'status'> & Record<string, unknown>; Update: Partial<RlxConciliacaoResultado> & Record<string, unknown>; Relationships: [] }
     }
     Views: Record<string, never>
     Functions: {
@@ -1574,6 +1721,10 @@ export interface Database {
       admin_obter_fundo: { Args: { p_fundo_id: string }; Returns: Record<string, unknown> | null }
       publicar_importacao_financeira: { Args: { p_importacao_id: string; p_correlation_id?: string | null }; Returns: Record<string, unknown> }
       registrar_importacao_financeira_sem_movimento: { Args: { p_fundo_id: string; p_tipo_base: string; p_data_referencia: string; p_provedor: string; p_layout_nome: string; p_versao_layout: string; p_origem?: string; p_correlation_id?: string | null }; Returns: Record<string, unknown> }
+      rlx_persistir_matching_execucao: { Args: { p_payload: Record<string, unknown> }; Returns: string }
+      rlx_persistir_conciliacao_execucao: { Args: { p_payload: Record<string, unknown> }; Returns: string }
+      rlx_confirmar_match_manual: { Args: { p_matching_resultado_id: string; p_nota_fiscal_id: string; p_motivo: string; p_correlation_id?: string }; Returns: string }
+      rlx_revogar_match_manual: { Args: { p_vinculo_id: string; p_motivo: string; p_correlation_id?: string }; Returns: boolean }
       iniciar_ciclo_importacao_financeira_rlx: { Args: { p_fundo_id: string; p_data_operacional: string; p_origem?: 'CRON'; p_correlation_id?: string | null }; Returns: string | null }
       admin_listar_auditoria_fundo: { Args: { p_fundo_id: string }; Returns: Array<Record<string, unknown>> }
       admin_criar_fundo: { Args: {

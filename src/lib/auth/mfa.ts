@@ -41,6 +41,8 @@ export const ACAO_SENSIVEL_TIPOS = [
   'atualizar_cnab',
   'atualizar_codigo_originador',
   'publicar_base_financeira',
+  'confirmar_match_manual',
+  'revogar_match_manual',
 ] as const
 
 export type AcaoSensivelTipo = typeof ACAO_SENSIVEL_TIPOS[number]

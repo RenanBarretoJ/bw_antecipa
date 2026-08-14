@@ -185,7 +185,7 @@ export function processarArquivoRlx(input: {
         if (fieldName === 'fundo_id' && value && value !== input.fundoId) {
           erros.push('fundo_id: arquivo pertence a outro fundo.')
         } else if (fieldName !== 'fundo_id' || value) {
-          normalized[fieldName] = value || input.fundoId
+          normalized[fieldName] = value
         }
       } catch (error) {
         erros.push(`${fieldName}: ${error instanceof Error ? error.message : 'valor invalido'}.`)

@@ -7,6 +7,18 @@ const fundoId = '61f02178-58af-bbfa-9a33-f97ac5b3dd96'
 const bytes = (value: string) => new TextEncoder().encode(value)
 
 describe('parser financeiro RLX V1', () => {
+  it('preserva campos opcionais vazios sem substituir pelo fundo da importacao', () => {
+    const csv = 'ID_RECEBIVEL;SEU_NUMERO;NU_DOCUMENTO;CHAVE_NFE;VALOR_NOMINAL;DATA_REFERENCIA\n' +
+      'TITULO-SEM-ALIAS;;NF-1;;100,00;2026-08-07\n'
+    const result = processarArquivoRlx({
+      arquivo: bytes(csv), tipoBase: 'ESTOQUE', fundoId, dataReferencia: '2026-08-07',
+    })
+
+    expect(result.linhas[0].dadosNormalizados.seu_numero).toBe('')
+    expect(result.linhas[0].dadosNormalizados.chave_nfe).toBe('')
+    expect(result.linhas[0].dadosNormalizados.fundo_id).toBe(fundoId)
+  })
+
   it('preserva identificadores grandes, aceita BOM e normaliza decimal brasileiro', () => {
     const csv = '\uFEFFFUNDO_ID;DATA_REFERENCIA;ID_RECEBIVEL;NOME_CEDENTE;VALOR_NOMINAL\r\n' +
       `${fundoId};2026-08-09;910000000000000000002;"Empresa; com separador";25.026,74\r\n`

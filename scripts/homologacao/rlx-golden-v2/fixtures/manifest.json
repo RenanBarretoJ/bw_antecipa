@@ -1,0 +1,174 @@
+{
+  "schema": "rlx_golden_manifest_v2",
+  "dataset_version": "RLX_GOLDEN_V2",
+  "base_date": "2026-08-10",
+  "timezone": "America/Sao_Paulo",
+  "business_dates": {
+    "D-1": "2026-08-07",
+    "D-2": "2026-08-06",
+    "D-3": "2026-08-05",
+    "D-4": "2026-08-04"
+  },
+  "provider": "rlx_golden_v2",
+  "funds": [
+    {
+      "id": "ca8b721e-333c-4051-a87b-9359e51449c4",
+      "name": "QA RLX GOLDEN V2 FIDC",
+      "cnpj": "84810000000147"
+    },
+    {
+      "id": "0d81663a-e91d-8e2d-5e26-710ebb177e12",
+      "name": "QA RLX GOLDEN V2 ADVERSARIAL FIDC",
+      "cnpj": "84810000000228"
+    }
+  ],
+  "counts": {
+    "notes": 110,
+    "operations_d0": 10,
+    "boleto_documents": 110,
+    "matching_scenarios": 9,
+    "reconciliation_scenarios": 10
+  },
+  "files": [
+    {
+      "path": "D-4/carteira.csv",
+      "sha256": "0cb63ea86388f6cda3122e685fe38f2a35768b02a19f686407be8ca911157515",
+      "bytes": 260
+    },
+    {
+      "path": "D-4/estoque.csv",
+      "sha256": "796813c2c6bf457e516e8ba5a5db1fd57310a514086c89fcfe3c16978e3ffa25",
+      "bytes": 1396
+    },
+    {
+      "path": "D-4/aquisicoes.csv",
+      "sha256": "1f77a386c8361414ac8a617687afd930914594ef59633d821fcadb173424ad35",
+      "bytes": 110
+    },
+    {
+      "path": "D-4/liquidacoes.csv",
+      "sha256": "276b658f86d485a21d851ac1e9e26298a8295dfa36ee7c1b9250322b71f3b2b6",
+      "bytes": 101
+    },
+    {
+      "path": "D-3/carteira.csv",
+      "sha256": "7b2e1b873331cb2ea17eb3a7df953a62108a445bac0935fde447930a286acc70",
+      "bytes": 260
+    },
+    {
+      "path": "D-3/estoque.csv",
+      "sha256": "ba64180ac5020d0b0a5f6e6d35f132e6d292bf3dc7352f74f70155d94117d30b",
+      "bytes": 1396
+    },
+    {
+      "path": "D-3/aquisicoes.csv",
+      "sha256": "e53f1aa2857d2c372c58cb23c59873b27711313b10475201d0174f402d4fa127",
+      "bytes": 110
+    },
+    {
+      "path": "D-3/liquidacoes.csv",
+      "sha256": "3a0672f56fa6a150515d96a9aa1021871c0854cc40c158e91d81ce15fe62ed7e",
+      "bytes": 101
+    },
+    {
+      "path": "D-2/carteira.csv",
+      "sha256": "0333ad681f67a987696ecc2bd8c92732e4c7b859d2d3655cb3a59f5af18a1042",
+      "bytes": 260
+    },
+    {
+      "path": "D-2/estoque.csv",
+      "sha256": "5b914531dde648eab2b2f08d365f722c61de311bb166a681fff80252786f4ef6",
+      "bytes": 2884
+    },
+    {
+      "path": "D-2/aquisicoes.csv",
+      "sha256": "f7f1086e5ca3f86ab17bb6d6c4fa703664dcd6947638937168d394d2dafb5839",
+      "bytes": 110
+    },
+    {
+      "path": "D-2/liquidacoes.csv",
+      "sha256": "6cdbe92cbb56e6ff30eefa4a758bb0604211a667ae5403a28adca183ca9934f4",
+      "bytes": 101
+    },
+    {
+      "path": "D-1/carteira.csv",
+      "sha256": "2957d1898817ecda2977b2962243059b6093fb9738272c5c76ab18301b357705",
+      "bytes": 260
+    },
+    {
+      "path": "D-1/estoque.csv",
+      "sha256": "2c6f67d85401056d871aa291e97bc8f24ebe2204461ed3237aae1cd13d7c8eae",
+      "bytes": 5516
+    },
+    {
+      "path": "D-1/aquisicoes.csv",
+      "sha256": "4108f2f40925fad3f8c5719ec85b6b7f8068c23229ef121331010563cbd07bb1",
+      "bytes": 926
+    },
+    {
+      "path": "D-1/liquidacoes.csv",
+      "sha256": "e8f70a9db8f458e48b40c714e498328e424439bd046d3b220a07a6efa5a09ee9",
+      "bytes": 1696
+    },
+    {
+      "path": "retificacoes/estoque-D-1-v2.csv",
+      "sha256": "626aef2c6b5b802da31cc3a928d66fb7c2757cb249ea841f9eccc37b2d691719",
+      "bytes": 5516
+    },
+    {
+      "path": "retificacoes/aquisicoes-D-1-v2.csv",
+      "sha256": "019b294af7ef0fdd7d58fa3625a1c37eceebdc7aba8cdc7b2962667e17dec65f",
+      "bytes": 926
+    },
+    {
+      "path": "duplicados/estoque-D-1-copia.csv",
+      "sha256": "2c6f67d85401056d871aa291e97bc8f24ebe2204461ed3237aae1cd13d7c8eae",
+      "bytes": 5516
+    },
+    {
+      "path": "adversarial/estoque-D-1.csv",
+      "sha256": "64cd6b6b47a15b0f018bd4261b8264e0ff298f9e1f9de653aafff7b33898b23b",
+      "bytes": 670
+    },
+    {
+      "path": "adversarial/aquisicoes-D-1.csv",
+      "sha256": "e9f78a7eda71d9ee32d8404c1945bd0b3a7aa805a7b4f21a6a6133388b59193f",
+      "bytes": 110
+    },
+    {
+      "path": "adversarial/liquidacoes-D-1.csv",
+      "sha256": "2b289378c12b62173d3e4198625072df827057006e66a4fe518a1c7661fe7739",
+      "bytes": 101
+    },
+    {
+      "path": "expected/expected-matching.json",
+      "sha256": "d2181832c223c757e5a5407991cb1b581e394d876d7badc0694e251e62519461",
+      "bytes": 11739
+    },
+    {
+      "path": "expected/expected-reconciliation.json",
+      "sha256": "1def289ee7d5c08ab4e5ab58292daade6c85daffdbab38812d04c18c2261f8f3",
+      "bytes": 5910
+    },
+    {
+      "path": "expected/expected-executions.json",
+      "sha256": "6b54b56c6684dc8b7c33ff8ab18e9803e41418643c4ca5f8664825486ed28d09",
+      "bytes": 369
+    },
+    {
+      "path": "expected/expected-import-lifecycle.json",
+      "sha256": "8f2a2e329a8cbdd40b7e2f1231a1ebd882d951dfdcc31b8def54598d774556ac",
+      "bytes": 1006
+    },
+    {
+      "path": "expected/expected-logistics.json",
+      "sha256": "fe5de8142af2233899741cf3f31be4d53c3f2f68d9bac122d679d79b6de0e792",
+      "bytes": 2455
+    },
+    {
+      "path": "expected/expected-exposure.json",
+      "sha256": "ef72c0a3511678f3bbc7b12961748d5e84b8cdca2d33009ecb03543f5a7ea3d1",
+      "bytes": 277
+    }
+  ]
+}
