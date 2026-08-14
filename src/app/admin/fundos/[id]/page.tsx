@@ -1,9 +1,10 @@
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { History, Users } from 'lucide-react'
 import { FundoLifecycleAction } from '@/components/admin/fundo-lifecycle-action'
 import { FundoIntegracoesTecnicas } from '@/components/admin/fundo-integracoes-tecnicas'
-import { FundoCnabTecnico } from '@/components/admin/fundo-cnab-tecnico'
+import { FundoEnviosOperacionais } from '@/components/admin/fundo-envios-operacionais'
+import { FundoDadosFinanceiros } from '@/components/admin/fundo-dados-financeiros'
 import { FundoStructuralForm } from '@/components/admin/fundo-structural-form'
 import { GestorFundAccessAction } from '@/components/admin/gestor-fund-access-action'
 import { DetailField, DetailSection, EmptyState, FieldGrid, ListNameCell, StatusBadge } from '@/components/data-display/primitives'
@@ -12,6 +13,7 @@ import { PageHeader } from '@/components/layout/page-header'
 import { listarAuditoriaAdminFundo, obterAdminFundo } from '@/lib/admin/fundos.server'
 import { listarGestoresAdminFundo } from '@/lib/admin/usuarios.server'
 import { obterConfiguracoesTecnicasAdminFundo } from '@/lib/admin/configuracoes-tecnicas.server'
+import { obterDadosFinanceirosAdminFundo } from '@/lib/admin/dados-financeiros.server'
 import { formatCNPJ } from '@/lib/utils'
 
 const tabClass = 'inline-flex h-9 items-center rounded-lg px-3 text-sm font-medium'
@@ -21,13 +23,15 @@ export default async function AdminFundoDetailPage({ params, searchParams }: { p
   const { id } = await params
   const query = await searchParams
   const requestedTab = query.tab
+  if (requestedTab === 'cnab') redirect(`/admin/fundos/${id}?tab=envios`)
   const execPage = Math.max(1, Number.parseInt(query.execPage || '1', 10) || 1)
-  const tab = requestedTab === 'auditoria' ? 'auditoria' : requestedTab === 'gestores' ? 'gestores' : requestedTab === 'integracoes' ? 'integracoes' : requestedTab === 'cnab' ? 'cnab' : 'geral'
+  const tab = requestedTab === 'auditoria' ? 'auditoria' : requestedTab === 'gestores' ? 'gestores' : requestedTab === 'integracoes' ? 'integracoes' : requestedTab === 'envios' ? 'envios' : requestedTab === 'dados-financeiros' ? 'dados-financeiros' : 'geral'
   const fundo = await obterAdminFundo(id)
   if (!fundo) notFound()
   const auditoria = tab === 'auditoria' ? await listarAuditoriaAdminFundo(id) : []
   const gestores = tab === 'gestores' ? await listarGestoresAdminFundo(id) : []
-  const technical = tab === 'integracoes' || tab === 'cnab' ? await obterConfiguracoesTecnicasAdminFundo(id, execPage) : null
+  const technical = tab === 'integracoes' || tab === 'envios' ? await obterConfiguracoesTecnicasAdminFundo(id, execPage) : null
+  const dadosFinanceiros = tab === 'dados-financeiros' ? await obterDadosFinanceirosAdminFundo(id) : null
 
   return (
     <PageContainer className="space-y-5">
@@ -36,7 +40,8 @@ export default async function AdminFundoDetailPage({ params, searchParams }: { p
         <Link className={`${tabClass} ${tab === 'geral' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`} href={`/admin/fundos/${id}`}>Geral</Link>
         <Link className={`${tabClass} ${tab === 'gestores' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`} href={`/admin/fundos/${id}?tab=gestores`}>Gestores</Link>
         <Link className={`${tabClass} ${tab === 'integracoes' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`} href={`/admin/fundos/${id}?tab=integracoes`}>Integracoes</Link>
-        <Link className={`${tabClass} ${tab === 'cnab' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`} href={`/admin/fundos/${id}?tab=cnab`}>CNAB</Link>
+        <Link className={`${tabClass} ${tab === 'envios' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`} href={`/admin/fundos/${id}?tab=envios`}>Envios Operacionais</Link>
+        <Link className={`${tabClass} ${tab === 'dados-financeiros' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`} href={`/admin/fundos/${id}?tab=dados-financeiros`}>Dados Financeiros</Link>
         <Link className={`${tabClass} ${tab === 'auditoria' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`} href={`/admin/fundos/${id}?tab=auditoria`}>Auditoria</Link>
       </div>
 
@@ -77,8 +82,10 @@ export default async function AdminFundoDetailPage({ params, searchParams }: { p
         </DetailSection>
       ) : tab === 'integracoes' && technical ? (
         <FundoIntegracoesTecnicas state={technical} execPage={execPage} />
-      ) : tab === 'cnab' && technical ? (
-        <FundoCnabTecnico state={technical} />
+      ) : tab === 'envios' && technical ? (
+        <FundoEnviosOperacionais state={technical} />
+      ) : tab === 'dados-financeiros' && dadosFinanceiros ? (
+        <FundoDadosFinanceiros state={dadosFinanceiros} />
       ) : (
         <DetailSection title="Auditoria estrutural" icon={History}>
           {auditoria.length === 0 ? <EmptyState title="Nenhum evento registrado" description="As mutacoes estruturais deste fundo aparecerao aqui." icon={History} /> : (

@@ -82,7 +82,7 @@ describe('arquitetura SA1 de fundos', () => {
     expect(adminDetailPage).toContain('>Geral</Link>')
     expect(adminDetailPage).toContain('>Gestores</Link>')
     expect(adminDetailPage).toContain('>Integracoes</Link>')
-    expect(adminDetailPage).toContain('>CNAB</Link>')
+    expect(adminDetailPage).toContain('>Envios Operacionais</Link>')
     expect(adminDetailPage).toContain('>Auditoria</Link>')
     expect(adminDetailPage).not.toContain('Excluir fundo')
     expect(adminDetailPage).not.toContain('Templates juridicos')
