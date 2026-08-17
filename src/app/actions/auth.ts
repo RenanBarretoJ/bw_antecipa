@@ -9,6 +9,7 @@ import { carregarAcessoPlataforma, resolverDestinoAposAutenticacao } from '@/lib
 import type { UserRole } from '@/types/database'
 import { buildSignupFeedback } from '@/lib/auth/signup-feedback'
 import { registrarTentativaRateLimit, verificarRateLimit } from '@/lib/security/rate-limit'
+import { IdentityQueryError, loadSessionProfile } from '@/lib/auth/identity-query'
 
 export type AuthState = {
   errors?: Record<string, string[]>
@@ -58,13 +59,23 @@ export async function login(_prevState: AuthState, formData: FormData): Promise<
     return { message: 'Erro ao autenticar. Tente novamente.' }
   }
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
+  let profile
+  try {
+    profile = await loadSessionProfile(supabase, user.id)
+  } catch (queryError) {
+    await supabase.auth.signOut({ scope: 'local' })
+    if (queryError instanceof IdentityQueryError) {
+      return { message: 'Não foi possível validar sua identidade. Tente novamente.' }
+    }
+    throw queryError
+  }
 
-  const role = (profile as { role: string } | null)?.role || 'cedente'
+  if (!profile) {
+    await supabase.auth.signOut({ scope: 'local' })
+    return { message: 'Perfil do usuário não encontrado.' }
+  }
+
+  const role = profile.role
   const estadoMfa = await obterEstadoMfaUsuario(supabase)
 
   if (estadoMfa.exigeMfa && !estadoMfa.possuiFatorVerificado) {

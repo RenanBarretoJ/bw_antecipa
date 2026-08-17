@@ -4,6 +4,7 @@ import { AUTH_FLOW_COOKIE, getAuthFlowRedirect, isMfaSetupAllowedPath, isPasswor
 import { resolverRedirectOnboardingCedente } from '@/lib/auth/cedente-onboarding-access'
 import { carregarAcessoPlataforma, resolverDestinoAposAutenticacao, usuarioPodeAcessarArea, type PortalArea } from '@/lib/auth/platform-access'
 import type { UserRole } from '@/types/database'
+import { IdentityQueryError, loadSessionProfile } from '@/lib/auth/identity-query'
 
 type MiddlewareSupabaseClient = ReturnType<typeof createServerClient>
 
@@ -84,17 +85,14 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(url)
     }
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role, mfa_obrigatorio_override')
-      .eq('id', user.id)
-      .single()
+    const profile = await loadMiddlewareProfile(supabase, user.id)
+    if (!profile) return await redirectInvalidIdentity(request, supabase)
 
-    const role = String(profile?.role || 'cedente') as UserRole
+    const role = String(profile.role) as UserRole
     const mfaRedirect = await getMfaRedirect({
       supabase,
       role,
-      override: (profile as { mfa_obrigatorio_override?: boolean | null } | null)?.mfa_obrigatorio_override,
+      override: profile.mfa_obrigatorio_override,
       pathname,
     })
 
@@ -108,13 +106,10 @@ export async function updateSession(request: NextRequest) {
     const roleFromPath = getRoleFromPath(pathname)
 
     if (roleFromPath) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role, mfa_obrigatorio_override')
-        .eq('id', user.id)
-        .single()
+      const profile = await loadMiddlewareProfile(supabase, user.id)
+      if (!profile) return await redirectInvalidIdentity(request, supabase)
 
-      const userRole = String(profile?.role || 'cedente') as UserRole
+      const userRole = String(profile.role) as UserRole
       const access = await carregarAcessoPlataforma(supabase, user.id, userRole)
 
       const areaAutorizada = usuarioPodeAcessarArea(access, roleFromPath)
@@ -128,7 +123,7 @@ export async function updateSession(request: NextRequest) {
       const mfaRedirect = await getMfaRedirect({
         supabase,
         role: userRole,
-        override: (profile as { mfa_obrigatorio_override?: boolean | null } | null)?.mfa_obrigatorio_override,
+        override: profile.mfa_obrigatorio_override,
         pathname,
       })
 
@@ -172,6 +167,23 @@ export async function updateSession(request: NextRequest) {
   }
 
   return supabaseResponse
+}
+
+async function loadMiddlewareProfile(supabase: MiddlewareSupabaseClient, userId: string) {
+  try {
+    return await loadSessionProfile(supabase, userId)
+  } catch (error) {
+    if (error instanceof IdentityQueryError) return null
+    throw error
+  }
+}
+
+async function redirectInvalidIdentity(request: NextRequest, supabase: MiddlewareSupabaseClient) {
+  await supabase.auth.signOut({ scope: 'local' })
+  const url = request.nextUrl.clone()
+  url.pathname = '/login'
+  url.searchParams.set('error', 'identity_validation_failed')
+  return NextResponse.redirect(url)
 }
 
 function getRoleFromPath(pathname: string): PortalArea | null {

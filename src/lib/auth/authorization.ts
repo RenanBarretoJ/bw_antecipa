@@ -1,6 +1,7 @@
 import type { User } from '@supabase/supabase-js'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
+import { IdentityQueryError, loadSessionProfile } from '@/lib/auth/identity-query'
 import type { Cedente, Database, NotaFiscal, Operacao, Profile, UserRole } from '@/types/database'
 
 export type AppSupabaseClient = SupabaseClient<Database>
@@ -67,13 +68,17 @@ export async function requireAuthenticated(client?: AppSupabaseClient, options: 
     throw new AuthorizationError('Usuário não autenticado.', 'UNAUTHENTICATED')
   }
 
-  const { data: profile, error: profileError } = await supabase
-    .from('profiles')
-    .select('id, role, status, nome_completo, email, mfa_obrigatorio_override, mfa_ativado_em, ultima_autenticacao_forte_em, senha_alterada_em')
-    .eq('id', data.user.id)
-    .maybeSingle()
+  let profile
+  try {
+    profile = await loadSessionProfile(supabase, data.user.id)
+  } catch (queryError) {
+    if (queryError instanceof IdentityQueryError) {
+      throw new AuthorizationError('Não foi possível validar a identidade do usuário.', 'FORBIDDEN')
+    }
+    throw queryError
+  }
 
-  if (profileError || !profile) {
+  if (!profile) {
     throw new AuthorizationError('Perfil do usuário não encontrado.', 'FORBIDDEN')
   }
 

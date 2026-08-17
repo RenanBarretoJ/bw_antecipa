@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { isCedenteAprovado } from '@/lib/auth/cedente-onboarding-access'
+import { IdentityQueryError, reportIdentityDiagnostic } from '@/lib/auth/identity-query'
 import type { Database, UserRole } from '@/types/database'
 
 export type PlataformaAccessSnapshot = {
@@ -45,7 +46,12 @@ export async function listarPapeisAtivosUsuario(
     .eq('usuario_id', userId)
     .eq('ativo', true)
 
-  if (error) throw new Error('Nao foi possivel validar os papeis do usuario.')
+  if (error) {
+    reportIdentityDiagnostic('USER_ROLES_QUERY_FAILED', error)
+    throw new IdentityQueryError('USER_ROLES_QUERY_FAILED', error.code || null)
+  }
+
+  if (!data?.length) reportIdentityDiagnostic('USER_ROLES_NOT_FOUND')
 
   const roles = new Set<UserRole>(primaryRole === 'super_admin' ? [] : [primaryRole])
   for (const row of data || []) roles.add(row.papel)
