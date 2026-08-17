@@ -81,6 +81,7 @@
     "homolog:financeiro:readiness:benchmark": "node scripts/homologacao/financeiro/readiness/benchmark.mjs",
     "homolog:financeiro:readiness:concurrency": "node scripts/homologacao/financeiro/readiness/concurrency.mjs",
     "homolog:financeiro:readiness:secret-scan": "node scripts/homologacao/financeiro/readiness/secret-scan.mjs",
+    "homolog:financeiro:readiness:clean-room": "node scripts/homologacao/financeiro/readiness/run-clean-room.mjs",
     "homolog:financeiro:migrations:reconcile-history": "node scripts/homologacao/financeiro/migrations/reconcile-history.mjs",
     "homolog:financeiro:generalizacao:apply": "node scripts/homologacao/financeiro/apply-generalizacao.mjs",
     "homolog:financeiro:generalizacao:verify": "node scripts/homologacao/financeiro/verify-generalizacao.mjs"

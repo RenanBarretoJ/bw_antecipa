@@ -1,0 +1,22 @@
+{
+  "schema": "bw-antecipa-p2-6-3-bootstrap-v1",
+  "status": "BLOCKED_BY_SCHEMA_PARITY",
+  "migrations": {
+    "status": "PASS",
+    "applied": 115,
+    "bootstrap_applied": true,
+    "total_history_rows": 116,
+    "failed_at": null,
+    "retry_count": 0
+  },
+  "manual_sql": false,
+  "schema_base": {
+    "status": "PASS",
+    "source": "scripts/perf9e/bootstrap/schema-base-candidate.sql",
+    "migration_history_version": "001"
+  },
+  "application_bootstrap": "NOT_EXECUTED",
+  "golden_v1": "NOT_EXECUTED",
+  "golden_v2": "NOT_EXECUTED",
+  "security": "NOT_EXECUTED"
+}

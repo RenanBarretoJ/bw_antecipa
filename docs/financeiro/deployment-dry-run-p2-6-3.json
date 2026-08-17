@@ -1,0 +1,18 @@
+{
+  "schema": "bw-antecipa-p2-6-3-deployment-dry-run-v1",
+  "status": "BLOCKED_BY_SCHEMA_PARITY",
+  "node": "v22.23.2",
+  "npm_ci": "NOT_EXECUTED_IN_EXISTING_WORKTREE",
+  "supabase_start": "PASS",
+  "migrations": {
+    "status": "PASS",
+    "applied": 115,
+    "bootstrap_applied": true,
+    "total_history_rows": 116,
+    "failed_at": null,
+    "retry_count": 0
+  },
+  "db_push_dry_run": "{\"upToDate\":true,\"dryRun\":true,\"migrations\":[],\"seeds\":[],\"roles\":[],\"message\":\"Local database is up to date.\"}\n\nDRY RUN: migrations will *not* be pushed to the database.\nConnecting to local database...",
+  "build": "PASS_NODE_22_EXISTING_WORKTREE",
+  "reason": "Schema parity material diverge da homologacao."
+}
