@@ -38,6 +38,9 @@ function normalizeEnvValue(rawValue) {
 }
 
 export function loadHomologEnv() {
+  if (process.env.BW_CLEAN_ROOM_E2E === '1') {
+    return { path: null, loaded: {}, cleanRoom: true }
+  }
   const path = resolve(process.cwd(), '.env.homolog')
   if (!existsSync(path)) throw new Error('.env.homolog nao encontrado. A execucao foi bloqueada.')
   const loaded = {}
@@ -83,6 +86,24 @@ export function assertHomologEnvironment(args = {}) {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
   const dbUrl = process.env.SUPABASE_DB_URL || process.env.DATABASE_URL
   const expectedRef = String(args['expected-project-ref'] || process.env.RLX_GOLDEN_HOMOLOG_PROJECT_REF || '').trim()
+
+  if (process.env.BW_CLEAN_ROOM_E2E === '1') {
+    if (!supabaseUrl || !serviceRoleKey || !dbUrl) {
+      throw new Error('Clean-room exige URL Supabase, service role e DB URL locais.')
+    }
+    if (!expectedRef) throw new Error('Informe --expected-project-ref para identificar o clean-room descartavel.')
+    const apiUrl = new URL(supabaseUrl)
+    const databaseUrl = new URL(dbUrl)
+    const localHosts = new Set(['127.0.0.1', 'localhost', '::1'])
+    if (!localHosts.has(apiUrl.hostname) || !localHosts.has(databaseUrl.hostname)) {
+      throw new Error('Clean-room bloqueado: API e banco devem apontar exclusivamente para localhost.')
+    }
+    if (nodeEnv === 'production') throw new Error('Clean-room bloqueado: NODE_ENV=production.')
+    return {
+      appEnv: 'clean-room', supabaseUrl, serviceRoleKey, dbUrl,
+      projectRef: expectedRef, cleanRoom: true,
+    }
+  }
 
   if (!['homolog', 'homologacao'].includes(appEnv)) {
     throw new Error(`Ambiente bloqueado: NEXT_PUBLIC_APP_ENV precisa ser homolog; recebido "${appEnv || 'ausente'}".`)
@@ -180,12 +201,14 @@ export function createAdminClient(env) {
 }
 
 export async function connectDb(env, label) {
+  const dbUrl = new URL(env.dbUrl)
+  const local = ['127.0.0.1', 'localhost', '::1'].includes(dbUrl.hostname)
   const client = new pg.Client({
     connectionString: env.dbUrl,
     application_name: `bw_antecipa_rlx_golden_${label}`,
     statement_timeout: 240_000,
     query_timeout: 240_000,
-    ssl: { rejectUnauthorized: false },
+    ssl: local ? false : { rejectUnauthorized: false },
   })
   await client.connect()
   return client

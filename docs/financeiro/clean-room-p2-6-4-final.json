@@ -2,10 +2,10 @@
   "schema": "bw-antecipa-p2-6-4-clean-room-v1",
   "phase": "final",
   "status": "PASS",
-  "started_at": "2026-08-17T15:37:44.898Z",
+  "started_at": "2026-08-17T16:19:13.223Z",
   "node": "v22.23.2",
   "project_id": "bw-antecipa-p264-clean-room",
-  "clean_room_root": "C:\\Users\\BrenoAlvim\\AppData\\Local\\BWAntecipa\\p2-6-4\\final\\2026-08-17T15-37-44-898Z",
+  "clean_room_root": "C:\\Users\\BrenoAlvim\\AppData\\Local\\BWAntecipa\\p2-6-4\\final\\2026-08-17T16-19-13-223Z",
   "migrations": {
     "expected": 120,
     "first": "003_storage_buckets_env.sql",
@@ -46,5 +46,5 @@
     "stack_stopped": true,
     "workspace_removed": true
   },
-  "finished_at": "2026-08-17T15:39:59.025Z"
+  "finished_at": "2026-08-17T16:20:36.907Z"
 }
