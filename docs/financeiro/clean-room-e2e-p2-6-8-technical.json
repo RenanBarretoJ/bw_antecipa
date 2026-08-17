@@ -1,0 +1,53 @@
+{
+  "schema": "bw-antecipa-p2-6-8-technical-clean-room-e2e-v1",
+  "status": "PASS",
+  "started_at": "2026-08-17T20:01:26.524Z",
+  "node": "v22.23.2",
+  "project_id": "bw-antecipa-p268technical-clean-room",
+  "migration_history": {
+    "expected": 126,
+    "applied": 126,
+    "bootstrap_applied": true,
+    "total_history_rows": 127,
+    "first": "003_storage_buckets_env.sql",
+    "last": "20260817200014_p2_6_8_remover_legado_estrutural_rlx.sql",
+    "manifest_sha256": "2f59fe1f96947a62a956d713f2e3988b86d5fef663db50bb6ebc3c2c9419be45",
+    "status": "PASS",
+    "remote_status": "DEFERRED_PRE_HOMOLOG"
+  },
+  "schema_parity": {
+    "status": "DEFERRED_PRE_HOMOLOG",
+    "material_differences": null,
+    "allowed_differences": null
+  },
+  "bootstrap": {
+    "status": "PASS",
+    "source": "schema-base-candidate.sql + migrations canonicas",
+    "auth_api": "PASS",
+    "rest_api": "PASS",
+    "storage_api": "PASS"
+  },
+  "golden": "PASS",
+  "runtime": {
+    "node": "v22.23.2",
+    "package_engine": "22.x",
+    "docker_context": "desktop-linux",
+    "docker_os": "linux",
+    "docker_server_version": "29.7.2"
+  },
+  "api_auth_matrix": "PASS",
+  "cross_fund": "PASS",
+  "storage_api": "PASS",
+  "application": "DEFERRED_PRE_HOMOLOG",
+  "repository_checks": "DEFERRED_PRE_HOMOLOG",
+  "deployment_dry_run": "PASS",
+  "production_mutated": false,
+  "homolog_mutated": false,
+  "failure": null,
+  "cleanup": {
+    "status": "PASS",
+    "stack_stopped": true,
+    "workspace_removed": true
+  },
+  "finished_at": "2026-08-17T20:03:51.533Z"
+}

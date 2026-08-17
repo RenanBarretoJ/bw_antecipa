@@ -1,0 +1,143 @@
+{
+  "schema": "bw-antecipa-p2-6-8-technical-storage-v1",
+  "status": "PASS",
+  "checks": [
+    {
+      "actor": "SERVICE_ROLE",
+      "bucket": "financeiro-importacoes",
+      "action": "BUCKET_EXISTS",
+      "expected": "ALLOW",
+      "actual": "ALLOW",
+      "status": "PASS"
+    },
+    {
+      "actor": "SERVICE_ROLE",
+      "bucket": "documentos-v2",
+      "action": "BUCKET_EXISTS",
+      "expected": "ALLOW",
+      "actual": "ALLOW",
+      "status": "PASS"
+    },
+    {
+      "actor": "SERVICE_ROLE",
+      "bucket": "notas-fiscais",
+      "action": "BUCKET_EXISTS",
+      "expected": "ALLOW",
+      "actual": "ALLOW",
+      "status": "PASS"
+    },
+    {
+      "actor": "SERVICE_ROLE",
+      "bucket": "contratos",
+      "action": "BUCKET_EXISTS",
+      "expected": "ALLOW",
+      "actual": "ALLOW",
+      "status": "PASS"
+    },
+    {
+      "actor": "CEDENTE_A",
+      "bucket": "notas-fiscais",
+      "action": "UPLOAD",
+      "expected": "ALLOW",
+      "actual": "ALLOW",
+      "http_status": 200,
+      "status": "PASS"
+    },
+    {
+      "actor": "SERVICE_ROLE",
+      "bucket": "notas-fiscais",
+      "action": "UPLOAD",
+      "expected": "ALLOW",
+      "actual": "ALLOW",
+      "http_status": 200,
+      "status": "PASS"
+    },
+    {
+      "actor": "CEDENTE_A",
+      "bucket": "notas-fiscais",
+      "action": "DOWNLOAD",
+      "expected": "ALLOW",
+      "actual": "ALLOW",
+      "http_status": 200,
+      "status": "PASS"
+    },
+    {
+      "actor": "CEDENTE_A",
+      "bucket": "notas-fiscais",
+      "action": "DOWNLOAD",
+      "expected": "DENY",
+      "actual": "DENY",
+      "http_status": 400,
+      "error_code": "StorageApiError",
+      "status": "PASS"
+    },
+    {
+      "actor": "SERVICE_ROLE",
+      "bucket": "financeiro-importacoes",
+      "action": "UPLOAD",
+      "expected": "ALLOW",
+      "actual": "ALLOW",
+      "http_status": 200,
+      "status": "PASS"
+    },
+    {
+      "actor": "ANON",
+      "bucket": "financeiro-importacoes",
+      "action": "DOWNLOAD",
+      "expected": "DENY",
+      "actual": "DENY",
+      "http_status": 400,
+      "error_code": "StorageApiError",
+      "status": "PASS"
+    },
+    {
+      "actor": "SERVICE_ROLE",
+      "bucket": "documentos-v2",
+      "action": "UPLOAD",
+      "expected": "ALLOW",
+      "actual": "ALLOW",
+      "http_status": 200,
+      "status": "PASS"
+    },
+    {
+      "actor": "ANON",
+      "bucket": "documentos-v2",
+      "action": "DOWNLOAD",
+      "expected": "DENY",
+      "actual": "DENY",
+      "http_status": 400,
+      "error_code": "StorageApiError",
+      "status": "PASS"
+    },
+    {
+      "actor": "SERVICE_ROLE",
+      "bucket": "contratos",
+      "action": "UPLOAD",
+      "expected": "ALLOW",
+      "actual": "ALLOW",
+      "http_status": 200,
+      "status": "PASS"
+    },
+    {
+      "actor": "ANON",
+      "bucket": "contratos",
+      "action": "DOWNLOAD",
+      "expected": "DENY",
+      "actual": "DENY",
+      "http_status": 400,
+      "error_code": "StorageApiError",
+      "status": "PASS"
+    },
+    {
+      "actor": "GESTOR_A",
+      "bucket": "contratos",
+      "action": "UPLOAD",
+      "expected": "DENY",
+      "actual": "DENY",
+      "http_status": 400,
+      "error_code": "StorageApiError",
+      "status": "PASS"
+    }
+  ],
+  "failure": null
+}

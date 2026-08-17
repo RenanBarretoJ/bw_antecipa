@@ -141,7 +141,7 @@ async function executeDataMatrix() {
   await expectSelect('SACADO_A', 'notas_fiscais', fundA.id, 'ALLOW', matrix, { id: noteA.id })
   await expectSelect('SACADO_A', 'notas_fiscais', fundB.id, 'DENY', crossFund, { id: noteB.id })
   await expectSelect('SUPER_ADMIN_PURO', 'notas_fiscais', fundA.id, 'DENY', matrix)
-  await expectOwnRole('SUPER_ADMIN_PURO', 'ALLOW')
+  await executeIdentityRegression()
   await expectSelect('SUPER_ADMIN_GESTOR_A', 'notas_fiscais', fundA.id, 'ALLOW', matrix)
   await expectSelect('SUPER_ADMIN_GESTOR_A', 'notas_fiscais', fundB.id, 'DENY', crossFund)
 
@@ -489,6 +489,45 @@ async function expectCedent(actorName, cedenteId, expected, target) {
 async function expectOwnRole(actorName, expected) {
   const response = await actors[actorName].client.from('usuario_papeis').select('papel').eq('usuario_id', actors[actorName].id)
   record(matrix, { actor: actorName, resource: 'usuario_papeis', action: 'SELECT_OWN', expected, actual: !response.error && response.data?.length ? 'ALLOW' : 'DENY', http_status: response.status, error_code: response.error?.code })
+}
+
+async function executeIdentityRegression() {
+  const ownProfile = await actors.GESTOR_A.client.from('profiles').select('id').eq('id', actors.GESTOR_A.id)
+  record(matrix, {
+    actor: 'GESTOR_A', resource: 'profiles', action: 'SELECT_OWN', expected: 'ALLOW',
+    actual: !ownProfile.error && ownProfile.data?.length ? 'ALLOW' : 'DENY',
+    http_status: ownProfile.status, error_code: ownProfile.error?.code,
+  })
+
+  await expectOwnRole('SUPER_ADMIN_PURO', 'ALLOW')
+
+  const otherProfile = await actors.GESTOR_A.client.from('profiles').select('id').eq('id', actors.GESTOR_B.id)
+  record(matrix, {
+    actor: 'GESTOR_A', resource: 'profiles', action: 'SELECT_OTHER', expected: 'DENY',
+    actual: !otherProfile.error && otherProfile.data?.length ? 'ALLOW' : 'DENY',
+    http_status: otherProfile.status, error_code: otherProfile.error?.code,
+  })
+
+  const otherRoles = await actors.SUPER_ADMIN_PURO.client.from('usuario_papeis').select('papel').eq('usuario_id', actors.SUPER_ADMIN_GESTOR_A.id)
+  record(matrix, {
+    actor: 'SUPER_ADMIN_PURO', resource: 'usuario_papeis', action: 'SELECT_OTHER', expected: 'DENY',
+    actual: !otherRoles.error && otherRoles.data?.length ? 'ALLOW' : 'DENY',
+    http_status: otherRoles.status, error_code: otherRoles.error?.code,
+  })
+
+  const anon = createClient(apiUrl, anonKey, { auth: { persistSession: false, autoRefreshToken: false } })
+  const anonProfile = await anon.from('profiles').select('id').limit(1)
+  record(matrix, {
+    actor: 'ANON', resource: 'profiles', action: 'SELECT', expected: 'DENY',
+    actual: !anonProfile.error && anonProfile.data?.length ? 'ALLOW' : 'DENY',
+    http_status: anonProfile.status, error_code: anonProfile.error?.code,
+  })
+  const anonRoles = await anon.from('usuario_papeis').select('papel').limit(1)
+  record(matrix, {
+    actor: 'ANON', resource: 'usuario_papeis', action: 'SELECT', expected: 'DENY',
+    actual: !anonRoles.error && anonRoles.data?.length ? 'ALLOW' : 'DENY',
+    http_status: anonRoles.status, error_code: anonRoles.error?.code,
+  })
 }
 
 async function storageUpload(actorName, bucket, path, expected) {

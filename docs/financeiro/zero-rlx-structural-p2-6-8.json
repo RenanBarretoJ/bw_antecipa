@@ -1,0 +1,153 @@
+{
+  "schema": "bw-antecipa-zero-rlx-structural-p2-6-8-v1",
+  "generated_at": "2026-08-17T17:12:14-03:00",
+  "environment": "homolog",
+  "project_ref": "fhgkmggthxikfpogrvaa",
+  "production_touched": false,
+  "status": "PASS",
+  "classification": {
+    "value": "DEAD_LEGACY",
+    "unresolved": 0,
+    "reason": "A rotina residual era apenas um wrapper de compatibilidade sem dependentes nem consumidores ativos."
+  },
+  "before": {
+    "active_structural_rlx_objects": 1,
+    "object": "private.rlx_gestor_tem_acesso_fundo(uuid)",
+    "kind": "function",
+    "language": "sql",
+    "volatility": "STABLE",
+    "security_definer": true,
+    "search_path": "",
+    "owner": "postgres",
+    "delegated_to": "private.gestor_tem_acesso_fundo_operacional(uuid)",
+    "execute_grants": {
+      "PUBLIC": false,
+      "anon": false,
+      "authenticated": true,
+      "service_role": true
+    }
+  },
+  "provenance": [
+    {
+      "migration": "20260813191143_p2_2_ingestao_financeira_versionada_rlx.sql",
+      "event": "created",
+      "detail": "Helper original e policies financeiras RLX."
+    },
+    {
+      "migration": "20260814220000_p2_5_1_generalizacao_dominio_financeiro.sql",
+      "event": "generalized",
+      "detail": "Consumidores ativos migrados para private.financeiro_gestor_tem_acesso_fundo(uuid)."
+    },
+    {
+      "migration": "20260817171442_p2_6_6_corrigir_acessos_financeiros_legitimos.sql",
+      "event": "compatibility_wrapper_recreated",
+      "detail": "Wrapper residual passou a delegar ao helper operacional canonico."
+    }
+  ],
+  "consumer_scan_before": {
+    "postgres_dependencies": [],
+    "policies": [],
+    "routines_excluding_target": [],
+    "views_and_materialized_views": [],
+    "triggers": [],
+    "active_runtime_references": []
+  },
+  "consumers": {
+    "postgres_dependencies": [],
+    "policies": [],
+    "routines": [],
+    "views": [],
+    "triggers": [],
+    "runtime_active": []
+  },
+  "canonical_replacement": {
+    "operational": "private.gestor_tem_acesso_fundo_operacional(uuid)",
+    "financial": "private.financeiro_gestor_tem_acesso_fundo(uuid)",
+    "authorization_semantics": [
+      "auth.uid() obrigatorio",
+      "perfil ativo",
+      "papel gestor operacional ativo",
+      "usuario_fundos ativo",
+      "fundo ativo"
+    ]
+  },
+  "replacement": {
+    "operational_helper": "private.gestor_tem_acesso_fundo_operacional(uuid)",
+    "financial_helper": "private.financeiro_gestor_tem_acesso_fundo(uuid)",
+    "consumer_migration_required_in_p2_6_8": false
+  },
+  "migration": {
+    "file": "supabase/migrations/20260817200014_p2_6_8_remover_legado_estrutural_rlx.sql",
+    "version": "20260817200014",
+    "applied_in_homolog": true,
+    "drop_without_cascade": true,
+    "grants_revoked_before_drop": ["PUBLIC", "anon", "authenticated", "service_role"],
+    "data_changes": false,
+    "preconditions_and_postconditions": true
+  },
+  "after": {
+    "active_structural_rlx_objects": 0,
+    "target_absent": true,
+    "canonical_operational_helper_present": true,
+    "canonical_financial_helper_present": true,
+    "active_runtime_references": 0
+  },
+  "database_scan_after": {
+    "active_structural_rlx_objects": 0,
+    "target_absent": true,
+    "unexpected_legacy": []
+  },
+  "runtime_scan_after": {
+    "active_structural_runtime_references": 0,
+    "target_references_in_active_source": []
+  },
+  "migration_history": {
+    "local": 126,
+    "remote": 126,
+    "missing_remote": 0,
+    "remote_only": 0,
+    "order_mismatch": 0,
+    "post_apply_dry_run_pending": 0
+  },
+  "clean_room": {
+    "technical_before_homolog": "PASS",
+    "technical_artifact": "clean-room-e2e-p2-6-8-technical.json",
+    "final_after_homolog": "FAIL",
+    "final_artifact": "clean-room-e2e-p2-6-8.json",
+    "schema_material_differences": 0,
+    "allowed_environmental_differences": 49,
+    "manifest_sha256": "2f59fe1f96947a62a956d713f2e3988b86d5fef663db50bb6ebc3c2c9419be45",
+    "failure": "Regressao de autorizacao preexistente e fora do escopo de mutacao: GESTOR_A conseguiu SELECT_OTHER em public.profiles por meio da policy permissiva profiles_gestor_all."
+  },
+  "functional_regression": {
+    "golden_v1": "PASS",
+    "golden_v2": "384/384 PASS",
+    "golden_security": "5/5 PASS",
+    "data_api": "90/91; FAIL em GESTOR_A:profiles:SELECT_OTHER",
+    "identity_regression": "FAIL",
+    "cross_fund_api": "39/39 PASS; zero_leak=true",
+    "storage_api": "15/15 PASS",
+    "cron_canonical": "200",
+    "cron_legacy_alias": "200",
+    "unauthorized_cron": "401"
+  },
+  "phase_result": {
+    "zero_rlx_structural": "PASS",
+    "p2_6_8": "FAIL",
+    "reason": "O objeto RLX foi removido corretamente, mas o criterio automatico da fase exige identity regression PASS. A policy nao relacionada nao foi alterada porque o escopo limita mutacoes ao helper RLX residual e consumidores diretos."
+  },
+  "advisors": {
+    "before": {"security_total": 103, "performance_total": 343, "target_related": 0},
+    "after": {"security_total": 103, "performance_total": 343, "target_related": 0},
+    "note": "Backlog preexistente nao relacionado ficou fora do escopo."
+  },
+  "historical_allowlist": {
+    "frozen_rule_versions": ["RLX_MATCH_V1", "RLX_RECON_V1", "RLX_LOGISTICA_V1", "RLX_EXPOSICAO_V1"],
+    "golden_datasets": ["RLX_GOLDEN_V1", "RLX_GOLDEN_V2"],
+    "compatibility_env_fallbacks": ["RLX_MAX_PARSE_MS", "RLX_MAX_IMPORT_ROWS", "RLX_PROVIDER_TIMEOUT_MS"],
+    "compatibility_route": "/api/cron/rlx-financeiro",
+    "historical_migrations_and_reports": true
+  },
+  "unexpected_legacy": [],
+  "credential_rotation_required": true
+}
