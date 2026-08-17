@@ -56,9 +56,15 @@ try {
 
   const identities = await db.query(`
     SELECT
-      ARRAY(SELECT id FROM public.profiles WHERE status::text='ativo' AND role::text='gestor' ORDER BY id LIMIT 2) AS gestores,
+      ARRAY(SELECT p.id FROM public.profiles p WHERE p.status::text='ativo' AND p.role::text='gestor'
+        AND NOT EXISTS (SELECT 1 FROM public.usuario_papeis up WHERE up.usuario_id=p.id AND up.papel::text='super_admin' AND up.ativo)
+        ORDER BY p.id LIMIT 2) AS gestores,
       (SELECT p.id FROM public.profiles p JOIN public.usuario_papeis up ON up.usuario_id=p.id
-        WHERE p.status::text='ativo' AND up.papel::text='super_admin' AND up.ativo ORDER BY p.id LIMIT 1) AS super_admin,
+        WHERE p.status::text='ativo' AND p.role::text='super_admin'
+          AND up.papel::text='super_admin' AND up.ativo ORDER BY p.id LIMIT 1) AS super_admin_puro,
+      (SELECT p.id FROM public.profiles p JOIN public.usuario_papeis up ON up.usuario_id=p.id
+        WHERE p.status::text='ativo' AND p.role::text='gestor'
+          AND up.papel::text='super_admin' AND up.ativo ORDER BY p.id LIMIT 1) AS super_admin_gestor,
       (SELECT id FROM public.profiles WHERE status::text='ativo' AND role::text='cedente' ORDER BY id LIMIT 1) AS cedente,
       (SELECT id FROM public.profiles WHERE status::text='ativo' AND role::text='sacado' ORDER BY id LIMIT 1) AS sacado,
       (SELECT id FROM public.profiles WHERE status::text='ativo' AND role::text='consultor' ORDER BY id LIMIT 1) AS consultor
@@ -68,7 +74,8 @@ try {
   const gestorB = ids.gestores?.[1] || ids.gestores?.[0]
   check(Boolean(gestorA), 'massa possui Gestor para Fundo A')
   check(Boolean(gestorB), 'massa possui Gestor para Fundo B')
-  check(Boolean(ids.super_admin), 'massa possui Super Admin')
+  check(Boolean(ids.super_admin_puro), 'massa possui Super Admin puro')
+  check(Boolean(ids.super_admin_gestor), 'massa possui Super Admin com papel operacional gestor')
   check(Boolean(ids.cedente), 'massa possui Cedente')
   check(Boolean(ids.sacado), 'massa possui Sacado')
   if (failures.length) throw new Error('Perfis obrigatorios da massa nao foram encontrados')
@@ -107,7 +114,7 @@ try {
     fixtures.set(fundId, { executionId, resultId })
   }
 
-  for (const userId of new Set([gestorA, gestorB, ids.super_admin])) {
+  for (const userId of new Set([gestorA, gestorB, ids.super_admin_puro, ids.super_admin_gestor])) {
     await db.query('DELETE FROM public.usuario_fundos WHERE usuario_id=$1 AND fundo_id=ANY($2)', [userId, [MAIN_FUND_ID, OTHER_FUND_ID]])
   }
   await db.query(`
@@ -137,14 +144,14 @@ try {
   check(await visible(OTHER_FUND_ID) === 1, 'Gestor Fundo B le resultados B')
   if (gestorB !== gestorA) check(await visible(MAIN_FUND_ID) === 0, 'Gestor Fundo B nao le resultados A')
 
-  await actor(ids.super_admin)
+  await actor(ids.super_admin_puro)
   check(await visible(MAIN_FUND_ID) === 0 && await visible(OTHER_FUND_ID) === 0, 'Super Admin puro nao recebe acesso operacional')
   await db.query('RESET ROLE')
   await db.query(`
     INSERT INTO public.usuario_fundos (id,usuario_id,fundo_id,perfil_no_fundo,status,principal)
     VALUES (gen_random_uuid(),$1,$2,'gestor','ativo',false)
-  `, [ids.super_admin, MAIN_FUND_ID])
-  await actor(ids.super_admin)
+  `, [ids.super_admin_gestor, MAIN_FUND_ID])
+  await actor(ids.super_admin_gestor)
   check(await visible(MAIN_FUND_ID) === 1 && await visible(OTHER_FUND_ID) === 0, 'Hibrido le apenas o fundo com vinculo gestor ativo')
 
   for (const [label, id] of [

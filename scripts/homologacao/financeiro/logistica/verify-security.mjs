@@ -81,21 +81,28 @@ try {
 
   const identities = await db.query(`
     SELECT
-      (SELECT id FROM public.profiles WHERE status::text='ativo' AND role::text='gestor' ORDER BY id LIMIT 1) gestor,
+      (SELECT p.id FROM public.profiles p WHERE p.status::text='ativo' AND p.role::text='gestor'
+        AND NOT EXISTS (SELECT 1 FROM public.usuario_papeis up WHERE up.usuario_id=p.id AND up.papel::text='super_admin' AND up.ativo)
+        ORDER BY p.id LIMIT 1) gestor,
       (SELECT p.id FROM public.profiles p JOIN public.usuario_papeis up ON up.usuario_id=p.id
-        WHERE p.status::text='ativo' AND up.papel::text='super_admin' AND up.ativo ORDER BY p.id LIMIT 1) super_admin,
+        WHERE p.status::text='ativo' AND p.role::text='super_admin'
+          AND up.papel::text='super_admin' AND up.ativo ORDER BY p.id LIMIT 1) super_admin_puro,
+      (SELECT p.id FROM public.profiles p JOIN public.usuario_papeis up ON up.usuario_id=p.id
+        WHERE p.status::text='ativo' AND p.role::text='gestor'
+          AND up.papel::text='super_admin' AND up.ativo ORDER BY p.id LIMIT 1) super_admin_gestor,
       (SELECT id FROM public.profiles WHERE status::text='ativo' AND role::text='cedente' ORDER BY id LIMIT 1) cedente,
       (SELECT id FROM public.profiles WHERE status::text='ativo' AND role::text='sacado' ORDER BY id LIMIT 1) sacado,
       (SELECT id FROM public.profiles WHERE status::text='ativo' AND role::text='consultor' ORDER BY id LIMIT 1) consultor
   `)
   const ids = identities.rows[0]
   check(Boolean(ids.gestor), 'massa possui Gestor')
-  check(Boolean(ids.super_admin), 'massa possui Super Admin')
+  check(Boolean(ids.super_admin_puro), 'massa possui Super Admin puro')
+  check(Boolean(ids.super_admin_gestor), 'massa possui Super Admin com papel operacional gestor')
   check(Boolean(ids.cedente), 'massa possui Cedente')
   check(Boolean(ids.sacado), 'massa possui Sacado')
   if (failures.length) throw new Error('Perfis ou snapshots obrigatorios da homologacao nao foram encontrados.')
 
-  for (const userId of new Set([ids.gestor, ids.super_admin])) {
+  for (const userId of new Set([ids.gestor, ids.super_admin_puro, ids.super_admin_gestor])) {
     await db.query('DELETE FROM public.usuario_fundos WHERE usuario_id=$1 AND fundo_id=ANY($2)', [userId, [dataset.mainFund.id, dataset.adversarialFund.id]])
   }
   await db.query(`INSERT INTO public.usuario_fundos
@@ -116,13 +123,13 @@ try {
   check(await visible('posicao_logistica_resultados', dataset.adversarialFund.id) > 0, 'Gestor do outro fundo le somente sua posicao')
   check(await visible('posicao_logistica_resultados', dataset.mainFund.id) === 0, 'Gestor do outro fundo nao cruza para o principal')
 
-  await actor(ids.super_admin)
+  await actor(ids.super_admin_puro)
   check(await visible('posicao_logistica_execucoes', dataset.mainFund.id) === 0, 'Super Admin puro nao recebe acesso operacional')
   await db.query('RESET ROLE')
   await db.query(`INSERT INTO public.usuario_fundos
     (id,usuario_id,fundo_id,perfil_no_fundo,status,principal)
-    VALUES (gen_random_uuid(),$1,$2,'gestor','ativo',false)`, [ids.super_admin, dataset.mainFund.id])
-  await actor(ids.super_admin)
+    VALUES (gen_random_uuid(),$1,$2,'gestor','ativo',false)`, [ids.super_admin_gestor, dataset.mainFund.id])
+  await actor(ids.super_admin_gestor)
   check(await visible('posicao_logistica_resultados', dataset.mainFund.id) > 0, 'Perfil hibrido le fundo com vinculo gestor ativo')
   check(await visible('posicao_logistica_resultados', dataset.adversarialFund.id) === 0, 'Perfil hibrido nao amplia acesso para outro fundo')
 

@@ -8,16 +8,18 @@ import { buildMigrationInventory, sanitizeError } from './lib.mjs'
 import { captureSchemaSnapshot, closeDatabase, compareSchemaSnapshots, openDatabase } from './schema-snapshot.mjs'
 
 const HOMOLOG_REF = 'fhgkmggthxikfpogrvaa'
-const LOCAL_PROJECT_ID = 'bw-antecipa-p265-clean-room'
+const artifactPhase = process.env.BW_READINESS_ARTIFACT_PHASE || 'p2-6-5'
+const phaseCompact = artifactPhase.replaceAll('-', '')
+const LOCAL_PROJECT_ID = `bw-antecipa-${phaseCompact}-clean-room`
 const CLI_PATH = resolve('node_modules/supabase/dist/supabase.js')
 const BOOTSTRAP_CANDIDATE = resolve('scripts/perf9e/bootstrap/schema-base-candidate.sql')
 const runId = new Date().toISOString().replace(/[:.]/g, '-')
-const cleanRoot = resolve(process.env.LOCALAPPDATA || tmpdir(), 'BWAntecipa', 'p2-6-5', runId)
-const bootstrapPath = resolve('docs/financeiro/bootstrap-e2e-p2-6-5.json')
-const goldenPath = resolve('docs/financeiro/golden-clean-room-p2-6-5.json')
-const mainPath = resolve('docs/financeiro/clean-room-e2e-p2-6-5.json')
+const cleanRoot = resolve(process.env.LOCALAPPDATA || tmpdir(), 'BWAntecipa', artifactPhase, runId)
+const bootstrapPath = resolve(`docs/financeiro/bootstrap-e2e-${artifactPhase}.json`)
+const goldenPath = resolve(`docs/financeiro/golden-clean-room-${artifactPhase}.json`)
+const mainPath = resolve(`docs/financeiro/clean-room-e2e-${artifactPhase}.json`)
 const result = {
-  schema: 'bw-antecipa-p2-6-5-clean-room-e2e-v1', status: 'RUNNING',
+  schema: `bw-antecipa-${artifactPhase}-clean-room-e2e-v1`, status: 'RUNNING',
   started_at: new Date().toISOString(), node: process.version, project_id: LOCAL_PROJECT_ID,
   migration_history: null, schema_parity: null, bootstrap: null, golden: null,
   runtime: null,
@@ -33,7 +35,7 @@ try {
 } catch (error) {
   result.status = 'FAIL'
   result.failure = sanitizeError(error)
-  console.error(`P2.6.5 falhou: ${result.failure}`)
+  console.error(`${artifactPhase.toUpperCase().replaceAll('-', '.')} falhou: ${result.failure}`)
   process.exitCode = 1
 } finally {
   result.cleanup = stopLocalStack()
@@ -47,7 +49,7 @@ async function main() {
   const inventory = validateInventory()
   prepareIsolatedProject()
 
-  const start = runCli(['start', '--workdir', cleanRoot, '--exclude', 'studio,edge-runtime,logflare,vector,imgproxy,realtime', '--yes'], true)
+  const start = startCleanRoomStack()
   if (start.status !== 0) throw new Error(`Supabase start: ${sanitizeOutput(start.combined)}`)
   stackStarted = true
   const reset = runCli(['db', 'reset', '--local', '--no-seed', '--workdir', cleanRoot], true)
@@ -68,27 +70,32 @@ async function main() {
     }
     if (result.migration_history.status !== 'PASS') throw new Error(`Historico clean-room ${applied}/${inventory.total}; bootstrap=${bootstrapApplied}.`)
 
-    const localSnapshot = await captureSchemaSnapshot(localDb, 'clean-room-p2-6-5')
-    const remoteDb = await openDatabase(loadHomologDbUrl(), 'bw_antecipa_p265_homolog_snapshot', true)
-    try {
-      const remoteHistory = await remoteDb.query('select version::text from supabase_migrations.schema_migrations order by version')
-      const remoteApplied = remoteHistory.rows.filter((item) => active.has(item.version)).length
-      result.migration_history.remote_applied = remoteApplied
-      result.migration_history.remote_total_history_rows = remoteHistory.rowCount
-      result.migration_history.remote_status = remoteApplied === inventory.total ? 'PASS' : 'FAIL'
-      if (result.migration_history.remote_status !== 'PASS') {
-        throw new Error(`Historico remoto de homologacao ${remoteApplied}/${inventory.total}.`)
+    const localSnapshot = await captureSchemaSnapshot(localDb, `clean-room-${artifactPhase}`)
+    if (process.env.BW_READINESS_SKIP_REMOTE_PARITY === '1') {
+      result.schema_parity = { status: 'DEFERRED_PRE_HOMOLOG', material_differences: null, allowed_differences: null }
+      result.migration_history.remote_status = 'DEFERRED_PRE_HOMOLOG'
+    } else {
+      const remoteDb = await openDatabase(loadHomologDbUrl(), 'bw_antecipa_p265_homolog_snapshot', true)
+      try {
+        const remoteHistory = await remoteDb.query('select version::text from supabase_migrations.schema_migrations order by version')
+        const remoteApplied = remoteHistory.rows.filter((item) => active.has(item.version)).length
+        result.migration_history.remote_applied = remoteApplied
+        result.migration_history.remote_total_history_rows = remoteHistory.rowCount
+        result.migration_history.remote_status = remoteApplied === inventory.total ? 'PASS' : 'FAIL'
+        if (result.migration_history.remote_status !== 'PASS') {
+          throw new Error(`Historico remoto de homologacao ${remoteApplied}/${inventory.total}.`)
+        }
+        const remoteSnapshot = await captureSchemaSnapshot(remoteDb, `homolog-${artifactPhase}`)
+        const parity = compareSchemaSnapshots(remoteSnapshot, localSnapshot)
+        result.schema_parity = {
+          status: parity.status, material_differences: parity.material_differences.length,
+          allowed_differences: parity.allowed_differences.length,
+          allowed_details: parity.allowed_differences,
+        }
+        if (parity.status !== 'PASS') throw new Error(`Schema parity possui ${parity.material_differences.length} diferencas materiais.`)
+      } finally {
+        await closeDatabase(remoteDb, true)
       }
-      const remoteSnapshot = await captureSchemaSnapshot(remoteDb, 'homolog-p2-6-5')
-      const parity = compareSchemaSnapshots(remoteSnapshot, localSnapshot)
-      result.schema_parity = {
-        status: parity.status, material_differences: parity.material_differences.length,
-        allowed_differences: parity.allowed_differences.length,
-        allowed_details: parity.allowed_differences,
-      }
-      if (parity.status !== 'PASS') throw new Error(`Schema parity possui ${parity.material_differences.length} diferencas materiais.`)
-    } finally {
-      await closeDatabase(remoteDb, true)
     }
   } finally {
     await closeDatabase(localDb)
@@ -107,10 +114,10 @@ async function main() {
     rest_api: await health(`${local.apiUrl}/rest/v1/`, local.anonKey),
     storage_api: await health(`${local.apiUrl}/storage/v1/bucket`, local.serviceRoleKey),
   }
-  writeJson(bootstrapPath, { schema: 'bw-antecipa-p2-6-5-bootstrap-v1', ...result.bootstrap, migration_history: result.migration_history, schema_parity: result.schema_parity })
+  writeJson(bootstrapPath, { schema: `bw-antecipa-${artifactPhase}-bootstrap-v1`, ...result.bootstrap, migration_history: result.migration_history, schema_parity: result.schema_parity })
   if (Object.values(result.bootstrap).some((value) => value === 'FAIL')) throw new Error('Health do Supabase local falhou.')
 
-  const golden = { schema: 'bw-antecipa-p2-6-5-golden-v1', v1: {}, v2: {}, p24: {}, p25: {}, p26: {}, status: 'RUNNING' }
+  const golden = { schema: `bw-antecipa-${artifactPhase}-golden-v1`, v1: {}, v2: {}, p24: {}, p25: {}, p26: {}, status: 'RUNNING' }
   writeJson(goldenPath, golden)
   const v1Confirmation = `SEED_RLX_GOLDEN_HOMOLOG_${LOCAL_PROJECT_ID}`
   golden.v1.fixtures = runNode(['scripts/homologacao/rlx-golden/generate-fixtures.mjs', '--check'], childEnv)
@@ -157,6 +164,12 @@ async function main() {
   result.cross_fund = 'PASS'
   result.storage_api = 'PASS'
 
+  if (process.env.BW_READINESS_TECHNICAL_ONLY === '1') {
+    result.application = 'DEFERRED_PRE_HOMOLOG'
+    result.repository_checks = 'DEFERRED_PRE_HOMOLOG'
+    return
+  }
+
   result.repository_checks = validateRepository(childEnv)
   if (Object.values(result.repository_checks).some((item) => item.status !== 'PASS')) {
     throw new Error('Uma ou mais validacoes obrigatorias do repositorio falharam.')
@@ -164,6 +177,17 @@ async function main() {
 
   result.application = await validateApplication(childEnv)
   if (result.application.status !== 'PASS') throw new Error(`Aplicacao local falhou: ${result.application.detail || 'health/cron invalido'}`)
+}
+
+function startCleanRoomStack() {
+  let last
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    last = runCli(['start', '--workdir', cleanRoot, '--exclude', 'studio,edge-runtime,logflare,vector,imgproxy,realtime', '--yes'], true)
+    if (last.status === 0) return last
+    if (!/not ready:\s*starting|LegacyStatusDbNotReadyError/i.test(last.combined) || attempt === 3) return last
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10_000)
+  }
+  return last
 }
 
 function assertRuntime() {
@@ -352,7 +376,7 @@ function loadHomologDbUrl() {
 function stopLocalStack() {
   if (!existsSync(resolve(cleanRoot, 'supabase/config.toml'))) return { status: 'NOT_STARTED' }
   const stopped = runCli(['stop', '--workdir', cleanRoot, '--no-backup'], true)
-  const allowedRoot = resolve(process.env.LOCALAPPDATA || tmpdir(), 'BWAntecipa', 'p2-6-5')
+  const allowedRoot = resolve(process.env.LOCALAPPDATA || tmpdir(), 'BWAntecipa', artifactPhase)
   if (stopped.status === 0 && cleanRoot.startsWith(`${allowedRoot}\\`)) {
     rmSync(cleanRoot, { recursive: true, force: true })
     return { status: 'PASS', stack_stopped: stackStarted, workspace_removed: true }

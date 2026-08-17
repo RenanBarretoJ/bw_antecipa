@@ -1,0 +1,45 @@
+{
+  "schema": "bw-antecipa-runner-fixes-p2-6-6-v1",
+  "status": "PASS",
+  "fixes": [
+    {
+      "id": "cte_notas_fiscais",
+      "problem": "O runner consultava a coluna id em uma tabela cuja identidade e composta.",
+      "correction": "A verificacao passou a consultar cte_id e nota_fiscal_id.",
+      "scope": "runner_only",
+      "evidence": "service_role -> linhagem CT-e/NF = ALLOW; matriz final PASS"
+    },
+    {
+      "id": "approval_status_transition",
+      "problem": "O teste anterior repetia o mesmo status e nao comprovava tentativa real de bypass.",
+      "correction": "Fixture descartavel em status solicitada tenta transicao direta para aprovada via Data API autenticada; estado e relido depois e cleanup e defensivo.",
+      "evidence": {
+        "status_before": "solicitada",
+        "attempted_status": "aprovada",
+        "actual": "DENY",
+        "status_after": "solicitada",
+        "trigger": "operacoes_bloquear_aprovacao_financeira_direta",
+        "trigger_active": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "deterministic_actor_selection",
+      "problem": "Selecao de atores podia confundir gestor puro, Super Admin puro e hibrido.",
+      "correction": "Os verificadores agora criam/selecionam atores deterministas e distinguem papel global, papel operacional e usuario_fundos.",
+      "evidence": "Super Admin puro DENY; hibrido gestor A ALLOW somente no fundo A."
+    },
+    {
+      "id": "operation_backed_cedente_fixture",
+      "problem": "O fixture do cedente nao garantia uma operacao pertencente ao proprio ator.",
+      "correction": "A operacao e a NF do CEDENTE_A agora sao selecionadas pela cadeia operacional real.",
+      "evidence": "CEDENTE_A -> operacoes proprias = ALLOW, rows_visible=1."
+    },
+    {
+      "id": "phase_scoped_artifacts",
+      "problem": "A reexecucao poderia sobrescrever evidencias historicas do P2.6.5.",
+      "correction": "BW_READINESS_ARTIFACT_PHASE separa os artefatos P2.6.6 e preserva o FAIL historico do P2.6.5.",
+      "evidence": "Artefatos p2-6-6 independentes gerados."
+    }
+  ]
+}

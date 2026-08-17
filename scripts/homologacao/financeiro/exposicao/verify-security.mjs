@@ -40,15 +40,18 @@ try {
     FROM pg_class c WHERE c.relnamespace='public'::regnamespace AND c.relname=ANY($1)`, [['exposicao_execucoes','exposicao_overlay_itens']])
   check(schema.rows.length === 2 && schema.rows.every((row) => row.relrowsecurity && row.auth_select && !row.auth_write && !row.anon_select && row.policies === 1), 'RLS/grants P2.5', schema.rows)
   const identities = await db.query(`SELECT
-    (SELECT id FROM public.profiles WHERE status::text='ativo' AND role::text='gestor' ORDER BY id LIMIT 1) gestor,
-    (SELECT p.id FROM public.profiles p JOIN public.usuario_papeis up ON up.usuario_id=p.id WHERE p.status::text='ativo' AND up.papel::text='super_admin' AND up.ativo ORDER BY p.id LIMIT 1) super_admin,
+    (SELECT p.id FROM public.profiles p WHERE p.status::text='ativo' AND p.role::text='gestor'
+      AND NOT EXISTS (SELECT 1 FROM public.usuario_papeis up WHERE up.usuario_id=p.id AND up.papel::text='super_admin' AND up.ativo)
+      ORDER BY p.id LIMIT 1) gestor,
+    (SELECT p.id FROM public.profiles p JOIN public.usuario_papeis up ON up.usuario_id=p.id WHERE p.status::text='ativo' AND p.role::text='super_admin' AND up.papel::text='super_admin' AND up.ativo ORDER BY p.id LIMIT 1) super_admin_puro,
+    (SELECT p.id FROM public.profiles p JOIN public.usuario_papeis up ON up.usuario_id=p.id WHERE p.status::text='ativo' AND p.role::text='gestor' AND up.papel::text='super_admin' AND up.ativo ORDER BY p.id LIMIT 1) super_admin_gestor,
     (SELECT id FROM public.profiles WHERE status::text='ativo' AND role::text='cedente' ORDER BY id LIMIT 1) cedente,
     (SELECT id FROM public.profiles WHERE status::text='ativo' AND role::text='consultor' ORDER BY id LIMIT 1) consultor,
     (SELECT id FROM public.profiles WHERE status::text='ativo' AND role::text='sacado' ORDER BY id LIMIT 1) sacado`)
   const ids = identities.rows[0]
-  check(Boolean(ids.gestor && ids.super_admin && ids.cedente && ids.sacado), 'perfis obrigatorios presentes', ids)
+  check(Boolean(ids.gestor && ids.super_admin_puro && ids.super_admin_gestor && ids.cedente && ids.sacado), 'perfis obrigatorios presentes', ids)
   if (failures.length) throw new Error('Massa de perfis incompleta.')
-  for (const id of new Set([ids.gestor, ids.super_admin])) await db.query('DELETE FROM public.usuario_fundos WHERE usuario_id=$1 AND fundo_id=ANY($2)', [id, [dataset.mainFund.id,dataset.adversarialFund.id]])
+  for (const id of new Set([ids.gestor, ids.super_admin_puro, ids.super_admin_gestor])) await db.query('DELETE FROM public.usuario_fundos WHERE usuario_id=$1 AND fundo_id=ANY($2)', [id, [dataset.mainFund.id,dataset.adversarialFund.id]])
   await db.query(`INSERT INTO public.usuario_fundos(id,usuario_id,fundo_id,perfil_no_fundo,status,principal) VALUES(gen_random_uuid(),$1,$2,'gestor','ativo',false)`, [ids.gestor,dataset.mainFund.id])
   await actor(ids.gestor)
   check(await visible('exposicao_execucoes', dataset.mainFund.id) > 0, 'Gestor A le fundo A')
@@ -58,11 +61,11 @@ try {
   await db.query(`INSERT INTO public.usuario_fundos(id,usuario_id,fundo_id,perfil_no_fundo,status,principal) VALUES(gen_random_uuid(),$1,$2,'gestor','ativo',false)`, [ids.gestor,dataset.adversarialFund.id])
   await actor(ids.gestor)
   check(await visible('exposicao_execucoes', dataset.mainFund.id) === 0, 'Gestor B nao cruza para fundo A')
-  await actor(ids.super_admin)
+  await actor(ids.super_admin_puro)
   check(await visible('exposicao_execucoes', dataset.mainFund.id) === 0, 'Super Admin puro sem acesso operacional')
   await db.query('RESET ROLE')
-  await db.query(`INSERT INTO public.usuario_fundos(id,usuario_id,fundo_id,perfil_no_fundo,status,principal) VALUES(gen_random_uuid(),$1,$2,'gestor','ativo',false)`, [ids.super_admin,dataset.mainFund.id])
-  await actor(ids.super_admin)
+  await db.query(`INSERT INTO public.usuario_fundos(id,usuario_id,fundo_id,perfil_no_fundo,status,principal) VALUES(gen_random_uuid(),$1,$2,'gestor','ativo',false)`, [ids.super_admin_gestor,dataset.mainFund.id])
+  await actor(ids.super_admin_gestor)
   check(await visible('exposicao_execucoes', dataset.mainFund.id) > 0, 'Hibrido com vinculo le fundo A')
   check(await visible('exposicao_execucoes', dataset.adversarialFund.id) === 0, 'Hibrido nao cruza fundo')
   for (const [label,id] of [['Cedente',ids.cedente],['Consultor',ids.consultor || '00000000-0000-0000-0000-000000000099'],['Sacado',ids.sacado]]) {

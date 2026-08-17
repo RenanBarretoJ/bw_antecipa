@@ -13,6 +13,8 @@ const dbUrl = process.env.SUPABASE_DB_URL || process.env.DATABASE_URL
 const localHosts = new Set(['127.0.0.1', 'localhost', '::1'])
 const bootstrapOnly = process.argv.includes('--bootstrap-only')
 const actorSeed = process.env.BW_P265_ACTOR_SEED
+const artifactPhase = process.env.BW_READINESS_ARTIFACT_PHASE || 'p2-6-5'
+const artifactTag = artifactPhase.toUpperCase().replaceAll('-', '.')
 for (const [label, value] of [['api', apiUrl], ['database', dbUrl]]) {
   if (!value || !localHosts.has(new URL(value).hostname)) throw new Error(`${label} precisa apontar para o clean-room local.`)
 }
@@ -26,9 +28,11 @@ const db = new pg.Client({ connectionString: dbUrl, application_name: 'bw_p265_a
 const dataset = buildGoldenV2()
 const fundA = dataset.mainFund
 const fundB = dataset.adversarialFund
-const cedentA = dataset.cedents.find((item) => item.fund.id === fundA.id)
+const operationA = dataset.operations.find((item) => item.note.fund.id === fundA.id)
+if (!operationA) throw new Error('Operacao sintetica do fundo A nao encontrada.')
+const cedentA = operationA.note.cedent
 const cedentB = dataset.cedents.find((item) => item.fund.id === fundB.id)
-const noteA = dataset.notes.find((item) => item.fund.id === fundA.id)
+const noteA = operationA.note
 const noteB = dataset.notes.find((item) => item.fund.id === fundB.id)
 const debtorA = dataset.debtors.find((item) => item.id === noteA.debtor.id)
 const matrix = []
@@ -45,14 +49,14 @@ await db.connect()
 try {
   await bootstrapActors()
   if (bootstrapOnly) {
-    console.log('P2.6.5: atores sinteticos locais preparados para os gates de seguranca.')
+    console.log(`${artifactTag}: atores sinteticos locais preparados para os gates de seguranca.`)
   } else {
     await authenticateActors()
     await executeDataMatrix()
     await executeStorageMatrix()
     assertNoCriticalFailures()
     writeArtifacts('PASS')
-    console.log(`P2.6.5 API: ${matrix.length} checks; cross-fund: ${crossFund.length}; storage: ${storage.length}.`)
+    console.log(`${artifactTag} API: ${matrix.length} checks; cross-fund: ${crossFund.length}; storage: ${storage.length}.`)
   }
 } catch (error) {
   if (!bootstrapOnly) writeArtifacts('FAIL', error instanceof Error ? error.message : String(error))
@@ -67,7 +71,7 @@ async function bootstrapActors() {
     ['GESTOR_A', 'gestor'], ['GESTOR_B', 'gestor'], ['CEDENTE_A', 'cedente'], ['CEDENTE_B', 'cedente'],
     ['CONSULTOR_A', 'consultor'], ['SACADO_A', 'sacado'], ['SUPER_ADMIN_PURO', 'gestor'], ['SUPER_ADMIN_GESTOR_A', 'gestor'],
   ]
-  if (!actorSeed) throw new Error('Seed efemero dos atores P2.6.5 ausente.')
+  if (!actorSeed) throw new Error(`Seed efemero dos atores ${artifactTag} ausente.`)
   const listed = await admin.auth.admin.listUsers({ page: 1, perPage: 200 })
   if (listed.error) throw new Error(`Listagem Auth local: ${listed.error.message}`)
   const byEmail = new Map(listed.data.users.map((user) => [user.email, user]))
@@ -143,7 +147,7 @@ async function executeDataMatrix() {
 
   await expectSelect('GESTOR_A', 'operacoes', fundA.id, 'ALLOW', matrix)
   await expectSelect('GESTOR_B', 'operacoes', fundA.id, 'DENY', crossFund)
-  await expectSelect('CEDENTE_A', 'operacoes', fundA.id, 'ALLOW', matrix)
+  await expectSelect('CEDENTE_A', 'operacoes', fundA.id, 'ALLOW', matrix, { id: operationA.id })
   await expectSelect('CEDENTE_B', 'operacoes', fundA.id, 'DENY', crossFund)
   await expectSelect('SUPER_ADMIN_PURO', 'operacoes', fundA.id, 'DENY', matrix)
   await expectSelect('SUPER_ADMIN_GESTOR_A', 'operacoes', fundA.id, 'ALLOW', matrix)
@@ -180,18 +184,15 @@ async function executeDataMatrix() {
   const anonInsert = await anon.from('fundos').insert({ id: randomUUID(), nome: 'P265 ANON LEAK' })
   record(matrix, { actor: 'ANON', resource: 'fundos', action: 'INSERT', expected: 'DENY', actual: anonInsert.error ? 'DENY' : 'ALLOW', http_status: anonInsert.status, error_code: anonInsert.error?.code })
 
-  const operation = dataset.operations.find((item) => item.note.fund.id === fundA.id)
-  if (!operation) throw new Error('Operacao sintetica do fundo A nao encontrada.')
-  const direct = await actors.GESTOR_A.client.from('operacoes').update({ status: 'liquidada' }).eq('id', operation.id).select('id')
-  record(matrix, { actor: 'GESTOR_A', resource: 'operacoes', action: 'UPDATE_STATUS_DIRETO', expected: 'DENY', actual: direct.error || !direct.data?.length ? 'DENY' : 'ALLOW', http_status: direct.status, error_code: direct.error?.code })
+  await validateDirectApprovalBypass()
 
-  const superAdminDirect = await actors.SUPER_ADMIN_PURO.client.from('operacoes').update({ status: 'liquidada' }).eq('id', operation.id).select('id')
+  const superAdminDirect = await actors.SUPER_ADMIN_PURO.client.from('operacoes').update({ status: 'aprovada' }).eq('id', dataset.riskCandidateOperation.id).select('id')
   record(matrix, { actor: 'SUPER_ADMIN_PURO', resource: 'operacoes', action: 'UPDATE_STATUS_DIRETO', expected: 'DENY', actual: superAdminDirect.error || !superAdminDirect.data?.length ? 'DENY' : 'ALLOW', http_status: superAdminDirect.status, error_code: superAdminDirect.error?.code })
 
-  await expectRpcDenied('GESTOR_A', 'aprovar_operacao_atomica', { p_operacao_id: operation.id, p_taxa_desconto: 3.99 }, matrix)
-  await expectRpcDenied('GESTOR_A', 'aprovar_operacao_atomica_financeiro_v1', { p_operacao_id: operation.id, p_taxa_desconto: 3.99 }, matrix)
-  await expectRpcDenied('ANON', 'aprovar_operacao_atomica', { p_operacao_id: operation.id, p_taxa_desconto: 3.99 }, matrix)
-  await expectBlockedApprovalGate(operation)
+  await expectRpcDenied('GESTOR_A', 'aprovar_operacao_atomica', { p_operacao_id: operationA.id, p_taxa_desconto: 3.99 }, matrix)
+  await expectRpcDenied('GESTOR_A', 'aprovar_operacao_atomica_financeiro_v1', { p_operacao_id: operationA.id, p_taxa_desconto: 3.99 }, matrix)
+  await expectRpcDenied('ANON', 'aprovar_operacao_atomica', { p_operacao_id: operationA.id, p_taxa_desconto: 3.99 }, matrix)
+  await expectBlockedApprovalGate(operationA)
 
   await validateLogisticsDocumentsApi()
 
@@ -216,6 +217,43 @@ async function executeRawAndCrossWriteMatrix() {
   if (operationCurrent.error) throw new Error(`Fixture da operacao principal: ${operationCurrent.error.message}`)
   const crossOperationWrite = await actors.GESTOR_B.client.from('operacoes').update({ status: operationCurrent.data.status }).eq('id', operationA.id).select('id')
   record(crossFund, { actor: 'GESTOR_B', resource: 'operacoes', action: 'UPDATE_FUNDO_A', expected: 'DENY', actual: crossOperationWrite.error || !crossOperationWrite.data?.length ? 'DENY' : 'ALLOW', http_status: crossOperationWrite.status, error_code: crossOperationWrite.error?.code })
+}
+
+async function validateDirectApprovalBypass() {
+  const operationId = dataset.riskCandidateOperation.id
+  const before = await admin.from('operacoes').select('status').eq('id', operationId).single()
+  if (before.error) throw new Error(`Fixture descartavel do bypass: ${before.error.message}`)
+  if (before.data.status === 'aprovada') throw new Error('Fixture descartavel do bypass ja esta aprovada.')
+
+  const trigger = await db.query(`SELECT t.tgenabled
+    FROM pg_trigger t
+    JOIN pg_class c ON c.oid=t.tgrelid
+    JOIN pg_namespace n ON n.oid=c.relnamespace
+    WHERE n.nspname='public' AND c.relname='operacoes'
+      AND t.tgname='operacoes_bloquear_aprovacao_financeira_direta'
+      AND NOT t.tgisinternal`)
+  record(matrix, {
+    actor: 'DATABASE', resource: 'operacoes_bloquear_aprovacao_financeira_direta', action: 'TRIGGER_ATIVO',
+    expected: 'ALLOW', actual: trigger.rows[0]?.tgenabled === 'O' ? 'ALLOW' : 'DENY',
+    http_status: null, rows_visible: trigger.rowCount,
+  })
+
+  const direct = await actors.GESTOR_A.client.from('operacoes')
+    .update({ status: 'aprovada' }).eq('id', operationId).select('id,status')
+  const after = await admin.from('operacoes').select('status').eq('id', operationId).single()
+  if (after.error) throw new Error(`Leitura posterior do bypass: ${after.error.message}`)
+
+  const denied = Boolean(direct.error || !direct.data?.length) && after.data.status !== 'aprovada'
+  record(matrix, {
+    actor: 'GESTOR_A', resource: 'operacoes', action: 'UPDATE_STATUS_DIRETO', expected: 'DENY',
+    actual: denied ? 'DENY' : 'ALLOW', http_status: direct.status, error_code: direct.error?.code,
+    status_before: before.data.status, attempted_status: 'aprovada', status_after: after.data.status,
+  })
+
+  // Defesa de cleanup para o caso de regressao: o fixture descartavel nunca fica aprovado.
+  if (after.data.status === 'aprovada') {
+    await admin.from('operacoes').update({ status: before.data.status }).eq('id', operationId)
+  }
 }
 
 async function executeFinancialViewsMatrix() {
@@ -288,10 +326,55 @@ async function validateLogisticsDocumentsApi() {
   await expectByColumn('GESTOR_A', 'canhotos', 'id', proof.rows[0].id, 'ALLOW', matrix)
   await expectByColumn('GESTOR_B', 'canhotos', 'id', proof.rows[0].id, 'DENY', crossFund)
 
-  const cteLink = await admin.from('cte_notas_fiscais').select('id,cte_id,nota_fiscal_id').eq('cte_id', cte.data.id).limit(1).maybeSingle()
+  const cteLink = await admin.from('cte_notas_fiscais').select('cte_id,nota_fiscal_id').eq('cte_id', cte.data.id).limit(1).maybeSingle()
   record(matrix, { actor: 'SERVICE_ROLE', resource: 'cte_notas_fiscais', action: 'LINHAGEM_CTE_NF', expected: 'ALLOW', actual: !cteLink.error && cteLink.data ? 'ALLOW' : 'DENY', http_status: cteLink.status, error_code: cteLink.error?.code || (!cteLink.data ? 'FIXTURE_MISSING' : undefined) })
+  if (cteLink.data) {
+    await expectCteLink('GESTOR_A', cteLink.data.cte_id, cteLink.data.nota_fiscal_id, 'ALLOW', matrix)
+    await expectCteLink('GESTOR_B', cteLink.data.cte_id, cteLink.data.nota_fiscal_id, 'DENY', crossFund)
+    await expectCteLink('SUPER_ADMIN_PURO', cteLink.data.cte_id, cteLink.data.nota_fiscal_id, 'DENY', matrix)
+    await expectCteLink('SUPER_ADMIN_GESTOR_A', cteLink.data.cte_id, cteLink.data.nota_fiscal_id, 'ALLOW', matrix)
+  }
   const delivery = await admin.from('nota_fiscal_entregas').select('id,nota_fiscal_id').eq('id', proof.rows[0].entrega_id).limit(1).maybeSingle()
   record(matrix, { actor: 'SERVICE_ROLE', resource: 'nota_fiscal_entregas', action: 'LINHAGEM_LOGISTICA_NF', expected: 'ALLOW', actual: !delivery.error && delivery.data ? 'ALLOW' : 'DENY', http_status: delivery.status, error_code: delivery.error?.code || (!delivery.data ? 'FIXTURE_MISSING' : undefined) })
+
+  const documental = await db.query(`SELECT
+      vinculo.id AS vinculo_id,
+      vinculo.documento_id,
+      versao.id AS versao_id,
+      requisito.id AS requisito_id
+    FROM public.documento_vinculos vinculo
+    LEFT JOIN public.documento_versoes versao ON versao.documento_id=vinculo.documento_id
+    LEFT JOIN public.documento_requisito_instancias requisito ON requisito.nota_fiscal_id=vinculo.nota_fiscal_id
+    WHERE vinculo.nota_fiscal_id=$1
+    ORDER BY versao.numero_versao DESC NULLS LAST
+    LIMIT 1`, [noteA.id])
+  const doc = documental.rows[0]
+  if (!doc?.documento_id || !doc?.versao_id || !doc?.vinculo_id || !doc?.requisito_id) {
+    throw new Error('Fixtures documentais completas do fundo A ausentes.')
+  }
+  for (const [table, id] of [
+    ['documentos_repositorio', doc.documento_id],
+    ['documento_versoes', doc.versao_id],
+    ['documento_vinculos', doc.vinculo_id],
+    ['documento_requisito_instancias', doc.requisito_id],
+    ['nota_fiscal_entregas', proof.rows[0].entrega_id],
+  ]) {
+    await expectScopedIdMatrix(table, id)
+  }
+
+  await db.query(`INSERT INTO public.eventos_entrega
+    (id,nota_fiscal_entrega_id,tipo_evento,ator_tipo,dados)
+    SELECT $1,$2,'cte_pendente','sistema',$3::jsonb
+    WHERE NOT EXISTS (
+      SELECT 1 FROM public.eventos_entrega WHERE nota_fiscal_entrega_id=$2
+    )`, [randomUUID(), proof.rows[0].entrega_id, JSON.stringify({ qa: artifactTag })])
+  const event = await admin.from('eventos_entrega').select('id').eq('nota_fiscal_entrega_id', proof.rows[0].entrega_id).limit(1).maybeSingle()
+  if (event.error) throw new Error(`Fixture eventos_entrega: ${event.error.message}`)
+  if (!event.data?.id) throw new Error('Fixture eventos_entrega do fundo A ausente.')
+  await expectScopedIdMatrix('eventos_entrega', event.data.id)
+
+  await expectScopedIdMatrix('ctes', cte.data.id)
+  await expectScopedIdMatrix('canhotos', proof.rows[0].id)
 }
 
 async function executeStorageMatrix() {
@@ -357,6 +440,27 @@ async function expectByColumn(actorName, table, column, value, expected, target)
   })
 }
 
+async function expectScopedIdMatrix(table, id) {
+  await expectByColumn('GESTOR_A', table, 'id', id, 'ALLOW', matrix)
+  await expectByColumn('GESTOR_B', table, 'id', id, 'DENY', crossFund)
+  await expectByColumn('SUPER_ADMIN_PURO', table, 'id', id, 'DENY', matrix)
+  await expectByColumn('SUPER_ADMIN_GESTOR_A', table, 'id', id, 'ALLOW', matrix)
+}
+
+async function expectCteLink(actorName, cteId, notaFiscalId, expected, target) {
+  const response = await actors[actorName].client.from('cte_notas_fiscais')
+    .select('cte_id,nota_fiscal_id')
+    .eq('cte_id', cteId)
+    .eq('nota_fiscal_id', notaFiscalId)
+    .limit(1)
+  record(target, {
+    actor: actorName, resource: 'cte_notas_fiscais', action: 'SELECT_CTE_NOTA',
+    expected, actual: !response.error && response.data?.length ? 'ALLOW' : 'DENY',
+    http_status: response.status, error_code: response.error?.code,
+    rows_visible: response.data?.length || 0,
+  })
+}
+
 async function expectDirectInsertDenied(actorName, table, payload, target) {
   const response = await actors[actorName].client.from(table).insert(payload).select('id')
   record(target, {
@@ -415,9 +519,10 @@ function assertNoCriticalFailures() {
 }
 
 function writeArtifacts(status, failure = null) {
-  writeJson('docs/financeiro/api-auth-matrix-p2-6-5.json', { schema: 'bw-antecipa-p2-6-5-api-auth-v1', status, actors: actorSessions, checks: matrix, failure })
-  writeJson('docs/financeiro/cross-fund-api-p2-6-5.json', { schema: 'bw-antecipa-p2-6-5-cross-fund-v1', status, checks: crossFund, zero_leak: !criticalLeak, failure })
-  writeJson('docs/financeiro/storage-api-p2-6-5.json', { schema: 'bw-antecipa-p2-6-5-storage-v1', status, checks: storage, failure })
+  const matrixName = artifactPhase === 'p2-6-6' ? 'access-matrix-p2-6-6.json' : `api-auth-matrix-${artifactPhase}.json`
+  writeJson(`docs/financeiro/${matrixName}`, { schema: `bw-antecipa-${artifactPhase}-api-auth-v1`, status, actors: actorSessions, checks: matrix, failure })
+  writeJson(`docs/financeiro/cross-fund-api-${artifactPhase}.json`, { schema: `bw-antecipa-${artifactPhase}-cross-fund-v1`, status, checks: crossFund, zero_leak: !criticalLeak, failure })
+  writeJson(`docs/financeiro/storage-api-${artifactPhase}.json`, { schema: `bw-antecipa-${artifactPhase}-storage-v1`, status, checks: storage, failure })
 }
 
 function writeJson(path, value) {

@@ -67,16 +67,19 @@ try {
   check(policy.rows[0].approval.includes('operacao_updated_at_snapshot IS DISTINCT FROM v_op.updated_at'), 'TOCTOU por snapshot', null)
 
   const identities = await db.query(`select
-    (select id from public.profiles where status::text='ativo' and role::text='gestor' order by id limit 1) gestor,
-    (select p.id from public.profiles p join public.usuario_papeis up on up.usuario_id=p.id where p.status::text='ativo' and up.papel::text='super_admin' and up.ativo order by p.id limit 1) super_admin,
+    (select p.id from public.profiles p where p.status::text='ativo' and p.role::text='gestor'
+      and not exists (select 1 from public.usuario_papeis up where up.usuario_id=p.id and up.papel::text='super_admin' and up.ativo)
+      order by p.id limit 1) gestor,
+    (select p.id from public.profiles p join public.usuario_papeis up on up.usuario_id=p.id where p.status::text='ativo' and p.role::text='super_admin' and up.papel::text='super_admin' and up.ativo order by p.id limit 1) super_admin_puro,
+    (select p.id from public.profiles p join public.usuario_papeis up on up.usuario_id=p.id where p.status::text='ativo' and p.role::text='gestor' and up.papel::text='super_admin' and up.ativo order by p.id limit 1) super_admin_gestor,
     (select id from public.profiles where status::text='ativo' and role::text='cedente' order by id limit 1) cedente,
     (select id from public.profiles where status::text='ativo' and role::text='consultor' order by id limit 1) consultor,
     (select id from public.profiles where status::text='ativo' and role::text='sacado' order by id limit 1) sacado`)
   const ids = identities.rows[0]
-  check(Boolean(ids.gestor && ids.super_admin && ids.cedente && ids.sacado), 'perfis obrigatorios presentes', ids)
+  check(Boolean(ids.gestor && ids.super_admin_puro && ids.super_admin_gestor && ids.cedente && ids.sacado), 'perfis obrigatorios presentes', ids)
   if (failures.length) throw new Error('Pre-condicoes de seguranca incompletas.')
 
-  for (const id of new Set([ids.gestor, ids.super_admin])) {
+  for (const id of new Set([ids.gestor, ids.super_admin_puro, ids.super_admin_gestor])) {
     await db.query('delete from public.usuario_fundos where usuario_id=$1 and fundo_id=any($2)', [id, [dataset.mainFund.id,dataset.adversarialFund.id]])
   }
   await db.query(`insert into public.usuario_fundos(id,usuario_id,fundo_id,perfil_no_fundo,status,principal)
@@ -93,12 +96,12 @@ try {
   check(await visible('risco_execucoes', dataset.mainFund.id) === 0, 'Gestor B nao cruza para fundo A', null)
   check(await visible('risco_execucoes', dataset.adversarialFund.id) > 0, 'Gestor B le risco do fundo B', null)
 
-  await actor(ids.super_admin)
+  await actor(ids.super_admin_puro)
   check(await visible('risco_execucoes', dataset.mainFund.id) === 0, 'Super Admin puro sem visao operacional', null)
   await db.query('RESET ROLE')
   await db.query(`insert into public.usuario_fundos(id,usuario_id,fundo_id,perfil_no_fundo,status,principal)
-    values(gen_random_uuid(),$1,$2,'gestor','ativo',false)`, [ids.super_admin,dataset.mainFund.id])
-  await actor(ids.super_admin)
+    values(gen_random_uuid(),$1,$2,'gestor','ativo',false)`, [ids.super_admin_gestor,dataset.mainFund.id])
+  await actor(ids.super_admin_gestor)
   check(await visible('risco_execucoes', dataset.mainFund.id) > 0, 'Hibrido com vinculo le fundo A', null)
   check(await visible('risco_execucoes', dataset.adversarialFund.id) === 0, 'Hibrido nao cruza para fundo B', null)
 
