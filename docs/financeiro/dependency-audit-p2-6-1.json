@@ -1,0 +1,35 @@
+{
+  "schema": "bw-antecipa-p2-6-1-dependency-audit-v1",
+  "command": "npm audit --omit=dev --json",
+  "status": "FAIL",
+  "blocker": true,
+  "vulnerabilities": {
+    "total": 23,
+    "info": 0,
+    "low": 2,
+    "moderate": 4,
+    "high": 16,
+    "critical": 1
+  },
+  "direct_dependencies": [
+    {
+      "package": "handlebars",
+      "severity": "critical",
+      "affected_range": "4.0.0 - 4.7.8",
+      "fix_available": true
+    },
+    {
+      "package": "next",
+      "severity": "high",
+      "affected_range": "9.3.4-canary.0 - 16.3.0-preview.10",
+      "fix_available": true
+    },
+    {
+      "package": "puppeteer-core",
+      "severity": "high",
+      "affected_range": "19.8.4 - 24.43.1",
+      "fix_available": "25.8.0 (major)"
+    }
+  ],
+  "decision": "Nao atualizar dependencias dentro do P2.6.1. Abrir correcao dedicada, aplicar upgrades controlados e reexecutar build, documentos/PDFs e toda a matriz de regressao."
+}

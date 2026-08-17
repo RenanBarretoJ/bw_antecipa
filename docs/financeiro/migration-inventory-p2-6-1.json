@@ -1,0 +1,929 @@
+{
+  "schema": "bw-antecipa-p2-6-1-readiness-v1",
+  "total": 115,
+  "first": "003_storage_buckets_env.sql",
+  "last": "20260814230000_p2_6_gate_risco_decisao_operacional.sql",
+  "manifest_sha256": "a8f165b54ffe759851cea7fd52e086590d0eb55771222a08feee85a5fa911a09",
+  "migrations": [
+    {
+      "ordem": 1,
+      "filename": "003_storage_buckets_env.sql",
+      "timestamp": "003",
+      "nome": "storage_buckets_env",
+      "bytes": 5384,
+      "sha256": "4ba544c24bed3aa1c1e3cc1fc96fb4182ad51cb756e807cf8f00cc6f0ab48a7a"
+    },
+    {
+      "ordem": 2,
+      "filename": "004_aceite_sacado_em.sql",
+      "timestamp": "004",
+      "nome": "aceite_sacado_em",
+      "bytes": 406,
+      "sha256": "cdd6861559be3b6013b7f94ee491c679f01e4484d1721fb9f750c5866889dd1e"
+    },
+    {
+      "ordem": 3,
+      "filename": "005_testemunhas.sql",
+      "timestamp": "005",
+      "nome": "testemunhas",
+      "bytes": 1056,
+      "sha256": "e6bec003fd61fdbce9be04df34b019af3dc8a725b0bf0b227747542e91e7e4a7"
+    },
+    {
+      "ordem": 4,
+      "filename": "006_documentos_assinados.sql",
+      "timestamp": "006",
+      "nome": "documentos_assinados",
+      "bytes": 304,
+      "sha256": "9940ff0c5240e81d77e455b7fe5dbcf97e562d0a420429c8b7ca479528b799bb"
+    },
+    {
+      "ordem": 5,
+      "filename": "007_rename_aceite_sacado_em.sql",
+      "timestamp": "007",
+      "nome": "rename_aceite_sacado_em",
+      "bytes": 168,
+      "sha256": "043fc17128d3bafc241a1c5d5ab27be8ab40c65053cb29e6244a3ec73d97e9a0"
+    },
+    {
+      "ordem": 6,
+      "filename": "008_document_update_request.sql",
+      "timestamp": "008",
+      "nome": "document_update_request",
+      "bytes": 255,
+      "sha256": "eed67a8da9b3e12b865717209ee73d8651cf283bfea86238a3ee4185061ffb12"
+    },
+    {
+      "ordem": 7,
+      "filename": "009_habilitar_escrow_cedente.sql",
+      "timestamp": "009",
+      "nome": "habilitar_escrow_cedente",
+      "bytes": 167,
+      "sha256": "9b0e294c524c9b2c5aa4b0abc1e7dca197bd3a4e0a26fc2558edea13c8347a5d"
+    },
+    {
+      "ordem": 8,
+      "filename": "010_solicitacoes_alteracao_cedente.sql",
+      "timestamp": "010",
+      "nome": "solicitacoes_alteracao_cedente",
+      "bytes": 1624,
+      "sha256": "5cc92074cc180b25cd4274b5c1083152ed16352c04f71e1cac99ce0640942ab1"
+    },
+    {
+      "ordem": 9,
+      "filename": "011_cedente_acessos.sql",
+      "timestamp": "011",
+      "nome": "cedente_acessos",
+      "bytes": 1729,
+      "sha256": "7d630bc95b10879dce83555e5e05ff4978644bbef7d981a07c86da779edbcc5b"
+    },
+    {
+      "ordem": 10,
+      "filename": "012_storage_policies_acesso_vinculado.sql",
+      "timestamp": "012",
+      "nome": "storage_policies_acesso_vinculado",
+      "bytes": 2307,
+      "sha256": "703e242e477dd692092e85c047f4ad53c20a7db74e1ec82b9bb5a75ba1d3367d"
+    },
+    {
+      "ordem": 11,
+      "filename": "013_nf_solicitar_ajuste.sql",
+      "timestamp": "013",
+      "nome": "nf_solicitar_ajuste",
+      "bytes": 137,
+      "sha256": "235e2efa1d91e13f6be08af8c21a6345bd7bc374848ccd080e2137f5f1df7f49"
+    },
+    {
+      "ordem": 12,
+      "filename": "014_coobrigacao_notificacao.sql",
+      "timestamp": "014",
+      "nome": "coobrigacao_notificacao",
+      "bytes": 324,
+      "sha256": "77ebce503ceeeabafa327171fba64614c3b80fb96bbd9f7924e61481a99709e9"
+    },
+    {
+      "ordem": 13,
+      "filename": "015_remessa_fromtis.sql",
+      "timestamp": "015",
+      "nome": "remessa_fromtis",
+      "bytes": 404,
+      "sha256": "35194d2c6224a85ac6dd5e9952a8a4956f06ea9ae87bbcbf3dd359386094da3b"
+    },
+    {
+      "ordem": 14,
+      "filename": "016_termo_quitacao.sql",
+      "timestamp": "016",
+      "nome": "termo_quitacao",
+      "bytes": 335,
+      "sha256": "638ba7fecf2098fc4f20d3d665b7575dcccc5954d6d9ee5d769b0ad1a43ad8ff"
+    },
+    {
+      "ordem": 15,
+      "filename": "20260720203009_fase1_auditoria_atores_origem.sql",
+      "timestamp": "20260720203009",
+      "nome": "fase1_auditoria_atores_origem",
+      "bytes": 1995,
+      "sha256": "1e048b35ddcc8aa407b99201fa47f86a3d00c62be2c415305e6b2bcbe24f5eea"
+    },
+    {
+      "ordem": 16,
+      "filename": "20260721123935_fase2_nucleo_multifundo_politicas_snapshot.sql",
+      "timestamp": "20260721123935",
+      "nome": "fase2_nucleo_multifundo_politicas_snapshot",
+      "bytes": 19003,
+      "sha256": "9fa469e34a42992863600f45bdc214f3195bfd39d728bfc0e6f24db4d5d21786"
+    },
+    {
+      "ordem": 17,
+      "filename": "20260721132903_fase3_repositorio_documental_nf.sql",
+      "timestamp": "20260721132903",
+      "nome": "fase3_repositorio_documental_nf",
+      "bytes": 25594,
+      "sha256": "eba7c2917a4d52f64687df047c7787a110523ad4553d143a81d6ce0ca45a0d25"
+    },
+    {
+      "ordem": 18,
+      "filename": "20260721170157_fase4_roteamento_aceite_sacado.sql",
+      "timestamp": "20260721170157",
+      "nome": "fase4_roteamento_aceite_sacado",
+      "bytes": 8506,
+      "sha256": "82292d60675ed4c880b8640548ee0b38b03503ed4838564b08e84f79943549a8"
+    },
+    {
+      "ordem": 19,
+      "filename": "20260721183540_fase5_logistica_pos_cessao.sql",
+      "timestamp": "20260721183540",
+      "nome": "fase5_logistica_pos_cessao",
+      "bytes": 44507,
+      "sha256": "87cae20dd406dd90e66097cb8dd1416f909dc348b6fc1d5494f030470d30c50e"
+    },
+    {
+      "ordem": 20,
+      "filename": "20260721190904_fase6_templates_juridicos_fundo.sql",
+      "timestamp": "20260721190904",
+      "nome": "fase6_templates_juridicos_fundo",
+      "bytes": 10732,
+      "sha256": "6dfd484ca9d3628d66d26aa6add47609dd26c5e29b523f42c1f29f5a1904c8e3"
+    },
+    {
+      "ordem": 21,
+      "filename": "20260721194546_fase7_cnab_configuravel_rastreavel.sql",
+      "timestamp": "20260721194546",
+      "nome": "fase7_cnab_configuravel_rastreavel",
+      "bytes": 23335,
+      "sha256": "78b7f19a52d72ea988c1dabd9d4e19aaabac025cd11148b318ab1c875992c859"
+    },
+    {
+      "ordem": 22,
+      "filename": "20260722090000_fase8_portal_fidc_fundo.sql",
+      "timestamp": "20260722090000",
+      "nome": "fase8_portal_fidc_fundo",
+      "bytes": 7392,
+      "sha256": "b700fbd3c15b50cf83c81c96215d9d418bcf26ad1101cb026ae7ba33f398f6d1"
+    },
+    {
+      "ordem": 23,
+      "filename": "20260722132525_fase9_mfa_totp_hardening.sql",
+      "timestamp": "20260722132525",
+      "nome": "fase9_mfa_totp_hardening",
+      "bytes": 5737,
+      "sha256": "a9e7f289dd420d6d484a59b6b3bc2fc590a22e9538a83e4f182939252eab6b44"
+    },
+    {
+      "ordem": 24,
+      "filename": "20260722143728_fase10_reset_administrativo_mfa.sql",
+      "timestamp": "20260722143728",
+      "nome": "fase10_reset_administrativo_mfa",
+      "bytes": 4775,
+      "sha256": "fe3c8d41a6979ed83d1d89fb02e6eff2064d50991ad747a1448139b53b0ba24c"
+    },
+    {
+      "ordem": 25,
+      "filename": "20260722145820_complemento_credenciais_portal_fidc_banco.sql",
+      "timestamp": "20260722145820",
+      "nome": "complemento_credenciais_portal_fidc_banco",
+      "bytes": 7678,
+      "sha256": "c0456fe74240f876c806b4e2ec1572f6435e5c899fd56ebdd52619a9a0228329"
+    },
+    {
+      "ordem": 26,
+      "filename": "20260722170510_corrigir_templates_juridicos_multifundo.sql",
+      "timestamp": "20260722170510",
+      "nome": "corrigir_templates_juridicos_multifundo",
+      "bytes": 2786,
+      "sha256": "8d0a318baef79ee7d4e4efc2647a1899eae654264c295e7f57418195a61b7440"
+    },
+    {
+      "ordem": 27,
+      "filename": "20260722183107_ampliar_catalogo_requisitos_politica_operacional.sql",
+      "timestamp": "20260722183107",
+      "nome": "ampliar_catalogo_requisitos_politica_operacional",
+      "bytes": 624,
+      "sha256": "b84cc1e1b5ce022770be9755ba0e05baa4770ea9c45d47bd3b8165059b8a7a8d"
+    },
+    {
+      "ordem": 28,
+      "filename": "20260722191000_corrigir_contexto_multifundo_upload_nf.sql",
+      "timestamp": "20260722191000",
+      "nome": "corrigir_contexto_multifundo_upload_nf",
+      "bytes": 12193,
+      "sha256": "55dccfd032bbcbc6243129e8caf4e861aa7380374a2d43f3944323cd7944770a"
+    },
+    {
+      "ordem": 29,
+      "filename": "20260722192500_corrigir_rls_fundos_cedente_vinculado.sql",
+      "timestamp": "20260722192500",
+      "nome": "corrigir_rls_fundos_cedente_vinculado",
+      "bytes": 1518,
+      "sha256": "793e511db4deaa8ba6182cb0a9d8f4549fdd7fcea21ee6b5e7ee41403c8ad998"
+    },
+    {
+      "ordem": 30,
+      "filename": "20260722193500_corrigir_catalogo_documental_requisitos_nf.sql",
+      "timestamp": "20260722193500",
+      "nome": "corrigir_catalogo_documental_requisitos_nf",
+      "bytes": 6248,
+      "sha256": "a24b2b733a31af13506f15100fa3f617cf868fb3686cdedac008c17405025452"
+    },
+    {
+      "ordem": 31,
+      "filename": "20260723124410_corrigir_constraints_desembolso_logistica.sql",
+      "timestamp": "20260723124410",
+      "nome": "corrigir_constraints_desembolso_logistica",
+      "bytes": 2493,
+      "sha256": "53b8f0d426c5627167729abfd919ff83f3125d9304f535929cd51a425ec87507"
+    },
+    {
+      "ordem": 32,
+      "filename": "20260723124929_corrigir_contexto_requisito_logistico_nullable.sql",
+      "timestamp": "20260723124929",
+      "nome": "corrigir_contexto_requisito_logistico_nullable",
+      "bytes": 1239,
+      "sha256": "cadbde66e9768175399cbca792efd9a46e218550a5158084b2b0fa13861a633f"
+    },
+    {
+      "ordem": 33,
+      "filename": "20260723125851_corrigir_fluxo_status_entrega_pos_cessao.sql",
+      "timestamp": "20260723125851",
+      "nome": "corrigir_fluxo_status_entrega_pos_cessao",
+      "bytes": 7171,
+      "sha256": "58301d8f35063e1218c071f0160118a2e98311b1ca4f8ba02ed71ec1b0140207"
+    },
+    {
+      "ordem": 34,
+      "filename": "20260723134849_estabilizacao_operacoes_atomicas_cnab_compensacao.sql",
+      "timestamp": "20260723134849",
+      "nome": "estabilizacao_operacoes_atomicas_cnab_compensacao",
+      "bytes": 12360,
+      "sha256": "b3dc4f40487adf32fb3832cdb6925308275c060060904d889b906c63cbed28ed"
+    },
+    {
+      "ordem": 35,
+      "filename": "20260723143749_evoluir_documentos_pos_cessao_nf_cedente.sql",
+      "timestamp": "20260723143749",
+      "nome": "evoluir_documentos_pos_cessao_nf_cedente",
+      "bytes": 16643,
+      "sha256": "e3d4a961a1e6b7c87d010f3bcffbefccc0d30bc49a2984185aef1482e88b82ad"
+    },
+    {
+      "ordem": 36,
+      "filename": "20260723165651_corrigir_requisitos_pos_cessao_snapshot.sql",
+      "timestamp": "20260723165651",
+      "nome": "corrigir_requisitos_pos_cessao_snapshot",
+      "bytes": 16678,
+      "sha256": "30c8c4609c418a8d0d0682df209d3fc50997d9c67bf48c04fa6052ebee649587"
+    },
+    {
+      "ordem": 37,
+      "filename": "20260723182639_reset_operacional_fundo_homolog_rpc.sql",
+      "timestamp": "20260723182639",
+      "nome": "reset_operacional_fundo_homolog_rpc",
+      "bytes": 34898,
+      "sha256": "cb437b040efe8310a5dbb8f7910d0af0bfb60fe286df1f667624135dc0077837"
+    },
+    {
+      "ordem": 38,
+      "filename": "20260723195804_corrigir_validacao_politica_operacao_atomica.sql",
+      "timestamp": "20260723195804",
+      "nome": "corrigir_validacao_politica_operacao_atomica",
+      "bytes": 7709,
+      "sha256": "849205dd780f8fa56fc138cab3dc690f947842dd9686c8e53e85fe483455ab8d"
+    },
+    {
+      "ordem": 39,
+      "filename": "20260727130046_fundo_ativo_usuario_fundos.sql",
+      "timestamp": "20260727130046",
+      "nome": "fundo_ativo_usuario_fundos",
+      "bytes": 5053,
+      "sha256": "c12e9c0edc997416889244ca0ace8ee47ab92e5948579cdf9829e8cbbd20d4fe"
+    },
+    {
+      "ordem": 40,
+      "filename": "20260727142150_validacao_cte_nfe.sql",
+      "timestamp": "20260727142150",
+      "nome": "validacao_cte_nfe",
+      "bytes": 16817,
+      "sha256": "0dd44f3e159b5eb42ec631d1b50b35b71f716ca003e2913d9f44897e8ef07eb9"
+    },
+    {
+      "ordem": 41,
+      "filename": "20260727151731_politicas_catalogo_fundo.sql",
+      "timestamp": "20260727151731",
+      "nome": "politicas_catalogo_fundo",
+      "bytes": 33083,
+      "sha256": "6c5fd0d69fd1345c4d4c597785e4c4b6a15ea8a0745a4ccf62f1c97706080945"
+    },
+    {
+      "ordem": 42,
+      "filename": "20260727192402_onboarding_cedentes_sem_fundo_fallback.sql",
+      "timestamp": "20260727192402",
+      "nome": "onboarding_cedentes_sem_fundo_fallback",
+      "bytes": 5226,
+      "sha256": "accde7a4c8647fbcbcbf4f0b162734dc06f4124d0c19590d0105e14f1f798a60"
+    },
+    {
+      "ordem": 43,
+      "filename": "20260727202747_desacoplar_politicas_operacionais_cedente_fundo.sql",
+      "timestamp": "20260727202747",
+      "nome": "desacoplar_politicas_operacionais_cedente_fundo",
+      "bytes": 10246,
+      "sha256": "c329c1a5e4d7fc906a85195470a4224713e0d5605d20da9353ac27bcac4a36e8"
+    },
+    {
+      "ordem": 44,
+      "filename": "20260727204346_relaxar_cedente_fundo_versoes_politica.sql",
+      "timestamp": "20260727204346",
+      "nome": "relaxar_cedente_fundo_versoes_politica",
+      "bytes": 2276,
+      "sha256": "6788c7b9d7dde984eb1349e248ae415da552b4517350f39b3234ad04705ad3d7"
+    },
+    {
+      "ordem": 45,
+      "filename": "20260727205426_corrigir_instanciacao_checklist_nf_sem_colunas_contexto.sql",
+      "timestamp": "20260727205426",
+      "nome": "corrigir_instanciacao_checklist_nf_sem_colunas_contexto",
+      "bytes": 4069,
+      "sha256": "338871496d935b20d01a2883e2264c442698427fd27675f74ac5e9bddb626d43"
+    },
+    {
+      "ordem": 46,
+      "filename": "20260727212053_reconciliar_documentos_base_nf_checklist.sql",
+      "timestamp": "20260727212053",
+      "nome": "reconciliar_documentos_base_nf_checklist",
+      "bytes": 6834,
+      "sha256": "baa332f68ff9d9985ed741a384f3d18b250ef93d6bff15466841fd0c58f3994d"
+    },
+    {
+      "ordem": 47,
+      "filename": "20260727212953_corrigir_documento_tipo_requisitos_nf.sql",
+      "timestamp": "20260727212953",
+      "nome": "corrigir_documento_tipo_requisitos_nf",
+      "bytes": 5053,
+      "sha256": "863a1df60e82ad52a3a4414d7c1cabfc7a5076ddf1de3780b503d053e957da4e"
+    },
+    {
+      "ordem": 48,
+      "filename": "20260728122849_corrigir_status_documentos_upload_aguardando_aprovacao.sql",
+      "timestamp": "20260728122849",
+      "nome": "corrigir_status_documentos_upload_aguardando_aprovacao",
+      "bytes": 3835,
+      "sha256": "12d340f766d4bbbaeea76c1429479b8946f328313d3cb8ebb5300bb13f02fe80"
+    },
+    {
+      "ordem": 49,
+      "filename": "20260728123821_permitir_tipo_cte_catalogado_em_requisito_generico.sql",
+      "timestamp": "20260728123821",
+      "nome": "permitir_tipo_cte_catalogado_em_requisito_generico",
+      "bytes": 11223,
+      "sha256": "f9d5eee7ddab75f79a46ccf1f8a213aadb850dd610ca3dda185f7032bc91e7be"
+    },
+    {
+      "ordem": 50,
+      "filename": "20260728130438_historico_operacional_eventos_dominio.sql",
+      "timestamp": "20260728130438",
+      "nome": "historico_operacional_eventos_dominio",
+      "bytes": 9744,
+      "sha256": "1a0637e2e90971e2aa9e7fc73ddd26d5d002eda295db6c4e820c8c9126ac175e"
+    },
+    {
+      "ordem": 51,
+      "filename": "20260728145033_password_recovery_flow.sql",
+      "timestamp": "20260728145033",
+      "nome": "password_recovery_flow",
+      "bytes": 1703,
+      "sha256": "76cac28681d9d47881a7b43e3f482e4768c32fc0b30b5d4ec6f0a1fcd31a5d23"
+    },
+    {
+      "ordem": 52,
+      "filename": "20260728153646_reset_operacional_eventos_dominio.sql",
+      "timestamp": "20260728153646",
+      "nome": "reset_operacional_eventos_dominio",
+      "bytes": 34898,
+      "sha256": "cb437b040efe8310a5dbb8f7910d0af0bfb60fe286df1f667624135dc0077837"
+    },
+    {
+      "ordem": 53,
+      "filename": "20260728155942_password_recovery_security_hardening.sql",
+      "timestamp": "20260728155942",
+      "nome": "password_recovery_security_hardening",
+      "bytes": 1584,
+      "sha256": "09bf56cea60e068fc5ff8803f238223490cf56d237691bc8e9a88ae19def44c2"
+    },
+    {
+      "ordem": 54,
+      "filename": "20260728172000_password_reauth_nonce_event.sql",
+      "timestamp": "20260728172000",
+      "nome": "password_reauth_nonce_event",
+      "bytes": 1457,
+      "sha256": "4bc9901d0244733970cc9f8de165384c75fd1ebc7e8b6e3888232263e46e6263"
+    },
+    {
+      "ordem": 55,
+      "filename": "20260728181152_corrigir_rls_politica_versionada_cedente.sql",
+      "timestamp": "20260728181152",
+      "nome": "corrigir_rls_politica_versionada_cedente",
+      "bytes": 4067,
+      "sha256": "6562de3fc0223e22891ace9348b68aaf684eb6dd9dcfbd94cc7413a95fed91d4"
+    },
+    {
+      "ordem": 56,
+      "filename": "20260728182000_rls_historico_portal_sacado.sql",
+      "timestamp": "20260728182000",
+      "nome": "rls_historico_portal_sacado",
+      "bytes": 3386,
+      "sha256": "07c5ecc73a53debb66f769480bf5f0a642177a4431470bc827c309644f594c3e"
+    },
+    {
+      "ordem": 57,
+      "filename": "20260728190000_auditoria_portal_sacado_contexto.sql",
+      "timestamp": "20260728190000",
+      "nome": "auditoria_portal_sacado_contexto",
+      "bytes": 2371,
+      "sha256": "c799c84e90e0a3d0e6ab76259e309c5f97515545a8862fd2b0f84462608af86b"
+    },
+    {
+      "ordem": 58,
+      "filename": "20260728200000_historico_aceite_sacado_operacao.sql",
+      "timestamp": "20260728200000",
+      "nome": "historico_aceite_sacado_operacao",
+      "bytes": 3969,
+      "sha256": "986458e373659c843f322fd88062bba9847ebceaed462987f0c357ee63cd4739"
+    },
+    {
+      "ordem": 59,
+      "filename": "20260728210000_permitir_evento_documento_entrega.sql",
+      "timestamp": "20260728210000",
+      "nome": "permitir_evento_documento_entrega",
+      "bytes": 928,
+      "sha256": "13b4e76c0d576faf8c93bebcb5eac283b5a2d6b37399907c0a64f42cbbc120d3"
+    },
+    {
+      "ordem": 60,
+      "filename": "20260728213000_corrigir_trigger_historico_aceite_nf_status.sql",
+      "timestamp": "20260728213000",
+      "nome": "corrigir_trigger_historico_aceite_nf_status",
+      "bytes": 3642,
+      "sha256": "3eabd8f0aa250cce6d86faf0ca9d871da50e8072d0a713cf60f6fdeb1ffb9db9"
+    },
+    {
+      "ordem": 61,
+      "filename": "20260728220000_reconciliar_documentos_base_nf_checklist_v2.sql",
+      "timestamp": "20260728220000",
+      "nome": "reconciliar_documentos_base_nf_checklist_v2",
+      "bytes": 13404,
+      "sha256": "620678785fb5c62c0ae4f0409dc86a8f1b6eeb3bbe7b1d0227c1b83e9cf56ec5"
+    },
+    {
+      "ordem": 62,
+      "filename": "20260728223000_corrigir_perfil_evento_reconciliacao.sql",
+      "timestamp": "20260728223000",
+      "nome": "corrigir_perfil_evento_reconciliacao",
+      "bytes": 9539,
+      "sha256": "b1566c5624ddf9261044025babc27ce8351807494106e4a9adf8b21adebf1ca2"
+    },
+    {
+      "ordem": 63,
+      "filename": "20260729133826_nf_submissao_manual.sql",
+      "timestamp": "20260729133826",
+      "nome": "nf_submissao_manual",
+      "bytes": 807,
+      "sha256": "ef1a311ae8377fa3c9fc2f961ebd4e4ccee905d98affc7d09f45fce4eb580dd7"
+    },
+    {
+      "ordem": 64,
+      "filename": "20260729180000_simplificar_requisitos_documentais_politica.sql",
+      "timestamp": "20260729180000",
+      "nome": "simplificar_requisitos_documentais_politica",
+      "bytes": 2847,
+      "sha256": "85c19dbc5a6cd7f34af782c4d41bd879edbe996fd15697cfcf633c7c19f48e15"
+    },
+    {
+      "ordem": 65,
+      "filename": "20260729185443_performance_escopo2_onboarding_paginado.sql",
+      "timestamp": "20260729185443",
+      "nome": "performance_escopo2_onboarding_paginado",
+      "bytes": 10796,
+      "sha256": "a60a826545514ad3b64e445f6e93fdb111aa13dc7a3012428c72121fd16d9c4f"
+    },
+    {
+      "ordem": 66,
+      "filename": "20260729203749_performance_portal_sacado_dashboard.sql",
+      "timestamp": "20260729203749",
+      "nome": "performance_portal_sacado_dashboard",
+      "bytes": 7296,
+      "sha256": "d66490dad4cafcc6419084eb1128c5a62bd780e9c301a8590345b02675d67695"
+    },
+    {
+      "ordem": 67,
+      "filename": "20260730143000_performance_escopo6_escrow_rls.sql",
+      "timestamp": "20260730143000",
+      "nome": "performance_escopo6_escrow_rls",
+      "bytes": 5376,
+      "sha256": "6b229e67e84b23b506f802abbf129d776598bb3f490e0d7144b1ecfc4895144b"
+    },
+    {
+      "ordem": 68,
+      "filename": "20260730152328_performance_escopo7_dashboards_relatorios.sql",
+      "timestamp": "20260730152328",
+      "nome": "performance_escopo7_dashboards_relatorios",
+      "bytes": 28902,
+      "sha256": "604b97d951975af019911966be158f7e7d2fe6ef41a251c596162ca338fecd77"
+    },
+    {
+      "ordem": 69,
+      "filename": "20260730170007_performance_escopo8_hardening_grants_rls.sql",
+      "timestamp": "20260730170007",
+      "nome": "performance_escopo8_hardening_grants_rls",
+      "bytes": 4170,
+      "sha256": "42ff63ac2b73dd328534647182f06baaf80709d1b5812a205f4f9043c31e54df"
+    },
+    {
+      "ordem": 70,
+      "filename": "20260730190000_escopo9b_corrigir_isolamento_rls.sql",
+      "timestamp": "20260730190000",
+      "nome": "escopo9b_corrigir_isolamento_rls",
+      "bytes": 22087,
+      "sha256": "3cfa520f990645b37e5d6c3048937773a1a6719fde8fb8594d99d060db69ae52"
+    },
+    {
+      "ordem": 71,
+      "filename": "20260730194500_escopo9b_policies_explicitas.sql",
+      "timestamp": "20260730194500",
+      "nome": "escopo9b_policies_explicitas",
+      "bytes": 4812,
+      "sha256": "8b1c37c82d8d2f5367524fcacb534b0d5be9e91f5bf03d84ef91287683403571"
+    },
+    {
+      "ordem": 72,
+      "filename": "20260730200000_escopo9b_corrigir_recursao_sacado_rls.sql",
+      "timestamp": "20260730200000",
+      "nome": "escopo9b_corrigir_recursao_sacado_rls",
+      "bytes": 3714,
+      "sha256": "0ec8234cdbad8a1646fe2b41a599ab09c63cce085d7362cbb8f3f05f615f50b5"
+    },
+    {
+      "ordem": 73,
+      "filename": "20260731140710_escopo9c_storage_autorizacao_multifundo.sql",
+      "timestamp": "20260731140710",
+      "nome": "escopo9c_storage_autorizacao_multifundo",
+      "bytes": 8313,
+      "sha256": "903854c5d38b0575909dc167abd6563edca5d3018341713bfc927e00e6bfe3e8"
+    },
+    {
+      "ordem": 74,
+      "filename": "20260731171219_postergacao_upload_canhoto.sql",
+      "timestamp": "20260731171219",
+      "nome": "postergacao_upload_canhoto",
+      "bytes": 23163,
+      "sha256": "e6ba8d2eed578288636dcc0124567a70116e0c062a1136012598596e3024e9e7"
+    },
+    {
+      "ordem": 75,
+      "filename": "20260803172546_mfa_sessao_24h.sql",
+      "timestamp": "20260803172546",
+      "nome": "mfa_sessao_24h",
+      "bytes": 14461,
+      "sha256": "e01881dd9d87d23a747ce5f3d75784ac6dd329ef4203868d7eaec243f22f5e23"
+    },
+    {
+      "ordem": 76,
+      "filename": "20260804093210_corrigir_ambiguidade_registrar_sessao_mfa.sql",
+      "timestamp": "20260804093210",
+      "nome": "corrigir_ambiguidade_registrar_sessao_mfa",
+      "bytes": 2429,
+      "sha256": "b807adfec837efdc8b8f8ea499317def36c4ed9652ed56b0ea5fcb1b9c5fd69f"
+    },
+    {
+      "ordem": 77,
+      "filename": "20260804103235_corrigir_reset_postergacoes_canhoto.sql",
+      "timestamp": "20260804103235",
+      "nome": "corrigir_reset_postergacoes_canhoto",
+      "bytes": 4637,
+      "sha256": "b60afa7b327ad765bf1ae0329e561514b4be80517f82101bebb70ae090ae0137"
+    },
+    {
+      "ordem": 78,
+      "filename": "20260804171538_corrigir_recursao_rls_cedente_fundos.sql",
+      "timestamp": "20260804171538",
+      "nome": "corrigir_recursao_rls_cedente_fundos",
+      "bytes": 5098,
+      "sha256": "b8543bcce1c912f7258c737d9eed5fa27307cc6252fa9e54199668ff99fd5f4b"
+    },
+    {
+      "ordem": 79,
+      "filename": "20260805160000_metodos_calculo_financeiro_operacao.sql",
+      "timestamp": "20260805160000",
+      "nome": "metodos_calculo_financeiro_operacao",
+      "bytes": 25056,
+      "sha256": "9588186dbe861e6b739613f370e83a4768ef8546b7157eec7e41b71b5e15f919"
+    },
+    {
+      "ordem": 80,
+      "filename": "20260805170000_corrigir_ambiguidade_valor_bruto_aprovacao.sql",
+      "timestamp": "20260805170000",
+      "nome": "corrigir_ambiguidade_valor_bruto_aprovacao",
+      "bytes": 8733,
+      "sha256": "731d4054978f9a2eaaeb104b6e81f0b09b02dcb6455d0dbf49f143dd9f8a85b9"
+    },
+    {
+      "ordem": 81,
+      "filename": "20260805180000_endurecer_aprovacao_financeira.sql",
+      "timestamp": "20260805180000",
+      "nome": "endurecer_aprovacao_financeira",
+      "bytes": 3032,
+      "sha256": "056fbe73ab8b8ee17bb2d3def4d4d96aeaa21cde3a854285841a74014b5a9c8a"
+    },
+    {
+      "ordem": 82,
+      "filename": "20260806170000_envio_antecipado_documentos_logisticos.sql",
+      "timestamp": "20260806170000",
+      "nome": "envio_antecipado_documentos_logisticos",
+      "bytes": 57075,
+      "sha256": "04bae069b323d378512c83aefc8ad91d564451ea7dc2ada9af00d34accad4b79"
+    },
+    {
+      "ordem": 83,
+      "filename": "20260806180000_excluir_nfs_rascunho_cedente.sql",
+      "timestamp": "20260806180000",
+      "nome": "excluir_nfs_rascunho_cedente",
+      "bytes": 6860,
+      "sha256": "f9c2a19ca13d605061c6bcbbf80d34f520274749e000c4b0bb6384a7050eab37"
+    },
+    {
+      "ordem": 84,
+      "filename": "20260806190000_corrigir_record_nf_upload_logistico_antecipado.sql",
+      "timestamp": "20260806190000",
+      "nome": "corrigir_record_nf_upload_logistico_antecipado",
+      "bytes": 15330,
+      "sha256": "4c921c0d2de63ed00cbfa1ca75d4e8d4e059ef4ee06f63aa765774169d79c438"
+    },
+    {
+      "ordem": 85,
+      "filename": "20260806200000_corrigir_exclusao_rascunho_eventos_dominio.sql",
+      "timestamp": "20260806200000",
+      "nome": "corrigir_exclusao_rascunho_eventos_dominio",
+      "bytes": 1385,
+      "sha256": "2224a75c0a8a250989c6f8119d1311fe1c10b55ee3d5012d827273ce8d8f5175"
+    },
+    {
+      "ordem": 86,
+      "filename": "20260807132532_corrigir_evento_entrega_em_validacao.sql",
+      "timestamp": "20260807132532",
+      "nome": "corrigir_evento_entrega_em_validacao",
+      "bytes": 912,
+      "sha256": "e3af5d6cdec149b514ecda64433953aff2be102373322f54e8ad298e64babf0e"
+    },
+    {
+      "ordem": 87,
+      "filename": "20260807170000_p1_motor_comunicacoes_email.sql",
+      "timestamp": "20260807170000",
+      "nome": "p1_motor_comunicacoes_email",
+      "bytes": 27578,
+      "sha256": "f8088be476061447fcf55c53dc6195f342f180bb82fcf9a4c9d216fe9a31dbca"
+    },
+    {
+      "ordem": 88,
+      "filename": "20260810120000_usar_smtp_ionos_comunicacoes.sql",
+      "timestamp": "20260810120000",
+      "nome": "usar_smtp_ionos_comunicacoes",
+      "bytes": 397,
+      "sha256": "77a09176461a889195a7cdd78e247b47f24e4925cf1a4103852571ae4eb80efc"
+    },
+    {
+      "ordem": 89,
+      "filename": "20260810121000_snapshot_remetente_gestora_comunicacoes.sql",
+      "timestamp": "20260810121000",
+      "nome": "snapshot_remetente_gestora_comunicacoes",
+      "bytes": 5563,
+      "sha256": "fb0463a9642864b8b236d7e49de879043b9c9cd251426d3ba220daddf273b0fe"
+    },
+    {
+      "ordem": 90,
+      "filename": "20260811120000_p2_0_duplicata_ativo_financeiro.sql",
+      "timestamp": "20260811120000",
+      "nome": "p2_0_duplicata_ativo_financeiro",
+      "bytes": 35879,
+      "sha256": "42b6c826342b609f36cae0b0e55db67c523e90bfa35fd646d2dd8ec0391d5bec"
+    },
+    {
+      "ordem": 91,
+      "filename": "20260811153000_corrigir_reset_dependencias_logisticas_duplicatas.sql",
+      "timestamp": "20260811153000",
+      "nome": "corrigir_reset_dependencias_logisticas_duplicatas",
+      "bytes": 10042,
+      "sha256": "2110a597c90106e480f03a1790c270e50178019b9d69e7a30b544f28a910f375"
+    },
+    {
+      "ordem": 92,
+      "filename": "20260812115900_sa0_super_admin_enum.sql",
+      "timestamp": "20260812115900",
+      "nome": "sa0_super_admin_enum",
+      "bytes": 302,
+      "sha256": "e1344d7b71a6dceef8d6c89dda22f0805a7655cca16ab08924295b0bd0737c7d"
+    },
+    {
+      "ordem": 93,
+      "filename": "20260812120000_sa0_super_admin_roles.sql",
+      "timestamp": "20260812120000",
+      "nome": "sa0_super_admin_roles",
+      "bytes": 9736,
+      "sha256": "bc882297d3e458d65da070709281c155399e20fbf686dd57484a5d83b577971b"
+    },
+    {
+      "ordem": 94,
+      "filename": "20260812143000_sa1_admin_fundos.sql",
+      "timestamp": "20260812143000",
+      "nome": "sa1_admin_fundos",
+      "bytes": 25705,
+      "sha256": "b3d8546b128eb73fae7ad0a7dd4fa452382ea1a83987223aac375bb77188faef"
+    },
+    {
+      "ordem": 95,
+      "filename": "20260812170000_sa2_admin_usuarios_acessos.sql",
+      "timestamp": "20260812170000",
+      "nome": "sa2_admin_usuarios_acessos",
+      "bytes": 33620,
+      "sha256": "2e08d627c2c66f8925867b154de829eba94225dfa1d77b0d62e19febed727928"
+    },
+    {
+      "ordem": 96,
+      "filename": "20260812190000_sa3_admin_configuracoes_tecnicas.sql",
+      "timestamp": "20260812190000",
+      "nome": "sa3_admin_configuracoes_tecnicas",
+      "bytes": 45665,
+      "sha256": "71b7c8850c70dbba07569c6d7022a1deb06c6fed2d675da4887fabc8f7783094"
+    },
+    {
+      "ordem": 97,
+      "filename": "20260813103000_corrigir_ciclo_vida_credenciais_sa3.sql",
+      "timestamp": "20260813103000",
+      "nome": "corrigir_ciclo_vida_credenciais_sa3",
+      "bytes": 2759,
+      "sha256": "f6c681c7b831c7ddbece5098070df1f85690b703eb9529086cd94f1a7ddc0723"
+    },
+    {
+      "ordem": 98,
+      "filename": "20260813150432_corrigir_semantica_rascunhos_sa3.sql",
+      "timestamp": "20260813150432",
+      "nome": "corrigir_semantica_rascunhos_sa3",
+      "bytes": 9940,
+      "sha256": "83e7b4250921ca2640e8317f32ee5388a61ecfa6a5c6ab8ba602467461d2996a"
+    },
+    {
+      "ordem": 99,
+      "filename": "20260813191143_p2_2_ingestao_financeira_versionada_rlx.sql",
+      "timestamp": "20260813191143",
+      "nome": "p2_2_ingestao_financeira_versionada_rlx",
+      "bytes": 28373,
+      "sha256": "23000f38f89af9fe780c8b295074f2b522988b7b5fc6502201ac9d94d67d9f3f"
+    },
+    {
+      "ordem": 100,
+      "filename": "20260813193629_p2_2_complemento_linhagem_sem_movimento_rlx.sql",
+      "timestamp": "20260813193629",
+      "nome": "p2_2_complemento_linhagem_sem_movimento_rlx",
+      "bytes": 18720,
+      "sha256": "76e34e2f66ff9c098d954f6e3c102056466e786d9816bc84b9cb96ed18ea4d1a"
+    },
+    {
+      "ordem": 101,
+      "filename": "20260813194809_p2_2_lock_ciclo_financeiro_rlx.sql",
+      "timestamp": "20260813194809",
+      "nome": "p2_2_lock_ciclo_financeiro_rlx",
+      "bytes": 2284,
+      "sha256": "aa50f52b8a65749a5b399992d19b8f19b32495446ff4e5fe9cbdb27bfafb0de1"
+    },
+    {
+      "ordem": 102,
+      "filename": "20260813195427_p2_2_refresh_views_linhagem_rlx.sql",
+      "timestamp": "20260813195427",
+      "nome": "p2_2_refresh_views_linhagem_rlx",
+      "bytes": 759,
+      "sha256": "b47c6f034906abdb8777b12c0e9587318854f0882c855d10d1e7f68c4ab807e7"
+    },
+    {
+      "ordem": 103,
+      "filename": "20260813201000_p2_2_hardening_rls_indices_rlx.sql",
+      "timestamp": "20260813201000",
+      "nome": "p2_2_hardening_rls_indices_rlx",
+      "bytes": 2762,
+      "sha256": "64e162d2824332d409b45d6298464bc8ef1c2e2038863d046f103d41e36b8571"
+    },
+    {
+      "ordem": 104,
+      "filename": "20260813202000_p2_2_escopo_hibrido_rlx.sql",
+      "timestamp": "20260813202000",
+      "nome": "p2_2_escopo_hibrido_rlx",
+      "bytes": 529,
+      "sha256": "a4f781f498bb7d31f6943d4a90c72787fa4177c5cf6aaf4bd903becc4fe0b29b"
+    },
+    {
+      "ordem": 105,
+      "filename": "20260813203000_p2_2_helper_rls_super_admin_rlx.sql",
+      "timestamp": "20260813203000",
+      "nome": "p2_2_helper_rls_super_admin_rlx",
+      "bytes": 1631,
+      "sha256": "dcdb99cf9648b6036be10df9915bb6311927a24f7b3ce0c38d970e1992241064"
+    },
+    {
+      "ordem": 106,
+      "filename": "20260813210000_p2_2_1_integracoes_capabilities.sql",
+      "timestamp": "20260813210000",
+      "nome": "p2_2_1_integracoes_capabilities",
+      "bytes": 38753,
+      "sha256": "fffbbc9700f0d39518af21120b137f1e3c9fb01224f5cf3a7a58e0933065f238"
+    },
+    {
+      "ordem": 107,
+      "filename": "20260814123000_p2_2_2_sinqia_financeiro_envios.sql",
+      "timestamp": "20260814123000",
+      "nome": "p2_2_2_sinqia_financeiro_envios",
+      "bytes": 2678,
+      "sha256": "d08d5eda3bc018c7c7ab5ce860b584fc194225c5498494a4ba99bd817b8bf24c"
+    },
+    {
+      "ordem": 108,
+      "filename": "20260814141629_p2_3_matching_conciliacao_rlx.sql",
+      "timestamp": "20260814141629",
+      "nome": "p2_3_matching_conciliacao_rlx",
+      "bytes": 41352,
+      "sha256": "97b645c91fd4b67988c8d49a1000e384abe1e5d689f346ab077fcbc83ab8c29a"
+    },
+    {
+      "ordem": 109,
+      "filename": "20260814144500_p2_2_2_cnpj_financeiro_derivado_fundo.sql",
+      "timestamp": "20260814144500",
+      "nome": "p2_2_2_cnpj_financeiro_derivado_fundo",
+      "bytes": 3752,
+      "sha256": "ae4d4568a38d78444907e42695f90a410e6099d8d22b7b0e4fb43e16b07923bb"
+    },
+    {
+      "ordem": 110,
+      "filename": "20260814164101_p2_4_posicao_logistica_rlx.sql",
+      "timestamp": "20260814164101",
+      "nome": "p2_4_posicao_logistica_rlx",
+      "bytes": 17743,
+      "sha256": "8e4c7dbafbcfd1a556f99660ac4df5620b0cf82db4c57a81e77d9bd7f958e72f"
+    },
+    {
+      "ordem": 111,
+      "filename": "20260814170500_p2_4_precisao_valores_logisticos.sql",
+      "timestamp": "20260814170500",
+      "nome": "p2_4_precisao_valores_logisticos",
+      "bytes": 679,
+      "sha256": "6850f9afa8aa9f5a057144f96d57c831837e4bff6f5867bed93fabadba08d5a4"
+    },
+    {
+      "ordem": 112,
+      "filename": "20260814213000_p2_5_exposicao_pl_overlay.sql",
+      "timestamp": "20260814213000",
+      "nome": "p2_5_exposicao_pl_overlay",
+      "bytes": 16100,
+      "sha256": "bc7d6eeef15146573d5c40c5c78f83e72dd89071d0f780d60469b0e6ff9ad376"
+    },
+    {
+      "ordem": 113,
+      "filename": "20260814214500_p2_5_politica_exposicao_imutavel.sql",
+      "timestamp": "20260814214500",
+      "nome": "p2_5_politica_exposicao_imutavel",
+      "bytes": 2963,
+      "sha256": "53208e6da9c670fad67732be77c69bc4ec6a84318ccf2fb98c58f6bf53eff095"
+    },
+    {
+      "ordem": 114,
+      "filename": "20260814220000_p2_5_1_generalizacao_dominio_financeiro.sql",
+      "timestamp": "20260814220000",
+      "nome": "p2_5_1_generalizacao_dominio_financeiro",
+      "bytes": 16005,
+      "sha256": "6e6ece8ec7554e1a6e864e8045d82da74a2243be341c1b99e9830c20b1fd98a2"
+    },
+    {
+      "ordem": 115,
+      "filename": "20260814230000_p2_6_gate_risco_decisao_operacional.sql",
+      "timestamp": "20260814230000",
+      "nome": "p2_6_gate_risco_decisao_operacional",
+      "bytes": 32296,
+      "sha256": "923ce02a83773e9e07715c549bf39004c2c3c4e622fd7904421b1810a3e0352b"
+    }
+  ]
+}

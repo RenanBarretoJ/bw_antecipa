@@ -1,0 +1,27 @@
+{
+  "schema": "bw-antecipa-p2-6-1-clean-room-v1",
+  "executed_at": "2026-08-17",
+  "status": "FAIL",
+  "blocker": true,
+  "production_touched": false,
+  "migration_count_detected": 115,
+  "migration_count_hardcoded_before_fix": 74,
+  "runner_fix": "Os dois runners passaram a descobrir dinamicamente todas as migrations SQL ativas.",
+  "database_runner": {
+    "status": "FAIL",
+    "reason": "Docker local nao esta disponivel."
+  },
+  "full_stack_runner": {
+    "status": "FAIL",
+    "reason": "Docker Desktop Linux Engine indisponivel (LegacyDockerLifecycleInspectError)."
+  },
+  "not_executed": [
+    "migration bootstrap do zero",
+    "schema parity clean-room x homolog",
+    "seed oficial clean-room",
+    "Golden V2 clean-room",
+    "matriz RLS clean-room",
+    "dry-run completo de deployment"
+  ],
+  "remediation": "Iniciar/recuperar o Docker Desktop com Linux containers, confirmar docker info e repetir os runners antes de qualquer recomendacao de promocao."
+}

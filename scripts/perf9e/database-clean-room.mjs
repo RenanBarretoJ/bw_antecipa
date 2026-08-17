@@ -16,7 +16,6 @@ import {
 const POSTGRES_IMAGE = 'public.ecr.aws/supabase/postgres:17.6.1.156'
 const STORAGE_IMAGE = 'public.ecr.aws/supabase/storage-api:v1.67.20'
 const STORAGE_CORE_MAX_MIGRATION = 46
-const EXPECTED_ACTIVE_MIGRATIONS = 74
 const args = parseArgs()
 const repositoryRoot = process.cwd()
 const candidatePath = resolve(repositoryRoot, 'scripts/perf9e/bootstrap/schema-base-candidate.sql')
@@ -36,7 +35,7 @@ async function main() {
 
   const migrationDirectory = resolve(repositoryRoot, 'supabase/migrations')
   const activeFiles = readdirSync(migrationDirectory).filter((name) => name.endsWith('.sql')).sort()
-  if (activeFiles.length !== EXPECTED_ACTIVE_MIGRATIONS) throw new Error(`Esperadas ${EXPECTED_ACTIVE_MIGRATIONS} migrations ativas; encontradas ${activeFiles.length}.`)
+  if (!activeFiles.length) throw new Error('Nenhuma migration ativa foi encontrada.')
   if (activeFiles.some((name) => /^(001|002)_/.test(name))) throw new Error('001/002 nao podem estar na cadeia ativa durante o Escopo 9E.')
   if (!existsSync(candidatePath)) throw new Error('Bootstrap candidato nao encontrado.')
 
@@ -85,7 +84,7 @@ async function main() {
 
   console.log('\nBW Antecipa - Escopo 9E / database clean-room')
   for (const cycle of evidence.cycles) {
-    console.log(`Ciclo ${cycle.cycle}: ${cycle.success ? 'APROVADO' : 'FALHOU'} (${cycle.applicationMigrations.filter((item) => item.success).length}/${EXPECTED_ACTIVE_MIGRATIONS + 1} com bootstrap)`)
+    console.log(`Ciclo ${cycle.cycle}: ${cycle.success ? 'APROVADO' : 'FALHOU'} (${cycle.applicationMigrations.filter((item) => item.success).length}/${activeFiles.length + 1} com bootstrap)`)
     if (cycle.failure) console.log(`  Falha: ${cycle.failure.stage} / ${cycle.failure.migration ?? 'nao identificada'} / ${cycle.failure.sqlstate ?? 'sem SQLSTATE'}`)
   }
   console.log(`Reprodutivel por dump e catalogo: ${evidence.metadata.reproducible ? 'SIM' : 'NAO'}`)

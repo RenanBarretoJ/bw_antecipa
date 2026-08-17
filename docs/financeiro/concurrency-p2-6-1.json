@@ -1,0 +1,56 @@
+{
+  "format": "bw-antecipa-p2-6-1-concurrency-v1",
+  "projectRef": "fhgkmggthxikfpogrvaa",
+  "executedAt": "2026-08-17T12:44:15.851Z",
+  "productionTouched": false,
+  "persistentQaNamespace": "P2.6.1_CONCURRENCY_EVIDENCE",
+  "checks": [
+    {
+      "id": "GATE_DUPLO_IDEMPOTENTE",
+      "status": "PASS",
+      "calls": [
+        {
+          "callId": "gate-same-fund-a",
+          "startedAt": "2026-08-17T12:44:15.426Z",
+          "finishedAt": "2026-08-17T12:44:15.570Z",
+          "durationMs": 144,
+          "resultId": "6f5795e4-f7b3-41cc-8af9-ac20e9eba80c"
+        },
+        {
+          "callId": "gate-same-fund-b",
+          "startedAt": "2026-08-17T12:44:15.426Z",
+          "finishedAt": "2026-08-17T12:44:15.570Z",
+          "durationMs": 144,
+          "resultId": "6f5795e4-f7b3-41cc-8af9-ac20e9eba80c"
+        }
+      ],
+      "finalState": {
+        "rowsForSignature": 1,
+        "resultId": "6f5795e4-f7b3-41cc-8af9-ac20e9eba80c"
+      }
+    },
+    {
+      "id": "GATE_MULTIFUNDO_CONCORRENTE",
+      "status": "PASS",
+      "calls": [
+        {
+          "callId": "gate-fund-1",
+          "startedAt": "2026-08-17T12:44:15.709Z",
+          "finishedAt": "2026-08-17T12:44:15.848Z",
+          "durationMs": 139,
+          "resultId": "434c573f-8e88-4328-9464-f8b953e11b3f"
+        },
+        {
+          "callId": "gate-fund-2",
+          "startedAt": "2026-08-17T12:44:15.709Z",
+          "finishedAt": "2026-08-17T12:44:15.851Z",
+          "durationMs": 142,
+          "resultId": "1a6250ef-d7d2-40aa-8d29-158f29e3a5f2"
+        }
+      ],
+      "finalState": {
+        "distinctResults": 2
+      }
+    }
+  ]
+}

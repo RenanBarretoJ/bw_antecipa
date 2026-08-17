@@ -18,7 +18,6 @@ const args = parseArgs()
 const repositoryRoot = process.cwd()
 const candidatePath = resolve(repositoryRoot, 'scripts/perf9e/bootstrap/schema-base-candidate.sql')
 const cliScript = resolve(repositoryRoot, 'node_modules/supabase/dist/supabase.js')
-const expectedActiveMigrations = 74
 
 try {
   await main()
@@ -33,9 +32,7 @@ async function main() {
   if (!existsSync(cliScript)) throw new Error('Supabase CLI local nao encontrado.')
 
   const activeMigrations = readdirSync(resolve(repositoryRoot, 'supabase/migrations')).filter((name) => name.endsWith('.sql')).sort()
-  if (activeMigrations.length !== expectedActiveMigrations) {
-    throw new Error(`Cadeia ativa inesperada: ${activeMigrations.length}; esperado ${expectedActiveMigrations}.`)
-  }
+  if (!activeMigrations.length) throw new Error('Nenhuma migration ativa foi encontrada.')
   if (activeMigrations.some((name) => /^(001|002)_/.test(name))) {
     throw new Error('Bootstrap 001/002 nao pode existir na cadeia ativa durante o Escopo 9E.')
   }
@@ -77,7 +74,7 @@ async function main() {
 
   console.log('\nBW Antecipa - Escopo 9E / clean-room')
   for (const cycle of evidence.cycles) {
-    console.log(`Ciclo ${cycle.cycle}: ${cycle.success ? 'APROVADO' : 'FALHOU'} (${cycle.migrationHistory.length}/${expectedActiveMigrations + 1} entradas incluindo bootstrap)`)
+    console.log(`Ciclo ${cycle.cycle}: ${cycle.success ? 'APROVADO' : 'FALHOU'} (${cycle.migrationHistory.length}/${activeMigrations.length + 1} entradas incluindo bootstrap)`)
     if (cycle.failure) console.log(`  Primeira falha: ${cycle.failure.stage} / ${cycle.failure.migration ?? 'migration nao identificada'}`)
   }
   console.log(`Reprodutivel: ${evidence.metadata.reproducible ? 'SIM' : 'NAO'}`)

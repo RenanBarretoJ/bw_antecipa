@@ -26,7 +26,10 @@ try {
     ['risco_execucoes_imutaveis','risco_motivos_imutaveis','risco_revisoes_protegidas'],
   ])
   check(triggers.rowCount === 3, 'historico e workflow protegidos', triggers.rows)
-  const execution = await db.query(`select * from public.risco_execucoes where fundo_id=$1 and data_operacional=$2 and escopo='FUNDO' and origem='CENTRAL_RISCO' order by created_at desc limit 1`, [dataset.mainFund.id, dataset.baseDate])
+  const execution = await db.query(`select * from public.risco_execucoes
+    where fundo_id=$1 and data_operacional=$2 and escopo='FUNDO' and origem='CENTRAL_RISCO'
+      and status_tecnico='CONCLUIDA'
+    order by created_at desc limit 1`, [dataset.mainFund.id, dataset.baseDate])
   check(execution.rowCount === 1, 'execucao Golden P2.6 corrente existe', execution.rows)
   if (execution.rowCount) {
     const row = execution.rows[0]

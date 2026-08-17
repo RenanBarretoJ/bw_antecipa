@@ -76,6 +76,12 @@
     "homolog:financeiro:risco:verify": "node scripts/homologacao/financeiro/risco/verify.mjs",
     "homolog:financeiro:risco:verify-security": "node scripts/homologacao/financeiro/risco/verify-security.mjs",
     "homolog:financeiro:risco:benchmark": "node scripts/homologacao/financeiro/risco/benchmark.mjs",
+    "homolog:financeiro:readiness:inventory": "node scripts/homologacao/financeiro/readiness/inventory.mjs",
+    "homolog:financeiro:readiness:audit": "node scripts/homologacao/financeiro/readiness/audit-read-only.mjs",
+    "homolog:financeiro:readiness:benchmark": "node scripts/homologacao/financeiro/readiness/benchmark.mjs",
+    "homolog:financeiro:readiness:concurrency": "node scripts/homologacao/financeiro/readiness/concurrency.mjs",
+    "homolog:financeiro:readiness:secret-scan": "node scripts/homologacao/financeiro/readiness/secret-scan.mjs",
+    "homolog:financeiro:migrations:reconcile-history": "node scripts/homologacao/financeiro/migrations/reconcile-history.mjs",
     "homolog:financeiro:generalizacao:apply": "node scripts/homologacao/financeiro/apply-generalizacao.mjs",
     "homolog:financeiro:generalizacao:verify": "node scripts/homologacao/financeiro/verify-generalizacao.mjs"
   },

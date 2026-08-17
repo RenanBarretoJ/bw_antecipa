@@ -1,0 +1,16 @@
+{
+  "schema": "bw-antecipa-p2-6-1-timeout-fail-closed-v1",
+  "project_ref": "fhgkmggthxikfpogrvaa",
+  "status": "PASS",
+  "production_touched": false,
+  "temporary_timeout_ms": 5000,
+  "environment_restored": true,
+  "result": {
+    "execution_id": "e4c71632-b866-4511-b050-fca8b25d9849",
+    "technical_status": "AVALIACAO_RISCO_INDISPONIVEL",
+    "decision": "BLOQUEADO",
+    "duration_ms": 5844,
+    "approved": false
+  },
+  "conclusion": "O timeout falha fechado e nao transforma indisponibilidade tecnica em aprovacao."
+}

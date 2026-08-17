@@ -13,6 +13,7 @@ export default defineConfig({
       'src/**/*.test.ts',
       'scripts/perf9d/**/*.test.mjs',
       'scripts/perf9e/**/*.test.mjs',
+      'scripts/homologacao/financeiro/readiness/**/*.test.mjs',
       'scripts/homologacao/rlx-golden/**/*.test.mjs',
       'scripts/homologacao/rlx-golden-v2/**/*.test.ts',
     ],
