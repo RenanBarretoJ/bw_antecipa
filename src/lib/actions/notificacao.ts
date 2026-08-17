@@ -137,7 +137,7 @@ export async function notificarGestores(titulo: string, mensagem: string, tipo: 
 // Non-blocking: erros sao logados mas nao propagados.
 async function tentarEnviarEmail(usuarioId: string, tipo: string, titulo: string, mensagem: string) {
   try {
-    const supabase = await createClient()
+    const supabase = createAdminClient()
 
     // Buscar email do usuario
     const { data: profile } = await supabase

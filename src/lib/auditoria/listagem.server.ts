@@ -40,17 +40,11 @@ function termoOrSeguro(value: string): string {
   return value.replace(/[%_,()]/g, ' ').replace(/\s+/g, ' ').trim()
 }
 
-function perfilDaLinha(value: unknown) {
-  if (Array.isArray(value)) return value[0] as Record<string, unknown> | undefined
-  return value && typeof value === 'object' ? value as Record<string, unknown> : undefined
-}
-
 function mapItem(row: Record<string, unknown>): AuditoriaListagemItem {
-  const profile = perfilDaLinha(row.profiles)
   const entidadeTipo = typeof row.entidade_tipo === 'string' ? row.entidade_tipo : null
   const entidadeId = typeof row.entidade_id === 'string' ? row.entidade_id : null
   const tipo = String(row.tipo_evento ?? '')
-  const atorNome = String(profile?.nome_completo ?? row.ator_identificador ?? 'Sistema')
+  const atorNome = String(row.ator_identificador ?? 'Sistema')
 
   return {
     id: String(row.id),
@@ -62,7 +56,7 @@ function mapItem(row: Record<string, unknown>): AuditoriaListagemItem {
     ator: {
       id: typeof row.usuario_id === 'string' ? row.usuario_id : null,
       nome: atorNome,
-      perfil: String(profile?.role ?? row.ator_tipo ?? 'sistema'),
+      perfil: String(row.ator_tipo ?? 'sistema'),
     },
     resumo: `${atorNome} executou ${tipo}${entidadeTipo ? ` em ${entidadeTipo}` : ''}.`,
     origem: typeof row.origem === 'string' ? row.origem : null,
@@ -93,16 +87,12 @@ export async function carregarAuditoria(input: AuditoriaFiltros & {
   if (input.cursor && !cursor) throw new Error('Cursor de auditoria invalido.')
 
   const atorUuid = /^[0-9a-f-]{36}$/i.test(filtros.ator) ? filtros.ator : ''
-  const profileRelation = filtros.ator && !atorUuid
-    ? 'profiles!inner(nome_completo, role, email)'
-    : 'profiles(nome_completo, role)'
 
   let query = context.supabase
     .from('logs_auditoria')
     .select(`
       id, usuario_id, ator_tipo, ator_identificador, origem, tipo_evento,
-      entidade_tipo, entidade_id, ip_origem, created_at,
-      ${profileRelation}
+      entidade_tipo, entidade_id, ip_origem, created_at
     `)
     .order('created_at', { ascending: false })
     .order('id', { ascending: false })
@@ -114,13 +104,7 @@ export async function carregarAuditoria(input: AuditoriaFiltros & {
   if (filtros.dataFinal) query = query.lt('created_at', inicioDiaSeguinte(filtros.dataFinal))
   if (filtros.ator) {
     if (atorUuid) query = query.eq('usuario_id', atorUuid)
-    else {
-      const actorTerm = termoOrSeguro(filtros.ator)
-      query = query.or(
-        `nome_completo.ilike.%${actorTerm}%,email.ilike.%${actorTerm}%`,
-        { referencedTable: 'profiles' },
-      )
-    }
+    else query = query.ilike('ator_identificador', `%${termoOrSeguro(filtros.ator)}%`)
   }
   if (filtros.q) {
     const term = termoOrSeguro(filtros.q)

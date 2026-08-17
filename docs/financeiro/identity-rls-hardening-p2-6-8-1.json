@@ -1,0 +1,206 @@
+{
+  "schema": "bw-antecipa-identity-rls-hardening-p2-6-8-1-v1",
+  "generated_at": "2026-08-17",
+  "environment": "homolog",
+  "project_ref": "fhgkmggthxikfpogrvaa",
+  "production_touched": false,
+  "credential_rotation_required": true,
+  "status": "PASS",
+  "inventory_gate": {
+    "unresolved": 0,
+    "mutation_authorized": true
+  },
+  "identity_objects": {
+    "profiles": {
+      "owner": "postgres",
+      "rls_enabled": true,
+      "force_rls": false,
+      "triggers": ["profiles_proteger_papel_primario", "profiles_sincronizar_papel_primario", "profiles_updated_at"]
+    },
+    "usuario_papeis": {
+      "owner": "postgres",
+      "rls_enabled": true,
+      "force_rls": false,
+      "triggers": ["usuario_papeis_updated_at"]
+    },
+    "authorization_helpers_reviewed": [
+      "public.get_user_role()",
+      "private.usuario_e_super_admin()",
+      "private.financeiro_usuario_e_super_admin()",
+      "private.usuario_possui_super_admin_ativo(uuid)",
+      "private.proteger_ultimo_super_admin(uuid)"
+    ]
+  },
+  "policies_before": {
+    "profiles": [
+      {
+        "name": "profiles_gestor_all",
+        "permissive": "PERMISSIVE",
+        "roles": ["public"],
+        "command": "ALL",
+        "using": "get_user_role() = gestor",
+        "classification": "EXCESSIVE_GLOBAL_ACCESS"
+      },
+      {
+        "name": "profiles_own_select",
+        "roles": ["authenticated"],
+        "command": "SELECT",
+        "using": "id = auth.uid()",
+        "classification": "OWN_PROFILE"
+      },
+      {
+        "name": "profiles_own_update",
+        "roles": ["public"],
+        "command": "UPDATE",
+        "using": "id = auth.uid()",
+        "classification": "LEGACY_UNUSED"
+      }
+    ],
+    "usuario_papeis": [
+      {
+        "name": "usuario_papeis_select_own",
+        "roles": ["authenticated"],
+        "command": "SELECT",
+        "using": "usuario_id = auth.uid()",
+        "classification": "OWN_PROFILE"
+      }
+    ]
+  },
+  "grants_before": {
+    "profiles": {
+      "authenticated": ["SELECT", "TRUNCATE", "REFERENCES", "TRIGGER"],
+      "anon": [],
+      "service_role": ["SELECT", "INSERT", "UPDATE", "DELETE"]
+    },
+    "usuario_papeis": {
+      "authenticated": ["SELECT"],
+      "anon": [],
+      "service_role": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER"]
+    }
+  },
+  "runtime_consumers": [
+    {
+      "flow": "login, middleware, MFA e resolucao de portal",
+      "files": [
+        "src/lib/auth/identity-query.ts",
+        "src/lib/auth/platform-access.ts",
+        "src/lib/auth/authorization.ts",
+        "src/lib/auth/mfa.ts",
+        "src/lib/supabase/middleware.ts",
+        "src/app/actions/auth.ts",
+        "src/components/layout/portal-shell.tsx",
+        "src/hooks/useProfile.ts"
+      ],
+      "classification": "OWN_PROFILE",
+      "cross_profile_required": false
+    },
+    {
+      "flow": "administracao de usuarios da plataforma",
+      "files": ["src/app/admin", "src/lib/admin"],
+      "classification": "ADMIN_RPC",
+      "cross_profile_required": true,
+      "mechanism": "RPCs controladas e server-side com autorizacao Super Admin"
+    },
+    {
+      "flow": "acessos vinculados ao cedente",
+      "files": ["src/app/gestor/cedentes/[id]/page.tsx", "src/lib/actions/gestor.ts"],
+      "classification": "FUND_SCOPED_OPERATIONAL",
+      "cross_profile_required": true,
+      "mechanism": "Server Action valida cedente_acessos pela sessao/RLS e resolve somente os IDs autorizados no servidor"
+    },
+    {
+      "flow": "auditoria",
+      "files": ["src/lib/auditoria/listagem.server.ts"],
+      "classification": "ADMIN_SERVER_SIDE",
+      "cross_profile_required": false,
+      "mechanism": "Identidade historica denormalizada em ator_identificador e ator_tipo"
+    },
+    {
+      "flow": "notificacoes e comunicacoes internas",
+      "files": ["src/lib/actions/notificacao.ts", "src/lib/comunicacoes/motor.server.ts"],
+      "classification": "ADMIN_SERVER_SIDE",
+      "cross_profile_required": true,
+      "mechanism": "Resolucao interna de destinatarios no servidor, sem exposicao de diretorio global"
+    }
+  ],
+  "legitimate_cross_profile_requirements": {
+    "gestor_direct_data_api_global_read": false,
+    "admin_user_management": "ADMIN_RPC",
+    "fund_scoped_linked_users": "FUND_SCOPED_OPERATIONAL_SERVER_SIDE",
+    "internal_notifications": "ADMIN_SERVER_SIDE",
+    "decision": "profiles nao e diretorio global; leitura cross-user exige contrato server-side ou RPC especifico"
+  },
+  "classification": {
+    "OWN_PROFILE": "Leitura do proprio perfil e dos proprios papeis pela sessao autenticada.",
+    "ADMIN_SERVER_SIDE": "Leitura interna apos autorizacao explicita, sem retornar diretorio global ao browser.",
+    "ADMIN_RPC": "Administracao da plataforma por RPC controlada de Super Admin.",
+    "FUND_SCOPED_OPERATIONAL": "Leitura limitada a usuarios vinculados a entidade autorizada no fundo.",
+    "GLOBAL_READ_REQUIRED": [],
+    "LEGACY_UNUSED": ["profiles_own_update"]
+  },
+  "migration": {
+    "file": "supabase/migrations/20260817204159_p2_6_8_1_hardening_rls_identidade_profiles.sql",
+    "version": "20260817204159",
+    "applied_in_homolog": true,
+    "flow": "supabase db push",
+    "data_changes": false,
+    "preconditions": true,
+    "postconditions": true,
+    "db_push_dry_run_pending": 0
+  },
+  "policies_after": {
+    "profiles": [
+      {
+        "name": "profiles_own_select",
+        "roles": ["authenticated"],
+        "command": "SELECT",
+        "using": "id = auth.uid()"
+      }
+    ],
+    "usuario_papeis": [
+      {
+        "name": "usuario_papeis_select_own",
+        "roles": ["authenticated"],
+        "command": "SELECT",
+        "using": "usuario_id = auth.uid()"
+      }
+    ]
+  },
+  "grants_after": {
+    "profiles": {
+      "authenticated": ["SELECT"],
+      "anon": [],
+      "service_role": ["SELECT", "INSERT", "UPDATE", "DELETE"]
+    },
+    "usuario_papeis": {
+      "authenticated": ["SELECT"],
+      "anon": [],
+      "service_role": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER"]
+    }
+  },
+  "data_api_identity_matrix": {
+    "artifact": "api-auth-matrix-p2-6-8-1.json",
+    "status": "PASS",
+    "total": 118,
+    "passed": 118,
+    "failed": 0,
+    "actors": ["GESTOR_A", "CEDENTE_A", "CONSULTOR_A", "SACADO_A", "SUPER_ADMIN_PURO", "SUPER_ADMIN_GESTOR_A"]
+  },
+  "mutations": {
+    "gestor_insert_other_profile": "DENY",
+    "gestor_update_other_profile": "DENY",
+    "gestor_delete_other_profile": "DENY",
+    "gestor_update_own_profile": "DENY",
+    "authenticated_insert_usuario_papeis": "DENY",
+    "authenticated_update_usuario_papeis": "DENY",
+    "authenticated_delete_usuario_papeis": "DENY"
+  },
+  "login_regression": {
+    "jwt_data_api": "PASS",
+    "own_profile": "ALLOW",
+    "own_roles": "ALLOW",
+    "next_login_http": 200,
+    "real_password_totp_smoke": "NOT_EXECUTED",
+    "reason": "Credencial QA/TOTP controlada nao foi disponibilizada; o gate AUTHENTICATED_SMOKE_LOGIN_MFA nao foi promovido."
+  }
+}

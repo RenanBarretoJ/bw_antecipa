@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { use } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { analisarDocumento, aprovarCedente, reprovarCedente, solicitarAtualizacaoDocumento, toggleEscrowCedente, toggleCoobrigacaoCedente, aprovarAlteracaoCedente, reprovarAlteracaoCedente, convidarUsuarioCedente, revogarAcessoCedente, vincularFundoCedente } from '@/lib/actions/gestor'
+import { analisarDocumento, aprovarCedente, reprovarCedente, solicitarAtualizacaoDocumento, toggleEscrowCedente, toggleCoobrigacaoCedente, aprovarAlteracaoCedente, reprovarAlteracaoCedente, convidarUsuarioCedente, revogarAcessoCedente, vincularFundoCedente, listarPerfisAcessosCedente } from '@/lib/actions/gestor'
 import { salvarTaxasCedente } from '@/lib/actions/operacao'
 import { salvarContratoAssinado } from '@/lib/actions/cedente'
 import { formatCNPJ, formatDate } from '@/lib/utils'
@@ -258,11 +258,7 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
       .limit(50)
 
     if (ac && ac.length > 0) {
-      const userIds = (ac as { user_id: string }[]).map((a) => a.user_id)
-      const { data: profs } = await supabase
-        .from('profiles')
-        .select('id, nome_completo, email')
-        .in('id', userIds)
+      const profs = await listarPerfisAcessosCedente(id)
       const profsMap = Object.fromEntries(
         ((profs || []) as { id: string; nome_completo: string; email: string }[]).map((p) => [p.id, p])
       )

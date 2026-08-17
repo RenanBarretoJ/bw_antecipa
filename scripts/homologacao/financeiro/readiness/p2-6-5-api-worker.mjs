@@ -492,27 +492,88 @@ async function expectOwnRole(actorName, expected) {
 }
 
 async function executeIdentityRegression() {
-  const ownProfile = await actors.GESTOR_A.client.from('profiles').select('id').eq('id', actors.GESTOR_A.id)
+  const identityActors = ['GESTOR_A', 'CEDENTE_A', 'CONSULTOR_A', 'SACADO_A', 'SUPER_ADMIN_PURO', 'SUPER_ADMIN_GESTOR_A']
+  for (const actorName of identityActors) {
+    const ownProfile = await actors[actorName].client.from('profiles').select('id').eq('id', actors[actorName].id)
+    record(matrix, {
+      actor: actorName, resource: 'profiles', action: 'SELECT_OWN', expected: 'ALLOW',
+      actual: !ownProfile.error && ownProfile.data?.length ? 'ALLOW' : 'DENY',
+      http_status: ownProfile.status, error_code: ownProfile.error?.code,
+    })
+
+    const otherProfile = await actors[actorName].client.from('profiles').select('id').eq('id', actors.GESTOR_B.id)
+    record(matrix, {
+      actor: actorName, resource: 'profiles', action: 'SELECT_OTHER', expected: actorName === 'GESTOR_B' ? 'ALLOW' : 'DENY',
+      actual: !otherProfile.error && otherProfile.data?.length ? 'ALLOW' : 'DENY',
+      http_status: otherProfile.status, error_code: otherProfile.error?.code,
+    })
+
+    await expectOwnRole(actorName, 'ALLOW')
+    const otherRoles = await actors[actorName].client.from('usuario_papeis').select('papel').eq('usuario_id', actors.GESTOR_B.id)
+    record(matrix, {
+      actor: actorName, resource: 'usuario_papeis', action: 'SELECT_OTHER', expected: 'DENY',
+      actual: !otherRoles.error && otherRoles.data?.length ? 'ALLOW' : 'DENY',
+      http_status: otherRoles.status, error_code: otherRoles.error?.code,
+    })
+  }
+
+  const insertedProfileId = randomUUID()
+  const insertProfile = await actors.GESTOR_A.client.from('profiles').insert({
+    id: insertedProfileId, role: 'cedente', nome_completo: 'P2.6.8.1 bloqueado',
+    email: `p2681-${insertedProfileId}@invalid.example`, status: 'ativo',
+  }).select('id')
   record(matrix, {
-    actor: 'GESTOR_A', resource: 'profiles', action: 'SELECT_OWN', expected: 'ALLOW',
-    actual: !ownProfile.error && ownProfile.data?.length ? 'ALLOW' : 'DENY',
-    http_status: ownProfile.status, error_code: ownProfile.error?.code,
+    actor: 'GESTOR_A', resource: 'profiles', action: 'INSERT_OTHER', expected: 'DENY',
+    actual: insertProfile.error || !insertProfile.data?.length ? 'DENY' : 'ALLOW',
+    http_status: insertProfile.status, error_code: insertProfile.error?.code,
   })
 
-  await expectOwnRole('SUPER_ADMIN_PURO', 'ALLOW')
-
-  const otherProfile = await actors.GESTOR_A.client.from('profiles').select('id').eq('id', actors.GESTOR_B.id)
+  const updateOtherProfile = await actors.GESTOR_A.client.from('profiles')
+    .update({ nome_completo: 'P2.6.8.1 bloqueado' }).eq('id', actors.GESTOR_B.id).select('id')
   record(matrix, {
-    actor: 'GESTOR_A', resource: 'profiles', action: 'SELECT_OTHER', expected: 'DENY',
-    actual: !otherProfile.error && otherProfile.data?.length ? 'ALLOW' : 'DENY',
-    http_status: otherProfile.status, error_code: otherProfile.error?.code,
+    actor: 'GESTOR_A', resource: 'profiles', action: 'UPDATE_OTHER', expected: 'DENY',
+    actual: updateOtherProfile.error || !updateOtherProfile.data?.length ? 'DENY' : 'ALLOW',
+    http_status: updateOtherProfile.status, error_code: updateOtherProfile.error?.code,
   })
 
-  const otherRoles = await actors.SUPER_ADMIN_PURO.client.from('usuario_papeis').select('papel').eq('usuario_id', actors.SUPER_ADMIN_GESTOR_A.id)
+  const updateOwnProfile = await actors.GESTOR_A.client.from('profiles')
+    .update({ nome_completo: 'P2.6.8.1 bloqueado' }).eq('id', actors.GESTOR_A.id).select('id')
   record(matrix, {
-    actor: 'SUPER_ADMIN_PURO', resource: 'usuario_papeis', action: 'SELECT_OTHER', expected: 'DENY',
-    actual: !otherRoles.error && otherRoles.data?.length ? 'ALLOW' : 'DENY',
-    http_status: otherRoles.status, error_code: otherRoles.error?.code,
+    actor: 'GESTOR_A', resource: 'profiles', action: 'UPDATE_OWN', expected: 'DENY',
+    actual: updateOwnProfile.error || !updateOwnProfile.data?.length ? 'DENY' : 'ALLOW',
+    http_status: updateOwnProfile.status, error_code: updateOwnProfile.error?.code,
+  })
+
+  const deleteOtherProfile = await actors.GESTOR_A.client.from('profiles').delete().eq('id', actors.GESTOR_B.id).select('id')
+  record(matrix, {
+    actor: 'GESTOR_A', resource: 'profiles', action: 'DELETE_OTHER', expected: 'DENY',
+    actual: deleteOtherProfile.error || !deleteOtherProfile.data?.length ? 'DENY' : 'ALLOW',
+    http_status: deleteOtherProfile.status, error_code: deleteOtherProfile.error?.code,
+  })
+
+  const insertRole = await actors.GESTOR_A.client.from('usuario_papeis').insert({
+    usuario_id: actors.GESTOR_A.id, papel: 'super_admin', ativo: true, origem: 'administracao',
+  }).select('usuario_id')
+  record(matrix, {
+    actor: 'GESTOR_A', resource: 'usuario_papeis', action: 'INSERT_DIRECT', expected: 'DENY',
+    actual: insertRole.error || !insertRole.data?.length ? 'DENY' : 'ALLOW',
+    http_status: insertRole.status, error_code: insertRole.error?.code,
+  })
+
+  const updateRole = await actors.GESTOR_A.client.from('usuario_papeis')
+    .update({ origem: 'administracao' }).eq('usuario_id', actors.GESTOR_A.id).select('usuario_id')
+  record(matrix, {
+    actor: 'GESTOR_A', resource: 'usuario_papeis', action: 'UPDATE_DIRECT', expected: 'DENY',
+    actual: updateRole.error || !updateRole.data?.length ? 'DENY' : 'ALLOW',
+    http_status: updateRole.status, error_code: updateRole.error?.code,
+  })
+
+  const deleteRole = await actors.GESTOR_A.client.from('usuario_papeis')
+    .delete().eq('usuario_id', actors.GESTOR_A.id).select('usuario_id')
+  record(matrix, {
+    actor: 'GESTOR_A', resource: 'usuario_papeis', action: 'DELETE_DIRECT', expected: 'DENY',
+    actual: deleteRole.error || !deleteRole.data?.length ? 'DENY' : 'ALLOW',
+    http_status: deleteRole.status, error_code: deleteRole.error?.code,
   })
 
   const anon = createClient(apiUrl, anonKey, { auth: { persistSession: false, autoRefreshToken: false } })

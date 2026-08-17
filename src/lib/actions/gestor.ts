@@ -655,6 +655,29 @@ export async function convidarUsuarioCedente(
   return { success: true, message: `Acesso concedido para ${email}.` }
 }
 
+export async function listarPerfisAcessosCedente(cedenteId: string) {
+  await requireGestor()
+  const supabase = await createClient()
+  const { data: acessos, error: acessosError } = await supabase
+    .from('cedente_acessos')
+    .select('user_id')
+    .eq('cedente_id', cedenteId)
+    .eq('ativo', true)
+    .limit(50)
+
+  if (acessosError) throw new Error('Nao foi possivel validar os acessos vinculados ao cedente.')
+  const userIds = Array.from(new Set((acessos || []).map((acesso) => acesso.user_id)))
+  if (!userIds.length) return []
+
+  const { data: profiles, error: profilesError } = await createAdminClient()
+    .from('profiles')
+    .select('id, nome_completo, email')
+    .in('id', userIds)
+
+  if (profilesError) throw new Error('Nao foi possivel carregar os perfis vinculados ao cedente.')
+  return profiles || []
+}
+
 export async function revogarAcessoCedente(acessoId: string): Promise<GestorActionState> {
   await requireGestor()
   const supabase = await createClient()
