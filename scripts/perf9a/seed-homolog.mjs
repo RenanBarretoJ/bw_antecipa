@@ -385,15 +385,17 @@ INSERT INTO public.politicas_operacionais (
 INSERT INTO public.politica_operacional_versoes (
   id, politica_operacional_id, cedente_fundo_id, fundo_id, versao, vigente_desde,
   aceite_sacado_obrigatorio, cessao_no_desembolso, cria_acompanhamento_entrega,
-  configuracao, regras, parametros, conteudo_hash, status
+  metodo_calculo_financeiro, configuracao, regras, parametros, conteudo_hash, status
 ) VALUES
   (${versionA}, ${policyA}, NULL, ${fundA}, 1, now() - interval '90 days',
    false, true, true,
+   'DIAS_UTEIS_252',
    '{"aceite":"dispensado","cessao":"desembolso","entrega":"obrigatoria"}',
    '{"origem":"PERF9A"}', '{"prazo_entrega_dias":10}',
    md5('PERF9A_POL_A') || md5('PERF9A_POL_A'), 'rascunho'),
   (${versionB}, ${policyB}, NULL, ${fundB}, 1, now() - interval '90 days',
    true, false, false,
+   'DIAS_UTEIS_252',
    '{"aceite":"antes_desembolso","cessao":"assinatura","entrega":"nao_aplicavel"}',
    '{"origem":"PERF9A"}', '{"prazo_entrega_dias":0}',
    md5('PERF9A_POL_B') || md5('PERF9A_POL_B'), 'rascunho');
@@ -496,6 +498,11 @@ FROM generate_series(1, 250) i
 JOIN perf9a_assignments a ON a.assignment_idx = 1 + ((i - 1) % 119)
 JOIN perf9a_links l ON l.cedente_fundo_id = a.cedente_fundo_id;
 
+-- A massa PERF9A materializa deliberadamente todos os estados operacionais para
+-- os testes de autorizacao e performance. O bypass permanece local a esta
+-- transacao administrativa; fluxos reais continuam obrigados a usar a RPC.
+SELECT set_config('app.calculo_aprovacao', 'true', true);
+
 INSERT INTO public.operacoes (
   id, cedente_id, valor_bruto_total, taxa_desconto, prazo_dias,
   valor_liquido_desembolso, data_vencimento, status,
@@ -518,7 +525,15 @@ SELECT operacao_id, cedente_id,
        CASE WHEN status IN ('aprovada','em_andamento','liquidada','inadimplente') THEN now() - interval '15 days' END,
        CASE WHEN status='liquidada' THEN now() - interval '2 days' END,
        cedente_fundo_id, policy_id, version_id, 1,
-       jsonb_build_object('origem','PERF9A','versao',1,'fundo_id',fundo_id),
+       jsonb_build_object(
+         'origem','PERF9A',
+         'versao',1,
+         'fundo_id',fundo_id,
+         'calculo_financeiro',jsonb_build_object(
+           'metodo','DIAS_UTEIS_252',
+           'versao_motor',1
+         )
+       ),
        md5('PERF9A_OP_' || op_idx) || md5('PERF9A_OP_' || op_idx),
        'completo', now() - interval '30 days',
        (fundo_id = ${fundB}),
@@ -530,6 +545,8 @@ SELECT operacao_id, cedente_id,
        timestamptz '2026-06-30 23:59:30+00' + (op_idx || ' minutes')::interval,
        timestamptz '2026-06-30 23:59:30+00' + (op_idx || ' minutes')::interval
 FROM perf9a_operacoes;
+
+SELECT set_config('app.calculo_aprovacao', 'false', true);
 
 CREATE TEMP TABLE perf9a_nfs (
   nf_idx integer PRIMARY KEY,

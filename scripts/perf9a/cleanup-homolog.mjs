@@ -136,7 +136,7 @@ async function collectObjectPaths(admin, bucket, prefix) {
 
 function uuidFromExpressionKey(key) {
   const expression = deterministicUuidExpression(key)
-  const match = expression.match(/^md5\\('([^']+)'\\)::uuid$/)
+  const match = expression.match(/^md5\('([^']+)'\)::uuid$/)
   if (!match) throw new Error(`Expressao UUID inesperada para ${key}`)
   return md5ToUuid(match[1])
 }

@@ -1,0 +1,57 @@
+{
+  "schema": "bw-antecipa-p2-6-4-functional-canonical-v1",
+  "unresolved": 0,
+  "constraints": [
+    {
+      "object": "public.notas_fiscais.notas_fiscais_valor_bruto_check",
+      "canonical": "CHECK (valor_bruto > 0)",
+      "precheck": "count(valor_bruto = 0) = 0",
+      "classification": "CANON_CLEAN_ROOM"
+    },
+    {
+      "object": "public.remessas_cnab.remessas_cnab_integracao_fundo_versao_id_fkey",
+      "canonical": "FK integracao_fundo_versao_id -> integracao_fundo_versoes(id) ON DELETE RESTRICT",
+      "precheck": "orfaos = 0",
+      "classification": "CANON_CLEAN_ROOM"
+    }
+  ],
+  "indexes": [
+    {
+      "object": "public.idx_operacao_calculo_nfs_operacao",
+      "canonical": "ABSENT",
+      "equivalent": "operacao_calculo_nfs_operacao_id_nota_fiscal_id_key prefix operacao_id",
+      "classification": "REMOVER_LEGADO"
+    }
+  ],
+  "routines": [
+    {
+      "object": "public.aprovar_operacao_atomica_financeiro_v1(uuid,numeric)",
+      "canonical": "internal financial engine from 20260805170000",
+      "classification": "CANON_CLEAN_ROOM"
+    },
+    {
+      "object": "public.aprovar_operacao_atomica(uuid,numeric)",
+      "canonical": "hardened wrapper, browser EXECUTE revoked by P2.6",
+      "classification": "CANON_CLEAN_ROOM"
+    },
+    {
+      "object": "public.bloquear_aprovacao_financeira_direta()",
+      "canonical": "trigger function from 20260805180000",
+      "classification": "CANON_CLEAN_ROOM"
+    },
+    {
+      "object": "public.registrar_cte_documento(uuid[],text,text,text,bigint,text,text,text,text,text,text,date,text,text,text,numeric,text,jsonb)",
+      "canonical": "document repository + CT-e + delivery link + requirement update",
+      "classification": "CANON_CLEAN_ROOM"
+    }
+  ],
+  "triggers": [
+    {
+      "object": "public.operacoes.operacoes_bloquear_aprovacao_financeira_direta",
+      "timing": "BEFORE",
+      "events": ["INSERT", "UPDATE OF status"],
+      "canonical": true,
+      "classification": "CANON_CLEAN_ROOM"
+    }
+  ]
+}

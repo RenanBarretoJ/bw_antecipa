@@ -1,0 +1,22 @@
+{
+  "schema": "bw-antecipa-p2-6-4-deployment-v1",
+  "status": "PASS",
+  "started_at": "2026-08-17T15:23:35.193Z",
+  "node": "v22.23.2",
+  "environment": {
+    "project_ref": "fhgkmggthxikfpogrvaa",
+    "production_mutated": false
+  },
+  "expected_migrations": [
+    "20260817152140_p2_6_4_fechar_acl_rotinas_internas.sql"
+  ],
+  "dry_run": {
+    "status": "PASS",
+    "output": "{\"upToDate\":false,\"dryRun\":true,\"migrations\":[\"20260817152140_p2_6_4_fechar_acl_rotinas_internas.sql\"],\"seeds\":[],\"roles\":[],\"message\":\"Finished supabase db push.\"}\n\nDRY RUN: migrations will *not* be pushed to the database.\nConnecting to remote database...\nWould push these migrations:\n • 20260817152140_p2_6_4_fechar_acl_rotinas_internas.sql"
+  },
+  "push": {
+    "status": "PASS",
+    "output": "{\"upToDate\":false,\"dryRun\":false,\"migrations\":[\"20260817152140_p2_6_4_fechar_acl_rotinas_internas.sql\"],\"seeds\":[],\"roles\":[],\"message\":\"Finished supabase db push.\"}\n\nConnecting to remote database...\nDo you want to push these migrations to the remote database?\n • 20260817152140_p2_6_4_fechar_acl_rotinas_internas.sql\n [Y/n] y\nApplying migration 20260817152140_p2_6_4_fechar_acl_rotinas_internas.sql..."
+  },
+  "finished_at": "2026-08-17T15:23:42.521Z"
+}

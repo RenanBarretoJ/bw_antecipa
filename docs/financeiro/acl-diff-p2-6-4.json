@@ -1,0 +1,133 @@
+{
+  "schema": "bw-antecipa-p2-6-4-acl-diff-v1",
+  "status": "PASS",
+  "scope": "ACL efetiva de public; totais gerais incluem public, storage e private capturados pelo schema snapshot",
+  "sources": [
+    "docs/financeiro/schema-parity-p2-6-3.json",
+    "docs/financeiro/homolog-preflight-p2-6-4.json",
+    "docs/financeiro/homolog-postflight-p2-6-4.json",
+    "docs/financeiro/schema-parity-p2-6-4.json",
+    "docs/financeiro/security-matrix-canonical-p2-6-4.json"
+  ],
+  "totals_all_scanned_schemas": {
+    "homolog_before": 2007,
+    "clean_room_before": 1353,
+    "homolog_after": 1200,
+    "clean_room_after": 1218,
+    "after_difference": 18,
+    "after_difference_classification": "AMBIENTAL_ALLOWLIST",
+    "after_difference_reason": "Grants dos objetos internos storage.iceberg_namespaces e storage.iceberg_tables presentes apenas no Storage local."
+  },
+  "public_by_role_and_kind": [
+    {
+      "role": "PUBLIC",
+      "kind": "routine",
+      "homolog_before": 21,
+      "clean_room_before": 21,
+      "canonical": 21,
+      "homolog_after": 21,
+      "clean_room_after": 21,
+      "decision": "Somente assinaturas explicitamente versionadas; nenhuma exposicao adicional foi criada."
+    },
+    {
+      "role": "anon",
+      "kind": "routine",
+      "homolog_before": 59,
+      "clean_room_before": 0,
+      "canonical": 0,
+      "homolog_after": 0,
+      "clean_room_after": 0,
+      "decision": "REVOKE integral de EXECUTE sem consumidor publico comprovado."
+    },
+    {
+      "role": "anon",
+      "kind": "table",
+      "homolog_before": 385,
+      "clean_room_before": 165,
+      "canonical": 0,
+      "homolog_after": 0,
+      "clean_room_after": 0,
+      "decision": "Sem acesso direto anon ao dominio public."
+    },
+    {
+      "role": "authenticated",
+      "kind": "routine",
+      "homolog_before": 127,
+      "clean_room_before": 99,
+      "canonical": 99,
+      "homolog_after": 99,
+      "clean_room_after": 99,
+      "decision": "Somente RPCs publicas explicitamente versionadas; helpers e funcoes de trigger revogados."
+    },
+    {
+      "role": "authenticated",
+      "kind": "table",
+      "homolog_before": 450,
+      "clean_room_before": 323,
+      "canonical": 327,
+      "homolog_after": 327,
+      "clean_room_after": 327,
+      "decision": "Leituras/mutacoes necessarias por objeto, sempre combinadas com RLS; inclui SELECT de cedentes exigido pela carteira do consultor."
+    },
+    {
+      "role": "service_role",
+      "kind": "routine",
+      "homolog_before": 120,
+      "clean_room_before": 35,
+      "canonical": 34,
+      "homolog_after": 34,
+      "clean_room_after": 34,
+      "decision": "RPCs tecnicas nominais; motor financeiro interno e trigger helper sem EXECUTE direto."
+    },
+    {
+      "role": "service_role",
+      "kind": "table",
+      "homolog_before": 721,
+      "clean_room_before": 569,
+      "canonical": 595,
+      "homolog_after": 595,
+      "clean_room_after": 595,
+      "decision": "Capacidades server-side comprovadas, sem escrita em views financeiras."
+    }
+  ],
+  "semantic_object_groups": [
+    {
+      "group": "views_financeiras",
+      "objects": ["public.estoque_atual", "public.aquisicoes_atuais", "public.liquidacoes_atuais", "public.carteira_atual"],
+      "canonical": {"anon": "NONE", "authenticated": "SELECT quando exigido pelo fluxo", "service_role": "SELECT"},
+      "direct_write": false
+    },
+    {
+      "group": "approval_gate",
+      "objects": ["public.aprovar_operacao_atomica", "public.aprovar_operacao_atomica_financeiro_v1", "public.bloquear_aprovacao_financeira_direta"],
+      "canonical": {"anon": "NONE", "authenticated": "sem acesso aos motores internos", "service_role": "sem EXECUTE direto nos helpers internos"},
+      "rpc_only": true
+    },
+    {
+      "group": "audit_append_only",
+      "objects": ["public.logs_auditoria", "public.eventos_dominio"],
+      "canonical": {"anon": "NONE", "authenticated": "SELECT/INSERT conforme RLS", "service_role": "capacidade tecnica explicita"},
+      "authenticated_update_delete": false
+    },
+    {
+      "group": "portfolio_read",
+      "objects": ["public.cedentes", "public.devedores_solidarios"],
+      "canonical": {"anon": "NONE", "authenticated": "SELECT", "service_role": "capacidade tecnica explicita"},
+      "row_scope": "RLS por papel, fundo, carteira ou cedente"
+    },
+    {
+      "group": "trigger_and_validation_helpers",
+      "canonical": {"anon": "NONE", "authenticated": "NONE", "service_role": "NONE salvo grant nominal documentado"},
+      "data_api": false
+    }
+  ],
+  "anon_grants_before_homolog": {"public_table": 385, "public_routine": 59},
+  "anon_grants_before_clean_room": {"public_table": 165, "public_routine": 0},
+  "anon_grants_canonical": {"public_table": 0, "public_routine": 0},
+  "default_privileges": {
+    "postgres_public": "fail-closed para PUBLIC, anon, authenticated e service_role; grants futuros devem ser nominais",
+    "supabase_admin_public": "gerenciado pela plataforma Supabase; nao alterado pela migration da aplicacao",
+    "reason": "Evitar novo drift sem interferir no owner administrado pelo provedor."
+  },
+  "derivation": "Os totais clean_room_before por role/kind foram reconstruidos deterministicamente a partir do preflight de homologacao e das 671 diferencas de grants do P2.6.3. O estado after de public e identico por parity; as 18 diferencas gerais restantes pertencem somente ao Storage local allowlisted."
+}

@@ -444,3 +444,20 @@ Portanto, o P2.6.1 conclui a auditoria com evidências úteis, mas o sistema per
 | `npx next build --webpack` | PASS — 78 páginas |
 
 Nenhum commit e nenhum push foram executados.
+
+## Atualização de evidências pelo P2.6.4
+
+O P2.6.4 reconciliou o drift estrutural detectado no P2.6.3 por migrations incrementais normais. O estado atualizado é:
+
+- histórico de migrations: **PASS**, com 120 locais e 120 remotas, sem ausências, excedentes ou divergência de nome;
+- reconstrução estrutural clean-room: **PASS**, com bootstrap e 120/120 migrations;
+- schema parity: **PASS**, com zero diferença material e 49 diferenças ambientais restritas à allowlist do Storage Iceberg local;
+- Node 22: **PASS**, com TypeScript, 1.017 testes, lint e build executados em Node v22.23.2;
+- Golden V1, Golden V2, Golden Security, P2.2–P2.6, RLS/ACL de atores e Storage: **PASS em homologação canonicalizada**;
+- seed E2E, Golden e matriz autenticada dentro da API do clean-room local: **PENDENTE**;
+- dependency audit: permanece **FAIL**, sem alteração nesta fase;
+- performance do pipeline: permanece **FAIL** como gate de produção, apesar da melhora para p50 6.927 ms e p95 7.390 ms.
+
+A recomendação do P2.6.1 permanece **NO-GO**. A canonicalização removeu os blockers de migration history, schema drift e toolchain, mas não autoriza promoção enquanto os gates clean-room funcionais, performance e dependências não forem concluídos.
+
+Evidências: `schema-parity-p2-6-4.json`, `clean-room-p2-6-4-final.json`, `homolog-postflight-p2-6-4.json`, `performance-p2-6-4.json` e `production-readiness-p2-6-1.json`.

@@ -1,0 +1,50 @@
+{
+  "schema": "bw-antecipa-p2-6-4-clean-room-v1",
+  "phase": "final",
+  "status": "PASS",
+  "started_at": "2026-08-17T15:37:44.898Z",
+  "node": "v22.23.2",
+  "project_id": "bw-antecipa-p264-clean-room",
+  "clean_room_root": "C:\\Users\\BrenoAlvim\\AppData\\Local\\BWAntecipa\\p2-6-4\\final\\2026-08-17T15-37-44-898Z",
+  "migrations": {
+    "expected": 120,
+    "first": "003_storage_buckets_env.sql",
+    "last": "20260817154500_p2_6_4_restaurar_leitura_carteira_consultor.sql",
+    "manifest_sha256": "e381c46134fefc3c9910500b22c08d38292e02dff4adbd8f3e96819819d5d659",
+    "status": "PASS",
+    "applied": 120,
+    "bootstrap_applied": true,
+    "total_history_rows": 121
+  },
+  "canonical_checks": {
+    "nf_valor_positivo": true,
+    "indice_redundante_ausente": true,
+    "motor_financeiro_presente": true,
+    "registrar_cte_presente": true,
+    "trigger_gate_presente": true,
+    "devedores_rls": true,
+    "devedores_cedente_policy": true,
+    "devedores_gestor_policy": true,
+    "storage_legado_ausente": true,
+    "anon_sem_aprovacao": true,
+    "authenticated_sem_bypass": true
+  },
+  "parity": {
+    "status": "PASS",
+    "material_differences": 0,
+    "allowed_differences": 49
+  },
+  "production_mutated": false,
+  "homolog_mutated": false,
+  "failure": null,
+  "local_db_push_dry_run": {
+    "status": "PASS",
+    "output": "{\"upToDate\":true,\"dryRun\":true,\"migrations\":[],\"seeds\":[],\"roles\":[],\"message\":\"Local database is up to date.\"}\n\nDRY RUN: migrations will *not* be pushed to the database.\nConnecting to local database..."
+  },
+  "cleanup": {
+    "status": "PASS",
+    "stack_stopped": true,
+    "workspace_removed": true
+  },
+  "finished_at": "2026-08-17T15:39:59.025Z"
+}

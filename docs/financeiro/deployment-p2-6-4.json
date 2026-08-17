@@ -1,0 +1,24 @@
+{
+  "schema": "bw-antecipa-p2-6-4-deployment-v1",
+  "status": "PASS",
+  "started_at": "2026-08-17T15:18:38.681Z",
+  "node": "v22.23.2",
+  "environment": {
+    "project_ref": "fhgkmggthxikfpogrvaa",
+    "production_mutated": false
+  },
+  "expected_migrations": [
+    "20260817150505_p2_6_4_canonicalizar_schema_funcional.sql",
+    "20260817150507_p2_6_4_canonicalizar_acl_rls.sql",
+    "20260817150510_p2_6_4_canonicalizar_storage.sql"
+  ],
+  "dry_run": {
+    "status": "PASS",
+    "output": "{\"upToDate\":false,\"dryRun\":true,\"migrations\":[\"20260817150505_p2_6_4_canonicalizar_schema_funcional.sql\",\"20260817150507_p2_6_4_canonicalizar_acl_rls.sql\",\"20260817150510_p2_6_4_canonicalizar_storage.sql\"],\"seeds\":[],\"roles\":[],\"message\":\"Finished supabase db push.\"}\n\nDRY RUN: migrations will *not* be pushed to the database.\nConnecting to remote database...\nWould push these migrations:\n • 20260817150505_p2_6_4_canonicalizar_schema_funcional.sql\n • 20260817150507_p2_6_4_canonicalizar_acl_rls.sql\n • 20260817150510_p2_6_4_canonicalizar_storage.sql"
+  },
+  "push": {
+    "status": "PASS",
+    "output": "{\"upToDate\":false,\"dryRun\":false,\"migrations\":[\"20260817150505_p2_6_4_canonicalizar_schema_funcional.sql\",\"20260817150507_p2_6_4_canonicalizar_acl_rls.sql\",\"20260817150510_p2_6_4_canonicalizar_storage.sql\"],\"seeds\":[],\"roles\":[],\"message\":\"Finished supabase db push.\"}\n\nConnecting to remote database...\nDo you want to push these migrations to the remote database?\n • 20260817150505_p2_6_4_canonicalizar_schema_funcional.sql\n • 20260817150507_p2_6_4_canonicalizar_acl_rls.sql\n • 20260817150510_p2_6_4_canonicalizar_storage.sql\n [Y/n] y\nApplying migration 20260817150505_p2_6_4_canonicalizar_schema_funcional.sql...\nApplying migration 20260817150507_p2_6_4_canonicalizar_acl_rls.sql...\nApplying migration 20260817150510_p2_6_4_canonicalizar_storage.sql..."
+  },
+  "finished_at": "2026-08-17T15:18:54.167Z"
+}
