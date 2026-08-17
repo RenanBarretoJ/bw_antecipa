@@ -1,9 +1,9 @@
 {
   "schema": "bw-antecipa-p2-6-1-readiness-v1",
-  "total": 115,
+  "total": 125,
   "first": "003_storage_buckets_env.sql",
-  "last": "20260814230000_p2_6_gate_risco_decisao_operacional.sql",
-  "manifest_sha256": "a8f165b54ffe759851cea7fd52e086590d0eb55771222a08feee85a5fa911a09",
+  "last": "20260817185117_hotfix_dashboard_gestor_acl.sql",
+  "manifest_sha256": "422ed5586cab0c16f538f7ad6f55a019204259171da6c7ab6832c17fd9aef3b7",
   "migrations": [
     {
       "ordem": 1,
@@ -924,6 +924,86 @@
       "nome": "p2_6_gate_risco_decisao_operacional",
       "bytes": 32296,
       "sha256": "923ce02a83773e9e07715c549bf39004c2c3c4e622fd7904421b1810a3e0352b"
+    },
+    {
+      "ordem": 116,
+      "filename": "20260817150505_p2_6_4_canonicalizar_schema_funcional.sql",
+      "timestamp": "20260817150505",
+      "nome": "p2_6_4_canonicalizar_schema_funcional",
+      "bytes": 23820,
+      "sha256": "d70aa522ce8dd9d57f92c181cf97e43c465d1e0455ea097a87eea0888ca5b12c"
+    },
+    {
+      "ordem": 117,
+      "filename": "20260817150507_p2_6_4_canonicalizar_acl_rls.sql",
+      "timestamp": "20260817150507",
+      "nome": "p2_6_4_canonicalizar_acl_rls",
+      "bytes": 18137,
+      "sha256": "952c08943c30e072b699fb32f2503f60118db89b6ecb823abacc270f8ffb123f"
+    },
+    {
+      "ordem": 118,
+      "filename": "20260817150510_p2_6_4_canonicalizar_storage.sql",
+      "timestamp": "20260817150510",
+      "nome": "p2_6_4_canonicalizar_storage",
+      "bytes": 468,
+      "sha256": "4369e8d71df267fb46bd1c63a2bb47c2065aadd1ba06b3207bc2c555a74f8322"
+    },
+    {
+      "ordem": 119,
+      "filename": "20260817152140_p2_6_4_fechar_acl_rotinas_internas.sql",
+      "timestamp": "20260817152140",
+      "nome": "p2_6_4_fechar_acl_rotinas_internas",
+      "bytes": 794,
+      "sha256": "48b80e0bf9b55fbfe1948a3e9d4edbc3cd2040476beb051cbfc48f4dc65f506a"
+    },
+    {
+      "ordem": 120,
+      "filename": "20260817154500_p2_6_4_restaurar_leitura_carteira_consultor.sql",
+      "timestamp": "20260817154500",
+      "nome": "p2_6_4_restaurar_leitura_carteira_consultor",
+      "bytes": 734,
+      "sha256": "b6ea1c40941163a955875b9d3ddac866103736cb5c605cfd998130d9f6ecb966"
+    },
+    {
+      "ordem": 121,
+      "filename": "20260817171441_p2_6_6_hardening_rls_multifundo_documental_logistico.sql",
+      "timestamp": "20260817171441",
+      "nome": "p2_6_6_hardening_rls_multifundo_documental_logistico",
+      "bytes": 22416,
+      "sha256": "faa2371ddfa6322241b0eca394f86d38171aa57b402ce889fef181196a05b947"
+    },
+    {
+      "ordem": 122,
+      "filename": "20260817171442_p2_6_6_corrigir_acessos_financeiros_legitimos.sql",
+      "timestamp": "20260817171442",
+      "nome": "p2_6_6_corrigir_acessos_financeiros_legitimos",
+      "bytes": 2036,
+      "sha256": "32e2e3a5a08e045fe034365d87773bc3881144ad2c249fabbdabf7fca04b5621"
+    },
+    {
+      "ordem": 123,
+      "filename": "20260817174233_p2_6_6_remover_gestor_global_politicas_operacionais.sql",
+      "timestamp": "20260817174233",
+      "nome": "p2_6_6_remover_gestor_global_politicas_operacionais",
+      "bytes": 4264,
+      "sha256": "4f6f8aea6172bb59082c26a8e2193bd1aa75ba05ff3cd5f8df2ee44f05b5fdcd"
+    },
+    {
+      "ordem": 124,
+      "filename": "20260817182112_hotfix_restaurar_leitura_identidade_autenticada.sql",
+      "timestamp": "20260817182112",
+      "nome": "hotfix_restaurar_leitura_identidade_autenticada",
+      "bytes": 1303,
+      "sha256": "6f589866bd26e38aba759cd7f446dac1a1543c32b4a0d843a8dfef3faad09ed0"
+    },
+    {
+      "ordem": 125,
+      "filename": "20260817185117_hotfix_dashboard_gestor_acl.sql",
+      "timestamp": "20260817185117",
+      "nome": "hotfix_dashboard_gestor_acl",
+      "bytes": 1433,
+      "sha256": "3155aec91220deadd4a30e43fa312f9292063c043d57bff59bc27257d8d2e2c9"
     }
   ]
 }

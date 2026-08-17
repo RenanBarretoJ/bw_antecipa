@@ -1,0 +1,18 @@
+{
+  "schema": "bw-antecipa-p2-6-7-runtime-security-v1",
+  "status": "PASS",
+  "node": { "version": "v22.23.2", "npm": "10.9.8", "windows_dev": "PASS", "linux_clean_room": "PASS", "engines": "compatible" },
+  "next": { "before": "16.2.6", "after": "16.3.1", "app_router": "PASS", "proxy": "PASS", "server_actions": "PASS", "webpack_build": "PASS", "routes_generated": 78 },
+  "template_engine": { "package": "handlebars", "before": "4.7.8", "after": "4.7.9", "html_escaping": true, "known_helpers_only": true, "allowed_helpers": ["if", "each"], "unknown_helpers_blocked": true, "prototype_access_blocked": true, "malformed_input_blocked": true, "server_external_package": true },
+  "browser_engine": { "package": "puppeteer-core", "before": "24.40.0", "after": "25.8.0", "chromium": "@sparticuz/chromium 149.0.0", "external_browser_design_preserved": true, "bundled_puppeteer_added": false, "real_pdf_smokes": { "contrato": "PASS", "termo_cessao": "PASS", "termo_quitacao": "PASS" } },
+  "audit": { "production": { "critical": 0, "high": 0, "moderate": 0, "low": 0 }, "complete_tree": { "critical": 0, "high": 0, "moderate": 0, "low": 0 } },
+  "clean_install": { "workspace": "disposable", "command": "npm ci", "status": "PASS", "duration_seconds": 48.3, "packages": 752, "vulnerabilities": 0 },
+  "repository_checks": { "typescript": "PASS", "tests": "143 passed files + 1 skipped; 1028 passed tests + 3 skipped", "lint": "PASS; 0 errors, 6 pre-existing warnings", "diff_check": "PASS", "build": "PASS" },
+  "runtime_smokes": { "login": 200, "cron_unauthorized": 401, "cron_financeiro": 200, "cron_rlx_alias": 200, "external_providers_called": false, "authenticated_browser_smokes": "PENDING in independent readiness gate" },
+  "clean_room": { "status": "PASS", "migrations_local": 125, "migrations_remote": 125, "schema_material_differences": 0, "data_api": "86/86", "cross_fund": "39/39; zero_leak=true", "storage": "15/15", "golden_v2": "384/384", "golden_security": "5/5", "approval_bypass": "DENY; status remained solicitada", "cleanup": "PASS" },
+  "secret_scan": { "status": "PASS", "repository_text_files": 1024, "findings": 0 },
+  "package_hashes": { "before": { "package_json": "094789DA3E558BCC68537E99BC65BEA2025F954650BF44340F643BCFBBBEDAA2", "package_lock": "CFFE2CA57D96FC0B2366FB135AB414CBEDD8062AA6F6D87BC9A600B9F5F6111B" }, "after": { "package_json": "34492062FE2FB5E10B8CEF8F32889481BFE373C02374BA3B9F1FB9D83BA27E0A", "package_lock": "9CC0848ED2DA4B66DB401DDB4F03FDED9C55013283A6F6ED46D673AEC9386E50" } },
+  "credential_rotation_required": true,
+  "production_touched": false,
+  "schema_changed": false
+}

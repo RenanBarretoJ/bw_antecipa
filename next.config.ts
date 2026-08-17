@@ -3,7 +3,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   // pdf-parse usa require() interno e acessa o filesystem — não pode ser bundlado pelo Webpack.
   // Com esta flag Next.js usa o require nativo do Node.js, eliminando o workaround do lazy require.
-  serverExternalPackages: ['pdf-parse', 'jszip'],
+  serverExternalPackages: ['pdf-parse', 'jszip', 'handlebars'],
   reactCompiler: true,
   experimental: {
     serverActions: {

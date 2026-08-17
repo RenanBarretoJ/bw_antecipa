@@ -1,0 +1,14 @@
+{
+  "schema": "bw-antecipa-p2-6-7-security-summary-v1",
+  "status": "PASS",
+  "before": { "critical": 1, "high": 16, "moderate": 4, "low": 2, "total": 23 },
+  "after": { "critical": 0, "high": 0, "moderate": 0, "low": 0, "total": 0 },
+  "fixed": 23,
+  "remaining": 0,
+  "production": { "before_total": 23, "after_total": 0, "critical_high_gate": "PASS" },
+  "development": { "after_total": 0, "supply_chain_gate": "PASS" },
+  "risk_acceptances": [],
+  "dependency_audit_can_change_to_pass": true,
+  "credential_rotation_required": true,
+  "production_touched": false
+}

@@ -138,20 +138,33 @@ function coletarPathsHandlebars(html: string): string[] {
   const ast = Handlebars.parseWithoutProcessing(html)
   const paths = new Set<string>()
 
-  function visit(node: unknown) {
+  function visit(node: unknown, contextoLocal = false) {
     if (!node || typeof node !== 'object') return
     const rec = node as Record<string, unknown>
+
+    if (rec.type === 'BlockStatement') {
+      visit(rec.path, contextoLocal)
+      visit(rec.params, contextoLocal)
+      visit(rec.hash, contextoLocal)
+
+      const helper = (rec.path as { original?: string } | undefined)?.original
+      visit(rec.program, contextoLocal || helper === 'each')
+      visit(rec.inverse, contextoLocal)
+      return
+    }
+
     if (rec.type === 'PathExpression' && typeof rec.original === 'string') {
       const original = rec.original
       if (!original.startsWith('@') && original !== 'this' && !original.startsWith('this.') && !RESERVED_HELPERS.has(original)) {
+        const referenciaContextoPai = original.startsWith('../')
         const normalized = original.replace(/^(\.\.\/)+/, '')
         const root = normalized.split('.')[0]
-        if (root && root !== 'this') paths.add(root)
+        if (root && root !== 'this' && (!contextoLocal || referenciaContextoPai)) paths.add(root)
       }
     }
     for (const value of Object.values(rec)) {
-      if (Array.isArray(value)) value.forEach(visit)
-      else visit(value)
+      if (Array.isArray(value)) value.forEach((item) => visit(item, contextoLocal))
+      else visit(value, contextoLocal)
     }
   }
 

@@ -70,6 +70,52 @@ describe('resolver-template', () => {
     expect(html).toContain('Cedente &amp; Cia')
   })
 
+  it('preserva condicionais e loops permitidos', () => {
+    const html = renderizarTemplate(
+      '{{#if termo.numero}}<strong>{{termo.numero}}</strong>{{/if}}{{#each notas_fiscais}}<span>{{numero}}</span>{{/each}}',
+      SCHEMAS_POR_TIPO.termo_cessao,
+      {
+        cedente: {},
+        termo: { numero: 'TC-1' },
+        notas_fiscais: [{ numero: '10' }, { numero: '20' }],
+        testemunha_1: {},
+        testemunha_2: {},
+      },
+    )
+
+    expect(html).toBe('<strong>TC-1</strong><span>10</span><span>20</span>')
+  })
+
+  it('rejeita helper nao permitido', () => {
+    expect(() =>
+      renderizarTemplate(
+        '{{helper_externo cedente.razao_social}}',
+        SCHEMAS_POR_TIPO.contrato_mae,
+        dadosContrato,
+      ),
+    ).toThrow(/nao permitidas|helper/i)
+  })
+
+  it('rejeita template malformado sem executar conteudo parcial', () => {
+    expect(() =>
+      renderizarTemplate(
+        '{{#if cedente}}<p>{{cedente.razao_social}}</p>',
+        SCHEMAS_POR_TIPO.contrato_mae,
+        dadosContrato,
+      ),
+    ).toThrow()
+  })
+
+  it('nao permite acessar propriedades de prototipo', () => {
+    const html = renderizarTemplate(
+      '<p>{{cedente.constructor.name}} {{cedente.__proto__.polluted}}</p>',
+      SCHEMAS_POR_TIPO.contrato_mae,
+      dadosContrato,
+    )
+
+    expect(html).toBe('<p> </p>')
+  })
+
   it('gera hash canonico estavel ignorando espacos nas bordas e CRLF', () => {
     expect(calcularSha256Canonico('  linha 1\r\nlinha 2  ')).toBe(calcularSha256Canonico('linha 1\nlinha 2'))
   })

@@ -1,0 +1,12 @@
+{
+  "schema": "bw-antecipa-p2-6-7-dependency-audit-v1",
+  "phase": "after",
+  "captured_at": "2026-08-17",
+  "node": "v22.23.2",
+  "npm": "10.9.8",
+  "production": { "command": "npm audit --omit=dev --json", "exit_code": 0, "summary": { "info": 0, "low": 0, "moderate": 0, "high": 0, "critical": 0, "total": 0 }, "findings": [] },
+  "complete_tree": { "command": "npm audit --json", "exit_code": 0, "summary": { "info": 0, "low": 0, "moderate": 0, "high": 0, "critical": 0, "total": 0 }, "findings": [] },
+  "npm_ls_all": "PASS",
+  "risk_acceptances": [],
+  "credentials_persisted": false
+}

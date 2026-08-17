@@ -6,8 +6,8 @@
     "production_mutated": false
   },
   "migrations": {
-    "local_total": 119,
-    "remote_total": 119,
+    "local_total": 125,
+    "remote_total": 125,
     "missing_remote": [],
     "extra_remote": [],
     "name_mismatches": [],
@@ -16,7 +16,12 @@
   "schema_state": {
     "rlx": {
       "relations": [],
-      "routines": [],
+      "routines": [
+        {
+          "schema_name": "private",
+          "proname": "rlx_gestor_tem_acesso_fundo"
+        }
+      ],
       "active_code_references": []
     },
     "generic_domain": [
@@ -238,9 +243,9 @@
           "qual": "[PRESENT]"
         },
         {
-          "policyname": "storage_docs_gestor_insert",
+          "policyname": "storage_docs_gestor_insert_multifundo",
           "cmd": "INSERT",
-          "roles": "{public}",
+          "roles": "{authenticated}",
           "qual": null
         },
         {
@@ -270,8 +275,8 @@
       "categoria": "migrations",
       "status": "PASS",
       "evidencia": {
-        "local": 119,
-        "remoto": 119,
+        "local": 125,
+        "remoto": 125,
         "ausentes": 0,
         "excedentes": 0,
         "nomes_divergentes": 0
@@ -282,13 +287,18 @@
     {
       "check_id": "STRUCTURAL_RLX_ZERO",
       "categoria": "schema",
-      "status": "PASS",
+      "status": "FAIL",
       "evidencia": {
         "relations": [],
-        "routines": [],
+        "routines": [
+          {
+            "schema_name": "private",
+            "proname": "rlx_gestor_tem_acesso_fundo"
+          }
+        ],
         "active_code_references": []
       },
-      "blocker": false,
+      "blocker": true,
       "observacao": null
     },
     {
@@ -546,9 +556,9 @@
             "qual": "[PRESENT]"
           },
           {
-            "policyname": "storage_docs_gestor_insert",
+            "policyname": "storage_docs_gestor_insert_multifundo",
             "cmd": "INSERT",
-            "roles": "{public}",
+            "roles": "{authenticated}",
             "qual": null
           },
           {
@@ -610,9 +620,11 @@
     }
   ],
   "summary": {
-    "pass": 9,
-    "fail": 0,
+    "pass": 8,
+    "fail": 1,
     "pending": 1,
-    "blockers": []
+    "blockers": [
+      "STRUCTURAL_RLX_ZERO"
+    ]
   }
 }

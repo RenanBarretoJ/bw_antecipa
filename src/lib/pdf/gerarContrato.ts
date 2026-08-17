@@ -1,4 +1,3 @@
-import Handlebars from 'handlebars'
 import chromium from '@sparticuz/chromium'
 import puppeteer from 'puppeteer-core'
 import fs from 'fs'
@@ -125,7 +124,11 @@ function valorPorExtenso(valor: number): string {
   return partes.join(' e ')
 }
 
-function compilarTemplate(nomeTemplate: string, dados: object): string {
+function compilarTemplate(
+  nomeTemplate: string,
+  tipoDocumento: TemplateTipoDocumento,
+  dados: Record<string, unknown>,
+): string {
   const caminhoTemplate = path.join(
     process.cwd(),
     'src',
@@ -134,8 +137,7 @@ function compilarTemplate(nomeTemplate: string, dados: object): string {
     nomeTemplate
   )
   const templateStr = fs.readFileSync(caminhoTemplate, 'utf-8')
-  const template = Handlebars.compile(templateStr)
-  return template(dados)
+  return renderizarTemplate(templateStr, SCHEMAS_POR_TIPO[tipoDocumento], dados)
 }
 
 function renderizarTemplateJuridico({
@@ -149,7 +151,7 @@ function renderizarTemplateJuridico({
   nomeTemplateLocal: string
   dados: Record<string, unknown>
 }): string {
-  if (!templateResolvido) return compilarTemplate(nomeTemplateLocal, dados)
+  if (!templateResolvido) return compilarTemplate(nomeTemplateLocal, tipoDocumento, dados)
 
   return renderizarTemplate(
     templateResolvido.versao.conteudo_html,
@@ -211,29 +213,32 @@ async function resolverFundoOperacao(supabase: AdminSupabaseClient, op: Record<s
   return resolverFundoCedente(supabase, ced)
 }
 
-async function htmlParaPdf(html: string): Promise<Buffer> {
-  const isLocal = process.env.NODE_ENV === 'development'
+export async function htmlParaPdf(html: string): Promise<Buffer> {
+  const chromePath = process.env.CHROME_PATH
+  const isLocal = process.env.NODE_ENV === 'development' || Boolean(chromePath)
+
+  const executablePath = isLocal
+    ? chromePath || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
+    : process.env.CHROMIUM_BINARY_URL
+      ? await chromium.executablePath(process.env.CHROMIUM_BINARY_URL)
+      : await chromium.executablePath()
 
   const browser = isLocal
     ? await puppeteer.launch({
-        executablePath:
-          process.env.CHROME_PATH ||
-          'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+        executablePath,
         headless: true,
       })
     : await puppeteer.launch({
         args: chromium.args,
         defaultViewport: { width: 1280, height: 720 },
-        executablePath: await chromium.executablePath(
-          process.env.CHROMIUM_BINARY_URL ||
-          'https://github.com/Sparticuz/chromium/releases/download/v143.0.4/chromium-v143.0.4-pack.x64.tar'
-        ),
+        executablePath,
         headless: true,
       })
 
   try {
     const page = await browser.newPage()
-    await page.setContent(html, { waitUntil: 'networkidle0' })
+    await page.setContent(html, { waitUntil: 'load' })
+    await page.waitForNetworkIdle({ idleTime: 500, timeout: 30_000 })
     const pdfBuffer = await page.pdf({
       format: 'A4',
       printBackground: true,
