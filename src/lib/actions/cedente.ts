@@ -45,62 +45,47 @@ export async function cadastrarCedente(data: CedenteFormData): Promise<CedenteAc
     return { success: false, message: 'Usuario nao autenticado.' }
   }
 
-  const existing = await supabase
-    .from('cedentes')
-    .select('id')
-    .eq('user_id', user.id)
-    .single()
-
-  if (existing.data) {
-    return { success: false, message: 'Voce ja possui um cadastro de cedente.' }
-  }
-
-  const { representantes, ...cedenteFields } = validated.data
-
-  const { data: cedente, error } = await supabase
-    .from('cedentes')
-    .insert({
-      ...cedenteFields,
-      user_id: user.id,
-      status: 'pendente' as const,
-    } as never)
-    .select('id, razao_social')
-    .single()
-
-  if (error) {
-    console.error('[cadastrarCedente]', error.message)
-    return { success: false, message: `Erro ao cadastrar: ${error.message}` }
-  }
-
-  const cedenteData = cedente as { id: string; razao_social: string }
-
-  const { error: repError } = await supabase
-    .from('representantes')
-    .insert(representantes.map((rep, idx) => ({
-      ...rep,
-      cedente_id: cedenteData.id,
-      principal: idx === 0,
-    })) as never)
-
-  if (repError) {
-    await supabase.from('cedentes').delete().eq('id', cedenteData.id)
-    return { success: false, message: `Erro ao salvar representantes: ${repError.message}` }
-  }
-
-  await registrarLog({
-    tipo_evento: 'CEDENTE_CADASTRADO',
-    entidade_tipo: 'cedentes',
-    entidade_id: cedenteData.id,
-    dados_depois: validated.data as unknown as Record<string, unknown>,
+  const { data: cedente, error } = await supabase.rpc('concluir_onboarding_cedente', {
+    p_cadastro: validated.data,
   })
 
-  await notificarGestores(
-    'Novo cedente cadastrado',
-    `O cedente ${cedenteData.razao_social} (${validated.data.cnpj}) realizou o cadastro e aguarda analise.`,
-    'cadastro_cedente'
-  )
+  if (error) {
+    console.error('[cadastrarCedente]', {
+      codigo: error.code,
+      mensagem: error.message,
+      usuario_id: user.id,
+    })
+    return {
+      success: false,
+      message: error.code === '23505' || error.code === '42501' || error.code === '22023'
+        ? error.message
+        : 'Nao foi possivel concluir o cadastro. Tente novamente.',
+    }
+  }
 
-  return { success: true, message: 'Cadastro realizado com sucesso!' }
+  const cedenteData = cedente as { id: string; razao_social: string; criado: boolean; idempotente: boolean }
+
+  if (cedenteData.criado) {
+    await registrarLog({
+      tipo_evento: 'CEDENTE_CADASTRADO',
+      entidade_tipo: 'cedentes',
+      entidade_id: cedenteData.id,
+      dados_depois: validated.data as unknown as Record<string, unknown>,
+    })
+
+    await notificarGestores(
+      'Novo cedente cadastrado',
+      `O cedente ${cedenteData.razao_social} (${validated.data.cnpj}) realizou o cadastro e aguarda analise.`,
+      'cadastro_cedente'
+    )
+  }
+
+  return {
+    success: true,
+    message: cedenteData.idempotente
+      ? 'Cadastro ja concluido anteriormente.'
+      : 'Cadastro realizado com sucesso!',
+  }
 }
 
 export async function uploadDocumento(formData: FormData): Promise<CedenteActionState> {

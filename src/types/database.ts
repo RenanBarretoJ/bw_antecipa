@@ -1932,6 +1932,10 @@ export interface Database {
     }
     Views: Record<string, never>
     Functions: {
+      concluir_onboarding_cedente: {
+        Args: { p_cadastro: Record<string, unknown> }
+        Returns: { id: string; razao_social: string; criado: boolean; idempotente: boolean }
+      }
       admin_resumo_fundos: { Args: Record<string, never>; Returns: Record<string, unknown> }
       admin_listar_fundos: { Args: { p_busca?: string | null; p_status?: string; p_pagina?: number; p_por_pagina?: number }; Returns: Record<string, unknown> }
       admin_obter_fundo: { Args: { p_fundo_id: string }; Returns: Record<string, unknown> | null }
