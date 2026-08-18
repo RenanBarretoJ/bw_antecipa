@@ -20,10 +20,20 @@ describe('bootstrap do Super Admin', () => {
     expect(script).not.toContain('--force-production')
   })
 
-  it('nao recebe senha e usa convite administrativo', () => {
+  it('nao recebe senha por argumento e mantem convite administrativo como padrao', () => {
     expect(script).toContain('inviteUserByEmail')
     expect(script).not.toMatch(/args\.password|args\.senha/)
-    expect(script).not.toContain('createUser({')
+    expect(script).toContain("args['activate-with-password'] === true")
+    expect(script).toContain("readHiddenInput('Nova senha: ')")
+    expect(script).not.toMatch(/process\.env\.[A-Z0-9_]*PASSWORD/)
+  })
+
+  it('permite confirmar o e-mail e definir senha somente pelo modo explicito', () => {
+    expect(script).toContain('activateSuperAdminWithPassword')
+    expect(script).toContain('email_confirm: true')
+    expect(script).toContain('admin.auth.admin.updateUserById(existingUser.id, attributes)')
+    expect(script).toContain('admin.auth.admin.createUser({ email, ...attributes })')
+    expect(script).toContain('A senha deve possuir pelo menos 12 caracteres.')
   })
 
   it('persiste papel canonico e auditoria sem usar metadata para autorizar', () => {

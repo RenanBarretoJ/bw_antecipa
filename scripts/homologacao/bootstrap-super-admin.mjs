@@ -25,6 +25,7 @@ async function main() {
 
   const email = normalizeEmail(args.email)
   const execute = args.execute === true
+  const activateWithPassword = args['activate-with-password'] === true
   const confirmation = buildConfirmation(env.projectRef)
   if (execute) assertExecuteConfirmation(args.confirm, confirmation)
 
@@ -36,7 +37,9 @@ async function main() {
   console.log(`Ambiente: ${env.appEnv}`)
   console.log(`Projeto Supabase: ${env.projectRef}`)
   console.log(`Usuario: ${maskEmail(email)}`)
-  console.log('Senha: nao solicitada; o acesso inicial usa convite seguro do Supabase Auth')
+  console.log(activateWithPassword
+    ? 'Acesso inicial: senha definida interativamente e e-mail confirmado pelo Supabase Auth'
+    : 'Senha: nao solicitada; o acesso inicial usa convite seguro do Supabase Auth')
 
   const existingUser = await findAuthUserByEmail(admin, email)
   const existingProfile = existingUser ? await loadProfile(admin, existingUser.id) : null
@@ -46,12 +49,19 @@ async function main() {
     console.log(`Auth user: ${existingUser ? 'existente' : 'sera convidado'}`)
     console.log(`Perfil: ${existingProfile ? `existente (${existingProfile.role})` : 'sera criado pelo fluxo administrativo'}`)
     console.log('Papel complementar super_admin: sera garantido de forma idempotente')
+    console.log(activateWithPassword
+      ? 'Ativacao: e-mail sera confirmado e a senha sera solicitada de forma oculta somente na execucao'
+      : 'Ativacao: convite de acesso sera solicitado ao Supabase Auth')
     console.log('\nPREVIEW concluido. Nenhum dado foi alterado e nenhum convite foi enviado.')
-    console.log(buildExecuteCommand(env.projectRef, email, confirmation))
+    console.log(buildExecuteCommand(env.projectRef, email, confirmation, { activateWithPassword }))
     return
   }
 
-  const user = existingUser || await inviteSuperAdmin(admin, email, String(args.name || '').trim())
+  const name = String(args.name || '').trim()
+  const password = activateWithPassword ? await promptNewPassword() : null
+  const user = activateWithPassword
+    ? await activateSuperAdminWithPassword(admin, existingUser, email, name, password)
+    : existingUser || await inviteSuperAdmin(admin, email, name)
   const profile = existingProfile || await ensureProfile(admin, user, String(args.name || '').trim(), {
     promoteInvitedUser: !existingUser,
   })
@@ -65,7 +75,12 @@ async function main() {
   console.log('\nBootstrap concluido.')
   console.log(`Perfil primario preservado: ${profile.role}`)
   console.log('Papel complementar ativo: super_admin')
-  console.log(existingUser ? 'Usuario existente atualizado sem alterar senha.' : 'Convite de acesso solicitado pelo Supabase Auth.')
+  if (activateWithPassword) {
+    console.log('E-mail confirmado e senha definida diretamente pelo Supabase Auth.')
+    console.log('O usuario ja pode entrar pelo login normal e devera configurar/confirmar o MFA conforme a politica da aplicacao.')
+  } else {
+    console.log(existingUser ? 'Usuario existente atualizado sem alterar senha.' : 'Convite de acesso solicitado pelo Supabase Auth.')
+  }
 }
 
 function loadStrictHomologEnv() {
@@ -161,6 +176,97 @@ async function inviteSuperAdmin(admin, email, name) {
   return data.user
 }
 
+async function activateSuperAdminWithPassword(admin, existingUser, email, name, password) {
+  const attributes = {
+    password,
+    email_confirm: true,
+    user_metadata: {
+      ...(existingUser?.user_metadata || {}),
+      nome_completo: name || existingUser?.user_metadata?.nome_completo || 'Super Admin',
+    },
+  }
+
+  const { data, error } = existingUser
+    ? await admin.auth.admin.updateUserById(existingUser.id, attributes)
+    : await admin.auth.admin.createUser({ email, ...attributes })
+
+  if (error || !data.user) {
+    throw new Error(`Nao foi possivel ativar o usuario administrativo: ${error?.message || 'retorno vazio'}`)
+  }
+  return data.user
+}
+
+async function promptNewPassword() {
+  if (!process.stdin.isTTY || !process.stdout.isTTY || typeof process.stdin.setRawMode !== 'function') {
+    throw new Error('O modo --activate-with-password exige um terminal interativo para proteger a senha.')
+  }
+
+  const password = await readHiddenInput('Nova senha: ')
+  validateBootstrapPassword(password)
+  const confirmation = await readHiddenInput('Confirme a nova senha: ')
+  if (password !== confirmation) throw new Error('As senhas informadas nao conferem.')
+  return password
+}
+
+function validateBootstrapPassword(password) {
+  if (password.length < 12) throw new Error('A senha deve possuir pelo menos 12 caracteres.')
+  if (!/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/\d/.test(password) || !/[^A-Za-z0-9]/.test(password)) {
+    throw new Error('A senha deve conter letra maiuscula, minuscula, numero e caractere especial.')
+  }
+}
+
+function readHiddenInput(label) {
+  return new Promise((resolveInput, rejectInput) => {
+    const stdin = process.stdin
+    const wasRaw = Boolean(stdin.isRaw)
+    let value = ''
+
+    const cleanup = () => {
+      stdin.off('data', onData)
+      stdin.setRawMode(wasRaw)
+      if (!wasRaw) stdin.pause()
+    }
+
+    const finish = () => {
+      cleanup()
+      process.stdout.write('\n')
+      resolveInput(value)
+    }
+
+    const onData = (chunk) => {
+      for (const character of String(chunk)) {
+        if (character === '\u0003') {
+          cleanup()
+          process.stdout.write('\n')
+          rejectInput(new Error('Operacao cancelada pelo usuario.'))
+          return
+        }
+        if (character === '\r' || character === '\n') {
+          finish()
+          return
+        }
+        if (character === '\u007f' || character === '\b') {
+          if (value.length > 0) {
+            value = value.slice(0, -1)
+            process.stdout.write('\b \b')
+          }
+          continue
+        }
+        if (character >= ' ') {
+          value += character
+          process.stdout.write('*')
+        }
+      }
+    }
+
+    process.stdout.write(label)
+    stdin.setEncoding('utf8')
+    stdin.setRawMode(true)
+    stdin.resume()
+    stdin.on('data', onData)
+  })
+}
+
 async function ensureProfile(admin, user, name, { promoteInvitedUser = false } = {}) {
   const profile = await loadProfile(admin, user.id)
   if (profile && !promoteInvitedUser) return profile
@@ -195,8 +301,9 @@ function buildConfirmation(projectRef) {
   return `PROVISIONAR_SUPER_ADMIN_HOMOLOG_${projectRef}`
 }
 
-function buildExecuteCommand(projectRef, email, confirmation) {
-  return `npm run bootstrap:super-admin:homolog -- --email ${email} --execute --expected-project-ref ${projectRef} --confirm ${confirmation}`
+function buildExecuteCommand(projectRef, email, confirmation, { activateWithPassword = false } = {}) {
+  const activation = activateWithPassword ? ' --activate-with-password' : ''
+  return `npm run bootstrap:super-admin:homolog -- --email ${email} --execute${activation} --expected-project-ref ${projectRef} --confirm ${confirmation}`
 }
 
 function maskEmail(email) {
@@ -218,14 +325,18 @@ Preview (padrao):
 Execucao:
   npm run bootstrap:super-admin:homolog -- --email admin@empresa.com --execute --expected-project-ref <project-ref> --confirm PROVISIONAR_SUPER_ADMIN_HOMOLOG_<project-ref>
 
+Execucao com senha direta e e-mail confirmado (senha solicitada de forma oculta):
+  npm run bootstrap:super-admin:homolog -- --email admin@empresa.com --execute --activate-with-password --expected-project-ref <project-ref> --confirm PROVISIONAR_SUPER_ADMIN_HOMOLOG_<project-ref>
+
 Opcoes:
   --email <email>               Usuario a provisionar ou promover
   --name <nome>                 Nome usado apenas quando o usuario for novo
   --expected-project-ref <ref>  Confirma explicitamente o projeto Supabase
   --execute                     Envia convite e persiste o papel
+  --activate-with-password      Confirma o e-mail e solicita uma senha em terminal interativo
   --confirm <frase>             Confirmacao vinculada ao project ref
   --help                        Exibe esta ajuda
 
-O script le exclusivamente .env.homolog e nunca recebe senha por argumento.
+O script le exclusivamente .env.homolog e nunca recebe senha por argumento, arquivo ou variavel de ambiente.
 `)
 }
