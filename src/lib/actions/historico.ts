@@ -1,7 +1,7 @@
 'use server'
 
 import { requireNotaFiscalAccess, requireOperationAccess } from '@/lib/auth/authorization'
-import { obterFundoAtivoAutorizado } from '@/lib/actions/fundo-ativo'
+import { obterFundoAtivoAutorizado } from '@/lib/fundos/fundo-ativo.server'
 import { resumirMetadataHistorico, type HistoricoCategoria, type HistoricoEventoView } from '@/lib/eventos-dominio/formatters'
 import { encodeCursor, parseCursor } from '@/lib/pagination/cursor'
 import { buildDescendingCreatedAtCursorFilter } from '@/lib/pagination/keyset'

@@ -1,0 +1,17 @@
+{
+  "gate": "STALE_REVIEW",
+  "environment": "homolog",
+  "project_ref": "fhgkmggthxikfpogrvaa",
+  "production_touched": false,
+  "executed_at": "2026-08-18T15:29:28.495Z",
+  "status": "FAIL",
+  "execution": "NOT_COMPLETED",
+  "operation_id": "0280a33b-d3a3-0980-3924-935547a7a06e",
+  "status_before": "solicitada",
+  "status_after": "solicitada",
+  "risk_executions": 0,
+  "approval_events": 0,
+  "stale_review_denied": null,
+  "blocker": "O fluxo autenticado de revisao nao abriu de forma confiavel por falhas 500 na Central e escrita de cookie em contexto server-side.",
+  "evidence_integrity": "O gate permanece FAIL; a protecao nao foi promovida apenas com evidencia estatica ou baseline anterior."
+}

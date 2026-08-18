@@ -6,7 +6,7 @@ import { DOCUMENTO_V2_BUCKET, extensaoArquivo, normalizarCodigoDocumentoCatalogo
 import { instanciarRequisitosDaNota, type ContextoDocumentoNotaFiscal } from './requisitos'
 import { parseCteXml } from '@/lib/logistica/cte-parser'
 import { mensagemValidacaoCte, validarCteContraNfes, type NfeParaValidacaoCte } from '@/lib/logistica/validacao-cte-nfe'
-import { obterFundoAtivoAutorizado } from '@/lib/actions/fundo-ativo'
+import { obterFundoAtivoAutorizado } from '@/lib/fundos/fundo-ativo.server'
 import { carregarContextoEventoNota, registrarEventoDominio } from '@/lib/eventos-dominio/registrar'
 import { validarDocumentoBaseDaNota } from './base-documentos'
 

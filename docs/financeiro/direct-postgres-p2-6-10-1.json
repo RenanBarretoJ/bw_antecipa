@@ -1,0 +1,7 @@
+{
+  "target_project_ref": "fhgkmggthxikfpogrvaa",
+  "db_target_matches_expected": true,
+  "direct_postgres_connection_credential_updated": true,
+  "direct_postgres_connection_test": "PASS",
+  "tested_at": "2026-08-18T17:08:05.884Z"
+}

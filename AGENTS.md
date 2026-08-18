@@ -32,9 +32,13 @@ testes, escopo e entrega para Codex, Claude e agentes compatíveis.
 ## Regra específica do Next.js
 
 <!-- BEGIN:nextjs-agent-rules -->
-Esta versão do Next.js possui APIs, convenções e estrutura diferentes do
-conhecimento geral. Antes de escrever código, leia o guia relevante em
-`node_modules/next/dist/docs/` e respeite os avisos de depreciação.
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
 <!-- END:nextjs-agent-rules -->
 
 ## Ordem de execução

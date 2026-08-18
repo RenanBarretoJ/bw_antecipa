@@ -1,0 +1,151 @@
+{
+  "schema": "bw-antecipa-operational-certification-p2-6-10-v1",
+  "environment": "homolog",
+  "project_ref": "fhgkmggthxikfpogrvaa",
+  "production_touched": false,
+  "executed_at": "2026-08-18T15:29:28.495Z",
+  "status": "FAIL",
+  "migrations": {
+    "status": "BASELINE_PRESERVED",
+    "local": 127,
+    "remote": 127,
+    "new_migrations": 0
+  },
+  "login_mfa": {
+    "status": "PASS",
+    "evidence": "authenticated-smoke-login-mfa-p2-6-10.json"
+  },
+  "central_visual": {
+    "status": "FAIL",
+    "evidence": "central-visual-smoke-p2-6-10.json"
+  },
+  "apto": {
+    "status": "PASS",
+    "evidence": "smoke-apto-approval-p2-6-10.json"
+  },
+  "exact_40": {
+    "status": "PASS",
+    "evidence": "smoke-no-limite-40-p2-6-10.json"
+  },
+  "manual_review": {
+    "status": "FAIL",
+    "evidence": "smoke-revisao-manual-p2-6-10.json"
+  },
+  "double_approval": {
+    "status": "PASS",
+    "overlap_ms": 10823,
+    "effective_approvals": 1,
+    "risk_executions": 1,
+    "evidence": "double-operation-approval-p2-6-10.json"
+  },
+  "toctou": {
+    "status": "FAIL",
+    "evidence": "toctou-operation-p2-6-10.json"
+  },
+  "stale_review": {
+    "status": "FAIL",
+    "evidence": "stale-review-p2-6-10.json"
+  },
+  "bypass": {
+    "status": "BLOCKED_REEXECUTION",
+    "baseline": "PASS",
+    "reason": "Credencial PostgreSQL direta falhou com SQLSTATE 28P01."
+  },
+  "timeout": {
+    "status": "BLOCKED_REEXECUTION",
+    "baseline": "PASS",
+    "reason": "Credencial PostgreSQL direta falhou com SQLSTATE 28P01."
+  },
+  "golden": {
+    "status": "BLOCKED_REEXECUTION",
+    "baseline_v2": "384/384",
+    "baseline_security": "5/5",
+    "reason": "Credencial PostgreSQL direta falhou com SQLSTATE 28P01."
+  },
+  "data_api": {
+    "status": "BASELINE_PRESERVED",
+    "baseline": "118/118",
+    "code_or_schema_changed": false
+  },
+  "cross_fund": {
+    "status": "BASELINE_PRESERVED",
+    "baseline": "39/39",
+    "authenticated_negative_in_manual_review": "INCONCLUSIVE_DUE_RUNTIME"
+  },
+  "storage": {
+    "status": "BASELINE_PRESERVED",
+    "baseline": "15/15",
+    "code_or_schema_changed": false
+  },
+  "performance_sanity": {
+    "status": "BASELINE_PRESERVED",
+    "p95_ms": 6839,
+    "formal_limit_ms": 7356
+  },
+  "quality": {
+    "node": "22.23.0",
+    "typescript": "PASS",
+    "tests": {
+      "status": "PASS",
+      "passed": 1033,
+      "skipped": 3
+    },
+    "lint": {
+      "status": "PASS_WITH_WARNINGS",
+      "errors": 0,
+      "warnings": 6
+    },
+    "build": "PASS",
+    "diff_check": "PASS",
+    "npm_audit_production": {
+      "status": "PASS",
+      "vulnerabilities": 0
+    }
+  },
+  "secret_scan": {
+    "status": "PASS",
+    "findings": 0,
+    "scanned_files": 1094,
+    "evidence": "secret-scan-p2-6-1.json"
+  },
+  "qa_cleanup": {
+    "status": "PARTIAL",
+    "auth_users_removed": 2,
+    "auth_users_retained": 2,
+    "local_credential_file_removed": true,
+    "blocker": "Database error deleting user para atores ainda referenciados pelas fixtures."
+  },
+  "readiness_before": {
+    "pass": 38,
+    "fail": 0,
+    "pending": 10,
+    "na": 1
+  },
+  "readiness_after": {
+    "pass": 42,
+    "fail": 4,
+    "pending": 2,
+    "na": 1
+  },
+  "remaining_pending": [
+    "LEGACY_ENV_RETIREMENT",
+    "SINQIA_EXTERNAL"
+  ],
+  "direct_postgres_connection_credential_updated": false,
+  "direct_postgres_connection_test": "FAIL",
+  "direct_postgres_sqlstate": "28P01",
+  "runtime_defects": [
+    {
+      "severity": "P0",
+      "location": "src/lib/notificacoes/listagem.server.ts:28",
+      "symptom": "Nao foi possivel contar as notificacoes; Server Actions retornam 500."
+    },
+    {
+      "severity": "P0",
+      "location": "src/lib/actions/fundo-ativo.ts:190",
+      "symptom": "Cookies can only be modified in a Server Action or Route Handler."
+    }
+  ],
+  "git_status": "DIRTY_ONLY_WITH_P2_6_10_QA_TOOLING_AND_ARTIFACTS",
+  "recommendation": "NO-GO"
+}

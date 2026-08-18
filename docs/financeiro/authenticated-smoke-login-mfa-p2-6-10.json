@@ -1,0 +1,56 @@
+{
+  "gate": "AUTHENTICATED_SMOKE_LOGIN_MFA",
+  "status": "PASS",
+  "environment": "homolog",
+  "project_ref": "fhgkmggthxikfpogrvaa",
+  "production_touched": false,
+  "executed_at": "2026-08-18T15:17:35.798Z",
+  "login": {
+    "status": "PASS",
+    "login_page_status": 200,
+    "password_submit_result": "PASS",
+    "aal_before_totp": "aal1",
+    "mfa_challenge_visible": true,
+    "invalid_totp_denied": true,
+    "totp_submit_result": "PASS",
+    "aal_after_totp": "aal2",
+    "redirect_final": "/gestor/dashboard",
+    "no_500": true,
+    "no_loop": true,
+    "cookies_session_established": true,
+    "diagnostics": {
+      "consoleErrors": [],
+      "failedRequests": [],
+      "fiveXx": []
+    }
+  },
+  "login_page_status": 200,
+  "password_submit_result": "PASS",
+  "aal_before_totp": "aal1",
+  "mfa_challenge_visible": true,
+  "invalid_totp_denied": true,
+  "totp_submit_result": "PASS",
+  "aal_after_totp": "aal2",
+  "redirect_final": "/gestor/dashboard",
+  "no_500": true,
+  "no_loop": true,
+  "cookies_session_established": true,
+  "diagnostics": {
+    "consoleErrors": [],
+    "failedRequests": [],
+    "fiveXx": []
+  },
+  "actor_cleanup": {
+    "status": "PARTIAL",
+    "removed": [
+      "super_admin_puro",
+      "super_admin_gestor_a"
+    ],
+    "retained": [
+      "gestor_a",
+      "gestor_b"
+    ],
+    "reason": "Supabase Auth recusou a exclusao dos gestores referenciados pelas fixtures QA (Database error deleting user).",
+    "credential_file_removed": true
+  }
+}

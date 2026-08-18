@@ -1,6 +1,6 @@
 {
   "schema": "bw-antecipa-production-readiness-p2-6-1-v1",
-  "generated_at": "2026-08-18T14:05:56.261Z",
+  "generated_at": "2026-08-18T17:26:47.931Z",
   "environment": "homolog",
   "project_ref": "fhgkmggthxikfpogrvaa",
   "production_touched": false,
@@ -8,9 +8,9 @@
   "performance_blocked_by_credential_rotation": false,
   "recommendation": "NO-GO",
   "summary": {
-    "pass": 38,
+    "pass": 46,
     "fail": 0,
-    "pending": 10,
+    "pending": 2,
     "na": 1
   },
   "checks": [
@@ -89,34 +89,34 @@
     {
       "check_id": "AUTHENTICATED_SMOKE_LOGIN_MFA",
       "categoria": "smoke",
-      "status": "PENDENTE",
-      "evidencia": "Credencial QA/TOTP controlada nao disponibilizada",
-      "blocker": true,
-      "observacao": "Nenhuma senha ou MFA de usuario real foi alterado."
+      "status": "PASS",
+      "evidencia": "authenticated-smoke-login-mfa-p2-6-10.json",
+      "blocker": false,
+      "observacao": "Browser real: AAL1, TOTP, AAL2 e redirect do Gestor confirmados sem loop."
     },
     {
       "check_id": "CENTRAL_VISUAL_SMOKE",
       "categoria": "smoke",
-      "status": "PENDENTE",
-      "evidencia": "Depende de sessao Gestor QA controlada",
-      "blocker": true,
-      "observacao": "Hydration, filtros, paginacao, cards e links nao foram certificados por browser autenticado."
+      "status": "PASS",
+      "evidencia": "central-visual-smoke-p2-6-10-1.json",
+      "blocker": false,
+      "observacao": "Central autenticada AAL2: todas as tabs desktop/compact, sino, troca e reload sem 5xx ou leak."
     },
     {
       "check_id": "SMOKE_APTO_APPROVAL",
       "categoria": "gate",
-      "status": "PENDENTE",
-      "evidencia": "Nao ha operacao APTO autenticada e controlada",
-      "blocker": true,
-      "observacao": "Fluxo oficial gate -> RPC -> aprovacao nao foi executado ponta a ponta."
+      "status": "PASS",
+      "evidencia": "smoke-apto-approval-p2-6-10.json",
+      "blocker": false,
+      "observacao": "Gate JIT e aprovacao oficial executados com estado final aprovada."
     },
     {
       "check_id": "SMOKE_NO_LIMITE_40",
       "categoria": "gate",
-      "status": "PENDENTE",
-      "evidencia": "Classificador/verificadores cobrem contrato; E2E autenticado ausente",
-      "blocker": true,
-      "observacao": "Falta evidencia operacional exata de 40%."
+      "status": "PASS",
+      "evidencia": "smoke-no-limite-40-p2-6-10.json",
+      "blocker": false,
+      "observacao": "40% exatos foram APTO; margem deterministica acima de 40% foi BLOQUEADA."
     },
     {
       "check_id": "SMOKE_BLOQUEADO",
@@ -129,10 +129,10 @@
     {
       "check_id": "SMOKE_REVISAO_MANUAL",
       "categoria": "gate",
-      "status": "PENDENTE",
-      "evidencia": "Contrato e security checks aprovados; fluxo autenticado/TOTP nao executado",
-      "blocker": true,
-      "observacao": "Liberacao e recusa reais continuam pendentes."
+      "status": "PASS",
+      "evidencia": "smoke-revisao-manual-p2-6-10-1.json",
+      "blocker": false,
+      "observacao": "Liberacao e recusa PASS; TOTP ausente/invalido, Super Admin puro, outro fundo e sem vinculo DENY."
     },
     {
       "check_id": "RISK_BYPASS_RPC",
@@ -153,10 +153,10 @@
     {
       "check_id": "DOUBLE_OPERATION_APPROVAL",
       "categoria": "concorrencia",
-      "status": "PENDENTE",
-      "evidencia": "Lock/stale check verificados em SQL; duas aprovacoes autenticadas nao executadas",
-      "blocker": true,
-      "observacao": "Gate obrigatorio de GO ainda sem evidencia E2E."
+      "status": "PASS",
+      "evidencia": "double-operation-approval-p2-6-10.json",
+      "blocker": false,
+      "observacao": "Duas sessoes reais sobrepostas por 10823 ms resultaram em uma aprovacao e uma execucao de risco."
     },
     {
       "check_id": "DOUBLE_GATE_IDEMPOTENCY",
@@ -177,18 +177,18 @@
     {
       "check_id": "TOCTOU_OPERATION",
       "categoria": "concorrencia",
-      "status": "PENDENTE",
-      "evidencia": "Assinatura, updated_at e snapshot verificados em RPC/security suite",
-      "blocker": true,
-      "observacao": "Falta corrida E2E autenticada com mutacao concorrente."
+      "status": "PASS",
+      "evidencia": "toctou-operation-p2-6-10-1.json",
+      "blocker": false,
+      "observacao": "Mutacao oficial concorrente detectada; contexto stale negado; overlap 21909 ms."
     },
     {
       "check_id": "STALE_REVIEW",
       "categoria": "concorrencia",
-      "status": "PENDENTE",
-      "evidencia": "Contrato server-side validado; smoke autenticado indisponivel",
-      "blocker": true,
-      "observacao": "Revisao stale nao foi exercitada ponta a ponta."
+      "status": "PASS",
+      "evidencia": "stale-review-p2-6-10-1.json",
+      "blocker": false,
+      "observacao": "Revisao antiga expirada e preservada; nova avaliacao/revisao exigida."
     },
     {
       "check_id": "TIMEOUT_FAIL_CLOSED",
@@ -417,5 +417,35 @@
     "measured_runs_after": 20,
     "zero_timeouts": true,
     "zero_technical_errors": true
+  },
+  "p2_6_10": {
+    "status": "FAIL",
+    "artifact": "operational-certification-p2-6-10.json",
+    "gates_pass": 4,
+    "gates_fail": 4,
+    "remaining_pending": [
+      "LEGACY_ENV_RETIREMENT",
+      "SINQIA_EXTERNAL"
+    ],
+    "direct_postgres_connection_credential_updated": false,
+    "direct_postgres_connection_test": "FAIL",
+    "direct_postgres_sqlstate": "28P01"
+  },
+  "p2_6_10_1": {
+    "status": "PASS",
+    "artifact": "operational-recertification-p2-6-10-1.json",
+    "gates_promoted": [
+      "CENTRAL_VISUAL_SMOKE",
+      "SMOKE_REVISAO_MANUAL",
+      "TOCTOU_OPERATION",
+      "STALE_REVIEW"
+    ],
+    "direct_postgres_connection_credential_updated": true,
+    "direct_postgres_connection_test": "PASS",
+    "unresolved_qa_actors": 0,
+    "remaining_pending": [
+      "LEGACY_ENV_RETIREMENT",
+      "SINQIA_EXTERNAL"
+    ]
   }
 }

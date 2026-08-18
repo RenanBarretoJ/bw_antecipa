@@ -1,0 +1,37 @@
+{
+  "schema": "bw-antecipa-runtime-central-fixes-p2-6-10-1-v1",
+  "environment": "homolog",
+  "project_ref": "fhgkmggthxikfpogrvaa",
+  "production_touched": false,
+  "generated_at": "2026-08-18T17:26:47.931Z",
+  "status": "PASS",
+  "schema_or_migration_changed": false,
+  "notifications": {
+    "status": "PASS",
+    "root_cause": "A leitura operacional dependia do cliente da sessao em uma superficie endurecida por RLS/grants e propagava a falha como 500.",
+    "correction": "Consulta server-side minima via service role, sempre filtrada pelo context.user.id autenticado; nenhuma leitura global de profiles foi reintroduzida.",
+    "authorization_impact": "O usuario alvo nao e aceito por input; contador e lista permanecem restritos ao usuario autenticado.",
+    "permanent_test": "src/lib/notificacoes/listagem.server.test.ts",
+    "browser_evidence": "central-visual-smoke-p2-6-10-1.json",
+    "http_500": 0,
+    "cross_user_leak": false,
+    "cross_fund_leak": false
+  },
+  "active_fund_cookie": {
+    "status": "PASS",
+    "root_cause": "A mesma funcao resolvia fallback durante render e tentava persistir/delete o cookie fora de Server Action/Route Handler.",
+    "correction": "Resolucao read-only movida para fundo-ativo.server.ts; fallback fica em memoria. Escrita permanece somente em selecionarFundoAtivo.",
+    "read_has_side_effects": false,
+    "explicit_write_via_server_action": true,
+    "reload_preserves_explicit_selection": true,
+    "unauthorized_fund_denied": true,
+    "permanent_test": "src/lib/fundos/fundo-ativo-runtime.test.ts",
+    "browser_evidence": "central-visual-smoke-p2-6-10-1.json"
+  },
+  "official_operation_mutation": {
+    "status": "PASS",
+    "reason": "A recertificacao TOCTOU/stale review precisava alterar testemunhas pelo fluxo oficial sem depender de SELECT global direto.",
+    "correction": "listarTestemunhasOperacao valida gestor e fundo ativo antes de leitura server-side.",
+    "permanent_test": "src/lib/operacoes/testemunhas-runtime.test.ts"
+  }
+}

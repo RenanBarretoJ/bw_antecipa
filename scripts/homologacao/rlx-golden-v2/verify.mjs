@@ -35,12 +35,12 @@ try {
 
   const operational = await db.query(`SELECT
     (SELECT count(*)::int FROM public.politicas_operacionais WHERE id=ANY($1)) AS politicas,
-    (SELECT count(*)::int FROM public.politica_operacional_versoes WHERE id=ANY($2) AND status::text='publicada') AS versoes_publicadas,
+    (SELECT count(*)::int FROM public.politica_operacional_versoes WHERE politica_operacional_id=ANY($2) AND status::text='publicada') AS versoes_publicadas,
     (SELECT count(*)::int FROM public.documentos_repositorio WHERE id=ANY($3)) AS boletos,
     (SELECT count(*)::int FROM public.operacoes WHERE id=ANY($4) AND status::text='aprovada') AS operacoes_d0,
     (SELECT count(*)::int FROM public.operacao_calculo_nfs WHERE operacao_id=ANY($4)) AS memorias,
     (SELECT count(*)::int FROM public.nota_fiscal_entregas WHERE operacao_id=ANY($4)) AS entregas`, [
-    dataset.funds.map((item) => item.policyId), dataset.funds.map((item) => item.policyVersionId),
+    dataset.funds.map((item) => item.policyId), dataset.funds.map((item) => item.policyId),
     dataset.boletoDocuments.map((item) => item.id), dataset.operations.map((item) => item.id),
   ])
   check(operational.rows[0].politicas === 2, 'duas politicas V2 isoladas', operational.rows[0])

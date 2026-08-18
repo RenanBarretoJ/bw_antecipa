@@ -1,0 +1,379 @@
+{
+  "phase": "P2.6.10.1",
+  "generated_at": "2026-08-18T17:17:19.749Z",
+  "environment": "homolog",
+  "target_project_ref": "fhgkmggthxikfpogrvaa",
+  "production_accessed": false,
+  "policy": {
+    "blind_cascade_used": false,
+    "audit_history_deleted": false,
+    "physical_deletion_requires_zero_non_identity_references": true,
+    "retained_actors_have_access_revoked": true
+  },
+  "actors": [
+    {
+      "actor_key": "gestor_a",
+      "actor_id": "60b0c3c5-14df-43ab-8fbd-246bb4caaf05",
+      "actor_role": "gestor",
+      "qa_classification": "QA_EPHEMERAL",
+      "references": [
+        {
+          "schema_name": "public",
+          "table_name": "autorizacoes_acoes_sensiveis",
+          "column_name": "user_id",
+          "rows": 3,
+          "classification": "BUSINESS_FIXTURE_REQUIRED"
+        },
+        {
+          "schema_name": "public",
+          "table_name": "cedente_fundo_politicas",
+          "column_name": "atribuido_por",
+          "rows": 8,
+          "classification": "BUSINESS_FIXTURE_REQUIRED"
+        },
+        {
+          "schema_name": "public",
+          "table_name": "cedentes",
+          "column_name": "user_id",
+          "rows": 1,
+          "classification": "BUSINESS_FIXTURE_REQUIRED"
+        },
+        {
+          "schema_name": "public",
+          "table_name": "conciliacao_execucoes",
+          "column_name": "criado_por",
+          "rows": 8,
+          "classification": "AUDIT_HISTORY_REQUIRED"
+        },
+        {
+          "schema_name": "public",
+          "table_name": "ctes",
+          "column_name": "analisado_por",
+          "rows": 5,
+          "classification": "BUSINESS_FIXTURE_REQUIRED"
+        },
+        {
+          "schema_name": "public",
+          "table_name": "documento_analises",
+          "column_name": "analisado_por",
+          "rows": 5,
+          "classification": "AUDIT_HISTORY_REQUIRED"
+        },
+        {
+          "schema_name": "public",
+          "table_name": "documento_versoes",
+          "column_name": "enviado_por",
+          "rows": 5,
+          "classification": "BUSINESS_FIXTURE_REQUIRED"
+        },
+        {
+          "schema_name": "public",
+          "table_name": "documentos_repositorio",
+          "column_name": "criado_por",
+          "rows": 5,
+          "classification": "BUSINESS_FIXTURE_REQUIRED"
+        },
+        {
+          "schema_name": "public",
+          "table_name": "eventos_dominio",
+          "column_name": "ator_usuario_id",
+          "rows": 4,
+          "classification": "AUDIT_HISTORY_REQUIRED"
+        },
+        {
+          "schema_name": "public",
+          "table_name": "exposicao_execucoes",
+          "column_name": "criado_por",
+          "rows": 8,
+          "classification": "AUDIT_HISTORY_REQUIRED"
+        },
+        {
+          "schema_name": "public",
+          "table_name": "fundos",
+          "column_name": "created_by",
+          "rows": 8,
+          "classification": "BUSINESS_FIXTURE_REQUIRED"
+        },
+        {
+          "schema_name": "public",
+          "table_name": "importacoes_financeiras",
+          "column_name": "criado_por",
+          "rows": 40,
+          "classification": "BUSINESS_FIXTURE_REQUIRED"
+        },
+        {
+          "schema_name": "public",
+          "table_name": "logs_auditoria",
+          "column_name": "usuario_id",
+          "rows": 58,
+          "classification": "AUDIT_HISTORY_REQUIRED"
+        },
+        {
+          "schema_name": "public",
+          "table_name": "matching_execucoes",
+          "column_name": "criado_por",
+          "rows": 8,
+          "classification": "AUDIT_HISTORY_REQUIRED"
+        },
+        {
+          "schema_name": "public",
+          "table_name": "operacoes",
+          "column_name": "aprovado_por",
+          "rows": 3,
+          "classification": "BUSINESS_FIXTURE_REQUIRED"
+        },
+        {
+          "schema_name": "public",
+          "table_name": "politica_operacional_versoes",
+          "column_name": "publicada_por",
+          "rows": 8,
+          "classification": "BUSINESS_FIXTURE_REQUIRED"
+        },
+        {
+          "schema_name": "public",
+          "table_name": "politicas_operacionais",
+          "column_name": "created_by",
+          "rows": 8,
+          "classification": "BUSINESS_FIXTURE_REQUIRED"
+        },
+        {
+          "schema_name": "public",
+          "table_name": "posicao_logistica_execucoes",
+          "column_name": "criado_por",
+          "rows": 8,
+          "classification": "AUDIT_HISTORY_REQUIRED"
+        },
+        {
+          "schema_name": "public",
+          "table_name": "profiles",
+          "column_name": "id",
+          "rows": 1,
+          "classification": "QA_EPHEMERAL"
+        },
+        {
+          "schema_name": "public",
+          "table_name": "risco_execucoes",
+          "column_name": "criado_por",
+          "rows": 9,
+          "classification": "AUDIT_HISTORY_REQUIRED"
+        },
+        {
+          "schema_name": "public",
+          "table_name": "risco_revisoes",
+          "column_name": "revisado_por",
+          "rows": 3,
+          "classification": "AUDIT_HISTORY_REQUIRED"
+        },
+        {
+          "schema_name": "public",
+          "table_name": "sessoes_elevadas",
+          "column_name": "user_id",
+          "rows": 29,
+          "classification": "BUSINESS_FIXTURE_REQUIRED"
+        },
+        {
+          "schema_name": "public",
+          "table_name": "titulo_nf_vinculos",
+          "column_name": "criado_por",
+          "rows": 8,
+          "classification": "BUSINESS_FIXTURE_REQUIRED"
+        },
+        {
+          "schema_name": "public",
+          "table_name": "usuario_papeis",
+          "column_name": "usuario_id",
+          "rows": 1,
+          "classification": "QA_EPHEMERAL"
+        }
+      ],
+      "reference_summary": {
+        "identity": 2,
+        "audit_history": 111,
+        "business_fixture": 131
+      },
+      "action": "RETAINED_AND_DISABLED",
+      "access_revoked": true,
+      "factors_removed": 0,
+      "final_classification": "BUSINESS_FIXTURE_REQUIRED",
+      "verification": {
+        "no_fund_links": true,
+        "no_active_roles": true,
+        "profile_inactive": true,
+        "no_mfa_factors": true,
+        "auth_user_banned": true
+      }
+    },
+    {
+      "actor_key": "gestor_b",
+      "actor_id": "b529b048-6486-4157-acbd-0eaf04a47cca",
+      "actor_role": "gestor",
+      "qa_classification": "QA_EPHEMERAL",
+      "references": [
+        {
+          "schema_name": "public",
+          "table_name": "eventos_dominio",
+          "column_name": "ator_usuario_id",
+          "rows": 1,
+          "classification": "AUDIT_HISTORY_REQUIRED"
+        },
+        {
+          "schema_name": "public",
+          "table_name": "logs_auditoria",
+          "column_name": "usuario_id",
+          "rows": 1,
+          "classification": "AUDIT_HISTORY_REQUIRED"
+        },
+        {
+          "schema_name": "public",
+          "table_name": "operacoes",
+          "column_name": "aprovado_por",
+          "rows": 1,
+          "classification": "BUSINESS_FIXTURE_REQUIRED"
+        },
+        {
+          "schema_name": "public",
+          "table_name": "profiles",
+          "column_name": "id",
+          "rows": 1,
+          "classification": "QA_EPHEMERAL"
+        },
+        {
+          "schema_name": "public",
+          "table_name": "sacados",
+          "column_name": "user_id",
+          "rows": 1,
+          "classification": "BUSINESS_FIXTURE_REQUIRED"
+        },
+        {
+          "schema_name": "public",
+          "table_name": "sessoes_elevadas",
+          "column_name": "user_id",
+          "rows": 7,
+          "classification": "BUSINESS_FIXTURE_REQUIRED"
+        },
+        {
+          "schema_name": "public",
+          "table_name": "usuario_papeis",
+          "column_name": "usuario_id",
+          "rows": 1,
+          "classification": "QA_EPHEMERAL"
+        }
+      ],
+      "reference_summary": {
+        "identity": 2,
+        "audit_history": 2,
+        "business_fixture": 9
+      },
+      "action": "RETAINED_AND_DISABLED",
+      "access_revoked": true,
+      "factors_removed": 0,
+      "final_classification": "BUSINESS_FIXTURE_REQUIRED",
+      "verification": {
+        "no_fund_links": true,
+        "no_active_roles": true,
+        "profile_inactive": true,
+        "no_mfa_factors": true,
+        "auth_user_banned": true
+      }
+    },
+    {
+      "actor_key": "super_admin_puro",
+      "actor_id": "e3b6a00c-3007-4283-b8fa-8a969da44e0e",
+      "actor_role": "super_admin",
+      "qa_classification": "QA_EPHEMERAL",
+      "references": [
+        {
+          "schema_name": "public",
+          "table_name": "profiles",
+          "column_name": "id",
+          "rows": 1,
+          "classification": "QA_EPHEMERAL"
+        },
+        {
+          "schema_name": "public",
+          "table_name": "sessoes_elevadas",
+          "column_name": "user_id",
+          "rows": 3,
+          "classification": "BUSINESS_FIXTURE_REQUIRED"
+        },
+        {
+          "schema_name": "public",
+          "table_name": "usuario_papeis",
+          "column_name": "usuario_id",
+          "rows": 2,
+          "classification": "QA_EPHEMERAL"
+        }
+      ],
+      "reference_summary": {
+        "identity": 3,
+        "audit_history": 0,
+        "business_fixture": 3
+      },
+      "action": "RETAINED_AND_DISABLED",
+      "access_revoked": true,
+      "factors_removed": 1,
+      "final_classification": "BUSINESS_FIXTURE_REQUIRED",
+      "verification": {
+        "no_fund_links": true,
+        "no_active_roles": true,
+        "profile_inactive": true,
+        "no_mfa_factors": true,
+        "auth_user_banned": true
+      }
+    },
+    {
+      "actor_key": "gestor_sem_vinculo",
+      "actor_id": "7702ec49-7e8f-4f93-9305-7c97daadb1bc",
+      "actor_role": "gestor",
+      "qa_classification": "QA_EPHEMERAL",
+      "references": [
+        {
+          "schema_name": "public",
+          "table_name": "profiles",
+          "column_name": "id",
+          "rows": 1,
+          "classification": "QA_EPHEMERAL"
+        },
+        {
+          "schema_name": "public",
+          "table_name": "sessoes_elevadas",
+          "column_name": "user_id",
+          "rows": 2,
+          "classification": "BUSINESS_FIXTURE_REQUIRED"
+        },
+        {
+          "schema_name": "public",
+          "table_name": "usuario_papeis",
+          "column_name": "usuario_id",
+          "rows": 1,
+          "classification": "QA_EPHEMERAL"
+        }
+      ],
+      "reference_summary": {
+        "identity": 2,
+        "audit_history": 0,
+        "business_fixture": 2
+      },
+      "action": "RETAINED_AND_DISABLED",
+      "access_revoked": true,
+      "factors_removed": 1,
+      "final_classification": "BUSINESS_FIXTURE_REQUIRED",
+      "verification": {
+        "no_fund_links": true,
+        "no_active_roles": true,
+        "profile_inactive": true,
+        "no_mfa_factors": true,
+        "auth_user_banned": true
+      }
+    }
+  ],
+  "summary": {
+    "inventoried": 4,
+    "safe_to_delete": 0,
+    "retained_for_audit": 0,
+    "business_fixture_required": 4,
+    "unresolved": 0,
+    "unresolved_qa_actors_gate": "PASS"
+  },
+  "local_credential_file_removed": true
+}

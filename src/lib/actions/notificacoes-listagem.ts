@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { requireAuthenticated } from '@/lib/auth/authorization'
+import { createAdminClient } from '@/lib/supabase/server'
 import {
   carregarNotificacoesUsuario,
   contarNotificacoesDoContext,
@@ -36,7 +37,7 @@ export async function marcarNotificacaoComoLida(notificacaoId: string) {
     return { success: false, message: 'Notificacao invalida.' }
   }
 
-  const { data, error } = await context.supabase
+  const { data, error } = await createAdminClient()
     .from('notificacoes')
     .update({ lida: true } as never)
     .eq('id', notificacaoId)
@@ -51,7 +52,7 @@ export async function marcarNotificacaoComoLida(notificacaoId: string) {
 
 export async function marcarTodasNotificacoesComoLidas() {
   const context = await requireAuthenticated()
-  const { error } = await context.supabase
+  const { error } = await createAdminClient()
     .from('notificacoes')
     .update({ lida: true } as never)
     .eq('usuario_id', context.user.id)

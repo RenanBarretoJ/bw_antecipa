@@ -2,7 +2,7 @@ import 'server-only'
 
 import { buildPaginatedResult, buildPaginationMeta } from '@/lib/pagination'
 import { assertRole, requireAuthenticated, type AppSupabaseClient } from '@/lib/auth/authorization'
-import { obterFundoAtivoAutorizado } from '@/lib/actions/fundo-ativo'
+import { obterFundoAtivoAutorizado } from '@/lib/fundos/fundo-ativo.server'
 import { resolverCedenteFundoAtivo } from '@/lib/fundos/cedente-fundo'
 import {
   calcularMetricasPaginaOperacoes,

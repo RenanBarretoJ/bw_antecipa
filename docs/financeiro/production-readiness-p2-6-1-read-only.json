@@ -6,8 +6,8 @@
     "production_mutated": false
   },
   "migrations": {
-    "local_total": 125,
-    "remote_total": 125,
+    "local_total": 127,
+    "remote_total": 127,
     "missing_remote": [],
     "extra_remote": [],
     "name_mismatches": [],
@@ -16,12 +16,7 @@
   "schema_state": {
     "rlx": {
       "relations": [],
-      "routines": [
-        {
-          "schema_name": "private",
-          "proname": "rlx_gestor_tem_acesso_fundo"
-        }
-      ],
+      "routines": [],
       "active_code_references": []
     },
     "generic_domain": [
@@ -263,10 +258,10 @@
       ]
     },
     "golden": {
-      "risco_execucoes": 8,
-      "exposicao_execucoes": 2,
-      "logistica_execucoes": 2,
-      "matching_execucoes": 3
+      "risco_execucoes": 19,
+      "exposicao_execucoes": 12,
+      "logistica_execucoes": 10,
+      "matching_execucoes": 11
     }
   },
   "checks": [
@@ -275,8 +270,8 @@
       "categoria": "migrations",
       "status": "PASS",
       "evidencia": {
-        "local": 125,
-        "remoto": 125,
+        "local": 127,
+        "remoto": 127,
         "ausentes": 0,
         "excedentes": 0,
         "nomes_divergentes": 0
@@ -287,18 +282,13 @@
     {
       "check_id": "STRUCTURAL_RLX_ZERO",
       "categoria": "schema",
-      "status": "FAIL",
+      "status": "PASS",
       "evidencia": {
         "relations": [],
-        "routines": [
-          {
-            "schema_name": "private",
-            "proname": "rlx_gestor_tem_acesso_fundo"
-          }
-        ],
+        "routines": [],
         "active_code_references": []
       },
-      "blocker": true,
+      "blocker": false,
       "observacao": null
     },
     {
@@ -610,21 +600,19 @@
       "categoria": "golden",
       "status": "PASS",
       "evidencia": {
-        "risco_execucoes": 8,
-        "exposicao_execucoes": 2,
-        "logistica_execucoes": 2,
-        "matching_execucoes": 3
+        "risco_execucoes": 19,
+        "exposicao_execucoes": 12,
+        "logistica_execucoes": 10,
+        "matching_execucoes": 11
       },
       "blocker": false,
       "observacao": null
     }
   ],
   "summary": {
-    "pass": 8,
-    "fail": 1,
+    "pass": 9,
+    "fail": 0,
     "pending": 1,
-    "blockers": [
-      "STRUCTURAL_RLX_ZERO"
-    ]
+    "blockers": []
   }
 }

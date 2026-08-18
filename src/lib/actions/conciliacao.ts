@@ -3,7 +3,7 @@
 import { randomUUID } from 'node:crypto'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
-import { obterFundoAtivoAutorizado } from '@/lib/actions/fundo-ativo'
+import { obterFundoAtivoAutorizado } from '@/lib/fundos/fundo-ativo.server'
 import { requireGestor } from '@/lib/auth/authorization'
 import { autorizarEConsumirAcaoSensivel } from '@/lib/auth/sensitive-action'
 import {

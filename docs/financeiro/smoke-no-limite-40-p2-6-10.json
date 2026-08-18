@@ -1,0 +1,817 @@
+{
+  "gate": "SMOKE_NO_LIMITE_40",
+  "environment": "homolog",
+  "project_ref": "fhgkmggthxikfpogrvaa",
+  "production_touched": false,
+  "executed_at": "2026-08-18T15:07:44.603Z",
+  "login": {
+    "status": "PASS",
+    "login_page_status": 200,
+    "password_submit_result": "PASS",
+    "aal_before_totp": "aal1",
+    "mfa_challenge_visible": true,
+    "invalid_totp_denied": true,
+    "totp_submit_result": "PASS",
+    "aal_after_totp": "aal2",
+    "redirect_final": "/gestor/dashboard",
+    "no_500": true,
+    "no_loop": true,
+    "cookies_session_established": true,
+    "diagnostics": {
+      "consoleErrors": [],
+      "failedRequests": [],
+      "fiveXx": []
+    }
+  },
+  "central": {
+    "status": "FAIL",
+    "authenticated_actor": "gestor_a",
+    "aal": "aal2",
+    "results": [
+      {
+        "viewport": "desktop",
+        "tab": "matching",
+        "http_status": 200,
+        "final_path": "/gestor/conciliacao?tab=matching",
+        "title": "Conciliacao",
+        "has_tabs": true,
+        "has_filters": true,
+        "has_cards": true,
+        "error_page": false,
+        "diagnostics": {
+          "consoleErrors": [
+            "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+          ],
+          "failedRequests": [],
+          "fiveXx": [
+            {
+              "url": "http://localhost:3001/gestor/conciliacao",
+              "status": 500
+            }
+          ]
+        }
+      },
+      {
+        "viewport": "desktop",
+        "tab": "conciliacao",
+        "http_status": 200,
+        "final_path": "/gestor/conciliacao?tab=conciliacao",
+        "title": "Conciliacao",
+        "has_tabs": true,
+        "has_filters": true,
+        "has_cards": true,
+        "error_page": false,
+        "diagnostics": {
+          "consoleErrors": [
+            "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+            "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+          ],
+          "failedRequests": [],
+          "fiveXx": [
+            {
+              "url": "http://localhost:3001/gestor/conciliacao",
+              "status": 500
+            },
+            {
+              "url": "http://localhost:3001/gestor/conciliacao",
+              "status": 500
+            }
+          ]
+        }
+      },
+      {
+        "viewport": "desktop",
+        "tab": "logistica",
+        "http_status": 200,
+        "final_path": "/gestor/conciliacao?tab=logistica",
+        "title": "Conciliacao",
+        "has_tabs": true,
+        "has_filters": true,
+        "has_cards": true,
+        "error_page": false,
+        "diagnostics": {
+          "consoleErrors": [
+            "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+            "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+          ],
+          "failedRequests": [],
+          "fiveXx": [
+            {
+              "url": "http://localhost:3001/gestor/conciliacao",
+              "status": 500
+            },
+            {
+              "url": "http://localhost:3001/gestor/conciliacao",
+              "status": 500
+            }
+          ]
+        }
+      },
+      {
+        "viewport": "desktop",
+        "tab": "exposicao",
+        "http_status": 200,
+        "final_path": "/gestor/conciliacao?tab=exposicao",
+        "title": "Conciliacao",
+        "has_tabs": true,
+        "has_filters": true,
+        "has_cards": true,
+        "error_page": false,
+        "diagnostics": {
+          "consoleErrors": [
+            "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+            "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+          ],
+          "failedRequests": [],
+          "fiveXx": [
+            {
+              "url": "http://localhost:3001/gestor/conciliacao",
+              "status": 500
+            },
+            {
+              "url": "http://localhost:3001/gestor/conciliacao",
+              "status": 500
+            }
+          ]
+        }
+      },
+      {
+        "viewport": "desktop",
+        "tab": "risco",
+        "http_status": 200,
+        "final_path": "/gestor/conciliacao?tab=risco",
+        "title": "Conciliacao",
+        "has_tabs": true,
+        "has_filters": true,
+        "has_cards": true,
+        "error_page": false,
+        "diagnostics": {
+          "consoleErrors": [
+            "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+            "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+          ],
+          "failedRequests": [],
+          "fiveXx": [
+            {
+              "url": "http://localhost:3001/gestor/conciliacao",
+              "status": 500
+            },
+            {
+              "url": "http://localhost:3001/gestor/conciliacao",
+              "status": 500
+            }
+          ]
+        }
+      },
+      {
+        "viewport": "desktop",
+        "tab": "excecoes",
+        "http_status": 200,
+        "final_path": "/gestor/conciliacao?tab=excecoes",
+        "title": "Conciliacao",
+        "has_tabs": true,
+        "has_filters": true,
+        "has_cards": true,
+        "error_page": false,
+        "diagnostics": {
+          "consoleErrors": [
+            "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+            "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+          ],
+          "failedRequests": [],
+          "fiveXx": [
+            {
+              "url": "http://localhost:3001/gestor/conciliacao",
+              "status": 500
+            },
+            {
+              "url": "http://localhost:3001/gestor/conciliacao",
+              "status": 500
+            }
+          ]
+        }
+      },
+      {
+        "viewport": "compact",
+        "tab": "matching",
+        "http_status": 200,
+        "final_path": "/gestor/conciliacao?tab=matching",
+        "title": "Conciliacao",
+        "has_tabs": true,
+        "has_filters": true,
+        "has_cards": true,
+        "error_page": false,
+        "diagnostics": {
+          "consoleErrors": [
+            "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+            "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+          ],
+          "failedRequests": [],
+          "fiveXx": [
+            {
+              "url": "http://localhost:3001/gestor/conciliacao",
+              "status": 500
+            },
+            {
+              "url": "http://localhost:3001/gestor/conciliacao",
+              "status": 500
+            }
+          ]
+        }
+      },
+      {
+        "viewport": "compact",
+        "tab": "conciliacao",
+        "http_status": 200,
+        "final_path": "/gestor/conciliacao?tab=conciliacao",
+        "title": "Conciliacao",
+        "has_tabs": true,
+        "has_filters": true,
+        "has_cards": true,
+        "error_page": false,
+        "diagnostics": {
+          "consoleErrors": [
+            "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+            "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+          ],
+          "failedRequests": [],
+          "fiveXx": [
+            {
+              "url": "http://localhost:3001/gestor/conciliacao",
+              "status": 500
+            },
+            {
+              "url": "http://localhost:3001/gestor/conciliacao",
+              "status": 500
+            }
+          ]
+        }
+      },
+      {
+        "viewport": "compact",
+        "tab": "logistica",
+        "http_status": 200,
+        "final_path": "/gestor/conciliacao?tab=logistica",
+        "title": "Conciliacao",
+        "has_tabs": true,
+        "has_filters": true,
+        "has_cards": true,
+        "error_page": false,
+        "diagnostics": {
+          "consoleErrors": [
+            "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+            "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+          ],
+          "failedRequests": [],
+          "fiveXx": [
+            {
+              "url": "http://localhost:3001/gestor/conciliacao",
+              "status": 500
+            },
+            {
+              "url": "http://localhost:3001/gestor/conciliacao",
+              "status": 500
+            }
+          ]
+        }
+      },
+      {
+        "viewport": "compact",
+        "tab": "exposicao",
+        "http_status": 200,
+        "final_path": "/gestor/conciliacao?tab=exposicao",
+        "title": "Conciliacao",
+        "has_tabs": true,
+        "has_filters": true,
+        "has_cards": true,
+        "error_page": false,
+        "diagnostics": {
+          "consoleErrors": [
+            "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+            "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+          ],
+          "failedRequests": [],
+          "fiveXx": [
+            {
+              "url": "http://localhost:3001/gestor/conciliacao",
+              "status": 500
+            },
+            {
+              "url": "http://localhost:3001/gestor/conciliacao",
+              "status": 500
+            }
+          ]
+        }
+      },
+      {
+        "viewport": "compact",
+        "tab": "risco",
+        "http_status": 200,
+        "final_path": "/gestor/conciliacao?tab=risco",
+        "title": "Conciliacao",
+        "has_tabs": true,
+        "has_filters": true,
+        "has_cards": true,
+        "error_page": false,
+        "diagnostics": {
+          "consoleErrors": [
+            "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+            "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+          ],
+          "failedRequests": [],
+          "fiveXx": [
+            {
+              "url": "http://localhost:3001/gestor/conciliacao",
+              "status": 500
+            },
+            {
+              "url": "http://localhost:3001/gestor/conciliacao",
+              "status": 500
+            }
+          ]
+        }
+      },
+      {
+        "viewport": "compact",
+        "tab": "excecoes",
+        "http_status": 200,
+        "final_path": "/gestor/conciliacao?tab=excecoes",
+        "title": "Conciliacao",
+        "has_tabs": true,
+        "has_filters": true,
+        "has_cards": true,
+        "error_page": false,
+        "diagnostics": {
+          "consoleErrors": [
+            "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+            "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+          ],
+          "failedRequests": [],
+          "fiveXx": [
+            {
+              "url": "http://localhost:3001/gestor/conciliacao",
+              "status": 500
+            },
+            {
+              "url": "http://localhost:3001/gestor/conciliacao",
+              "status": 500
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "apto": {
+    "scenario": "APTO",
+    "status": "PASS",
+    "request_started_at": "2026-08-18T15:08:47.570Z",
+    "request_finished_at": "2026-08-18T15:09:08.903Z",
+    "status_before": "solicitada",
+    "status_after": "aprovada",
+    "final_operation_status": "aprovada",
+    "risk_decision": "APTO",
+    "risk_execution_id": "a7bfedc7-fbbb-42bf-9a8b-5f8bd14abdb1",
+    "projected_exposure_pct": 2,
+    "limit_pct": 40,
+    "reasons": [],
+    "approval_rpc_path": "server_action:aprovarOperacao -> executarGateRisco -> aprovar_operacao_com_risco_atomica",
+    "bypass": false,
+    "ui": {
+      "http_status": 200,
+      "clicked": true,
+      "message": [
+        "R$ 1.000.000,00"
+      ],
+      "final_path": "/gestor/operacoes/70c034e1-185b-0308-d695-aaa8c6ba196b",
+      "buttons": [
+        {
+          "text": "Fundo ativo:QA P2.6.10 APTO FIDC",
+          "disabled": false
+        },
+        {
+          "text": "Exportar CSV",
+          "disabled": false
+        },
+        {
+          "text": "vencimento▼",
+          "disabled": false
+        },
+        {
+          "text": "Gerar Contrato Mae",
+          "disabled": false
+        },
+        {
+          "text": "Termo de Cessao",
+          "disabled": false
+        },
+        {
+          "text": "Gerar Notificacao ao Sacado",
+          "disabled": false
+        },
+        {
+          "text": "Gerar CNAB",
+          "disabled": false
+        },
+        {
+          "text": "Enviar CNAB para Portal FIDC",
+          "disabled": true
+        },
+        {
+          "text": "Anexar Termo de Cessao Assinado",
+          "disabled": false
+        },
+        {
+          "text": "Anexar Notificacao ao Sacado Assinada",
+          "disabled": false
+        },
+        {
+          "text": "Anexar Comprovante de Desembolso (TED)",
+          "disabled": false
+        },
+        {
+          "text": "Desembolsar",
+          "disabled": true
+        },
+        {
+          "text": "Expandir",
+          "disabled": false
+        }
+      ],
+      "visible_text": "BW\n\nAntecipa\n\nGestor\nDashboard\nCedentes\nOnboarding\nDocumentos\nNotas Fiscais\nOperacoes\nLogistica\nConciliacao\nEscrow\nRelatorios\nNotificacoes\nConfiguracoes\nMinha Seguranca\nAuditoria\n\nBETTER WITH\n\nFundo ativo:\nQA P2.6.10 APTO FIDC\n\nP2.6.10 Gestor QA A\n\nGestor\n\nPG\nOperacao #70c034e1\nAprovada — Aguard. Desembolso\n| QA P2.6.10 CEDENTE (99.141.111/0001-00)\nAceite do sacado: dispensado pela política\nNotas Fiscais (1)\n\nTOTAL BRUTO\n\nR$ 1.000.000,00\n\nANTECIPADO\n\nR$ 1.000.000,00\n\nDIFERENÇA\n\nR$ 0,00\n\n1 NF vinculada\n\nExportar CSV\nOrdenar por\nvencimento\n\nNF P2610-01\n\nAceite dispensado\n\nQA P2.6.10 SACADO\n\nCNPJ 99.142.222/0001-00\n\nBRUTO\n\nR$ 1.000.000,00\n\nANTECIPADO\n\nR$ 1.000.000,00\n\nPRAZO\n\n30 dias\n\nVENCIMENTO\n\n17/09/2026\n\nVer NF\n\nAguardando desembolso\n\nO acompanhamento logístico da NF será iniciado após o desembolso.\n\nAndamento da operação\n\nDocumentação validada\n\nOs documentos aplicáveis ao fluxo foram validados.\n\nSolicitação de antecipação enviada\n\nO cedente enviou a solicitação de antecipação.\n\n18/08/2026, 11:45\n\nOperação aprovada\n\nA análise da operação foi concluída com aprovação.\n\n18/08/2026, 12:09\n\nDesembolso realizado\n\nO desembolso será liberado após a aprovação e as condições aplicáveis.\n\nEntrega em acompanhamento\n\nO acompanhamento será iniciado após o desembolso.\n\nEntrega confirmada\n\nA entrega será confirmada após a conclusão do acompanhamento.\n\nLiquidação concluída\n\nA liquidação concluirá o ciclo financeiro da operação.\n\nResumo\nValor Bruto\nR$ 1.000.000,00\nTaxa\n0% a.m.\nMetodo\n365 - Dias corridos\nData-base\n18/08/2026\nPrazo\n30 dias\nValor Liquido\nR$ 1.000.000,00\nAprovada em\n18/08/2026\n\nDocumentos gerados\n\nGerar Contrato Mae\nTermo de Cessao\nGerar Notificacao ao Sacado\nGerar CNAB\nEnviar CNAB para Portal FIDC\n\nDocumentos assinados\n\nAnexar Termo de Cessao Assinado\nAnexar Notificacao ao Sacado Assinada\nAnexar Comprovante de Desembolso (TED)\n\nEnvie os documentos assinados e o comprovante TED para liberar o desembolso.\n\nDesembolsar\nHistórico\n\nExpanda para consultar o histórico operacional.\n\nExpandir\n\nSucesso\n\nOperacao aprovada. Envie os documentos assinados e o comprovante TED para desembolsar.",
+      "diagnostics": {
+        "consoleErrors": [
+          "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+          "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+          "Failed to load resource: the server responded with a status of 403 ()"
+        ],
+        "failedRequests": [],
+        "fiveXx": [
+          {
+            "url": "http://localhost:3001/gestor/operacoes/70c034e1-185b-0308-d695-aaa8c6ba196b",
+            "status": 500
+          },
+          {
+            "url": "http://localhost:3001/gestor/operacoes/70c034e1-185b-0308-d695-aaa8c6ba196b",
+            "status": 500
+          }
+        ]
+      }
+    }
+  },
+  "limit40": {
+    "exact": {
+      "scenario": "NO_LIMITE_40",
+      "status": "PASS",
+      "request_started_at": "2026-08-18T15:09:09.310Z",
+      "request_finished_at": "2026-08-18T15:09:30.936Z",
+      "status_before": "solicitada",
+      "status_after": "aprovada",
+      "final_operation_status": "aprovada",
+      "risk_decision": "APTO",
+      "risk_execution_id": "61ff9f64-fed2-42eb-afa5-3ee0c0ba219d",
+      "projected_exposure_pct": 40,
+      "limit_pct": 40,
+      "reasons": [],
+      "approval_rpc_path": "server_action:aprovarOperacao -> executarGateRisco -> aprovar_operacao_com_risco_atomica",
+      "bypass": false,
+      "ui": {
+        "http_status": 200,
+        "clicked": true,
+        "message": [
+          "R$ 20.000.000,00"
+        ],
+        "final_path": "/gestor/operacoes/a88654fe-5f49-6d49-5698-1689b686851e",
+        "buttons": [
+          {
+            "text": "Fundo ativo:QA P2.6.10 NO_LIMITE_40 FIDC",
+            "disabled": false
+          },
+          {
+            "text": "Exportar CSV",
+            "disabled": false
+          },
+          {
+            "text": "vencimento▼",
+            "disabled": false
+          },
+          {
+            "text": "Gerar Contrato Mae",
+            "disabled": false
+          },
+          {
+            "text": "Gerar Termo de Cessao",
+            "disabled": false
+          },
+          {
+            "text": "Gerar Notificacao ao Sacado",
+            "disabled": false
+          },
+          {
+            "text": "Gerar CNAB",
+            "disabled": false
+          },
+          {
+            "text": "Enviar CNAB para Portal FIDC",
+            "disabled": true
+          },
+          {
+            "text": "Anexar Termo de Cessao Assinado",
+            "disabled": false
+          },
+          {
+            "text": "Anexar Notificacao ao Sacado Assinada",
+            "disabled": false
+          },
+          {
+            "text": "Anexar Comprovante de Desembolso (TED)",
+            "disabled": false
+          },
+          {
+            "text": "Desembolsar",
+            "disabled": true
+          },
+          {
+            "text": "Expandir",
+            "disabled": false
+          }
+        ],
+        "visible_text": "BW\n\nAntecipa\n\nGestor\nDashboard\nCedentes\nOnboarding\nDocumentos\nNotas Fiscais\nOperacoes\nLogistica\nConciliacao\nEscrow\nRelatorios\nNotificacoes\nConfiguracoes\nMinha Seguranca\nAuditoria\n\nBETTER WITH\n\nFundo ativo:\nQA P2.6.10 NO_LIMITE_40 FIDC\n\nP2.6.10 Gestor QA A\n\nGestor\n\nPG\nOperacao #a88654fe\nAprovada — Aguard. Desembolso\n| QA P2.6.10 CEDENTE (99.141.111/0001-00)\nAceite do sacado: dispensado pela política\nNotas Fiscais (1)\n\nTOTAL BRUTO\n\nR$ 20.000.000,00\n\nANTECIPADO\n\nR$ 20.000.000,00\n\nDIFERENÇA\n\nR$ 0,00\n\n1 NF vinculada\n\nExportar CSV\nOrdenar por\nvencimento\n\nNF P2610-02\n\nAceite dispensado\n\nQA P2.6.10 SACADO\n\nCNPJ 99.142.222/0001-00\n\nBRUTO\n\nR$ 20.000.000,00\n\nANTECIPADO\n\nR$ 20.000.000,00\n\nPRAZO\n\n30 dias\n\nVENCIMENTO\n\n17/09/2026\n\nVer NF\n\nAguardando desembolso\n\nO acompanhamento logístico da NF será iniciado após o desembolso.\n\nAndamento da operação\n\nDocumentação validada\n\nOs documentos aplicáveis ao fluxo foram validados.\n\nSolicitação de antecipação enviada\n\nO cedente enviou a solicitação de antecipação.\n\n18/08/2026, 11:45\n\nOperação aprovada\n\nA análise da operação foi concluída com aprovação.\n\n18/08/2026, 12:09\n\nDesembolso realizado\n\nO desembolso será liberado após a aprovação e as condições aplicáveis.\n\nEntrega em acompanhamento\n\nO acompanhamento será iniciado após o desembolso.\n\nEntrega confirmada\n\nA entrega será confirmada após a conclusão do acompanhamento.\n\nLiquidação concluída\n\nA liquidação concluirá o ciclo financeiro da operação.\n\nResumo\nValor Bruto\nR$ 20.000.000,00\nTaxa\n0% a.m.\nMetodo\n365 - Dias corridos\nData-base\n18/08/2026\nPrazo\n30 dias\nValor Liquido\nR$ 20.000.000,00\nAprovada em\n18/08/2026\n\nDocumentos gerados\n\nGerar Contrato Mae\nGerar Termo de Cessao\nGerar Notificacao ao Sacado\nGerar CNAB\nEnviar CNAB para Portal FIDC\n\nDocumentos assinados\n\nAnexar Termo de Cessao Assinado\nAnexar Notificacao ao Sacado Assinada\nAnexar Comprovante de Desembolso (TED)\n\nEnvie os documentos assinados e o comprovante TED para liberar o desembolso.\n\nDesembolsar\nHistórico\n\nExpanda para consultar o histórico operacional.\n\nExpandir\n\nSucesso\n\nOperacao aprovada. Envie os documentos assinados e o comprovante TED para desembolsar.",
+        "diagnostics": {
+          "consoleErrors": [
+            "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+            "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+            "Failed to load resource: the server responded with a status of 403 ()"
+          ],
+          "failedRequests": [],
+          "fiveXx": [
+            {
+              "url": "http://localhost:3001/gestor/operacoes/a88654fe-5f49-6d49-5698-1689b686851e",
+              "status": 500
+            },
+            {
+              "url": "http://localhost:3001/gestor/operacoes/a88654fe-5f49-6d49-5698-1689b686851e",
+              "status": 500
+            }
+          ]
+        }
+      }
+    },
+    "above": {
+      "scenario": "ACIMA_40",
+      "status": "PASS",
+      "request_started_at": "2026-08-18T15:09:31.320Z",
+      "request_finished_at": "2026-08-18T15:09:50.715Z",
+      "status_before": "solicitada",
+      "status_after": "solicitada",
+      "final_operation_status": "solicitada",
+      "risk_decision": "BLOQUEADO",
+      "risk_execution_id": "481a9f1b-80fc-4fa8-85d2-77ddd46075e9",
+      "projected_exposure_pct": 40.00000002,
+      "limit_pct": 40,
+      "reasons": [],
+      "approval_rpc_path": "server_action:aprovarOperacao -> executarGateRisco -> aprovar_operacao_com_risco_atomica",
+      "bypass": false,
+      "ui": {
+        "http_status": 200,
+        "clicked": true,
+        "message": [
+          "R$ 20.000.000,01",
+          "Reprovar",
+          "ErroOperacao bloqueada pelo gate de risco: EXPOSICAO_ACIMA_LIMITE."
+        ],
+        "final_path": "/gestor/operacoes/50de4ab8-e724-5b2f-9e3d-f63291e089bd",
+        "buttons": [
+          {
+            "text": "Fundo ativo:QA P2.6.10 ACIMA_40 FIDC",
+            "disabled": false
+          },
+          {
+            "text": "Exportar CSV",
+            "disabled": false
+          },
+          {
+            "text": "vencimento▼",
+            "disabled": false
+          },
+          {
+            "text": "Remover da operação",
+            "disabled": false
+          },
+          {
+            "text": "0-365 dias0% a.m.",
+            "disabled": false
+          },
+          {
+            "text": "Aprovar e Seguir",
+            "disabled": false
+          },
+          {
+            "text": "Reprovar",
+            "disabled": false
+          },
+          {
+            "text": "Expandir",
+            "disabled": false
+          }
+        ],
+        "visible_text": "BW\n\nAntecipa\n\nGestor\nDashboard\nCedentes\nOnboarding\nDocumentos\nNotas Fiscais\nOperacoes\nLogistica\nConciliacao\nEscrow\nRelatorios\nNotificacoes\nConfiguracoes\nMinha Seguranca\nAuditoria\n\nBETTER WITH\n\nFundo ativo:\nQA P2.6.10 ACIMA_40 FIDC\n\nP2.6.10 Gestor QA A\n\nGestor\n\nPG\nOperacao #50de4ab8\nSolicitada\n| QA P2.6.10 CEDENTE (99.141.111/0001-00)\nAceite do sacado: dispensado pela política\nNotas Fiscais (1)\n\nTOTAL BRUTO\n\nR$ 20.000.000,01\n\nANTECIPADO\n\nR$ 20.000.000,01\n\nDIFERENÇA\n\nR$ 0,00\n\n1 NF vinculada\n\nExportar CSV\nOrdenar por\nvencimento\n\nNF P2610-03\n\nAceite dispensado\n\nQA P2.6.10 SACADO\n\nCNPJ 99.142.222/0001-00\n\nBRUTO\n\nR$ 20.000.000,01\n\nANTECIPADO\n\nR$ 20.000.000,01\n\nPRAZO\n\n30 dias\n\nVENCIMENTO\n\n17/09/2026\n\nVer NF\n\nAguardando desembolso\n\nO acompanhamento logístico da NF será iniciado após o desembolso.\n\nAndamento da operação\n\nDocumentação validada\n\nOs documentos aplicáveis ao fluxo foram validados.\n\nSolicitação de antecipação enviada\n\nO cedente enviou a solicitação de antecipação.\n\n18/08/2026, 11:45\n\nOperação aprovada\n\nA operação será avaliada pela gestora.\n\nDesembolso realizado\n\nO desembolso será liberado após a aprovação e as condições aplicáveis.\n\nEntrega em acompanhamento\n\nO acompanhamento será iniciado após o desembolso.\n\nEntrega confirmada\n\nA entrega será confirmada após a conclusão do acompanhamento.\n\nLiquidação concluída\n\nA liquidação concluirá o ciclo financeiro da operação.\n\nDefinir Termos\n\nSelecione uma taxa configurada\n\n0-365 dias\n0% a.m.\nMetodo de calculo\n365 - Dias corridos\nTaxa mensal\n0% a.m.\nBruto\nR$ 20.000.000,01\n(-) Desconto (0% a.m., prazo por NF)\nR$ 0,00\nLiquido\nR$ 20.000.000,01\nAprovar e Seguir\nReprovar\nGerenciar taxas deste cedente\nHistórico\n\nExpanda para consultar o histórico operacional.\n\nExpandir\n\nErro\n\nOperacao bloqueada pelo gate de risco: EXPOSICAO_ACIMA_LIMITE.",
+        "diagnostics": {
+          "consoleErrors": [
+            "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+            "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+            "Failed to load resource: the server responded with a status of 403 ()"
+          ],
+          "failedRequests": [],
+          "fiveXx": [
+            {
+              "url": "http://localhost:3001/gestor/operacoes/50de4ab8-e724-5b2f-9e3d-f63291e089bd",
+              "status": 500
+            },
+            {
+              "url": "http://localhost:3001/gestor/operacoes/50de4ab8-e724-5b2f-9e3d-f63291e089bd",
+              "status": 500
+            }
+          ]
+        }
+      }
+    },
+    "status": "PASS"
+  },
+  "exact": {
+    "scenario": "NO_LIMITE_40",
+    "status": "PASS",
+    "request_started_at": "2026-08-18T15:09:09.310Z",
+    "request_finished_at": "2026-08-18T15:09:30.936Z",
+    "status_before": "solicitada",
+    "status_after": "aprovada",
+    "final_operation_status": "aprovada",
+    "risk_decision": "APTO",
+    "risk_execution_id": "61ff9f64-fed2-42eb-afa5-3ee0c0ba219d",
+    "projected_exposure_pct": 40,
+    "limit_pct": 40,
+    "reasons": [],
+    "approval_rpc_path": "server_action:aprovarOperacao -> executarGateRisco -> aprovar_operacao_com_risco_atomica",
+    "bypass": false,
+    "ui": {
+      "http_status": 200,
+      "clicked": true,
+      "message": [
+        "R$ 20.000.000,00"
+      ],
+      "final_path": "/gestor/operacoes/a88654fe-5f49-6d49-5698-1689b686851e",
+      "buttons": [
+        {
+          "text": "Fundo ativo:QA P2.6.10 NO_LIMITE_40 FIDC",
+          "disabled": false
+        },
+        {
+          "text": "Exportar CSV",
+          "disabled": false
+        },
+        {
+          "text": "vencimento▼",
+          "disabled": false
+        },
+        {
+          "text": "Gerar Contrato Mae",
+          "disabled": false
+        },
+        {
+          "text": "Gerar Termo de Cessao",
+          "disabled": false
+        },
+        {
+          "text": "Gerar Notificacao ao Sacado",
+          "disabled": false
+        },
+        {
+          "text": "Gerar CNAB",
+          "disabled": false
+        },
+        {
+          "text": "Enviar CNAB para Portal FIDC",
+          "disabled": true
+        },
+        {
+          "text": "Anexar Termo de Cessao Assinado",
+          "disabled": false
+        },
+        {
+          "text": "Anexar Notificacao ao Sacado Assinada",
+          "disabled": false
+        },
+        {
+          "text": "Anexar Comprovante de Desembolso (TED)",
+          "disabled": false
+        },
+        {
+          "text": "Desembolsar",
+          "disabled": true
+        },
+        {
+          "text": "Expandir",
+          "disabled": false
+        }
+      ],
+      "visible_text": "BW\n\nAntecipa\n\nGestor\nDashboard\nCedentes\nOnboarding\nDocumentos\nNotas Fiscais\nOperacoes\nLogistica\nConciliacao\nEscrow\nRelatorios\nNotificacoes\nConfiguracoes\nMinha Seguranca\nAuditoria\n\nBETTER WITH\n\nFundo ativo:\nQA P2.6.10 NO_LIMITE_40 FIDC\n\nP2.6.10 Gestor QA A\n\nGestor\n\nPG\nOperacao #a88654fe\nAprovada — Aguard. Desembolso\n| QA P2.6.10 CEDENTE (99.141.111/0001-00)\nAceite do sacado: dispensado pela política\nNotas Fiscais (1)\n\nTOTAL BRUTO\n\nR$ 20.000.000,00\n\nANTECIPADO\n\nR$ 20.000.000,00\n\nDIFERENÇA\n\nR$ 0,00\n\n1 NF vinculada\n\nExportar CSV\nOrdenar por\nvencimento\n\nNF P2610-02\n\nAceite dispensado\n\nQA P2.6.10 SACADO\n\nCNPJ 99.142.222/0001-00\n\nBRUTO\n\nR$ 20.000.000,00\n\nANTECIPADO\n\nR$ 20.000.000,00\n\nPRAZO\n\n30 dias\n\nVENCIMENTO\n\n17/09/2026\n\nVer NF\n\nAguardando desembolso\n\nO acompanhamento logístico da NF será iniciado após o desembolso.\n\nAndamento da operação\n\nDocumentação validada\n\nOs documentos aplicáveis ao fluxo foram validados.\n\nSolicitação de antecipação enviada\n\nO cedente enviou a solicitação de antecipação.\n\n18/08/2026, 11:45\n\nOperação aprovada\n\nA análise da operação foi concluída com aprovação.\n\n18/08/2026, 12:09\n\nDesembolso realizado\n\nO desembolso será liberado após a aprovação e as condições aplicáveis.\n\nEntrega em acompanhamento\n\nO acompanhamento será iniciado após o desembolso.\n\nEntrega confirmada\n\nA entrega será confirmada após a conclusão do acompanhamento.\n\nLiquidação concluída\n\nA liquidação concluirá o ciclo financeiro da operação.\n\nResumo\nValor Bruto\nR$ 20.000.000,00\nTaxa\n0% a.m.\nMetodo\n365 - Dias corridos\nData-base\n18/08/2026\nPrazo\n30 dias\nValor Liquido\nR$ 20.000.000,00\nAprovada em\n18/08/2026\n\nDocumentos gerados\n\nGerar Contrato Mae\nGerar Termo de Cessao\nGerar Notificacao ao Sacado\nGerar CNAB\nEnviar CNAB para Portal FIDC\n\nDocumentos assinados\n\nAnexar Termo de Cessao Assinado\nAnexar Notificacao ao Sacado Assinada\nAnexar Comprovante de Desembolso (TED)\n\nEnvie os documentos assinados e o comprovante TED para liberar o desembolso.\n\nDesembolsar\nHistórico\n\nExpanda para consultar o histórico operacional.\n\nExpandir\n\nSucesso\n\nOperacao aprovada. Envie os documentos assinados e o comprovante TED para desembolsar.",
+      "diagnostics": {
+        "consoleErrors": [
+          "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+          "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+          "Failed to load resource: the server responded with a status of 403 ()"
+        ],
+        "failedRequests": [],
+        "fiveXx": [
+          {
+            "url": "http://localhost:3001/gestor/operacoes/a88654fe-5f49-6d49-5698-1689b686851e",
+            "status": 500
+          },
+          {
+            "url": "http://localhost:3001/gestor/operacoes/a88654fe-5f49-6d49-5698-1689b686851e",
+            "status": 500
+          }
+        ]
+      }
+    }
+  },
+  "above": {
+    "scenario": "ACIMA_40",
+    "status": "PASS",
+    "request_started_at": "2026-08-18T15:09:31.320Z",
+    "request_finished_at": "2026-08-18T15:09:50.715Z",
+    "status_before": "solicitada",
+    "status_after": "solicitada",
+    "final_operation_status": "solicitada",
+    "risk_decision": "BLOQUEADO",
+    "risk_execution_id": "481a9f1b-80fc-4fa8-85d2-77ddd46075e9",
+    "projected_exposure_pct": 40.00000002,
+    "limit_pct": 40,
+    "reasons": [],
+    "approval_rpc_path": "server_action:aprovarOperacao -> executarGateRisco -> aprovar_operacao_com_risco_atomica",
+    "bypass": false,
+    "ui": {
+      "http_status": 200,
+      "clicked": true,
+      "message": [
+        "R$ 20.000.000,01",
+        "Reprovar",
+        "ErroOperacao bloqueada pelo gate de risco: EXPOSICAO_ACIMA_LIMITE."
+      ],
+      "final_path": "/gestor/operacoes/50de4ab8-e724-5b2f-9e3d-f63291e089bd",
+      "buttons": [
+        {
+          "text": "Fundo ativo:QA P2.6.10 ACIMA_40 FIDC",
+          "disabled": false
+        },
+        {
+          "text": "Exportar CSV",
+          "disabled": false
+        },
+        {
+          "text": "vencimento▼",
+          "disabled": false
+        },
+        {
+          "text": "Remover da operação",
+          "disabled": false
+        },
+        {
+          "text": "0-365 dias0% a.m.",
+          "disabled": false
+        },
+        {
+          "text": "Aprovar e Seguir",
+          "disabled": false
+        },
+        {
+          "text": "Reprovar",
+          "disabled": false
+        },
+        {
+          "text": "Expandir",
+          "disabled": false
+        }
+      ],
+      "visible_text": "BW\n\nAntecipa\n\nGestor\nDashboard\nCedentes\nOnboarding\nDocumentos\nNotas Fiscais\nOperacoes\nLogistica\nConciliacao\nEscrow\nRelatorios\nNotificacoes\nConfiguracoes\nMinha Seguranca\nAuditoria\n\nBETTER WITH\n\nFundo ativo:\nQA P2.6.10 ACIMA_40 FIDC\n\nP2.6.10 Gestor QA A\n\nGestor\n\nPG\nOperacao #50de4ab8\nSolicitada\n| QA P2.6.10 CEDENTE (99.141.111/0001-00)\nAceite do sacado: dispensado pela política\nNotas Fiscais (1)\n\nTOTAL BRUTO\n\nR$ 20.000.000,01\n\nANTECIPADO\n\nR$ 20.000.000,01\n\nDIFERENÇA\n\nR$ 0,00\n\n1 NF vinculada\n\nExportar CSV\nOrdenar por\nvencimento\n\nNF P2610-03\n\nAceite dispensado\n\nQA P2.6.10 SACADO\n\nCNPJ 99.142.222/0001-00\n\nBRUTO\n\nR$ 20.000.000,01\n\nANTECIPADO\n\nR$ 20.000.000,01\n\nPRAZO\n\n30 dias\n\nVENCIMENTO\n\n17/09/2026\n\nVer NF\n\nAguardando desembolso\n\nO acompanhamento logístico da NF será iniciado após o desembolso.\n\nAndamento da operação\n\nDocumentação validada\n\nOs documentos aplicáveis ao fluxo foram validados.\n\nSolicitação de antecipação enviada\n\nO cedente enviou a solicitação de antecipação.\n\n18/08/2026, 11:45\n\nOperação aprovada\n\nA operação será avaliada pela gestora.\n\nDesembolso realizado\n\nO desembolso será liberado após a aprovação e as condições aplicáveis.\n\nEntrega em acompanhamento\n\nO acompanhamento será iniciado após o desembolso.\n\nEntrega confirmada\n\nA entrega será confirmada após a conclusão do acompanhamento.\n\nLiquidação concluída\n\nA liquidação concluirá o ciclo financeiro da operação.\n\nDefinir Termos\n\nSelecione uma taxa configurada\n\n0-365 dias\n0% a.m.\nMetodo de calculo\n365 - Dias corridos\nTaxa mensal\n0% a.m.\nBruto\nR$ 20.000.000,01\n(-) Desconto (0% a.m., prazo por NF)\nR$ 0,00\nLiquido\nR$ 20.000.000,01\nAprovar e Seguir\nReprovar\nGerenciar taxas deste cedente\nHistórico\n\nExpanda para consultar o histórico operacional.\n\nExpandir\n\nErro\n\nOperacao bloqueada pelo gate de risco: EXPOSICAO_ACIMA_LIMITE.",
+      "diagnostics": {
+        "consoleErrors": [
+          "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+          "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+          "Failed to load resource: the server responded with a status of 403 ()"
+        ],
+        "failedRequests": [],
+        "fiveXx": [
+          {
+            "url": "http://localhost:3001/gestor/operacoes/50de4ab8-e724-5b2f-9e3d-f63291e089bd",
+            "status": 500
+          },
+          {
+            "url": "http://localhost:3001/gestor/operacoes/50de4ab8-e724-5b2f-9e3d-f63291e089bd",
+            "status": 500
+          }
+        ]
+      }
+    }
+  },
+  "status": "PASS"
+}

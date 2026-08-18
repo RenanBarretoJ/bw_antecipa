@@ -1,0 +1,700 @@
+{
+  "gate": "CENTRAL_VISUAL_SMOKE",
+  "environment": "homolog",
+  "project_ref": "fhgkmggthxikfpogrvaa",
+  "production_touched": false,
+  "executed_at": "2026-08-18T15:07:44.603Z",
+  "login": {
+    "status": "PASS",
+    "login_page_status": 200,
+    "password_submit_result": "PASS",
+    "aal_before_totp": "aal1",
+    "mfa_challenge_visible": true,
+    "invalid_totp_denied": true,
+    "totp_submit_result": "PASS",
+    "aal_after_totp": "aal2",
+    "redirect_final": "/gestor/dashboard",
+    "no_500": true,
+    "no_loop": true,
+    "cookies_session_established": true,
+    "diagnostics": {
+      "consoleErrors": [],
+      "failedRequests": [],
+      "fiveXx": []
+    }
+  },
+  "central": {
+    "status": "FAIL",
+    "authenticated_actor": "gestor_a",
+    "aal": "aal2",
+    "results": [
+      {
+        "viewport": "desktop",
+        "tab": "matching",
+        "http_status": 200,
+        "final_path": "/gestor/conciliacao?tab=matching",
+        "title": "Conciliacao",
+        "has_tabs": true,
+        "has_filters": true,
+        "has_cards": true,
+        "error_page": false,
+        "diagnostics": {
+          "consoleErrors": [
+            "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+          ],
+          "failedRequests": [],
+          "fiveXx": [
+            {
+              "url": "http://localhost:3001/gestor/conciliacao",
+              "status": 500
+            }
+          ]
+        }
+      },
+      {
+        "viewport": "desktop",
+        "tab": "conciliacao",
+        "http_status": 200,
+        "final_path": "/gestor/conciliacao?tab=conciliacao",
+        "title": "Conciliacao",
+        "has_tabs": true,
+        "has_filters": true,
+        "has_cards": true,
+        "error_page": false,
+        "diagnostics": {
+          "consoleErrors": [
+            "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+            "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+          ],
+          "failedRequests": [],
+          "fiveXx": [
+            {
+              "url": "http://localhost:3001/gestor/conciliacao",
+              "status": 500
+            },
+            {
+              "url": "http://localhost:3001/gestor/conciliacao",
+              "status": 500
+            }
+          ]
+        }
+      },
+      {
+        "viewport": "desktop",
+        "tab": "logistica",
+        "http_status": 200,
+        "final_path": "/gestor/conciliacao?tab=logistica",
+        "title": "Conciliacao",
+        "has_tabs": true,
+        "has_filters": true,
+        "has_cards": true,
+        "error_page": false,
+        "diagnostics": {
+          "consoleErrors": [
+            "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+            "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+          ],
+          "failedRequests": [],
+          "fiveXx": [
+            {
+              "url": "http://localhost:3001/gestor/conciliacao",
+              "status": 500
+            },
+            {
+              "url": "http://localhost:3001/gestor/conciliacao",
+              "status": 500
+            }
+          ]
+        }
+      },
+      {
+        "viewport": "desktop",
+        "tab": "exposicao",
+        "http_status": 200,
+        "final_path": "/gestor/conciliacao?tab=exposicao",
+        "title": "Conciliacao",
+        "has_tabs": true,
+        "has_filters": true,
+        "has_cards": true,
+        "error_page": false,
+        "diagnostics": {
+          "consoleErrors": [
+            "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+            "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+          ],
+          "failedRequests": [],
+          "fiveXx": [
+            {
+              "url": "http://localhost:3001/gestor/conciliacao",
+              "status": 500
+            },
+            {
+              "url": "http://localhost:3001/gestor/conciliacao",
+              "status": 500
+            }
+          ]
+        }
+      },
+      {
+        "viewport": "desktop",
+        "tab": "risco",
+        "http_status": 200,
+        "final_path": "/gestor/conciliacao?tab=risco",
+        "title": "Conciliacao",
+        "has_tabs": true,
+        "has_filters": true,
+        "has_cards": true,
+        "error_page": false,
+        "diagnostics": {
+          "consoleErrors": [
+            "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+            "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+          ],
+          "failedRequests": [],
+          "fiveXx": [
+            {
+              "url": "http://localhost:3001/gestor/conciliacao",
+              "status": 500
+            },
+            {
+              "url": "http://localhost:3001/gestor/conciliacao",
+              "status": 500
+            }
+          ]
+        }
+      },
+      {
+        "viewport": "desktop",
+        "tab": "excecoes",
+        "http_status": 200,
+        "final_path": "/gestor/conciliacao?tab=excecoes",
+        "title": "Conciliacao",
+        "has_tabs": true,
+        "has_filters": true,
+        "has_cards": true,
+        "error_page": false,
+        "diagnostics": {
+          "consoleErrors": [
+            "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+            "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+          ],
+          "failedRequests": [],
+          "fiveXx": [
+            {
+              "url": "http://localhost:3001/gestor/conciliacao",
+              "status": 500
+            },
+            {
+              "url": "http://localhost:3001/gestor/conciliacao",
+              "status": 500
+            }
+          ]
+        }
+      },
+      {
+        "viewport": "compact",
+        "tab": "matching",
+        "http_status": 200,
+        "final_path": "/gestor/conciliacao?tab=matching",
+        "title": "Conciliacao",
+        "has_tabs": true,
+        "has_filters": true,
+        "has_cards": true,
+        "error_page": false,
+        "diagnostics": {
+          "consoleErrors": [
+            "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+            "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+          ],
+          "failedRequests": [],
+          "fiveXx": [
+            {
+              "url": "http://localhost:3001/gestor/conciliacao",
+              "status": 500
+            },
+            {
+              "url": "http://localhost:3001/gestor/conciliacao",
+              "status": 500
+            }
+          ]
+        }
+      },
+      {
+        "viewport": "compact",
+        "tab": "conciliacao",
+        "http_status": 200,
+        "final_path": "/gestor/conciliacao?tab=conciliacao",
+        "title": "Conciliacao",
+        "has_tabs": true,
+        "has_filters": true,
+        "has_cards": true,
+        "error_page": false,
+        "diagnostics": {
+          "consoleErrors": [
+            "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+            "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+          ],
+          "failedRequests": [],
+          "fiveXx": [
+            {
+              "url": "http://localhost:3001/gestor/conciliacao",
+              "status": 500
+            },
+            {
+              "url": "http://localhost:3001/gestor/conciliacao",
+              "status": 500
+            }
+          ]
+        }
+      },
+      {
+        "viewport": "compact",
+        "tab": "logistica",
+        "http_status": 200,
+        "final_path": "/gestor/conciliacao?tab=logistica",
+        "title": "Conciliacao",
+        "has_tabs": true,
+        "has_filters": true,
+        "has_cards": true,
+        "error_page": false,
+        "diagnostics": {
+          "consoleErrors": [
+            "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+            "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+          ],
+          "failedRequests": [],
+          "fiveXx": [
+            {
+              "url": "http://localhost:3001/gestor/conciliacao",
+              "status": 500
+            },
+            {
+              "url": "http://localhost:3001/gestor/conciliacao",
+              "status": 500
+            }
+          ]
+        }
+      },
+      {
+        "viewport": "compact",
+        "tab": "exposicao",
+        "http_status": 200,
+        "final_path": "/gestor/conciliacao?tab=exposicao",
+        "title": "Conciliacao",
+        "has_tabs": true,
+        "has_filters": true,
+        "has_cards": true,
+        "error_page": false,
+        "diagnostics": {
+          "consoleErrors": [
+            "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+            "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+          ],
+          "failedRequests": [],
+          "fiveXx": [
+            {
+              "url": "http://localhost:3001/gestor/conciliacao",
+              "status": 500
+            },
+            {
+              "url": "http://localhost:3001/gestor/conciliacao",
+              "status": 500
+            }
+          ]
+        }
+      },
+      {
+        "viewport": "compact",
+        "tab": "risco",
+        "http_status": 200,
+        "final_path": "/gestor/conciliacao?tab=risco",
+        "title": "Conciliacao",
+        "has_tabs": true,
+        "has_filters": true,
+        "has_cards": true,
+        "error_page": false,
+        "diagnostics": {
+          "consoleErrors": [
+            "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+            "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+          ],
+          "failedRequests": [],
+          "fiveXx": [
+            {
+              "url": "http://localhost:3001/gestor/conciliacao",
+              "status": 500
+            },
+            {
+              "url": "http://localhost:3001/gestor/conciliacao",
+              "status": 500
+            }
+          ]
+        }
+      },
+      {
+        "viewport": "compact",
+        "tab": "excecoes",
+        "http_status": 200,
+        "final_path": "/gestor/conciliacao?tab=excecoes",
+        "title": "Conciliacao",
+        "has_tabs": true,
+        "has_filters": true,
+        "has_cards": true,
+        "error_page": false,
+        "diagnostics": {
+          "consoleErrors": [
+            "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+            "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+          ],
+          "failedRequests": [],
+          "fiveXx": [
+            {
+              "url": "http://localhost:3001/gestor/conciliacao",
+              "status": 500
+            },
+            {
+              "url": "http://localhost:3001/gestor/conciliacao",
+              "status": 500
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "status": "FAIL",
+  "authenticated_actor": "gestor_a",
+  "aal": "aal2",
+  "results": [
+    {
+      "viewport": "desktop",
+      "tab": "matching",
+      "http_status": 200,
+      "final_path": "/gestor/conciliacao?tab=matching",
+      "title": "Conciliacao",
+      "has_tabs": true,
+      "has_filters": true,
+      "has_cards": true,
+      "error_page": false,
+      "diagnostics": {
+        "consoleErrors": [
+          "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+        ],
+        "failedRequests": [],
+        "fiveXx": [
+          {
+            "url": "http://localhost:3001/gestor/conciliacao",
+            "status": 500
+          }
+        ]
+      }
+    },
+    {
+      "viewport": "desktop",
+      "tab": "conciliacao",
+      "http_status": 200,
+      "final_path": "/gestor/conciliacao?tab=conciliacao",
+      "title": "Conciliacao",
+      "has_tabs": true,
+      "has_filters": true,
+      "has_cards": true,
+      "error_page": false,
+      "diagnostics": {
+        "consoleErrors": [
+          "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+          "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+        ],
+        "failedRequests": [],
+        "fiveXx": [
+          {
+            "url": "http://localhost:3001/gestor/conciliacao",
+            "status": 500
+          },
+          {
+            "url": "http://localhost:3001/gestor/conciliacao",
+            "status": 500
+          }
+        ]
+      }
+    },
+    {
+      "viewport": "desktop",
+      "tab": "logistica",
+      "http_status": 200,
+      "final_path": "/gestor/conciliacao?tab=logistica",
+      "title": "Conciliacao",
+      "has_tabs": true,
+      "has_filters": true,
+      "has_cards": true,
+      "error_page": false,
+      "diagnostics": {
+        "consoleErrors": [
+          "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+          "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+        ],
+        "failedRequests": [],
+        "fiveXx": [
+          {
+            "url": "http://localhost:3001/gestor/conciliacao",
+            "status": 500
+          },
+          {
+            "url": "http://localhost:3001/gestor/conciliacao",
+            "status": 500
+          }
+        ]
+      }
+    },
+    {
+      "viewport": "desktop",
+      "tab": "exposicao",
+      "http_status": 200,
+      "final_path": "/gestor/conciliacao?tab=exposicao",
+      "title": "Conciliacao",
+      "has_tabs": true,
+      "has_filters": true,
+      "has_cards": true,
+      "error_page": false,
+      "diagnostics": {
+        "consoleErrors": [
+          "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+          "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+        ],
+        "failedRequests": [],
+        "fiveXx": [
+          {
+            "url": "http://localhost:3001/gestor/conciliacao",
+            "status": 500
+          },
+          {
+            "url": "http://localhost:3001/gestor/conciliacao",
+            "status": 500
+          }
+        ]
+      }
+    },
+    {
+      "viewport": "desktop",
+      "tab": "risco",
+      "http_status": 200,
+      "final_path": "/gestor/conciliacao?tab=risco",
+      "title": "Conciliacao",
+      "has_tabs": true,
+      "has_filters": true,
+      "has_cards": true,
+      "error_page": false,
+      "diagnostics": {
+        "consoleErrors": [
+          "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+          "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+        ],
+        "failedRequests": [],
+        "fiveXx": [
+          {
+            "url": "http://localhost:3001/gestor/conciliacao",
+            "status": 500
+          },
+          {
+            "url": "http://localhost:3001/gestor/conciliacao",
+            "status": 500
+          }
+        ]
+      }
+    },
+    {
+      "viewport": "desktop",
+      "tab": "excecoes",
+      "http_status": 200,
+      "final_path": "/gestor/conciliacao?tab=excecoes",
+      "title": "Conciliacao",
+      "has_tabs": true,
+      "has_filters": true,
+      "has_cards": true,
+      "error_page": false,
+      "diagnostics": {
+        "consoleErrors": [
+          "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+          "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+        ],
+        "failedRequests": [],
+        "fiveXx": [
+          {
+            "url": "http://localhost:3001/gestor/conciliacao",
+            "status": 500
+          },
+          {
+            "url": "http://localhost:3001/gestor/conciliacao",
+            "status": 500
+          }
+        ]
+      }
+    },
+    {
+      "viewport": "compact",
+      "tab": "matching",
+      "http_status": 200,
+      "final_path": "/gestor/conciliacao?tab=matching",
+      "title": "Conciliacao",
+      "has_tabs": true,
+      "has_filters": true,
+      "has_cards": true,
+      "error_page": false,
+      "diagnostics": {
+        "consoleErrors": [
+          "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+          "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+        ],
+        "failedRequests": [],
+        "fiveXx": [
+          {
+            "url": "http://localhost:3001/gestor/conciliacao",
+            "status": 500
+          },
+          {
+            "url": "http://localhost:3001/gestor/conciliacao",
+            "status": 500
+          }
+        ]
+      }
+    },
+    {
+      "viewport": "compact",
+      "tab": "conciliacao",
+      "http_status": 200,
+      "final_path": "/gestor/conciliacao?tab=conciliacao",
+      "title": "Conciliacao",
+      "has_tabs": true,
+      "has_filters": true,
+      "has_cards": true,
+      "error_page": false,
+      "diagnostics": {
+        "consoleErrors": [
+          "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+          "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+        ],
+        "failedRequests": [],
+        "fiveXx": [
+          {
+            "url": "http://localhost:3001/gestor/conciliacao",
+            "status": 500
+          },
+          {
+            "url": "http://localhost:3001/gestor/conciliacao",
+            "status": 500
+          }
+        ]
+      }
+    },
+    {
+      "viewport": "compact",
+      "tab": "logistica",
+      "http_status": 200,
+      "final_path": "/gestor/conciliacao?tab=logistica",
+      "title": "Conciliacao",
+      "has_tabs": true,
+      "has_filters": true,
+      "has_cards": true,
+      "error_page": false,
+      "diagnostics": {
+        "consoleErrors": [
+          "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+          "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+        ],
+        "failedRequests": [],
+        "fiveXx": [
+          {
+            "url": "http://localhost:3001/gestor/conciliacao",
+            "status": 500
+          },
+          {
+            "url": "http://localhost:3001/gestor/conciliacao",
+            "status": 500
+          }
+        ]
+      }
+    },
+    {
+      "viewport": "compact",
+      "tab": "exposicao",
+      "http_status": 200,
+      "final_path": "/gestor/conciliacao?tab=exposicao",
+      "title": "Conciliacao",
+      "has_tabs": true,
+      "has_filters": true,
+      "has_cards": true,
+      "error_page": false,
+      "diagnostics": {
+        "consoleErrors": [
+          "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+          "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+        ],
+        "failedRequests": [],
+        "fiveXx": [
+          {
+            "url": "http://localhost:3001/gestor/conciliacao",
+            "status": 500
+          },
+          {
+            "url": "http://localhost:3001/gestor/conciliacao",
+            "status": 500
+          }
+        ]
+      }
+    },
+    {
+      "viewport": "compact",
+      "tab": "risco",
+      "http_status": 200,
+      "final_path": "/gestor/conciliacao?tab=risco",
+      "title": "Conciliacao",
+      "has_tabs": true,
+      "has_filters": true,
+      "has_cards": true,
+      "error_page": false,
+      "diagnostics": {
+        "consoleErrors": [
+          "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+          "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+        ],
+        "failedRequests": [],
+        "fiveXx": [
+          {
+            "url": "http://localhost:3001/gestor/conciliacao",
+            "status": 500
+          },
+          {
+            "url": "http://localhost:3001/gestor/conciliacao",
+            "status": 500
+          }
+        ]
+      }
+    },
+    {
+      "viewport": "compact",
+      "tab": "excecoes",
+      "http_status": 200,
+      "final_path": "/gestor/conciliacao?tab=excecoes",
+      "title": "Conciliacao",
+      "has_tabs": true,
+      "has_filters": true,
+      "has_cards": true,
+      "error_page": false,
+      "diagnostics": {
+        "consoleErrors": [
+          "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+          "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+        ],
+        "failedRequests": [],
+        "fiveXx": [
+          {
+            "url": "http://localhost:3001/gestor/conciliacao",
+            "status": 500
+          },
+          {
+            "url": "http://localhost:3001/gestor/conciliacao",
+            "status": 500
+          }
+        ]
+      }
+    }
+  ]
+}

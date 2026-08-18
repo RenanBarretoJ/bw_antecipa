@@ -1,0 +1,178 @@
+{
+  "environment": "homolog",
+  "project_ref": "fhgkmggthxikfpogrvaa",
+  "production_touched": false,
+  "executed_at": "2026-08-18T15:17:35.798Z",
+  "login": {
+    "status": "PASS",
+    "login_page_status": 200,
+    "password_submit_result": "PASS",
+    "aal_before_totp": "aal1",
+    "mfa_challenge_visible": true,
+    "invalid_totp_denied": true,
+    "totp_submit_result": "PASS",
+    "aal_after_totp": "aal2",
+    "redirect_final": "/gestor/dashboard",
+    "no_500": true,
+    "no_loop": true,
+    "cookies_session_established": true,
+    "diagnostics": {
+      "consoleErrors": [],
+      "failedRequests": [],
+      "fiveXx": []
+    }
+  },
+  "review": {
+    "release": {
+      "scenario": "REVISAO_LIBERAR",
+      "status": "FAIL",
+      "automatic_decision": "REVISAO_MANUAL",
+      "risk_execution_id": "aa5b0b8a-1fed-47fe-afe1-77c85fb7319d",
+      "review_id": "17e367ac-d488-4c75-a939-1dde75c50338",
+      "invalid_totp_control": {
+        "ui": {
+          "opened": false,
+          "diagnostics": {
+            "consoleErrors": [
+              "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+            ],
+            "failedRequests": [],
+            "fiveXx": [
+              {
+                "url": "http://localhost:3001/gestor/conciliacao",
+                "status": 500
+              }
+            ]
+          }
+        },
+        "status_after": "PENDENTE",
+        "denied": true
+      },
+      "decision_ui": {
+        "opened": false,
+        "diagnostics": {
+          "consoleErrors": [
+            "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+          ],
+          "failedRequests": [],
+          "fiveXx": [
+            {
+              "url": "http://localhost:3001/gestor/conciliacao",
+              "status": 500
+            }
+          ]
+        }
+      },
+      "review_status": "PENDENTE",
+      "approval_after_release": {
+        "http_status": 200,
+        "clicked": true,
+        "message": [
+          "R$ 1.000.000,00",
+          "Reprovar",
+          "ErroA operacao exige revisao manual do risco antes da aprovacao."
+        ],
+        "final_path": "/gestor/operacoes/2feabc52-01a8-ca78-80c8-b149137b1c15",
+        "buttons": [
+          {
+            "text": "Fundo ativo:QA P2.6.10 REVISAO_LIBERAR FIDC",
+            "disabled": false
+          },
+          {
+            "text": "Exportar CSV",
+            "disabled": false
+          },
+          {
+            "text": "vencimento▼",
+            "disabled": false
+          },
+          {
+            "text": "Remover da operação",
+            "disabled": false
+          },
+          {
+            "text": "0-365 dias0% a.m.",
+            "disabled": false
+          },
+          {
+            "text": "Aprovar e Seguir",
+            "disabled": false
+          },
+          {
+            "text": "Reprovar",
+            "disabled": false
+          },
+          {
+            "text": "Expandir",
+            "disabled": false
+          }
+        ],
+        "visible_text": "BW\n\nAntecipa\n\nGestor\nDashboard\nCedentes\nOnboarding\nDocumentos\nNotas Fiscais\nOperacoes\nLogistica\nConciliacao\nEscrow\nRelatorios\nNotificacoes\nConfiguracoes\nMinha Seguranca\nAuditoria\n\nBETTER WITH\n\nFundo ativo:\nQA P2.6.10 REVISAO_LIBERAR FIDC\n\nP2.6.10 Gestor QA A\n\nGestor\n\nPG\nOperacao #2feabc52\nSolicitada\n| QA P2.6.10 CEDENTE (99.141.111/0001-00)\nAceite do sacado: dispensado pela política\nNotas Fiscais (1)\n\nTOTAL BRUTO\n\nR$ 1.000.000,00\n\nANTECIPADO\n\nR$ 1.000.000,00\n\nDIFERENÇA\n\nR$ 0,00\n\n1 NF vinculada\n\nExportar CSV\nOrdenar por\nvencimento\n\nNF P2610-04\n\nAceite dispensado\n\nQA P2.6.10 SACADO\n\nCNPJ 99.142.222/0001-00\n\nBRUTO\n\nR$ 1.000.000,00\n\nANTECIPADO\n\nR$ 1.000.000,00\n\nPRAZO\n\n30 dias\n\nVENCIMENTO\n\n17/09/2026\n\nVer NF\n\nAguardando desembolso\n\nO acompanhamento logístico da NF será iniciado após o desembolso.\n\nAndamento da operação\n\nDocumentação validada\n\nOs documentos aplicáveis ao fluxo foram validados.\n\nSolicitação de antecipação enviada\n\nO cedente enviou a solicitação de antecipação.\n\n18/08/2026, 11:45\n\nOperação aprovada\n\nA operação será avaliada pela gestora.\n\nDesembolso realizado\n\nO desembolso será liberado após a aprovação e as condições aplicáveis.\n\nEntrega em acompanhamento\n\nO acompanhamento será iniciado após o desembolso.\n\nEntrega confirmada\n\nA entrega será confirmada após a conclusão do acompanhamento.\n\nLiquidação concluída\n\nA liquidação concluirá o ciclo financeiro da operação.\n\nDefinir Termos\n\nSelecione uma taxa configurada\n\n0-365 dias\n0% a.m.\nMetodo de calculo\n365 - Dias corridos\nTaxa mensal\n0% a.m.\nBruto\nR$ 1.000.000,00\n(-) Desconto (0% a.m., prazo por NF)\nR$ 0,00\nLiquido\nR$ 1.000.000,00\nAprovar e Seguir\nReprovar\nGerenciar taxas deste cedente\nHistórico\n\nExpanda para consultar o histórico operacional.\n\nExpandir\n\nErro\n\nA operacao exige revisao manual do risco antes da aprovacao.",
+        "diagnostics": {
+          "consoleErrors": [
+            "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+            "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+            "Failed to load resource: the server responded with a status of 403 ()"
+          ],
+          "failedRequests": [],
+          "fiveXx": [
+            {
+              "url": "http://localhost:3001/gestor/operacoes/2feabc52-01a8-ca78-80c8-b149137b1c15",
+              "status": 500
+            },
+            {
+              "url": "http://localhost:3001/gestor/operacoes/2feabc52-01a8-ca78-80c8-b149137b1c15",
+              "status": 500
+            }
+          ]
+        }
+      },
+      "final_operation_status": "solicitada"
+    },
+    "reject": {
+      "scenario": "REVISAO_RECUSAR",
+      "status": "FAIL",
+      "automatic_decision": "REVISAO_MANUAL",
+      "risk_execution_id": "aedfafeb-46cf-48f0-828c-1da56ae7f02f",
+      "review_id": "3cdfa71d-4f35-4d39-ad0d-7226fa539859",
+      "invalid_totp_control": {
+        "ui": {
+          "opened": false,
+          "diagnostics": {
+            "consoleErrors": [
+              "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+            ],
+            "failedRequests": [],
+            "fiveXx": [
+              {
+                "url": "http://localhost:3001/gestor/conciliacao",
+                "status": 500
+              }
+            ]
+          }
+        },
+        "status_after": "PENDENTE",
+        "denied": true
+      },
+      "decision_ui": {
+        "opened": false,
+        "diagnostics": {
+          "consoleErrors": [
+            "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+          ],
+          "failedRequests": [],
+          "fiveXx": [
+            {
+              "url": "http://localhost:3001/gestor/conciliacao",
+              "status": 500
+            }
+          ]
+        }
+      },
+      "review_status": "PENDENTE",
+      "approval_after_release": null,
+      "final_operation_status": "solicitada"
+    },
+    "status": "FAIL"
+  }
+}

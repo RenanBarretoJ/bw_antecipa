@@ -11,7 +11,7 @@ import {
 } from '@/lib/politicas/requisitos-documentais'
 import { stableStringify, validarConfiguracaoPublica } from '@/lib/operacoes/politica'
 import { registrarLog } from './auditoria'
-import { obterFundoAtivoAutorizado } from './fundo-ativo'
+import { obterFundoAtivoAutorizado } from '@/lib/fundos/fundo-ativo.server'
 import type { MetodoCalculoNovaPolitica } from '@/lib/operacoes/calculo'
 import { validarUnicidadeFamiliasLogisticas } from '@/lib/logistica/evidencias-logisticas'
 import type { TipoAtivoFinanceiro } from '@/lib/duplicatas/types'

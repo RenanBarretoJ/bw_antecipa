@@ -1,7 +1,7 @@
 import 'server-only'
 
 import { requireGestor } from '@/lib/auth/authorization'
-import { obterFundoAtivoAutorizado } from '@/lib/actions/fundo-ativo'
+import { obterFundoAtivoAutorizado } from '@/lib/fundos/fundo-ativo.server'
 import { createClient } from '@/lib/supabase/server'
 import {
   CODIGOS_COMPROVANTE_ENTREGA,

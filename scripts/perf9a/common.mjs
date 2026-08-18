@@ -94,7 +94,10 @@ export function assertHomologEnvironment() {
   const appEnv = String(process.env.NEXT_PUBLIC_APP_ENV || '').trim().toLowerCase()
   const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-  const dbUrl = process.env.SUPABASE_DB_URL || process.env.DATABASE_URL
+  const dbUrl = resolveRotatedDbUrl(
+    process.env.SUPABASE_DB_URL || process.env.DATABASE_URL,
+    process.env.SUPABASE_PASSWORD,
+  )
 
   if (!['homolog', 'homologacao'].includes(appEnv)) {
     throw new Error(`Ambiente bloqueado: NEXT_PUBLIC_APP_ENV precisa identificar homologacao; recebido "${appEnv || 'ausente'}".`)
@@ -115,6 +118,18 @@ export function assertHomologEnvironment() {
     dbUrl,
     projectRef,
     confirmation: `PERF9A_${projectRef}`,
+  }
+}
+
+export function resolveRotatedDbUrl(rawDbUrl, rotatedPassword) {
+  if (!rawDbUrl || !rotatedPassword) return rawDbUrl
+
+  try {
+    const url = new URL(rawDbUrl)
+    url.password = rotatedPassword
+    return url.toString()
+  } catch {
+    return rawDbUrl
   }
 }
 

@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { obterFundoAtivoAutorizado } from '@/lib/actions/fundo-ativo'
+import { obterFundoAtivoAutorizado } from '@/lib/fundos/fundo-ativo.server'
 import { requireGestor } from '@/lib/auth/authorization'
 import type {
   ConciliacaoExecucao,
@@ -84,7 +84,10 @@ function safeSearch(value: string) {
 }
 
 function isUuid(value: string) {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
+  // PostgreSQL aceita o formato canonico de UUID independentemente dos bits
+  // de versao/variante. O filtro deve espelhar o tipo persistido e nao excluir
+  // identificadores deterministas validos usados em homologacao/auditoria.
+  return /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(value)
 }
 
 async function gestorContext() {
@@ -401,7 +404,10 @@ async function reconciliationRows(input: {
 export async function carregarConciliacaoGestor(filters: ConciliacaoFilters): Promise<ConciliacaoDashboard> {
   const { context, fundo } = await gestorContext()
   const dates = await availableDates(context.supabase, fundo.id)
-  const requestedDate = filters.dataReferencia || dates[0] || ''
+  // Uma busca direcionada por operacao deve atravessar o historico de risco.
+  // Aplicar automaticamente a data mais recente esconderia revisoes pendentes
+  // de operacoes avaliadas em outra data operacional.
+  const requestedDate = filters.dataReferencia || (filters.riskOperation ? '' : dates[0] || '')
   const executions = await latestExecutions(context.supabase, fundo.id, requestedDate)
   const normalizedFilters = { ...filters, dataReferencia: requestedDate }
   const [matching, reconciliation, logistics, exposure, risk] = await Promise.all([

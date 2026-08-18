@@ -75,4 +75,10 @@ describe('arquitetura P2.6', () => {
     expect(central).toContain('Snapshot historico da avaliacao')
     expect(central).toContain('Operacoes bloqueadas')
   })
+
+  it('nao esconde revisao historica ao filtrar a Central por operacao', () => {
+    expect(loader).toContain("filters.riskOperation ? '' : dates[0]")
+    expect(loader).toContain("^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$")
+    expect(loader).not.toContain("[1-5][0-9a-f]{3}-[89ab]")
+  })
 })

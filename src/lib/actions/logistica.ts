@@ -6,7 +6,7 @@ import { registrarLog } from './auditoria'
 import { DOCUMENTO_V2_BUCKET, extensaoArquivo, mimeArquivo, nomeSeguro, sha256Arquivo } from '@/lib/documentos-v2/tipos'
 import { enviarObjetoDocumento, gerarCaminhoDocumentoLogistico, gerarUrlDocumento, removerObjetoDocumento } from '@/lib/documentos-v2/storage'
 import { parseCteXml } from '@/lib/logistica/cte-parser'
-import { obterFundoAtivoAutorizado } from './fundo-ativo'
+import { obterFundoAtivoAutorizado } from '@/lib/fundos/fundo-ativo.server'
 import { TIPOS_DOCUMENTAIS_CTE } from '@/lib/logistica/validacao-cte-config'
 import { mensagemValidacaoCte, validarCteContraNfes, type NfeParaValidacaoCte } from '@/lib/logistica/validacao-cte-nfe'
 

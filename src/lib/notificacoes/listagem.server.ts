@@ -2,6 +2,7 @@ import 'server-only'
 
 import type { UserRole } from '@/types/database'
 import { requireAuthenticated, requireRole, type AuthContext } from '@/lib/auth/authorization'
+import { createAdminClient } from '@/lib/supabase/server'
 import { encodeCursor, parseCursor } from '@/lib/pagination/cursor'
 import { buildDescendingCreatedAtCursorFilter } from '@/lib/pagination/keyset'
 import {
@@ -13,19 +14,36 @@ import {
 
 const SELECT_FIELDS = 'id, titulo, mensagem, tipo, lida, entidade_tipo, entidade_id, href, created_at'
 
+type SupabaseQueryError = {
+  code?: string
+  hint?: string | null
+}
+
+function registrarErroNotificacoes(operacao: string, error: SupabaseQueryError | null | undefined) {
+  console.error('[notificacoes] Falha na consulta server-side.', {
+    operacao,
+    code: error?.code || 'UNKNOWN',
+    hasHint: Boolean(error?.hint),
+  })
+}
+
 export async function contarNotificacoesDoContext(context: AuthContext): Promise<NotificacaoContadores> {
+  const notificationsClient = createAdminClient()
   const [totalResult, unreadResult] = await Promise.all([
-    context.supabase
+    notificationsClient
       .from('notificacoes')
       .select('id', { count: 'exact', head: true })
       .eq('usuario_id', context.user.id),
-    context.supabase
+    notificationsClient
       .from('notificacoes')
       .select('id', { count: 'exact', head: true })
       .eq('usuario_id', context.user.id)
       .eq('lida', false),
   ])
-  if (totalResult.error || unreadResult.error) throw new Error('Nao foi possivel contar as notificacoes.')
+  if (totalResult.error || unreadResult.error) {
+    registrarErroNotificacoes('count', totalResult.error || unreadResult.error)
+    throw new Error('Nao foi possivel contar as notificacoes.')
+  }
   return { total: totalResult.count ?? 0, naoLidas: unreadResult.count ?? 0 }
 }
 
@@ -49,7 +67,8 @@ export async function carregarNotificacoesUsuario(input: {
     console.warn('[notificacoes] Cursor invalido ignorado; primeira pagina sera carregada.')
   }
 
-  let query = context.supabase
+  const notificationsClient = createAdminClient()
+  let query = notificationsClient
     .from('notificacoes')
     .select(SELECT_FIELDS)
     .eq('usuario_id', context.user.id)
@@ -65,7 +84,10 @@ export async function carregarNotificacoesUsuario(input: {
     query,
     input.incluirContadores === false ? Promise.resolve(undefined) : contarNotificacoesDoContext(context),
   ])
-  if (listResult.error) throw new Error(`Nao foi possivel carregar as notificacoes: ${listResult.error.message}`)
+  if (listResult.error) {
+    registrarErroNotificacoes('list', listResult.error)
+    throw new Error('Nao foi possivel carregar as notificacoes.')
+  }
 
   const rows = (listResult.data ?? []) as unknown[]
   const pageRows = rows.slice(0, limit)

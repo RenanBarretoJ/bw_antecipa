@@ -1,6 +1,6 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient, createClient } from '@/lib/supabase/server'
 import { assertRole, requireAuthenticated, requireGestor, type AppSupabaseClient } from '@/lib/auth/authorization'
 import { exigirSessaoElevada } from '@/lib/auth/mfa'
 import { registrarLog } from './auditoria'
@@ -10,7 +10,7 @@ import { CedenteFundoError } from '@/lib/fundos/cedente-fundo'
 import { validarElegibilidadeAprovacao, validarElegibilidadeSolicitacao } from '@/lib/operacoes/elegibilidade'
 import { carregarElegibilidadeDocumentalOperacaoEmLote } from '@/lib/operacoes/elegibilidade-documental.server'
 import { montarIdempotencyKeySolicitacaoOperacao } from '@/lib/operacoes/idempotencia'
-import { obterFundoAtivoAutorizado } from '@/lib/actions/fundo-ativo'
+import { obterFundoAtivoAutorizado } from '@/lib/fundos/fundo-ativo.server'
 import { carregarContextoEventoOperacao, registrarEventoDominio } from '@/lib/eventos-dominio/registrar'
 import { calcularAntecipacaoEmLote } from '@/lib/operacoes/calculo'
 import { obterDataCivilOperacional } from '@/lib/operacoes/data-operacional.server'
@@ -21,6 +21,22 @@ export type OperacaoActionState = {
   message?: string
   data?: Record<string, unknown>
 } | undefined
+
+export async function listarTestemunhasOperacao(operacaoId: string) {
+  await requireGestor()
+  const supabase = await createClient()
+  const acessoOperacao = await validarOperacaoNoFundoAtivo(supabase, operacaoId)
+  if (!acessoOperacao?.success) return { success: false, message: acessoOperacao?.message || 'Acesso negado.', data: [] }
+
+  const { data, error } = await createAdminClient()
+    .from('testemunhas')
+    .select('id, nome, cpf')
+    .eq('ativo', true)
+    .order('created_at', { ascending: true })
+
+  if (error) return { success: false, message: 'Nao foi possivel carregar as testemunhas.', data: [] }
+  return { success: true, data: data || [] }
+}
 
 async function registrarEventoOperacao(
   supabase: AppSupabaseClient,

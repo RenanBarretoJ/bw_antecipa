@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { aprovarOperacao, desembolsarOperacao, reprovarOperacao, removerNfDaOperacao, salvarTestemunhasOperacao, salvarQuitacaoAssinada } from '@/lib/actions/operacao'
+import { aprovarOperacao, desembolsarOperacao, listarTestemunhasOperacao, reprovarOperacao, removerNfDaOperacao, salvarTestemunhasOperacao, salvarQuitacaoAssinada } from '@/lib/actions/operacao'
 import { liquidarOperacao, marcarInadimplente } from '@/lib/actions/liquidacao'
 import { carregarResumoEntregaPorOperacao } from '@/lib/actions/logistica'
 import { formatCurrency, formatCNPJ, formatDate } from '@/lib/utils'
@@ -434,12 +434,8 @@ export default function OperacaoDetalheGestorClient({
         .eq('id', opId)
         .single()
 
-      const { data: testData } = await supabase
-        .from('testemunhas')
-        .select('id, nome, cpf')
-        .eq('ativo', true)
-        .order('created_at', { ascending: true })
-      setTestemunhas((testData || []) as Testemunha[])
+      const testResult = await listarTestemunhasOperacao(opId)
+      setTestemunhas((testResult.success ? testResult.data : []) as Testemunha[])
 
       if (opData) {
         const o = opData as OperacaoDetalhe
