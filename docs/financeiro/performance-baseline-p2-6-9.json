@@ -1,0 +1,835 @@
+{
+  "schema": "bw-antecipa-p2-6-9-benchmark-batch-v2",
+  "generated_at": "2026-08-18T13:43:07.535Z",
+  "batch": "before",
+  "environment": "homolog",
+  "project_ref": "fhgkmggthxikfpogrvaa",
+  "production_touched": false,
+  "credential_rotation_required": false,
+  "credential_rotation_completed": true,
+  "administrative_credential_used": true,
+  "workload": {
+    "dataset": "RLX_GOLDEN_V2",
+    "data_operacional": "2026-08-10",
+    "benchmark_case_id": "RLX_GOLDEN_V2:ca8b721e-333c-4051-a87b-9359e51449c4:80bd0bec-88eb-fb5e-b585-7cc7e6ac8ce0:2026-08-10",
+    "fundo_qa_id": "ca8b721e-333c-4051-a87b-9359e51449c4",
+    "operacao_qa_id": "80bd0bec-88eb-fb5e-b585-7cc7e6ac8ce0",
+    "quantidade_nfs_fixture": 110,
+    "quantidade_nfs_fundo_qa": 100,
+    "quantidade_operacoes_fixture": 10,
+    "quantidade_matching_fixture": 9,
+    "quantidade_conciliacao_fixture": 10
+  },
+  "protocol": {
+    "warmups_executed": 5,
+    "measured_runs": 20,
+    "outliers_removed": 0,
+    "percentile_method": "nearest-rank"
+  },
+  "samples": [
+    {
+      "run": 1,
+      "timings": {
+        "matchingMs": 720,
+        "reconciliationMs": 902,
+        "logisticsMs": 1375,
+        "exposureMs": 2079,
+        "candidateSimulationMs": 516,
+        "classificationMs": 0,
+        "persistenceMs": 328,
+        "totalMs": 6613
+      },
+      "requests": {
+        "total": 66,
+        "rpc": 6,
+        "rest": 60,
+        "other": 0,
+        "methods": {
+          "GET": 59,
+          "POST": 6,
+          "HEAD": 1
+        }
+      },
+      "technical_status": "CONCLUIDA",
+      "decision": "BLOQUEADO",
+      "reason_codes": [
+        "POSICAO_SEM_MATCH",
+        "EXPOSICAO_INDETERMINADA",
+        "LIQUIDACAO_PARCIAL_PRESENTE"
+      ],
+      "error": null
+    },
+    {
+      "run": 2,
+      "timings": {
+        "matchingMs": 710,
+        "reconciliationMs": 891,
+        "logisticsMs": 1630,
+        "exposureMs": 2110,
+        "candidateSimulationMs": 508,
+        "classificationMs": 0,
+        "persistenceMs": 352,
+        "totalMs": 6914
+      },
+      "requests": {
+        "total": 66,
+        "rpc": 6,
+        "rest": 60,
+        "other": 0,
+        "methods": {
+          "GET": 59,
+          "POST": 6,
+          "HEAD": 1
+        }
+      },
+      "technical_status": "CONCLUIDA",
+      "decision": "BLOQUEADO",
+      "reason_codes": [
+        "POSICAO_SEM_MATCH",
+        "EXPOSICAO_INDETERMINADA",
+        "LIQUIDACAO_PARCIAL_PRESENTE"
+      ],
+      "error": null
+    },
+    {
+      "run": 3,
+      "timings": {
+        "matchingMs": 722,
+        "reconciliationMs": 953,
+        "logisticsMs": 1433,
+        "exposureMs": 2076,
+        "candidateSimulationMs": 658,
+        "classificationMs": 0,
+        "persistenceMs": 422,
+        "totalMs": 6986
+      },
+      "requests": {
+        "total": 66,
+        "rpc": 6,
+        "rest": 60,
+        "other": 0,
+        "methods": {
+          "GET": 59,
+          "POST": 6,
+          "HEAD": 1
+        }
+      },
+      "technical_status": "CONCLUIDA",
+      "decision": "BLOQUEADO",
+      "reason_codes": [
+        "POSICAO_SEM_MATCH",
+        "EXPOSICAO_INDETERMINADA",
+        "LIQUIDACAO_PARCIAL_PRESENTE"
+      ],
+      "error": null
+    },
+    {
+      "run": 4,
+      "timings": {
+        "matchingMs": 783,
+        "reconciliationMs": 991,
+        "logisticsMs": 1536,
+        "exposureMs": 3781,
+        "candidateSimulationMs": 626,
+        "classificationMs": 0,
+        "persistenceMs": 362,
+        "totalMs": 8864
+      },
+      "requests": {
+        "total": 66,
+        "rpc": 6,
+        "rest": 60,
+        "other": 0,
+        "methods": {
+          "GET": 59,
+          "POST": 6,
+          "HEAD": 1
+        }
+      },
+      "technical_status": "CONCLUIDA",
+      "decision": "BLOQUEADO",
+      "reason_codes": [
+        "POSICAO_SEM_MATCH",
+        "EXPOSICAO_INDETERMINADA",
+        "LIQUIDACAO_PARCIAL_PRESENTE"
+      ],
+      "error": null
+    },
+    {
+      "run": 5,
+      "timings": {
+        "matchingMs": 754,
+        "reconciliationMs": 1199,
+        "logisticsMs": 1428,
+        "exposureMs": 2195,
+        "candidateSimulationMs": 570,
+        "classificationMs": 1,
+        "persistenceMs": 343,
+        "totalMs": 7242
+      },
+      "requests": {
+        "total": 66,
+        "rpc": 6,
+        "rest": 60,
+        "other": 0,
+        "methods": {
+          "GET": 59,
+          "POST": 6,
+          "HEAD": 1
+        }
+      },
+      "technical_status": "CONCLUIDA",
+      "decision": "BLOQUEADO",
+      "reason_codes": [
+        "POSICAO_SEM_MATCH",
+        "EXPOSICAO_INDETERMINADA",
+        "LIQUIDACAO_PARCIAL_PRESENTE"
+      ],
+      "error": null
+    },
+    {
+      "run": 6,
+      "timings": {
+        "matchingMs": 710,
+        "reconciliationMs": 1195,
+        "logisticsMs": 1406,
+        "exposureMs": 2135,
+        "candidateSimulationMs": 839,
+        "classificationMs": 0,
+        "persistenceMs": 435,
+        "totalMs": 7409
+      },
+      "requests": {
+        "total": 66,
+        "rpc": 6,
+        "rest": 60,
+        "other": 0,
+        "methods": {
+          "GET": 59,
+          "POST": 6,
+          "HEAD": 1
+        }
+      },
+      "technical_status": "CONCLUIDA",
+      "decision": "BLOQUEADO",
+      "reason_codes": [
+        "POSICAO_SEM_MATCH",
+        "EXPOSICAO_INDETERMINADA",
+        "LIQUIDACAO_PARCIAL_PRESENTE"
+      ],
+      "error": null
+    },
+    {
+      "run": 7,
+      "timings": {
+        "matchingMs": 944,
+        "reconciliationMs": 1196,
+        "logisticsMs": 1390,
+        "exposureMs": 2122,
+        "candidateSimulationMs": 584,
+        "classificationMs": 0,
+        "persistenceMs": 343,
+        "totalMs": 7303
+      },
+      "requests": {
+        "total": 66,
+        "rpc": 6,
+        "rest": 60,
+        "other": 0,
+        "methods": {
+          "GET": 59,
+          "POST": 6,
+          "HEAD": 1
+        }
+      },
+      "technical_status": "CONCLUIDA",
+      "decision": "BLOQUEADO",
+      "reason_codes": [
+        "POSICAO_SEM_MATCH",
+        "EXPOSICAO_INDETERMINADA",
+        "LIQUIDACAO_PARCIAL_PRESENTE"
+      ],
+      "error": null
+    },
+    {
+      "run": 8,
+      "timings": {
+        "matchingMs": 702,
+        "reconciliationMs": 918,
+        "logisticsMs": 1398,
+        "exposureMs": 2175,
+        "candidateSimulationMs": 503,
+        "classificationMs": 0,
+        "persistenceMs": 343,
+        "totalMs": 6704
+      },
+      "requests": {
+        "total": 66,
+        "rpc": 6,
+        "rest": 60,
+        "other": 0,
+        "methods": {
+          "GET": 59,
+          "POST": 6,
+          "HEAD": 1
+        }
+      },
+      "technical_status": "CONCLUIDA",
+      "decision": "BLOQUEADO",
+      "reason_codes": [
+        "POSICAO_SEM_MATCH",
+        "EXPOSICAO_INDETERMINADA",
+        "LIQUIDACAO_PARCIAL_PRESENTE"
+      ],
+      "error": null
+    },
+    {
+      "run": 9,
+      "timings": {
+        "matchingMs": 742,
+        "reconciliationMs": 2128,
+        "logisticsMs": 1346,
+        "exposureMs": 2080,
+        "candidateSimulationMs": 572,
+        "classificationMs": 1,
+        "persistenceMs": 366,
+        "totalMs": 7957
+      },
+      "requests": {
+        "total": 66,
+        "rpc": 6,
+        "rest": 60,
+        "other": 0,
+        "methods": {
+          "GET": 59,
+          "POST": 6,
+          "HEAD": 1
+        }
+      },
+      "technical_status": "CONCLUIDA",
+      "decision": "BLOQUEADO",
+      "reason_codes": [
+        "POSICAO_SEM_MATCH",
+        "EXPOSICAO_INDETERMINADA",
+        "LIQUIDACAO_PARCIAL_PRESENTE"
+      ],
+      "error": null
+    },
+    {
+      "run": 10,
+      "timings": {
+        "matchingMs": 812,
+        "reconciliationMs": 981,
+        "logisticsMs": 1497,
+        "exposureMs": 2325,
+        "candidateSimulationMs": 522,
+        "classificationMs": 1,
+        "persistenceMs": 334,
+        "totalMs": 7202
+      },
+      "requests": {
+        "total": 66,
+        "rpc": 6,
+        "rest": 60,
+        "other": 0,
+        "methods": {
+          "GET": 59,
+          "POST": 6,
+          "HEAD": 1
+        }
+      },
+      "technical_status": "CONCLUIDA",
+      "decision": "BLOQUEADO",
+      "reason_codes": [
+        "POSICAO_SEM_MATCH",
+        "EXPOSICAO_INDETERMINADA",
+        "LIQUIDACAO_PARCIAL_PRESENTE"
+      ],
+      "error": null
+    },
+    {
+      "run": 11,
+      "timings": {
+        "matchingMs": 754,
+        "reconciliationMs": 913,
+        "logisticsMs": 1359,
+        "exposureMs": 1983,
+        "candidateSimulationMs": 499,
+        "classificationMs": 0,
+        "persistenceMs": 339,
+        "totalMs": 6511
+      },
+      "requests": {
+        "total": 66,
+        "rpc": 6,
+        "rest": 60,
+        "other": 0,
+        "methods": {
+          "GET": 59,
+          "POST": 6,
+          "HEAD": 1
+        }
+      },
+      "technical_status": "CONCLUIDA",
+      "decision": "BLOQUEADO",
+      "reason_codes": [
+        "POSICAO_SEM_MATCH",
+        "EXPOSICAO_INDETERMINADA",
+        "LIQUIDACAO_PARCIAL_PRESENTE"
+      ],
+      "error": null
+    },
+    {
+      "run": 12,
+      "timings": {
+        "matchingMs": 688,
+        "reconciliationMs": 944,
+        "logisticsMs": 1391,
+        "exposureMs": 2024,
+        "candidateSimulationMs": 538,
+        "classificationMs": 0,
+        "persistenceMs": 340,
+        "totalMs": 6597
+      },
+      "requests": {
+        "total": 66,
+        "rpc": 6,
+        "rest": 60,
+        "other": 0,
+        "methods": {
+          "GET": 59,
+          "POST": 6,
+          "HEAD": 1
+        }
+      },
+      "technical_status": "CONCLUIDA",
+      "decision": "BLOQUEADO",
+      "reason_codes": [
+        "POSICAO_SEM_MATCH",
+        "EXPOSICAO_INDETERMINADA",
+        "LIQUIDACAO_PARCIAL_PRESENTE"
+      ],
+      "error": null
+    },
+    {
+      "run": 13,
+      "timings": {
+        "matchingMs": 713,
+        "reconciliationMs": 982,
+        "logisticsMs": 1367,
+        "exposureMs": 2113,
+        "candidateSimulationMs": 500,
+        "classificationMs": 0,
+        "persistenceMs": 341,
+        "totalMs": 6722
+      },
+      "requests": {
+        "total": 66,
+        "rpc": 6,
+        "rest": 60,
+        "other": 0,
+        "methods": {
+          "GET": 59,
+          "POST": 6,
+          "HEAD": 1
+        }
+      },
+      "technical_status": "CONCLUIDA",
+      "decision": "BLOQUEADO",
+      "reason_codes": [
+        "POSICAO_SEM_MATCH",
+        "EXPOSICAO_INDETERMINADA",
+        "LIQUIDACAO_PARCIAL_PRESENTE"
+      ],
+      "error": null
+    },
+    {
+      "run": 14,
+      "timings": {
+        "matchingMs": 685,
+        "reconciliationMs": 1196,
+        "logisticsMs": 1392,
+        "exposureMs": 2085,
+        "candidateSimulationMs": 555,
+        "classificationMs": 0,
+        "persistenceMs": 398,
+        "totalMs": 6960
+      },
+      "requests": {
+        "total": 66,
+        "rpc": 6,
+        "rest": 60,
+        "other": 0,
+        "methods": {
+          "GET": 59,
+          "POST": 6,
+          "HEAD": 1
+        }
+      },
+      "technical_status": "CONCLUIDA",
+      "decision": "BLOQUEADO",
+      "reason_codes": [
+        "POSICAO_SEM_MATCH",
+        "EXPOSICAO_INDETERMINADA",
+        "LIQUIDACAO_PARCIAL_PRESENTE"
+      ],
+      "error": null
+    },
+    {
+      "run": 15,
+      "timings": {
+        "matchingMs": 795,
+        "reconciliationMs": 1024,
+        "logisticsMs": 1393,
+        "exposureMs": 2042,
+        "candidateSimulationMs": 518,
+        "classificationMs": 0,
+        "persistenceMs": 352,
+        "totalMs": 6867
+      },
+      "requests": {
+        "total": 66,
+        "rpc": 6,
+        "rest": 60,
+        "other": 0,
+        "methods": {
+          "GET": 59,
+          "POST": 6,
+          "HEAD": 1
+        }
+      },
+      "technical_status": "CONCLUIDA",
+      "decision": "BLOQUEADO",
+      "reason_codes": [
+        "POSICAO_SEM_MATCH",
+        "EXPOSICAO_INDETERMINADA",
+        "LIQUIDACAO_PARCIAL_PRESENTE"
+      ],
+      "error": null
+    },
+    {
+      "run": 16,
+      "timings": {
+        "matchingMs": 699,
+        "reconciliationMs": 877,
+        "logisticsMs": 1359,
+        "exposureMs": 2128,
+        "candidateSimulationMs": 554,
+        "classificationMs": 0,
+        "persistenceMs": 330,
+        "totalMs": 6649
+      },
+      "requests": {
+        "total": 66,
+        "rpc": 6,
+        "rest": 60,
+        "other": 0,
+        "methods": {
+          "GET": 59,
+          "POST": 6,
+          "HEAD": 1
+        }
+      },
+      "technical_status": "CONCLUIDA",
+      "decision": "BLOQUEADO",
+      "reason_codes": [
+        "POSICAO_SEM_MATCH",
+        "EXPOSICAO_INDETERMINADA",
+        "LIQUIDACAO_PARCIAL_PRESENTE"
+      ],
+      "error": null
+    },
+    {
+      "run": 17,
+      "timings": {
+        "matchingMs": 754,
+        "reconciliationMs": 941,
+        "logisticsMs": 1530,
+        "exposureMs": 2092,
+        "candidateSimulationMs": 517,
+        "classificationMs": 0,
+        "persistenceMs": 353,
+        "totalMs": 6902
+      },
+      "requests": {
+        "total": 66,
+        "rpc": 6,
+        "rest": 60,
+        "other": 0,
+        "methods": {
+          "GET": 59,
+          "POST": 6,
+          "HEAD": 1
+        }
+      },
+      "technical_status": "CONCLUIDA",
+      "decision": "BLOQUEADO",
+      "reason_codes": [
+        "POSICAO_SEM_MATCH",
+        "EXPOSICAO_INDETERMINADA",
+        "LIQUIDACAO_PARCIAL_PRESENTE"
+      ],
+      "error": null
+    },
+    {
+      "run": 18,
+      "timings": {
+        "matchingMs": 764,
+        "reconciliationMs": 918,
+        "logisticsMs": 1412,
+        "exposureMs": 2074,
+        "candidateSimulationMs": 524,
+        "classificationMs": 0,
+        "persistenceMs": 332,
+        "totalMs": 6734
+      },
+      "requests": {
+        "total": 66,
+        "rpc": 6,
+        "rest": 60,
+        "other": 0,
+        "methods": {
+          "GET": 59,
+          "POST": 6,
+          "HEAD": 1
+        }
+      },
+      "technical_status": "CONCLUIDA",
+      "decision": "BLOQUEADO",
+      "reason_codes": [
+        "POSICAO_SEM_MATCH",
+        "EXPOSICAO_INDETERMINADA",
+        "LIQUIDACAO_PARCIAL_PRESENTE"
+      ],
+      "error": null
+    },
+    {
+      "run": 19,
+      "timings": {
+        "matchingMs": 865,
+        "reconciliationMs": 900,
+        "logisticsMs": 1337,
+        "exposureMs": 2059,
+        "candidateSimulationMs": 508,
+        "classificationMs": 0,
+        "persistenceMs": 332,
+        "totalMs": 6665
+      },
+      "requests": {
+        "total": 66,
+        "rpc": 6,
+        "rest": 60,
+        "other": 0,
+        "methods": {
+          "GET": 59,
+          "POST": 6,
+          "HEAD": 1
+        }
+      },
+      "technical_status": "CONCLUIDA",
+      "decision": "BLOQUEADO",
+      "reason_codes": [
+        "POSICAO_SEM_MATCH",
+        "EXPOSICAO_INDETERMINADA",
+        "LIQUIDACAO_PARCIAL_PRESENTE"
+      ],
+      "error": null
+    },
+    {
+      "run": 20,
+      "timings": {
+        "matchingMs": 697,
+        "reconciliationMs": 891,
+        "logisticsMs": 1375,
+        "exposureMs": 2090,
+        "candidateSimulationMs": 586,
+        "classificationMs": 0,
+        "persistenceMs": 348,
+        "totalMs": 6691
+      },
+      "requests": {
+        "total": 66,
+        "rpc": 6,
+        "rest": 60,
+        "other": 0,
+        "methods": {
+          "GET": 59,
+          "POST": 6,
+          "HEAD": 1
+        }
+      },
+      "technical_status": "CONCLUIDA",
+      "decision": "BLOQUEADO",
+      "reason_codes": [
+        "POSICAO_SEM_MATCH",
+        "EXPOSICAO_INDETERMINADA",
+        "LIQUIDACAO_PARCIAL_PRESENTE"
+      ],
+      "error": null
+    }
+  ],
+  "stats": {
+    "matchingMs": {
+      "count": 20,
+      "min": 685,
+      "p25": 702,
+      "p50": 722,
+      "p75": 764,
+      "p90": 812,
+      "p95": 865,
+      "max": 944,
+      "mean": 750.65,
+      "standardDeviation": 63.31
+    },
+    "reconciliationMs": {
+      "count": 20,
+      "min": 877,
+      "p25": 902,
+      "p50": 944,
+      "p75": 1024,
+      "p90": 1196,
+      "p95": 1199,
+      "max": 2128,
+      "mean": 1047,
+      "standardDeviation": 271.32
+    },
+    "logisticsMs": {
+      "count": 20,
+      "min": 1337,
+      "p25": 1367,
+      "p50": 1392,
+      "p75": 1428,
+      "p90": 1530,
+      "p95": 1536,
+      "max": 1630,
+      "mean": 1417.7,
+      "standardDeviation": 72.93
+    },
+    "exposureMs": {
+      "count": 20,
+      "min": 1983,
+      "p25": 2074,
+      "p50": 2090,
+      "p75": 2128,
+      "p90": 2195,
+      "p95": 2325,
+      "max": 3781,
+      "mean": 2188.4,
+      "standardDeviation": 371.79
+    },
+    "candidateSimulationMs": {
+      "count": 20,
+      "min": 499,
+      "p25": 508,
+      "p50": 524,
+      "p75": 572,
+      "p90": 626,
+      "p95": 658,
+      "max": 839,
+      "mean": 559.85,
+      "standardDeviation": 76.85
+    },
+    "classificationMs": {
+      "count": 20,
+      "min": 0,
+      "p25": 0,
+      "p50": 0,
+      "p75": 0,
+      "p90": 1,
+      "p95": 1,
+      "max": 1,
+      "mean": 0.15,
+      "standardDeviation": 0.36
+    },
+    "persistenceMs": {
+      "count": 20,
+      "min": 328,
+      "p25": 334,
+      "p50": 343,
+      "p75": 353,
+      "p90": 398,
+      "p95": 422,
+      "max": 435,
+      "mean": 354.65,
+      "standardDeviation": 29.1
+    },
+    "totalMs": {
+      "count": 20,
+      "min": 6511,
+      "p25": 6665,
+      "p50": 6867,
+      "p75": 7202,
+      "p90": 7409,
+      "p95": 7957,
+      "max": 8864,
+      "mean": 7024.6,
+      "standardDeviation": 542.73
+    }
+  },
+  "request_stats": {
+    "total": {
+      "count": 20,
+      "min": 66,
+      "p25": 66,
+      "p50": 66,
+      "p75": 66,
+      "p90": 66,
+      "p95": 66,
+      "max": 66,
+      "mean": 66,
+      "standardDeviation": 0
+    },
+    "rpc": {
+      "count": 20,
+      "min": 6,
+      "p25": 6,
+      "p50": 6,
+      "p75": 6,
+      "p90": 6,
+      "p95": 6,
+      "max": 6,
+      "mean": 6,
+      "standardDeviation": 0
+    },
+    "rest": {
+      "count": 20,
+      "min": 60,
+      "p25": 60,
+      "p50": 60,
+      "p75": 60,
+      "p90": 60,
+      "p95": 60,
+      "max": 60,
+      "mean": 60,
+      "standardDeviation": 0
+    },
+    "other": {
+      "count": 20,
+      "min": 0,
+      "p25": 0,
+      "p50": 0,
+      "p75": 0,
+      "p90": 0,
+      "p95": 0,
+      "max": 0,
+      "mean": 0,
+      "standardDeviation": 0
+    }
+  },
+  "stability": {
+    "successful_runs": 20,
+    "errors": 0,
+    "timeouts": 0,
+    "technical_errors": 0,
+    "semantic_outcomes_distinct": 1,
+    "semantic_outcome": {
+      "technical_status": "CONCLUIDA",
+      "decision": "BLOQUEADO",
+      "reason_codes": [
+        "POSICAO_SEM_MATCH",
+        "EXPOSICAO_INDETERMINADA",
+        "LIQUIDACAO_PARCIAL_PRESENTE"
+      ]
+    }
+  }
+}

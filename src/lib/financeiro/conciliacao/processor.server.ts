@@ -32,6 +32,15 @@ type ImportRow = {
 
 type CanonicalRow = Record<string, unknown> & { id: string; fundo_id: string; provedor: string }
 
+export type FinancialPipelineReadCache = {
+  imports: Map<string, Promise<ImportRow | null>>
+  canonicalRows: Map<string, Promise<CanonicalRow[]>>
+}
+
+export function createFinancialPipelineReadCache(): FinancialPipelineReadCache {
+  return { imports: new Map(), canonicalRows: new Map() }
+}
+
 const admin = () => createAdminClient() as ReturnType<typeof createAdminClient> & {
   from: (table: string) => ReturnType<ReturnType<typeof createAdminClient>['from']>
 }
@@ -75,30 +84,54 @@ function externalSource(row: CanonicalRow, origin: FinancialExternalSource['orig
   }
 }
 
-async function latestImport(fundoId: string, type: ImportRow['tipo_base'], date: string) {
-  const { data, error } = await admin()
-    .from('importacoes_financeiras')
-    .select('id,fundo_id,provedor,tipo_base,data_referencia,status,completude,publicada_em,substitui_importacao_id')
-    .eq('fundo_id', fundoId)
-    .eq('tipo_base', type)
-    .eq('data_referencia', date)
-    .eq('status', 'PUBLICADA')
-    .order('publicada_em', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-  if (error) throw new Error(`Nao foi possivel resolver a base ${type}: ${error.message}`)
-  return data as ImportRow | null
+async function latestImport(fundoId: string, type: ImportRow['tipo_base'], date: string, cache?: FinancialPipelineReadCache) {
+  const cacheKey = `${fundoId}:${type}:${date}`
+  const cached = cache?.imports.get(cacheKey)
+  if (cached) return cached
+  const request = (async () => {
+    const { data, error } = await admin()
+      .from('importacoes_financeiras')
+      .select('id,fundo_id,provedor,tipo_base,data_referencia,status,completude,publicada_em,substitui_importacao_id')
+      .eq('fundo_id', fundoId)
+      .eq('tipo_base', type)
+      .eq('data_referencia', date)
+      .eq('status', 'PUBLICADA')
+      .order('publicada_em', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    if (error) throw new Error(`Nao foi possivel resolver a base ${type}: ${error.message}`)
+    return data as ImportRow | null
+  })()
+  cache?.imports.set(cacheKey, request)
+  try {
+    return await request
+  } catch (error) {
+    cache?.imports.delete(cacheKey)
+    throw error
+  }
 }
 
-async function canonicalRows(type: ImportRow['tipo_base'], importId: string): Promise<CanonicalRow[]> {
+async function canonicalRows(type: ImportRow['tipo_base'], importId: string, cache?: FinancialPipelineReadCache): Promise<CanonicalRow[]> {
   const table = type === 'ESTOQUE'
     ? 'estoque_posicoes'
     : type === 'AQUISICOES'
       ? 'aquisicao_movimentos'
       : 'liquidacao_movimentos'
-  const { data, error } = await admin().from(table).select('*').eq('importacao_id', importId).order('id')
-  if (error) throw new Error(`Nao foi possivel carregar ${type}: ${error.message}`)
-  return (data || []) as CanonicalRow[]
+  const cacheKey = `${type}:${importId}`
+  const cached = cache?.canonicalRows.get(cacheKey)
+  if (cached) return cached
+  const request = (async () => {
+    const { data, error } = await admin().from(table).select('*').eq('importacao_id', importId).order('id')
+    if (error) throw new Error(`Nao foi possivel carregar ${type}: ${error.message}`)
+    return (data || []) as CanonicalRow[]
+  })()
+  cache?.canonicalRows.set(cacheKey, request)
+  try {
+    return await request
+  } catch (error) {
+    cache?.canonicalRows.delete(cacheKey)
+    throw error
+  }
 }
 
 async function notesForFund(fundoId: string): Promise<NoteCandidate[]> {
@@ -141,17 +174,17 @@ async function crosswalkForFund(fundoId: string): Promise<KnownCrosswalk[]> {
   })
 }
 
-export async function executarMatchingFinanceiro(input: { fundoId: string; dataReferencia: string; atorUsuarioId: string }) {
+export async function executarMatchingFinanceiro(input: { fundoId: string; dataReferencia: string; atorUsuarioId: string; readCache?: FinancialPipelineReadCache }) {
   const imports = (await Promise.all([
-    latestImport(input.fundoId, 'ESTOQUE', input.dataReferencia),
-    latestImport(input.fundoId, 'AQUISICOES', input.dataReferencia),
-    latestImport(input.fundoId, 'LIQUIDACOES', input.dataReferencia),
+    latestImport(input.fundoId, 'ESTOQUE', input.dataReferencia, input.readCache),
+    latestImport(input.fundoId, 'AQUISICOES', input.dataReferencia, input.readCache),
+    latestImport(input.fundoId, 'LIQUIDACOES', input.dataReferencia, input.readCache),
   ])).filter(Boolean) as ImportRow[]
   if (imports.length === 0) throw new Error('Nenhuma base financeira publicada foi encontrada para a data informada.')
 
   const [notes, initialCrosswalk, rowGroups] = await Promise.all([
     notesForFund(input.fundoId), crosswalkForFund(input.fundoId),
-    Promise.all(imports.map((item) => canonicalRows(item.tipo_base, item.id))),
+    Promise.all(imports.map((item) => canonicalRows(item.tipo_base, item.id, input.readCache))),
   ])
   const sources = imports.flatMap((item, index) => rowGroups[index].map((row) => externalSource(
     row, item.tipo_base === 'ESTOQUE' ? 'ESTOQUE' : item.tipo_base === 'AQUISICOES' ? 'AQUISICAO' : 'LIQUIDACAO',
@@ -220,11 +253,11 @@ function comparableRow(row: CanonicalRow, type: ImportRow['tipo_base']) {
     : [text(row.valor_compra), text(row.valor_vencimento), text(row.codigo_movimento)])
 }
 
-async function retifiedIdentities(current: ImportRow | null, type: 'ESTOQUE' | 'AQUISICOES') {
+async function retifiedIdentities(current: ImportRow | null, type: 'ESTOQUE' | 'AQUISICOES', cache?: FinancialPipelineReadCache) {
   if (!current?.substitui_importacao_id) return new Set<string>()
   const [before, after] = await Promise.all([
-    canonicalRows(type, current.substitui_importacao_id),
-    canonicalRows(type, current.id),
+    canonicalRows(type, current.substitui_importacao_id, cache),
+    canonicalRows(type, current.id, cache),
   ])
   const beforeByIdentity = new Map(before.map((row) => [identity(row), comparableRow(row, type)]))
   const afterByIdentity = new Map(after.map((row) => [identity(row), comparableRow(row, type)]))
@@ -232,11 +265,11 @@ async function retifiedIdentities(current: ImportRow | null, type: 'ESTOQUE' | '
   return new Set([...identities].filter((key) => beforeByIdentity.get(key) !== afterByIdentity.get(key)))
 }
 
-export async function executarConciliacaoFinanceira(input: { fundoId: string; dataReferencia: string; atorUsuarioId: string }) {
+export async function executarConciliacaoFinanceira(input: { fundoId: string; dataReferencia: string; atorUsuarioId: string; readCache?: FinancialPipelineReadCache }) {
   const d2Date = previousDate(input.dataReferencia)
   const [stockD2, stockD1, acquisitionsD1, liquidationsD1] = await Promise.all([
-    latestImport(input.fundoId, 'ESTOQUE', d2Date), latestImport(input.fundoId, 'ESTOQUE', input.dataReferencia),
-    latestImport(input.fundoId, 'AQUISICOES', input.dataReferencia), latestImport(input.fundoId, 'LIQUIDACOES', input.dataReferencia),
+    latestImport(input.fundoId, 'ESTOQUE', d2Date, input.readCache), latestImport(input.fundoId, 'ESTOQUE', input.dataReferencia, input.readCache),
+    latestImport(input.fundoId, 'AQUISICOES', input.dataReferencia, input.readCache), latestImport(input.fundoId, 'LIQUIDACOES', input.dataReferencia, input.readCache),
   ])
   const imports = [stockD2, stockD1, acquisitionsD1, liquidationsD1]
   const missing = avaliarCompletudeBases([
@@ -269,11 +302,11 @@ export async function executarConciliacaoFinanceira(input: { fundoId: string; da
   }
 
   const [rowsD2, rowsD1, rowsAcq, rowsLiq, crosswalk, stockRetifications, acquisitionRetifications] = await Promise.all([
-    canonicalRows('ESTOQUE', stockD2!.id), canonicalRows('ESTOQUE', stockD1!.id),
-    canonicalRows('AQUISICOES', acquisitionsD1!.id), canonicalRows('LIQUIDACOES', liquidationsD1!.id),
+    canonicalRows('ESTOQUE', stockD2!.id, input.readCache), canonicalRows('ESTOQUE', stockD1!.id, input.readCache),
+    canonicalRows('AQUISICOES', acquisitionsD1!.id, input.readCache), canonicalRows('LIQUIDACOES', liquidationsD1!.id, input.readCache),
     crosswalkForFund(input.fundoId),
-    retifiedIdentities(stockD1, 'ESTOQUE'),
-    retifiedIdentities(acquisitionsD1, 'AQUISICOES'),
+    retifiedIdentities(stockD1, 'ESTOQUE', input.readCache),
+    retifiedIdentities(acquisitionsD1, 'AQUISICOES', input.readCache),
   ])
   const links = new Map(crosswalk.map((item) => [`${item.provedor}:${item.tipoChave}:${item.valorNormalizado}`, item]))
   const results = reconciliarTitulosD2D1({

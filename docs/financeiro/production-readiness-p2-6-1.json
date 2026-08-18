@@ -1,66 +1,421 @@
 {
   "schema": "bw-antecipa-production-readiness-p2-6-1-v1",
-  "generated_at": "2026-08-17",
+  "generated_at": "2026-08-18T14:05:56.261Z",
   "environment": "homolog",
   "project_ref": "fhgkmggthxikfpogrvaa",
   "production_touched": false,
-  "credential_rotation_required": true,
+  "credential_rotation_required": false,
+  "performance_blocked_by_credential_rotation": false,
   "recommendation": "NO-GO",
   "summary": {
-    "pass": 37,
-    "fail": 1,
+    "pass": 38,
+    "fail": 0,
     "pending": 10,
     "na": 1
   },
   "checks": [
-    {"check_id":"MIGRATION_INVENTORY","categoria":"migrations","status":"PASS","evidencia":"clean-room-e2e-p2-6-8-1.json: 127 migrations locais e remotas em ordem canonica","blocker":false,"observacao":"A migration incremental P2.6.8.1 foi aplicada pelo fluxo normal e preservou todo o historico anterior."},
-    {"check_id":"MIGRATION_HISTORY_PARITY","categoria":"migrations","status":"PASS","evidencia":"clean-room-e2e-p2-6-8-1.json: 127 locais = 127 remotas, missing=0, extra=0, mismatch=0","blocker":false,"observacao":"Dry-run posterior vazio e paridade remota confirmada."},
-    {"check_id":"CLEAN_ROOM_MIGRATIONS","categoria":"clean-room","status":"PASS","evidencia":"clean-room-e2e-p2-6-8-1.json: bootstrap + 127/127 migrations, cleanup PASS","blocker":false,"observacao":"Reconstrucao estrutural descartavel concluida com Node v22.23.1."},
-    {"check_id":"CLEAN_ROOM_SCHEMA_PARITY","categoria":"clean-room","status":"PASS","evidencia":"clean-room-e2e-p2-6-8-1.json: homolog versus clean-room com 0 diferencas materiais","blocker":false,"observacao":"Schema funcional, RLS e ACL foram reproduzidos com 127/127 migrations."},
-    {"check_id":"CLEAN_ROOM_SEED_E2E","categoria":"clean-room","status":"PASS","evidencia":"clean-room-e2e-p2-6-8-1.json: bootstrap, seed, Golden, Data API, cross-fund, Storage, aplicacao e checks do repositorio PASS","blocker":false,"observacao":"A regressao de identidade foi eliminada; ambiente descartavel foi limpo ao final."},
-    {"check_id":"ZERO_RLX_STRUCTURAL","categoria":"schema","status":"PASS","evidencia":"zero-rlx-structural-p2-6-8-1.json: zero objetos estruturais RLX ativos e zero consumidores de runtime","blocker":false,"observacao":"O hardening de identidade nao recriou o helper RLX residual; helpers canonicos permanecem preservados."},
-    {"check_id":"GOLDEN_V1","categoria":"golden","status":"PASS","evidencia":"Verificador oficial executado em homolog","blocker":false,"observacao":"Contrato vigente preservado."},
-    {"check_id":"GOLDEN_V2","categoria":"golden","status":"PASS","evidencia":"384/384 e security 5/5 em homolog","blocker":false,"observacao":"Expected logistics, exposure e risk gate aprovados em homolog existente."},
-    {"check_id":"GOLDEN_CLEAN_ROOM","categoria":"golden","status":"PASS","evidencia":"golden-clean-room-p2-6-8-1.json: Golden V1, V2 384/384, Security 5/5 e P2.2-P2.6 PASS","blocker":false,"observacao":"A equivalencia funcional foi comprovada novamente apos o hardening de identidade."},
-    {"check_id":"AUTHENTICATED_SMOKE_LOGIN_MFA","categoria":"smoke","status":"PENDENTE","evidencia":"Credencial QA/TOTP controlada nao disponibilizada","blocker":true,"observacao":"Nenhuma senha ou MFA de usuario real foi alterado."},
-    {"check_id":"CENTRAL_VISUAL_SMOKE","categoria":"smoke","status":"PENDENTE","evidencia":"Depende de sessao Gestor QA controlada","blocker":true,"observacao":"Hydration, filtros, paginacao, cards e links nao foram certificados por browser autenticado."},
-    {"check_id":"SMOKE_APTO_APPROVAL","categoria":"gate","status":"PENDENTE","evidencia":"Nao ha operacao APTO autenticada e controlada","blocker":true,"observacao":"Fluxo oficial gate -> RPC -> aprovacao nao foi executado ponta a ponta."},
-    {"check_id":"SMOKE_NO_LIMITE_40","categoria":"gate","status":"PENDENTE","evidencia":"Classificador/verificadores cobrem contrato; E2E autenticado ausente","blocker":true,"observacao":"Falta evidencia operacional exata de 40%."},
-    {"check_id":"SMOKE_BLOQUEADO","categoria":"gate","status":"PASS","evidencia":"Golden homolog: POSICAO_SEM_MATCH/EXPOSICAO_INDETERMINADA -> BLOQUEADO","blocker":false,"observacao":"Sem override no backend."},
-    {"check_id":"SMOKE_REVISAO_MANUAL","categoria":"gate","status":"PENDENTE","evidencia":"Contrato e security checks aprovados; fluxo autenticado/TOTP nao executado","blocker":true,"observacao":"Liberacao e recusa reais continuam pendentes."},
-    {"check_id":"RISK_BYPASS_RPC","categoria":"seguranca","status":"PASS","evidencia":"P2.6 security: RPC antiga sem execute; persistencia interna restrita","blocker":false,"observacao":"Aprovacao direta sem decisao valida e negada pelos contratos vigentes."},
-    {"check_id":"RISK_BYPASS_ACTION_UI","categoria":"seguranca","status":"PASS","evidencia":"Inventario de actions e chamada obrigatoria do gate antes da aprovacao atomica","blocker":false,"observacao":"Backend nao depende apenas de botao disabled."},
-    {"check_id":"DOUBLE_OPERATION_APPROVAL","categoria":"concorrencia","status":"PENDENTE","evidencia":"Lock/stale check verificados em SQL; duas aprovacoes autenticadas nao executadas","blocker":true,"observacao":"Gate obrigatorio de GO ainda sem evidencia E2E."},
-    {"check_id":"DOUBLE_GATE_IDEMPOTENCY","categoria":"concorrencia","status":"PASS","evidencia":"concurrency-p2-6-1.json: duas chamadas simultaneas, mesmo resultId, uma linha final","blocker":false,"observacao":"Advisory lock e idempotencia comprovados em homolog."},
-    {"check_id":"MULTIFUND_CONCURRENCY","categoria":"concorrencia","status":"PASS","evidencia":"concurrency-p2-6-1.json: 2 fundos, inicio simultaneo, resultados distintos","blocker":false,"observacao":"Fundos nao compartilharam resultado nem lock global desnecessario."},
-    {"check_id":"TOCTOU_OPERATION","categoria":"concorrencia","status":"PENDENTE","evidencia":"Assinatura, updated_at e snapshot verificados em RPC/security suite","blocker":true,"observacao":"Falta corrida E2E autenticada com mutacao concorrente."},
-    {"check_id":"STALE_REVIEW","categoria":"concorrencia","status":"PENDENTE","evidencia":"Contrato server-side validado; smoke autenticado indisponivel","blocker":true,"observacao":"Revisao stale nao foi exercitada ponta a ponta."},
-    {"check_id":"TIMEOUT_FAIL_CLOSED","categoria":"resiliencia","status":"PASS","evidencia":"timeout-p2-6-1.json: 5s -> AVALIACAO_RISCO_INDISPONIVEL/BLOQUEADO","blocker":false,"observacao":"Configuracao temporaria removida ao final."},
-    {"check_id":"PERFORMANCE_FULL_PIPELINE","categoria":"performance","status":"FAIL","evidencia":"performance-p2-6-4.json: 5 amostras homolog, total p50 6927ms e p95/max 7390ms","blocker":true,"observacao":"Houve melhora sobre a medicao anterior, mas o p95 continua acima do baseline de 7.356s e requer tratamento antes de producao."},
-    {"check_id":"PERFORMANCE_SYNTHETIC","categoria":"performance","status":"PASS","evidencia":"performance-p2-6-1.json: 10k/25k/50k com memoria","blocker":false,"observacao":"Benchmark computacional, nao substitui pipeline DB completo."},
-    {"check_id":"RLS_HOMOLOG","categoria":"rls","status":"PASS","evidencia":"identity-rls-hardening-p2-6-8-1.json: profiles e usuario_papeis preservam apenas SELECT own-row para authenticated; anon sem grants; mutacoes diretas negadas","blocker":false,"observacao":"profiles_gestor_all e profiles_own_update foram removidas; gestor operacional nao recebe diretorio global de identidade."},
-    {"check_id":"RLS_CLEAN_ROOM","categoria":"rls","status":"PASS","evidencia":"api-auth-matrix-p2-6-8-1.json: 118/118; own profile/roles ALLOW, cross-user e mutacoes DENY. Cross-fund 39/39 e Storage 15/15.","blocker":false,"observacao":"Contrato reproduzido integralmente no clean-room canonico."},
-    {"check_id":"IDENTITY_RLS_HARDENING","categoria":"rls","status":"PASS","evidencia":"identity-rls-hardening-p2-6-8-1.json e migration 20260817204159: policy ALL global eliminada, ACL minima e regressao permanente adicionada","blocker":false,"observacao":"Super Admin puro e hibrido continuam sem SELECT global direto; administracao permanece em RPC/server-side controlado."},
-    {"check_id":"STORAGE_PRIVATE","categoria":"storage","status":"PASS","evidencia":"Bucket financeiro-importacoes privado e policies por fundo verificadas","blocker":false,"observacao":"Sem acesso publico."},
-    {"check_id":"STORAGE_CROSS_FUND","categoria":"storage","status":"PASS","evidencia":"Matriz security vigente impede gestor A de ler arquivo B","blocker":false,"observacao":"Raw/staging tecnico nao exposto ao gestor."},
-    {"check_id":"CRON_CANONICAL","categoria":"cron","status":"PASS","evidencia":"Rota /api/cron/financeiro usa CRON_SECRET, ANBIMA e capability resolution","blocker":false,"observacao":"Erros parciais e ausencia de provider sao observaveis."},
-    {"check_id":"CRON_LEGACY_ALIAS","categoria":"cron","status":"PASS","evidencia":"Alias /api/cron/rlx-financeiro sem segundo motor","blocker":false,"observacao":"Manter retirada planejada."},
-    {"check_id":"CANONICAL_ENV","categoria":"configuracao","status":"PASS","evidencia":"FINANCEIRO_* tem precedencia","blocker":false,"observacao":"Fallbacks RLX_* ainda existem e precisam de prazo de retirada."},
-    {"check_id":"LEGACY_ENV_RETIREMENT","categoria":"configuracao","status":"PENDENTE","evidencia":"RLX_MAX_PARSE_MS, RLX_MAX_IMPORT_ROWS, RLX_PROVIDER_TIMEOUT_MS inventariados","blocker":false,"observacao":"Retirar apos todos os ambientes migrarem para FINANCEIRO_*."},
-    {"check_id":"AUDIT_EVENTS","categoria":"auditoria","status":"PASS","evidencia":"Eventos e correlation IDs verificados no dominio P2.4-P2.6","blocker":false,"observacao":"Execucoes persistentes QA usam namespace documentado."},
-    {"check_id":"SECRET_SCAN","categoria":"seguranca","status":"PASS","evidencia":"secret-scan-p2-6-1.json: 1063 arquivos de texto, zero achados","blocker":false,"observacao":"Package files, lockfile, npm config e artefatos nao persistem tokens ou credenciais; credential_rotation_required permanece true."},
-    {"check_id":"DEPENDENCY_AUDIT","categoria":"dependencias","status":"PASS","evidencia":"dependency-audit-after-p2-6-7.json: producao e arvore completa com critical=0, high=0, moderate=0, low=0","blocker":false,"observacao":"23 achados corrigidos; npm ci limpo e runtime Handlebars/Next/Puppeteer validados."},
-    {"check_id":"NODE_VERSION","categoria":"toolchain","status":"PASS","evidencia":"clean-room-e2e-p2-6-8-1.json: Node v22.23.1; package engine 22.x","blocker":false,"observacao":"Toolchain declarada foi comprovada em Windows e clean-room Linux."},
-    {"check_id":"TYPESCRIPT","categoria":"qualidade","status":"PASS","evidencia":"npx tsc --noEmit","blocker":false,"observacao":"Sem erros."},
-    {"check_id":"FULL_TESTS","categoria":"qualidade","status":"PASS","evidencia":"144 arquivos aprovados + 1 skipped; 1031 testes aprovados + 3 skipped","blocker":false,"observacao":"Nenhum teste removido; inclui regressao permanente de identidade e a baseline anterior."},
-    {"check_id":"LINT","categoria":"qualidade","status":"PASS","evidencia":"npm run lint: exit 0","blocker":false,"observacao":"0 erros e 6 warnings preexistentes."},
-    {"check_id":"DIFF_CHECK","categoria":"qualidade","status":"PASS","evidencia":"git diff --check: exit 0","blocker":false,"observacao":"Somente avisos de conversao LF/CRLF do Git."},
-    {"check_id":"NEXT_BUILD","categoria":"qualidade","status":"PASS","evidencia":"Next 16.3.1 webpack: 78 rotas geradas, exit 0","blocker":false,"observacao":"Warning require.extensions do Handlebars eliminado por serverExternalPackages; build limpo no workspace descartavel."},
-    {"check_id":"DEPLOYMENT_DRY_RUN","categoria":"deployment","status":"PASS","evidencia":"127/127 migrations locais e remotas; db push dry-run posterior vazio; schema parity material zero","blocker":false,"observacao":"O dry-run estrutural e a certificacao funcional P2.6.8.1 passaram; producao permaneceu intocada."},
-    {"check_id":"ROLLBACK_PLAN","categoria":"deployment","status":"PASS","evidencia":"Plano documentado no relatorio P2.6.1","blocker":false,"observacao":"Snapshot obrigatorio; rollback por restauracao, nao down-migration improvisada."},
-    {"check_id":"SINQIA_EXTERNAL","categoria":"provider","status":"PENDENTE","evidencia":"Sem credencial segura de homologacao disponibilizada","blocker":false,"observacao":"Condicionante apenas para fundo que dependa do provider."},
-    {"check_id":"VORTX_PORTAL_CUSTODIA","categoria":"provider","status":"N/A","evidencia":"Fora do runtime habilitado e do escopo","blocker":false,"observacao":"Nao implementado no P2.6.1."},
-    {"check_id":"PRODUCTION_IMMUTABILITY","categoria":"seguranca","status":"PASS","evidencia":"Todos os guards apontaram para homolog; nenhum comando mutavel em producao","blocker":false,"observacao":"Project ref de producao permaneceu intocado."},
-    {"check_id":"NO_COMMIT_PUSH","categoria":"entrega","status":"PASS","evidencia":"Working tree local preservado","blocker":false,"observacao":"Nenhum commit ou push executado."}
-  ]
+    {
+      "check_id": "MIGRATION_INVENTORY",
+      "categoria": "migrations",
+      "status": "PASS",
+      "evidencia": "clean-room-e2e-p2-6-8-1.json: 127 migrations locais e remotas em ordem canonica",
+      "blocker": false,
+      "observacao": "A migration incremental P2.6.8.1 foi aplicada pelo fluxo normal e preservou todo o historico anterior."
+    },
+    {
+      "check_id": "MIGRATION_HISTORY_PARITY",
+      "categoria": "migrations",
+      "status": "PASS",
+      "evidencia": "clean-room-e2e-p2-6-8-1.json: 127 locais = 127 remotas, missing=0, extra=0, mismatch=0",
+      "blocker": false,
+      "observacao": "Dry-run posterior vazio e paridade remota confirmada."
+    },
+    {
+      "check_id": "CLEAN_ROOM_MIGRATIONS",
+      "categoria": "clean-room",
+      "status": "PASS",
+      "evidencia": "clean-room-e2e-p2-6-8-1.json: bootstrap + 127/127 migrations, cleanup PASS",
+      "blocker": false,
+      "observacao": "Reconstrucao estrutural descartavel concluida com Node v22.23.1."
+    },
+    {
+      "check_id": "CLEAN_ROOM_SCHEMA_PARITY",
+      "categoria": "clean-room",
+      "status": "PASS",
+      "evidencia": "clean-room-e2e-p2-6-8-1.json: homolog versus clean-room com 0 diferencas materiais",
+      "blocker": false,
+      "observacao": "Schema funcional, RLS e ACL foram reproduzidos com 127/127 migrations."
+    },
+    {
+      "check_id": "CLEAN_ROOM_SEED_E2E",
+      "categoria": "clean-room",
+      "status": "PASS",
+      "evidencia": "clean-room-e2e-p2-6-9.json: migrations/seed/Golden/Data API/cross-fund/Storage/aplicacao/repositorio PASS; cleanup PASS",
+      "blocker": false,
+      "observacao": "Paridade remota confirmada por inventario MCP 127/127; snapshot PostgreSQL direto foi adiado porque a senha DB local permaneceu anterior a rotacao."
+    },
+    {
+      "check_id": "ZERO_RLX_STRUCTURAL",
+      "categoria": "schema",
+      "status": "PASS",
+      "evidencia": "zero-rlx-structural-p2-6-8-1.json: zero objetos estruturais RLX ativos e zero consumidores de runtime",
+      "blocker": false,
+      "observacao": "O hardening de identidade nao recriou o helper RLX residual; helpers canonicos permanecem preservados."
+    },
+    {
+      "check_id": "GOLDEN_V1",
+      "categoria": "golden",
+      "status": "PASS",
+      "evidencia": "Verificador oficial executado em homolog",
+      "blocker": false,
+      "observacao": "Contrato vigente preservado."
+    },
+    {
+      "check_id": "GOLDEN_V2",
+      "categoria": "golden",
+      "status": "PASS",
+      "evidencia": "384/384 e security 5/5 em homolog",
+      "blocker": false,
+      "observacao": "Expected logistics, exposure e risk gate aprovados em homolog existente."
+    },
+    {
+      "check_id": "GOLDEN_CLEAN_ROOM",
+      "categoria": "golden",
+      "status": "PASS",
+      "evidencia": "golden-clean-room-p2-6-8-1.json: Golden V1, V2 384/384, Security 5/5 e P2.2-P2.6 PASS",
+      "blocker": false,
+      "observacao": "A equivalencia funcional foi comprovada novamente apos o hardening de identidade."
+    },
+    {
+      "check_id": "AUTHENTICATED_SMOKE_LOGIN_MFA",
+      "categoria": "smoke",
+      "status": "PENDENTE",
+      "evidencia": "Credencial QA/TOTP controlada nao disponibilizada",
+      "blocker": true,
+      "observacao": "Nenhuma senha ou MFA de usuario real foi alterado."
+    },
+    {
+      "check_id": "CENTRAL_VISUAL_SMOKE",
+      "categoria": "smoke",
+      "status": "PENDENTE",
+      "evidencia": "Depende de sessao Gestor QA controlada",
+      "blocker": true,
+      "observacao": "Hydration, filtros, paginacao, cards e links nao foram certificados por browser autenticado."
+    },
+    {
+      "check_id": "SMOKE_APTO_APPROVAL",
+      "categoria": "gate",
+      "status": "PENDENTE",
+      "evidencia": "Nao ha operacao APTO autenticada e controlada",
+      "blocker": true,
+      "observacao": "Fluxo oficial gate -> RPC -> aprovacao nao foi executado ponta a ponta."
+    },
+    {
+      "check_id": "SMOKE_NO_LIMITE_40",
+      "categoria": "gate",
+      "status": "PENDENTE",
+      "evidencia": "Classificador/verificadores cobrem contrato; E2E autenticado ausente",
+      "blocker": true,
+      "observacao": "Falta evidencia operacional exata de 40%."
+    },
+    {
+      "check_id": "SMOKE_BLOQUEADO",
+      "categoria": "gate",
+      "status": "PASS",
+      "evidencia": "Golden homolog: POSICAO_SEM_MATCH/EXPOSICAO_INDETERMINADA -> BLOQUEADO",
+      "blocker": false,
+      "observacao": "Sem override no backend."
+    },
+    {
+      "check_id": "SMOKE_REVISAO_MANUAL",
+      "categoria": "gate",
+      "status": "PENDENTE",
+      "evidencia": "Contrato e security checks aprovados; fluxo autenticado/TOTP nao executado",
+      "blocker": true,
+      "observacao": "Liberacao e recusa reais continuam pendentes."
+    },
+    {
+      "check_id": "RISK_BYPASS_RPC",
+      "categoria": "seguranca",
+      "status": "PASS",
+      "evidencia": "P2.6 security: RPC antiga sem execute; persistencia interna restrita",
+      "blocker": false,
+      "observacao": "Aprovacao direta sem decisao valida e negada pelos contratos vigentes."
+    },
+    {
+      "check_id": "RISK_BYPASS_ACTION_UI",
+      "categoria": "seguranca",
+      "status": "PASS",
+      "evidencia": "Inventario de actions e chamada obrigatoria do gate antes da aprovacao atomica",
+      "blocker": false,
+      "observacao": "Backend nao depende apenas de botao disabled."
+    },
+    {
+      "check_id": "DOUBLE_OPERATION_APPROVAL",
+      "categoria": "concorrencia",
+      "status": "PENDENTE",
+      "evidencia": "Lock/stale check verificados em SQL; duas aprovacoes autenticadas nao executadas",
+      "blocker": true,
+      "observacao": "Gate obrigatorio de GO ainda sem evidencia E2E."
+    },
+    {
+      "check_id": "DOUBLE_GATE_IDEMPOTENCY",
+      "categoria": "concorrencia",
+      "status": "PASS",
+      "evidencia": "concurrency-p2-6-1.json: duas chamadas simultaneas, mesmo resultId, uma linha final",
+      "blocker": false,
+      "observacao": "Advisory lock e idempotencia comprovados em homolog."
+    },
+    {
+      "check_id": "MULTIFUND_CONCURRENCY",
+      "categoria": "concorrencia",
+      "status": "PASS",
+      "evidencia": "concurrency-p2-6-1.json: 2 fundos, inicio simultaneo, resultados distintos",
+      "blocker": false,
+      "observacao": "Fundos nao compartilharam resultado nem lock global desnecessario."
+    },
+    {
+      "check_id": "TOCTOU_OPERATION",
+      "categoria": "concorrencia",
+      "status": "PENDENTE",
+      "evidencia": "Assinatura, updated_at e snapshot verificados em RPC/security suite",
+      "blocker": true,
+      "observacao": "Falta corrida E2E autenticada com mutacao concorrente."
+    },
+    {
+      "check_id": "STALE_REVIEW",
+      "categoria": "concorrencia",
+      "status": "PENDENTE",
+      "evidencia": "Contrato server-side validado; smoke autenticado indisponivel",
+      "blocker": true,
+      "observacao": "Revisao stale nao foi exercitada ponta a ponta."
+    },
+    {
+      "check_id": "TIMEOUT_FAIL_CLOSED",
+      "categoria": "resiliencia",
+      "status": "PASS",
+      "evidencia": "timeout-p2-6-1.json: 5s -> AVALIACAO_RISCO_INDISPONIVEL/BLOQUEADO",
+      "blocker": false,
+      "observacao": "Configuracao temporaria removida ao final."
+    },
+    {
+      "check_id": "PERFORMANCE_FULL_PIPELINE",
+      "categoria": "performance",
+      "status": "PASS",
+      "evidencia": "performance-full-pipeline-p2-6-9.json: 5 warm-ups + 20 amostras antes/depois; p95 7957ms -> 6839ms; 0 timeouts; 0 erros tecnicos",
+      "blocker": false,
+      "observacao": "Limite formal de 7356ms atendido com 517ms de margem; resultado semantico preservado e round-trips reduzidos de 66 para 58."
+    },
+    {
+      "check_id": "PERFORMANCE_SYNTHETIC",
+      "categoria": "performance",
+      "status": "PASS",
+      "evidencia": "performance-p2-6-1.json: 10k/25k/50k com memoria",
+      "blocker": false,
+      "observacao": "Benchmark computacional, nao substitui pipeline DB completo."
+    },
+    {
+      "check_id": "RLS_HOMOLOG",
+      "categoria": "rls",
+      "status": "PASS",
+      "evidencia": "identity-rls-hardening-p2-6-8-1.json: profiles e usuario_papeis preservam apenas SELECT own-row para authenticated; anon sem grants; mutacoes diretas negadas",
+      "blocker": false,
+      "observacao": "profiles_gestor_all e profiles_own_update foram removidas; gestor operacional nao recebe diretorio global de identidade."
+    },
+    {
+      "check_id": "RLS_CLEAN_ROOM",
+      "categoria": "rls",
+      "status": "PASS",
+      "evidencia": "api-auth-matrix-p2-6-8-1.json: 118/118; own profile/roles ALLOW, cross-user e mutacoes DENY. Cross-fund 39/39 e Storage 15/15.",
+      "blocker": false,
+      "observacao": "Contrato reproduzido integralmente no clean-room canonico."
+    },
+    {
+      "check_id": "IDENTITY_RLS_HARDENING",
+      "categoria": "rls",
+      "status": "PASS",
+      "evidencia": "identity-rls-hardening-p2-6-8-1.json e migration 20260817204159: policy ALL global eliminada, ACL minima e regressao permanente adicionada",
+      "blocker": false,
+      "observacao": "Super Admin puro e hibrido continuam sem SELECT global direto; administracao permanece em RPC/server-side controlado."
+    },
+    {
+      "check_id": "STORAGE_PRIVATE",
+      "categoria": "storage",
+      "status": "PASS",
+      "evidencia": "Bucket financeiro-importacoes privado e policies por fundo verificadas",
+      "blocker": false,
+      "observacao": "Sem acesso publico."
+    },
+    {
+      "check_id": "STORAGE_CROSS_FUND",
+      "categoria": "storage",
+      "status": "PASS",
+      "evidencia": "Matriz security vigente impede gestor A de ler arquivo B",
+      "blocker": false,
+      "observacao": "Raw/staging tecnico nao exposto ao gestor."
+    },
+    {
+      "check_id": "CRON_CANONICAL",
+      "categoria": "cron",
+      "status": "PASS",
+      "evidencia": "Rota /api/cron/financeiro usa CRON_SECRET, ANBIMA e capability resolution",
+      "blocker": false,
+      "observacao": "Erros parciais e ausencia de provider sao observaveis."
+    },
+    {
+      "check_id": "CRON_LEGACY_ALIAS",
+      "categoria": "cron",
+      "status": "PASS",
+      "evidencia": "Alias /api/cron/rlx-financeiro sem segundo motor",
+      "blocker": false,
+      "observacao": "Manter retirada planejada."
+    },
+    {
+      "check_id": "CANONICAL_ENV",
+      "categoria": "configuracao",
+      "status": "PASS",
+      "evidencia": "FINANCEIRO_* tem precedencia",
+      "blocker": false,
+      "observacao": "Fallbacks RLX_* ainda existem e precisam de prazo de retirada."
+    },
+    {
+      "check_id": "LEGACY_ENV_RETIREMENT",
+      "categoria": "configuracao",
+      "status": "PENDENTE",
+      "evidencia": "RLX_MAX_PARSE_MS, RLX_MAX_IMPORT_ROWS, RLX_PROVIDER_TIMEOUT_MS inventariados",
+      "blocker": false,
+      "observacao": "Retirar apos todos os ambientes migrarem para FINANCEIRO_*."
+    },
+    {
+      "check_id": "AUDIT_EVENTS",
+      "categoria": "auditoria",
+      "status": "PASS",
+      "evidencia": "Eventos e correlation IDs verificados no dominio P2.4-P2.6",
+      "blocker": false,
+      "observacao": "Execucoes persistentes QA usam namespace documentado."
+    },
+    {
+      "check_id": "SECRET_SCAN",
+      "categoria": "seguranca",
+      "status": "PASS",
+      "evidencia": "secret-scan-p2-6-1.json: 1077 arquivos de texto, zero achados",
+      "blocker": false,
+      "observacao": "Nenhuma credencial ou token foi persistido nos artefatos; rotacao administrativa comprovada como concluida."
+    },
+    {
+      "check_id": "DEPENDENCY_AUDIT",
+      "categoria": "dependencias",
+      "status": "PASS",
+      "evidencia": "dependency-audit-after-p2-6-7.json: producao e arvore completa com critical=0, high=0, moderate=0, low=0",
+      "blocker": false,
+      "observacao": "23 achados corrigidos; npm ci limpo e runtime Handlebars/Next/Puppeteer validados."
+    },
+    {
+      "check_id": "NODE_VERSION",
+      "categoria": "toolchain",
+      "status": "PASS",
+      "evidencia": "clean-room-e2e-p2-6-8-1.json: Node v22.23.1; package engine 22.x",
+      "blocker": false,
+      "observacao": "Toolchain declarada foi comprovada em Windows e clean-room Linux."
+    },
+    {
+      "check_id": "TYPESCRIPT",
+      "categoria": "qualidade",
+      "status": "PASS",
+      "evidencia": "npx tsc --noEmit",
+      "blocker": false,
+      "observacao": "Sem erros."
+    },
+    {
+      "check_id": "FULL_TESTS",
+      "categoria": "qualidade",
+      "status": "PASS",
+      "evidencia": "P2.6.9 clean-room: 145 arquivos aprovados + 1 skipped; 1033 testes aprovados + 3 skipped",
+      "blocker": false,
+      "observacao": "Inclui 65 testes financeiros direcionados e 2 testes do calculo estatistico do benchmark."
+    },
+    {
+      "check_id": "LINT",
+      "categoria": "qualidade",
+      "status": "PASS",
+      "evidencia": "npm run lint: exit 0",
+      "blocker": false,
+      "observacao": "0 erros e 6 warnings preexistentes."
+    },
+    {
+      "check_id": "DIFF_CHECK",
+      "categoria": "qualidade",
+      "status": "PASS",
+      "evidencia": "git diff --check: exit 0",
+      "blocker": false,
+      "observacao": "Somente avisos de conversao LF/CRLF do Git."
+    },
+    {
+      "check_id": "NEXT_BUILD",
+      "categoria": "qualidade",
+      "status": "PASS",
+      "evidencia": "Next 16.3.1 webpack: 78 rotas geradas, exit 0",
+      "blocker": false,
+      "observacao": "Warning require.extensions do Handlebars eliminado por serverExternalPackages; build limpo no workspace descartavel."
+    },
+    {
+      "check_id": "DEPLOYMENT_DRY_RUN",
+      "categoria": "deployment",
+      "status": "PASS",
+      "evidencia": "127/127 migrations locais e remotas; db push dry-run posterior vazio; schema parity material zero",
+      "blocker": false,
+      "observacao": "O dry-run estrutural e a certificacao funcional P2.6.8.1 passaram; producao permaneceu intocada."
+    },
+    {
+      "check_id": "ROLLBACK_PLAN",
+      "categoria": "deployment",
+      "status": "PASS",
+      "evidencia": "Plano documentado no relatorio P2.6.1",
+      "blocker": false,
+      "observacao": "Snapshot obrigatorio; rollback por restauracao, nao down-migration improvisada."
+    },
+    {
+      "check_id": "SINQIA_EXTERNAL",
+      "categoria": "provider",
+      "status": "PENDENTE",
+      "evidencia": "Sem credencial segura de homologacao disponibilizada",
+      "blocker": false,
+      "observacao": "Condicionante apenas para fundo que dependa do provider."
+    },
+    {
+      "check_id": "VORTX_PORTAL_CUSTODIA",
+      "categoria": "provider",
+      "status": "N/A",
+      "evidencia": "Fora do runtime habilitado e do escopo",
+      "blocker": false,
+      "observacao": "Nao implementado no P2.6.1."
+    },
+    {
+      "check_id": "PRODUCTION_IMMUTABILITY",
+      "categoria": "seguranca",
+      "status": "PASS",
+      "evidencia": "Todos os guards apontaram para homolog; nenhum comando mutavel em producao",
+      "blocker": false,
+      "observacao": "Project ref de producao permaneceu intocado."
+    },
+    {
+      "check_id": "NO_COMMIT_PUSH",
+      "categoria": "entrega",
+      "status": "PASS",
+      "evidencia": "Working tree local preservado",
+      "blocker": false,
+      "observacao": "Nenhum commit ou push executado."
+    }
+  ],
+  "credential_rotation_completed": true,
+  "p2_6_9": {
+    "status": "PASS",
+    "before_p95_ms": 7957,
+    "after_p95_ms": 6839,
+    "improvement_percent": 14.05,
+    "measured_runs_before": 20,
+    "measured_runs_after": 20,
+    "zero_timeouts": true,
+    "zero_technical_errors": true
+  }
 }

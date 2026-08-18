@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto'
 import Decimal from 'decimal.js'
 import { createAdminClient } from '@/lib/supabase/server'
 import { resolverExpectativasCicloFinanceiro } from '@/lib/financeiro/ingestao/cron-contract'
-import { executarMatchingFinanceiro, executarConciliacaoFinanceira } from '@/lib/financeiro/conciliacao/processor.server'
+import { createFinancialPipelineReadCache, executarMatchingFinanceiro, executarConciliacaoFinanceira } from '@/lib/financeiro/conciliacao/processor.server'
 import { executarPosicaoLogisticaFinanceira } from '@/lib/financeiro/logistica/processor.server'
 import { classificarLogisticaDasNotas } from '@/lib/financeiro/logistica/evidencias.server'
 import { executarExposicaoFinanceira } from '@/lib/financeiro/exposicao/processor.server'
@@ -30,6 +30,20 @@ export type RiskGateTimings = {
   classificationMs: number
   persistenceMs: number
   totalMs: number
+}
+
+export type RiskGateDiagnosticStage =
+  | 'policy'
+  | 'matching'
+  | 'reconciliation'
+  | 'logistics'
+  | 'exposure'
+  | 'candidateSimulation'
+  | 'classification'
+  | 'persistence'
+
+type RiskGateDiagnostics = {
+  onStageChange?: (stage: RiskGateDiagnosticStage | null) => void
 }
 
 function elapsed(startedAt: number) {
@@ -106,19 +120,25 @@ async function refreshCanonicalSnapshots(input: {
   fundoId: string
   dataOperacional: string
   atorUsuarioId: string
+  diagnostics?: RiskGateDiagnostics
 }) {
   const dates = resolverExpectativasCicloFinanceiro(input.dataOperacional)
+  const readCache = createFinancialPipelineReadCache()
   const timings = { matchingMs: 0, reconciliationMs: 0, logisticsMs: 0, exposureMs: 0 }
   let startedAt = Date.now()
-  await executarMatchingFinanceiro({ fundoId: input.fundoId, dataReferencia: dates.ESTOQUE, atorUsuarioId: input.atorUsuarioId })
+  input.diagnostics?.onStageChange?.('matching')
+  await executarMatchingFinanceiro({ fundoId: input.fundoId, dataReferencia: dates.ESTOQUE, atorUsuarioId: input.atorUsuarioId, readCache })
   timings.matchingMs = elapsed(startedAt)
   startedAt = Date.now()
-  await executarConciliacaoFinanceira({ fundoId: input.fundoId, dataReferencia: dates.ESTOQUE, atorUsuarioId: input.atorUsuarioId })
+  input.diagnostics?.onStageChange?.('reconciliation')
+  await executarConciliacaoFinanceira({ fundoId: input.fundoId, dataReferencia: dates.ESTOQUE, atorUsuarioId: input.atorUsuarioId, readCache })
   timings.reconciliationMs = elapsed(startedAt)
   startedAt = Date.now()
+  input.diagnostics?.onStageChange?.('logistics')
   await executarPosicaoLogisticaFinanceira({ fundoId: input.fundoId, dataReferencia: dates.ESTOQUE, atorUsuarioId: input.atorUsuarioId })
   timings.logisticsMs = elapsed(startedAt)
   startedAt = Date.now()
+  input.diagnostics?.onStageChange?.('exposure')
   const exposure = await executarExposicaoFinanceira({ fundoId: input.fundoId, dataOperacional: input.dataOperacional, atorUsuarioId: input.atorUsuarioId })
   timings.exposureMs = elapsed(startedAt)
   return { exposure, timings }
@@ -181,10 +201,12 @@ export async function executarGateRisco(input: {
   operacaoId?: string
   taxaDesconto?: number
   origem: 'CENTRAL_RISCO' | 'APROVACAO_OPERACAO'
+  diagnostics?: RiskGateDiagnostics
 }) {
   const totalStartedAt = Date.now()
   const client = admin()
   const correlationId = randomUUID()
+  input.diagnostics?.onStageChange?.('policy')
   const resolved = await resolvePolicy(client, input)
   const policy = policyFrom(resolved.version)
   let exposure: Row | null = null
@@ -204,18 +226,24 @@ export async function executarGateRisco(input: {
   if (policy.active) {
     try {
       const evaluated = await withRiskGateTimeout((async () => {
-        const refreshed = await refreshCanonicalSnapshots(input)
+        const operationId = input.operacaoId
+        const candidatePromise = operationId
+          ? (async () => {
+              if (input.taxaDesconto == null) throw new Error('Taxa da operacao obrigatoria para o gate de aprovacao.')
+              const simulationStartedAt = Date.now()
+              const projection = await candidateProjection(client, { operacaoId: operationId, taxaDesconto: input.taxaDesconto, fundoId: input.fundoId })
+              timings.candidateSimulationMs = elapsed(simulationStartedAt)
+              return projection
+            })()
+          : Promise.resolve(null)
+        const [refreshed, projectedCandidate] = await Promise.all([
+          refreshCanonicalSnapshots(input),
+          candidatePromise,
+        ])
         Object.assign(timings, refreshed.timings)
         const loaded = await client.from('exposicao_execucoes').select('*').eq('id', refreshed.exposure.execucaoId).single()
         if (loaded.error || !loaded.data) throw new Error('Snapshot P2.5 atualizado nao encontrado.')
         const loadedExposure = loaded.data as Row
-        let projectedCandidate: RiskCandidateProjection | null = null
-        if (input.operacaoId) {
-          if (input.taxaDesconto == null) throw new Error('Taxa da operacao obrigatoria para o gate de aprovacao.')
-          const simulationStartedAt = Date.now()
-          projectedCandidate = await candidateProjection(client, { operacaoId: input.operacaoId, taxaDesconto: input.taxaDesconto, fundoId: input.fundoId })
-          timings.candidateSimulationMs = elapsed(simulationStartedAt)
-        }
         return { exposure: loadedExposure, candidate: projectedCandidate }
       })())
       exposure = evaluated.exposure
@@ -225,6 +253,7 @@ export async function executarGateRisco(input: {
     }
   }
 
+  input.diagnostics?.onStageChange?.('classification')
   const classificationStartedAt = Date.now()
   const classification = classificarGateRisco({
     policy,
@@ -299,9 +328,11 @@ export async function executarGateRisco(input: {
       detalhes: reason.details || {},
     })),
   }
+  input.diagnostics?.onStageChange?.('persistence')
   const persistenceStartedAt = Date.now()
   const persisted = await persist(client, payload)
   timings.persistenceMs = elapsed(persistenceStartedAt)
   timings.totalMs = elapsed(totalStartedAt)
+  input.diagnostics?.onStageChange?.(null)
   return { ...persisted, classification, signature, correlationId, timings }
 }

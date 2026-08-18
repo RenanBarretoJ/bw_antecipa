@@ -1,0 +1,59 @@
+{
+  "schema": "bw-antecipa-p2-6-9-performance-changes-v2",
+  "generated_at": "2026-08-18T14:05:56.261Z",
+  "status": "PASS",
+  "environment": "homolog",
+  "project_ref": "fhgkmggthxikfpogrvaa",
+  "previous_attempt": {
+    "generated_at": "2026-08-18",
+    "status": "PERFORMANCE_BLOCKED_BY_CREDENTIAL_ROTATION",
+    "credential_rotation_required": true,
+    "credential_rotation_completed": false,
+    "administrative_credential_used": false,
+    "measured_runs": 0,
+    "note": "Evidencia historica preservada. A tentativa anterior foi interrompida antes do benchmark por credencial administrativa pendente de rotacao."
+  },
+  "changes": [
+    {
+      "id": "REQUEST_SCOPED_FINANCIAL_READ_CACHE",
+      "files": [
+        "src/lib/financeiro/conciliacao/processor.server.ts"
+      ],
+      "description": "Compartilha, apenas durante uma execucao do pipeline, leituras imutaveis da ultima importacao publicada e das linhas canonicas entre matching e conciliacao.",
+      "safety": "Promessas com falha sao removidas do cache; crosswalk mutavel nao e cacheado; nenhuma decisao, regra, assinatura ou persistencia foi alterada."
+    },
+    {
+      "id": "PARALLEL_CANDIDATE_PROJECTION",
+      "files": [
+        "src/lib/financeiro/risco/processor.server.ts"
+      ],
+      "description": "Executa a projecao candidata em paralelo com a atualizacao canonica independente.",
+      "safety": "As duas tarefas permanecem obrigatorias e sao aguardadas antes da classificacao e persistencia."
+    },
+    {
+      "id": "PARALLEL_EXPOSURE_READS",
+      "files": [
+        "src/lib/financeiro/exposicao/processor.server.ts"
+      ],
+      "description": "Agrupa leituras independentes de reconciliacao, posicao e overlay com Promise.all.",
+      "safety": "Somente a ordem de espera foi alterada; filtros, dados retornados e regras de exposicao foram preservados."
+    },
+    {
+      "id": "REPRODUCIBLE_BENCHMARK_INSTRUMENTATION",
+      "files": [
+        "scripts/homologacao/financeiro/risco/benchmark.mjs",
+        "scripts/homologacao/financeiro/risco/benchmark-worker.ts",
+        "src/lib/financeiro/risco/benchmark-stats.ts",
+        "src/lib/financeiro/risco/benchmark-stats.test.ts"
+      ],
+      "description": "Adiciona protocolo formal de warm-up/amostragem, percentis nearest-rank, todas as amostras, tracing de requests e guard estrito de homologacao.",
+      "safety": "O runner recusa projeto diferente de homologacao e nunca serializa credenciais."
+    }
+  ],
+  "migrations_created": 0,
+  "indexes_created": 0,
+  "rpcs_changed": 0,
+  "application_files_changed": 7,
+  "semantic_rules_changed": 0,
+  "security_controls_removed": 0
+}

@@ -1,0 +1,412 @@
+{
+  "schema": "bw-antecipa-p2-6-9-performance-profile-v2",
+  "generated_at": "2026-08-18T14:05:56.261Z",
+  "status": "PASS",
+  "environment": "homolog",
+  "project_ref": "fhgkmggthxikfpogrvaa",
+  "production_touched": false,
+  "credential_rotation_required": false,
+  "credential_rotation_completed": true,
+  "administrative_credential_used": true,
+  "previous_attempt": {
+    "generated_at": "2026-08-18",
+    "status": "PERFORMANCE_BLOCKED_BY_CREDENTIAL_ROTATION",
+    "credential_rotation_required": true,
+    "credential_rotation_completed": false,
+    "administrative_credential_used": false,
+    "measured_runs": 0,
+    "note": "Evidencia historica preservada. A tentativa anterior foi interrompida antes do benchmark por credencial administrativa pendente de rotacao."
+  },
+  "profiling_executed": true,
+  "protocol": {
+    "profile_before": {
+      "warmups": 1,
+      "runs": 3
+    },
+    "profile_after": {
+      "warmups": 1,
+      "runs": 3
+    },
+    "formal_before": {
+      "warmups_executed": 5,
+      "measured_runs": 20,
+      "outliers_removed": 0,
+      "percentile_method": "nearest-rank"
+    },
+    "formal_after": {
+      "warmups_executed": 5,
+      "measured_runs": 20,
+      "outliers_removed": 0,
+      "percentile_method": "nearest-rank"
+    }
+  },
+  "round_trips": {
+    "before": {
+      "total": 66,
+      "rpc": 6,
+      "rest": 60,
+      "by_stage": {
+        "policy": {
+          "total": 3,
+          "rpc": 0,
+          "rest": 3,
+          "other": 0
+        },
+        "matching": {
+          "total": 10,
+          "rpc": 1,
+          "rest": 9,
+          "other": 0
+        },
+        "reconciliation": {
+          "total": 16,
+          "rpc": 1,
+          "rest": 15,
+          "other": 0
+        },
+        "logistics": {
+          "total": 13,
+          "rpc": 1,
+          "rest": 12,
+          "other": 0
+        },
+        "exposure": {
+          "total": 13,
+          "rpc": 1,
+          "rest": 12,
+          "other": 0
+        },
+        "candidateSimulation": {
+          "total": 7,
+          "rpc": 1,
+          "rest": 6,
+          "other": 0
+        },
+        "persistence": {
+          "total": 4,
+          "rpc": 1,
+          "rest": 3,
+          "other": 0
+        }
+      }
+    },
+    "after": {
+      "total": 58,
+      "rpc": 6,
+      "rest": 52,
+      "by_stage": {
+        "policy": {
+          "total": 3,
+          "rpc": 0,
+          "rest": 3,
+          "other": 0
+        },
+        "matching": {
+          "total": 17,
+          "rpc": 2,
+          "rest": 15,
+          "other": 0
+        },
+        "reconciliation": {
+          "total": 8,
+          "rpc": 1,
+          "rest": 7,
+          "other": 0
+        },
+        "logistics": {
+          "total": 13,
+          "rpc": 1,
+          "rest": 12,
+          "other": 0
+        },
+        "exposure": {
+          "total": 13,
+          "rpc": 1,
+          "rest": 12,
+          "other": 0
+        },
+        "persistence": {
+          "total": 4,
+          "rpc": 1,
+          "rest": 3,
+          "other": 0
+        }
+      }
+    },
+    "delta": {
+      "before": 66,
+      "after": 58,
+      "absolute": -8,
+      "percent": -12.12
+    },
+    "note": "A atribuicao por etapa muda apos o cache compartilhado porque leituras reutilizadas passam a ocorrer na primeira etapa consumidora. O total instrumentado e a metrica comparavel."
+  },
+  "stage_profile": {
+    "before": {
+      "matchingMs": {
+        "count": 20,
+        "min": 685,
+        "p25": 702,
+        "p50": 722,
+        "p75": 764,
+        "p90": 812,
+        "p95": 865,
+        "max": 944,
+        "mean": 750.65,
+        "standardDeviation": 63.31
+      },
+      "reconciliationMs": {
+        "count": 20,
+        "min": 877,
+        "p25": 902,
+        "p50": 944,
+        "p75": 1024,
+        "p90": 1196,
+        "p95": 1199,
+        "max": 2128,
+        "mean": 1047,
+        "standardDeviation": 271.32
+      },
+      "logisticsMs": {
+        "count": 20,
+        "min": 1337,
+        "p25": 1367,
+        "p50": 1392,
+        "p75": 1428,
+        "p90": 1530,
+        "p95": 1536,
+        "max": 1630,
+        "mean": 1417.7,
+        "standardDeviation": 72.93
+      },
+      "exposureMs": {
+        "count": 20,
+        "min": 1983,
+        "p25": 2074,
+        "p50": 2090,
+        "p75": 2128,
+        "p90": 2195,
+        "p95": 2325,
+        "max": 3781,
+        "mean": 2188.4,
+        "standardDeviation": 371.79
+      },
+      "candidateSimulationMs": {
+        "count": 20,
+        "min": 499,
+        "p25": 508,
+        "p50": 524,
+        "p75": 572,
+        "p90": 626,
+        "p95": 658,
+        "max": 839,
+        "mean": 559.85,
+        "standardDeviation": 76.85
+      },
+      "classificationMs": {
+        "count": 20,
+        "min": 0,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 1,
+        "p95": 1,
+        "max": 1,
+        "mean": 0.15,
+        "standardDeviation": 0.36
+      },
+      "persistenceMs": {
+        "count": 20,
+        "min": 328,
+        "p25": 334,
+        "p50": 343,
+        "p75": 353,
+        "p90": 398,
+        "p95": 422,
+        "max": 435,
+        "mean": 354.65,
+        "standardDeviation": 29.1
+      },
+      "totalMs": {
+        "count": 20,
+        "min": 6511,
+        "p25": 6665,
+        "p50": 6867,
+        "p75": 7202,
+        "p90": 7409,
+        "p95": 7957,
+        "max": 8864,
+        "mean": 7024.6,
+        "standardDeviation": 542.73
+      }
+    },
+    "after": {
+      "matchingMs": {
+        "count": 20,
+        "min": 702,
+        "p25": 723,
+        "p50": 736,
+        "p75": 784,
+        "p90": 978,
+        "p95": 1215,
+        "max": 1516,
+        "mean": 818.25,
+        "standardDeviation": 197.36
+      },
+      "reconciliationMs": {
+        "count": 20,
+        "min": 834,
+        "p25": 866,
+        "p50": 880,
+        "p75": 932,
+        "p90": 950,
+        "p95": 953,
+        "max": 960,
+        "mean": 893.4,
+        "standardDeviation": 37.97
+      },
+      "logisticsMs": {
+        "count": 20,
+        "min": 1364,
+        "p25": 1389,
+        "p50": 1419,
+        "p75": 1442,
+        "p90": 1456,
+        "p95": 1477,
+        "max": 1521,
+        "mean": 1422.55,
+        "standardDeviation": 36.43
+      },
+      "exposureMs": {
+        "count": 20,
+        "min": 1822,
+        "p25": 1877,
+        "p50": 1902,
+        "p75": 1933,
+        "p90": 1950,
+        "p95": 1961,
+        "max": 2079,
+        "mean": 1913,
+        "standardDeviation": 49.85
+      },
+      "candidateSimulationMs": {
+        "count": 20,
+        "min": 541,
+        "p25": 557,
+        "p50": 582,
+        "p75": 614,
+        "p90": 654,
+        "p95": 889,
+        "max": 1206,
+        "mean": 632.65,
+        "standardDeviation": 150.09
+      },
+      "classificationMs": {
+        "count": 20,
+        "min": 0,
+        "p25": 0,
+        "p50": 0,
+        "p75": 1,
+        "p90": 1,
+        "p95": 1,
+        "max": 1,
+        "mean": 0.4,
+        "standardDeviation": 0.49
+      },
+      "persistenceMs": {
+        "count": 20,
+        "min": 330,
+        "p25": 346,
+        "p50": 362,
+        "p75": 381,
+        "p90": 415,
+        "p95": 417,
+        "max": 479,
+        "mean": 373.25,
+        "standardDeviation": 33.75
+      },
+      "totalMs": {
+        "count": 20,
+        "min": 5855,
+        "p25": 5938,
+        "p50": 6065,
+        "p75": 6129,
+        "p90": 6331,
+        "p95": 6839,
+        "max": 6916,
+        "mean": 6127.85,
+        "standardDeviation": 272.47
+      }
+    }
+  },
+  "pg_stat_statements": {
+    "available": true,
+    "observation": "As consultas/RPCs observadas permaneceram na faixa de sub-milisegundos a poucos milissegundos no PostgreSQL; a latencia acumulada de rede/Data API dominava o tempo total.",
+    "samples": [
+      {
+        "operation": "simulacao de memoria financeira",
+        "mean_exec_ms": 3.847
+      },
+      {
+        "operation": "persistencia de posicao",
+        "mean_exec_ms": 2.739
+      },
+      {
+        "operation": "leituras canonicas",
+        "mean_exec_ms_range": [
+          0.3,
+          0.5
+        ]
+      }
+    ]
+  },
+  "query_plans": [
+    {
+      "query": "ultima importacao financeira publicada por fundo/capability",
+      "command": "EXPLAIN (ANALYZE, BUFFERS)",
+      "plan": "Index Scan using importacoes_publicada_unica_idx",
+      "shared_buffers": "hit only",
+      "execution_ms": 0.185,
+      "conclusion": "Indice existente adequado; nenhuma migration ou indice adicional justificado."
+    }
+  ],
+  "bottleneck": {
+    "primary": "round_trips_repetidos_via_data_api",
+    "evidence": "66 requests por execucao antes, com SQL individual rapido; 58 requests apos reutilizar leituras imutaveis."
+  },
+  "selected_optimizations": [
+    {
+      "id": "REQUEST_SCOPED_FINANCIAL_READ_CACHE",
+      "description": "Compartilha, apenas durante uma execucao do pipeline, leituras imutaveis da ultima importacao publicada e das linhas canonicas entre matching e conciliacao.",
+      "safety": "Promessas com falha sao removidas do cache; crosswalk mutavel nao e cacheado; nenhuma decisao, regra, assinatura ou persistencia foi alterada."
+    },
+    {
+      "id": "PARALLEL_CANDIDATE_PROJECTION",
+      "description": "Executa a projecao candidata em paralelo com a atualizacao canonica independente.",
+      "safety": "As duas tarefas permanecem obrigatorias e sao aguardadas antes da classificacao e persistencia."
+    },
+    {
+      "id": "PARALLEL_EXPOSURE_READS",
+      "description": "Agrupa leituras independentes de reconciliacao, posicao e overlay com Promise.all.",
+      "safety": "Somente a ordem de espera foi alterada; filtros, dados retornados e regras de exposicao foram preservados."
+    }
+  ],
+  "rejected_optimizations": [
+    {
+      "id": "NO_SPECULATIVE_INDEX",
+      "reason": "O plano real ja utiliza indice e executa em 0.185 ms."
+    },
+    {
+      "id": "NO_RPC_REWRITE",
+      "reason": "A reducao necessaria foi atingida sem alterar contratos SQL/RPC."
+    },
+    {
+      "id": "NO_TIMEOUT_INCREASE",
+      "reason": "O limite nao foi elevado para mascarar latencia."
+    },
+    {
+      "id": "NO_CONTROL_REMOVAL",
+      "reason": "RLS, auditoria, locks, idempotencia e fail-closed foram preservados."
+    }
+  ]
+}

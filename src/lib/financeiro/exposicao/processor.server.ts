@@ -153,6 +153,8 @@ export async function executarExposicaoFinanceira(input: {
     return { execucaoId: row.id, status: row.status }
   }
 
+  const reconciliationPromise = client.from('conciliacao_execucoes').select('id').eq('fundo_id', input.fundoId)
+    .eq('matching_execucao_id', String(position.matching_execucao_id)).eq('status', 'CONCLUIDA').order('created_at', { ascending: false }).limit(1).maybeSingle()
   const rowsResult = await client.from('posicao_logistica_resultados').select('id,status_vinculo,status_logistico,valor_aquisicao,nota_fiscal_id')
     .eq('execucao_id', position.id).eq('fundo_id', input.fundoId)
   if (rowsResult.error) throw new Error(`Nao foi possivel carregar os buckets P2.4: ${rowsResult.error.message}`)
@@ -161,13 +163,14 @@ export async function executarExposicaoFinanceira(input: {
     statusVinculo: row.status_vinculo as ExposureBaseRow['statusVinculo'], statusLogistico: row.status_logistico as ExposureBaseRow['statusLogistico'], valorAquisicao: nullable(row.valor_aquisicao),
   })))
   const incorporated = new Set(sourceRows.map((row) => nullable(row.nota_fiscal_id)).filter((id): id is string => Boolean(id)))
-  const overlay = await resolveOverlay(client, { fundoId: input.fundoId, dataOperacional: input.dataOperacional, overlayAsOf, incorporatedNoteIds: incorporated })
+  const [overlay, reconciliation] = await Promise.all([
+    resolveOverlay(client, { fundoId: input.fundoId, dataOperacional: input.dataOperacional, overlayAsOf, incorporatedNoteIds: incorporated }),
+    reconciliationPromise,
+  ])
   const flags: ExposureQualityFlag[] = []
   if (base.quantidadeSemMatch) flags.push('TEM_SEM_MATCH')
   if (base.quantidadeIndeterminada) flags.push('TEM_INDETERMINADA')
   if (base.valorAusente) flags.push('TEM_VALOR_AUSENTE')
-  const reconciliation = await client.from('conciliacao_execucoes').select('id').eq('fundo_id', input.fundoId)
-    .eq('matching_execucao_id', String(position.matching_execucao_id)).eq('status', 'CONCLUIDA').order('created_at', { ascending: false }).limit(1).maybeSingle()
   if (reconciliation.error) throw new Error(`Nao foi possivel consultar liquidacoes parciais: ${reconciliation.error.message}`)
   if (reconciliation.data) {
     const partial = await client.from('conciliacao_resultados').select('id', { count: 'exact', head: true })
