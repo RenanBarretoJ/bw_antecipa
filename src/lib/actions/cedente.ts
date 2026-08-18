@@ -6,7 +6,12 @@ import { requireAuthenticated, requireGestor } from '@/lib/auth/authorization'
 import { cedenteSchema, type CedenteFormData } from '@/lib/validations/cedente'
 import { registrarLog } from './auditoria'
 import { notificarGestores } from './notificacao'
-import { buckets } from '@/lib/storage'
+import {
+  criarCaminhoDocumentoCadastral,
+  executarUploadDocumentoCadastral,
+  validarArquivoDocumentoCadastral,
+  type DocumentoCadastralUploadClient,
+} from '@/lib/documentos-cadastrais/upload'
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>
 
@@ -124,65 +129,48 @@ export async function uploadDocumento(formData: FormData): Promise<CedenteAction
   }
   const tipoDocumento = tipo as DocumentoTipo
 
-  const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png']
-  if (!allowedTypes.includes(file.type)) {
-    return { success: false, message: 'Formato invalido. Aceitos: PDF, JPG, PNG.' }
-  }
+  const fileValidationError = validarArquivoDocumentoCadastral(file)
+  if (fileValidationError) return { success: false, message: fileValidationError }
 
-  if (file.size > 20 * 1024 * 1024) {
-    return { success: false, message: 'Arquivo muito grande. Maximo: 20MB.' }
-  }
+  const filePath = criarCaminhoDocumentoCadastral({
+    cnpj: cedenteData.cnpj,
+    tipo: tipoDocumento,
+    nomeArquivo: file.name,
+    representanteId,
+    uploadId: crypto.randomUUID(),
+  })
 
-  // Buscar versao atual, filtrando por representante_id se presente
-  let versionQuery = supabase
-    .from('documentos')
-    .select('versao')
-    .eq('cedente_id', cedenteData.id)
-    .eq('tipo', tipoDocumento)
-    .order('versao', { ascending: false })
-    .limit(1)
+  const result = await executarUploadDocumentoCadastral({
+    client: supabase as unknown as DocumentoCadastralUploadClient,
+    file,
+    tipo: tipoDocumento,
+    storagePath: filePath,
+    representanteId,
+  })
 
-  if (representanteId) {
-    versionQuery = versionQuery.eq('representante_id', representanteId)
-  } else {
-    versionQuery = versionQuery.is('representante_id', null)
-  }
-
-  const { data: existingDocs } = await versionQuery
-
-  const docs = (existingDocs || []) as Array<{ versao: number }>
-  const novaVersao = docs.length > 0 ? docs[0].versao + 1 : 1
-
-  const timestamp = Date.now()
-  const cleanName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
-  const subpasta = representanteId ? `representantes/${representanteId}` : tipo
-  const filePath = `${cedenteData.cnpj}/${subpasta}/${novaVersao}_${timestamp}_${cleanName}`
-
-  const { error: uploadError } = await supabase.storage
-    .from(buckets.documentos)
-    .upload(filePath, file)
-
-  if (uploadError) {
-    console.error('[uploadDocumento]', uploadError.message)
-    return { success: false, message: `Erro no upload: ${uploadError.message}` }
-  }
-
-  const { error: dbError } = await supabase
-    .from('documentos')
-    .insert({
+  if (!result.ok) {
+    console.error('[uploadDocumento]', {
+      etapa: result.etapa,
+      codigo: result.etapa === 'database' ? 'DOCUMENT_DATABASE_FAILURE' : 'DOCUMENT_STORAGE_FAILURE',
+      usuario_id: user.id,
       cedente_id: cedenteData.id,
-      tipo,
-      versao: novaVersao,
-      status: 'enviado',
-      url_arquivo: filePath,
-      nome_arquivo: file.name,
-      representante_id: representanteId || null,
-    } as never)
-
-  if (dbError) {
-    console.error('[uploadDocumento db]', dbError.message)
-    return { success: false, message: `Erro ao registrar documento: ${dbError.message}` }
+      tipo: tipoDocumento,
+      representante_id: representanteId,
+      storage_path: filePath,
+      erro: result.message,
+      compensacao_erro: result.compensationError || null,
+    })
+    return {
+      success: false,
+      message: result.compensationError
+        ? 'Nao foi possivel registrar o documento e a limpeza automatica do arquivo falhou. Contate o suporte.'
+        : result.etapa === 'storage'
+          ? 'Nao foi possivel enviar o arquivo. Tente novamente.'
+          : 'Nao foi possivel registrar o documento. O arquivo enviado foi removido; tente novamente.',
+    }
   }
+
+  const novaVersao = result.documento.versao
 
   await registrarLog({
     tipo_evento: 'DOCUMENTO_ENVIADO',
@@ -210,7 +198,7 @@ export async function reenviarDocumento(documentoId: string, formData: FormData)
 
   const { data: doc } = await supabase
     .from('documentos')
-    .select('tipo, cedente_id')
+    .select('tipo, cedente_id, representante_id')
     .eq('id', documentoId)
     .single()
 
@@ -218,12 +206,13 @@ export async function reenviarDocumento(documentoId: string, formData: FormData)
     return { success: false, message: 'Documento nao encontrado.' }
   }
 
-  const docData = doc as { tipo: string; cedente_id: string }
+  const docData = doc as { tipo: string; cedente_id: string; representante_id: string | null }
 
   // Usar uploadDocumento reutilizando a logica
   const newFormData = new FormData()
   newFormData.set('arquivo', formData.get('arquivo') as File)
   newFormData.set('tipo', docData.tipo)
+  if (docData.representante_id) newFormData.set('representante_id', docData.representante_id)
 
   return uploadDocumento(newFormData)
 }

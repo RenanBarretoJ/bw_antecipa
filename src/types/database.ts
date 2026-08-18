@@ -1936,6 +1936,15 @@ export interface Database {
         Args: { p_cadastro: Record<string, unknown> }
         Returns: { id: string; razao_social: string; criado: boolean; idempotente: boolean }
       }
+      registrar_documento_cadastral_cedente: {
+        Args: {
+          p_tipo: DocumentoTipo
+          p_storage_path: string
+          p_nome_arquivo: string
+          p_representante_id?: string | null
+        }
+        Returns: Array<{ documento_id: string; versao: number; status: DocumentoStatus; storage_path: string }>
+      }
       admin_resumo_fundos: { Args: Record<string, never>; Returns: Record<string, unknown> }
       admin_listar_fundos: { Args: { p_busca?: string | null; p_status?: string; p_pagina?: number; p_por_pagina?: number }; Returns: Record<string, unknown> }
       admin_obter_fundo: { Args: { p_fundo_id: string }; Returns: Record<string, unknown> | null }
