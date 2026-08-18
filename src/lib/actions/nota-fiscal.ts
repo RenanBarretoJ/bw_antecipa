@@ -12,7 +12,7 @@ import { uploadDocumentoSeRequerido } from '@/lib/documentos-v2/upload'
 import { avaliarGateDuplicatasDaNota } from '@/lib/duplicatas/gate.server'
 import { CedenteFundoError, mensagemOperacionalSemVinculo, resolverCedenteFundoAtivo } from '@/lib/fundos/cedente-fundo'
 import { decidirAcaoDuplicidadeNotaFiscal, mensagemDuplicidadeNotaFiscal } from '@/lib/notas-fiscais/upload-context'
-import { formatarDetalhesBloqueioEmitente, validarXmlNfeParaUploadCedente } from '@/lib/notas-fiscais/emitente-autorizado'
+import { extrairCnpjDaChaveAcesso, formatarDetalhesBloqueioEmitente, validarXmlNfeParaUploadCedente } from '@/lib/notas-fiscais/emitente-autorizado'
 import { obterFundoAtivoAutorizado } from '@/lib/fundos/fundo-ativo.server'
 import { carregarContextoEventoNota, registrarEventoDominio } from '@/lib/eventos-dominio/registrar'
 import { listarChecklistDaNota } from '@/lib/actions/documento-v2'
@@ -21,6 +21,7 @@ import { avaliarElegibilidadeAprovacaoNf } from '@/lib/notas-fiscais/elegibilida
 import { revalidatePath } from 'next/cache'
 import { resolverContextoFundoGestor } from '@/lib/gestor/contexto-fundo.server'
 import { carregarResumoDocumentalDasNotas } from '@/lib/notas-fiscais/resumo-documental-gestor.server'
+import { resolverEstabelecimentoOrigem } from '@/lib/cedentes/estabelecimentos.server'
 
 export type NfActionState = {
   success?: boolean
@@ -363,6 +364,7 @@ async function processarArquivo(
       const preValidacao = validarXmlNfeParaUploadCedente({
         xmlContent,
         cnpjCedente: cedente.cnpj,
+        permitirEstabelecimentoDoCedente: true,
       })
 
       if (!preValidacao.ok) {
@@ -375,6 +377,12 @@ async function processarArquivo(
       }
 
       const parsed = preValidacao.parsed
+      const estabelecimento = await resolverEstabelecimentoOrigem({
+        supabase,
+        cedenteId: cedente.id,
+        fundoId: context.fundoId,
+        cnpjEmitente: parsed.cnpj_emitente,
+      })
 
       if (parsed.chave_acesso) {
         const duplicidade = await recuperarDuplicidadeIncompleta(arquivo, context, parsed.chave_acesso, supabase)
@@ -393,6 +401,7 @@ async function processarArquivo(
           cedente_id: cedente.id,
           cedente_fundo_id: context.cedenteFundoId,
           fundo_id: context.fundoId,
+          estabelecimento_id: estabelecimento.id,
           numero_nf: parsed.numero_nf,
           serie: parsed.serie || null,
           chave_acesso: parsed.chave_acesso || null,
@@ -468,12 +477,27 @@ async function processarArquivo(
       return { ok: true, id: nfData.id, isRascunho: true }
 
     } else {
+      let extracted: NfPdfExtracted = { campos_extraidos: [] }
       if (isPdf) {
-        const earlyExtracted = await extractDanfeFromPdf(Buffer.from(await arquivo.arrayBuffer()))
-        if (!earlyExtracted.chave_acesso && !earlyExtracted.numero_nf) {
+        extracted = await extractDanfeFromPdf(Buffer.from(await arquivo.arrayBuffer()))
+        if (!extracted.chave_acesso && !extracted.numero_nf) {
           return { ok: false, error: `${arquivo.name}: o PDF nao foi reconhecido como DANFE de uma NF.` }
         }
       }
+
+      // O parser de DANFE não confia em CNPJ textual do PDF. Quando existe chave
+      // oficial, o CNPJ emitente é derivado das posições fiscais da própria chave.
+      // Arquivos sem chave preservam o fallback legado para a Matriz e deverão ser
+      // confirmados no preenchimento manual antes da submissão.
+      const cnpjEmitenteOficial = extracted.chave_acesso
+        ? extrairCnpjDaChaveAcesso(extracted.chave_acesso)
+        : cnpjLimpo
+      const estabelecimento = await resolverEstabelecimentoOrigem({
+        supabase,
+        cedenteId: cedente.id,
+        fundoId: context.fundoId,
+        cnpjEmitente: cnpjEmitenteOficial,
+      })
 
       const { error: uploadError } = await supabase.storage
         .from(buckets.notasFiscais).upload(filePath, arquivo)
@@ -482,14 +506,6 @@ async function processarArquivo(
       }
 
       const today = new Date().toISOString().split('T')[0]
-      let extracted: NfPdfExtracted = { campos_extraidos: [] }
-      if (isPdf) {
-        try {
-          extracted = await extractDanfeFromPdf(Buffer.from(await arquivo.arrayBuffer()))
-        } catch {
-          // falha silenciosa — PDF fica como rascunho para preenchimento manual
-        }
-      }
 
       const { data: nf, error: dbError } = await supabase
         .from('notas_fiscais')
@@ -497,13 +513,14 @@ async function processarArquivo(
           cedente_id: cedente.id,
           cedente_fundo_id: context.cedenteFundoId,
           fundo_id: context.fundoId,
+          estabelecimento_id: estabelecimento.id,
           numero_nf: extracted.numero_nf ?? '',
           serie: extracted.serie ?? null,
           chave_acesso: extracted.chave_acesso ?? null,
           data_emissao: extracted.data_emissao ?? today,
           data_vencimento: extracted.data_vencimento ?? today,
-          cnpj_emitente: cnpjLimpo,
-          razao_social_emitente: cedente.razao_social,
+          cnpj_emitente: estabelecimento.cnpj,
+          razao_social_emitente: estabelecimento.razaoSocial,
           cnpj_destinatario: extracted.cnpj_destinatario ?? '',
           razao_social_destinatario: extracted.razao_social_destinatario ?? '',
           valor_bruto: extracted.valor_bruto ?? 0,
@@ -555,7 +572,7 @@ async function processarArquivo(
     }
   } catch (e) {
     logUploadNf('erro_inesperado_processar_arquivo', { ...context, erro: e })
-    return { ok: false, error: `${arquivo.name}: erro inesperado ao processar.` }
+    return { ok: false, error: `${arquivo.name}: ${e instanceof Error ? e.message : 'erro inesperado ao processar.'}` }
   }
 }
 
@@ -614,6 +631,17 @@ export async function criarNFManual(formData: FormData): Promise<NfActionState> 
   const context = await resolverContextoUploadCedente(supabase)
   if ('error' in context) return { success: false, message: context.error }
   const { cedente } = context
+  let estabelecimento
+  try {
+    estabelecimento = await resolverEstabelecimentoOrigem({
+      supabase,
+      cedenteId: cedente.id,
+      fundoId: context.fundoId,
+      cnpjEmitente: cedente.cnpj,
+    })
+  } catch (error) {
+    return { success: false, message: error instanceof Error ? error.message : 'CNPJ emitente nao autorizado.' }
+  }
 
   const arquivo = formData.get('arquivo') as File | null
   if (!arquivo) {
@@ -660,13 +688,14 @@ export async function criarNFManual(formData: FormData): Promise<NfActionState> 
       cedente_id: cedente.id,
       cedente_fundo_id: context.cedenteFundoId,
       fundo_id: context.fundoId,
+      estabelecimento_id: estabelecimento.id,
       numero_nf,
       serie: null,
       chave_acesso: null,
       data_emissao,
       data_vencimento,
-      cnpj_emitente: cnpjLimpo,
-      razao_social_emitente: cedente.razao_social,
+      cnpj_emitente: estabelecimento.cnpj,
+      razao_social_emitente: estabelecimento.razaoSocial,
       cnpj_destinatario,
       razao_social_destinatario,
       valor_bruto,
@@ -729,11 +758,9 @@ export async function criarNFManual(formData: FormData): Promise<NfActionState> 
 export async function salvarDadosNF(nfId: string, data: NotaFiscalFormData): Promise<NfActionState> {
   await requireAuthenticated()
   const supabase = await createClient()
-  const cedente = await getCedenteDoUsuario()
-
-  if (!cedente) {
-    return { success: false, message: 'Cadastro de cedente nao encontrado.' }
-  }
+  const context = await resolverContextoUploadCedente(supabase)
+  if ('error' in context) return { success: false, message: context.error }
+  const { cedente } = context
 
   const validated = notaFiscalSchema.safeParse(data)
 
@@ -744,11 +771,17 @@ export async function salvarDadosNF(nfId: string, data: NotaFiscalFormData): Pro
     }
   }
 
-  // Verificar CNPJ emitente
-  const cnpjLimpo = cedente.cnpj.replace(/\D/g, '')
   const cnpjEmitenteLimpo = validated.data.cnpj_emitente.replace(/\D/g, '')
-  if (cnpjEmitenteLimpo !== cnpjLimpo) {
-    return { success: false, message: 'CNPJ emitente deve ser igual ao CNPJ do seu cadastro.' }
+  let estabelecimento
+  try {
+    estabelecimento = await resolverEstabelecimentoOrigem({
+      supabase,
+      cedenteId: cedente.id,
+      fundoId: context.fundoId,
+      cnpjEmitente: cnpjEmitenteLimpo,
+    })
+  } catch (error) {
+    return { success: false, message: error instanceof Error ? error.message : 'CNPJ emitente nao autorizado.' }
   }
 
   // Verificar duplicidade por chave de acesso
@@ -774,6 +807,7 @@ export async function salvarDadosNF(nfId: string, data: NotaFiscalFormData): Pro
       data_emissao: validated.data.data_emissao,
       data_vencimento: validated.data.data_vencimento,
       cnpj_emitente: cnpjEmitenteLimpo,
+      estabelecimento_id: estabelecimento.id,
       razao_social_emitente: validated.data.razao_social_emitente,
       cnpj_destinatario: validated.data.cnpj_destinatario.replace(/\D/g, ''),
       razao_social_destinatario: validated.data.razao_social_destinatario,

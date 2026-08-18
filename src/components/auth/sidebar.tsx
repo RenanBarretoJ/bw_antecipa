@@ -29,6 +29,7 @@ export const gestorMenuItems: SidebarItem[] = [
 export const cedenteMenuItems: SidebarItem[] = [
   { label: 'Dashboard', href: '/cedente/dashboard', icon: LayoutDashboard },
   { label: 'Cadastro', href: '/cedente/cadastro', icon: Users },
+  { label: 'Meus CNPJs', href: '/cedente/estabelecimentos', icon: Building2 },
   { label: 'Meus Documentos', href: '/cedente/documentos', icon: FileCheck },
   { label: 'Minhas NFs', href: '/cedente/notas-fiscais', icon: Receipt },
   { label: 'Minhas Operacoes', href: '/cedente/operacoes', icon: Banknote },

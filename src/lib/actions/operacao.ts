@@ -15,6 +15,7 @@ import { carregarContextoEventoOperacao, registrarEventoDominio } from '@/lib/ev
 import { calcularAntecipacaoEmLote } from '@/lib/operacoes/calculo'
 import { obterDataCivilOperacional } from '@/lib/operacoes/data-operacional.server'
 import { executarGateRisco } from '@/lib/financeiro/risco/processor.server'
+import { validarComposicaoEstabelecimentosOperacao } from '@/lib/cedentes/estabelecimentos'
 
 export type OperacaoActionState = {
   success?: boolean
@@ -108,7 +109,7 @@ export async function solicitarAntecipacao(nfIds: string[]): Promise<OperacaoAct
   // Buscar NFs selecionadas — devem ser aprovadas e pertencer ao cedente
   const { data: nfs } = await supabase
     .from('notas_fiscais')
-    .select('id, valor_bruto, data_vencimento, status, numero_nf, cnpj_destinatario, razao_social_destinatario, cedente_fundo_id, fundo_id')
+    .select('id, estabelecimento_id, valor_bruto, data_vencimento, status, numero_nf, cnpj_destinatario, razao_social_destinatario, cedente_fundo_id, fundo_id')
     .in('id', nfIds)
     .eq('cedente_id', ced.id)
     .eq('status', 'aprovada')
@@ -118,7 +119,7 @@ export async function solicitarAntecipacao(nfIds: string[]): Promise<OperacaoAct
   }
 
   const nfsTyped = nfs as Array<{
-    id: string; valor_bruto: number; data_vencimento: string; status: string;
+    id: string; estabelecimento_id: string | null; valor_bruto: number; data_vencimento: string; status: string;
     numero_nf: string; cnpj_destinatario: string; razao_social_destinatario: string;
     cedente_fundo_id: string | null; fundo_id: string | null
   }>
@@ -129,6 +130,13 @@ export async function solicitarAntecipacao(nfIds: string[]): Promise<OperacaoAct
       message: `${nfIds.length - nfsTyped.length} NF(s) nao estao disponiveis (ja antecipadas, nao aprovadas ou nao encontradas).`,
     }
   }
+
+  // FUTURE_DECISION_RULE_1: centraliza a composicao de CNPJs sem decidir,
+  // nesta fase, se uma operacao pode ou nao misturar estabelecimentos.
+  validarComposicaoEstabelecimentosOperacao({
+    cedenteId: ced.id,
+    estabelecimentoIds: nfsTyped.map((nf) => nf.estabelecimento_id).filter((value): value is string => Boolean(value)),
+  })
 
   // Calcular por NF: prazo individual -> taxa unica da operacao -> valor presente individual.
   const cedenteFundoIds = [...new Set(nfsTyped.map((nf) => nf.cedente_fundo_id).filter(Boolean))]

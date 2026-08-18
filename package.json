@@ -38,6 +38,8 @@
     "homolog:p0:onboarding:apply-migration": "node scripts/homologacao/p0-onboarding/apply-migration.mjs",
     "homolog:p0:documentos:apply-migrations": "node scripts/homologacao/p0-documentos-cedente/apply-migrations.mjs",
     "homolog:p0:documentos:verify": "node scripts/homologacao/p0-documentos-cedente/verify.mjs",
+    "homolog:multi-cnpj:apply-migration": "node scripts/homologacao/multi-cnpj/apply-migration.mjs",
+    "homolog:multi-cnpj:e2e": "node scripts/homologacao/multi-cnpj/e2e.mjs",
     "homolog:logistica:seed": "node scripts/homologacao/central-logistica/seed.mjs",
     "homolog:logistica:verify": "node scripts/homologacao/central-logistica/verify.mjs",
     "homolog:logistica:cleanup": "node scripts/homologacao/central-logistica/cleanup.mjs",

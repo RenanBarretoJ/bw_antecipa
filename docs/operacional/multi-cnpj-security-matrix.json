@@ -1,0 +1,25 @@
+{
+  "feature": "multi_cnpj_cedente",
+  "result": "PASS",
+  "validated_at": "2026-08-18",
+  "environment": "homolog",
+  "project_ref": "fhgkmggthxikfpogrvaa",
+  "roles": {
+    "anon": { "select": false, "mutate": false },
+    "cedente_owner": { "select_own": true, "create_branch_via_rpc": true, "manage_own_bank_via_rpc": true, "upload_required_documents_via_rpc": true, "decide_status": false },
+    "cedente_delegated": { "select_own": true, "create_branch_via_rpc": true, "manage_own_bank_via_rpc": true, "upload_required_documents_via_rpc": true, "decide_status": false },
+    "gestor_authorized_fund": { "select": true, "decide_status_via_rpc_aal2": true, "configure_checklist_via_rpc": true, "direct_write": false },
+    "gestor_other_fund": { "select": false, "mutate": false },
+    "pure_super_admin": { "operational_select": false, "operational_mutate": false },
+    "service_role": { "select": true, "mutate": true, "usage": "backend_and_migrations_only" }
+  },
+  "controls": [
+    "RLS enabled on all new tables",
+    "authenticated receives SELECT only",
+    "mutations are SECURITY DEFINER RPCs with explicit authorization",
+    "PUBLIC and anon privileges revoked",
+    "NF origin is derived server-side",
+    "status decision requires authorized Gestor and application AAL2",
+    "transactional E2E confirmed cross-Cedente, cross-fund, pure super_admin and anon denials"
+  ]
+}

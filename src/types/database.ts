@@ -204,6 +204,48 @@ export interface Cedente {
   updated_at: string
 }
 
+export interface CedenteEstabelecimento {
+  id: string
+  cedente_id: string
+  cnpj: string
+  razao_social: string
+  nome_fantasia: string | null
+  tipo: 'matriz' | 'filial'
+  matriz_estabelecimento_id: string | null
+  status: 'rascunho' | 'pendente' | 'aprovado' | 'rejeitado' | 'suspenso'
+  motivo_status: string | null
+  aprovado_por: string | null
+  aprovado_em: string | null
+  ativo: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface CedenteEstabelecimentoContaBancaria {
+  id: string
+  estabelecimento_id: string
+  banco: string
+  agencia: string
+  conta: string
+  tipo_conta: string | null
+  principal: boolean
+  ativo: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface CedenteEstabelecimentoRequisito {
+  id: string
+  estabelecimento_id: string
+  documento_tipo_id: string
+  obrigatorio: boolean
+  ativo: boolean
+  observacoes: string | null
+  configurado_por: string | null
+  created_at: string
+  updated_at: string
+}
+
 export interface Representante {
   id: string
   cedente_id: string
@@ -459,6 +501,7 @@ export interface DocumentoVinculo {
   operacao_id: string | null
   nota_fiscal_entrega_id: string | null
   cte_id: string | null
+  estabelecimento_id: string | null
   cedente_id: string
   principal: boolean
   created_at: string
@@ -976,6 +1019,7 @@ export interface DevedorSolidario {
 export interface NotaFiscal {
   id: string
   cedente_id: string
+  estabelecimento_id: string | null
   cedente_fundo_id: string | null
   fundo_id: string | null
   numero_nf: string
@@ -1848,6 +1892,9 @@ export interface Database {
       usuario_fundos: { Row: UsuarioFundo & Record<string, unknown>; Insert: InsertShape<UsuarioFundo, 'usuario_id' | 'fundo_id'> & Record<string, unknown>; Update: UpdateShape<UsuarioFundo> & Record<string, unknown>; Relationships: [] }
       plataforma_auditoria: { Row: PlataformaAuditoria & Record<string, unknown>; Insert: InsertShape<PlataformaAuditoria, 'tipo_evento' | 'origem'> & Record<string, unknown>; Update: UpdateShape<PlataformaAuditoria> & Record<string, unknown>; Relationships: [] }
       cedentes: { Row: Cedente & Record<string, unknown>; Insert: InsertShape<Cedente, 'user_id' | 'cnpj' | 'razao_social'> & Record<string, unknown>; Update: UpdateShape<Cedente> & Record<string, unknown>; Relationships: [] }
+      cedente_estabelecimentos: { Row: CedenteEstabelecimento & Record<string, unknown>; Insert: InsertShape<CedenteEstabelecimento, 'cedente_id' | 'cnpj' | 'razao_social' | 'tipo'> & Record<string, unknown>; Update: UpdateShape<CedenteEstabelecimento> & Record<string, unknown>; Relationships: [] }
+      cedente_estabelecimento_contas_bancarias: { Row: CedenteEstabelecimentoContaBancaria & Record<string, unknown>; Insert: InsertShape<CedenteEstabelecimentoContaBancaria, 'estabelecimento_id' | 'banco' | 'agencia' | 'conta' | 'tipo_conta'> & Record<string, unknown>; Update: UpdateShape<CedenteEstabelecimentoContaBancaria> & Record<string, unknown>; Relationships: [] }
+      cedente_estabelecimento_requisitos: { Row: CedenteEstabelecimentoRequisito & Record<string, unknown>; Insert: InsertShape<CedenteEstabelecimentoRequisito, 'estabelecimento_id' | 'documento_tipo_id'> & Record<string, unknown>; Update: UpdateShape<CedenteEstabelecimentoRequisito> & Record<string, unknown>; Relationships: [] }
       documento_tipos: { Row: DocumentoTipoRepositorio & Record<string, unknown>; Insert: InsertShape<DocumentoTipoRepositorio, 'codigo' | 'nome' | 'dominio'> & Record<string, unknown>; Update: UpdateShape<DocumentoTipoRepositorio> & Record<string, unknown>; Relationships: [] }
       documentos_repositorio: { Row: DocumentoRepositorio & Record<string, unknown>; Insert: InsertShape<DocumentoRepositorio, 'documento_tipo_id' | 'criado_por'> & Record<string, unknown>; Update: UpdateShape<DocumentoRepositorio> & Record<string, unknown>; Relationships: [] }
       documento_versoes: { Row: DocumentoVersao & Record<string, unknown>; Insert: InsertShape<DocumentoVersao, 'documento_id' | 'nome_original' | 'mime_type' | 'tamanho_bytes' | 'sha256' | 'enviado_por'> & Record<string, unknown>; Update: UpdateShape<DocumentoVersao> & Record<string, unknown>; Relationships: [] }
@@ -1944,6 +1991,30 @@ export interface Database {
           p_representante_id?: string | null
         }
         Returns: Array<{ documento_id: string; versao: number; status: DocumentoStatus; storage_path: string }>
+      }
+      estabelecimento_pode_originar: {
+        Args: { p_estabelecimento_id: string; p_cedente_id: string; p_fundo_id: string }
+        Returns: boolean
+      }
+      cadastrar_filial_cedente: {
+        Args: { p_cnpj: string; p_razao_social: string; p_nome_fantasia?: string | null }
+        Returns: CedenteEstabelecimento
+      }
+      salvar_conta_estabelecimento_cedente: {
+        Args: { p_estabelecimento_id: string; p_banco: string; p_agencia: string; p_conta: string; p_tipo_conta: string; p_principal?: boolean }
+        Returns: CedenteEstabelecimentoContaBancaria
+      }
+      decidir_estabelecimento_gestor: {
+        Args: { p_estabelecimento_id: string; p_acao: 'aprovar' | 'rejeitar' | 'suspender' | 'reativar'; p_motivo?: string | null }
+        Returns: CedenteEstabelecimento
+      }
+      configurar_requisito_estabelecimento_gestor: {
+        Args: { p_estabelecimento_id: string; p_documento_tipo_id: string; p_obrigatorio?: boolean; p_ativo?: boolean; p_observacoes?: string | null }
+        Returns: CedenteEstabelecimentoRequisito
+      }
+      registrar_documento_estabelecimento_upload: {
+        Args: { p_estabelecimento_id: string; p_requisito_id: string; p_documento_tipo_id: string; p_bucket: string; p_path: string; p_nome_original: string; p_mime_type: string; p_tamanho_bytes: number; p_sha256: string; p_substitui_versao_id?: string | null }
+        Returns: Record<string, unknown>
       }
       admin_resumo_fundos: { Args: Record<string, never>; Returns: Record<string, unknown> }
       admin_listar_fundos: { Args: { p_busca?: string | null; p_status?: string; p_pagina?: number; p_por_pagina?: number }; Returns: Record<string, unknown> }

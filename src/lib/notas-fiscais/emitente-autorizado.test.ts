@@ -100,6 +100,26 @@ describe('validarEmitenteAutorizadoParaCedente', () => {
     expect(result).toMatchObject({ ok: false, code: 'EMITENTE_NAO_AUTORIZADO' })
   })
 
+  it('permite que o fluxo multi-CNPJ resolva a filial no banco sem relaxar chave versus emitente', () => {
+    const filial = '12345678000270'
+    const result = validarEmitenteAutorizadoParaCedente({
+      cnpjCedente: '12345678000190',
+      cnpjEmitente: filial,
+      chaveAcesso: chaveNfe(filial),
+      permitirEstabelecimentoDoCedente: true,
+    })
+
+    expect(result).toMatchObject({ ok: true, cnpjEmitente: filial, cnpjChaveAcesso: filial })
+
+    const divergente = validarEmitenteAutorizadoParaCedente({
+      cnpjCedente: '12345678000190',
+      cnpjEmitente: filial,
+      chaveAcesso: chaveNfe('99888777000166'),
+      permitirEstabelecimentoDoCedente: true,
+    })
+    expect(divergente).toMatchObject({ ok: false, code: 'CHAVE_EMITENTE_DIVERGENTE' })
+  })
+
   it('bloqueia CNPJ invalido no XML', () => {
     const result = validarEmitenteAutorizadoParaCedente({
       cnpjCedente: '12345678000190',

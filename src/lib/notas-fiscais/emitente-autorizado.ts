@@ -66,6 +66,7 @@ export function validarEmitenteAutorizadoParaCedente(input: {
   cnpjCedente: string
   cnpjEmitente: string
   chaveAcesso: string
+  permitirEstabelecimentoDoCedente?: boolean
 }): ValidacaoEmitenteAutorizado {
   const cnpjCedente = normalizarCnpj14(input.cnpjCedente)
   const cnpjEmitente = normalizarCnpj14(input.cnpjEmitente)
@@ -114,10 +115,10 @@ export function validarEmitenteAutorizadoParaCedente(input: {
     }
   }
 
-  // Regra atual: igualdade exata entre CNPJ do emitente e CNPJ cadastrado do cedente.
-  // Evolução futura: substituir este ponto por consulta a matriz/filiais/CNPJs autorizados
-  // sem alterar o fluxo de upload, Storage ou persistência.
-  if (cnpjEmitente !== cnpjCedente) {
+  // O padrão preserva a regra legada de igualdade exata. O fluxo Multi-CNPJ pode
+  // ultrapassar somente esta pré-validação; a autorização real da Matriz/Filial é
+  // obrigatoriamente resolvida no catálogo canônico antes de Storage/INSERT.
+  if (!input.permitirEstabelecimentoDoCedente && cnpjEmitente !== cnpjCedente) {
     return {
       ok: false,
       code: 'EMITENTE_NAO_AUTORIZADO',
@@ -139,6 +140,7 @@ export function validarEmitenteAutorizadoParaCedente(input: {
 export function validarXmlNfeParaUploadCedente(input: {
   xmlContent: string
   cnpjCedente: string
+  permitirEstabelecimentoDoCedente?: boolean
 }): PreValidacaoXmlNfeCedente {
   const parsed = parseNFeXML(input.xmlContent)
   const chaveAcesso = extrairChaveAcessoNfeDoXml(input.xmlContent) || parsed.chave_acesso
@@ -146,6 +148,7 @@ export function validarXmlNfeParaUploadCedente(input: {
     cnpjCedente: input.cnpjCedente,
     cnpjEmitente: parsed.cnpj_emitente,
     chaveAcesso,
+    permitirEstabelecimentoDoCedente: input.permitirEstabelecimentoDoCedente,
   })
 
   if (!validacao.ok) return validacao

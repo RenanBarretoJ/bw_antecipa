@@ -34,6 +34,21 @@ export function gerarCaminhoDocumentoLogistico({
   return `${cedenteId}/logistica/${contextoTipo}/${contextoId}/${tipoCodigo}/${randomUUID()}${ext}`
 }
 
+export function gerarCaminhoDocumentoEstabelecimento({
+  cedenteId,
+  estabelecimentoId,
+  tipoCodigo,
+  nomeOriginal,
+}: {
+  cedenteId: string
+  estabelecimentoId: string
+  tipoCodigo: string
+  nomeOriginal: string
+}): string {
+  const ext = nomeOriginal.includes('.') ? nomeOriginal.slice(nomeOriginal.lastIndexOf('.')).toLowerCase() : ''
+  return `${cedenteId}/estabelecimentos/${estabelecimentoId}/${tipoCodigo}/${randomUUID()}${ext}`
+}
+
 export function gerarCaminhoDuplicata({
   cedenteId,
   notaFiscalId,

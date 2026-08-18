@@ -27,6 +27,7 @@ import { DetailField, DetailSection, FieldGrid, StatusBadge } from '@/components
 import { useNotifications } from '@/components/notifications/notification-provider'
 import { useFundoAtivo } from '@/components/fundos/fundo-ativo-provider'
 import { FilePreviewContent } from '@/components/notas-fiscais/FilePreviewContent'
+import { EstabelecimentosGestor } from '@/components/cedentes/EstabelecimentosGestor'
 
 interface CedenteDetail {
   id: string; cnpj: string; razao_social: string; nome_fantasia: string | null
@@ -525,6 +526,8 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
             <DetailField label="Tipo de conta" value={cedente.tipo_conta} />
           </FieldGrid>
       </DetailSection>
+
+      <EstabelecimentosGestor cedenteId={id} />
 
       {/* Documentos */}
       <DetailSection title="Documentos" icon={FileText}>
