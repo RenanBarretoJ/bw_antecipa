@@ -10,6 +10,10 @@ function isConfirmType(value: string | null): value is ConfirmType {
   return value === 'recovery' || value === 'invite'
 }
 
+export async function HEAD() {
+  return new NextResponse(null, { status: 200 })
+}
+
 export async function GET(request: NextRequest) {
   const url = new URL(request.url)
   const tokenHash = url.searchParams.get('token_hash')
