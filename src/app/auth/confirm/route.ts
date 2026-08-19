@@ -1,7 +1,14 @@
 import { NextResponse, type NextRequest } from 'next/server'
+import type { EmailOtpType } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 import { limparFluxoAutenticacao, marcarFluxoAutenticacao } from '@/lib/auth/auth-flow-server'
 import { normalizarRecoveryNext, recoveryFlowLogShape, sanitizarCodigoErroRecuperacao } from '@/lib/auth/password-recovery'
+
+type ConfirmType = Extract<EmailOtpType, 'recovery' | 'invite'>
+
+function isConfirmType(value: string | null): value is ConfirmType {
+  return value === 'recovery' || value === 'invite'
+}
 
 export async function GET(request: NextRequest) {
   const url = new URL(request.url)
@@ -11,16 +18,16 @@ export async function GET(request: NextRequest) {
   const hasCode = url.searchParams.has('code')
   const redirectUrl = new URL(next, url.origin)
 
-  console.info('[auth/confirm][password_recovery]', recoveryFlowLogShape({
+  console.info('[auth/confirm]', recoveryFlowLogShape({
     hasTokenHash: !!tokenHash,
     hasCode,
     next,
   }))
 
-  if (!tokenHash || type !== 'recovery') {
+  if (!tokenHash || !isConfirmType(type)) {
     await limparFluxoAutenticacao()
     redirectUrl.searchParams.set('error_code', sanitizarCodigoErroRecuperacao(url.searchParams.get('error_code')))
-    console.info('[auth/confirm][password_recovery]', recoveryFlowLogShape({
+    console.info('[auth/confirm]', recoveryFlowLogShape({
       hasTokenHash: !!tokenHash,
       hasCode,
       success: false,
@@ -33,7 +40,7 @@ export async function GET(request: NextRequest) {
   const supabase = await createClient()
   const { error } = await supabase.auth.verifyOtp({
     token_hash: tokenHash,
-    type: 'recovery',
+    type,
   })
 
   if (error) {
@@ -43,7 +50,7 @@ export async function GET(request: NextRequest) {
     ])
     const errorCode = sanitizarCodigoErroRecuperacao(error.code || url.searchParams.get('error_code'))
     redirectUrl.searchParams.set('error_code', errorCode)
-    console.info('[auth/confirm][password_recovery]', recoveryFlowLogShape({
+    console.info('[auth/confirm]', recoveryFlowLogShape({
       hasTokenHash: true,
       success: false,
       errorCode,
@@ -53,7 +60,7 @@ export async function GET(request: NextRequest) {
   }
 
   await marcarFluxoAutenticacao('password_recovery')
-  console.info('[auth/confirm][password_recovery]', recoveryFlowLogShape({
+  console.info('[auth/confirm]', recoveryFlowLogShape({
     hasTokenHash: true,
     success: true,
     next,

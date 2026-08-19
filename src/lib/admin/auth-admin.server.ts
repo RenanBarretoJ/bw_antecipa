@@ -13,7 +13,7 @@ export async function convidarUsuarioAuth(input: { email: string; nome: string }
   const admin = createAdminClient()
   const { data, error } = await admin.auth.admin.inviteUserByEmail(input.email, {
     data: { role: 'gestor', nome_completo: input.nome },
-    redirectTo: `${appBaseUrl()}/login?convite=aceito`,
+    redirectTo: `${appBaseUrl()}/redefinir-senha`,
   })
   if (error || !data.user) {
     throw new Error(error?.message || 'O Supabase Auth nao retornou o usuario convidado.')
