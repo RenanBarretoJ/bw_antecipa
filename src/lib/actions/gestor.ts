@@ -203,39 +203,15 @@ export async function aprovarCedente(cedenteId: string): Promise<GestorActionSta
 
   const cedenteData = cedente as { cnpj: string; razao_social: string; user_id: string; status: string }
 
-  // Atualizar status
-  const { error } = await supabase
-    .from('cedentes')
-    .update({ status: 'ativo' } as never)
-    .eq('id', cedenteId)
+  const { data: aprovado, error } = await supabase.rpc('aprovar_cadastro_cedente_gestor', {
+    p_cedente_id: cedenteId,
+  })
 
   if (error) {
-    return { success: false, message: `Erro ao aprovar cedente: ${error.message}` }
+    return { success: false, message: error.message }
   }
 
-  // Contar contas escrow existentes para gerar sequencial
-  const { count } = await supabase
-    .from('contas_escrow')
-    .select('id', { count: 'exact', head: true })
-
-  const sequencial = String((count || 0) + 1).padStart(4, '0')
-  const cnpjLimpo = cedenteData.cnpj.replace(/\D/g, '')
-  const identificador = `ESC-${cnpjLimpo}-${sequencial}`
-
-  // Criar conta escrow
-  const { error: escrowError } = await supabase
-    .from('contas_escrow')
-    .insert({
-      cedente_id: cedenteId,
-      identificador,
-      saldo_disponivel: 0,
-      saldo_bloqueado: 0,
-      status: 'ativa',
-    } as never)
-
-  if (escrowError) {
-    return { success: false, message: `Erro ao criar conta escrow: ${escrowError.message}` }
-  }
+  const identificador = (Array.isArray(aprovado) ? aprovado[0] : aprovado)?.conta_escrow_identificador || ''
 
   await registrarLog({
     tipo_evento: 'CEDENTE_APROVADO',
@@ -280,13 +256,12 @@ export async function reprovarCedente(cedenteId: string, motivo: string): Promis
 
   const cedenteData = cedente as { user_id: string; razao_social: string; status: string }
 
-  const { error } = await supabase
-    .from('cedentes')
-    .update({ status: 'reprovado' } as never)
-    .eq('id', cedenteId)
+  const { error } = await supabase.rpc('reprovar_cadastro_cedente_gestor', {
+    p_cedente_id: cedenteId,
+  })
 
   if (error) {
-    return { success: false, message: `Erro ao reprovar cedente: ${error.message}` }
+    return { success: false, message: error.message }
   }
 
   await registrarLog({
@@ -328,13 +303,13 @@ export async function toggleCoobrigacaoCedente(cedenteId: string, habilitar: boo
 
   const dadosAntes = { coobrigacao: (cedente as { coobrigacao: boolean }).coobrigacao }
 
-  const { error } = await supabase
-    .from('cedentes')
-    .update({ coobrigacao: habilitar } as never)
-    .eq('id', cedenteId)
+  const { error } = await supabase.rpc('alternar_coobrigacao_cedente_gestor', {
+    p_cedente_id: cedenteId,
+    p_habilitar: habilitar,
+  })
 
   if (error) {
-    return { success: false, message: `Erro ao atualizar configuracao de coobrigacao: ${error.message}` }
+    return { success: false, message: error.message }
   }
 
   await registrarLog({
@@ -369,13 +344,13 @@ export async function toggleEscrowCedente(cedenteId: string, habilitar: boolean)
 
   const dadosAntes = { habilitar_escrow: (cedente as { habilitar_escrow: boolean }).habilitar_escrow }
 
-  const { error } = await supabase
-    .from('cedentes')
-    .update({ habilitar_escrow: habilitar } as never)
-    .eq('id', cedenteId)
+  const { error } = await supabase.rpc('alternar_escrow_cedente_gestor', {
+    p_cedente_id: cedenteId,
+    p_habilitar: habilitar,
+  })
 
   if (error) {
-    return { success: false, message: `Erro ao atualizar configuracao de escrow: ${error.message}` }
+    return { success: false, message: error.message }
   }
 
   await registrarLog({
@@ -412,49 +387,11 @@ export async function aprovarAlteracaoCedente(solicitacaoId: string): Promise<Ge
     cedentes: { user_id: string; razao_social: string }
   }
 
-  const { error: updateError } = await supabase
-    .from('cedentes')
-    .update(s.dados_propostos as never)
-    .eq('id', s.cedente_id)
+  const { error } = await supabase.rpc('aprovar_alteracao_cadastral_cedente_gestor', {
+    p_solicitacao_id: solicitacaoId,
+  })
 
-  if (updateError) return { success: false, message: `Erro ao aplicar alteracoes: ${updateError.message}` }
-
-  if (s.representantes_propostos.length > 0) {
-    const toRow = (rep: Record<string, unknown>, idx: number) => ({
-      cedente_id: s.cedente_id,
-      nome:     String(rep.nome     ?? ''),
-      cpf:      String(rep.cpf      ?? ''),
-      rg:       String(rep.rg       ?? ''),
-      cargo:    String(rep.cargo    ?? ''),
-      email:    String(rep.email    ?? ''),
-      telefone: String(rep.telefone ?? ''),
-      principal: idx === 0,
-    })
-
-    const { error: deleteError } = await supabase
-      .from('representantes')
-      .delete()
-      .eq('cedente_id', s.cedente_id)
-
-    if (deleteError) return { success: false, message: `Erro ao remover representantes: ${deleteError.message}` }
-
-    const { error: insertError } = await supabase
-      .from('representantes')
-      .insert(s.representantes_propostos.map(toRow) as never)
-
-    if (insertError) {
-      // Restaurar representantes originais antes de retornar erro
-      await supabase
-        .from('representantes')
-        .insert(s.representantes_atuais.map(toRow) as never)
-      return { success: false, message: `Erro ao inserir representantes: ${insertError.message}` }
-    }
-  }
-
-  await supabase
-    .from('solicitacoes_alteracao_cedente')
-    .update({ status: 'aprovada', analisado_por: user.id, analisado_em: new Date().toISOString() } as never)
-    .eq('id', solicitacaoId)
+  if (error) return { success: false, message: error.message }
 
   await registrarLog({
     tipo_evento: 'ALTERACAO_CADASTRAL_APROVADA',
@@ -493,10 +430,12 @@ export async function reprovarAlteracaoCedente(solicitacaoId: string, motivo: st
 
   const s = sol as { id: string; cedente_id: string; cedentes: { user_id: string } }
 
-  await supabase
-    .from('solicitacoes_alteracao_cedente')
-    .update({ status: 'reprovada', motivo_reprovacao: motivo, analisado_por: user.id, analisado_em: new Date().toISOString() } as never)
-    .eq('id', solicitacaoId)
+  const { error } = await supabase.rpc('reprovar_alteracao_cadastral_cedente_gestor', {
+    p_solicitacao_id: solicitacaoId,
+    p_motivo: motivo,
+  })
+
+  if (error) return { success: false, message: error.message }
 
   await registrarLog({
     tipo_evento: 'ALTERACAO_CADASTRAL_REPROVADA',

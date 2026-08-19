@@ -2000,6 +2000,30 @@ export interface Database {
         Args: { p_documento_id: string }
         Returns: Array<{ documento_id: string; atualizacao_solicitada_em: string }>
       }
+      aprovar_cadastro_cedente_gestor: {
+        Args: { p_cedente_id: string }
+        Returns: Array<{ cedente_id: string; status: CedenteStatus; conta_escrow_identificador: string }>
+      }
+      reprovar_cadastro_cedente_gestor: {
+        Args: { p_cedente_id: string }
+        Returns: Array<{ cedente_id: string; status: CedenteStatus }>
+      }
+      alternar_escrow_cedente_gestor: {
+        Args: { p_cedente_id: string; p_habilitar: boolean }
+        Returns: Array<{ cedente_id: string; habilitar_escrow: boolean }>
+      }
+      alternar_coobrigacao_cedente_gestor: {
+        Args: { p_cedente_id: string; p_habilitar: boolean }
+        Returns: Array<{ cedente_id: string; coobrigacao: boolean }>
+      }
+      aprovar_alteracao_cadastral_cedente_gestor: {
+        Args: { p_solicitacao_id: string }
+        Returns: Array<{ solicitacao_id: string; cedente_id: string; status: string }>
+      }
+      reprovar_alteracao_cadastral_cedente_gestor: {
+        Args: { p_solicitacao_id: string; p_motivo: string }
+        Returns: Array<{ solicitacao_id: string; cedente_id: string; status: string }>
+      }
       estabelecimento_pode_originar: {
         Args: { p_estabelecimento_id: string; p_cedente_id: string; p_fundo_id: string }
         Returns: boolean
