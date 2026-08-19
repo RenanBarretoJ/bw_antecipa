@@ -46,10 +46,8 @@ export async function analisarDocumento(
   }
 
   const supabase = context.supabase
-  const user = context.user
-  const fundo = await resolverContextoFundoGestor(context)
 
-  // Buscar documento atual
+  // Buscar documento atual (para notificacao e auditoria)
   const { data: docAtual, error: docError } = await supabase
     .from('documentos')
     .select('id, tipo, status, cedente_id, cedentes(user_id, razao_social, cnpj)')
@@ -64,31 +62,16 @@ export async function analisarDocumento(
     id: string; tipo: string; status: string; cedente_id: string;
     cedentes: { user_id: string; razao_social: string; cnpj: string }
   }
-  const { data: vinculo, error: vinculoError } = await supabase
-    .from('cedente_fundos')
-    .select('id')
-    .eq('cedente_id', doc.cedente_id)
-    .eq('fundo_id', fundo.fundoId)
-    .eq('status', 'ativo')
-    .maybeSingle()
-  if (vinculoError || !vinculo) {
-    return { success: false, message: 'Documento nao pertence ao fundo ativo.' }
-  }
-
   const dadosAntes = { status: doc.status }
 
-  const { error } = await supabase
-    .from('documentos')
-    .update({
-      status: decisao,
-      motivo_reprovacao: decisao === 'reprovado' ? motivo : null,
-      analisado_por: user.id,
-      analisado_em: new Date().toISOString(),
-    } as never)
-    .eq('id', documentoId)
+  const { error } = await supabase.rpc('analisar_documento_gestor', {
+    p_documento_id: documentoId,
+    p_decisao: decisao,
+    p_motivo: decisao === 'reprovado' ? motivo : null,
+  })
 
   if (error) {
-    return { success: false, message: `Erro ao analisar documento: ${error.message}` }
+    return { success: false, message: error.message }
   }
 
   await registrarLog({
@@ -552,15 +535,11 @@ export async function solicitarAtualizacaoDocumento(documentoId: string): Promis
     cedentes: { user_id: string; razao_social: string }
   }
 
-  const { error } = await supabase
-    .from('documentos')
-    .update({
-      atualizacao_solicitada_em: new Date().toISOString(),
-      atualizacao_solicitada_por: user.id,
-    } as never)
-    .eq('id', documentoId)
+  const { error } = await supabase.rpc('solicitar_atualizacao_documento_gestor', {
+    p_documento_id: documentoId,
+  })
 
-  if (error) return { success: false, message: `Erro ao solicitar atualizacao: ${error.message}` }
+  if (error) return { success: false, message: error.message }
 
   const tipoLabel = tipoLabelsDoc[doc.tipo] || doc.tipo
 

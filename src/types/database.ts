@@ -1992,6 +1992,14 @@ export interface Database {
         }
         Returns: Array<{ documento_id: string; versao: number; status: DocumentoStatus; storage_path: string }>
       }
+      analisar_documento_gestor: {
+        Args: { p_documento_id: string; p_decisao: string; p_motivo?: string | null }
+        Returns: Array<{ documento_id: string; status: DocumentoStatus }>
+      }
+      solicitar_atualizacao_documento_gestor: {
+        Args: { p_documento_id: string }
+        Returns: Array<{ documento_id: string; atualizacao_solicitada_em: string }>
+      }
       estabelecimento_pode_originar: {
         Args: { p_estabelecimento_id: string; p_cedente_id: string; p_fundo_id: string }
         Returns: boolean
