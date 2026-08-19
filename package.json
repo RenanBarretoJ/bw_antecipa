@@ -42,6 +42,8 @@
     "homolog:p0:documentos-gestor:verify": "node scripts/homologacao/p0-analise-documentos-gestor/verify.mjs",
     "homolog:p0:mutacoes-cedente-gestor:apply-migration": "node scripts/homologacao/p0-mutacoes-cadastro-cedente-gestor/apply-migration.mjs",
     "homolog:p0:mutacoes-cedente-gestor:verify": "node scripts/homologacao/p0-mutacoes-cadastro-cedente-gestor/verify.mjs",
+    "homolog:p0:checklist-documental:apply-migration": "node scripts/homologacao/p0-checklist-documental-estabelecimentos/apply-migration.mjs",
+    "homolog:p0:checklist-documental:verify": "node scripts/homologacao/p0-checklist-documental-estabelecimentos/verify.mjs",
     "homolog:multi-cnpj:apply-migration": "node scripts/homologacao/multi-cnpj/apply-migration.mjs",
     "homolog:multi-cnpj:e2e": "node scripts/homologacao/multi-cnpj/e2e.mjs",
     "homolog:logistica:seed": "node scripts/homologacao/central-logistica/seed.mjs",
