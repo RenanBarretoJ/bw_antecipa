@@ -52,9 +52,9 @@ try {
   ])
 
   const cedenteA = (await db.query(`insert into public.cedentes
-    (user_id,cnpj,razao_social,status) values ($1,$2,'QA Cedente A','ativo') returning id`, [actorCedenteA, cnpjMatrizA])).rows[0].id
+    (user_id,cnpj,razao_social,status,permite_cadastro_filiais) values ($1,$2,'QA Cedente A','ativo',true) returning id`, [actorCedenteA, cnpjMatrizA])).rows[0].id
   const cedenteB = (await db.query(`insert into public.cedentes
-    (user_id,cnpj,razao_social,status) values ($1,$2,'QA Cedente B','ativo') returning id`, [actorCedenteB, cnpjMatrizB])).rows[0].id
+    (user_id,cnpj,razao_social,status,permite_cadastro_filiais) values ($1,$2,'QA Cedente B','ativo',true) returning id`, [actorCedenteB, cnpjMatrizB])).rows[0].id
   const vinculoA = (await db.query(`insert into public.cedente_fundos (cedente_id,fundo_id,status) values ($1,$2,'ativo') returning id`, [cedenteA, fundoA])).rows[0].id
   await db.query(`insert into public.cedente_fundos (cedente_id,fundo_id,status) values ($1,$2,'ativo')`, [cedenteB, fundoB])
   await db.query(`insert into public.usuario_fundos (usuario_id,fundo_id,perfil_no_fundo,status,principal) values ($1,$2,'gestor','ativo',true)`, [actorGestor, fundoA])

@@ -33,7 +33,7 @@ try {
   const cnpjMatriz = makeCnpj('960000010001')
   await createAuthUser(actorCedente, 'cedente')
   const cedente = (await db.query(`insert into public.cedentes
-    (user_id,cnpj,razao_social,status) values ($1,$2,'QA Escala 50 Filiais','ativo') returning id`, [actorCedente, cnpjMatriz])).rows[0].id
+    (user_id,cnpj,razao_social,status,permite_cadastro_filiais) values ($1,$2,'QA Escala 50 Filiais','ativo',true) returning id`, [actorCedente, cnpjMatriz])).rows[0].id
   const matriz = (await db.query(`select id from public.cedente_estabelecimentos where cedente_id=$1 and tipo='matriz'`, [cedente])).rows[0].id
 
   await asActor(actorCedente)

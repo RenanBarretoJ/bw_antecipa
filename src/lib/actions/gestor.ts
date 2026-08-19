@@ -365,6 +365,47 @@ export async function toggleEscrowCedente(cedenteId: string, habilitar: boolean)
   return { success: true, message: `Extrato escrow ${habilitar ? 'habilitado' : 'desabilitado'} com sucesso.` }
 }
 
+export async function toggleCadastroFiliaisCedente(cedenteId: string, habilitar: boolean): Promise<GestorActionState> {
+  await requireGestor()
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, message: 'Usuario nao autenticado.' }
+  }
+
+  const { data: cedente } = await supabase
+    .from('cedentes')
+    .select('permite_cadastro_filiais')
+    .eq('id', cedenteId)
+    .single()
+
+  if (!cedente) {
+    return { success: false, message: 'Cedente nao encontrado.' }
+  }
+
+  const dadosAntes = { permite_cadastro_filiais: (cedente as { permite_cadastro_filiais: boolean }).permite_cadastro_filiais }
+
+  const { error } = await supabase.rpc('alternar_cadastro_filiais_cedente_gestor', {
+    p_cedente_id: cedenteId,
+    p_habilitar: habilitar,
+  })
+
+  if (error) {
+    return { success: false, message: error.message }
+  }
+
+  await registrarLog({
+    tipo_evento: habilitar ? 'CADASTRO_FILIAIS_HABILITADO' : 'CADASTRO_FILIAIS_DESABILITADO',
+    entidade_tipo: 'cedentes',
+    entidade_id: cedenteId,
+    dados_antes: dadosAntes,
+    dados_depois: { permite_cadastro_filiais: habilitar },
+  })
+
+  return { success: true, message: `Cadastro de filiais ${habilitar ? 'habilitado' : 'desabilitado'} com sucesso.` }
+}
+
 export async function aprovarAlteracaoCedente(solicitacaoId: string): Promise<GestorActionState> {
   await requireGestor()
   const supabase = await createClient()

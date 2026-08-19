@@ -34,17 +34,35 @@ async function cedenteAutenticado() {
   return { ...context, cedente: data as { id: string; status: string } }
 }
 
-export async function obterStatusMatriz(): Promise<EstabelecimentoActionResult<{ id: string; status: string; ativo: boolean } | null>> {
+export async function obterStatusMatriz(): Promise<EstabelecimentoActionResult<{
+  matriz: { id: string; status: string; ativo: boolean } | null
+  permiteCadastroFiliais: boolean
+}>> {
   try {
     const context = await cedenteAutenticado()
-    const { data, error } = await context.supabase
-      .from('cedente_estabelecimentos')
-      .select('id, status, ativo')
-      .eq('cedente_id', context.cedente.id)
-      .eq('tipo', 'matriz')
-      .maybeSingle()
-    if (error) throw new Error(`Nao foi possivel consultar a matriz: ${error.message}`)
-    return { success: true, message: 'Matriz consultada.', data: data as { id: string; status: string; ativo: boolean } | null }
+    const [{ data: matriz, error: matrizError }, { data: cedente, error: cedenteError }] = await Promise.all([
+      context.supabase
+        .from('cedente_estabelecimentos')
+        .select('id, status, ativo')
+        .eq('cedente_id', context.cedente.id)
+        .eq('tipo', 'matriz')
+        .maybeSingle(),
+      context.supabase
+        .from('cedentes')
+        .select('permite_cadastro_filiais')
+        .eq('id', context.cedente.id)
+        .single(),
+    ])
+    if (matrizError) throw new Error(`Nao foi possivel consultar a matriz: ${matrizError.message}`)
+    if (cedenteError) throw new Error(`Nao foi possivel consultar a permissao de cadastro: ${cedenteError.message}`)
+    return {
+      success: true,
+      message: 'Matriz consultada.',
+      data: {
+        matriz: matriz as { id: string; status: string; ativo: boolean } | null,
+        permiteCadastroFiliais: Boolean((cedente as { permite_cadastro_filiais: boolean } | null)?.permite_cadastro_filiais),
+      },
+    }
   } catch (error) {
     return falha(error, 'Nao foi possivel consultar a matriz.')
   }

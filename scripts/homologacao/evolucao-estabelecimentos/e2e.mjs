@@ -50,7 +50,7 @@ try {
   ])
 
   const cedente = (await db.query(`insert into public.cedentes
-    (user_id,cnpj,razao_social,status) values ($1,$2,'QA Cedente Evolucao','ativo') returning id`, [actorCedente, cnpjMatriz])).rows[0].id
+    (user_id,cnpj,razao_social,status,permite_cadastro_filiais) values ($1,$2,'QA Cedente Evolucao','ativo',true) returning id`, [actorCedente, cnpjMatriz])).rows[0].id
   const cedenteOutro = (await db.query(`insert into public.cedentes
     (user_id,cnpj,razao_social,status) values ($1,$2,'QA Cedente Outro','ativo') returning id`, [actorCedenteOutro, cnpjMatrizOutro])).rows[0].id
   await db.query(`insert into public.cedente_fundos (cedente_id,fundo_id,status) values ($1,$2,'ativo')`, [cedente, fundo])

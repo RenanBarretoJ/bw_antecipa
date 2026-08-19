@@ -74,6 +74,9 @@ try {
   const { error: aprovarMatrizError } = await clientGA.rpc('decidir_estabelecimento_gestor', { p_estabelecimento_id: matriz.id, p_acao: 'aprovar', p_motivo: null })
   if (aprovarMatrizError) throw aprovarMatrizError
 
+  const { error: permissaoFiliaisError } = await admin.from('cedentes').update({ permite_cadastro_filiais: true }).eq('id', cedenteC1.id)
+  if (permissaoFiliaisError) throw permissaoFiliaisError
+
   const { data: filialData, error: filialError } = await clientCedente.rpc('cadastrar_filial_cedente', {
     p_cnpj: cnpjFor(runId, 2), p_razao_social: `P0 FILIAL CHECKLIST ${runId}`, p_nome_fantasia: null,
   })

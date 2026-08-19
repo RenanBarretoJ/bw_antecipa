@@ -27,7 +27,7 @@ try {
   const cnpjMatriz = makeCnpj('980000010001') // raiz 98000001
   await createAuthUser(actorCedente, 'cedente')
   const cedente = (await db.query(`insert into public.cedentes
-    (user_id,cnpj,razao_social,status) values ($1,$2,'QA Raiz CNPJ','ativo') returning id`, [actorCedente, cnpjMatriz])).rows[0].id
+    (user_id,cnpj,razao_social,status,permite_cadastro_filiais) values ($1,$2,'QA Raiz CNPJ','ativo',true) returning id`, [actorCedente, cnpjMatriz])).rows[0].id
   const matriz = (await db.query(`select id, cnpj from public.cedente_estabelecimentos where cedente_id=$1 and tipo='matriz'`, [cedente])).rows[0]
   ok('Matriz criada com a raiz esperada (98000001)', matriz.cnpj.startsWith('98000001'))
 

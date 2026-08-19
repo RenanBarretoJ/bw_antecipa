@@ -200,6 +200,7 @@ export interface Cedente {
   contrato_assinado_url: string | null
   habilitar_escrow: boolean
   coobrigacao: boolean
+  permite_cadastro_filiais: boolean
   created_at: string
   updated_at: string
 }
@@ -2030,6 +2031,10 @@ export interface Database {
       alternar_escrow_cedente_gestor: {
         Args: { p_cedente_id: string; p_habilitar: boolean }
         Returns: Array<{ cedente_id: string; habilitar_escrow: boolean }>
+      }
+      alternar_cadastro_filiais_cedente_gestor: {
+        Args: { p_cedente_id: string; p_habilitar: boolean }
+        Returns: Array<{ cedente_id: string; permite_cadastro_filiais: boolean }>
       }
       alternar_coobrigacao_cedente_gestor: {
         Args: { p_cedente_id: string; p_habilitar: boolean }

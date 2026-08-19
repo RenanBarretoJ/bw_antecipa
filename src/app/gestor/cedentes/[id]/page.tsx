@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { use } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { analisarDocumento, aprovarCedente, reprovarCedente, solicitarAtualizacaoDocumento, toggleEscrowCedente, toggleCoobrigacaoCedente, aprovarAlteracaoCedente, reprovarAlteracaoCedente, convidarUsuarioCedente, revogarAcessoCedente, vincularFundoCedente, listarPerfisAcessosCedente } from '@/lib/actions/gestor'
+import { analisarDocumento, aprovarCedente, reprovarCedente, solicitarAtualizacaoDocumento, toggleEscrowCedente, toggleCoobrigacaoCedente, toggleCadastroFiliaisCedente, aprovarAlteracaoCedente, reprovarAlteracaoCedente, convidarUsuarioCedente, revogarAcessoCedente, vincularFundoCedente, listarPerfisAcessosCedente } from '@/lib/actions/gestor'
 import { salvarTaxasCedente } from '@/lib/actions/operacao'
 import { salvarContratoAssinado } from '@/lib/actions/cedente'
 import { formatCNPJ, formatDate } from '@/lib/utils'
@@ -35,7 +35,7 @@ interface CedenteDetail {
   bairro: string | null; cidade: string | null; estado: string | null
   telefone_comercial: string | null; email_comercial: string | null; cnae: string | null
   banco: string | null; agencia: string | null; conta: string | null; tipo_conta: string | null
-  status: string; habilitar_escrow: boolean; coobrigacao: boolean; fundo_id: string | null; created_at: string
+  status: string; habilitar_escrow: boolean; coobrigacao: boolean; permite_cadastro_filiais: boolean; fundo_id: string | null; created_at: string
   contrato_url: string | null
   contrato_assinado_url: string | null
 }
@@ -133,6 +133,10 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
   const [togglingCoobrigacao, setTogglingCoobrigacao] = useState(false)
   const [coobrigacaoMessage, setCoobrigacaoMessage] = useState('')
 
+  // Cadastro de Filiais
+  const [togglingCadastroFiliais, setTogglingCadastroFiliais] = useState(false)
+  const [cadastroFiliaisMessage, setCadastroFiliaisMessage] = useState('')
+
   // Fundo vinculado
   const [fundos, setFundos] = useState<Fundo[]>([])
   const [fundoSelecionado, setFundoSelecionado] = useState<string>('')
@@ -203,7 +207,7 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
 
     const { data: c } = await supabase
       .from('cedentes')
-      .select('id, cnpj, razao_social, nome_fantasia, cep, logradouro, numero, complemento, bairro, cidade, estado, telefone_comercial, email_comercial, cnae, banco, agencia, conta, tipo_conta, status, habilitar_escrow, coobrigacao, fundo_id, created_at, contrato_url, contrato_assinado_url')
+      .select('id, cnpj, razao_social, nome_fantasia, cep, logradouro, numero, complemento, bairro, cidade, estado, telefone_comercial, email_comercial, cnae, banco, agencia, conta, tipo_conta, status, habilitar_escrow, coobrigacao, permite_cadastro_filiais, fundo_id, created_at, contrato_url, contrato_assinado_url')
       .eq('id', id)
       .single()
     setCedente(c as CedenteDetail | null)
@@ -284,11 +288,12 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
     notifyTransientMessage('taxas', taxasMessage, () => setTaxasMessage(''))
     notifyTransientMessage('escrow', escrowMessage, () => setEscrowMessage(''))
     notifyTransientMessage('coobrigacao', coobrigacaoMessage, () => setCoobrigacaoMessage(''))
+    notifyTransientMessage('cadastroFiliais', cadastroFiliaisMessage, () => setCadastroFiliaisMessage(''))
     notifyTransientMessage('fundo', fundoMessage, () => setFundoMessage(''))
     notifyTransientMessage('alteracao', alteracaoMessage, () => setAlteracaoMessage(''))
     notifyTransientMessage('convite', conviteMessage, () => setConviteMessage(''))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [message, taxasMessage, escrowMessage, coobrigacaoMessage, fundoMessage, alteracaoMessage, conviteMessage])
+  }, [message, taxasMessage, escrowMessage, coobrigacaoMessage, cadastroFiliaisMessage, fundoMessage, alteracaoMessage, conviteMessage])
 
   // Docs da empresa (representante_id = null), mais recente por tipo
   const getLatestEmpresa = (tipo: string): DocRecord | null => {
@@ -878,6 +883,30 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
               className={cedente.coobrigacao ? '' : 'bg-success text-success-foreground hover:bg-success/90'}
             >
               {togglingCoobrigacao ? 'Aguarde...' : cedente.coobrigacao ? 'Desabilitar' : 'Habilitar'}
+            </Button>
+          </div>
+          <div className="flex items-center justify-between py-2 border-t mt-2">
+            <div>
+              <p className="text-sm font-medium text-foreground">Cadastro de Filiais</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Permite que este cedente cadastre novos CNPJs de filiais.
+              </p>
+            </div>
+            <Button
+              size="sm"
+              variant={cedente.permite_cadastro_filiais ? 'destructive' : 'default'}
+              disabled={togglingCadastroFiliais}
+              onClick={async () => {
+                setTogglingCadastroFiliais(true)
+                setCadastroFiliaisMessage('')
+                const result = await toggleCadastroFiliaisCedente(id, !cedente.permite_cadastro_filiais)
+                setCadastroFiliaisMessage(result?.message || '')
+                if (result?.success) await loadData()
+                setTogglingCadastroFiliais(false)
+              }}
+              className={cedente.permite_cadastro_filiais ? '' : 'bg-success text-success-foreground hover:bg-success/90'}
+            >
+              {togglingCadastroFiliais ? 'Aguarde...' : cedente.permite_cadastro_filiais ? 'Desabilitar' : 'Habilitar'}
             </Button>
           </div>
         </CardContent>

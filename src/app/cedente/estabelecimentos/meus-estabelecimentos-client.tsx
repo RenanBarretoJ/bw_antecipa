@@ -52,9 +52,15 @@ export function MeusEstabelecimentosClient({ filtros, resultado }: {
   const [detalhes, setDetalhes] = useState<Record<string, Detalhe>>({})
   const [carregandoDetalhe, setCarregandoDetalhe] = useState<string | null>(null)
   const [matriz, setMatriz] = useState<{ id: string; status: string; ativo: boolean } | null>(null)
+  const [permiteCadastroFiliais, setPermiteCadastroFiliais] = useState(false)
 
   useEffect(() => {
-    void obterStatusMatriz().then((result) => { if (result.success) setMatriz(result.data ?? null) })
+    void obterStatusMatriz().then((result) => {
+      if (result.success && result.data) {
+        setMatriz(result.data.matriz)
+        setPermiteCadastroFiliais(result.data.permiteCadastroFiliais)
+      }
+    })
   }, [])
 
   const current = useMemo(() => Object.fromEntries(searchParams.entries()), [searchParams])
@@ -69,7 +75,8 @@ export function MeusEstabelecimentosClient({ filtros, resultado }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [busca, filtros.q])
 
-  const podeCadastrar = matriz?.status === 'aprovado' && matriz.ativo
+  const matrizAprovada = matriz?.status === 'aprovado' && matriz.ativo
+  const podeCadastrar = matrizAprovada && permiteCadastroFiliais
 
   const alternarExpansao = (id: string) => {
     if (expandedId === id) { setExpandedId(null); return }
@@ -98,7 +105,12 @@ export function MeusEstabelecimentosClient({ filtros, resultado }: {
         done?.()
         router.refresh()
         if (expandedId) recarregarDetalhe(expandedId)
-        void obterStatusMatriz().then((r) => { if (r.success) setMatriz(r.data ?? null) })
+        void obterStatusMatriz().then((r) => {
+          if (r.success && r.data) {
+            setMatriz(r.data.matriz)
+            setPermiteCadastroFiliais(r.data.permiteCadastroFiliais)
+          }
+        })
       }
     })
   }
@@ -122,10 +134,11 @@ export function MeusEstabelecimentosClient({ filtros, resultado }: {
           <h1 className="text-2xl font-bold">Meus CNPJs</h1>
           <p className="text-sm text-muted-foreground">A matriz e suas filiais pertencem ao mesmo relacionamento comercial, com contas e documentos proprios.</p>
         </div>
-        <Button disabled={!podeCadastrar} onClick={() => setShowBranch((value) => !value)}><Plus className="mr-2 h-4 w-4" />Cadastrar filial</Button>
+        {podeCadastrar && <Button onClick={() => setShowBranch((value) => !value)}><Plus className="mr-2 h-4 w-4" />Cadastrar filial</Button>}
       </header>
 
-      {!podeCadastrar && matriz && <div className="rounded-lg border border-warning/40 bg-warning/10 p-4 text-sm">A matriz precisa estar ativa e aprovada antes do cadastro de novas filiais.</div>}
+      {!matrizAprovada && matriz && <div className="rounded-lg border border-warning/40 bg-warning/10 p-4 text-sm">A matriz precisa estar ativa e aprovada antes do cadastro de novas filiais.</div>}
+      {matrizAprovada && !permiteCadastroFiliais && <div className="rounded-lg border border-warning/40 bg-warning/10 p-4 text-sm">O cadastro de novas Filiais esta desabilitado pela Gestora.</div>}
 
       {showBranch && (
         <form className="grid gap-3 rounded-xl border bg-card p-4 md:grid-cols-3" onSubmit={(event) => { event.preventDefault(); submit(cadastrarFilial, new FormData(event.currentTarget), () => setShowBranch(false)) }}>
@@ -173,21 +186,21 @@ export function MeusEstabelecimentosClient({ filtros, resultado }: {
         {resultado.items.length === 0 ? (
           <EmptyState title="Nenhum estabelecimento encontrado" description="Ajuste os filtros ou cadastre uma nova filial." />
         ) : (
-          <Table>
+          <Table className="table-fixed">
             <TableHeader><TableRow>
-              <TableHead>Estabelecimento</TableHead><TableHead>Tipo</TableHead><TableHead>Status</TableHead>
-              <TableHead>Documentos</TableHead><TableHead>Conta</TableHead><TableHead>Pendencia</TableHead><TableHead className="text-right">Detalhes</TableHead>
+              <TableHead className="w-[26%]">Estabelecimento</TableHead><TableHead className="w-[9%]">Tipo</TableHead><TableHead className="w-[11%]">Status</TableHead>
+              <TableHead className="w-[13%]">Documentos</TableHead><TableHead className="w-[9%]">Conta</TableHead><TableHead className="w-[18%]">Pendencia</TableHead><TableHead className="w-[14%] text-right">Detalhes</TableHead>
             </TableRow></TableHeader>
             <TableBody>
               {resultado.items.map((item) => (
                 <Fragment key={item.id}>
                   <TableRow>
-                    <TableCell className="max-w-[260px]"><ListNameCell name={item.razaoSocial} subline={item.cnpj} /></TableCell>
+                    <TableCell className="truncate"><ListNameCell name={item.razaoSocial} subline={item.cnpj} /></TableCell>
                     <TableCell>{item.tipo === 'matriz' ? 'Matriz' : 'Filial'}</TableCell>
                     <TableCell><StatusBadge status={item.status} label={statusLabel[item.status]} /></TableCell>
                     <TableCell className="tabular-nums">{item.aprovadosObrigatorios}/{item.totalObrigatorios} aprovados</TableCell>
                     <TableCell>{item.temContaPrincipal ? <span className="text-success-foreground">OK</span> : <span className="text-warning-foreground">Pendente</span>}</TableCell>
-                    <TableCell>{item.pendencia !== 'completo' && <StatusBadge status={item.pendencia} label={PENDENCIA_LABEL[item.pendencia]} />}</TableCell>
+                    <TableCell className="truncate">{item.pendencia !== 'completo' && <StatusBadge status={item.pendencia} label={PENDENCIA_LABEL[item.pendencia]} />}</TableCell>
                     <TableCell className="text-right">
                       <Button variant="ghost" size="sm" onClick={() => alternarExpansao(item.id)} aria-expanded={expandedId === item.id}>
                         Ver detalhes{expandedId === item.id ? <ChevronUp className="ml-1 size-4" /> : <ChevronDown className="ml-1 size-4" />}
@@ -196,11 +209,11 @@ export function MeusEstabelecimentosClient({ filtros, resultado }: {
                   </TableRow>
                   {expandedId === item.id && (
                     <TableRow>
-                      <TableCell colSpan={7} className="bg-muted/30 p-4">
+                      <TableCell colSpan={7} className="whitespace-normal bg-muted/30 p-4 align-top">
                         {carregandoDetalhe === item.id ? (
                           <p className="text-sm text-muted-foreground">Carregando detalhes...</p>
                         ) : detalhes[item.id] ? (
-                          <div className="grid gap-4 lg:grid-cols-2">
+                          <div className="grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
                             <ContaBancariaSection estabelecimentoId={item.id} conta={detalhes[item.id].contas.find((c) => c.principal)} pending={pendingAction} onSubmit={submit} />
                             <ChecklistSection estabelecimentoId={item.id} requisitos={detalhes[item.id].requisitos} pending={pendingAction} onSubmit={submit} onVerDocumento={verDocumento} />
                           </div>
@@ -252,24 +265,20 @@ function ChecklistSection({ estabelecimentoId, requisitos, pending, onSubmit, on
     <div className="space-y-2 rounded-lg border p-3">
       <p className="font-medium">Checklist documental</p>
       {requisitosAtivos.length === 0 ? <p className="text-sm text-muted-foreground">Nenhum requisito configurado.</p> : requisitosAtivos.map((requisito) => (
-        <div key={requisito.requisito_id} className="rounded-md bg-muted/40 p-2">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium">{requisito.documento_tipo_nome} {requisito.obrigatorio ? '(obrigatorio)' : '(opcional)'}</p>
-              {requisito.origem === 'cadastro_inicial' && <p className="text-xs text-info-foreground">Aprovado - Origem: Cadastro inicial</p>}
-              {requisito.motivo && <p className="text-xs text-destructive">Motivo: {requisito.motivo}</p>}
-            </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <StatusBadge status={requisito.status} label={requisitoStatusLabel[requisito.status] || requisito.status} />
-              {(requisito.documento_versao_id || requisito.documento_legado_id) && (
-                <Button type="button" size="sm" variant="outline" onClick={() => onVerDocumento(estabelecimentoId, requisito)}>
-                  Ver documento<ExternalLink className="ml-1 size-3" />
-                </Button>
-              )}
-            </div>
+        <div key={requisito.requisito_id} className="space-y-2 rounded-md bg-muted/40 p-3">
+          <p className="text-sm font-medium">{requisito.documento_tipo_nome} {requisito.obrigatorio ? '(obrigatorio)' : '(opcional)'}</p>
+          {requisito.origem === 'cadastro_inicial' && <p className="text-xs text-info-foreground">Aprovado - Origem: Cadastro inicial</p>}
+          {requisito.motivo && <p className="text-xs text-destructive">Motivo: {requisito.motivo}</p>}
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusBadge status={requisito.status} label={requisitoStatusLabel[requisito.status] || requisito.status} />
+            {(requisito.documento_versao_id || requisito.documento_legado_id) && (
+              <Button type="button" size="sm" variant="outline" onClick={() => onVerDocumento(estabelecimentoId, requisito)}>
+                Ver documento<ExternalLink className="ml-1 size-3" />
+              </Button>
+            )}
           </div>
           {requisito.status !== 'aprovado' && (
-            <form className="mt-2 flex flex-wrap items-center gap-2" onSubmit={(event) => { event.preventDefault(); onSubmit(enviarDocumentoEstabelecimento, new FormData(event.currentTarget)) }}>
+            <form className="flex flex-wrap items-center gap-2 border-t pt-2" onSubmit={(event) => { event.preventDefault(); onSubmit(enviarDocumentoEstabelecimento, new FormData(event.currentTarget)) }}>
               <input type="hidden" name="estabelecimento_id" value={estabelecimentoId} />
               <input type="hidden" name="requisito_id" value={requisito.requisito_id} />
               <input type="hidden" name="documento_tipo_id" value={requisito.documento_tipo_id} />
