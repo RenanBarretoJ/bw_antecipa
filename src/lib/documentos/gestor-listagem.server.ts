@@ -19,10 +19,12 @@ const TIPO_LABELS: Record<string, string> = {
   cartao_cnpj: 'Cartao CNPJ',
   rg_cpf: 'RG e CPF',
   comprovante_endereco: 'Comprovante de Endereco',
-  extrato_bancario: 'Comprovante de Renda',
+  extrato_bancario: 'Comprovante de Faturamento',
   balanco_patrimonial: 'Balanco Patrimonial',
   dre: 'DRE',
   procuracao: 'Procuracao',
+  comprovante_de_renda: 'Comprovante de Renda',
+  representante_comprovante_residencia: 'Comprovante de Residencia',
 }
 
 type DocumentoRow = {
@@ -35,7 +37,9 @@ type DocumentoRow = {
   analisado_em: string | null
   created_at: string
   updated_at: string
+  representante_id: string | null
   cedentes: { id: string; razao_social: string; cnpj: string } | null
+  representantes: { nome: string } | null
 }
 
 async function resolverCedentesDaBusca(
@@ -86,7 +90,9 @@ function aplicarFiltros(
       analisado_em,
       created_at,
       updated_at,
-      cedentes(id, razao_social, cnpj)
+      representante_id,
+      cedentes(id, razao_social, cnpj),
+      representantes(nome)
     `, { count: 'exact' })
     .in('cedente_id', cedenteIds)
 
@@ -180,6 +186,9 @@ export async function carregarDocumentosGestorPaginados(
       tipo: row.tipo,
       nome: TIPO_LABELS[row.tipo] || row.tipo,
       status: row.status,
+      escopo: row.representante_id
+        ? { tipo: 'representante', nome: row.representantes?.nome || 'Representante nao informado' }
+        : { tipo: 'empresa' },
       cedente: {
         id: row.cedente_id,
         nome: row.cedentes?.razao_social || 'Cedente nao informado',

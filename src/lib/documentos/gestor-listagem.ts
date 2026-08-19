@@ -38,11 +38,16 @@ export type FiltrosDocumentosGestor = {
   direction: 'asc' | 'desc'
 }
 
+export type EscopoDocumentoGestor =
+  | { tipo: 'empresa' }
+  | { tipo: 'representante'; nome: string }
+
 export type DocumentoGestorListagemItem = {
   id: string
   tipo: string
   nome: string
   status: string
+  escopo: EscopoDocumentoGestor
   cedente: { id: string; nome: string; cnpj: string }
   versaoAtual: {
     numero: number

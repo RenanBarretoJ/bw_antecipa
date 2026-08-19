@@ -20,6 +20,7 @@ const tipoLabelsDoc: Record<string, string> = {
   dre: 'DRE',
   procuracao: 'Procuracao',
   comprovante_de_renda: 'Comprovante de Renda',
+  representante_comprovante_residencia: 'Comprovante de Residencia',
 }
 
 export type GestorActionState = {
@@ -172,7 +173,7 @@ export async function aprovarCedente(cedenteId: string): Promise<GestorActionSta
 
   // docs obrigatórios por representante (fallback legado se tabela vazia)
   // comprovante_de_renda e procuracao sao opcionais
-  const docsRepObrig = ['rg_cpf', 'comprovante_endereco']
+  const docsRepObrig = ['rg_cpf', 'representante_comprovante_residencia']
   const faltandoReps = repsData.length === 0
     ? (docsTyped.some((d) => d.tipo === 'rg_cpf' && d.status === 'aprovado') ? [] : ['rg_cpf (representante)'])
     : repsData.flatMap((rep) =>

@@ -23,6 +23,7 @@ export const DOCUMENT_TYPES = [
   'dre',
   'procuracao',
   'comprovante_de_renda',
+  'representante_comprovante_residencia',
 ] as const
 export type DocumentoTipo = (typeof DOCUMENT_TYPES)[number]
 

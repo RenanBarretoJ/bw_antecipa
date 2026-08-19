@@ -64,8 +64,8 @@ export function EstabelecimentosGestor({ cedenteId }: { cedenteId: string }) {
             <div className="flex flex-wrap items-center justify-between gap-3"><div className="min-w-0"><div className="flex items-center gap-2"><p className="truncate font-medium" title={row.razao_social}>{row.razao_social}</p><span className="rounded-full bg-muted px-2 py-0.5 text-xs">{row.tipo}</span></div><p className="font-mono text-xs text-muted-foreground">{row.cnpj}</p></div><span className="rounded-full border px-2 py-1 text-xs">{row.status}</span></div>
             <div className="flex flex-wrap gap-2">
               {row.status === 'pendente' && <Button size="sm" disabled={pending} onClick={() => { const form = new FormData(); form.set('estabelecimento_id', row.id); form.set('acao', 'aprovar'); run(decidirEstabelecimento, form) }}>Aprovar</Button>}
-              {row.status === 'pendente' && <form className="flex gap-2" onSubmit={(event) => { event.preventDefault(); const form = new FormData(event.currentTarget); form.set('estabelecimento_id', row.id); form.set('acao', 'rejeitar'); run(decidirEstabelecimento, form) }}><Input className="h-9" name="motivo" placeholder="Motivo da rejeicao" required /><Button size="sm" variant="destructive" disabled={pending}>Rejeitar</Button></form>}
-              {row.status === 'aprovado' && <form className="flex gap-2" onSubmit={(event) => { event.preventDefault(); const form = new FormData(event.currentTarget); form.set('estabelecimento_id', row.id); form.set('acao', 'suspender'); run(decidirEstabelecimento, form) }}><Input className="h-9" name="motivo" placeholder="Motivo da suspensao" required /><Button size="sm" variant="destructive" disabled={pending}>Suspender</Button></form>}
+              {row.status === 'pendente' && <form className="flex gap-2" onSubmit={(event) => { event.preventDefault(); const form = new FormData(event.currentTarget); form.set('estabelecimento_id', row.id); form.set('acao', 'rejeitar'); run(decidirEstabelecimento, form) }}><Input className="h-9" name="motivo" placeholder="Motivo da rejeicao" required /><Button type="submit" size="sm" variant="destructive" disabled={pending}>Rejeitar</Button></form>}
+              {row.status === 'aprovado' && <form className="flex gap-2" onSubmit={(event) => { event.preventDefault(); const form = new FormData(event.currentTarget); form.set('estabelecimento_id', row.id); form.set('acao', 'suspender'); run(decidirEstabelecimento, form) }}><Input className="h-9" name="motivo" placeholder="Motivo da suspensao" required /><Button type="submit" size="sm" variant="destructive" disabled={pending}>Suspender</Button></form>}
               {row.status === 'suspenso' && <Button size="sm" disabled={pending} onClick={() => { const form = new FormData(); form.set('estabelecimento_id', row.id); form.set('acao', 'reativar'); run(decidirEstabelecimento, form) }}>Reativar</Button>}
             </div>
             {requisitos.filter((requisito) => requisito.estabelecimento_id === row.id).length > 0 && (
@@ -102,7 +102,7 @@ export function EstabelecimentosGestor({ cedenteId }: { cedenteId: string }) {
             )}
             <form className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]" onSubmit={(event) => { event.preventDefault(); const form = new FormData(event.currentTarget); form.set('estabelecimento_id', row.id); run(configurarRequisitoEstabelecimento, form) }}>
               <select name="documento_tipo_id" required className="h-9 rounded-md border bg-background px-3 text-sm"><option value="">Adicionar documento cadastral obrigatorio...</option>{tipos.map((tipo) => <option key={tipo.id} value={tipo.id}>{tipo.nome}</option>)}</select>
-              <Button size="sm" variant="outline" disabled={pending}>Configurar requisito</Button>
+              <Button type="submit" size="sm" variant="outline" disabled={pending}>Configurar requisito</Button>
             </form>
           </div>
         ))}

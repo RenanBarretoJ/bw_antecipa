@@ -146,6 +146,7 @@ export function DocumentosGestorListagem({
             <Table className="min-w-[850px]">
               <TableHeader><TableRow>
                 <TableHead className="px-4 py-3 text-xs uppercase">Cedente</TableHead>
+                <TableHead className="px-4 py-3 text-xs uppercase">Escopo</TableHead>
                 <TableHead className="px-4 py-3 text-xs uppercase">Tipo</TableHead>
                 <TableHead className="px-4 py-3 text-xs uppercase">Versao atual</TableHead>
                 <TableHead className="px-4 py-3 text-xs uppercase">Ultima analise</TableHead>
@@ -159,6 +160,7 @@ export function DocumentosGestorListagem({
                   const StatusIcon = status.icon
                   return <TableRow key={doc.id}>
                     <TableCell className="w-[220px] max-w-[220px] px-4 py-3"><ListNameCell name={doc.cedente.nome} subline={formatCNPJ(doc.cedente.cnpj)} /></TableCell>
+                    <TableCell className="px-4 py-3 text-sm">{doc.escopo.tipo === 'empresa' ? 'Empresa' : doc.escopo.nome}</TableCell>
                     <TableCell className="px-4 py-3">{doc.nome}</TableCell>
                     <TableCell className="px-4 py-3 tabular-nums">v{doc.versaoAtual.numero}</TableCell>
                     <TableCell className="px-4 py-3 text-sm text-muted-foreground">{doc.ultimaAnalise ? formatDate(doc.ultimaAnalise.analisadoEm) : '—'}</TableCell>

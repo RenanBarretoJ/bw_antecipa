@@ -71,7 +71,7 @@ export function MeusEstabelecimentosClient() {
           <Input name="cnpj" placeholder="CNPJ da filial" required maxLength={18} />
           <Input name="razao_social" placeholder="Razao social" required />
           <Input name="nome_fantasia" placeholder="Nome fantasia (opcional)" />
-          <div className="flex gap-2 md:col-span-3 md:justify-end"><Button type="button" variant="outline" onClick={() => setShowBranch(false)}>Cancelar</Button><Button disabled={pending}>Enviar para analise</Button></div>
+          <div className="flex gap-2 md:col-span-3 md:justify-end"><Button type="button" variant="outline" onClick={() => setShowBranch(false)}>Cancelar</Button><Button type="submit" disabled={pending}>Enviar para analise</Button></div>
         </form>
       )}
 
@@ -88,14 +88,14 @@ export function MeusEstabelecimentosClient() {
                 </div>
                 <div className="grid gap-4 p-4 lg:grid-cols-2">
                   <div className="rounded-lg border p-3"><div className="mb-2 flex items-center gap-2 font-medium"><Landmark className="h-4 w-4" />Conta bancaria própria</div>{conta ? <p className="text-sm">{conta.banco} · Ag. {conta.agencia} · Conta {conta.conta}</p> : <p className="text-sm text-muted-foreground">Nenhuma conta principal cadastrada.</p>}</div>
-                  <div className="space-y-2 rounded-lg border p-3"><p className="font-medium">Checklist documental</p>{requisitos.length ? requisitos.map((requisito) => { const tipo = state.tipos.find((entry) => entry.id === requisito.documento_tipo_id); return <form key={requisito.id} className="flex flex-wrap items-center gap-2 rounded-md bg-muted/40 p-2" onSubmit={(event) => { event.preventDefault(); submit(enviarDocumentoEstabelecimento, new FormData(event.currentTarget)) }}><input type="hidden" name="estabelecimento_id" value={item.id} /><input type="hidden" name="requisito_id" value={requisito.id} /><input type="hidden" name="documento_tipo_id" value={requisito.documento_tipo_id} /><span className="min-w-0 flex-1 truncate text-sm">{tipo?.nome || 'Documento'} {requisito.obrigatorio ? '(obrigatorio)' : '(opcional)'}</span><Input className="h-8 w-full sm:w-56" type="file" name="arquivo" required /><Button size="sm" variant="outline" disabled={pending}>Enviar</Button></form> }) : <p className="text-sm text-muted-foreground">Nenhum requisito configurado.</p>}</div>
+                  <div className="space-y-2 rounded-lg border p-3"><p className="font-medium">Checklist documental</p>{requisitos.length ? requisitos.map((requisito) => { const tipo = state.tipos.find((entry) => entry.id === requisito.documento_tipo_id); return <form key={requisito.id} className="flex flex-wrap items-center gap-2 rounded-md bg-muted/40 p-2" onSubmit={(event) => { event.preventDefault(); submit(enviarDocumentoEstabelecimento, new FormData(event.currentTarget)) }}><input type="hidden" name="estabelecimento_id" value={item.id} /><input type="hidden" name="requisito_id" value={requisito.id} /><input type="hidden" name="documento_tipo_id" value={requisito.documento_tipo_id} /><span className="min-w-0 flex-1 truncate text-sm">{tipo?.nome || 'Documento'} {requisito.obrigatorio ? '(obrigatorio)' : '(opcional)'}</span><Input className="h-8 w-full sm:w-56" type="file" name="arquivo" required /><Button type="submit" size="sm" variant="outline" disabled={pending}>Enviar</Button></form> }) : <p className="text-sm text-muted-foreground">Nenhum requisito configurado.</p>}</div>
                   <form className="grid gap-2 rounded-lg border p-3 sm:grid-cols-2 lg:col-span-2 lg:grid-cols-5" onSubmit={(event) => { event.preventDefault(); submit(salvarContaEstabelecimento, new FormData(event.currentTarget)) }}>
                     <input type="hidden" name="estabelecimento_id" value={item.id} />
                     <Input name="banco" placeholder="Banco" required defaultValue={conta?.banco || ''} />
                     <Input name="agencia" placeholder="Agencia" required defaultValue={conta?.agencia || ''} />
                     <Input name="conta" placeholder="Conta" required defaultValue={conta?.conta || ''} />
                     <Input name="tipo_conta" placeholder="Tipo de conta" required defaultValue={conta?.tipo_conta || 'corrente'} />
-                    <Button disabled={pending}>Salvar conta</Button>
+                    <Button type="submit" disabled={pending}>Salvar conta</Button>
                   </form>
                 </div>
               </section>

@@ -83,7 +83,7 @@ const tipoLabels: Record<string, string> = {
 const tipoLabelsRep: Record<string, string> = {
   rg_cpf: 'RG e CPF',
   comprovante_de_renda: 'Comprovante de Renda',
-  comprovante_endereco: 'Comprovante de Residencia (ultimos 90 dias)',
+  representante_comprovante_residencia: 'Comprovante de Residencia (ultimos 90 dias)',
   procuracao: 'Procuracao',
 }
 
@@ -459,8 +459,8 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
   const docsEmpresaObrig = ['contrato_social', 'cartao_cnpj', 'comprovante_endereco', 'extrato_bancario', 'balanco_patrimonial', 'dre']
   const empresaAprovada = docsEmpresaObrig.every((t) => getLatestEmpresa(t)?.status === 'aprovado')
 
-  // Multi-representante: verificar rg_cpf e comprovante_endereco por rep. comprovante_de_renda e procuracao sao opcionais.
-  const docsRepObrig = ['rg_cpf', 'comprovante_endereco']
+  // Multi-representante: verificar rg_cpf e representante_comprovante_residencia por rep. comprovante_de_renda e procuracao sao opcionais.
+  const docsRepObrig = ['rg_cpf', 'representante_comprovante_residencia']
   const repsAprovadas = representantes.length === 0
     ? getLatestLegado('rg_cpf')?.status === 'aprovado'
     : representantes.every((rep) => docsRepObrig.every((t) => getLatestByRep(t, rep.id)?.status === 'aprovado'))
@@ -555,7 +555,7 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
                 <span className="h-px flex-1 bg-border" />
               </div>
               <div className="space-y-2">
-                {(['rg_cpf', 'comprovante_de_renda', 'comprovante_endereco', 'procuracao'] as const).map((tipo) =>
+                {(['rg_cpf', 'comprovante_de_renda', 'representante_comprovante_residencia', 'procuracao'] as const).map((tipo) =>
                   renderDocRow(tipo, getLatestByRep(tipo, rep.id), tipoLabelsRep[tipo] || tipoLabels[tipo])
                 )}
               </div>
