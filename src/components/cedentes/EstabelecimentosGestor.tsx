@@ -163,21 +163,21 @@ export function EstabelecimentosGestor({ cedenteId }: { cedenteId: string }) {
           {resultado.items.length === 0 ? (
             <EmptyState title="Nenhum estabelecimento encontrado" description="Ajuste os filtros para este cedente." />
           ) : (
-            <Table>
+            <Table className="table-fixed">
               <TableHeader><TableRow>
-                <TableHead>Estabelecimento</TableHead><TableHead>Tipo</TableHead><TableHead>Status</TableHead>
-                <TableHead>Documentos</TableHead><TableHead>Conta</TableHead><TableHead>Pendencia</TableHead><TableHead className="text-right">Detalhes</TableHead>
+                <TableHead className="w-[26%]">Estabelecimento</TableHead><TableHead className="w-[9%]">Tipo</TableHead><TableHead className="w-[11%]">Status</TableHead>
+                <TableHead className="w-[13%]">Documentos</TableHead><TableHead className="w-[9%]">Conta</TableHead><TableHead className="w-[18%]">Pendencia</TableHead><TableHead className="w-[14%] text-right">Detalhes</TableHead>
               </TableRow></TableHeader>
               <TableBody>
                 {resultado.items.map((row) => (
                   <Fragment key={row.id}>
                     <TableRow>
-                      <TableCell className="max-w-[240px]"><ListNameCell name={row.razaoSocial} subline={row.cnpj} /></TableCell>
+                      <TableCell className="truncate"><ListNameCell name={row.razaoSocial} subline={row.cnpj} /></TableCell>
                       <TableCell>{row.tipo === 'matriz' ? 'Matriz' : 'Filial'}</TableCell>
                       <TableCell><StatusBadge status={row.status} label={statusLabel[row.status]} /></TableCell>
                       <TableCell className="tabular-nums">{row.aprovadosObrigatorios}/{row.totalObrigatorios} aprovados</TableCell>
                       <TableCell>{row.temContaPrincipal ? <span className="text-success-foreground">OK</span> : <span className="text-warning-foreground">Pendente</span>}</TableCell>
-                      <TableCell>{row.pendencia !== 'completo' && <StatusBadge status={row.pendencia} label={PENDENCIA_LABEL[row.pendencia]} />}</TableCell>
+                      <TableCell className="truncate">{row.pendencia !== 'completo' && <StatusBadge status={row.pendencia} label={PENDENCIA_LABEL[row.pendencia]} />}</TableCell>
                       <TableCell className="text-right">
                         <Button variant="ghost" size="sm" onClick={() => alternarExpansao(row.id)} aria-expanded={expandedId === row.id}>
                           Ver detalhes{expandedId === row.id ? <ChevronUp className="ml-1 size-4" /> : <ChevronDown className="ml-1 size-4" />}
@@ -186,13 +186,13 @@ export function EstabelecimentosGestor({ cedenteId }: { cedenteId: string }) {
                     </TableRow>
                     {expandedId === row.id && (
                       <TableRow>
-                        <TableCell colSpan={7} className="bg-muted/30 p-4">
+                        <TableCell colSpan={7} className="whitespace-normal bg-muted/30 p-4 align-top">
                           {carregandoDetalhe === row.id ? (
                             <p className="text-sm text-muted-foreground">Carregando detalhes...</p>
                           ) : detalhes[row.id] ? (
                             <div className="space-y-4">
                               <DecisaoSection estabelecimentoId={row.id} status={row.status} pending={pending} onRun={run} />
-                              <div className="grid gap-4 lg:grid-cols-2">
+                              <div className="grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
                                 <ContaSection contas={detalhes[row.id].contas} />
                                 <ChecklistGestorSection
                                   estabelecimentoId={row.id}
@@ -264,41 +264,38 @@ function ChecklistGestorSection({ estabelecimentoId, requisitos, tipos, pending,
     <div className="space-y-2 rounded-lg border p-3">
       <p className="font-medium">Checklist documental</p>
       {requisitos.length === 0 ? <p className="text-sm text-muted-foreground">Nenhum requisito configurado.</p> : requisitos.map((requisito) => (
-        <div key={requisito.requisito_id} className="rounded-md bg-muted/40 p-2">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium">{requisito.documento_tipo_nome}</p>
-              {requisito.origem === 'cadastro_inicial' && <p className="text-xs text-info-foreground">Aprovado - Origem: Cadastro inicial</p>}
-              {requisito.motivo && <p className="text-xs text-destructive">Motivo: {requisito.motivo}</p>}
-            </div>
-            <div className="flex shrink-0 flex-wrap items-center gap-2">
-              <span className="rounded-full bg-muted px-2 py-0.5 text-xs">{requisito.obrigatorio ? 'Obrigatorio' : 'Opcional'}</span>
-              <span className={`rounded-full px-2 py-0.5 text-xs ${requisito.ativo ? 'bg-success/15 text-success-foreground' : 'bg-muted text-muted-foreground'}`}>{requisito.ativo ? 'Ativo' : 'Inativo'}</span>
-              <StatusBadge status={requisito.status} label={requisitoStatusLabel[requisito.status] || requisito.status} />
-              {(requisito.documento_versao_id || requisito.documento_legado_id) && (
-                <Button type="button" size="sm" variant="outline" onClick={() => onVerDocumento(estabelecimentoId, requisito)}>Ver documento<ExternalLink className="ml-1 size-3" /></Button>
-              )}
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-7 px-2"
-                disabled={pending}
-                onClick={() => {
-                  const form = new FormData()
-                  form.set('estabelecimento_id', estabelecimentoId)
-                  form.set('documento_tipo_id', requisito.documento_tipo_id)
-                  form.set('obrigatorio', String(requisito.obrigatorio))
-                  form.set('ativo', String(!requisito.ativo))
-                  onRun(configurarRequisitoEstabelecimento, form, estabelecimentoId)
-                }}
-              >
-                {requisito.ativo ? 'Desativar' : 'Reativar'}
-              </Button>
-            </div>
+        <div key={requisito.requisito_id} className="space-y-2 rounded-md bg-muted/40 p-3">
+          <p className="text-sm font-medium">{requisito.documento_tipo_nome}</p>
+          {requisito.origem === 'cadastro_inicial' && <p className="text-xs text-info-foreground">Aprovado - Origem: Cadastro inicial</p>}
+          {requisito.motivo && <p className="text-xs text-destructive">Motivo: {requisito.motivo}</p>}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full bg-muted px-2 py-0.5 text-xs">{requisito.obrigatorio ? 'Obrigatorio' : 'Opcional'}</span>
+            <span className={`rounded-full px-2 py-0.5 text-xs ${requisito.ativo ? 'bg-success/15 text-success-foreground' : 'bg-muted text-muted-foreground'}`}>{requisito.ativo ? 'Ativo' : 'Inativo'}</span>
+            <StatusBadge status={requisito.status} label={requisitoStatusLabel[requisito.status] || requisito.status} />
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {(requisito.documento_versao_id || requisito.documento_legado_id) && (
+              <Button type="button" size="sm" variant="outline" onClick={() => onVerDocumento(estabelecimentoId, requisito)}>Ver documento<ExternalLink className="ml-1 size-3" /></Button>
+            )}
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={pending}
+              onClick={() => {
+                const form = new FormData()
+                form.set('estabelecimento_id', estabelecimentoId)
+                form.set('documento_tipo_id', requisito.documento_tipo_id)
+                form.set('obrigatorio', String(requisito.obrigatorio))
+                form.set('ativo', String(!requisito.ativo))
+                onRun(configurarRequisitoEstabelecimento, form, estabelecimentoId)
+              }}
+            >
+              {requisito.ativo ? 'Desativar' : 'Reativar'}
+            </Button>
           </div>
           {requisito.documento_versao_id && requisito.status !== 'aprovado' && requisito.origem === 'estabelecimento' && (
             <form
-              className="mt-2 flex flex-wrap items-center gap-2"
+              className="flex flex-wrap items-center gap-2 border-t pt-2"
               onSubmit={(event) => {
                 event.preventDefault()
                 const form = new FormData(event.currentTarget)
