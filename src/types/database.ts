@@ -246,6 +246,25 @@ export interface CedenteEstabelecimentoRequisito {
   updated_at: string
 }
 
+export interface EstabelecimentoRequisitoStatus {
+  requisito_id: string
+  documento_tipo_id: string
+  documento_tipo_codigo: string
+  documento_tipo_nome: string
+  obrigatorio: boolean
+  ativo: boolean
+  status: 'pendente' | 'enviado' | 'em_analise' | 'aprovado' | 'rejeitado' | 'substituido' | 'cancelado'
+  origem: 'estabelecimento' | 'cadastro_inicial' | null
+  documento_versao_id: string | null
+  numero_versao: number | null
+  nome_arquivo: string | null
+  motivo: string | null
+  analisado_por: string | null
+  analisado_em: string | null
+  documento_legado_id: string | null
+  pendencia_pos_aprovacao: boolean
+}
+
 export interface Representante {
   id: string
   cedente_id: string
@@ -2042,11 +2061,45 @@ export interface Database {
       }
       configurar_requisito_estabelecimento_gestor: {
         Args: { p_estabelecimento_id: string; p_documento_tipo_id: string; p_obrigatorio?: boolean; p_ativo?: boolean; p_observacoes?: string | null }
-        Returns: CedenteEstabelecimentoRequisito
+        Returns: { requisito: CedenteEstabelecimentoRequisito; pendencia_pos_aprovacao: boolean; cedente_id: string; estabelecimento_status: string }
       }
       registrar_documento_estabelecimento_upload: {
         Args: { p_estabelecimento_id: string; p_requisito_id: string; p_documento_tipo_id: string; p_bucket: string; p_path: string; p_nome_original: string; p_mime_type: string; p_tamanho_bytes: number; p_sha256: string; p_substitui_versao_id?: string | null }
         Returns: Record<string, unknown>
+      }
+      listar_requisitos_estabelecimento: {
+        Args: { p_estabelecimento_id: string }
+        Returns: Array<EstabelecimentoRequisitoStatus>
+      }
+      listar_estabelecimentos_pagina: {
+        Args: {
+          p_cedente_id: string
+          p_tipo?: string | null
+          p_status?: string | null
+          p_pendencia?: string | null
+          p_q?: string | null
+          p_page?: number
+          p_page_size?: number
+        }
+        Returns: Array<{
+          estabelecimento_id: string
+          cnpj: string
+          razao_social: string
+          nome_fantasia: string | null
+          tipo: 'matriz' | 'filial'
+          status: string
+          ativo: boolean
+          total_obrigatorios: number
+          aprovados_obrigatorios: number
+          aguardando_analise: number
+          tem_conta_principal: boolean
+          pendencia: string
+          total_itens: number
+        }>
+      }
+      analisar_documento_estabelecimento_gestor: {
+        Args: { p_documento_versao_id: string; p_resultado: 'aprovado' | 'rejeitado' | 'requer_ajuste'; p_observacoes?: string | null }
+        Returns: { analise_id: string; versao_id: string; status: string; cedente_id: string; estabelecimento_id: string }
       }
       admin_resumo_fundos: { Args: Record<string, never>; Returns: Record<string, unknown> }
       admin_listar_fundos: { Args: { p_busca?: string | null; p_status?: string; p_pagina?: number; p_por_pagina?: number }; Returns: Record<string, unknown> }

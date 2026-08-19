@@ -1,0 +1,57 @@
+{
+  "titulo": "Workflow documental de Estabelecimentos (Matriz/Filial)",
+  "engine_reaproveitado": {
+    "tabelas": ["documentos_repositorio", "documento_versoes", "documento_vinculos", "documento_analises"],
+    "motivo": "Mesmo motor ja usado para documentos de NF (fase3_repositorio_documental_nf); documento_analises e append-only e ja suporta o contrato completo (aprovado/rejeitado/pendente/requer_ajuste + analisado_por + analisado_em + observacoes + versionamento via documento_versoes.numero_versao)",
+    "nao_reaproveitado_diretamente": "public.analisar_documento_versao",
+    "motivo_novo_rpc": "analisar_documento_versao so checa role='gestor' sem escopo de fundo, e tem efeitos colaterais especificos de NF/entrega (documento_requisito_instancias, avaliar_conclusao_entrega) que nao se aplicam a estabelecimento",
+    "rpc_novo": "public.analisar_documento_estabelecimento_gestor(p_documento_versao_id, p_resultado, p_observacoes)"
+  },
+  "estados_documento_versao": ["enviado", "em_analise", "aprovado", "rejeitado", "substituido", "cancelado"],
+  "resultados_analise": ["aprovado", "rejeitado", "requer_ajuste"],
+  "transicoes": [
+    { "de": "pendente (sem versao)", "acao": "Cedente envia arquivo", "rpc": "registrar_documento_estabelecimento_upload", "para": "enviado" },
+    { "de": "enviado", "acao": "Gestor aprova", "rpc": "analisar_documento_estabelecimento_gestor(resultado=aprovado)", "para": "aprovado", "efeito": "versao imutavel a partir daqui" },
+    { "de": "enviado", "acao": "Gestor rejeita", "rpc": "analisar_documento_estabelecimento_gestor(resultado=rejeitado)", "para": "rejeitado", "exige": "observacoes nao vazio" },
+    { "de": "enviado", "acao": "Gestor pede ajuste", "rpc": "analisar_documento_estabelecimento_gestor(resultado=requer_ajuste)", "para": "em_analise", "exige": "observacoes nao vazio" },
+    { "de": "rejeitado | em_analise", "acao": "Cedente reenvia (nova versao)", "rpc": "registrar_documento_estabelecimento_upload(p_substitui_versao_id=versao_anterior)", "para": "enviado", "efeito": "numero_versao incrementado; versao anterior preservada no historico" }
+  ],
+  "reuso_matriz_onboarding": {
+    "aplica_a": "apenas tipo='matriz'",
+    "condicao": "so quando nao ha nenhuma versao propria (documento_vinculos/documento_versoes) para o par estabelecimento+tipo",
+    "fonte": "tabela legada documentos, status='aprovado', representante_id IS NULL",
+    "mapeamento_codigo": {
+      "estabelecimento_cartao_cnpj": "cartao_cnpj",
+      "estabelecimento_comprovante_endereco": "comprovante_endereco",
+      "estabelecimento_contrato_social": "contrato_social",
+      "estabelecimento_comprovante_faturamento": "extrato_bancario"
+    },
+    "origem_exibida": "cadastro_inicial",
+    "duplica_storage": false
+  },
+  "gate_aprovacao_filial": {
+    "rpc": "decidir_estabelecimento_gestor(p_acao='aprovar')",
+    "aplica_apenas_a": "tipo='filial'",
+    "nao_aplica_a_matriz": "aprovacao da Matriz mantem o gate original (apenas Cedente ativo), pois o onboarding costuma aprovar a Matriz antes do checklist ser configurado",
+    "checagens_em_ordem": [
+      { "codigo": "CEDENTE_INATIVO", "condicao": "cedentes.status <> 'ativo'" },
+      { "codigo": "MATRIZ_NAO_APROVADA", "condicao": "matriz.status <> 'aprovado' OR NOT matriz.ativo" },
+      { "codigo": "DOCUMENTOS_OBRIGATORIOS_PENDENTES", "condicao": "existe requisito ativo+obrigatorio com status <> 'aprovado' (via listar_requisitos_estabelecimento, considerando reuso)" },
+      { "codigo": "CONTA_BANCARIA_PENDENTE", "condicao": "nao existe conta bancaria com principal=true AND ativo=true" }
+    ],
+    "formato_erro": "CODIGO: mensagem legivel (RAISE EXCEPTION com prefixo estavel antes de ':')"
+  },
+  "pendencia_pos_aprovacao": {
+    "secao_ticket": 6,
+    "definicao": "estabelecimento com status='aprovado' que possui ao menos 1 requisito ativo+obrigatorio ainda nao satisfeito (nem por upload proprio nem por reuso da Matriz)",
+    "como_e_calculada": "derivada em tempo de consulta (listar_requisitos_estabelecimento.pendencia_pos_aprovacao e listar_estabelecimentos_pagina.pendencia='pendencia_pos_aprovacao'), nunca armazenada em tabela nova",
+    "garante_nao_downgrade": "configurar_requisito_estabelecimento_gestor nunca faz UPDATE em cedente_estabelecimentos; decidir_estabelecimento_gestor so e chamada explicitamente pelo Gestor para aprovar/rejeitar/suspender/reativar",
+    "efeito_em_originacao": "nenhum -- estabelecimento_pode_originar so depende de status='aprovado' + ativo, que nao mudam",
+    "notificacao": {
+      "quando": "configurar_requisito_estabelecimento_gestor retorna pendencia_pos_aprovacao=true",
+      "camada": "TypeScript (src/lib/actions/estabelecimento.ts, configurarRequisitoEstabelecimento)",
+      "motor_reaproveitado": "notificarCedente (src/lib/actions/notificacao.ts), o mesmo usado por analisarDocumento em src/lib/actions/gestor.ts",
+      "tipo_notificacao": "estabelecimento_pendencia_pos_aprovacao"
+    }
+  }
+}

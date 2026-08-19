@@ -96,7 +96,7 @@ try {
     p_estabelecimento_id: matriz.id, p_documento_tipo_id: tipoCartaoCnpj.id, p_obrigatorio: true, p_ativo: true, p_observacoes: null,
   })
   if (matrizError) throw matrizError
-  assert(requisitoMatriz?.ativo === true && requisitoMatriz?.obrigatorio === true, 'gestor do fundo correto configura requisito na Matriz = ALLOW')
+  assert(requisitoMatriz?.requisito?.ativo === true && requisitoMatriz?.requisito?.obrigatorio === true, 'gestor do fundo correto configura requisito na Matriz = ALLOW')
 
   // ---- ALLOW: gestor do fundo correto na Filial ----
   await expectRpcDenied(clientGB, filial.id, tipoComprovanteEndereco.id, 'gestor de outro fundo configura requisito na Filial = DENY')
@@ -104,7 +104,7 @@ try {
     p_estabelecimento_id: filial.id, p_documento_tipo_id: tipoComprovanteEndereco.id, p_obrigatorio: false, p_ativo: true, p_observacoes: 'Endereco especifico da filial.',
   })
   if (requisitoFilialError) throw requisitoFilialError
-  assert(requisitoFilial?.obrigatorio === false && requisitoFilial?.ativo === true, 'gestor do fundo correto configura requisito na Filial = ALLOW')
+  assert(requisitoFilial?.requisito?.obrigatorio === false && requisitoFilial?.requisito?.ativo === true, 'gestor do fundo correto configura requisito na Filial = ALLOW')
 
   // ---- persistencia apos reload (nova leitura, simulando reload de pagina) ----
   const { data: releitura, error: releituraError } = await clientGA
@@ -121,7 +121,7 @@ try {
     p_estabelecimento_id: matriz.id, p_documento_tipo_id: tipoCartaoCnpj.id, p_obrigatorio: true, p_ativo: false, p_observacoes: null,
   })
   if (desativarError) throw desativarError
-  assert(desativado?.ativo === false, 'desativacao do requisito da Matriz = ALLOW e persiste')
+  assert(desativado?.requisito?.ativo === false, 'desativacao do requisito da Matriz = ALLOW e persiste')
 
   // ---- zero cross-fund leak ----
   const { data: leakRows } = await clientGB.from('cedente_estabelecimento_requisitos').select('id').in('estabelecimento_id', [matriz.id, filial.id])

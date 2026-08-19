@@ -80,6 +80,14 @@ try {
   const outraEmpresa = await db.query(`select id from public.cedente_estabelecimentos order by tipo,id`)
   ok('Outro Cedente nao enxerga Matriz/Filial alheia', outraEmpresa.rowCount === 1 && outraEmpresa.rows[0].id === matrizB)
 
+  await asActor(actorCedenteA)
+  // Evolucao de Estabelecimentos (P0 posterior): decidir_estabelecimento_gestor
+  // passou a exigir conta bancaria principal antes de aprovar uma Filial.
+  // A conta precisa existir antes da aprovacao nesta regressao.
+  const contaFilial = await db.query(`select id from public.salvar_conta_estabelecimento_cedente($1,'001','1234','56789-0','corrente',true)`, [filialA.id])
+  const contaVinculada = await db.query(`select estabelecimento_id,principal from public.cedente_estabelecimento_contas_bancarias where id=$1`, [contaFilial.rows[0].id])
+  ok('Filial possui conta bancaria propria e principal', contaVinculada.rows[0].estabelecimento_id === filialA.id && contaVinculada.rows[0].principal)
+
   await asActor(actorGestor)
   const gestorVisiveis = await db.query(`select id from public.cedente_estabelecimentos order by tipo,id`)
   ok('Gestor enxerga somente estabelecimentos dos fundos autorizados', gestorVisiveis.rowCount === 2)
@@ -89,14 +97,11 @@ try {
   const gateAprovado = await db.query(`select public.estabelecimento_pode_originar($1,$2,$3) permitido`, [filialA.id, cedenteA, fundoA])
   ok('Filial aprovada herda o vinculo Cedente-Fundo', gateAprovado.rows[0].permitido === true)
 
-  const contaFilial = await db.query(`select id from public.salvar_conta_estabelecimento_cedente($1,'001','1234','56789-0','corrente',true)`, [filialA.id])
-  const contaVinculada = await db.query(`select estabelecimento_id,principal from public.cedente_estabelecimento_contas_bancarias where id=$1`, [contaFilial.rows[0].id])
-  ok('Filial possui conta bancaria propria e principal', contaVinculada.rows[0].estabelecimento_id === filialA.id && contaVinculada.rows[0].principal)
-
   await asActor(actorGestor)
   const documentoTipo = (await db.query(`select id from public.documento_tipos where ativo order by codigo limit 1`)).rows[0]
   if (!documentoTipo) throw new Error('Catalogo documental de homologacao esta vazio')
-  const requisito = (await db.query(`select id from public.configurar_requisito_estabelecimento_gestor($1,$2,true,true,'QA Multi-CNPJ')`, [filialA.id, documentoTipo.id])).rows[0]
+  const requisitoResultado = (await db.query(`select public.configurar_requisito_estabelecimento_gestor($1,$2,true,true,'QA Multi-CNPJ') resultado`, [filialA.id, documentoTipo.id])).rows[0].resultado
+  const requisito = requisitoResultado.requisito
   ok('Gestor configura checklist proprio da Filial', Boolean(requisito.id))
 
   await asActor(actorCedenteA)
