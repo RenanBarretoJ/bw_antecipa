@@ -1,0 +1,98 @@
+{
+  "titulo": "Parcelas de NF + Boleto por Parcela -- Fases 1 e 2 (E2E ao vivo em homologacao)",
+  "cenario_real_do_ticket": {
+    "nf": "78",
+    "parcelas": [
+      { "numero": "001", "vencimento": "2026-10-11", "valor": 27540.00 },
+      { "numero": "002", "vencimento": "2026-10-26", "valor": 27540.00 },
+      { "numero": "003", "vencimento": "2026-11-10", "valor": 27540.00 },
+      { "numero": "004", "vencimento": "2026-11-25", "valor": 27540.00 }
+    ],
+    "total": 110160.00
+  },
+  "parser_unitario": {
+    "arquivo": "src/lib/nf-parser.test.ts",
+    "resultado": "5/5 PASS",
+    "cobre": [
+      "4 parcelas extraidas com numero/vencimento/valor corretos a partir de <cobr><dup>",
+      "soma das parcelas = R$ 110.160,00",
+      "vencimento agregado da NF preserva o legado (data da ultima <dup>)",
+      "NF sem <dup> nao gera parcelas",
+      "NF com 1 unica <dup> gera exatamente 1 parcela",
+      "numero_parcela cai para a posicao sequencial quando nDup nao e numerico"
+    ]
+  },
+  "e2e_homolog": {
+    "script": "scripts/homologacao/fase1-parcelas-nf-boleto/e2e.mjs",
+    "transacao": "ROLLED_BACK (nenhum dado permanece em homologacao)",
+    "resultado": "17/17 PASS",
+    "checks": [
+      "NF-78 cria exatamente 4 parcelas",
+      "Soma das parcelas = R$ 110.160,00",
+      "Datas e valores das 4 parcelas persistidos corretamente",
+      "Registrar parcelas de novo na mesma NF = DENY (idempotencia)",
+      "Soma das parcelas fora da tolerancia monetaria = DENY",
+      "documento_tipos possui boleto com cardinalidade por_parcela",
+      "instanciar_requisitos_nota cria 1 requisito de boleto POR parcela (4 no total)",
+      "Cada requisito de boleto aponta para uma parcela distinta (001-004)",
+      "Boleto da parcela 001 registrado com beneficiario = Matriz",
+      "Beneficiario nao aprovado (Filial pendente) = DENY",
+      "Boleto aprovado marca APENAS o requisito da parcela 001 como satisfeito",
+      "As outras 3 parcelas permanecem pendentes (isolamento por parcela)",
+      "Boleto reprovado marca a parcela 002 como pendente novamente (pedido de ajuste/reprova)",
+      "Gestor de outro fundo nao analisa boleto = DENY (fecha o gap de analisar_documento_versao)",
+      "Gestor de outro fundo nao registra parcelas = DENY",
+      "Anon nao le parcelas da NF = DENY",
+      "NF sem <dup>/parcelas nao recebe requisito por_parcela, sem erro (regressao)"
+    ]
+  },
+  "regressoes_verificadas": {
+    "instanciar_requisitos_nota": "achado critico durante a implementacao: a primeira versao desta migration foi escrita sobre uma versao ANTIGA (20260721132903) da funcao, nao a versao real em producao-homolog (20260727212953, com cedente_fundo_politicas/publicada_em/reconciliar_documentos_base_nf). Detectado ao vivo (erro 'column po.cedente_fundo_id does not exist'), corrigido reaplicando o fan-out por_parcela sobre a versao real, preservando 100% da logica existente.",
+    "nenhum_outro_script_de_homologacao_chama_instanciar_requisitos_nota": true,
+    "suite_local": "161 arquivos / 1149 testes vitest passando (14 novos), nenhum removido"
+  },
+  "fase2_selecao_elegibilidade_precificacao": {
+    "script": "scripts/homologacao/fase2-selecao-elegibilidade-precificacao/e2e.mjs",
+    "transacao": "ROLLED_BACK (nenhum dado permanece em homologacao)",
+    "resultado": "29/29 PASS",
+    "checks": [
+      "NF-78 (4 parcelas selecionadas) cria operacao com sucesso",
+      "As 4 parcelas da NF-78 ficam em_operacao",
+      "NF-78 vira em_antecipacao (nenhuma parcela disponivel restante)",
+      "operacoes_nfs recebe exatamente 1 linha para a NF-78",
+      "operacoes_nf_parcelas recebe exatamente 4 linhas (uma por parcela)",
+      "Aprovacao da operacao A tem sucesso",
+      "4 linhas de memoria de calculo (uma por parcela, nao 1 para a NF inteira)",
+      "Cada linha de calculo aponta para uma parcela distinta",
+      "Os 4 vencimentos contratuais de calculo sao os 4 vencimentos reais das parcelas (nao o ultimo repetido para todas)",
+      "Soma do valor_nominal das 4 linhas = R$ 110.160,00",
+      "Valor presente somado por parcela e menor que o nominal (desagio aplicado) e positivo",
+      "notas_fiscais.valor_antecipado agrega a soma correta das 4 parcelas",
+      "NF-81 (2 de 4 parcelas selecionadas) cria operacao com sucesso",
+      "NF-81 permanece aprovada (ainda ha parcelas disponiveis)",
+      "Parcelas 1-2 da NF-81 viram em_operacao; 3-4 continuam disponivel",
+      "Aprovacao da operacao B (parcial) tem sucesso",
+      "Apenas 2 linhas de calculo para a NF-81 (so as parcelas cedidas, nao as 4 da NF)",
+      "Soma nominal da operacao B = R$ 55.080,00",
+      "Selecionar parcela ja comprometida (parcela 1 da NF-81, ja em outra operacao) = DENY",
+      "NF-81 (ainda com parcelas disponiveis) sem p_parcela_ids = DENY",
+      "Lote com NF-82 e NF-83: selecionar so parcelas da 83 = DENY (NF-82 sem nenhuma selecionada)",
+      "NF sem parcelas (legado) solicita normalmente sem p_parcela_ids",
+      "NF sem parcelas vira em_antecipacao (comportamento legado inalterado)",
+      "NF com 1 unica parcela solicita e cede corretamente",
+      "NF com 1 parcela vira em_antecipacao apos ceder a unica parcela",
+      "Gestor de outro fundo nao enxerga operacoes_nf_parcelas de operacao fora do seu fundo (RLS)",
+      "Parcelas 3-4 da NF-81 (nao selecionadas na operacao B) podem entrar numa operacao D diferente",
+      "NF-81 agora vira em_antecipacao (todas as 4 parcelas cedidas, em 2 operacoes distintas)",
+      "Apos rejeicao, as mesmas parcelas podem ser selecionadas de novo numa operacao E (sem violar UNIQUE(parcela_id))"
+    ],
+    "bug_corrigido_durante_implementacao": "aprovar_operacao_atomica_financeiro_v1 usava 'nf' como nome de variavel PL/pgSQL e como alias de tabela no UPDATE final, causando 'column reference \"nf.id\" is ambiguous' ao vivo. Corrigido renomeando o alias para 'n'.",
+    "bug_corrigido_encontrado_na_pesquisa": "carregarElegibilidadeDocumentalOperacaoEmLote colapsava silenciosamente instancias por_parcela no mesmo Map key (introduzido de forma dormente pela Fase 1). Corrigido agrupando em lista por chave.",
+    "testes_unitarios_novos": "4 testes novos em elegibilidade-documental.test.ts cobrindo a filtragem por parcela selecionada (17 testes no arquivo, todos PASS)",
+    "suite_local": "161 arquivos / 1153 testes vitest passando, nenhum removido"
+  },
+  "nao_executado_nesta_fase": [
+    "E2E de browser automatizado (sem harness de teste de browser no projeto)",
+    "Fase 3 (CNAB, liquidacao, conciliacao, exposicao, estoque por parcela)"
+  ]
+}

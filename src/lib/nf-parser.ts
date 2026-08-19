@@ -2,6 +2,12 @@
 // Parser de NF-e XML (padrao SEFAZ) e extrator basico de PDF
 // ============================================================
 
+export interface NfParsedParcela {
+  numero_parcela: number
+  data_vencimento: string
+  valor_nominal: number
+}
+
 export interface NfParsedData {
   numero_nf: string
   serie: string
@@ -21,6 +27,8 @@ export interface NfParsedData {
   valor_ipi: number
   descricao_itens: string
   condicao_pagamento: string
+  /** Parcelas extraidas de <cobr><dup> do XML. Vazio quando a NF nao tem <dup> (comportamento legado preservado). */
+  parcelas: NfParsedParcela[]
 }
 
 function getTagValue(xml: string, tag: string): string {
@@ -103,13 +111,23 @@ export function parseNFeXML(xmlContent: string): NfParsedData {
   })
   const descricao_itens = itens.join('; ')
 
-  // Vencimento — duplicatas
+  // Vencimento — duplicatas. O agregado da NF preserva o comportamento
+  // legado (data da ultima <dup>); parcelas captura cada <dup> individual
+  // (nDup/dVenc/vDup) para a Fase 1 de Parcelas de NF.
   const dupBlocks = getAllBlocks(xmlContent, 'dup')
   let data_vencimento = ''
   if (dupBlocks.length > 0) {
     const lastDup = dupBlocks[dupBlocks.length - 1]
     data_vencimento = formatDateISO(getTagValue(lastDup, 'dVenc'))
   }
+  const parcelas: NfParsedParcela[] = dupBlocks.map((dup, index) => {
+    const nDup = parseInt(getTagValue(dup, 'nDup'), 10)
+    return {
+      numero_parcela: Number.isInteger(nDup) && nDup > 0 ? nDup : index + 1,
+      data_vencimento: formatDateISO(getTagValue(dup, 'dVenc')),
+      valor_nominal: parseNumber(getTagValue(dup, 'vDup')),
+    }
+  })
 
   // Condicao de pagamento
   const pagBlock = xmlContent.match(/<pag>([\s\S]*?)<\/pag>/i)?.[1] || ''
@@ -140,5 +158,6 @@ export function parseNFeXML(xmlContent: string): NfParsedData {
     valor_ipi,
     descricao_itens,
     condicao_pagamento,
+    parcelas,
   }
 }

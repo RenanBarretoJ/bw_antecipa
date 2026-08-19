@@ -36,6 +36,7 @@ function requisitoVazio(
     statusInstancia: 'pendente',
     documentoId: null,
     versaoAprovadaId: null,
+    parcelaId: null,
     versaoAtual: null,
   }
 }
@@ -44,6 +45,13 @@ export async function carregarElegibilidadeDocumentalOperacaoEmLote(input: {
   client: AppSupabaseClient
   notas: NotaFiscalElegibilidadeComDados[]
   politicaVersaoId: string
+  /**
+   * Ids das parcelas selecionadas por NF. Quando uma NF tem parcelas
+   * cadastradas e aparece aqui, requisitos por_parcela (ex.: boleto) de
+   * parcelas fora da lista nao bloqueiam a elegibilidade. Quando omitido,
+   * nenhuma NF tem filtro (equivalente a "todas as parcelas selecionadas").
+   */
+  parcelaIdsSelecionadasPorNota?: Map<string, string[]>
 }) {
   const ids = [...new Set(input.notas.map((nota) => nota.id))]
   if (!ids.length) return new Map()
@@ -58,7 +66,7 @@ export async function carregarElegibilidadeDocumentalOperacaoEmLote(input: {
       .order('ordem', { ascending: true }),
     input.client
       .from('documento_requisito_instancias')
-      .select('id, nota_fiscal_id, politica_requisito_id, tipo_documento_codigo_snapshot, escopo_snapshot, obrigatorio, status, documento_id, versao_aprovada_id, nivel_validacao_snapshot')
+      .select('id, nota_fiscal_id, politica_requisito_id, tipo_documento_codigo_snapshot, escopo_snapshot, obrigatorio, status, documento_id, versao_aprovada_id, nivel_validacao_snapshot, parcela_id')
       .in('nota_fiscal_id', ids)
       .eq('politica_operacional_versao_id', input.politicaVersaoId)
       .eq('escopo_snapshot', 'nf_pre_cessao'),
@@ -78,6 +86,7 @@ export async function carregarElegibilidadeDocumentalOperacaoEmLote(input: {
     documento_id: string | null
     versao_aprovada_id: string | null
     nivel_validacao_snapshot: PoliticaNivelValidacao
+    parcela_id: string | null
   }>
   const documentoIds = [...new Set(instancias.map((item) => item.documento_id).filter(Boolean) as string[])]
   const { data: versoesData, error: versoesError } = documentoIds.length
@@ -123,34 +132,51 @@ export async function carregarElegibilidadeDocumentalOperacaoEmLote(input: {
     versao.ultimaAnalise = ultimaAnalise.get(versao.id) || null
   }
 
-  const instanciaPorNotaRequisito = new Map(
-    instancias.map((item) => [`${item.nota_fiscal_id}:${item.politica_requisito_id}`, item]),
-  )
+  // Requisitos de cardinalidade por_parcela geram MAIS DE UMA instancia para
+  // a mesma (nota_fiscal_id, politica_requisito_id) -- uma por parcela.
+  // Agrupar em lista (em vez de um Map 1:1) preserva todas; um Map 1:1
+  // colapsaria silenciosamente para a ultima lida.
+  const instanciasPorNotaRequisito = new Map<string, typeof instancias>()
+  for (const item of instancias) {
+    const chave = `${item.nota_fiscal_id}:${item.politica_requisito_id}`
+    const lista = instanciasPorNotaRequisito.get(chave)
+    if (lista) lista.push(item)
+    else instanciasPorNotaRequisito.set(chave, [item])
+  }
   const requisitosPorNota = new Map<string, RequisitoElegibilidadeComDados[]>()
   for (const nota of input.notas) {
-    requisitosPorNota.set(nota.id, requisitos.map((requisito) => {
-      const instancia = instanciaPorNotaRequisito.get(`${nota.id}:${requisito.id}`)
-      if (!instancia) return requisitoVazio(nota.id, requisito)
-      return {
-        id: requisito.id,
-        notaFiscalId: nota.id,
-        codigo: instancia.tipo_documento_codigo_snapshot,
-        escopo: instancia.escopo_snapshot,
-        obrigatorio: instancia.obrigatorio,
-        bloqueiaFluxo: requisito.bloqueia_fluxo,
-        momentoObrigatorio: requisito.momento_obrigatorio || requisito.escopo,
-        nivelValidacao: instancia.nivel_validacao_snapshot,
-        statusInstancia: instancia.status,
-        documentoId: instancia.documento_id,
-        versaoAprovadaId: instancia.versao_aprovada_id,
-        versaoAtual: instancia.documento_id
-          ? versaoAtualPorDocumento.get(instancia.documento_id) || null
-          : null,
+    const linhas: RequisitoElegibilidadeComDados[] = []
+    for (const requisito of requisitos) {
+      const instanciasDoRequisito = instanciasPorNotaRequisito.get(`${nota.id}:${requisito.id}`)
+      if (!instanciasDoRequisito || instanciasDoRequisito.length === 0) {
+        linhas.push(requisitoVazio(nota.id, requisito))
+        continue
       }
-    }))
+      for (const instancia of instanciasDoRequisito) {
+        linhas.push({
+          id: requisito.id,
+          notaFiscalId: nota.id,
+          codigo: instancia.tipo_documento_codigo_snapshot,
+          escopo: instancia.escopo_snapshot,
+          obrigatorio: instancia.obrigatorio,
+          bloqueiaFluxo: requisito.bloqueia_fluxo,
+          momentoObrigatorio: requisito.momento_obrigatorio || requisito.escopo,
+          nivelValidacao: instancia.nivel_validacao_snapshot,
+          statusInstancia: instancia.status,
+          documentoId: instancia.documento_id,
+          versaoAprovadaId: instancia.versao_aprovada_id,
+          parcelaId: instancia.parcela_id,
+          versaoAtual: instancia.documento_id
+            ? versaoAtualPorDocumento.get(instancia.documento_id) || null
+            : null,
+        })
+      }
+    }
+    requisitosPorNota.set(nota.id, linhas)
   }
   return avaliarLoteDocumentalParaOperacao({
     notas: input.notas,
     requisitosPorNota,
+    parcelaIdsSelecionadasPorNota: input.parcelaIdsSelecionadasPorNota,
   })
 }

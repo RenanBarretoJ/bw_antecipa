@@ -478,11 +478,24 @@ export interface DocumentoTipoRepositorio {
   codigo: string
   nome: string
   dominio: string
+  cardinalidade: 'por_nf' | 'por_parcela'
   mime_types_aceitos: string[]
   extensoes_aceitas: string[]
   tamanho_max_bytes: number
   permite_multiplas_versoes: boolean
   ativo: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface NotaFiscalParcela {
+  id: string
+  nota_fiscal_id: string
+  numero_parcela: number
+  valor_nominal: number
+  data_vencimento: string
+  origem: 'xml_nfe' | 'manual'
+  status: 'disponivel' | 'em_operacao' | 'liquidada' | 'cancelada'
   created_at: string
   updated_at: string
 }
@@ -512,6 +525,7 @@ export interface DocumentoVersao {
   enviado_por: string
   enviado_em: string
   created_at: string
+  beneficiario_estabelecimento_id: string | null
 }
 
 export interface DocumentoVinculo {
@@ -539,6 +553,7 @@ export interface DocumentoRequisitoInstancia {
   nota_fiscal_id: string | null
   operacao_id: string | null
   nota_fiscal_entrega_id: string | null
+  parcela_id: string | null
   cedente_id: string
   status: RequisitoDocumentoStatus
   obrigatorio: boolean
@@ -2356,6 +2371,9 @@ export interface Database {
       listar_documentos_atuais_cedente: { Args: { p_cedente_id: string }; Returns: Array<{ id: string; tipo: string; versao: number; status: string; nome_arquivo: string | null; url_arquivo: string | null; motivo_reprovacao: string | null; created_at: string; representante_id: string | null; analisado_em: string | null; atualizacao_solicitada_em: string | null }> }
       obter_politica_aplicavel_cedente_fundo: { Args: { p_cedente_fundo_id: string; p_data_referencia?: string }; Returns: Record<string, unknown> }
       registrar_documento_upload: { Args: { p_nota_fiscal_id: string; p_requisito_id: string; p_documento_tipo_id: string; p_nome_original: string; p_mime_type: string; p_tamanho_bytes: number; p_sha256: string; p_bucket: string; p_path: string; p_enviado_por: string; p_substitui_versao_id?: string | null }; Returns: Record<string, unknown> }
+      registrar_parcelas_nota_fiscal: { Args: { p_nota_fiscal_id: string; p_parcelas: Array<{ numero_parcela: number; valor_nominal: number; data_vencimento: string; origem?: string }> }; Returns: { nota_fiscal_id: string; parcelas_inseridas: number; soma: number } }
+      registrar_documento_boleto_parcela: { Args: { p_nota_fiscal_id: string; p_requisito_id: string; p_documento_tipo_id: string; p_estabelecimento_beneficiario_id: string; p_nome_original: string; p_mime_type: string; p_tamanho_bytes: number; p_sha256: string; p_bucket: string; p_path: string; p_enviado_por: string; p_substitui_versao_id?: string | null }; Returns: Record<string, unknown> }
+      analisar_documento_boleto_gestor: { Args: { p_documento_versao_id: string; p_resultado: string; p_observacoes?: string | null }; Returns: Record<string, unknown> }
       registrar_duplicata_versao: { Args: Record<string, unknown>; Returns: Array<{ duplicata_id: string; duplicata_versao_id: string; numero_versao: number }> }
       corrigir_duplicata: { Args: { p_duplicata_id: string; p_campos: Record<string, unknown>; p_motivo: string; p_resultado_confronto: import('@/lib/duplicatas/types').ResultadoConfrontoDuplicata }; Returns: Record<string, unknown> }
       validar_duplicata: { Args: { p_duplicata_id: string; p_resultado: 'VALIDADA' | 'REJEITADA'; p_observacoes: string | null; p_resultado_confronto: Record<string, unknown> }; Returns: Record<string, unknown> }

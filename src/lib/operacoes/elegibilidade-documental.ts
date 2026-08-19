@@ -13,10 +13,20 @@ import type { ElegibilidadeDocumental } from '@/lib/actions/documento-v2'
 export function avaliarElegibilidadeDocumentalParaOperacao(input: {
   notaFiscal: NotaFiscalElegibilidadeComDados
   requisitos: RequisitoElegibilidadeComDados[]
+  /**
+   * Ids das parcelas selecionadas para a operacao. Quando informado, um
+   * requisito por_parcela (parcelaId != null) so bloqueia se a parcela dele
+   * estiver nesta lista -- parcela nao selecionada nao bloqueia. Quando
+   * omitido/null, nenhum filtro e aplicado (equivalente a "todas
+   * selecionadas", usado na listagem antes do cedente escolher).
+   */
+  parcelaIdsSelecionadas?: string[] | null
 }): ElegibilidadeDocumental {
+  const selecionadas = input.parcelaIdsSelecionadas ? new Set(input.parcelaIdsSelecionadas) : null
   const bloqueantes = input.requisitos.filter((requisito) => (
     requisito.escopo === 'nf_pre_cessao'
     && (requisito.obrigatorio || requisito.bloqueiaFluxo)
+    && (!selecionadas || requisito.parcelaId === null || selecionadas.has(requisito.parcelaId))
   ))
   const avaliados = bloqueantes.map((requisito) => ({
     requisito,
@@ -58,12 +68,14 @@ export function avaliarElegibilidadeDocumentalParaOperacao(input: {
 export function avaliarLoteDocumentalParaOperacao(input: {
   notas: NotaFiscalElegibilidadeComDados[]
   requisitosPorNota: Map<string, RequisitoElegibilidadeComDados[]>
+  parcelaIdsSelecionadasPorNota?: Map<string, string[]>
 }) {
   return new Map(input.notas.map((notaFiscal) => [
     notaFiscal.id,
     avaliarElegibilidadeDocumentalParaOperacao({
       notaFiscal,
       requisitos: input.requisitosPorNota.get(notaFiscal.id) || [],
+      parcelaIdsSelecionadas: input.parcelaIdsSelecionadasPorNota?.get(notaFiscal.id) ?? null,
     }),
   ]))
 }

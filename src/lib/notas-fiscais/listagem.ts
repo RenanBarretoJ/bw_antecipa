@@ -85,6 +85,8 @@ export type RequisitoElegibilidadeComDados = {
   statusInstancia: string
   documentoId: string | null
   versaoAprovadaId: string | null
+  /** Requisito de cardinalidade por_parcela: id da parcela a que esta instancia se refere; null = requisito por NF inteira (legado). */
+  parcelaId: string | null
   versaoAtual: {
     id: string
     status: string

@@ -19,11 +19,28 @@ import {
 import { obterDataCivilOperacional } from './data-operacional.server'
 import type { MetodoCalculoNovaPolitica } from './calculo'
 
+export type ParcelaCandidataOperacao = {
+  id: string
+  numeroParcela: number
+  valorNominal: number
+  dataVencimento: string
+}
+
+type ParcelaCandidataRow = {
+  id: string
+  nota_fiscal_id: string
+  numero_parcela: number
+  valor_nominal: number
+  data_vencimento: string
+}
+
 export type NfCandidataOperacao = NotaFiscalElegibilidadeComDados & {
   cnpjDestinatario: string
   destinatario: string
   vencimento: string
   elegibilidade: ElegibilidadeDocumental
+  /** Parcelas disponiveis desta NF (vazio = NF sem parcelas, comportamento legado). */
+  parcelas: ParcelaCandidataOperacao[]
 }
 
 export type ResultadoNovaSolicitacao = {
@@ -174,11 +191,35 @@ export async function carregarNovaSolicitacaoOperacao(
     notas,
     politicaVersaoId: politicaVersao.id,
   })
+
+  const idsPagina = rows.map((row) => row.id)
+  const parcelasPorNf = new Map<string, ParcelaCandidataOperacao[]>()
+  if (idsPagina.length > 0) {
+    const { data: parcelasData, error: parcelasError } = await auth.supabase
+      .from('nota_fiscal_parcelas')
+      .select('id, nota_fiscal_id, numero_parcela, valor_nominal, data_vencimento')
+      .in('nota_fiscal_id', idsPagina)
+      .eq('status', 'disponivel')
+      .order('numero_parcela', { ascending: true })
+    if (parcelasError) throw new Error(`Nao foi possivel carregar as parcelas das NFs candidatas: ${parcelasError.message}`)
+    for (const parcela of (parcelasData || []) as ParcelaCandidataRow[]) {
+      const lista = parcelasPorNf.get(parcela.nota_fiscal_id) || []
+      lista.push({
+        id: parcela.id,
+        numeroParcela: parcela.numero_parcela,
+        valorNominal: Number(parcela.valor_nominal),
+        dataVencimento: parcela.data_vencimento,
+      })
+      parcelasPorNf.set(parcela.nota_fiscal_id, lista)
+    }
+  }
+
   const candidatas = rows.map((row): NfCandidataOperacao => ({
     ...mapNota(row),
     cnpjDestinatario: row.cnpj_destinatario,
     destinatario: row.razao_social_destinatario,
     vencimento: row.data_vencimento,
+    parcelas: parcelasPorNf.get(row.id) || [],
     elegibilidade: elegibilidades.get(row.id) || {
       elegivel: false,
       requisitosPendentes: [],

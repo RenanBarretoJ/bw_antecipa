@@ -229,9 +229,14 @@ async function carregarChecklist(notaFiscalId: string): Promise<ChecklistDocumen
       .limit(1)
     : { data: [] }
 
+  // Requisitos por parcela (ex.: boleto) ficam fora deste checklist geral --
+  // tem sua propria secao "Parcelas / Boletos" (listarParcelasBoletosDaNota),
+  // que sabe a qual parcela cada um pertence. Sem esse filtro apareceriam
+  // aqui como itens genericos sem rotulo de parcela.
   const instancesQuery = dataClient
     .from('documento_requisito_instancias')
     .select('id, politica_requisito_id, politica_operacional_versao_id, politica_operacional_id, politica_versao, documento_tipo_id, tipo_documento_codigo_snapshot, escopo_snapshot, obrigatorio, status, documento_id, versao_aprovada_id, nota_fiscal_id, nota_fiscal_entrega_id, prazo_limite, quantidade_minima_snapshot, formatos_aceitos_snapshot, nivel_validacao_snapshot')
+    .is('parcela_id', null)
 
   const { data: instances, error } = await (entrega?.id
     ? instancesQuery.or([

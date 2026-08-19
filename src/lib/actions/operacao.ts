@@ -68,11 +68,30 @@ async function registrarEventoOperacao(
   }, supabase)
 }
 
+/**
+ * Reprovacao/cancelamento de operacao: devolve as parcelas cedidas para
+ * 'disponivel' e remove os vinculos operacoes_nf_parcelas -- diferente do
+ * legado operacoes_nfs (nunca apagado), pois operacoes_nf_parcelas tem
+ * UNIQUE(parcela_id): uma parcela so pode estar vinculada a uma operacao
+ * ATIVA por vez, entao o vinculo precisa ser desfeito para a parcela poder
+ * entrar numa operacao futura e diferente.
+ */
+async function liberarParcelasDaOperacao(supabase: AppSupabaseClient, operacaoId: string) {
+  const { data: opParcelas } = await supabase
+    .from('operacoes_nf_parcelas')
+    .select('parcela_id')
+    .eq('operacao_id', operacaoId)
+  if (!opParcelas || opParcelas.length === 0) return
+  const parcelaIds = (opParcelas as Array<{ parcela_id: string }>).map((item) => item.parcela_id)
+  await supabase.from('nota_fiscal_parcelas').update({ status: 'disponivel' } as never).in('id', parcelaIds)
+  await supabase.from('operacoes_nf_parcelas').delete().eq('operacao_id', operacaoId)
+}
+
 // ============================================================
 // CEDENTE — Solicitar antecipacao
 // ============================================================
 
-export async function solicitarAntecipacao(nfIds: string[]): Promise<OperacaoActionState> {
+export async function solicitarAntecipacao(nfIds: string[], parcelaIds?: string[]): Promise<OperacaoActionState> {
   const auth = await requireAuthenticated()
   assertRole(auth.profile.role, ['cedente'])
   const supabase = auth.supabase
@@ -131,6 +150,42 @@ export async function solicitarAntecipacao(nfIds: string[]): Promise<OperacaoAct
     }
   }
 
+  // Parcelas selecionadas (quando a NF tiver parcelas cadastradas): valida
+  // pertencimento/disponibilidade e agrupa por NF, usado tanto para o gate
+  // de elegibilidade documental por parcela quanto para a precificacao.
+  const parcelaIdsUnicos = [...new Set((parcelaIds || []).filter(Boolean))]
+  const parcelasPorNf = new Map<string, Array<{ id: string; valor_nominal: number; data_vencimento: string }>>()
+  if (parcelaIdsUnicos.length > 0) {
+    const { data: parcelasSelecionadasRows, error: parcelasError } = await supabase
+      .from('nota_fiscal_parcelas')
+      .select('id, nota_fiscal_id, valor_nominal, data_vencimento')
+      .in('id', parcelaIdsUnicos)
+      .in('nota_fiscal_id', nfIds)
+      .eq('status', 'disponivel')
+    if (parcelasError) return { success: false, message: `Nao foi possivel validar as parcelas selecionadas: ${parcelasError.message}` }
+    const parcelasRows = (parcelasSelecionadasRows || []) as Array<{ id: string; nota_fiscal_id: string; valor_nominal: number; data_vencimento: string }>
+    if (parcelasRows.length !== parcelaIdsUnicos.length) {
+      return { success: false, message: 'Uma ou mais parcelas selecionadas nao estao disponiveis ou nao pertencem as NFs selecionadas.' }
+    }
+    for (const parcela of parcelasRows) {
+      const lista = parcelasPorNf.get(parcela.nota_fiscal_id) || []
+      lista.push(parcela)
+      parcelasPorNf.set(parcela.nota_fiscal_id, lista)
+    }
+  }
+  const { data: parcelasExistentesRows, error: parcelasExistentesError } = await supabase
+    .from('nota_fiscal_parcelas')
+    .select('nota_fiscal_id')
+    .in('nota_fiscal_id', nfIds)
+  if (parcelasExistentesError) {
+    return { success: false, message: `Nao foi possivel verificar as parcelas das NFs selecionadas: ${parcelasExistentesError.message}` }
+  }
+  const nfsComParcelas = new Set(((parcelasExistentesRows || []) as Array<{ nota_fiscal_id: string }>).map((row) => row.nota_fiscal_id))
+  const nfSemSelecaoDeParcela = nfsTyped.find((nf) => nfsComParcelas.has(nf.id) && !parcelasPorNf.get(nf.id)?.length)
+  if (nfSemSelecaoDeParcela) {
+    return { success: false, message: `NF ${nfSemSelecaoDeParcela.numero_nf}: selecione ao menos uma parcela para antecipar.` }
+  }
+
   // FUTURE_DECISION_RULE_1: centraliza a composicao de CNPJs sem decidir,
   // nesta fase, se uma operacao pode ou nao misturar estabelecimentos.
   validarComposicaoEstabelecimentosOperacao({
@@ -182,6 +237,9 @@ export async function solicitarAntecipacao(nfIds: string[]): Promise<OperacaoAct
         razaoSocialDestinatario: nf.razao_social_destinatario,
         valorBruto: Number(nf.valor_bruto),
       })),
+      parcelaIdsSelecionadasPorNota: new Map(
+        [...parcelasPorNf.entries()].map(([nfId, lista]) => [nfId, lista.map((parcela) => parcela.id)]),
+      ),
     })
   } catch (error) {
     return {
@@ -228,14 +286,26 @@ export async function solicitarAntecipacao(nfIds: string[]): Promise<OperacaoAct
 
   const taxasDisp = (todasTaxas || []) as Array<{ prazo_min: number; prazo_max: number; taxa_percentual: number }>
 
+  // Itens de calculo: por parcela quando a NF tiver parcelas selecionadas
+  // (o VP e somado por vencimento de cada parcela), senao a NF inteira
+  // (legado). A formula/motor de calculo (calcularAntecipacaoEmLote) e a
+  // mesma nos dois casos.
+  const itensCalculo = nfsTyped.flatMap((nf) => {
+    const parcelasDaNf = parcelasPorNf.get(nf.id)
+    if (parcelasDaNf && parcelasDaNf.length > 0) {
+      return parcelasDaNf.map((parcela) => ({
+        id: parcela.id,
+        valorBruto: Number(parcela.valor_nominal),
+        vencimento: parcela.data_vencimento,
+      }))
+    }
+    return [{ id: nf.id, valorBruto: Number(nf.valor_bruto), vencimento: nf.data_vencimento }]
+  })
+
   let calculo
   try {
     calculo = calcularAntecipacaoEmLote({
-      notas: nfsTyped.map((nf) => ({
-        id: nf.id,
-        valorBruto: Number(nf.valor_bruto),
-        vencimento: nf.data_vencimento,
-      })),
+      notas: itensCalculo,
       taxas: taxasDisp,
       dataBase: obterDataCivilOperacional(),
       metodo: politicaContexto.versao.metodo_calculo_financeiro,
@@ -243,17 +313,13 @@ export async function solicitarAntecipacao(nfIds: string[]): Promise<OperacaoAct
   } catch (error) {
     return { success: false, message: error instanceof Error ? error.message : 'Nao foi possivel calcular a operacao.' }
   }
-  const nfsCalculadas = nfsTyped.map((nf) => ({
-    ...nf,
-    ...calculo.notas.find((item) => item.notaFiscalId === nf.id)!,
-  }))
   const valorBrutoTotal = calculo.valorBrutoTotal
   const valorLiquidoDesembolso = calculo.valorLiquidoTotal
   const taxaMedia = calculo.taxaMedia
   const prazoMedio = calculo.prazoMedio
-  const dataVencimento = nfsCalculadas.reduce(
-    (max, nf) => nf.data_vencimento > max ? nf.data_vencimento : max,
-    nfsCalculadas[0].data_vencimento
+  const dataVencimento = itensCalculo.reduce(
+    (max, item) => item.vencimento > max ? item.vencimento : max,
+    itensCalculo[0].vencimento,
   )
 
   const idempotencyKey = montarIdempotencyKeySolicitacaoOperacao({
@@ -261,7 +327,7 @@ export async function solicitarAntecipacao(nfIds: string[]): Promise<OperacaoAct
     cedenteId: ced.id,
     cedenteFundoId: politicaContexto.cedenteFundo.id,
     politicaVersaoId: politicaContexto.versao.id,
-    nfIds,
+    nfIds: [...nfIds, ...parcelaIdsUnicos],
   })
 
   const { data: operacao, error: opError } = await supabase.rpc('solicitar_operacao_antecipacao_atomica', {
@@ -281,6 +347,7 @@ export async function solicitarAntecipacao(nfIds: string[]): Promise<OperacaoAct
     p_valor_liquido_desembolso: valorLiquidoDesembolso,
     p_data_vencimento: dataVencimento,
     p_idempotency_key: idempotencyKey,
+    p_parcela_ids: parcelaIdsUnicos.length ? parcelaIdsUnicos : null,
   } as never)
 
   if (opError) {
@@ -664,6 +731,7 @@ export async function reprovarOperacao(operacaoId: string, motivo: string): Prom
       .update({ status: 'aprovada', aprovacao_sacado_em: null } as never)
       .in('id', nfIds)
   }
+  await liberarParcelasDaOperacao(supabase, operacaoId)
 
   await notificarCedente(
     opData.cedente_id,
@@ -741,6 +809,7 @@ export async function cancelarOperacao(operacaoId: string): Promise<OperacaoActi
       .update({ status: 'aprovada', aprovacao_sacado_em: null } as never)
       .in('id', nfIds)
   }
+  await liberarParcelasDaOperacao(supabase, operacaoId)
 
   await registrarLog({
     tipo_evento: 'OPERACAO_CANCELADA',

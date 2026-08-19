@@ -24,6 +24,7 @@ export default function NovaSolicitacaoClient({ resultado }: { resultado: Result
   const [isPending, startTransition] = useTransition()
   const [submitting, setSubmitting] = useState(false)
   const [selected, setSelected] = useState<Map<string, NfCandidataOperacao>>(new Map())
+  const [parcelasSelecionadas, setParcelasSelecionadas] = useState<Map<string, Set<string>>>(new Map())
   const [busca, setBusca] = useState(resultado.filtros.q)
   const params = useMemo(() => Object.fromEntries(searchParams.entries()), [searchParams])
   const pagina = resultado.candidatas.items
@@ -50,6 +51,12 @@ export default function NovaSolicitacaoClient({ resultado }: { resultado: Result
       for (const id of inelegiveisAtuais) proximo.delete(id)
       return proximo
     })
+    setParcelasSelecionadas((atual) => {
+      if (![...inelegiveisAtuais].some((id) => atual.has(id))) return atual
+      const proximo = new Map(atual)
+      for (const id of inelegiveisAtuais) proximo.delete(id)
+      return proximo
+    })
   }, [pagina])
   const toggle = (nf: NfCandidataOperacao) => {
     if (!nf.elegibilidade.elegivel) return
@@ -59,23 +66,58 @@ export default function NovaSolicitacaoClient({ resultado }: { resultado: Result
       else proximo.set(nf.id, nf)
       return proximo
     })
+    setParcelasSelecionadas((atual) => {
+      const proximo = new Map(atual)
+      if (selected.has(nf.id)) proximo.delete(nf.id)
+      else if (nf.parcelas.length > 0) proximo.set(nf.id, new Set(nf.parcelas.map((parcela) => parcela.id)))
+      return proximo
+    })
+  }
+  // Todas as parcelas selecionadas por padrao; desmarcar mantem ao menos uma
+  // (uma NF com parcelas precisa ceder pelo menos uma para ser enviada).
+  const toggleParcela = (nf: NfCandidataOperacao, parcelaId: string) => {
+    setParcelasSelecionadas((atual) => {
+      const atuaisDaNf = atual.get(nf.id) || new Set(nf.parcelas.map((parcela) => parcela.id))
+      if (atuaisDaNf.has(parcelaId) && atuaisDaNf.size === 1) return atual
+      const proximasDaNf = new Set(atuaisDaNf)
+      if (proximasDaNf.has(parcelaId)) proximasDaNf.delete(parcelaId)
+      else proximasDaNf.add(parcelaId)
+      const proximo = new Map(atual)
+      proximo.set(nf.id, proximasDaNf)
+      return proximo
+    })
   }
   const todasDaPagina = elegiveisPagina.length > 0 && elegiveisPagina.every((item) => selected.has(item.id))
-  const togglePagina = () => setSelected((atual) => {
-    const proximo = new Map(atual)
-    for (const item of elegiveisPagina) {
-      if (todasDaPagina) proximo.delete(item.id)
-      else proximo.set(item.id, item)
-    }
-    return proximo
-  })
+  const togglePagina = () => {
+    setSelected((atual) => {
+      const proximo = new Map(atual)
+      for (const item of elegiveisPagina) {
+        if (todasDaPagina) proximo.delete(item.id)
+        else proximo.set(item.id, item)
+      }
+      return proximo
+    })
+    setParcelasSelecionadas((atual) => {
+      const proximo = new Map(atual)
+      for (const item of elegiveisPagina) {
+        if (todasDaPagina) proximo.delete(item.id)
+        else if (item.parcelas.length > 0) proximo.set(item.id, new Set(item.parcelas.map((parcela) => parcela.id)))
+      }
+      return proximo
+    })
+  }
 
+  const itensCalculo = [...selected.values()].flatMap((nf) => {
+    if (nf.parcelas.length > 0) {
+      const selecionadasDaNf = parcelasSelecionadas.get(nf.id) || new Set(nf.parcelas.map((parcela) => parcela.id))
+      return nf.parcelas
+        .filter((parcela) => selecionadasDaNf.has(parcela.id))
+        .map((parcela) => ({ id: parcela.id, valorBruto: parcela.valorNominal, vencimento: parcela.dataVencimento }))
+    }
+    return [{ id: nf.id, valorBruto: nf.valorBruto, vencimento: nf.vencimento }]
+  })
   const calculo = calcularAntecipacaoEmLote({
-    notas: [...selected.values()].map((nf) => ({
-      id: nf.id,
-      valorBruto: nf.valorBruto,
-      vencimento: nf.vencimento,
-    })),
+    notas: itensCalculo,
     taxas: resultado.taxas,
     dataBase: resultado.dataBase,
     metodo: resultado.metodoCalculo,
@@ -86,7 +128,12 @@ export default function NovaSolicitacaoClient({ resultado }: { resultado: Result
   const enviar = async () => {
     if (!selected.size) return notifications.error('Selecione ao menos uma NF.')
     setSubmitting(true)
-    const result = await solicitarAntecipacao([...selected.keys()])
+    const parcelaIds = [...selected.values()].flatMap((nf) => {
+      if (!nf.parcelas.length) return []
+      const selecionadasDaNf = parcelasSelecionadas.get(nf.id) || new Set(nf.parcelas.map((parcela) => parcela.id))
+      return [...selecionadasDaNf]
+    })
+    const result = await solicitarAntecipacao([...selected.keys()], parcelaIds.length ? parcelaIds : undefined)
     notifications.fromActionResult(result, 'Solicitacao criada.')
     if (result?.success) router.push('/cedente/operacoes')
     setSubmitting(false)
@@ -151,21 +198,43 @@ export default function NovaSolicitacaoClient({ resultado }: { resultado: Result
                 {pagina.map((nf) => {
                   const marcado = selected.has(nf.id)
                   const bloqueado = !nf.elegibilidade.elegivel
-                  return <button
-                    type="button"
-                    key={nf.id}
-                    onClick={() => toggle(nf)}
-                    disabled={bloqueado}
-                    className={`flex w-full items-center gap-4 px-4 py-3 text-left ${marcado ? 'bg-primary/5' : 'hover:bg-muted/40'} disabled:cursor-not-allowed disabled:opacity-60`}
-                  >
-                    {marcado ? <CheckSquare size={18} className="shrink-0 text-primary" /> : <Square size={18} className="shrink-0 text-muted-foreground/40" />}
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium" title={nf.destinatario}>NF {nf.numero} · {nf.destinatario}</p>
-                      <p className="text-xs text-muted-foreground">CNPJ {formatCNPJ(nf.cnpjDestinatario)} · Venc. {formatDate(nf.vencimento)}</p>
-                      {bloqueado && <p className="mt-1 text-xs text-destructive">{nf.elegibilidade.motivos.join(', ')}</p>}
-                    </div>
-                    <strong className="shrink-0 tabular-nums">{formatCurrency(nf.valorBruto)}</strong>
-                  </button>
+                  const selecionadasDaNf = parcelasSelecionadas.get(nf.id) || new Set(nf.parcelas.map((parcela) => parcela.id))
+                  return <div key={nf.id} className={marcado ? 'bg-primary/5' : ''}>
+                    <button
+                      type="button"
+                      onClick={() => toggle(nf)}
+                      disabled={bloqueado}
+                      className={`flex w-full items-center gap-4 px-4 py-3 text-left ${marcado ? '' : 'hover:bg-muted/40'} disabled:cursor-not-allowed disabled:opacity-60`}
+                    >
+                      {marcado ? <CheckSquare size={18} className="shrink-0 text-primary" /> : <Square size={18} className="shrink-0 text-muted-foreground/40" />}
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium" title={nf.destinatario}>NF {nf.numero} · {nf.destinatario}</p>
+                        <p className="text-xs text-muted-foreground">
+                          CNPJ {formatCNPJ(nf.cnpjDestinatario)} · Venc. {formatDate(nf.vencimento)}
+                          {nf.parcelas.length > 0 && ` · ${nf.parcelas.length} parcela(s)`}
+                        </p>
+                        {bloqueado && <p className="mt-1 text-xs text-destructive">{nf.elegibilidade.motivos.join(', ')}</p>}
+                      </div>
+                      <strong className="shrink-0 tabular-nums">{formatCurrency(nf.valorBruto)}</strong>
+                    </button>
+                    {marcado && nf.parcelas.length > 0 && (
+                      <div className="ml-9 mr-4 mb-3 divide-y rounded-md border">
+                        {nf.parcelas.map((parcela) => {
+                          const parcelaMarcada = selecionadasDaNf.has(parcela.id)
+                          return <button
+                            type="button"
+                            key={parcela.id}
+                            onClick={() => toggleParcela(nf, parcela.id)}
+                            className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm hover:bg-muted/40"
+                          >
+                            {parcelaMarcada ? <CheckSquare size={15} className="shrink-0 text-primary" /> : <Square size={15} className="shrink-0 text-muted-foreground/40" />}
+                            <span className="flex-1 text-muted-foreground">Parcela {String(parcela.numeroParcela).padStart(3, '0')} · Venc. {formatDate(parcela.dataVencimento)}</span>
+                            <span className="tabular-nums">{formatCurrency(parcela.valorNominal)}</span>
+                          </button>
+                        })}
+                      </div>
+                    )}
+                  </div>
                 })}
               </div>
               <ListPagination

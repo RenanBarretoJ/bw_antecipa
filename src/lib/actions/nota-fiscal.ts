@@ -474,6 +474,31 @@ async function processarArquivo(
         origem: 'upload_nf_xml',
       })
 
+      if (parsed.parcelas.length > 0) {
+        const { error: parcelasError } = await supabase.rpc('registrar_parcelas_nota_fiscal', {
+          p_nota_fiscal_id: nfData.id,
+          p_parcelas: parsed.parcelas,
+        })
+        if (parcelasError) {
+          logUploadNf('registrar_parcelas_erro', { ...context, chaveAcesso: parsed.chave_acesso, erro: parcelasError, notaFiscalId: nfData.id })
+          try {
+            await removerNotaFiscalParcial({
+              notaFiscalId: nfData.id,
+              cedenteId: cedente.id,
+              arquivoUrl: filePath,
+              etapa: 'registrar_parcelas',
+              context,
+            })
+          } catch (cleanupError) {
+            return {
+              ok: false,
+              error: `${arquivo.name}: as parcelas do XML nao correspondem ao valor total da nota e a limpeza automatica falhou - ${cleanupError instanceof Error ? cleanupError.message : 'erro desconhecido'}`,
+            }
+          }
+          return { ok: false, error: `${arquivo.name}: as parcelas do XML (<dup>) nao correspondem ao valor total da nota fiscal - ${parcelasError.message}` }
+        }
+      }
+
       return { ok: true, id: nfData.id, isRascunho: true }
 
     } else {

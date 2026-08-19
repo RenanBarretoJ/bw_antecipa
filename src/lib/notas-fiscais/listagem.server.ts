@@ -251,6 +251,7 @@ function requisitoVazio(
     statusInstancia: 'pendente',
     documentoId: null,
     versaoAprovadaId: null,
+    parcelaId: null,
     versaoAtual: null,
   }
 }
@@ -428,6 +429,7 @@ export async function carregarNotasFiscaisComResumoDocumental(
           statusInstancia: instancia.status,
           documentoId: instancia.documento_id,
           versaoAprovadaId: instancia.versao_aprovada_id,
+          parcelaId: null,
           versaoAtual: instancia.documento_id
             ? versaoAtualPorDocumento.get(instancia.documento_id) || null
             : null,

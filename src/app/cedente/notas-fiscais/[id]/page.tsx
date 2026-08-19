@@ -20,6 +20,7 @@ import {
   Truck,
 } from 'lucide-react'
 import { ChecklistCedente, type ChecklistEligibilitySummary } from '@/components/documentos-v2/ChecklistCedente'
+import { ParcelasBoletosNota } from '@/components/documentos-v2/ParcelasBoletosNota'
 import { useNotifications } from '@/components/notifications/notification-provider'
 import { ArquivoOriginalCompacto } from '@/components/notas-fiscais/ArquivoOriginalCompacto'
 import { HistoricoTimelineCard } from '@/components/historico/HistoricoTimelineCard'
@@ -498,6 +499,8 @@ export default function NfDetalhePage() {
       </div>
 
       <ChecklistCedente notaFiscalId={nfId} onEligibilityChange={setSubmissionReadiness} />
+
+      <ParcelasBoletosNota notaFiscalId={nfId} mode="cedente" />
 
       <DuplicatasDaNota notaFiscalId={nfId} mode="cedente" editable={isEditable} />
 

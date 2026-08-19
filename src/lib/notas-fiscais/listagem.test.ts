@@ -37,6 +37,7 @@ function requisito(overrides: Partial<RequisitoElegibilidadeComDados> = {}): Req
     statusInstancia: 'pendente',
     documentoId: 'doc-1',
     versaoAprovadaId: null,
+    parcelaId: null,
     versaoAtual: {
       id: 'versao-1',
       status: 'enviado',

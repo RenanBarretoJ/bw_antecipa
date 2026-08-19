@@ -28,6 +28,7 @@ function requisito(overrides: Partial<RequisitoElegibilidadeComDados> = {}): Req
     statusInstancia: 'pendente',
     documentoId: null,
     versaoAprovadaId: null,
+    parcelaId: null,
     versaoAtual: null,
     ...overrides,
   }
@@ -149,5 +150,50 @@ describe('elegibilidade documental em lote para operacoes', () => {
     })
     expect(lote.get(nota.id)?.elegivel).toBe(true)
     expect(lote.get(notaPendente.id)?.elegivel).toBe(false)
+  })
+
+  describe('requisitos por_parcela (boleto)', () => {
+    const boletoPendenteParcela1 = requisito({ id: 'req-boleto', codigo: 'boleto', parcelaId: 'parcela-1' })
+    const boletoPendenteParcela2 = requisito({ id: 'req-boleto', codigo: 'boleto', parcelaId: 'parcela-2' })
+
+    it('sem lista de selecao, qualquer parcela pendente bloqueia (equivalente a todas selecionadas)', () => {
+      const resultado = avaliarElegibilidadeDocumentalParaOperacao({
+        notaFiscal: nota,
+        requisitos: [boletoPendenteParcela1, boletoPendenteParcela2],
+      })
+      expect(resultado.elegivel).toBe(false)
+      expect(resultado.pendentesObrigatorios).toBe(2)
+    })
+
+    it('parcela nao selecionada nao bloqueia; parcela selecionada sem boleto bloqueia', () => {
+      const resultado = avaliarElegibilidadeDocumentalParaOperacao({
+        notaFiscal: nota,
+        requisitos: [boletoPendenteParcela1, boletoPendenteParcela2],
+        parcelaIdsSelecionadas: ['parcela-1'],
+      })
+      expect(resultado.elegivel).toBe(false)
+      expect(resultado.pendentesObrigatorios).toBe(1)
+    })
+
+    it('todas as parcelas com boleto aprovado e nenhuma selecionada = elegivel (nada bloqueante)', () => {
+      const resultado = avaliarElegibilidadeDocumentalParaOperacao({
+        notaFiscal: nota,
+        requisitos: [boletoPendenteParcela1, boletoPendenteParcela2],
+        parcelaIdsSelecionadas: [],
+      })
+      expect(resultado.elegivel).toBe(true)
+    })
+
+    it('requisito por NF inteira (parcelaId null) sempre bloqueia, mesmo com selecao de parcelas informada', () => {
+      const requisitoNf = requisito({ id: 'req-nf', codigo: 'nf_xml', parcelaId: null })
+      const resultado = avaliarElegibilidadeDocumentalParaOperacao({
+        notaFiscal: nota,
+        requisitos: [requisitoNf, boletoPendenteParcela1],
+        parcelaIdsSelecionadas: ['parcela-2'],
+      })
+      expect(resultado.elegivel).toBe(false)
+      expect(resultado.pendentesObrigatorios).toBe(1)
+      expect(resultado.requisitosPendentes).toEqual(['nf_xml'])
+    })
   })
 })
