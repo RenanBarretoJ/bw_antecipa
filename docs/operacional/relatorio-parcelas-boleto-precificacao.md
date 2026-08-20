@@ -9,17 +9,20 @@
 `P0_SUBMISSAO_LOGISTICA_NF78 = PASS`.
 `P0_NOVA_SOLICITACAO_PARCELAS_CRASH = PASS`.
 `P0_NOVA_SOLICITACAO_PARCELAS_CRASH_REMOTE = PASS`.
-`UI_PARCELAS_NF_E_OPERACAO = PASS`** (causa raiz do crash de parcelas
-confirmada e corrigida — parcela individualmente vencida mascarada pelo
-vencimento agregado da NF, achada pelo usuário ao vivo na NF 3493; ver
-seção correspondente; Fase 3 pendente por decisão explícita de
-sequenciamento — ver seção "Pendências").
+`UI_PARCELAS_NF_E_OPERACAO = PASS`.
+`P0_REJEICAO_RELIBERA_PARCELAS_E_UI_NF = PASS`** (causa raiz do crash de
+parcelas confirmada e corrigida — parcela individualmente vencida
+mascarada pelo vencimento agregado da NF, achada pelo usuário ao vivo na
+NF 3493; causa raiz do bug de reutilização de parcelas após rejeição
+também confirmada e corrigida — escrita direta sem privilégio suficiente,
+falhando em silêncio; ver seções correspondentes; Fase 3 pendente por
+decisão explícita de sequenciamento — ver seção "Pendências").
 
 Ambiente: homologação Supabase `fhgkmggthxikfpogrvaa`. Produção
 (`wwsndnuvnjuabpbjwlck`) não foi tocada. Nenhum commit ou push foi
-executado neste último ticket (parcelas na NF e na Operação — UI/
-Operacional); os P0s anteriores já haviam sido comitados/enviados para
-`homolog` mediante instrução explícita do usuário.
+executado no ticket mais recente (reuso de parcelas após rejeição +
+ajustes de UI da NF); os P0s anteriores já haviam sido comitados/enviados
+para `homolog` mediante instrução explícita do usuário.
 
 ## Diagnóstico
 
@@ -1569,6 +1572,160 @@ requisito continua `satisfeito` e a versão `aprovado`).
 
 `UI_PARCELAS_NF_E_OPERACAO = PASS`
 
+## P0 — reuso de parcelas após rejeição + ajustes UI da NF
+
+**Resultado: `P0_REJEICAO_RELIBERA_PARCELAS_E_UI_NF = PASS`.**
+
+Ticket com duas partes: (A) reordenar a UI de detalhe da NF (Cedente e
+Gestor) e esconder "Data de Vencimento" quando a NF tem parcelas; (B)
+diagnosticar e corrigir, ao vivo em homologação e sem corrigir por
+hipótese, por que as parcelas de uma NF deixam de expandir em "Nova
+Solicitação" depois que a operação que as usava é rejeitada.
+
+### Parte B — diagnóstico (ao vivo, antes de qualquer alteração)
+
+Reproduzido literalmente o cenário do ticket com uma transação `BEGIN`/
+`ROLLBACK` em homologação (fixture sintética, mesmo padrão da Fase 2):
+cedente cria uma operação com uma NF com parcelas, gestor rejeita, cedente
+volta para a listagem — e a NF realmente reaparece com **0 parcelas
+disponíveis para expandir**, enquanto uma NF de controle que nunca
+participou de nenhuma operação expande normalmente. Sintoma confirmado
+byte a byte antes de tocar em qualquer código.
+
+Rastreamento da causa:
+- `reprovarOperacao`/`cancelarOperacao` (`src/lib/actions/operacao.ts`)
+  chamam `liberarParcelasDaOperacao`, que fazia `UPDATE` direto em
+  `nota_fiscal_parcelas` e `DELETE` direto em `operacoes_nf_parcelas`,
+  usando o client autenticado do Server Action (role `authenticated`).
+- `information_schema.role_table_grants` ao vivo em homologação confirma:
+  essas duas tabelas só têm `GRANT SELECT` para `authenticated` — toda
+  escrita é exclusiva de RPC `SECURITY DEFINER` (por design, desde as
+  migrations da Fase 1/2). O `UPDATE`/`DELETE` diretos falham com
+  `permission denied for table ...`.
+- O código nunca checava `{ error }` dessas duas chamadas — a falha era
+  descartada em silêncio. `notas_fiscais.status` volta corretamente para
+  `'aprovada'` (essa tabela tem `GRANT` completo para `authenticated`),
+  por isso a NF **reaparece** na listagem — mas
+  `nota_fiscal_parcelas.status` nunca sai de `'em_operacao'`, e a
+  listagem de "Nova Solicitação" só considera parcela selecionável
+  quando `status='disponivel'` — daí a NF aparecer com 0 parcelas.
+
+Classificação (taxonomia do ticket): **`PARCELA_STATUS_NOT_RELEASED` +
+`OPERACOES_NF_PARCELAS_NOT_REMOVED`**, causadas pela mesma raiz — escrita
+direta sem privilégio suficiente, com erro engolido. Não é
+`OPERACOES_NFS_HISTORY_BLOCKING_UI` (`operacoes_nfs` nunca bloqueia nova
+seleção — a trava por NF-com-parcelas é só por
+`nota_fiscal_parcelas.status`, confirmado lendo
+`solicitar_operacao_antecipacao_atomica`), nem `LISTING_QUERY_FILTER_BUG`
+(a query de listagem está correta; ela só nunca recebe o dado certo).
+`PARTIAL_ROLLBACK` também não se aplica: a falha é 100% determinística
+(sempre falha, em toda chamada), não um problema de correção parcial entre
+passos sequenciais — por isso a correção mínima foi tornar a escrita
+possível e auditável, não envolver todo o fluxo numa transação maior.
+
+**Achado colateral, mesma classe de bug, também confirmado ao vivo**:
+`cancelarOperacao` (botão "Cancelar" do Cedente,
+`OperacoesPaginadas.tsx`) faz `UPDATE public.operacoes` sem nenhum filtro
+de `cedente_id`, confiando inteiramente em RLS para restringir ao dono —
+mas `pg_policies` ao vivo mostra que `operacoes` **nunca teve** uma policy
+de `UPDATE` para `cedente` (só para `gestor`, desde a migration
+original). O `UPDATE` do cedente afeta 0 linhas **sem erro** (RLS filtra,
+não lança exceção), o Server Action lê `{ error: null }` e retorna
+sucesso — o botão "Cancelar" do cedente sempre reportou "Operação
+cancelada." sem cancelar nada.
+
+### Correção
+
+- `supabase/migrations/20260820130000_liberar_parcelas_operacao_
+  rejeitada_cancelada.sql`: nova RPC `SECURITY DEFINER`
+  `liberar_parcelas_operacao_rejeitada(p_operacao_id)` — libera
+  (`status='disponivel'`) exatamente as parcelas vinculadas à operação e
+  remove o vínculo em `operacoes_nf_parcelas`, atomicamente. Autoriza
+  gestor com acesso ao fundo (`private.gestor_tem_acesso_cedente`) OU
+  cedente dono da operação; exige `operacoes.status IN ('reprovada',
+  'cancelada')`. Não toca `operacoes_nfs` (histórico legado preservado).
+- `src/lib/actions/operacao.ts`: `liberarParcelasDaOperacao` passa a
+  chamar essa RPC em vez de `UPDATE`/`DELETE` diretos, e loga (não mais
+  descarta) qualquer falha.
+- `supabase/migrations/20260820140000_permitir_cedente_cancelar_propria_
+  operacao.sql`: nova policy `operacoes_cedente_update` — cedente pode
+  atualizar (`UPDATE`) apenas a própria operação (`cedente_id =
+  get_user_cedente_id()`), e só enquanto `solicitada`/`em_analise` (mesma
+  janela já validada em código, reforçada também via RLS).
+
+### Parte A — reordenação da UI e ocultação do vencimento agregado
+
+- `ParcelasDaNota` ganhou a prop `onTemParcelas?: (tem: boolean) => void`,
+  chamada após cada carregamento com o resultado real
+  (`itens.length > 0`).
+- Cedente (`src/app/cedente/notas-fiscais/[id]/page.tsx`) e Gestor
+  (`src/app/gestor/notas-fiscais/[id]/page.tsx`): `<ParcelasDaNota>`
+  passa a renderizar depois do card "Valores" (movida de antes do
+  Checklist para depois de todo o bloco Dados/Emitente/Destinatário/
+  Valores), mantendo a ordem exigida: Dados da Nota Fiscal → Emitente →
+  Destinatário → Valores → Parcelas da Nota Fiscal. Aplica-se aos três
+  modos: formulário editável do Cedente (rascunho/requer_ajuste),
+  somente-leitura do Cedente, e a página do Gestor.
+- "Data de Vencimento" some do card "Dados da Nota Fiscal"/"Dados da NF"
+  quando `temParcelas` é verdadeiro, nas duas páginas — o vencimento
+  passa a ser só por parcela (dentro de "Parcelas da Nota Fiscal").
+  `notas_fiscais.data_vencimento` continua existindo só como agregado
+  legado (`MAX` das parcelas, mantido pela RPC `editar_parcelas_nota_
+  fiscal` já existente da Fase anterior); a sidebar "Dias até vencimento"
+  do Gestor (que usa esse agregado) não foi alterada — continua visível.
+- NF sem parcelas: `temParcelas` começa `false` e nada é escondido —
+  comportamento legado preservado byte a byte.
+
+### Testes
+
+- **Live E2E (SQL)** — novo
+  `scripts/homologacao/p0-rejeicao-relibera-parcelas/e2e.mjs`, **16/16
+  PASS** ao vivo em homologação (transação revertida), cobrindo os 10
+  cenários exigidos pelo ticket: operação com NF-56+NF-78 → rejeição →
+  ambas voltam a expandir parcelas na listagem → nova operação com as
+  mesmas parcelas = `ALLOW` → rejeição parcial libera só as parcelas
+  daquela operação (parcelas 1-2) sem afetar a operação paralela ativa
+  (parcelas 3-4) → parcela vencida continua excluída (regressão do P0
+  anterior) → NF sem parcelas mantém o bloqueio legado por
+  `operacoes_nfs` → cancelamento pelo cedente também libera parcelas
+  (mesma RPC) → gestor de outro fundo não pode chamar a RPC (`DENY`) →
+  operação rejeitada preserva as parcelas originais historicamente via
+  `logs_auditoria` (não via `operacoes_nf_parcelas`, que é vínculo de
+  exclusividade ativa e é corretamente removido).
+- **Live E2E (browser)** — novo
+  `scripts/homologacao/p0-rejeicao-relibera-parcelas/browser-e2e-ui.mjs`,
+  **14/14 PASS** com Chrome real contra `npm run dev:homolog`, cobrindo a
+  Parte A: ordem das 5 seções nas duas páginas (Cedente rascunho/
+  editável, Cedente aprovada/somente-leitura, Gestor), ausência de "Data
+  de Vencimento"/"Data Vencimento" quando há parcelas, presença
+  inalterada em NF sem parcelas, e sidebar "Dias até vencimento" do
+  Gestor intacta.
+- 12 testes novos de arquitetura em `parcelas-nf-boleto-architecture.
+  test.ts`: `liberarParcelasDaOperacao` chama a RPC (não `UPDATE`/`DELETE`
+  diretos) e loga falha; `reprovarOperacao`/`cancelarOperacao` usam a
+  mesma função; guardas de autorização/status da RPC; RPC não toca
+  `operacoes_nfs`; policy nova do cedente; ordem das seções e ocultação
+  condicional do vencimento nas duas páginas (Cedente e Gestor).
+- **Regressões reexecutadas ao vivo**: Fase 2 E2E (29/29 — inalterado,
+  confirma que a correção não afeta o fluxo de seleção/precificação por
+  parcela), P0 crash de parcela vencida — browser E2E (13/13 — inalterado).
+- Suíte completa (`npx vitest run`): **162 arquivos / 1232 testes, 0
+  falhas** (12 testes novos).
+- `npx tsc --noEmit`: limpo (nova entrada manual de tipos de RPC em
+  `src/types/database.ts` para `liberar_parcelas_operacao_rejeitada`).
+  `npx eslint .`: mesmos 6 warnings pré-existentes e não relacionados.
+  `npx next build --webpack`: sucesso. `npm audit --omit=dev`: 0
+  vulnerabilidades. `git diff --check`: limpo. Varredura de segredos nos
+  arquivos alterados: nenhum encontrado (scripts novos só leem
+  `.env.homolog` em runtime, nada hardcoded).
+
+### Status final
+
+`P0_REJEICAO_RELIBERA_PARCELAS_E_UI_NF = PASS`
+
+Nenhum commit ou push foi executado — aguardando validação do usuário,
+conforme instrução explícita do ticket.
+
 ## Riscos
 
 1. **Fase 3 não implementada** — este relatório cobre as Fases 1 e 2. A
@@ -1594,14 +1751,21 @@ requisito continua `satisfeito` e a versão `aprovado`).
    ser revisado antes da Fase 3 — nenhum consumidor existente hoje faz essa
    suposição (confirmado na pesquisa desta fase), mas é um ponto de atenção
    explícito para quem tocar CNAB/relatórios agregados na Fase 3.
-5. `reprovarOperacao`/`cancelarOperacao` continuam sendo Server Actions em
-   TypeScript puro (não RPC atômica) — a liberação de parcelas
-   (`liberarParcelasDaOperacao`) roda como passos sequenciais no mesmo
-   padrão pré-existente de `notas_fiscais.status`, sem uma transação
-   atômica de banco cobrindo tudo. Este é o mesmo comportamento/risco já
-   aceito no fluxo legado (não introduzido por esta fase); não foi
-   ampliado nem corrigido aqui, por ser mudança de escopo maior (migrar
-   essas duas Server Actions para RPC) não pedida no ticket.
+5. ~~`reprovarOperacao`/`cancelarOperacao` continuam sendo Server Actions
+   em TypeScript puro (não RPC atômica) — a liberação de parcelas
+   (`liberarParcelasDaOperacao`) roda como passos sequenciais...~~ — este
+   risco previsto aqui era **real e determinístico, não teórico**: a
+   escrita direta em `nota_fiscal_parcelas`/`operacoes_nf_parcelas`
+   falhava com `permission denied` em toda chamada (grant insuficiente
+   para `authenticated`), silenciosamente. **Corrigido** no P0 "reuso de
+   parcelas após rejeição" (ver seção correspondente) com uma RPC
+   `SECURITY DEFINER` dedicada para essa liberação. `reprovarOperacao`/
+   `cancelarOperacao` continuam com `operacoes.status` e
+   `notas_fiscais.status` como passos sequenciais separados (ambos usam
+   tabelas com `GRANT` completo e nunca falharam na prática) — migrar
+   esses dois passos para dentro da mesma RPC não foi necessário para
+   resolver o bug relatado e permanece fora do escopo de "menor correção
+   possível".
 6. **`carregarResumoDocumentalDasNotas` (`resumo-documental-gestor.server.ts`),
    usado pelo gate de aprovação da NF (`aprovarNF`), nunca chama
    `instanciarRequisitosDaNota`** — só lê o que já existe em

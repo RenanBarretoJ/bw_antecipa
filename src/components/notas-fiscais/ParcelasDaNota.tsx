@@ -31,7 +31,16 @@ const origemLabel: Record<string, string> = {
  * boleto (o card de Boleto continua exclusivamente documental, dentro do
  * checklist). NF sem parcelas nao renderiza nada (comportamento legado).
  */
-export function ParcelasDaNota({ notaFiscalId, mode }: { notaFiscalId: string; mode: Mode }) {
+export function ParcelasDaNota({
+  notaFiscalId,
+  mode,
+  onTemParcelas,
+}: {
+  notaFiscalId: string
+  mode: Mode
+  /** Notifica o componente pai se a NF tem (>0) ou nao tem parcelas, apos o carregamento. */
+  onTemParcelas?: (temParcelas: boolean) => void
+}) {
   const notifications = useNotifications()
   const [itens, setItens] = useState<ParcelaDaNotaItem[] | null>(null)
   const [total, setTotal] = useState(0)
@@ -44,6 +53,7 @@ export function ParcelasDaNota({ notaFiscalId, mode }: { notaFiscalId: string; m
     if (!result.success || !result.data) {
       if (!result.success) notifications.error(result.message)
       setItens([])
+      onTemParcelas?.(false)
       return
     }
     setItens(result.data.itens)
@@ -53,6 +63,7 @@ export function ParcelasDaNota({ notaFiscalId, mode }: { notaFiscalId: string; m
       item.id,
       { valorNominal: item.valorNominal.toFixed(2), dataVencimento: item.dataVencimento },
     ])))
+    onTemParcelas?.(result.data.itens.length > 0)
   }
 
   useEffect(() => {

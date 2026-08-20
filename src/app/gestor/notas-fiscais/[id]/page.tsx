@@ -103,6 +103,7 @@ export default function NfDetalheGestorPage() {
   const [showAjuste, setShowAjuste] = useState(false)
   const [motivoAjuste, setMotivoAjuste] = useState('')
   const [todayMs] = useState(() => Date.now())
+  const [temParcelas, setTemParcelas] = useState(false)
 
   useEffect(() => {
     if (!message) return
@@ -374,8 +375,6 @@ export default function NfDetalheGestorPage() {
 
       <ChecklistGestor notaFiscalId={nfId} />
 
-      <ParcelasDaNota notaFiscalId={nfId} mode="gestor" />
-
       <DuplicatasDaNota notaFiscalId={nfId} mode="gestor" />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -400,10 +399,12 @@ export default function NfDetalheGestorPage() {
                   <span className="text-muted-foreground">Data Emissao</span>
                   <p className="font-medium tabular-nums">{formatDate(nf.data_emissao)}</p>
                 </div>
-                <div>
-                  <span className="text-muted-foreground">Data Vencimento</span>
-                  <p className="font-medium tabular-nums">{formatDate(nf.data_vencimento)}</p>
-                </div>
+                {!temParcelas && (
+                  <div>
+                    <span className="text-muted-foreground">Data Vencimento</span>
+                    <p className="font-medium tabular-nums">{formatDate(nf.data_vencimento)}</p>
+                  </div>
+                )}
                 <div className="col-span-2">
                   <span className="text-muted-foreground">Chave de Acesso</span>
                   <p className="font-mono text-xs break-all">{nf.chave_acesso || '—'}</p>
@@ -542,6 +543,8 @@ export default function NfDetalheGestorPage() {
           </div>
         </div>
       </div>
+
+      <ParcelasDaNota notaFiscalId={nfId} mode="gestor" onTemParcelas={setTemParcelas} />
 
       <HistoricoTimelineCard entidade="nota_fiscal" entidadeId={nfId} />
     </div>

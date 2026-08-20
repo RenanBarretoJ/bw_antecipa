@@ -75,16 +75,18 @@ async function registrarEventoOperacao(
  * UNIQUE(parcela_id): uma parcela so pode estar vinculada a uma operacao
  * ATIVA por vez, entao o vinculo precisa ser desfeito para a parcela poder
  * entrar numa operacao futura e diferente.
+ *
+ * Passa pela RPC liberar_parcelas_operacao_rejeitada em vez de UPDATE/DELETE
+ * diretos: nota_fiscal_parcelas e operacoes_nf_parcelas so tem GRANT SELECT
+ * para authenticated (escrita e exclusiva de RPC SECURITY DEFINER); a
+ * chamada direta falhava com "permission denied" a cada reprovacao/
+ * cancelamento, silenciosamente, sem reverter as parcelas.
  */
 async function liberarParcelasDaOperacao(supabase: AppSupabaseClient, operacaoId: string) {
-  const { data: opParcelas } = await supabase
-    .from('operacoes_nf_parcelas')
-    .select('parcela_id')
-    .eq('operacao_id', operacaoId)
-  if (!opParcelas || opParcelas.length === 0) return
-  const parcelaIds = (opParcelas as Array<{ parcela_id: string }>).map((item) => item.parcela_id)
-  await supabase.from('nota_fiscal_parcelas').update({ status: 'disponivel' } as never).in('id', parcelaIds)
-  await supabase.from('operacoes_nf_parcelas').delete().eq('operacao_id', operacaoId)
+  const { error } = await supabase.rpc('liberar_parcelas_operacao_rejeitada', { p_operacao_id: operacaoId } as never)
+  if (error) {
+    console.error('[liberarParcelasDaOperacao]', { operacao_id: operacaoId, erro: error.message })
+  }
 }
 
 // ============================================================

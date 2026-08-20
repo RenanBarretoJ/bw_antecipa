@@ -94,9 +94,11 @@ function LabelValue({ label, value, mono = false }: { label: string; value: stri
 function ReadOnlyNfDetails({
   nf,
   previewUrl,
+  temParcelas,
 }: {
   nf: NfCompleta
   previewUrl: string | null
+  temParcelas: boolean
 }) {
   const impostos = Number(nf.valor_icms || 0) + Number(nf.valor_iss || 0) + Number(nf.valor_pis || 0) + Number(nf.valor_cofins || 0) + Number(nf.valor_ipi || 0)
 
@@ -109,7 +111,7 @@ function ReadOnlyNfDetails({
             <LabelValue label="Número" value={nf.numero_nf} />
             <LabelValue label="Série" value={nf.serie} />
             <LabelValue label="Emissão" value={formatDate(nf.data_emissao)} />
-            <LabelValue label="Vencimento" value={formatDate(nf.data_vencimento)} />
+            {!temParcelas && <LabelValue label="Vencimento" value={formatDate(nf.data_vencimento)} />}
             <div className="col-span-2 md:col-span-1">
               <LabelValue label="Chave" value={nf.chave_acesso} mono />
             </div>
@@ -219,6 +221,7 @@ export default function NfDetalhePage() {
   const [messageType, setMessageType] = useState<'success' | 'error'>('success')
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [buscandoCnpj, setBuscandoCnpj] = useState(false)
+  const [temParcelas, setTemParcelas] = useState(false)
 
   useEffect(() => {
     if (!message) return
@@ -503,8 +506,6 @@ export default function NfDetalhePage() {
 
       <ChecklistCedente notaFiscalId={nfId} onEligibilityChange={setSubmissionReadiness} />
 
-      <ParcelasDaNota notaFiscalId={nfId} mode="cedente" />
-
       <DuplicatasDaNota notaFiscalId={nfId} mode="cedente" editable={isEditable} />
 
       {nf.status === 'requer_ajuste' && nf.motivo_ajuste && (
@@ -566,7 +567,7 @@ export default function NfDetalhePage() {
                 />
               </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            <div className={`grid grid-cols-1 gap-4 mt-4 ${temParcelas ? '' : 'md:grid-cols-2'}`}>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Data de Emissao *</label>
                 <input
@@ -577,16 +578,18 @@ export default function NfDetalhePage() {
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm disabled:bg-gray-50 disabled:text-gray-500"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Data de Vencimento *</label>
-                <input
-                  type="date"
-                  value={form.data_vencimento}
-                  onChange={(e) => updateForm('data_vencimento', e.target.value)}
-                  disabled={!isEditable}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm disabled:bg-gray-50 disabled:text-gray-500"
-                />
-              </div>
+              {!temParcelas && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Data de Vencimento *</label>
+                  <input
+                    type="date"
+                    value={form.data_vencimento}
+                    onChange={(e) => updateForm('data_vencimento', e.target.value)}
+                    disabled={!isEditable}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm disabled:bg-gray-50 disabled:text-gray-500"
+                  />
+                </div>
+              )}
             </div>
           </div>
 
@@ -812,8 +815,10 @@ export default function NfDetalhePage() {
         </div>
       </div>
       ) : (
-        <ReadOnlyNfDetails nf={nf} previewUrl={previewUrl} />
+        <ReadOnlyNfDetails nf={nf} previewUrl={previewUrl} temParcelas={temParcelas} />
       )}
+
+      <ParcelasDaNota notaFiscalId={nfId} mode="cedente" onTemParcelas={setTemParcelas} />
 
       {nf.status === 'rascunho' && !submissionReadiness.elegivel && (
         <p className="text-sm text-muted-foreground">

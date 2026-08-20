@@ -17,6 +17,9 @@ const novaSolicitacaoClient = readFileSync('src/app/cedente/operacoes/nova/nova-
 const editarParcelasMigration = readFileSync('supabase/migrations/20260820120000_ui_parcelas_nf_operacao_editar_parcelas.sql', 'utf8')
 const parcelasDaNota = readFileSync('src/components/notas-fiscais/ParcelasDaNota.tsx', 'utf8')
 const operacaoDetalheGestorClient = readFileSync('src/app/gestor/operacoes/[id]/OperacaoDetalheGestorClient.tsx', 'utf8')
+const operacaoAction = readFileSync('src/lib/actions/operacao.ts', 'utf8')
+const liberarParcelasMigration = readFileSync('supabase/migrations/20260820130000_liberar_parcelas_operacao_rejeitada_cancelada.sql', 'utf8')
+const cedenteCancelarMigration = readFileSync('supabase/migrations/20260820140000_permitir_cedente_cancelar_propria_operacao.sql', 'utf8')
 
 describe('Fase 1 (Parcelas de NF): modelo canonico + parser + tolerancia', () => {
   it('cria nota_fiscal_parcelas com as garantias exigidas (unique, valor>0, vencimento obrigatorio)', () => {
@@ -385,5 +388,109 @@ describe('UI/Operacional: detalhe por parcela na Operacao do Gestor (nao mais ag
   it('bloco de parcelas cedidas e expansivel por NF ("X/Y parcelas cedidas")', () => {
     expect(operacaoDetalheGestorClient).toContain('parcelas cedidas')
     expect(operacaoDetalheGestorClient).toContain('toggleNfExpandida')
+  })
+})
+
+// P0 (correcao real, confirmada ao vivo em homolog): reprovarOperacao/
+// cancelarOperacao chamavam liberarParcelasDaOperacao, que fazia UPDATE/
+// DELETE diretos em nota_fiscal_parcelas/operacoes_nf_parcelas -- tabelas
+// que so tem GRANT SELECT para authenticated (escrita e exclusiva de RPC
+// SECURITY DEFINER). O erro "permission denied" era descartado em silencio
+// (o codigo nao checava { error }), entao a NF reprovada voltava a aparecer
+// em "Nova Solicitacao" com 0 parcelas disponiveis para expandir.
+describe('P0 (correcao real): rejeicao/cancelamento nao liberava parcelas (grant/RLS insuficiente para escrita direta)', () => {
+  it('liberarParcelasDaOperacao chama a RPC liberar_parcelas_operacao_rejeitada, nao UPDATE/DELETE diretos', () => {
+    const indiceFuncao = operacaoAction.indexOf('async function liberarParcelasDaOperacao')
+    const indiceFimFuncao = operacaoAction.indexOf('\n}', indiceFuncao)
+    const corpo = operacaoAction.slice(indiceFuncao, indiceFimFuncao)
+    expect(indiceFuncao).toBeGreaterThan(-1)
+    expect(corpo).toContain("supabase.rpc('liberar_parcelas_operacao_rejeitada'")
+    expect(corpo).not.toContain("from('nota_fiscal_parcelas').update")
+    expect(corpo).not.toContain("from('operacoes_nf_parcelas').delete")
+  })
+
+  it('a falha da RPC e logada, nao mais descartada em silencio', () => {
+    const indiceFuncao = operacaoAction.indexOf('async function liberarParcelasDaOperacao')
+    const indiceFimFuncao = operacaoAction.indexOf('\n}', indiceFuncao)
+    const corpo = operacaoAction.slice(indiceFuncao, indiceFimFuncao)
+    expect(corpo).toContain('if (error)')
+    expect(corpo).toContain('console.error')
+  })
+
+  it('reprovarOperacao (gestor) e cancelarOperacao (cedente) usam a mesma funcao de liberacao', () => {
+    const indiceReprovar = operacaoAction.indexOf('export async function reprovarOperacao')
+    const indiceCancelar = operacaoAction.indexOf('export async function cancelarOperacao')
+    const indiceFimCancelar = operacaoAction.indexOf('\n}', operacaoAction.indexOf('return { success: true', indiceCancelar))
+    expect(operacaoAction.slice(indiceReprovar, indiceCancelar)).toContain('liberarParcelasDaOperacao(supabase, operacaoId)')
+    expect(operacaoAction.slice(indiceCancelar, indiceFimCancelar)).toContain('liberarParcelasDaOperacao(supabase, operacaoId)')
+  })
+
+  it('RPC exige operacao ja reprovada/cancelada e autoriza so o gestor do fundo ou o cedente dono', () => {
+    expect(liberarParcelasMigration).toContain("op.status NOT IN ('reprovada', 'cancelada')")
+    expect(liberarParcelasMigration).toContain('private.gestor_tem_acesso_cedente(op.cedente_id)')
+    expect(liberarParcelasMigration).toContain('op.cedente_id <> (SELECT public.get_user_cedente_id())')
+  })
+
+  it('RPC libera exatamente as parcelas da operacao e remove so o vinculo operacoes_nf_parcelas daquela operacao (nao toca operacoes_nfs, historico legado preservado)', () => {
+    expect(liberarParcelasMigration).toContain("SET status = 'disponivel'")
+    expect(liberarParcelasMigration).toContain('DELETE FROM public.operacoes_nf_parcelas WHERE operacao_id = p_operacao_id')
+    expect(liberarParcelasMigration).not.toContain('DELETE FROM public.operacoes_nfs')
+  })
+
+  it('achado colateral: policy nova permite cedente cancelar (UPDATE) apenas a propria operacao, so enquanto solicitada/em_analise', () => {
+    expect(cedenteCancelarMigration).toContain('CREATE POLICY operacoes_cedente_update ON public.operacoes')
+    expect(cedenteCancelarMigration).toContain("status IN ('solicitada', 'em_analise')")
+    expect(cedenteCancelarMigration).toContain('cedente_id = (SELECT public.get_user_cedente_id())')
+  })
+})
+
+// P0/UI: ordem das secoes no Detalhe da NF (Claude_Rejeicao_Relibera_
+// Parcelas_e_UI_NF.txt) -- Dados da Nota Fiscal -> Emitente -> Destinatario
+// -> Valores -> Parcelas da Nota Fiscal. "Data de Vencimento" some do card
+// "Dados da Nota Fiscal"/"Dados da NF" quando a NF tem parcelas (o vencimento
+// passa a ser por parcela); notas_fiscais.data_vencimento continua sendo
+// so o agregado legado (MAX das parcelas), preservado pela RPC de edicao.
+describe('P0/UI: "Parcelas da Nota Fiscal" reposicionada logo abaixo de "Valores"; "Data de Vencimento" agregada some quando ha parcelas', () => {
+  it('Cedente: ParcelasDaNota renderiza depois do card "Valores" (edicao e somente-leitura) e recebe onTemParcelas', () => {
+    const indiceValores = paginaCedenteNf.indexOf('Valores</h2>')
+    const indiceParcelas = paginaCedenteNf.indexOf('<ParcelasDaNota')
+    expect(indiceValores).toBeGreaterThan(-1)
+    expect(indiceParcelas).toBeGreaterThan(indiceValores)
+    expect(paginaCedenteNf).toContain('onTemParcelas={setTemParcelas}')
+  })
+
+  it('Gestor: ParcelasDaNota renderiza depois do card "Valores"', () => {
+    const indiceValores = paginaGestorNf.indexOf('<CardTitle className="text-base">Valores</CardTitle>')
+    const indiceParcelas = paginaGestorNf.indexOf('<ParcelasDaNota')
+    expect(indiceValores).toBeGreaterThan(-1)
+    expect(indiceParcelas).toBeGreaterThan(indiceValores)
+    expect(paginaGestorNf).toContain('onTemParcelas={setTemParcelas}')
+  })
+
+  it('ParcelasDaNota expoe onTemParcelas com o resultado real do carregamento (nao so um placeholder)', () => {
+    expect(parcelasDaNota).toContain('onTemParcelas?.(result.data.itens.length > 0)')
+    expect(parcelasDaNota).toContain('onTemParcelas?.(false)')
+  })
+
+  it('Cedente: "Data de Vencimento" some do formulario editavel e do modo somente-leitura quando a NF tem parcelas', () => {
+    const indiceLabelEditavel = paginaCedenteNf.indexOf('Data de Vencimento *')
+    const indiceCondicionalEditavel = paginaCedenteNf.lastIndexOf('{!temParcelas && (', indiceLabelEditavel)
+    expect(indiceLabelEditavel).toBeGreaterThan(-1)
+    expect(indiceCondicionalEditavel).toBeGreaterThan(-1)
+    expect(indiceLabelEditavel - indiceCondicionalEditavel).toBeLessThan(200)
+    expect(paginaCedenteNf).toContain("{!temParcelas && <LabelValue label=\"Vencimento\" value={formatDate(nf.data_vencimento)} />}")
+  })
+
+  it('Gestor: "Data Vencimento" some do card "Dados da NF" quando a NF tem parcelas', () => {
+    const indiceCard = paginaGestorNf.indexOf('Dados da NF')
+    const indiceCondicional = paginaGestorNf.indexOf('{!temParcelas && (', indiceCard)
+    const indiceLabel = paginaGestorNf.indexOf('Data Vencimento', indiceCard)
+    expect(indiceCondicional).toBeGreaterThan(indiceCard)
+    expect(indiceLabel).toBeGreaterThan(indiceCondicional)
+  })
+
+  it('NF sem parcelas preserva o comportamento legado: temParcelas comeca false e nada e escondido por padrao', () => {
+    expect(paginaCedenteNf).toContain('const [temParcelas, setTemParcelas] = useState(false)')
+    expect(paginaGestorNf).toContain('const [temParcelas, setTemParcelas] = useState(false)')
   })
 })
