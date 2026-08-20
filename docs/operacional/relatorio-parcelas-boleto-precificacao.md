@@ -481,13 +481,55 @@ print; o problema é puramente de **quando** a primeira chamada acontece.
 - Nenhuma migration nova foi necessária; a correção é inteiramente na
   ordem de chamadas da Server Action.
 
+### Segunda causa raiz (encontrada após validação do usuário) — checklist inteiro escondido
+
+Depois da correção de ordem acima, o usuário reportou ao vivo que a NF 56
+(uma das 2 NFs reais com parcelas, com XML/DANFE/CT-e e as 3 instâncias de
+boleto já corretamente instanciadas — confirmado por query direta) **continuava
+sem exibir o checklist**. Isso provou que a correção de ordem, embora real e
+necessária, não era a causa completa.
+
+Rastreando `resolverEstadoChecklistDocumental` (`checklist-state.ts`) até o
+fim: essa função marca a **NF inteira** como `nao_instanciado` — escondendo
+o card inteiro para o cedente — sempre que existe um requisito "aplicável"
+sem **nenhuma** instância correspondente na lista recebida. O requisito de
+boleto (cardinalidade `por_parcela`) é passado como "aplicável"
+(`requisitosDaPolitica`, construído a partir de `politica_requisitos_documentais`,
+sem considerar cardinalidade), mas suas instâncias reais são **deliberadamente
+excluídas** da consulta usada para montar essa mesma lista de instâncias
+(filtro `.is('parcela_id', null)`, decisão da Fase 1/do primeiro P0 de
+checklist — o boleto tem sua própria seção). Resultado: **toda NF cuja
+política exige boleto** ficava com o checklist inteiro escondido do
+cedente, mesmo com XML/DANFE/CT-e e o próprio boleto 100% instanciados no
+banco — confirmado ao vivo reproduzindo exatamente o `requisitosDaPolitica`
+da política real da NF 56 (antes da correção continha `['nf_xml',
+'nf_danfe_pdf', 'cte', 'boleto']` sem instância de boleto disponível;
+depois, `['nf_xml', 'nf_danfe_pdf', 'cte']`, todos com instância).
+
+Classificação: `QUERY_FILTER_BUG` — não no filtro em si (que está correto
+para não duplicar boleto sem rótulo de parcela no checklist geral), mas na
+lista de "requisitos aplicáveis" não ter sido ajustada para a mesma
+exclusão.
+
+**Correção**: `src/lib/actions/documento-v2.ts` — antes de montar
+`requisitosDaPolitica`, uma nova consulta a `documento_tipos.cardinalidade`
+(pelos códigos presentes na política) identifica quais códigos são
+`por_parcela`; esses códigos são excluídos de `requisitosDaPolitica` nos
+dois ramos de construção dessa lista (política resolvida e o *fallback* por
+snapshot de instâncias). Resolução genérica por catálogo, não hardcoded
+para `'boleto'` — qualquer tipo futuro `por_parcela` já fica coberto.
+Nenhuma mudança em `checklist-state.ts` (função pura, comportamento correto
+dado o input) nem no filtro original — o ajuste é inteiramente em qual
+lista de requisitos é passada para ela.
+
 ### Backfill / NFs já afetadas
 
 Nenhuma. As 2 NFs reais existentes em homologação com parcelas (NF 56 e
-NF 78) já tiveram o checklist aberto ao menos uma vez (têm boleto
-completo: 3 e 4 instâncias respectivamente, batendo com suas parcelas) —
-nenhuma NF em homologação ficou com requisito pendente de reconciliação.
-Não foi necessário nenhum script de reparo/backfill.
+NF 78) já tinham XML/DANFE/CT-e e boleto completos (3 e 4 instâncias
+respectivamente, batendo com suas parcelas) — o problema nunca foi ausência
+de dado, e sim a segunda causa raiz (visibilidade do checklist). Nenhum
+script de reparo/backfill foi necessário; a correção de exibição já resolve
+essas NFs sem qualquer mutação de dado.
 
 ### Testes
 
@@ -505,18 +547,43 @@ Não foi necessário nenhum script de reparo/backfill.
     `obrigatorio=false`;
   - compensação: remoção de NF com parcelas já persistidas não viola a FK
     `ON DELETE RESTRICT` de `nota_fiscal_parcelas`.
-- `src/lib/documentos/parcelas-nf-boleto-architecture.test.ts` (2 testes
-  novos): confirma por leitura de código que `registrar_parcelas_nota_fiscal`
-  é chamado antes de `uploadDocumentoSeRequerido`, e que
-  `removerNotaFiscalParcial` remove `nota_fiscal_parcelas` antes de
-  `notas_fiscais`.
+- `src/lib/documentos/parcelas-nf-boleto-architecture.test.ts` — 4 testes
+  novos no total: 2 confirmam por leitura de código que
+  `registrar_parcelas_nota_fiscal` é chamado antes de
+  `uploadDocumentoSeRequerido` e que `removerNotaFiscalParcial` remove
+  `nota_fiscal_parcelas` antes de `notas_fiscais`; 2 confirmam que
+  `requisitosDaPolitica` exclui códigos `por_parcela` (resolvidos via
+  `documento_tipos.cardinalidade`, não hardcoded) nos dois ramos de
+  construção da lista passada a `resolverEstadoChecklistDocumental`.
+- **Verificação ao vivo contra o dado real que motivou o report**: reproduzida
+  a política e as instâncias reais da NF 56 — antes da correção,
+  `requisitosDaPolitica` continha `boleto` sem instância disponível
+  (`nao_instanciado` garantido); depois, `boleto` é excluído e os 3
+  requisitos restantes (`nf_xml`, `nf_danfe_pdf`, `cte`) todos têm
+  instância — o checklist volta a renderizar para essa NF exata, sem
+  qualquer mutação de dado.
 - **Regressões reexecutadas ao vivo**: E2E Fase 1 (17/17 PASS), E2E Fase 2
-  (29/29 PASS). Suíte completa: 162 arquivos / 1161 testes, 0 falhas,
-  nenhum teste removido.
+  (29/29 PASS), E2E deste P0 (10/10 PASS). Suíte completa: 162 arquivos /
+  1163 testes, 0 falhas, nenhum teste removido.
+
+### Correção adicional (reportada na mesma validação): mensagem de pré-preenchimento incorreta em upload de XML
+
+O mesmo teste do usuário mostrou, na tela da NF 56 (upload por XML), a
+mensagem "Alguns campos foram pré-preenchidos automaticamente a partir do
+PDF" — incorreta, já que o XML da NF-e é parseado com dados oficiais
+(sem OCR/"chute" a revisar), diferente do fluxo real de PDF/DANFE. A
+mensagem (`src/app/cedente/notas-fiscais/[id]/page.tsx`) era exibida para
+qualquer rascunho com dados básicos preenchidos, sem checar a origem do
+upload. Corrigido condicionando a mensagem a `!isUploadXml` (derivado da
+extensão de `nf.arquivo_url`, já que não existe hoje uma coluna explícita
+de origem do upload) — some para NFs vindas de XML e continua aparecendo
+para PDF/manual, onde faz sentido.
 
 ### Status final
 
-`P0_REQUISITOS_DOCUMENTAIS_NF_NAO_CARREGAM = PASS`
+`P0_REQUISITOS_DOCUMENTAIS_NF_NAO_CARREGAM = PASS` (após as duas correções:
+ordem de instanciação + visibilidade do checklist com boleto na política;
+mais a correção da mensagem de pré-preenchimento incorreta em upload XML).
 
 ## Riscos
 

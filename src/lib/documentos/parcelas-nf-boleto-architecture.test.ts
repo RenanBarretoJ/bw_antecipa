@@ -134,3 +134,32 @@ describe('P0 (correcao): requisitos documentais nao carregam -- ordem de criacao
     expect(indiceDeleteParcelas).toBeLessThan(indiceDeleteNf)
   })
 })
+
+describe('P0 (correcao real): checklist inteiro escondido por politica exigir boleto (por_parcela)', () => {
+  // Achado ao vivo: resolverEstadoChecklistDocumental (checklist-state.ts)
+  // marca a NF inteira como 'nao_instanciado' -- escondendo XML/DANFE/CT-e
+  // e o proprio boleto -- sempre que um requisito "aplicavel" nao tem
+  // NENHUMA instancia correspondente na lista passada a ela. Como as
+  // instancias de boleto (por_parcela) sao deliberadamente excluidas da
+  // query usada para o checklist geral (`.is('parcela_id', null)`, Fase 1),
+  // qualquer politica que exija boleto fazia esse requisito aparecer como
+  // "aplicavel sem instancia" -- mesmo com XML/DANFE/CT-e e as instancias
+  // de boleto todas corretamente instanciadas no banco. Corrigido excluindo
+  // requisitos de cardinalidade por_parcela de requisitosDaPolitica (o
+  // input passado a resolverEstadoChecklistDocumental), nos dois ramos de
+  // construcao dessa lista.
+  it('requisitosDaPolitica exclui codigos de cardinalidade por_parcela (boleto) do calculo de estadoChecklist', () => {
+    expect(documentoV2).toContain('codigosPorParcela')
+    expect(documentoV2).toContain("cardinalidade === 'por_parcela'")
+    const trechoRamo1 = documentoV2.slice(documentoV2.indexOf('const requisitosDaPolitica'), documentoV2.indexOf('resolverEstadoChecklistDocumental({'))
+    expect(trechoRamo1).toContain('!codigosPorParcela.has(row.tipo_documento_codigo)')
+    expect(trechoRamo1).toContain('!codigosPorParcela.has(row.tipo_documento_codigo_snapshot)')
+  })
+
+  it('a cardinalidade e resolvida a partir do catalogo documento_tipos, nao hardcoded para "boleto"', () => {
+    const trecho = documentoV2.slice(documentoV2.indexOf('policyRequirementCodes'), documentoV2.indexOf('const [{ data: policyVersionData'))
+    expect(trecho).toContain("from('documento_tipos')")
+    expect(trecho).toContain("select('codigo, cardinalidade')")
+    expect(trecho).not.toContain("=== 'boleto'")
+  })
+})

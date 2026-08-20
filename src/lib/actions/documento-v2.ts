@@ -273,6 +273,21 @@ async function carregarChecklist(notaFiscalId: string): Promise<ChecklistDocumen
     familia_documental: FamiliaDocumentalLogistica | null
   }>
 
+  // Requisitos por_parcela (ex.: boleto) tem suas instancias deliberadamente
+  // fora de `rows` (filtro .is('parcela_id', null) acima -- tem secao propria,
+  // ParcelasBoletosNota). Sem isso, resolverEstadoChecklistDocumental veria
+  // o requisito como "aplicavel" sem nenhuma instancia correspondente e
+  // marcaria a NF inteira como nao_instanciado, escondendo o checklist
+  // completo mesmo com XML/DANFE/CT-e e o proprio boleto ja instanciados.
+  const policyRequirementCodes = Array.from(new Set(policyRequirements.map((row) => row.tipo_documento_codigo)))
+  const { data: cardinalidadeRows, error: cardinalidadeError } = policyRequirementCodes.length
+    ? await dataClient.from('documento_tipos').select('codigo, cardinalidade').in('codigo', policyRequirementCodes)
+    : { data: [], error: null }
+  if (cardinalidadeError) throw new Error(`Erro ao carregar cardinalidade dos tipos documentais: ${cardinalidadeError.message}`)
+  const codigosPorParcela = new Set(
+    (cardinalidadeRows || []).filter((row) => row.cardinalidade === 'por_parcela').map((row) => row.codigo),
+  )
+
   const [{ data: policyVersionData, error: policyVersionError }, { data: evidenceData, error: evidenceError }] = await Promise.all([
     politicaVersaoId
       ? dataClient
@@ -583,7 +598,7 @@ async function carregarChecklist(notaFiscalId: string): Promise<ChecklistDocumen
     : Boolean((policyVersionData as { exigir_status_logistico_pre_cessao?: boolean } | null)?.exigir_status_logistico_pre_cessao)
   const requisitosDaPolitica: RequisitoChecklistAplicavel[] = (policyRequirementRows || []).length > 0
     ? policyRequirements
-      .filter((row) => entrega || row.escopo === 'nf_pre_cessao')
+      .filter((row) => (entrega || row.escopo === 'nf_pre_cessao') && !codigosPorParcela.has(row.tipo_documento_codigo))
       .map((row) => ({
       id: row.id,
       codigo: row.codigo,
@@ -595,6 +610,7 @@ async function carregarChecklist(notaFiscalId: string): Promise<ChecklistDocumen
     : rows
       .filter((row) => row.politica_operacional_versao_id)
       .filter((row) => ['nf_pre_cessao', 'pos_cessao', 'entrega'].includes(row.escopo_snapshot))
+      .filter((row) => !codigosPorParcela.has(row.tipo_documento_codigo_snapshot))
       .map((row) => ({
         id: row.politica_requisito_id,
         codigo: row.tipo_documento_codigo_snapshot,

@@ -433,6 +433,9 @@ export default function NfDetalhePage() {
   }
 
   const isEditable = nf.status === 'rascunho' || nf.status === 'requer_ajuste'
+  // Upload de XML ja extrai os dados oficiais da NF-e -- nao ha "chute" a
+  // revisar, diferente do fluxo de PDF/DANFE (OCR/extracao textual).
+  const isUploadXml = (nf.arquivo_url || '').toLowerCase().endsWith('.xml')
   const status = statusConfig[nf.status] || statusConfig.rascunho
   const entregaStatus = entrega ? entregaStatusConfig[entrega.status_entrega] || entregaStatusConfig.em_transito : null
   const StatusIcon = status.icon
@@ -514,7 +517,7 @@ export default function NfDetalhePage() {
         </div>
       )}
 
-      {isEditable && nf.status === 'rascunho' && (nf.numero_nf || nf.valor_bruto > 0 || nf.cnpj_destinatario) && (
+      {isEditable && nf.status === 'rascunho' && !isUploadXml && (nf.numero_nf || nf.valor_bruto > 0 || nf.cnpj_destinatario) && (
         <div className="mb-4 p-3 rounded-lg text-sm bg-blue-50 border border-blue-200 text-blue-800">
           Alguns campos foram pré-preenchidos automaticamente a partir do PDF. Verifique os dados antes de submeter.
         </div>
