@@ -12,6 +12,8 @@ import {
   ArrowLeft,
   ArrowRight,
   CheckCircle,
+  ChevronDown,
+  ChevronUp,
   XCircle,
   Clock,
   AlertCircle,
@@ -144,12 +146,23 @@ interface RequisitoOperacao {
 
 interface MemoriaCalculoNf {
   nota_fiscal_id: string
+  parcela_id: string | null
   dias_aplicados: number
   vencimento_contratual: string
   vencimento_calculo: string
   valor_nominal: number
   valor_presente: number
   desconto: number
+}
+
+interface ParcelaCedidaOperacao {
+  parcelaId: string
+  numeroParcela: number
+  dataVencimento: string
+  valorNominal: number
+  diasAplicados: number | null
+  valorPresente: number | null
+  desconto: number | null
 }
 
 type BadgeVariant = 'default' | 'secondary' | 'destructive' | 'outline' | 'ghost' | 'link'
@@ -364,6 +377,9 @@ export default function OperacaoDetalheGestorClient({
   const [requisitos, setRequisitos] = useState<RequisitoOperacao[]>([])
   const [taxasConfig, setTaxasConfig] = useState<TaxaConfig[]>([])
   const [memoriasCalculo, setMemoriasCalculo] = useState<MemoriaCalculoNf[]>([])
+  const [parcelasCedidasPorNf, setParcelasCedidasPorNf] = useState<Map<string, ParcelaCedidaOperacao[]>>(new Map())
+  const [totalParcelasPorNf, setTotalParcelasPorNf] = useState<Map<string, number>>(new Map())
+  const [nfsExpandidas, setNfsExpandidas] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
   const [processing, setProcessing] = useState(false)
   const [removendoNf, setRemovendoNf] = useState<string | null>(null)
@@ -496,10 +512,61 @@ export default function OperacaoDetalheGestorClient({
 
         const { data: memorias } = await supabase
           .from('operacao_calculo_nfs')
-          .select('nota_fiscal_id, dias_aplicados, vencimento_contratual, vencimento_calculo, valor_nominal, valor_presente, desconto')
+          .select('nota_fiscal_id, parcela_id, dias_aplicados, vencimento_contratual, vencimento_calculo, valor_nominal, valor_presente, desconto')
           .eq('operacao_id', opId)
           .order('vencimento_contratual', { ascending: true })
-        setMemoriasCalculo((memorias || []) as MemoriaCalculoNf[])
+        const memoriasRows = (memorias || []) as MemoriaCalculoNf[]
+        setMemoriasCalculo(memoriasRows)
+
+        // Detalhe por parcela (Objetivo A): NF continua agrupadora visual,
+        // mas para NF com parcelas os totais/expand devem representar
+        // somente as parcelas efetivamente cedidas NESTA operacao via
+        // operacoes_nf_parcelas -- nunca o valor integral da NF. NF sem
+        // parcelas (totalParcelasPorNf sem entrada) mantem o legado intacto.
+        if (nfIds.length > 0) {
+          const { data: totalParcelasData } = await supabase
+            .from('nota_fiscal_parcelas')
+            .select('nota_fiscal_id')
+            .in('nota_fiscal_id', nfIds)
+          const totalMap = new Map<string, number>()
+          for (const row of (totalParcelasData || []) as Array<{ nota_fiscal_id: string }>) {
+            totalMap.set(row.nota_fiscal_id, (totalMap.get(row.nota_fiscal_id) || 0) + 1)
+          }
+          setTotalParcelasPorNf(totalMap)
+
+          const { data: cedidasData } = await supabase
+            .from('operacoes_nf_parcelas')
+            .select('nota_fiscal_id, parcela_id, nota_fiscal_parcelas(numero_parcela, valor_nominal, data_vencimento)')
+            .eq('operacao_id', opId)
+            .in('nota_fiscal_id', nfIds)
+
+          const memoriaPorParcela = new Map(
+            memoriasRows.filter((memoria) => memoria.parcela_id).map((memoria) => [memoria.parcela_id as string, memoria]),
+          )
+          const cedidasMap = new Map<string, ParcelaCedidaOperacao[]>()
+          type CedidaRow = {
+            nota_fiscal_id: string
+            parcela_id: string
+            nota_fiscal_parcelas: { numero_parcela: number; valor_nominal: number; data_vencimento: string } | null
+          }
+          for (const row of ((cedidasData || []) as CedidaRow[])) {
+            if (!row.nota_fiscal_parcelas) continue
+            const memoria = memoriaPorParcela.get(row.parcela_id)
+            const lista = cedidasMap.get(row.nota_fiscal_id) || []
+            lista.push({
+              parcelaId: row.parcela_id,
+              numeroParcela: row.nota_fiscal_parcelas.numero_parcela,
+              dataVencimento: row.nota_fiscal_parcelas.data_vencimento,
+              valorNominal: Number(row.nota_fiscal_parcelas.valor_nominal),
+              diasAplicados: memoria?.dias_aplicados ?? null,
+              valorPresente: memoria ? Number(memoria.valor_presente) : null,
+              desconto: memoria ? Number(memoria.desconto) : null,
+            })
+            cedidasMap.set(row.nota_fiscal_id, lista)
+          }
+          for (const lista of cedidasMap.values()) lista.sort((a, b) => a.numeroParcela - b.numeroParcela)
+          setParcelasCedidasPorNf(cedidasMap)
+        }
         const loadedEntregas = await carregarLogistica()
         const entregaIds = loadedEntregas.map((entrega) => entrega.id)
         const filtrosRequisitos = [
@@ -576,20 +643,37 @@ export default function OperacaoDetalheGestorClient({
   const entregaPorNfId = useMemo(() => new Map(entregas.map((entrega) => [entrega.nota_fiscal_id, entrega])), [entregas])
 
   const notasFiscaisView = useMemo<OperacaoNotaFiscalView[]>(() => {
-    const views = nfs.map((nf) => buildOperacaoNotaFiscalView({
-      notaFiscal: {
-        id: nf.id,
-        numero_nf: nf.numero_nf,
-        cnpj_destinatario: nf.cnpj_destinatario,
-        razao_social_destinatario: nf.razao_social_destinatario,
-        valor_bruto: nf.valor_bruto,
-        data_vencimento: nf.data_vencimento,
-        status: nf.status,
-      },
-      valorAntecipado: (op?.status === 'solicitada' || op?.status === 'em_analise')
-        ? (valorAntecipadoPorNf.get(nf.id) ?? nf.valor_bruto)
-        : (nf.valor_antecipado ?? nf.valor_liquido ?? nf.valor_bruto),
-    }))
+    const views = nfs.map((nf) => {
+      // Objetivo A: para NF com parcelas cedidas nesta operacao (subset da
+      // NF), o bruto/antecipado exibidos representam so as parcelas
+      // cedidas, nunca o valor integral da NF. NF sem parcela (nenhuma
+      // linha em operacoes_nf_parcelas para ela) mantem o legado intacto.
+      const cedidas = parcelasCedidasPorNf.get(nf.id)
+      const brutoCedido = cedidas?.length ? cedidas.reduce((soma, item) => soma + item.valorNominal, 0) : null
+      const antecipadoMemoria = cedidas?.length && cedidas.every((item) => item.valorPresente !== null)
+        ? cedidas.reduce((soma, item) => soma + (item.valorPresente ?? 0), 0)
+        : null
+
+      return buildOperacaoNotaFiscalView({
+        notaFiscal: {
+          id: nf.id,
+          numero_nf: nf.numero_nf,
+          cnpj_destinatario: nf.cnpj_destinatario,
+          razao_social_destinatario: nf.razao_social_destinatario,
+          valor_bruto: brutoCedido ?? nf.valor_bruto,
+          data_vencimento: nf.data_vencimento,
+          status: nf.status,
+        },
+        // Memoria financeira real (operacao_calculo_nfs por parcela) tem
+        // prioridade sobre a estimativa client-side pre-decisao -- nunca
+        // recalculado na UI, so lido.
+        valorAntecipado: antecipadoMemoria ?? (
+          (op?.status === 'solicitada' || op?.status === 'em_analise')
+            ? (valorAntecipadoPorNf.get(nf.id) ?? nf.valor_bruto)
+            : (nf.valor_antecipado ?? nf.valor_liquido ?? nf.valor_bruto)
+        ),
+      })
+    })
 
     return views.sort((a, b) => {
       if (nfSort === 'numero') return a.numero_nf.localeCompare(b.numero_nf, 'pt-BR', { numeric: true })
@@ -598,7 +682,7 @@ export default function OperacaoDetalheGestorClient({
       if (nfSort === 'status') return a.status.localeCompare(b.status, 'pt-BR')
       return new Date(a.data_vencimento).getTime() - new Date(b.data_vencimento).getTime()
     })
-  }, [nfs, nfSort, op?.status, valorAntecipadoPorNf])
+  }, [nfs, nfSort, op?.status, valorAntecipadoPorNf, parcelasCedidasPorNf])
 
   const totaisNfs = useMemo(() => ({
     bruto: notasFiscaisView.reduce((acc, nf) => acc + nf.valor_bruto, 0),
@@ -735,6 +819,15 @@ export default function OperacaoDetalheGestorClient({
       }
     }
     setRemovendoNf(null)
+  }
+
+  const toggleNfExpandida = (nfId: string) => {
+    setNfsExpandidas((atual) => {
+      const proximo = new Set(atual)
+      if (proximo.has(nfId)) proximo.delete(nfId)
+      else proximo.add(nfId)
+      return proximo
+    })
   }
 
   const handleSalvarTestemunhas = async () => {
@@ -968,25 +1061,69 @@ export default function OperacaoDetalheGestorClient({
                 </div>
               </div>
               <div className="space-y-3">
-                {notasFiscaisView.map((nf, index) => (
-                  <OperacaoNotaFiscalCard
-                    key={nf.id}
-                    notaFiscal={nf}
-                    href={`/gestor/notas-fiscais/${nf.id}`}
-                    menuPlacement={index === notasFiscaisView.length - 1 ? 'top' : 'bottom'}
-                    canRemove={canRemoveNf}
-                    removing={removendoNf === nf.id}
-                    onRemove={() => handleRemoverNf(nf.id)}
-                    statusNode={(
-                      <NfStatusBadge
-                        status={nf.status}
-                        aceiteDispensado={aceiteDispensado}
-                        operacaoAprovada={['aprovada', 'em_andamento', 'liquidada'].includes(op.status)}
-                        entregaStatus={entregaPorNfId.get(nf.id)?.status_entrega}
+                {notasFiscaisView.map((nf, index) => {
+                  const totalParcelas = totalParcelasPorNf.get(nf.id) || 0
+                  const cedidas = parcelasCedidasPorNf.get(nf.id) || []
+                  const expandido = nfsExpandidas.has(nf.id)
+                  return (
+                    <div key={nf.id}>
+                      <OperacaoNotaFiscalCard
+                        notaFiscal={nf}
+                        href={`/gestor/notas-fiscais/${nf.id}`}
+                        menuPlacement={index === notasFiscaisView.length - 1 ? 'top' : 'bottom'}
+                        canRemove={canRemoveNf}
+                        removing={removendoNf === nf.id}
+                        onRemove={() => handleRemoverNf(nf.id)}
+                        statusNode={(
+                          <NfStatusBadge
+                            status={nf.status}
+                            aceiteDispensado={aceiteDispensado}
+                            operacaoAprovada={['aprovada', 'em_andamento', 'liquidada'].includes(op.status)}
+                            entregaStatus={entregaPorNfId.get(nf.id)?.status_entrega}
+                          />
+                        )}
                       />
-                    )}
-                  />
-                ))}
+                      {/* Objetivo A: NF continua agrupadora visual; NF sem
+                          parcelas (totalParcelas === 0) nao mostra nada
+                          extra -- legado intacto. */}
+                      {totalParcelas > 0 && (
+                        <div className="mt-1 rounded-lg border bg-muted/20">
+                          <button
+                            type="button"
+                            onClick={() => toggleNfExpandida(nf.id)}
+                            className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm text-muted-foreground"
+                            aria-expanded={expandido}
+                          >
+                            <span>{cedidas.length}/{totalParcelas} parcelas cedidas</span>
+                            {expandido ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+                          </button>
+                          {expandido && (
+                            <div className="divide-y divide-border border-t">
+                              <div className="hidden grid-cols-[3.5rem_6rem_7rem_5rem_7rem_7rem] gap-2 px-3 py-1.5 text-xs font-medium text-muted-foreground sm:grid">
+                                <span>Parcela</span>
+                                <span>Vencimento</span>
+                                <span>Valor nominal</span>
+                                <span>Prazo</span>
+                                <span>Antecipado (VP)</span>
+                                <span>Desconto</span>
+                              </div>
+                              {cedidas.map((parcela) => (
+                                <div key={parcela.parcelaId} className="grid grid-cols-2 gap-2 px-3 py-2 text-xs sm:grid-cols-[3.5rem_6rem_7rem_5rem_7rem_7rem]">
+                                  <span className="font-mono tabular-nums">{String(parcela.numeroParcela).padStart(3, '0')}</span>
+                                  <span className="tabular-nums">{formatDate(parcela.dataVencimento)}</span>
+                                  <span className="tabular-nums">{formatCurrency(parcela.valorNominal)}</span>
+                                  <span>{parcela.diasAplicados !== null ? `${parcela.diasAplicados} dias` : '—'}</span>
+                                  <span className="tabular-nums">{parcela.valorPresente !== null ? formatCurrency(parcela.valorPresente) : '—'}</span>
+                                  <span className="tabular-nums">{parcela.desconto !== null ? formatCurrency(parcela.desconto) : '—'}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             </CardContent>
 

@@ -12,6 +12,11 @@ const paginaCedenteNf = readFileSync('src/app/cedente/notas-fiscais/[id]/page.ts
 const paginaGestorNf = readFileSync('src/app/gestor/notas-fiscais/[id]/page.tsx', 'utf8')
 const parcelasBoletosNota = readFileSync('src/components/documentos-v2/ParcelasBoletosNota.tsx', 'utf8')
 const evidenciasLogisticas = readFileSync('src/lib/logistica/evidencias-logisticas.ts', 'utf8')
+const novaSolicitacaoServer = readFileSync('src/lib/operacoes/nova-solicitacao.server.ts', 'utf8')
+const novaSolicitacaoClient = readFileSync('src/app/cedente/operacoes/nova/nova-solicitacao-client.tsx', 'utf8')
+const editarParcelasMigration = readFileSync('supabase/migrations/20260820120000_ui_parcelas_nf_operacao_editar_parcelas.sql', 'utf8')
+const parcelasDaNota = readFileSync('src/components/notas-fiscais/ParcelasDaNota.tsx', 'utf8')
+const operacaoDetalheGestorClient = readFileSync('src/app/gestor/operacoes/[id]/OperacaoDetalheGestorClient.tsx', 'utf8')
 
 describe('Fase 1 (Parcelas de NF): modelo canonico + parser + tolerancia', () => {
   it('cria nota_fiscal_parcelas com as garantias exigidas (unique, valor>0, vencimento obrigatorio)', () => {
@@ -267,5 +272,118 @@ describe('P0 (correcao): submissao divergia do checklist -- CT-e do fluxo regula
   it('evidenciasDoChecklistRegular so considera CT-e/Comprovante com escopo nf_pre_cessao (nao duplica arquivo, nao inventa fonte nova)', () => {
     expect(evidenciasLogisticas).toContain("item.escopo === 'nf_pre_cessao'")
     expect(evidenciasLogisticas).toContain("item.familiaDocumental === 'cte' || item.familiaDocumental === 'comprovante_entrega'")
+  })
+})
+
+// P0 real: NF-3493 (achada pelo usuario ao vivo no deploy do Vercel) tem
+// uma parcela com vencimento individual ja passado, mesmo com o
+// vencimento agregado da NF (a ultima parcela) ainda no futuro -- essa NF
+// passava pela elegibilidade da listagem, mas selecionar a NF alimentava
+// a parcela vencida em calcularAntecipacaoEmLote, que lanca
+// CalculoFinanceiroError sem tratamento no render e quebrava a pagina
+// inteira ("This page couldn't load"). Confirmado isolando o calculo com
+// os numeros reais da NF-3493 antes de corrigir (ver relatorio).
+describe('P0 (correcao real): crash ao selecionar NF com parcela vencida em nova-solicitacao', () => {
+  it('nova-solicitacao.server.ts exclui parcelas com vencimento individual ja passado do carregamento (mesma regra ja aplicada a NF inteira)', () => {
+    const indiceQueryParcelas = novaSolicitacaoServer.indexOf("from('nota_fiscal_parcelas')")
+    const indiceOrderParcelas = novaSolicitacaoServer.indexOf("order('numero_parcela', { ascending: true })")
+    const indiceFiltroParcelas = novaSolicitacaoServer.indexOf(".gte('data_vencimento', dataBase)", indiceQueryParcelas)
+    expect(indiceQueryParcelas).toBeGreaterThan(-1)
+    expect(indiceOrderParcelas).toBeGreaterThan(indiceQueryParcelas)
+    expect(indiceFiltroParcelas).toBeGreaterThan(indiceQueryParcelas)
+    expect(indiceFiltroParcelas).toBeLessThan(indiceOrderParcelas)
+  })
+
+  it('nova-solicitacao-client.tsx nunca deixa uma falha de calculo (ex.: parcela vencida) quebrar o render inteiro', () => {
+    expect(novaSolicitacaoClient).toContain('CalculoFinanceiroError')
+    const indiceTry = novaSolicitacaoClient.indexOf('try {')
+    const indiceCalculo = novaSolicitacaoClient.indexOf('calcularAntecipacaoEmLote({')
+    const indiceCatch = novaSolicitacaoClient.indexOf('} catch (error) {')
+    expect(indiceTry).toBeGreaterThan(-1)
+    expect(indiceTry).toBeLessThan(indiceCalculo)
+    expect(indiceCalculo).toBeLessThan(indiceCatch)
+    expect(novaSolicitacaoClient).toContain('erroCalculo')
+  })
+})
+
+// UI/Operacional: parcelas na NF e na Operacao (Claude_UI_Parcelas_NF_e_
+// Operacao.txt). ParcelasDaNota e uma secao INDEPENDENTE do requisito
+// boleto (diferente de ParcelasBoletosNota, testada acima) -- nao pode
+// ser confundida/fundida com ela.
+describe('UI/Operacional: secao "Parcelas da Nota Fiscal" independente de boleto', () => {
+  it('ParcelasDaNota e renderizado nas duas paginas de NF (cedente e gestor), fora do checklist', () => {
+    expect(paginaCedenteNf).toContain('<ParcelasDaNota')
+    expect(paginaGestorNf).toContain('<ParcelasDaNota')
+  })
+
+  it('ParcelasDaNota nao depende de nenhum requisito de boleto -- le nota_fiscal_parcelas diretamente', () => {
+    expect(parcelasDaNota).toContain('listarParcelasDaNota')
+    expect(parcelasDaNota).not.toContain('documento_requisito_instancias')
+    expect(parcelasDaNota).not.toContain("tipo_documento_codigo_snapshot")
+  })
+
+  it('listarParcelasDaNota busca de nota_fiscal_parcelas sem filtrar por boleto/politica', () => {
+    const indiceFuncao = parcelasNfAction.indexOf('export async function listarParcelasDaNota')
+    const indiceProximaFuncao = parcelasNfAction.indexOf('export interface ParcelaEdicaoInput')
+    const corpo = parcelasNfAction.slice(indiceFuncao, indiceProximaFuncao)
+    expect(indiceFuncao).toBeGreaterThan(-1)
+    expect(corpo).toContain("from('nota_fiscal_parcelas')")
+    expect(corpo).not.toContain('boleto')
+  })
+
+  it('Gestor edita NF: ParcelasDaNota so permite edicao para mode="cedente" (Gestor sempre leitura)', () => {
+    expect(parcelasDaNota).toContain("mode === 'cedente' && editavel")
+  })
+})
+
+describe('UI/Operacional: correcao de parcelas pelo Cedente (RPC editar_parcelas_nota_fiscal)', () => {
+  it('a RPC exige NF em rascunho e cedente dono antes de editar (nao repete o gap de salvarDadosNF)', () => {
+    expect(editarParcelasMigration).toContain("v_nf.status::text <> 'rascunho'")
+    expect(editarParcelasMigration).toContain('v_nf.cedente_id <> (SELECT public.get_user_cedente_id())')
+  })
+
+  it('numero da parcela permanece imutavel -- payload so aceita id/valor_nominal/data_vencimento', () => {
+    expect(editarParcelasMigration).not.toContain('numero_parcela = ')
+  })
+
+  it('guarda de documento dependente (boleto aprovado) so bloqueia quando o valor/vencimento desta parcela de fato muda', () => {
+    const indiceGuardaD = editarParcelasMigration.indexOf('Guarda D')
+    const indiceCondicao = editarParcelasMigration.indexOf('IS DISTINCT FROM v_existente.valor_nominal', indiceGuardaD)
+    const indiceExists = editarParcelasMigration.indexOf('EXISTS (', indiceGuardaD)
+    expect(indiceGuardaD).toBeGreaterThan(-1)
+    expect(indiceCondicao).toBeGreaterThan(indiceGuardaD)
+    expect(indiceCondicao).toBeLessThan(indiceExists)
+    expect(editarParcelasMigration).toContain("tipo_documento_codigo_snapshot = 'boleto'")
+    expect(editarParcelasMigration).toContain("status = 'satisfeito'")
+  })
+
+  it('apos editar, o vencimento agregado da NF e recalculado para o novo MAX -- nao fica desatualizado', () => {
+    expect(editarParcelasMigration).toContain('max(data_vencimento) INTO v_max_vencimento')
+    expect(editarParcelasMigration).toContain('SET data_vencimento = v_max_vencimento')
+  })
+
+  it('tolerancia monetaria da edicao espelha a mesma regra de registrar_parcelas_nota_fiscal', () => {
+    expect(editarParcelasMigration).toContain('greatest(v_count_existentes * 0.01, 0.01)')
+  })
+})
+
+describe('UI/Operacional: detalhe por parcela na Operacao do Gestor (nao mais agregado so por NF)', () => {
+  it('carrega operacoes_nf_parcelas e operacao_calculo_nfs.parcela_id (nao apenas nota_fiscal_id)', () => {
+    expect(operacaoDetalheGestorClient).toContain("from('operacoes_nf_parcelas')")
+    expect(operacaoDetalheGestorClient).toContain('parcela_id, dias_aplicados, vencimento_contratual')
+  })
+
+  it('bruto/antecipado exibidos por NF usam as parcelas cedidas nesta operacao quando existirem, nao o valor integral da NF', () => {
+    expect(operacaoDetalheGestorClient).toContain('brutoCedido ?? nf.valor_bruto')
+    expect(operacaoDetalheGestorClient).toContain('antecipadoMemoria ?? (')
+  })
+
+  it('NF sem parcelas (totalParcelas === 0) nao renderiza nenhum bloco extra -- legado intacto', () => {
+    expect(operacaoDetalheGestorClient).toContain('totalParcelas > 0 && (')
+  })
+
+  it('bloco de parcelas cedidas e expansivel por NF ("X/Y parcelas cedidas")', () => {
+    expect(operacaoDetalheGestorClient).toContain('parcelas cedidas')
+    expect(operacaoDetalheGestorClient).toContain('toggleNfExpandida')
   })
 })

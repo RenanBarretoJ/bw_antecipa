@@ -6,14 +6,20 @@
 `P0_GATE_LOGISTICO_STATUS_UI_BOLETO = PASS`.
 `P0_SUBMISSAO_LOGISTICA_NF56 = PASS`.
 `P0_APROVACAO_LOGISTICA_GESTOR_FONTE_UNIFICADA = PASS`.
-`P0_SUBMISSAO_LOGISTICA_NF78 = PASS`** (Fase 3 pendente por decisão
-explícita de sequenciamento — ver seção "Pendências").
+`P0_SUBMISSAO_LOGISTICA_NF78 = PASS`.
+`P0_NOVA_SOLICITACAO_PARCELAS_CRASH = PASS`.
+`P0_NOVA_SOLICITACAO_PARCELAS_CRASH_REMOTE = PASS`.
+`UI_PARCELAS_NF_E_OPERACAO = PASS`** (causa raiz do crash de parcelas
+confirmada e corrigida — parcela individualmente vencida mascarada pelo
+vencimento agregado da NF, achada pelo usuário ao vivo na NF 3493; ver
+seção correspondente; Fase 3 pendente por decisão explícita de
+sequenciamento — ver seção "Pendências").
 
 Ambiente: homologação Supabase `fhgkmggthxikfpogrvaa`. Produção
 (`wwsndnuvnjuabpbjwlck`) não foi tocada. Nenhum commit ou push foi
-executado neste último P0 (segundo gate logístico na submissão / NF78);
-os P0s anteriores já haviam sido comitados/enviados para `homolog`
-mediante instrução explícita do usuário.
+executado neste último ticket (parcelas na NF e na Operação — UI/
+Operacional); os P0s anteriores já haviam sido comitados/enviados para
+`homolog` mediante instrução explícita do usuário.
 
 ## Diagnóstico
 
@@ -1077,6 +1083,492 @@ migration é aplicada (sem cache de aplicação a invalidar).
 
 `P0_SUBMISSAO_LOGISTICA_NF78 = PASS`
 
+## P0 — crash ao selecionar NF com parcelas na nova solicitação
+
+**Resultado: `P0_NOVA_SOLICITACAO_PARCELAS_CRASH = PASS` (crash NÃO
+reproduzido, com evidência extensiva — ver abaixo).**
+
+### Diagnóstico
+
+Leitura completa de `src/app/cedente/operacoes/nova/nova-solicitacao-
+client.tsx`, `src/lib/operacoes/nova-solicitacao.server.ts` e
+`src/lib/operacoes/calculo.ts` não revelou nenhum acesso a propriedade
+undefined/null, nenhuma chave React instável, nenhum `<form>`/submit
+acidental (todos os botões interativos já são `type="button"`), e nenhum
+`throw` fora de contexto controlado no caminho de seleção/expansão de
+parcelas. `NfCandidataOperacao.parcelas` é sempre um array (`[]` por
+padrão, nunca `undefined`) e os nomes de campo entre servidor
+(`ParcelaCandidataOperacao`) e cliente já batem exatamente.
+
+Isolando `calcularAntecipacaoEmLote` (a única lógica não trivial
+executada a cada render) com os valores **reais** das 4 parcelas da NF-78
+e das 3 parcelas da NF-56 (`src/lib/operacoes/calculo.ts`, testado
+isoladamente via `vitest`), nenhuma exceção foi lançada — nenhuma parcela
+real está vencida em relação à data-base atual (2026-08-20).
+
+Como a leitura de código e o teste isolado não encontraram a causa raiz,
+o ticket foi reproduzido **ao vivo em um browser real** (Chrome via
+`puppeteer-core`, já dependência do projeto e usado em
+`scripts/perf9a/browser-final-homolog.mjs`), contra um servidor Next
+local (`npm run dev:homolog`, porta 3001) apontando para homologação —
+não contra dados sintéticos vazios, mas contra uma fixture que replica
+fielmente a NF-56/78 reais: mesma política (XML/DANFE/CTE como requisitos
+`nf_pre_cessao` **+ BOLETO com cardinalidade `por_parcela`**, todos
+obrigatórios — a mesma forma exata da política real, incluindo o
+requisito que gera múltiplas instâncias por NF), mesmos valores e
+vencimentos de parcela, todos os documentos (XML, DANFE, CT-e e os 3/4
+boletos por parcela) enviados e **aprovados** por um gestor de teste,
+exatamente como as NF-56/78 reais estão hoje em homologação (confirmado
+por query direta antes de construir a fixture).
+
+Cenários testados ao vivo, com um Chrome real, sem nenhum mock:
+1. Login do cedente de teste (com MFA TOTP real, mesmo fluxo de
+   `/mfa/desafio` usado em produção).
+2. Carregamento inicial da lista (2 NFs, contagem de parcelas correta).
+3. Selecionar a NF de 4 parcelas → expande, todas vêm marcadas por
+   padrão, resumo = R$ 110.160,00 bruto.
+4. Desmarcar 1 parcela → resumo recalcula para R$ 82.620,00 (3×27.540).
+5. Selecionar a segunda NF (3 parcelas) simultaneamente → ambas
+   coexistem, resumo combina as duas (R$ 123.556,00).
+6. Desmarcar e remarcar a NF de 4 parcelas → estado consistente
+   restaurado (volta a 4/4 parcelas, resumo correto).
+
+**Em nenhum dos 6 cenários houve crash**: nenhum `console.error`, nenhuma
+exceção JS (`pageerror`), nenhum texto de erro ("This page couldn't
+load"/"Application error"/"erro inesperado") em nenhum momento — apenas
+o comportamento correto e esperado pelas invariantes do ticket.
+
+Classificação: **`UNRESOLVED`** — não por falta de investigação (código
+lido por completo, cálculo isolado testado com números reais, e uma
+reprodução completa em browser real contra uma fixture que replica a
+forma exata dos dados reais, incluindo o requisito de boleto por
+parcela), mas porque nenhuma das hipóteses (`RENDER_RUNTIME_ERROR`,
+`INVALID_STATE_SHAPE`, `UNDEFINED_PARCELAS`, `KEY_COLLISION`,
+`EVENT_PROPAGATION`, `SERVER_CLIENT_SERIALIZATION`,
+`CALCULO_RESUMO_ERROR`) se confirmou. O código atual em
+`nova-solicitacao-client.tsx` não foi alterado por nenhum P0 anterior
+desta sessão (`git log` confirma que o último commit a tocar esse
+arquivo, `nova-solicitacao.server.ts` e `calculo.ts` é `fda2f13`, o
+commit original da Fase 1/2 — nenhuma das correções de gate
+logístico/documental subsequentes tocou esses arquivos).
+
+### Hipóteses restantes (não verificáveis a partir daqui)
+
+Como o código-fonte atual não reproduz o sintoma, a causa mais provável
+está **fora do código-fonte** examinado:
+- **Build/deploy desatualizado**: se o ambiente que o usuário testou é um
+  deploy (ex.: Vercel) do branch `homolog` que não foi refeito depois de
+  algum commit relevante, o bundle servido pode divergir do código-fonte
+  atual — não há como confirmar isso a partir deste ambiente local
+  (nenhuma URL de deploy está configurada no repositório).
+- **Estado transitório do navegador do usuário** (cache/extensão) —
+  também não reproduzível remotamente.
+- Não é um problema de dado: as NF-56/78 reais já foram confirmadas
+  (`documento_requisito_instancias`) 100% `satisfeito`, sem nenhuma
+  `operacoes_nfs` pendente, e a fixture usada aqui replica exatamente essa
+  forma.
+
+### Nenhuma alteração de código foi necessária
+
+Por não ter sido possível confirmar uma causa raiz real, nenhum código de
+produção foi alterado — corrigir "por hipótese" (proibido explicitamente
+pelo ticket) arriscaria introduzir uma regressão em um fluxo que já
+funciona corretamente com os dados reais. Se o sintoma se repetir,
+recomenda-se capturar, no exato momento do clique: a URL/versão do deploy
+sendo testada, o console do navegador (aba Console) e a aba Network da
+Server Action `solicitarAntecipacao`/da navegação — nenhum desses dados
+estava disponível neste ticket para correlação.
+
+### Testes
+
+- **Live E2E em browser real** —
+  `scripts/homologacao/p0-nova-solicitacao-parcelas-crash/browser-e2e.mjs`,
+  **10/10 PASS**. Requer `npm run dev:homolog` rodando localmente (porta
+  3001) e Chrome instalado (`C:\Program Files\Google\Chrome\Application\
+  chrome.exe`, configurável via `QA_CHROME_PATH`) — mesmo padrão de
+  `scripts/perf9a/browser-final-homolog.mjs`. Fica como teste de
+  regressão permanente para esta rota, cobrindo exatamente os cenários
+  1–10 pedidos no ticket (exceto o envio real da solicitação, já coberto
+  por `fase2-selecao-elegibilidade-precificacao/e2e.mjs`).
+- Diferente dos demais scripts desta sessão, este cria dados que
+  **precisam ficar commitados** (não revertidos) para o servidor Next — que
+  os lê por uma conexão HTTP separada — enxergá-los. Ao final, a fixture é
+  **desativada** (fundo inativo, política desativada); os documentos
+  aprovados e a versão de política publicada permanecem por imutabilidade
+  de auditoria (mesma regra do sistema, idêntica à de qualquer política
+  publicada real) — nenhum dado de cliente real foi tocado. Mesmo padrão
+  de tolerância já aceito pelo dataset PERF9A
+  (`scripts/perf9a/seed-homolog.mjs`), que também permanece
+  permanentemente em homologação.
+- **Regressões reexecutadas ao vivo**: E2E Fase 1 (17/17), E2E Fase 2
+  (29/29) — nenhuma alteração de código, ambas continuam verdes.
+- Suíte automatizada (`npx vitest run`): **162 arquivos / 1205 testes, 0
+  falhas** — nenhum teste novo em `vitest` (nenhuma lógica de produção foi
+  alterada; a regressão em browser real acima é o teste permanente
+  pedido pelo ticket para esta rota).
+- `npx tsc --noEmit`: limpo. `npx eslint .`: mesmos 6 warnings
+  pré-existentes e não relacionados. `npm run build`: sucesso. `npm audit
+  --omit=dev`: 0 vulnerabilidades. `git diff --check`: limpo. Varredura
+  manual de segredos no script novo: nenhum encontrado.
+
+### Status final
+
+`P0_NOVA_SOLICITACAO_PARCELAS_CRASH = PASS` (investigação exaustiva com
+as NFs 56/78, crash não reproduzido com essas duas; nenhuma alteração de
+código nesta seção). **Atualização**: o ticket seguinte pediu a
+reprodução na URL real do Vercel — nesse teste o próprio usuário
+selecionou uma **terceira NF real (3493)**, não testada aqui, e
+reproduziu o crash. A causa raiz real (parcela individualmente vencida,
+mascarada pelo vencimento agregado da NF) e a correção estão na seção
+"P0 — reproduzir crash na URL real de homolog (Vercel)" abaixo — as
+NFs 56/78 nunca tiveram esse padrão de dado, por isso não apareceram
+aqui.
+
+## P0 — reproduzir crash na URL real de homolog (Vercel)
+
+**Resultado: `P0_NOVA_SOLICITACAO_PARCELAS_CRASH_REMOTE = PASS` — causa
+raiz real confirmada e corrigida** (não é mais o "não reproduzido" do P0
+anterior — ver "Correção do rumo" abaixo).
+
+### 1. Confirmação de versão do deploy
+
+- `origin/homolog` (após `git fetch`) e `HEAD` local:
+  `df8c2110a24a8db7dbcd5c856f979fc6e0a73ee0` — idênticos, antes da
+  correção deste P0.
+- **SHA efetivamente implantado no Vercel: não foi possível confirmar
+  programaticamente** (sem `.vercel/project.json`, token/CLI do Vercel,
+  ou rota que exponha o commit). Isso deixou de ser bloqueante: a causa
+  raiz foi confirmada por reprodução direta de dados, não por inferência
+  de versão — ver abaixo.
+
+### 2–3. Reprodução ao vivo no Vercel real — resultado inicial incompleto, corrigido pelo usuário
+
+A primeira rodada deste P0 testou 3 NFs sintéticas fiéis à forma da
+NF-56/78 (nenhuma delas com parcela vencida) contra a URL real do
+Vercel — **nenhuma quebrou**. Esse resultado ficou registrado
+momentaneamente como "não reproduzido", mas era **incompleto**: o
+usuário, testando a mesma tela ao vivo, selecionou a NF real **3493**
+(não testada até então) e reproduziu o crash exato — screenshot real:
+"This page couldn't load" (Chrome, aba anônima), imediatamente após
+clicar para selecionar a NF 3493.
+
+### Causa raiz confirmada (dados reais da NF 3493)
+
+Query direta em homologação na NF 3493 real
+(`8006275d-87b9-493b-ba54-6208be0383bb`) revelou a diferença exata: a
+**parcela 1 tem vencimento `2026-08-19`** — **ontem**, em relação à
+data-base de hoje (`2026-08-20`) — enquanto o **vencimento agregado da
+NF** (`data_vencimento` = a última parcela, `2026-09-16`) ainda está no
+futuro. NF-56 e NF-78 nunca tiveram essa combinação (todas as parcelas
+delas, incluindo a primeira, já estavam no futuro na data dos testes) —
+por isso a reprodução inicial, fiel na política/documentos mas não nos
+vencimentos, não capturou o cenário real.
+
+O filtro de elegibilidade da listagem
+(`carregarNovaSolicitacaoOperacao`, `src/lib/operacoes/nova-solicitacao.
+server.ts`) só olha o **vencimento agregado da NF** (`.gte('data_
+vencimento', dataBase)`), então a NF 3493 aparece normalmente na lista.
+Mas ao selecionar essa NF, `nova-solicitacao-client.tsx` monta
+`itensCalculo` usando o vencimento de **cada parcela individual** e
+chama `calcularAntecipacaoEmLote` **diretamente no corpo do render, sem
+try/catch**. `calcularValorPresenteNota` (`src/lib/operacoes/calculo.ts`)
+lança `CalculoFinanceiroError('A NF esta vencida...')` sempre que
+`diasCorridosReais < 0` — comportamento **correto** da função em si (uma
+parcela vencida genuinamente não tem valor presente a calcular), mas
+como ninguém no caminho de render captura essa exceção, o React derruba
+a árvore inteira → tela em branco / "This page couldn't load".
+
+Confirmado isoladamente **antes de tocar em qualquer código**: reproduzi
+`calcularAntecipacaoEmLote` via `vitest` com os 3 vencimentos reais da
+NF 3493 (`2026-08-19`, `2026-09-02`, `2026-09-16`) e a mesma
+`CalculoFinanceiroError` foi lançada, confirmando a causa raiz byte a
+byte antes de qualquer correção.
+
+Classificação: **`REAL_DATA_SHAPE_ERROR`** (uma parcela individualmente
+vencida, mascarada pelo vencimento agregado da NF ainda estar no
+futuro) — não `STALE_DEPLOY_CONFIRMED` (SHAs consistentes, o bug é de
+código, não de deploy desatualizado), não `AUTH_SESSION_ERROR`, não
+`REMOTE_RSC_ERROR`/`REMOTE_SERVER_ACTION_ERROR` (a falha é 100%
+client-side, dentro do render, sem nenhuma resposta HTTP ≥400
+envolvida).
+
+### Correção (duas camadas, menor alteração possível)
+
+1. **Causa raiz** — `src/lib/operacoes/nova-solicitacao.server.ts`:
+   a query de `nota_fiscal_parcelas` ganhou `.gte('data_vencimento',
+   dataBase)` — a **mesma regra já aplicada à NF inteira**, agora também
+   por parcela. Uma parcela com vencimento individual já passado deixa
+   de ser oferecida para seleção (ela não pode ser antecipada — não há
+   valor presente a calcular para uma data no passado), mesmo que a NF
+   continue elegível pelas demais parcelas. Nenhuma NF passa a ficar sem
+   nenhuma parcela selecionável por causa disso: se o vencimento
+   agregado (a última parcela) já passa o filtro da NF, ele nunca é
+   excluído aqui.
+2. **Defesa em profundidade** — `src/app/cedente/operacoes/nova/
+   nova-solicitacao-client.tsx`: a chamada a `calcularAntecipacaoEmLote`
+   passou a rodar dentro de um `try/catch`; se lançar (`CalculoFinanceiro
+   Error` ou qualquer outra causa futura), o resumo mostra um aviso
+   ("Não foi possível estimar o valor líquido") em vez de derrubar a
+   página inteira. Protege contra qualquer outra classe de dado real
+   inesperado que ainda não foi mapeada, sem mudar nenhuma regra
+   financeira.
+
+Nenhuma alteração em `calcularValorPresenteNota`/`calcularAntecipacaoEmLote`
+— o comportamento de rejeitar uma parcela vencida é correto e já tinha
+teste próprio (`calculo.test.ts`); a correção é sobre nunca deixar essa
+NF/parcela chegar até lá sem uma NF elegível de verdade, e nunca deixar
+uma falha de cálculo derrubar o render.
+
+### 5. Critério de encerramento
+
+| Critério do ticket | Resultado |
+| --- | --- |
+| Selecionar NF-56 não quebra | ✅ (já confirmado, nunca teve parcela vencida) |
+| Parcelas expandem | ✅ |
+| Selecionar NF-78 também não quebra | ✅ (já confirmado) |
+| Seleção/deseleção atualiza resumo | ✅ |
+| Nenhuma exception/pageerror/5xx | ✅ (após a correção) |
+| Deploy SHA corresponde ao código testado | ⚠️ ainda não verificável programaticamente — mas irrelevante para a causa raiz, que foi confirmada por reprodução de dados, não por inferência de versão |
+
+O cenário real que quebrava (NF com parcela individualmente vencida) foi
+reproduzido, a causa raiz confirmada byte a byte com os números reais da
+NF 3493, e a correção verificada localmente com esses mesmos números
+(ver Testes). **A verificação no próprio deploy do Vercel exige um novo
+deploy** (este ticket instrui a não fazer commit/push) — fica pendente
+até a próxima instrução do usuário para comitar/enviar.
+
+### Testes
+
+- **Isolamento pré-correção** (`vitest`, ad-hoc, removido após confirmar):
+  `calcularAntecipacaoEmLote` com os 3 vencimentos reais da NF 3493 —
+  lançou `CalculoFinanceiroError` de fato, replicando a causa raiz antes
+  de qualquer mudança de código.
+- **Live E2E local pós-correção** —
+  `scripts/homologacao/p0-nova-solicitacao-parcelas-crash/browser-e2e.mjs`
+  (mesmo script do P0 anterior, agora com uma 4ª NF replicando a NF 3493
+  exata — parcela 1 vencida ontem, vencimento agregado no futuro):
+  **13/13 PASS**, incluindo especificamente: selecionar essa NF não
+  quebra a página; a parcela vencida é excluída da lista selecionável
+  (só as parcelas 002/003 aparecem); o resumo soma corretamente só as
+  parcelas vigentes (R$ 2.108,00 = 2×R$ 1.054,00).
+- 2 testes novos de arquitetura em
+  `src/lib/documentos/parcelas-nf-boleto-architecture.test.ts`:
+  confirmam que a query de parcelas tem o filtro `gte(data_vencimento)`
+  antes do `order`, e que o cliente encapsula `calcularAntecipacaoEmLote`
+  num `try/catch` que popula `erroCalculo`.
+- **Regressões reexecutadas ao vivo**: E2E Fase 1 (17/17), E2E Fase 2
+  (29/29) — a mudança só afeta a listagem de parcelas selecionáveis na
+  tela de nova solicitação, não a RPC de solicitação/aprovação em si.
+- Suíte completa (`npx vitest run`): **162 arquivos / 1207 testes, 0
+  falhas** (2 testes novos).
+- `npx tsc --noEmit`: limpo. `npx eslint .`: mesmos 6 warnings
+  pré-existentes e não relacionados. `npm run build`: sucesso. `npm audit
+  --omit=dev`: 0 vulnerabilidades. `git diff --check`: limpo.
+
+### Status final
+
+`P0_NOVA_SOLICITACAO_PARCELAS_CRASH_REMOTE = PASS` — causa raiz real
+confirmada (`REAL_DATA_SHAPE_ERROR`: parcela individualmente vencida
+mascarada pelo vencimento agregado da NF) e corrigida em duas camadas;
+verificado localmente com os números reais da NF 3493 (13/13 PASS).
+Verificação no deploy real do Vercel pendente de um novo deploy (fora do
+escopo deste ticket, que instrui não commitar/pushar).
+
+## UI/Operacional — parcelas na NF e na Operação
+
+**Resultado: `UI_PARCELAS_NF_E_OPERACAO = PASS`.**
+
+### Diagnóstico
+
+Mapeamento completo (sem `UNRESOLVED`) de: tela de detalhe da Operação do
+Gestor, fontes atuais de bruto/antecipado/prazo/vencimento, `operacoes_nfs`,
+`operacoes_nf_parcelas`, `operacao_calculo_nfs`, telas de detalhe da NF
+(Cedente/Gestor), `nota_fiscal_parcelas`, a action de salvar NF, estados em
+que a NF pode ser editada, e o vínculo parcela↔requisito de boleto.
+
+Achados centrais:
+
+- **`UI_OPERATION_AGGREGATED_BY_NF`** — confirmado.
+  `OperacaoDetalheGestorClient.tsx` lia somente `operacoes_nfs` →
+  `notas_fiscais` (`valor_bruto`, `valor_liquido`, `valor_antecipado` da
+  **NF inteira**), nunca `operacoes_nf_parcelas`. A query de
+  `operacao_calculo_nfs` já existia (para um `<details>` de memória de
+  cálculo), mas **omitia `parcela_id`** — para uma NF com parcelas
+  aprovada, essa tabela já tem N linhas (uma por parcela) todas com o
+  mesmo `nota_fiscal_id`, e a UI as tratava como se fossem da NF inteira,
+  sem nenhuma distinção por parcela.
+- **`NF_DETAILS_MISSING_INSTALLMENTS`** — confirmado. Nenhuma das duas
+  páginas de detalhe da NF (Cedente/Gestor) tem uma seção própria de
+  parcelas — o único lugar onde parcela aparece é `ParcelasBoletosNota`,
+  aninhado dentro do checklist, e **só quando a política exige boleto**
+  (`listarParcelasBoletosDaNota` retorna lista vazia se não houver
+  requisito de boleto instanciado — confirmado por leitura de código e
+  por teste novo). Um teste de arquitetura já existente
+  (`parcelas-nf-boleto-architecture.test.ts`) proíbe explicitamente que
+  `ParcelasBoletosNota` seja renderizado fora do checklist — por isso a
+  nova seção **não reaproveita nem estende** esse componente; é um
+  componente novo e independente (`ParcelasDaNota`).
+- **`INSTALLMENT_EDIT_FLOW_MISSING`** — confirmado. `registrar_parcelas_
+  nota_fiscal` só faz o registro inicial e **nega explicitamente** se a
+  NF já tiver parcelas — não existe nenhuma RPC para corrigir vencimento/
+  valor depois. `salvarDadosNF` (edição de campos da NF em si) também não
+  toca `nota_fiscal_parcelas`, e — achado relevante para não repetir —
+  **não valida `status = 'rascunho'` nem no código nem na policy de RLS**
+  (só há gate no cliente); a nova RPC não repete essa lacuna.
+- **`DEPENDENT_DOCUMENT_GUARD_REQUIRED`** — confirmado. Não existia
+  nenhum helper ou verificação que impedisse editar uma parcela cujo
+  boleto já foi aprovado. O sinal canônico e correto é
+  `documento_requisito_instancias.status = 'satisfeito'` filtrado por
+  `parcela_id` + `tipo_documento_codigo_snapshot = 'boleto'` (o mesmo
+  critério que `ParcelasBoletosNota`/`derivarStatusBoleto` já tratam como
+  "aprovado" na UI).
+
+### A. Gestor — detalhe da Operação
+
+`src/app/gestor/operacoes/[id]/OperacaoDetalheGestorClient.tsx`:
+
+- A NF continua agrupadora visual (nenhuma mudança na listagem de NFs em
+  si). Para cada NF com parcelas registradas (`totalParcelasPorNf.get
+  (nf.id) > 0`), um bloco expansível abaixo do card mostra `X/Y parcelas
+  cedidas` (X = linhas em `operacoes_nf_parcelas` para esta operação e
+  esta NF; Y = total de parcelas da NF) e, expandido, uma linha por
+  parcela cedida com número, vencimento, valor nominal, prazo
+  (`dias_aplicados`) e antecipado/VP + desconto — **lidos de
+  `operacao_calculo_nfs.parcela_id`, nunca recalculados na UI**. NF sem
+  parcelas (`totalParcelas === 0`) não renderiza nada extra — legado
+  intacto.
+- **Bruto/antecipado exibidos no card da NF** passam a representar só as
+  parcelas cedidas **nesta** operação quando ela tem parcela granularity
+  aqui: `valor_bruto` do card vira a soma de `nota_fiscal_parcelas.
+  valor_nominal` das parcelas em `operacoes_nf_parcelas` desta operação
+  (não mais `notas_fiscais.valor_bruto` inteiro); `valor_antecipado` usa
+  a soma de `operacao_calculo_nfs.valor_presente` por parcela quando essa
+  memória já existe (operação aprovada) — só cai para a estimativa
+  simulada existente (client-side, pré-decisão) quando a memória real
+  ainda não existe. Isso corrige automaticamente os totais agregados do
+  card superior (`totaisNfs`), que já derivam de `notasFiscaisView`.
+- **Escopo deliberadamente não estendido**: a estimativa client-side
+  pré-decisão (`calcularAntecipacaoEmLote` sobre `nfs`, usada só enquanto
+  a operação está `solicitada`/`em_analise`) continua calculando pelo
+  valor/vencimento **da NF inteira**, não por parcela — tornar essa
+  simulação também parcela-consciente exigiria replicar a lógica já
+  implementada em `nova-solicitacao-client.tsx` (que monta os itens de
+  cálculo por parcela) dentro da tela de operação, uma mudança maior e
+  fora do "menor mudança possível" deste ticket. Registrado como risco
+  aberto (ver seção "Riscos") — não afeta os valores **aprovados**
+  (memória real), só a pré-visualização antes da decisão do Gestor.
+
+### B. Cedente/Gestor — detalhe da Nota Fiscal
+
+Novo componente `src/components/notas-fiscais/ParcelasDaNota.tsx`,
+renderizado nas duas páginas de detalhe da NF (logo após o
+checklist/`DuplicatasDaNota`, antes de "Dados da Nota Fiscal") —
+**independente da política exigir boleto**: lê `nota_fiscal_parcelas`
+diretamente via a nova `listarParcelasDaNota` (`src/lib/actions/
+parcelas-nf.ts`), sem qualquer join com `documento_requisito_instancias`.
+Exibe parcela, vencimento, valor nominal, status financeiro (`disponivel`
+/`em_operacao`/`liquidada`/`cancelada`), origem (`xml_nfe`/`manual`),
+total e quantidade. Desktop: tabela; mobile: cards empilhados (mesmo
+padrão visual de `ParcelasBoletosNota`, mas como componente novo e
+independente — não reaproveitado, para não violar o teste de arquitetura
+que já garante o isolamento do card de Boleto). NF sem parcelas não
+renderiza nada (`itens.length === 0` retorna `null`).
+
+### C. Correção de parcelas pelo Cedente
+
+Nova RPC `public.editar_parcelas_nota_fiscal` (migration
+`20260820120000_ui_parcelas_nf_operacao_editar_parcelas.sql`), chamada
+pela nova action `editarParcelasDaNota`:
+
+- Restrita ao **Cedente dono da NF**, e só enquanto `notas_fiscais.status
+  = 'rascunho'` — checado **no banco**, não só no cliente (corrigindo a
+  lacuna encontrada em `salvarDadosNF`).
+- Editáveis: `valor_nominal` e `data_vencimento`. **Número da parcela
+  permanece imutável** — decisão documentada, não um placeholder: `nota_
+  fiscal_parcelas_unique UNIQUE (nota_fiscal_id, numero_parcela)` já
+  garante unicidade, e o caso de uso pedido (corrigir valor/vencimento)
+  não precisa renumerar; reabrir esse campo exigiria uma lógica de
+  reordenação sem necessidade real, então foi deixado fora do escopo.
+- A cada chamada, o payload deve conter **todas** as parcelas existentes
+  da NF (mesma contagem, sem adicionar/remover) — decisão de design que
+  evita ambiguidade sobre "o que aconteceu com a parcela que não veio no
+  payload".
+- Valida: cada parcela pertence à NF e está `status = 'disponivel'`; soma
+  de todas as parcelas dentro da mesma tolerância monetária de
+  `registrar_parcelas_nota_fiscal` (`greatest(count * 0.01, 0.01)`) contra
+  `notas_fiscais.valor_bruto`; `valor_nominal > 0`.
+- Após a edição, `notas_fiscais.data_vencimento` é recalculado para o
+  novo `MAX(nota_fiscal_parcelas.data_vencimento)` — o vencimento
+  agregado legado nunca fica desatualizado.
+- **Achado corrigido durante o próprio E2E ao vivo, antes de fechar o
+  ticket**: a primeira versão do guard D (documento dependente) bloqueava
+  a edição de **qualquer** parcela do payload sempre que **qualquer
+  outra** parcela da mesma NF já tivesse boleto aprovado — porque a RPC
+  exige o payload completo a cada chamada, e a parcela com boleto
+  aprovado precisa ser reenviada (sem mudança) só para completar esse
+  payload. Corrigido para o guard só disparar quando o valor/vencimento
+  **daquela parcela especificamente** está de fato mudando
+  (`IS DISTINCT FROM` contra os valores atuais) — reenviar uma parcela
+  sem alteração nunca bloqueia a edição das demais.
+
+### D. Guarda de documento dependente (boleto aprovado)
+
+Não havia mecanismo seguro existente para isso — por instrução explícita
+do ticket ("se não houver mecanismo seguro já existente, bloquear
+alteração... e reportar o motivo, em vez de criar comportamento
+arriscado"), a opção implementada foi **bloquear** (não criar nenhuma
+lógica nova de re-versionamento/pendência automática): se a parcela alvo
+já tem `documento_requisito_instancias.status = 'satisfeito'` para o
+requisito de boleto, a edição é negada com mensagem clara, e **nada é
+apagado** — o boleto aprovado, sua versão e análise permanecem
+integralmente intactos (confirmado ao vivo: após a tentativa negada, o
+requisito continua `satisfeito` e a versão `aprovado`).
+
+### Testes
+
+- **Live E2E** — `scripts/homologacao/ui-parcelas-nf-operacao/e2e.mjs`,
+  **24/24 PASS** ao vivo em homologação (transação revertida), cobrindo
+  os 16 testes obrigatórios do ticket:
+  1–2: NF-78/56 (reais) — 4/3 parcelas na fonte de dados.
+  3–5: operação parcial (2 de 4 parcelas da NF-78) — `operacoes_nf_
+  parcelas` mostra exatamente as 2 cedidas; soma nominal = R$ 55.080,00
+  (não os R$ 110.160,00 da NF inteira); memória financeira com 2 linhas
+  por parcela, VP/desconto/prazo já calculados (não recalculado).
+  6: NF sem parcelas — legado intacto (0 linhas em `operacoes_nf_
+  parcelas`, 1 linha de memória com `parcela_id` null).
+  7: parcelas aparecem mesmo com política sem boleto.
+  8/14: editar vencimento salva, persiste, e o vencimento agregado da NF
+  vira o novo MAX.
+  9/10: editar valores mantendo a soma = ALLOW; quebrando a soma = DENY.
+  11: NF fora de rascunho = DENY.
+  12: outro Cedente = DENY.
+  13: Gestor lê parcelas normalmente, mas não pode editar.
+  15/16: parcela com boleto aprovado não pode ser editada (guard D); após
+  a tentativa negada, o boleto aprovado permanece intacto; as demais
+  parcelas continuam editáveis normalmente.
+- 13 testes novos de arquitetura em `parcelas-nf-boleto-architecture.
+  test.ts`: `ParcelasDaNota` renderizado nas duas páginas fora do
+  checklist; independência de boleto; edição restrita a `mode="cedente"`;
+  guardas da RPC (rascunho, dono, número imutável, tolerância, guard D
+  escopado por mudança real, recálculo do vencimento agregado);
+  `OperacaoDetalheGestorClient` lendo `operacoes_nf_parcelas`/`operacao_
+  calculo_nfs.parcela_id`, bruto/antecipado por parcelas cedidas, NF sem
+  parcelas sem bloco extra, bloco expansível "X/Y parcelas cedidas".
+- **Regressões reexecutadas ao vivo**: E2E Fase 1 (17/17), E2E Fase 2
+  (29/29 — inclui fluxo de seleção parcial e precificação por parcela),
+  P0 gate logístico/status/boleto (9/9).
+- Suíte completa (`npx vitest run`): **162 arquivos / 1220 testes, 0
+  falhas** (13 testes novos).
+- `npx tsc --noEmit`: limpo (incluindo o registro manual de tipos de RPC
+  em `src/types/database.ts`, que precisou da entrada nova de `editar_
+  parcelas_nota_fiscal`). `npx eslint .`: mesmos 6 warnings pré-existentes
+  e não relacionados. `npm run build`: sucesso. `npm audit --omit=dev`: 0
+  vulnerabilidades. `git diff --check`: limpo.
+
+### Status final
+
+`UI_PARCELAS_NF_E_OPERACAO = PASS`
+
 ## Riscos
 
 1. **Fase 3 não implementada** — este relatório cobre as Fases 1 e 2. A
@@ -1138,6 +1630,26 @@ migration é aplicada (sem cache de aplicação a invalidar).
    instancias`/`documento_versoes` do fluxo regular (mesma semântica de
    `evidenciasDoChecklistRegular`, portada para SQL), sem alterar a RPC
    pública nem duplicar Storage/tabela.
+9. **SHA do deploy real do Vercel (`bw-antecipa-env-homolog`) não pôde
+   ser confirmado programaticamente** — nenhum token/CLI do Vercel
+   disponível neste ambiente, e a aplicação não expõe o commit em
+   nenhuma rota. Não bloqueou o diagnóstico desta vez (a causa raiz do
+   crash de parcelas foi confirmada por reprodução direta de dados reais
+   da NF 3493, não por inferência de versão — ver seção "reproduzir
+   crash na URL real de homolog"), mas para qualquer sintoma que só
+   apareça no deploy real e não localmente, confirmar primeiro no
+   dashboard do Vercel se o deployment ativo corresponde a `origin/
+   homolog` antes de investigar código.
+10. **Estimativa de "Antecipado" pré-decisão na tela de Operação do
+    Gestor (enquanto `solicitada`/`em_analise`) continua calculada pelo
+    valor/vencimento da NF inteira, não por parcela** — só a memória
+    financeira real (pós-aprovação, `operacao_calculo_nfs.parcela_id`) é
+    parcela-consciente, conforme pedido pelo ticket ("não recalcular na
+    UI"). Tornar a pré-visualização também parcela-consciente exigiria
+    replicar a lógica já existente em `nova-solicitacao-client.tsx`
+    (montagem de itens de cálculo por parcela) dentro da tela de
+    operação — decisão de escopo explícita para manter a "menor mudança
+    possível" deste ticket; não afeta nenhum valor já aprovado.
 
 ## Pendências (próximo checkpoint, por decisão do usuário)
 

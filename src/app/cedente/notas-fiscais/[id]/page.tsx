@@ -24,6 +24,7 @@ import { useNotifications } from '@/components/notifications/notification-provid
 import { ArquivoOriginalCompacto } from '@/components/notas-fiscais/ArquivoOriginalCompacto'
 import { HistoricoTimelineCard } from '@/components/historico/HistoricoTimelineCard'
 import { DuplicatasDaNota } from '@/components/duplicatas/DuplicatasDaNota'
+import { ParcelasDaNota } from '@/components/notas-fiscais/ParcelasDaNota'
 
 interface NfCompleta {
   id: string
@@ -501,6 +502,8 @@ export default function NfDetalhePage() {
       </div>
 
       <ChecklistCedente notaFiscalId={nfId} onEligibilityChange={setSubmissionReadiness} />
+
+      <ParcelasDaNota notaFiscalId={nfId} mode="cedente" />
 
       <DuplicatasDaNota notaFiscalId={nfId} mode="cedente" editable={isEditable} />
 

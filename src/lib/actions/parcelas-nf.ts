@@ -139,6 +139,118 @@ export async function listarParcelasBoletosDaNota(notaFiscalId: string): Promise
   }
 }
 
+export interface ParcelaDaNotaItem {
+  id: string
+  numeroParcela: number
+  dataVencimento: string
+  valorNominal: number
+  status: string
+  origem: string
+}
+
+export interface ParcelasDaNotaResumo {
+  itens: ParcelaDaNotaItem[]
+  total: number
+  quantidade: number
+  editavel: boolean
+}
+
+/**
+ * Secao "Parcelas da Nota Fiscal" -- independente de a politica exigir
+ * boleto (diferente de listarParcelasBoletosDaNota, que so retorna algo
+ * quando ha requisito de boleto instanciado). NF sem parcelas retorna
+ * lista vazia (comportamento legado inalterado).
+ */
+export async function listarParcelasDaNota(notaFiscalId: string): Promise<ParcelaActionResult<ParcelasDaNotaResumo>> {
+  try {
+    const context = await requireNotaFiscalAccess(notaFiscalId)
+    const supabase = context.supabase
+
+    const { data: nf, error: nfError } = await supabase.from('notas_fiscais').select('status').eq('id', notaFiscalId).maybeSingle()
+    if (nfError || !nf) throw new Error('Nota fiscal nao encontrada.')
+
+    const { data, error } = await supabase
+      .from('nota_fiscal_parcelas')
+      .select('id, numero_parcela, data_vencimento, valor_nominal, status, origem')
+      .eq('nota_fiscal_id', notaFiscalId)
+      .order('numero_parcela')
+    if (error) throw new Error(`Nao foi possivel carregar as parcelas: ${error.message}`)
+
+    type Row = { id: string; numero_parcela: number; data_vencimento: string; valor_nominal: number; status: string; origem: string }
+    const rows = (data || []) as Row[]
+    const itens: ParcelaDaNotaItem[] = rows.map((row) => ({
+      id: row.id,
+      numeroParcela: row.numero_parcela,
+      dataVencimento: row.data_vencimento,
+      valorNominal: Number(row.valor_nominal),
+      status: row.status,
+      origem: row.origem,
+    }))
+    const total = itens.reduce((soma, item) => soma + item.valorNominal, 0)
+    const editavel = context.profile.role === 'cedente' && (nf as { status: string }).status === 'rascunho'
+
+    return { success: true, message: 'Parcelas carregadas.', data: { itens, total, quantidade: itens.length, editavel } }
+  } catch (error) {
+    return falha(error, 'Nao foi possivel carregar as parcelas da nota fiscal.')
+  }
+}
+
+export interface ParcelaEdicaoInput {
+  id: string
+  valorNominal: number
+  dataVencimento: string
+}
+
+/**
+ * Corrige vencimento/valor das parcelas ja registradas -- so enquanto a NF
+ * esta em rascunho (checado no banco pela RPC, nao apenas no cliente).
+ * Numero da parcela permanece imutavel (nota_fiscal_parcelas_unique exige
+ * unicidade por NF, e renumerar nao e necessario para o caso de uso de
+ * correcao de valor/vencimento pedido pelo ticket). A RPC valida: NF do
+ * cedente autenticado, NF em rascunho, cada parcela ainda 'disponivel',
+ * nenhuma com boleto ja aprovado, soma dentro da tolerancia do valor
+ * bruto, e atualiza notas_fiscais.data_vencimento para o novo MAX.
+ */
+export async function editarParcelasDaNota(
+  notaFiscalId: string,
+  parcelas: ParcelaEdicaoInput[],
+): Promise<ParcelaActionResult<{ soma: number; vencimentoAgregado: string }>> {
+  try {
+    const context = await requireNotaFiscalAccess(notaFiscalId)
+    if (context.profile.role !== 'cedente') throw new Error('Somente o cedente dono da NF pode editar parcelas.')
+
+    const payload = parcelas.map((item) => ({
+      id: item.id,
+      valor_nominal: item.valorNominal,
+      data_vencimento: item.dataVencimento,
+    }))
+    const { data, error } = await context.supabase.rpc('editar_parcelas_nota_fiscal', {
+      p_nota_fiscal_id: notaFiscalId,
+      p_parcelas: payload,
+    })
+    if (error) throw new Error(error.message)
+
+    const resultado = data as { soma: number; vencimento_agregado: string }
+
+    registrarLog({
+      tipo_evento: 'PARCELAS_NF_EDITADAS',
+      entidade_tipo: 'nota_fiscal_parcelas',
+      entidade_id: notaFiscalId,
+      dados_depois: { nota_fiscal_id: notaFiscalId, ...resultado },
+    }).catch(() => {})
+
+    revalidatePath(`/cedente/notas-fiscais/${notaFiscalId}`)
+    revalidatePath(`/gestor/notas-fiscais/${notaFiscalId}`)
+    return {
+      success: true,
+      message: 'Parcelas atualizadas com sucesso.',
+      data: { soma: Number(resultado.soma), vencimentoAgregado: resultado.vencimento_agregado },
+    }
+  } catch (error) {
+    return falha(error, 'Nao foi possivel salvar as parcelas.')
+  }
+}
+
 export async function listarBeneficiariosElegiveisDaNota(notaFiscalId: string): Promise<ParcelaActionResult<Array<{ id: string; razaoSocial: string; cnpj: string; tipo: string }>>> {
   try {
     const context = await requireNotaFiscalAccess(notaFiscalId)

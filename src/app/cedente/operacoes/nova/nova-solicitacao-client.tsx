@@ -7,7 +7,7 @@ import { ArrowLeft, Calculator, CheckSquare, Loader2, Receipt, Search, Send, Squ
 import { solicitarAntecipacao } from '@/lib/actions/operacao'
 import type { NfCandidataOperacao, ResultadoNovaSolicitacao } from '@/lib/operacoes/nova-solicitacao.server'
 import { buildListUrl } from '@/lib/pagination'
-import { calcularAntecipacaoEmLote } from '@/lib/operacoes/calculo'
+import { CalculoFinanceiroError, calcularAntecipacaoEmLote } from '@/lib/operacoes/calculo'
 import { formatCNPJ, formatCurrency, formatDate } from '@/lib/utils'
 import { ListPagination } from '@/components/pagination'
 import { useNotifications } from '@/components/notifications/notification-provider'
@@ -116,14 +116,25 @@ export default function NovaSolicitacaoClient({ resultado }: { resultado: Result
     }
     return [{ id: nf.id, valorBruto: nf.valorBruto, vencimento: nf.vencimento }]
   })
-  const calculo = calcularAntecipacaoEmLote({
-    notas: itensCalculo,
-    taxas: resultado.taxas,
-    dataBase: resultado.dataBase,
-    metodo: resultado.metodoCalculo,
-  })
-  const valorBruto = calculo.valorBrutoTotal
-  const valorLiquido = calculo.valorLiquidoTotal
+  // O calculo pode falhar (ex.: parcela vencida) mesmo apos a filtragem do
+  // servidor -- nunca deixar essa falha quebrar o render inteiro da
+  // pagina; mostra um aviso no resumo em vez de derrubar a tela.
+  let calculo = null
+  let erroCalculo: string | null = null
+  try {
+    calculo = calcularAntecipacaoEmLote({
+      notas: itensCalculo,
+      taxas: resultado.taxas,
+      dataBase: resultado.dataBase,
+      metodo: resultado.metodoCalculo,
+    })
+  } catch (error) {
+    erroCalculo = error instanceof CalculoFinanceiroError
+      ? error.message
+      : 'Nao foi possivel calcular o resumo para a selecao atual.'
+  }
+  const valorBruto = calculo?.valorBrutoTotal ?? itensCalculo.reduce((total, item) => total + item.valorBruto, 0)
+  const valorLiquido = calculo?.valorLiquidoTotal ?? null
 
   const enviar = async () => {
     if (!selected.size) return notifications.error('Selecione ao menos uma NF.')
@@ -252,7 +263,12 @@ export default function NovaSolicitacaoClient({ resultado }: { resultado: Result
           <CardContent className="space-y-3 text-sm">
             <div className="flex justify-between"><span className="text-muted-foreground">NFs selecionadas</span><strong>{selected.size}</strong></div>
             <div className="flex justify-between"><span className="text-muted-foreground">Valor bruto</span><strong>{formatCurrency(valorBruto)}</strong></div>
-            {valorLiquido === null ? (
+            {erroCalculo ? (
+              <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-destructive">
+                <p className="font-medium">Nao foi possivel estimar o valor liquido</p>
+                <p className="mt-1 text-xs">{erroCalculo}</p>
+              </div>
+            ) : valorLiquido === null ? (
               <div className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-warning-foreground">
                 <p className="font-medium">Taxa pendente de definicao</p>
                 <p className="mt-1 text-xs">A solicitacao pode ser enviada. O valor sera calculado antes da aprovacao.</p>

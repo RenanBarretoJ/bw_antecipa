@@ -200,6 +200,15 @@ export async function carregarNovaSolicitacaoOperacao(
       .select('id, nota_fiscal_id, numero_parcela, valor_nominal, data_vencimento')
       .in('nota_fiscal_id', idsPagina)
       .eq('status', 'disponivel')
+      // Mesma regra ja aplicada a NF inteira (gte data_vencimento acima):
+      // uma parcela com vencimento individual ja passado nao pode ser
+      // antecipada (nao ha valor presente a calcular para uma data no
+      // passado). Sem este filtro, uma NF cujo vencimento agregado (a
+      // ultima parcela) ainda esta no futuro passava pela elegibilidade,
+      // mas selecionar essa NF alimentava a parcela vencida no calculo,
+      // que lanca CalculoFinanceiroError sem tratamento no render do
+      // cliente e quebra a pagina inteira.
+      .gte('data_vencimento', dataBase)
       .order('numero_parcela', { ascending: true })
     if (parcelasError) throw new Error(`Nao foi possivel carregar as parcelas das NFs candidatas: ${parcelasError.message}`)
     for (const parcela of (parcelasData || []) as ParcelaCandidataRow[]) {
