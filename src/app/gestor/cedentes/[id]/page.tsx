@@ -914,7 +914,17 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
           <div className="flex gap-2">
             <Select value={fundoSelecionado} onValueChange={(v) => setFundoSelecionado(v ?? '')}>
               <SelectTrigger className="flex-1">
-                <SelectValue placeholder="Selecione um fundo..." />
+                {/* SelectValue so resolve o label pelos SelectItem's registrados
+                    no popup, o que so acontece depois de aberto ao menos uma vez --
+                    ate la mostraria o uuid cru. Resolvendo o label aqui evita
+                    depender dessa ordem de montagem. */}
+                <SelectValue placeholder="Selecione um fundo...">
+                  {!fundoSelecionado
+                    ? 'Selecione um fundo...'
+                    : fundoSelecionado === 'none'
+                      ? '— Sem fundo vinculado —'
+                      : fundos.find((f) => f.id === fundoSelecionado)?.nome ?? fundoSelecionado}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none" label="— Sem fundo vinculado —">— Sem fundo vinculado —</SelectItem>

@@ -130,13 +130,15 @@ function normalizarBusca(value: string | undefined) {
 
 async function resolverContextoCedenteFundo(
   supabase: AppSupabaseClient,
-  userId: string,
 ): Promise<ContextoCedenteFundo> {
-  const { data: cedente, error: cedenteError } = await supabase
-    .from('cedentes')
-    .select('id, status')
-    .eq('user_id', userId)
-    .maybeSingle()
+  // get_user_cedente_id() resolve tanto o dono (cedentes.user_id) quanto um
+  // usuario convidado via cedente_acessos -- filtrar so por user_id fazia
+  // um usuario convidado nunca resolver o cedente, mesmo com o cedente
+  // ativo, quebrando esta pagina inteira.
+  const { data: cedenteId } = await supabase.rpc('get_user_cedente_id')
+  const { data: cedente, error: cedenteError } = cedenteId
+    ? await supabase.from('cedentes').select('id, status').eq('id', cedenteId).maybeSingle()
+    : { data: null, error: null }
 
   if (cedenteError) throw new Error(`Nao foi possivel consultar o cedente autenticado: ${cedenteError.message}`)
   if (!cedente) throw new Error('Cadastro de cedente nao encontrado.')
@@ -263,7 +265,7 @@ export async function carregarNotasFiscaisComResumoDocumental(
   assertRole(auth.profile.role, ['cedente'])
   if (auth.profile.status !== 'ativo') throw new Error('O perfil do usuario nao esta ativo.')
 
-  const contexto = await resolverContextoCedenteFundo(auth.supabase, auth.user.id)
+  const contexto = await resolverContextoCedenteFundo(auth.supabase)
   const pagina = normalizarPagina(filtros.pagina)
   const limite = normalizarLimiteListagemNf(Number(filtros.limite))
   const ordenacao = normalizarCampoOrdenacaoListagemNf(String(filtros.ordenacao || ''))

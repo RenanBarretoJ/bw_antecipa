@@ -2,7 +2,8 @@
 
 ## Resultado
 
-`P0_CEDENTE_ACESSO_DELEGADO_ONBOARDING = PASS` (para os 3 sintomas relatados)
+`P0_CEDENTE_ACESSO_DELEGADO_ONBOARDING = PASS` (3 sintomas originais +
+varredura completa do portal do Cedente, ambas confirmadas ao vivo)
 `P0_CARREGANDO_PORTAL_INFINITO = MITIGADO, causa exata não confirmada`
 
 - Ambiente validado: homologação.
@@ -136,6 +137,22 @@ isso confirmaria se é este branch ou outra causa.
   spinner infinito).
 - `src/types/database.ts` — tipo da nova RPC.
 
+**Varredura completa (segunda rodada, achada pelo usuário ao vivo)**:
+- `supabase/migrations/20260820160000_dashboard_cedente_resumo_acesso_delegado.sql`
+  — RPC SQL `dashboard_cedente_resumo` corrigida (mesmo padrão, dentro do banco).
+- `src/lib/analytics/loaders.server.ts` (Dashboard), `src/lib/auth/
+  platform-access.ts` (área/pós-login), `src/lib/notas-fiscais/
+  listagem.server.ts` (Minhas NFs), `src/lib/operacoes/listagem.server.ts`
+  (Minhas Operações), `src/lib/cedentes/estabelecimentos-listagem.server.ts`
+  (Meus CNPJs), `src/lib/actions/estabelecimento.ts`, `src/lib/actions/
+  operacao.ts`, `src/lib/operacoes/nova-solicitacao.server.ts` (Nova
+  Solicitação), `src/lib/actions/cedente-fundo-ativo.ts`, `src/lib/actions/
+  selectors.ts`, `src/lib/escrow/movimentos.server.ts`, `src/app/cedente/
+  extrato/page.tsx`, `src/components/fundos/cedente-fundo-ativo-selector.tsx`
+  — todos resolvem o cedente via `get_user_cedente_id()`.
+- `src/app/gestor/cedentes/[id]/page.tsx` — dropdown "Fundo Vinculado"
+  resolve o label do fundo explicitamente (não mais UUID cru).
+
 ## Testes
 
 - **Live E2E (SQL)**, ao vivo em homologação contra a conta real afetada
@@ -146,55 +163,95 @@ isso confirmaria se é este branch ou outra causa.
   (confirma que o grant continua intencionalmente restrito a
   `service_role` — a correção é na camada de chamada, não reabrindo o
   grant).
-- **Live E2E (browser)** — novo
-  `scripts/homologacao/p0-cedente-acesso-delegado/browser-e2e.mjs`,
-  **8/8 PASS** com Chrome real contra `npm run dev:homolog`: cria um
-  cedente dono + um usuário convidado (`administrador`, via
-  `cedente_acessos`, mesmo caminho que `convidarUsuarioCedente` usa) + um
-  gestor; confirma que o convidado navega até `/cedente/dashboard` sem ser
-  preso em `/cedente/cadastro`, vê o menu completo, e que o gestor vê o
-  convite em "Acessos Vinculados".
-- 10 testes novos de arquitetura em `src/lib/auth/cedente-acesso-delegado-
-  architecture.test.ts`: cada um dos 6 pontos de chamada corrigidos usa a
-  RPC certa e não lê `cedente_acessos` direto; a RPC nova é `SECURITY
-  DEFINER` e `GRANT`ed para `authenticated`; `PortalShell` sempre chama
-  `setLoading(false)` antes do redirect por perfil ausente/divergente.
-- Suíte completa (`npx vitest run`): **163 arquivos / 1242 testes, 0
-  falhas** (10 testes novos).
+- **Live E2E (browser)** — `scripts/homologacao/p0-cedente-acesso-
+  delegado/browser-e2e.mjs`, **12/12 PASS** com Chrome real contra `npm
+  run dev:homolog`: cria um cedente dono + um usuário convidado
+  (`administrador`, via `cedente_acessos`, mesmo caminho que
+  `convidarUsuarioCedente` usa) + um gestor; confirma que o convidado
+  navega até `/cedente/dashboard` sem ser preso em `/cedente/cadastro`, vê
+  o menu completo, carrega `/cedente/estabelecimentos`, `/cedente/notas-
+  fiscais` e `/cedente/operacoes` sem "This page couldn't load", e que o
+  gestor vê o convite em "Acessos Vinculados" e o dropdown "Fundo
+  Vinculado" com o nome do fundo (não o UUID).
+- 25 testes de arquitetura em `src/lib/auth/cedente-acesso-delegado-
+  architecture.test.ts`: os 6 pontos de chamada da primeira correção + os
+  11 pontos da varredura completa (incluindo a RPC SQL
+  `dashboard_cedente_resumo`) usam a RPC certa e não leem `cedente_acessos`
+  direto; a RPC nova é `SECURITY DEFINER` e `GRANT`ed para `authenticated`;
+  `PortalShell` sempre chama `setLoading(false)` antes do redirect por
+  perfil ausente/divergente; o dropdown "Fundo Vinculado" resolve o label
+  explicitamente.
+- Suíte completa (`npx vitest run`): **163 arquivos / 1257 testes, 0
+  falhas** (25 testes novos).
 - `npx tsc --noEmit`: limpo. `npx eslint .`: mesmos 6 warnings
   pré-existentes e não relacionados. `npx next build --webpack`: sucesso.
   `npm audit --omit=dev`: 0 vulnerabilidades. `git diff --check`: limpo.
 
-## Achado maior, fora do escopo desta correção — precisa de decisão
+## Atualização — varredura completa concluída (achado pelo usuário ao vivo)
 
-O mesmo padrão `.from('cedentes')...eq('user_id', auth.uid())` (em vez de
-`get_user_cedente_id()`) aparece em **pelo menos 15 arquivos** além dos 2
-corrigidos aqui (middleware e `CedenteLayout`), incluindo:
-`src/lib/operacoes/nova-solicitacao.server.ts`, `src/lib/notas-fiscais/
-listagem.server.ts`, `src/lib/operacoes/listagem.server.ts`, `src/lib/
-cedentes/estabelecimentos-listagem.server.ts`, `src/lib/escrow/
-movimentos.server.ts`, `src/app/cedente/extrato/page.tsx`, e outros.
+Após a primeira correção, o usuário testou com a conta convidada real e
+confirmou ao vivo exatamente o que este relatório havia previsto na seção
+"Achado maior" (versão anterior deste documento): o menu lateral abria
+completo, mas "Dashboard" redirecionava de volta para `/cedente/cadastro`,
+e "Meus CNPJs"/"Minhas NFs"/"Minhas Operações" quebravam com "This page
+couldn't load". Isso confirmou a suspeita e motivou completar a varredura
+que antes havia sido deliberadamente adiada.
 
-Isso significa que, hoje, um usuário com acesso delegado (`cedente_acessos`)
-provavelmente vê **listas vazias ou erros** em praticamente toda página do
-portal Cedente além do dashboard/menu (Nova Solicitação, Notas Fiscais,
-Operações, Extrato, Estabelecimentos) — o cadastro delegado nunca foi
-propagado para o resto do sistema quando essa funcionalidade foi
-introduzida.
+**Todos os pontos de chamada identificados foram corrigidos** (mesmo
+padrão: resolver o cedente via `get_user_cedente_id()` em vez de
+`.eq('user_id', auth.uid())`):
 
-**Não fiz essa varredura completa nesta correção** — são ~15 arquivos,
-cada um merecendo confirmação individual (nem todos podem ter exatamente o
-mesmo formato de query), e o risco de uma reescrita ampla e apressada
-durante um incidente ao vivo é maior que o benefício de fazer tudo de uma
-vez sem revisão. Recomendo tratar isso como o próximo ticket dedicado
-("acesso delegado de cedente — auditoria completa"), com a lista de
-arquivos acima como ponto de partida.
+- `src/lib/analytics/loaders.server.ts` (`carregarDashboardCedente` —
+  Dashboard).
+- `src/lib/auth/platform-access.ts` (`carregarAcessoPlataforma`, usado
+  pelo middleware e pelo redirecionamento pós-login — achado adicional,
+  fora da lista original de 15, no mesmo fluxo de resolução de área).
+- `src/lib/notas-fiscais/listagem.server.ts` (Minhas NFs).
+- `src/lib/operacoes/listagem.server.ts` (Minhas Operações).
+- `src/lib/cedentes/estabelecimentos-listagem.server.ts` (Meus CNPJs).
+- `src/lib/actions/estabelecimento.ts`, `src/lib/actions/operacao.ts`
+  (`solicitarAntecipacao`), `src/lib/operacoes/nova-solicitacao.server.ts`
+  (Nova Solicitação), `src/lib/actions/cedente-fundo-ativo.ts`,
+  `src/lib/actions/selectors.ts`, `src/lib/escrow/movimentos.server.ts`,
+  `src/app/cedente/extrato/page.tsx`,
+  `src/components/fundos/cedente-fundo-ativo-selector.tsx`.
+
+**Achado adicional durante a varredura, também corrigido**: a própria RPC
+SQL `dashboard_cedente_resumo` (chamada por `carregarDashboardCedente`)
+tinha a checagem de autorização escrita como `c.user_id = auth.uid()` —
+mesmo bug, dentro do banco em vez do TypeScript. Corrigida em
+`supabase/migrations/20260820160000_dashboard_cedente_resumo_acesso_delegado.sql`
+para `c.id = public.get_user_cedente_id()`, reproduzindo o corpo integral
+da função vigente antes de editar (mesma disciplina já seguida nas
+correções anteriores desta sessão).
+
+**Achado adicional, não corrigido (fora do escopo, baixo risco)**: o
+mesmo padrão `c.user_id = auth.uid()` também aparece em pelo menos 3
+outras RPCs SQL bem mais específicas — geração de documento (`fase6_
+templates_juridicos_fundo.sql`), remessa CNAB (`fase7_cnab_configuravel_
+rastreavel.sql`) e execução de integração de fundo (`fase8_portal_fidc_
+fundo.sql`). Diferente do dashboard (que todo cedente acessa ao logar),
+essas são ações administrativas pontuais que um usuário `administrador`
+delegado eventualmente precisaria, mas não foram confirmadas como
+efetivamente exercitadas neste incidente. Recomendo tratar como um
+follow-up dedicado, não corrigido às pressas aqui.
+
+## UI: dropdown "Fundo Vinculado" mostrava o UUID em vez do nome do fundo
+
+Achado adicional pelo usuário (print). `Select.Value` (Base UI) só resolve
+o texto exibido a partir dos `SelectItem` já **registrados** no popup —
+confirmado inspecionando o DOM ao vivo: no primeiro carregamento da
+página, antes de qualquer interação, o `span` do valor mostrava o UUID
+cru, não o nome. Corrigido resolvendo o label explicitamente no próprio
+componente (`fundos.find((f) => f.id === fundoSelecionado)?.nome`), via
+`children` de `SelectValue`, em vez de depender da resolução automática da
+biblioteca — confirmado ao vivo no browser antes e depois do fix.
 
 ## Pendências
 
-- Auditoria completa dos ~15 pontos de chamada com o mesmo padrão
-  (listado acima) — usuários com acesso delegado provavelmente ainda
-  encontram páginas vazias fora do dashboard/menu.
+- 3 RPCs SQL mais específicas (documento gerado, remessa CNAB, execução de
+  integração de fundo) com o mesmo padrão `c.user_id = auth.uid()` — não
+  corrigidas aqui, ver seção "Atualização" acima.
 - Causa exata do `/gestor/dashboard` "Carregando portal..." infinito não
   confirmada (mitigada, não corrigida por hipótese) — ver seção
   correspondente.

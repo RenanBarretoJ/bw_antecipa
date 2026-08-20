@@ -9,11 +9,12 @@ export async function selecionarCedenteFundoAtivo(cedenteFundoId: string): Promi
   const context = await requireAuthenticated()
   if (context.profile.role !== 'cedente') return { success: false, message: 'A selecao de fundo do cedente e exclusiva para usuarios cedentes.' }
 
-  const { data: cedente, error: cedenteError } = await context.supabase
-    .from('cedentes')
-    .select('id')
-    .eq('user_id', context.user.id)
-    .maybeSingle()
+  // get_user_cedente_id() resolve tanto o dono (cedentes.user_id) quanto um
+  // usuario convidado via cedente_acessos.
+  const { data: cedenteIdResolvido } = await context.supabase.rpc('get_user_cedente_id')
+  const { data: cedente, error: cedenteError } = cedenteIdResolvido
+    ? await context.supabase.from('cedentes').select('id').eq('id', cedenteIdResolvido).maybeSingle()
+    : { data: null, error: null }
   if (cedenteError) return { success: false, message: `Erro ao consultar cadastro do cedente: ${cedenteError.message}` }
   if (!cedente) return { success: false, message: 'Cadastro de cedente nao encontrado.' }
 

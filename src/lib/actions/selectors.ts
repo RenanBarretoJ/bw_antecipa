@@ -68,12 +68,11 @@ export async function buscarOpcoesEscopo(input: {
       if (error) throw error
       cedenteIds = Array.from(new Set((data || []).map((item) => item.cedente_id)))
     } else if (auth.profile.role === 'cedente') {
-      const { data, error } = await auth.supabase
-        .from('cedentes')
-        .select('id')
-        .eq('user_id', auth.user.id)
-      if (error) throw error
-      cedenteIds = (data || []).map((item) => item.id)
+      // get_user_cedente_id() resolve tanto o dono (cedentes.user_id) quanto
+      // um usuario convidado via cedente_acessos.
+      const { data: cedenteId, error: cedenteIdError } = await auth.supabase.rpc('get_user_cedente_id')
+      if (cedenteIdError) throw cedenteIdError
+      cedenteIds = cedenteId ? [cedenteId] : []
     }
     if (!cedenteIds.length) return { success: true, options: [] }
 

@@ -33,14 +33,11 @@ async function autorizarConta(
 ): Promise<ContaEscrowDetalhe | null> {
   let cedenteProprioId: string | null = null
   if (perfil === 'cedente') {
-    const { data: cedenteProprio, error: cedenteError } = await auth.supabase
-      .from('cedentes')
-      .select('id')
-      .eq('user_id', auth.user.id)
-      .limit(1)
-      .maybeSingle()
+    // get_user_cedente_id() resolve tanto o dono (cedentes.user_id) quanto
+    // um usuario convidado via cedente_acessos.
+    const { data: cedenteIdResolvido, error: cedenteError } = await auth.supabase.rpc('get_user_cedente_id')
     if (cedenteError) throw new Error(`Nao foi possivel resolver o cedente autenticado: ${cedenteError.message}`)
-    cedenteProprioId = cedenteProprio?.id || null
+    cedenteProprioId = cedenteIdResolvido || null
     if (!cedenteProprioId) throw new AuthorizationError('Cedente autenticado nao encontrado.', 'FORBIDDEN')
   }
 

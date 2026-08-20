@@ -103,12 +103,12 @@ export async function solicitarAntecipacao(nfIds: string[], parcelaIds?: string[
     return { success: false, message: 'Selecione ao menos uma NF.' }
   }
 
-  // Buscar cedente
-  const { data: cedente } = await supabase
-    .from('cedentes')
-    .select('id, cnpj, razao_social, status')
-    .eq('user_id', user.id)
-    .maybeSingle()
+  // Buscar cedente -- get_user_cedente_id() resolve tanto o dono
+  // (cedentes.user_id) quanto um usuario convidado via cedente_acessos.
+  const { data: cedenteIdDoUsuario } = await supabase.rpc('get_user_cedente_id')
+  const { data: cedente } = cedenteIdDoUsuario
+    ? await supabase.from('cedentes').select('id, cnpj, razao_social, status').eq('id', cedenteIdDoUsuario).maybeSingle()
+    : { data: null }
 
   if (!cedente) return { success: false, message: 'Cadastro de cedente nao encontrado.' }
   const ced = cedente as { id: string; cnpj: string; razao_social: string; status: string }

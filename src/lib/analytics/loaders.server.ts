@@ -59,11 +59,14 @@ export async function carregarDashboardGestor(): Promise<GestorDashboardData> {
 
 export async function carregarDashboardCedente(): Promise<CedenteDashboardData | null> {
   const auth = await requireRole('cedente')
-  const { data: cedente, error: cedenteError } = await auth.supabase
-    .from('cedentes')
-    .select('id, status')
-    .eq('user_id', auth.user.id)
-    .maybeSingle()
+  // get_user_cedente_id() resolve tanto o dono (cedentes.user_id) quanto um
+  // usuario convidado via cedente_acessos -- filtrar so por user_id
+  // redirecionava todo usuario convidado para /cedente/cadastro, mesmo com
+  // o cedente ativo (mesmo bug ja corrigido no middleware/CedenteLayout).
+  const { data: cedenteId } = await auth.supabase.rpc('get_user_cedente_id')
+  const { data: cedente, error: cedenteError } = cedenteId
+    ? await auth.supabase.from('cedentes').select('id, status').eq('id', cedenteId).maybeSingle()
+    : { data: null, error: null }
 
   if (cedenteError) throw new Error(`Nao foi possivel resolver o cedente autenticado: ${cedenteError.message}`)
   if (!cedente || !isCedenteAprovado(cedente.status)) return null

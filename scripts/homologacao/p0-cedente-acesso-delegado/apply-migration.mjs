@@ -14,7 +14,7 @@ databaseUrl.password = required('SUPABASE_PASSWORD')
 if (apiRef !== expectedRef) throw new Error('Destino nao corresponde ao projeto homolog autorizado.')
 if (apiRef === productionRef) throw new Error('Projeto de producao bloqueado.')
 
-const ticketVersions = ['20260820150000']
+const ticketVersions = ['20260820150000', '20260820160000']
 const localVersions = readdirSync(resolve('supabase/migrations'))
   .map((file) => file.match(/^(\d+)_.*\.sql$/)?.[1])
   .filter(Boolean)

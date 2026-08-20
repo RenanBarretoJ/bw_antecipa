@@ -84,11 +84,15 @@ export async function carregarAcessoPlataforma(
 
   let cedenteAprovado: boolean | undefined
   if (primaryRole === 'cedente') {
-    const { data, error } = await client
-      .from('cedentes')
-      .select('status')
-      .eq('user_id', userId)
-      .maybeSingle()
+    // get_user_cedente_id() resolve tanto o dono (cedentes.user_id) quanto
+    // um usuario convidado via cedente_acessos -- filtrar so por user_id
+    // fazia o pos-login de um usuario convidado cair sempre em /cedente/
+    // cadastro, mesmo com o cedente ativo.
+    const { data: cedenteId, error: cedenteIdError } = await client.rpc('get_user_cedente_id')
+    if (cedenteIdError) throw new Error('Nao foi possivel validar o cadastro do cedente.')
+    const { data, error } = cedenteId
+      ? await client.from('cedentes').select('status').eq('id', cedenteId).maybeSingle()
+      : { data: null, error: null }
     if (error) throw new Error('Nao foi possivel validar o cadastro do cedente.')
     cedenteAprovado = isCedenteAprovado(data?.status)
   }

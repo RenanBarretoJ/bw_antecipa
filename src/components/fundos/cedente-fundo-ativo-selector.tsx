@@ -28,12 +28,9 @@ export function CedenteFundoAtivoSelector() {
       const userId = userData.user?.id
       if (!userId) return
 
-      const { data: cedente } = await supabase
-        .from('cedentes')
-        .select('id')
-        .eq('user_id', userId)
-        .maybeSingle()
-      const cedenteId = (cedente as { id?: string } | null)?.id
+      // get_user_cedente_id() resolve tanto o dono (cedentes.user_id) quanto
+      // um usuario convidado via cedente_acessos.
+      const { data: cedenteId } = await supabase.rpc('get_user_cedente_id')
       if (!cedenteId) return
 
       const { data } = await supabase

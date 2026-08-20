@@ -4,12 +4,12 @@ import { carregarContaEscrowAutorizada, carregarMovimentosEscrow } from '@/lib/e
 
 export default async function ExtratoCedentePage() {
   const { auth, conta } = await carregarContaEscrowAutorizada('cedente')
-  const { data: cedente, error } = await auth.supabase
-    .from('cedentes')
-    .select('habilitar_escrow')
-    .eq('user_id', auth.user.id)
-    .limit(1)
-    .maybeSingle()
+  // get_user_cedente_id() resolve tanto o dono (cedentes.user_id) quanto um
+  // usuario convidado via cedente_acessos.
+  const { data: cedenteId } = await auth.supabase.rpc('get_user_cedente_id')
+  const { data: cedente, error } = cedenteId
+    ? await auth.supabase.from('cedentes').select('habilitar_escrow').eq('id', cedenteId).limit(1).maybeSingle()
+    : { data: null, error: null }
   if (error) throw new Error(`Nao foi possivel validar o acesso ao extrato: ${error.message}`)
   if (!cedente?.habilitar_escrow) redirect('/cedente/dashboard')
   if (!conta) return <div className="py-20 text-center text-muted-foreground">Sua conta escrow ainda não foi criada.</div>

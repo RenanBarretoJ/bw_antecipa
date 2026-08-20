@@ -77,11 +77,13 @@ async function resolverEscopo(
   }
 
   if (perfil === 'cedente') {
-    const { data, error } = await client
-      .from('cedentes')
-      .select('id')
-      .eq('user_id', userId)
-      .maybeSingle()
+    // get_user_cedente_id() resolve tanto o dono (cedentes.user_id) quanto
+    // um usuario convidado via cedente_acessos -- filtrar so por user_id
+    // fazia um usuario convidado sempre ver a lista vazia.
+    const { data: cedenteId } = await client.rpc('get_user_cedente_id')
+    const { data, error } = cedenteId
+      ? await client.from('cedentes').select('id').eq('id', cedenteId).maybeSingle()
+      : { data: null, error: null }
     if (error) throw new Error(`Nao foi possivel resolver o cedente autenticado: ${error.message}`)
     if (!data) return { cedenteIds: [] }
     const contexto = await resolverCedenteFundoAtivo(data.id, client)

@@ -60,7 +60,13 @@ export async function carregarEstabelecimentosPaginados(
 export async function carregarMeusEstabelecimentosPaginados(filtros: FiltrosEstabelecimentos): Promise<ResultadoEstabelecimentos> {
   const context = await requireAuthenticated()
   if (context.profile.role !== 'cedente') throw new Error('Apenas o cedente pode executar esta acao.')
-  const { data, error } = await context.supabase.from('cedentes').select('id').eq('user_id', context.user.id).maybeSingle()
+  // get_user_cedente_id() resolve tanto o dono (cedentes.user_id) quanto um
+  // usuario convidado via cedente_acessos -- filtrar so por user_id
+  // quebrava esta pagina para todo usuario convidado.
+  const { data: cedenteId } = await context.supabase.rpc('get_user_cedente_id')
+  const { data, error } = cedenteId
+    ? await context.supabase.from('cedentes').select('id').eq('id', cedenteId).maybeSingle()
+    : { data: null, error: null }
   if (error) throw new Error(`Nao foi possivel consultar o cedente: ${error.message}`)
   if (!data) throw new Error('Cadastro de cedente nao encontrado.')
   return carregarEstabelecimentosPaginados(context.supabase, (data as { id: string }).id, filtros)

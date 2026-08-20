@@ -118,6 +118,21 @@ try {
       /Minhas NFs/.test(sidebarTexto) && (/Minhas Operacoes/.test(sidebarTexto) || /Minhas Operações/.test(sidebarTexto))
     ))
 
+    // Achado ao vivo pelo usuario, apos o fix inicial: consertar so
+    // middleware/CedenteLayout deixava o usuario convidado chegar ao
+    // dashboard, mas Meus CNPJs/Minhas NFs/Minhas Operacoes ainda quebravam
+    // ("This page couldn't load") ou vinham vazias -- mesmo padrao
+    // .eq('user_id', ...) em mais 9 pontos de chamada, corrigidos junto.
+    for (const rota of ['/cedente/estabelecimentos', '/cedente/notas-fiscais', '/cedente/operacoes']) {
+      await page.goto(`${baseUrl}${rota}`, { waitUntil: 'networkidle2', timeout: 45_000 })
+      const textoPagina = await page.evaluate(() => document.body.innerText)
+      ok(
+        `FIX CONFIRMADO (varredura user_id-only): ${rota} carrega sem "This page couldn't load" para o usuario convidado`,
+        !/could(n't| not) load|application error|erro inesperado/i.test(textoPagina) && new URL(page.url()).pathname === rota,
+        new URL(page.url()).pathname,
+      )
+    }
+
     const gestorContext = await browser.createBrowserContext()
     const gestorPage = await gestorContext.newPage()
     await loginComTotp(gestorPage, gestorEmail, gestorPassword, totpSecretGestor)
@@ -129,6 +144,10 @@ try {
     ok('FIX CONFIRMADO (listarAcessosVinculadosCedente): gestor ve o acesso convidado em "Acessos Vinculados" (nao mais "Nenhum usuario adicional vinculado")', (
       gestorTexto.includes('QA Invited Admin') && !gestorTexto.includes('Nenhum usuario adicional vinculado')
     ))
+    ok(
+      'FIX CONFIRMADO (dropdown Fundo Vinculado): mostra o NOME do fundo, nao o uuid cru',
+      gestorTexto.includes('QA Acesso Vinculado Fundo') && !gestorTexto.includes(fundoId),
+    )
 
     ok('Nenhuma excecao JS (pageerror) disparada durante toda a sequencia', pageErrors.length === 0, JSON.stringify(pageErrors))
   } finally {
