@@ -107,3 +107,30 @@ describe('P0 (correcao): Boleto dentro do card "Documentos pre-cessao", sem card
     expect(parcelasNfAction).toContain('if (requisitosRows.length === 0) return { success: true, message:')
   })
 })
+
+describe('P0 (correcao): requisitos documentais nao carregam -- ordem de criacao da NF', () => {
+  const blocoUploadXml = notaFiscalAction.slice(
+    notaFiscalAction.indexOf("const nfData = nf as { id: string }"),
+    notaFiscalAction.indexOf('} else {', notaFiscalAction.indexOf("const nfData = nf as { id: string }")),
+  )
+
+  it('registrar_parcelas_nota_fiscal e chamado ANTES de uploadDocumentoSeRequerido (para o fan-out de boleto por_parcela ja encontrar as parcelas na 1a instanciacao)', () => {
+    const indiceParcelas = blocoUploadXml.indexOf("supabase.rpc('registrar_parcelas_nota_fiscal'")
+    const indiceUploadXml = blocoUploadXml.indexOf('uploadDocumentoSeRequerido(')
+    expect(indiceParcelas).toBeGreaterThan(-1)
+    expect(indiceUploadXml).toBeGreaterThan(-1)
+    expect(indiceParcelas).toBeLessThan(indiceUploadXml)
+  })
+
+  it('removerNotaFiscalParcial remove nota_fiscal_parcelas antes de remover a NF (nota_fiscal_parcelas.nota_fiscal_id e ON DELETE RESTRICT)', () => {
+    const funcao = notaFiscalAction.slice(
+      notaFiscalAction.indexOf('async function removerNotaFiscalParcial'),
+      notaFiscalAction.indexOf('async function recuperarDuplicidadeIncompleta'),
+    )
+    const indiceDeleteParcelas = funcao.indexOf("from('nota_fiscal_parcelas').delete()")
+    const indiceDeleteNf = funcao.indexOf("from('notas_fiscais')")
+    expect(indiceDeleteParcelas).toBeGreaterThan(-1)
+    expect(indiceDeleteNf).toBeGreaterThan(-1)
+    expect(indiceDeleteParcelas).toBeLessThan(indiceDeleteNf)
+  })
+})

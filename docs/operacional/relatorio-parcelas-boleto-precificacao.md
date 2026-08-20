@@ -1,7 +1,8 @@
 # Relatório — Parcelas de NF + Boleto por Parcela + Precificação por Vencimento
 
 **Resultado da Fase 1: `PASS`. Resultado da Fase 2: `PASS`.
-`P0_CHECKLIST_NF_COM_BOLETO_POR_PARCELA = PASS`** (Fase 3 pendente por
+`P0_CHECKLIST_NF_COM_BOLETO_POR_PARCELA = PASS`.
+`P0_REQUISITOS_DOCUMENTAIS_NF_NAO_CARREGAM = PASS`** (Fase 3 pendente por
 decisão explícita de sequenciamento — ver seção "Pendências").
 
 Ambiente: homologação Supabase `fhgkmggthxikfpogrvaa`. Produção
@@ -409,6 +410,114 @@ NF antes da correção):
 
 `P0_CHECKLIST_NF_COM_BOLETO_POR_PARCELA = PASS`
 
+## P0 — requisitos documentais não carregados
+
+**Resultado: `PASS`.**
+
+### Causa raiz confirmada
+
+`ORDER_OF_OPERATIONS_BUG`, confirmado ao vivo em homologação (não apenas
+por leitura de código): no fluxo real de upload de XML
+(`src/lib/actions/nota-fiscal.ts`, `processarArquivo`), a sequência era:
+
+1. cria a NF (`rascunho`);
+2. `uploadDocumentoSeRequerido(nfId, 'nf_xml', ...)` — que chama
+   `instanciarRequisitosDaNota` → RPC `instanciar_requisitos_nota` — **antes**
+   de `nota_fiscal_parcelas` ter qualquer linha;
+3. só então `registrar_parcelas_nota_fiscal`.
+
+No passo 2, o fan-out do requisito `boleto` (cardinalidade `por_parcela`)
+faz `JOIN public.nota_fiscal_parcelas` — como a tabela está vazia nesse
+momento, **zero** instâncias de boleto são criadas, mesmo a política
+exigindo boleto. Confirmado ao vivo com uma política idêntica à do print do
+ticket (XML/DANFE/CT-e pré-cessão obrigatório, Comprovante de entrega
+pós-cessão, Boleto pré-cessão obrigatório por parcela): a 1ª instanciação
+cria XML=1/DANFE=1/CT-e=1/**Boleto=0**; depois de registrar as 4 parcelas,
+o boleto continua ausente até que **alguém abra o checklist da NF** —
+`carregarChecklist` (`documento-v2.ts`) chama `instanciarRequisitosDaNota`
+de novo sempre que a NF não está vinculada a uma operação, o que
+reconcilia e cria as 4 instâncias de boleto retroativamente, sem duplicar
+XML/DANFE/CT-e.
+
+Ou seja: XML/DANFE/CT-e (`por_nf`) **nunca estiveram de fato ausentes** —
+são criados no passo 2 independente de parcelas. O requisito que realmente
+fica ausente, e só se autocorrige na primeira leitura do checklist, é o
+boleto. Isso expõe uma falha mais séria: leitores agregados que **nunca**
+chamam `instanciarRequisitosDaNota` — como
+`carregarResumoDocumentalDasNotas` (`src/lib/notas-fiscais/resumo-documental-gestor.server.ts`),
+usado pelo gate de aprovação da NF pelo gestor (`aprovarNF`) — não
+reconciliam nunca. Se o gestor tentasse aprovar uma NF recém-criada com
+parcelas antes de qualquer abertura do checklist, o boleto simplesmente
+não apareceria como pendência (nenhuma instância existe ainda), permitindo
+aprovação sem o boleto ser rastreado. Esse é o cenário que mais bate com
+"ao abrir/criar a NF, nenhum requisito está carregando" — o requisito
+existe, mas só depois que **alguém** primeiro abre a tela do checklist.
+
+Classificação por eliminação, confirmada ao vivo: `POLICY_RESOLUTION_FAILURE`,
+`INSTANCE_FUNCTION_REGRESSION` e `QUERY_FILTER_BUG` foram descartados — a
+resolução da política (`resolverPoliticaDocumentalPorContexto`) e a função
+`instanciar_requisitos_nota` funcionam corretamente para o cenário exato do
+print; o problema é puramente de **quando** a primeira chamada acontece.
+
+### Correção (ponto raiz, mínima)
+
+- `src/lib/actions/nota-fiscal.ts` (`processarArquivo`, ramo XML): a
+  chamada a `registrar_parcelas_nota_fiscal` foi movida para **antes** de
+  `uploadDocumentoSeRequerido('nf_xml', ...)`. Nova ordem: cria NF →
+  registra parcelas → instancia/reconcilia requisitos (exatamente a ordem
+  correta sugerida no ticket). Com isso, a **primeira** instanciação já
+  encontra as parcelas e cria XML=1/DANFE=1/CT-e=1/Boleto=4 de uma vez —
+  não depende mais de alguém abrir o checklist depois.
+- **Efeito colateral identificado e corrigido**: com parcelas agora
+  persistidas antes do upload do documento XML, uma falha nesse upload
+  aciona `removerNotaFiscalParcial` com as parcelas já gravadas.
+  `nota_fiscal_parcelas.nota_fiscal_id` é `ON DELETE RESTRICT` — remover a
+  NF sem remover as parcelas primeiro violaria a FK. Corrigido adicionando
+  a remoção de `nota_fiscal_parcelas` em `removerNotaFiscalParcial`, na
+  posição correta (depois de `documento_requisito_instancias`, que
+  referencia `parcela_id` com o mesmo tipo de FK; antes de `notas_fiscais`).
+- NF sem `<dup>` (sem parcelas): comportamento inalterado — o bloco de
+  registro de parcelas é pulado quando `parsed.parcelas.length === 0`.
+- Nenhuma migration nova foi necessária; a correção é inteiramente na
+  ordem de chamadas da Server Action.
+
+### Backfill / NFs já afetadas
+
+Nenhuma. As 2 NFs reais existentes em homologação com parcelas (NF 56 e
+NF 78) já tiveram o checklist aberto ao menos uma vez (têm boleto
+completo: 3 e 4 instâncias respectivamente, batendo com suas parcelas) —
+nenhuma NF em homologação ficou com requisito pendente de reconciliação.
+Não foi necessário nenhum script de reparo/backfill.
+
+### Testes
+
+- `scripts/homologacao/p0-requisitos-nao-carregam/e2e.mjs` — **10/10 PASS**
+  ao vivo em homologação (transação revertida):
+  - causa raiz reproduzida (ordem antiga: boleto=0 mesmo após registrar
+    parcelas, sem reconciliação);
+  - reconciliação recupera o boleto sem duplicar XML/DANFE/CT-e;
+  - **Cenário 1** (ordem corrigida): 1ª instanciação já cria tudo de uma vez;
+  - **Cenário 5** (reload): releituras repetidas não duplicam nada;
+  - **Cenário 3**: NF sem parcelas continua funcionando (fluxo legado);
+  - **Cenário 2**: política sem boleto + NF com parcelas → parcelas
+    existem, boleto=0, XML/DANFE/CT-e presentes;
+  - **Cenário 4**: boleto opcional gera as 4 instâncias com
+    `obrigatorio=false`;
+  - compensação: remoção de NF com parcelas já persistidas não viola a FK
+    `ON DELETE RESTRICT` de `nota_fiscal_parcelas`.
+- `src/lib/documentos/parcelas-nf-boleto-architecture.test.ts` (2 testes
+  novos): confirma por leitura de código que `registrar_parcelas_nota_fiscal`
+  é chamado antes de `uploadDocumentoSeRequerido`, e que
+  `removerNotaFiscalParcial` remove `nota_fiscal_parcelas` antes de
+  `notas_fiscais`.
+- **Regressões reexecutadas ao vivo**: E2E Fase 1 (17/17 PASS), E2E Fase 2
+  (29/29 PASS). Suíte completa: 162 arquivos / 1161 testes, 0 falhas,
+  nenhum teste removido.
+
+### Status final
+
+`P0_REQUISITOS_DOCUMENTAIS_NF_NAO_CARREGAM = PASS`
+
 ## Riscos
 
 1. **Fase 3 não implementada** — este relatório cobre as Fases 1 e 2. A
@@ -442,6 +551,28 @@ NF antes da correção):
    aceito no fluxo legado (não introduzido por esta fase); não foi
    ampliado nem corrigido aqui, por ser mudança de escopo maior (migrar
    essas duas Server Actions para RPC) não pedida no ticket.
+6. **`carregarResumoDocumentalDasNotas` (`resumo-documental-gestor.server.ts`),
+   usado pelo gate de aprovação da NF (`aprovarNF`), nunca chama
+   `instanciarRequisitosDaNota`** — só lê o que já existe em
+   `documento_requisito_instancias`. Com a ordem corrigida neste P0, isso
+   deixa de causar boleto ausente em NFs novas (a 1ª instanciação, disparada
+   pelo próprio upload do XML, já cria tudo). Mas continua sendo um ponto
+   estruturalmente frágil: qualquer novo requisito `por_parcela`/`por_nf`
+   cuja instanciação dependa de uma condição não satisfeita no momento do
+   upload ficaria igualmente invisível para este gate agregado, sem nenhum
+   sinal de erro. Não corrigido aqui (mudaria uma função central usada só
+   para agregação em lote, fora do escopo "menor correção possível" deste
+   ticket) — registrado para avaliação futura.
+7. **Elegibilidade agregada do boleto no gate de aprovação
+   (`avaliarElegibilidadeDocumentalDaNota`, via `carregarResumoDocumentalDasNotas`)
+   não foi auditada quanto ao mesmo bug de colapso de `Map` corrigido na
+   Fase 2** (`elegibilidade-documental.server.ts`). Como essa função agrega
+   múltiplas instâncias de boleto (uma por parcela) sob o mesmo
+   `politica_requisito_id`, sem filtrar por `parcela_id`, é um candidato a
+   ter o mesmo tipo de bug se a lógica de matching requisito↔instância
+   assumir 1:1. Não confirmado nem corrigido nesta entrega — fora do
+   diagnóstico pedido pelo ticket (que era sobre o checklist de
+   apresentação, não o gate de aprovação); fica como risco documentado.
 
 ## Pendências (próximo checkpoint, por decisão do usuário)
 

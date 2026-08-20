@@ -278,6 +278,14 @@ async function removerNotaFiscalParcial(
     if (storageError) logUploadNf(`${input.etapa}_storage_compensacao_erro`, { ...input.context, erro: storageError, notaFiscalId: input.notaFiscalId })
   }
 
+  // Parcelas sao registradas antes do documento XML (para o fan-out do
+  // requisito de boleto ja encontra-las na primeira instanciacao); por isso
+  // uma falha depois desse ponto pode precisar limpar parcelas ja
+  // persistidas. nota_fiscal_parcelas.nota_fiscal_id e ON DELETE RESTRICT,
+  // entao precisa ser removida antes da NF (a instancia documental que
+  // referencia parcela_id ja foi removida acima).
+  await admin.from('nota_fiscal_parcelas').delete().eq('nota_fiscal_id', input.notaFiscalId)
+
   const { error: deleteError } = await admin
     .from('notas_fiscais')
     .delete()
@@ -432,6 +440,41 @@ async function processarArquivo(
       }
 
       const nfData = nf as { id: string }
+
+      // Registrar as parcelas ANTES de instanciar os requisitos documentais
+      // (feito abaixo, dentro de uploadDocumentoSeRequerido -> instanciarRequisitosDaNota):
+      // o fan-out do requisito de boleto (cardinalidade por_parcela) so
+      // encontra parcelas se elas ja existirem em nota_fiscal_parcelas no
+      // momento da primeira instanciacao. Instanciar antes de registrar as
+      // parcelas deixava o boleto ausente ate a proxima leitura do checklist
+      // reconciliar (documento-v2.ts), e nunca reconciliava para leitores
+      // agregados que nao chamam instanciarRequisitosDaNota (ex.: resumo
+      // documental do gestor usado na aprovacao da NF).
+      if (parsed.parcelas.length > 0) {
+        const { error: parcelasError } = await supabase.rpc('registrar_parcelas_nota_fiscal', {
+          p_nota_fiscal_id: nfData.id,
+          p_parcelas: parsed.parcelas,
+        })
+        if (parcelasError) {
+          logUploadNf('registrar_parcelas_erro', { ...context, chaveAcesso: parsed.chave_acesso, erro: parcelasError, notaFiscalId: nfData.id })
+          try {
+            await removerNotaFiscalParcial({
+              notaFiscalId: nfData.id,
+              cedenteId: cedente.id,
+              arquivoUrl: filePath,
+              etapa: 'registrar_parcelas',
+              context,
+            })
+          } catch (cleanupError) {
+            return {
+              ok: false,
+              error: `${arquivo.name}: as parcelas do XML nao correspondem ao valor total da nota e a limpeza automatica falhou - ${cleanupError instanceof Error ? cleanupError.message : 'erro desconhecido'}`,
+            }
+          }
+          return { ok: false, error: `${arquivo.name}: as parcelas do XML (<dup>) nao correspondem ao valor total da nota fiscal - ${parcelasError.message}` }
+        }
+      }
+
       try {
         await uploadDocumentoSeRequerido(nfData.id, 'nf_xml', arquivo, supabase, contextoDocumentoDaNota(context, nfData.id))
       } catch (error) {
@@ -473,31 +516,6 @@ async function processarArquivo(
         },
         origem: 'upload_nf_xml',
       })
-
-      if (parsed.parcelas.length > 0) {
-        const { error: parcelasError } = await supabase.rpc('registrar_parcelas_nota_fiscal', {
-          p_nota_fiscal_id: nfData.id,
-          p_parcelas: parsed.parcelas,
-        })
-        if (parcelasError) {
-          logUploadNf('registrar_parcelas_erro', { ...context, chaveAcesso: parsed.chave_acesso, erro: parcelasError, notaFiscalId: nfData.id })
-          try {
-            await removerNotaFiscalParcial({
-              notaFiscalId: nfData.id,
-              cedenteId: cedente.id,
-              arquivoUrl: filePath,
-              etapa: 'registrar_parcelas',
-              context,
-            })
-          } catch (cleanupError) {
-            return {
-              ok: false,
-              error: `${arquivo.name}: as parcelas do XML nao correspondem ao valor total da nota e a limpeza automatica falhou - ${cleanupError instanceof Error ? cleanupError.message : 'erro desconhecido'}`,
-            }
-          }
-          return { ok: false, error: `${arquivo.name}: as parcelas do XML (<dup>) nao correspondem ao valor total da nota fiscal - ${parcelasError.message}` }
-        }
-      }
 
       return { ok: true, id: nfData.id, isRascunho: true }
 
