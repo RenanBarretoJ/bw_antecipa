@@ -5,14 +5,15 @@
 `P0_REQUISITOS_DOCUMENTAIS_NF_NAO_CARREGAM = PASS`.
 `P0_GATE_LOGISTICO_STATUS_UI_BOLETO = PASS`.
 `P0_SUBMISSAO_LOGISTICA_NF56 = PASS`.
-`P0_APROVACAO_LOGISTICA_GESTOR_FONTE_UNIFICADA = PASS`** (Fase 3 pendente
-por decisão explícita de sequenciamento — ver seção "Pendências").
+`P0_APROVACAO_LOGISTICA_GESTOR_FONTE_UNIFICADA = PASS`.
+`P0_SUBMISSAO_LOGISTICA_NF78 = PASS`** (Fase 3 pendente por decisão
+explícita de sequenciamento — ver seção "Pendências").
 
 Ambiente: homologação Supabase `fhgkmggthxikfpogrvaa`. Produção
 (`wwsndnuvnjuabpbjwlck`) não foi tocada. Nenhum commit ou push foi
-executado neste último P0 (unificação da fonte logística no gate de
-aprovação do Gestor); os P0s anteriores já haviam sido comitados/enviados
-para `homolog` mediante instrução explícita do usuário.
+executado neste último P0 (segundo gate logístico na submissão / NF78);
+os P0s anteriores já haviam sido comitados/enviados para `homolog`
+mediante instrução explícita do usuário.
 
 ## Diagnóstico
 
@@ -948,6 +949,133 @@ checklist regular (verificado por contagem direta).
 ### Status final
 
 `P0_APROVACAO_LOGISTICA_GESTOR_FONTE_UNIFICADA = PASS`
+
+## P0 — segundo gate logístico na submissão / NF78
+
+**Resultado: `P0_SUBMISSAO_LOGISTICA_NF78 = PASS`.**
+
+### Origem exata da mensagem
+
+A string `A politica exige CT-e/DACTE ou Comprovante de Entrega aprovado
+antes desta etapa` existe em um único lugar no código:
+`supabase/migrations/20260806170000_envio_antecipado_documentos_logisticos.sql`,
+dentro de `private.validar_logistica_antes_transicao_nf()` — a função de
+um **trigger de banco** (`notas_fiscais_validar_logistica_pre_cessao`,
+`BEFORE UPDATE OF status ON public.notas_fiscais`), não uma Server Action
+nem uma RPC chamada explicitamente pelo Cedente. Esse trigger dispara
+sempre que `notas_fiscais.status` transiciona para `'submetida'` **ou**
+`'aprovada'`, e usava a **mesma** semântica para os dois casos:
+`private.classificar_status_logistico_pre_cessao` — a função de
+classificação que exige evidência **aprovada** (correta para a
+transição `'aprovada'`, incorreta para `'submetida'`).
+
+### Rastreamento ponta a ponta da NF 78 real
+
+Consulta direta em homologação confirmou a NF 78 real
+(`d87e0ffa-b418-4853-910e-c4e00b940638`, ainda em `rascunho` porque a
+submissão nunca completou): CT-e enviado pelo fluxo regular do checklist,
+`documento_versoes.status = 'em_analise'`, nenhuma análise ainda,
+`evidencias_logisticas_antecipadas` vazia — o mesmo padrão de evidência
+"vigente, não aprovada" já coberto pelo P0 anterior.
+
+`submeterNF` (`src/lib/actions/nota-fiscal.ts`) já fazia a coisa certa:
+```
+if (checklist.gateLogisticoPreCessao.exigido && !checklist.gateLogisticoPreCessao.permitidoSubmissao) { ... }
+```
+Confirmado ao vivo que `permitidoSubmissao` já seria `true` para a NF 78
+(evidência vigente). O gate correto em TypeScript **passa**. Só depois,
+`submeterNF` executa `UPDATE notas_fiscais SET status='submetida' ...`
+(`supabase.from('notas_fiscais').update(...)`, sem RPC dedicada) — e é
+essa própria `UPDATE`, simulada ao vivo em uma transação revertida, que
+disparou o trigger e reproduziu **exatamente** o erro relatado,
+propagado por `submeterNF` como `NF_SUBMISSAO_ERROR` / `Erro ao
+submeter: ${updateError.message}` (linha que já existia, sem alteração
+necessária). Classificação: **`SECOND_GATE_IN_SUBMISSION`** — um segundo
+gate, no banco, reaplicando a regra de aprovação sobre a transição de
+submissão, depois que o gate correto já havia liberado na aplicação.
+`OLD_GATE_STILL_CALLED`, `WRONG_ACTION_WIRED`, `STALE_RUNTIME_BUILD` e
+`RPC_STILL_REQUIRES_APPROVAL` (como chamada explícita) foram descartados
+— não há runtime obsoleto nem action errada; o próprio trigger de banco é
+a causa.
+
+### Correção (uma migration, sem enfraquecer a aprovação do Gestor)
+
+- Nova migration `supabase/migrations/20260820110000_p0_segundo_gate_
+  logistico_submissao_nf78.sql`: separa a semântica do trigger por
+  transição de status.
+  - `NEW.status = 'submetida'`: nova função privada
+    `private.avaliar_submissao_logistica_pre_cessao(nota_fiscal_id,
+    politica_operacional_versao_id)` — mesma regra de
+    `avaliarSubmissaoLogisticaPreCessao` (TypeScript): para cada família
+    (CT-e/DACTE OU Comprovante de Entrega), considera a versão mais
+    recente por data de upload e exige apenas que esteja **vigente**
+    (`enviado`/`em_analise`/`aprovado`, sem rejeição/ajuste pendente na
+    versão mais recente) — combinando as mesmas duas fontes já unificadas
+    no P0 anterior (envio antecipado + checklist regular). Mensagem de
+    erro trocada para a de submissão: `A politica exige o envio de
+    CT-e/DACTE ou Comprovante de Entrega antes da submissao` (sem mais
+    "aprovado antes desta etapa" no caminho do Cedente).
+  - `NEW.status = 'aprovada'`: **inalterado** — continua chamando
+    `private.classificar_status_logistico_pre_cessao` e a mesma mensagem
+    de aprovação, preservando exatamente a regra do Gestor.
+  - Nenhuma RPC transacional duplicava a validação além deste trigger;
+    nada foi removido, só a semântica por transição foi corrigida.
+- **Bug encontrado e corrigido durante o próprio E2E ao vivo, antes de
+  fechar o ticket**: a primeira versão de
+  `avaliar_submissao_logistica_pre_cessao` desempatava "versão mais
+  recente por upload" por `versao_id DESC` quando duas versões tinham o
+  mesmo timestamp — o que só acontece quando duas versões são criadas na
+  mesma transação (ex.: rejeição seguida de reenvio dentro do mesmo teste
+  ao vivo, já que `now()` fica congelado por transação), mas ainda assim
+  era uma comparação por UUID aleatório, não pela ordem real de
+  inserção. Corrigido usando `numero_versao DESC` (sequência monotônica
+  por documento) como critério de desempate antes do UUID — a mesma
+  migration (ainda não commitada) foi corrigida e reaplicada em
+  homologação antes de qualquer validação final.
+- Migration aplicada em homologação via
+  `node scripts/homologacao/p0-submissao-logistica-nf78/apply-migration.mjs`
+  (mesmo padrão dos P0s anteriores). Produção não foi tocada.
+
+### Runtime
+
+Não há build/processo Next stale envolvido — a causa é inteiramente um
+trigger de banco, que já reflete o comportamento real assim que a
+migration é aplicada (sem cache de aplicação a invalidar).
+
+### Teste real NF-78 (reproduzido do zero em homologação)
+
+- CT-e `em_analise` (mesmo estado real da NF 78) → `UPDATE ... SET
+  status='submetida'` tem sucesso (antes: bloqueado com a mensagem de
+  aprovação).
+- Sem nenhuma evidência → `DENY`, com a mensagem correta de submissão.
+- CT-e rejeitado sem reenvio → `DENY`.
+- CT-e rejeitado + reenvio vigente → `ALLOW` (usa a versão mais recente
+  por upload, não a rejeitada).
+- Aprovação do Gestor (regra inalterada): CT-e só enviado/em análise →
+  `DENY`; CT-e aprovado → `ALLOW`.
+
+### Testes
+
+- **Live E2E** — `scripts/homologacao/p0-submissao-logistica-nf78/e2e.mjs`,
+  **8/8 PASS** ao vivo em homologação (transação revertida), reproduzindo
+  a política e o estado real da NF 78 do zero, cobrindo os 8 cenários
+  acima.
+- **Regressões reexecutadas ao vivo**: P0 submissão NF-56 (8/8), P0
+  aprovação logística do Gestor (12/12), P0 gate logístico/status/boleto
+  (9/9), E2E Fase 1 (17/17), E2E Fase 2 (29/29) — todas sem alteração,
+  todas verdes.
+- Suíte automatizada (`npx vitest run`): **162 arquivos / 1205 testes, 0
+  falhas** — nenhum teste novo necessário (correção 100% SQL; nenhuma
+  função TypeScript foi alterada, incluindo `avaliarSubmissaoLogisticaPreCessao`,
+  que já tinha cobertura exaustiva e serviu de referência para a versão
+  SQL).
+- `npx tsc --noEmit`: limpo. `npx eslint .`: mesmos 6 warnings
+  pré-existentes e não relacionados. `npm run build`: sucesso. `npm audit
+  --omit=dev`: 0 vulnerabilidades. `git diff --check`: limpo.
+
+### Status final
+
+`P0_SUBMISSAO_LOGISTICA_NF78 = PASS`
 
 ## Riscos
 
