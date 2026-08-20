@@ -75,7 +75,17 @@ async function resolveOverlay(client: DynamicClient, input: {
     client.from('operacao_calculo_nfs').select('operacao_id,nota_fiscal_id,valor_presente').eq('fundo_id', input.fundoId).in('operacao_id', operationIds),
   ])
   if (linksResult.error || calculationResult.error) throw new Error(`Nao foi possivel resolver as NFs do overlay: ${linksResult.error?.message || calculationResult.error?.message}`)
-  const calculationByPair = new Map((calculationResult.data || []).map((row) => [`${row.operacao_id}:${row.nota_fiscal_id}`, row.valor_presente]))
+  // operacao_calculo_nfs pode ter multiplas linhas por (operacao_id,
+  // nota_fiscal_id) desde a Fase 2 de parcelas (uma por parcela_id) --
+  // agrupar num Map por essa chave sem somar descartava todas as linhas
+  // menos a ultima, subestimando o valor de aquisicao/exposicao da NF.
+  const calculationByPair = new Map<string, string>()
+  for (const row of (calculationResult.data || []) as Array<{ operacao_id: string; nota_fiscal_id: string; valor_presente: unknown }>) {
+    if (row.valor_presente == null) continue
+    const key = `${row.operacao_id}:${row.nota_fiscal_id}`
+    const soma = (calculationByPair.has(key) ? new Decimal(calculationByPair.get(key)!) : new Decimal(0)).plus(String(row.valor_presente))
+    calculationByPair.set(key, soma.toFixed(4))
+  }
   const operationById = new Map(operationRows.map((row) => [row.id, row]))
   const noteIds = [...new Set((linksResult.data || []).map((row) => row.nota_fiscal_id))]
   const logistics = await classificarLogisticaDasNotas(client, input.fundoId, noteIds)
@@ -233,7 +243,14 @@ export async function simularExposicaoOperacao(input: { fundoId: string; operaca
   if (links.error || calculations.error) throw new Error('Nao foi possivel resolver a memoria financeira da simulacao.')
   const noteIds = (links.data || []).map((row) => row.nota_fiscal_id)
   const logistics = await classificarLogisticaDasNotas(client, input.fundoId, noteIds)
-  const calcByNote = new Map((calculations.data || []).map((row) => [row.nota_fiscal_id, row.valor_presente]))
+  // Mesma correcao de resolveOverlay: operacao_calculo_nfs pode ter
+  // multiplas linhas por nota_fiscal_id desde a Fase 2 de parcelas.
+  const calcByNote = new Map<string, string>()
+  for (const row of (calculations.data || []) as Array<{ nota_fiscal_id: string; valor_presente: unknown }>) {
+    if (row.valor_presente == null) continue
+    const soma = (calcByNote.has(row.nota_fiscal_id) ? new Decimal(calcByNote.get(row.nota_fiscal_id)!) : new Decimal(0)).plus(String(row.valor_presente))
+    calcByNote.set(row.nota_fiscal_id, soma.toFixed(4))
+  }
   let additionalTransit = new Decimal(0)
   let additionalIndeterminate = new Decimal(0)
   for (const noteId of noteIds) {
