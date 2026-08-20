@@ -2302,6 +2302,7 @@ export interface Database {
       registrar_comunicacao_operacional: { Args: { p_comunicacao: Record<string, unknown>; p_itens: Array<Record<string, unknown>> }; Returns: string | null }
       get_user_role: { Args: Record<string, never>; Returns: string }
       get_user_cedente_id: { Args: Record<string, never>; Returns: string | null }
+      get_user_cedente_acesso_perfil: { Args: Record<string, never>; Returns: string | null }
       get_user_sacado_cnpj: { Args: Record<string, never>; Returns: string | null }
       get_user_operacao_ids: { Args: Record<string, never>; Returns: string[] }
       carregar_dashboard_sacado: { Args: Record<string, never>; Returns: Record<string, unknown> }

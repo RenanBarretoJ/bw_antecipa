@@ -19,10 +19,18 @@ export default function CedenteLayout({ children }: { children: React.ReactNode 
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
+      // get_user_cedente_id() resolve tanto o dono (cedentes.user_id) quanto
+      // um usuario convidado via cedente_acessos (perfil administrador/
+      // operador) -- filtrar so por user_id deixava usuarios convidados
+      // presos no menu restrito de onboarding para sempre, mesmo com o
+      // cedente ativo (bug confirmado ao vivo em homolog).
+      const { data: cedenteId } = await supabase.rpc('get_user_cedente_id')
+      if (!cedenteId) return
+
       const { data } = await supabase
         .from('cedentes')
         .select('id, status, habilitar_escrow, permite_cadastro_filiais')
-        .eq('user_id', user.id)
+        .eq('id', cedenteId)
         .maybeSingle()
 
       if (!isCedenteAprovado(data?.status)) return

@@ -167,19 +167,19 @@ export async function requireCedenteAccess(
     hasConsultorLink = !!consultorVinculo
   }
 
-  const { data: acesso } = await context.supabase
-    .from('cedente_acessos')
-    .select('id')
-    .eq('cedente_id', cedenteId)
-    .eq('user_id', context.user.id)
-    .eq('ativo', true)
-    .maybeSingle()
+  // cedente_acessos so tem GRANT para service_role (canonicalizacao de ACL/
+  // RLS em 20260817150507) -- uma leitura direta pelo client autenticado
+  // falha com "permission denied" silencioso. get_user_cedente_id() e
+  // SECURITY DEFINER, ja resolve owner OU cedente_acessos ativo, e ja e
+  // GRANTed para authenticated -- reaproveitada aqui em vez de repetir a
+  // leitura direta que so o service_role pode fazer.
+  const { data: cedenteIdDoUsuario } = await context.supabase.rpc('get_user_cedente_id')
 
   if (!canAccessCedente({
     role: context.profile.role,
     userId: context.user.id,
     ownerUserId: cedente.user_id,
-    hasDelegatedAccess: !!acesso,
+    hasDelegatedAccess: cedenteIdDoUsuario === cedenteId,
     hasConsultorLink,
   })) {
     throw new AuthorizationError('Usuário sem vínculo com o cedente.', 'FORBIDDEN')

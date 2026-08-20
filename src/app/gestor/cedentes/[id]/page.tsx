@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { use } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { analisarDocumento, aprovarCedente, reprovarCedente, solicitarAtualizacaoDocumento, toggleEscrowCedente, toggleCoobrigacaoCedente, toggleCadastroFiliaisCedente, aprovarAlteracaoCedente, reprovarAlteracaoCedente, convidarUsuarioCedente, revogarAcessoCedente, vincularFundoCedente, listarPerfisAcessosCedente } from '@/lib/actions/gestor'
+import { analisarDocumento, aprovarCedente, reprovarCedente, solicitarAtualizacaoDocumento, toggleEscrowCedente, toggleCoobrigacaoCedente, toggleCadastroFiliaisCedente, aprovarAlteracaoCedente, reprovarAlteracaoCedente, convidarUsuarioCedente, revogarAcessoCedente, vincularFundoCedente, listarAcessosVinculadosCedente } from '@/lib/actions/gestor'
 import { salvarTaxasCedente } from '@/lib/actions/operacao'
 import { salvarContratoAssinado } from '@/lib/actions/cedente'
 import { formatCNPJ, formatDate } from '@/lib/utils'
@@ -254,26 +254,11 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
 
     setAlteracao(alt as AlteracaoPendente | null)
 
-    // Acessos vinculados
-    const { data: ac } = await supabase
-      .from('cedente_acessos')
-      .select('id, user_id, perfil, ativo, created_at')
-      .eq('cedente_id', id)
-      .order('created_at', { ascending: true })
-      .limit(50)
-
-    if (ac && ac.length > 0) {
-      const profs = await listarPerfisAcessosCedente(id)
-      const profsMap = Object.fromEntries(
-        ((profs || []) as { id: string; nome_completo: string; email: string }[]).map((p) => [p.id, p])
-      )
-      setAcessos(
-        (ac as { id: string; user_id: string; perfil: 'administrador' | 'operador'; ativo: boolean; created_at: string }[]).map((a) => ({
-          ...a,
-          profiles: profsMap[a.user_id] ? { nome_completo: profsMap[a.user_id].nome_completo, email: profsMap[a.user_id].email } : null,
-        }))
-      )
-    } else {
+    // Acessos vinculados (via service role -- cedente_acessos nao tem GRANT
+    // para o client autenticado do gestor, so para service_role/RPC).
+    try {
+      setAcessos(await listarAcessosVinculadosCedente(id))
+    } catch {
       setAcessos([])
     }
     setLoading(false)

@@ -615,27 +615,51 @@ export async function convidarUsuarioCedente(
   return { success: true, message: `Acesso concedido para ${email}.` }
 }
 
-export async function listarPerfisAcessosCedente(cedenteId: string) {
+/**
+ * cedente_acessos so tem GRANT para service_role desde a canonicalizacao de
+ * ACL/RLS (20260817150507) -- toda leitura precisa passar por um client
+ * admin, nunca pelo client autenticado do gestor (que recebe "permission
+ * denied" silencioso e faz a tela de "Acessos Vinculados" parecer vazia
+ * mesmo com acessos ativos).
+ */
+export async function listarAcessosVinculadosCedente(cedenteId: string): Promise<Array<{
+  id: string
+  user_id: string
+  perfil: 'administrador' | 'operador'
+  ativo: boolean
+  created_at: string
+  profiles: { nome_completo: string; email: string } | null
+}>> {
   await requireGestor()
-  const supabase = await createClient()
-  const { data: acessos, error: acessosError } = await supabase
+  const admin = createAdminClient()
+  const { data: acessos, error: acessosError } = await admin
     .from('cedente_acessos')
-    .select('user_id')
+    .select('id, user_id, perfil, ativo, created_at')
     .eq('cedente_id', cedenteId)
-    .eq('ativo', true)
+    .order('created_at', { ascending: true })
     .limit(50)
 
-  if (acessosError) throw new Error('Nao foi possivel validar os acessos vinculados ao cedente.')
-  const userIds = Array.from(new Set((acessos || []).map((acesso) => acesso.user_id)))
+  if (acessosError) throw new Error('Nao foi possivel carregar os acessos vinculados ao cedente.')
+  const rows = (acessos || []) as Array<{ id: string; user_id: string; perfil: 'administrador' | 'operador'; ativo: boolean; created_at: string }>
+  const userIds = Array.from(new Set(rows.map((acesso) => acesso.user_id)))
   if (!userIds.length) return []
 
-  const { data: profiles, error: profilesError } = await createAdminClient()
+  const { data: profiles, error: profilesError } = await admin
     .from('profiles')
     .select('id, nome_completo, email')
     .in('id', userIds)
 
   if (profilesError) throw new Error('Nao foi possivel carregar os perfis vinculados ao cedente.')
-  return profiles || []
+  const profilesMap = Object.fromEntries(
+    ((profiles || []) as Array<{ id: string; nome_completo: string; email: string }>).map((p) => [p.id, p])
+  )
+
+  return rows.map((acesso) => ({
+    ...acesso,
+    profiles: profilesMap[acesso.user_id]
+      ? { nome_completo: profilesMap[acesso.user_id].nome_completo, email: profilesMap[acesso.user_id].email }
+      : null,
+  }))
 }
 
 export async function revogarAcessoCedente(acessoId: string): Promise<GestorActionState> {

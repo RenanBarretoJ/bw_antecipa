@@ -17,13 +17,13 @@ type SupabaseClient = Awaited<ReturnType<typeof createClient>>
 
 async function ehAdministrador(supabase: SupabaseClient, userId: string, cedenteUserId: string): Promise<boolean> {
   if (cedenteUserId === userId) return true
-  const { data: acesso } = await supabase
-    .from('cedente_acessos')
-    .select('perfil')
-    .eq('user_id', userId)
-    .eq('ativo', true)
-    .single()
-  return !!(acesso && (acesso as { perfil: string }).perfil === 'administrador')
+  // cedente_acessos so tem GRANT para service_role (canonicalizacao de ACL/
+  // RLS em 20260817150507) -- uma leitura direta aqui sempre falhava
+  // (permission denied, descartado em silencio), tratando todo usuario
+  // convidado como se nao fosse administrador. get_user_cedente_acesso_
+  // perfil() e SECURITY DEFINER e ja e GRANTed para authenticated.
+  const { data: perfil } = await supabase.rpc('get_user_cedente_acesso_perfil')
+  return perfil === 'administrador'
 }
 
 export type CedenteActionState = {

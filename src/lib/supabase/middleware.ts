@@ -147,11 +147,16 @@ export async function updateSession(request: NextRequest) {
       }
 
       if (userRole === 'cedente') {
-        const { data: cedente } = await supabase
-          .from('cedentes')
-          .select('status')
-          .eq('user_id', user.id)
-          .maybeSingle()
+        // get_user_cedente_id() resolve tanto o dono (cedentes.user_id)
+        // quanto um usuario convidado via cedente_acessos (perfil
+        // administrador/operador) -- filtrar so por user_id prendia
+        // usuarios convidados em /cedente/cadastro para sempre, em toda
+        // navegacao, mesmo com o cedente ativo (bug confirmado ao vivo em
+        // homolog: o usuario nunca conseguia sair da tela de cadastro).
+        const { data: cedenteId } = await supabase.rpc('get_user_cedente_id')
+        const { data: cedente } = cedenteId
+          ? await supabase.from('cedentes').select('status').eq('id', cedenteId).maybeSingle()
+          : { data: null }
         const onboardingRedirect = resolverRedirectOnboardingCedente({
           pathname,
           status: cedente?.status,

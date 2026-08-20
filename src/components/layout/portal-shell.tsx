@@ -23,9 +23,27 @@ export function PortalShell({ children, requiredRole, menuItems }: { children: R
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/login'); return }
-      const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single()
-      const profileData = data as Profile | null
-      if (!profileData || profileData.role !== requiredRole) { router.push(requireRoleRedirect(profileData?.role)); return }
+
+      // Ate 3 tentativas com pausa curta: cobre a janela de corrida entre o
+      // signup (auth.users) e o trigger que cria a linha em profiles --
+      // sem isso, um login imediatamente apos o cadastro podia achar
+      // profiles vazio e cair no branch abaixo, que so redirecionava (sem
+      // setLoading(false)); se o destino calculado for a MESMA rota atual,
+      // o router.push e um no-op e a tela fica travada em "Carregando
+      // portal..." para sempre (bug confirmado ao vivo em homolog).
+      let profileData: Profile | null = null
+      for (let attempt = 0; attempt < 3 && mounted; attempt += 1) {
+        const { data } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
+        profileData = data as Profile | null
+        if (profileData || attempt === 2) break
+        await new Promise((resolve) => setTimeout(resolve, 400))
+      }
+      if (!mounted) return
+      if (!profileData || profileData.role !== requiredRole) {
+        setLoading(false)
+        router.push(requireRoleRedirect(profileData?.role))
+        return
+      }
       let nextAreaLink: PortalAreaLink | null = null
       if (profileData.role === 'gestor') {
         const { data: adminRole } = await supabase
