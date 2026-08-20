@@ -31,6 +31,27 @@ export interface ParcelaBoletoItem {
   beneficiarioEstabelecimentoId: string | null
 }
 
+/**
+ * documento_requisito_instancias.status so e confiavel nos estados
+ * terminais (satisfeito apos aprovacao, dispensado/cancelado/vencido).
+ * registrar_documento_upload sempre grava 'pendente' apos qualquer envio
+ * (novo ou reenvio) -- o estado real durante a analise so existe em
+ * documento_versoes.status / documento_analises.resultado, exatamente
+ * como RequirementCard/statusVisual (ChecklistCedente.tsx) ja deriva para
+ * os documentos por_nf. Esta funcao aplica a mesma logica para boleto.
+ */
+function derivarStatusBoleto(
+  statusInstancia: string,
+  versaoAtual: { status: string } | null,
+  ultimaAnalise: { resultado: string } | null,
+): string {
+  if (['satisfeito', 'dispensado', 'cancelado', 'vencido'].includes(statusInstancia)) return statusInstancia
+  if (!versaoAtual) return 'pendente'
+  if (versaoAtual.status === 'rejeitado' || ultimaAnalise?.resultado === 'rejeitado') return 'rejeitado'
+  if (ultimaAnalise?.resultado === 'requer_ajuste') return 'requer_ajuste'
+  return 'em_analise'
+}
+
 export async function listarParcelasBoletosDaNota(notaFiscalId: string): Promise<ParcelaActionResult<ParcelaBoletoItem[]>> {
   try {
     const context = await requireNotaFiscalAccess(notaFiscalId)
@@ -67,26 +88,26 @@ export async function listarParcelasBoletosDaNota(notaFiscalId: string): Promise
     const { data: versoes, error: versoesError } = documentoIds.length
       ? await supabase
         .from('documento_versoes')
-        .select('id, documento_id, numero_versao, nome_original, beneficiario_estabelecimento_id')
+        .select('id, documento_id, numero_versao, status, nome_original, beneficiario_estabelecimento_id')
         .in('documento_id', documentoIds)
         .order('numero_versao', { ascending: false })
       : { data: [], error: null }
     if (versoesError) throw new Error(`Nao foi possivel carregar as versoes do boleto: ${versoesError.message}`)
 
-    type VersaoRow = { id: string; documento_id: string; numero_versao: number; nome_original: string; beneficiario_estabelecimento_id: string | null }
+    type VersaoRow = { id: string; documento_id: string; numero_versao: number; status: string; nome_original: string; beneficiario_estabelecimento_id: string | null }
     const versoesRows = (versoes || []) as VersaoRow[]
     const versaoIds = versoesRows.map((v) => v.id)
 
     const { data: analises, error: analisesError } = versaoIds.length
       ? await supabase
         .from('documento_analises')
-        .select('documento_versao_id, observacoes, analisado_em')
+        .select('documento_versao_id, resultado, observacoes, analisado_em')
         .in('documento_versao_id', versaoIds)
         .order('analisado_em', { ascending: false })
       : { data: [], error: null }
     if (analisesError) throw new Error(`Nao foi possivel carregar as analises do boleto: ${analisesError.message}`)
 
-    type AnaliseRow = { documento_versao_id: string; observacoes: string | null }
+    type AnaliseRow = { documento_versao_id: string; resultado: string; observacoes: string | null }
     const analisesRows = (analises || []) as AnaliseRow[]
 
     const items: ParcelaBoletoItem[] = requisitosRows
@@ -101,7 +122,7 @@ export async function listarParcelasBoletosDaNota(notaFiscalId: string): Promise
           parcela,
           requisitoId: requisito.id,
           obrigatorio: requisito.obrigatorio,
-          status: requisito.status,
+          status: derivarStatusBoleto(requisito.status, versaoAtual, ultimaAnalise),
           documentoVersaoId: versaoAtual?.id ?? null,
           nomeArquivo: versaoAtual?.nome_original ?? null,
           numeroVersao: versaoAtual?.numero_versao ?? null,

@@ -90,4 +90,96 @@ describe('listarParcelasBoletosDaNota', () => {
     expect(result.success).toBe(true)
     expect(result.data).toEqual([])
   })
+
+  describe('status exibido reflete a versao/analise real, nao o status estatico da instancia', () => {
+    // registrar_documento_upload sempre grava documento_requisito_instancias.status
+    // = 'pendente' apos qualquer envio (novo ou reenvio) -- o requisito.status
+    // por si so nao distingue "nunca enviado" de "enviado, aguardando analise"
+    // de "rejeitado, precisa reenviar". listarParcelasBoletosDaNota precisa
+    // derivar o status real a partir de documento_versoes/documento_analises.
+    beforeEach(() => {
+      mocks.tables.nota_fiscal_parcelas = [
+        { id: 'p1', nota_fiscal_id: 'nf-1', numero_parcela: 1, valor_nominal: 100, data_vencimento: '2026-10-01' },
+      ]
+    })
+
+    it('sem nenhum documento_id -> Aguardando envio (pendente)', async () => {
+      mocks.tables.documento_requisito_instancias = [
+        { id: 'req-1', parcela_id: 'p1', obrigatorio: true, status: 'pendente', documento_id: null, tipo_documento_codigo_snapshot: 'boleto' },
+      ]
+      const result = await listarParcelasBoletosDaNota('nf-1')
+      expect(result.data?.[0].status).toBe('pendente')
+    })
+
+    it('upload feito, versao em_analise, instancia ainda "pendente" -> exibe em_analise (nao "Aguardando envio")', async () => {
+      mocks.tables.documento_requisito_instancias = [
+        { id: 'req-1', parcela_id: 'p1', obrigatorio: true, status: 'pendente', documento_id: 'doc-1', tipo_documento_codigo_snapshot: 'boleto' },
+      ]
+      mocks.tables.documento_versoes = [
+        { id: 'v1', documento_id: 'doc-1', numero_versao: 1, status: 'em_analise', nome_original: 'boleto.pdf', beneficiario_estabelecimento_id: null },
+      ]
+      mocks.tables.documento_analises = []
+      const result = await listarParcelasBoletosDaNota('nf-1')
+      expect(result.data?.[0].status).toBe('em_analise')
+    })
+
+    it('analise com resultado rejeitado -> exibe rejeitado', async () => {
+      mocks.tables.documento_requisito_instancias = [
+        { id: 'req-1', parcela_id: 'p1', obrigatorio: true, status: 'pendente', documento_id: 'doc-1', tipo_documento_codigo_snapshot: 'boleto' },
+      ]
+      mocks.tables.documento_versoes = [
+        { id: 'v1', documento_id: 'doc-1', numero_versao: 1, status: 'rejeitado', nome_original: 'boleto.pdf', beneficiario_estabelecimento_id: null },
+      ]
+      mocks.tables.documento_analises = [
+        { documento_versao_id: 'v1', resultado: 'rejeitado', observacoes: 'Documento ilegivel', analisado_em: '2026-08-01' },
+      ]
+      const result = await listarParcelasBoletosDaNota('nf-1')
+      expect(result.data?.[0].status).toBe('rejeitado')
+      expect(result.data?.[0].motivo).toBe('Documento ilegivel')
+    })
+
+    it('analise com resultado requer_ajuste -> exibe requer_ajuste', async () => {
+      mocks.tables.documento_requisito_instancias = [
+        { id: 'req-1', parcela_id: 'p1', obrigatorio: true, status: 'pendente', documento_id: 'doc-1', tipo_documento_codigo_snapshot: 'boleto' },
+      ]
+      mocks.tables.documento_versoes = [
+        { id: 'v1', documento_id: 'doc-1', numero_versao: 1, status: 'em_analise', nome_original: 'boleto.pdf', beneficiario_estabelecimento_id: null },
+      ]
+      mocks.tables.documento_analises = [
+        { documento_versao_id: 'v1', resultado: 'requer_ajuste', observacoes: 'Falta assinatura', analisado_em: '2026-08-01' },
+      ]
+      const result = await listarParcelasBoletosDaNota('nf-1')
+      expect(result.data?.[0].status).toBe('requer_ajuste')
+    })
+
+    it('instancia satisfeito apos aprovacao continua exibindo satisfeito', async () => {
+      mocks.tables.documento_requisito_instancias = [
+        { id: 'req-1', parcela_id: 'p1', obrigatorio: true, status: 'satisfeito', documento_id: 'doc-1', tipo_documento_codigo_snapshot: 'boleto' },
+      ]
+      mocks.tables.documento_versoes = [
+        { id: 'v1', documento_id: 'doc-1', numero_versao: 1, status: 'aprovado', nome_original: 'boleto.pdf', beneficiario_estabelecimento_id: null },
+      ]
+      mocks.tables.documento_analises = [
+        { documento_versao_id: 'v1', resultado: 'aprovado', observacoes: null, analisado_em: '2026-08-01' },
+      ]
+      const result = await listarParcelasBoletosDaNota('nf-1')
+      expect(result.data?.[0].status).toBe('satisfeito')
+    })
+
+    it('reenvio apos rejeicao cria nova versao mais recente e o status reflete a nova versao', async () => {
+      mocks.tables.documento_requisito_instancias = [
+        { id: 'req-1', parcela_id: 'p1', obrigatorio: true, status: 'pendente', documento_id: 'doc-1', tipo_documento_codigo_snapshot: 'boleto' },
+      ]
+      mocks.tables.documento_versoes = [
+        { id: 'v2', documento_id: 'doc-1', numero_versao: 2, status: 'em_analise', nome_original: 'boleto-v2.pdf', beneficiario_estabelecimento_id: null },
+        { id: 'v1', documento_id: 'doc-1', numero_versao: 1, status: 'rejeitado', nome_original: 'boleto-v1.pdf', beneficiario_estabelecimento_id: null },
+      ]
+      mocks.tables.documento_analises = [
+        { documento_versao_id: 'v1', resultado: 'rejeitado', observacoes: 'Motivo antigo', analisado_em: '2026-08-01' },
+      ]
+      const result = await listarParcelasBoletosDaNota('nf-1')
+      expect(result.data?.[0].status).toBe('em_analise')
+      expect(result.data?.[0].numeroVersao).toBe(2)
+    })
+  })
 })

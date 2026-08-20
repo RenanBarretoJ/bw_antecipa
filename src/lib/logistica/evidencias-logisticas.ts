@@ -23,6 +23,8 @@ export interface EvidenciaLogisticaParaClassificacao {
   analiseResultado?: string | null
   analisadoEm?: string | null
   analisadoPor?: string | null
+  /** Data de criacao da versao/evidencia -- usado para achar a mais recente por upload, nao por analise. */
+  criadoEm?: string | null
 }
 
 export interface ClassificacaoLogisticaPreCessao {
@@ -127,5 +129,52 @@ export function avaliarGateLogisticoPreCessao(input: {
     motivo: permitido
       ? null
       : 'A politica exige CT-e/DACTE ou Comprovante de Entrega aprovado antes da cessao.',
+  }
+}
+
+function evidenciaVigente(evidencia: EvidenciaLogisticaParaClassificacao): boolean {
+  if (evidencia.analiseResultado === 'rejeitado' || evidencia.analiseResultado === 'requer_ajuste') return false
+  return ['enviado', 'em_analise', 'aprovado'].includes(evidencia.versaoStatus)
+}
+
+function maisRecentePorUpload(evidencias: EvidenciaLogisticaParaClassificacao[]): EvidenciaLogisticaParaClassificacao | null {
+  return [...evidencias].sort((a, b) =>
+    String(b.criadoEm || '').localeCompare(String(a.criadoEm || ''))
+    || b.versaoId.localeCompare(a.versaoId),
+  )[0] ?? null
+}
+
+/**
+ * Gate de SUBMISSAO pelo cedente: diferente da aprovacao pela gestora
+ * (que exige evidencia aprovada, ver classificarStatusLogisticoPreCessao),
+ * a submissao so exige que exista uma evidencia VIGENTE (enviada, em
+ * analise ou aprovada) para uma das familias alternativas (CT-e/DACTE OU
+ * Comprovante de Entrega). Considera a versao mais recente por upload
+ * (nao por analise) de cada familia -- uma rejeicao antiga com reenvio
+ * pendente nao deve bloquear a submissao.
+ */
+export function avaliarSubmissaoLogisticaPreCessao(input: {
+  exigido: boolean
+  evidencias: EvidenciaLogisticaParaClassificacao[]
+}): { permitido: boolean; motivo: string | null } {
+  if (!input.exigido) return { permitido: true, motivo: null }
+
+  const porFamilia = new Map<FamiliaDocumentalLogistica, EvidenciaLogisticaParaClassificacao[]>()
+  for (const evidencia of input.evidencias) {
+    const atuais = porFamilia.get(evidencia.familia) || []
+    atuais.push(evidencia)
+    porFamilia.set(evidencia.familia, atuais)
+  }
+
+  const permitido = [...porFamilia.values()].some((evidenciasDaFamilia) => {
+    const recente = maisRecentePorUpload(evidenciasDaFamilia)
+    return Boolean(recente && evidenciaVigente(recente))
+  })
+
+  return {
+    permitido,
+    motivo: permitido
+      ? null
+      : 'A politica exige o envio de CT-e/DACTE ou Comprovante de Entrega antes da submissao.',
   }
 }

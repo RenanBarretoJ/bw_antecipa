@@ -194,3 +194,79 @@ describe('gate documental canonico da aprovacao de NF', () => {
     expect(JSON.stringify(resultado)).not.toContain('Checklist documental')
   })
 })
+
+describe('gate documental com requisito por_parcela (multiplas instancias no mesmo requisitoId)', () => {
+  // Ponto critico do P0: boleto tem 1 instancia por parcela, todas com o
+  // mesmo requisitoId. Um Map 1:1 colapsaria para a ultima lida, aprovando
+  // a NF com base em so uma parcela -- corrigido para exigir TODAS aprovadas.
+  const aprovada = (id: string) => instancia({
+    requisitoId: 'req-boleto',
+    documentoId: id,
+    versaoAprovadaId: `versao-${id}`,
+    versaoAtual: { id: `versao-${id}`, status: 'aprovado', ultimaAnalise: { resultado: 'aprovado' } },
+  })
+  const pendente = (id: string) => instancia({
+    requisitoId: 'req-boleto',
+    documentoId: id,
+    versaoAtual: { id: `versao-${id}`, status: 'em_analise', ultimaAnalise: null },
+  })
+  const boleto = requisito({ id: 'req-boleto', nome: 'Boleto' })
+
+  it('0/4 aprovados = DENY', () => {
+    expect(avaliar({
+      requisitosEsperados: [boleto],
+      instancias: [pendente('p1'), pendente('p2'), pendente('p3'), pendente('p4')],
+    })).toMatchObject({ estado: 'pendente', elegivel: false })
+  })
+
+  it('1/4 aprovados = DENY', () => {
+    expect(avaliar({
+      requisitosEsperados: [boleto],
+      instancias: [aprovada('p1'), pendente('p2'), pendente('p3'), pendente('p4')],
+    })).toMatchObject({ estado: 'pendente', elegivel: false })
+  })
+
+  it('3/4 aprovados = DENY', () => {
+    expect(avaliar({
+      requisitosEsperados: [boleto],
+      instancias: [aprovada('p1'), aprovada('p2'), aprovada('p3'), pendente('p4')],
+    })).toMatchObject({ estado: 'pendente', elegivel: false })
+  })
+
+  it('4/4 aprovados = ALLOW', () => {
+    expect(avaliar({
+      requisitosEsperados: [boleto],
+      instancias: [aprovada('p1'), aprovada('p2'), aprovada('p3'), aprovada('p4')],
+    })).toMatchObject({ estado: 'completo', elegivel: true })
+  })
+
+  it('qualquer parcela rejeitada bloqueia mesmo com as outras aprovadas', () => {
+    const rejeitada = instancia({
+      requisitoId: 'req-boleto',
+      documentoId: 'p2',
+      versaoAtual: { id: 'versao-p2', status: 'rejeitado', ultimaAnalise: { resultado: 'rejeitado' } },
+    })
+    expect(avaliar({
+      requisitosEsperados: [boleto],
+      instancias: [aprovada('p1'), rejeitada, aprovada('p3'), aprovada('p4')],
+    })).toMatchObject({ estado: 'pendente', elegivel: false, requisitosRejeitados: ['Boleto'] })
+  })
+
+  it('boleto opcional ausente nao bloqueia (nenhuma instancia)', () => {
+    expect(avaliar({
+      requisitosEsperados: [requisito({ id: 'req-boleto', nome: 'Boleto', obrigatorio: false, bloqueiaFluxo: false })],
+      instancias: [],
+    })).toMatchObject({ estado: 'completo', elegivel: true })
+  })
+
+  it('politica sem boleto (requisito ausente da lista esperada) nao participa do gate', () => {
+    expect(avaliar({
+      requisitosEsperados: [],
+      instancias: [],
+    })).toMatchObject({ estado: 'nao_aplicavel', elegivel: true })
+  })
+
+  it('requisito por_nf continua funcionando com 1 unica instancia (sem regressao)', () => {
+    expect(avaliar()).toMatchObject({ estado: 'pendente', elegivel: false })
+  })
+})

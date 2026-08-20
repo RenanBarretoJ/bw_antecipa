@@ -29,6 +29,7 @@ import {
   type StatusPrazoUploadCanhoto,
 } from '@/lib/logistica/postergacao-canhoto'
 import {
+  avaliarSubmissaoLogisticaPreCessao,
   classificarStatusLogisticoPreCessao,
   resolverFamiliaDocumentalLogistica,
   type FamiliaDocumentalLogistica,
@@ -100,6 +101,8 @@ export interface ChecklistDocumento {
   gateLogisticoPreCessao: {
     exigido: boolean
     status: StatusLogisticoPreCessao
+    /** Gate de submissao (cedente): exige apenas evidencia vigente (enviada/em analise/aprovada), nao aprovada. */
+    permitidoSubmissao: boolean
   }
   entrega: { id: string; status: string; dataInicioPrazo: string | null; motivoPendencia: string | null; dataEntrega: string | null; entregaConfirmadaEm: string | null } | null
   postergacaoCanhoto: {
@@ -577,7 +580,7 @@ async function carregarChecklist(notaFiscalId: string): Promise<ChecklistDocumen
       }
     })
 
-  const classificacaoLogistica = classificarStatusLogisticoPreCessao(evidenceHistory.flatMap((history) => {
+  const evidenciasLogisticas = evidenceHistory.flatMap((history) => {
     const evidence = evidences.find((item) => item.id === history.evidencia_logistica_id)
     if (!evidence) return []
     const version = versions.find((item) => item.id === history.documento_versao_id)
@@ -590,12 +593,23 @@ async function carregarChecklist(notaFiscalId: string): Promise<ChecklistDocumen
       analiseResultado: analysis?.resultado || null,
       analisadoEm: analysis?.analisadoEm || null,
       analisadoPor: analysis?.analisadoPorId || null,
+      criadoEm: history.created_at,
     }]
-  }))
+  })
+  const classificacaoLogistica = classificarStatusLogisticoPreCessao(evidenciasLogisticas)
   const snapshotGate = operation?.politica_snapshot?.exigir_status_logistico_pre_cessao
   const gateLogisticoExigido = typeof snapshotGate === 'boolean'
     ? snapshotGate
     : Boolean((policyVersionData as { exigir_status_logistico_pre_cessao?: boolean } | null)?.exigir_status_logistico_pre_cessao)
+  // Submissao pelo cedente exige apenas evidencia VIGENTE (enviada, em
+  // analise ou aprovada) -- diferente da aprovacao pelo gestor, que exige
+  // aprovada. classificarStatusLogisticoPreCessao (acima) so considera
+  // evidencias aprovadas -- correto para o rotulo de exibicao e para o gate
+  // do gestor, mas errado para o gate de submissao do cedente.
+  const gateLogisticoPermitidoSubmissao = avaliarSubmissaoLogisticaPreCessao({
+    exigido: gateLogisticoExigido,
+    evidencias: evidenciasLogisticas,
+  })
   const requisitosDaPolitica: RequisitoChecklistAplicavel[] = (policyRequirementRows || []).length > 0
     ? policyRequirements
       .filter((row) => (entrega || row.escopo === 'nf_pre_cessao') && !codigosPorParcela.has(row.tipo_documento_codigo))
@@ -713,6 +727,7 @@ async function carregarChecklist(notaFiscalId: string): Promise<ChecklistDocumen
     gateLogisticoPreCessao: {
       exigido: gateLogisticoExigido,
       status: classificacaoLogistica.status,
+      permitidoSubmissao: gateLogisticoPermitidoSubmissao.permitido,
     },
     entrega: entrega ? {
       id: entrega.id,

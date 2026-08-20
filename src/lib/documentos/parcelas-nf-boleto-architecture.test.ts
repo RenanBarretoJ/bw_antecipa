@@ -10,6 +10,8 @@ const parcelasNfAction = readFileSync('src/lib/actions/parcelas-nf.ts', 'utf8')
 const checklistCedente = readFileSync('src/components/documentos-v2/ChecklistCedente.tsx', 'utf8')
 const paginaCedenteNf = readFileSync('src/app/cedente/notas-fiscais/[id]/page.tsx', 'utf8')
 const paginaGestorNf = readFileSync('src/app/gestor/notas-fiscais/[id]/page.tsx', 'utf8')
+const parcelasBoletosNota = readFileSync('src/components/documentos-v2/ParcelasBoletosNota.tsx', 'utf8')
+const evidenciasLogisticas = readFileSync('src/lib/logistica/evidencias-logisticas.ts', 'utf8')
 
 describe('Fase 1 (Parcelas de NF): modelo canonico + parser + tolerancia', () => {
   it('cria nota_fiscal_parcelas com as garantias exigidas (unique, valor>0, vencimento obrigatorio)', () => {
@@ -161,5 +163,87 @@ describe('P0 (correcao real): checklist inteiro escondido por politica exigir bo
     expect(trecho).toContain("from('documento_tipos')")
     expect(trecho).toContain("select('codigo, cardinalidade')")
     expect(trecho).not.toContain("=== 'boleto'")
+  })
+})
+
+describe('P0 (correcao): gate logistico submissao vs aprovacao, status real do boleto, card compacto', () => {
+  it('submeterNF usa o gate de submissao (vigente), nao mais o de aprovacao (aprovado)', () => {
+    expect(notaFiscalAction).toContain('checklist.gateLogisticoPreCessao.permitidoSubmissao')
+    expect(notaFiscalAction).not.toContain("checklist.gateLogisticoPreCessao.status === 'INDETERMINADA'")
+    expect(notaFiscalAction).toContain('A politica exige o envio de CT-e/DACTE ou Comprovante de Entrega antes da submissao.')
+  })
+
+  it('aprovarNF (gestor) continua exigindo evidencia aprovada via avaliar_gate_logistico_pre_cessao_nfs', () => {
+    expect(notaFiscalAction).toContain('avaliar_gate_logistico_pre_cessao_nfs')
+    expect(notaFiscalAction).toContain('A evidencia logistica obrigatoria ainda nao foi aprovada.')
+  })
+
+  it('documento-v2.ts calcula o gate de submissao a partir de avaliarSubmissaoLogisticaPreCessao (evidencia vigente), separado do rotulo de exibicao', () => {
+    expect(documentoV2).toContain('avaliarSubmissaoLogisticaPreCessao')
+    expect(documentoV2).toContain('permitidoSubmissao: gateLogisticoPermitidoSubmissao.permitido')
+  })
+
+  it('avaliarSubmissaoLogisticaPreCessao usa a evidencia mais recente por UPLOAD, nao por analise (rejeicao antiga nao bloqueia apos reenvio)', () => {
+    expect(evidenciasLogisticas).toContain('function maisRecentePorUpload')
+    expect(evidenciasLogisticas).toContain('criadoEm')
+  })
+
+  it('aprovarNF e aprovarNFsLote reconciliam requisitos (instanciarRequisitosDaNota) ANTES de avaliar carregarResumoDocumentalDasNotas', () => {
+    const funcaoIndividual = notaFiscalAction.slice(
+      notaFiscalAction.indexOf('export async function aprovarNF('),
+      notaFiscalAction.indexOf('export async function reprovarNF('),
+    )
+    const indiceReconciliaIndividual = funcaoIndividual.indexOf('instanciarRequisitosDaNota(nfId, supabase)')
+    const indiceResumoIndividual = funcaoIndividual.indexOf('carregarResumoDocumentalDasNotas(supabase, [nfId])')
+    expect(indiceReconciliaIndividual).toBeGreaterThan(-1)
+    expect(indiceResumoIndividual).toBeGreaterThan(-1)
+    expect(indiceReconciliaIndividual).toBeLessThan(indiceResumoIndividual)
+
+    const funcaoLote = notaFiscalAction.slice(notaFiscalAction.indexOf('export async function aprovarNFsLote('))
+    const indiceReconciliaLote = funcaoLote.indexOf('instanciarRequisitosDaNota(notaFiscalId, supabase)')
+    const indiceResumoLote = funcaoLote.indexOf('carregarResumoDocumentalDasNotas(supabase, idsUnicos)')
+    expect(indiceReconciliaLote).toBeGreaterThan(-1)
+    expect(indiceResumoLote).toBeGreaterThan(-1)
+    expect(indiceReconciliaLote).toBeLessThan(indiceResumoLote)
+  })
+
+  it('listarParcelasBoletosDaNota deriva o status exibido da versao/analise real, nao apenas do status estatico da instancia', () => {
+    expect(parcelasNfAction).toContain('function derivarStatusBoleto')
+    expect(parcelasNfAction).toContain('status: derivarStatusBoleto(requisito.status, versaoAtual, ultimaAnalise)')
+    expect(parcelasNfAction).not.toMatch(/status:\s*requisito\.status,/)
+  })
+
+  it('avaliacao-checklist-aprovacao.ts agrupa instancias por requisito em lista (nao Map 1:1) para nao colapsar parcelas', () => {
+    const avaliacaoAprovacao = readFileSync('src/lib/notas-fiscais/avaliacao-checklist-aprovacao.ts', 'utf8')
+    expect(avaliacaoAprovacao).toContain('instanciasPorRequisito')
+    expect(avaliacaoAprovacao).not.toContain('new Map(\n    input.instancias')
+  })
+
+  it('Boleto permanece dentro de Documentos pre-cessao (sem card independente "Parcelas / Boletos")', () => {
+    expect(parcelasBoletosNota).not.toContain('Parcelas / Boletos')
+  })
+
+  it('o card de Boleto comeca recolhido e mostra cabecalho com obrigatoriedade, contagem e status agregado', () => {
+    expect(parcelasBoletosNota).toContain("useState(false)")
+    expect(parcelasBoletosNota).toContain('function statusAgregado')
+    expect(parcelasBoletosNota).toContain('aprovados</span>')
+  })
+
+  it('recolher/expandir usa CSS (hidden), nao desmontagem condicional -- preserva selecao de formulario ja feita', () => {
+    expect(parcelasBoletosNota).toContain("expanded ? 'border-t border-border' : 'hidden'")
+    expect(parcelasBoletosNota).not.toContain('{expanded && (')
+  })
+
+  it('abre automaticamente quando ha parcela rejeitada ou com ajuste solicitado', () => {
+    expect(parcelasBoletosNota).toContain('PENDENCIA_STATUS')
+    expect(parcelasBoletosNota).toContain('setExpanded(true)')
+  })
+
+  it('layout expandido tem cabecalho de tabela desktop com as colunas pedidas e uma variante mobile empilhada', () => {
+    expect(parcelasBoletosNota).toContain('Parcela')
+    expect(parcelasBoletosNota).toContain('Vencimento')
+    expect(parcelasBoletosNota).toContain('Beneficiário')
+    expect(parcelasBoletosNota).toContain('md:hidden')
+    expect(parcelasBoletosNota).toContain('md:grid')
   })
 })

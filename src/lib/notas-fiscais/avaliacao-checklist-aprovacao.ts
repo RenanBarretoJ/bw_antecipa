@@ -88,34 +88,40 @@ export function avaliarElegibilidadeDocumentalDaNota(input: {
   const obrigatorios = requisitosAplicaveis.filter(
     (item) => item.obrigatorio || item.bloqueiaFluxo,
   )
-  const instanciaPorRequisito = new Map(
-    input.instancias
-      .filter((item) => (
-        item.notaFiscalId === input.notaFiscalId
-        && item.politicaVersaoId === input.politica.versaoId
-      ))
-      .map((item) => [item.requisitoId, item]),
-  )
-  const ausentes = obrigatorios.filter((item) => !instanciaPorRequisito.has(item.id))
+  // Requisitos por_parcela (ex.: boleto) tem UMA instancia por parcela, todas
+  // compartilhando o mesmo requisitoId -- agrupar em lista (nao um Map 1:1)
+  // preserva todas; um Map 1:1 colapsaria para a ultima instancia lida,
+  // aprovando a NF com base em so uma parcela.
+  const instanciasPorRequisito = new Map<string, InstanciaRequisitoAprovacao[]>()
+  for (const item of input.instancias) {
+    if (item.notaFiscalId !== input.notaFiscalId || item.politicaVersaoId !== input.politica.versaoId) continue
+    const atuais = instanciasPorRequisito.get(item.requisitoId) || []
+    atuais.push(item)
+    instanciasPorRequisito.set(item.requisitoId, atuais)
+  }
+  const ausentes = obrigatorios.filter((item) => !instanciasPorRequisito.has(item.id))
   const materializados = obrigatorios
-    .filter((item) => instanciaPorRequisito.has(item.id))
+    .filter((item) => instanciasPorRequisito.has(item.id))
     .map((item) => {
-      const instancia = instanciaPorRequisito.get(item.id)!
-      return {
-        item,
-        satisfacao: resolverSatisfacaoRequisitoParaAprovacao({
-          requisitoId: item.id,
-          tipoDocumento: item.tipoDocumento,
-          obrigatorio: item.obrigatorio,
-          bloqueiaFluxo: item.bloqueiaFluxo,
-          momento: item.momento,
-          regraValidade: item.regraValidade,
-          statusInstancia: instancia.statusInstancia,
-          documentoId: instancia.documentoId,
-          versaoAprovadaId: instancia.versaoAprovadaId,
-          versoes: instancia.versaoAtual ? [instancia.versaoAtual] : [],
-        }),
-      }
+      const instancias = instanciasPorRequisito.get(item.id)!
+      const satisfacoes = instancias.map((instancia) => resolverSatisfacaoRequisitoParaAprovacao({
+        requisitoId: item.id,
+        tipoDocumento: item.tipoDocumento,
+        obrigatorio: item.obrigatorio,
+        bloqueiaFluxo: item.bloqueiaFluxo,
+        momento: item.momento,
+        regraValidade: item.regraValidade,
+        statusInstancia: instancia.statusInstancia,
+        documentoId: instancia.documentoId,
+        versaoAprovadaId: instancia.versaoAprovadaId,
+        versoes: instancia.versaoAtual ? [instancia.versaoAtual] : [],
+      }))
+      // Todas as parcelas precisam estar aprovadas (0/4..3/4 aprovados =
+      // requisito ainda pendente); a pior satisfacao representa o
+      // requisito inteiro no resumo. Para requisitos por_nf (1 instancia)
+      // isso reduz exatamente ao comportamento anterior.
+      const satisfacao = satisfacoes.find((candidata) => !candidata.aprovado) || satisfacoes[0]
+      return { item, satisfacao }
     })
   const pendentesMaterializados = materializados.filter(({ satisfacao }) => !satisfacao.aprovado)
   const rejeitados = pendentesMaterializados.filter(({ satisfacao }) => (

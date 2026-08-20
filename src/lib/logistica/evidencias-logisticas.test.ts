@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   avaliarGateLogisticoPreCessao,
+  avaliarSubmissaoLogisticaPreCessao,
   classificarStatusLogisticoPreCessao,
   resolverFamiliaDocumentalLogistica,
   validarUnicidadeFamiliasLogisticas,
@@ -70,5 +71,75 @@ describe('classificacao logistica pre-cessao', () => {
     const classificacao = classificarStatusLogisticoPreCessao([])
     expect(avaliarGateLogisticoPreCessao({ exigirStatusLogistico: false, classificacao }).permitido).toBe(true)
     expect(avaliarGateLogisticoPreCessao({ exigirStatusLogistico: true, classificacao }).permitido).toBe(false)
+  })
+})
+
+describe('gate logistico de SUBMISSAO (cedente) -- diferente do gate de aprovacao (gestor)', () => {
+  // Regra do P0: submissao exige apenas evidencia VIGENTE (enviada, em
+  // analise ou aprovada), nao aprovada -- diferente de
+  // classificarStatusLogisticoPreCessao (usado no rotulo de exibicao e no
+  // gate de aprovacao do gestor), que so considera evidencia aprovada.
+
+  it('DENY quando nao ha nenhuma evidencia', () => {
+    expect(avaliarSubmissaoLogisticaPreCessao({ exigido: true, evidencias: [] }).permitido).toBe(false)
+  })
+
+  it('ALLOW com CT-e enviado aguardando analise', () => {
+    expect(avaliarSubmissaoLogisticaPreCessao({
+      exigido: true,
+      evidencias: [{ familia: 'cte', documentoId: 'doc', versaoId: 'v1', versaoStatus: 'enviado', criadoEm: '2026-08-01' }],
+    }).permitido).toBe(true)
+  })
+
+  it('ALLOW com Comprovante de Entrega enviado aguardando analise', () => {
+    expect(avaliarSubmissaoLogisticaPreCessao({
+      exigido: true,
+      evidencias: [{ familia: 'comprovante_entrega', documentoId: 'doc', versaoId: 'v1', versaoStatus: 'em_analise', criadoEm: '2026-08-01' }],
+    }).permitido).toBe(true)
+  })
+
+  it('ALLOW quando ja aprovado (aprovado tambem satisfaz a submissao)', () => {
+    expect(avaliarSubmissaoLogisticaPreCessao({
+      exigido: true,
+      evidencias: [{ familia: 'cte', documentoId: 'doc', versaoId: 'v1', versaoStatus: 'aprovado', criadoEm: '2026-08-01' }],
+    }).permitido).toBe(true)
+  })
+
+  it('DENY quando a versao mais recente foi rejeitada e nao ha reenvio', () => {
+    expect(avaliarSubmissaoLogisticaPreCessao({
+      exigido: true,
+      evidencias: [{ familia: 'cte', documentoId: 'doc', versaoId: 'v1', versaoStatus: 'rejeitado', criadoEm: '2026-08-01' }],
+    }).permitido).toBe(false)
+  })
+
+  it('ALLOW quando a rejeicao antiga foi seguida de um reenvio vigente (usa a mais recente por upload, nao por analise)', () => {
+    expect(avaliarSubmissaoLogisticaPreCessao({
+      exigido: true,
+      evidencias: [
+        { familia: 'cte', documentoId: 'doc-v1', versaoId: 'v1', versaoStatus: 'rejeitado', analiseResultado: 'rejeitado', analisadoEm: '2026-08-01', criadoEm: '2026-08-01' },
+        { familia: 'cte', documentoId: 'doc-v2', versaoId: 'v2', versaoStatus: 'em_analise', criadoEm: '2026-08-05' },
+      ],
+    }).permitido).toBe(true)
+  })
+
+  it('DENY quando a unica evidencia foi cancelada/substituida sem versao atual valida', () => {
+    expect(avaliarSubmissaoLogisticaPreCessao({
+      exigido: true,
+      evidencias: [{ familia: 'comprovante_entrega', documentoId: 'doc', versaoId: 'v1', versaoStatus: 'cancelado', criadoEm: '2026-08-01' }],
+    }).permitido).toBe(false)
+  })
+
+  it('nao exige nada quando o gate nao esta ativo', () => {
+    expect(avaliarSubmissaoLogisticaPreCessao({ exigido: false, evidencias: [] }).permitido).toBe(true)
+  })
+
+  it('preserva a alternativa CT-e OU Comprovante de Entrega', () => {
+    expect(avaliarSubmissaoLogisticaPreCessao({
+      exigido: true,
+      evidencias: [
+        { familia: 'cte', documentoId: 'a', versaoId: 'v1', versaoStatus: 'rejeitado', criadoEm: '2026-08-01' },
+        { familia: 'comprovante_entrega', documentoId: 'b', versaoId: 'v2', versaoStatus: 'enviado', criadoEm: '2026-08-01' },
+      ],
+    }).permitido).toBe(true)
   })
 })

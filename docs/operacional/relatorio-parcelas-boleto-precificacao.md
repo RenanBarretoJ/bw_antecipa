@@ -2,8 +2,9 @@
 
 **Resultado da Fase 1: `PASS`. Resultado da Fase 2: `PASS`.
 `P0_CHECKLIST_NF_COM_BOLETO_POR_PARCELA = PASS`.
-`P0_REQUISITOS_DOCUMENTAIS_NF_NAO_CARREGAM = PASS`** (Fase 3 pendente por
-decisão explícita de sequenciamento — ver seção "Pendências").
+`P0_REQUISITOS_DOCUMENTAIS_NF_NAO_CARREGAM = PASS`.
+`P0_GATE_LOGISTICO_STATUS_UI_BOLETO = PASS`** (Fase 3 pendente por decisão
+explícita de sequenciamento — ver seção "Pendências").
 
 Ambiente: homologação Supabase `fhgkmggthxikfpogrvaa`. Produção
 (`wwsndnuvnjuabpbjwlck`) não foi tocada. Nenhum commit ou push foi
@@ -584,6 +585,165 @@ para PDF/manual, onde faz sentido.
 `P0_REQUISITOS_DOCUMENTAIS_NF_NAO_CARREGAM = PASS` (após as duas correções:
 ordem de instanciação + visibilidade do checklist com boleto na política;
 mais a correção da mensagem de pré-preenchimento incorreta em upload XML).
+
+## P0 — gate logístico, status real e UX dos boletos
+
+**Resultado: `PASS`.** Três problemas relacionados, corrigidos juntos.
+
+### A. Gate logístico — submissão ≠ aprovação
+
+**Causa raiz confirmada**: `classificarStatusLogisticoPreCessao`
+(`src/lib/logistica/evidencias-logisticas.ts`) só considera evidências
+**aprovadas** — correto para o rótulo de exibição ("Entrega comprovada" /
+"Em trânsito") e para o gate de **aprovação** do gestor (que de fato exige
+aprovado, via RPC `avaliar_gate_logistico_pre_cessao_nfs` →
+`private.classificar_status_logistico_pre_cessao`, ambos inalterados). O bug:
+`submeterNF` (cedente) reusava esse **mesmo** resultado
+(`checklist.gateLogisticoPreCessao.status === 'INDETERMINADA'`) para
+bloquear a submissão — exigindo aprovação onde deveria bastar qualquer
+evidência vigente (enviada/em análise/aprovada).
+
+**Correção**: nova função pura
+`avaliarSubmissaoLogisticaPreCessao` (mesmo arquivo) — para cada família
+alternativa (CT-e/DACTE OU Comprovante de Entrega), pega a versão **mais
+recente por data de upload** (não por data de análise, para uma rejeição
+antiga não bloquear um reenvio pendente) e permite se ela não estiver
+rejeitada/cancelada/substituída. `documento-v2.ts` expõe o resultado como
+`checklist.gateLogisticoPreCessao.permitidoSubmissao`, campo novo e
+separado do `status` de exibição (que não foi alterado).
+`submeterNF` passou a usar esse campo; mensagem atualizada para "A política
+exige o envio de CT-e/DACTE ou Comprovante de Entrega antes da submissão."
+Mensagem do gestor (aprovação) também ajustada para "A evidência logística
+obrigatória ainda não foi aprovada." — mesma regra de negócio, mensagem só
+mais direta.
+
+### B. Boletos enviados continuam "Aguardando envio"
+
+**Causa raiz confirmada** (`registrar_documento_upload`, SQL vigente): após
+**qualquer** envio (novo ou reenvio), a função sempre grava
+`documento_requisito_instancias.status = 'pendente'` — esse campo nunca
+reflete "enviado, aguardando análise"; só é atualizado para `'satisfeito'`
+na aprovação (`analisar_documento_versao`) ou de volta a `'pendente'` na
+rejeição/ajuste. `listarParcelasBoletosDaNota` usava esse campo
+diretamente como status exibido — por isso o card nunca saía de
+"Aguardando envio" mesmo com o boleto enviado e em análise.
+`RequirementCard`/`statusVisual` (documentos `por_nf`) já resolviam isso
+corretamente lendo a versão mais recente; o boleto (por_parcela) não tinha
+a mesma lógica. Classificação: `STATUS_DERIVATION_BUG`.
+
+**Correção**: nova função `derivarStatusBoleto` (`src/lib/actions/parcelas-nf.ts`)
+— estados terminais (`satisfeito`, `dispensado`, `cancelado`, `vencido`)
+usam o status da instância diretamente; caso contrário deriva de
+`documento_versoes.status` + `documento_analises.resultado` mais recentes:
+sem versão → `pendente` (Aguardando envio); versão rejeitada ou análise
+`rejeitado` → `rejeitado`; análise `requer_ajuste` → `requer_ajuste`
+(distinto de rejeitado, confirmado ao vivo que a versão fica `em_analise`
+nesse caso, não `rejeitado`); caso contrário → `em_analise` (Aguardando
+análise). Nenhum estado novo criado no banco. `boletoStatusLabel`
+(`ParcelasBoletosNota.tsx`) ganhou os rótulos `Rejeitado`/`Ajuste
+solicitado`, antes ausentes.
+
+### C. Card de Boleto compacto e recolhível
+
+`ParcelasBoletosNota.tsx` continua **dentro** de "Documentos pré-cessão"
+(sem card independente). Cabeçalho agora mostra obrigatoriedade, `X/Y
+aprovados` e um status agregado (`Pendente` / `Aguardando análise` / `Com
+pendências` / `Completo`, derivado — nenhum estado novo no banco). Começa
+**recolhido**; abre automaticamente na primeira carga se houver parcela
+rejeitada ou com ajuste solicitado. Expandido: cabeçalho de tabela
+(Parcela | Vencimento | Valor | Status | Beneficiário | Documento | Ação)
+no desktop; cards empilhados com rótulos no mobile, sem scroll horizontal.
+Recolher/expandir passou a usar `hidden` (CSS) em vez de desmontar a
+`<div>` condicionalmente — preserva a seleção de beneficiário/arquivo já
+feita no formulário do cedente ao recolher e reabrir. Reaproveitado o
+mesmo padrão de expand/collapse já usado por `RequirementCard`
+(`ChecklistCedente.tsx`); nenhum componente `Accordion`/`Collapsible`
+pronto existia no projeto para reaproveitar.
+
+### D. Gate agregado de boleto por parcela — ponto crítico
+
+**Causa raiz confirmada**: `avaliarElegibilidadeDocumentalDaNota`
+(`src/lib/notas-fiscais/avaliacao-checklist-aprovacao.ts`), usada pelo gate
+de aprovação da NF (`aprovarNF`/`aprovarNFsLote` via
+`carregarResumoDocumentalDasNotas`), construía
+`new Map(instancias.map(item => [item.requisitoId, item]))` — o mesmo
+padrão de colapso já encontrado e corrigido duas vezes nesta sessão (Fase
+2). Boleto tem uma instância por parcela, todas com o mesmo
+`politica_requisito_id`: o `Map` colapsava para a **última** instância lida
+(ordem arbitrária), aprovando a NF com base em só uma parcela em vez de
+todas as 4.
+
+**Correção**: agrupamento em `Map<string, Instancia[]>` (lista, não 1:1);
+para requisitos com múltiplas instâncias, todas precisam estar aprovadas —
+a pior satisfação entre elas representa o requisito no resumo (0/4, 1/4,
+3/4 aprovados → requisito pendente → NF `DENY`; 4/4 → `ALLOW`; qualquer
+rejeitada/em análise bloqueia). Requisitos `por_nf` (1 instância) reduzem
+exatamente ao comportamento anterior — sem regressão. Boleto opcional
+ausente não bloqueia; política sem boleto não participa (requisito nem
+aparece na lista esperada) — ambos já garantidos pela lógica existente,
+confirmados com testes novos.
+
+**Segunda parte do achado**: `carregarResumoDocumentalDasNotas` só **lê**
+`documento_requisito_instancias`, nunca reconcilia — o mesmo risco
+registrado (mas não corrigido) no P0 anterior. Corrigido agora no ponto
+transacional pedido pelo ticket: `aprovarNF` e `aprovarNFsLote` chamam
+`instanciarRequisitosDaNota` **antes** de `carregarResumoDocumentalDasNotas`,
+garantindo que uma NF cujo checklist nunca foi aberto tenha seus
+requisitos (incluindo boleto por parcela) completos antes do gate avaliar
+— eliminando o `ALLOW` silencioso para requisito obrigatório sem instância.
+Confirmado ao vivo: uma NF nova, com parcelas e política de boleto, sem
+nenhuma leitura de checklist prévia, tinha 0 instâncias; a chamada de
+reconciliação adicionada cria as 5 esperadas (1 XML + 4 boleto) antes do
+gate rodar.
+
+### Testes
+
+- `src/lib/logistica/evidencias-logisticas.test.ts` (9 testes novos):
+  `avaliarSubmissaoLogisticaPreCessao` — DENY sem evidência, ALLOW com
+  CT-e/comprovante enviado ou aprovado, DENY com rejeição sem reenvio,
+  ALLOW com reenvio vigente após rejeição antiga (usa a mais recente por
+  upload), DENY com cancelado/substituído, gate inativo sempre ALLOW,
+  alternativa CT-e OU comprovante preservada.
+- `src/lib/notas-fiscais/avaliacao-checklist-aprovacao.test.ts` (8 testes
+  novos): 0/4, 1/4, 3/4 aprovados → `DENY`; 4/4 → `ALLOW`; qualquer parcela
+  rejeitada bloqueia mesmo com as demais aprovadas; boleto opcional ausente
+  não bloqueia; política sem boleto não participa; requisito `por_nf`
+  (1 instância) sem regressão.
+- `src/lib/actions/parcelas-nf.test.ts` (6 testes novos): status exibido
+  reflete versão/análise real em cada estado (pendente, em análise,
+  rejeitado, requer_ajuste, satisfeito, reenvio-após-rejeição usa a versão
+  mais nova).
+- `src/lib/documentos/parcelas-nf-boleto-architecture.test.ts` (12 testes
+  novos): fiação do gate de submissão vs aprovação, ordem de reconciliação
+  em `aprovarNF`/`aprovarNFsLote`, derivação de status no card, ausência do
+  card independente, recolhido por padrão + auto-abertura em pendência,
+  `hidden` (não desmontagem) preservando estado do formulário, colunas da
+  tabela desktop + variante mobile.
+- **Live E2E** — `scripts/homologacao/p0-gate-logistico-status-ui-boleto/e2e.mjs`,
+  **9/9 PASS** ao vivo em homologação (transação revertida): upload real
+  confirma instância `pendente` + versão `em_analise`; aprovação real vira
+  `satisfeito`; rejeição real volta a `pendente` com versão `rejeitado` e
+  análise `rejeitado`; reenvio real cria versão 2 mantendo a v1 no
+  histórico; pedido de ajuste real confirma versão `em_analise` (não
+  `rejeitado`) com análise `requer_ajuste` — distinção que valida a lógica
+  de derivação; as 4 parcelas aprovadas ao final do fluxo real; e a
+  reconciliação no gate de aprovação criando os 5 requisitos esperados
+  para uma NF cujo checklist nunca foi aberto.
+- **Regressões reexecutadas ao vivo**: E2E Fase 1 (17/17), E2E Fase 2
+  (29/29), E2E do P0 de requisitos não carregados (10/10). Suíte completa:
+  162 arquivos / 1198 testes, 0 falhas, nenhum teste removido.
+
+### Segurança
+
+Nenhuma das correções altera autorização: `submeterNF`/`aprovarNF`/
+`aprovarNFsLote` continuam usando os mesmos `requireGestor`/
+`requireAuthenticated`/`validarNfsNoFundoAtivo`; `instanciarRequisitosDaNota`
+já fazia a validação cross-fundo/cross-cedente por si (reaproveitada, não
+duplicada); nenhuma RPC nova foi criada; nenhum `GRANT` foi alterado.
+
+### Status final
+
+`P0_GATE_LOGISTICO_STATUS_UI_BOLETO = PASS`
 
 ## Riscos
 

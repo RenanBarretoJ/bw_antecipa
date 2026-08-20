@@ -9,6 +9,7 @@ import { registrarLog } from './auditoria'
 import { notificarGestores, notificarCedente } from './notificacao'
 import { buckets } from '@/lib/storage'
 import { uploadDocumentoSeRequerido } from '@/lib/documentos-v2/upload'
+import { instanciarRequisitosDaNota } from '@/lib/documentos-v2/requisitos'
 import { avaliarGateDuplicatasDaNota } from '@/lib/duplicatas/gate.server'
 import { CedenteFundoError, mensagemOperacionalSemVinculo, resolverCedenteFundoAtivo } from '@/lib/fundos/cedente-fundo'
 import { decidirAcaoDuplicidadeNotaFiscal, mensagemDuplicidadeNotaFiscal } from '@/lib/notas-fiscais/upload-context'
@@ -953,11 +954,11 @@ export async function submeterNF(nfId: string): Promise<NfActionState> {
   } catch (error) {
     return { success: false, code: 'CHECKLIST_ERROR', message: `Nao foi possivel revalidar os requisitos documentais: ${error instanceof Error ? error.message : 'erro desconhecido'}` }
   }
-  if (checklist.gateLogisticoPreCessao.exigido && checklist.gateLogisticoPreCessao.status === 'INDETERMINADA') {
+  if (checklist.gateLogisticoPreCessao.exigido && !checklist.gateLogisticoPreCessao.permitidoSubmissao) {
     return {
       success: false,
       code: 'LOGISTICA_PRE_CESSAO_PENDENTE',
-      message: 'A politica exige CT-e/DACTE ou Comprovante de Entrega aprovado antes da submissao.',
+      message: 'A politica exige o envio de CT-e/DACTE ou Comprovante de Entrega antes da submissao.',
     }
   }
 
@@ -1190,6 +1191,15 @@ export async function aprovarNF(nfId: string): Promise<NfActionState> {
   }
 
   const nfData = nfAntes as { status: string; numero_nf: string; cedente_id: string }
+  // carregarResumoDocumentalDasNotas so LE documento_requisito_instancias --
+  // nunca reconcilia. Sem isto, aprovar uma NF cujo checklist nunca foi
+  // aberto poderia nao contar requisitos por_parcela (ex.: boleto) ainda
+  // nao instanciados, permitindo ALLOW silencioso.
+  try {
+    await instanciarRequisitosDaNota(nfId, supabase)
+  } catch (error) {
+    return { success: false, message: `Nao foi possivel reconciliar os requisitos documentais da NF: ${error instanceof Error ? error.message : 'erro desconhecido'}` }
+  }
   const checklist = await carregarResumoDocumentalDasNotas(supabase, [nfId])
   const documentos = checklist.avaliacoes.get(nfId)
   if (!documentos) {
@@ -1203,7 +1213,7 @@ export async function aprovarNF(nfId: string): Promise<NfActionState> {
   }
   const gateLogistico = ((gateLogisticoData || []) as Array<{ gate_exigido: boolean; status: string; permitido: boolean }>)[0]
   if (gateLogistico?.gate_exigido && !gateLogistico.permitido) {
-    return { success: false, code: 'LOGISTICA_PRE_CESSAO_PENDENTE', message: 'A politica exige CT-e/DACTE ou Comprovante de Entrega aprovado antes da aprovacao da NF.' }
+    return { success: false, code: 'LOGISTICA_PRE_CESSAO_PENDENTE', message: 'A evidencia logistica obrigatoria ainda nao foi aprovada.' }
   }
   const avaliacaoAprovacao = avaliarElegibilidadeAprovacaoNf({
     status: nfData.status,
@@ -1561,6 +1571,15 @@ export async function aprovarNFsLote(ids: string[]): Promise<NfActionState> {
     }
   } catch (error) {
     return { success: false, code: 'DUPLICATAS_ERROR', message: error instanceof Error ? error.message : 'Nao foi possivel validar as duplicatas do lote.' }
+  }
+
+  // Mesma reconciliacao do caminho individual (aprovarNF): garante que
+  // requisitos por_parcela ja instanciados existam antes do gate avaliar
+  // o lote, evitando ALLOW silencioso para NFs cujo checklist nunca foi aberto.
+  try {
+    await Promise.all(idsUnicos.map((notaFiscalId) => instanciarRequisitosDaNota(notaFiscalId, supabase)))
+  } catch (error) {
+    return { success: false, message: `Nao foi possivel reconciliar os requisitos documentais do lote: ${error instanceof Error ? error.message : 'erro desconhecido'}` }
   }
 
   const documentacao = await carregarResumoDocumentalDasNotas(supabase, idsUnicos)
