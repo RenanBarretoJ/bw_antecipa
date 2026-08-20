@@ -4,12 +4,15 @@
 `P0_CHECKLIST_NF_COM_BOLETO_POR_PARCELA = PASS`.
 `P0_REQUISITOS_DOCUMENTAIS_NF_NAO_CARREGAM = PASS`.
 `P0_GATE_LOGISTICO_STATUS_UI_BOLETO = PASS`.
-`P0_SUBMISSAO_LOGISTICA_NF56 = PASS`** (Fase 3 pendente por decisão
-explícita de sequenciamento — ver seção "Pendências").
+`P0_SUBMISSAO_LOGISTICA_NF56 = PASS`.
+`P0_APROVACAO_LOGISTICA_GESTOR_FONTE_UNIFICADA = PASS`** (Fase 3 pendente
+por decisão explícita de sequenciamento — ver seção "Pendências").
 
 Ambiente: homologação Supabase `fhgkmggthxikfpogrvaa`. Produção
 (`wwsndnuvnjuabpbjwlck`) não foi tocada. Nenhum commit ou push foi
-executado.
+executado neste último P0 (unificação da fonte logística no gate de
+aprovação do Gestor); os P0s anteriores já haviam sido comitados/enviados
+para `homolog` mediante instrução explícita do usuário.
 
 ## Diagnóstico
 
@@ -777,13 +780,16 @@ Duas fontes de verdade independentes para "CT-e anexado": uma alimentava a
 UI, a outra alimentava o gate. Classificação: `GATE_USA_FONTE_DIFERENTE_DA_UI`.
 
 O RPC de aprovação do gestor (`avaliar_gate_logistico_pre_cessao_nfs` →
-`private.classificar_status_logistico_pre_cessao`) tem a **mesma**
-limitação — só junta `evidencias_logisticas_antecipadas`, nunca
+`private.classificar_status_logistico_pre_cessao`) tinha a **mesma**
+limitação — só juntava `evidencias_logisticas_antecipadas`, nunca
 `documento_requisito_instancias`/`documento_versoes` do fluxo regular.
 Confirmado ao vivo: mesmo depois do gestor aprovar o CT-e pelo fluxo
-regular, o RPC de aprovação continua retornando `permitido: false`. Por
-instrução explícita do ticket ("Não alterar: gate de aprovação do
-Gestor"), **este RPC não foi tocado** — ver seção "Riscos".
+regular, o RPC de aprovação continuava retornando `permitido: false`. Por
+instrução explícita deste ticket ("Não alterar: gate de aprovação do
+Gestor"), **este RPC não foi tocado aqui** — ficou registrado como risco
+aberto (ver seção "Riscos") e foi corrigido em ticket próprio subsequente,
+ver seção "P0 — unificação da fonte logística no gate de aprovação do
+Gestor" abaixo.
 
 ### Correção (unifica a fonte, sem duplicar arquivo)
 
@@ -824,10 +830,12 @@ Gestor"), **este RPC não foi tocado** — ver seção "Riscos".
   **8/8 PASS** ao vivo em homologação (transação revertida), reproduzindo o
   cenário exato da NF 56 do zero: upload de CT-e pelo fluxo regular fica
   `em_analise`; `evidencias_logisticas_antecipadas` confirmada vazia (causa
-  raiz reproduzida); gate de aprovação do gestor (RPC inalterado) nega
-  antes da aprovação (regra preservada); e — risco documentado — mesmo após
-  a aprovação real do CT-e, o mesmo RPC de aprovação continua negando, por
-  só reconhecer a evidência antecipada.
+  raiz reproduzida); gate de aprovação do gestor nega antes da aprovação
+  (regra preservada). *Atualizado no P0 subsequente* ("unificação da fonte
+  logística no gate de aprovação do Gestor"): a última verificação deste
+  script foi ajustada para esperar `permitido: true` após a aprovação real
+  do CT-e — o RPC de aprovação já reconhece o fluxo regular, não é mais o
+  risco documentado originalmente.
 - **Regressões reexecutadas ao vivo**: E2E Fase 1 (17/17), E2E Fase 2
   (29/29), P0 requisitos não carregados (10/10), P0 gate
   logístico/status/boleto (9/9). Suíte completa: 162 arquivos / 1205
@@ -836,6 +844,110 @@ Gestor"), **este RPC não foi tocado** — ver seção "Riscos".
 ### Status final
 
 `P0_SUBMISSAO_LOGISTICA_NF56 = PASS`
+
+## P0 — unificação da fonte logística no gate de aprovação do Gestor
+
+**Resultado: `P0_APROVACAO_LOGISTICA_GESTOR_FONTE_UNIFICADA = PASS`.**
+
+### Diagnóstico
+
+Leitura da versão vigente em homologação (confirmada ao vivo, sem
+divergência com a migration `20260806170000_envio_antecipado_documentos_
+logisticos.sql`, única definição existente) de `private.classificar_
+status_logistico_pre_cessao`: a função lia evidência **somente** de
+`evidencias_logisticas_antecipadas` + `evidencia_logistica_versoes`
+(join com `documento_versoes`/`documento_analises` para achar a versão
+vigente aprovada). Nunca lia `documento_requisito_instancias` — a mesma
+divergência de fonte já corrigida no gate de submissão (TypeScript,
+`evidenciasDoChecklistRegular`), mas agora no lado SQL do gate de
+**aprovação** do gestor (`avaliar_gate_logistico_pre_cessao_nfs`, que só
+chama a função acima — não precisou de alteração própria).
+
+Classificação: `APPROVAL_GATE_SOURCE_DIVERGENCE`.
+
+### Correção (uma migration, sem duplicar Storage nem tabela)
+
+- Nova migration `supabase/migrations/20260820100000_p0_gate_aprovacao_
+  logistica_fonte_unificada.sql`: redefine (`CREATE OR REPLACE`)
+  exclusivamente `private.classificar_status_logistico_pre_cessao`.
+  Mesma assinatura, mesmo contrato de retorno (`status`,
+  `familia_vencedora`, `documento_id`, `documento_versao_id`,
+  `documento_analise_id`, `analisado_por`, `analisado_em`, `fundamento`,
+  `regra_classificacao`, `versao_resolvedor`), mesma regra OR
+  (Comprovante de Entrega tem prioridade sobre CT-e) e mesmo critério de
+  vitória (aprovado, mais recente por `analisado_em`/`enviado_em`/
+  `created_at`).
+- A única mudança: a fonte de evidência agora é um `UNION ALL` de (1)
+  `evidencias_logisticas_antecipadas` (comportamento anterior, inalterado
+  — cobre o "envio antecipado" de um requisito oficial `pos_cessao`/
+  `entrega`) com (2) `documento_requisito_instancias` +
+  `politica_requisitos_documentais` (nova) filtrando por
+  `escopo_snapshot = 'nf_pre_cessao'` e `familia_documental IN ('cte',
+  'comprovante_entrega')` — o equivalente SQL exato de
+  `evidenciasDoChecklistRegular`. Ambas as fontes exigem
+  `documento_versoes.status = 'aprovado' OR documento_analises.resultado
+  = 'aprovado'` antes de entrar na disputa pelo "vencedor".
+- `avaliar_gate_logistico_pre_cessao_nfs` (RPC pública, chamada pelo
+  Gestor) **não foi alterada** — ela só invoca a função corrigida, então
+  o fix se propaga automaticamente sem tocar em GRANT/REVOKE, RLS ou
+  validação multifundo já existentes.
+- Sem duplicação: nenhuma segunda linha física de evidência, nenhum novo
+  upload, nenhuma tabela nova — apenas amplia a origem dos dados já
+  existentes que a classificação já lia.
+- Migration aplicada em homologação (`fhgkmggthxikfpogrvaa`) via
+  `node scripts/homologacao/p0-aprovacao-logistica-gestor/apply-migration.mjs`
+  (mesmo padrão de `supabase migration up --db-url` dos P0s anteriores).
+  Produção não foi tocada.
+
+### Invariantes verificados (A–H do ticket)
+
+| Cenário | Esperado | Resultado ao vivo |
+| --- | --- | --- |
+| A. CT-e regular aguardando análise | DENY | `permitido=false`, `INDETERMINADA` |
+| B. CT-e regular aprovado | ALLOW | `permitido=true`, `EM_TRANSITO` |
+| C. Comprovante regular aprovado, sem CT-e | ALLOW | `permitido=true`, `ENTREGUE` |
+| D. Evidência antecipada aprovada (regressão) | ALLOW | `permitido=true`, `EM_TRANSITO` |
+| E. CT-e regular rejeitado | DENY | `permitido=false`, `INDETERMINADA` |
+| F. CT-e regular rejeitado + reenvio aprovado | ALLOW (versão vigente) | `permitido=true`, `EM_TRANSITO` |
+| G. Nenhuma evidência | DENY | `permitido=false`, `INDETERMINADA` |
+| H. Cross-fund (gestor de outro fundo) | DENY (exceção) | `Gestor sem acesso ao fundo da NF` |
+
+Consistência (9–10 do ticket): o gate TypeScript de submissão (evidência
+vigente basta — `enviado`/`em_analise`/`aprovado`, já testado
+unitariamente em `evidencias-logisticas.test.ts`) e o gate SQL de
+aprovação aqui corrigido (exige `aprovado`) leem a **mesma fonte
+combinada** para o Cenário A (CT-e `em_analise`), mas com critérios
+diferentes: submissão permite, aprovação nega — comportamento correto e
+intencional, não uma divergência residual. Nenhuma segunda linha em
+`evidencias_logisticas_antecipadas` foi criada para evidência do
+checklist regular (verificado por contagem direta).
+
+### Testes
+
+- **Live E2E** — `scripts/homologacao/p0-aprovacao-logistica-gestor/e2e.mjs`,
+  **12/12 PASS** ao vivo em homologação (transação revertida): cobre os 8
+  cenários A–H acima mais 4 checagens complementares (catálogo de tipos,
+  requisito de CT-e permanece pendente sem bloquear a Comprovante-only,
+  ausência de evidência antecipada duplicada em dois pontos distintos do
+  fluxo).
+- `scripts/homologacao/p0-submissao-logistica-nf56/e2e.mjs` atualizado
+  (última asserção agora espera `permitido: true`/`EM_TRANSITO` — o risco
+  documentado no P0 anterior está corrigido) e reexecutado: **8/8 PASS**.
+- **Regressões reexecutadas ao vivo**: P0 gate logístico/status/boleto
+  (9/9), E2E Fase 1 (17/17), E2E Fase 2 (29/29).
+- Suíte automatizada (`npx vitest run`): **162 arquivos / 1205 testes, 0
+  falhas** — nenhum teste novo necessário (a correção é inteiramente SQL;
+  a lógica TypeScript `evidenciasDoChecklistRegular`/
+  `avaliarSubmissaoLogisticaPreCessao` já tinha cobertura unitária
+  exaustiva e não foi alterada).
+- `npx tsc --noEmit`: limpo. `npx eslint .`: mesmos 6 warnings
+  pré-existentes e não relacionados (variáveis não usadas em arquivos não
+  tocados). `npm run build`: sucesso. `npm audit --omit=dev`: 0
+  vulnerabilidades. `git diff --check`: limpo.
+
+### Status final
+
+`P0_APROVACAO_LOGISTICA_GESTOR_FONTE_UNIFICADA = PASS`
 
 ## Riscos
 
@@ -887,20 +999,17 @@ Gestor"), **este RPC não foi tocado** — ver seção "Riscos".
    boletos" (ver seção correspondente): `avaliarElegibilidadeDocumentalDaNota`
    tinha exatamente esse colapso e agora exige todas as instâncias por
    parcela aprovadas.
-8. **O RPC de aprovação logística do gestor
+8. ~~O RPC de aprovação logística do gestor
    (`avaliar_gate_logistico_pre_cessao_nfs` →
    `private.classificar_status_logistico_pre_cessao`) tem a mesma
    divergência de fonte corrigida neste P0 para a submissão, mas não foi
-   tocado aqui por instrução explícita do ticket** ("Não alterar: gate de
-   aprovação do Gestor"). Confirmado ao vivo
-   (`scripts/homologacao/p0-submissao-logistica-nf56/e2e.mjs`): mesmo após
-   o gestor aprovar um CT-e enviado pelo fluxo regular do checklist, esse
-   RPC continua retornando `permitido: false`, porque só reconhece
-   evidência em `evidencias_logisticas_antecipadas`. Um gestor tentando
-   aprovar uma NF cujo CT-e/comprovante foi enviado pelo fluxo regular
-   (não pelo "envio antecipado") ficaria bloqueado mesmo após aprovar o
-   documento. Requer um P0 próprio para unificar a fonte também nesse RPC
-   (mesma lógica de `evidenciasDoChecklistRegular`, portada para SQL).
+   tocado aqui por instrução explícita do ticket~~ — **corrigido** no P0
+   "unificação da fonte logística no gate de aprovação do Gestor" (ver
+   seção correspondente): a função SQL passou a combinar
+   `evidencias_logisticas_antecipadas` com `documento_requisito_
+   instancias`/`documento_versoes` do fluxo regular (mesma semântica de
+   `evidenciasDoChecklistRegular`, portada para SQL), sem alterar a RPC
+   pública nem duplicar Storage/tabela.
 
 ## Pendências (próximo checkpoint, por decisão do usuário)
 

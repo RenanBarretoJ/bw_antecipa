@@ -10,6 +10,12 @@
 // este script confirma que o RPC real produz exatamente a divergencia de
 // dados que motivou o ticket, e que a NF permanece elegivel para
 // submissao assim que o CT-e esta anexado (sem exigir aprovacao).
+//
+// O gate de APROVACAO do gestor (avaliar_gate_logistico_pre_cessao_nfs)
+// tinha a mesma divergencia de fonte; foi corrigido em P0 posterior
+// (unificacao da fonte logistica no gate de aprovacao -- ver
+// scripts/homologacao/p0-aprovacao-logistica-gestor/e2e.mjs), por isso a
+// ultima verificacao abaixo agora espera ALLOW, nao mais o DENY original.
 
 import { randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
@@ -113,8 +119,8 @@ try {
 
   const gateDepoisDaAprovacao = (await db.query(`select public.avaliar_gate_logistico_pre_cessao_nfs($1) resultado`, [[nf]])).rows[0].resultado
   const gateAprovacao2 = gateDepoisDaAprovacao[0]
-  ok('Risco documentado (fora do escopo deste ticket, "nao alterar gate de aprovacao do Gestor"): mesmo com o CT-e aprovado pelo fluxo regular, o gate de APROVACAO (RPC) continua DENY -- ele so reconhece evidencias_logisticas_antecipadas, nunca o fluxo regular', (
-    gateAprovacao2.permitido === false
+  ok('Corrigido em P0 posterior (unificacao da fonte logistica no gate de APROVACAO): CT-e aprovado pelo fluxo regular agora libera a aprovacao (permitido=true, EM_TRANSITO) -- private.classificar_status_logistico_pre_cessao passou a reconhecer tambem o checklist regular, nao apenas evidencias_logisticas_antecipadas', (
+    gateAprovacao2.permitido === true && gateAprovacao2.status === 'EM_TRANSITO'
   ), JSON.stringify(gateAprovacao2))
 
   await db.query('RESET ROLE')
