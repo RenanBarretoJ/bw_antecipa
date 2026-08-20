@@ -6,6 +6,10 @@ const migracaoBoleto = readFileSync('supabase/migrations/20260819220000_fase1_bo
 const parser = readFileSync('src/lib/nf-parser.ts', 'utf8')
 const documentoV2 = readFileSync('src/lib/actions/documento-v2.ts', 'utf8')
 const notaFiscalAction = readFileSync('src/lib/actions/nota-fiscal.ts', 'utf8')
+const parcelasNfAction = readFileSync('src/lib/actions/parcelas-nf.ts', 'utf8')
+const checklistCedente = readFileSync('src/components/documentos-v2/ChecklistCedente.tsx', 'utf8')
+const paginaCedenteNf = readFileSync('src/app/cedente/notas-fiscais/[id]/page.tsx', 'utf8')
+const paginaGestorNf = readFileSync('src/app/gestor/notas-fiscais/[id]/page.tsx', 'utf8')
 
 describe('Fase 1 (Parcelas de NF): modelo canonico + parser + tolerancia', () => {
   it('cria nota_fiscal_parcelas com as garantias exigidas (unique, valor>0, vencimento obrigatorio)', () => {
@@ -79,5 +83,27 @@ describe('Fase 1 (Boleto por parcela): catalogo, cardinalidade e motor reaprovei
 
   it('checklist geral (nao por parcela) exclui requisitos com parcela_id, evitando itens sem rotulo de parcela', () => {
     expect(documentoV2).toContain(".is('parcela_id', null)")
+  })
+})
+
+describe('P0 (correcao): Boleto dentro do card "Documentos pre-cessao", sem card dominante separado', () => {
+  it('ParcelasBoletosNota nao e mais renderizado como card independente nas paginas da NF', () => {
+    expect(paginaCedenteNf).not.toContain('ParcelasBoletosNota')
+    expect(paginaGestorNf).not.toContain('ParcelasBoletosNota')
+  })
+
+  it('ChecklistCedente (usado por cedente e gestor) renderiza o item de Boleto dentro do mesmo bloco de "Documentos pre-cessao"', () => {
+    const secaoPreCessao = checklistCedente.slice(
+      checklistCedente.indexOf('Documentos pré-cessão'),
+      checklistCedente.indexOf('logisticaAntecipada.length > 0'),
+    )
+    expect(secaoPreCessao).toContain('checklist.preCessao.map')
+    expect(secaoPreCessao).toContain('<ParcelasBoletosNota')
+  })
+
+  it('listarParcelasBoletosDaNota constroi itens a partir das instancias reais de requisito, nao de todas as parcelas da NF', () => {
+    expect(parcelasNfAction).not.toContain('parcelasRows.map((parcela) => {')
+    expect(parcelasNfAction).toContain('requisitosRows')
+    expect(parcelasNfAction).toContain('if (requisitosRows.length === 0) return { success: true, message:')
   })
 })

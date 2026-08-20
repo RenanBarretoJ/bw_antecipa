@@ -91,6 +91,27 @@
     "testes_unitarios_novos": "4 testes novos em elegibilidade-documental.test.ts cobrindo a filtragem por parcela selecionada (17 testes no arquivo, todos PASS)",
     "suite_local": "161 arquivos / 1153 testes vitest passando, nenhum removido"
   },
+  "p0_checklist_nf_boleto_por_parcela_corrigido": {
+    "titulo": "P0: composicao documental da NF com boleto por parcela",
+    "causa_raiz": "UI_REPLACEMENT (card separado 'Parcelas/Boletos' dominando visualmente a tela, dando a impressao de que os documentos normais desapareceram) + OUTRO (listarParcelasBoletosDaNota construia itens a partir de TODAS as parcelas da NF, nao das instancias reais de requisito de boleto -- para NF com parcelas cuja politica nao exige boleto, a tela mostrava boletos ficticios 'Aguardando envio' que nunca foram exigidos).",
+    "diagnostico_ao_vivo_em_homolog": "2 NFs reais persistidas com parcelas (7 linhas em nota_fiscal_parcelas), ambas com boleto exigido pela politica -- confirmado que documentos por_nf (nf_xml, nf_danfe_pdf, cte) tem exatamente 1 instancia cada com parcela_id NULL, e boleto tem exatamente 1 instancia por parcela -- fan-out do backend correto, sem INSTANCE_FANOUT_REGRESSION/WRONG_PARCELA_ID/QUERY_FILTER_REGRESSION.",
+    "correcao": [
+      "src/lib/actions/parcelas-nf.ts: listarParcelasBoletosDaNota agora constroi itens a partir de documento_requisito_instancias reais, nao de nota_fiscal_parcelas -- NF com parcelas e politica sem boleto retorna lista vazia",
+      "src/components/documentos-v2/ParcelasBoletosNota.tsx: deixou de ser um card <section> independente e passou a ser um item expansivel (<article>, estilo RequirementCard) com cabecalho 'Boleto | Obrigatorio/Opcional | X/Y aprovados'",
+      "src/components/documentos-v2/ChecklistCedente.tsx: o item de Boleto e renderizado dentro da mesma secao 'Documentos pre-cessao', apos os RequirementCards dos documentos por_nf (cobre cedente e gestor, ja que ChecklistGestor delega para este componente)",
+      "src/app/cedente/notas-fiscais/[id]/page.tsx e src/app/gestor/notas-fiscais/[id]/page.tsx: removida a renderizacao separada de ParcelasBoletosNota"
+    ],
+    "testes_novos": [
+      "src/lib/actions/parcelas-nf.test.ts (3 testes): NF com parcelas + politica sem boleto = lista vazia; NF com parcelas + politica com boleto = 1 item por parcela; NF sem parcelas = lista vazia",
+      "src/lib/documentos/parcelas-nf-boleto-architecture.test.ts (3 testes novos): ParcelasBoletosNota nao e mais card independente nas paginas; item de Boleto dentro do bloco Documentos pre-cessao; listarParcelasBoletosDaNota usa instancias reais"
+    ],
+    "regressoes_reexecutadas": {
+      "e2e_fase1_homolog": "17/17 PASS (ao vivo, transacao revertida)",
+      "e2e_fase2_homolog": "29/29 PASS (ao vivo, transacao revertida)",
+      "suite_local": "162 arquivos / 1159 testes vitest passando, nenhum removido"
+    },
+    "resultado": "P0_CHECKLIST_NF_COM_BOLETO_POR_PARCELA = PASS"
+  },
   "nao_executado_nesta_fase": [
     "E2E de browser automatizado (sem harness de teste de browser no projeto)",
     "Fase 3 (CNAB, liquidacao, conciliacao, exposicao, estoque por parcela)"

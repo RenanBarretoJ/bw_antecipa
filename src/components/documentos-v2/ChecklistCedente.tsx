@@ -13,6 +13,7 @@ import { comunicarPostergacaoUploadCanhoto } from '@/lib/actions/postergacao-can
 import { validarNovaPrevisaoCanhoto, type StatusPrazoUploadCanhoto } from '@/lib/logistica/postergacao-canhoto'
 import { AlertTriangle, CalendarClock, CheckCircle, ChevronDown, ChevronUp, Clock, Eye, FileText, Loader2, MoreVertical, ShieldAlert, Truck, Upload, XCircle } from 'lucide-react'
 import { DocumentDropzone } from './DocumentDropzone'
+import { ParcelasBoletosNota } from './ParcelasBoletosNota'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -726,6 +727,7 @@ export function ChecklistCedente({
             {checklist.preCessao.map((item) => (
               <RequirementCard key={item.id} item={item} notaFiscalId={notaFiscalId} mode={mode} sending={sending} processing={processing} onUpload={upload} onDownload={download} onAnalyze={analyze} />
             ))}
+            <ParcelasBoletosNota notaFiscalId={notaFiscalId} mode={mode} />
           </div>
         )}
       </section>

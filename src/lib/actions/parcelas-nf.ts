@@ -21,7 +21,8 @@ function falha<T = unknown>(error: unknown, fallback: string): ParcelaActionResu
 
 export interface ParcelaBoletoItem {
   parcela: NotaFiscalParcela
-  requisitoId: string | null
+  requisitoId: string
+  obrigatorio: boolean
   status: string
   documentoVersaoId: string | null
   nomeArquivo: string | null
@@ -47,14 +48,20 @@ export async function listarParcelasBoletosDaNota(notaFiscalId: string): Promise
 
     const { data: requisitos, error: requisitosError } = await supabase
       .from('documento_requisito_instancias')
-      .select('id, parcela_id, status, documento_id, tipo_documento_codigo_snapshot')
+      .select('id, parcela_id, obrigatorio, status, documento_id, tipo_documento_codigo_snapshot')
       .eq('nota_fiscal_id', notaFiscalId)
       .eq('tipo_documento_codigo_snapshot', 'boleto')
       .not('parcela_id', 'is', null)
     if (requisitosError) throw new Error(`Nao foi possivel carregar os requisitos de boleto: ${requisitosError.message}`)
 
-    type RequisitoRow = { id: string; parcela_id: string; status: string; documento_id: string | null }
+    // So existe requisito de boleto quando a politica da NF realmente exige
+    // boleto (instanciar_requisitos_nota so cria a instancia nesse caso).
+    // Uma NF com parcelas mas sem boleto na politica nao deve gerar nenhum
+    // item aqui -- por isso o resultado e construido a partir das
+    // instancias reais, nao de todas as parcelas da NF.
+    type RequisitoRow = { id: string; parcela_id: string; obrigatorio: boolean; status: string; documento_id: string | null }
     const requisitosRows = (requisitos || []) as RequisitoRow[]
+    if (requisitosRows.length === 0) return { success: true, message: 'Politica desta NF nao exige boleto.', data: [] }
     const documentoIds = requisitosRows.map((r) => r.documento_id).filter((id): id is string => Boolean(id))
 
     const { data: versoes, error: versoesError } = documentoIds.length
@@ -82,23 +89,28 @@ export async function listarParcelasBoletosDaNota(notaFiscalId: string): Promise
     type AnaliseRow = { documento_versao_id: string; observacoes: string | null }
     const analisesRows = (analises || []) as AnaliseRow[]
 
-    const items: ParcelaBoletoItem[] = parcelasRows.map((parcela) => {
-      const requisito = requisitosRows.find((r) => r.parcela_id === parcela.id) || null
-      const versaoAtual = requisito?.documento_id
-        ? versoesRows.find((v) => v.documento_id === requisito.documento_id) || null
-        : null
-      const ultimaAnalise = versaoAtual ? analisesRows.find((a) => a.documento_versao_id === versaoAtual.id) || null : null
-      return {
-        parcela,
-        requisitoId: requisito?.id ?? null,
-        status: requisito?.status ?? 'pendente',
-        documentoVersaoId: versaoAtual?.id ?? null,
-        nomeArquivo: versaoAtual?.nome_original ?? null,
-        numeroVersao: versaoAtual?.numero_versao ?? null,
-        motivo: ultimaAnalise?.observacoes ?? null,
-        beneficiarioEstabelecimentoId: versaoAtual?.beneficiario_estabelecimento_id ?? null,
-      }
-    })
+    const items: ParcelaBoletoItem[] = requisitosRows
+      .map((requisito) => {
+        const parcela = parcelasRows.find((p) => p.id === requisito.parcela_id)
+        if (!parcela) return null
+        const versaoAtual = requisito.documento_id
+          ? versoesRows.find((v) => v.documento_id === requisito.documento_id) || null
+          : null
+        const ultimaAnalise = versaoAtual ? analisesRows.find((a) => a.documento_versao_id === versaoAtual.id) || null : null
+        return {
+          parcela,
+          requisitoId: requisito.id,
+          obrigatorio: requisito.obrigatorio,
+          status: requisito.status,
+          documentoVersaoId: versaoAtual?.id ?? null,
+          nomeArquivo: versaoAtual?.nome_original ?? null,
+          numeroVersao: versaoAtual?.numero_versao ?? null,
+          motivo: ultimaAnalise?.observacoes ?? null,
+          beneficiarioEstabelecimentoId: versaoAtual?.beneficiario_estabelecimento_id ?? null,
+        }
+      })
+      .filter((item): item is ParcelaBoletoItem => item !== null)
+      .sort((a, b) => a.parcela.numero_parcela - b.parcela.numero_parcela)
 
     return { success: true, message: 'Parcelas carregadas.', data: items }
   } catch (error) {

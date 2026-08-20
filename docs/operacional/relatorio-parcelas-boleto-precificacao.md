@@ -1,7 +1,8 @@
 # Relatório — Parcelas de NF + Boleto por Parcela + Precificação por Vencimento
 
-**Resultado da Fase 1: `PASS`. Resultado da Fase 2: `PASS`** (Fase 3 pendente
-por decisão explícita de sequenciamento — ver seção "Pendências").
+**Resultado da Fase 1: `PASS`. Resultado da Fase 2: `PASS`.
+`P0_CHECKLIST_NF_COM_BOLETO_POR_PARCELA = PASS`** (Fase 3 pendente por
+decisão explícita de sequenciamento — ver seção "Pendências").
 
 Ambiente: homologação Supabase `fhgkmggthxikfpogrvaa`. Produção
 (`wwsndnuvnjuabpbjwlck`) não foi tocada. Nenhum commit ou push foi
@@ -298,6 +299,115 @@ arquivo, todos PASS). Suíte completa: 161 arquivos / 1153 testes passando,
 - `npx next build --webpack`: build de produção concluído com sucesso.
 - `npm audit --omit=dev`: 0 vulnerabilidades.
 - Varredura manual de segredos: nenhum encontrado.
+
+## P0 — composição documental da NF com boleto por parcela
+
+**Resultado: `PASS`.**
+
+### Causa raiz
+
+Diagnóstico feito lendo o estado real de homologação (não apenas o
+código): existem hoje 2 NFs reais com parcelas persistidas (`nota_fiscal_parcelas`,
+7 linhas no total) e ambas pertencem a políticas **com** boleto — o
+fan-out de `instanciar_requisitos_nota` (Fase 1) está correto: `boleto`
+só gera 1 instância por parcela quando a política realmente o exige, e
+os documentos `por_nf` (`nf_xml`, `nf_danfe_pdf`, `cte`) sempre recebem
+sua própria instância com `parcela_id IS NULL`, independentemente de a
+NF ter parcelas. Confirmado ao vivo por query direta: as duas NFs reais
+têm exatamente 1 instância de `nf_xml`/`nf_danfe_pdf`/`cte` (`parcela_id`
+null) e N instâncias de `boleto` (uma por parcela) — sem nenhuma
+instância `por_nf` perdida ou reatribuída à parcela errada. Isso descarta
+`INSTANCE_FANOUT_REGRESSION`, `WRONG_PARCELA_ID` e
+`QUERY_FILTER_REGRESSION`.
+
+A causa raiz real tem duas partes, ambas confirmadas por leitura de
+código (`src/lib/actions/parcelas-nf.ts` e as duas páginas de detalhe da
+NF antes da correção):
+
+1. **`UI_REPLACEMENT`**: `ChecklistCedente`/`ChecklistGestor` (documentos
+   `por_nf`) e `ParcelasBoletosNota` (boleto por parcela) eram renderizados
+   como **dois cards separados**, um abaixo do outro, nas páginas de
+   detalhe da NF (`src/app/cedente/notas-fiscais/[id]/page.tsx` e o
+   equivalente do gestor). O checklist de documentos normais continuava
+   correto tecnicamente, mas o card de "Parcelas / Boletos" — maior, com
+   uma linha por parcela repetindo vencimento/valor/status — dominava
+   visualmente a tela, dando a impressão de que os documentos normais
+   "desapareceram".
+2. **`OUTRO` (bug real, não apenas visual)**: `listarParcelasBoletosDaNota`
+   construía a lista de itens a partir de **todas as parcelas da NF**
+   (`parcelasRows.map(...)`), não a partir das instâncias reais de
+   requisito de boleto. Para qualquer NF com parcelas cuja política **não**
+   exige boleto, a função ainda retornava N itens com status "Aguardando
+   envio" — um boleto fictício, nunca exigido pela política, aparecendo
+   como pendência. Isso viola diretamente a regra 2 do ticket ("política
+   sem boleto → nenhum requisito deve ser criado e boleto não bloqueia") no
+   nível de exibição: nada era bloqueado de fato (a elegibilidade real usa
+   `documento_requisito_instancias`, que corretamente não tem nenhuma linha
+   de boleto nesse caso), mas a tela mentia sobre haver uma pendência.
+   Não reproduzido com os 2 NFs reais existentes (ambos têm boleto na
+   política), mas confirmado por leitura direta do código e coberto por
+   teste novo (`src/lib/actions/parcelas-nf.test.ts`).
+
+### Correção
+
+- `src/lib/actions/parcelas-nf.ts` — `listarParcelasBoletosDaNota` agora
+  constrói os itens a partir de `documento_requisito_instancias` (as
+  instâncias reais de boleto), não de `nota_fiscal_parcelas`. Uma NF com
+  parcelas mas sem boleto na política retorna lista vazia. Adicionado
+  `obrigatorio` ao retorno (usado no cabeçalho do item agrupado).
+- `src/components/documentos-v2/ParcelasBoletosNota.tsx` — deixou de ser
+  um `<section>` com header próprio (card independente) e passou a ser um
+  `<article>` no mesmo estilo visual de `RequirementCard` (expansível,
+  cabeçalho "Boleto | Obrigatório/Opcional | X/Y aprovados"), pronto para
+  ser embutido como mais um item da lista de requisitos pré-cessão.
+- `src/components/documentos-v2/ChecklistCedente.tsx` — o item de Boleto
+  agora é renderizado **dentro** da seção "Documentos pré-cessão", logo
+  após os `RequirementCard`s dos documentos `por_nf`, no mesmo `<div
+  className="space-y-2">`. Como `ChecklistGestor` é um wrapper fino sobre
+  este mesmo componente (`mode="gestor"`), a correção cobre os dois
+  portais com uma única mudança.
+- `src/app/cedente/notas-fiscais/[id]/page.tsx` e
+  `src/app/gestor/notas-fiscais/[id]/page.tsx` — removida a renderização
+  separada de `<ParcelasBoletosNota />` (e o import correspondente); o
+  componente só é usado agora de dentro do checklist.
+- A seção logística (`logisticaAntecipada`/`posCessao`/entrega) não foi
+  tocada — continua separada, exatamente como pedido na regra 6.
+
+### Comportamento resultante
+
+- **Política sem boleto, NF com parcelas**: parcelas financeiras continuam
+  existindo normalmente; nenhum item de boleto aparece no checklist (nem
+  fictício); elegibilidade nunca é bloqueada por boleto.
+- **Política com boleto obrigatório, NF com parcelas**: XML/DANFE/CT-e
+  continuam aparecendo normalmente no mesmo card; um único item adicional
+  "Boleto | Obrigatório | X/Y aprovados" aparece expansível, abrindo para
+  as linhas por parcela (número, vencimento, valor, status, ações de
+  envio/análise) — nada desaparece, nada duplica.
+- **Política com boleto opcional**: mesmo comportamento, com o selo
+  "Opcional" no cabeçalho do item; ausência não bloqueia.
+
+### Testes
+
+- `src/lib/actions/parcelas-nf.test.ts` (novo, 3 testes): NF com parcelas e
+  política sem boleto → lista vazia (regressão do bug real corrigido); NF
+  com parcelas e política com boleto → 1 item por parcela com dados
+  corretos; NF sem parcelas → lista vazia sem consultar requisitos.
+- `src/lib/documentos/parcelas-nf-boleto-architecture.test.ts` (3 testes
+  novos): `ParcelasBoletosNota` não é mais renderizado como card
+  independente nas páginas da NF; o item de Boleto é renderizado dentro do
+  mesmo bloco "Documentos pré-cessão" do `ChecklistCedente`;
+  `listarParcelasBoletosDaNota` constrói itens a partir das instâncias
+  reais, não de todas as parcelas.
+- **Regressões**: E2E Fase 1 reexecutado ao vivo em homologação — 17/17
+  PASS; E2E Fase 2 reexecutado ao vivo — 29/29 PASS. Nenhuma das duas
+  suítes foi alterada nem quebrou com esta correção (ambas testam a
+  camada de banco/RPC, que não foi tocada neste P0 — a correção é
+  inteiramente na camada de apresentação/carregamento). Suíte completa:
+  162 arquivos / 1159 testes, 0 falhas, nenhum teste removido.
+
+### Status final
+
+`P0_CHECKLIST_NF_COM_BOLETO_POR_PARCELA = PASS`
 
 ## Riscos
 

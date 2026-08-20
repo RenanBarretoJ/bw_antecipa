@@ -24,7 +24,6 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ChecklistGestor } from '@/components/documentos-v2/ChecklistGestor'
-import { ParcelasBoletosNota } from '@/components/documentos-v2/ParcelasBoletosNota'
 import { useNotifications } from '@/components/notifications/notification-provider'
 import { ArquivoOriginalCompacto } from '@/components/notas-fiscais/ArquivoOriginalCompacto'
 import { useFundoAtivo } from '@/components/fundos/fundo-ativo-provider'
@@ -373,8 +372,6 @@ export default function NfDetalheGestorPage() {
       )}
 
       <ChecklistGestor notaFiscalId={nfId} />
-
-      <ParcelasBoletosNota notaFiscalId={nfId} mode="gestor" />
 
       <DuplicatasDaNota notaFiscalId={nfId} mode="gestor" />
 
