@@ -31,6 +31,7 @@ import {
 import {
   avaliarSubmissaoLogisticaPreCessao,
   classificarStatusLogisticoPreCessao,
+  evidenciasDoChecklistRegular,
   resolverFamiliaDocumentalLogistica,
   type FamiliaDocumentalLogistica,
   type StatusLogisticoPreCessao,
@@ -580,7 +581,7 @@ async function carregarChecklist(notaFiscalId: string): Promise<ChecklistDocumen
       }
     })
 
-  const evidenciasLogisticas = evidenceHistory.flatMap((history) => {
+  const evidenciasAntecipadas = evidenceHistory.flatMap((history) => {
     const evidence = evidences.find((item) => item.id === history.evidencia_logistica_id)
     if (!evidence) return []
     const version = versions.find((item) => item.id === history.documento_versao_id)
@@ -596,6 +597,7 @@ async function carregarChecklist(notaFiscalId: string): Promise<ChecklistDocumen
       criadoEm: history.created_at,
     }]
   })
+  const evidenciasLogisticas = [...evidenciasAntecipadas, ...evidenciasDoChecklistRegular(items)]
   const classificacaoLogistica = classificarStatusLogisticoPreCessao(evidenciasLogisticas)
   const snapshotGate = operation?.politica_snapshot?.exigir_status_logistico_pre_cessao
   const gateLogisticoExigido = typeof snapshotGate === 'boolean'

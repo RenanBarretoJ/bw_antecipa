@@ -247,3 +247,25 @@ describe('P0 (correcao): gate logistico submissao vs aprovacao, status real do b
     expect(parcelasBoletosNota).toContain('md:grid')
   })
 })
+
+describe('P0 (correcao): submissao divergia do checklist -- CT-e do fluxo regular nao era reconhecido como evidencia logistica', () => {
+  // NF-56 real: CT-e anexado e "Aguardando analise" no checklist normal
+  // (documento_requisito_instancias/documento_versoes), mas o gate
+  // logistico (display + submissao) so lia evidencias_logisticas_antecipadas
+  // -- fonte separada, nunca populada quando o upload usa o fluxo regular.
+  it('documento-v2.ts combina evidencias antecipadas com as do checklist regular antes de classificar/avaliar o gate', () => {
+    expect(documentoV2).toContain('evidenciasDoChecklistRegular(items)')
+    expect(documentoV2).toContain('[...evidenciasAntecipadas, ...evidenciasDoChecklistRegular(items)]')
+    const indiceCombinacao = documentoV2.indexOf('const evidenciasLogisticas = [...evidenciasAntecipadas')
+    const indiceClassificacao = documentoV2.indexOf('const classificacaoLogistica = classificarStatusLogisticoPreCessao(evidenciasLogisticas)')
+    const indiceGate = documentoV2.indexOf('const gateLogisticoPermitidoSubmissao = avaliarSubmissaoLogisticaPreCessao(')
+    expect(indiceCombinacao).toBeGreaterThan(-1)
+    expect(indiceCombinacao).toBeLessThan(indiceClassificacao)
+    expect(indiceClassificacao).toBeLessThan(indiceGate)
+  })
+
+  it('evidenciasDoChecklistRegular so considera CT-e/Comprovante com escopo nf_pre_cessao (nao duplica arquivo, nao inventa fonte nova)', () => {
+    expect(evidenciasLogisticas).toContain("item.escopo === 'nf_pre_cessao'")
+    expect(evidenciasLogisticas).toContain("item.familiaDocumental === 'cte' || item.familiaDocumental === 'comprovante_entrega'")
+  })
+})

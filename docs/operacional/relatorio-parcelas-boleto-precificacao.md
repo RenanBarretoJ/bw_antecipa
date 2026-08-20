@@ -3,7 +3,8 @@
 **Resultado da Fase 1: `PASS`. Resultado da Fase 2: `PASS`.
 `P0_CHECKLIST_NF_COM_BOLETO_POR_PARCELA = PASS`.
 `P0_REQUISITOS_DOCUMENTAIS_NF_NAO_CARREGAM = PASS`.
-`P0_GATE_LOGISTICO_STATUS_UI_BOLETO = PASS`** (Fase 3 pendente por decisão
+`P0_GATE_LOGISTICO_STATUS_UI_BOLETO = PASS`.
+`P0_SUBMISSAO_LOGISTICA_NF56 = PASS`** (Fase 3 pendente por decisão
 explícita de sequenciamento — ver seção "Pendências").
 
 Ambiente: homologação Supabase `fhgkmggthxikfpogrvaa`. Produção
@@ -745,6 +746,97 @@ duplicada); nenhuma RPC nova foi criada; nenhum `GRANT` foi alterado.
 
 `P0_GATE_LOGISTICO_STATUS_UI_BOLETO = PASS`
 
+## P0 — divergência entre checklist e gate logístico de submissão
+
+**Resultado: `PASS`.**
+
+### Causa raiz real (confirmada com a NF 56)
+
+Diagnóstico ponta a ponta na NF 56 real: o CT-e estava anexado e "Aguardando
+análise" — `documento_requisito_instancias` tinha a instância `cte`
+(escopo `nf_pre_cessao`) com `documento_id` preenchido, e sua
+`documento_versoes` mais recente tinha `status = 'em_analise'`. Ou seja, o
+CT-e estava genuinamente enviado pelo **fluxo regular** do checklist
+(`registrar_documento_upload`, o mesmo motor de XML/DANFE/boleto). Ao
+mesmo tempo, `evidencias_logisticas_antecipadas` para essa NF estava
+**vazia** — confirmado por query direta.
+
+`avaliarSubmissaoLogisticaPreCessao` (corrigida no P0 anterior) e
+`classificarStatusLogisticoPreCessao` (rótulo de exibição) só recebiam
+evidência construída a partir de `evidencia_logistica_versoes` /
+`evidencias_logisticas_antecipadas` — a tabela do mecanismo de **"envio
+antecipado"** (`uploadDocumentoLogisticoAntecipado` /
+`registrar_documento_logistico_antecipado`), pensado para permitir enviar
+CT-e/comprovante **antes** de existirem como requisito formal
+`nf_pre_cessao` na política. Quando a política **já** define CT-e como
+requisito `nf_pre_cessao` regular (caso da NF 56) e o cedente o envia pelo
+card normal "Documentos pré-cessão", nenhuma linha é criada em
+`evidencias_logisticas_antecipadas` — o CT-e simplesmente não existe para
+o gate, apesar de existir e aparecer corretamente para a UI do checklist.
+Duas fontes de verdade independentes para "CT-e anexado": uma alimentava a
+UI, a outra alimentava o gate. Classificação: `GATE_USA_FONTE_DIFERENTE_DA_UI`.
+
+O RPC de aprovação do gestor (`avaliar_gate_logistico_pre_cessao_nfs` →
+`private.classificar_status_logistico_pre_cessao`) tem a **mesma**
+limitação — só junta `evidencias_logisticas_antecipadas`, nunca
+`documento_requisito_instancias`/`documento_versoes` do fluxo regular.
+Confirmado ao vivo: mesmo depois do gestor aprovar o CT-e pelo fluxo
+regular, o RPC de aprovação continua retornando `permitido: false`. Por
+instrução explícita do ticket ("Não alterar: gate de aprovação do
+Gestor"), **este RPC não foi tocado** — ver seção "Riscos".
+
+### Correção (unifica a fonte, sem duplicar arquivo)
+
+- Nova função pura `evidenciasDoChecklistRegular`
+  (`src/lib/logistica/evidencias-logisticas.ts`): converte os itens do
+  checklist regular cuja família documental é `cte` ou
+  `comprovante_entrega` **e** escopo `nf_pre_cessao` no mesmo formato de
+  evidência (`EvidenciaLogisticaParaClassificacao`) usado pelo mecanismo de
+  envio antecipado — sem copiar nenhum arquivo, sem nova tabela, só
+  reaproveitando os dados (`versoes`, `status`, análise) que o checklist já
+  carrega.
+- `src/lib/actions/documento-v2.ts`: `evidenciasLogisticas` passa a ser a
+  combinação de `evidenciasAntecipadas` (mecanismo antigo, inalterado) +
+  `evidenciasDoChecklistRegular(items)` — usada tanto por
+  `classificarStatusLogisticoPreCessao` (rótulo de exibição da seção "Envio
+  antecipado") quanto por `avaliarSubmissaoLogisticaPreCessao` (gate de
+  submissão). Uma única fonte combinada, sem duplicar a arquitetura por
+  portal.
+- Nada mudou em: gate de aprovação do gestor (RPC intocado), regra
+  OR CT-e/DACTE OU Comprovante (preservada — `avaliarSubmissaoLogisticaPreCessao`
+  já era agnóstica à origem da evidência), regras de boleto, precificação
+  por parcela.
+- Idempotência preservada: nenhuma escrita nova; a função é de leitura
+  pura, chamada a cada carregamento do checklist como antes.
+
+### Testes
+
+- `src/lib/logistica/evidencias-logisticas.test.ts` (5 testes novos):
+  inclui CT-e `nf_pre_cessao` do checklist regular; ignora comprovante
+  `pos_cessao` (fora do gate pré-cessão); ignora itens sem família
+  logística (XML, boleto); propaga o resultado da análise mais recente;
+  ponta a ponta — CT-e só do checklist regular, sem nenhuma evidência
+  antecipada, já permite a submissão.
+- `src/lib/documentos/parcelas-nf-boleto-architecture.test.ts` (2 testes
+  novos): confirma a combinação das duas fontes na ordem correta antes de
+  classificar/avaliar o gate; confirma o filtro por escopo/família.
+- **Live E2E** — `scripts/homologacao/p0-submissao-logistica-nf56/e2e.mjs`,
+  **8/8 PASS** ao vivo em homologação (transação revertida), reproduzindo o
+  cenário exato da NF 56 do zero: upload de CT-e pelo fluxo regular fica
+  `em_analise`; `evidencias_logisticas_antecipadas` confirmada vazia (causa
+  raiz reproduzida); gate de aprovação do gestor (RPC inalterado) nega
+  antes da aprovação (regra preservada); e — risco documentado — mesmo após
+  a aprovação real do CT-e, o mesmo RPC de aprovação continua negando, por
+  só reconhecer a evidência antecipada.
+- **Regressões reexecutadas ao vivo**: E2E Fase 1 (17/17), E2E Fase 2
+  (29/29), P0 requisitos não carregados (10/10), P0 gate
+  logístico/status/boleto (9/9). Suíte completa: 162 arquivos / 1205
+  testes, 0 falhas, nenhum teste removido.
+
+### Status final
+
+`P0_SUBMISSAO_LOGISTICA_NF56 = PASS`
+
 ## Riscos
 
 1. **Fase 3 não implementada** — este relatório cobre as Fases 1 e 2. A
@@ -790,16 +882,25 @@ duplicada); nenhuma RPC nova foi criada; nenhum `GRANT` foi alterado.
    sinal de erro. Não corrigido aqui (mudaria uma função central usada só
    para agregação em lote, fora do escopo "menor correção possível" deste
    ticket) — registrado para avaliação futura.
-7. **Elegibilidade agregada do boleto no gate de aprovação
-   (`avaliarElegibilidadeDocumentalDaNota`, via `carregarResumoDocumentalDasNotas`)
-   não foi auditada quanto ao mesmo bug de colapso de `Map` corrigido na
-   Fase 2** (`elegibilidade-documental.server.ts`). Como essa função agrega
-   múltiplas instâncias de boleto (uma por parcela) sob o mesmo
-   `politica_requisito_id`, sem filtrar por `parcela_id`, é um candidato a
-   ter o mesmo tipo de bug se a lógica de matching requisito↔instância
-   assumir 1:1. Não confirmado nem corrigido nesta entrega — fora do
-   diagnóstico pedido pelo ticket (que era sobre o checklist de
-   apresentação, não o gate de aprovação); fica como risco documentado.
+7. ~~Elegibilidade agregada do boleto no gate de aprovação não auditada~~ —
+   **auditado e corrigido** no P0 "gate logístico, status real e UX dos
+   boletos" (ver seção correspondente): `avaliarElegibilidadeDocumentalDaNota`
+   tinha exatamente esse colapso e agora exige todas as instâncias por
+   parcela aprovadas.
+8. **O RPC de aprovação logística do gestor
+   (`avaliar_gate_logistico_pre_cessao_nfs` →
+   `private.classificar_status_logistico_pre_cessao`) tem a mesma
+   divergência de fonte corrigida neste P0 para a submissão, mas não foi
+   tocado aqui por instrução explícita do ticket** ("Não alterar: gate de
+   aprovação do Gestor"). Confirmado ao vivo
+   (`scripts/homologacao/p0-submissao-logistica-nf56/e2e.mjs`): mesmo após
+   o gestor aprovar um CT-e enviado pelo fluxo regular do checklist, esse
+   RPC continua retornando `permitido: false`, porque só reconhece
+   evidência em `evidencias_logisticas_antecipadas`. Um gestor tentando
+   aprovar uma NF cujo CT-e/comprovante foi enviado pelo fluxo regular
+   (não pelo "envio antecipado") ficaria bloqueado mesmo após aprovar o
+   documento. Requer um P0 próprio para unificar a fonte também nesse RPC
+   (mesma lógica de `evidenciasDoChecklistRegular`, portada para SQL).
 
 ## Pendências (próximo checkpoint, por decisão do usuário)
 

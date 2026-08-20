@@ -3,6 +3,7 @@ import {
   avaliarGateLogisticoPreCessao,
   avaliarSubmissaoLogisticaPreCessao,
   classificarStatusLogisticoPreCessao,
+  evidenciasDoChecklistRegular,
   resolverFamiliaDocumentalLogistica,
   validarUnicidadeFamiliasLogisticas,
 } from './evidencias-logisticas'
@@ -141,5 +142,76 @@ describe('gate logistico de SUBMISSAO (cedente) -- diferente do gate de aprovaca
         { familia: 'comprovante_entrega', documentoId: 'b', versaoId: 'v2', versaoStatus: 'enviado', criadoEm: '2026-08-01' },
       ],
     }).permitido).toBe(true)
+  })
+})
+
+describe('evidenciasDoChecklistRegular -- CT-e/Comprovante enviados pelo checklist normal, nao pelo envio antecipado', () => {
+  // Regressao real (NF-56 em homolog): CT-e anexado e "Aguardando analise"
+  // no checklist normal continuava bloqueando a submissao porque o gate so
+  // reconhecia evidencia_logistica_antecipada. Esta funcao converte o item
+  // do checklist regular no mesmo formato de evidencia usado pelo gate.
+
+  it('inclui item CT-e nf_pre_cessao com suas versoes', () => {
+    const resultado = evidenciasDoChecklistRegular([
+      {
+        escopo: 'nf_pre_cessao',
+        familiaDocumental: 'cte',
+        documentoId: 'doc-cte',
+        versoes: [{ id: 'v1', status: 'em_analise', criadoEm: '2026-08-20', ultimaAnalise: null }],
+      },
+    ])
+    expect(resultado).toEqual([{
+      familia: 'cte',
+      documentoId: 'doc-cte',
+      versaoId: 'v1',
+      versaoStatus: 'em_analise',
+      analiseResultado: null,
+      analisadoEm: null,
+      analisadoPor: null,
+      criadoEm: '2026-08-20',
+    }])
+  })
+
+  it('ignora comprovante_entrega pos_cessao (fora do gate pre-cessao)', () => {
+    const resultado = evidenciasDoChecklistRegular([
+      {
+        escopo: 'pos_cessao',
+        familiaDocumental: 'comprovante_entrega',
+        documentoId: 'doc-canhoto',
+        versoes: [{ id: 'v1', status: 'em_analise', criadoEm: '2026-08-20', ultimaAnalise: null }],
+      },
+    ])
+    expect(resultado).toEqual([])
+  })
+
+  it('ignora itens sem familia documental logistica (ex.: nf_xml, boleto)', () => {
+    const resultado = evidenciasDoChecklistRegular([
+      { escopo: 'nf_pre_cessao', familiaDocumental: null, documentoId: 'doc-xml', versoes: [{ id: 'v1', status: 'em_analise', criadoEm: '2026-08-20', ultimaAnalise: null }] },
+    ])
+    expect(resultado).toEqual([])
+  })
+
+  it('propaga o resultado da analise mais recente quando existir', () => {
+    const resultado = evidenciasDoChecklistRegular([
+      {
+        escopo: 'nf_pre_cessao',
+        familiaDocumental: 'cte',
+        documentoId: 'doc-cte',
+        versoes: [{ id: 'v1', status: 'rejeitado', criadoEm: '2026-08-20', ultimaAnalise: { resultado: 'rejeitado', analisadoEm: '2026-08-21', analisadoPorId: 'gestor-1' } }],
+      },
+    ])
+    expect(resultado[0]).toMatchObject({ analiseResultado: 'rejeitado', analisadoEm: '2026-08-21', analisadoPor: 'gestor-1' })
+  })
+
+  it('ponta a ponta: CT-e do checklist regular, sem nenhuma evidencia antecipada, permite a submissao', () => {
+    const evidenciaDoChecklist = evidenciasDoChecklistRegular([
+      {
+        escopo: 'nf_pre_cessao',
+        familiaDocumental: 'cte',
+        documentoId: 'doc-cte-nf56',
+        versoes: [{ id: 'v1', status: 'em_analise', criadoEm: '2026-08-20', ultimaAnalise: null }],
+      },
+    ])
+    expect(avaliarSubmissaoLogisticaPreCessao({ exigido: true, evidencias: evidenciaDoChecklist }).permitido).toBe(true)
   })
 })

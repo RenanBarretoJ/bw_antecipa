@@ -49,6 +49,43 @@ export function resolverFamiliaDocumentalLogistica(codigo: string | null | undef
   return FAMILIA_POR_CODIGO.get(String(codigo || '').trim().toLowerCase()) ?? null
 }
 
+export interface ItemChecklistParaEvidenciaLogistica {
+  escopo: string
+  familiaDocumental: FamiliaDocumentalLogistica | null
+  documentoId: string | null
+  versoes: Array<{
+    id: string
+    status: string
+    criadoEm: string
+    ultimaAnalise: { resultado: string; analisadoEm?: string | null; analisadoPorId?: string | null } | null
+  }>
+}
+
+/**
+ * CT-e/Comprovante de Entrega podem ser enviados pelo fluxo REGULAR do
+ * checklist (documento_requisito_instancias/documento_versoes, quando a
+ * politica define o requisito com escopo nf_pre_cessao), nao apenas pelo
+ * "envio antecipado" (evidencias_logisticas_antecipadas). Sem converter
+ * esses itens tambem em evidencia, um CT-e real anexado e "Aguardando
+ * analise" no checklist normal ficava invisivel para o gate logistico,
+ * que so reconhecia a copia antecipada -- duas fontes de verdade para a
+ * mesma evidencia.
+ */
+export function evidenciasDoChecklistRegular(items: ItemChecklistParaEvidenciaLogistica[]): EvidenciaLogisticaParaClassificacao[] {
+  return items
+    .filter((item) => item.escopo === 'nf_pre_cessao' && (item.familiaDocumental === 'cte' || item.familiaDocumental === 'comprovante_entrega'))
+    .flatMap((item) => item.versoes.map((versao) => ({
+      familia: item.familiaDocumental as FamiliaDocumentalLogistica,
+      documentoId: item.documentoId || '',
+      versaoId: versao.id,
+      versaoStatus: versao.status,
+      analiseResultado: versao.ultimaAnalise?.resultado ?? null,
+      analisadoEm: versao.ultimaAnalise?.analisadoEm ?? null,
+      analisadoPor: versao.ultimaAnalise?.analisadoPorId ?? null,
+      criadoEm: versao.criadoEm,
+    })))
+}
+
 export function codigosDaFamiliaLogistica(familia: FamiliaDocumentalLogistica): readonly string[] {
   return CODIGOS_POR_FAMILIA[familia]
 }
