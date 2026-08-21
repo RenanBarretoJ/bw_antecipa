@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { obterUrlArquivoNotaFiscal } from '@/lib/actions/arquivo-nota-fiscal'
@@ -95,10 +95,12 @@ function ReadOnlyNfDetails({
   nf,
   previewUrl,
   temParcelas,
+  parcelasSection,
 }: {
   nf: NfCompleta
   previewUrl: string | null
   temParcelas: boolean
+  parcelasSection: ReactNode
 }) {
   const impostos = Number(nf.valor_icms || 0) + Number(nf.valor_iss || 0) + Number(nf.valor_pis || 0) + Number(nf.valor_cofins || 0) + Number(nf.valor_ipi || 0)
 
@@ -151,6 +153,8 @@ function ReadOnlyNfDetails({
             </div>
           </div>
         </section>
+
+        {parcelasSection}
 
         {(nf.descricao_itens || nf.condicao_pagamento) && (
           <details className="rounded-xl border bg-card p-4">
@@ -527,7 +531,9 @@ export default function NfDetalhePage() {
         </div>
       )}
 
-      {isEditable ? (
+      {(() => {
+        const parcelasSection = <ParcelasDaNota notaFiscalId={nfId} mode="cedente" onTemParcelas={setTemParcelas} />
+        return isEditable ? (
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {/* Formulario — 2 colunas */}
         <div className="space-y-4 lg:col-span-2">
@@ -734,6 +740,8 @@ export default function NfDetalhePage() {
             </div>
           </div>
 
+          {parcelasSection}
+
           {/* Descricao e pagamento */}
           <details className="rounded-xl border bg-card p-4 shadow-sm">
             <summary className="cursor-pointer text-lg font-semibold text-foreground">Informacoes Adicionais</summary>
@@ -814,11 +822,10 @@ export default function NfDetalhePage() {
           )}
         </div>
       </div>
-      ) : (
-        <ReadOnlyNfDetails nf={nf} previewUrl={previewUrl} temParcelas={temParcelas} />
-      )}
-
-      <ParcelasDaNota notaFiscalId={nfId} mode="cedente" onTemParcelas={setTemParcelas} />
+        ) : (
+          <ReadOnlyNfDetails nf={nf} previewUrl={previewUrl} temParcelas={temParcelas} parcelasSection={parcelasSection} />
+        )
+      })()}
 
       {nf.status === 'rascunho' && !submissionReadiness.elegivel && (
         <p className="text-sm text-muted-foreground">
