@@ -100,6 +100,7 @@ export const POLICY_DOCUMENT_CODES = [
   'nf_xml',
   'nf_danfe_pdf',
   'nf_pedido_compra',
+  'nf_remessa',
   'contrato',
   'comprovante_entrega',
   'cte',

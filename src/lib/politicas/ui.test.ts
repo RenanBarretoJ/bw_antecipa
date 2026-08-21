@@ -6,6 +6,7 @@ import {
   mapLegacyFlagsToOperationalSelections,
   mapOperationalSelectionsToLegacyFlags,
   policyDocumentOptions,
+  policyMomentLabels,
   shouldClosePublishModal,
   shouldCloseVersionModalAfterCreate,
 } from './ui'
@@ -50,6 +51,7 @@ describe('policy operational UI helpers', () => {
       'nf_xml',
       'nf_danfe_pdf',
       'nf_pedido_compra',
+      'nf_remessa',
       'contrato',
       'comprovante_entrega',
       'canhoto',
@@ -59,6 +61,16 @@ describe('policy operational UI helpers', () => {
       'comprovante_aceite',
       'outro',
     ])
+  })
+
+  it('NF de Remessa e um requisito auxiliar/logistico -- nunca aparece pre-marcado, so como opcao selecionavel', () => {
+    const remessa = policyDocumentOptions.find((option) => option.value === 'nf_remessa')
+    expect(remessa).toEqual({ value: 'nf_remessa', label: 'NF de Remessa', formatos: ['xml'] })
+  })
+
+  it('rotula o momento nf_pre_cessao apenas como "Pré-cessão" na UI, preservando o valor persistido', () => {
+    expect(policyMomentLabels.nf_pre_cessao).toBe('Pré-cessão')
+    expect(Object.keys(policyMomentLabels)).toEqual(['nf_pre_cessao', 'operacao', 'pos_cessao', 'entrega'])
   })
 
   it('generates an editable internal code from the selected link', () => {

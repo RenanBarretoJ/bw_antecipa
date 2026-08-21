@@ -1,24 +1,26 @@
 # NF de Remessa como lastro logístico auxiliar
 
 Ticket original: `P0_Claude_NF_Remessa_Lastro_Logistico`.
-Ajustes finais: `P0_Claude_Ajustes_Finais_NF_Remessa` — as correções desse
-segundo ticket estão integradas inline em cada seção abaixo (marcadas
-"endurecido pelos ajustes finais" ou "funcional desde os ajustes finais")
-em vez de uma seção separada, para manter cada tópico (modelo, matching,
-canhoto etc.) com uma única fonte de verdade.
+Ajustes finais: `P0_Claude_Ajustes_Finais_NF_Remessa` — integrado inline
+em cada seção (marcado "endurecido pelos ajustes finais"/"funcional desde
+os ajustes finais").
+Política: `P0_Claude_Politica_NF_Remessa_Pre_Cessao` (catálogo/label) e
+`P0_Claude_Integrar_NF_Remessa_Requisito_Politica` (satisfação automática
+— seção G).
 
 ## Resultado
 
-`P0_NF_REMESSA_LASTRO_LOGISTICO = PASS` (definitivo, após os ajustes
-finais). As 3 pendências do ticket de ajustes finais foram fechadas: (1)
-cadeia validada com os XMLs **reais** do ticket (não sintéticos); (2)
-canhoto → remessa funcional (RPC valida e persiste o vínculo, UI permite
-selecionar); (3) o fallback automático de quantidade por valor foi
-**removido** — quantidade não verificável agora força `REVISAO_MANUAL`,
-nunca `VALIDADA`. O matching de produtos passou a priorizar cProd → NCM →
-unidade+quantidade, com a descrição normalizada apenas como último recurso
-heurístico. A única parte que permanece deliberadamente fora de escopo é a
-suíte de certificação browser E2E (ver "Riscos remanescentes").
+`P0_NF_REMESSA_LASTRO_LOGISTICO = PASS` (definitivo). Os 3 tickets
+subsequentes fecharam, nesta ordem: (1) ajustes finais — cadeia validada
+com XMLs **reais**, canhoto→remessa funcional, fallback de valor removido,
+matching determinístico (cProd→NCM→unidade+quantidade); (2) `nf_remessa`
+incluído no catálogo canônico de requisitos de política (seletor +
+relabel "Pré-cessão"); (3) o requisito `nf_remessa` de uma política passou
+a ser **satisfeito automaticamente** pela fonte real
+(`nota_fiscal_remessas.status_validacao='VALIDADA'`), via reconciliação
+por trigger — ver seção G. A única parte que permanece deliberadamente
+fora de escopo é a suíte de certificação browser E2E (ver "Riscos
+remanescentes").
 
 ## A. Modelo
 
@@ -219,6 +221,77 @@ código E por teste automatizado dedicado (`ajustes-finais-nf-remessa
   também aceitar `nota_fiscal_remessa_id` é um escopo maior, não solicitado
   aqui, e fica registrado como pendência (ver "Riscos remanescentes").
 
+## G. Requisito de política — satisfação automática (ticket `P0_Claude_Integrar_NF_Remessa_Requisito_Politica`)
+
+Desde o ticket anterior, `nf_remessa` já podia ser configurado como
+requisito de política (seletor, momento, obrigatoriedade). Mas nada lia
+`nota_fiscal_remessas` para satisfazê-lo — o requisito instanciava como
+`pendente` e ficava assim para sempre, mesmo com uma remessa `VALIDADA`
+real. Diagnóstico classificado como `REQUIREMENT_SOURCE_NOT_CONNECTED`
+(nada conecta as duas fontes) composto com `GENERIC_DOCUMENT_INSTANCE_
+MISMATCH` (o fluxo genérico de upload/análise, que decide satisfação por
+`documento_id`/`documento_versoes`, nunca teria esses campos para
+`nf_remessa` — pior que um no-op, um upload genérico incorreto poderia ter
+satisfeito o requisito sem nenhuma remessa real validada).
+
+**Fonte única de satisfação**: `nota_fiscal_remessas.status_validacao`.
+Nenhum `documentos_repositorio`/`documento_versoes`/`documento_analises`
+fake é criado — a persistência usada é a mesma coluna genérica
+(`documento_requisito_instancias.status`) que o checklist do cedente, o
+resumo documental do gestor e os gates de elegibilidade já leem hoje,
+sem alteração nesses 3 pontos de leitura.
+
+**Reconciliação** (migration `20260821070000_p0_nf_remessa_requisito_
+politica_satisfacao.sql`, mesmo padrão dos triggers de reconciliação
+logística já existentes no repositório):
+
+- `private.reconciliar_requisito_nf_remessa(p_nota_fiscal_venda_id)`:
+  `status='satisfeito'` quando existe ≥1 `nota_fiscal_remessas` da venda
+  com `status_validacao='VALIDADA'`; caso contrário `status='pendente'`
+  (nunca por `REVISAO_MANUAL`/`REJEITADA`). Escopo sempre por
+  `nota_fiscal_id` — nunca cross-venda.
+- Trigger `nota_fiscal_remessas_reconciliar_requisito` (`AFTER INSERT OR
+  UPDATE OF status_validacao`): toda nova remessa, ou mudança futura de
+  status (não há hoje um caminho de revisão pós-criação, mas o trigger já
+  cobre `UPDATE` para não depender de nenhum mecanismo futuro ainda não
+  implementado), reconcilia automaticamente — sem chamada manual.
+- `instanciar_requisitos_nota` também chama a reconciliação ao final
+  (mesma assinatura, sem novo parâmetro/GRANT) — cobre reinstanciação com
+  uma remessa já validada antes da política exigir o requisito.
+
+**Gates** (`src/lib/documentos-v2/satisfacao-requisito.ts`):
+`resolverSatisfacaoRequisitoParaSubmissao`/`resolverSatisfacaoRequisitoPara
+Aprovacao` tratam `tipoDocumento==='nf_remessa'` num branch dedicado, ANTES
+do fluxo genérico: satisfação = `statusInstancia==='satisfeito'`
+diretamente, sem exigir `documentoId`/`versoes` (que nunca existirão para
+este tipo). `elegibilidade-submissao.ts`/`elegibilidade-aprovacao.ts` não
+precisaram de nenhuma alteração — já filtram por `obrigatorio`/
+`bloqueiaFluxo` genericamente, então **Opcional sem remessa nunca bloqueia**
+e **Obrigatório sem remessa `VALIDADA` bloqueia** por construção, sem
+código novo nesses dois arquivos.
+
+**Checklist** (`src/lib/actions/documento-v2.ts`): quando há requisito
+`nf_remessa`, busca as remessas da venda uma vez (só quando aplicável, sem
+custo no caminho comum) e monta `descricao` como "Atendido — NF de Remessa
+`<numero>` validada." ou "Pendente — nenhuma NF de Remessa validada.
+Envie pelo card 'NF de Remessa' nesta página." — apontando para o card
+`RemessaDaNota`, nunca duplicando um botão de upload genérico
+(`uploadPermitido` é forçado a `false` para este tipo). `nome` usa
+`documentLabel()` (`src/lib/politicas/ui.ts`) como fonte única do rótulo,
+em vez de cair no código bruto por falta de linha em `documento_tipos`
+(que continua deliberadamente sem uma entrada `nf_remessa`, para não abrir
+um caminho de upload genérico paralelo).
+
+**Verificado ao vivo em homologação** (dentro de uma transação com
+`ROLLBACK`, sem tocar dados compartilhados): instância pendente para a
+venda real 5576 (que já tem uma remessa `VALIDADA` real) virou `satisfeito`
+ao reconciliar; instância para uma venda QA sem remessa permaneceu
+`pendente`; inserir uma remessa `REVISAO_MANUAL` para essa venda QA **não**
+disparou satisfação (trigger automático); inserir a seguir uma remessa
+`VALIDADA` **disparou** a satisfação automaticamente, sem chamada manual;
+a instância da venda 5576 não foi afetada pelas remessas da venda QA
+(isolamento cross-venda confirmado).
+
 ## Limites de quantidade
 
 Ver seção D. Resumo pós-ajustes-finais: quantidade estruturada obrigatória
@@ -337,16 +410,37 @@ Resultado, com os arquivos **reais** (não reconstruídos):
   `REVISAO_MANUAL`, a remessa de outra venda (testado com a remessa real
   35006 contra uma venda QA diferente), e a uma remessa inexistente — os
   3 corretamente rejeitados pela RPC.
+- **Testes do ticket de catálogo de política**: `ui.test.ts` (+2:
+  catálogo com `nf_remessa`, label "Pré-cessão"), `requisitos-documentais
+  .test.ts` (+1 parametrizado: aceita `nf_remessa` obrigatório/opcional),
+  `politica-nf-remessa-requisito.migration.test.ts` (4 testes: contrato da
+  migration do `CHECK`, independência do gate logístico).
+- **Testes do ticket de satisfação do requisito**: `satisfacao-requisito
+  .test.ts` (+7: obrigatório sem remessa/com `VALIDADA`/`REVISAO_MANUAL`/
+  `REJEITADA`, opcional, independência de `documentoId`/`versoes`,
+  pureza/idempotência), `nf-remessa-requisito-satisfacao.migration.test.ts`
+  (10 testes: contrato da migration da reconciliação, ordem do branch
+  dedicado nos dois gates, `uploadPermitido` sempre falso para
+  `nf_remessa`). Verificação ao vivo em homologação (transação com
+  `ROLLBACK`, sem tocar o dataset golden/QA): instância pendente da venda
+  real 5576 (que já tem remessa `VALIDADA` real) virou `satisfeito` ao
+  reconciliar; instância de uma venda QA sem remessa permaneceu
+  `pendente`; inserir remessa `REVISAO_MANUAL` não disparou satisfação;
+  inserir a seguir uma remessa `VALIDADA` disparou satisfação automática
+  via trigger, sem chamada manual; isolamento cross-venda confirmado (a
+  instância da 5576 não foi afetada pelas remessas da venda QA).
 - **Cenário 16** (regressão completa do fluxo sem remessa): suíte completa
-  — 170 arquivos / **1364 testes**, 0 falhas (1337 após o ticket
-  original, 1333 antes de qualquer ticket desta feature).
+  — 172 arquivos / **1392 testes**, 0 falhas (1364 após ajustes finais,
+  1337 após o ticket original, 1333 antes de qualquer ticket desta
+  feature).
 - `npx tsc --noEmit`: limpo. `npm run lint`: mesmos 6 warnings
   pré-existentes, sem novos. `git diff --check`: limpo. `npx next build
   --webpack`: sucesso, todas as rotas compiladas. `npm audit --omit=dev`:
   0 vulnerabilidades.
-- Ambas as migrations (`20260821040000` e `20260821050000`) validadas com
-  SQL real em homologação (`fhgkmggthxikfpogrvaa`), cada uma aplicada 3
-  vezes consecutivas sem erro (idempotência confirmada).
+- As 4 migrations (`20260821040000`, `20260821050000`, `20260821060000`,
+  `20260821070000`) validadas com SQL real em homologação
+  (`fhgkmggthxikfpogrvaa`), cada uma aplicada 3 vezes consecutivas sem
+  erro (idempotência confirmada).
 
 ## Riscos remanescentes / pendências
 
@@ -380,6 +474,21 @@ Resultado, com os arquivos **reais** (não reconstruídos):
    emitentes das vendas vinculadas via remessa no lote (`ALLOW` se casar
    com qualquer uma) — cenário raro (frete compartilhado entre
    estabelecimentos diferentes do mesmo Cedente), não teve teste dedicado.
+6. **Reconciliação do requisito `nf_remessa` cobre só o caminho real de
+   escrita hoje** (`registrar_nota_fiscal_remessa`, via trigger `AFTER
+   INSERT`). Não há hoje nenhuma RPC que faça `UPDATE` em
+   `nota_fiscal_remessas.status_validacao` depois da criação (uma remessa
+   nunca é revisada de `REVISAO_MANUAL`/`REJEITADA` para `VALIDADA` após
+   criada) — o trigger já cobre `UPDATE OF status_validacao` preventivamente,
+   mas isso é código morto até que um ticket futuro crie esse caminho de
+   revisão.
+7. **`documento_tipos` continua sem uma linha `nf_remessa`, deliberadamente**
+   — isso é o que garante `uploadPermitido=false` (nenhum botão de upload
+   genérico duplicando o card `RemessaDaNota`). Se um ticket futuro
+   precisar que `nf_remessa` apareça em outros lugares que dependem de
+   `documento_tipos` (ex.: certas telas do repositório documental
+   genérico), essa decisão precisa ser revisitada com cuidado para não
+   reabrir o caminho de upload genérico incorreto.
 6. **Fixtures reais são locais, não commitadas**: `src/lib/logistica/
    __fixtures__/reais/` e a pasta `nfs/` na raiz (com os XMLs/PDFs/boletos
    originais) estão no `.gitignore` — contêm CNPJ, razão social e

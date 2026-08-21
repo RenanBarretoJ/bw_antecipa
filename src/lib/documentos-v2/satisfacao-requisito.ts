@@ -51,6 +51,18 @@ export interface SatisfacaoRequisitoAprovacao {
 const STATUS_VERSAO_PRESENTE = new Set(['enviado', 'em_analise', 'aprovado', 'rejeitado'])
 const STATUS_INSTANCIA_ESTRUTURAL_OK = new Set(['satisfeito', 'aprovado', 'validado', 'concluido'])
 
+/**
+ * NF de Remessa nunca passa pelo fluxo generico de upload/analise (nao tem
+ * documento_id/documento_versoes -- e um documento auxiliar/logistico cuja
+ * fonte real de satisfacao e nota_fiscal_remessas.status_validacao). Um
+ * trigger em nota_fiscal_remessas mantem documento_requisito_instancias
+ * .status sincronizado ('satisfeito' quando ha >=1 remessa VALIDADA, senao
+ * 'pendente') -- ver migration 20260821070000. Aqui so lemos esse status
+ * ja resolvido, sem exigir documentoId/versoes (que nunca existirao para
+ * este tipo).
+ */
+const TIPO_DOCUMENTO_DERIVADO_NF_REMESSA = 'nf_remessa'
+
 function estadoDaVersaoAtual(input: EntradaSatisfacaoRequisito) {
   const versaoAtual = input.versoes[0]
   if (!versaoAtual) return { versaoAtual: null, statusAnalise: 'ausente' as const, aprovado: false }
@@ -81,6 +93,23 @@ function estadoDaVersaoAtual(input: EntradaSatisfacaoRequisito) {
 export function resolverSatisfacaoRequisitoParaSubmissao(
   input: EntradaSatisfacaoRequisito,
 ): SatisfacaoRequisitoSubmissao {
+  if (input.tipoDocumento === TIPO_DOCUMENTO_DERIVADO_NF_REMESSA) {
+    const satisfeito = input.statusInstancia === 'satisfeito'
+    return {
+      requisitoId: input.requisitoId,
+      tipoDocumento: input.tipoDocumento,
+      obrigatorio: input.obrigatorio,
+      bloqueiaFluxo: input.bloqueiaFluxo,
+      momento: input.momento,
+      regraValidade: input.regraValidade,
+      documentoPresente: satisfeito,
+      validacaoEstruturalOk: satisfeito,
+      statusAnalise: satisfeito ? 'aprovado' : 'ausente',
+      satisfazSubmissao: satisfeito,
+      motivoBloqueio: satisfeito ? undefined : 'Nenhuma NF de Remessa validada para esta NF de venda.',
+    }
+  }
+
   const { versaoAtual, statusAnalise, aprovado } = estadoDaVersaoAtual(input)
   const documentoPresente = Boolean(
     input.documentoId
@@ -129,6 +158,16 @@ export function resolverSatisfacaoRequisitoParaSubmissao(
 export function resolverSatisfacaoRequisitoParaAprovacao(
   input: EntradaSatisfacaoRequisito,
 ): SatisfacaoRequisitoAprovacao {
+  if (input.tipoDocumento === TIPO_DOCUMENTO_DERIVADO_NF_REMESSA) {
+    const satisfeito = input.statusInstancia === 'satisfeito'
+    return {
+      requisitoId: input.requisitoId,
+      aprovado: satisfeito,
+      statusAnalise: satisfeito ? 'aprovado' : 'ausente',
+      motivoBloqueio: satisfeito ? undefined : 'Nenhuma NF de Remessa validada para esta NF de venda.',
+    }
+  }
+
   const { statusAnalise, aprovado } = estadoDaVersaoAtual(input)
   return {
     requisitoId: input.requisitoId,

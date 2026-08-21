@@ -89,3 +89,78 @@ describe('satisfacao de requisito documental', () => {
     })
   })
 })
+
+// Ticket P0_Claude_Integrar_NF_Remessa_Requisito_Politica: nf_remessa nunca
+// passa pelo fluxo generico de documento_id/versoes (nunca existirao para
+// este tipo) -- sua satisfacao vem inteiramente de statusInstancia, que um
+// trigger em nota_fiscal_remessas mantem sincronizado com
+// status_validacao='VALIDADA'.
+const baseInputNfRemessa = (): EntradaSatisfacaoRequisito => ({
+  requisitoId: 'req-nf-remessa',
+  tipoDocumento: 'nf_remessa',
+  obrigatorio: true,
+  bloqueiaFluxo: true,
+  momento: 'nf_pre_cessao',
+  regraValidade: 'manual',
+  statusInstancia: 'pendente',
+  documentoId: null,
+  versaoAprovadaId: null,
+  versoes: [],
+})
+
+describe('satisfacao do requisito nf_remessa (fonte real: nota_fiscal_remessas)', () => {
+  it('obrigatorio + sem remessa (statusInstancia=pendente) -> nao satisfaz submissao nem aprovacao', () => {
+    const input = baseInputNfRemessa()
+    expect(resolverSatisfacaoRequisitoParaSubmissao(input)).toMatchObject({
+      documentoPresente: false,
+      satisfazSubmissao: false,
+    })
+    expect(resolverSatisfacaoRequisitoParaAprovacao(input).aprovado).toBe(false)
+  })
+
+  it('obrigatorio + >=1 remessa VALIDADA (statusInstancia=satisfeito, via trigger) -> satisfaz submissao e aprovacao', () => {
+    const input = baseInputNfRemessa()
+    input.statusInstancia = 'satisfeito'
+    expect(resolverSatisfacaoRequisitoParaSubmissao(input)).toMatchObject({
+      documentoPresente: true,
+      satisfazSubmissao: true,
+    })
+    expect(resolverSatisfacaoRequisitoParaAprovacao(input).aprovado).toBe(true)
+  })
+
+  it('obrigatorio + remessa REVISAO_MANUAL -> trigger nao marca satisfeito, statusInstancia continua pendente -> nao satisfaz', () => {
+    const input = baseInputNfRemessa()
+    input.statusInstancia = 'pendente' // trigger so promove para satisfeito com VALIDADA
+    expect(resolverSatisfacaoRequisitoParaSubmissao(input).satisfazSubmissao).toBe(false)
+    expect(resolverSatisfacaoRequisitoParaAprovacao(input).aprovado).toBe(false)
+  })
+
+  it('obrigatorio + remessa REJEITADA -> mesma coisa, permanece pendente -> nao satisfaz', () => {
+    const input = baseInputNfRemessa()
+    input.statusInstancia = 'pendente'
+    expect(resolverSatisfacaoRequisitoParaSubmissao(input).satisfazSubmissao).toBe(false)
+  })
+
+  it('opcional + sem remessa -> satisfazSubmissao continua false, mas obrigatorio=false garante que o agregador nao bloqueia', () => {
+    const input = baseInputNfRemessa()
+    input.obrigatorio = false
+    input.bloqueiaFluxo = false
+    const resultado = resolverSatisfacaoRequisitoParaSubmissao(input)
+    expect(resultado.satisfazSubmissao).toBe(false)
+    expect(resultado.obrigatorio).toBe(false)
+    expect(resultado.bloqueiaFluxo).toBe(false)
+  })
+
+  it('nunca exige documentoId/versoes -- documentoPresente reflete apenas statusInstancia', () => {
+    const satisfeito = { ...baseInputNfRemessa(), statusInstancia: 'satisfeito', documentoId: null, versoes: [] }
+    expect(resolverSatisfacaoRequisitoParaSubmissao(satisfeito).documentoPresente).toBe(true)
+  })
+
+  it('reabertura/reconsulta preserva o resultado (funcao pura, mesma entrada -> mesma saida)', () => {
+    const input = baseInputNfRemessa()
+    input.statusInstancia = 'satisfeito'
+    const primeira = resolverSatisfacaoRequisitoParaSubmissao(input)
+    const segunda = resolverSatisfacaoRequisitoParaSubmissao({ ...input })
+    expect(primeira).toEqual(segunda)
+  })
+})

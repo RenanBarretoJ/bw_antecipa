@@ -33,6 +33,7 @@ export const policyDocumentOptions: Array<{ value: PoliticaTipoDocumentoCodigo; 
   { value: 'nf_xml', label: 'XML da nota fiscal', formatos: ['xml'] },
   { value: 'nf_danfe_pdf', label: 'DANFE', formatos: ['pdf'] },
   { value: 'nf_pedido_compra', label: 'Pedido de compra', formatos: ['pdf'] },
+  { value: 'nf_remessa', label: 'NF de Remessa', formatos: ['xml'] },
   { value: 'contrato', label: 'Contrato', formatos: ['pdf'] },
   { value: 'comprovante_entrega', label: 'Comprovante de entrega', formatos: ['pdf', 'jpg', 'png'] },
   { value: 'canhoto', label: 'Canhoto', formatos: ['pdf', 'jpg', 'png'] },
@@ -44,7 +45,9 @@ export const policyDocumentOptions: Array<{ value: PoliticaTipoDocumentoCodigo; 
 ]
 
 export const policyMomentLabels: Record<PoliticaMomentoObrigatorio, string> = {
-  nf_pre_cessao: 'NF pré-cessão',
+  // Rotulo apenas -- o valor persistido/enum continua 'nf_pre_cessao' para
+  // preservar políticas históricas sem migration.
+  nf_pre_cessao: 'Pré-cessão',
   operacao: 'Operação',
   pos_cessao: 'Pós-cessão',
   entrega: 'Entrega',

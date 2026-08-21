@@ -54,6 +54,18 @@ describe('requisitos documentais de politica', () => {
       .toBe(bloqueiaFluxo)
   })
 
+  it.each([true, false])('aceita nf_remessa como tipo_documento_codigo, obrigatorio=%s definido pela propria politica (nunca global)', (obrigatorio) => {
+    const normalizado = normalizarRequisitoDocumental(requisito({
+      codigo: 'nf_remessa_pos_cessao',
+      tipo_documento_codigo: 'nf_remessa',
+      obrigatorio,
+      formatos_aceitos: ['xml'],
+    }), 0)
+    expect(normalizado.tipo_documento_codigo).toBe('nf_remessa')
+    expect(normalizado.obrigatorio).toBe(obrigatorio)
+    expect(normalizado.bloqueia_fluxo).toBe(obrigatorio)
+  })
+
   it('rejeita momento obrigatorio desconhecido', () => {
     expect(() => normalizarRequisitoDocumental(requisito({
       momento_obrigatorio: 'antes_da_assinatura' as PoliticaMomentoObrigatorio,

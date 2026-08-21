@@ -40,6 +40,9 @@ import {
   carregarNfsCandidatasCteSeAplicavel,
   possuiRequisitoCteAntecipavel,
 } from '@/lib/logistica/candidatas-cte.server'
+import { documentLabel } from '@/lib/politicas/ui'
+
+const TIPO_DOCUMENTO_NF_REMESSA = 'nf_remessa'
 
 const DOCUMENTOS_COM_VALIDACAO_ESTRUTURAL_NO_UPLOAD = new Set([
   'nf_xml',
@@ -393,6 +396,19 @@ async function carregarChecklist(notaFiscalId: string): Promise<ChecklistDocumen
     ? await dataClient.from('documento_analises').select('documento_versao_id, resultado, observacoes, analisado_por, analisado_em').in('documento_versao_id', versionIds).order('analisado_em', { ascending: false })
     : { data: [] }
   const analysisRows = (analyses || []) as Array<{ documento_versao_id: string; resultado: string; observacoes: string | null; analisado_por: string | null; analisado_em: string }>
+
+  // NF de Remessa nunca gera documento_versoes -- sua fonte real e
+  // nota_fiscal_remessas.status_validacao (o requisito ja chega aqui com
+  // status 'satisfeito'/'pendente' resolvido pelo trigger de
+  // reconciliacao). So buscamos aqui para enriquecer nome/descricao do
+  // item no checklist (qual remessa validou), sem duplicar o card
+  // RemessaDaNota nem criar upload generico para este tipo.
+  const temRequisitoNfRemessa = rows.some((row) => row.tipo_documento_codigo_snapshot === TIPO_DOCUMENTO_NF_REMESSA)
+  const { data: remessasData } = temRequisitoNfRemessa
+    ? await dataClient.from('nota_fiscal_remessas').select('numero, chave_acesso, status_validacao').eq('nota_fiscal_venda_id', notaFiscalId).order('created_at', { ascending: false })
+    : { data: [] }
+  const remessaValidada = (remessasData || []).find((remessa) => remessa.status_validacao === 'VALIDADA') || null
+
   const profileIds = Array.from(new Set([
     ...versions.map((version) => version.enviado_por).filter(Boolean),
     ...analysisRows.map((analysis) => analysis.analisado_por).filter(Boolean),
@@ -464,14 +480,20 @@ async function carregarChecklist(notaFiscalId: string): Promise<ChecklistDocumen
       prazoLimite: row.prazo_limite,
       dataInicioPrazo: fase === 'pos_cessao' ? (entrega?.cessao_efetivada_em || entrega?.created_at || null) : null,
     })
+    const isNfRemessa = row.tipo_documento_codigo_snapshot === TIPO_DOCUMENTO_NF_REMESSA
+    const descricaoNfRemessa = row.status === 'satisfeito' && remessaValidada
+      ? `Atendido — NF de Remessa ${remessaValidada.numero || remessaValidada.chave_acesso} validada.`
+      : 'Pendente — nenhuma NF de Remessa validada. Envie pelo card "NF de Remessa" nesta pagina.'
     return {
       id: row.id,
       politicaRequisitoId: row.politica_requisito_id,
       codigo: row.tipo_documento_codigo_snapshot,
-      nome: type?.nome || row.tipo_documento_codigo_snapshot,
-      descricao: fase === 'pos_cessao'
-        ? 'Documento exigido apos a cessao/desembolso para acompanhamento logistico da NF.'
-        : 'Documento exigido antes da cessao para validacao da NF.',
+      nome: isNfRemessa ? documentLabel(row.tipo_documento_codigo_snapshot) : (type?.nome || row.tipo_documento_codigo_snapshot),
+      descricao: isNfRemessa
+        ? descricaoNfRemessa
+        : fase === 'pos_cessao'
+          ? 'Documento exigido apos a cessao/desembolso para acompanhamento logistico da NF.'
+          : 'Documento exigido antes da cessao para validacao da NF.',
       fase,
       escopo: row.escopo_snapshot,
       obrigatorio: row.obrigatorio,
@@ -481,7 +503,10 @@ async function carregarChecklist(notaFiscalId: string): Promise<ChecklistDocumen
       ...prazo,
       bloqueiaFluxo,
       formatosAceitos: row.formatos_aceitos_snapshot || [],
-      uploadPermitido: !!type,
+      // NF de Remessa nunca usa o upload generico -- o unico caminho de
+      // envio e o card RemessaDaNota (registrar_nota_fiscal_remessa),
+      // nunca duplicado aqui.
+      uploadPermitido: isNfRemessa ? false : !!type,
       documentoId: row.documento_id,
       versaoAprovadaId: row.versao_aprovada_id,
       entregaId: row.nota_fiscal_entrega_id,
