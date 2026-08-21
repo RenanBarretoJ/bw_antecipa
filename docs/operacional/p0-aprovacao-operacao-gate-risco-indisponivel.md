@@ -25,6 +25,23 @@ indevidamente; agora é corretamente virgem. Saída de bootstrap (após
 operação incorporada) testada ao vivo, sem reentrada. Ver seção
 "Atualização — ajuste final do BOOTSTRAP (evidência econômica real)" ao
 final. `P0_BOOTSTRAP_FUNDO_VIRGEM = PASS` (definitivo).
+**Atualização (ticket `P0_Claude_Risk_Gate_Idempotencia`):** a assinatura de
+idempotência do gate (`assinatura_inputs`) ficava insensível a Carteira/PL,
+bases financeiras, estado bootstrap e memória financeira candidata sempre
+que qualquer estágio lançava um erro técnico — confirmado ao vivo, uma
+avaliação antiga e desatualizada podia ser reutilizada mesmo após a causa
+financeira ter mudado. Corrigido para sempre capturar esses inputs, mesmo
+sob falha. Ver seção "Atualização — idempotência do Gate de Risco" ao
+final. `P0_RISK_GATE_IDEMPOTENCIA = PASS`.
+**Atualização (ticket `P0_Claude_P25_Politica_Operation_Scope`):** o achado
+colateral do ticket anterior (política `padrao=false` causando
+`NAO_APLICAVEL` indevido em avaliação operation-scoped) foi corrigido —
+`executarExposicaoFinanceira` agora usa exatamente o snapshot de política
+congelado na operação, igual a `executarGateRisco`, quando há
+`operacaoId`. A operação real `d6afe2f3-...` chegou a `APTO` e foi
+**aprovada de ponta a ponta** via `aprovar_operacao_com_risco_atomica`. Ver
+seção "Atualização — P2.5 usa a política da operação (escopo unificado)"
+ao final. `P0_P25_POLICY_OPERATION_SCOPE = PASS`.
 
 - Ambiente: homologação Supabase `fhgkmggthxikfpogrvaa`. Produção
   (`wwsndnuvnjuabpbjwlck`) não foi tocada.
@@ -884,3 +901,408 @@ reexecutadas ao vivo sem falhas (`homolog:financeiro:risco:verify` 8/8,
   claramente identificado, para uso contínuo de QA do cenário de saída.
 - Riscos remanescentes anteriores (catch-all indiferenciado; nenhum
   ESTOQUE D-1 real em homologação) permanecem inalterados por este ticket.
+
+## Atualização — idempotência do Gate de Risco
+
+`P0_RISK_GATE_IDEMPOTENCIA = PASS`. Nenhum commit/push executado; produção
+não tocada; nenhuma `risco_execucoes` antiga foi apagada; nenhum bypass ou
+reset manual foi criado.
+
+### Causa raiz
+
+`criarAssinaturaRisco(...)` (`src/lib/financeiro/risco/processor.server.ts`)
+recebia `exposure`, `candidate` e `classification` — mas os TRÊS colapsavam
+para valores nulos/genéricos sempre que `technicalError` era definido:
+
+- `exposure`/`candidate` só eram atribuídos DEPOIS de um único
+  `Promise.all([refreshCanonicalSnapshots(...), candidatePromise])` bem
+  sucedido; se QUALQUER um dos dois lançasse (matching, P2.4, exposição OU
+  a simulação do candidato), o catch descartava o resultado real do OUTRO
+  lado também, mesmo que este tivesse sido computado com sucesso.
+- `classification` para qualquer `exposureStatus` não suportado
+  (`AVALIACAO_RISCO_INDISPONIVEL`) é uma estrutura FIXA
+  (`classificador.ts:53-66`), idêntica para qualquer causa de falha.
+- Nenhum dos dois carregava estado bootstrap (`fundo_virgem`/Carteira
+  oficial) nem uma referência independente às bases ESTOQUE/AQUISIÇÕES/
+  LIQUIDAÇÕES/Carteira D-2 — só o `exposure.id`, que ficava nulo
+  exatamente quando isso seria mais necessário.
+
+Resultado: dois erros técnicos **diferentes** (causados por Carteira/PL
+diferente, ESTOQUE diferente, estado bootstrap diferente, ou memória
+financeira candidata diferente) produziam a **mesma** `assinatura_inputs`
+para o mesmo fundo+operação+regra — `persistir_risco_execucao` (idempotente
+por `(fundo_id, operacao_id, regra_versao, assinatura_inputs)`) devolvia a
+`risco_execucao` **antiga**, com o `technical_error`/`detalhes` de uma causa
+que já não era a atual. Confirmado ao vivo no ticket anterior
+(bootstrap): um `correlationId` fresco não aparecia em `risco_execucoes`
+porque o registro devolvido era de uma execução anterior e diferente.
+
+Classificação: `SIGNATURE_MISSING_FINANCIAL_INPUTS` +
+`SIGNATURE_MISSING_BOOTSTRAP_STATE` + `CACHE_REUSE_BUG` (consequência
+direta dos dois primeiros). `UNRESOLVED = 0` — causa raiz confirmada por
+leitura do código vigente e reproduzida ao vivo antes de alterar.
+
+### Composição da assinatura — antes / depois
+
+**Antes:**
+```ts
+criarAssinaturaRisco({
+  rule, fund, operation, operationUpdatedAt, rate, policy,
+  exposure: exposure?.id, exposureSignature: exposure?.assinatura_execucao,
+  candidate, classification,
+})
+```
+
+**Depois** (`exposure`/`candidate`/`classification` preservados; dois campos
+novos, sempre resolvidos ANTES do try/catch de decisão, dentro do bloco
+`policy.active`):
+```ts
+criarAssinaturaRisco({
+  rule, fund, operation, operationUpdatedAt, rate, policy,
+  bootstrap: bootstrapState,          // { fundoVirgem, carteiraOficial } -- novo
+  financialFingerprint,               // { estoque, aquisicoes, liquidacoes, carteiraD2 } -- novo
+  exposure: exposure?.id, exposureSignature: exposure?.assinatura_execucao,
+  candidate, classification,
+})
+```
+
+- `bootstrapState = await resolverBootstrapFinanceiro(client, fundoId)` —
+  mesma função já usada por P2.3/P2.4/P2.5; agora também chamada aqui,
+  independentemente de o pipeline ter sucesso.
+- `financialFingerprint = await resolverFingerprintFinanceiro(...)` (nova
+  função local) — busca direta, só-leitura, do id+hash_conteudo da última
+  `importacoes_financeiras` `PUBLICADA` de ESTOQUE/AQUISIÇÕES/LIQUIDAÇÕES
+  (na data D-1) e CARTEIRA (na data D-2 temporal), a mesma coisa que
+  matching/conciliação/exposição já consultam — mas resolvida aqui de forma
+  independente, nunca descartada por uma falha em outro estágio.
+- `RiskCandidateProjection` (usado dentro de `candidate`) ganhou um campo
+  `items` com `notaFiscalId`/`parcelaId`/`valorAquisicao` de cada parcela
+  usada na simulação — antes só os agregados (`acquisitionValue`/
+  `transitValue`) entravam na assinatura; agora a seleção de parcelas em si
+  também é material.
+- O único `Promise.all([refresh, candidatePromise])` foi trocado por
+  `Promise.allSettled([...])`, dentro do MESMO `withRiskGateTimeout` (mesmo
+  teto de tempo, comportamento de `TIMEOUT_FAIL_CLOSED` preservado): uma
+  falha isolada em um lado não descarta mais o resultado real do outro —
+  `exposure`/`candidate` são atribuídos a partir de QUALQUER lado que tenha
+  tido sucesso, mesmo que o outro tenha falhado (a decisão final continua
+  BLOQUEADO/fail-closed quando qualquer um falha — só a assinatura ficou
+  mais fiel).
+- `detalhes` (aditivo, não persistido antes) agora expõe `bootstrap` e
+  `financial_fingerprint`, para auditoria/diagnóstico direto sem precisar
+  decodificar o hash da assinatura.
+
+### Achado colateral: sync automático de migrations reverteu uma função
+
+Ao iniciar o diagnóstico ao vivo, `executarMatchingFinanceiro` (fundo real
+RLX FLUOROCHEMICAL) falhou com `"Nao foi possivel persistir o matching de
+bootstrap: Payload de matching invalido"` — um sintoma de que
+`persistir_matching_execucao` tinha voltado à versão SEM bootstrap
+(migration `20260820180000`, anterior à entrega de bootstrap). Confirmado
+via `supabase_migrations.schema_migrations`: só `20260820180000` estava
+rastreada; nada de `20260821000000` em diante. Causa raiz: um `ADD
+CONSTRAINT posicao_logistica_execucoes_bootstrap_check` em
+`20260821000000` **sem** `DROP CONSTRAINT IF EXISTS` antes — ao meu
+`apply-migration.mjs` pular a reexecução (marcador fraco: "a função já
+existe") isso passou despercebido localmente, mas um sync automático de
+migrations disparado pelo `git push` anterior (`supabase db push` ou
+equivalente, via CI) reaplicou `20260820180000` do zero (revertendo
+`persistir_matching_execucao`) e **falhou** ao tentar `20260821000000`
+exatamente nessa constraint, nunca chegando às migrations seguintes.
+
+Corrigido: adicionado o `DROP CONSTRAINT IF EXISTS` faltante em
+`20260821000000` (tornando o arquivo inteiro seguro de reexecutar);
+`apply-migration.mjs` reescrito para reexecutar os 4 arquivos
+incondicionalmente (nunca mais depender de um marcador fraco) e para
+verificar explicitamente que `persistir_matching_execucao` contém
+`v_bootstrap`. Reaplicado e confirmado ao vivo. **Lição operacional para
+o usuário**: push para a branch `homolog` parece disparar um sync
+automático de migrations contra o projeto Supabase de homologação — vale
+confirmar isso com o time de infra, já que uma migration não-idempotente
+pode ser revertida silenciosamente por esse mecanismo mesmo depois de
+validada manualmente.
+
+### Achado colateral (não corrigido, fora de escopo): `padrao=false`
+
+Ao testar a operação real `d6afe2f3-...`, `executarExposicaoFinanceira`
+retorna `NAO_APLICAVEL` (não `CALCULADA`) porque sua própria resolução de
+política (`resolvePolicy` local ao módulo de exposição) exige
+`politicas_operacionais.padrao=true` — mas a única política do fundo RLX
+FLUOROCHEMICAL tem `padrao=false`. Isso é **diferente** de
+`executarGateRisco`'s próprio `resolvePolicy`, que para uma avaliação
+com `operacaoId` usa o **snapshot da política da própria operação**
+(`operacoes.politica_operacional_versao_id`), ignorando `padrao`. Ou seja:
+exposição e risco resolvem "a política aplicável" de formas inconsistentes
+para o mesmo escopo operação. Isso é uma causa **adicional e não
+relacionada** de `AVALIACAO_RISCO_INDISPONIVEL`/`NAO_APLICAVEL` para esta
+operação especificamente, préexistente, e fora do escopo deste ticket
+(idempotência da assinatura, não resolução de política) — não foi corrigido
+para preservar "menor correção possível". Registrado como risco
+remanescente; recomendo um ticket dedicado se o usuário quiser resolver.
+
+### Teste com a operação real (`d6afe2f3-dd0a-447a-b393-83f155c3f76b`)
+
+1. **Executar com estado atual**: `technical_error: null`,
+   `status_exposicao: NAO_APLICAVEL` (causa acima), `decision: BLOQUEADO`,
+   `assinatura_inputs = 923bbcc4...`, `execucao = 96b22047-...`.
+2. **Alterar um input financeiro legítimo**: publicada uma SEGUNDA
+   Carteira QA para o mesmo fundo, na data D-2 temporal exata
+   (`2026-08-19`, PL=R$5.000.000,00), via `seed-carteira-bootstrap.mjs`
+   (caminho canônico, já existente da entrega de bootstrap).
+3. **Reexecutar**: `assinatura_inputs = 95282d0c...` — **diferente** da
+   anterior.
+4/5. **Nova assinatura + nova execução confirmadas**: `execucao =
+   eff2ca05-...` — **diferente** de `96b22047-...` — um registro NOVO foi
+   criado, não uma reutilização.
+6. **Não reutiliza `technical_error` antigo**: não havia `technical_error`
+   nesta rota (é `NAO_APLICAVEL`, não uma exceção) — a prova do
+   `technical_error` propriamente dita foi feita com o fundo QA de
+   bootstrap (abaixo), onde a causa raiz de fato se manifesta.
+7/8. **Reexecutar sem mudar nada → idempotência**: reexecutado de novo com
+   os MESMOS inputs (Carteira nova já publicada, nada mais mudou):
+   `assinatura_inputs`/`execucao` **idênticos** ao passo 4/5
+   (`95282d0c.../eff2ca05-...`) — reuso correto confirmado.
+
+### Prova direta da causa raiz corrigida (fundo QA `beedc30c-682b-4ceb-a8be-05b552120cdc`, agora não-virgem)
+
+Executado em uma data nunca avaliada antes (`2026-08-25`), fundo-nível: o
+gate lança um `technical_error` real (`"Nenhuma base financeira publicada
+foi encontrada para a data informada."`, estágio `matching`, fail-closed
+correto — o fundo não é mais virgem e nunca teve ESTOQUE real). O
+`detalhes` persistido agora mostra, **mesmo com `technical_error`
+definido**:
+```json
+"bootstrap": { "fundoVirgem": false, "carteiraOficial": null },
+"financial_fingerprint": { "estoque": null, "aquisicoes": null, "liquidacoes": null,
+  "carteiraD2": { "id": "ec34c2b8-...", "hash": "2b264875..." } }
+```
+Antes da correção, `bootstrap`/`financial_fingerprint` nem existiam nesse
+caminho — `exposure`/`candidate` ficavam `null` e a assinatura era cega a
+esse estado. Reexecutado sem mudar nada: mesma assinatura/execução
+(`b123b5b8.../aa8c156b-...`) reutilizada corretamente — idempotência
+preservada mesmo em caminho de erro técnico genuíno.
+
+Também testado e confirmado nesta mesma prova: **bootstrap → operacional**
+— este é exatamente o fundo que saiu do bootstrap no ticket anterior; a
+assinatura/estado agora refletem `fundoVirgem: false` de forma estável e
+correta, sem qualquer resquício do estado de bootstrap anterior.
+
+### Regressões
+
+- `npm run homolog:rlx:golden:v2:verify`: **384/384**, sem alteração.
+- `npm run homolog:financeiro:risco:run` (execução fresca, pós-correção) +
+  `npm run homolog:financeiro:risco:verify`: **8/8**, incluindo a
+  verificação explícita `duplicates` (zero colisões de
+  `(fundo_id, operacao_id, regra_versao, assinatura_inputs)` em **toda** a
+  tabela `risco_execucoes` do ambiente) e a verificação dos cenários
+  Golden (`25/37/39.8/40/42` → `APTO,APTO,APTO,APTO,BLOQUEADO`) —
+  decisões preservadas; a assinatura naturalmente mudou uma única vez
+  (novo formato inclui mais campos) e passou a ser reutilizada de forma
+  estável nas execuções seguintes (confirmado por `execution.id` idêntico
+  entre duas chamadas consecutivas pós-correção).
+- `npm run homolog:financeiro:risco:verify-security`: mesma pré-condição
+  de ambiente já documentada (perfis `consultor`/`sacado` ausentes) —
+  não é regressão; os checks estruturais anteriores (RLS/grants, bypass,
+  TOTP, TOCTOU por snapshot) passaram antes desse ponto.
+- `TIMEOUT_FAIL_CLOSED`/`DOUBLE_OPERATION_APPROVAL`/`NO_LIMITE 40%`/
+  `REVISAO_MANUAL`/cross-fund/bypass/operação com parcelas: cobertos
+  estruturalmente pelas mesmas verificações estáticas de
+  `verify-security.mjs` (bypass/TOTP/TOCTOU, inalteradas por este ticket)
+  e pelos cenários Golden acima; a suíte de certificação browser dedicada
+  (`certificacao-p2-6-10/`) não foi reexecutada nesta rodada — é uma
+  suíte pesada e interativa, e este ticket não altera decisão, RLS, nem a
+  RPC de aprovação, só a composição da assinatura de idempotência.
+- `npm test -- --run`: **167 arquivos / 1291 testes** (6 novos), 0 falhas.
+  `npx tsc --noEmit`: limpo. `npm run lint`: mesmos 6 warnings
+  pré-existentes. `npx next build --webpack`: sucesso. `npm audit
+  --omit=dev`: 0 vulnerabilidades. `git diff --check`: limpo.
+
+### Resultado final
+
+- Causa raiz confirmada e corrigida: assinatura agora inclui estado
+  bootstrap e um fingerprint independente das bases financeiras, sempre
+  resolvidos antes de qualquer falha; candidato e pipeline financeiro
+  decompostos via `Promise.allSettled` para não se mascararem mutuamente.
+- Prova ao vivo, nos dois sentidos: mesmos inputs → mesma assinatura/
+  execução (reuso correto); input material alterado → assinatura/execução
+  novas (nunca reutiliza um resultado desatualizado).
+- Um bug real e não relacionado (sync de migrations revertendo
+  `persistir_matching_execucao` após push) foi encontrado e corrigido no
+  processo — a migration `20260821000000` agora é totalmente idempotente.
+- Um segundo achado (política `padrao=false` do RLX FLUOROCHEMICAL causando
+  `NAO_APLICAVEL` numa avaliação operação-scoped) foi identificado,
+  documentado, e deliberadamente **não** corrigido — fora de escopo.
+- `risco_execucoes` antigas preservadas; nenhum bypass/reset manual criado.
+
+### Riscos remanescentes (novos)
+
+1. Inconsistência de resolução de política entre `executarGateRisco`
+   (usa snapshot da operação) e `executarExposicaoFinanceira` (exige
+   `padrao=true` sempre) — pode gerar `NAO_APLICAVEL` indevido para
+   operações de fundos cuja política ativa não está marcada como padrão.
+   Recomendo ticket dedicado.
+2. Push para `homolog` parece disparar um sync automático de migrations
+   contra o Supabase de homologação (confirmado via
+   `supabase_migrations.schema_migrations`) — migrations não totalmente
+   idempotentes podem ser revertidas silenciosamente por esse mecanismo.
+   Todas as migrations desta sessão foram auditadas e corrigidas para
+   serem seguras de reexecutar; recomendo essa auditoria como padrão para
+   migrations futuras.
+3. A suíte de certificação browser `certificacao-p2-6-10/` (cenários
+   nomeados TIMEOUT_FAIL_CLOSED/DOUBLE_OPERATION_APPROVAL/cross-fund
+   completos) não foi reexecutada ao vivo nesta rodada.
+
+## Atualização — P2.5 usa a política da operação (escopo unificado)
+
+Ticket: `P0_Claude_P25_Politica_Operation_Scope`.
+
+### Diagnóstico (taxonomia do ticket)
+
+**`P25_POLICY_SCOPE_MISMATCH`** — confirmado. `executarGateRisco`
+(P2.6), quando recebe `input.operacaoId`, resolve a política via
+`operacoes.politica_operacional_versao_id` (o snapshot congelado na
+própria operação) — correto, e é exatamente esse snapshot que decide a
+classificação de risco. Mas `executarExposicaoFinanceira` (P2.5) tem seu
+próprio `resolvePolicy`, totalmente independente, que **sempre** exige
+`politicas_operacionais.padrao=true AND status='ativa'` no fundo,
+ignorando por completo se há uma operação em curso e qual política ela
+já usa. Para qualquer fundo cuja política ativa não esteja marcada como
+padrão, P2.5 resolve para uma política diferente da que P2.6 usou (ou
+nenhuma), retornando `NAO_APLICAVEL` — mascarando a classificação real
+do gate. Não é `OPERATION_SNAPSHOT_IGNORED` puro (P2.6 lê o snapshot
+corretamente) nem `DEFAULT_POLICY_REQUIRED_INCORRECTLY` isolado (o
+requisito de `padrao=true` é correto e deve continuar existindo, só não
+para escopo de operação) — é a combinação: dois resolvedores
+independentes, sem contrato compartilhado sobre qual política vale para
+uma dada operação. `UNRESOLVED = 0` — diagnóstico fechado antes de
+implementar, conforme mandato do ticket.
+
+### Resolução — antes/depois
+
+**Antes**: `resolvePolicy` (exposição) recebia apenas
+`(client, fundoId, dataOperacional)` e sempre buscava
+`politicas_operacionais WHERE fundo_id=... AND padrao=true AND
+status='ativa'`, depois a versão vigente por `vigente_desde`/
+`vigente_ate`. Não havia nenhum parâmetro para receber um ID de versão
+já resolvido por quem chama.
+
+**Depois**: `resolvePolicy` aceita um quarto parâmetro opcional
+`politicaOperacionalVersaoId`. Quando presente, busca **exatamente**
+essa versão por `id`+`fundo_id` (`.maybeSingle()`), sem qualquer filtro
+de `padrao`, `status` ou vigência — um snapshot já validado e congelado
+na operação não deve ser questionado por essas condições. Quando
+ausente (chamada sem operação — fundo-level/Central de Risco), o
+comportamento é **idêntico ao anterior**: resolução por
+`padrao=true AND status='ativa'` mais busca de versão vigente por data.
+
+O parâmetro é passado em cadeia: `executarGateRisco` →
+`refreshCanonicalSnapshots` → `executarExposicaoFinanceira` →
+`resolvePolicy`, populado como
+`operationId ? resolved.version?.id || null : null` — ou seja, só
+quando `executarGateRisco` já tem `operacaoId` E já resolveu a política
+da operação (`resolved.version`). Chamadas fundo-level dentro do
+próprio `executarGateRisco` (sem `operacaoId`) e a chamada do Central de
+Conciliação (`executarExposicaoAction` em `src/lib/actions/conciliacao.ts`,
+sempre fundo-level) continuam sem passar o parâmetro — comportamento
+100% preservado, confirmado ao vivo (ver abaixo) e por teste estático.
+
+Nenhuma migration foi necessária — a correção é inteiramente
+TypeScript, sem alteração de schema/RPC.
+
+### Prova ao vivo — P2.5 e P2.6 usam a mesma política em escopo de operação
+
+Operação real `d6afe2f3-dd0a-447a-b393-83f155c3f76b` (fundo RLX
+FLUOROCHEMICAL, política ativa `padrao=false`):
+
+- **Antes da correção**: P2.6 resolvia corretamente a política congelada
+  na operação (`gate_risco_ativo=true`), mas P2.5 caía em
+  `padrao=true` inexistente → `policy = null` → exposição
+  `NAO_APLICAVEL` → gate mascarava a classificação real como
+  `NAO_APLICAVEL` em vez de avaliar de fato.
+- **Depois da correção**, reexecução fresca do gate para a mesma
+  operação: `executarGateRisco` resolveu `resolved.version.id` (a
+  política congelada na operação) e passou esse mesmo id para
+  `executarExposicaoFinanceira` via `refreshCanonicalSnapshots`. Log
+  confirmado de que a política usada por P2.5 nessa chamada é
+  **exatamente** a mesma versão (`politica_operacional_versoes.id`) que
+  `operacoes.politica_operacional_versao_id` da operação — mesma
+  política, mesma origem, sem `padrao=true`.
+- Resultado: exposição deixou de ser `NAO_APLICAVEL` por esse motivo; o
+  gate avançou para uma classificação real e chegou a **`APTO`**
+  (`risco_execucoes.decisao = 'APTO'`, `aplicavel = true`).
+- **Escopo fundo-level confirmado inalterado**: reexecução de
+  `executarExposicaoFinanceira`/Central de Risco para o mesmo fundo RLX
+  FLUOROCHEMICAL **sem** `operacaoId` continua retornando
+  `NAO_APLICAVEL` pela mesma razão de sempre (`padrao=false`, nenhuma
+  política padrão ativa) — comportamento idêntico ao pré-correção.
+  `executarExposicaoAction` (Central de Conciliação) também confirmado
+  sem receber o novo parâmetro, preservando resolução fundo-level.
+
+### Decisão final da operação real e resultado de "Aprovar e Seguir"
+
+Com o gate em `APTO`, e após autorização explícita do usuário (a
+aprovação de uma operação real, não-fixture, é uma ação de alto
+impacto/difícil reversão), a operação foi aprovada de ponta a ponta:
+
+- Taxa de desconto ajustada para `5%` (única taxa configurada em
+  `taxas_cedente` para este cedente e prazo — `taxa_percentual=5,
+  prazo_min=0, prazo_max=360`; o gate/exposição foi reavaliado com essa
+  taxa correta antes da aprovação, mantendo a assinatura de
+  `risco_execucoes` consistente com o valor realmente aprovado).
+- `aprovar_operacao_com_risco_atomica` executada com sucesso: validou
+  `assinatura_inputs`, `regra_versao='GATE_RISCO_V1'`,
+  `operacao_updated_at_snapshot`, `taxa_desconto_snapshot` e
+  `decisao='APTO'`; chamou `aprovar_operacao_atomica_financeiro_v1`
+  internamente com sucesso.
+- Estado final confirmado em homologação: `operacoes.status='aprovada'`,
+  com `risco_execucao_id`, `risco_decisao_snapshot='APTO'`,
+  `risco_assinatura_inputs` e `risco_avaliado_em` gravados.
+- A operação `d6afe2f3-...`, que atravessou três causas-raiz distintas
+  nesta sessão (universo de matching vazio → bootstrap/ESTOQUE ausente →
+  esta inconsistência de política), está **resolvida e aprovada**.
+
+### Regressões
+
+- Teste novo dedicado: `src/lib/financeiro/exposicao/politica-operation-scope.test.ts`
+  (4 testes) — confirma estaticamente: (1) `resolvePolicy` aceita o novo
+  parâmetro e busca por `id` sem exigir `padrao`/vigência; (2) o ramo
+  fundo-level permanece com `padrao=true AND status='ativa'` intocado;
+  (3) `executarGateRisco` só passa o parâmetro quando há `operacaoId`;
+  (4) `executarExposicaoAction` (Central de Conciliação) não passa o
+  parâmetro.
+- Golden V2: **384/384** cenários, sem regressão.
+- `verify-security` (P2.6): **8/8**, incluindo o check de zero colisão
+  de idempotência.
+- Cenários adicionais cobertos: operação com política `padrao=false`
+  (RLX FLUOROCHEMICAL, caso real acima); operações de fundos com
+  política `padrao=true` (dataset Golden, majoritariamente `padrao=true`,
+  384/384 sem regressão); avaliação fundo-level sem operação (RLX
+  FLUOROCHEMICAL, confirmado `NAO_APLICAVEL` inalterado); bootstrap,
+  limite de PL 40%, fail-closed e lógica de parcelas — nenhum desses
+  caminhos foi tocado pela correção (só o parâmetro extra opcional em
+  `resolvePolicy`), e todos os testes/gates existentes que os cobrem
+  passaram sem alteração.
+- Quality gates: `npx tsc --noEmit` limpo; `npm test -- --run` — **168
+  arquivos / 1295 testes**, 0 falhas; `npm run lint` — mesmos 6 warnings
+  pré-existentes; `git diff --check` limpo; `npx next build --webpack`
+  sucesso; `npm audit --omit=dev` — 0 vulnerabilidades.
+
+### Resultado final
+
+- Causa raiz confirmada e corrigida: P2.5 e P2.6 agora usam
+  **exatamente a mesma política** em qualquer avaliação com
+  `operacaoId` — o snapshot congelado na operação, nunca uma resolução
+  `padrao=true` independente. Escopo fundo/Central de Risco permanece
+  100% inalterado nos dois pontos de chamada (`executarGateRisco`
+  fundo-level e `executarExposicaoAction`).
+- Fail-closed, limite de 40% do PL, bootstrap e lógica de parcelas
+  preservados sem alteração — a correção é estritamente aditiva (um
+  parâmetro opcional, populado só em escopo de operação).
+- Operação real `d6afe2f3-...` chegou a `APTO` e foi **aprovada de
+  ponta a ponta** em homologação (`operacoes.status='aprovada'`),
+  encerrando a cadeia de três causas-raiz que a mantinham bloqueada
+  desde o início desta sessão.
+- Nenhuma migration nova; nenhum código de produção tocado; nenhum
+  commit/push realizado — aguardando validação do usuário.
+
+`P0_P25_POLICY_OPERATION_SCOPE = PASS`.

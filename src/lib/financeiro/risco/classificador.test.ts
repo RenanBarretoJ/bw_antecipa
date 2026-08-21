@@ -99,6 +99,7 @@ describe('GATE_RISCO_V1', () => {
         indeterminateValue: '0',
         indeterminateCount: 0,
         missingAcquisitionCount: 1,
+        items: [],
       },
     })
     expect(candidate.reasons.map((item) => item.code)).toContain('VALOR_AQUISICAO_OPERACAO_INDISPONIVEL')

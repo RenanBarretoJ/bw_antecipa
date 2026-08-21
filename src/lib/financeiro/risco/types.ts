@@ -48,6 +48,7 @@ export type RiskCandidateProjection = {
   indeterminateValue: string
   indeterminateCount: number
   missingAcquisitionCount: number
+  items: Array<{ notaFiscalId: string | null; parcelaId: string | null; valorAquisicao: string | null }>
 }
 
 export type RiskClassifierInput = {

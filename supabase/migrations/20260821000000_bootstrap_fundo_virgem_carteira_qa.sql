@@ -107,6 +107,7 @@ ALTER TABLE public.conciliacao_execucoes ADD COLUMN IF NOT EXISTS bootstrap bool
 ALTER TABLE public.posicao_logistica_execucoes ALTER COLUMN estoque_importacao_id DROP NOT NULL;
 ALTER TABLE public.posicao_logistica_execucoes ALTER COLUMN matching_execucao_id DROP NOT NULL;
 ALTER TABLE public.posicao_logistica_execucoes ADD COLUMN IF NOT EXISTS bootstrap boolean NOT NULL DEFAULT false;
+ALTER TABLE public.posicao_logistica_execucoes DROP CONSTRAINT IF EXISTS posicao_logistica_execucoes_bootstrap_check;
 ALTER TABLE public.posicao_logistica_execucoes ADD CONSTRAINT posicao_logistica_execucoes_bootstrap_check
   CHECK (bootstrap OR (estoque_importacao_id IS NOT NULL AND matching_execucao_id IS NOT NULL));
 

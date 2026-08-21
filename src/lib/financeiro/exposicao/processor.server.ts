@@ -16,7 +16,19 @@ type Row = Record<string, unknown> & { id: string }
 const admin = () => createAdminClient() as DynamicClient
 const nullable = (value: unknown) => value == null ? null : String(value)
 
-async function resolvePolicy(client: DynamicClient, fundoId: string, dataOperacional: string) {
+async function resolvePolicy(client: DynamicClient, fundoId: string, dataOperacional: string, politicaOperacionalVersaoId?: string | null) {
+  // Escopo operacao: usa exatamente o snapshot congelado na operacao
+  // (operacoes.politica_operacional_versao_id), o mesmo que executarGateRisco
+  // ja resolveu -- nunca a resolucao padrao=true do fundo, que pode ser uma
+  // politica diferente da que realmente governa esta operacao.
+  if (politicaOperacionalVersaoId) {
+    const versionResult = await client.from('politica_operacional_versoes')
+      .select('id,controle_exposicao_logistica_ativo,limite_exposicao_em_transito_pct,vigente_desde,publicada_em')
+      .eq('id', politicaOperacionalVersaoId).eq('fundo_id', fundoId).maybeSingle()
+    if (versionResult.error) throw new Error(`Nao foi possivel resolver a politica congelada da operacao: ${versionResult.error.message}`)
+    return versionResult.data as Row | null
+  }
+  // Escopo fundo / Central de Risco: resolucao vigente inalterada.
   const policyResult = await client.from('politicas_operacionais').select('id').eq('fundo_id', fundoId)
     .eq('padrao', true).eq('status', 'ativa').limit(1).maybeSingle()
   if (policyResult.error) throw new Error(`Nao foi possivel resolver a politica de exposicao: ${policyResult.error.message}`)
@@ -118,13 +130,14 @@ async function resolveOverlay(client: DynamicClient, input: {
 
 export async function executarExposicaoFinanceira(input: {
   fundoId: string; dataOperacional: string; atorUsuarioId: string; overlayAsOf?: string
+  politicaOperacionalVersaoId?: string | null
 }) {
   const client = admin()
   const dates = resolverExpectativasCicloFinanceiro(input.dataOperacional)
   const d1 = dates.ESTOQUE
   const d2 = dates.CARTEIRA
   const overlayAsOf = input.overlayAsOf || new Date().toISOString()
-  const policy = await resolvePolicy(client, input.fundoId, input.dataOperacional)
+  const policy = await resolvePolicy(client, input.fundoId, input.dataOperacional, input.politicaOperacionalVersaoId)
   if (!policy || policy.controle_exposicao_logistica_ativo !== true) {
     const row = await persist(client, basePayload({ fundoId: input.fundoId, dataOperacional: input.dataOperacional, d1, d2, overlayAsOf, actorId: input.atorUsuarioId, status: 'NAO_APLICAVEL', policy, signatureState: {} }))
     return { execucaoId: row.id, status: row.status, idempotente: true }

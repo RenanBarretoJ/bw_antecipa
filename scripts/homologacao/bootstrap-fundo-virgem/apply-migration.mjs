@@ -11,18 +11,21 @@ if (!assertMutation(args, action, env.projectRef)) {
   process.exit(0)
 }
 
+// Todos os 4 arquivos sao seguros de reexecutar incondicionalmente: toda
+// CREATE OR REPLACE FUNCTION e idempotente por natureza, todo ADD COLUMN usa
+// IF NOT EXISTS, e toda ADD CONSTRAINT e precedida de DROP CONSTRAINT IF
+// EXISTS. Reexecutar sempre (em vez de pular com base num marcador fraco,
+// como uma funcao existir) e deliberado -- um marcador fraco ja mascarou uma
+// reversao parcial real: um sync automatico de migrations disparado por
+// push (supabase_migrations.schema_migrations) reaplicou 20260820180000 e
+// falhou ao tentar 20260821000000 (a ADD CONSTRAINT sem DROP IF EXISTS,
+// corrigida aqui), revertendo silenciosamente persistir_matching_execucao
+// para a versao sem bootstrap enquanto o restante do schema permanecia
+// intacto. Reexecutar tudo aqui corrige e nunca mais depende do marcador.
 const db = await connectDb(env, 'bootstrap_fundo_virgem_apply')
 try {
-  const already1 = await db.query("select to_regprocedure('private.financeiro_fundo_virgem(uuid)') is not null applied")
-  if (!already1.rows[0].applied) {
-    await db.query(readFileSync(resolve('supabase/migrations/20260821000000_bootstrap_fundo_virgem_carteira_qa.sql'), 'utf8'))
-  }
-  const already2 = await db.query(`select (select pg_get_constraintdef(oid) from pg_constraint
-    where conrelid='public.risco_motivos'::regclass and conname='risco_motivos_codigo_check') like '%PL_OFICIAL_INDISPONIVEL%' applied`)
-  if (!already2.rows[0].applied) {
-    await db.query(readFileSync(resolve('supabase/migrations/20260821010000_bootstrap_risco_motivos_pl_oficial_indisponivel.sql'), 'utf8'))
-  }
-  // CREATE OR REPLACE FUNCTION e sempre seguro de reexecutar.
+  await db.query(readFileSync(resolve('supabase/migrations/20260821000000_bootstrap_fundo_virgem_carteira_qa.sql'), 'utf8'))
+  await db.query(readFileSync(resolve('supabase/migrations/20260821010000_bootstrap_risco_motivos_pl_oficial_indisponivel.sql'), 'utf8'))
   await db.query(readFileSync(resolve('supabase/migrations/20260821020000_bootstrap_exposicao_flag_persistido.sql'), 'utf8'))
   await db.query(readFileSync(resolve('supabase/migrations/20260821030000_bootstrap_fundo_virgem_evidencia_economica.sql'), 'utf8'))
   const check = await db.query(`select
@@ -33,11 +36,13 @@ try {
     (select count(*) from information_schema.columns where table_schema='public' and table_name='posicao_logistica_execucoes' and column_name='bootstrap') logistica_col,
     (select count(*) from information_schema.columns where table_schema='public' and table_name='exposicao_execucoes' and column_name='bootstrap') exposicao_col,
     (select pg_get_constraintdef(oid) from pg_constraint where conrelid='public.risco_motivos'::regclass and conname='risco_motivos_codigo_check') motivos_check,
-    (select prosrc from pg_proc where proname='financeiro_fundo_virgem') predicado_src`)
+    (select prosrc from pg_proc where proname='financeiro_fundo_virgem') predicado_src,
+    (select prosrc from pg_proc where proname='persistir_matching_execucao') matching_rpc_src`)
   const row = check.rows[0]
   const ok = row.helper_ok && row.resolver_ok && Number(row.matching_col) === 1 && Number(row.conciliacao_col) === 1
     && Number(row.logistica_col) === 1 && Number(row.exposicao_col) === 1 && row.motivos_check?.includes('PL_OFICIAL_INDISPONIVEL')
     && row.predicado_src?.includes('estoque_posicoes') && !row.predicado_src?.includes('importacoes_financeiras')
+    && row.matching_rpc_src?.includes('v_bootstrap')
   if (!ok) throw new Error(`Migration terminou sem os objetos esperados: ${JSON.stringify(row)}`)
   console.log(`Migration BOOTSTRAP_FUNDO_VIRGEM aplicada e verificada em homologacao (${env.projectRef}).`)
 } finally {
