@@ -7,10 +7,12 @@ os ajustes finais").
 Política: `P0_Claude_Politica_NF_Remessa_Pre_Cessao` (catálogo/label) e
 `P0_Claude_Integrar_NF_Remessa_Requisito_Politica` (satisfação automática
 — seção G).
+UI: `P0_Claude_Consolidar_NF_Remessa_Requisitos_UI` (consolidação em uma
+única representação — seção C).
 
 ## Resultado
 
-`P0_NF_REMESSA_LASTRO_LOGISTICO = PASS` (definitivo). Os 3 tickets
+`P0_NF_REMESSA_LASTRO_LOGISTICO = PASS` (definitivo). Os 4 tickets
 subsequentes fecharam, nesta ordem: (1) ajustes finais — cadeia validada
 com XMLs **reais**, canhoto→remessa funcional, fallback de valor removido,
 matching determinístico (cProd→NCM→unidade+quantidade); (2) `nf_remessa`
@@ -18,9 +20,13 @@ incluído no catálogo canônico de requisitos de política (seletor +
 relabel "Pré-cessão"); (3) o requisito `nf_remessa` de uma política passou
 a ser **satisfeito automaticamente** pela fonte real
 (`nota_fiscal_remessas.status_validacao='VALIDADA'`), via reconciliação
-por trigger — ver seção G. A única parte que permanece deliberadamente
-fora de escopo é a suíte de certificação browser E2E (ver "Riscos
-remanescentes").
+por trigger; (4) as duas representações visuais (card separado + item do
+checklist) foram **consolidadas em uma só** — o card `RemessaDaNota` foi
+removido, e `nf_remessa` agora só aparece dentro de "Requisitos
+documentais", com um componente especializado que nunca cai no fluxo
+genérico de upload — ver seção C. A única parte que permanece
+deliberadamente fora de escopo é a suíte de certificação browser E2E (ver
+"Riscos remanescentes").
 
 ## A. Modelo
 
@@ -85,16 +91,57 @@ blocos separados de expedidor/recebedor, e inventar o CNPJ a partir de
 outro papel seria fail-open. Nesses casos `cnpj_tomador` fica `null`, o que
 a classificação de tomador trata como fail-closed (`DENY`).
 
-## C. UI
+## C. UI (consolidada — ticket `P0_Claude_Consolidar_NF_Remessa_Requisitos_UI`)
 
-Card `RemessaDaNota` (`src/components/notas-fiscais/RemessaDaNota.tsx`),
-seguindo exatamente o padrão de `ParcelasDaNota`/`DuplicatasDaNota`: renderiza
-sempre (mesmo vazio, para quem pode enviar) ou nada (se vazio e sem
-permissão de envio) — nunca aparece como pendência bloqueante, pois é
-opcional. Mostra número/série/chave/emitente/destinatário/valor/status por
-remessa, motivos de revisão quando houver, e um botão "Enviar NF de remessa
-(XML)" para cedente (NF ainda editável) e gestor. Renderizado nas páginas de
-detalhe de NF do cedente e do gestor, logo após o card de Parcelas.
+**Histórico**: o ticket original criou um card separado `RemessaDaNota`
+(`src/components/notas-fiscais/RemessaDaNota.tsx`), renderizado nas páginas
+de detalhe de NF logo após o card de Parcelas. Depois que `nf_remessa`
+passou a ser um requisito de política com satisfação automática (ver seção
+G), existiam **duas representações visuais** da mesma coisa — o card
+separado e o item `NF de Remessa` dentro de "Requisitos documentais". Esse
+ticket consolidou em uma única representação: `RemessaDaNota.tsx` foi
+**removido** (arquivo deletado, nenhuma outra referência restante) e suas
+duas páginas de origem (`src/app/cedente/notas-fiscais/[id]/page.tsx`,
+`src/app/gestor/notas-fiscais/[id]/page.tsx`) não renderizam mais o card.
+
+`nf_remessa` agora só aparece — e só quando a política vigente da NF de
+fato tiver esse requisito configurado — dentro do checklist de
+"Requisitos documentais" (`ChecklistCedente`/`ChecklistGestor`), via um
+componente especializado (`src/components/documentos-v2/
+RequisitoNfRemessa.tsx`) que substitui inteiramente o fluxo genérico de
+upload/`documentos_v2` para este tipo:
+
+- **Sem `nf_remessa` na política**: nenhuma instância é criada
+  (`instanciar_requisitos_nota` só insere para requisitos ativos da
+  versão vigente) — nada aparece, por construção, sem código extra.
+- **Opcional, sem remessa**: rótulo **"Não enviada"** (nunca "Pendente"),
+  não bloqueia. Botão "Enviar NF de remessa (XML)".
+- **Obrigatório, sem remessa `VALIDADA`**: rótulo **"Pendente"**, bloqueia
+  conforme a satisfação já implementada (seção G). Mesmo botão de envio.
+- **Existe remessa `VALIDADA`**: rótulo **"Validada"**, subtítulo mostra
+  `NF <numero> • Série <serie> • <emitente>`, cada remessa listada com
+  emitente/destinatário/valor/vínculo NFref, link "Ver XML", e botão
+  "Enviar outra remessa" (a relação é 1:N — múltiplas remessas continuam
+  possíveis e são todas listadas).
+- **`REVISAO_MANUAL`**: rótulo **"Em revisão"**, não satisfaz o
+  obrigatório.
+- **`REJEITADA`**: rótulo **"Rejeitada"**, não satisfaz o obrigatório.
+- Prioridade quando há múltiplas remessas com status misto: `VALIDADA` >
+  `REVISAO_MANUAL` > `REJEITADA` > (obrigatório ? `Pendente` : `Não
+  enviada`) — função pura `resolverStatusVisualNfRemessa`
+  (`src/lib/documentos-v2/nf-remessa-status-visual.ts`), testada
+  isoladamente.
+- Nunca mostra "Tipo ainda não catalogado para upload nesta fase." (essa
+  mensagem só aparece para tipos genéricos sem `documento_tipos`
+  cadastrado quando `mode==='cedente'`) e nunca usa `DocumentDropzone`
+  genérico — o dispatcher em `RequirementCard` (`ChecklistCedente.tsx`)
+  desvia para `RequisitoNfRemessa` **antes** de qualquer hook do fluxo
+  genérico (`RequirementCard` ficou sem hooks próprios, delegando ao
+  componente genérico renomeado `RequirementCardGeneric`, para não violar
+  a ordem de hooks do React entre os dois caminhos).
+- O backend continua sendo integralmente `nota_fiscal_remessas` +
+  `registrar_nota_fiscal_remessa` (envio) e a reconciliação por trigger da
+  seção G (satisfação) — nada mudou fora da camada visual.
 
 ## D. Matching venda ↔ remessa
 
@@ -272,15 +319,14 @@ código novo nesses dois arquivos.
 
 **Checklist** (`src/lib/actions/documento-v2.ts`): quando há requisito
 `nf_remessa`, busca as remessas da venda uma vez (só quando aplicável, sem
-custo no caminho comum) e monta `descricao` como "Atendido — NF de Remessa
-`<numero>` validada." ou "Pendente — nenhuma NF de Remessa validada.
-Envie pelo card 'NF de Remessa' nesta página." — apontando para o card
-`RemessaDaNota`, nunca duplicando um botão de upload genérico
-(`uploadPermitido` é forçado a `false` para este tipo). `nome` usa
-`documentLabel()` (`src/lib/politicas/ui.ts`) como fonte única do rótulo,
-em vez de cair no código bruto por falta de linha em `documento_tipos`
-(que continua deliberadamente sem uma entrada `nf_remessa`, para não abrir
-um caminho de upload genérico paralelo).
+custo no caminho comum) e monta `descricao`/`nome` a nível de API (campo
+ainda populado, embora o componente de UI dedicado — ver seção C —
+resolva seu próprio rótulo a partir de uma busca própria, em vez de
+depender de `descricao`/`nome`). `uploadPermitido` é forçado a `false`
+para este tipo. `nome` usa `documentLabel()` (`src/lib/politicas/ui.ts`)
+como fonte única do rótulo quando não há linha em `documento_tipos` (que
+continua deliberadamente sem uma entrada `nf_remessa`, para não abrir um
+caminho de upload genérico paralelo).
 
 **Verificado ao vivo em homologação** (dentro de uma transação com
 `ROLLBACK`, sem tocar dados compartilhados): instância pendente para a
@@ -429,10 +475,18 @@ Resultado, com os arquivos **reais** (não reconstruídos):
   inserir a seguir uma remessa `VALIDADA` disparou satisfação automática
   via trigger, sem chamada manual; isolamento cross-venda confirmado (a
   instância da 5576 não foi afetada pelas remessas da venda QA).
+- **Testes do ticket de consolidação da UI**: `nf-remessa-status-visual
+  .test.ts` (8 testes: opcional sem remessa → `nao_enviada`, obrigatório
+  sem remessa → `pendente`, `VALIDADA`/`REVISAO_MANUAL`/`REJEITADA`,
+  prioridade com múltiplas remessas de status misto). Verificado por
+  `tsc`/suíte completa/lint/`next build --webpack` que as duas páginas de
+  detalhe de NF continuam compilando sem o card removido e que o
+  dispatcher `RequirementCard`/`RequisitoNfRemessa` não viola a ordem de
+  hooks do React.
 - **Cenário 16** (regressão completa do fluxo sem remessa): suíte completa
-  — 172 arquivos / **1392 testes**, 0 falhas (1364 após ajustes finais,
-  1337 após o ticket original, 1333 antes de qualquer ticket desta
-  feature).
+  — 174 arquivos / **1400 testes**, 0 falhas (1392 após satisfação do
+  requisito, 1364 após ajustes finais, 1337 após o ticket original, 1333
+  antes de qualquer ticket desta feature).
 - `npx tsc --noEmit`: limpo. `npm run lint`: mesmos 6 warnings
   pré-existentes, sem novos. `git diff --check`: limpo. `npx next build
   --webpack`: sucesso, todas as rotas compiladas. `npm audit --omit=dev`:
@@ -484,15 +538,23 @@ Resultado, com os arquivos **reais** (não reconstruídos):
    revisão.
 7. **`documento_tipos` continua sem uma linha `nf_remessa`, deliberadamente**
    — isso é o que garante `uploadPermitido=false` (nenhum botão de upload
-   genérico duplicando o card `RemessaDaNota`). Se um ticket futuro
-   precisar que `nf_remessa` apareça em outros lugares que dependem de
-   `documento_tipos` (ex.: certas telas do repositório documental
-   genérico), essa decisão precisa ser revisitada com cuidado para não
-   reabrir o caminho de upload genérico incorreto.
-6. **Fixtures reais são locais, não commitadas**: `src/lib/logistica/
+   genérico duplicando o componente especializado `RequisitoNfRemessa`).
+   Se um ticket futuro precisar que `nf_remessa` apareça em outros lugares
+   que dependem de `documento_tipos` (ex.: certas telas do repositório
+   documental genérico), essa decisão precisa ser revisitada com cuidado
+   para não reabrir o caminho de upload genérico incorreto.
+8. **Fixtures reais são locais, não commitadas**: `src/lib/logistica/
    __fixtures__/reais/` e a pasta `nfs/` na raiz (com os XMLs/PDFs/boletos
    originais) estão no `.gitignore` — contêm CNPJ, razão social e
    certificado X.509 reais de cedente/sacado/transportadora. Quem rodar a
    suíte em outra máquina verá `nf-remessa-cadeia-real.test.ts` pulado
    (não falho); os resultados desses testes estão documentados aqui como
    evidência.
+9. **Consolidação da UI (`RequisitoNfRemessa`) sem verificação em
+   navegador real**: cobrimos com `tsc --noEmit`, suíte completa, lint e
+   `next build --webpack` (todas as rotas, incluindo as duas páginas de
+   detalhe de NF, compilam), mais uma função pura testada isoladamente
+   para a prioridade de status. Não abrimos o componente num navegador
+   com login/dados reais (exigiria política com `nf_remessa` configurada
+   + sessão autenticada) — recomendo essa verificação visual antes de
+   promover para produção, mesmo com as garantias estáticas acima.

@@ -14,6 +14,7 @@ import { validarNovaPrevisaoCanhoto, type StatusPrazoUploadCanhoto } from '@/lib
 import { AlertTriangle, CalendarClock, CheckCircle, ChevronDown, ChevronUp, Clock, Eye, FileText, Loader2, MoreVertical, ShieldAlert, Truck, Upload, XCircle } from 'lucide-react'
 import { DocumentDropzone } from './DocumentDropzone'
 import { ParcelasBoletosNota } from './ParcelasBoletosNota'
+import { RequisitoNfRemessa } from './RequisitoNfRemessa'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -140,16 +141,7 @@ function TechnicalDetails({ version }: { version: ChecklistDocumentoItem['versoe
   )
 }
 
-function RequirementCard({
-  item,
-  notaFiscalId,
-  mode,
-  sending,
-  processing,
-  onUpload,
-  onDownload,
-  onAnalyze,
-}: {
+type RequirementCardProps = {
   item: ChecklistDocumentoItem
   notaFiscalId: string
   mode: ChecklistMode
@@ -158,7 +150,35 @@ function RequirementCard({
   onUpload: (item: ChecklistDocumentoItem, file: File, notaFiscalIds?: string[]) => Promise<void>
   onDownload: (versionId: string) => Promise<void>
   onAnalyze: (versionId: string, result: 'aprovado' | 'rejeitado' | 'requer_ajuste') => Promise<void>
-}) {
+}
+
+/**
+ * nf_remessa nunca usa o fluxo generico de upload/documentos_v2 -- tem
+ * componente especializado proprio, com sua fonte real
+ * (nota_fiscal_remessas) e vocabulario de status dedicado (regra da
+ * consolidacao da UI: "Nao enviada"/"Pendente"/"Validada"/"Em revisao"/
+ * "Rejeitada", nunca a mensagem generica de tipo nao catalogado). Este
+ * dispatcher fica sem hooks proprios de proposito -- so despacha antes de
+ * qualquer useState, para nao violar a ordem de hooks entre os dois
+ * componentes (regras de hooks do React).
+ */
+function RequirementCard(props: RequirementCardProps) {
+  if (props.item.codigo === 'nf_remessa') {
+    return <RequisitoNfRemessa item={props.item} notaFiscalId={props.notaFiscalId} mode={props.mode} />
+  }
+  return <RequirementCardGeneric {...props} />
+}
+
+function RequirementCardGeneric({
+  item,
+  notaFiscalId,
+  mode,
+  sending,
+  processing,
+  onUpload,
+  onDownload,
+  onAnalyze,
+}: RequirementCardProps) {
   const [expanded, setExpanded] = useState(false)
   const [showUpload, setShowUpload] = useState(false)
   const [selectedNfIds, setSelectedNfIds] = useState<string[]>([notaFiscalId])

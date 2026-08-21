@@ -25,7 +25,6 @@ import { ArquivoOriginalCompacto } from '@/components/notas-fiscais/ArquivoOrigi
 import { HistoricoTimelineCard } from '@/components/historico/HistoricoTimelineCard'
 import { DuplicatasDaNota } from '@/components/duplicatas/DuplicatasDaNota'
 import { ParcelasDaNota } from '@/components/notas-fiscais/ParcelasDaNota'
-import { RemessaDaNota } from '@/components/notas-fiscais/RemessaDaNota'
 import { CanhotoDaEntrega } from '@/components/notas-fiscais/CanhotoDaEntrega'
 
 interface NfCompleta {
@@ -98,14 +97,12 @@ function ReadOnlyNfDetails({
   previewUrl,
   temParcelas,
   parcelasSection,
-  remessaSection,
   canhotoSection,
 }: {
   nf: NfCompleta
   previewUrl: string | null
   temParcelas: boolean
   parcelasSection: ReactNode
-  remessaSection: ReactNode
   canhotoSection: ReactNode
 }) {
   const impostos = Number(nf.valor_icms || 0) + Number(nf.valor_iss || 0) + Number(nf.valor_pis || 0) + Number(nf.valor_cofins || 0) + Number(nf.valor_ipi || 0)
@@ -161,7 +158,6 @@ function ReadOnlyNfDetails({
         </section>
 
         {parcelasSection}
-        {remessaSection}
         {canhotoSection}
 
         {(nf.descricao_itens || nf.condicao_pagamento) && (
@@ -541,7 +537,6 @@ export default function NfDetalhePage() {
 
       {(() => {
         const parcelasSection = <ParcelasDaNota notaFiscalId={nfId} mode="cedente" onTemParcelas={setTemParcelas} />
-        const remessaSection = <RemessaDaNota notaFiscalVendaId={nfId} mode="cedente" editable={isEditable} />
         const canhotoSection = <CanhotoDaEntrega notaFiscalId={nfId} mode="cedente" />
         return isEditable ? (
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -751,7 +746,6 @@ export default function NfDetalhePage() {
           </div>
 
           {parcelasSection}
-          {remessaSection}
           {canhotoSection}
 
           {/* Descricao e pagamento */}
@@ -835,7 +829,7 @@ export default function NfDetalhePage() {
         </div>
       </div>
         ) : (
-          <ReadOnlyNfDetails nf={nf} previewUrl={previewUrl} temParcelas={temParcelas} parcelasSection={parcelasSection} remessaSection={remessaSection} canhotoSection={canhotoSection} />
+          <ReadOnlyNfDetails nf={nf} previewUrl={previewUrl} temParcelas={temParcelas} parcelasSection={parcelasSection} canhotoSection={canhotoSection} />
         )
       })()}
 
