@@ -30,6 +30,8 @@ export type RemessaDaNotaRegistro = {
   data_emissao: string | null
   valor_total: number
   quantidade_total: number | null
+  /** Unidade do primeiro item estruturado (ex.: 'KG'). Null quando indisponivel -- exibicao apenas, nunca usado no matching/satisfacao. */
+  unidade_quantidade: string | null
   status_validacao: 'VALIDADA' | 'REVISAO_MANUAL' | 'REJEITADA'
   referencia_nf_venda_confirmada: boolean
   motivos_validacao: string[]
@@ -72,16 +74,31 @@ export async function listarRemessasDaNota(notaFiscalVendaId: string): Promise<A
     const context = await requireNotaFiscalAccess(notaFiscalVendaId)
     const { data, error } = await context.supabase
       .from('nota_fiscal_remessas')
-      .select('id, numero, serie, chave_acesso, emitente_cnpj, emitente_razao_social, destinatario_cnpj, destinatario_razao_social, data_emissao, valor_total, quantidade_total, status_validacao, referencia_nf_venda_confirmada, motivos_validacao, created_at')
+      .select('id, numero, serie, chave_acesso, emitente_cnpj, emitente_razao_social, destinatario_cnpj, destinatario_razao_social, data_emissao, valor_total, quantidade_total, itens, status_validacao, referencia_nf_venda_confirmada, motivos_validacao, created_at')
       .eq('nota_fiscal_venda_id', notaFiscalVendaId)
       .order('created_at', { ascending: false })
     if (error) throw new Error(error.message)
-    const remessas = (data || []).map((row) => ({
-      ...row,
-      valor_total: Number(row.valor_total),
-      quantidade_total: row.quantidade_total === null ? null : Number(row.quantidade_total),
-      motivos_validacao: Array.isArray(row.motivos_validacao) ? row.motivos_validacao as string[] : [],
-    })) as RemessaDaNotaRegistro[]
+    const remessas = (data || []).map((row) => {
+      const primeiroItem = Array.isArray(row.itens) ? (row.itens[0] as { unidade?: string } | undefined) : undefined
+      return {
+        id: row.id,
+        numero: row.numero,
+        serie: row.serie,
+        chave_acesso: row.chave_acesso,
+        emitente_cnpj: row.emitente_cnpj,
+        emitente_razao_social: row.emitente_razao_social,
+        destinatario_cnpj: row.destinatario_cnpj,
+        destinatario_razao_social: row.destinatario_razao_social,
+        data_emissao: row.data_emissao,
+        status_validacao: row.status_validacao,
+        referencia_nf_venda_confirmada: row.referencia_nf_venda_confirmada,
+        created_at: row.created_at,
+        valor_total: Number(row.valor_total),
+        quantidade_total: row.quantidade_total === null ? null : Number(row.quantidade_total),
+        unidade_quantidade: primeiroItem?.unidade || null,
+        motivos_validacao: Array.isArray(row.motivos_validacao) ? row.motivos_validacao as string[] : [],
+      }
+    }) as RemessaDaNotaRegistro[]
     return { success: true, message: 'Remessas carregadas.', data: remessas }
   } catch (error) {
     return { success: false, message: 'Nao foi possivel carregar as NF de remessa desta venda.', details: error instanceof Error ? error.message : 'Erro inesperado.' }
