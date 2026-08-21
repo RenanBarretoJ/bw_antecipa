@@ -5,7 +5,8 @@ import { createAdminClient } from '@/lib/supabase/server'
 import { classificarLogisticaDasNotas } from './evidencias.server'
 import { projetarPosicaoLogistica, somarValoresConhecidos } from './snapshot'
 import { LOGISTICS_RULE_VERSION } from './types'
-import { criarAssinaturaPosicaoLogistica, criarFingerprintLogistico } from './fingerprint'
+import { criarAssinaturaPosicaoLogisticaBootstrap, criarAssinaturaPosicaoLogistica, criarFingerprintLogistico } from './fingerprint'
+import { resolverBootstrapFinanceiro } from '@/lib/financeiro/bootstrap/detector.server'
 
 type DynamicClient = ReturnType<typeof createAdminClient> & {
   from: (table: string) => ReturnType<ReturnType<typeof createAdminClient>['from']>
@@ -25,7 +26,35 @@ export async function executarPosicaoLogisticaFinanceira(input: {
     .eq('data_referencia', input.dataReferencia).eq('status', 'PUBLICADA')
     .order('publicada_em', { ascending: false }).limit(1).maybeSingle()
   if (stockResult.error) throw new Error(`Nao foi possivel resolver o Estoque D-1: ${stockResult.error.message}`)
-  if (!stockResult.data) throw new Error('Nenhum Estoque D-1 publicado foi encontrado para a data informada.')
+  if (!stockResult.data) {
+    const bootstrap = await resolverBootstrapFinanceiro(client, input.fundoId)
+    if (!bootstrap.fundoVirgem) throw new Error('Nenhum Estoque D-1 publicado foi encontrado para a data informada.')
+    const signature = criarAssinaturaPosicaoLogisticaBootstrap({
+      fundoId: input.fundoId, dataReferencia: input.dataReferencia, regraVersao: LOGISTICS_RULE_VERSION,
+    })
+    const correlationId = randomUUID()
+    const payload = {
+      fundo_id: input.fundoId, data_referencia: input.dataReferencia, bootstrap: true,
+      regra_versao: LOGISTICS_RULE_VERSION, logistica_as_of: new Date().toISOString(),
+      fingerprint_logistico: criarFingerprintLogistico(new Map()), assinatura_execucao: signature,
+      correlation_id: correlationId, criado_por: input.atorUsuarioId,
+      detalhes: { fonte_financeira: 'BOOTSTRAP_FUNDO_VIRGEM', valores_agregados_conhecidos: {} },
+    }
+    const persisted = await client.rpc('persistir_posicao_logistica_execucao', { p_payload: payload })
+    if (persisted.error) throw new Error(`Nao foi possivel persistir a posicao logistica de bootstrap: ${persisted.error.message}`)
+    const persistedExecution = await client.from('posicao_logistica_execucoes')
+      .select('id,correlation_id,logistica_as_of,assinatura_execucao,fingerprint_logistico,total_posicoes')
+      .eq('id', String(persisted.data)).single()
+    if (persistedExecution.error || !persistedExecution.data) {
+      throw new Error(`Nao foi possivel confirmar a execucao logistica de bootstrap: ${persistedExecution.error?.message || 'registro ausente'}`)
+    }
+    return {
+      execucaoId: persistedExecution.data.id, total: persistedExecution.data.total_posicoes,
+      signature: persistedExecution.data.assinatura_execucao, fingerprintLogistico: persistedExecution.data.fingerprint_logistico,
+      correlationId: persistedExecution.data.correlation_id, logisticaAsOf: persistedExecution.data.logistica_as_of,
+      bootstrap: true as const,
+    }
+  }
   const stock = stockResult.data as Row
 
   const matchingResult = await client.from('matching_execucoes').select('*')

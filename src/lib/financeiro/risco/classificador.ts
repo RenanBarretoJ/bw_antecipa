@@ -50,7 +50,7 @@ export function classificarGateRisco(input: RiskClassifierInput): RiskClassifica
     }
   }
 
-  const supportedExposureStatuses = new Set(['CALCULADA', 'PL_D2_INDISPONIVEL', 'PL_D2_INVALIDO'])
+  const supportedExposureStatuses = new Set(['CALCULADA', 'PL_D2_INDISPONIVEL', 'PL_D2_INVALIDO', 'PL_OFICIAL_INDISPONIVEL'])
   if (!supportedExposureStatuses.has(input.exposureStatus) || input.policy.limitPercent == null) {
     return {
       applicable: true,
@@ -72,7 +72,9 @@ export function classificarGateRisco(input: RiskClassifierInput): RiskClassifica
   const netAssetValue = input.netAssetValueD2 == null ? null : decimal(input.netAssetValueD2)
   const limit = input.policy.limitPercent == null ? null : decimal(input.policy.limitPercent)
 
-  if (input.exposureStatus === 'PL_D2_INDISPONIVEL' || input.netAssetValueD2 == null) {
+  if (input.exposureStatus === 'PL_OFICIAL_INDISPONIVEL') {
+    reasons.push(reason('PL_OFICIAL_INDISPONIVEL', 'BLOQUEIO'))
+  } else if (input.exposureStatus === 'PL_D2_INDISPONIVEL' || input.netAssetValueD2 == null) {
     reasons.push(reason('PL_D2_INDISPONIVEL', 'BLOQUEIO'))
   } else if (input.exposureStatus === 'PL_D2_INVALIDO' || !netAssetValue?.gt(0)) {
     reasons.push(reason('PL_D2_INVALIDO', 'BLOQUEIO', { monetaryValue: input.netAssetValueD2 }))

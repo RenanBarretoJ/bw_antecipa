@@ -9,6 +9,7 @@ import {
   identidadeExternaDaFonte,
 } from '../matching/matching'
 import { avaliarCompletudeBases, reconciliarTitulosD2D1 } from './reconciliation'
+import { resolverBootstrapFinanceiro } from '@/lib/financeiro/bootstrap/detector.server'
 import {
   MATCH_RULE_VERSION,
   RECONCILIATION_RULE_VERSION,
@@ -180,7 +181,20 @@ export async function executarMatchingFinanceiro(input: { fundoId: string; dataR
     latestImport(input.fundoId, 'AQUISICOES', input.dataReferencia, input.readCache),
     latestImport(input.fundoId, 'LIQUIDACOES', input.dataReferencia, input.readCache),
   ])).filter(Boolean) as ImportRow[]
-  if (imports.length === 0) throw new Error('Nenhuma base financeira publicada foi encontrada para a data informada.')
+  if (imports.length === 0) {
+    const bootstrap = await resolverBootstrapFinanceiro(admin(), input.fundoId)
+    if (!bootstrap.fundoVirgem) throw new Error('Nenhuma base financeira publicada foi encontrada para a data informada.')
+    const correlationId = randomUUID()
+    const signature = sha256({ fundoId: input.fundoId, date: input.dataReferencia, inputIds: [], rule: MATCH_RULE_VERSION, bootstrap: true })
+    const payload = {
+      fundo_id: input.fundoId, data_referencia: input.dataReferencia, regra_versao: MATCH_RULE_VERSION,
+      input_import_ids: [], assinatura_execucao: signature, correlation_id: correlationId,
+      criado_por: input.atorUsuarioId, bootstrap: true, resultados: [],
+    }
+    const { data, error } = await admin().rpc('persistir_matching_execucao', { p_payload: payload })
+    if (error) throw new Error(`Nao foi possivel persistir o matching de bootstrap: ${error.message}`)
+    return { execucaoId: String(data), total: 0, signature, correlationId, bootstrap: true as const }
+  }
 
   const [notes, initialCrosswalk, rowGroups] = await Promise.all([
     notesForFund(input.fundoId), crosswalkForFund(input.fundoId),
@@ -285,6 +299,22 @@ export async function executarConciliacaoFinanceira(input: { fundoId: string; da
   if (matching.error) throw new Error(`Nao foi possivel resolver a execucao de matching: ${matching.error.message}`)
   const correlationId = randomUUID()
   const signature = sha256({ fundoId: input.fundoId, date: input.dataReferencia, inputIds, matching: matching.data?.id || null, rule: RECONCILIATION_RULE_VERSION })
+
+  if (missing.length === 4) {
+    const bootstrap = await resolverBootstrapFinanceiro(admin(), input.fundoId)
+    if (bootstrap.fundoVirgem) {
+      const bootstrapSignature = sha256({ fundoId: input.fundoId, date: input.dataReferencia, inputIds: [], matching: matching.data?.id || null, rule: RECONCILIATION_RULE_VERSION, bootstrap: true })
+      const payload = {
+        fundo_id: input.fundoId, data_referencia: input.dataReferencia, regra_versao: RECONCILIATION_RULE_VERSION,
+        input_import_ids: [], assinatura_execucao: bootstrapSignature, correlation_id: correlationId,
+        criado_por: input.atorUsuarioId, matching_execucao_id: matching.data?.id || null, bootstrap: true,
+        status: 'CONCLUIDA', detalhes: { bootstrap: true }, contagens: {}, valores_agregados: {}, resultados: [],
+      }
+      const { data, error } = await admin().rpc('persistir_conciliacao_execucao', { p_payload: payload })
+      if (error) throw new Error(`Nao foi possivel persistir a conciliacao de bootstrap: ${error.message}`)
+      return { execucaoId: String(data), status: 'CONCLUIDA' as const, total: 0, signature: bootstrapSignature, correlationId, bootstrap: true as const }
+    }
+  }
 
   if (missing.length > 0) {
     const payload = {

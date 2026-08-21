@@ -18,3 +18,11 @@ export function criarAssinaturaPosicaoLogistica(input: {
 }) {
   return sha256(input)
 }
+
+export function criarAssinaturaPosicaoLogisticaBootstrap(input: {
+  fundoId: string
+  dataReferencia: string
+  regraVersao: string
+}) {
+  return sha256({ ...input, bootstrap: true })
+}

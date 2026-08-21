@@ -5,6 +5,7 @@ import Decimal from 'decimal.js'
 import { createAdminClient } from '@/lib/supabase/server'
 import { resolverExpectativasCicloFinanceiro } from '@/lib/financeiro/ingestao/cron-contract'
 import { classificarLogisticaDasNotas } from '@/lib/financeiro/logistica/evidencias.server'
+import { resolverBootstrapFinanceiro } from '@/lib/financeiro/bootstrap/detector.server'
 import { calcularAgregadosPosicao, calcularExposicao, classificarOverlayCandidate } from './calculo'
 import { criarAssinaturaExposicao } from './fingerprint'
 import { EXPOSURE_RULE_VERSION, type ExposureBaseRow, type ExposureOverlayCandidate, type ExposureExecutionStatus, type ExposureQualityFlag } from './types'
@@ -47,6 +48,7 @@ function basePayload(input: {
     politica_operacional_versao_id: input.policy?.id || null,
     limite_referencia_pct: nullable(input.policy?.limite_exposicao_em_transito_pct),
     status: input.status, correlation_id: randomUUID(), criado_por: input.actorId,
+    bootstrap: Boolean(input.signatureState.bootstrap),
     assinatura_execucao: criarAssinaturaExposicao({
       fundoId: input.fundoId, dataOperacional: input.dataOperacional, d1: input.d1, d2: input.d2,
       rule: EXPOSURE_RULE_VERSION, status: input.status, policy: input.policy?.id || null,
@@ -138,33 +140,52 @@ export async function executarExposicaoFinanceira(input: {
   }
   const position = positionResult.data as Row
 
-  const importResult = await client.from('importacoes_financeiras').select('id,publicada_em')
-    .eq('fundo_id', input.fundoId).eq('tipo_base', 'CARTEIRA').eq('data_referencia', d2)
-    .eq('status', 'PUBLICADA').eq('completude', 'COMPLETO_COM_DADOS')
-    .order('publicada_em', { ascending: false }).limit(1).maybeSingle()
-  if (importResult.error) throw new Error(`Nao foi possivel resolver a Carteira D-2: ${importResult.error.message}`)
-  if (!importResult.data) {
-    const row = await persist(client, { ...basePayload({ fundoId: input.fundoId, dataOperacional: input.dataOperacional, d1, d2, overlayAsOf, actorId: input.atorUsuarioId, status: 'PL_D2_INDISPONIVEL', policy, signatureState: { position: position.id } }), posicao_logistica_execucao_id: position.id, logistica_as_of: position.logistica_as_of })
-    return { execucaoId: row.id, status: row.status }
-  }
-  const portfolioImport = importResult.data as Row
-  const snapshotResult = await client.from('carteira_snapshots').select('id,importacao_id,patrimonio_liquido,publicada_em')
-    .eq('importacao_id', portfolioImport.id).eq('fundo_id', input.fundoId).eq('data_referencia', d2).eq('vigente', true)
-    .order('publicada_em', { ascending: false }).limit(1).maybeSingle()
-  if (snapshotResult.error) throw new Error(`Nao foi possivel resolver o PL D-2: ${snapshotResult.error.message}`)
-  if (!snapshotResult.data) {
-    const row = await persist(client, { ...basePayload({ fundoId: input.fundoId, dataOperacional: input.dataOperacional, d1, d2, overlayAsOf, actorId: input.atorUsuarioId, status: 'PL_D2_INDISPONIVEL', policy, signatureState: { position: position.id, portfolioImport: portfolioImport.id } }), posicao_logistica_execucao_id: position.id, logistica_as_of: position.logistica_as_of, carteira_importacao_id: portfolioImport.id })
-    return { execucaoId: row.id, status: row.status }
-  }
-  const snapshot = snapshotResult.data as Row
-  const pl = new Decimal(String(snapshot.patrimonio_liquido))
-  if (pl.lte(0)) {
-    const row = await persist(client, { ...basePayload({ fundoId: input.fundoId, dataOperacional: input.dataOperacional, d1, d2, overlayAsOf, actorId: input.atorUsuarioId, status: 'PL_D2_INVALIDO', policy, signatureState: { position: position.id, snapshot: snapshot.id, pl: pl.toString() } }), posicao_logistica_execucao_id: position.id, logistica_as_of: position.logistica_as_of, carteira_importacao_id: portfolioImport.id, carteira_snapshot_id: snapshot.id, patrimonio_liquido_d2: pl.toString() })
-    return { execucaoId: row.id, status: row.status }
+  const bootstrap = await resolverBootstrapFinanceiro(client, input.fundoId)
+  let portfolioImport: Row
+  let snapshot: Row
+  let pl: Decimal
+  let d2Efetivo = d2
+
+  if (bootstrap.fundoVirgem) {
+    if (!bootstrap.carteiraOficial) {
+      const row = await persist(client, { ...basePayload({ fundoId: input.fundoId, dataOperacional: input.dataOperacional, d1, d2, overlayAsOf, actorId: input.atorUsuarioId, status: 'PL_OFICIAL_INDISPONIVEL', policy, signatureState: { position: position.id, bootstrap: true } }), posicao_logistica_execucao_id: position.id, logistica_as_of: position.logistica_as_of })
+      return { execucaoId: row.id, status: row.status }
+    }
+    portfolioImport = { id: bootstrap.carteiraOficial.importacaoId }
+    snapshot = { id: bootstrap.carteiraOficial.snapshotId }
+    pl = new Decimal(bootstrap.carteiraOficial.patrimonioLiquido)
+    d2Efetivo = bootstrap.carteiraOficial.dataReferencia
+  } else {
+    const importResult = await client.from('importacoes_financeiras').select('id,publicada_em')
+      .eq('fundo_id', input.fundoId).eq('tipo_base', 'CARTEIRA').eq('data_referencia', d2)
+      .eq('status', 'PUBLICADA').eq('completude', 'COMPLETO_COM_DADOS')
+      .order('publicada_em', { ascending: false }).limit(1).maybeSingle()
+    if (importResult.error) throw new Error(`Nao foi possivel resolver a Carteira D-2: ${importResult.error.message}`)
+    if (!importResult.data) {
+      const row = await persist(client, { ...basePayload({ fundoId: input.fundoId, dataOperacional: input.dataOperacional, d1, d2, overlayAsOf, actorId: input.atorUsuarioId, status: 'PL_D2_INDISPONIVEL', policy, signatureState: { position: position.id } }), posicao_logistica_execucao_id: position.id, logistica_as_of: position.logistica_as_of })
+      return { execucaoId: row.id, status: row.status }
+    }
+    portfolioImport = importResult.data as Row
+    const snapshotResult = await client.from('carteira_snapshots').select('id,importacao_id,patrimonio_liquido,publicada_em')
+      .eq('importacao_id', portfolioImport.id).eq('fundo_id', input.fundoId).eq('data_referencia', d2).eq('vigente', true)
+      .order('publicada_em', { ascending: false }).limit(1).maybeSingle()
+    if (snapshotResult.error) throw new Error(`Nao foi possivel resolver o PL D-2: ${snapshotResult.error.message}`)
+    if (!snapshotResult.data) {
+      const row = await persist(client, { ...basePayload({ fundoId: input.fundoId, dataOperacional: input.dataOperacional, d1, d2, overlayAsOf, actorId: input.atorUsuarioId, status: 'PL_D2_INDISPONIVEL', policy, signatureState: { position: position.id, portfolioImport: portfolioImport.id } }), posicao_logistica_execucao_id: position.id, logistica_as_of: position.logistica_as_of, carteira_importacao_id: portfolioImport.id })
+      return { execucaoId: row.id, status: row.status }
+    }
+    snapshot = snapshotResult.data as Row
+    pl = new Decimal(String(snapshot.patrimonio_liquido))
+    if (pl.lte(0)) {
+      const row = await persist(client, { ...basePayload({ fundoId: input.fundoId, dataOperacional: input.dataOperacional, d1, d2, overlayAsOf, actorId: input.atorUsuarioId, status: 'PL_D2_INVALIDO', policy, signatureState: { position: position.id, snapshot: snapshot.id, pl: pl.toString() } }), posicao_logistica_execucao_id: position.id, logistica_as_of: position.logistica_as_of, carteira_importacao_id: portfolioImport.id, carteira_snapshot_id: snapshot.id, patrimonio_liquido_d2: pl.toString() })
+      return { execucaoId: row.id, status: row.status }
+    }
   }
 
-  const reconciliationPromise = client.from('conciliacao_execucoes').select('id').eq('fundo_id', input.fundoId)
-    .eq('matching_execucao_id', String(position.matching_execucao_id)).eq('status', 'CONCLUIDA').order('created_at', { ascending: false }).limit(1).maybeSingle()
+  const reconciliationPromise = position.matching_execucao_id
+    ? client.from('conciliacao_execucoes').select('id').eq('fundo_id', input.fundoId)
+      .eq('matching_execucao_id', String(position.matching_execucao_id)).eq('status', 'CONCLUIDA').order('created_at', { ascending: false }).limit(1).maybeSingle()
+    : Promise.resolve({ data: null, error: null })
   const rowsResult = await client.from('posicao_logistica_resultados').select('id,status_vinculo,status_logistico,valor_aquisicao,nota_fiscal_id')
     .eq('execucao_id', position.id).eq('fundo_id', input.fundoId)
   if (rowsResult.error) throw new Error(`Nao foi possivel carregar os buckets P2.4: ${rowsResult.error.message}`)
@@ -191,10 +212,11 @@ export async function executarExposicaoFinanceira(input: {
   const calculated = calcularExposicao({ posicaoEmTransito: base.valorEmTransito, overlay, patrimonioLiquido: pl.toString(), limite: String(policy.limite_exposicao_em_transito_pct), baseFlags: flags })
   const signatureState = {
     position: position.id, portfolioImport: portfolioImport.id, snapshot: snapshot.id, pl: pl.toString(),
+    bootstrap: bootstrap.fundoVirgem,
     overlay: overlay.map((item) => ({ operation: item.operacaoId, note: item.notaFiscalId, value: item.valorAquisicao, logistics: item.statusLogistico, reason: item.motivo })).sort((a, b) => `${a.operation}:${a.note}`.localeCompare(`${b.operation}:${b.note}`)),
   }
   const payload = {
-    ...basePayload({ fundoId: input.fundoId, dataOperacional: input.dataOperacional, d1, d2, overlayAsOf, actorId: input.atorUsuarioId, status: 'CALCULADA', policy, signatureState }),
+    ...basePayload({ fundoId: input.fundoId, dataOperacional: input.dataOperacional, d1, d2: d2Efetivo, overlayAsOf, actorId: input.atorUsuarioId, status: 'CALCULADA', policy, signatureState }),
     posicao_logistica_execucao_id: position.id, logistica_as_of: position.logistica_as_of,
     carteira_importacao_id: portfolioImport.id, carteira_snapshot_id: snapshot.id,
     quantidade_posicao: sourceRows.length, quantidade_entregue: base.quantidadeEntregue,

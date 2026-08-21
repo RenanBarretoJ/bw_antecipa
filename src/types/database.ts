@@ -2126,6 +2126,7 @@ export interface Database {
       admin_obter_fundo: { Args: { p_fundo_id: string }; Returns: Record<string, unknown> | null }
       publicar_importacao_financeira: { Args: { p_importacao_id: string; p_correlation_id?: string | null }; Returns: Record<string, unknown> }
       registrar_importacao_financeira_sem_movimento: { Args: { p_fundo_id: string; p_tipo_base: string; p_data_referencia: string; p_provedor: string; p_layout_nome: string; p_versao_layout: string; p_origem?: string; p_correlation_id?: string | null }; Returns: Record<string, unknown> }
+      resolver_bootstrap_financeiro: { Args: { p_fundo_id: string }; Returns: Record<string, unknown> }
       persistir_matching_execucao: { Args: { p_payload: Record<string, unknown> }; Returns: string }
       persistir_conciliacao_execucao: { Args: { p_payload: Record<string, unknown> }; Returns: string }
       persistir_posicao_logistica_execucao: { Args: { p_payload: Record<string, unknown> }; Returns: string }

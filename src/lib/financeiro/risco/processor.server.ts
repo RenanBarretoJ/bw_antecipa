@@ -206,12 +206,17 @@ export async function executarGateRisco(input: {
   const totalStartedAt = Date.now()
   const client = admin()
   const correlationId = randomUUID()
-  input.diagnostics?.onStageChange?.('policy')
-  const resolved = await resolvePolicy(client, input)
-  const policy = policyFrom(resolved.version)
   let exposure: Row | null = null
   let candidate: RiskCandidateProjection | null = null
   let technicalError: string | null = null
+  let lastStage: RiskGateDiagnosticStage | null = null
+  const trackStage = (stage: RiskGateDiagnosticStage | null) => {
+    lastStage = stage
+    input.diagnostics?.onStageChange?.(stage)
+  }
+  trackStage('policy')
+  const resolved = await resolvePolicy(client, input)
+  const policy = policyFrom(resolved.version)
   const timings: RiskGateTimings = {
     matchingMs: 0,
     reconciliationMs: 0,
@@ -230,6 +235,7 @@ export async function executarGateRisco(input: {
         const candidatePromise = operationId
           ? (async () => {
               if (input.taxaDesconto == null) throw new Error('Taxa da operacao obrigatoria para o gate de aprovacao.')
+              trackStage('candidateSimulation')
               const simulationStartedAt = Date.now()
               const projection = await candidateProjection(client, { operacaoId: operationId, taxaDesconto: input.taxaDesconto, fundoId: input.fundoId })
               timings.candidateSimulationMs = elapsed(simulationStartedAt)
@@ -237,10 +243,11 @@ export async function executarGateRisco(input: {
             })()
           : Promise.resolve(null)
         const [refreshed, projectedCandidate] = await Promise.all([
-          refreshCanonicalSnapshots(input),
+          refreshCanonicalSnapshots({ ...input, diagnostics: { onStageChange: trackStage } }),
           candidatePromise,
         ])
         Object.assign(timings, refreshed.timings)
+        trackStage('exposure')
         const loaded = await client.from('exposicao_execucoes').select('*').eq('id', refreshed.exposure.execucaoId).single()
         if (loaded.error || !loaded.data) throw new Error('Snapshot P2.5 atualizado nao encontrado.')
         const loadedExposure = loaded.data as Row
@@ -253,7 +260,8 @@ export async function executarGateRisco(input: {
     }
   }
 
-  input.diagnostics?.onStageChange?.('classification')
+  const technicalErrorStage = technicalError ? lastStage : null
+  trackStage('classification')
   const classificationStartedAt = Date.now()
   const classification = classificarGateRisco({
     policy,
@@ -318,7 +326,7 @@ export async function executarGateRisco(input: {
     assinatura_inputs: signature,
     correlation_id: correlationId,
     criado_por: input.atorUsuarioId,
-    detalhes: { technical_error: technicalError, candidate, source: 'P2.3-P2.4-P2.5' },
+    detalhes: { technical_error: technicalError, technical_error_stage: technicalErrorStage, candidate, source: 'P2.3-P2.4-P2.5' },
     motivos: classification.reasons.map((reason) => ({
       codigo: reason.code,
       severidade: reason.severity,
@@ -328,11 +336,11 @@ export async function executarGateRisco(input: {
       detalhes: reason.details || {},
     })),
   }
-  input.diagnostics?.onStageChange?.('persistence')
+  trackStage('persistence')
   const persistenceStartedAt = Date.now()
   const persisted = await persist(client, payload)
   timings.persistenceMs = elapsed(persistenceStartedAt)
   timings.totalMs = elapsed(totalStartedAt)
-  input.diagnostics?.onStageChange?.(null)
+  trackStage(null)
   return { ...persisted, classification, signature, correlationId, timings }
 }

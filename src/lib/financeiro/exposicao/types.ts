@@ -7,6 +7,7 @@ export type ExposureExecutionStatus =
   | 'PL_D2_INVALIDO'
   | 'POSICAO_LOGISTICA_INDISPONIVEL'
   | 'BASE_INCOMPATIVEL'
+  | 'PL_OFICIAL_INDISPONIVEL'
 
 export type ExposureLimitClassification = 'ABAIXO_LIMITE' | 'NO_LIMITE' | 'ACIMA_LIMITE'
 export type ExposureOverlayReason =
