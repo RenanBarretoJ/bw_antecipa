@@ -8,7 +8,11 @@ Política: `P0_Claude_Politica_NF_Remessa_Pre_Cessao` (catálogo/label) e
 `P0_Claude_Integrar_NF_Remessa_Requisito_Politica` (satisfação automática
 — seção G).
 UI: `P0_Claude_Consolidar_NF_Remessa_Requisitos_UI` (consolidação em uma
-única representação — seção C).
+única representação — seção C) e `P0_Claude_Melhorar_UI_NF_Remessa_
+Requisitos` (refinamento visual do componente especializado — seção C).
+Correção de bug real: `P0_Claude_CTe_Via_Remessa_Usando_Venda` (a resolução
+`VIA_REMESSA` só existia em código morto; o caminho real da UI comparava
+sempre contra a venda — seção E).
 
 ## Resultado
 
@@ -190,18 +194,46 @@ diretamente (regra 4, fluxo atual, **inalterado**) ou via uma NF de remessa
 `VALIDADA` vinculada a ela (regra 5). `DIRETO_VENDA` tem precedência sobre
 `VIA_REMESSA` quando o CT-e referencia ambas as chaves.
 
-Integração em `src/lib/actions/logistica.ts` (`enviarCte`): para cada NF, se
-o vínculo resolve para `VIA_REMESSA`, a função monta a linha de comparação
-usada por `validarCteContraNfes` (**não alterada**) com os dados da
-**remessa** (emitente, valor, quantidade, itens) em vez dos dados da venda —
-porque regra E diz que o remetente pode ser o operador logístico (não o
-emitente da venda) e porque o valor/quantidade relevante para aquele
-envio específico é o da remessa (fundamental para remessas parciais: comparar
-contra o valor total da venda acusaria divergência indevida). O
-destinatário permanece o mesmo sacado da venda nos dois casos (já garantido
-pelo matching da regra D). `chave_nfe_referenciada` persistida em
-`cte_notas_fiscais` continua sendo `notas_fiscais.chave_acesso` (a venda),
-preservando a semântica "esta linha é sobre esta venda".
+Integração real: `src/lib/documentos-v2/upload.ts`
+(`validarCteXmlContraNotaSeNecessario`, usada por `uploadDocumentoDaEntrega`/
+`uploadDocumentoDaNota`, chamadas por `enviarDocumentoDaNota` — o caminho que
+a UI de "Requisitos documentais" efetivamente usa para envio de CT-e via
+`DocumentDropzone`). Para a NF, se o vínculo resolve para `VIA_REMESSA`, a
+função monta a linha de comparação usada por `validarCteContraNfes` (**não
+alterada**) com os dados da **remessa** (emitente, valor, quantidade, itens)
+em vez dos dados da venda — porque regra E diz que o remetente pode ser o
+operador logístico (não o emitente da venda) e porque o valor/quantidade
+relevante para aquele envio específico é o da remessa (fundamental para
+remessas parciais: comparar contra o valor total da venda acusaria
+divergência indevida). O destinatário permanece o mesmo sacado da venda nos
+dois casos (já garantido pelo matching da regra D). `chave_nfe_referenciada`
+persistida em `cte_notas_fiscais` continua sendo `notas_fiscais.chave_acesso`
+(a venda), preservando a semântica "esta linha é sobre esta venda".
+
+**Correção real (ticket `P0_Claude_CTe_Via_Remessa_Usando_Venda`)**: a
+resolução `VIA_REMESSA` acima só existia em `src/lib/actions/logistica.ts`
+(`enviarCte`) — uma função correta, porém **nunca chamada por nenhuma UI**
+(código morto, confirmado por busca de referências). O caminho real
+exercitado pela tela (`enviarDocumentoDaNota` → `uploadDocumentoDaEntrega`/
+`uploadDocumentoDaNota` → `validarCteXmlContraNotaSeNecessario`) comparava
+sempre contra a NF de venda, mesmo com uma remessa `VALIDADA` vinculada —
+exatamente o erro relatado ("O CT-e não referencia a chave da NF-e
+selecionada. O remetente do CT-e não corresponde ao emitente da NF-e.").
+Classificação do diagnóstico: `UI_ACTION_USES_LEGACY_PATH`. A correção
+portou a mesma lógica (sem duplicá-la: reusa `resolverVinculoCtePorNf` e
+`classificarTomadorCte` de `nf-remessa-matching.ts`) para dentro de
+`validarCteXmlContraNotaSeNecessario`, incluindo a classificação do tomador
+(regra 6, com bloqueio `DENY` fail-closed) e a propagação de
+`p_tomador_cnpj`/`p_tomador_classificacao`/`p_vinculos_remessa` para
+`registrar_cte_documento` em `uploadDocumentoDaEntrega` (o RPC já validava
+esses vínculos no servidor — defesa em profundidade preexistente, nenhuma
+migration nova foi necessária). Testado em
+`src/lib/documentos-v2/upload-cte-via-remessa.test.ts` (7 testes: reprodução
+do bug quando a resolução não é aplicada, `VIA_REMESSA` aprovado comparando
+contra a remessa, `DIRETO_VENDA` sem remessa inalterado, remessa não-VALIDADA
+não é usada, seleção correta entre múltiplas remessas pela chave referenciada
+no CT-e, tomador terceiro `DENY` bloqueia, destinatário divergente continua
+bloqueando via remessa).
 
 Persistência (`cte_notas_fiscais`, novas colunas): `nota_fiscal_remessa_id`
 (nullable) e `tipo_vinculo` (`DIRETO_VENDA|VIA_REMESSA`, `CHECK` garantindo

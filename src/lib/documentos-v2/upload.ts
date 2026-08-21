@@ -6,6 +6,7 @@ import { DOCUMENTO_V2_BUCKET, extensaoArquivo, normalizarCodigoDocumentoCatalogo
 import { instanciarRequisitosDaNota, type ContextoDocumentoNotaFiscal } from './requisitos'
 import { parseCteXml } from '@/lib/logistica/cte-parser'
 import { mensagemValidacaoCte, validarCteContraNfes, type NfeParaValidacaoCte } from '@/lib/logistica/validacao-cte-nfe'
+import { classificarTomadorCte, resolverVinculoCtePorNf, type ItemComparavel, type RemessaValidadaParaVinculoCte } from '@/lib/logistica/nf-remessa-matching'
 import { obterFundoAtivoAutorizado } from '@/lib/fundos/fundo-ativo.server'
 import { carregarContextoEventoNota, registrarEventoDominio } from '@/lib/eventos-dominio/registrar'
 import { validarDocumentoBaseDaNota } from './base-documentos'
@@ -43,7 +44,28 @@ type ResultadoValidacaoCteUpload = {
   parsedCte: Awaited<ReturnType<typeof parseCteXml>>
   resultadoValidacaoCte: ReturnType<typeof validarCteContraNfes>
   nfParaCte: NotaFiscalParaCteUpload
+  tomadorCnpj: string | null
+  tomadorClassificacao: 'ALLOW' | 'REVISAO_MANUAL' | 'DENY' | null
+  vinculoRemessa: { nota_fiscal_id: string; nota_fiscal_remessa_id: string } | null
 } | null
+
+async function carregarRemessasValidadasDaVenda(notaFiscalId: string, client: AppSupabaseClient): Promise<RemessaValidadaParaVinculoCte[]> {
+  const { data, error } = await client
+    .from('nota_fiscal_remessas')
+    .select('id, chave_acesso, emitente_cnpj, emitente_razao_social, valor_total, quantidade_total, itens')
+    .eq('nota_fiscal_venda_id', notaFiscalId)
+    .eq('status_validacao', 'VALIDADA')
+  if (error) throw new Error(`Erro ao consultar NF de remessa vinculadas: ${error.message}`)
+  return (data || []).map((row) => ({
+    id: row.id,
+    chave_acesso: row.chave_acesso,
+    emitente_cnpj: row.emitente_cnpj,
+    emitente_razao_social: row.emitente_razao_social,
+    valor_total: Number(row.valor_total),
+    quantidade_total: row.quantidade_total === null ? null : Number(row.quantidade_total),
+    itens: (Array.isArray(row.itens) ? row.itens : []) as unknown as ItemComparavel[],
+  }))
+}
 
 async function carregarNotaParaValidacaoCte(input: {
   notaFiscalId: string
@@ -69,7 +91,7 @@ async function carregarNotaParaValidacaoCte(input: {
   return typed
 }
 
-async function validarCteXmlContraNotaSeNecessario(input: {
+export async function validarCteXmlContraNotaSeNecessario(input: {
   notaFiscalId: string
   arquivo: File
   codigoSnapshot: string
@@ -100,9 +122,33 @@ async function validarCteXmlContraNotaSeNecessario(input: {
     if (duplicado) throw new Error('Chave de CT-e ja cadastrada.')
   }
 
-  const resultadoValidacaoCte = validarCteContraNfes({
-    cte: parsedCte,
-    nfs: [{
+  // Regra 5 do ticket NF de Remessa: sem remessa, o CT-e referencia a venda
+  // diretamente (fluxo legado). Com uma NF de remessa VALIDADA vinculada, o
+  // CT-e referencia a chave da remessa -- a comparacao de remetente/valor/
+  // quantidade precisa usar os dados da REMESSA (o operador logistico, o
+  // valor daquele envio parcial), nunca os da venda. Destinatario continua
+  // sendo o mesmo sacado nos dois casos.
+  const remessasValidadas = await carregarRemessasValidadasDaVenda(input.notaFiscalId, input.client)
+  const resolucaoVinculo = resolverVinculoCtePorNf({
+    vendaChaveAcesso: nfParaCte.chave_acesso,
+    chavesReferenciadasNoCte: parsedCte.chaves_nfe_referenciadas,
+    remessasValidadasDaVenda: remessasValidadas,
+  })
+
+  const nfeParaValidacao: NfeParaValidacaoCte = resolucaoVinculo.tipoVinculo === 'VIA_REMESSA'
+    ? {
+      id: nfParaCte.id,
+      chave_acesso: resolucaoVinculo.remessa.chave_acesso,
+      data_emissao: nfParaCte.data_emissao,
+      cnpj_emitente: resolucaoVinculo.remessa.emitente_cnpj,
+      razao_social_emitente: resolucaoVinculo.remessa.emitente_razao_social,
+      cnpj_destinatario: nfParaCte.cnpj_destinatario,
+      razao_social_destinatario: nfParaCte.razao_social_destinatario,
+      valor_bruto: resolucaoVinculo.remessa.valor_total,
+      quantidade_total: resolucaoVinculo.remessa.quantidade_total,
+      descricao_itens: resolucaoVinculo.remessa.itens.map((item) => item.descricao).join('; ') || null,
+    }
+    : {
       id: nfParaCte.id,
       chave_acesso: nfParaCte.chave_acesso,
       data_emissao: nfParaCte.data_emissao,
@@ -112,14 +158,44 @@ async function validarCteXmlContraNotaSeNecessario(input: {
       razao_social_destinatario: nfParaCte.razao_social_destinatario,
       valor_bruto: nfParaCte.valor_bruto,
       descricao_itens: nfParaCte.descricao_itens,
-    } satisfies NfeParaValidacaoCte],
-  })
+    }
+
+  const resultadoValidacaoCte = validarCteContraNfes({ cte: parsedCte, nfs: [nfeParaValidacao] })
 
   if (resultadoValidacaoCte.status === 'rejeitado') {
     throw new Error(mensagemValidacaoCte(resultadoValidacaoCte))
   }
 
-  return { parsedCte, resultadoValidacaoCte, nfParaCte }
+  // Regra 6: tomador do CT-e, somente quando o vinculo e via remessa (um
+  // CT-e tem um unico tomador fiscal, classificado contra o emitente da
+  // venda / estabelecimentos aprovados do mesmo Cedente).
+  let tomadorCnpj: string | null = null
+  let tomadorClassificacao: 'ALLOW' | 'REVISAO_MANUAL' | 'DENY' | null = null
+  let vinculoRemessa: { nota_fiscal_id: string; nota_fiscal_remessa_id: string } | null = null
+  if (resolucaoVinculo.tipoVinculo === 'VIA_REMESSA') {
+    vinculoRemessa = { nota_fiscal_id: nfParaCte.id, nota_fiscal_remessa_id: resolucaoVinculo.notaFiscalRemessaId }
+    const { data: estabelecimentos, error: estabelecimentosError } = await input.client
+      .from('cedente_estabelecimentos')
+      .select('cnpj, cedente_id')
+      .eq('cedente_id', nfParaCte.cedente_id)
+      .eq('status', 'aprovado')
+      .eq('ativo', true)
+    if (estabelecimentosError) throw new Error(`Erro ao consultar estabelecimentos do Cedente: ${estabelecimentosError.message}`)
+
+    const classificacao = classificarTomadorCte({
+      tomadorCnpj: parsedCte.cnpj_tomador,
+      emitenteVendaCnpj: nfParaCte.cnpj_emitente,
+      cedenteId: nfParaCte.cedente_id,
+      estabelecimentosAprovadosDoCedente: estabelecimentos || [],
+    })
+    tomadorCnpj = parsedCte.cnpj_tomador
+    tomadorClassificacao = classificacao.classificacao
+    if (tomadorClassificacao === 'DENY') {
+      throw new Error(`CT-e recebido via NF de Remessa, mas o tomador nao foi autorizado: ${classificacao.motivo}`)
+    }
+  }
+
+  return { parsedCte, resultadoValidacaoCte, nfParaCte, tomadorCnpj, tomadorClassificacao, vinculoRemessa }
 }
 
 export async function uploadDocumentoDaNota(
@@ -386,6 +462,9 @@ export async function uploadDocumentoDaEntrega(
         p_valor_frete: validacaoCte.parsedCte.valor_frete,
         p_nivel_validacao: 'hibrido',
         p_dados_extraidos: { ...validacaoCte.parsedCte, hash_sha256: hash, resultado_validacao: validacaoCte.resultadoValidacaoCte },
+        p_tomador_cnpj: validacaoCte.tomadorCnpj,
+        p_tomador_classificacao: validacaoCte.tomadorClassificacao,
+        p_vinculos_remessa: validacaoCte.vinculoRemessa ? [validacaoCte.vinculoRemessa] : [],
       } as never)
       if (error) throw new Error(`Erro ao registrar CT-e validado: ${error.message}`)
       const result = data as Record<string, unknown>
