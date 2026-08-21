@@ -762,6 +762,8 @@ export interface Cte {
   resultado_validacao: Record<string, unknown>
   created_at: string
   updated_at: string
+  tomador_cnpj: string | null
+  tomador_classificacao: 'ALLOW' | 'REVISAO_MANUAL' | 'DENY' | null
 }
 
 export interface CteNotaFiscal {
@@ -773,6 +775,8 @@ export interface CteNotaFiscal {
   divergencias: unknown[]
   validado_em: string | null
   created_at: string
+  nota_fiscal_remessa_id: string | null
+  tipo_vinculo: 'DIRETO_VENDA' | 'VIA_REMESSA'
 }
 
 export interface Canhoto {
@@ -792,6 +796,38 @@ export interface Canhoto {
   documento_id: string | null
   documento_versao_atual_id: string | null
   documento_versao_aprovada_id: string | null
+  created_at: string
+  updated_at: string
+  nota_fiscal_remessa_id: string | null
+}
+
+export interface NotaFiscalRemessa {
+  id: string
+  nota_fiscal_venda_id: string
+  cedente_id: string
+  fundo_id: string
+  cedente_fundo_id: string
+  chave_acesso: string
+  numero: string | null
+  serie: string | null
+  emitente_cnpj: string | null
+  emitente_razao_social: string | null
+  destinatario_cnpj: string | null
+  destinatario_razao_social: string | null
+  data_emissao: string | null
+  valor_total: number
+  quantidade_total: number | null
+  itens: unknown[]
+  status_validacao: 'VALIDADA' | 'REVISAO_MANUAL' | 'REJEITADA'
+  referencia_nf_venda_confirmada: boolean
+  motivos_validacao: unknown[]
+  bucket: string
+  path: string
+  nome_original: string
+  mime_type: string
+  tamanho_bytes: number
+  sha256: string
+  criado_por: string | null
   created_at: string
   updated_at: string
 }
@@ -1074,6 +1110,9 @@ export interface NotaFiscal {
   valor_cofins: number | null
   valor_ipi: number | null
   descricao_itens: string | null
+  quantidade_total: number | null
+  unidade_quantidade: string | null
+  itens_estruturados: unknown[] | null
   condicao_pagamento: string | null
   arquivo_url: string | null
   status: NfStatus
@@ -1947,6 +1986,7 @@ export interface Database {
       ctes: { Row: Cte & Record<string, unknown>; Insert: InsertShape<Cte, 'cedente_id' | 'formato_origem' | 'nivel_validacao'> & Record<string, unknown>; Update: UpdateShape<Cte> & Record<string, unknown>; Relationships: [] }
       cte_notas_fiscais: { Row: CteNotaFiscal & Record<string, unknown>; Insert: InsertShape<CteNotaFiscal, 'cte_id' | 'nota_fiscal_id'> & Record<string, unknown>; Update: Partial<CteNotaFiscal> & Record<string, unknown>; Relationships: [] }
       canhotos: { Row: Canhoto & Record<string, unknown>; Insert: InsertShape<Canhoto, 'nota_fiscal_entrega_id'> & Record<string, unknown>; Update: UpdateShape<Canhoto> & Record<string, unknown>; Relationships: [] }
+      nota_fiscal_remessas: { Row: NotaFiscalRemessa & Record<string, unknown>; Insert: InsertShape<NotaFiscalRemessa, 'nota_fiscal_venda_id' | 'cedente_id' | 'fundo_id' | 'cedente_fundo_id' | 'chave_acesso' | 'status_validacao' | 'bucket' | 'path' | 'nome_original' | 'mime_type' | 'tamanho_bytes' | 'sha256'> & Record<string, unknown>; Update: UpdateShape<NotaFiscalRemessa> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'nota_fiscal_remessas_nota_fiscal_venda_id_fkey'; columns: ['nota_fiscal_venda_id']; isOneToOne: false; referencedRelation: 'notas_fiscais'; referencedColumns: ['id'] }] }
       templates_documentos: { Row: TemplateDocumento & Record<string, unknown>; Insert: InsertShape<TemplateDocumento, 'fundo_id' | 'codigo' | 'tipo_documento' | 'nome' | 'created_by'> & Record<string, unknown>; Update: UpdateShape<TemplateDocumento> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'templates_documentos_fundo_id_fkey'; columns: ['fundo_id']; isOneToOne: false; referencedRelation: 'fundos'; referencedColumns: ['id'] }, { foreignKeyName: 'templates_documentos_created_by_fkey'; columns: ['created_by']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] }] }
       template_versoes: { Row: TemplateVersao & Record<string, unknown>; Insert: InsertShape<TemplateVersao, 'template_id' | 'versao' | 'vigente_desde' | 'conteudo_html' | 'sha256'> & Record<string, unknown>; Update: UpdateShape<TemplateVersao> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'template_versoes_template_id_fkey'; columns: ['template_id']; isOneToOne: false; referencedRelation: 'templates_documentos'; referencedColumns: ['id'] }, { foreignKeyName: 'template_versoes_publicada_por_fkey'; columns: ['publicada_por']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] }] }
       documentos_gerados: { Row: DocumentoGerado & Record<string, unknown>; Insert: InsertShape<DocumentoGerado, 'operacao_id' | 'cedente_id' | 'fundo_id' | 'template_id' | 'template_versao_id' | 'template_versao' | 'template_hash' | 'tipo_documento' | 'storage_path' | 'sha256'> & Record<string, unknown>; Update: UpdateShape<DocumentoGerado> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'documentos_gerados_operacao_id_fkey'; columns: ['operacao_id']; isOneToOne: false; referencedRelation: 'operacoes'; referencedColumns: ['id'] }, { foreignKeyName: 'documentos_gerados_cedente_id_fkey'; columns: ['cedente_id']; isOneToOne: false; referencedRelation: 'cedentes'; referencedColumns: ['id'] }, { foreignKeyName: 'documentos_gerados_fundo_id_fkey'; columns: ['fundo_id']; isOneToOne: false; referencedRelation: 'fundos'; referencedColumns: ['id'] }, { foreignKeyName: 'documentos_gerados_template_id_fkey'; columns: ['template_id']; isOneToOne: false; referencedRelation: 'templates_documentos'; referencedColumns: ['id'] }, { foreignKeyName: 'documentos_gerados_template_versao_id_fkey'; columns: ['template_versao_id']; isOneToOne: false; referencedRelation: 'template_versoes'; referencedColumns: ['id'] }] }
@@ -2393,8 +2433,9 @@ export interface Database {
       decidir_revisao_risco: { Args: { p_revisao_id: string; p_decisao: string; p_justificativa: string; p_correlation_id: string }; Returns: boolean }
       aprovar_operacao_com_risco_atomica: { Args: { p_operacao_id: string; p_taxa_desconto: number; p_risco_execucao_id: string; p_assinatura_inputs: string }; Returns: Record<string, unknown> }
       desembolsar_operacao_com_logistica: { Args: { p_operacao_id: string }; Returns: Record<string, unknown> }
-      registrar_cte_documento: { Args: { p_nota_fiscal_ids: string[]; p_documento_tipo_codigo: string; p_nome_original: string; p_mime_type: string; p_tamanho_bytes: number; p_sha256: string; p_bucket: string; p_path: string; p_chave_cte?: string | null; p_numero?: string | null; p_serie?: string | null; p_data_emissao?: string | null; p_cnpj_transportadora?: string | null; p_cnpj_remetente?: string | null; p_cnpj_destinatario?: string | null; p_valor_frete?: number | null; p_nivel_validacao?: string; p_dados_extraidos?: Record<string, unknown> }; Returns: Record<string, unknown> }
-      registrar_canhoto_documento: { Args: { p_nota_fiscal_entrega_id: string; p_nome_original: string; p_mime_type: string; p_tamanho_bytes: number; p_sha256: string; p_bucket: string; p_path: string; p_data_assinatura?: string | null; p_nome_recebedor?: string | null; p_documento_recebedor?: string | null; p_possui_assinatura?: boolean; p_possui_ressalva?: boolean; p_descricao_ressalva?: string | null }; Returns: Record<string, unknown> }
+      registrar_cte_documento: { Args: { p_nota_fiscal_ids: string[]; p_documento_tipo_codigo: string; p_nome_original: string; p_mime_type: string; p_tamanho_bytes: number; p_sha256: string; p_bucket: string; p_path: string; p_chave_cte?: string | null; p_numero?: string | null; p_serie?: string | null; p_data_emissao?: string | null; p_cnpj_transportadora?: string | null; p_cnpj_remetente?: string | null; p_cnpj_destinatario?: string | null; p_valor_frete?: number | null; p_nivel_validacao?: string; p_dados_extraidos?: Record<string, unknown>; p_tomador_cnpj?: string | null; p_tomador_classificacao?: string | null; p_vinculos_remessa?: unknown[] }; Returns: Record<string, unknown> }
+      registrar_nota_fiscal_remessa: { Args: { p_nota_fiscal_venda_id: string; p_chave_acesso: string; p_numero?: string | null; p_serie?: string | null; p_emitente_cnpj?: string | null; p_emitente_razao_social?: string | null; p_destinatario_cnpj?: string | null; p_destinatario_razao_social?: string | null; p_data_emissao?: string | null; p_valor_total: number; p_quantidade_total?: number | null; p_itens?: unknown[]; p_status_validacao: string; p_referencia_nf_venda_confirmada: boolean; p_motivos_validacao?: unknown[]; p_bucket: string; p_path: string; p_nome_original: string; p_mime_type: string; p_tamanho_bytes: number; p_sha256: string }; Returns: { id: string; status_validacao: string; nota_fiscal_venda_id: string } }
+      registrar_canhoto_documento: { Args: { p_nota_fiscal_entrega_id: string; p_nome_original: string; p_mime_type: string; p_tamanho_bytes: number; p_sha256: string; p_bucket: string; p_path: string; p_data_assinatura?: string | null; p_nome_recebedor?: string | null; p_documento_recebedor?: string | null; p_possui_assinatura?: boolean; p_possui_ressalva?: boolean; p_descricao_ressalva?: string | null; p_nota_fiscal_remessa_id?: string | null }; Returns: Record<string, unknown> }
       comunicar_postergacao_upload_canhoto: { Args: { p_nota_fiscal_id: string; p_nova_previsao: string; p_motivo: string }; Returns: Record<string, unknown> }
       analisar_cte_documento: { Args: { p_cte_id: string; p_documento_versao_id: string; p_resultado: string; p_motivo?: string | null }; Returns: Record<string, unknown> }
       revalidar_cte_nota_fiscal: { Args: { p_cte_id: string; p_nota_fiscal_id: string }; Returns: Record<string, unknown> }

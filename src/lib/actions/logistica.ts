@@ -9,6 +9,7 @@ import { parseCteXml } from '@/lib/logistica/cte-parser'
 import { obterFundoAtivoAutorizado } from '@/lib/fundos/fundo-ativo.server'
 import { TIPOS_DOCUMENTAIS_CTE } from '@/lib/logistica/validacao-cte-config'
 import { mensagemValidacaoCte, validarCteContraNfes, type NfeParaValidacaoCte } from '@/lib/logistica/validacao-cte-nfe'
+import { classificarTomadorCte, resolverVinculoCtePorNf, type ItemComparavel, type RemessaValidadaParaVinculoCte } from '@/lib/logistica/nf-remessa-matching'
 
 export type LogisticaActionState = { success?: boolean; message?: string; data?: Record<string, unknown>; url?: string; nome?: string } | undefined
 
@@ -112,11 +113,34 @@ async function carregarContextoValidacaoCte(
     if (!temRequisito) throw new Error('Requisito CT-e nao pertence a uma das NF-e informadas.')
   }
 
+  const { data: remessas, error: remessasError } = await supabase
+    .from('nota_fiscal_remessas')
+    .select('id, nota_fiscal_venda_id, chave_acesso, emitente_cnpj, emitente_razao_social, valor_total, quantidade_total, itens')
+    .in('nota_fiscal_venda_id', notaFiscalIds)
+    .eq('status_validacao', 'VALIDADA')
+  if (remessasError) throw new Error(`Erro ao consultar NF de remessa vinculadas: ${remessasError.message}`)
+
+  const remessasPorNf = new Map<string, RemessaValidadaParaVinculoCte[]>()
+  for (const row of remessas || []) {
+    const lista = remessasPorNf.get(row.nota_fiscal_venda_id) || []
+    lista.push({
+      id: row.id,
+      chave_acesso: row.chave_acesso,
+      emitente_cnpj: row.emitente_cnpj,
+      emitente_razao_social: row.emitente_razao_social,
+      valor_total: Number(row.valor_total),
+      quantidade_total: row.quantidade_total === null ? null : Number(row.quantidade_total),
+      itens: (Array.isArray(row.itens) ? row.itens : []) as unknown as ItemComparavel[],
+    })
+    remessasPorNf.set(row.nota_fiscal_venda_id, lista)
+  }
+
   return {
     nfs: nfRows,
     entregas: entregaRows,
     fundoId,
     cedenteFundoId,
+    remessasPorNf,
   }
 }
 
@@ -135,6 +159,9 @@ export async function enviarCte(formData: FormData): Promise<LogisticaActionStat
   if (parsed && !parsed.valido) return { success: false, message: parsed.erros.join(' ') }
 
   let resultadoValidacaoCte: ReturnType<typeof validarCteContraNfes> | null = null
+  let tomadorCnpj: string | null = null
+  let tomadorClassificacao: 'ALLOW' | 'REVISAO_MANUAL' | 'DENY' | null = null
+  const vinculosRemessa: Array<{ nota_fiscal_id: string; nota_fiscal_remessa_id: string }> = []
   if (tipoCodigo === 'cte_xml' && parsed) {
     try {
       const contextoValidacao = await carregarContextoValidacaoCte(notaFiscalIds, supabase, context.profile.role)
@@ -144,9 +171,35 @@ export async function enviarCte(formData: FormData): Promise<LogisticaActionStat
       if (duplicadoError) throw new Error(`Erro ao validar duplicidade do CT-e: ${duplicadoError.message}`)
       if (duplicado) return { success: false, message: 'Chave de CT-e ja cadastrada.' }
 
-      resultadoValidacaoCte = validarCteContraNfes({
-        cte: parsed,
-        nfs: contextoValidacao.nfs.map((nf): NfeParaValidacaoCte => ({
+      // Regra 5 do ticket NF de Remessa: sem remessa, o CT-e referencia a
+      // venda diretamente (fluxo atual, inalterado). Com uma NF de remessa
+      // VALIDADA vinculada, o CT-e referencia a chave da remessa -- nesse
+      // caso a comparacao de remetente/valor/quantidade/produto e feita
+      // contra os dados da REMESSA (o operador logistico, o valor daquele
+      // envio parcial), nunca contra a venda; destinatario continua sendo o
+      // mesmo sacado nos dois casos.
+      const nfsParaValidacao = contextoValidacao.nfs.map((nf): NfeParaValidacaoCte => {
+        const resolucao = resolverVinculoCtePorNf({
+          vendaChaveAcesso: nf.chave_acesso,
+          chavesReferenciadasNoCte: parsed.chaves_nfe_referenciadas,
+          remessasValidadasDaVenda: contextoValidacao.remessasPorNf.get(nf.id) || [],
+        })
+        if (resolucao.tipoVinculo === 'VIA_REMESSA') {
+          vinculosRemessa.push({ nota_fiscal_id: nf.id, nota_fiscal_remessa_id: resolucao.notaFiscalRemessaId })
+          return {
+            id: nf.id,
+            chave_acesso: resolucao.remessa.chave_acesso,
+            data_emissao: nf.data_emissao,
+            cnpj_emitente: resolucao.remessa.emitente_cnpj,
+            razao_social_emitente: resolucao.remessa.emitente_razao_social,
+            cnpj_destinatario: nf.cnpj_destinatario,
+            razao_social_destinatario: nf.razao_social_destinatario,
+            valor_bruto: resolucao.remessa.valor_total,
+            quantidade_total: resolucao.remessa.quantidade_total,
+            descricao_itens: resolucao.remessa.itens.map((item) => item.descricao).join('; ') || null,
+          }
+        }
+        return {
           id: nf.id,
           chave_acesso: nf.chave_acesso,
           data_emissao: nf.data_emissao,
@@ -156,10 +209,44 @@ export async function enviarCte(formData: FormData): Promise<LogisticaActionStat
           razao_social_destinatario: nf.razao_social_destinatario,
           valor_bruto: nf.valor_bruto,
           descricao_itens: nf.descricao_itens,
-        })),
+        }
       })
+
+      resultadoValidacaoCte = validarCteContraNfes({ cte: parsed, nfs: nfsParaValidacao })
       if (resultadoValidacaoCte.status === 'rejeitado') {
         return { success: false, message: mensagemValidacaoCte(resultadoValidacaoCte), data: { resultado_validacao: resultadoValidacaoCte } }
+      }
+
+      // Regra 6: tomador do CT-e quando o vinculo e via remessa. Classifica
+      // uma vez para o CT-e (um CT-e tem um unico tomador) contra o(s)
+      // emitente(s) da(s) venda(s) vinculada(s) via remessa.
+      if (vinculosRemessa.length > 0) {
+        const vendasViaRemessa = contextoValidacao.nfs.filter((nf) => vinculosRemessa.some((v) => v.nota_fiscal_id === nf.id))
+        const { data: estabelecimentos, error: estabelecimentosError } = await supabase
+          .from('cedente_estabelecimentos')
+          .select('cnpj, cedente_id')
+          .eq('cedente_id', vendasViaRemessa[0]?.cedente_id || '')
+          .eq('status', 'aprovado')
+          .eq('ativo', true)
+        if (estabelecimentosError) throw new Error(`Erro ao consultar estabelecimentos do Cedente: ${estabelecimentosError.message}`)
+
+        const classificacoes = vendasViaRemessa.map((nf) => classificarTomadorCte({
+          tomadorCnpj: parsed.cnpj_tomador,
+          emitenteVendaCnpj: nf.cnpj_emitente,
+          cedenteId: nf.cedente_id,
+          estabelecimentosAprovadosDoCedente: estabelecimentos || [],
+        }))
+        tomadorCnpj = parsed.cnpj_tomador
+        tomadorClassificacao = classificacoes.some((c) => c.classificacao === 'ALLOW')
+          ? 'ALLOW'
+          : classificacoes.some((c) => c.classificacao === 'REVISAO_MANUAL')
+            ? 'REVISAO_MANUAL'
+            : 'DENY'
+
+        if (tomadorClassificacao === 'DENY') {
+          const motivo = classificacoes[0]?.motivo || 'Tomador do CT-e nao autorizado.'
+          return { success: false, message: `CT-e recebido via NF de Remessa, mas o tomador nao foi autorizado: ${motivo}` }
+        }
       }
     } catch (error) {
       return { success: false, message: error instanceof Error ? error.message : 'Nao foi possivel validar o CT-e contra a NF-e.' }
@@ -199,6 +286,9 @@ export async function enviarCte(formData: FormData): Promise<LogisticaActionStat
       p_valor_frete: parsed?.valor_frete ?? (Number(String(formData.get('valorFrete') || '0').replace(',', '.')) || null),
       p_nivel_validacao: tipoCodigo === 'cte_xml' ? 'hibrido' : 'manual',
       p_dados_extraidos: parsed ? { ...parsed, hash_sha256: hash, resultado_validacao: resultadoValidacaoCte } : {},
+      p_tomador_cnpj: tomadorCnpj,
+      p_tomador_classificacao: tomadorClassificacao,
+      p_vinculos_remessa: vinculosRemessa,
     })
     if (error) throw new Error(error.message)
     const result = data as Record<string, unknown>
@@ -254,6 +344,7 @@ export async function enviarCanhoto(formData: FormData): Promise<LogisticaAction
       p_possui_assinatura: formData.get('possuiAssinatura') === 'on' || formData.get('possuiAssinatura') === 'true',
       p_possui_ressalva: formData.get('possuiRessalva') === 'on' || formData.get('possuiRessalva') === 'true',
       p_descricao_ressalva: String(formData.get('descricaoRessalva') || '') || null,
+      p_nota_fiscal_remessa_id: String(formData.get('notaFiscalRemessaId') || '') || null,
     })
     if (error) throw new Error(error.message)
     const result = data as Record<string, unknown>

@@ -45,3 +45,8 @@ supabase/.temp/
 next-env.d.ts
 
 design-reference
+
+# fixtures reais de NF/CT-e copiados manualmente para testes locais
+# (dados de cedentes/sacados reais, com certificados X.509 -- nunca commitar)
+nfs
+src/lib/logistica/__fixtures__/reais

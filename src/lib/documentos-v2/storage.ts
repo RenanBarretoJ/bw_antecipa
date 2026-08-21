@@ -62,6 +62,19 @@ export function gerarCaminhoDuplicata({
   return `${cedenteId}/duplicatas/${notaFiscalId}/${randomUUID()}${ext}`
 }
 
+export function gerarCaminhoNotaFiscalRemessa({
+  cedenteId,
+  notaFiscalVendaId,
+  nomeOriginal,
+}: {
+  cedenteId: string
+  notaFiscalVendaId: string
+  nomeOriginal: string
+}): string {
+  const ext = nomeOriginal.includes('.') ? nomeOriginal.slice(nomeOriginal.lastIndexOf('.')).toLowerCase() : '.xml'
+  return `${cedenteId}/nota-fiscal-remessa/${notaFiscalVendaId}/${randomUUID()}${ext}`
+}
+
 export async function enviarObjetoDocumento(path: string, file: File, mimeType: string): Promise<void> {
   const admin = createAdminClient()
   const { error } = await admin.storage.from(DOCUMENTO_V2_BUCKET).upload(

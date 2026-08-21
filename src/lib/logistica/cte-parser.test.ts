@@ -112,3 +112,44 @@ describe('parseCteXml', () => {
     expect(result.erros.join(' ')).toMatch(/protocolo/i)
   })
 })
+
+describe('parseCteXml: tomador (regra 6 -- NF de Remessa como lastro logistico)', () => {
+  it('toma4 (terceiro): extrai o CNPJ do tomador mesmo sendo alheio a rem/dest/transportadora', async () => {
+    const comToma4 = cteXmlValido.replace(
+      '<ide>',
+      '<ide><toma4><toma>4</toma><CNPJ>07312248000307</CNPJ><xNome>RLX FLUOROCHEMICAL</xNome></toma4>',
+    )
+    const result = await parseCteXml(comToma4)
+    expect(result.toma_codigo).toBe('4')
+    expect(result.cnpj_tomador).toBe('07312248000307')
+    expect(result.tomador?.razao_social).toBe('RLX FLUOROCHEMICAL')
+  })
+
+  it('toma3 codigo 0 (remetente): resolve o tomador para o CNPJ ja extraido do remetente', async () => {
+    const comToma3 = cteXmlValido.replace('<ide>', '<ide><toma3><toma>0</toma></toma3>')
+    const result = await parseCteXml(comToma3)
+    expect(result.toma_codigo).toBe('0')
+    expect(result.cnpj_tomador).toBe('00262371000575')
+  })
+
+  it('toma3 codigo 3 (destinatario): resolve o tomador para o CNPJ ja extraido do destinatario', async () => {
+    const comToma3 = cteXmlValido.replace('<ide>', '<ide><toma3><toma>3</toma></toma3>')
+    const result = await parseCteXml(comToma3)
+    expect(result.toma_codigo).toBe('3')
+    expect(result.cnpj_tomador).toBe('40439661000132')
+  })
+
+  it('toma3 codigo 1/2 (expedidor/recebedor): nao adivinha o CNPJ -- fail-closed para a classificacao de tomador', async () => {
+    const comToma3 = cteXmlValido.replace('<ide>', '<ide><toma3><toma>1</toma></toma3>')
+    const result = await parseCteXml(comToma3)
+    expect(result.toma_codigo).toBe('1')
+    expect(result.cnpj_tomador).toBeNull()
+    expect(result.tomador).toBeNull()
+  })
+
+  it('sem toma3/toma4: tomador nao identificado', async () => {
+    const result = await parseCteXml(cteXmlValido)
+    expect(result.toma_codigo).toBeNull()
+    expect(result.cnpj_tomador).toBeNull()
+  })
+})

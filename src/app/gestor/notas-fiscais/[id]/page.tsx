@@ -30,6 +30,8 @@ import { useFundoAtivo } from '@/components/fundos/fundo-ativo-provider'
 import { HistoricoTimelineCard } from '@/components/historico/HistoricoTimelineCard'
 import { DuplicatasDaNota } from '@/components/duplicatas/DuplicatasDaNota'
 import { ParcelasDaNota } from '@/components/notas-fiscais/ParcelasDaNota'
+import { RemessaDaNota } from '@/components/notas-fiscais/RemessaDaNota'
+import { CanhotoDaEntrega } from '@/components/notas-fiscais/CanhotoDaEntrega'
 
 interface NfCompleta {
   id: string
@@ -545,6 +547,8 @@ export default function NfDetalheGestorPage() {
       </div>
 
       <ParcelasDaNota notaFiscalId={nfId} mode="gestor" onTemParcelas={setTemParcelas} />
+      <RemessaDaNota notaFiscalVendaId={nfId} mode="gestor" editable />
+      <CanhotoDaEntrega notaFiscalId={nfId} mode="gestor" />
 
       <HistoricoTimelineCard entidade="nota_fiscal" entidadeId={nfId} />
     </div>

@@ -50,6 +50,11 @@ export interface CteXmlParseResult {
   municipio_destino_nome: string | null
   uf_destino: string | null
   rntrc: string | null
+  /** Codigo <toma>: 0=remetente,1=expedidor,2=recebedor,3=destinatario,4=outro (terceiro, dados em toma4). */
+  toma_codigo: string | null
+  /** CNPJ do tomador (pagador do frete). Resolvido de toma4 (terceiro) ou, via codigo 0/3, de remetente/destinatario. Null quando o codigo aponta para um papel (expedidor/recebedor) que este parser nao extrai separadamente. */
+  cnpj_tomador: string | null
+  tomador: CteParticipante | null
   valor_frete: number | null
   valor_prestacao: number | null
   valor_receber: number | null
@@ -113,7 +118,7 @@ function asDate(value: string | null): string | null {
 }
 
 function parseParticipante(xml: string | null): CteParticipante {
-  const ender = section(xml || '', 'enderEmit') || section(xml || '', 'enderReme') || section(xml || '', 'enderDest') || ''
+  const ender = section(xml || '', 'enderEmit') || section(xml || '', 'enderReme') || section(xml || '', 'enderDest') || section(xml || '', 'enderToma') || ''
   return {
     cnpj: digits(tag(xml, 'CNPJ')),
     razao_social: tag(xml, 'xNome'),
@@ -123,6 +128,23 @@ function parseParticipante(xml: string | null): CteParticipante {
     municipio_nome: tag(ender, 'xMun'),
     uf: tag(ender, 'UF'),
   }
+}
+
+function parseTomador(infCte: string, remetente: CteParticipante, destinatario: CteParticipante): { toma_codigo: string | null; cnpj_tomador: string | null; tomador: CteParticipante | null } {
+  const toma4 = section(infCte, 'toma4')
+  if (toma4) {
+    const terceiro = parseParticipante(toma4)
+    return { toma_codigo: '4', cnpj_tomador: terceiro.cnpj, tomador: terceiro.cnpj ? terceiro : null }
+  }
+  const toma3 = section(infCte, 'toma3')
+  const codigo = toma3 ? tag(toma3, 'toma') : null
+  if (codigo === '0') return { toma_codigo: codigo, cnpj_tomador: remetente.cnpj, tomador: remetente.cnpj ? remetente : null }
+  if (codigo === '3') return { toma_codigo: codigo, cnpj_tomador: destinatario.cnpj, tomador: destinatario.cnpj ? destinatario : null }
+  // Codigos 1 (expedidor) e 2 (recebedor) referenciam papeis que este parser
+  // nao extrai como bloco separado de rem/dest -- retorna sem CNPJ resolvido
+  // em vez de adivinhar, para que a classificacao de tomador trate como
+  // nao verificavel (fail-closed) e nao um ALLOW indevido.
+  return { toma_codigo: codigo, cnpj_tomador: null, tomador: null }
 }
 
 function parseComponentesFrete(xml: string): Array<{ nome: string | null; valor: number | null }> {
@@ -179,12 +201,20 @@ export async function parseCteXml(input: File | string): Promise<CteXmlParseResu
     .filter((value): value is string => !!value && /^\d{44}$/.test(value))
   if (chavesNfe.length === 0) erros.push('Nenhuma NF-e referenciada foi encontrada no CT-e.')
 
+  const tomador = parseTomador(infCte || xml, remetente, destinatario)
   const quantidades = parseQuantidades(infCarga)
   const pesoBruto = quantidades.find((q) => /PESO BRUTO/i.test(q.tipo_medida || ''))?.quantidade ?? null
   const pesoLiquido = quantidades.find((q) => /PESO LIQ/i.test(q.tipo_medida || ''))?.quantidade ?? null
   const volume = quantidades.find((q) => /VOLUME|UNIDADE|VOL/i.test(q.tipo_medida || ''))?.quantidade ?? null
-  const quantidadePrincipal = quantidades.find((q) => q.quantidade !== null)?.quantidade ?? null
-  const unidadePrincipal = quantidades.find((q) => q.quantidade !== null)?.codigo_unidade ?? null
+  // Prefere qualquer medida de PESO (BRUTO, LIQUIDO, REAL, BASE DE CALCULO --
+  // rotulos variam entre emissores de CT-e) como quantidade principal, pois e
+  // a que corresponde a unidade/quantidade da NF-e (uCom=KG) para o matching
+  // de produtos/saldo com a NF de venda/remessa. Sem nenhuma medida de peso,
+  // cai para a primeira quantidade nao nula (comportamento legado).
+  const pesoPrincipal = quantidades.find((q) => /PESO/i.test(q.tipo_medida || '') && q.quantidade !== null)
+  const primeiraNaoNula = quantidades.find((q) => q.quantidade !== null)
+  const quantidadePrincipal = pesoPrincipal?.quantidade ?? primeiraNaoNula?.quantidade ?? null
+  const unidadePrincipal = pesoPrincipal?.codigo_unidade ?? primeiraNaoNula?.codigo_unidade ?? null
 
   return {
     valido: erros.length === 0,
@@ -222,6 +252,9 @@ export async function parseCteXml(input: File | string): Promise<CteXmlParseResu
     municipio_destino_nome: tag(ide, 'xMunFim'),
     uf_destino: tag(ide, 'UFFim'),
     rntrc: tag(section(infCte || xml, 'rodo') || '', 'RNTRC'),
+    toma_codigo: tomador.toma_codigo,
+    cnpj_tomador: tomador.cnpj_tomador,
+    tomador: tomador.tomador,
     valor_frete: asNumber(tag(vPrest, 'vTPrest') || tag(vPrest, 'vFrete')),
     valor_prestacao: asNumber(tag(vPrest, 'vTPrest')),
     valor_receber: asNumber(tag(vPrest, 'vRec')),
