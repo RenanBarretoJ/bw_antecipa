@@ -11,7 +11,7 @@ import {
 } from '@/lib/actions/documento-v2'
 import { comunicarPostergacaoUploadCanhoto } from '@/lib/actions/postergacao-canhoto'
 import { validarNovaPrevisaoCanhoto, type StatusPrazoUploadCanhoto } from '@/lib/logistica/postergacao-canhoto'
-import { AlertTriangle, CalendarClock, CheckCircle, ChevronDown, ChevronUp, Clock, Eye, FileText, Loader2, MoreVertical, ShieldAlert, Truck, Upload, XCircle } from 'lucide-react'
+import { AlertTriangle, CalendarClock, CheckCircle, ChevronDown, ChevronUp, Clock, Eye, FileText, Loader2, ShieldAlert, Truck, Upload, XCircle } from 'lucide-react'
 import { DocumentDropzone } from './DocumentDropzone'
 import { ParcelasBoletosNota } from './ParcelasBoletosNota'
 import { RequisitoNfRemessa } from './RequisitoNfRemessa'
@@ -257,12 +257,6 @@ function RequirementCardGeneric({
             <Button type="button" size="sm" variant="outline" onClick={() => { setShowUpload((current) => !current); setExpanded(true) }}>
               <Upload size={13} />
               Enviar nova versão
-            </Button>
-          )}
-
-          {mode === 'gestor' && latest && (
-            <Button type="button" size="icon-sm" variant="ghost" onClick={() => setExpanded(true)} title="Mais detalhes">
-              <MoreVertical size={14} />
             </Button>
           )}
 

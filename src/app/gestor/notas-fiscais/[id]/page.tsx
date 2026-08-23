@@ -502,6 +502,8 @@ export default function NfDetalheGestorPage() {
               </div>
             </details>
           )}
+
+          <ParcelasDaNota notaFiscalId={nfId} mode="gestor" onTemParcelas={setTemParcelas} />
         </div>
 
         {/* Sidebar */}
@@ -543,8 +545,6 @@ export default function NfDetalheGestorPage() {
           </div>
         </div>
       </div>
-
-      <ParcelasDaNota notaFiscalId={nfId} mode="gestor" onTemParcelas={setTemParcelas} />
 
       <HistoricoTimelineCard entidade="nota_fiscal" entidadeId={nfId} />
     </div>

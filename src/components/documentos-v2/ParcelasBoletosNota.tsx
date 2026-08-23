@@ -14,7 +14,8 @@ import { baixarVersaoDocumento } from '@/lib/actions/documento-v2'
 import { deveTentarAutodeteccaoBeneficiario, resolverBeneficiarioEfetivo } from '@/lib/documentos-v2/boleto-beneficiario'
 import { useNotifications } from '@/components/notifications/notification-provider'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
 import { StatusBadge } from '@/components/data-display/primitives'
 import { formatCNPJ, formatCurrency, formatDate } from '@/lib/utils'
 
@@ -189,6 +190,10 @@ export function ParcelasBoletosNota({ notaFiscalId, mode }: { notaFiscalId: stri
   const [enviandoIds, setEnviandoIds] = useState<Set<string>>(new Set())
   const [analisandoIds, setAnalisandoIds] = useState<Set<string>>(new Set())
   const [enviandoLote, setEnviandoLote] = useState(false)
+  // Modal de Reprovar/Solicitar ajuste (gestor) -- motivo obrigatorio, RPC so
+  // e chamada apos "Confirmar". Aprovar e uma acao direta, sem modal.
+  const [modalAcao, setModalAcao] = useState<{ item: ParcelaBoletoItem; resultado: 'rejeitado' | 'requer_ajuste' } | null>(null)
+  const [motivoModal, setMotivoModal] = useState('')
 
   const load = async () => {
     const [parcelasResult, beneficiariosResult] = await Promise.all([
@@ -265,17 +270,46 @@ export function ParcelasBoletosNota({ notaFiscalId, mode }: { notaFiscalId: stri
     setBeneficiarioPreparado((current) => ({ ...current, [requisitoId]: { id: beneficiarioId, manual: true } }))
   }
 
-  const analisar = (item: ParcelaBoletoItem, formData: FormData) => {
+  const analisar = async (item: ParcelaBoletoItem, formData: FormData) => {
     setAnalisandoIds((current) => new Set(current).add(item.requisitoId))
-    void analisarBoletoDaParcela(formData).then(async (result) => {
-      notifications.fromActionResult(result)
-      if (result.success) await load()
-      setAnalisandoIds((current) => {
-        const next = new Set(current)
-        next.delete(item.requisitoId)
-        return next
-      })
+    const result = await analisarBoletoDaParcela(formData)
+    notifications.fromActionResult(result)
+    if (result.success) await load()
+    setAnalisandoIds((current) => {
+      const next = new Set(current)
+      next.delete(item.requisitoId)
+      return next
     })
+    return result
+  }
+
+  const aprovarDireto = (item: ParcelaBoletoItem) => {
+    const formData = new FormData()
+    formData.set('nota_fiscal_id', notaFiscalId)
+    formData.set('documento_versao_id', item.documentoVersaoId ?? '')
+    formData.set('resultado', 'aprovado')
+    void analisar(item, formData)
+  }
+
+  const abrirModalAcao = (item: ParcelaBoletoItem, resultado: 'rejeitado' | 'requer_ajuste') => {
+    setModalAcao({ item, resultado })
+    setMotivoModal('')
+  }
+
+  const fecharModalAcao = () => {
+    setModalAcao(null)
+    setMotivoModal('')
+  }
+
+  const confirmarModalAcao = async () => {
+    if (!modalAcao || !motivoModal.trim()) return
+    const formData = new FormData()
+    formData.set('nota_fiscal_id', notaFiscalId)
+    formData.set('documento_versao_id', modalAcao.item.documentoVersaoId ?? '')
+    formData.set('resultado', modalAcao.resultado)
+    formData.set('observacoes', motivoModal.trim())
+    const resultado = await analisar(modalAcao.item, formData)
+    if (resultado.success) fecharModalAcao()
   }
 
   // Elegivel para o lote: qualquer parcela que o cedente ainda pode enviar
@@ -321,6 +355,11 @@ export function ParcelasBoletosNota({ notaFiscalId, mode }: { notaFiscalId: stri
   const aprovados = items.filter((item) => item.status === 'satisfeito').length
   const agregado = statusAgregadoConfig[statusAgregado(items)]
   const ExpandedIcon = expanded ? ChevronUp : ChevronDown
+  // Gestor ganha uma coluna extra "Ações" (Aprovar/Solicitar ajuste/Reprovar)
+  // -- Cedente permanece com as 6 colunas de sempre, sem alteração.
+  const gridCols = mode === 'gestor'
+    ? 'grid-cols-[3.5rem_5.5rem_7rem_9rem_11rem_5rem_1fr]'
+    : 'grid-cols-[3.5rem_5.5rem_7rem_9rem_11rem_1fr]'
 
   return (
     <article className="rounded-xl border bg-background">
@@ -365,13 +404,14 @@ export function ParcelasBoletosNota({ notaFiscalId, mode }: { notaFiscalId: stri
             )}
           </div>
         )}
-        <div className="hidden grid-cols-[3.5rem_5.5rem_7rem_9rem_11rem_1fr] gap-2 border-b bg-muted/30 px-3 py-2 text-xs font-medium text-muted-foreground md:grid">
+        <div className={`hidden gap-2 border-b bg-muted/30 px-3 py-2 text-xs font-medium text-muted-foreground md:grid ${gridCols}`}>
           <span>Parcela</span>
           <span>Vencimento</span>
           <span>Valor</span>
           <span>Status</span>
           <span>Beneficiário</span>
           <span>Documento</span>
+          {mode === 'gestor' && <span>Ações</span>}
         </div>
         <div className="divide-y divide-border">
           {items.map((item) => {
@@ -416,19 +456,27 @@ export function ParcelasBoletosNota({ notaFiscalId, mode }: { notaFiscalId: stri
                     onClear={() => limparArquivoPreparado(item.requisitoId)}
                   />
                 )}
-                {podeAnalisar && (
-                  <form className="flex flex-wrap items-center gap-2" onSubmit={(event) => { event.preventDefault(); analisar(item, new FormData(event.currentTarget)) }}>
-                    <input type="hidden" name="nota_fiscal_id" value={notaFiscalId} />
-                    <input type="hidden" name="documento_versao_id" value={item.documentoVersaoId ?? undefined} />
-                    <Input className="h-8 w-32" name="observacoes" placeholder="Motivo (ajuste/reprova)" />
-                    <Button type="button" size="sm" disabled={analisandoLinha} onClick={(event) => submeterAnaliseBoleto(event, 'aprovado')}>Aprovar</Button>
-                    <Button type="button" size="sm" variant="outline" disabled={analisandoLinha} onClick={(event) => submeterAnaliseBoleto(event, 'requer_ajuste')}>Ajuste</Button>
-                    <Button type="button" size="sm" variant="destructive" disabled={analisandoLinha} onClick={(event) => submeterAnaliseBoleto(event, 'rejeitado')}>Reprovar</Button>
-                  </form>
-                )}
                 {!item.documentoVersaoId && !podeEnviar && !podeAnalisar && <span className="text-muted-foreground">—</span>}
               </div>
             )
+
+            // Coluna "Ações" -- somente Gestor. Aprovar e direto; Reprovar e
+            // Solicitar ajuste sempre abrem o modal (motivo obrigatorio, RPC
+            // so roda apos confirmar). Nenhum motivo aparece inline na linha.
+            const acoesConteudo = podeAnalisar ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <Button type="button" size="sm" disabled={analisandoLinha} onClick={() => aprovarDireto(item)}>
+                  {analisandoLinha && <Loader2 size={13} className="animate-spin" />}
+                  Aprovar
+                </Button>
+                <Button type="button" size="sm" variant="outline" disabled={analisandoLinha} onClick={() => abrirModalAcao(item, 'requer_ajuste')}>
+                  Solicitar ajuste
+                </Button>
+                <Button type="button" size="sm" variant="destructive" disabled={analisandoLinha} onClick={() => abrirModalAcao(item, 'rejeitado')}>
+                  Reprovar
+                </Button>
+              </div>
+            ) : mode === 'gestor' ? <span className="text-muted-foreground">—</span> : null
 
             const statusConteudo = (
               <div className="flex flex-col gap-1">
@@ -458,33 +506,77 @@ export function ParcelasBoletosNota({ notaFiscalId, mode }: { notaFiscalId: stri
                   </div>
                   <div className="text-muted-foreground">Beneficiário: {beneficiarioConteudo}</div>
                   <div>{documentoConteudo}</div>
+                  {acoesConteudo && <div>{acoesConteudo}</div>}
                 </div>
 
                 {/* Desktop: linha de tabela. */}
-                <div className="hidden grid-cols-[3.5rem_5.5rem_7rem_9rem_11rem_1fr] items-center gap-2 px-3 py-2.5 text-sm md:grid">
+                <div className={`hidden items-center gap-2 px-3 py-2.5 text-sm md:grid ${gridCols}`}>
                   <span className="font-mono tabular-nums text-muted-foreground">{String(item.parcela.numero_parcela).padStart(3, '0')}</span>
                   <span className="tabular-nums">{formatDate(item.parcela.data_vencimento)}</span>
                   <span className="font-medium tabular-nums">{formatCurrency(item.parcela.valor_nominal)}</span>
                   {statusConteudo}
                   <div className="min-w-0">{beneficiarioConteudo}</div>
                   <div className="min-w-0">{documentoConteudo}</div>
+                  {mode === 'gestor' && <div className="min-w-0">{acoesConteudo}</div>}
                 </div>
               </div>
             )
           })}
         </div>
       </div>
+
+      <Dialog open={modalAcao !== null} onOpenChange={(value) => { if (!value) fecharModalAcao() }}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{modalAcao?.resultado === 'rejeitado' ? 'Reprovar boleto' : 'Solicitar ajuste no boleto'}</DialogTitle>
+          </DialogHeader>
+          {modalAcao && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-3 gap-3 rounded-lg border bg-muted/30 p-3 text-sm">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Parcela</p>
+                  <p className="font-medium tabular-nums">{String(modalAcao.item.parcela.numero_parcela).padStart(3, '0')}</p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Vencimento</p>
+                  <p className="font-medium tabular-nums">{formatDate(modalAcao.item.parcela.data_vencimento)}</p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Valor</p>
+                  <p className="font-medium tabular-nums">{formatCurrency(modalAcao.item.parcela.valor_nominal)}</p>
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="motivo-acao-boleto">
+                  {modalAcao.resultado === 'rejeitado' ? 'Motivo da reprovação' : 'Descreva o ajuste necessário'}
+                </Label>
+                <textarea
+                  id="motivo-acao-boleto"
+                  value={motivoModal}
+                  maxLength={1000}
+                  onChange={(event) => setMotivoModal(event.target.value)}
+                  className="mt-2 min-h-24 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  placeholder={modalAcao.resultado === 'rejeitado' ? 'Explique o motivo da reprovação.' : 'Explique o que precisa ser corrigido.'}
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={fecharModalAcao} disabled={modalAcao ? analisandoIds.has(modalAcao.item.requisitoId) : false}>
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              variant={modalAcao?.resultado === 'rejeitado' ? 'destructive' : 'default'}
+              onClick={confirmarModalAcao}
+              disabled={!motivoModal.trim() || (modalAcao ? analisandoIds.has(modalAcao.item.requisitoId) : false)}
+            >
+              {modalAcao && analisandoIds.has(modalAcao.item.requisitoId) && <Loader2 size={14} className="animate-spin" />}
+              {modalAcao?.resultado === 'rejeitado' ? 'Confirmar reprovação' : 'Confirmar solicitação'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </article>
   )
-}
-
-function submeterAnaliseBoleto(event: { currentTarget: HTMLButtonElement }, resultado: 'aprovado' | 'rejeitado' | 'requer_ajuste') {
-  const form = event.currentTarget.form
-  if (!form) return
-  const hidden = form.querySelector<HTMLInputElement>('input[name="resultado"]') || document.createElement('input')
-  hidden.type = 'hidden'
-  hidden.name = 'resultado'
-  hidden.value = resultado
-  if (!hidden.isConnected) form.appendChild(hidden)
-  form.requestSubmit()
 }
