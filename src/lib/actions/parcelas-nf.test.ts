@@ -11,6 +11,7 @@ function chain(rows: unknown[]) {
     in: () => query,
     not: () => query,
     order: () => query,
+    maybeSingle: () => Promise.resolve({ data: (rows[0] as unknown) ?? null, error: null }),
     then: (resolve: (result: { data: unknown[]; error: null }) => unknown, reject?: (reason: unknown) => unknown) =>
       Promise.resolve({ data: rows, error: null }).then(resolve, reject),
   }
@@ -37,7 +38,7 @@ vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 vi.mock('./notificacao', () => ({ notificarCedente: vi.fn() }))
 vi.mock('./auditoria', () => ({ registrarLog: vi.fn(async () => undefined) }))
 
-import { listarParcelasBoletosDaNota } from './parcelas-nf'
+import { identificarBeneficiarioBoleto, listarParcelasBoletosDaNota } from './parcelas-nf'
 
 describe('listarParcelasBoletosDaNota', () => {
   beforeEach(() => {
@@ -181,5 +182,42 @@ describe('listarParcelasBoletosDaNota', () => {
       expect(result.data?.[0].status).toBe('em_analise')
       expect(result.data?.[0].numeroVersao).toBe(2)
     })
+  })
+})
+
+// extrairCandidatosCnpj e encontrarBeneficiarioUnico (regras puras usadas
+// por identificarBeneficiarioBoleto) tem testes dedicados em
+// src/lib/documentos-v2/boleto-beneficiario.test.ts -- vivem la porque um
+// modulo 'use server' so pode exportar funcoes assincronas (Server Actions).
+describe('identificarBeneficiarioBoleto (identificacao automatica de beneficiario a partir do PDF)', () => {
+  beforeEach(() => {
+    mocks.tables = {}
+  })
+
+  it('sem arquivo no FormData -> retorna estabelecimentoId null sem lancar erro', async () => {
+    const formData = new FormData()
+    const result = await identificarBeneficiarioBoleto('nf-1', formData)
+    expect(result.success).toBe(true)
+    expect(result.data?.estabelecimentoId).toBeNull()
+  })
+
+  it('arquivo que nao e PDF (mime/extensao) -> retorna estabelecimentoId null sem consultar beneficiarios', async () => {
+    const formData = new FormData()
+    formData.set('arquivo', new File(['conteudo'], 'boleto.txt', { type: 'text/plain' }))
+    const result = await identificarBeneficiarioBoleto('nf-1', formData)
+    expect(result.success).toBe(true)
+    expect(result.data?.estabelecimentoId).toBeNull()
+  })
+
+  it('arquivo PDF invalido/nao parseavel -> falha graciosamente, nunca lanca erro', async () => {
+    mocks.tables.notas_fiscais = [{ cedente_id: 'cedente-1' }]
+    mocks.tables.cedente_estabelecimentos = [{ id: 'b1', razao_social: 'ACME LTDA', cnpj: '12345678000190', tipo: 'matriz' }]
+
+    const formData = new FormData()
+    formData.set('arquivo', new File(['nao e um pdf real'], 'boleto.pdf', { type: 'application/pdf' }))
+    const result = await identificarBeneficiarioBoleto('nf-1', formData)
+
+    expect(result.success).toBe(true)
+    expect(result.data?.estabelecimentoId).toBeNull()
   })
 })

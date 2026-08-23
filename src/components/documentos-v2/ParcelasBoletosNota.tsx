@@ -1,28 +1,36 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
-import { ChevronDown, ChevronUp, ExternalLink, Receipt } from 'lucide-react'
+import { ChangeEvent, DragEvent, KeyboardEvent, MouseEvent, useEffect, useRef, useState } from 'react'
+import { ChevronDown, ChevronUp, ExternalLink, FileText, Loader2, Receipt, Upload, X } from 'lucide-react'
 import {
   analisarBoletoDaParcela,
   enviarBoletoDaParcela,
+  identificarBeneficiarioBoleto,
   listarBeneficiariosElegiveisDaNota,
   listarParcelasBoletosDaNota,
   type ParcelaBoletoItem,
 } from '@/lib/actions/parcelas-nf'
 import { baixarVersaoDocumento } from '@/lib/actions/documento-v2'
+import { deveTentarAutodeteccaoBeneficiario, resolverBeneficiarioEfetivo } from '@/lib/documentos-v2/boleto-beneficiario'
 import { useNotifications } from '@/components/notifications/notification-provider'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { StatusBadge } from '@/components/data-display/primitives'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { formatCNPJ, formatCurrency, formatDate } from '@/lib/utils'
 
 type Mode = 'cedente' | 'gestor'
 type Beneficiario = { id: string; razaoSocial: string; cnpj: string; tipo: string }
 
+/** Selecao de beneficiario preparada localmente para uma parcela ainda nao
+ * enviada. `manual` marca que o proprio cedente escolheu o valor -- usado
+ * para nao deixar a deteccao automatica (identificarBeneficiarioBoleto)
+ * sobrescrever uma escolha ja feita. */
+type BeneficiarioPreparado = { id: string; manual: boolean }
+
 const boletoStatusLabel: Record<string, string> = {
   pendente: 'Aguardando envio',
-  enviado: 'Aguardando analise',
-  em_analise: 'Aguardando analise',
+  enviado: 'Aguardando análise',
+  em_analise: 'Aguardando análise',
   satisfeito: 'Aprovado',
   rejeitado: 'Rejeitado',
   requer_ajuste: 'Ajuste solicitado',
@@ -47,11 +55,116 @@ const statusAgregadoConfig: Record<string, { label: string; tone: string }> = {
   pendente: { label: 'Pendente', tone: 'bg-warning/15 text-warning-foreground' },
 }
 
+/** `Matriz/Filial • CNPJ • Razão social` -- com CNPJ visivel para
+ * distinguir estabelecimentos com a mesma razao social (matriz e filial da
+ * mesma empresa, ou duas filiais). */
+function formatarBeneficiario(b: Beneficiario): string {
+  return `${b.tipo === 'matriz' ? 'Matriz' : 'Filial'} • ${formatCNPJ(b.cnpj)} • ${b.razaoSocial}`
+}
+
 function nomeBeneficiario(id: string | null, lista: Beneficiario[]) {
   if (!id) return '—'
   const encontrado = lista.find((b) => b.id === id)
-  if (!encontrado) return '—'
-  return `${encontrado.tipo === 'matriz' ? 'Matriz' : 'Filial'} · ${encontrado.razaoSocial}`
+  return encontrado ? formatarBeneficiario(encontrado) : '—'
+}
+
+/** Estado visual exibido no badge de status. `Pronto para enviar` e
+ * `Enviando` sao estados 100% locais (overlay sobre o status real,
+ * `pendente` OU um reenvio apos `rejeitado`/`requer_ajuste`) -- nunca
+ * persistidos, servem apenas para refletir o que o cedente preparou no
+ * navegador antes de enviar. */
+function statusVisual(item: ParcelaBoletoItem, arquivoPreparado: boolean, beneficiarioPreparado: boolean, enviando: boolean) {
+  if (item.status !== 'satisfeito' && arquivoPreparado && beneficiarioPreparado) {
+    return enviando
+      ? { local: true as const, label: 'Enviando', tone: 'bg-info/15 text-info-foreground ring-info/40' }
+      : { local: true as const, label: 'Pronto para enviar', tone: 'bg-success/15 text-success-foreground ring-success/40' }
+  }
+  return { local: false as const, label: boletoStatusLabel[item.status] || item.status }
+}
+
+/** Dropzone compacta (uma linha) para anexar o PDF do boleto de UMA
+ * parcela. Ao contrario de DocumentDropzone, nao envia nada por conta
+ * propria -- apenas guarda o arquivo no estado local do componente pai
+ * (permite preparar varias parcelas antes de disparar o envio em lote). */
+function CompactPdfDropzone({
+  file,
+  disabled,
+  onSelect,
+  onClear,
+}: {
+  file: File | null
+  disabled?: boolean
+  onSelect: (file: File) => void
+  onClear: () => void
+}) {
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [dragging, setDragging] = useState(false)
+
+  const receberArquivos = (files: FileList | null) => {
+    const selecionado = files?.[0]
+    if (selecionado) onSelect(selecionado)
+  }
+
+  if (file) {
+    return (
+      <div className="flex items-center gap-1.5 rounded-md border bg-card px-2 py-1 text-xs">
+        <FileText size={13} className="shrink-0 text-muted-foreground" />
+        <span className="min-w-0 flex-1 truncate" title={file.name}>{file.name}</span>
+        {!disabled && (
+          <button
+            type="button"
+            onClick={onClear}
+            className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-muted"
+            aria-label="Remover arquivo preparado"
+          >
+            <X size={12} />
+          </button>
+        )}
+      </div>
+    )
+  }
+
+  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (disabled) return
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      inputRef.current?.click()
+    }
+  }
+
+  const onDrop = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    setDragging(false)
+    if (!disabled) receberArquivos(event.dataTransfer.files)
+  }
+
+  const onChange = (event: ChangeEvent<HTMLInputElement>) => {
+    receberArquivos(event.target.files)
+    event.currentTarget.value = ''
+  }
+
+  return (
+    <div
+      role="button"
+      tabIndex={disabled ? -1 : 0}
+      aria-disabled={disabled}
+      onClick={() => !disabled && inputRef.current?.click()}
+      onKeyDown={onKeyDown}
+      onDragEnter={(event) => { event.preventDefault(); if (!disabled) setDragging(true) }}
+      onDragOver={(event) => { event.preventDefault(); if (!disabled) setDragging(true) }}
+      onDragLeave={(event) => { event.preventDefault(); setDragging(false) }}
+      onDrop={onDrop}
+      className={[
+        'flex items-center gap-1.5 rounded-md border border-dashed px-2 py-1 text-xs outline-none transition',
+        disabled ? 'cursor-not-allowed bg-muted/40 opacity-60' : 'cursor-pointer hover:border-primary/60 focus-visible:ring-2 focus-visible:ring-ring',
+        dragging ? 'border-primary bg-primary/5' : 'border-border bg-background',
+      ].join(' ')}
+    >
+      <input ref={inputRef} type="file" accept="application/pdf" disabled={disabled} className="hidden" onChange={onChange} />
+      <Upload size={13} className="shrink-0 text-muted-foreground" />
+      <span className="truncate text-muted-foreground">Anexar boleto (PDF)</span>
+    </div>
+  )
 }
 
 /**
@@ -64,9 +177,18 @@ export function ParcelasBoletosNota({ notaFiscalId, mode }: { notaFiscalId: stri
   const notifications = useNotifications()
   const [items, setItems] = useState<ParcelaBoletoItem[] | null>(null)
   const [beneficiarios, setBeneficiarios] = useState<Beneficiario[]>([])
-  const [pending, setPending] = useState(false)
   const [expanded, setExpanded] = useState(false)
   const autoExpandiuRef = useRef(false)
+
+  // Estado 100% local (nunca enviado ao servidor ate o envio de fato):
+  // arquivo preparado e beneficiario preparado por requisitoId. Chaveado
+  // por requisitoId (estavel entre reloads) e nao por indice do array, ja
+  // que `items` e substituido por uma referencia nova a cada load().
+  const [arquivosPreparados, setArquivosPreparados] = useState<Record<string, File>>({})
+  const [beneficiarioPreparado, setBeneficiarioPreparado] = useState<Record<string, BeneficiarioPreparado>>({})
+  const [enviandoIds, setEnviandoIds] = useState<Set<string>>(new Set())
+  const [analisandoIds, setAnalisandoIds] = useState<Set<string>>(new Set())
+  const [enviandoLote, setEnviandoLote] = useState(false)
 
   const load = async () => {
     const [parcelasResult, beneficiariosResult] = await Promise.all([
@@ -102,22 +224,97 @@ export function ParcelasBoletosNota({ notaFiscalId, mode }: { notaFiscalId: stri
     else notifications.error(result.message || 'Nao foi possivel abrir o documento.')
   }
 
-  const enviar = (formData: FormData) => {
-    setPending(true)
-    void enviarBoletoDaParcela(formData).then(async (result) => {
-      notifications.fromActionResult(result)
-      if (result.success) await load()
-      setPending(false)
+  const limparArquivoPreparado = (requisitoId: string) => {
+    setArquivosPreparados((current) => {
+      const next = { ...current }
+      delete next[requisitoId]
+      return next
     })
   }
 
-  const analisar = (formData: FormData) => {
-    setPending(true)
+  // Beneficiario efetivo de uma parcela: prevalece a escolha local (manual ou
+  // auto-detectada nesta sessao); na ausencia dela, cai para o beneficiario
+  // ja persistido na ultima versao enviada (item.beneficiarioEstabelecimentoId)
+  // -- e o que garante que um boleto rejeitado/reaberto para reenvio continua
+  // mostrando o mesmo beneficiario, em vez de voltar para "Beneficiario...".
+  const beneficiarioEfetivoId = (item: ParcelaBoletoItem): string =>
+    resolverBeneficiarioEfetivo(beneficiarioPreparado[item.requisitoId]?.id, item.beneficiarioEstabelecimentoId)
+
+  const arquivoSelecionado = (item: ParcelaBoletoItem, file: File) => {
+    setArquivosPreparados((current) => ({ ...current, [item.requisitoId]: file }))
+    // So tenta autodeteccao por CNPJ quando NAO ha beneficiario ja resolvido
+    // (persistido de um envio anterior ou escolhido nesta sessao) -- nunca
+    // sobrescreve nem gasta uma chamada ao servidor sem necessidade.
+    if (!deveTentarAutodeteccaoBeneficiario(beneficiarioPreparado[item.requisitoId]?.id, item.beneficiarioEstabelecimentoId)) return
+    const formData = new FormData()
+    formData.set('arquivo', file)
+    void identificarBeneficiarioBoleto(notaFiscalId, formData).then((result) => {
+      const estabelecimentoId = result.success ? result.data?.estabelecimentoId : null
+      if (!estabelecimentoId) return
+      setBeneficiarioPreparado((current) => {
+        const existente = current[item.requisitoId]
+        // Nunca sobrescreve uma escolha manual, nem um valor ja preenchido
+        // (inclusive por uma deteccao automatica anterior ou persistido).
+        if (existente?.id || item.beneficiarioEstabelecimentoId) return current
+        return { ...current, [item.requisitoId]: { id: estabelecimentoId, manual: false } }
+      })
+    })
+  }
+
+  const selecionarBeneficiario = (requisitoId: string, beneficiarioId: string) => {
+    setBeneficiarioPreparado((current) => ({ ...current, [requisitoId]: { id: beneficiarioId, manual: true } }))
+  }
+
+  const analisar = (item: ParcelaBoletoItem, formData: FormData) => {
+    setAnalisandoIds((current) => new Set(current).add(item.requisitoId))
     void analisarBoletoDaParcela(formData).then(async (result) => {
       notifications.fromActionResult(result)
       if (result.success) await load()
-      setPending(false)
+      setAnalisandoIds((current) => {
+        const next = new Set(current)
+        next.delete(item.requisitoId)
+        return next
+      })
     })
+  }
+
+  // Elegivel para o lote: qualquer parcela que o cedente ainda pode enviar
+  // (mesma condicao de podeEnviar -- inclui reenvio apos rejeitado/requer_
+  // ajuste, nao so pendente) com arquivo e beneficiario resolvidos.
+  const prontos = mode === 'cedente'
+    ? items.filter((item) => item.status !== 'satisfeito' && arquivosPreparados[item.requisitoId] && beneficiarioEfetivoId(item))
+    : []
+
+  const enviarBoletosProntos = async (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation()
+    if (prontos.length === 0 || enviandoLote) return
+    setEnviandoLote(true)
+    for (const item of prontos) {
+      const arquivo = arquivosPreparados[item.requisitoId]
+      const beneficiarioId = beneficiarioEfetivoId(item)
+      if (!arquivo || !beneficiarioId) continue
+
+      setEnviandoIds((current) => new Set(current).add(item.requisitoId))
+      const formData = new FormData()
+      formData.set('nota_fiscal_id', notaFiscalId)
+      formData.set('requisito_id', item.requisitoId)
+      formData.set('estabelecimento_beneficiario_id', beneficiarioId)
+      formData.set('arquivo', arquivo)
+
+      const resultado = await enviarBoletoDaParcela(formData)
+      if (resultado.success) {
+        limparArquivoPreparado(item.requisitoId)
+      } else {
+        notifications.fromActionResult(resultado)
+      }
+      setEnviandoIds((current) => {
+        const next = new Set(current)
+        next.delete(item.requisitoId)
+        return next
+      })
+    }
+    await load()
+    setEnviandoLote(false)
   }
 
   const obrigatorio = items.some((item) => item.obrigatorio)
@@ -154,58 +351,95 @@ export function ParcelasBoletosNota({ notaFiscalId, mode }: { notaFiscalId: stri
       {/* Renderizado sempre (apenas oculto via CSS) para nao perder selecao
           de beneficiario/arquivo ja feita ao recolher/expandir. */}
       <div className={expanded ? 'border-t border-border' : 'hidden'}>
-        <div className="hidden grid-cols-[3.5rem_5.5rem_7rem_9rem_11rem_4.5rem_1fr] gap-2 border-b bg-muted/30 px-3 py-2 text-xs font-medium text-muted-foreground md:grid">
+        {mode === 'cedente' && (
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+            <span>
+              {prontos.length > 0
+                ? `${prontos.length} boleto${prontos.length > 1 ? 's' : ''} pronto${prontos.length > 1 ? 's' : ''} para envio.`
+                : 'Anexe o PDF e selecione o beneficiário de cada parcela para enviar.'}
+            </span>
+            {prontos.length > 0 && (
+              <Button type="button" size="sm" onClick={enviarBoletosProntos} disabled={enviandoLote}>
+                {enviandoLote ? 'Enviando...' : `Enviar boletos prontos (${prontos.length})`}
+              </Button>
+            )}
+          </div>
+        )}
+        <div className="hidden grid-cols-[3.5rem_5.5rem_7rem_9rem_11rem_1fr] gap-2 border-b bg-muted/30 px-3 py-2 text-xs font-medium text-muted-foreground md:grid">
           <span>Parcela</span>
           <span>Vencimento</span>
           <span>Valor</span>
           <span>Status</span>
           <span>Beneficiário</span>
           <span>Documento</span>
-          <span>Ação</span>
         </div>
         <div className="divide-y divide-border">
           {items.map((item) => {
             const podeEnviar = mode === 'cedente' && item.status !== 'satisfeito'
             const podeAnalisar = mode === 'gestor' && item.documentoVersaoId && item.status !== 'satisfeito'
             const beneficiario = nomeBeneficiario(item.beneficiarioEstabelecimentoId, beneficiarios)
+            const enviandoLinha = enviandoIds.has(item.requisitoId)
+            const analisandoLinha = analisandoIds.has(item.requisitoId)
+            const arquivoPreparado = arquivosPreparados[item.requisitoId] ?? null
+            const beneficiarioIdPreparado = beneficiarioEfetivoId(item)
 
-            const documentoConteudo = item.documentoVersaoId ? (
-              <Button type="button" size="sm" variant="outline" onClick={() => verDocumento(item.documentoVersaoId as string)}>
-                Ver<ExternalLink className="ml-1 size-3" />
-              </Button>
+            const visual = statusVisual(item, Boolean(arquivoPreparado), Boolean(beneficiarioIdPreparado), enviandoLinha)
+
+            const beneficiarioConteudo = podeEnviar ? (
+              <select
+                className="h-8 w-full max-w-[13rem] rounded-md border bg-background px-2 text-xs disabled:cursor-not-allowed disabled:opacity-60"
+                value={beneficiarioIdPreparado}
+                disabled={enviandoLinha}
+                onChange={(event) => selecionarBeneficiario(item.requisitoId, event.target.value)}
+              >
+                <option value="">Beneficiário...</option>
+                {beneficiarios.map((b) => (
+                  <option key={b.id} value={b.id}>{formatarBeneficiario(b)}</option>
+                ))}
+              </select>
             ) : (
-              <span className="text-muted-foreground">—</span>
+              <span className="truncate text-muted-foreground" title={beneficiario}>{beneficiario}</span>
             )
 
-            const acaoConteudo = podeEnviar ? (
-              <form className="flex flex-wrap items-center gap-2" onSubmit={(event) => { event.preventDefault(); enviar(new FormData(event.currentTarget)) }}>
-                <input type="hidden" name="nota_fiscal_id" value={notaFiscalId} />
-                <input type="hidden" name="requisito_id" value={item.requisitoId} />
-                <select name="estabelecimento_beneficiario_id" required defaultValue={item.beneficiarioEstabelecimentoId || ''} className="h-8 max-w-32 rounded-md border bg-background px-2 text-xs">
-                  <option value="">Beneficiário...</option>
-                  {beneficiarios.map((b) => (
-                    <option key={b.id} value={b.id}>{b.tipo === 'matriz' ? 'Matriz' : 'Filial'} - {b.razaoSocial}</option>
-                  ))}
-                </select>
-                <Input className="h-8 w-32" type="file" name="arquivo" accept="application/pdf" required />
-                <Button type="submit" size="sm" variant="outline" disabled={pending}>Enviar</Button>
-              </form>
-            ) : podeAnalisar ? (
-              <form className="flex flex-wrap items-center gap-2" onSubmit={(event) => { event.preventDefault(); analisar(new FormData(event.currentTarget)) }}>
-                <input type="hidden" name="nota_fiscal_id" value={notaFiscalId} />
-                <input type="hidden" name="documento_versao_id" value={item.documentoVersaoId ?? undefined} />
-                <Input className="h-8 w-32" name="observacoes" placeholder="Motivo (ajuste/reprova)" />
-                <Button type="button" size="sm" disabled={pending} onClick={(event) => submeterAnaliseBoleto(event, 'aprovado')}>Aprovar</Button>
-                <Button type="button" size="sm" variant="outline" disabled={pending} onClick={(event) => submeterAnaliseBoleto(event, 'requer_ajuste')}>Ajuste</Button>
-                <Button type="button" size="sm" variant="destructive" disabled={pending} onClick={(event) => submeterAnaliseBoleto(event, 'rejeitado')}>Reprovar</Button>
-              </form>
-            ) : (
-              <span className="text-muted-foreground">—</span>
+            const documentoConteudo = (
+              <div className="flex flex-col gap-1.5">
+                {item.documentoVersaoId && (
+                  <Button type="button" size="sm" variant="outline" className="w-fit" onClick={() => verDocumento(item.documentoVersaoId as string)}>
+                    Ver<ExternalLink className="ml-1 size-3" />
+                  </Button>
+                )}
+                {podeEnviar && (
+                  <CompactPdfDropzone
+                    file={arquivoPreparado}
+                    disabled={enviandoLinha}
+                    onSelect={(file) => arquivoSelecionado(item, file)}
+                    onClear={() => limparArquivoPreparado(item.requisitoId)}
+                  />
+                )}
+                {podeAnalisar && (
+                  <form className="flex flex-wrap items-center gap-2" onSubmit={(event) => { event.preventDefault(); analisar(item, new FormData(event.currentTarget)) }}>
+                    <input type="hidden" name="nota_fiscal_id" value={notaFiscalId} />
+                    <input type="hidden" name="documento_versao_id" value={item.documentoVersaoId ?? undefined} />
+                    <Input className="h-8 w-32" name="observacoes" placeholder="Motivo (ajuste/reprova)" />
+                    <Button type="button" size="sm" disabled={analisandoLinha} onClick={(event) => submeterAnaliseBoleto(event, 'aprovado')}>Aprovar</Button>
+                    <Button type="button" size="sm" variant="outline" disabled={analisandoLinha} onClick={(event) => submeterAnaliseBoleto(event, 'requer_ajuste')}>Ajuste</Button>
+                    <Button type="button" size="sm" variant="destructive" disabled={analisandoLinha} onClick={(event) => submeterAnaliseBoleto(event, 'rejeitado')}>Reprovar</Button>
+                  </form>
+                )}
+                {!item.documentoVersaoId && !podeEnviar && !podeAnalisar && <span className="text-muted-foreground">—</span>}
+              </div>
             )
 
             const statusConteudo = (
               <div className="flex flex-col gap-1">
-                <StatusBadge status={item.status} label={boletoStatusLabel[item.status] || item.status} />
+                {visual.local ? (
+                  <span className={`inline-flex h-6 w-fit items-center gap-1.5 rounded-full px-2.5 text-xs font-medium ring-1 ring-inset ${visual.tone}`}>
+                    {visual.label === 'Enviando' && <Loader2 size={13} className="animate-spin" />}
+                    {visual.label}
+                  </span>
+                ) : (
+                  <StatusBadge status={item.status} label={boletoStatusLabel[item.status] || item.status} />
+                )}
                 {item.motivo && <span className="text-xs text-destructive">Motivo: {item.motivo}</span>}
               </div>
             )
@@ -222,19 +456,18 @@ export function ParcelasBoletosNota({ notaFiscalId, mode }: { notaFiscalId: stri
                     <span>Venc. {formatDate(item.parcela.data_vencimento)}</span>
                     {statusConteudo}
                   </div>
-                  <div className="text-muted-foreground">Beneficiário: {beneficiario}</div>
-                  <div className="flex flex-wrap items-center gap-2">{documentoConteudo}{acaoConteudo}</div>
+                  <div className="text-muted-foreground">Beneficiário: {beneficiarioConteudo}</div>
+                  <div>{documentoConteudo}</div>
                 </div>
 
                 {/* Desktop: linha de tabela. */}
-                <div className="hidden grid-cols-[3.5rem_5.5rem_7rem_9rem_11rem_4.5rem_1fr] items-center gap-2 px-3 py-2.5 text-sm md:grid">
+                <div className="hidden grid-cols-[3.5rem_5.5rem_7rem_9rem_11rem_1fr] items-center gap-2 px-3 py-2.5 text-sm md:grid">
                   <span className="font-mono tabular-nums text-muted-foreground">{String(item.parcela.numero_parcela).padStart(3, '0')}</span>
                   <span className="tabular-nums">{formatDate(item.parcela.data_vencimento)}</span>
                   <span className="font-medium tabular-nums">{formatCurrency(item.parcela.valor_nominal)}</span>
                   {statusConteudo}
-                  <span className="truncate text-muted-foreground" title={beneficiario}>{beneficiario}</span>
-                  <span>{documentoConteudo}</span>
-                  <div className="min-w-0">{acaoConteudo}</div>
+                  <div className="min-w-0">{beneficiarioConteudo}</div>
+                  <div className="min-w-0">{documentoConteudo}</div>
                 </div>
               </div>
             )

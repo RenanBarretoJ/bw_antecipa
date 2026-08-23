@@ -12,6 +12,7 @@ export type CanhotoDaEntregaRegistro = {
   descricao_ressalva: string | null
   nota_fiscal_remessa_id: string | null
   remessa_numero: string | null
+  documento_versao_atual_id: string | null
   created_at: string
 }
 
@@ -43,7 +44,7 @@ export async function carregarContextoCanhotoDaNota(notaFiscalId: string): Promi
 
     const { data: canhotos, error: canhotosError } = await context.supabase
       .from('canhotos')
-      .select('id, status, nome_recebedor, possui_ressalva, descricao_ressalva, nota_fiscal_remessa_id, created_at')
+      .select('id, status, nome_recebedor, possui_ressalva, descricao_ressalva, nota_fiscal_remessa_id, documento_versao_atual_id, created_at')
       .eq('nota_fiscal_entrega_id', entrega.id)
       .order('created_at', { ascending: false })
     if (canhotosError) throw new Error(canhotosError.message)

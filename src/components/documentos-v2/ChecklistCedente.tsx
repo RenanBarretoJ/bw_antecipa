@@ -15,6 +15,7 @@ import { AlertTriangle, CalendarClock, CheckCircle, ChevronDown, ChevronUp, Cloc
 import { DocumentDropzone } from './DocumentDropzone'
 import { ParcelasBoletosNota } from './ParcelasBoletosNota'
 import { RequisitoNfRemessa } from './RequisitoNfRemessa'
+import { RequisitoComprovanteEntrega } from './RequisitoComprovanteEntrega'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -87,7 +88,7 @@ export function canAnalyzeDocumentVersion(mode: ChecklistMode, versionStatus: st
     && !['aprovado', 'substituido', 'cancelado'].includes(String(versionStatus))
 }
 
-function statusVisual(item: ChecklistDocumentoItem) {
+export function statusVisual(item: ChecklistDocumentoItem) {
   const latest = item.versoes[0]
   const latestAnalysis = latest?.ultimaAnalise?.resultado
   if (isDocumentoAprovado(item)) return { label: 'Aprovado', tone: 'text-success-foreground bg-success/15', icon: CheckCircle }
@@ -165,6 +166,9 @@ type RequirementCardProps = {
 function RequirementCard(props: RequirementCardProps) {
   if (props.item.codigo === 'nf_remessa') {
     return <RequisitoNfRemessa item={props.item} notaFiscalId={props.notaFiscalId} mode={props.mode} />
+  }
+  if (props.item.familiaDocumental === 'comprovante_entrega' && props.item.entregaId) {
+    return <RequisitoComprovanteEntrega item={props.item} notaFiscalId={props.notaFiscalId} mode={props.mode} />
   }
   return <RequirementCardGeneric {...props} />
 }

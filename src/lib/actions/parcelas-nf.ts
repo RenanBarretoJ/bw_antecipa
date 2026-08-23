@@ -8,6 +8,12 @@ import { notificarCedente } from './notificacao'
 import { registrarLog } from './auditoria'
 import { revalidatePath } from 'next/cache'
 import type { NotaFiscalParcela } from '@/types/database'
+import { encontrarBeneficiarioUnico, extrairCandidatosCnpj } from '@/lib/documentos-v2/boleto-beneficiario'
+
+// pdf-parse está em serverExternalPackages (next.config.ts): o Next.js usa o require
+// nativo do Node.js, mesmo padrão de src/lib/pdf-nf-parser.ts (nao alterado por este arquivo).
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const pdfParse = require('pdf-parse') as (buffer: Buffer) => Promise<{ text: string }>
 
 export type ParcelaActionResult<T = unknown> = {
   success: boolean
@@ -274,6 +280,66 @@ export async function listarBeneficiariosElegiveisDaNota(notaFiscalId: string): 
     }
   } catch (error) {
     return falha(error, 'Nao foi possivel carregar os estabelecimentos elegiveis.')
+  }
+}
+
+/**
+ * Extrai o texto bruto de um PDF com o mesmo guard-rail de
+ * extractDanfeFromPdf (src/lib/pdf-nf-parser.ts): timeout de 20s e
+ * descarte de PDFs escaneados (texto insuficiente). Duplicado aqui (em vez
+ * de importar) para nao alterar o comportamento/testes daquele modulo --
+ * ambos usam pdf-parse via serverExternalPackages.
+ */
+async function extrairTextoBrutoPdf(buffer: Buffer): Promise<string> {
+  try {
+    const resultado = await Promise.race([
+      pdfParse(buffer),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('pdf-parse timeout')), 20000)),
+    ])
+    const texto = resultado.text || ''
+    if (texto.replace(/\s/g, '').length < 50) return ''
+    return texto
+  } catch {
+    return ''
+  }
+}
+
+/**
+ * Tenta identificar automaticamente o beneficiario de um boleto ainda NAO
+ * enviado (arquivo so esta preparado no cliente) lendo o texto do PDF e
+ * cruzando os CNPJs encontrados contra os estabelecimentos elegiveis da
+ * NF. Sempre retorna { estabelecimentoId: null } em qualquer cenario
+ * inseguro/ambiguo/de falha -- nunca lanca erro nem bloqueia o preparo do
+ * arquivo no cliente. O cedente pode sempre sobrescrever manualmente.
+ */
+export async function identificarBeneficiarioBoleto(
+  notaFiscalId: string,
+  formData: FormData,
+): Promise<ParcelaActionResult<{ estabelecimentoId: string | null }>> {
+  try {
+    await requireNotaFiscalAccess(notaFiscalId)
+
+    const arquivo = formData.get('arquivo')
+    if (!(arquivo instanceof File) || mimeArquivo(arquivo) !== 'application/pdf') {
+      return { success: true, message: 'Arquivo invalido para identificacao automatica.', data: { estabelecimentoId: null } }
+    }
+
+    const buffer = Buffer.from(await arquivo.arrayBuffer())
+    const texto = await extrairTextoBrutoPdf(buffer)
+    if (!texto) return { success: true, message: 'Nao foi possivel ler o texto do PDF.', data: { estabelecimentoId: null } }
+
+    const candidatos = extrairCandidatosCnpj(texto)
+    if (candidatos.length === 0) return { success: true, message: 'Nenhum CNPJ identificado no arquivo.', data: { estabelecimentoId: null } }
+
+    const beneficiariosResult = await listarBeneficiariosElegiveisDaNota(notaFiscalId)
+    if (!beneficiariosResult.success || !beneficiariosResult.data) {
+      return { success: true, message: 'Nao foi possivel carregar os beneficiarios elegiveis.', data: { estabelecimentoId: null } }
+    }
+
+    const estabelecimentoId = encontrarBeneficiarioUnico(candidatos, beneficiariosResult.data)
+    return { success: true, message: 'Identificacao concluida.', data: { estabelecimentoId } }
+  } catch {
+    return { success: true, message: 'Nao foi possivel identificar o beneficiario automaticamente.', data: { estabelecimentoId: null } }
   }
 }
 

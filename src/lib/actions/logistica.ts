@@ -345,6 +345,7 @@ export async function enviarCanhoto(formData: FormData): Promise<LogisticaAction
       p_possui_ressalva: formData.get('possuiRessalva') === 'on' || formData.get('possuiRessalva') === 'true',
       p_descricao_ressalva: String(formData.get('descricaoRessalva') || '') || null,
       p_nota_fiscal_remessa_id: String(formData.get('notaFiscalRemessaId') || '') || null,
+      p_requisito_id: String(formData.get('requisitoId') || '') || null,
     })
     if (error) throw new Error(error.message)
     const result = data as Record<string, unknown>

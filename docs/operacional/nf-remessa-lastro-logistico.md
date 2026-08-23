@@ -13,6 +13,15 @@ Requisitos` (refinamento visual do componente especializado — seção C).
 Correção de bug real: `P0_Claude_CTe_Via_Remessa_Usando_Venda` (a resolução
 `VIA_REMESSA` só existia em código morto; o caminho real da UI comparava
 sempre contra a venda — seção E).
+Ajustes UX + aprovação documental + consolidação do canhoto:
+`P0_Claude_Ajustes_Boleto_Remessa_Comprovante` e
+`P0_Claude_Fechar_Ajustes_Documentais_UX` (separação matching técnico ↔
+aprovação documental — seção H; distinção real "Enviar nova versão" vs
+"Enviar outra NF de Remessa" — seção H; remoção do card avulso `CanhotoDaEntrega`
+e consolidação em "Requisitos documentais" — seção F).
+Versionamento real: `P0_Claude_Versionamento_NF_Remessa` (histórico
+append-only em `nota_fiscal_remessa_versoes` — a versão anterior nunca é
+apagada nem seu arquivo removido do Storage — seção H).
 
 ## Resultado
 
@@ -30,7 +39,17 @@ removido, e `nf_remessa` agora só aparece dentro de "Requisitos
 documentais", com um componente especializado que nunca cai no fluxo
 genérico de upload — ver seção C. A única parte que permanece
 deliberadamente fora de escopo é a suíte de certificação browser E2E (ver
-"Riscos remanescentes").
+"Riscos remanescentes"). Dois tickets adicionais fecharam pendências de UX
+reais: `P0_Claude_Ajustes_Boleto_Remessa_Comprovante` (separação matching
+técnico ↔ aprovação documental — seção H; boleto por parcela com envio em
+lote; remoção do card avulso de canhoto — seção F) e
+`P0_Claude_Fechar_Ajustes_Documentais_UX` (correção de um bug real onde
+"Enviar nova versão" da NF de Remessa sempre falhava por chave duplicada —
+seção H; preservação do beneficiário do boleto no reenvio; confirmação sem
+regressão da consolidação do canhoto) e `P0_Claude_Versionamento_NF_Remessa`
+(a correção anterior fazia `UPDATE` destrutivo e apagava o XML anterior do
+Storage — insuficiente para auditoria; evoluída para histórico append-only
+dedicado, nunca apagado — seção H).
 
 ## A. Modelo
 
@@ -119,18 +138,34 @@ upload/`documentos_v2` para este tipo:
   (`instanciar_requisitos_nota` só insere para requisitos ativos da
   versão vigente) — nada aparece, por construção, sem código extra.
 - **Opcional, sem remessa**: rótulo **"Não enviada"** (nunca "Pendente"),
-  não bloqueia. Botão "Enviar NF de remessa (XML)".
+  não bloqueia.
 - **Obrigatório, sem remessa `VALIDADA`**: rótulo **"Pendente"**, bloqueia
-  conforme a satisfação já implementada (seção G). Mesmo botão de envio.
-- **Existe remessa `VALIDADA`**: rótulo **"Validada"**, subtítulo mostra
-  `NF <numero> • Série <serie> • <emitente>`, cada remessa listada com
-  emitente/destinatário/valor/vínculo NFref, link "Ver XML", e botão
-  "Enviar outra remessa" (a relação é 1:N — múltiplas remessas continuam
-  possíveis e são todas listadas).
-- **`REVISAO_MANUAL`**: rótulo **"Em revisão"**, não satisfaz o
-  obrigatório.
-- **`REJEITADA`**: rótulo **"Rejeitada"**, não satisfaz o obrigatório.
-- Prioridade quando há múltiplas remessas com status misto: `VALIDADA` >
+  conforme a satisfação já implementada (seção G).
+- **Existe remessa `VALIDADA` e aprovação documental resolvida** (ver
+  seção H): rótulo **"Validada"**, subtítulo mostra `NF <numero> • Série
+  <serie> • <emitente>`, cada remessa listada com emitente/destinatário/
+  valor/vínculo NFref, link "Ver XML" (mais o botão "Ver" no header,
+  atalho para a remessa em destaque). Múltiplas remessas continuam
+  possíveis (relação 1:N) e são todas listadas.
+- **Matching `VALIDADA` mas política exige aprovação manual/híbrida**
+  (seção H): rótulo **"Aguardando análise"** — não satisfaz o requisito
+  até a gestora decidir.
+- **`REVISAO_MANUAL`** (matching técnico): rótulo **"Em revisão"**, não
+  satisfaz o obrigatório.
+- **`REJEITADA`** (matching técnico OU rejeitada na aprovação documental):
+  rótulo **"Rejeitada"**, não satisfaz o obrigatório.
+- **Cabeçalho** (ticket `P0_Claude_Melhorar_UI_NF_Remessa_Requisitos` +
+  ajustes de UX seguintes): ícone/nome/badge Obrigatório-Opcional/badge
+  Bloqueia (gestor)/status/botão **"Ver"** (remessa em destaque)/botão
+  **"Enviar nova versão"** ou **"Enviar outra NF de Remessa"** (rótulo
+  depende do estado da remessa mais recente — ver seção H — **somente
+  Cedente**, gestor nunca vê botão de envio aqui, só analisa)/chevron. O
+  dropzone fica recolhido por padrão assim que existe ao menos uma
+  remessa; só reaparece ao clicar no botão de envio do header (ou
+  automaticamente quando a mais recente foi `REJEITADA`) — mesmo padrão de
+  `RequirementCardGeneric`.
+- Prioridade quando há múltiplas remessas com status misto: `VALIDADA`
+  (aprovação resolvida) > `VALIDADA` + `aguardando_analise` >
   `REVISAO_MANUAL` > `REJEITADA` > (obrigatório ? `Pendente` : `Não
   enviada`) — função pura `resolverStatusVisualNfRemessa`
   (`src/lib/documentos-v2/nf-remessa-status-visual.ts`), testada
@@ -279,26 +314,54 @@ código E por teste automatizado dedicado (`ajustes-finais-nf-remessa
   venda), sem exceção.
 - `enviarCanhoto` (`src/lib/actions/logistica.ts`) repassa
   `notaFiscalRemessaId` do `formData` para `p_nota_fiscal_remessa_id`.
-- UI nova (não existia antes): `CanhotoDaEntrega`
-  (`src/components/notas-fiscais/CanhotoDaEntrega.tsx`), renderizado nas
-  páginas de detalhe da NF (cedente/gestor) logo após o card de remessa. Só
-  aparece quando a NF tem acompanhamento logístico ativo (`nota_fiscal_
-  entregas` não `nao_aplicavel/cancelada/devolvida`). Mostra um `<select>`
-  com as remessas `VALIDADA`s da venda quando houver ao menos uma (seletor
-  correto com múltiplas remessas — lista todas, não só a mais recente); ao
-  enviar um canhoto vinculado, exibe **"Entrega comprovada via NF de
-  Remessa `<numero>`"** no próprio card, visível tanto para cedente quanto
-  para gestor.
-- **Nota de arquitetura descoberta durante este ajuste**: `registrar_
+- **Histórico (superado pelo ticket `P0_Claude_Ajustes_Boleto_Remessa_
+  Comprovante`)**: a UI original deste item era um card avulso
+  `CanhotoDaEntrega` (`src/components/notas-fiscais/CanhotoDaEntrega.tsx`),
+  renderizado nas páginas de detalhe da NF **fora** de "Requisitos
+  documentais", com um `<select>` pedindo ao Cedente para escolher
+  manualmente se o canhoto era da venda ou de uma remessa específica. Esse
+  card e o seletor foram **removidos** — ver "Consolidação do canhoto"
+  abaixo.
+- **Consolidação do canhoto dentro de "Requisitos documentais"** (ticket
+  `P0_Claude_Ajustes_Boleto_Remessa_Comprovante`, confirmado sem
+  regressão pelo `P0_Claude_Fechar_Ajustes_Documentais_UX`):
+  `CanhotoDaEntrega.tsx` foi **deletado** (nenhuma referência restante nas
+  páginas de NF). O upload de canhoto/comprovante de entrega agora
+  acontece **exclusivamente** dentro do checklist, via um componente
+  especializado `src/components/documentos-v2/RequisitoComprovanteEntrega
+  .tsx`, dispatchado em `RequirementCard` (`ChecklistCedente.tsx`) quando
+  `item.familiaDocumental === 'comprovante_entrega' && item.entregaId`
+  (mesmo padrão de dispatch hook-free já usado para `nf_remessa`). O
+  vínculo com uma NF de remessa é **sempre inferido automaticamente**,
+  nunca perguntado por dropdown: 0 remessas `VALIDADA`s → vínculo com a
+  venda diretamente; exatamente 1 → vínculo automático com essa remessa;
+  2+ (ambíguo) → nenhum vínculo escolhido automaticamente, o canhoto é
+  enviado mesmo assim e a ambiguidade é sinalizada via `possui_ressalva`/
+  `descricao_ressalva` (colunas já existentes, reaproveitadas — nenhuma
+  coluna nova) para revisão manual da gestora. Função pura
+  `inferirVinculoRemessaCanhoto` (`src/lib/documentos-v2/canhoto-vinculo-
+  remessa.ts`), testada isoladamente para os 3 casos.
+  `registrar_canhoto_documento` ganhou um segundo parâmetro `DEFAULT`,
+  `p_requisito_id uuid DEFAULT NULL` (migration
+  `20260823140000_p0_canhoto_requisito_checklist.sql`): quando informado,
+  a instância do requisito no checklist passa a apontar para o documento
+  enviado (mesmo padrão de `registrar_cte_documento`), com status
+  resetado para `pendente` a cada novo envio/reenvio. `analisar_canhoto_
+  documento` foi corrigido na mesma migration para reconhecer os códigos
+  alternativos da mesma família documental (`comprovante_entrega`/
+  `comprovante_de_entrega`, não só `canhoto` literal) ao marcar o
+  requisito como `satisfeito` — a aprovação da gestora, que antes não
+  tinha NENHUMA UI em lugar algum do app, agora está disponível dentro do
+  próprio item do checklist (botões Aprovar/Rejeitar).
+- **Nota de arquitetura descoberta durante o ajuste original**: `registrar_
   canhoto_documento` não é o único caminho de criação de `canhotos` neste
   repositório — existe também um fluxo de "envio antecipado" (`registrar_
   documento_logistico_antecipado` → `private.reconciliar_evidencia_
-  logistica_nf`) e um upload genérico de checklist (`registrar_documento_
-  entrega_upload`, que não persiste em `canhotos` diretamente). O ticket
-  de ajustes finais nomeou especificamente `registrar_canhoto_documento` —
-  estendido exatamente como pedido. Estender os outros dois caminhos para
-  também aceitar `nota_fiscal_remessa_id` é um escopo maior, não solicitado
-  aqui, e fica registrado como pendência (ver "Riscos remanescentes").
+  logistica_nf`), deliberadamente fora de escopo (o dispatch do componente
+  novo exige `item.entregaId` truthy, o que já exclui esse caminho por
+  construção). Estender esse caminho para também aceitar `nota_fiscal_
+  remessa_id`/`p_requisito_id` continua registrado como pendência (ver
+  "Riscos remanescentes").
 
 ## G. Requisito de política — satisfação automática (ticket `P0_Claude_Integrar_NF_Remessa_Requisito_Politica`)
 
@@ -370,7 +433,119 @@ disparou satisfação (trigger automático); inserir a seguir uma remessa
 a instância da venda 5576 não foi afetada pelas remessas da venda QA
 (isolamento cross-venda confirmado).
 
-## Limites de quantidade
+## H. Aprovação documental separada do matching técnico (tickets `P0_Claude_Ajustes_Boleto_Remessa_Comprovante` + `P0_Claude_Fechar_Ajustes_Documentais_UX`)
+
+**Bug corrigido**: `status_validacao` (resultado do matching técnico —
+`avaliarMatchingRemessaVenda`, seção D, **nunca alterado** por este
+ticket) era tratado como decisão final e satisfazia o requisito
+`nf_remessa` automaticamente, mesmo quando a política vigente configurou
+`nivel_validacao='manual'`/`'hibrido'` para esse requisito — a gestora
+nunca tinha a chance de revisar antes da remessa virar "Validada".
+
+**Modelo**: nova coluna `nota_fiscal_remessas.aprovacao_documental`
+(migration `20260823130000_p0_nf_remessa_aprovacao_documental.sql`),
+`NULL | 'aguardando_analise' | 'aprovado' | 'rejeitado'` — decisão
+SEPARADA do matching, em cima de uma remessa já `VALIDADA` no matching:
+
+- `NULL` — não aplicável: matching diferente de `VALIDADA` (nada para
+  aprovar ainda), OU o requisito `nf_remessa` da política vigente é
+  `'estrutural'` (automático) ou não está configurado — comportamento
+  automático de sempre, preservado sem regressão para quem já confiava
+  nisso (inclusive remessas antigas, anteriores a esta coluna existir,
+  que ficam `NULL` por definição e continuam válidas).
+- `'aguardando_analise'` — matching `VALIDADA` e a política exige
+  `'manual'`/`'hibrido'`; sem decisão da gestora ainda. Não satisfaz o
+  requisito (rótulo visual "Aguardando análise" — seção C).
+- `'aprovado'`/`'rejeitado'` — decisão explícita da gestora, via o novo
+  RPC `analisar_nota_fiscal_remessa` (gestor-only, motivo obrigatório ao
+  rejeitar, fail-closed — só decide remessas em `aguardando_analise`,
+  mesmo padrão de `analisar_cte_documento`/`analisar_canhoto_documento`).
+  Ação em TypeScript: `analisarNotaFiscalRemessa`
+  (`src/lib/actions/nota-fiscal-remessa.ts`), chamada pelos botões
+  Aprovar/Rejeitar do `RequisitoNfRemessa.tsx` (visíveis somente para
+  `mode==='gestor'`, ao lado de cada remessa `aguardando_analise`).
+
+`private.reconciliar_requisito_nf_remessa` passou a exigir também
+`aprovacao_documental IS NULL OR = 'aprovado'`, além do matching
+`VALIDADA` — uma remessa em `aguardando_analise` ou rejeitada na etapa
+documental não satisfaz o requisito mesmo com matching compatível. O
+trigger `nota_fiscal_remessas_reconciliar_requisito` passou a disparar
+também em `UPDATE OF aprovacao_documental` (além de `status_validacao`),
+para que aprovar/rejeitar reconcilie automaticamente sem chamada manual.
+
+**"Enviar nova versão" vs "Enviar outra NF de Remessa"** (bug real
+diagnosticado no ticket `P0_Claude_Fechar_Ajustes_Documentais_UX`): o
+header de `RequisitoNfRemessa.tsx` já rotulava o botão de envio como
+"Enviar nova versão" quando a remessa mais recente estava `REJEITADA`
+(função pura `resolverLabelEnvioNfRemessa`), mas por trás dos dois
+rótulos havia **a mesma action/RPC**, que sempre fazia `INSERT`.
+Reenviar o mesmo XML (mesma `chave_acesso`) de uma remessa rejeitada
+sempre falhava com "Chave de acesso da remessa já cadastrada" — o botão
+nunca funcionava de fato para o caso que o rótulo prometia.
+
+**Correção real, evoluída pelo ticket `P0_Claude_Versionamento_NF_Remessa`**:
+a primeira correção (migration `20260823150000`, versão original) fazia
+`UPDATE` destrutivo da linha em `nota_fiscal_remessas` e a action em
+TypeScript **removia o XML anterior do Storage** — funcionava para o
+"chave duplicada" reportado, mas era insuficiente para auditoria (nenhuma
+trilha append-only do que foi efetivamente enviado em cada versão, e o
+arquivo antigo deixava de existir). Como essa migration **nunca chegou a
+ser aplicada em homologação** (confirmado via `list_migrations` antes de
+alterar), foi reescrita no lugar — não há duas versões concorrentes no
+histórico.
+
+**Modelo definitivo** (mesma migration `20260823150000
+_p0_nf_remessa_atualizar_mesma_chave.sql`, `registrar_nota_fiscal_remessa`
+com a **mesma assinatura de sempre** — nenhum parâmetro novo, decisão
+feita inteiramente dentro do RPC pela chave):
+
+- `nota_fiscal_remessas` = **entidade lógica** da remessa (1 por chave).
+  Continua sendo a fonte que todo o resto do sistema já lê (CT-e
+  via-remessa, canhoto, satisfação do requisito, `Ver`) — suas colunas de
+  arquivo/estado (`path`/`nome_original`/`status_validacao`/
+  `aprovacao_documental`/...) passam a ser um **ponteiro/cache da versão
+  vigente**, não a fonte histórica.
+- `nota_fiscal_remessa_versoes` (**nova tabela**, RLS somente-leitura,
+  mesmo critério de acesso da remessa lógica pai via join) = histórico
+  **append-only**, nunca apagado — 1 linha por envio/reenvio efetivo.
+  `UNIQUE(nota_fiscal_remessa_id, numero_versao)`; índice único parcial
+  garante no máximo 1 `vigente=true` por remessa.
+- **Chave inexistente** → `INSERT` em `nota_fiscal_remessas` (comportamento
+  de sempre, inalterado) + primeira linha (`numero_versao=1`,
+  `vigente=true`) em `nota_fiscal_remessa_versoes` — "Enviar outra NF de
+  Remessa": nova remessa física/parcial, relação 1:N preservada.
+- **Chave já existe NESTA MESMA venda** → **nunca cria uma segunda
+  `nota_fiscal_remessas`** — "Enviar nova versão" da mesma remessa
+  lógica: calcula `numero_versao = max(numero_versao)+1` para essa
+  remessa (a linha é travada com `FOR UPDATE` antes, para serializar
+  contra um reenvio concorrente), marca a versão anterior
+  `vigente=false`, insere a nova versão (`vigente=true`) em
+  `nota_fiscal_remessa_versoes` — **a versão anterior nunca é apagada
+  nem seu arquivo removido do Storage** — e atualiza os
+  ponteiros/estado em `nota_fiscal_remessas` para refletir a nova versão
+  (reexecuta o mesmo cálculo de matching/aprovação documental, e
+  **reseta** `aprovacao_analisado_por`/`aprovacao_analisado_em`/
+  `aprovacao_motivo_rejeicao` — uma decisão sobre a versão antiga não
+  pode vazar para a versão nova). O acumulado de quantidade (regra D)
+  exclui a própria linha sendo substituída, evitando contar a mesma
+  quantidade em dobro.
+- **Chave já existe em OUTRA venda** → continua bloqueado (fail-closed,
+  regra de segurança preexistente, com mensagem específica: "... já
+  cadastrada para outra NF de venda").
+
+**Acesso ao histórico**: novas actions `listarVersoesNotaFiscalRemessa`/
+`obterUrlVersaoNotaFiscalRemessa` (`src/lib/actions/nota-fiscal-remessa
+.ts`) e uma UI mínima em `RequisitoNfRemessa.tsx` — um badge `v<numero>`
+na versão vigente e um link "Ver histórico (N versões)" por remessa que
+expande a lista de versões anteriores, cada uma com seu próprio "Ver". O
+botão de cabeçalho `Ver` continua abrindo especificamente a **versão
+vigente** (via `nota_fiscal_remessas.path`, o ponteiro mantido pelo RPC —
+nenhuma mudança de contrato foi necessária ali). Deliberadamente não
+redesenhado além disso.
+
+**Upload exclusivamente do Cedente**: `podeEnviar` em
+`RequisitoNfRemessa.tsx` é `mode === 'cedente'` — a gestora nunca vê
+nenhum botão de envio, só os controles de análise (seção acima).
 
 Ver seção D. Resumo pós-ajustes-finais: quantidade estruturada obrigatória
 nos dois lados para `VALIDADA`; sem ela, `REVISAO_MANUAL` sempre — nunca há
@@ -527,6 +702,53 @@ Resultado, com os arquivos **reais** (não reconstruídos):
   `20260821070000`) validadas com SQL real em homologação
   (`fhgkmggthxikfpogrvaa`), cada uma aplicada 3 vezes consecutivas sem
   erro (idempotência confirmada).
+- **Testes do ticket `P0_Claude_Ajustes_Boleto_Remessa_Comprovante`**
+  (boleto por parcela, aprovação documental, consolidação do canhoto —
+  seções C/F/H): `nf-remessa-status-visual.test.ts` estendido com o novo
+  status `aguardando_analise` e as prioridades mistas;
+  `nf-remessa-aprovacao-documental.migration.test.ts` (contrato da
+  migration `20260823130000`); `canhoto-vinculo-remessa.test.ts` (3 casos:
+  0/1/2+ remessas); `canhoto-requisito-checklist.migration.test.ts`
+  (contrato da migration `20260823140000`); `boleto-beneficiario.test.ts`
+  (extração/match de CNPJ do PDF do boleto).
+- **Testes do ticket `P0_Claude_Fechar_Ajustes_Documentais_UX`** (fechamento
+  de 2 pendências antes do commit consolidado — seção H): `boleto-
+  beneficiario.test.ts` estendido com `resolverBeneficiarioEfetivo`/
+  `deveTentarAutodeteccaoBeneficiario` (beneficiário persistido prevalece
+  sobre autodetecção, nunca é limpo por rejeição/reenvio);
+  `canhoto-sem-seletor-redundante.test.ts` (confirmação, não redesenho:
+  card avulso removido, nenhuma página referencia `CanhotoDaEntrega`,
+  nenhum `<select>` de vínculo manual no componente consolidado). As
+  migrations `20260823130000` e `20260823140000` aplicadas e verificadas
+  idempotentes em homologação (reaplicadas sem erro). A primeira versão
+  da migration `20260823150000` (UPDATE destrutivo + remoção do XML
+  anterior) foi escrita e revisada, mas **não chegou a ser aplicada** —
+  substituída pelo modelo append-only descrito abaixo antes do deploy.
+- **Testes do ticket `P0_Claude_Versionamento_NF_Remessa`** (histórico
+  append-only — seção H): `nota-fiscal-remessa-atualizacao.test.ts`
+  reescrito (3 testes: chave nova → entidade + versão 1, sem exclusão no
+  acumulado, nenhum arquivo removido do Storage; mesma chave/mesma venda →
+  nova versão excluindo a própria linha do acumulado e **nunca** chamando
+  remoção de Storage; RPC chamado com os mesmos parâmetros em ambos os
+  casos — a decisão de insert/nova-versão é inteiramente do RPC, pela
+  chave); `nf-remessa-atualizar-mesma-chave.migration.test.ts` reescrito
+  (contrato da migration definitiva: tabela append-only com
+  `UNIQUE(remessa_id, numero_versao)` e índice único parcial de vigência,
+  RLS somente-leitura via join com a remessa pai, branch de nova versão
+  trava `FOR UPDATE`/calcula `max+1`/desativa a anterior/reseta a
+  aprovação documental, branch INSERT inalterado, nenhuma chamada de
+  remoção de Storage em nenhum lugar da função, retorno com `atualizacao`/
+  `numero_versao` em vez de `caminho_anterior`). Suíte completa: 181
+  arquivos / **1488 testes**, 0 falhas. `npx tsc --noEmit` limpo, `npm run
+  lint` sem warnings novos, `git diff --check` limpo, `npx next build
+  --webpack` sucesso. Migration `20260823150000` (versão definitiva)
+  **aplicada em homologação e verificada idempotente** (tabela/RLS
+  reaplicadas sem erro); schema (15 colunas), os 4 índices (incluindo o
+  único parcial de vigência) e o corpo da RPC (contém a inserção em
+  `nota_fiscal_remessa_versoes`, o `FOR UPDATE`, `vigente = false` e
+  `numero_versao`) confirmados ao vivo via SQL — exatamente 1 overload de
+  `registrar_nota_fiscal_remessa`, mesma assinatura de 21 parâmetros de
+  sempre.
 
 ## Riscos remanescentes / pendências
 
