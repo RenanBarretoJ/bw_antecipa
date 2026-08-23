@@ -24,7 +24,8 @@ function main() {
   const baseMigrationPath = resolve(process.cwd(), 'supabase/migrations/20260728153646_reset_operacional_eventos_dominio.sql')
   const correctionMigrationPath = resolve(process.cwd(), 'supabase/migrations/20260804103235_corrigir_reset_postergacoes_canhoto.sql')
   const recentDependenciesMigrationPath = resolve(process.cwd(), 'supabase/migrations/20260811153000_corrigir_reset_dependencias_logisticas_duplicatas.sql')
-  for (const migrationPath of [baseMigrationPath, correctionMigrationPath, recentDependenciesMigrationPath]) {
+  const riskDependenciesMigrationPath = resolve(process.cwd(), 'supabase/migrations/20260823125731_corrigir_reset_dependencias_risco.sql')
+  for (const migrationPath of [baseMigrationPath, correctionMigrationPath, recentDependenciesMigrationPath, riskDependenciesMigrationPath]) {
     if (!existsSync(migrationPath)) throw new Error(`Migration da RPC nao encontrada: ${migrationPath}`)
   }
 
@@ -42,12 +43,14 @@ function main() {
   console.log('Base:', baseMigrationPath)
   console.log('Correcao:', correctionMigrationPath)
   console.log('Dependencias recentes:', recentDependenciesMigrationPath)
+  console.log('Dependencias de risco:', riskDependenciesMigrationPath)
   console.log('Destino:', maskDbUrl(dbUrl))
 
   const sqlFiles = createSingleStatementSqlFiles(
     baseMigrationPath,
     correctionMigrationPath,
     recentDependenciesMigrationPath,
+    riskDependenciesMigrationPath,
     Date.now(),
   )
 
@@ -106,27 +109,38 @@ function runSupabaseCliSequentially(dbUrl, sqlFiles) {
   return result
 }
 
-function createSingleStatementSqlFiles(baseMigrationPath, correctionMigrationPath, recentDependenciesMigrationPath, suffix) {
+function createSingleStatementSqlFiles(baseMigrationPath, correctionMigrationPath, recentDependenciesMigrationPath, riskDependenciesMigrationPath, suffix) {
   const baseSql = readFileSync(baseMigrationPath, 'utf8')
   const correctionSql = readFileSync(correctionMigrationPath, 'utf8')
   const recentDependenciesSql = readFileSync(recentDependenciesMigrationPath, 'utf8')
+  const riskDependenciesSql = readFileSync(riskDependenciesMigrationPath, 'utf8')
   const baseFunction = extractResetFunction(baseSql, 'base')
   const wrapperFunction = extractResetFunction(correctionSql, 'corretiva')
   const recentDependenciesWrapperFunction = extractResetFunction(recentDependenciesSql, 'dependencias recentes')
+  const logisticsDependenciesWrapperFunction = extractResetFunctionByName(
+    riskDependenciesSql,
+    'reset_operacional_fundo_homolog_sem_dependencias_logisticas_duplicatas',
+    'dependencias logisticas completas',
+  )
+  const riskDependenciesWrapperFunction = extractResetFunction(riskDependenciesSql, 'dependencias de risco')
 
   const statements = [
     'DROP FUNCTION IF EXISTS public.reset_operacional_fundo_homolog(uuid, text, boolean, text);',
     'DROP FUNCTION IF EXISTS public.reset_operacional_fundo_homolog(uuid, text, boolean, text, text);',
     'DROP FUNCTION IF EXISTS public.reset_operacional_fundo_homolog_sem_dependencias_recentes(uuid, text, boolean, text, text);',
+    'DROP FUNCTION IF EXISTS public.reset_operacional_fundo_homolog_sem_dependencias_logisticas_duplicatas(uuid, text, boolean, text, text);',
     'DROP FUNCTION IF EXISTS public.reset_operacional_fundo_homolog_sem_postergacoes(uuid, text, boolean, text, text);',
     baseFunction,
     'ALTER FUNCTION public.reset_operacional_fundo_homolog(uuid, text, boolean, text, text) RENAME TO reset_operacional_fundo_homolog_sem_postergacoes;',
     wrapperFunction,
     'ALTER FUNCTION public.reset_operacional_fundo_homolog(uuid, text, boolean, text, text) RENAME TO reset_operacional_fundo_homolog_sem_dependencias_recentes;',
     recentDependenciesWrapperFunction,
-    "COMMENT ON FUNCTION public.reset_operacional_fundo_homolog(uuid, text, boolean, text, text) IS 'Wrapper transacional de homologacao que remove dependencias logisticas e duplicatas antes do reset operacional do fundo.';",
+    logisticsDependenciesWrapperFunction,
+    riskDependenciesWrapperFunction,
+    "COMMENT ON FUNCTION public.reset_operacional_fundo_homolog(uuid, text, boolean, text, text) IS 'Wrapper transacional de homologacao que remove snapshots de risco, dependencias logisticas e duplicatas antes do reset operacional do fundo.';",
     'REVOKE ALL ON FUNCTION public.reset_operacional_fundo_homolog_sem_postergacoes(uuid, text, boolean, text, text) FROM PUBLIC, anon, authenticated, service_role;',
     'REVOKE ALL ON FUNCTION public.reset_operacional_fundo_homolog_sem_dependencias_recentes(uuid, text, boolean, text, text) FROM PUBLIC, anon, authenticated, service_role;',
+    'REVOKE ALL ON FUNCTION public.reset_operacional_fundo_homolog_sem_dependencias_logisticas_duplicatas(uuid, text, boolean, text, text) FROM PUBLIC, anon, authenticated, service_role;',
     'REVOKE ALL ON FUNCTION public.reset_operacional_fundo_homolog(uuid, text, boolean, text, text) FROM PUBLIC;',
     'REVOKE ALL ON FUNCTION public.reset_operacional_fundo_homolog(uuid, text, boolean, text, text) FROM anon, authenticated;',
     'GRANT EXECUTE ON FUNCTION public.reset_operacional_fundo_homolog(uuid, text, boolean, text, text) TO service_role;',
@@ -140,8 +154,15 @@ function createSingleStatementSqlFiles(baseMigrationPath, correctionMigrationPat
 }
 
 function extractResetFunction(sql, origem) {
+  return extractResetFunctionByName(sql, 'reset_operacional_fundo_homolog', origem)
+}
+
+function extractResetFunctionByName(sql, functionName, origem) {
+  const escapedFunctionName = functionName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const declarationPattern = /create\s+or\s+replace\s+function\s+public\./i
+  const terminatorPattern = /\$\$;/i
   const match = sql.match(
-    /create\s+or\s+replace\s+function\s+public\.reset_operacional_fundo_homolog\s*\([\s\S]+?\r?\n\$\$;/i,
+    new RegExp(`${declarationPattern.source}${escapedFunctionName}\\s*\\([\\s\\S]+?\\r?\\n${terminatorPattern.source}`, 'i'),
   )
   if (!match) throw new Error(`Nao foi possivel extrair a funcao da migration ${origem}.`)
   return match[0]
