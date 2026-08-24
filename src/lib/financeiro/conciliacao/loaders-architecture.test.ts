@@ -31,4 +31,15 @@ describe('arquitetura temporal e estados da Central de Conciliacao', () => {
     expect(client).not.toContain('Number(value || 0)')
     expect(client).toContain('QA SYNTHETIC')
   })
+
+  it('usa hoje em Sao Paulo como default e nao a ultima execucao disponivel', () => {
+    expect(loader).toContain('resolverDataCivilOperacional(filters.dataReferencia)')
+    expect(loader).not.toContain('dates[0]')
+    expect(loader).not.toContain("new Date().toISOString().slice(0, 10)")
+  })
+
+  it('preserva a data entre subtabs e remove a data no comando geral de limpar', () => {
+    expect(client).toContain('function currentQuery(dashboard: ConciliacaoDashboard, tab: ConciliacaoTab, preserveDate = true)')
+    expect(client).toContain('currentQuery(dashboard, dashboard.filtros.tab, false)')
+  })
 })

@@ -2,6 +2,7 @@ import 'server-only'
 
 import { obterFundoAtivoAutorizado } from '@/lib/fundos/fundo-ativo.server'
 import { requireGestor } from '@/lib/auth/authorization'
+import { resolverDataCivilOperacional } from '@/lib/operacoes/data-operacional.server'
 import {
   execucaoExposicaoCompativelComBase,
   montarBaseFinanceiraDaData,
@@ -515,12 +516,11 @@ export async function carregarConciliacaoGestor(filters: ConciliacaoFilters): Pr
     console.error('[conciliacao][datas]', error instanceof Error ? error.message : 'erro desconhecido')
     errors.datas = 'Nao foi possivel carregar as datas disponiveis.'
   }
-  // Uma busca direcionada por operacao deve atravessar o historico de risco.
-  // Aplicar automaticamente a data mais recente esconderia revisoes pendentes
-  // de operacoes avaliadas em outra data operacional.
-  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' })
-  const requestedDate = filters.dataReferencia || (filters.riskOperation ? '' : dates[0] || today)
+  const requestedDate = resolverDataCivilOperacional(filters.dataReferencia)
   const normalizedFilters = { ...filters, dataReferencia: requestedDate }
+  const riskListFilters = filters.riskOperation && !filters.dataReferencia
+    ? { ...normalizedFilters, dataReferencia: '' }
+    : normalizedFilters
   let base = requestedDate ? montarBaseFinanceiraDaData({ dataOperacional: requestedDate, importacoes: [], snapshots: [] }) : null
   if (requestedDate) {
     try {
@@ -564,12 +564,12 @@ export async function carregarConciliacaoGestor(filters: ConciliacaoFilters): Pr
   if (normalizedFilters.tab === 'conciliacao' || normalizedFilters.tab === 'excecoes') tasks.push(load('conciliacao', () => reconciliationRows({ supabase: context.supabase, fundoId: fundo.id, executionId: executions.current.conciliacao?.id || null, filters: normalizedFilters }), (value) => { reconciliation = value }))
   if (normalizedFilters.tab === 'logistica' || normalizedFilters.tab === 'excecoes') tasks.push(load('logistica', () => logisticsRows({ supabase: context.supabase, fundoId: fundo.id, executionId: executions.current.logistica?.id || null, filters: normalizedFilters }), (value) => { logistics = value }))
   if (normalizedFilters.tab === 'exposicao') tasks.push(load('exposicao', () => exposureRows({ supabase: context.supabase, fundoId: fundo.id, executionId: executions.current.exposicao?.id || null, filters: normalizedFilters }), (value) => { exposure = value }))
-  if (normalizedFilters.tab === 'risco') tasks.push(load('risco', () => riskRows({ supabase: context.supabase, fundoId: fundo.id, filters: normalizedFilters }), (value) => { risk = value }))
+  if (normalizedFilters.tab === 'risco') tasks.push(load('risco', () => riskRows({ supabase: context.supabase, fundoId: fundo.id, filters: riskListFilters }), (value) => { risk = value }))
   await Promise.all(tasks)
   return {
     fundo,
     filtros: normalizedFilters,
-    datasDisponiveis: dates,
+    datasDisponiveis: [requestedDate, ...dates.filter((item) => item !== requestedDate)],
     baseFinanceira: base,
     politicaDaData: policy,
     erros: errors,

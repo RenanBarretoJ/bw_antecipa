@@ -69,10 +69,10 @@ function badge(status: string) {
   )
 }
 
-function currentQuery(dashboard: ConciliacaoDashboard, tab: ConciliacaoTab) {
+function currentQuery(dashboard: ConciliacaoDashboard, tab: ConciliacaoTab, preserveDate = true) {
   const params = new URLSearchParams()
   params.set('tab', tab)
-  if (dashboard.filtros.dataReferencia) params.set('data', dashboard.filtros.dataReferencia)
+  if (preserveDate && dashboard.filtros.dataReferencia) params.set('data', dashboard.filtros.dataReferencia)
   return `/gestor/conciliacao?${params.toString()}`
 }
 
@@ -259,7 +259,7 @@ export function ConciliacaoFinanceiraClient({ dashboard }: { dashboard: Concilia
             </select>
             <div className="flex gap-2">
               <Button type="submit">Aplicar</Button>
-              <Button render={<Link href={currentQuery(dashboard, dashboard.filtros.tab)} />} nativeButton={false} variant="outline">Limpar</Button>
+              <Button render={<Link href={currentQuery(dashboard, dashboard.filtros.tab, false)} />} nativeButton={false} variant="outline">Limpar</Button>
             </div>
           </form>
           {dashboard.filtros.tab === 'logistica' && (
