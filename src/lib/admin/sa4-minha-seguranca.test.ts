@@ -19,10 +19,10 @@ describe('SA4 - Minha Seguranca do Super Admin', () => {
     expect(legacyPage).toContain("redirect('/admin/minha-seguranca')")
   })
 
-  it('adiciona somente a quarta entrada prevista ao menu Admin', () => {
+  it('preserva a entrada de seguranca no menu Admin ampliado', () => {
     const adminMenu = menu.slice(menu.indexOf('export const adminMenuItems'))
     expect(adminMenu).toContain("href: '/admin/minha-seguranca'")
-    expect((adminMenu.match(/href:/g) || [])).toHaveLength(4)
+    expect((adminMenu.match(/href:/g) || [])).toHaveLength(5)
   })
 
   it('reutiliza o mesmo nucleo visual e a mesma conta do Gestor', () => {

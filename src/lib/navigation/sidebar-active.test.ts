@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { isSidebarItemActive } from './sidebar-active'
 
-const adminItems = ['/admin', '/admin/fundos', '/admin/usuarios', '/admin/minha-seguranca']
+const adminItems = [
+  '/admin',
+  '/admin/fundos',
+  '/admin/usuarios',
+  '/admin/integracoes-transportadoras',
+  '/admin/minha-seguranca',
+]
 
 function activeAdminItems(pathname: string) {
   return adminItems.filter((href) => isSidebarItemActive(pathname, href, 'super_admin'))
@@ -18,6 +24,10 @@ describe('estado ativo da sidebar administrativa', () => {
     ['/admin/usuarios/novo', '/admin/usuarios'],
     ['/admin/usuarios/usuario-123', '/admin/usuarios'],
     ['/admin/usuarios/usuario-123?tab=seguranca', '/admin/usuarios'],
+    ['/admin/integracoes-transportadoras', '/admin/integracoes-transportadoras'],
+    ['/admin/integracoes-transportadoras/eventos', '/admin/integracoes-transportadoras'],
+    ['/admin/integracoes-transportadoras/eventos/evento-123', '/admin/integracoes-transportadoras'],
+    ['/admin/integracoes-transportadoras/eventos/evento-123?tab=detalhes', '/admin/integracoes-transportadoras'],
     ['/admin/minha-seguranca', '/admin/minha-seguranca'],
   ])('ativa somente o item esperado em %s', (pathname, expectedHref) => {
     expect(activeAdminItems(pathname)).toEqual([expectedHref])

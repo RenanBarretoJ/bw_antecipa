@@ -32,14 +32,17 @@ describe('area administrativa SA0, SA1 e SA2', () => {
     expect(adminSources).not.toContain('FundoAtivoProvider')
   })
 
-  it('renderiza somente as quatro entradas administrativas previstas ate o SA4', () => {
+  it('renderiza as entradas administrativas e a integracao logistica exclusiva do Super Admin', () => {
     const adminMenu = sidebar.slice(sidebar.indexOf('export const adminMenuItems'))
+    const nonAdminMenus = sidebar.slice(0, sidebar.indexOf('export const adminMenuItems'))
     expect(adminMenu).toContain("href: '/admin'")
     expect(adminMenu).toContain("href: '/admin/fundos'")
     expect(adminMenu).toContain("href: '/admin/usuarios'")
+    expect(adminMenu).toContain("href: '/admin/integracoes-transportadoras'")
     expect(adminMenu).toContain("href: '/admin/minha-seguranca'")
-    expect(adminMenu).not.toMatch(/Integracoes|Auditoria global|Sistema/)
-    expect((adminMenu.match(/href:/g) || [])).toHaveLength(4)
+    expect(adminMenu).not.toMatch(/Auditoria global|Sistema/)
+    expect((adminMenu.match(/href:/g) || [])).toHaveLength(5)
+    expect(nonAdminMenus).not.toContain("href: '/admin/integracoes-transportadoras'")
   })
 
   it('mantem componentes de icone dentro da fronteira client', () => {
