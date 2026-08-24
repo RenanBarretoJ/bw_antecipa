@@ -2,6 +2,13 @@ import 'server-only'
 
 import { obterFundoAtivoAutorizado } from '@/lib/fundos/fundo-ativo.server'
 import { requireGestor } from '@/lib/auth/authorization'
+import {
+  execucaoExposicaoCompativelComBase,
+  montarBaseFinanceiraDaData,
+  type BaseFinanceiraDaData,
+  type ImportacaoResumoBase,
+  type SnapshotCarteiraResumo,
+} from './base-financeira'
 import type {
   ConciliacaoExecucao,
   ConciliacaoResultado,
@@ -47,10 +54,35 @@ export type MatchingViewRow = MatchingResultado & {
   vinculo?: TituloNfVinculo | null
 }
 
+export type ConciliacaoBlock = 'datas' | 'base' | 'matching' | 'conciliacao' | 'logistica' | 'exposicao' | 'risco'
+
+export type PoliticaFinanceiraDaData = {
+  estado: 'APLICAVEL' | 'SEM_POLITICA_PADRAO' | 'SEM_VERSAO_VIGENTE' | 'NAO_CONFIGURADA' | 'INDISPONIVEL'
+  nome: string | null
+  versao: number | null
+  versaoId: string | null
+  controleExposicaoAtivo: boolean
+  gateRiscoAtivo: boolean
+  limitePct: string | number | null
+}
+
+type ExecucoesAnteriores = {
+  matching: MatchingExecucao | null
+  conciliacao: ConciliacaoExecucao | null
+  logistica: PosicaoLogisticaExecucao | null
+  exposicao: ExposicaoExecucao | null
+  risco: RiscoExecucao | null
+}
+
 export type ConciliacaoDashboard = {
   fundo: { id: string; nome: string }
   filtros: ConciliacaoFilters
   datasDisponiveis: string[]
+  baseFinanceira: BaseFinanceiraDaData | null
+  politicaDaData: PoliticaFinanceiraDaData
+  erros: Partial<Record<ConciliacaoBlock, string>>
+  execucoesAnteriores: ExecucoesAnteriores
+  exposicaoExecucaoIncompativel: ExposicaoExecucao | null
   matchingExecucao: MatchingExecucao | null
   conciliacaoExecucao: ConciliacaoExecucao | null
   logisticaExecucao: PosicaoLogisticaExecucao | null
@@ -106,57 +138,129 @@ async function availableDates(
   supabase: Awaited<ReturnType<typeof requireGestor>>['supabase'],
   fundoId: string,
 ) {
-  const [matching, reconciliation, logistics, exposure, risk] = await Promise.all([
-    supabase.from('matching_execucoes').select('data_referencia').eq('fundo_id', fundoId).order('data_referencia', { ascending: false }).limit(60),
-    supabase.from('conciliacao_execucoes').select('data_referencia').eq('fundo_id', fundoId).order('data_referencia', { ascending: false }).limit(60),
-    supabase.from('posicao_logistica_execucoes').select('data_referencia').eq('fundo_id', fundoId).order('data_referencia', { ascending: false }).limit(60),
+  const [cycles, exposure, risk] = await Promise.all([
+    supabase.from('importacao_ciclos').select('data_operacional').eq('fundo_id', fundoId).order('data_operacional', { ascending: false }).limit(60),
     supabase.from('exposicao_execucoes').select('data_operacional').eq('fundo_id', fundoId).order('data_operacional', { ascending: false }).limit(60),
     supabase.from('risco_execucoes').select('data_operacional').eq('fundo_id', fundoId).order('data_operacional', { ascending: false }).limit(60),
   ])
-  if (matching.error) throw new Error(`Nao foi possivel consultar as datas de matching: ${matching.error.message}`)
-  if (reconciliation.error) throw new Error(`Nao foi possivel consultar as datas de conciliacao: ${reconciliation.error.message}`)
-  if (logistics.error) throw new Error(`Nao foi possivel consultar as datas logisticas: ${logistics.error.message}`)
+  if (cycles.error) throw new Error(`Nao foi possivel consultar os ciclos financeiros: ${cycles.error.message}`)
   if (exposure.error) throw new Error(`Nao foi possivel consultar as datas de exposicao: ${exposure.error.message}`)
   if (risk.error) throw new Error(`Nao foi possivel consultar as datas de risco: ${risk.error.message}`)
   return [...new Set([
-    ...(matching.data || []).map((row) => String(row.data_referencia)),
-    ...(reconciliation.data || []).map((row) => String(row.data_referencia)),
-    ...(logistics.data || []).map((row) => String(row.data_referencia)),
+    ...(cycles.data || []).map((row) => String(row.data_operacional)),
     ...(exposure.data || []).map((row) => String(row.data_operacional)),
     ...(risk.data || []).map((row) => String(row.data_operacional)),
   ])].sort().reverse()
 }
 
+async function carregarBaseFinanceira(
+  supabase: Awaited<ReturnType<typeof requireGestor>>['supabase'],
+  fundoId: string,
+  dataOperacional: string,
+) {
+  const expected = montarBaseFinanceiraDaData({ dataOperacional, importacoes: [], snapshots: [] })
+  const importsResult = await supabase.from('importacoes_financeiras')
+    .select('id,tipo_base,data_referencia,completude,declaracao_sem_movimento,origem,provedor,linhas_publicadas,valor_total,publicada_em')
+    .eq('fundo_id', fundoId).eq('status', 'PUBLICADA')
+    .in('data_referencia', [expected.dataD1, expected.dataD2])
+    .order('publicada_em', { ascending: false })
+  if (importsResult.error) throw new Error(`Nao foi possivel resolver as bases publicadas: ${importsResult.error.message}`)
+  const imports = (importsResult.data || []) as ImportacaoResumoBase[]
+  const walletIds = imports.filter((item) => item.tipo_base === 'CARTEIRA').map((item) => item.id)
+  const snapshotsResult = walletIds.length
+    ? await supabase.from('carteira_snapshots').select('importacao_id,patrimonio_liquido,vigente').eq('fundo_id', fundoId).in('importacao_id', walletIds)
+    : { data: [], error: null }
+  if (snapshotsResult.error) throw new Error(`Nao foi possivel resolver o PL da carteira: ${snapshotsResult.error.message}`)
+  return montarBaseFinanceiraDaData({
+    dataOperacional,
+    importacoes: imports,
+    snapshots: (snapshotsResult.data || []) as SnapshotCarteiraResumo[],
+  })
+}
+
+async function carregarPoliticaDaData(
+  supabase: Awaited<ReturnType<typeof requireGestor>>['supabase'],
+  fundoId: string,
+  dataOperacional: string,
+): Promise<PoliticaFinanceiraDaData> {
+  const policies = await supabase.from('politicas_operacionais').select('id,nome,padrao')
+    .eq('fundo_id', fundoId).eq('status', 'ativa')
+  if (policies.error) throw new Error(`Nao foi possivel resolver a politica financeira: ${policies.error.message}`)
+  if (!policies.data?.length) return { estado: 'NAO_CONFIGURADA', nome: null, versao: null, versaoId: null, controleExposicaoAtivo: false, gateRiscoAtivo: false, limitePct: null }
+  const policy = policies.data.find((item) => item.padrao === true)
+  if (!policy) return { estado: 'SEM_POLITICA_PADRAO', nome: null, versao: null, versaoId: null, controleExposicaoAtivo: false, gateRiscoAtivo: false, limitePct: null }
+  const version = await supabase.from('politica_operacional_versoes')
+    .select('id,versao,controle_exposicao_logistica_ativo,gate_risco_ativo,limite_exposicao_em_transito_pct')
+    .eq('politica_operacional_id', policy.id).eq('fundo_id', fundoId)
+    .in('status', ['publicada', 'substituida'])
+    .lte('vigente_desde', `${dataOperacional}T23:59:59.999-03:00`)
+    .or(`vigente_ate.is.null,vigente_ate.gte.${dataOperacional}T00:00:00-03:00`)
+    .order('versao', { ascending: false }).limit(1).maybeSingle()
+  if (version.error) throw new Error(`Nao foi possivel resolver a versao vigente da politica financeira: ${version.error.message}`)
+  if (!version.data) return { estado: 'SEM_VERSAO_VIGENTE', nome: String(policy.nome), versao: null, versaoId: null, controleExposicaoAtivo: false, gateRiscoAtivo: false, limitePct: null }
+  return {
+    estado: 'APLICAVEL', nome: String(policy.nome), versao: Number(version.data.versao), versaoId: String(version.data.id),
+    controleExposicaoAtivo: version.data.controle_exposicao_logistica_ativo === true,
+    gateRiscoAtivo: version.data.gate_risco_ativo === true,
+    limitePct: version.data.limite_exposicao_em_transito_pct,
+  }
+}
+
+type LatestExecutionResult = {
+  current: ExecucoesAnteriores
+  previous: ExecucoesAnteriores
+  incompatibleExposure: ExposicaoExecucao | null
+  errors: Partial<Record<ConciliacaoBlock, string>>
+}
+
+const emptyExecutions = (): ExecucoesAnteriores => ({ matching: null, conciliacao: null, logistica: null, exposicao: null, risco: null })
+
+async function queryExecution<T>(block: ConciliacaoBlock, currentQuery: PromiseLike<{ data: unknown; error: { message: string } | null }>, previousQuery: PromiseLike<{ data: unknown; error: { message: string } | null }>) {
+  try {
+    const [current, previous] = await Promise.all([currentQuery, previousQuery])
+    if (current.error) throw new Error(current.error.message)
+    if (previous.error) throw new Error(previous.error.message)
+    return { block, current: current.data as T | null, previous: previous.data as T | null, error: null }
+  } catch (error) {
+    console.error(`[conciliacao][${block}]`, error instanceof Error ? error.message : 'erro desconhecido')
+    return { block, current: null, previous: null, error: 'Nao foi possivel carregar este bloco. Tente novamente.' }
+  }
+}
+
 async function latestExecutions(
   supabase: Awaited<ReturnType<typeof requireGestor>>['supabase'],
   fundoId: string,
-  dataReferencia: string,
-) {
-  let matching = supabase.from('matching_execucoes').select('*').eq('fundo_id', fundoId).order('created_at', { ascending: false }).limit(1)
-  let reconciliation = supabase.from('conciliacao_execucoes').select('*').eq('fundo_id', fundoId).order('created_at', { ascending: false }).limit(1)
-  let logistics = supabase.from('posicao_logistica_execucoes').select('*').eq('fundo_id', fundoId).order('created_at', { ascending: false }).limit(1)
-  let exposure = supabase.from('exposicao_execucoes').select('*').eq('fundo_id', fundoId).order('created_at', { ascending: false }).limit(1)
-  let risk = supabase.from('risco_execucoes').select('*').eq('fundo_id', fundoId).order('created_at', { ascending: false }).limit(1)
-  if (dataReferencia) {
-    matching = matching.eq('data_referencia', dataReferencia)
-    reconciliation = reconciliation.eq('data_referencia', dataReferencia)
-    logistics = logistics.eq('data_referencia', dataReferencia)
-    exposure = exposure.eq('data_operacional', dataReferencia)
-    risk = risk.eq('data_operacional', dataReferencia)
+  base: BaseFinanceiraDaData,
+): Promise<LatestExecutionResult> {
+  const exact = (table: string, column: string, value: string) => supabase.from(table).select('*').eq('fundo_id', fundoId).eq(column, value).order('created_at', { ascending: false }).limit(1).maybeSingle()
+  const previous = (table: string, column: string, value: string) => supabase.from(table).select('*').eq('fundo_id', fundoId).lt(column, value).order(column, { ascending: false }).order('created_at', { ascending: false }).limit(1).maybeSingle()
+  const riskCurrent = supabase.from('risco_execucoes').select('*').eq('fundo_id', fundoId).eq('escopo', 'FUNDO').eq('data_operacional', base.dataOperacional).order('created_at', { ascending: false }).limit(1).maybeSingle()
+  const riskPrevious = supabase.from('risco_execucoes').select('*').eq('fundo_id', fundoId).eq('escopo', 'FUNDO').lt('data_operacional', base.dataOperacional).order('data_operacional', { ascending: false }).order('created_at', { ascending: false }).limit(1).maybeSingle()
+  const results = await Promise.all([
+    queryExecution<MatchingExecucao>('matching', exact('matching_execucoes', 'data_referencia', base.dataD1), previous('matching_execucoes', 'data_referencia', base.dataD1)),
+    queryExecution<ConciliacaoExecucao>('conciliacao', exact('conciliacao_execucoes', 'data_referencia', base.dataD1), previous('conciliacao_execucoes', 'data_referencia', base.dataD1)),
+    queryExecution<PosicaoLogisticaExecucao>('logistica', exact('posicao_logistica_execucoes', 'data_referencia', base.dataD1), previous('posicao_logistica_execucoes', 'data_referencia', base.dataD1)),
+    queryExecution<ExposicaoExecucao>('exposicao', exact('exposicao_execucoes', 'data_operacional', base.dataOperacional), previous('exposicao_execucoes', 'data_operacional', base.dataOperacional)),
+    queryExecution<RiscoExecucao>('risco', riskCurrent, riskPrevious),
+  ])
+  const current = emptyExecutions()
+  const prior = emptyExecutions()
+  const errors: Partial<Record<ConciliacaoBlock, string>> = {}
+  let incompatibleExposure: ExposicaoExecucao | null = null
+  for (const result of results) {
+    if (result.error) errors[result.block] = result.error
+    if (result.block === 'matching') { current.matching = result.current as MatchingExecucao | null; prior.matching = result.previous as MatchingExecucao | null }
+    if (result.block === 'conciliacao') { current.conciliacao = result.current as ConciliacaoExecucao | null; prior.conciliacao = result.previous as ConciliacaoExecucao | null }
+    if (result.block === 'logistica') { current.logistica = result.current as PosicaoLogisticaExecucao | null; prior.logistica = result.previous as PosicaoLogisticaExecucao | null }
+    if (result.block === 'risco') { current.risco = result.current as RiscoExecucao | null; prior.risco = result.previous as RiscoExecucao | null }
+    if (result.block === 'exposicao') {
+      const exposure = result.current as ExposicaoExecucao | null
+      if (exposure && !execucaoExposicaoCompativelComBase(exposure, base)) incompatibleExposure = exposure
+      else current.exposicao = exposure
+      prior.exposicao = result.previous as ExposicaoExecucao | null
+    }
   }
-  const [matchingResult, reconciliationResult, logisticsResult, exposureResult, riskResult] = await Promise.all([matching.maybeSingle(), reconciliation.maybeSingle(), logistics.maybeSingle(), exposure.maybeSingle(), risk.maybeSingle()])
-  if (matchingResult.error) throw new Error(`Nao foi possivel carregar a execucao de matching: ${matchingResult.error.message}`)
-  if (reconciliationResult.error) throw new Error(`Nao foi possivel carregar a execucao de conciliacao: ${reconciliationResult.error.message}`)
-  if (logisticsResult.error) throw new Error(`Nao foi possivel carregar a execucao logistica: ${logisticsResult.error.message}`)
-  if (exposureResult.error) throw new Error(`Nao foi possivel carregar a execucao de exposicao: ${exposureResult.error.message}`)
-  if (riskResult.error) throw new Error(`Nao foi possivel carregar a execucao de risco: ${riskResult.error.message}`)
-  return {
-    matching: matchingResult.data as MatchingExecucao | null,
-    reconciliation: reconciliationResult.data as ConciliacaoExecucao | null,
-    logistics: logisticsResult.data as PosicaoLogisticaExecucao | null,
-    exposure: exposureResult.data as ExposicaoExecucao | null,
-    risk: riskResult.data as RiscoExecucao | null,
-  }
+  return { current, previous: prior, incompatibleExposure, errors }
 }
 
 async function riskRows(input: {
@@ -403,29 +507,79 @@ async function reconciliationRows(input: {
 
 export async function carregarConciliacaoGestor(filters: ConciliacaoFilters): Promise<ConciliacaoDashboard> {
   const { context, fundo } = await gestorContext()
-  const dates = await availableDates(context.supabase, fundo.id)
+  const errors: Partial<Record<ConciliacaoBlock, string>> = {}
+  let dates: string[] = []
+  try {
+    dates = await availableDates(context.supabase, fundo.id)
+  } catch (error) {
+    console.error('[conciliacao][datas]', error instanceof Error ? error.message : 'erro desconhecido')
+    errors.datas = 'Nao foi possivel carregar as datas disponiveis.'
+  }
   // Uma busca direcionada por operacao deve atravessar o historico de risco.
   // Aplicar automaticamente a data mais recente esconderia revisoes pendentes
   // de operacoes avaliadas em outra data operacional.
-  const requestedDate = filters.dataReferencia || (filters.riskOperation ? '' : dates[0] || '')
-  const executions = await latestExecutions(context.supabase, fundo.id, requestedDate)
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' })
+  const requestedDate = filters.dataReferencia || (filters.riskOperation ? '' : dates[0] || today)
   const normalizedFilters = { ...filters, dataReferencia: requestedDate }
-  const [matching, reconciliation, logistics, exposure, risk] = await Promise.all([
-    matchingRows({ supabase: context.supabase, fundoId: fundo.id, executionId: executions.matching?.id || null, filters: normalizedFilters }),
-    reconciliationRows({ supabase: context.supabase, fundoId: fundo.id, executionId: executions.reconciliation?.id || null, filters: normalizedFilters }),
-    logisticsRows({ supabase: context.supabase, fundoId: fundo.id, executionId: executions.logistics?.id || null, filters: normalizedFilters }),
-    exposureRows({ supabase: context.supabase, fundoId: fundo.id, executionId: executions.exposure?.id || null, filters: normalizedFilters }),
-    riskRows({ supabase: context.supabase, fundoId: fundo.id, filters: normalizedFilters }),
-  ])
+  let base = requestedDate ? montarBaseFinanceiraDaData({ dataOperacional: requestedDate, importacoes: [], snapshots: [] }) : null
+  if (requestedDate) {
+    try {
+      base = await carregarBaseFinanceira(context.supabase, fundo.id, requestedDate)
+    } catch (error) {
+      console.error('[conciliacao][base]', error instanceof Error ? error.message : 'erro desconhecido')
+      errors.base = 'Nao foi possivel carregar todas as bases financeiras desta data.'
+    }
+  }
+  let policy: PoliticaFinanceiraDaData = { estado: 'INDISPONIVEL', nome: null, versao: null, versaoId: null, controleExposicaoAtivo: false, gateRiscoAtivo: false, limitePct: null }
+  if (requestedDate) {
+    try {
+      policy = await carregarPoliticaDaData(context.supabase, fundo.id, requestedDate)
+    } catch (error) {
+      console.error('[conciliacao][politica]', error instanceof Error ? error.message : 'erro desconhecido')
+      errors.risco = 'Nao foi possivel resolver a politica financeira desta data.'
+    }
+  }
+  const executions = base
+    ? await latestExecutions(context.supabase, fundo.id, base)
+    : { current: emptyExecutions(), previous: emptyExecutions(), incompatibleExposure: null, errors: {} }
+  Object.assign(errors, executions.errors)
+
+  let matching: ConciliacaoDashboard['matching'] = { rows: [], total: 0 }
+  let reconciliation: ConciliacaoDashboard['conciliacao'] = { rows: [], total: 0 }
+  let logistics: ConciliacaoDashboard['logistica'] = { rows: [], total: 0 }
+  let exposure: ConciliacaoDashboard['exposicao'] = { rows: [], total: 0 }
+  let risk: ConciliacaoDashboard['risco'] = { rows: [], total: 0, revisoesPendentes: 0, operacoesBloqueadas: 0 }
+
+  const load = async <T,>(block: ConciliacaoBlock, task: () => Promise<T>, assign: (value: T) => void) => {
+    if (errors[block]) return
+    try {
+      assign(await task())
+    } catch (error) {
+      console.error(`[conciliacao][${block}]`, error instanceof Error ? error.message : 'erro desconhecido')
+      errors[block] = 'Nao foi possivel carregar este bloco. Tente novamente.'
+    }
+  }
+  const tasks: Promise<void>[] = []
+  if (normalizedFilters.tab === 'matching' || normalizedFilters.tab === 'excecoes') tasks.push(load('matching', () => matchingRows({ supabase: context.supabase, fundoId: fundo.id, executionId: executions.current.matching?.id || null, filters: normalizedFilters }), (value) => { matching = value }))
+  if (normalizedFilters.tab === 'conciliacao' || normalizedFilters.tab === 'excecoes') tasks.push(load('conciliacao', () => reconciliationRows({ supabase: context.supabase, fundoId: fundo.id, executionId: executions.current.conciliacao?.id || null, filters: normalizedFilters }), (value) => { reconciliation = value }))
+  if (normalizedFilters.tab === 'logistica' || normalizedFilters.tab === 'excecoes') tasks.push(load('logistica', () => logisticsRows({ supabase: context.supabase, fundoId: fundo.id, executionId: executions.current.logistica?.id || null, filters: normalizedFilters }), (value) => { logistics = value }))
+  if (normalizedFilters.tab === 'exposicao') tasks.push(load('exposicao', () => exposureRows({ supabase: context.supabase, fundoId: fundo.id, executionId: executions.current.exposicao?.id || null, filters: normalizedFilters }), (value) => { exposure = value }))
+  if (normalizedFilters.tab === 'risco') tasks.push(load('risco', () => riskRows({ supabase: context.supabase, fundoId: fundo.id, filters: normalizedFilters }), (value) => { risk = value }))
+  await Promise.all(tasks)
   return {
     fundo,
     filtros: normalizedFilters,
     datasDisponiveis: dates,
-    matchingExecucao: executions.matching,
-    conciliacaoExecucao: executions.reconciliation,
-    logisticaExecucao: executions.logistics,
-    exposicaoExecucao: executions.exposure,
-    riscoExecucao: executions.risk,
+    baseFinanceira: base,
+    politicaDaData: policy,
+    erros: errors,
+    execucoesAnteriores: executions.previous,
+    exposicaoExecucaoIncompativel: executions.incompatibleExposure,
+    matchingExecucao: executions.current.matching,
+    conciliacaoExecucao: executions.current.conciliacao,
+    logisticaExecucao: executions.current.logistica,
+    exposicaoExecucao: executions.current.exposicao,
+    riscoExecucao: executions.current.risco,
     matching,
     conciliacao: reconciliation,
     logistica: logistics,

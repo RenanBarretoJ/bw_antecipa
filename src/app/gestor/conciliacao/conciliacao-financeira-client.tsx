@@ -47,7 +47,8 @@ type NoteOption = {
 }
 
 function money(value: string | number | null | undefined) {
-  const numeric = Number(value || 0)
+  if (value === null || value === undefined || value === '') return 'Indisponivel'
+  const numeric = Number(value)
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(numeric)
 }
 
@@ -90,6 +91,53 @@ function SummaryCard({ label, value, tone = 'default' }: { label: string; value:
   )
 }
 
+function BlockError({ message }: { message: string }) {
+  return <div role="status" className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">{message}</div>
+}
+
+function baseValue(base: NonNullable<ConciliacaoDashboard['baseFinanceira']>['estoque']) {
+  if (base.estado === 'SEM_MOVIMENTO') return 'Sem movimento'
+  if (base.estado === 'INDISPONIVEL') return 'Indisponivel'
+  if (base.estado === 'DISPONIVEL') return 'Disponivel'
+  return money(base.valor)
+}
+
+function sourceLabel(base: NonNullable<ConciliacaoDashboard['baseFinanceira']>['estoque']) {
+  if (!base.importacaoId) return 'Sem base publicada'
+  return `${base.origemQa ? 'QA SYNTHETIC' : base.origem || 'Origem nao informada'} · ${base.provedor || 'Provedor nao informado'}`
+}
+
+function BaseFinanceiraCard({ dashboard }: { dashboard: ConciliacaoDashboard }) {
+  const base = dashboard.baseFinanceira
+  if (!base) return <BlockError message="Selecione uma data operacional para resolver as bases financeiras." />
+  const items = [
+    ['Estoque D-1', base.estoque],
+    ['Aquisicoes D-1', base.aquisicoes],
+    ['Liquidacoes D-1', base.liquidacoes],
+    ['PL da carteira D-2', base.carteira],
+  ] as const
+  const statusLabel = base.statusGeral === 'PRONTA' ? 'Pronta para calculo' : base.statusGeral === 'BASE_INCOMPLETA' ? 'Base incompleta' : base.statusGeral === 'SEM_MOVIMENTO' ? 'Sem movimento' : 'Indisponivel'
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div><CardTitle>Base financeira da data</CardTitle><p className="mt-1 text-sm text-muted-foreground">Data operacional {date(base.dataOperacional)} · D-1 {date(base.dataD1)} · D-2 {date(base.dataD2)}</p></div>
+          <span className={badge(base.statusGeral)}>{statusLabel}</span>
+        </div>
+      </CardHeader>
+      <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {items.map(([label, item]) => <div key={label} className="rounded-lg border bg-muted/20 p-3"><p className="text-xs font-medium uppercase text-muted-foreground">{label} · esperado em {date(item.dataEsperada)}</p><p className="mt-1 font-semibold tabular-nums">{baseValue(item)}</p><p className="mt-1 truncate text-xs text-muted-foreground" title={sourceLabel(item)}>{sourceLabel(item)}</p></div>)}
+        {dashboard.erros.base && <div className="sm:col-span-2 xl:col-span-4"><BlockError message={dashboard.erros.base} /></div>}
+      </CardContent>
+    </Card>
+  )
+}
+
+function PreviousExecution({ label, value }: { label: string; value: string | null | undefined }) {
+  if (!value) return null
+  return <p className="rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning-foreground">Sem execucao atual. Ultima {label} anterior: {date(value)}. Ela nao foi usada como resultado da data selecionada.</p>
+}
+
 export function ConciliacaoFinanceiraClient({ dashboard }: { dashboard: ConciliacaoDashboard }) {
   const router = useRouter()
   const notifications = useNotifications()
@@ -110,7 +158,7 @@ export function ConciliacaoFinanceiraClient({ dashboard }: { dashboard: Concilia
 
   const matchingCoverage = dashboard.matchingExecucao?.total_registros
     ? Math.round((dashboard.matchingExecucao.matched / dashboard.matchingExecucao.total_registros) * 100)
-    : 0
+    : null
   const reconCounts = dashboard.conciliacaoExecucao?.contagens || {}
   const correct = Number(reconCounts.MANTIDO_CORRETO || 0) + Number(reconCounts.ENTRADA_INCORPORADA || 0) + Number(reconCounts.SAIDA_REFLETIDA || 0)
   const divergences = Object.entries(reconCounts)
@@ -124,6 +172,9 @@ export function ConciliacaoFinanceiraClient({ dashboard }: { dashboard: Concilia
         dashboard.conciliacaoExecucao.liquidacoes_d1_importacao_id,
       ].filter(Boolean)
     : dashboard.matchingExecucao?.input_import_ids || []
+  const noExceptions = dashboard.filtros.tab === 'excecoes'
+    && !dashboard.erros.matching && !dashboard.erros.conciliacao && !dashboard.erros.logistica
+    && dashboard.matching.total === 0 && dashboard.conciliacao.total === 0 && dashboard.logistica.total === 0
 
   const initialCandidates = useMemo(() => manualRow?.candidatos
     .map((candidate) => candidate.notaFiscal as NoteOption | null)
@@ -154,16 +205,16 @@ export function ConciliacaoFinanceiraClient({ dashboard }: { dashboard: Concilia
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">Fundo ativo · {dashboard.fundo.nome}</p>
           <h1 className="mt-1 text-2xl font-bold">Conciliacao</h1>
-          <p className="text-muted-foreground">Matching auditavel entre os titulos RLX e as NFs, seguido da reconciliacao financeira D-2/D-1.</p>
+          <p className="text-muted-foreground">Matching auditavel entre titulos financeiros e NFs, seguido da reconciliacao temporal das bases publicadas.</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" disabled={pending || !dashboard.filtros.dataReferencia} onClick={() => run(() => executarMatchingAction({ dataReferencia: dashboard.filtros.dataReferencia }))}>
+          <Button variant="outline" disabled={pending || !dashboard.baseFinanceira?.dataD1} onClick={() => run(() => executarMatchingAction({ dataReferencia: dashboard.baseFinanceira!.dataD1 }))}>
             <Play /> Executar matching
           </Button>
-          <Button disabled={pending || !dashboard.filtros.dataReferencia} onClick={() => run(() => executarConciliacaoAction({ dataReferencia: dashboard.filtros.dataReferencia }))}>
+          <Button disabled={pending || !dashboard.baseFinanceira?.dataD1} onClick={() => run(() => executarConciliacaoAction({ dataReferencia: dashboard.baseFinanceira!.dataD1 }))}>
             <GitCompareArrows /> Executar conciliacao
           </Button>
-          <Button variant="outline" disabled={pending || !dashboard.filtros.dataReferencia} onClick={() => run(() => executarPosicaoLogisticaAction({ dataReferencia: dashboard.filtros.dataReferencia }))}>
+          <Button variant="outline" disabled={pending || !dashboard.baseFinanceira?.dataD1} onClick={() => run(() => executarPosicaoLogisticaAction({ dataReferencia: dashboard.baseFinanceira!.dataD1 }))}>
             <Truck /> Atualizar logistica
           </Button>
           <Button variant="outline" disabled={pending || !dashboard.filtros.dataReferencia} onClick={() => run(() => executarExposicaoAction({ dataReferencia: dashboard.filtros.dataReferencia }))}>
@@ -174,6 +225,8 @@ export function ConciliacaoFinanceiraClient({ dashboard }: { dashboard: Concilia
           </Button>
         </div>
       </header>
+
+      <BaseFinanceiraCard dashboard={dashboard} />
 
       <nav className="flex flex-wrap gap-1 rounded-xl bg-muted p-1" aria-label="Secoes da conciliacao">
         {tabs.map((tab) => (
@@ -253,10 +306,10 @@ export function ConciliacaoFinanceiraClient({ dashboard }: { dashboard: Concilia
       {dashboard.filtros.tab === 'visao-geral' && (
         <>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <SummaryCard label="Cobertura do matching" value={`${matchingCoverage}%`} tone={matchingCoverage >= 90 ? 'success' : 'warning'} />
-            <SummaryCard label="Conciliacoes corretas" value={correct} tone="success" />
-            <SummaryCard label="Divergencias" value={divergences} tone={divergences ? 'danger' : 'success'} />
-            <SummaryCard label="Ambiguos / nao conciliados" value={(dashboard.matchingExecucao?.ambiguos || 0) + (dashboard.matchingExecucao?.nao_conciliados || 0)} tone="warning" />
+            <SummaryCard label="Cobertura do matching" value={matchingCoverage === null ? 'Sem execucao' : `${matchingCoverage}%`} tone={matchingCoverage === null ? 'default' : matchingCoverage >= 90 ? 'success' : 'warning'} />
+            <SummaryCard label="Conciliacoes corretas" value={dashboard.conciliacaoExecucao ? correct : 'Sem execucao'} tone={dashboard.conciliacaoExecucao ? 'success' : 'default'} />
+            <SummaryCard label="Divergencias" value={dashboard.conciliacaoExecucao ? divergences : 'Sem execucao'} tone={dashboard.conciliacaoExecucao && divergences ? 'danger' : dashboard.conciliacaoExecucao ? 'success' : 'default'} />
+            <SummaryCard label="Ambiguos / nao conciliados" value={dashboard.matchingExecucao ? dashboard.matchingExecucao.ambiguos + dashboard.matchingExecucao.nao_conciliados : 'Sem execucao'} tone={dashboard.matchingExecucao ? 'warning' : 'default'} />
           </div>
           <div className="grid gap-4 lg:grid-cols-2">
             <Card>
@@ -265,7 +318,8 @@ export function ConciliacaoFinanceiraClient({ dashboard }: { dashboard: Concilia
                 <div><span className="text-muted-foreground">Data</span><p className="font-medium">{date(dashboard.matchingExecucao?.data_referencia)}</p></div>
                 <div><span className="text-muted-foreground">Status</span><p><span className={badge(dashboard.matchingExecucao?.status || 'SEM_EXECUCAO')}>{dashboard.matchingExecucao?.status || 'Sem execucao'}</span></p></div>
                 <div><span className="text-muted-foreground">Regra</span><p className="font-medium">{dashboard.matchingExecucao?.regra_versao || '—'}</p></div>
-                <div><span className="text-muted-foreground">Titulos</span><p className="font-medium tabular-nums">{dashboard.matchingExecucao?.total_registros || 0}</p></div>
+                <div><span className="text-muted-foreground">Titulos</span><p className="font-medium tabular-nums">{dashboard.matchingExecucao?.total_registros ?? 'Sem execucao'}</p></div>
+                <div className="col-span-2"><PreviousExecution label="execucao de matching" value={dashboard.execucoesAnteriores.matching?.data_referencia} /></div>
               </CardContent>
             </Card>
             <Card>
@@ -280,17 +334,19 @@ export function ConciliacaoFinanceiraClient({ dashboard }: { dashboard: Concilia
         </>
       )}
 
-      {(dashboard.filtros.tab === 'matching' || dashboard.filtros.tab === 'excecoes') && (
-        <MatchingTable rows={dashboard.matching.rows} total={dashboard.matching.total} onManual={openManual} onRevoke={(row) => { setRevokeRow(row); setReason(''); setTotp('') }} />
+      {noExceptions && <Card><CardContent className="py-10 text-center text-muted-foreground">Nenhuma excecao registrada para esta data.</CardContent></Card>}
+
+      {!noExceptions && (dashboard.filtros.tab === 'matching' || dashboard.filtros.tab === 'excecoes') && (
+        dashboard.erros.matching ? <BlockError message={dashboard.erros.matching} /> : <div className="space-y-3"><PreviousExecution label="execucao de matching" value={!dashboard.matchingExecucao ? dashboard.execucoesAnteriores.matching?.data_referencia : null} /><MatchingTable rows={dashboard.matching.rows} total={dashboard.matching.total} onManual={openManual} onRevoke={(row) => { setRevokeRow(row); setReason(''); setTotp('') }} /></div>
       )}
-      {(dashboard.filtros.tab === 'conciliacao' || dashboard.filtros.tab === 'excecoes') && (
-        <ReconciliationTable rows={dashboard.conciliacao.rows} total={dashboard.conciliacao.total} />
+      {!noExceptions && (dashboard.filtros.tab === 'conciliacao' || dashboard.filtros.tab === 'excecoes') && (
+        dashboard.erros.conciliacao ? <BlockError message={dashboard.erros.conciliacao} /> : <div className="space-y-3"><PreviousExecution label="execucao de conciliacao" value={!dashboard.conciliacaoExecucao ? dashboard.execucoesAnteriores.conciliacao?.data_referencia : null} /><ReconciliationTable rows={dashboard.conciliacao.rows} total={dashboard.conciliacao.total} /></div>
       )}
-      {(dashboard.filtros.tab === 'logistica' || dashboard.filtros.tab === 'excecoes') && (
-        <LogisticsView dashboard={dashboard} />
+      {!noExceptions && (dashboard.filtros.tab === 'logistica' || dashboard.filtros.tab === 'excecoes') && (
+        dashboard.erros.logistica ? <BlockError message={dashboard.erros.logistica} /> : <LogisticsView dashboard={dashboard} />
       )}
       {dashboard.filtros.tab === 'exposicao' && (
-        <ExposureView
+        dashboard.erros.exposicao ? <BlockError message={dashboard.erros.exposicao} /> : <ExposureView
           dashboard={dashboard}
           operationId={simulationOperationId}
           onOperationId={setSimulationOperationId}
@@ -304,7 +360,7 @@ export function ConciliacaoFinanceiraClient({ dashboard }: { dashboard: Concilia
         />
       )}
       {dashboard.filtros.tab === 'risco' && (
-        <RiskView dashboard={dashboard} onReview={(row) => {
+        dashboard.erros.risco ? <BlockError message={dashboard.erros.risco} /> : <RiskView dashboard={dashboard} onReview={(row) => {
           setRiskReview(row)
           setRiskDecision('LIBERADA')
           setRiskJustification('')
@@ -422,13 +478,14 @@ function ReconciliationTable({ rows, total }: { rows: ConciliacaoDashboard['conc
 
 function LogisticsView({ dashboard }: { dashboard: ConciliacaoDashboard }) {
   const execution = dashboard.logisticaExecucao
+  if (!execution) return <Card><CardHeader><CardTitle>Posicao logistica</CardTitle></CardHeader><CardContent className="space-y-3"><p className="text-sm text-muted-foreground">Nenhuma execucao logistica disponivel para D-1 {date(dashboard.baseFinanceira?.dataD1)}. Nenhuma contagem ou valor foi inferido.</p><PreviousExecution label="posicao logistica" value={dashboard.execucoesAnteriores.logistica?.data_referencia} /></CardContent></Card>
   const cards = [
-    ['Posicao total', execution?.total_posicoes || 0, execution?.valor_total_aquisicao],
-    ['Matched', execution?.posicoes_matched || 0, execution?.valor_matched],
-    ['Sem match', execution?.posicoes_sem_match || 0, execution?.valor_sem_match],
-    ['Entregue', execution?.posicoes_entregues || 0, execution?.valor_entregue],
-    ['Em transito', execution?.posicoes_em_transito || 0, execution?.valor_em_transito],
-    ['Indeterminada', execution?.posicoes_indeterminadas || 0, execution?.valor_indeterminado],
+    ['Posicao total', execution.total_posicoes, execution.valor_total_aquisicao],
+    ['Matched', execution.posicoes_matched, execution.valor_matched],
+    ['Sem match', execution.posicoes_sem_match, execution.valor_sem_match],
+    ['Entregue', execution.posicoes_entregues, execution.valor_entregue],
+    ['Em transito', execution.posicoes_em_transito, execution.valor_em_transito],
+    ['Indeterminada', execution.posicoes_indeterminadas, execution.valor_indeterminado],
   ] as const
   return <div className="space-y-4">
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
@@ -437,7 +494,7 @@ function LogisticsView({ dashboard }: { dashboard: ConciliacaoDashboard }) {
     <Card>
       <CardHeader><CardTitle>Posicao logistica ({dashboard.logistica.total})</CardTitle></CardHeader>
       <CardContent>
-        {execution && <div className="mb-4 grid gap-2 rounded-lg bg-muted p-3 text-sm sm:grid-cols-3"><div><span className="text-muted-foreground">Estoque</span><p className="font-mono text-xs">{execution.estoque_importacao_id.slice(0, 8)}</p></div><div><span className="text-muted-foreground">Logistica as-of</span><p>{new Date(execution.logistica_as_of).toLocaleString('pt-BR')}</p></div><div><span className="text-muted-foreground">Regra</span><p>{execution.regra_versao}</p></div></div>}
+        <div className="mb-4 grid gap-2 rounded-lg bg-muted p-3 text-sm sm:grid-cols-3"><div><span className="text-muted-foreground">Estoque</span><p className="font-mono text-xs">{execution.estoque_importacao_id ? execution.estoque_importacao_id.slice(0, 8) : 'Indisponivel'}</p></div><div><span className="text-muted-foreground">Logistica as-of</span><p>{execution.logistica_as_of ? new Date(execution.logistica_as_of).toLocaleString('pt-BR') : 'Indisponivel'}</p></div><div><span className="text-muted-foreground">Regra</span><p>{execution.regra_versao}</p></div></div>
         <div className="overflow-x-auto"><table className="w-full min-w-[1100px] text-left text-sm"><thead className="border-b text-xs uppercase text-muted-foreground"><tr><th className="py-2 pr-3">Titulo / NF</th><th className="pr-3">Cedente</th><th className="pr-3">Sacado</th><th className="pr-3">Aquisicao</th><th className="pr-3">Matching</th><th className="pr-3">Logistica</th><th className="pr-3">Evidencia</th><th>Vencimento</th></tr></thead><tbody className="divide-y">
           {dashboard.logistica.rows.map((row) => <tr key={row.id}><td className="max-w-48 truncate py-3 pr-3" title={row.id_recebivel || row.seu_numero || ''}><p className="font-mono text-xs">{row.id_recebivel || row.seu_numero || row.numero_documento || '—'}</p>{row.nota_fiscal_id ? <Link className="text-xs font-medium text-primary hover:underline" href={`/gestor/notas-fiscais/${row.nota_fiscal_id}`}>Ver NF</Link> : <Link className="text-xs font-medium text-primary hover:underline" href={currentQuery(dashboard, 'matching')}>Resolver matching</Link>}</td><td className="max-w-44 truncate pr-3" title={row.cedente_nome || ''}>{row.cedente_nome || '—'}</td><td className="max-w-44 truncate pr-3" title={row.sacado_nome || ''}>{row.sacado_nome || '—'}</td><td className="pr-3 tabular-nums">{row.valor_aquisicao === null ? <span className="text-warning-foreground">Ausente</span> : money(row.valor_aquisicao)}</td><td className="pr-3"><span className={badge(row.matching_status)}>{row.matching_status}</span></td><td className="pr-3">{row.status_logistico ? <span className={badge(row.status_logistico)}>{row.status_logistico}</span> : <span className={badge(row.status_vinculo)}>{row.status_vinculo}</span>}</td><td className="max-w-44 truncate pr-3" title={row.fundamento}>{row.evidencia_familia || row.fundamento}</td><td>{date(row.data_vencimento)}</td></tr>)}
         </tbody></table></div>
@@ -461,6 +518,7 @@ function ExposureView({ dashboard, operationId, onOperationId, simulation, pendi
   onSimulate: () => void
 }) {
   const execution = dashboard.exposicaoExecucao
+  if (!execution) return <div className="space-y-4"><Card><CardHeader><CardTitle>Exposicao conhecida em transito</CardTitle></CardHeader><CardContent className="space-y-3"><p className="text-sm text-muted-foreground">Nenhum calculo compativel com a data operacional {date(dashboard.baseFinanceira?.dataOperacional)}, D-1 {date(dashboard.baseFinanceira?.dataD1)} e D-2 {date(dashboard.baseFinanceira?.dataD2)}. Valores ausentes nao foram convertidos em zero.</p>{dashboard.exposicaoExecucaoIncompativel && <p className="rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning-foreground">Existe uma execucao da mesma data com referencias antigas ({date(dashboard.exposicaoExecucaoIncompativel.data_referencia_estoque)} / {date(dashboard.exposicaoExecucaoIncompativel.data_referencia_pl)}). Ela foi preservada apenas como historico e nao e o resultado atual.</p>}<PreviousExecution label="execucao de exposicao" value={dashboard.execucoesAnteriores.exposicao?.data_operacional} /></CardContent></Card></div>
   const neutralClassification = execution?.classificacao_limite || execution?.status || 'SEM_EXECUCAO'
   const cards = [
     ['PL D-2', money(execution?.patrimonio_liquido_d2)],
@@ -526,13 +584,31 @@ function RiskView({ dashboard, onReview }: {
   onReview: (row: ConciliacaoDashboard['risco']['rows'][number]) => void
 }) {
   const execution = dashboard.riscoExecucao
+  const policy = dashboard.politicaDaData
+  const policyLabel = policy.estado === 'APLICAVEL'
+    ? `${policy.nome} · v${policy.versao}`
+    : policy.estado === 'SEM_POLITICA_PADRAO'
+      ? 'Sem politica padrao aplicavel ao fundo'
+      : policy.estado === 'SEM_VERSAO_VIGENTE'
+        ? 'Politica padrao sem versao vigente na data'
+        : policy.estado === 'NAO_CONFIGURADA'
+          ? 'Nenhuma politica ativa configurada'
+          : 'Politica indisponivel'
+  const limitLabel = policy.estado !== 'APLICAVEL'
+    ? 'Nao avaliado'
+    : !policy.controleExposicaoAtivo
+      ? 'Controle de exposicao inativo'
+      : policy.limitePct == null
+        ? 'Limite indisponivel'
+        : percentValue(policy.limitePct)
+  if (!execution) return <div className="space-y-4"><Card><CardHeader><CardTitle>Avaliacao de risco da data</CardTitle></CardHeader><CardContent className="grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-4"><div><span className="text-muted-foreground">Data operacional</span><p className="font-medium">{date(dashboard.filtros.dataReferencia)}</p></div><div><span className="text-muted-foreground">Avaliacao</span><p className="font-medium">Nao executada para esta data</p></div><div><span className="text-muted-foreground">Politica</span><p className="font-medium">{policyLabel}</p></div><div><span className="text-muted-foreground">Limite</span><p className="font-medium">{limitLabel}</p></div><div className="sm:col-span-2 xl:col-span-4"><PreviousExecution label="avaliacao de risco" value={dashboard.execucoesAnteriores.risco?.data_operacional} /></div></CardContent></Card></div>
   const evaluatedAt = execution?.finalizado_em || execution?.created_at
   return <div className="space-y-4">
     <Card>
       <CardContent className="grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-5">
         <div><span className="text-muted-foreground">Fundo</span><p className="font-medium">{dashboard.fundo.nome}</p></div>
         <div><span className="text-muted-foreground">Data operacional</span><p className="font-medium">{date(execution?.data_operacional || dashboard.filtros.dataReferencia)}</p></div>
-        <div><span className="text-muted-foreground">Politica congelada</span><p className="truncate font-mono text-xs" title={execution?.politica_operacional_versao_id || ''}>{execution?.politica_operacional_versao_id || 'Nao aplicavel'}</p></div>
+        <div><span className="text-muted-foreground">Politica da avaliacao</span><p className="truncate text-xs" title={execution.politica_operacional_versao_id || policyLabel}>{execution.politica_operacional_versao_id ? policyLabel : `${policyLabel} · sem snapshot nesta execucao`}</p></div>
         <div><span className="text-muted-foreground">Regra</span><p className="font-medium">{execution?.regra_versao || 'Sem avaliacao'}</p></div>
         <div><span className="text-muted-foreground">Ultima avaliacao</span><p className="font-medium">{evaluatedAt ? new Date(evaluatedAt).toLocaleString('pt-BR') : 'Nao realizada'}</p></div>
       </CardContent>
