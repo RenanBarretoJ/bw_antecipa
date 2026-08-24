@@ -361,11 +361,13 @@ export default function OperacaoDetalheGestorClient({
   returnTo,
   dataBaseServidor,
   acompanhamentoLogistico,
+  exposicaoLogistica,
 }: {
   opId: string
   returnTo: string
   dataBaseServidor: string
   acompanhamentoLogistico: ReactNode
+  exposicaoLogistica: ReactNode
 }) {
   const router = useRouter()
   const notifications = useNotifications()
@@ -593,14 +595,26 @@ export default function OperacaoDetalheGestorClient({
     return resolverMetodoCalculo(op?.metodo_calculo_financeiro ?? snapshot?.calculo_financeiro?.metodo)
   }, [op?.metodo_calculo_financeiro, op?.politica_snapshot])
 
+  const itensCalculoFinanceiro = useMemo(() => nfs.flatMap((nf) => {
+    const cedidas = parcelasCedidasPorNf.get(nf.id)
+    if (cedidas?.length) {
+      return cedidas.map((parcela) => ({
+        id: `${nf.id}:${parcela.parcelaId}`,
+        valorBruto: parcela.valorNominal,
+        vencimento: parcela.dataVencimento,
+      }))
+    }
+    return [{ id: nf.id, valorBruto: nf.valor_bruto, vencimento: nf.data_vencimento }]
+  }), [nfs, parcelasCedidasPorNf])
+
   const prazoReferencia = useMemo(() => {
-    if (!op || nfs.length === 0) return null
+    if (!op || itensCalculoFinanceiro.length === 0) return null
     const dataBase = ['solicitada', 'em_analise'].includes(op.status)
       ? dataBaseServidor
       : op.calculo_data_base || dataBaseServidor
     try {
       const calculo = calcularAntecipacaoEmLote({
-        notas: nfs.map((nf) => ({ id: nf.id, valorBruto: nf.valor_bruto, vencimento: nf.data_vencimento })),
+        notas: itensCalculoFinanceiro,
         taxaMensal: null,
         dataBase,
         metodo: metodoCalculo,
@@ -609,7 +623,7 @@ export default function OperacaoDetalheGestorClient({
     } catch {
       return null
     }
-  }, [dataBaseServidor, metodoCalculo, nfs, op])
+  }, [dataBaseServidor, itensCalculoFinanceiro, metodoCalculo, op])
 
   const taxasAplicaveis = useMemo(() => prazoReferencia === null
     ? []
@@ -618,13 +632,13 @@ export default function OperacaoDetalheGestorClient({
   const taxaEhAplicavel = taxa !== null && taxasAplicaveis.some((item) => item.taxa_percentual === taxa)
 
   const calculoFinanceiro = useMemo(() => {
-    if (!op || taxa === null || !taxaEhAplicavel || nfs.length === 0) return null
+    if (!op || taxa === null || !taxaEhAplicavel || itensCalculoFinanceiro.length === 0) return null
     const dataBase = ['solicitada', 'em_analise'].includes(op.status)
       ? dataBaseServidor
       : op.calculo_data_base || dataBaseServidor
     try {
       return calcularAntecipacaoEmLote({
-        notas: nfs.map((nf) => ({ id: nf.id, valorBruto: nf.valor_bruto, vencimento: nf.data_vencimento })),
+        notas: itensCalculoFinanceiro,
         taxaMensal: taxa,
         dataBase,
         metodo: metodoCalculo,
@@ -632,13 +646,9 @@ export default function OperacaoDetalheGestorClient({
     } catch {
       return null
     }
-  }, [dataBaseServidor, metodoCalculo, nfs, op, taxa, taxaEhAplicavel])
+  }, [dataBaseServidor, itensCalculoFinanceiro, metodoCalculo, op, taxa, taxaEhAplicavel])
 
   const valorLiquido = calculoFinanceiro?.valorLiquidoTotal ?? op?.valor_liquido_desembolso ?? null
-  const valorAntecipadoPorNf = useMemo(
-    () => new Map((calculoFinanceiro?.notas || []).map((item) => [item.notaFiscalId, item.valorPresente ?? item.valorNominal])),
-    [calculoFinanceiro],
-  )
 
   const entregaPorNfId = useMemo(() => new Map(entregas.map((entrega) => [entrega.nota_fiscal_id, entrega])), [entregas])
 
@@ -653,6 +663,16 @@ export default function OperacaoDetalheGestorClient({
       const antecipadoMemoria = cedidas?.length && cedidas.every((item) => item.valorPresente !== null)
         ? cedidas.reduce((soma, item) => soma + (item.valorPresente ?? 0), 0)
         : null
+      const memoriasDaNf = memoriasCalculo.filter((item) => item.nota_fiscal_id === nf.id)
+      const antecipadoLegadoPersistido = memoriasDaNf.length > 0
+        ? memoriasDaNf.reduce((soma, item) => soma + Number(item.valor_presente), 0)
+        : null
+      const operacaoEmPreparacao = op?.status === 'solicitada' || op?.status === 'em_analise'
+      const antecipadoPersistido = cedidas?.length
+        ? antecipadoMemoria
+        : antecipadoLegadoPersistido
+          ?? (!operacaoEmPreparacao ? (nf.valor_antecipado ?? nf.valor_liquido) : null)
+          ?? (!operacaoEmPreparacao && nfs.length === 1 ? op?.valor_liquido_desembolso ?? null : null)
 
       return buildOperacaoNotaFiscalView({
         notaFiscal: {
@@ -664,14 +684,10 @@ export default function OperacaoDetalheGestorClient({
           data_vencimento: nf.data_vencimento,
           status: nf.status,
         },
-        // Memoria financeira real (operacao_calculo_nfs por parcela) tem
-        // prioridade sobre a estimativa client-side pre-decisao -- nunca
-        // recalculado na UI, so lido.
-        valorAntecipado: antecipadoMemoria ?? (
-          (op?.status === 'solicitada' || op?.status === 'em_analise')
-            ? (valorAntecipadoPorNf.get(nf.id) ?? nf.valor_bruto)
-            : (nf.valor_antecipado ?? nf.valor_liquido ?? nf.valor_bruto)
-        ),
+        // O card exibe somente memoria/valor persistido. A simulacao local
+        // permanece restrita ao formulario de decisao e nao vira fonte de
+        // verdade da NF antes da aprovacao.
+        valorAntecipado: antecipadoPersistido,
       })
     })
 
@@ -682,12 +698,12 @@ export default function OperacaoDetalheGestorClient({
       if (nfSort === 'status') return a.status.localeCompare(b.status, 'pt-BR')
       return new Date(a.data_vencimento).getTime() - new Date(b.data_vencimento).getTime()
     })
-  }, [nfs, nfSort, op?.status, valorAntecipadoPorNf, parcelasCedidasPorNf])
+  }, [memoriasCalculo, nfs, nfSort, op?.status, op?.valor_liquido_desembolso, parcelasCedidasPorNf])
 
   const totaisNfs = useMemo(() => ({
-    bruto: notasFiscaisView.reduce((acc, nf) => acc + nf.valor_bruto, 0),
-    antecipado: notasFiscaisView.reduce((acc, nf) => acc + nf.valor_antecipado, 0),
-  }), [notasFiscaisView])
+    bruto: op?.valor_bruto_total ?? notasFiscaisView.reduce((acc, nf) => acc + nf.valor_bruto, 0),
+    antecipado: op?.valor_liquido_desembolso ?? null,
+  }), [notasFiscaisView, op?.valor_bruto_total, op?.valor_liquido_desembolso])
 
   const aceiteDispensado = !!op && (op.aceite_sacado_exigido === false || op.aceite_sacado_status === 'dispensado')
   const todasAceitas = aceiteDispensado || (nfs.length > 0 && nfs.every((nf) => nf.status === 'aceita'))
@@ -1002,6 +1018,7 @@ export default function OperacaoDetalheGestorClient({
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-6">
+          {exposicaoLogistica}
           {/* NFs da operacao */}
           <Card className="overflow-visible">
             <CardHeader className="pb-3">
@@ -1019,11 +1036,11 @@ export default function OperacaoDetalheGestorClient({
                   </div>
                   <div className="rounded-lg border bg-background px-3 py-2">
                     <p className="text-xs uppercase tracking-wide text-muted-foreground">Antecipado</p>
-                    <p className="font-semibold text-success-foreground tabular-nums">{formatCurrency(totaisNfs.antecipado)}</p>
+                    <p className="font-semibold text-success-foreground tabular-nums">{totaisNfs.antecipado === null ? '—' : formatCurrency(totaisNfs.antecipado)}</p>
                   </div>
                   <div className="rounded-lg border bg-background px-3 py-2">
                     <p className="text-xs uppercase tracking-wide text-muted-foreground">Diferença</p>
-                    <p className="font-semibold tabular-nums">{formatCurrency(Math.max(0, totaisNfs.bruto - totaisNfs.antecipado))}</p>
+                    <p className="font-semibold tabular-nums">{totaisNfs.antecipado === null ? '—' : formatCurrency(Math.max(0, totaisNfs.bruto - totaisNfs.antecipado))}</p>
                   </div>
                 </div>
               </div>
@@ -1341,7 +1358,7 @@ export default function OperacaoDetalheGestorClient({
                     <summary className="cursor-pointer font-medium">Ver memoria de calculo por NF</summary>
                     <div className="mt-3 space-y-2">
                       {memoriasCalculo.map((memoria) => (
-                        <div key={memoria.nota_fiscal_id} className="rounded-md bg-muted/50 p-2">
+                        <div key={`${memoria.nota_fiscal_id}:${memoria.parcela_id || 'nf'}`} className="rounded-md bg-muted/50 p-2">
                           <strong>NF {nfs.find((nf) => nf.id === memoria.nota_fiscal_id)?.numero_nf || memoria.nota_fiscal_id.slice(0, 8)}</strong>
                           <div className="mt-1 grid grid-cols-2 gap-1 text-muted-foreground">
                             <span>{memoria.dias_aplicados} dia(s)</span>
@@ -1505,7 +1522,7 @@ export default function OperacaoDetalheGestorClient({
                     <summary className="cursor-pointer font-medium">Ver memoria de calculo por NF</summary>
                     <div className="mt-3 space-y-2">
                       {memoriasCalculo.map((memoria) => (
-                        <div key={memoria.nota_fiscal_id} className="rounded-md bg-muted/50 p-2">
+                        <div key={`${memoria.nota_fiscal_id}:${memoria.parcela_id || 'nf'}`} className="rounded-md bg-muted/50 p-2">
                           <strong>NF {nfs.find((nf) => nf.id === memoria.nota_fiscal_id)?.numero_nf || memoria.nota_fiscal_id.slice(0, 8)}</strong>
                           <div className="mt-1 grid grid-cols-2 gap-1 text-muted-foreground">
                             <span>{memoria.dias_aplicados} dia(s)</span>

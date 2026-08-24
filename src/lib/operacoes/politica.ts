@@ -36,6 +36,10 @@ export interface PoliticaSnapshot {
   exigir_status_logistico_pre_cessao: boolean
   permite_postergacao_upload_canhoto?: boolean
   limite_postergacao_upload_canhoto_dias?: number | null
+  controle_exposicao_logistica_ativo: boolean
+  limite_exposicao_em_transito_pct: number | string | null
+  gate_risco_ativo: boolean
+  limite_inclusivo: boolean
   tipo_ativo_financeiro: TipoAtivoFinanceiro
   calculo_financeiro: ReturnType<typeof criarConfiguracaoCalculoSnapshot>
   configuracao: Record<string, unknown>
@@ -110,6 +114,10 @@ export function criarSnapshotPolitica(policy: PoliticaResolvida): { snapshot: Po
     exigir_status_logistico_pre_cessao: policy.versao.exigir_status_logistico_pre_cessao,
     permite_postergacao_upload_canhoto: policy.versao.permite_postergacao_upload_canhoto,
     limite_postergacao_upload_canhoto_dias: policy.versao.limite_postergacao_upload_canhoto_dias,
+    controle_exposicao_logistica_ativo: policy.versao.controle_exposicao_logistica_ativo,
+    limite_exposicao_em_transito_pct: policy.versao.limite_exposicao_em_transito_pct,
+    gate_risco_ativo: policy.versao.gate_risco_ativo,
+    limite_inclusivo: policy.versao.limite_inclusivo,
     tipo_ativo_financeiro: policy.versao.tipo_ativo_financeiro || 'NOTA_FISCAL',
     calculo_financeiro: criarConfiguracaoCalculoSnapshot(policy.versao.metodo_calculo_financeiro),
     configuracao: policy.versao.configuracao,

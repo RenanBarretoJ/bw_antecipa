@@ -11,7 +11,7 @@ export interface OperacaoNotaFiscalView {
   cnpj_destinatario: string
   razao_social_destinatario: string
   valor_bruto: number
-  valor_antecipado: number
+  valor_antecipado: number | null
   prazo_dias: number
   data_vencimento: string
   status: string
@@ -41,7 +41,7 @@ export function buildOperacaoNotaFiscalView({
   nowMs,
 }: {
   notaFiscal: Omit<OperacaoNotaFiscalView, 'valor_antecipado' | 'prazo_dias'>
-  valorAntecipado: number
+  valorAntecipado: number | null
   nowMs?: number
 }): OperacaoNotaFiscalView {
   return {
@@ -70,26 +70,24 @@ export function OperacaoNotaFiscalCard({
 }) {
   return (
     <article className="rounded-xl border bg-card p-4 shadow-sm">
-      <div className="grid gap-4 xl:grid-cols-[minmax(210px,1.8fr)_repeat(4,minmax(86px,1fr))_minmax(112px,auto)_auto] xl:items-center">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="font-semibold text-foreground">NF {notaFiscal.numero_nf || '—'}</p>
-            <span className="xl:hidden">{statusNode}</span>
-          </div>
-          <p className="mt-1 line-clamp-2 text-sm font-medium text-foreground" title={notaFiscal.razao_social_destinatario}>
+      <div className="flex min-w-0 flex-col gap-4 2xl:flex-row 2xl:items-center">
+        <div className="min-w-0 2xl:w-[260px] 2xl:shrink-0">
+          <p className="font-semibold text-foreground">NF {notaFiscal.numero_nf || '—'}</p>
+          <p className="mt-1 truncate text-sm font-medium text-foreground" title={notaFiscal.razao_social_destinatario}>
             {notaFiscal.razao_social_destinatario || 'Sacado não informado'}
           </p>
-          <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">CNPJ {formatCNPJ(notaFiscal.cnpj_destinatario)}</p>
+          <p className="mt-0.5 truncate text-xs text-muted-foreground tabular-nums" title={formatCNPJ(notaFiscal.cnpj_destinatario)}>CNPJ {formatCNPJ(notaFiscal.cnpj_destinatario)}</p>
         </div>
 
-        <Metric label="Bruto" value={formatCurrency(notaFiscal.valor_bruto)} />
-        <Metric label="Antecipado" value={formatCurrency(notaFiscal.valor_antecipado)} highlight />
-        <Metric label="Prazo" value={`${notaFiscal.prazo_dias} dias`} />
-        <Metric label="Vencimento" value={formatDate(notaFiscal.data_vencimento)} />
+        <div className="grid min-w-0 flex-1 grid-cols-2 gap-3 sm:grid-cols-4">
+          <Metric label="Bruto" value={formatCurrency(notaFiscal.valor_bruto)} />
+          <Metric label="Antecipado" value={notaFiscal.valor_antecipado === null ? '—' : formatCurrency(notaFiscal.valor_antecipado)} highlight />
+          <Metric label="Prazo" value={`${notaFiscal.prazo_dias} dias`} />
+          <Metric label="Vencimento" value={formatDate(notaFiscal.data_vencimento)} />
+        </div>
 
-        <div className="hidden xl:block">{statusNode}</div>
-
-        <div className="flex flex-wrap items-center gap-2 xl:justify-end">
+        <div className="flex shrink-0 flex-wrap items-center gap-2 2xl:justify-end">
+          {statusNode}
           <Link
             href={href}
             className="inline-flex h-8 items-center justify-center whitespace-nowrap rounded-md border border-border bg-background px-3 text-sm font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -134,7 +132,7 @@ function Metric({ label, value, highlight = false }: { label: string; value: str
   return (
     <div className="min-w-0">
       <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className={`mt-1 whitespace-nowrap font-semibold tabular-nums ${highlight ? 'text-success-foreground' : 'text-foreground'}`}>{value}</p>
+      <p className={`mt-1 truncate whitespace-nowrap font-semibold tabular-nums ${highlight ? 'text-success-foreground' : 'text-foreground'}`} title={value}>{value}</p>
     </div>
   )
 }

@@ -43,6 +43,23 @@ describe('snapshot de politica operacional', () => {
     expect(second.hash).not.toBe(first.hash)
   })
 
+  it('congela o controle de exposição logística e o gate de risco no snapshot', () => {
+    const configuracao = policy()
+    configuracao.versao.controle_exposicao_logistica_ativo = true
+    configuracao.versao.limite_exposicao_em_transito_pct = 40
+    configuracao.versao.gate_risco_ativo = true
+    configuracao.versao.limite_inclusivo = true
+
+    const result = criarSnapshotPolitica(configuracao)
+
+    expect(result.snapshot).toMatchObject({
+      controle_exposicao_logistica_ativo: true,
+      limite_exposicao_em_transito_pct: 40,
+      gate_risco_ativo: true,
+      limite_inclusivo: true,
+    })
+  })
+
   it('rejeita segredo na configuracao persistida', () => {
     const input = policy()
     input.versao.configuracao = { api_key: 'nao-persistir' }

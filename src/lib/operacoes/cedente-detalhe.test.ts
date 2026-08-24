@@ -82,6 +82,56 @@ describe('detalhe da operação para cedente', () => {
     })
   })
 
+  it('mostra somente parcelas cedidas e mantém VP/desconto vazios antes da aprovação', () => {
+    const detalhe = montarDetalheOperacaoCedente({
+      operacao: { ...operacaoBase, status: 'solicitada', valor_liquido_desembolso: null, aprovado_em: null, cessao_efetivada_em: null },
+      notasFiscais: nfs,
+      entregas: [],
+      requisitos: [],
+      totaisParcelas: [{ nota_fiscal_id: 'nf-1' }, { nota_fiscal_id: 'nf-1' }, { nota_fiscal_id: 'nf-1' }],
+      parcelasCedidas: [
+        { nota_fiscal_id: 'nf-1', parcela_id: 'p-3', numero_parcela: 3, valor_nominal: 3500, data_vencimento: '2026-10-10' },
+        { nota_fiscal_id: 'nf-1', parcela_id: 'p-1', numero_parcela: 1, valor_nominal: 2500, data_vencimento: '2026-08-10' },
+      ],
+    })
+
+    expect(detalhe.notasFiscais[0]).toMatchObject({
+      totalParcelas: 3,
+      valorBruto: 6000,
+      valorAntecipado: null,
+    })
+    expect(detalhe.notasFiscais[0].parcelasCedidas.map((item) => item.parcelaId)).toEqual(['p-1', 'p-3'])
+    expect(detalhe.fluxoFinanceiro.map((item) => item.parcelaId)).toEqual(['p-1', 'p-3'])
+    expect(detalhe.fluxoFinanceiro.every((item) => item.valorAntecipado === null && item.desconto === null && item.statusFinanceiro === null)).toBe(true)
+  })
+
+  it('usa memória aprovada por parcela e ordena fluxo multi-NF cronologicamente', () => {
+    const notasMulti: NotaFiscalCedenteRaw[] = [
+      nfs[0],
+      { ...nfs[0], id: 'nf-2', numero_nf: '13200', valor_bruto: 8000, data_vencimento: '2026-09-01' },
+    ]
+    const detalhe = montarDetalheOperacaoCedente({
+      operacao: { ...operacaoBase, status: 'aprovada', cessao_efetivada_em: null },
+      notasFiscais: notasMulti,
+      entregas: [],
+      requisitos: [],
+      totaisParcelas: [{ nota_fiscal_id: 'nf-1' }, { nota_fiscal_id: 'nf-1' }, { nota_fiscal_id: 'nf-2' }],
+      parcelasCedidas: [
+        { nota_fiscal_id: 'nf-1', parcela_id: 'p-2', numero_parcela: 2, valor_nominal: 4000, data_vencimento: '2026-09-15' },
+        { nota_fiscal_id: 'nf-2', parcela_id: 'p-4', numero_parcela: 1, valor_nominal: 3000, data_vencimento: '2026-08-20' },
+      ],
+      memoriasCalculo: [
+        { nota_fiscal_id: 'nf-1', parcela_id: 'p-2', dias_aplicados: 16, vencimento_contratual: '2026-09-15', valor_nominal: 4000, valor_presente: 3801.23, desconto: 198.77 },
+        { nota_fiscal_id: 'nf-2', parcela_id: 'p-4', dias_aplicados: 8, vencimento_contratual: '2026-08-20', valor_nominal: 3000, valor_presente: 2920.11, desconto: 79.89 },
+      ],
+    })
+
+    expect(detalhe.notasFiscais.find((nf) => nf.id === 'nf-1')?.valorAntecipado).toBe(3801.23)
+    expect(detalhe.notasFiscais.find((nf) => nf.id === 'nf-2')?.valorAntecipado).toBe(2920.11)
+    expect(detalhe.fluxoFinanceiro.map((item) => `${item.notaFiscalId}:${item.parcelaId}`)).toEqual(['nf-2:p-4', 'nf-1:p-2'])
+    expect(detalhe.fluxoFinanceiro.every((item) => item.statusFinanceiro === 'Cronograma aprovado')).toBe(true)
+  })
+
   it('mostra status em trânsito e prazo logístico', () => {
     const detalhe = montarDetalheOperacaoCedente({ operacao: operacaoBase, notasFiscais: nfs, entregas, requisitos: [], today: new Date('2026-07-24T12:00:00.000Z') })
 

@@ -2,8 +2,10 @@ import 'server-only'
 
 import { requireGestor, requireRole } from '@/lib/auth/authorization'
 import { isCedenteAprovado } from '@/lib/auth/cedente-onboarding-access'
-import { resolverCedenteFundoAtivo } from '@/lib/fundos/cedente-fundo'
+import { CedenteFundoError, resolverCedenteFundoAtivo } from '@/lib/fundos/cedente-fundo'
 import { resolverContextoFundoGestor } from '@/lib/gestor/contexto-fundo.server'
+import { obterPoliticaAplicavelAoCedenteFundo } from '@/lib/operacoes/politica'
+import { carregarVisaoExposicaoFundoCanonica } from '@/lib/financeiro/risco/visao-operacional.server'
 import { buildOffsetRange, buildPaginatedResult } from '@/lib/pagination'
 import type {
   CedenteDashboardData,
@@ -81,7 +83,25 @@ export async function carregarDashboardCedente(): Promise<CedenteDashboardData |
   })
 
   if (error) throw new Error(`Nao foi possivel carregar o dashboard do cedente: ${error.message}`)
-  return asRecord(data, 'dashboard do cedente') as CedenteDashboardData
+  let exposicaoLogistica: CedenteDashboardData['exposicaoLogistica'] = null
+  try {
+    const politica = await obterPoliticaAplicavelAoCedenteFundo({
+      cedenteId: cedente.id,
+      cedenteFundoId: contexto.cedenteFundo.id,
+      fundoId: contexto.fundo.id,
+    }, auth.supabase)
+    exposicaoLogistica = await carregarVisaoExposicaoFundoCanonica({
+      fundoId: contexto.fundo.id,
+      fundoNome: contexto.fundo.nome,
+      politicaVersao: politica.versao,
+    })
+  } catch (error) {
+    if (!(error instanceof CedenteFundoError) || error.code !== 'POLITICA_CONTEXT_NOT_CONFIGURED') throw error
+  }
+  return {
+    ...asRecord(data, 'dashboard do cedente'),
+    exposicaoLogistica,
+  } as CedenteDashboardData
 }
 
 export async function carregarDashboardConsultor(): Promise<ConsultorDashboardData> {

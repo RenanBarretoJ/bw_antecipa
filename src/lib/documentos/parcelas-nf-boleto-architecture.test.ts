@@ -378,7 +378,9 @@ describe('UI/Operacional: detalhe por parcela na Operacao do Gestor (nao mais ag
 
   it('bruto/antecipado exibidos por NF usam as parcelas cedidas nesta operacao quando existirem, nao o valor integral da NF', () => {
     expect(operacaoDetalheGestorClient).toContain('brutoCedido ?? nf.valor_bruto')
-    expect(operacaoDetalheGestorClient).toContain('antecipadoMemoria ?? (')
+    expect(operacaoDetalheGestorClient).toContain('valorAntecipado: antecipadoPersistido')
+    expect(operacaoDetalheGestorClient).toContain('const antecipadoPersistido = cedidas?.length')
+    expect(operacaoDetalheGestorClient).not.toContain('valorAntecipadoPorNf')
   })
 
   it('NF sem parcelas (totalParcelas === 0) nao renderiza nenhum bloco extra -- legado intacto', () => {

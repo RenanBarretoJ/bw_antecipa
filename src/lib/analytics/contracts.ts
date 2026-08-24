@@ -5,6 +5,7 @@ import {
   parseSortParams,
   readSearchParam,
 } from '@/lib/pagination'
+import type { VisaoExposicaoOperacional } from '@/lib/financeiro/risco/visao-operacional'
 
 export const OPERACAO_STATUS_RELATORIO = [
   'solicitada',
@@ -80,6 +81,7 @@ export type CedenteDashboardData = {
   volumeAtivo: number
   docsReprovados: number
   operacoesRecentes: OperacaoRecenteAnalytics[]
+  exposicaoLogistica: VisaoExposicaoOperacional | null
 }
 
 export type ConsultorDashboardData = {

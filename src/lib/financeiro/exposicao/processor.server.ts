@@ -6,7 +6,7 @@ import { createAdminClient } from '@/lib/supabase/server'
 import { resolverExpectativasCicloFinanceiro } from '@/lib/financeiro/ingestao/cron-contract'
 import { classificarLogisticaDasNotas } from '@/lib/financeiro/logistica/evidencias.server'
 import { resolverBootstrapFinanceiro } from '@/lib/financeiro/bootstrap/detector.server'
-import { calcularAgregadosPosicao, calcularExposicao, classificarOverlayCandidate } from './calculo'
+import { calcularAgregadosPosicao, calcularExposicao, classificarExposicaoLogisticaCandidata, classificarOverlayCandidate } from './calculo'
 import { criarAssinaturaExposicao } from './fingerprint'
 import { EXPOSURE_RULE_VERSION, type ExposureBaseRow, type ExposureOverlayCandidate, type ExposureExecutionStatus, type ExposureQualityFlag } from './types'
 
@@ -287,13 +287,12 @@ export async function simularExposicaoOperacao(input: { fundoId: string; operaca
     calcByNote.set(row.nota_fiscal_id, soma.toFixed(4))
   }
   let additionalTransit = new Decimal(0)
-  let additionalIndeterminate = new Decimal(0)
+  const additionalIndeterminate = new Decimal(0)
   for (const noteId of noteIds) {
     const value = calcByNote.get(noteId)
     if (value == null) continue
-    const status = logistics.get(noteId)?.status || 'INDETERMINADA'
+    const status = classificarExposicaoLogisticaCandidata(logistics.get(noteId)?.status)
     if (status === 'EM_TRANSITO') additionalTransit = additionalTransit.plus(String(value))
-    if (status === 'INDETERMINADA') additionalIndeterminate = additionalIndeterminate.plus(String(value))
   }
   const pl = new Decimal(String(current.patrimonio_liquido_d2))
   const projectedValue = new Decimal(String(current.exposicao_em_transito_total)).plus(additionalTransit)

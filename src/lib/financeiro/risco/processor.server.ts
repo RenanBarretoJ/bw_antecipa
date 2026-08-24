@@ -8,6 +8,7 @@ import { createFinancialPipelineReadCache, executarMatchingFinanceiro, executarC
 import { executarPosicaoLogisticaFinanceira } from '@/lib/financeiro/logistica/processor.server'
 import { classificarLogisticaDasNotas } from '@/lib/financeiro/logistica/evidencias.server'
 import { executarExposicaoFinanceira } from '@/lib/financeiro/exposicao/processor.server'
+import { classificarExposicaoLogisticaCandidata } from '@/lib/financeiro/exposicao/calculo'
 import { resolverBootstrapFinanceiro, type EstadoBootstrapFinanceiro } from '@/lib/financeiro/bootstrap/detector.server'
 import { classificarGateRisco } from './classificador'
 import { criarAssinaturaRisco } from './fingerprint'
@@ -164,16 +165,12 @@ async function candidateProjection(client: DynamicClient, input: {
   const noteIds = items.map((item) => String(item.nota_fiscal_id)).filter(Boolean)
   const logistics = await classificarLogisticaDasNotas(client, input.fundoId, noteIds)
   let transit = new Decimal(0)
-  let indeterminate = new Decimal(0)
-  let indeterminateCount = 0
+  const indeterminate = new Decimal(0)
+  const indeterminateCount = 0
   for (const item of items) {
     const value = item.valor_aquisicao == null ? null : new Decimal(String(item.valor_aquisicao))
-    const status = logistics.get(String(item.nota_fiscal_id))?.status || 'INDETERMINADA'
+    const status = classificarExposicaoLogisticaCandidata(logistics.get(String(item.nota_fiscal_id))?.status)
     if (value && status === 'EM_TRANSITO') transit = transit.plus(value)
-    if (status === 'INDETERMINADA') {
-      indeterminateCount += 1
-      if (value) indeterminate = indeterminate.plus(value)
-    }
   }
   return {
     operationId: input.operacaoId,

@@ -1,4 +1,5 @@
 import { AcompanhamentoLogisticoOperacao, normalizarFiltroLogistico } from '@/components/operacoes/AcompanhamentoLogisticoOperacao'
+import { ExposicaoLogisticaOperacaoServer } from '@/components/operacoes/ExposicaoLogisticaOperacaoServer'
 import { obterDataCivilOperacional } from '@/lib/operacoes/data-operacional.server'
 import OperacaoDetalheGestorClient from './OperacaoDetalheGestorClient'
 
@@ -39,6 +40,9 @@ export default async function OperacaoDetalheGestorPage({
           query={acompanhamentoQuery}
           returnTo={returnTo}
         />
+      )}
+      exposicaoLogistica={(
+        <ExposicaoLogisticaOperacaoServer operacaoId={id} variante="gestor-operacao" />
       )}
     />
   )

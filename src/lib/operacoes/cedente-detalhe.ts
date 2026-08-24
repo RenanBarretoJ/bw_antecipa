@@ -94,6 +94,39 @@ export interface RequisitoCedenteRaw {
   responsavel_upload_snapshot: string
 }
 
+export interface ParcelaCedidaOperacaoRaw {
+  nota_fiscal_id: string
+  parcela_id: string
+  numero_parcela: number
+  valor_nominal: number
+  data_vencimento: string
+}
+
+export interface MemoriaCalculoParcelaRaw {
+  nota_fiscal_id: string
+  parcela_id: string | null
+  dias_aplicados: number
+  vencimento_contratual: string
+  valor_nominal: number
+  valor_presente: number
+  desconto: number
+}
+
+export interface TotalParcelasNotaRaw {
+  nota_fiscal_id: string
+}
+
+export interface ParcelaCedidaOperacaoView {
+  parcelaId: string
+  numero: number
+  vencimentoOriginal: string
+  valorNominal: number
+  prazoDias: number | null
+  valorAntecipado: number | null
+  desconto: number | null
+  statusFinanceiro: string | null
+}
+
 export interface OperacaoCedenteDetalhe {
   id: string
   codigoCurto: string
@@ -125,6 +158,12 @@ export interface OperacaoCedenteDetalhe {
     status: string
     statusLabel: string
     href: string
+    parcelasCedidas: ParcelaCedidaOperacaoView[]
+    totalParcelas: number
+  }>
+  fluxoFinanceiro: Array<ParcelaCedidaOperacaoView & {
+    notaFiscalId: string
+    notaFiscalNumero: string
   }>
   timeline: EtapaOperacao[]
   pendenciasCedente: Array<{
@@ -218,12 +257,18 @@ export function montarDetalheOperacaoCedente({
   notasFiscais,
   entregas,
   requisitos,
+  parcelasCedidas = [],
+  memoriasCalculo = [],
+  totaisParcelas = [],
   today = new Date(),
 }: {
   operacao: OperacaoCedenteRaw
   notasFiscais: NotaFiscalCedenteRaw[]
   entregas: EntregaCedenteRaw[]
   requisitos: RequisitoCedenteRaw[]
+  parcelasCedidas?: ParcelaCedidaOperacaoRaw[]
+  memoriasCalculo?: MemoriaCalculoParcelaRaw[]
+  totaisParcelas?: TotalParcelasNotaRaw[]
   today?: Date
 }): OperacaoCedenteDetalhe {
   const nfById = new Map(notasFiscais.map((nf) => [nf.id, nf]))
@@ -231,6 +276,34 @@ export function montarDetalheOperacaoCedente({
   const desembolsada = ['em_andamento', 'liquidada', 'inadimplente'].includes(operacao.status)
   const documentosPolitica = requisitos as DocumentoOperacaoParaPolitica[]
   const capacidades = obterCapacidadesOperacao(operacao, { documentos: documentosPolitica, logistica: entregas })
+  const memoriaPorParcela = new Map(
+    memoriasCalculo.filter((item) => item.parcela_id).map((item) => [item.parcela_id!, item]),
+  )
+  const totalParcelasPorNf = new Map<string, number>()
+  for (const item of totaisParcelas) {
+    totalParcelasPorNf.set(item.nota_fiscal_id, (totalParcelasPorNf.get(item.nota_fiscal_id) || 0) + 1)
+  }
+  const parcelasPorNf = new Map<string, ParcelaCedidaOperacaoView[]>()
+  for (const item of parcelasCedidas) {
+    const memoria = memoriaPorParcela.get(item.parcela_id)
+    const lista = parcelasPorNf.get(item.nota_fiscal_id) || []
+    lista.push({
+      parcelaId: item.parcela_id,
+      numero: item.numero_parcela,
+      vencimentoOriginal: item.data_vencimento,
+      valorNominal: Number(item.valor_nominal),
+      prazoDias: memoria?.dias_aplicados ?? null,
+      valorAntecipado: memoria ? Number(memoria.valor_presente) : null,
+      desconto: memoria ? Number(memoria.desconto) : null,
+      statusFinanceiro: operacao.status === 'liquidada'
+        ? 'Liquidada'
+        : memoria ? 'Cronograma aprovado' : null,
+    })
+    parcelasPorNf.set(item.nota_fiscal_id, lista)
+  }
+  for (const lista of parcelasPorNf.values()) {
+    lista.sort((left, right) => left.vencimentoOriginal.localeCompare(right.vencimentoOriginal) || left.numero - right.numero)
+  }
   const pendenciasAplicaveis = construirPendenciasOperacao({ capacidades, documentos: documentosPolitica })
   const pendenciasCedente = pendenciasAplicaveis
     .map((requisito) => {
@@ -288,18 +361,34 @@ export function montarDetalheOperacaoCedente({
       desembolsadoEm: operacao.cessao_efetivada_em,
       liquidadaEm: operacao.liquidada_em,
     },
-    notasFiscais: notasFiscais.map((nf) => ({
-      id: nf.id,
-      numero: nf.numero_nf || '—',
-      sacado: nf.razao_social_destinatario || '—',
-      cnpjSacado: nf.cnpj_destinatario,
-      valorBruto: nf.valor_bruto,
-      valorAntecipado: nf.valor_antecipado ?? nf.valor_liquido,
-      vencimento: nf.data_vencimento,
-      status: nf.status,
-      statusLabel: nfStatusLabels[nf.status] || nf.status.replaceAll('_', ' '),
-      href: `/cedente/notas-fiscais/${nf.id}`,
-    })),
+    notasFiscais: notasFiscais.map((nf) => {
+      const cedidas = parcelasPorNf.get(nf.id) || []
+      const memoriaCompleta = cedidas.length > 0 && cedidas.every((item) => item.valorAntecipado !== null)
+      const operacaoEmPreparacao = operacao.status === 'solicitada' || operacao.status === 'em_analise'
+      return {
+        id: nf.id,
+        numero: nf.numero_nf || '—',
+        sacado: nf.razao_social_destinatario || '—',
+        cnpjSacado: nf.cnpj_destinatario,
+        valorBruto: cedidas.length ? cedidas.reduce((total, item) => total + item.valorNominal, 0) : nf.valor_bruto,
+        valorAntecipado: cedidas.length
+          ? memoriaCompleta
+            ? cedidas.reduce((total, item) => total + (item.valorAntecipado || 0), 0)
+            : null
+          : operacaoEmPreparacao ? null : nf.valor_antecipado ?? nf.valor_liquido,
+        vencimento: cedidas.length ? cedidas[cedidas.length - 1].vencimentoOriginal : nf.data_vencimento,
+        status: nf.status,
+        statusLabel: nfStatusLabels[nf.status] || nf.status.replaceAll('_', ' '),
+        href: `/cedente/notas-fiscais/${nf.id}`,
+        parcelasCedidas: cedidas,
+        totalParcelas: totalParcelasPorNf.get(nf.id) || 0,
+      }
+    }),
+    fluxoFinanceiro: notasFiscais.flatMap((nf) => (parcelasPorNf.get(nf.id) || []).map((parcela) => ({
+      ...parcela,
+      notaFiscalId: nf.id,
+      notaFiscalNumero: nf.numero_nf || '—',
+    }))).sort((left, right) => left.vencimentoOriginal.localeCompare(right.vencimentoOriginal) || left.numero - right.numero),
     timeline: construirEtapasOperacao({
       operacao,
       capacidades,

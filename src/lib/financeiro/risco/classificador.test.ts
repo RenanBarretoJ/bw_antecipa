@@ -54,6 +54,35 @@ describe('GATE_RISCO_V1', () => {
     expect(result.reasons.map((item) => item.code)).toContain('EXPOSICAO_ACIMA_LIMITE')
   })
 
+  it.each([
+    ['14999999', 'APTO', null],
+    ['15000000', 'APTO', 'NO_LIMITE'],
+    ['15000001', 'BLOQUEADO', 'EXPOSICAO_ACIMA_LIMITE'],
+  ] as const)('inclui o VP candidato em trânsito na projeção (%s)', (candidateTransit, decision, reason) => {
+    const result = classificarGateRisco({
+      ...base,
+      currentPercent: '10',
+      currentExposureValue: '5000000',
+      candidate: {
+        operationId: '00000000-0000-0000-0000-000000000001',
+        operationUpdatedAt: '2026-08-24T00:00:00Z',
+        currentStatus: 'solicitada',
+        acquisitionValue: candidateTransit,
+        transitValue: candidateTransit,
+        indeterminateValue: '0',
+        indeterminateCount: 0,
+        missingAcquisitionCount: 0,
+        items: [
+          { notaFiscalId: 'nf-1', parcelaId: 'p-1', valorAquisicao: '7500000' },
+          { notaFiscalId: 'nf-1', parcelaId: 'p-2', valorAquisicao: String(Number(candidateTransit) - 7500000) },
+        ],
+      },
+    })
+    expect(result.decision).toBe(decision)
+    expect(result.projectedExposureValue).toBe((5000000 + Number(candidateTransit)).toFixed(4))
+    if (reason) expect(result.reasons.map((item) => item.code)).toContain(reason)
+  })
+
   it.each(['PL_D2_INDISPONIVEL', 'PL_D2_INVALIDO'])('falha fechada para %s', (status) => {
     const result = classificarGateRisco({ ...base, exposureStatus: status, netAssetValueD2: status.endsWith('INVALIDO') ? '0' : null })
     expect(result.decision).toBe('BLOQUEADO')

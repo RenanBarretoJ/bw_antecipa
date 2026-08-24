@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { calcularAgregadosPosicao, calcularExposicao, classificarOverlayCandidate, classificarPercentualExposicao } from './calculo'
+import { calcularAgregadosPosicao, calcularExposicao, classificarExposicaoLogisticaCandidata, classificarOverlayCandidate, classificarPercentualExposicao } from './calculo'
 
 describe('P2.5 exposure Decimal domain', () => {
+  it('trata candidata ainda sem comprovante como exposicao em transito', () => {
+    expect(classificarExposicaoLogisticaCandidata(undefined)).toBe('EM_TRANSITO')
+    expect(classificarExposicaoLogisticaCandidata('INDETERMINADA')).toBe('EM_TRANSITO')
+    expect(classificarExposicaoLogisticaCandidata('EM_TRANSITO')).toBe('EM_TRANSITO')
+    expect(classificarExposicaoLogisticaCandidata('ENTREGUE')).toBe('ENTREGUE')
+  })
   it.each([
     ['25', 'ABAIXO_LIMITE'], ['37', 'ABAIXO_LIMITE'], ['39.8', 'ABAIXO_LIMITE'],
     ['40', 'NO_LIMITE'], ['42', 'ACIMA_LIMITE'], ['39.999999999', 'ABAIXO_LIMITE'],

@@ -7,6 +7,9 @@ import {
   type OperacaoCedenteDetalhe,
   type OperacaoCedenteRaw,
   type RequisitoCedenteRaw,
+  type ParcelaCedidaOperacaoRaw,
+  type MemoriaCalculoParcelaRaw,
+  type TotalParcelasNotaRaw,
 } from '@/lib/operacoes/cedente-detalhe'
 
 export async function carregarDetalheOperacaoCedente(operacaoId: string): Promise<OperacaoCedenteDetalhe> {
@@ -91,6 +94,40 @@ export async function carregarDetalheOperacaoCedente(operacaoId: string): Promis
 
   const entregaIds = ((entregas || []) as Array<{ id: string }>).map((entrega) => entrega.id)
 
+  const [totaisParcelasResult, parcelasCedidasResult, memoriasResult] = notaFiscalIds.length > 0
+    ? await Promise.all([
+        supabase.from('nota_fiscal_parcelas').select('nota_fiscal_id').in('nota_fiscal_id', notaFiscalIds),
+        supabase.from('operacoes_nf_parcelas')
+          .select('nota_fiscal_id,parcela_id,nota_fiscal_parcelas(numero_parcela,valor_nominal,data_vencimento)')
+          .eq('operacao_id', operacaoId),
+        supabase.from('operacao_calculo_nfs')
+          .select('nota_fiscal_id,parcela_id,dias_aplicados,vencimento_contratual,valor_nominal,valor_presente,desconto')
+          .eq('operacao_id', operacaoId)
+          .order('vencimento_contratual', { ascending: true }),
+      ])
+    : [
+        { data: [], error: null },
+        { data: [], error: null },
+        { data: [], error: null },
+      ]
+  if (totaisParcelasResult.error || parcelasCedidasResult.error || memoriasResult.error) {
+    throw new Error(`Não foi possível carregar as parcelas da operação: ${totaisParcelasResult.error?.message || parcelasCedidasResult.error?.message || memoriasResult.error?.message}`)
+  }
+  const parcelasCedidas = ((parcelasCedidasResult.data || []) as unknown as Array<{
+    nota_fiscal_id: string
+    parcela_id: string
+    nota_fiscal_parcelas: { numero_parcela: number; valor_nominal: number; data_vencimento: string } | Array<{ numero_parcela: number; valor_nominal: number; data_vencimento: string }>
+  }>).flatMap((item): ParcelaCedidaOperacaoRaw[] => {
+    const parcela = Array.isArray(item.nota_fiscal_parcelas) ? item.nota_fiscal_parcelas[0] : item.nota_fiscal_parcelas
+    return parcela ? [{
+      nota_fiscal_id: item.nota_fiscal_id,
+      parcela_id: item.parcela_id,
+      numero_parcela: parcela.numero_parcela,
+      valor_nominal: Number(parcela.valor_nominal),
+      data_vencimento: parcela.data_vencimento,
+    }] : []
+  })
+
   const filtrosRequisitos = [
     `operacao_id.eq.${operacaoId}`,
     notaFiscalIds.length ? `nota_fiscal_id.in.(${notaFiscalIds.join(',')})` : '',
@@ -110,5 +147,8 @@ export async function carregarDetalheOperacaoCedente(operacaoId: string): Promis
     notasFiscais: (notasFiscais || []) as NotaFiscalCedenteRaw[],
     entregas: (entregas || []) as EntregaCedenteRaw[],
     requisitos: requisitosUnicos,
+    parcelasCedidas,
+    memoriasCalculo: (memoriasResult.data || []) as MemoriaCalculoParcelaRaw[],
+    totaisParcelas: (totaisParcelasResult.data || []) as TotalParcelasNotaRaw[],
   })
 }

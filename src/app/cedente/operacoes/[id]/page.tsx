@@ -11,6 +11,7 @@ import { DataTableContainer, DetailField, EmptyState, ListNameCell } from '@/com
 import { BotaoDownloadArquivoOperacao } from '@/components/contratos/BotaoDownloadArquivoOperacao'
 import { HistoricoTimelineCard } from '@/components/historico/HistoricoTimelineCard'
 import { AndamentoOperacaoCard } from '@/components/operacoes/AndamentoOperacaoCard'
+import { ExposicaoLogisticaOperacaoServer } from '@/components/operacoes/ExposicaoLogisticaOperacaoServer'
 
 const statusClasses: Record<string, string> = {
   solicitada: 'bg-blue-100 text-blue-700 border-transparent dark:bg-blue-500/15 dark:text-blue-200',
@@ -120,6 +121,8 @@ export default async function CedenteOperacaoDetalhePage({
         <Card><CardContent className="pt-5"><DetailField label="Vencimento" value={formatDateOrDash(detalhe.financeiro.vencimento)} /></CardContent></Card>
       </div>
 
+      <ExposicaoLogisticaOperacaoServer operacaoId={id} variante="cedente-operacao" />
+
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader>
@@ -201,8 +204,82 @@ export default async function CedenteOperacaoDetalhePage({
               </Table>
             </DataTableContainer>
           )}
+          {detalhe.notasFiscais.some((nf) => nf.totalParcelas > 0) && (
+            <div className="mt-4 space-y-2">
+              {detalhe.notasFiscais.filter((nf) => nf.totalParcelas > 0).map((nf) => (
+                <details key={nf.id} className="overflow-hidden rounded-lg border border-border bg-muted/20">
+                  <summary className="cursor-pointer px-3 py-2.5 text-sm font-medium">
+                    NF {nf.numero} · {nf.parcelasCedidas.length}/{nf.totalParcelas} parcelas cedidas
+                  </summary>
+                  <div className="overflow-x-auto border-t border-border">
+                    <table className="min-w-[720px] w-full text-sm">
+                      <thead className="bg-muted/40 text-left text-xs text-muted-foreground">
+                        <tr>
+                          <th className="px-3 py-2">Parcela</th>
+                          <th className="px-3 py-2">Vencimento</th>
+                          <th className="px-3 py-2 text-right">Valor nominal</th>
+                          <th className="px-3 py-2">Prazo</th>
+                          <th className="px-3 py-2 text-right">VP</th>
+                          <th className="px-3 py-2 text-right">Desconto</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {nf.parcelasCedidas.map((parcela) => (
+                          <tr key={parcela.parcelaId}>
+                            <td className="px-3 py-2 font-mono tabular-nums">{String(parcela.numero).padStart(3, '0')}</td>
+                            <td className="px-3 py-2 tabular-nums">{formatDate(parcela.vencimentoOriginal)}</td>
+                            <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(parcela.valorNominal)}</td>
+                            <td className="px-3 py-2">{parcela.prazoDias === null ? '—' : `${parcela.prazoDias} dias`}</td>
+                            <td className="px-3 py-2 text-right tabular-nums">{parcela.valorAntecipado === null ? '—' : formatCurrency(parcela.valorAntecipado)}</td>
+                            <td className="px-3 py-2 text-right tabular-nums">{parcela.desconto === null ? '—' : formatCurrency(parcela.desconto)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </details>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
+
+      {detalhe.fluxoFinanceiro.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><Banknote size={18} /> Fluxo financeiro da operação</CardTitle>
+            <p className="text-sm text-muted-foreground">Parcelas cedidas em ordem cronológica. Valores de VP e desconto aparecem somente após a memória aprovada.</p>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto rounded-xl border border-border">
+              <table className="min-w-[820px] w-full text-sm">
+                <thead className="bg-muted/40 text-left text-xs text-muted-foreground">
+                  <tr>
+                    <th className="px-3 py-2">NF / parcela</th>
+                    <th className="px-3 py-2">Vencimento original</th>
+                    <th className="px-3 py-2 text-right">Valor nominal</th>
+                    <th className="px-3 py-2 text-right">Valor antecipado</th>
+                    <th className="px-3 py-2 text-right">Desconto</th>
+                    <th className="px-3 py-2">Status financeiro</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {detalhe.fluxoFinanceiro.map((item) => (
+                    <tr key={item.parcelaId}>
+                      <td className="px-3 py-2 font-medium">NF {item.notaFiscalNumero} · {String(item.numero).padStart(3, '0')}</td>
+                      <td className="px-3 py-2 tabular-nums">{formatDate(item.vencimentoOriginal)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(item.valorNominal)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{item.valorAntecipado === null ? '—' : formatCurrency(item.valorAntecipado)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{item.desconto === null ? '—' : formatCurrency(item.desconto)}</td>
+                      <td className="px-3 py-2">{item.statusFinanceiro || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <AndamentoOperacaoCard etapas={detalhe.timeline} />

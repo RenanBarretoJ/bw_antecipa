@@ -96,6 +96,15 @@ describe('arquitetura P2.6', () => {
 // ausencia de base financeira publicada, P23_MATCHING_ERROR/dado ausente),
 // mas e uma incompatibilidade real, exigida pelo escopo do ticket.
 describe('P0 (correção real): candidato de risco (P2.6) e exposição (P2.5) com parcelas', () => {
+  it('classifica ausência de comprovante pré-desembolso como candidato em trânsito, sem torná-lo indeterminado', () => {
+    const inicio = processor.indexOf('async function candidateProjection')
+    const fim = processor.indexOf('async function resolverFingerprintFinanceiro', inicio)
+    const candidato = processor.slice(inicio, fim)
+    expect(candidato).toContain('classificarExposicaoLogisticaCandidata')
+    expect(candidato).toContain("status === 'EM_TRANSITO'")
+    expect(candidato).not.toContain('indeterminateCount += 1')
+  })
+
   it('simular_memoria_financeira_operacao usa o valor_nominal/data_vencimento de cada parcela cedida, não o agregado da NF, quando a NF tem parcelas nesta operação', () => {
     expect(candidateSimulationMigration).toContain('FROM public.operacoes_nf_parcelas onp')
     expect(candidateSimulationMigration).toContain('JOIN public.nota_fiscal_parcelas p ON p.id=onp.parcela_id')

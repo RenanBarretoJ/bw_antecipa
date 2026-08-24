@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { carregarDashboardCedente } from '@/lib/analytics/loaders.server'
 import { formatCurrency, formatDate } from '@/lib/utils'
+import { ExposicaoLogisticaCard } from '@/components/operacoes/ExposicaoLogisticaCard'
 
 const statusLabel: Record<string, string> = {
   solicitada: 'Solicitada',
@@ -41,6 +42,10 @@ export default async function CedenteDashboard() {
         <Card><CardContent className="p-5"><div className="mb-2 flex items-center gap-2 text-sm text-muted-foreground"><Banknote className="size-4" /> Volume ativo</div><p className="text-2xl font-bold">{formatCurrency(stats.volumeAtivo)}</p><p className="text-xs text-muted-foreground">{stats.opsAtivas} operação(ões) em andamento</p></CardContent></Card>
         <Card><CardContent className="p-5"><div className="mb-2 flex items-center gap-2 text-sm text-muted-foreground"><FileCheck className="size-4" /> Notas fiscais</div><p className="text-2xl font-bold">{stats.nfsAprovadas}</p><p className="text-xs text-muted-foreground">de {stats.nfsTotal} aprovadas</p></CardContent></Card>
       </div>
+
+      {stats.exposicaoLogistica && (
+        <ExposicaoLogisticaCard visao={stats.exposicaoLogistica} variante="cedente-dashboard" />
+      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>

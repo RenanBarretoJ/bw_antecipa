@@ -21,6 +21,19 @@ export function classificarPercentualExposicao(
   if (comparison > 0) return 'ACIMA_LIMITE'
   return 'NO_LIMITE'
 }
+
+/**
+ * Uma operação candidata ainda não desembolsada não precisa possuir
+ * comprovante de entrega. Para o controle de concentração, tudo que ainda
+ * não está comprovadamente entregue entra conservadoramente como exposição
+ * em trânsito. Requisitos logísticos pré-cessão continuam no gate
+ * documental/logístico específico da política.
+ */
+export function classificarExposicaoLogisticaCandidata(
+  status: 'ENTREGUE' | 'EM_TRANSITO' | 'INDETERMINADA' | null | undefined,
+): 'ENTREGUE' | 'EM_TRANSITO' {
+  return status === 'ENTREGUE' ? 'ENTREGUE' : 'EM_TRANSITO'
+}
 export function calcularAgregadosPosicao(rows: ExposureBaseRow[]) {
   let total = zero()
   let entregue = zero()
