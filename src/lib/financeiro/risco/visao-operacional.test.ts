@@ -16,11 +16,23 @@ describe('visão operacional canônica da exposição logística', () => {
     expect(montarVisaoExposicaoOperacao({ controle: inativo, execucao: null })).toBeNull()
   })
 
+  it('habilita a visão somente com flag e limite presentes no próprio snapshot', () => {
+    expect(resolverControleExposicaoDoSnapshot({
+      controle_exposicao_logistica_ativo: true,
+      limite_exposicao_em_transito_pct: '40.000000000',
+    })).toEqual({ ativo: true, limitePct: 40 })
+    expect(resolverControleExposicaoDoSnapshot({
+      controle_exposicao_logistica_ativo: true,
+      limite_exposicao_em_transito_pct: null,
+    })).toEqual({ ativo: false, limitePct: null })
+  })
+
   it('preserva os mesmos valores persistidos pelo gate na visão do gestor e do cedente', () => {
     const visao = montarVisaoExposicaoOperacao({
       controle,
       fundoNome: 'Fundo A',
       dataBasePl: '2026-08-22',
+      origemPl: 'QA SYNTHETIC',
       execucao: {
         status_tecnico: 'CONCLUIDA',
         patrimonio_liquido_d2: '50000000',
@@ -38,9 +50,11 @@ describe('visão operacional canônica da exposição logística', () => {
     expect(visao).toMatchObject({
       fundoNome: 'Fundo A',
       patrimonioLiquido: 50000000,
+      origemPl: 'QA SYNTHETIC',
       exposicaoAtualValor: 13700000,
       exposicaoAtualPct: 27.4,
       candidatoValor: 2400000,
+      candidatoPct: 4.8,
       candidatoEmTransitoValor: 2400000,
       exposicaoProjetadaValor: 16100000,
       exposicaoProjetadaPct: 32.2,
@@ -49,6 +63,17 @@ describe('visão operacional canônica da exposição logística', () => {
       margemPct: 7.8,
       classificacao: 'ABAIXO_LIMITE',
     })
+  })
+
+  it('mantém o card indeterminado quando o snapshot exige controle e ainda não há execução', () => {
+    const visao = montarVisaoExposicaoOperacao({ controle, execucao: null })
+    expect(visao).toMatchObject({ aplicavel: true, classificacao: 'INDETERMINADA' })
+  })
+
+  it('não adota retroativamente a configuração de uma política fora do snapshot', () => {
+    const snapshotAntigo = resolverControleExposicaoDoSnapshot({ politica_operacional_versao_id: 'versao-antiga' })
+    expect(snapshotAntigo).toEqual({ ativo: false, limitePct: null })
+    expect(montarVisaoExposicaoOperacao({ controle: snapshotAntigo, execucao: null })).toBeNull()
   })
 
   it.each([

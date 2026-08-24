@@ -16,11 +16,11 @@ const tone = {
 } as const
 
 function money(value: number | null) {
-  return value === null ? '—' : formatCurrency(value)
+  return value === null ? 'Indisponível' : formatCurrency(value)
 }
 
 function percent(value: number | null) {
-  return value === null ? '—' : `${value.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })}%`
+  return value === null ? 'Indisponível' : `${value.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })}%`
 }
 
 function Item({ label, value, emphasize }: { label: string; value: string; emphasize?: boolean }) {
@@ -40,11 +40,7 @@ export function ExposicaoLogisticaCard({
   variante: 'gestor-operacao' | 'cedente-operacao' | 'cedente-dashboard'
 }) {
   const dashboard = variante === 'cedente-dashboard'
-  const title = dashboard
-    ? 'Exposição logística do fundo'
-    : variante === 'gestor-operacao'
-      ? 'Exposição logística do fundo'
-      : 'Impacto desta operação na exposição'
+  const title = dashboard ? 'Exposição logística do fundo' : 'Impacto na exposição logística'
   const status = dashboard
     ? statusExposicaoDashboardLabel[visao.statusDashboard]
     : classificacaoExposicaoLabel[visao.classificacao]
@@ -63,12 +59,13 @@ export function ExposicaoLogisticaCard({
       <CardContent className="space-y-3">
         <div className={cn('grid gap-2 sm:grid-cols-2', dashboard ? 'lg:grid-cols-4' : 'xl:grid-cols-4')}>
           <Item label="PL base" value={money(visao.patrimonioLiquido)} />
-          <Item label="Data-base" value={visao.dataBasePl ? formatDate(visao.dataBasePl) : '—'} />
+          <Item label="Data-base" value={visao.dataBasePl ? formatDate(visao.dataBasePl) : 'Indisponível'} />
+          {!dashboard && <Item label="Origem do PL" value={visao.origemPl || 'Indisponível'} />}
           <Item label="Exposição atual" value={`${money(visao.exposicaoAtualValor)} · ${percent(visao.exposicaoAtualPct)}`} />
-          {!dashboard && <Item label="VP candidato" value={money(visao.candidatoValor)} emphasize />}
-          {!dashboard && <Item label="Exposição projetada" value={`${money(visao.exposicaoProjetadaValor)} · ${percent(visao.exposicaoProjetadaPct)}`} emphasize />}
+          {!dashboard && <Item label="Operação candidata" value={`${money(visao.candidatoValor)} · ${percent(visao.candidatoPct)}`} emphasize />}
+          {!dashboard && <Item label="Exposição projetada" value={visao.exposicaoProjetadaValor === null || visao.exposicaoProjetadaPct === null ? 'Indeterminada' : `${money(visao.exposicaoProjetadaValor)} · ${percent(visao.exposicaoProjetadaPct)}`} emphasize />}
           <Item label="Limite da política" value={percent(visao.limitePct)} />
-          <Item label="Margem disponível" value={`${money(visao.margemValor)} · ${visao.margemPct === null ? '—' : `${visao.margemPct.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })} p.p.`}`} />
+          <Item label="Margem disponível" value={visao.margemValor === null || visao.margemPct === null ? 'Indisponível' : `${money(visao.margemValor)} · ${visao.margemPct.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })} p.p.`} />
         </div>
         {visao.motivo && (
           <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2.5 text-sm text-warning-foreground">

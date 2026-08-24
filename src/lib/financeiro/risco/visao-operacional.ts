@@ -23,9 +23,11 @@ export type VisaoExposicaoOperacional = {
   fundoNome: string | null
   patrimonioLiquido: number | null
   dataBasePl: string | null
+  origemPl: string | null
   exposicaoAtualValor: number | null
   exposicaoAtualPct: number | null
   candidatoValor: number | null
+  candidatoPct: number | null
   candidatoEmTransitoValor: number | null
   exposicaoProjetadaValor: number | null
   exposicaoProjetadaPct: number | null
@@ -141,7 +143,9 @@ export function montarVisaoExposicaoOperacao(input: {
   execucao: RiskExecutionLike | null
   motivos?: string[]
   dataBasePl?: string | null
+  origemPl?: string | null
   fundoNome?: string | null
+  motivoFallback?: string | null
 }): VisaoExposicaoOperacional | null {
   if (!input.controle.ativo || input.controle.limitePct === null) return null
 
@@ -158,15 +162,20 @@ export function montarVisaoExposicaoOperacao(input: {
   const concluida = execucao?.status_tecnico === 'CONCLUIDA'
   const classificacao = resolverClassificacao({ concluida, percentual: projetadaPct, limite, motivos })
   const margem = calcularMargens(pl, projetadaValor, projetadaPct, limite)
+  const candidatoPct = pl !== null && pl > 0 && candidatoValor !== null
+    ? new Decimal(candidatoValor).dividedBy(pl).times(100).toNumber()
+    : null
 
   return {
     aplicavel: true,
     fundoNome: input.fundoNome || null,
     patrimonioLiquido: pl,
     dataBasePl: input.dataBasePl || null,
+    origemPl: input.origemPl || null,
     exposicaoAtualValor: atualValor,
     exposicaoAtualPct: atualPct,
     candidatoValor,
+    candidatoPct,
     candidatoEmTransitoValor: candidatoEmTransito,
     exposicaoProjetadaValor: projetadaValor,
     exposicaoProjetadaPct: projetadaPct,
@@ -175,9 +184,9 @@ export function montarVisaoExposicaoOperacao(input: {
     margemPct: margem.margemPct,
     classificacao,
     statusDashboard: resolverStatusDashboard(classificacao, projetadaPct, limite),
-    motivo: execucao
+    motivo: input.motivoFallback || (execucao
       ? motivoOperacional(motivos, concluida ? null : MOTIVOS_OPERACIONAIS.AVALIACAO_RISCO_INDISPONIVEL)
-      : 'A avaliação desta operação ainda não foi executada.',
+      : 'A avaliação desta operação ainda não foi executada.'),
     avaliadaEm: String(execucao?.finalizado_em || execucao?.created_at || '') || null,
   }
 }
@@ -203,9 +212,11 @@ export function montarVisaoExposicaoFundo(input: {
     fundoNome: input.fundoNome,
     patrimonioLiquido: pl,
     dataBasePl: String(execucao?.data_referencia_pl || '') || null,
+    origemPl: null,
     exposicaoAtualValor: atualValor,
     exposicaoAtualPct: atualPct,
     candidatoValor: null,
+    candidatoPct: null,
     candidatoEmTransitoValor: null,
     exposicaoProjetadaValor: null,
     exposicaoProjetadaPct: null,
@@ -222,7 +233,7 @@ export function montarVisaoExposicaoFundo(input: {
 }
 
 export const classificacaoExposicaoLabel: Record<ClassificacaoExposicaoOperacional, string> = {
-  ABAIXO_LIMITE: 'Abaixo do limite',
+  ABAIXO_LIMITE: 'Dentro do limite',
   NO_LIMITE: 'No limite',
   ACIMA_LIMITE: 'Acima do limite',
   INDETERMINADA: 'Indeterminada',

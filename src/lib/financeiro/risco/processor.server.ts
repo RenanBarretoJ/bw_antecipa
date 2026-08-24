@@ -150,7 +150,7 @@ async function refreshCanonicalSnapshots(input: {
   return { exposure, timings }
 }
 
-async function candidateProjection(client: DynamicClient, input: {
+export async function candidateProjection(client: DynamicClient, input: {
   operacaoId: string
   taxaDesconto: number
   fundoId: string

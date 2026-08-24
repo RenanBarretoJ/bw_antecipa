@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 const card = readFileSync('src/components/operacoes/ExposicaoLogisticaCard.tsx', 'utf8')
 const operationServer = readFileSync('src/components/operacoes/ExposicaoLogisticaOperacaoServer.tsx', 'utf8')
+const operationLoader = readFileSync('src/lib/financeiro/risco/visao-operacional.server.ts', 'utf8')
 const gestorPage = readFileSync('src/app/gestor/operacoes/[id]/page.tsx', 'utf8')
 const cedenteOperationPage = readFileSync('src/app/cedente/operacoes/[id]/page.tsx', 'utf8')
 const cedenteDashboard = readFileSync('src/app/cedente/dashboard/page.tsx', 'utf8')
@@ -13,6 +14,8 @@ describe('integração da visão operacional de exposição', () => {
     expect(gestorPage).toContain('ExposicaoLogisticaOperacaoServer')
     expect(cedenteOperationPage).toContain('ExposicaoLogisticaOperacaoServer')
     expect(operationServer).toContain('carregarVisaoExposicaoOperacaoCanonica')
+    expect(operationServer).not.toContain('politica_operacional_versoes')
+    expect(operationLoader).not.toContain("from('politica_operacional_versoes')")
     expect(operationServer).toContain('return visao ? <ExposicaoLogisticaCard')
   })
 
@@ -30,7 +33,16 @@ describe('integração da visão operacional de exposição', () => {
 
   it('expõe somente textos operacionais e não códigos técnicos', () => {
     expect(card).toContain('Margem disponível')
-    expect(card).toContain('Impacto desta operação na exposição')
+    expect(card).toContain('Impacto na exposição logística')
+    expect(card).toContain('Origem do PL')
+    expect(card).toContain('Operação candidata')
     expect(card).not.toContain('AVALIACAO_RISCO_INDISPONIVEL')
+  })
+
+  it('usa preview canônico parcel-aware sem executar o gate persistente ao abrir a tela', () => {
+    expect(operationLoader).toContain('projetarCandidatoOperacaoCanonica')
+    expect(operationLoader).toContain('classificarGateRisco')
+    expect(operationLoader).not.toContain('executarGateRisco')
+    expect(operationLoader).not.toContain('.insert(')
   })
 })
