@@ -10,7 +10,7 @@ export type AdminTechnicalNotification = {
 export type AdminTechnicalActionResult = {
   success: boolean
   message: string
-  data?: { id: string; integrationId?: string }
+  data?: { id: string; integrationId?: string; token?: string; tokenDisplay?: string }
   fieldErrors?: Record<string, string[]>
   notification?: AdminTechnicalNotification
 }

@@ -44,6 +44,12 @@ export const ACAO_SENSIVEL_TIPOS = [
   'confirmar_match_manual',
   'revogar_match_manual',
   'revisar_risco_operacao',
+  'criar_integracao_transportadora',
+  'ativar_integracao_transportadora',
+  'desativar_integracao_transportadora',
+  'rotacionar_token_integracao_transportadora',
+  'revogar_token_integracao_transportadora',
+  'reprocessar_webhook_evento_transportadora',
 ] as const
 
 export type AcaoSensivelTipo = typeof ACAO_SENSIVEL_TIPOS[number]

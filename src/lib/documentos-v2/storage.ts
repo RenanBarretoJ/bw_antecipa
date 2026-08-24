@@ -34,6 +34,27 @@ export function gerarCaminhoDocumentoLogistico({
   return `${cedenteId}/logistica/${contextoTipo}/${contextoId}/${tipoCodigo}/${randomUUID()}${ext}`
 }
 
+/**
+ * Caminho para evidencia de webhook de transportadora ANTES da resolucao
+ * do vinculo (P0_Claude_Retencao_Reprocessamento_Webhook_Transportadora)
+ * -- nunca depende de cedente_id/nota_fiscal_id, que ainda nao existem
+ * neste ponto do fluxo (o arquivo e persistido antes do matching, para
+ * que NAO_IDENTIFICADO/REVISAO_MATCH/ERRO_REPROCESSAVEL possam ser
+ * reprocessados de verdade depois).
+ */
+export function gerarCaminhoEvidenciaWebhookTransportadora({
+  integracaoId,
+  webhookEventoId,
+  nomeOriginal,
+}: {
+  integracaoId: string
+  webhookEventoId: string
+  nomeOriginal: string
+}): string {
+  const ext = nomeOriginal.includes('.') ? nomeOriginal.slice(nomeOriginal.lastIndexOf('.')).toLowerCase() : ''
+  return `webhooks-transportadora/${integracaoId}/${webhookEventoId}/${randomUUID()}${ext}`
+}
+
 export function gerarCaminhoDocumentoEstabelecimento({
   cedenteId,
   estabelecimentoId,
