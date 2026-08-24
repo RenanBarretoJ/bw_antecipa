@@ -48,13 +48,15 @@ describe('P0 (correcao real): idempotencia do gate de risco nao pode mascarar mu
     expect(corpo).toContain('candidate,')
   })
 
-  it('resolverFingerprintFinanceiro observa ESTOQUE/AQUISICOES/LIQUIDACOES/Carteira D-2 diretamente, independente de o pipeline ter sucesso', () => {
+  it('resolverFingerprintFinanceiro observa movimentos D-1 e o PL de referencia canonico, independente de o pipeline ter sucesso', () => {
     const indice = processor.indexOf('async function resolverFingerprintFinanceiro')
-    const corpo = processor.slice(indice, processor.indexOf('\n}', indice))
+    const corpo = processor.slice(indice, processor.indexOf('async function persist', indice))
     expect(corpo).toContain("base('ESTOQUE', input.dates.ESTOQUE)")
     expect(corpo).toContain("base('AQUISICOES', input.dates.ESTOQUE)")
     expect(corpo).toContain("base('LIQUIDACOES', input.dates.ESTOQUE)")
-    expect(corpo).toContain("base('CARTEIRA', input.dates.CARTEIRA)")
+    expect(corpo).toContain('resolverPlReferencia(client')
+    expect(corpo).toContain('carteiraReferencia: carteiraReferencia ?')
+    expect(corpo).not.toContain("base('CARTEIRA'")
   })
 
   it('detalhes persistidos agora expoem bootstrap e financial_fingerprint para auditoria (aditivo, nao altera a decisao)', () => {

@@ -3,12 +3,12 @@ import 'server-only'
 import { obterFundoAtivoAutorizado } from '@/lib/fundos/fundo-ativo.server'
 import { requireGestor } from '@/lib/auth/authorization'
 import { resolverDataCivilOperacional } from '@/lib/operacoes/data-operacional.server'
+import { resolverPlReferencia } from '@/lib/financeiro/pl-referencia.server'
 import {
   execucaoExposicaoCompativelComBase,
   montarBaseFinanceiraDaData,
   type BaseFinanceiraDaData,
   type ImportacaoResumoBase,
-  type SnapshotCarteiraResumo,
 } from './base-financeira'
 import type {
   ConciliacaoExecucao,
@@ -160,22 +160,23 @@ async function carregarBaseFinanceira(
   dataOperacional: string,
 ) {
   const expected = montarBaseFinanceiraDaData({ dataOperacional, importacoes: [], snapshots: [] })
-  const importsResult = await supabase.from('importacoes_financeiras')
-    .select('id,tipo_base,data_referencia,completude,declaracao_sem_movimento,origem,provedor,linhas_publicadas,valor_total,publicada_em')
-    .eq('fundo_id', fundoId).eq('status', 'PUBLICADA')
-    .in('data_referencia', [expected.dataD1, expected.dataD2])
-    .order('publicada_em', { ascending: false })
+  const [importsResult, plReferencia] = await Promise.all([
+    supabase.from('importacoes_financeiras')
+      .select('id,tipo_base,data_referencia,completude,declaracao_sem_movimento,origem,provedor,linhas_publicadas,valor_total,publicada_em')
+      .eq('fundo_id', fundoId).eq('status', 'PUBLICADA')
+      .in('tipo_base', ['ESTOQUE', 'AQUISICOES', 'LIQUIDACOES'])
+      .eq('data_referencia', expected.dataD1)
+      .order('publicada_em', { ascending: false }),
+    resolverPlReferencia(supabase, { fundoId, dataOperacional }),
+  ])
   if (importsResult.error) throw new Error(`Nao foi possivel resolver as bases publicadas: ${importsResult.error.message}`)
   const imports = (importsResult.data || []) as ImportacaoResumoBase[]
-  const walletIds = imports.filter((item) => item.tipo_base === 'CARTEIRA').map((item) => item.id)
-  const snapshotsResult = walletIds.length
-    ? await supabase.from('carteira_snapshots').select('importacao_id,patrimonio_liquido,vigente').eq('fundo_id', fundoId).in('importacao_id', walletIds)
-    : { data: [], error: null }
-  if (snapshotsResult.error) throw new Error(`Nao foi possivel resolver o PL da carteira: ${snapshotsResult.error.message}`)
   return montarBaseFinanceiraDaData({
     dataOperacional,
+    fundoId,
     importacoes: imports,
-    snapshots: (snapshotsResult.data || []) as SnapshotCarteiraResumo[],
+    snapshots: [],
+    plReferencia,
   })
 }
 

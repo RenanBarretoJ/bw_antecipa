@@ -34,7 +34,9 @@ describe('integração da visão operacional de exposição', () => {
   it('expõe somente textos operacionais e não códigos técnicos', () => {
     expect(card).toContain('Margem disponível')
     expect(card).toContain('Impacto na exposição logística')
-    expect(card).toContain('Origem do PL')
+    expect(card).toContain('PL de referência')
+    expect(card).toContain('Defasagem')
+    expect(card).toContain('Origem')
     expect(card).toContain('Operação candidata')
     expect(card).not.toContain('AVALIACAO_RISCO_INDISPONIVEL')
   })

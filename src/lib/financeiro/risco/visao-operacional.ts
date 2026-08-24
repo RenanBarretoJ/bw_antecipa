@@ -1,4 +1,5 @@
 import Decimal from 'decimal.js'
+import { calcularDefasagemPl } from '@/lib/financeiro/pl-referencia'
 
 export type ClassificacaoExposicaoOperacional =
   | 'ABAIXO_LIMITE'
@@ -23,6 +24,7 @@ export type VisaoExposicaoOperacional = {
   fundoNome: string | null
   patrimonioLiquido: number | null
   dataBasePl: string | null
+  defasagemPl: string | null
   origemPl: string | null
   exposicaoAtualValor: number | null
   exposicaoAtualPct: number | null
@@ -53,6 +55,7 @@ export type RiskExecutionLike = {
   limite_pct?: unknown
   finalizado_em?: unknown
   created_at?: unknown
+  data_operacional?: unknown
 }
 
 export type ExposureExecutionLike = {
@@ -62,6 +65,7 @@ export type ExposureExecutionLike = {
   percentual_exposicao?: unknown
   limite_referencia_pct?: unknown
   data_referencia_pl?: unknown
+  data_operacional?: unknown
   finalizado_em?: unknown
   created_at?: unknown
 }
@@ -143,6 +147,7 @@ export function montarVisaoExposicaoOperacao(input: {
   execucao: RiskExecutionLike | null
   motivos?: string[]
   dataBasePl?: string | null
+  dataOperacional?: string | null
   origemPl?: string | null
   fundoNome?: string | null
   motivoFallback?: string | null
@@ -171,6 +176,9 @@ export function montarVisaoExposicaoOperacao(input: {
     fundoNome: input.fundoNome || null,
     patrimonioLiquido: pl,
     dataBasePl: input.dataBasePl || null,
+    defasagemPl: input.dataOperacional && input.dataBasePl
+      ? calcularDefasagemPl(input.dataOperacional, input.dataBasePl)
+      : null,
     origemPl: input.origemPl || null,
     exposicaoAtualValor: atualValor,
     exposicaoAtualPct: atualPct,
@@ -195,6 +203,7 @@ export function montarVisaoExposicaoFundo(input: {
   controle: ControleExposicaoSnapshot
   execucao: ExposureExecutionLike | null
   fundoNome: string
+  origemPl?: string | null
 }): VisaoExposicaoOperacional | null {
   if (!input.controle.ativo || input.controle.limitePct === null) return null
 
@@ -212,7 +221,10 @@ export function montarVisaoExposicaoFundo(input: {
     fundoNome: input.fundoNome,
     patrimonioLiquido: pl,
     dataBasePl: String(execucao?.data_referencia_pl || '') || null,
-    origemPl: null,
+    defasagemPl: execucao?.data_operacional && execucao?.data_referencia_pl
+      ? calcularDefasagemPl(String(execucao.data_operacional), String(execucao.data_referencia_pl))
+      : null,
+    origemPl: input.origemPl || null,
     exposicaoAtualValor: atualValor,
     exposicaoAtualPct: atualPct,
     candidatoValor: null,

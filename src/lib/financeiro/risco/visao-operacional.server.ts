@@ -1,6 +1,9 @@
 import 'server-only'
 
 import { createAdminClient } from '@/lib/supabase/server'
+import { resolverDataCivilOperacional } from '@/lib/operacoes/data-operacional.server'
+import { resolverPlReferencia } from '@/lib/financeiro/pl-referencia.server'
+import { rotuloOrigemPl as formatarOrigemPl } from '@/lib/financeiro/pl-referencia'
 import type { PoliticaOperacionalVersao } from '@/types/database'
 import { classificarGateRisco } from './classificador'
 import { candidateProjection as projetarCandidatoOperacaoCanonica } from './processor.server'
@@ -50,12 +53,9 @@ function politicaDePreview(snapshot: unknown, limitePct: number): RiskPolicy {
   }
 }
 
-function rotuloOrigemPl(importacao: Row | null): string | null {
+function rotuloOrigemImportacao(importacao: Row | null): string | null {
   if (!importacao) return null
-  const origem = text(importacao.origem)
-  const provedor = text(importacao.provedor)
-  if (origem === 'GOLDEN_DATASET' || /(^|[_-])(qa|golden)([_-]|$)/i.test(provedor || '')) return 'QA SYNTHETIC'
-  return [origem, provedor].filter(Boolean).join(' · ') || null
+  return formatarOrigemPl(text(importacao.origem), text(importacao.provedor))
 }
 
 async function carregarOrigemPl(admin: ReturnType<typeof createAdminClient>, importacaoId: unknown) {
@@ -65,7 +65,7 @@ async function carregarOrigemPl(admin: ReturnType<typeof createAdminClient>, imp
     .eq('id', String(importacaoId))
     .maybeSingle()
   if (error) throw new Error(`Não foi possível carregar a origem do PL: ${error.message}`)
-  return rotuloOrigemPl(data as unknown as Row | null)
+  return rotuloOrigemImportacao(data as unknown as Row | null)
 }
 
 export async function carregarVisaoExposicaoOperacaoCanonica(input: {
@@ -116,6 +116,7 @@ export async function carregarVisaoExposicaoOperacaoCanonica(input: {
       execucao: execucao as unknown as RiskExecutionLike,
       motivos: ((motivosResult.data || []) as Array<{ codigo: string }>).map((item) => item.codigo),
       dataBasePl: text(exposicao?.data_referencia_pl),
+      dataOperacional: text(exposicao?.data_operacional),
       origemPl: await carregarOrigemPl(admin, exposicao?.carteira_importacao_id),
     })
   }
@@ -132,13 +133,16 @@ export async function carregarVisaoExposicaoOperacaoCanonica(input: {
     && (!politicaVersaoId || text(operacao.politica_operacional_versao_id) === politicaVersaoId),
   )
 
+  const dataOperacional = resolverDataCivilOperacional(null)
+  const plReferencia = await resolverPlReferencia(admin, { fundoId: input.fundoId, dataOperacional })
   let exposicaoQuery = admin.from('exposicao_execucoes').select('*')
     .eq('fundo_id', input.fundoId)
+    .eq('data_operacional', dataOperacional)
   if (politicaVersaoId) exposicaoQuery = exposicaoQuery.eq('politica_operacional_versao_id', politicaVersaoId)
-  const exposicaoAtualResult = await exposicaoQuery
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
+  if (plReferencia) exposicaoQuery = exposicaoQuery.eq('carteira_snapshot_id', plReferencia.snapshotId)
+  const exposicaoAtualResult = plReferencia
+    ? await exposicaoQuery.order('created_at', { ascending: false }).limit(1).maybeSingle()
+    : { data: null, error: null }
   if (exposicaoAtualResult.error) throw new Error(`Não foi possível carregar a base canônica da exposição: ${exposicaoAtualResult.error.message}`)
 
   const exposicao = exposicaoAtualResult.data as unknown as Row | null
@@ -176,7 +180,7 @@ export async function carregarVisaoExposicaoOperacaoCanonica(input: {
       : 'AVALIACAO_RISCO_INDISPONIVEL',
     currentPercent: text(exposicao?.percentual_exposicao),
     currentExposureValue: text(exposicao?.exposicao_em_transito_total),
-    netAssetValueD2: text(exposicao?.patrimonio_liquido_d2),
+    netAssetValueD2: text(exposicao?.patrimonio_liquido_d2 ?? plReferencia?.patrimonioLiquido),
     indeterminateCount: count(exposicao?.quantidade_indeterminada),
     indeterminateValue: text(exposicao?.valor_indeterminado),
     unmatchedCount: count(exposicao?.quantidade_sem_match),
@@ -189,7 +193,7 @@ export async function carregarVisaoExposicaoOperacaoCanonica(input: {
   })
   const execucaoPreview: RiskExecutionLike = {
     status_tecnico: classificacao.technicalStatus,
-    patrimonio_liquido_d2: exposicao?.patrimonio_liquido_d2,
+    patrimonio_liquido_d2: exposicao?.patrimonio_liquido_d2 ?? plReferencia?.patrimonioLiquido,
     exposicao_atual_valor: exposicao?.exposicao_em_transito_total,
     exposicao_atual_pct: classificacao.currentPercent,
     operacao_valor_aquisicao: candidato?.acquisitionValue,
@@ -203,8 +207,9 @@ export async function carregarVisaoExposicaoOperacaoCanonica(input: {
     controle,
     execucao: execucaoPreview,
     motivos: classificacao.reasons.map((item) => item.code),
-    dataBasePl: text(exposicao?.data_referencia_pl),
-    origemPl: await carregarOrigemPl(admin, exposicao?.carteira_importacao_id),
+    dataBasePl: text(exposicao?.data_referencia_pl ?? plReferencia?.dataBase),
+    dataOperacional,
+    origemPl: plReferencia?.origem || await carregarOrigemPl(admin, exposicao?.carteira_importacao_id),
     motivoFallback: falhaPreview,
   })
 }
@@ -236,5 +241,6 @@ export async function carregarVisaoExposicaoFundoCanonica(input: {
     controle,
     execucao: data as unknown as ExposureExecutionLike | null,
     fundoNome: input.fundoNome,
+    origemPl: await carregarOrigemPl(admin, (data as unknown as Row | null)?.carteira_importacao_id),
   })
 }

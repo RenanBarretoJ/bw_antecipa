@@ -104,29 +104,32 @@ function baseValue(base: NonNullable<ConciliacaoDashboard['baseFinanceira']>['es
 
 function sourceLabel(base: NonNullable<ConciliacaoDashboard['baseFinanceira']>['estoque']) {
   if (!base.importacaoId) return 'Sem base publicada'
-  return `${base.origemQa ? 'QA SYNTHETIC' : base.origem || 'Origem nao informada'} · ${base.provedor || 'Provedor nao informado'}`
+  if (base.origemQa) return 'QA SYNTHETIC'
+  return `${base.origem || 'Origem nao informada'} · ${base.provedor || 'Provedor nao informado'}`
 }
 
 function BaseFinanceiraCard({ dashboard }: { dashboard: ConciliacaoDashboard }) {
   const base = dashboard.baseFinanceira
   if (!base) return <BlockError message="Selecione uma data operacional para resolver as bases financeiras." />
   const items = [
-    ['Estoque D-1', base.estoque],
-    ['Aquisicoes D-1', base.aquisicoes],
-    ['Liquidacoes D-1', base.liquidacoes],
-    ['PL da carteira D-2', base.carteira],
+    ['Estoque D-1', base.estoque, `esperado em ${date(base.estoque.dataEsperada)}`],
+    ['Aquisicoes D-1', base.aquisicoes, `esperado em ${date(base.aquisicoes.dataEsperada)}`],
+    ['Liquidacoes D-1', base.liquidacoes, `esperado em ${date(base.liquidacoes.dataEsperada)}`],
+    ['PL de referencia', base.carteira, base.carteira.dataReferencia
+      ? `data-base ${date(base.carteira.dataReferencia)} · ${base.carteira.defasagem || 'defasagem indisponivel'}`
+      : 'nenhum PL valido anterior a data operacional'],
   ] as const
   const statusLabel = base.statusGeral === 'PRONTA' ? 'Pronta para calculo' : base.statusGeral === 'BASE_INCOMPLETA' ? 'Base incompleta' : base.statusGeral === 'SEM_MOVIMENTO' ? 'Sem movimento' : 'Indisponivel'
   return (
     <Card>
       <CardHeader className="pb-3">
         <div className="flex flex-wrap items-start justify-between gap-2">
-          <div><CardTitle>Base financeira da data</CardTitle><p className="mt-1 text-sm text-muted-foreground">Data operacional {date(base.dataOperacional)} · D-1 {date(base.dataD1)} · D-2 {date(base.dataD2)}</p></div>
+          <div><CardTitle>Base financeira da data</CardTitle><p className="mt-1 text-sm text-muted-foreground">Data operacional {date(base.dataOperacional)} · movimentos em D-1 {date(base.dataD1)} · PL mais recente anterior a data</p></div>
           <span className={badge(base.statusGeral)}>{statusLabel}</span>
         </div>
       </CardHeader>
       <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {items.map(([label, item]) => <div key={label} className="rounded-lg border bg-muted/20 p-3"><p className="text-xs font-medium uppercase text-muted-foreground">{label} · esperado em {date(item.dataEsperada)}</p><p className="mt-1 font-semibold tabular-nums">{baseValue(item)}</p><p className="mt-1 truncate text-xs text-muted-foreground" title={sourceLabel(item)}>{sourceLabel(item)}</p></div>)}
+        {items.map(([label, item, reference]) => <div key={label} className="rounded-lg border bg-muted/20 p-3"><p className="text-xs font-medium uppercase text-muted-foreground">{label} · {reference}</p><p className="mt-1 font-semibold tabular-nums">{baseValue(item)}</p><p className="mt-1 truncate text-xs text-muted-foreground" title={sourceLabel(item)}>{sourceLabel(item)}</p></div>)}
         {dashboard.erros.base && <div className="sm:col-span-2 xl:col-span-4"><BlockError message={dashboard.erros.base} /></div>}
       </CardContent>
     </Card>
@@ -518,10 +521,10 @@ function ExposureView({ dashboard, operationId, onOperationId, simulation, pendi
   onSimulate: () => void
 }) {
   const execution = dashboard.exposicaoExecucao
-  if (!execution) return <div className="space-y-4"><Card><CardHeader><CardTitle>Exposicao conhecida em transito</CardTitle></CardHeader><CardContent className="space-y-3"><p className="text-sm text-muted-foreground">Nenhum calculo compativel com a data operacional {date(dashboard.baseFinanceira?.dataOperacional)}, D-1 {date(dashboard.baseFinanceira?.dataD1)} e D-2 {date(dashboard.baseFinanceira?.dataD2)}. Valores ausentes nao foram convertidos em zero.</p>{dashboard.exposicaoExecucaoIncompativel && <p className="rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning-foreground">Existe uma execucao da mesma data com referencias antigas ({date(dashboard.exposicaoExecucaoIncompativel.data_referencia_estoque)} / {date(dashboard.exposicaoExecucaoIncompativel.data_referencia_pl)}). Ela foi preservada apenas como historico e nao e o resultado atual.</p>}<PreviousExecution label="execucao de exposicao" value={dashboard.execucoesAnteriores.exposicao?.data_operacional} /></CardContent></Card></div>
+  if (!execution) return <div className="space-y-4"><Card><CardHeader><CardTitle>Exposicao conhecida em transito</CardTitle></CardHeader><CardContent className="space-y-3"><p className="text-sm text-muted-foreground">Nenhum calculo compativel com a data operacional {date(dashboard.baseFinanceira?.dataOperacional)}, D-1 {date(dashboard.baseFinanceira?.dataD1)} e o PL de referencia {date(dashboard.baseFinanceira?.carteira.dataReferencia)}. Valores ausentes nao foram convertidos em zero.</p>{dashboard.exposicaoExecucaoIncompativel && <p className="rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning-foreground">Existe uma execucao da mesma data com referencias antigas ({date(dashboard.exposicaoExecucaoIncompativel.data_referencia_estoque)} / {date(dashboard.exposicaoExecucaoIncompativel.data_referencia_pl)}). Ela foi preservada apenas como historico e nao e o resultado atual.</p>}<PreviousExecution label="execucao de exposicao" value={dashboard.execucoesAnteriores.exposicao?.data_operacional} /></CardContent></Card></div>
   const neutralClassification = execution?.classificacao_limite || execution?.status || 'SEM_EXECUCAO'
   const cards = [
-    ['PL D-2', money(execution?.patrimonio_liquido_d2)],
+    ['PL de referencia', money(execution?.patrimonio_liquido_d2)],
     ['Posicao D-1', money(execution?.valor_posicao_total)],
     ['Em transito no Estoque', money(execution?.valor_em_transito_estoque)],
     ['Overlay intraday em transito', money(execution?.overlay_em_transito)],
@@ -536,7 +539,9 @@ function ExposureView({ dashboard, operationId, onOperationId, simulation, pendi
       <CardContent className="grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-6">
         <div><span className="text-muted-foreground">Data operacional</span><p className="font-medium">{date(execution?.data_operacional)}</p></div>
         <div><span className="text-muted-foreground">Estoque ref. D-1</span><p className="font-medium">{date(execution?.data_referencia_estoque)}</p></div>
-        <div><span className="text-muted-foreground">PL ref. D-2</span><p className="font-medium">{date(execution?.data_referencia_pl)}</p></div>
+        <div><span className="text-muted-foreground">PL de referencia</span><p className="font-medium">{date(execution?.data_referencia_pl)}</p></div>
+        <div><span className="text-muted-foreground">Defasagem</span><p className="font-medium">{dashboard.baseFinanceira?.carteira.defasagem || 'Nao disponivel'}</p></div>
+        <div><span className="text-muted-foreground">Origem</span><p className="font-medium">{dashboard.baseFinanceira ? sourceLabel(dashboard.baseFinanceira.carteira) : 'Nao disponivel'}</p></div>
         <div><span className="text-muted-foreground">Logistica as-of</span><p className="font-medium">{execution?.logistica_as_of ? new Date(execution.logistica_as_of).toLocaleString('pt-BR') : 'Nao disponivel'}</p></div>
         <div><span className="text-muted-foreground">Overlay as-of</span><p className="font-medium">{execution?.overlay_as_of ? new Date(execution.overlay_as_of).toLocaleString('pt-BR') : 'Nao disponivel'}</p></div>
         <div><span className="text-muted-foreground">Regra</span><p className="font-medium">{execution?.regra_versao || 'Nao executada'}</p></div>
@@ -615,7 +620,7 @@ function RiskView({ dashboard, onReview }: {
     </Card>
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
       <SummaryCard label="Decisao atual" value={execution?.decisao || (execution?.aplicavel === false ? 'NAO_APLICAVEL' : 'Sem avaliacao')} tone={execution?.decisao === 'BLOQUEADO' ? 'danger' : execution?.decisao === 'REVISAO_MANUAL' ? 'warning' : 'success'} />
-      <SummaryCard label="PL D-2" value={execution?.patrimonio_liquido_d2 == null ? 'Indisponivel' : money(execution.patrimonio_liquido_d2)} />
+      <SummaryCard label="PL de referencia" value={execution?.patrimonio_liquido_d2 == null ? 'Indisponivel' : money(execution.patrimonio_liquido_d2)} />
       <SummaryCard label="Exposicao atual" value={execution?.exposicao_atual_pct == null ? 'Indeterminada' : percentValue(execution.exposicao_atual_pct)} />
       <SummaryCard label="Exposicao projetada" value={execution?.exposicao_projetada_pct == null ? 'Nao calculada' : percentValue(execution.exposicao_projetada_pct)} />
       <SummaryCard label="Limite" value={execution?.limite_pct == null ? 'Nao configurado' : percentValue(execution.limite_pct)} />
@@ -643,7 +648,7 @@ function RiskView({ dashboard, onReview }: {
             <summary className="cursor-pointer font-medium">Snapshot historico da avaliacao</summary>
             <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <div><span className="text-muted-foreground">Snapshot P2.5</span><p className="break-all font-mono text-xs">{row.exposicao_execucao_id || 'Indisponivel'}</p></div>
-              <div><span className="text-muted-foreground">PL D-2</span><p className="font-medium">{row.patrimonio_liquido_d2 == null ? 'Indisponivel' : money(row.patrimonio_liquido_d2)}</p></div>
+              <div><span className="text-muted-foreground">PL utilizado na avaliacao</span><p className="font-medium">{row.patrimonio_liquido_d2 == null ? 'Indisponivel' : money(row.patrimonio_liquido_d2)}</p></div>
               <div><span className="text-muted-foreground">Exposicao atual</span><p className="font-medium">{row.exposicao_atual_valor == null ? 'Indeterminada' : money(row.exposicao_atual_valor)}</p></div>
               <div><span className="text-muted-foreground">Operacao projetada</span><p className="font-medium">{row.operacao_valor_aquisicao == null ? 'Nao calculada' : money(row.operacao_valor_aquisicao)}</p></div>
               <div><span className="text-muted-foreground">Em transito na operacao</span><p className="font-medium">{row.operacao_valor_em_transito == null ? 'Nao calculado' : money(row.operacao_valor_em_transito)}</p></div>

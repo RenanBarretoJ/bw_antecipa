@@ -112,11 +112,12 @@ describe('P0 (correcao real): bootstrap de fundo virgem + Carteira QA', () => {
     expect(logisticaProcessor).toContain('bootstrap: true as const')
   })
 
-  it('executarExposicaoFinanceira usa a Carteira/PL da primeira publicacao oficial (nao a data D-2 temporal) quando o fundo e virgem, e bloqueia com PL_OFICIAL_INDISPONIVEL quando ainda nao ha Carteira nenhuma', () => {
+  it('executarExposicaoFinanceira usa o PL temporal canonico tambem no bootstrap e preserva o bloqueio especifico quando ainda nao ha Carteira', () => {
     expect(exposicaoProcessor).toContain('const bootstrap = await resolverBootstrapFinanceiro(client, input.fundoId)')
-    expect(exposicaoProcessor).toContain("status: 'PL_OFICIAL_INDISPONIVEL'")
-    expect(exposicaoProcessor).toContain('d2Efetivo = bootstrap.carteiraOficial.dataReferencia')
-    expect(exposicaoProcessor).toContain('pl = new Decimal(bootstrap.carteiraOficial.patrimonioLiquido)')
+    expect(exposicaoProcessor).toContain('resolverPlReferencia(client')
+    expect(exposicaoProcessor).toContain("? 'PL_OFICIAL_INDISPONIVEL'")
+    expect(exposicaoProcessor).toContain('const d2Efetivo = plReferencia.dataBase')
+    expect(exposicaoProcessor).toContain('const pl = new Decimal(plReferencia.patrimonioLiquido)')
   })
 
   it('a consulta de liquidacoes parciais nao tenta comparar matching_execucao_id nulo (bootstrap) com uuid -- bug real encontrado ao vivo e corrigido', () => {

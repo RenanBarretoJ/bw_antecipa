@@ -29,15 +29,20 @@ describe('base financeira D-1/D-2 da conciliacao', () => {
     expect(result.liquidacoes.valor).toBeNull()
   })
 
-  it('nao reutiliza o PL de 20/08 para a data operacional 27/08, que exige D-2 25/08', () => {
+  it('usa o ultimo PL valido anterior quando D-1 e D-2 nao estao disponiveis', () => {
     const result = montarBaseFinanceiraDaData({
       dataOperacional: '2026-08-27',
       importacoes: [importacao({})],
       snapshots: [{ importacao_id: '737c449c-a723-4b33-8f47-4089c88dc1f8', patrimonio_liquido: '1000000', vigente: true }],
     })
     expect(result.dataD2).toBe('2026-08-25')
-    expect(result.carteira).toMatchObject({ estado: 'INDISPONIVEL', valor: null, importacaoId: null })
-    expect(result.statusGeral).toBe('INDISPONIVEL')
+    expect(result.carteira).toMatchObject({
+      estado: 'VALOR',
+      valor: '1000000.0000',
+      dataReferencia: '2026-08-20',
+      defasagem: 'D-5',
+    })
+    expect(result.statusGeral).toBe('BASE_INCOMPLETA')
   })
 
   it('distingue sem movimento declarado de valor monetario realmente zero', () => {
@@ -58,7 +63,11 @@ describe('base financeira D-1/D-2 da conciliacao', () => {
   })
 
   it('rejeita como desatualizada uma exposicao da data com referencias temporais antigas', () => {
-    const base = montarBaseFinanceiraDaData({ dataOperacional: '2026-08-24', importacoes: [], snapshots: [] })
+    const base = montarBaseFinanceiraDaData({
+      dataOperacional: '2026-08-24',
+      importacoes: [importacao({})],
+      snapshots: [{ importacao_id: '737c449c-a723-4b33-8f47-4089c88dc1f8', patrimonio_liquido: '1000000', vigente: true }],
+    })
     expect(execucaoExposicaoCompativelComBase({
       data_operacional: '2026-08-24',
       data_referencia_estoque: '2026-08-21',
@@ -71,4 +80,3 @@ describe('base financeira D-1/D-2 da conciliacao', () => {
     }, base)).toBe(true)
   })
 })
-

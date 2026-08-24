@@ -58,9 +58,10 @@ export function ExposicaoLogisticaCard({
       </CardHeader>
       <CardContent className="space-y-3">
         <div className={cn('grid gap-2 sm:grid-cols-2', dashboard ? 'lg:grid-cols-4' : 'xl:grid-cols-4')}>
-          <Item label="PL base" value={money(visao.patrimonioLiquido)} />
+          <Item label="PL de referência" value={money(visao.patrimonioLiquido)} />
           <Item label="Data-base" value={visao.dataBasePl ? formatDate(visao.dataBasePl) : 'Indisponível'} />
-          {!dashboard && <Item label="Origem do PL" value={visao.origemPl || 'Indisponível'} />}
+          <Item label="Defasagem" value={visao.defasagemPl || 'Indisponível'} />
+          <Item label="Origem" value={visao.origemPl || 'Indisponível'} />
           <Item label="Exposição atual" value={`${money(visao.exposicaoAtualValor)} · ${percent(visao.exposicaoAtualPct)}`} />
           {!dashboard && <Item label="Operação candidata" value={`${money(visao.candidatoValor)} · ${percent(visao.candidatoPct)}`} emphasize />}
           {!dashboard && <Item label="Exposição projetada" value={visao.exposicaoProjetadaValor === null || visao.exposicaoProjetadaPct === null ? 'Indeterminada' : `${money(visao.exposicaoProjetadaValor)} · ${percent(visao.exposicaoProjetadaPct)}`} emphasize />}
