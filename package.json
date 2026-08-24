@@ -96,6 +96,7 @@
     "homolog:bootstrap-fundo-virgem:seed-fixture-fundo": "node scripts/homologacao/bootstrap-fundo-virgem/seed-fixture-fundo.mjs",
     "homolog:bootstrap-fundo-virgem:seed-fixture-operacao-incorporada": "node scripts/homologacao/bootstrap-fundo-virgem/seed-fixture-operacao-incorporada.mjs",
     "homolog:bootstrap-fundo-virgem:seed": "node scripts/homologacao/bootstrap-fundo-virgem/seed-carteira-bootstrap.mjs",
+    "homolog:financeiro:publicar-pl-sintetico": "tsx scripts/qa/publicar-pl-sintetico.ts",
     "homolog:bootstrap-fundo-virgem:verify": "node scripts/homologacao/bootstrap-fundo-virgem/verify.mjs",
     "homolog:financeiro:readiness:inventory": "node scripts/homologacao/financeiro/readiness/inventory.mjs",
     "homolog:financeiro:readiness:audit": "node scripts/homologacao/financeiro/readiness/audit-read-only.mjs",
