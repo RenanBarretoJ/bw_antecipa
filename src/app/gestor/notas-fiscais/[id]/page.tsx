@@ -482,6 +482,8 @@ export default function NfDetalheGestorPage() {
             </CardContent>
           </Card>
 
+          <ParcelasDaNota notaFiscalId={nfId} mode="gestor" onTemParcelas={setTemParcelas} />
+
           {/* Itens e pagamento */}
           {(nf.descricao_itens || nf.condicao_pagamento) && (
             <details className="rounded-xl border bg-card p-4">
@@ -502,8 +504,6 @@ export default function NfDetalheGestorPage() {
               </div>
             </details>
           )}
-
-          <ParcelasDaNota notaFiscalId={nfId} mode="gestor" onTemParcelas={setTemParcelas} />
         </div>
 
         {/* Sidebar */}
