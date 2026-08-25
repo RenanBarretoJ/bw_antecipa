@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   montarVisaoExposicaoFundo,
   montarVisaoExposicaoOperacao,
+  montarProformaExposicaoSelecao,
   resolverControleExposicaoDoSnapshot,
 } from './visao-operacional'
 
@@ -105,16 +106,18 @@ describe('visão operacional canônica da exposição logística', () => {
     expect(visao?.motivo).not.toContain('PL_D2_INDISPONIVEL')
   })
 
-  it('monta o dashboard somente com a execução canônica do fundo', () => {
+  it('combina a exposição corrente com o PL temporal canônico do fundo', () => {
     const visao = montarVisaoExposicaoFundo({
       controle,
       fundoNome: 'Fundo B',
+      plReferencia: {
+        patrimonioLiquido: '1000000',
+        dataBase: '2026-08-22',
+        dataOperacional: '2026-08-25',
+      },
       execucao: {
         status: 'CALCULADA',
-        patrimonio_liquido_d2: '1000000',
         exposicao_em_transito_total: '390000',
-        percentual_exposicao: '39',
-        data_referencia_pl: '2026-08-22',
       },
     })
     expect(visao).toMatchObject({
@@ -123,6 +126,109 @@ describe('visão operacional canônica da exposição logística', () => {
       exposicaoAtualPct: 39,
       statusDashboard: 'PROXIMO_LIMITE',
       candidatoValor: null,
+    })
+  })
+
+  it('mantem a exposicao atual quando a selecao esta vazia', () => {
+    const atual = montarVisaoExposicaoFundo({
+      controle,
+      fundoNome: 'Fundo A',
+      plReferencia: { patrimonioLiquido: '1000', dataBase: '2026-08-22', dataOperacional: '2026-08-25' },
+      execucao: {
+        status: 'CALCULADA',
+        exposicao_em_transito_total: '100',
+      },
+    })!
+    const proforma = montarProformaExposicaoSelecao({
+      atual,
+      candidatoValor: 0,
+      quantidadeNfs: 0,
+      quantidadeParcelas: 0,
+    })
+    expect(proforma).toMatchObject({
+      candidatoValor: 0,
+      exposicaoProjetadaValor: 100,
+      exposicaoProjetadaPct: 10,
+      quantidadeNfs: 0,
+      quantidadeParcelas: 0,
+    })
+  })
+
+  it.each([
+    [299, 'ABAIXO_LIMITE'],
+    [300, 'NO_LIMITE'],
+    [301, 'ACIMA_LIMITE'],
+  ] as const)('classifica a proforma parcel-aware com candidato %s', (candidato, classificacao) => {
+    const atual = montarVisaoExposicaoFundo({
+      controle,
+      fundoNome: 'Fundo A',
+      plReferencia: { patrimonioLiquido: '1000', dataBase: '2026-08-22', dataOperacional: '2026-08-25' },
+      execucao: {
+        status: 'CALCULADA',
+        exposicao_em_transito_total: '100',
+      },
+    })!
+    const proforma = montarProformaExposicaoSelecao({
+      atual,
+      candidatoValor: candidato,
+      quantidadeNfs: 2,
+      quantidadeParcelas: 3,
+    })
+    expect(proforma.classificacao).toBe(classificacao)
+    expect(proforma.exposicaoProjetadaValor).toBe(100 + candidato)
+    expect(proforma.candidatoValor).toBe(candidato)
+    expect(proforma.quantidadeNfs).toBe(2)
+    expect(proforma.quantidadeParcelas).toBe(3)
+  })
+
+  it('preserva Indeterminada quando o PL/base canonica esta indisponivel', () => {
+    const atual = montarVisaoExposicaoFundo({
+      controle,
+      fundoNome: 'Fundo A',
+      plReferencia: null,
+      execucao: null,
+    })!
+    const proforma = montarProformaExposicaoSelecao({
+      atual,
+      candidatoValor: 100,
+      quantidadeNfs: 1,
+      quantidadeParcelas: 1,
+    })
+    expect(proforma).toMatchObject({
+      classificacao: 'INDETERMINADA',
+      exposicaoProjetadaValor: null,
+      exposicaoProjetadaPct: null,
+    })
+    expect(proforma.motivo).toBeTruthy()
+  })
+
+  it('usa o PL temporal atual e nao o PL gravado em uma execucao historica', () => {
+    const visao = montarVisaoExposicaoFundo({
+      controle,
+      fundoNome: 'Fundo A',
+      plReferencia: {
+        patrimonioLiquido: '1000000',
+        dataBase: '2026-08-21',
+        dataOperacional: '2026-08-25',
+      },
+      execucao: {
+        status: 'CALCULADA',
+        patrimonio_liquido_d2: '10000000',
+        data_referencia_pl: '2026-08-18',
+        exposicao_em_transito_total: '100000',
+        percentual_exposicao: '1',
+      },
+      origemPl: 'QA SYNTHETIC',
+    })
+
+    expect(visao).toMatchObject({
+      patrimonioLiquido: 1000000,
+      dataBasePl: '2026-08-21',
+      exposicaoAtualValor: 100000,
+      exposicaoAtualPct: 10,
+      margemValor: 300000,
+      margemPct: 30,
+      origemPl: 'QA SYNTHETIC',
     })
   })
 })

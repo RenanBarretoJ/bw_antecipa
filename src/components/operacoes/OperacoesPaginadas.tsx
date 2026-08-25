@@ -17,6 +17,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useNotifications } from '@/components/notifications/notification-provider'
+import { ExposicaoLogisticaCard } from '@/components/operacoes/ExposicaoLogisticaCard'
 
 const statusConfig: Record<string, { label: string; className: string }> = {
   solicitada: { label: 'Solicitada', className: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
@@ -140,6 +141,15 @@ export function OperacoesPaginadas({
           <Link href="/cedente/operacoes/nova"><Button>Nova solicitacao</Button></Link>
         )}
       </div>
+
+      {resultado.exposicaoLogistica && perfil !== 'consultor' && (
+        <div className="mb-6">
+          <ExposicaoLogisticaCard
+            visao={resultado.exposicaoLogistica}
+            variante={perfil === 'gestor' ? 'gestor-listagem' : 'cedente-listagem'}
+          />
+        </div>
+      )}
 
       {cards.length > 0 && (
         <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">

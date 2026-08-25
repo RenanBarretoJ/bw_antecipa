@@ -43,6 +43,14 @@ async function resolvePolicy(client: DynamicClient, fundoId: string, dataOperaci
   return versionResult.data as Row | null
 }
 
+export async function resolverPoliticaExposicaoFundoCanonica(
+  client: DynamicClient,
+  fundoId: string,
+  dataOperacional: string,
+) {
+  return resolvePolicy(client, fundoId, dataOperacional)
+}
+
 async function persist(client: DynamicClient, payload: Record<string, unknown>) {
   const result = await client.rpc('persistir_exposicao_execucao', { p_payload: payload })
   if (result.error) throw new Error(`Nao foi possivel persistir a exposicao: ${result.error.message}`)

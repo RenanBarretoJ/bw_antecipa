@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useMemo, useState, useTransition } from 'react'
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { ArrowLeft, Calculator, CheckSquare, Loader2, Receipt, Search, Send, Square } from 'lucide-react'
 import { solicitarAntecipacao } from '@/lib/actions/operacao'
+import { simularExposicaoSelecao } from '@/lib/actions/exposicao'
 import type { NfCandidataOperacao, ResultadoNovaSolicitacao } from '@/lib/operacoes/nova-solicitacao.server'
 import { buildListUrl } from '@/lib/pagination'
 import { CalculoFinanceiroError, calcularAntecipacaoEmLote } from '@/lib/operacoes/calculo'
@@ -15,6 +16,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { ExposicaoLogisticaCard } from '@/components/operacoes/ExposicaoLogisticaCard'
 
 export default function NovaSolicitacaoClient({ resultado }: { resultado: ResultadoNovaSolicitacao }) {
   const router = useRouter()
@@ -25,10 +27,23 @@ export default function NovaSolicitacaoClient({ resultado }: { resultado: Result
   const [submitting, setSubmitting] = useState(false)
   const [selected, setSelected] = useState<Map<string, NfCandidataOperacao>>(new Map())
   const [parcelasSelecionadas, setParcelasSelecionadas] = useState<Map<string, Set<string>>>(new Map())
+  const [proformaExposicao, setProformaExposicao] = useState(resultado.proformaExposicao)
+  const [atualizandoImpacto, setAtualizandoImpacto] = useState(false)
+  const [erroImpacto, setErroImpacto] = useState<string | null>(null)
+  const simulacaoAtual = useRef(0)
   const [busca, setBusca] = useState(resultado.filtros.q)
   const params = useMemo(() => Object.fromEntries(searchParams.entries()), [searchParams])
   const pagina = resultado.candidatas.items
   const elegiveisPagina = pagina.filter((item) => item.elegibilidade.elegivel)
+  const selecaoProforma = useMemo(() => ({
+    notaFiscalIds: [...selected.keys()].sort(),
+    parcelaIds: [...selected.values()].flatMap((nf) => {
+      if (!nf.parcelas.length) return []
+      const selecionadasDaNf = parcelasSelecionadas.get(nf.id)
+        || new Set(nf.parcelas.map((parcela) => parcela.id))
+      return [...selecionadasDaNf]
+    }).sort(),
+  }), [selected, parcelasSelecionadas])
 
   const navegar = (updates: Record<string, string | number | null>) => {
     startTransition(() => router.replace(buildListUrl(pathname, params, updates)))
@@ -58,6 +73,38 @@ export default function NovaSolicitacaoClient({ resultado }: { resultado: Result
       return proximo
     })
   }, [pagina])
+  useEffect(() => {
+    if (!resultado.proformaExposicao) return
+    const requisicao = ++simulacaoAtual.current
+    if (selecaoProforma.notaFiscalIds.length === 0) {
+      setProformaExposicao(resultado.proformaExposicao)
+      setErroImpacto(null)
+      setAtualizandoImpacto(false)
+      return
+    }
+
+    setAtualizandoImpacto(true)
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const result = await simularExposicaoSelecao(selecaoProforma)
+          if (simulacaoAtual.current !== requisicao) return
+          if (result.success) {
+            setProformaExposicao(result.data)
+            setErroImpacto(null)
+          } else {
+            setErroImpacto(result.message)
+          }
+        } catch {
+          if (simulacaoAtual.current !== requisicao) return
+          setErroImpacto('Nao foi possivel atualizar o impacto estimado da selecao.')
+        } finally {
+          if (simulacaoAtual.current === requisicao) setAtualizandoImpacto(false)
+        }
+      })()
+    }, 350)
+    return () => window.clearTimeout(timer)
+  }, [resultado.proformaExposicao, selecaoProforma])
   const toggle = (nf: NfCandidataOperacao) => {
     if (!nf.elegibilidade.elegivel) return
     setSelected((atual) => {
@@ -258,9 +305,26 @@ export default function NovaSolicitacaoClient({ resultado }: { resultado: Result
             </Card>
           )}
         </div>
-        <Card className="h-fit lg:sticky lg:top-6">
-          <CardHeader><CardTitle className="flex items-center gap-2"><Calculator size={18} />Resumo da operacao</CardTitle></CardHeader>
-          <CardContent className="space-y-3 text-sm">
+        <div className="h-fit space-y-4 lg:sticky lg:top-6">
+          {proformaExposicao && (
+            <div className="space-y-2">
+              <ExposicaoLogisticaCard visao={proformaExposicao} variante="proforma-solicitacao" />
+              {atualizandoImpacto && (
+                <p className="flex items-center gap-2 px-1 text-xs text-muted-foreground" aria-live="polite">
+                  <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
+                  Atualizando impacto...
+                </p>
+              )}
+              {erroImpacto && (
+                <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive" role="alert">
+                  {erroImpacto}
+                </p>
+              )}
+            </div>
+          )}
+          <Card>
+            <CardHeader><CardTitle className="flex items-center gap-2"><Calculator size={18} />Resumo da operacao</CardTitle></CardHeader>
+            <CardContent className="space-y-3 text-sm">
             <div className="flex justify-between"><span className="text-muted-foreground">NFs selecionadas</span><strong>{selected.size}</strong></div>
             <div className="flex justify-between"><span className="text-muted-foreground">Valor bruto</span><strong>{formatCurrency(valorBruto)}</strong></div>
             {erroCalculo ? (
@@ -284,8 +348,9 @@ export default function NovaSolicitacaoClient({ resultado }: { resultado: Result
               {submitting ? <Loader2 className="animate-spin" /> : <Send />}
               {submitting ? 'Solicitando...' : 'Solicitar antecipacao'}
             </Button>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   )

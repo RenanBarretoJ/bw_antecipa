@@ -18,6 +18,9 @@ import {
 } from './nova-solicitacao'
 import { obterDataCivilOperacional } from './data-operacional.server'
 import type { MetodoCalculoNovaPolitica } from './calculo'
+import { obterPoliticaAplicavelAoCedenteFundo } from './politica'
+import { simularExposicaoSelecaoCanonica } from '@/lib/financeiro/risco/proforma-selecao.server'
+import type { ProformaExposicaoSelecao } from '@/lib/financeiro/risco/visao-operacional'
 
 export type ParcelaCandidataOperacao = {
   id: string
@@ -49,6 +52,7 @@ export type ResultadoNovaSolicitacao = {
   filtros: FiltrosNovaSolicitacao
   dataBase: string
   metodoCalculo: MetodoCalculoNovaPolitica | null
+  proformaExposicao: ProformaExposicaoSelecao | null
 }
 
 type NfRow = {
@@ -62,42 +66,6 @@ type NfRow = {
   cnpj_destinatario: string
   razao_social_destinatario: string
   valor_bruto: number
-}
-
-async function resolverVersaoPolitica(
-  client: Awaited<ReturnType<typeof requireAuthenticated>>['supabase'],
-  cedenteFundoId: string,
-  fundoId: string,
-) {
-  const agora = new Date().toISOString()
-  const { data: atribuicao, error: atribuicaoError } = await client
-    .from('cedente_fundo_politicas')
-    .select('politica_operacional_id')
-    .eq('cedente_fundo_id', cedenteFundoId)
-    .eq('status', 'ativa')
-    .lte('vigente_desde', agora)
-    .or(`vigente_ate.is.null,vigente_ate.gt.${agora}`)
-    .order('vigente_desde', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-  if (atribuicaoError) throw new Error(`Nao foi possivel consultar a politica do vinculo: ${atribuicaoError.message}`)
-  if (!atribuicao) throw new Error('O vinculo com o fundo ainda nao possui politica operacional definida.')
-
-  const { data: versao, error: versaoError } = await client
-    .from('politica_operacional_versoes')
-    .select('id, metodo_calculo_financeiro')
-    .eq('politica_operacional_id', atribuicao.politica_operacional_id)
-    .eq('fundo_id', fundoId)
-    .eq('status', 'publicada')
-    .not('publicada_em', 'is', null)
-    .lte('vigente_desde', agora)
-    .or(`vigente_ate.is.null,vigente_ate.gt.${agora}`)
-    .order('versao', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-  if (versaoError) throw new Error(`Nao foi possivel consultar a politica publicada: ${versaoError.message}`)
-  if (!versao) throw new Error('A politica operacional do fundo ainda nao possui versao publicada vigente.')
-  return versao as { id: string; metodo_calculo_financeiro: MetodoCalculoNovaPolitica | null }
 }
 
 function mapNota(row: NfRow): NotaFiscalElegibilidadeComDados {
@@ -137,11 +105,11 @@ export async function carregarNovaSolicitacaoOperacao(
 
   const contexto = await resolverCedenteFundoAtivo(cedente.id, auth.supabase)
   if (!contexto.cedenteFundo || !contexto.fundo) throw new Error('O cedente nao possui fundo operacional ativo.')
-  const politicaVersao = await resolverVersaoPolitica(
-    auth.supabase,
-    contexto.cedenteFundo.id,
-    contexto.fundo.id,
-  )
+  const politica = await obterPoliticaAplicavelAoCedenteFundo({
+    cedenteId: cedente.id,
+    cedenteFundoId: contexto.cedenteFundo.id,
+    fundoId: contexto.fundo.id,
+  }, auth.supabase)
   const dataBase = obterDataCivilOperacional()
   const paginaSolicitada = filtros.page
   const limite = filtros.pageSize
@@ -191,7 +159,7 @@ export async function carregarNovaSolicitacaoOperacao(
   const elegibilidades = await carregarElegibilidadeDocumentalOperacaoEmLote({
     client: auth.supabase,
     notas,
-    politicaVersaoId: politicaVersao.id,
+    politicaVersaoId: politica.versao.id,
   })
 
   const idsPagina = rows.map((row) => row.id)
@@ -249,6 +217,17 @@ export async function carregarNovaSolicitacaoOperacao(
     .order('prazo_min', { ascending: true })
   if (taxasError) throw new Error(`Nao foi possivel carregar as taxas: ${taxasError.message}`)
 
+  const proformaExposicao = await simularExposicaoSelecaoCanonica({
+    client: auth.supabase,
+    cedenteId: cedente.id,
+    cedenteFundoId: contexto.cedenteFundo.id,
+    fundoId: contexto.fundo.id,
+    fundoNome: contexto.fundo.nome,
+    politica,
+    notaFiscalIds: [],
+    parcelaIds: [],
+  })
+
   return {
     candidatas: buildPaginatedResult(candidatas, {
       page: meta.page,
@@ -262,6 +241,7 @@ export async function carregarNovaSolicitacaoOperacao(
     })),
     filtros,
     dataBase,
-    metodoCalculo: politicaVersao.metodo_calculo_financeiro,
+    metodoCalculo: politica.versao.metodo_calculo_financeiro,
+    proformaExposicao,
   }
 }

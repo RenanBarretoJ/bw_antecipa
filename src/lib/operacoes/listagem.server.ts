@@ -3,7 +3,13 @@ import 'server-only'
 import { buildPaginatedResult, buildPaginationMeta } from '@/lib/pagination'
 import { assertRole, requireAuthenticated, type AppSupabaseClient } from '@/lib/auth/authorization'
 import { obterFundoAtivoAutorizado } from '@/lib/fundos/fundo-ativo.server'
-import { resolverCedenteFundoAtivo } from '@/lib/fundos/cedente-fundo'
+import { CedenteFundoError, resolverCedenteFundoAtivo } from '@/lib/fundos/cedente-fundo'
+import { obterPoliticaAplicavelAoCedenteFundo } from '@/lib/operacoes/politica'
+import {
+  carregarVisaoExposicaoFundoCanonica,
+  carregarVisaoExposicaoFundoPadraoCanonica,
+} from '@/lib/financeiro/risco/visao-operacional.server'
+import type { VisaoExposicaoOperacional } from '@/lib/financeiro/risco/visao-operacional'
 import {
   calcularMetricasPaginaOperacoes,
   intervaloOperacoes,
@@ -15,11 +21,16 @@ export type PerfilListagemOperacoes = 'gestor' | 'cedente' | 'consultor'
 
 export type ResultadoListagemOperacoes = ReturnType<typeof buildPaginatedResult<OperacaoListagemItem>> & {
   metricasPagina: ReturnType<typeof calcularMetricasPaginaOperacoes>
+  exposicaoLogistica: VisaoExposicaoOperacional | null
 }
 
 type Escopo = {
   cedenteIds?: string[]
   cedenteFundoIds?: string[]
+  cedenteId?: string
+  cedenteFundoId?: string
+  fundoId?: string
+  fundoNome?: string
 }
 
 type OperacaoRow = {
@@ -62,18 +73,23 @@ function buscaPostgrestSegura(value: string) {
 
 async function resolverEscopo(
   perfil: PerfilListagemOperacoes,
-  client: AppSupabaseClient,
-  userId: string,
+  auth: Awaited<ReturnType<typeof requireAuthenticated>>,
 ): Promise<Escopo> {
+  const client = auth.supabase
   if (perfil === 'gestor') {
     const fundo = await obterFundoAtivoAutorizado()
     if (!fundo.fundoId) return { cedenteFundoIds: [] }
-    const { data, error } = await client
-      .from('cedente_fundos')
-      .select('id')
-      .eq('fundo_id', fundo.fundoId)
-    if (error) throw new Error(`Nao foi possivel resolver os vinculos do fundo ativo: ${error.message}`)
-    return { cedenteFundoIds: (data || []).map((item) => item.id) }
+    const [vinculosResult, fundoResult] = await Promise.all([
+      client.from('cedente_fundos').select('id').eq('fundo_id', fundo.fundoId),
+      client.from('fundos').select('id,nome').eq('id', fundo.fundoId).maybeSingle(),
+    ])
+    if (vinculosResult.error) throw new Error(`Nao foi possivel resolver os vinculos do fundo ativo: ${vinculosResult.error.message}`)
+    if (fundoResult.error || !fundoResult.data) throw new Error('Nao foi possivel resolver os dados do fundo ativo.')
+    return {
+      cedenteFundoIds: (vinculosResult.data || []).map((item) => item.id),
+      fundoId: fundo.fundoId,
+      fundoNome: fundoResult.data.nome,
+    }
   }
 
   if (perfil === 'cedente') {
@@ -91,15 +107,50 @@ async function resolverEscopo(
     return {
       cedenteIds: [data.id],
       cedenteFundoIds: [contexto.cedenteFundo.id],
+      cedenteId: data.id,
+      cedenteFundoId: contexto.cedenteFundo.id,
+      fundoId: contexto.fundo.id,
+      fundoNome: contexto.fundo.nome,
     }
   }
 
   const { data, error } = await client
     .from('consultor_cedente')
     .select('cedente_id')
-    .eq('consultor_id', userId)
+    .eq('consultor_id', auth.user.id)
   if (error) throw new Error(`Nao foi possivel resolver a carteira do consultor: ${error.message}`)
   return { cedenteIds: (data || []).map((item) => item.cedente_id) }
+}
+
+async function carregarExposicaoListagem(
+  perfil: PerfilListagemOperacoes,
+  escopo: Escopo,
+  client: AppSupabaseClient,
+): Promise<VisaoExposicaoOperacional | null> {
+  if (!escopo.fundoId || !escopo.fundoNome) return null
+  if (perfil === 'gestor') {
+    return carregarVisaoExposicaoFundoPadraoCanonica({
+      fundoId: escopo.fundoId,
+      fundoNome: escopo.fundoNome,
+    })
+  }
+  if (perfil !== 'cedente' || !escopo.cedenteId || !escopo.cedenteFundoId) return null
+
+  try {
+    const politica = await obterPoliticaAplicavelAoCedenteFundo({
+      cedenteId: escopo.cedenteId,
+      cedenteFundoId: escopo.cedenteFundoId,
+      fundoId: escopo.fundoId,
+    }, client)
+    return carregarVisaoExposicaoFundoCanonica({
+      fundoId: escopo.fundoId,
+      fundoNome: escopo.fundoNome,
+      politicaVersao: politica.versao,
+    })
+  } catch (error) {
+    if (error instanceof CedenteFundoError && error.code === 'POLITICA_CONTEXT_NOT_CONFIGURED') return null
+    throw error
+  }
 }
 
 async function resolverCedentesDaBusca(
@@ -181,17 +232,18 @@ export async function carregarOperacoesPaginadas(
 ): Promise<ResultadoListagemOperacoes> {
   const auth = await requireAuthenticated()
   assertRole(auth.profile.role, [perfil])
-  const escopo = await resolverEscopo(perfil, auth.supabase, auth.user.id)
+  const escopo = await resolverEscopo(perfil, auth)
+  const exposicaoLogistica = await carregarExposicaoListagem(perfil, escopo, auth.supabase)
   if (escopo.cedenteFundoIds?.length === 0 || escopo.cedenteIds?.length === 0) {
     const vazio = buildPaginatedResult([], { page: filtros.pagina, pageSize: filtros.limite, total: 0 })
-    return { ...vazio, metricasPagina: calcularMetricasPaginaOperacoes([]) }
+    return { ...vazio, metricasPagina: calcularMetricasPaginaOperacoes([]), exposicaoLogistica }
   }
 
   const cedentesBusca = await resolverCedentesDaBusca(auth.supabase, filtros.busca, escopo)
   let query = aplicarFiltros(auth.supabase, filtros, escopo, cedentesBusca)
   if (!query) {
     const vazio = buildPaginatedResult([], { page: filtros.pagina, pageSize: filtros.limite, total: 0 })
-    return { ...vazio, metricasPagina: calcularMetricasPaginaOperacoes([]) }
+    return { ...vazio, metricasPagina: calcularMetricasPaginaOperacoes([]), exposicaoLogistica }
   }
 
   let range = intervaloOperacoes(filtros)
@@ -230,5 +282,6 @@ export async function carregarOperacoesPaginadas(
   return {
     ...paginado,
     metricasPagina: calcularMetricasPaginaOperacoes(itens),
+    exposicaoLogistica,
   }
 }

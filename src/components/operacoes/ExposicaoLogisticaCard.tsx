@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   classificacaoExposicaoLabel,
   statusExposicaoDashboardLabel,
+  type ProformaExposicaoSelecao,
   type VisaoExposicaoOperacional,
 } from '@/lib/financeiro/risco/visao-operacional'
 import { cn, formatCurrency, formatDate } from '@/lib/utils'
@@ -37,13 +38,29 @@ export function ExposicaoLogisticaCard({
   variante,
 }: {
   visao: VisaoExposicaoOperacional
-  variante: 'gestor-operacao' | 'cedente-operacao' | 'cedente-dashboard'
+  variante:
+    | 'gestor-operacao'
+    | 'cedente-operacao'
+    | 'cedente-dashboard'
+    | 'gestor-listagem'
+    | 'cedente-listagem'
+    | 'proforma-solicitacao'
 }) {
-  const dashboard = variante === 'cedente-dashboard'
-  const title = dashboard ? 'Exposição logística do fundo' : 'Impacto na exposição logística'
-  const status = dashboard
+  const resumoFundo = ['cedente-dashboard', 'gestor-listagem', 'cedente-listagem'].includes(variante)
+  const proforma = variante === 'proforma-solicitacao'
+    ? visao as ProformaExposicaoSelecao
+    : null
+  const title = resumoFundo
+    ? 'Exposição logística do fundo'
+    : proforma
+      ? 'Impacto estimado na exposição'
+      : 'Impacto na exposição logística'
+  const status = resumoFundo
     ? statusExposicaoDashboardLabel[visao.statusDashboard]
     : classificacaoExposicaoLabel[visao.classificacao]
+  const alerta = visao.classificacao === 'ACIMA_LIMITE' && proforma
+    ? 'A exposição projetada ultrapassa o limite da política. Esta solicitação poderá ser bloqueada na análise.'
+    : visao.motivo
 
   return (
     <Card data-testid={`exposicao-logistica-${variante}`}>
@@ -57,24 +74,26 @@ export function ExposicaoLogisticaCard({
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className={cn('grid gap-2 sm:grid-cols-2', dashboard ? 'lg:grid-cols-4' : 'xl:grid-cols-4')}>
+        <div className={cn('grid gap-2 sm:grid-cols-2', resumoFundo ? 'lg:grid-cols-4' : 'xl:grid-cols-4')}>
           <Item label="PL de referência" value={money(visao.patrimonioLiquido)} />
           <Item label="Data-base" value={visao.dataBasePl ? formatDate(visao.dataBasePl) : 'Indisponível'} />
           <Item label="Defasagem" value={visao.defasagemPl || 'Indisponível'} />
           <Item label="Origem" value={visao.origemPl || 'Indisponível'} />
           <Item label="Exposição atual" value={`${money(visao.exposicaoAtualValor)} · ${percent(visao.exposicaoAtualPct)}`} />
-          {!dashboard && <Item label="Operação candidata" value={`${money(visao.candidatoValor)} · ${percent(visao.candidatoPct)}`} emphasize />}
-          {!dashboard && <Item label="Exposição projetada" value={visao.exposicaoProjetadaValor === null || visao.exposicaoProjetadaPct === null ? 'Indeterminada' : `${money(visao.exposicaoProjetadaValor)} · ${percent(visao.exposicaoProjetadaPct)}`} emphasize />}
+          {proforma && <Item label="NFs selecionadas" value={String(proforma.quantidadeNfs)} />}
+          {proforma && <Item label="Parcelas selecionadas" value={String(proforma.quantidadeParcelas)} />}
+          {!resumoFundo && <Item label={proforma ? 'Valor candidato' : 'Operação candidata'} value={`${money(visao.candidatoValor)} · ${percent(visao.candidatoPct)}`} emphasize />}
+          {!resumoFundo && <Item label="Exposição projetada" value={visao.exposicaoProjetadaValor === null || visao.exposicaoProjetadaPct === null ? 'Indeterminada' : `${money(visao.exposicaoProjetadaValor)} · ${percent(visao.exposicaoProjetadaPct)}`} emphasize />}
           <Item label="Limite da política" value={percent(visao.limitePct)} />
           <Item label="Margem disponível" value={visao.margemValor === null || visao.margemPct === null ? 'Indisponível' : `${money(visao.margemValor)} · ${visao.margemPct.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })} p.p.`} />
         </div>
-        {visao.motivo && (
+        {alerta && (
           <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2.5 text-sm text-warning-foreground">
             <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-            <p>{visao.motivo}</p>
+            <p>{alerta}</p>
           </div>
         )}
-        {!dashboard && visao.exposicaoAtualPct !== null && visao.exposicaoProjetadaPct !== null && (
+        {!resumoFundo && visao.exposicaoAtualPct !== null && visao.exposicaoProjetadaPct !== null && (
           <p className="flex items-center gap-2 text-xs text-muted-foreground">
             <TrendingUp size={14} aria-hidden="true" />
             Com a aprovação, a exposição passa de {percent(visao.exposicaoAtualPct)} para {percent(visao.exposicaoProjetadaPct)}.

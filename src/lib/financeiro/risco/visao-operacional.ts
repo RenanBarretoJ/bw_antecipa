@@ -42,6 +42,11 @@ export type VisaoExposicaoOperacional = {
   avaliadaEm: string | null
 }
 
+export type ProformaExposicaoSelecao = VisaoExposicaoOperacional & {
+  quantidadeNfs: number
+  quantidadeParcelas: number
+}
+
 export type RiskExecutionLike = {
   status_tecnico?: unknown
   decisao?: unknown
@@ -68,6 +73,12 @@ export type ExposureExecutionLike = {
   data_operacional?: unknown
   finalizado_em?: unknown
   created_at?: unknown
+}
+
+export type PlReferenciaExposicaoAtual = {
+  patrimonioLiquido: string | number
+  dataBase: string
+  dataOperacional: string
 }
 
 const MOTIVOS_OPERACIONAIS: Record<string, string> = {
@@ -137,6 +148,61 @@ function calcularMargens(pl: number | null, exposicao: number | null, percentual
   }
 }
 
+export function montarProformaExposicaoSelecao(input: {
+  atual: VisaoExposicaoOperacional
+  candidatoValor: number | null
+  quantidadeNfs: number
+  quantidadeParcelas: number
+  motivoCandidato?: string | null
+}): ProformaExposicaoSelecao {
+  const { atual } = input
+  const candidato = decimal(input.candidatoValor)
+  const exposicaoAtual = decimal(atual.exposicaoAtualValor)
+  const pl = decimal(atual.patrimonioLiquido)
+  const baseDeterminada = atual.classificacao !== 'INDETERMINADA'
+    && exposicaoAtual !== null
+    && atual.exposicaoAtualPct !== null
+    && pl !== null
+    && pl.gt(0)
+  const projetada = baseDeterminada && candidato !== null
+    ? exposicaoAtual.plus(candidato)
+    : null
+  const projetadaPct = projetada !== null && pl !== null
+    ? projetada.dividedBy(pl).times(100).toNumber()
+    : null
+  const classificacao = resolverClassificacao({
+    concluida: projetadaPct !== null,
+    percentual: projetadaPct,
+    limite: atual.limitePct,
+    motivos: [],
+  })
+  const margem = calcularMargens(
+    atual.patrimonioLiquido,
+    projetada?.toNumber() ?? null,
+    projetadaPct,
+    atual.limitePct,
+  )
+  const candidatoPct = candidato !== null && pl !== null && pl.gt(0)
+    ? candidato.dividedBy(pl).times(100).toNumber()
+    : null
+
+  return {
+    ...atual,
+    candidatoValor: candidato?.toNumber() ?? null,
+    candidatoPct,
+    candidatoEmTransitoValor: candidato?.toNumber() ?? null,
+    exposicaoProjetadaValor: projetada?.toNumber() ?? null,
+    exposicaoProjetadaPct: projetadaPct,
+    margemValor: margem.margemValor,
+    margemPct: margem.margemPct,
+    classificacao,
+    statusDashboard: resolverStatusDashboard(classificacao, projetadaPct, atual.limitePct),
+    motivo: input.motivoCandidato || (baseDeterminada ? null : atual.motivo),
+    quantidadeNfs: input.quantidadeNfs,
+    quantidadeParcelas: input.quantidadeParcelas,
+  }
+}
+
 function motivoOperacional(codigos: string[], fallback: string | null = null) {
   const codigo = codigos.find((item) => MOTIVOS_OPERACIONAIS[item])
   return codigo ? MOTIVOS_OPERACIONAIS[codigo] : fallback
@@ -203,16 +269,19 @@ export function montarVisaoExposicaoFundo(input: {
   controle: ControleExposicaoSnapshot
   execucao: ExposureExecutionLike | null
   fundoNome: string
+  plReferencia: PlReferenciaExposicaoAtual | null
   origemPl?: string | null
 }): VisaoExposicaoOperacional | null {
   if (!input.controle.ativo || input.controle.limitePct === null) return null
 
   const execucao = input.execucao
   const limite = input.controle.limitePct
-  const pl = numeric(execucao?.patrimonio_liquido_d2)
+  const pl = numeric(input.plReferencia?.patrimonioLiquido)
   const atualValor = numeric(execucao?.exposicao_em_transito_total)
-  const atualPct = numeric(execucao?.percentual_exposicao)
   const concluida = execucao?.status === 'CALCULADA'
+  const atualPct = concluida && pl !== null && pl > 0 && atualValor !== null
+    ? new Decimal(atualValor).dividedBy(pl).times(100).toNumber()
+    : null
   const classificacao = resolverClassificacao({ concluida, percentual: atualPct, limite, motivos: [] })
   const margem = calcularMargens(pl, atualValor, atualPct, limite)
 
@@ -220,9 +289,9 @@ export function montarVisaoExposicaoFundo(input: {
     aplicavel: true,
     fundoNome: input.fundoNome,
     patrimonioLiquido: pl,
-    dataBasePl: String(execucao?.data_referencia_pl || '') || null,
-    defasagemPl: execucao?.data_operacional && execucao?.data_referencia_pl
-      ? calcularDefasagemPl(String(execucao.data_operacional), String(execucao.data_referencia_pl))
+    dataBasePl: input.plReferencia?.dataBase || null,
+    defasagemPl: input.plReferencia
+      ? calcularDefasagemPl(input.plReferencia.dataOperacional, input.plReferencia.dataBase)
       : null,
     origemPl: input.origemPl || null,
     exposicaoAtualValor: atualValor,

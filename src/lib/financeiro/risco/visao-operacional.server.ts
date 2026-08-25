@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/server'
 import { resolverDataCivilOperacional } from '@/lib/operacoes/data-operacional.server'
 import { resolverPlReferencia } from '@/lib/financeiro/pl-referencia.server'
 import { rotuloOrigemPl as formatarOrigemPl } from '@/lib/financeiro/pl-referencia'
+import { resolverPoliticaExposicaoFundoCanonica } from '@/lib/financeiro/exposicao/processor.server'
 import type { PoliticaOperacionalVersao } from '@/types/database'
 import { classificarGateRisco } from './classificador'
 import { candidateProjection as projetarCandidatoOperacaoCanonica } from './processor.server'
@@ -229,18 +230,49 @@ export async function carregarVisaoExposicaoFundoCanonica(input: {
   if (!controle.ativo) return null
 
   const admin = createAdminClient()
-  const { data, error } = await admin.from('exposicao_execucoes').select('*')
-    .eq('fundo_id', input.fundoId)
-    .eq('politica_operacional_versao_id', input.politicaVersao.id)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
+  const dataOperacional = resolverDataCivilOperacional(null)
+  const plReferencia = await resolverPlReferencia(admin, { fundoId: input.fundoId, dataOperacional })
+  const { data, error } = plReferencia
+    ? await admin.from('exposicao_execucoes').select('*')
+        .eq('fundo_id', input.fundoId)
+        .eq('politica_operacional_versao_id', input.politicaVersao.id)
+        .eq('data_operacional', dataOperacional)
+        .eq('carteira_snapshot_id', plReferencia.snapshotId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+    : { data: null, error: null }
   if (error) throw new Error(`Não foi possível carregar a exposição canônica do fundo: ${error.message}`)
 
   return montarVisaoExposicaoFundo({
     controle,
     execucao: data as unknown as ExposureExecutionLike | null,
     fundoNome: input.fundoNome,
-    origemPl: await carregarOrigemPl(admin, (data as unknown as Row | null)?.carteira_importacao_id),
+    plReferencia: plReferencia ? {
+      patrimonioLiquido: plReferencia.patrimonioLiquido,
+      dataBase: plReferencia.dataBase,
+      dataOperacional,
+    } : null,
+    origemPl: plReferencia?.origem || null,
+  })
+}
+
+export async function carregarVisaoExposicaoFundoPadraoCanonica(input: {
+  fundoId: string
+  fundoNome: string
+}): Promise<VisaoExposicaoOperacional | null> {
+  const admin = createAdminClient()
+  const dataOperacional = resolverDataCivilOperacional(null)
+  const politicaVersao = await resolverPoliticaExposicaoFundoCanonica(
+    admin,
+    input.fundoId,
+    dataOperacional,
+  )
+  if (!politicaVersao) return null
+
+  return carregarVisaoExposicaoFundoCanonica({
+    fundoId: input.fundoId,
+    fundoNome: input.fundoNome,
+    politicaVersao: politicaVersao as unknown as PoliticaOperacionalVersao,
   })
 }
