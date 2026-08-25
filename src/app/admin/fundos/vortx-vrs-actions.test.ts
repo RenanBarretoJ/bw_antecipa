@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { rpc, requireSuperAdmin, autorizarEConsumirAcaoSensivel, criptografarPortalFidcValor, resolverConfiguracaoVortxVrs, autenticarVortxVrs, registrarEventoSeguranca } = vi.hoisted(() => ({
+const { rpc, requireSuperAdmin, autorizarEConsumirAcaoSensivel, criptografarPortalFidcValor, resolverConfiguracaoVortxVrs, autenticarVortxVrs, registrarEventoSeguranca, validarParMtls } = vi.hoisted(() => ({
   rpc: vi.fn(),
   requireSuperAdmin: vi.fn(async () => ({
     supabase: { rpc },
@@ -12,6 +12,7 @@ const { rpc, requireSuperAdmin, autorizarEConsumirAcaoSensivel, criptografarPort
   resolverConfiguracaoVortxVrs: vi.fn(),
   autenticarVortxVrs: vi.fn(),
   registrarEventoSeguranca: vi.fn(),
+  validarParMtls: vi.fn(),
 }))
 
 vi.mock('server-only', () => ({}))
@@ -21,7 +22,12 @@ vi.mock('@/lib/auth/mfa', () => ({ registrarEventoSeguranca }))
 vi.mock('@/lib/portal-fidc/credenciais', () => ({ criptografarPortalFidcValor }))
 vi.mock('@/lib/integracoes/vortx/credenciais.server', () => ({ resolverConfiguracaoVortxVrs }))
 vi.mock('@/lib/integracoes/vortx/vortx-vrs-client.server', () => ({ autenticarVortxVrs }))
+vi.mock('@/lib/integracoes/vortx/mtls-credencial-validacao', async () => {
+  const actual = await vi.importActual('@/lib/integracoes/vortx/mtls-credencial-validacao')
+  return { ...actual, validarParMtls }
+})
 
+import { VortxCredencialValidacaoError } from '@/lib/integracoes/vortx/mtls-credencial-validacao'
 import { configurarCredencialVortxVrsAdmin, testarConexaoVortxVrsAdmin } from './vortx-vrs-actions'
 
 const fundoId = 'e84fdd30-39ed-de86-292e-0d8d9d92d759'
@@ -42,6 +48,7 @@ const credencialInput = {
 describe('configurarCredencialVortxVrsAdmin', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    validarParMtls.mockReturnValue(undefined)
     criptografarPortalFidcValor.mockImplementation((value: string) => ({ ciphertext: `v1:enc:${value}`, chaveVersao: 'v1' }))
     rpc.mockResolvedValue({ data: { id: 'cred-1', fundo_id: fundoId, ambiente: 'homologacao' }, error: null })
   })
@@ -87,6 +94,56 @@ describe('configurarCredencialVortxVrsAdmin', () => {
     rpc.mockResolvedValue({ data: null, error: { code: '42501', message: 'Acesso administrativo negado' } })
     const result = await configurarCredencialVortxVrsAdmin(credencialInput)
     expect(result).toMatchObject({ success: false, message: 'Acesso restrito ao Super Admin.' })
+  })
+
+  it('valida o par certificado/chave privada ANTES de exigir Super Admin, criptografar ou chamar a RPC', async () => {
+    validarParMtls.mockImplementation(() => {
+      throw new VortxCredencialValidacaoError('O certificado mTLS e a chave privada nao correspondem.', 'VORTX_CREDENTIAL_CERT_KEY_MISMATCH')
+    })
+
+    const result = await configurarCredencialVortxVrsAdmin(credencialInput)
+
+    expect(result).toMatchObject({ success: false, message: 'O certificado mTLS e a chave privada nao correspondem.' })
+    expect(validarParMtls).toHaveBeenCalledWith(CERT, KEY_PEM)
+    expect(requireSuperAdmin).not.toHaveBeenCalled()
+    expect(criptografarPortalFidcValor).not.toHaveBeenCalled()
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('reporta VORTX_CREDENTIAL_INVALID_PEM com mensagem sanitizada quando o certificado nao e um X.509 valido', async () => {
+    validarParMtls.mockImplementation(() => {
+      throw new VortxCredencialValidacaoError('O certificado mTLS informado nao e um PEM X.509 valido.', 'VORTX_CREDENTIAL_INVALID_PEM')
+    })
+    const result = await configurarCredencialVortxVrsAdmin(credencialInput)
+    expect(result).toMatchObject({ success: false, message: 'O certificado mTLS informado nao e um PEM X.509 valido.' })
+  })
+
+  it('traduz falha inesperada na criptografia (VORTX_CREDENTIAL_ENCRYPTION_ERROR) sem vazar detalhe interno', async () => {
+    criptografarPortalFidcValor.mockImplementation(() => { throw new Error('Chave de criptografia Portal FIDC nao configurada para a versao k1.') })
+
+    const result = await configurarCredencialVortxVrsAdmin(credencialInput)
+
+    expect(result).toMatchObject({ success: false, message: 'Nao foi possivel proteger a credencial Vortx VRS para salvamento. Tente novamente.' })
+    expect(result.message).not.toContain('Chave de criptografia')
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('traduz falha inesperada (nao-AuthorizationError) na confirmacao TOTP como VORTX_CREDENTIAL_TOTP_ERROR', async () => {
+    autorizarEConsumirAcaoSensivel.mockRejectedValueOnce(new Error('erro de rede inesperado no desafio TOTP'))
+
+    const result = await configurarCredencialVortxVrsAdmin(credencialInput)
+
+    expect(result).toMatchObject({ success: false, message: 'Nao foi possivel confirmar a autorizacao TOTP para esta acao.' })
+    expect(criptografarPortalFidcValor).not.toHaveBeenCalled()
+  })
+
+  it('nunca inclui Key/Secret/PEM/chave privada na mensagem retornada, mesmo em erro inesperado da RPC', async () => {
+    rpc.mockResolvedValue({ data: null, error: { code: 'XX000', message: 'erro interno do banco' } })
+    const result = await configurarCredencialVortxVrsAdmin(credencialInput)
+    const serialized = JSON.stringify(result)
+    expect(serialized).not.toContain(credencialInput.key)
+    expect(serialized).not.toContain(credencialInput.secret)
+    expect(serialized).not.toContain('fake')
   })
 })
 

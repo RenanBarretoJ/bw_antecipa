@@ -7,6 +7,7 @@ import { registrarEventoSeguranca } from '@/lib/auth/mfa'
 import { autorizarEConsumirAcaoSensivel } from '@/lib/auth/sensitive-action'
 import { vortxCredencialSchema, vortxTesteConexaoSchema, type VortxActionResult, type VortxConfiguracaoStatus } from '@/lib/admin/vortx-vrs'
 import { resolverConfiguracaoVortxVrs } from '@/lib/integracoes/vortx/credenciais.server'
+import { validarParMtls, VortxCredencialValidacaoError } from '@/lib/integracoes/vortx/mtls-credencial-validacao'
 import { autenticarVortxVrs } from '@/lib/integracoes/vortx/vortx-vrs-client.server'
 import { criptografarPortalFidcValor } from '@/lib/portal-fidc/credenciais'
 
@@ -17,7 +18,40 @@ function respostaErro(message: string): VortxActionResult {
   return { success: false, message }
 }
 
+/**
+ * Etapas nomeadas do salvamento da credencial Vortx VRS -- cada uma vira um
+ * codigo tecnico logado server-side (nunca exposto ao browser) quando algo
+ * inesperado ocorre nela, para nunca mais depender so do toast generico
+ * para diagnosticar (P0_Claude_Corrigir_Salvamento_Credencial_Vortx_VRS2).
+ */
+type EtapaSalvamento = 'totp' | 'encriptacao'
+
+class EtapaSalvamentoError extends Error {
+  readonly etapa: EtapaSalvamento
+  readonly codigo: string
+
+  constructor(etapa: EtapaSalvamento, codigo: string, message: string) {
+    super(message)
+    this.name = 'EtapaSalvamentoError'
+    this.etapa = etapa
+    this.codigo = codigo
+  }
+}
+
 function mapearErro(error: unknown, correlationId: string): VortxActionResult {
+  if (error instanceof VortxCredencialValidacaoError) {
+    console.error('[admin/vortx-vrs][credencial]', { correlationId, codigo: error.codigo })
+    return respostaErro(error.message)
+  }
+  if (error instanceof EtapaSalvamentoError) {
+    console.error('[admin/vortx-vrs][credencial]', { correlationId, etapa: error.etapa, codigo: error.codigo })
+    if (error.codigo === 'VORTX_CREDENTIAL_ENCRYPTION_ERROR') {
+      return respostaErro('Nao foi possivel proteger a credencial Vortx VRS para salvamento. Tente novamente.')
+    }
+    if (error.codigo === 'VORTX_CREDENTIAL_TOTP_ERROR') {
+      return respostaErro('Nao foi possivel confirmar a autorizacao TOTP para esta acao.')
+    }
+  }
   if (error instanceof AuthorizationError) return respostaErro(error.message)
   const value = error as RpcError & CategorizedError
   if (value?.code === '42501') return respostaErro('Acesso restrito ao Super Admin.')
@@ -29,7 +63,7 @@ function mapearErro(error: unknown, correlationId: string): VortxActionResult {
   if (value?.categoria === 'resposta_inesperada' || value?.categoria === 'resposta_invalida') {
     return respostaErro('A Vortx VRS retornou uma resposta inesperada.')
   }
-  console.error('[admin/vortx-vrs]', { correlationId, code: value?.code, categoria: value?.categoria })
+  console.error('[admin/vortx-vrs]', { correlationId, code: value?.code, categoria: value?.categoria, codigo: 'VORTX_CREDENTIAL_UNEXPECTED_ERROR' })
   return respostaErro('Nao foi possivel concluir a operacao com a Vortx VRS.')
 }
 
@@ -38,19 +72,43 @@ export async function configurarCredencialVortxVrsAdmin(input: unknown): Promise
   try {
     const parsed = vortxCredencialSchema.safeParse(input)
     if (!parsed.success) return respostaErro('Revise os dados da credencial Vortx VRS.')
-    const context = await requireSuperAdmin()
-    await autorizarEConsumirAcaoSensivel(context, 'configurar_credencial_vortx_vrs', parsed.data.mfaCode)
 
-    const key = criptografarPortalFidcValor(parsed.data.key)
-    const secret = criptografarPortalFidcValor(parsed.data.secret)
-    const certificado = criptografarPortalFidcValor(parsed.data.certificadoPem)
-    const chavePrivada = criptografarPortalFidcValor(parsed.data.chavePrivadaPem)
-    if (
-      key.chaveVersao !== secret.chaveVersao
-      || key.chaveVersao !== certificado.chaveVersao
-      || key.chaveVersao !== chavePrivada.chaveVersao
-    ) {
-      throw new Error('Versao criptografica inconsistente.')
+    // Valida o par certificado/chave privada ANTES de qualquer criptografia
+    // ou chamada de rede -- usa APIs criptograficas do Node (X509Certificate/
+    // createPrivateKey/checkPrivateKey), nunca comparacao textual.
+    validarParMtls(parsed.data.certificadoPem, parsed.data.chavePrivadaPem)
+
+    const context = await requireSuperAdmin()
+
+    try {
+      await autorizarEConsumirAcaoSensivel(context, 'configurar_credencial_vortx_vrs', parsed.data.mfaCode)
+    } catch (error) {
+      if (error instanceof AuthorizationError) throw error
+      throw new EtapaSalvamentoError('totp', 'VORTX_CREDENTIAL_TOTP_ERROR', 'Falha inesperada na confirmacao TOTP.')
+    }
+
+    let key: ReturnType<typeof criptografarPortalFidcValor>
+    let secret: ReturnType<typeof criptografarPortalFidcValor>
+    let certificado: ReturnType<typeof criptografarPortalFidcValor>
+    let chavePrivada: ReturnType<typeof criptografarPortalFidcValor>
+    try {
+      key = criptografarPortalFidcValor(parsed.data.key)
+      secret = criptografarPortalFidcValor(parsed.data.secret)
+      certificado = criptografarPortalFidcValor(parsed.data.certificadoPem)
+      chavePrivada = criptografarPortalFidcValor(parsed.data.chavePrivadaPem)
+      if (
+        key.chaveVersao !== secret.chaveVersao
+        || key.chaveVersao !== certificado.chaveVersao
+        || key.chaveVersao !== chavePrivada.chaveVersao
+      ) {
+        throw new Error('Versao criptografica inconsistente entre os segredos.')
+      }
+    } catch (error) {
+      throw new EtapaSalvamentoError(
+        'encriptacao',
+        'VORTX_CREDENTIAL_ENCRYPTION_ERROR',
+        error instanceof Error ? error.message : 'Falha inesperada ao criptografar a credencial.',
+      )
     }
 
     const { data, error } = await context.supabase.rpc('admin_configurar_credencial_vortx_vrs', {
@@ -64,7 +122,10 @@ export async function configurarCredencialVortxVrsAdmin(input: unknown): Promise
       p_chave_versao: key.chaveVersao,
       p_correlation_id: correlationId,
     })
-    if (error) return mapearErro(error, correlationId)
+    if (error) {
+      console.error('[admin/vortx-vrs][credencial]', { correlationId, etapa: 'rpc', codigo: 'VORTX_CREDENTIAL_RPC_ERROR', pgCode: error.code })
+      return mapearErro(error, correlationId)
+    }
     const resultId = (data as { id?: string } | null)?.id
     return { success: true, message: 'Credencial Vortx VRS configurada.', data: { id: resultId, ambiente: parsed.data.ambiente } }
   } catch (error) {
