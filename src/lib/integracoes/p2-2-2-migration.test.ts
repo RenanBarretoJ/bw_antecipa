@@ -34,6 +34,13 @@ describe('P2.2.2 - Sinqia financeiro e Envios Operacionais', () => {
   it('nao seleciona capacidades automaticamente e bloqueia Carteira para Sinqia', () => {
     expect(integrationEditor).toContain('setCapabilities((current) => current.filter')
     expect(integrationEditor).not.toMatch(/setCapabilities\(\s*SINQIA_PORTAL_FIDC_CAPABILITIES/)
-    expect(integrationEditor).toContain("adapterKey === 'sinqia_portal_fidc'")
+    // P0_Claude_Vortx_VRS2_Adapter_Orientado_Tab_Integracoes: a restricao de
+    // capabilities por adapter deixou de ser um `if adapterKey === 'sinqia_portal_fidc'`
+    // hardcoded e passou a ser generica via o catalogo central de adapters
+    // (capabilitiesDisponiveisParaAdapter), que evita `if (provider === X)`
+    // espalhado e ja e coberto por adapter-catalog.test.ts (Sinqia nunca
+    // libera CARTEIRA).
+    expect(integrationEditor).toContain('capabilitiesDisponiveisParaAdapter(adapterKey)')
+    expect(integrationEditor).not.toMatch(/adapterKey === 'sinqia_portal_fidc'/)
   })
 })

@@ -24,7 +24,8 @@ vi.mock('@/lib/portal-fidc/credenciais', () => ({
   descriptografarPortalFidcValor: vi.fn(),
 }))
 
-import { salvarIntegracaoRascunhoAdmin } from './configuracoes-tecnicas-actions'
+import { integrationProviderRegistry } from '@/lib/integracoes/registry.server'
+import { publicarIntegracaoAdmin, salvarIntegracaoRascunhoAdmin } from './configuracoes-tecnicas-actions'
 
 // UUID real aceito pelo PostgreSQL, mas sem nibble RFC de versao/variante.
 const fundoId = 'e84fdd30-39ed-de86-292e-0d8d9d92d759'
@@ -155,5 +156,71 @@ describe('salvar rascunho de integracao tecnica', () => {
     expect(result).toMatchObject({ success: false, message: 'A integracao selecionada e invalida.' })
     expect(requireSuperAdmin).not.toHaveBeenCalled()
     expect(rpc).not.toHaveBeenCalled()
+  })
+})
+
+describe('publicar integracao Vortx VRS 2.0', () => {
+  const vortxAdapter = {
+    label: 'Vórtx — VRS 2.0',
+    supports: ['CESSAO_ENVIO', 'ESTOQUE', 'AQUISICOES', 'LIQUIDACOES'],
+    requiresCredential: false,
+    requiresEndpoint: false,
+    validatePublication: () => null,
+  }
+
+  const vortxVersao = {
+    id: versionId,
+    status: 'rascunho',
+    adapter_key: 'vortx_vrs',
+    ambiente: 'homologacao',
+    capabilities: ['CESSAO_ENVIO'],
+    identificador_cliente: '',
+    codigo_originador: null,
+    endpoint_base: '',
+    configuracao_nao_sensivel: {},
+    credencial_integracao_id: null,
+  }
+
+  const estadoComVersaoVortx = {
+    integracoes: [{ id: integrationId, versoes: [vortxVersao] }],
+    credenciais: [],
+  }
+
+  function configurarRpc(vortxConfig: Array<{ ambiente: string; status: string }>, publicarError: unknown = null) {
+    rpc.mockImplementation((nome: string) => {
+      if (nome === 'admin_obter_configuracoes_tecnicas_fundo') return Promise.resolve({ data: estadoComVersaoVortx, error: null })
+      if (nome === 'admin_obter_configuracao_vortx_vrs') return Promise.resolve({ data: vortxConfig, error: null })
+      if (nome === 'admin_publicar_integracao_versao') return Promise.resolve({ data: null, error: publicarError })
+      throw new Error(`RPC inesperada em teste: ${nome}`)
+    })
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(integrationProviderRegistry.get).mockReturnValue(vortxAdapter as never)
+  })
+
+  it('bloqueia publicacao quando nao ha credencial Vortx ativa para o ambiente da versao', async () => {
+    configurarRpc([])
+    const result = await publicarIntegracaoAdmin({ fundoId, id: versionId, mfaCode: '123456' })
+
+    expect(result).toMatchObject({ success: false, message: 'Configure e valide a credencial Vortx VRS deste ambiente antes de publicar.' })
+    expect(rpc).not.toHaveBeenCalledWith('admin_publicar_integracao_versao', expect.anything())
+  })
+
+  it('bloqueia publicacao quando a credencial ativa e de outro ambiente', async () => {
+    configurarRpc([{ ambiente: 'producao', status: 'ativa' }])
+    const result = await publicarIntegracaoAdmin({ fundoId, id: versionId, mfaCode: '123456' })
+
+    expect(result.success).toBe(false)
+    expect(rpc).not.toHaveBeenCalledWith('admin_publicar_integracao_versao', expect.anything())
+  })
+
+  it('permite publicacao quando ha credencial Vortx ativa no mesmo ambiente da versao', async () => {
+    configurarRpc([{ ambiente: 'homologacao', status: 'ativa' }])
+    const result = await publicarIntegracaoAdmin({ fundoId, id: versionId, mfaCode: '123456' })
+
+    expect(result).toMatchObject({ success: true })
+    expect(rpc).toHaveBeenCalledWith('admin_publicar_integracao_versao', expect.objectContaining({ p_fundo_id: fundoId, p_versao_id: versionId }))
   })
 })

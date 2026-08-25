@@ -91,9 +91,10 @@ describe('resolvedor canonico de integracoes por capability', () => {
     expect(unsupported).toEqual({ status: 'INDISPONIVEL', reason: 'CAPABILITY_NAO_SUPORTADA_PELO_ADAPTER' })
   })
 
-  it('registra somente o adapter real atualmente implementado', () => {
+  it('registra somente os adapters reais atualmente implementados', () => {
     expect(integrationProviderRegistry.list()).toEqual([
       expect.objectContaining({ key: 'sinqia_portal_fidc', supports: ['CESSAO_ENVIO', 'ESTOQUE', 'AQUISICOES', 'LIQUIDACOES'] }),
+      expect.objectContaining({ key: 'vortx_vrs', supports: ['CESSAO_ENVIO', 'ESTOQUE', 'AQUISICOES', 'LIQUIDACOES'] }),
     ])
     expect(integrationProviderRegistry.get('vortx')).toBeNull()
     expect(integrationProviderRegistry.get('portal_custodia')).toBeNull()

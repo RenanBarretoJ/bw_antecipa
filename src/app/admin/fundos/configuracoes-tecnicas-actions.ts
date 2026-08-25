@@ -254,6 +254,20 @@ async function validarIntegracaoParaPublicacao(
   })
   if (adapterPendencia) return adapterPendencia
   if (adapter.requiresEndpoint) await validarEndpointTecnicoSeguro(versao.endpoint_base)
+  if (versao.adapter_key === 'vortx_vrs') {
+    // A credencial Vortx (Key/Secret + certificado/chave mTLS) vive em
+    // integracoes_vortx_vrs_credenciais, fora do fluxo generico
+    // credencial_integracao_id (por isso adapter.requiresCredential e
+    // false para este adapter) -- valida aqui, reaproveitando a mesma RPC
+    // de leitura ja usada pela secao Credenciais.
+    const { data: vortxData, error: vortxError } = await context.supabase.rpc('admin_obter_configuracao_vortx_vrs', {
+      p_fundo_id: fundoId,
+    })
+    if (vortxError) throw vortxError
+    const vortxConfig = (vortxData || []) as Array<{ ambiente: string; status: string }>
+    const possuiCredencialAtiva = vortxConfig.some((item) => item.ambiente === versao.ambiente && item.status === 'ativa')
+    if (!possuiCredencialAtiva) return 'Configure e valide a credencial Vortx VRS deste ambiente antes de publicar.'
+  }
   return null
 }
 

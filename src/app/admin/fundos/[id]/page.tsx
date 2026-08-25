@@ -14,6 +14,7 @@ import { listarAuditoriaAdminFundo, obterAdminFundo } from '@/lib/admin/fundos.s
 import { listarGestoresAdminFundo } from '@/lib/admin/usuarios.server'
 import { obterConfiguracoesTecnicasAdminFundo } from '@/lib/admin/configuracoes-tecnicas.server'
 import { obterDadosFinanceirosAdminFundo } from '@/lib/admin/dados-financeiros.server'
+import { obterConfiguracaoVortxVrsAdmin } from '@/app/admin/fundos/vortx-vrs-actions'
 import { formatCNPJ } from '@/lib/utils'
 
 const tabClass = 'inline-flex h-9 items-center rounded-lg px-3 text-sm font-medium'
@@ -31,6 +32,7 @@ export default async function AdminFundoDetailPage({ params, searchParams }: { p
   const auditoria = tab === 'auditoria' ? await listarAuditoriaAdminFundo(id) : []
   const gestores = tab === 'gestores' ? await listarGestoresAdminFundo(id) : []
   const technical = tab === 'integracoes' || tab === 'envios' ? await obterConfiguracoesTecnicasAdminFundo(id, execPage) : null
+  const vortxConfig = tab === 'integracoes' ? await obterConfiguracaoVortxVrsAdmin(id) : []
   const dadosFinanceiros = tab === 'dados-financeiros' ? await obterDadosFinanceirosAdminFundo(id) : null
 
   return (
@@ -81,7 +83,7 @@ export default async function AdminFundoDetailPage({ params, searchParams }: { p
           )}
         </DetailSection>
       ) : tab === 'integracoes' && technical ? (
-        <FundoIntegracoesTecnicas state={technical} execPage={execPage} />
+        <FundoIntegracoesTecnicas state={technical} execPage={execPage} vortxConfig={vortxConfig} />
       ) : tab === 'envios' && technical ? (
         <FundoEnviosOperacionais state={technical} />
       ) : tab === 'dados-financeiros' && dadosFinanceiros ? (

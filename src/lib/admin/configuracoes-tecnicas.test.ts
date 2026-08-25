@@ -163,7 +163,7 @@ describe('SA3 - configuracoes tecnicas por fundo', () => {
     const sa3Sources = `${loader}\n${actions}`
 
     expect(loader).toContain("context.supabase.rpc('admin_obter_configuracoes_tecnicas_fundo'")
-    expect(actions.match(/context\.supabase\.rpc\(/g)).toHaveLength(12)
+    expect(actions.match(/context\.supabase\.rpc\(/g)).toHaveLength(13)
     expect(sa3Sources).not.toMatch(/const\s+\w+\s*=\s*context\.supabase\.rpc/)
     expect(sa3Sources).not.toMatch(/(?:supabase|client)\.rpc\s+as/)
     expect(sa3Sources).not.toContain('callAdminRpc')

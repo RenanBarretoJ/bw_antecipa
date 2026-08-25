@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { VORTX_VRS_CAPABILITIES } from './adapter-catalog'
 import {
   SINQIA_PORTAL_FIDC_CAPABILITIES,
   type IntegrationCapability,
@@ -66,6 +67,36 @@ const adapters: readonly IntegrationAdapterDefinition[] = [
         statusCode: String(response.status),
         message: `Teste tecnico HTTP ${response.status}.`,
         errorCategory: ok ? '' : response.status === 401 || response.status === 403 ? 'autenticacao' : 'resposta_inesperada',
+      }
+    },
+  },
+  {
+    key: 'vortx_vrs',
+    label: 'Vórtx — VRS 2.0',
+    supports: VORTX_VRS_CAPABILITIES,
+    deliveryMethods: {},
+    // A credencial Vortx (Key/Secret + certificado/chave mTLS) vive em
+    // integracoes_vortx_vrs_credenciais, fora de credenciais_integracao --
+    // por isso nao usa o fluxo generico credencial_integracao_id. A
+    // existencia de uma credencial ativa e validada separadamente em
+    // validarIntegracaoParaPublicacao (configuracoes-tecnicas-actions.ts).
+    requiresCredential: false,
+    // O endpoint real (base_url) tambem vive na credencial Vortx, nao no
+    // endpoint_base generico da versao.
+    requiresEndpoint: false,
+    validatePublication({ config }) {
+      const codigoCarteira = config.codigo_carteira
+      if (codigoCarteira != null && (typeof codigoCarteira !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(codigoCarteira))) {
+        return 'Codigo da carteira VRS invalido.'
+      }
+      return null
+    },
+    async testConnection() {
+      return {
+        ok: false,
+        statusCode: '',
+        message: 'Use o teste de conexao dedicado da Vortx VRS (mTLS) na secao Credenciais.',
+        errorCategory: 'resposta_inesperada',
       }
     },
   },
