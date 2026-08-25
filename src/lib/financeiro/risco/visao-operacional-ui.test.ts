@@ -74,9 +74,19 @@ describe('integração da visão operacional de exposição', () => {
   it('mostra a proforma com os dados operacionais exigidos e alerta acima do limite', () => {
     expect(newRequest).toContain('variante="proforma-solicitacao"')
     expect(card).toContain('Impacto estimado na exposição')
-    expect(card).toContain('NFs selecionadas')
-    expect(card).toContain('Parcelas selecionadas')
-    expect(card).toContain('Valor candidato')
+    expect(card).toContain('label="Seleção"')
+    expect(card).toContain('Operação candidata')
     expect(card).toContain('Esta solicitação poderá ser bloqueada na análise.')
+  })
+
+  it('mantém a proforma legível em uma sidebar larga e responsiva', () => {
+    expect(newRequest).toContain('max-w-[1440px]')
+    expect(newRequest).toContain('xl:grid-cols-[minmax(0,1fr)_minmax(400px,440px)]')
+    expect(newRequest).toContain('xl:sticky xl:top-6')
+    expect(newRequest).toContain('atualizando={atualizandoImpacto}')
+    expect(card).toContain('grid grid-cols-1 gap-2 sm:grid-cols-2')
+    expect(card).toContain('break-words text-base font-semibold')
+    expect(card).toContain('aria-live="polite"')
+    expect(card).toContain('title={truncate ? value : undefined}')
   })
 })

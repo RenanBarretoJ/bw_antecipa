@@ -198,7 +198,7 @@ export default function NovaSolicitacaoClient({ resultado }: { resultado: Result
   }
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="mx-auto max-w-[1440px]">
       <div className="mb-6 flex items-center gap-3">
         <Link href="/cedente/operacoes"><Button variant="ghost" size="icon"><ArrowLeft /></Button></Link>
         <div>
@@ -206,8 +206,8 @@ export default function NovaSolicitacaoClient({ resultado }: { resultado: Result
           <p className="text-muted-foreground">Selecione NFs aprovadas e documentalmente elegiveis.</p>
         </div>
       </div>
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(400px,440px)]">
+        <div className="min-w-0">
           <Card className="mb-4">
             <CardContent className="flex flex-col gap-3 py-4 sm:flex-row">
               <div className="relative min-w-0 flex-1">
@@ -305,16 +305,14 @@ export default function NovaSolicitacaoClient({ resultado }: { resultado: Result
             </Card>
           )}
         </div>
-        <div className="h-fit space-y-4 lg:sticky lg:top-6">
+        <div className="h-fit min-w-0 space-y-4 xl:sticky xl:top-6">
           {proformaExposicao && (
             <div className="space-y-2">
-              <ExposicaoLogisticaCard visao={proformaExposicao} variante="proforma-solicitacao" />
-              {atualizandoImpacto && (
-                <p className="flex items-center gap-2 px-1 text-xs text-muted-foreground" aria-live="polite">
-                  <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
-                  Atualizando impacto...
-                </p>
-              )}
+              <ExposicaoLogisticaCard
+                visao={proformaExposicao}
+                variante="proforma-solicitacao"
+                atualizando={atualizandoImpacto}
+              />
               {erroImpacto && (
                 <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive" role="alert">
                   {erroImpacto}

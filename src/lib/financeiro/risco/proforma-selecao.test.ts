@@ -6,6 +6,7 @@ const service = readFileSync('src/lib/financeiro/risco/proforma-selecao.server.t
 const domain = readFileSync('src/lib/financeiro/risco/proforma-selecao.ts', 'utf8')
 const action = readFileSync('src/lib/actions/exposicao.ts', 'utf8')
 const client = readFileSync('src/app/cedente/operacoes/nova/nova-solicitacao-client.tsx', 'utf8')
+const card = readFileSync('src/components/operacoes/ExposicaoLogisticaCard.tsx', 'utf8')
 const loader = readFileSync('src/lib/operacoes/nova-solicitacao.server.ts', 'utf8')
 
 describe('proforma read-only da exposicao na nova solicitacao', () => {
@@ -82,7 +83,8 @@ describe('proforma read-only da exposicao na nova solicitacao', () => {
     expect(client).toContain('simularExposicaoSelecao(selecaoProforma)')
     expect(client).toContain('}, 350)')
     expect(client).toContain('simulacaoAtual.current !== requisicao')
-    expect(client).toContain('Atualizando impacto...')
+    expect(client).toContain('atualizando={atualizandoImpacto}')
+    expect(card).toContain('Atualizando impacto...')
   })
 
   it('nao renderiza a proforma quando a politica nao exige controle', () => {
