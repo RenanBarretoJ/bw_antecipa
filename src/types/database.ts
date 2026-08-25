@@ -866,6 +866,25 @@ export interface IntegracaoTransportadoraRow {
   updated_at: string
 }
 
+export interface IntegracaoVortxVrsCredencial {
+  id: string
+  fundo_id: string
+  ambiente: string
+  base_url: string
+  key_criptografada: string
+  secret_criptografada: string
+  certificado_criptografado: string
+  chave_privada_criptografada: string
+  chave_versao: string
+  status: string
+  criada_por: string
+  criada_em: string
+  revogada_em: string | null
+  revogada_por: string | null
+  created_at: string
+  updated_at: string
+}
+
 export interface IntegracaoTransportadoraToken {
   id: string
   integracao_id: string
@@ -2093,6 +2112,7 @@ export interface Database {
       nota_fiscal_remessa_versoes: { Row: NotaFiscalRemessaVersao & Record<string, unknown>; Insert: InsertShape<NotaFiscalRemessaVersao, 'nota_fiscal_remessa_id' | 'numero_versao' | 'bucket' | 'path' | 'nome_original' | 'mime_type' | 'tamanho_bytes' | 'sha256' | 'status_validacao'> & Record<string, unknown>; Update: UpdateShape<NotaFiscalRemessaVersao> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'nota_fiscal_remessa_versoes_nota_fiscal_remessa_id_fkey'; columns: ['nota_fiscal_remessa_id']; isOneToOne: false; referencedRelation: 'nota_fiscal_remessas'; referencedColumns: ['id'] }] }
       integracoes_transportadoras: { Row: IntegracaoTransportadoraRow & Record<string, unknown>; Insert: InsertShape<IntegracaoTransportadoraRow, 'fundo_id' | 'provider' | 'created_by'> & Record<string, unknown>; Update: UpdateShape<IntegracaoTransportadoraRow> & Record<string, unknown>; Relationships: [] }
       integracoes_transportadoras_tokens: { Row: IntegracaoTransportadoraToken & Record<string, unknown>; Insert: InsertShape<IntegracaoTransportadoraToken, 'integracao_id' | 'token_hash' | 'criado_por'> & Record<string, unknown>; Update: UpdateShape<IntegracaoTransportadoraToken> & Record<string, unknown>; Relationships: [] }
+      integracoes_vortx_vrs_credenciais: { Row: IntegracaoVortxVrsCredencial & Record<string, unknown>; Insert: InsertShape<IntegracaoVortxVrsCredencial, 'fundo_id' | 'ambiente' | 'base_url' | 'key_criptografada' | 'secret_criptografada' | 'certificado_criptografado' | 'chave_privada_criptografada' | 'chave_versao' | 'criada_por'> & Record<string, unknown>; Update: UpdateShape<IntegracaoVortxVrsCredencial> & Record<string, unknown>; Relationships: [] }
       integracao_logistica_webhook_eventos: { Row: IntegracaoLogisticaWebhookEvento & Record<string, unknown>; Insert: InsertShape<IntegracaoLogisticaWebhookEvento, 'integracao_id' | 'fundo_id' | 'provider' | 'idempotency_key' | 'payload_hash'> & Record<string, unknown>; Update: UpdateShape<IntegracaoLogisticaWebhookEvento> & Record<string, unknown>; Relationships: [] }
       webhook_comprovantes_entrega_pendentes: { Row: WebhookComprovanteEntregaPendente & Record<string, unknown>; Insert: InsertShape<WebhookComprovanteEntregaPendente, 'integracao_id' | 'webhook_evento_id' | 'fundo_id' | 'provider' | 'nota_fiscal_venda_id' | 'tipo_vinculo' | 'documento_id' | 'documento_versao_id' | 'cedente_id'> & Record<string, unknown>; Update: UpdateShape<WebhookComprovanteEntregaPendente> & Record<string, unknown>; Relationships: [] }
       templates_documentos: { Row: TemplateDocumento & Record<string, unknown>; Insert: InsertShape<TemplateDocumento, 'fundo_id' | 'codigo' | 'tipo_documento' | 'nome' | 'created_by'> & Record<string, unknown>; Update: UpdateShape<TemplateDocumento> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'templates_documentos_fundo_id_fkey'; columns: ['fundo_id']; isOneToOne: false; referencedRelation: 'fundos'; referencedColumns: ['id'] }, { foreignKeyName: 'templates_documentos_created_by_fkey'; columns: ['created_by']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] }] }
@@ -2550,6 +2570,8 @@ export interface Database {
       admin_rotacionar_token_integracao_transportadora: { Args: { p_integracao_id: string }; Returns: { token: string; token_display: string } }
       admin_revogar_token_integracao_transportadora: { Args: { p_integracao_id: string; p_motivo?: string | null }; Returns: undefined }
       admin_listar_integracoes_transportadoras: { Args: Record<string, never>; Returns: unknown[] }
+      admin_configurar_credencial_vortx_vrs: { Args: { p_fundo_id: string; p_ambiente: string; p_base_url: string; p_key_criptografada: string; p_secret_criptografada: string; p_certificado_criptografado: string; p_chave_privada_criptografada: string; p_chave_versao: string; p_correlation_id?: string | null }; Returns: { id: string; fundo_id: string; ambiente: string } }
+      admin_obter_configuracao_vortx_vrs: { Args: { p_fundo_id: string }; Returns: unknown[] }
       admin_listar_webhook_eventos_transportadora: { Args: { p_fundo_id?: string | null; p_integracao_id?: string | null; p_status?: string | null; p_chave_nfe?: string | null; p_chave_cte?: string | null; p_desde?: string | null; p_ate?: string | null; p_limit?: number; p_offset?: number }; Returns: { items: unknown[]; total: number; limit: number; offset: number } }
       admin_obter_webhook_evento_transportadora: { Args: { p_webhook_evento_id: string }; Returns: Record<string, unknown> | null }
       registrar_comprovante_entrega_webhook: { Args: { p_integracao_id: string; p_webhook_evento_id: string; p_nota_fiscal_venda_id: string; p_nota_fiscal_remessa_id: string | null; p_tipo_vinculo: string; p_bucket: string; p_path: string; p_nome_original: string; p_mime_type: string; p_tamanho_bytes: number; p_sha256: string; p_provider: string }; Returns: { status: string; canhoto_id: string | null; documento_id?: string; versao_id?: string; requisito_id: string | null } }
