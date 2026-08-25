@@ -254,6 +254,14 @@ describe('P0 (correcao): gate logistico submissao vs aprovacao, status real do b
     expect(parcelasBoletosNota).toContain('md:hidden')
     expect(parcelasBoletosNota).toContain('md:grid')
   })
+
+  it('limita o beneficiario a sua coluna e mantem status e acoes legiveis no gestor', () => {
+    expect(parcelasBoletosNota).toContain('minmax(10rem,1fr)')
+    expect(parcelasBoletosNota).toContain('minmax(13.5rem,1.2fr)')
+    expect(parcelasBoletosNota).toContain('block w-full truncate text-muted-foreground')
+    expect(parcelasBoletosNota).toContain('[&>span]:whitespace-nowrap')
+    expect(parcelasBoletosNota).toContain('grid w-full grid-cols-[auto_minmax(0,1fr)]')
+  })
 })
 
 describe('P0 (correcao): submissao divergia do checklist -- CT-e do fluxo regular nao era reconhecido como evidencia logistica', () => {

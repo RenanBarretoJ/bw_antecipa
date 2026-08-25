@@ -358,8 +358,8 @@ export function ParcelasBoletosNota({ notaFiscalId, mode }: { notaFiscalId: stri
   // Gestor ganha uma coluna extra "Ações" (Aprovar/Solicitar ajuste/Reprovar)
   // -- Cedente permanece com as 6 colunas de sempre, sem alteração.
   const gridCols = mode === 'gestor'
-    ? 'grid-cols-[3.5rem_5.5rem_7rem_9rem_11rem_5rem_1fr]'
-    : 'grid-cols-[3.5rem_5.5rem_7rem_9rem_11rem_1fr]'
+    ? 'grid-cols-[3.5rem_5.75rem_7rem_10rem_minmax(10rem,1fr)_4.75rem_minmax(13.5rem,1.2fr)]'
+    : 'grid-cols-[3.5rem_5.75rem_7rem_10rem_minmax(10rem,1fr)_minmax(8rem,1fr)]'
 
   return (
     <article className="rounded-xl border bg-background">
@@ -438,7 +438,7 @@ export function ParcelasBoletosNota({ notaFiscalId, mode }: { notaFiscalId: stri
                 ))}
               </select>
             ) : (
-              <span className="truncate text-muted-foreground" title={beneficiario}>{beneficiario}</span>
+              <span className="block w-full truncate text-muted-foreground" title={beneficiario}>{beneficiario}</span>
             )
 
             const documentoConteudo = (
@@ -464,22 +464,22 @@ export function ParcelasBoletosNota({ notaFiscalId, mode }: { notaFiscalId: stri
             // Solicitar ajuste sempre abrem o modal (motivo obrigatorio, RPC
             // so roda apos confirmar). Nenhum motivo aparece inline na linha.
             const acoesConteudo = podeAnalisar ? (
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="grid w-full grid-cols-[auto_minmax(0,1fr)] items-center gap-2">
                 <Button type="button" size="sm" disabled={analisandoLinha} onClick={() => aprovarDireto(item)}>
                   {analisandoLinha && <Loader2 size={13} className="animate-spin" />}
                   Aprovar
                 </Button>
-                <Button type="button" size="sm" variant="outline" disabled={analisandoLinha} onClick={() => abrirModalAcao(item, 'requer_ajuste')}>
+                <Button type="button" size="sm" variant="outline" className="whitespace-nowrap" disabled={analisandoLinha} onClick={() => abrirModalAcao(item, 'requer_ajuste')}>
                   Solicitar ajuste
                 </Button>
-                <Button type="button" size="sm" variant="destructive" disabled={analisandoLinha} onClick={() => abrirModalAcao(item, 'rejeitado')}>
+                <Button type="button" size="sm" variant="destructive" className="w-fit" disabled={analisandoLinha} onClick={() => abrirModalAcao(item, 'rejeitado')}>
                   Reprovar
                 </Button>
               </div>
             ) : mode === 'gestor' ? <span className="text-muted-foreground">—</span> : null
 
             const statusConteudo = (
-              <div className="flex flex-col gap-1">
+              <div className="flex min-w-0 flex-col gap-1 [&>span]:whitespace-nowrap">
                 {visual.local ? (
                   <span className={`inline-flex h-6 w-fit items-center gap-1.5 rounded-full px-2.5 text-xs font-medium ring-1 ring-inset ${visual.tone}`}>
                     {visual.label === 'Enviando' && <Loader2 size={13} className="animate-spin" />}
