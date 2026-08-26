@@ -1,7 +1,11 @@
 'use server'
 
 import { requireGestor } from '@/lib/auth/authorization'
-import { novoCedenteInviteSchema, type NovoCedenteInviteInput } from '@/lib/auth/novo-cedente-invite'
+import {
+  mensagemFalhaEnvioConvite,
+  novoCedenteInviteSchema,
+  type NovoCedenteInviteInput,
+} from '@/lib/auth/novo-cedente-invite'
 import {
   enviarEmailConviteNovoCedente,
   gerarLinkAuthNovoCedente,
@@ -21,6 +25,16 @@ type ConviteCriado = {
   cnpj: string
   email: string
   expires_at: string
+}
+
+class ConviteEnvioError extends Error {
+  constructor(
+    readonly code: string,
+    message?: string | null,
+  ) {
+    super(message || code)
+    this.name = 'ConviteEnvioError'
+  }
 }
 
 function mensagemErroConvite(codigo: string | undefined, mensagem: string | undefined) {
@@ -57,7 +71,15 @@ export async function convidarNovoCedente(input: NovoCedenteInviteInput): Promis
   const convite = data as ConviteCriado
 
   try {
-    const authLink = await gerarLinkAuthNovoCedente({ email: convite.email, appToken: token })
+    let authLink: Awaited<ReturnType<typeof gerarLinkAuthNovoCedente>>
+    try {
+      authLink = await gerarLinkAuthNovoCedente({ email: convite.email, appToken: token })
+    } catch (authError) {
+      throw new ConviteEnvioError(
+        'AUTH_LINK_ERROR',
+        authError instanceof Error ? authError.message : 'Falha ao gerar link Auth.',
+      )
+    }
     const email = await enviarEmailConviteNovoCedente({
       email: convite.email,
       fundoNome: convite.fundo_nome,
@@ -66,8 +88,9 @@ export async function convidarNovoCedente(input: NovoCedenteInviteInput): Promis
       conviteId: convite.convite_id,
     })
 
-    if (!email.success) throw new Error(email.errorCode || 'SMTP_ERROR')
+    if (!email.success) throw new ConviteEnvioError(email.errorCode || 'SMTP_ERROR', email.errorMessage)
   } catch (sendError) {
+    const sendErrorCode = sendError instanceof ConviteEnvioError ? sendError.code : 'SMTP_ERROR'
     const { error: cancelError } = await context.supabase.rpc('cancelar_convite_novo_cedente', {
       p_convite_id: convite.convite_id,
       p_motivo: 'falha_geracao_ou_envio_email',
@@ -78,9 +101,10 @@ export async function convidarNovoCedente(input: NovoCedenteInviteInput): Promis
       convite_id: convite.convite_id,
       correlation_id: correlationId,
       cancelamento_falhou: Boolean(cancelError),
+      codigo: sendErrorCode,
       erro: sendError instanceof Error ? sendError.message : 'falha_desconhecida',
     })
-    return { success: false, message: 'Nao foi possivel enviar o convite. Nenhum Cedente foi criado.' }
+    return { success: false, message: mensagemFalhaEnvioConvite(sendErrorCode) }
   }
 
   return {

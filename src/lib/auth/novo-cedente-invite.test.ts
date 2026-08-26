@@ -1,7 +1,12 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { aceitarNovoCedenteInviteSchema, mensagemAceiteConvite, novoCedenteInviteSchema } from './novo-cedente-invite'
+import {
+  aceitarNovoCedenteInviteSchema,
+  mensagemAceiteConvite,
+  mensagemFalhaEnvioConvite,
+  novoCedenteInviteSchema,
+} from './novo-cedente-invite'
 
 const migration = readFileSync(
   resolve(process.cwd(), 'supabase/migrations/20260826190000_p2_invite_first_novo_cedente.sql'),
@@ -90,7 +95,17 @@ describe('P2 - invite-first para novo Cedente', () => {
     expect(inviteAction).toContain('gerarLinkAuthNovoCedente')
     expect(inviteAction).toContain('enviarEmailConviteNovoCedente')
     expect(inviteAction).toContain(".rpc('cancelar_convite_novo_cedente'")
-    expect(inviteAction).toContain('Nenhum Cedente foi criado.')
+    expect(inviteAction).toContain('mensagemFalhaEnvioConvite')
+    expect(mensagemFalhaEnvioConvite('SMTP_ERROR')).toContain('Nenhum Cedente foi criado.')
+  })
+
+  it('informa a categoria segura da falha de envio sem expor detalhes do provedor', () => {
+    expect(mensagemFalhaEnvioConvite('EMAIL_DISABLED')).toContain('nao esta configurado')
+    expect(mensagemFalhaEnvioConvite('SMTP_CONFIG_INVALID')).toContain('configuracao do servidor')
+    expect(mensagemFalhaEnvioConvite('SMTP_EAUTH')).toContain('autenticar')
+    expect(mensagemFalhaEnvioConvite('SMTP_RECIPIENT_REJECTED')).toContain('recusou o destinatario')
+    expect(mensagemFalhaEnvioConvite('AUTH_LINK_ERROR')).toContain('Supabase Auth')
+    expect(mensagemFalhaEnvioConvite('ERRO_DESCONHECIDO')).toContain('Nao foi possivel enviar')
   })
 
   it('interrompe signup livre e exige contexto invite-first no onboarding', () => {

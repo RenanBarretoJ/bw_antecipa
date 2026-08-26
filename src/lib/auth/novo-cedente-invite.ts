@@ -24,6 +24,25 @@ export const aceitarNovoCedenteInviteSchema = z.object({
 
 export type NovoCedenteInviteInput = z.input<typeof novoCedenteInviteSchema>
 
+export function mensagemFalhaEnvioConvite(codigo: string): string {
+  if (codigo === 'EMAIL_DISABLED') {
+    return 'O envio de e-mail nao esta configurado neste ambiente. Nenhum Cedente foi criado.'
+  }
+  if (codigo === 'SMTP_CONFIG_INVALID') {
+    return 'A configuracao do servidor de e-mail esta invalida. Nenhum Cedente foi criado.'
+  }
+  if (codigo === 'SMTP_EAUTH' || codigo === 'SMTP_535') {
+    return 'Nao foi possivel autenticar no servidor de e-mail. Nenhum Cedente foi criado.'
+  }
+  if (codigo === 'SMTP_RECIPIENT_REJECTED' || codigo === 'SMTP_550' || codigo === 'SMTP_553') {
+    return 'O servidor de e-mail recusou o destinatario informado. Nenhum Cedente foi criado.'
+  }
+  if (codigo === 'AUTH_LINK_ERROR') {
+    return 'Nao foi possivel preparar o acesso do usuario no Supabase Auth. Nenhum Cedente foi criado.'
+  }
+  return 'Nao foi possivel enviar o convite. Nenhum Cedente foi criado.'
+}
+
 export function mensagemAceiteConvite(codigo: string): string {
   const mensagens: Record<string, string> = {
     CONVITE_EXPIRADO: 'Este convite expirou. Solicite um novo convite ao gestor.',
