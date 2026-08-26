@@ -190,27 +190,18 @@ function normalizeFactor(factor: unknown): MfaEstadoUsuario['fatoresTotp'][numbe
   }
 }
 
-async function usuarioEhAdministradorCedente(client: AppSupabaseClient, userId: string, role: UserRole) {
+async function usuarioEhAdministradorCedente(client: AppSupabaseClient, role: UserRole) {
   if (role !== 'cedente') return false
 
-  // cedente_acessos so tem GRANT para service_role (canonicalizacao de ACL/
-  // RLS em 20260817150507) -- uma leitura direta aqui sempre falhava
-  // (permission denied, descartado em silencio), fazendo usuarios
-  // convidados como administrador nunca terem MFA obrigatorio exigido.
-  // get_user_cedente_acesso_perfil() e SECURITY DEFINER e ja e GRANTed
-  // para authenticated.
-  const [{ data: cedenteProprio }, { data: perfilAcesso }] = await Promise.all([
-    client.from('cedentes').select('id').eq('user_id', userId).maybeSingle(),
-    client.rpc('get_user_cedente_acesso_perfil'),
-  ])
-
-  return !!cedenteProprio || perfilAcesso === 'administrador'
+  const { data: perfilAcesso, error } = await client.rpc('get_user_cedente_perfil_canonico')
+  if (error) return false
+  return perfilAcesso === 'ADMIN'
 }
 
 export async function usuarioExigeMfa(context: Pick<AuthContext, 'supabase' | 'user' | 'profile'>) {
   const override = (context.profile as Profile & { mfa_obrigatorio_override?: boolean | null }).mfa_obrigatorio_override
   if (usuarioExigeMfaPorPerfil(context.profile.role, override)) return true
-  return usuarioEhAdministradorCedente(context.supabase, context.user.id, context.profile.role)
+  return usuarioEhAdministradorCedente(context.supabase, context.profile.role)
 }
 
 export async function obterEstadoMfaUsuario(client?: AppSupabaseClient): Promise<MfaEstadoUsuario> {

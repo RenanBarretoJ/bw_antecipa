@@ -14,10 +14,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { BancoCombobox, type BancoSelecionado } from '@/components/cadastro/banco-combobox'
-import { useCamposEditadosManualmente, useCepConsulta, useCnpjConsulta } from '@/hooks/use-cadastro-autofill'
+import { useCamposEditadosManualmente, useCepConsulta } from '@/hooks/use-cadastro-autofill'
 
 const STORAGE_KEY = 'bw_antecipa_cadastro_cedente'
 
@@ -61,6 +60,7 @@ interface CedenteCadastrado {
   conta: string | null
   tipo_conta: string | null
   status: string
+  onboarding_concluido_em: string | null
   created_at: string
   representantes: RepresentanteCadastrado[]
 }
@@ -260,7 +260,7 @@ function maskCEP(v: string) {
   return v.replace(/\D/g, '').replace(/(\d{5})(\d)/, '$1-$2').slice(0, 9)
 }
 
-function CadastroForm() {
+function CadastroForm({ cnpjConvidado }: { cnpjConvidado: string }) {
   const router = useRouter()
   const [etapa, setEtapa] = useState(1)
   const [loading, setLoading] = useState(false)
@@ -271,9 +271,10 @@ function CadastroForm() {
   const [form, setForm] = useState<Partial<CedenteFormData>>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem(STORAGE_KEY)
-      if (saved) return JSON.parse(saved)
+      if (saved) return { ...JSON.parse(saved), cnpj: cnpjConvidado }
     }
     return {
+      cnpj: cnpjConvidado,
       representantes: [{ nome: '', cpf: '', rg: '', cargo: '', email: '', telefone: '' }],
     }
   })
@@ -302,24 +303,6 @@ function CadastroForm() {
     }))
     setErrors((prev) => { const next = { ...prev }; delete next['banco']; return next })
   }
-
-  const { consultar: consultarCnpj, consultando: buscandoCnpj, erro: erroCnpj } = useCnpjConsulta((dados) => {
-    const patch = filtrarNaoEditados({
-      razao_social: dados.razao_social,
-      nome_fantasia: dados.nome_fantasia,
-      cnae: dados.cnae_principal,
-      logradouro: dados.logradouro,
-      numero: dados.numero,
-      complemento: dados.complemento,
-      bairro: dados.bairro,
-      cidade: dados.cidade,
-      estado: dados.uf,
-      cep: dados.cep,
-      email_comercial: dados.email,
-      telefone_comercial: dados.telefone,
-    })
-    setForm((prev) => ({ ...prev, ...patch }))
-  })
 
   const { consultar: consultarCep, consultando: buscandoCep, erro: erroCep } = useCepConsulta((dados) => {
     const patch = filtrarNaoEditados({
@@ -438,13 +421,8 @@ function CadastroForm() {
                 <div>
                   <Label className="mb-1">CNPJ *</Label>
                   <Input className={`h-11 ${inputClass('cnpj')}`} value={maskCNPJ(form.cnpj || '')}
-                    onChange={(e) => {
-                      const v = e.target.value.replace(/\D/g, '')
-                      updateField('cnpj', v)
-                      if (v.length === 14) consultarCnpj(v)
-                    }} placeholder="00.000.000/0000-00" />
-                  {buscandoCnpj && <p className="text-primary text-xs mt-1">Consultando CNPJ...</p>}
-                  {erroCnpj && <p className="text-amber-600 text-xs mt-1">{erroCnpj}</p>}
+                    readOnly aria-readonly="true" placeholder="00.000.000/0000-00" />
+                  <p className="mt-1 text-xs text-muted-foreground">CNPJ definido pelo convite e nao editavel.</p>
                   {renderError('cnpj')}
                 </div>
                 <div>
@@ -1030,7 +1008,7 @@ export default function CadastroCedentePage() {
 
       const { data } = await supabase
         .from('cedentes')
-        .select('id, cnpj, razao_social, nome_fantasia, cnae, cep, logradouro, numero, complemento, bairro, cidade, estado, telefone_comercial, email_comercial, banco, agencia, conta, tipo_conta, status, created_at')
+        .select('id, cnpj, razao_social, nome_fantasia, cnae, cep, logradouro, numero, complemento, bairro, cidade, estado, telefone_comercial, email_comercial, banco, agencia, conta, tipo_conta, status, onboarding_concluido_em, created_at')
         .single()
 
       if (!data) { setCedente(null); return }
@@ -1071,6 +1049,10 @@ export default function CadastroCedentePage() {
     )
   }
 
+  if (cedente && !cedente.onboarding_concluido_em) {
+    return <CadastroForm cnpjConvidado={cedente.cnpj} />
+  }
+
   if (cedente && modoEdicao) {
     return <AlteracaoForm cedente={cedente} onCancelar={() => setModoEdicao(false)} />
   }
@@ -1085,5 +1067,17 @@ export default function CadastroCedentePage() {
     )
   }
 
-  return <CadastroForm />
+  return (
+    <div className="mx-auto max-w-2xl">
+      <Card>
+        <CardHeader>
+          <CardTitle>Acesso por convite necessario</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm text-muted-foreground">
+          <p>Sua conta ainda nao esta vinculada a uma organizacao Cedente.</p>
+          <p>Solicite ao gestor do fundo um convite para o CNPJ da sua empresa. Nenhum Cedente e criado sem esse vinculo.</p>
+        </CardContent>
+      </Card>
+    </div>
+  )
 }

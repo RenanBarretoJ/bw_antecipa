@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { requireAuthenticated, requireGestor } from '@/lib/auth/authorization'
+import { requireAuthenticated, requireCedenteOrganizationalAccess, requireGestor } from '@/lib/auth/authorization'
 import { exigirSessaoElevada } from '@/lib/auth/mfa'
 import { DOCUMENTO_V2_BUCKET, mimeArquivo, sha256Arquivo, validarArquivoContraTipo } from '@/lib/documentos-v2/tipos'
 import { enviarObjetoDocumento, gerarCaminhoDocumentoEstabelecimento, gerarUrlDocumento, removerObjetoDocumento } from '@/lib/documentos-v2/storage'
@@ -33,6 +33,11 @@ async function cedenteAutenticado() {
   if (error) throw new Error(`Nao foi possivel consultar o cedente: ${error.message}`)
   if (!data) throw new Error('Cadastro de cedente nao encontrado.')
   return { ...context, cedente: data as { id: string; status: string } }
+}
+
+async function cedenteAdministradorAutenticado() {
+  const context = await requireCedenteOrganizationalAccess('administrativo')
+  return { ...context, cedente: context.cedente as { id: string; status: string } }
 }
 
 export async function obterStatusMatriz(): Promise<EstabelecimentoActionResult<{
@@ -112,7 +117,7 @@ export async function listarEstabelecimentosGestor(
 
 export async function cadastrarFilial(formData: FormData): Promise<EstabelecimentoActionResult<CedenteEstabelecimento>> {
   try {
-    const context = await cedenteAutenticado()
+    const context = await cedenteAdministradorAutenticado()
     if (context.cedente.status !== 'ativo') throw new Error('O cedente precisa estar ativo para cadastrar uma filial.')
     const opcional = (campo: string) => String(formData.get(campo) || '').trim() || null
     const { data, error } = await context.supabase.rpc('cadastrar_filial_cedente', {
@@ -142,7 +147,7 @@ export async function cadastrarFilial(formData: FormData): Promise<Estabelecimen
 
 export async function salvarContaEstabelecimento(formData: FormData): Promise<EstabelecimentoActionResult<CedenteEstabelecimentoContaBancaria>> {
   try {
-    const context = await cedenteAutenticado()
+    const context = await cedenteAdministradorAutenticado()
     const opcional = (campo: string) => String(formData.get(campo) || '').trim() || null
     const { data, error } = await context.supabase.rpc('salvar_conta_estabelecimento_cedente', {
       p_estabelecimento_id: String(formData.get('estabelecimento_id') || ''),
@@ -166,7 +171,7 @@ export async function salvarContaEstabelecimento(formData: FormData): Promise<Es
 export async function enviarDocumentoEstabelecimento(formData: FormData): Promise<EstabelecimentoActionResult> {
   let path: string | null = null
   try {
-    const context = await cedenteAutenticado()
+    const context = await cedenteAdministradorAutenticado()
     const estabelecimentoId = String(formData.get('estabelecimento_id') || '')
     const requisitoId = String(formData.get('requisito_id') || '')
     const tipoId = String(formData.get('documento_tipo_id') || '')

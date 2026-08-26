@@ -18,9 +18,14 @@ export async function GET(request: NextRequest) {
   const url = new URL(request.url)
   const tokenHash = url.searchParams.get('token_hash')
   const type = url.searchParams.get('type')
-  const next = normalizarRecoveryNext(url.searchParams.get('next'))
+  const inviteToken = url.searchParams.get('invite_token')
+  const isInvite = type === 'invite'
+  const next = isInvite ? '/convite/cedente' : normalizarRecoveryNext(url.searchParams.get('next'))
   const hasCode = url.searchParams.has('code')
   const redirectUrl = new URL(next, url.origin)
+  if (isInvite && inviteToken && /^[0-9a-f]{64}$/i.test(inviteToken)) {
+    redirectUrl.searchParams.set('token', inviteToken)
+  }
 
   console.info('[auth/confirm]', recoveryFlowLogShape({
     hasTokenHash: !!tokenHash,
@@ -28,9 +33,10 @@ export async function GET(request: NextRequest) {
     next,
   }))
 
-  if (!tokenHash || !isConfirmType(type)) {
+  if (!tokenHash || !isConfirmType(type) || (isInvite && !/^[0-9a-f]{64}$/i.test(inviteToken || ''))) {
     await limparFluxoAutenticacao()
-    redirectUrl.searchParams.set('error_code', sanitizarCodigoErroRecuperacao(url.searchParams.get('error_code')))
+    if (isInvite) redirectUrl.searchParams.delete('token')
+    redirectUrl.searchParams.set('error_code', isInvite ? 'invite_invalid' : sanitizarCodigoErroRecuperacao(url.searchParams.get('error_code')))
     console.info('[auth/confirm]', recoveryFlowLogShape({
       hasTokenHash: !!tokenHash,
       hasCode,
@@ -52,7 +58,8 @@ export async function GET(request: NextRequest) {
       supabase.auth.signOut({ scope: 'local' }),
       limparFluxoAutenticacao(),
     ])
-    const errorCode = sanitizarCodigoErroRecuperacao(error.code || url.searchParams.get('error_code'))
+    const errorCode = isInvite ? 'invite_expired' : sanitizarCodigoErroRecuperacao(error.code || url.searchParams.get('error_code'))
+    if (isInvite) redirectUrl.searchParams.delete('token')
     redirectUrl.searchParams.set('error_code', errorCode)
     console.info('[auth/confirm]', recoveryFlowLogShape({
       hasTokenHash: true,
@@ -63,7 +70,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(redirectUrl)
   }
 
-  await marcarFluxoAutenticacao('password_recovery')
+  if (type === 'recovery') await marcarFluxoAutenticacao('password_recovery')
+  else await limparFluxoAutenticacao()
   console.info('[auth/confirm]', recoveryFlowLogShape({
     hasTokenHash: true,
     success: true,

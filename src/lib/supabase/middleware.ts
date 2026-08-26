@@ -32,7 +32,7 @@ export async function updateSession(request: NextRequest) {
   const pathname = request.nextUrl.pathname
   const authFlowCookie = request.cookies.get(AUTH_FLOW_COOKIE)?.value
   const authFlow = await lerAuthFlowCookieAssinado(authFlowCookie)
-  const publicRoutes = ['/', '/login', '/cadastro', '/esqueci-senha', '/redefinir-senha', '/auth/confirm']
+  const publicRoutes = ['/', '/login', '/cadastro', '/esqueci-senha', '/redefinir-senha', '/auth/confirm', '/convite/cedente']
   const isPublicRoute = publicRoutes.some((route) => pathname === route)
   const authRoutes = ['/login', '/cadastro', '/esqueci-senha']
   const isAuthRoute = authRoutes.some((route) => pathname === route)

@@ -1,7 +1,13 @@
 'use server'
 
 import { createClient, createAdminClient } from '@/lib/supabase/server'
-import { requireGestor as requireGestorBase } from '@/lib/auth/authorization'
+import {
+  AuthorizationError,
+  requireAuthenticated,
+  requireCedenteAccess,
+  requireCedenteOrganizationalAccess,
+  requireGestor as requireGestorBase,
+} from '@/lib/auth/authorization'
 import { exigirSessaoElevada } from '@/lib/auth/mfa'
 import { registrarLog } from './auditoria'
 import { notificarCedente } from './notificacao'
@@ -34,6 +40,19 @@ async function requireGestor() {
   const context = await requireGestorBase()
   await exigirSessaoElevada(context)
   return context
+}
+
+async function requireGestorOuAdminCedente(cedenteId: string) {
+  const context = await requireAuthenticated()
+  await exigirSessaoElevada(context)
+  if (context.profile.role === 'gestor') {
+    await requireCedenteAccess(cedenteId, context.supabase)
+    return context
+  }
+  if (context.profile.role === 'cedente') {
+    return requireCedenteOrganizationalAccess('administrativo', context.supabase, cedenteId)
+  }
+  throw new AuthorizationError('Apenas Gestor ou ADMIN do cedente pode gerenciar acessos.', 'FORBIDDEN')
 }
 
 export async function analisarDocumento(
@@ -547,12 +566,12 @@ export async function convidarUsuarioCedente(
   email: string,
   perfil: 'administrador' | 'operador'
 ): Promise<GestorActionState> {
-  await requireGestor()
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { success: false, message: 'Usuario nao autenticado.' }
+  const context = await requireGestorOuAdminCedente(cedenteId)
+  const user = context.user
 
   const admin = createAdminClient()
+  const perfilCanonico = perfil === 'administrador' ? 'ADMIN' : 'OPERACIONAL'
+  const agora = new Date().toISOString()
 
   // Verificar se o email já existe como usuario
   const { data: existingProfile } = await admin
@@ -583,25 +602,40 @@ export async function convidarUsuarioCedente(
   // Verificar se já existe um vínculo (ativo ou inativo)
   const { data: existing } = await admin
     .from('cedente_acessos')
-    .select('id, ativo')
+    .select('id, status, ativo')
     .eq('cedente_id', cedenteId)
     .eq('user_id', userId)
     .single()
 
   if (existing) {
-    const ex = existing as { id: string; ativo: boolean }
-    if (ex.ativo) {
+    const ex = existing as { id: string; status: string | null; ativo: boolean }
+    if (ex.status === 'ATIVO' || (ex.status === null && ex.ativo)) {
       return { success: false, message: 'Este usuario ja possui acesso ativo a este cedente.' }
     }
     const { error } = await admin
       .from('cedente_acessos')
-      .update({ ativo: true, perfil, convidado_por: user.id } as never)
+      .update({
+        perfil: perfilCanonico,
+        status: 'ATIVO',
+        ativo: true,
+        convidado_por: user.id,
+        aceito_em: agora,
+        revogado_em: null,
+      } as never)
       .eq('id', ex.id)
     if (error) return { success: false, message: `Erro ao reativar acesso: ${error.message}` }
   } else {
     const { error } = await admin
       .from('cedente_acessos')
-      .insert({ cedente_id: cedenteId, user_id: userId, perfil, convidado_por: user.id } as never)
+      .insert({
+        cedente_id: cedenteId,
+        user_id: userId,
+        perfil: perfilCanonico,
+        status: 'ATIVO',
+        ativo: true,
+        convidado_por: user.id,
+        aceito_em: agora,
+      } as never)
     if (error) return { success: false, message: `Erro ao criar acesso: ${error.message}` }
   }
 
@@ -630,17 +664,24 @@ export async function listarAcessosVinculadosCedente(cedenteId: string): Promise
   created_at: string
   profiles: { nome_completo: string; email: string } | null
 }>> {
-  await requireGestor()
+  await requireGestorOuAdminCedente(cedenteId)
   const admin = createAdminClient()
   const { data: acessos, error: acessosError } = await admin
     .from('cedente_acessos')
-    .select('id, user_id, perfil, ativo, created_at')
+    .select('id, user_id, perfil, status, ativo, created_at')
     .eq('cedente_id', cedenteId)
     .order('created_at', { ascending: true })
     .limit(50)
 
   if (acessosError) throw new Error('Nao foi possivel carregar os acessos vinculados ao cedente.')
-  const rows = (acessos || []) as Array<{ id: string; user_id: string; perfil: 'administrador' | 'operador'; ativo: boolean; created_at: string }>
+  const rows = (acessos || []) as Array<{
+    id: string
+    user_id: string
+    perfil: 'ADMIN' | 'OPERACIONAL' | 'administrador' | 'operador'
+    status: 'CONVIDADO' | 'ATIVO' | 'REVOGADO' | null
+    ativo: boolean
+    created_at: string
+  }>
   const userIds = Array.from(new Set(rows.map((acesso) => acesso.user_id)))
   if (!userIds.length) return []
 
@@ -655,7 +696,11 @@ export async function listarAcessosVinculadosCedente(cedenteId: string): Promise
   )
 
   return rows.map((acesso) => ({
-    ...acesso,
+    id: acesso.id,
+    user_id: acesso.user_id,
+    perfil: acesso.perfil === 'ADMIN' || acesso.perfil === 'administrador' ? 'administrador' as const : 'operador' as const,
+    ativo: acesso.status ? acesso.status === 'ATIVO' : acesso.ativo,
+    created_at: acesso.created_at,
     profiles: profilesMap[acesso.user_id]
       ? { nome_completo: profilesMap[acesso.user_id].nome_completo, email: profilesMap[acesso.user_id].email }
       : null,
@@ -663,24 +708,24 @@ export async function listarAcessosVinculadosCedente(cedenteId: string): Promise
 }
 
 export async function revogarAcessoCedente(acessoId: string): Promise<GestorActionState> {
-  await requireGestor()
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { success: false, message: 'Usuario nao autenticado.' }
-
   const admin = createAdminClient()
 
   const { data: acesso } = await admin
     .from('cedente_acessos')
-    .select('cedente_id')
+    .select('cedente_id, user_id')
     .eq('id', acessoId)
     .single()
 
   if (!acesso) return { success: false, message: 'Acesso nao encontrado.' }
+  const acessoAtual = acesso as { cedente_id: string; user_id: string }
+  const context = await requireGestorOuAdminCedente(acessoAtual.cedente_id)
+  if (context.profile.role === 'cedente' && acessoAtual.user_id === context.user.id) {
+    return { success: false, message: 'O ADMIN nao pode revogar o proprio acesso.' }
+  }
 
   const { error } = await admin
     .from('cedente_acessos')
-    .update({ ativo: false } as never)
+    .update({ status: 'REVOGADO', ativo: false, revogado_em: new Date().toISOString() } as never)
     .eq('id', acessoId)
 
   if (error) return { success: false, message: `Erro ao revogar acesso: ${error.message}` }
@@ -688,7 +733,7 @@ export async function revogarAcessoCedente(acessoId: string): Promise<GestorActi
   await registrarLog({
     tipo_evento: 'ACESSO_CEDENTE_REVOGADO',
     entidade_tipo: 'cedentes',
-    entidade_id: (acesso as { cedente_id: string }).cedente_id,
+    entidade_id: acessoAtual.cedente_id,
     dados_depois: { acesso_id: acessoId },
   })
 

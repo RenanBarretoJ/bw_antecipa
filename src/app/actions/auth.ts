@@ -2,12 +2,11 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { loginSchema, cadastroSchema } from '@/lib/validations/auth'
+import { loginSchema } from '@/lib/validations/auth'
 import { obterEstadoMfaUsuario } from '@/lib/auth/mfa'
 import { limparFluxoAutenticacao } from '@/lib/auth/auth-flow-server'
 import { carregarAcessoPlataforma, resolverDestinoAposAutenticacao } from '@/lib/auth/platform-access'
 import type { UserRole } from '@/types/database'
-import { buildSignupFeedback } from '@/lib/auth/signup-feedback'
 import { registrarTentativaRateLimit, verificarRateLimit } from '@/lib/security/rate-limit'
 import { IdentityQueryError, loadSessionProfile } from '@/lib/auth/identity-query'
 
@@ -92,44 +91,10 @@ export async function login(_prevState: AuthState, formData: FormData): Promise<
   redirect(resolverDestinoAposAutenticacao(access))
 }
 
-export async function signup(_prevState: AuthState, formData: FormData): Promise<AuthState> {
-  const rawData = {
-    nome_completo: formData.get('nome_completo') as string,
-    email: formData.get('email') as string,
-    password: formData.get('password') as string,
-    confirmPassword: formData.get('confirmPassword') as string,
-  }
-
-  const validated = cadastroSchema.safeParse(rawData)
-
-  if (!validated.success) {
-    return {
-      errors: validated.error.flatten().fieldErrors as Record<string, string[]>,
-    }
-  }
-
-  const supabase = await createClient()
-
-  const { data, error } = await supabase.auth.signUp({
-    email: validated.data.email,
-    password: validated.data.password,
-    options: {
-      data: {
-        nome_completo: validated.data.nome_completo,
-        role: 'cedente',
-      },
-    },
-  })
-
-  if (error) {
-    console.error('[signup error]', error.message, error.status, error.name)
-    if (error.message.includes('already registered')) {
-      return { message: 'Este e-mail ja esta cadastrado.' }
-    }
-    return { message: `Erro ao criar conta: ${error.message}` }
-  }
-
-  return buildSignupFeedback(Boolean(data.session))
+export async function signup(_prevState: AuthState, _formData: FormData): Promise<AuthState> {
+  void _prevState
+  void _formData
+  return { message: 'A criacao de conta Cedente ocorre exclusivamente por convite de um gestor.' }
 }
 
 export async function logout() {

@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { DOCUMENT_TYPES, type DocumentoTipo } from '@/lib/types/domain'
-import { requireAuthenticated, requireGestor } from '@/lib/auth/authorization'
+import { requireAuthenticated, requireCedenteOrganizationalAccess, requireGestor } from '@/lib/auth/authorization'
 import { cedenteSchema, type CedenteFormData } from '@/lib/validations/cedente'
 import { registrarLog } from './auditoria'
 import { notificarGestores } from './notificacao'
@@ -12,19 +12,6 @@ import {
   validarArquivoDocumentoCadastral,
   type DocumentoCadastralUploadClient,
 } from '@/lib/documentos-cadastrais/upload'
-
-type SupabaseClient = Awaited<ReturnType<typeof createClient>>
-
-async function ehAdministrador(supabase: SupabaseClient, userId: string, cedenteUserId: string): Promise<boolean> {
-  if (cedenteUserId === userId) return true
-  // cedente_acessos so tem GRANT para service_role (canonicalizacao de ACL/
-  // RLS em 20260817150507) -- uma leitura direta aqui sempre falhava
-  // (permission denied, descartado em silencio), tratando todo usuario
-  // convidado como se nao fosse administrador. get_user_cedente_acesso_
-  // perfil() e SECURITY DEFINER e ja e GRANTed para authenticated.
-  const { data: perfil } = await supabase.rpc('get_user_cedente_acesso_perfil')
-  return perfil === 'administrador'
-}
 
 export type CedenteActionState = {
   success?: boolean
@@ -94,28 +81,20 @@ export async function cadastrarCedente(data: CedenteFormData): Promise<CedenteAc
 }
 
 export async function uploadDocumento(formData: FormData): Promise<CedenteActionState> {
-  await requireAuthenticated()
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    return { success: false, message: 'Usuario nao autenticado.' }
-  }
+  const context = await requireCedenteOrganizationalAccess('administrativo')
+  const { supabase, user } = context
 
   const { data: cedente } = await supabase
     .from('cedentes')
-    .select('id, cnpj, user_id')
+    .select('id, cnpj')
+    .eq('id', context.cedenteAccess.cedenteId)
     .single()
 
   if (!cedente) {
     return { success: false, message: 'Cadastro de cedente nao encontrado.' }
   }
 
-  const cedenteData = cedente as { id: string; cnpj: string; user_id: string }
-
-  if (!await ehAdministrador(supabase, user.id, cedenteData.user_id)) {
-    return { success: false, message: 'Sem permissao para enviar documentos. Apenas administradores do cedente podem realizar esta acao.' }
-  }
+  const cedenteData = cedente as { id: string; cnpj: string }
   const file = formData.get('arquivo') as File
   const tipo = formData.get('tipo') as string
   const representanteId = (formData.get('representante_id') as string | null) || null
@@ -221,23 +200,18 @@ export async function reenviarDocumento(documentoId: string, formData: FormData)
 export async function solicitarAlteracaoCedente(
   dados: Partial<CedenteFormData>
 ): Promise<CedenteActionState> {
-  await requireAuthenticated()
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { success: false, message: 'Usuario nao autenticado.' }
+  const context = await requireCedenteOrganizationalAccess('administrativo')
+  const { supabase } = context
 
   const { data: cedente } = await supabase
     .from('cedentes')
-    .select('id, user_id, cnpj, razao_social, nome_fantasia, cnae, cep, logradouro, numero, complemento, bairro, cidade, estado, telefone_comercial, email_comercial, banco, agencia, conta, tipo_conta')
+    .select('id, cnpj, razao_social, nome_fantasia, cnae, cep, logradouro, numero, complemento, bairro, cidade, estado, telefone_comercial, email_comercial, banco, agencia, conta, tipo_conta')
+    .eq('id', context.cedenteAccess.cedenteId)
     .single()
 
   if (!cedente) return { success: false, message: 'Cedente nao encontrado.' }
 
-  const cedenteData = cedente as { id: string; user_id: string } & Record<string, unknown>
-
-  if (!await ehAdministrador(supabase, user.id, cedenteData.user_id)) {
-    return { success: false, message: 'Sem permissao para solicitar alteracoes cadastrais.' }
-  }
+  const cedenteData = cedente as { id: string } & Record<string, unknown>
 
   // Bloquear se já há solicitação pendente
   const { data: pendente } = await supabase

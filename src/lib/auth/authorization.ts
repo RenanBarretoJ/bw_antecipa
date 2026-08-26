@@ -33,6 +33,11 @@ type RequireAuthenticatedOptions = {
 }
 
 type CedenteContext = AuthContext & { cedente: Cedente }
+export type CedenteAccessProfile = 'ADMIN' | 'OPERACIONAL'
+export type CedenteAccessScope = 'operacional' | 'administrativo'
+export type CedenteOrganizationalContext = CedenteContext & {
+  cedenteAccess: { cedenteId: string; perfil: CedenteAccessProfile }
+}
 type OperacaoContext = AuthContext & { operacao: Pick<Operacao, 'id' | 'cedente_id'> }
 type NotaFiscalContext = AuthContext & { notaFiscal: Pick<NotaFiscal, 'id' | 'cedente_id' | 'cnpj_destinatario'> }
 
@@ -45,18 +50,14 @@ export function assertRole(actualRole: UserRole, allowedRoles: readonly UserRole
 
 export function canAccessCedente({
   role,
-  userId,
-  ownerUserId,
   hasDelegatedAccess,
   hasConsultorLink,
 }: {
   role: UserRole
-  userId: string
-  ownerUserId: string
   hasDelegatedAccess: boolean
   hasConsultorLink: boolean
 }): boolean {
-  if (role === 'gestor' || userId === ownerUserId || hasDelegatedAccess) return true
+  if (role === 'gestor' || hasDelegatedAccess) return true
   return role === 'consultor' && hasConsultorLink
 }
 
@@ -144,7 +145,7 @@ async function getSacadoCnpjDoUsuario(client: AppSupabaseClient, userId: string)
   return cnpj.length === 14 ? cnpj : null
 }
 
-/** Resolve the owner or active delegated access of a cedente. */
+/** Resolve acesso ao Cedente pela associacao canonica ativa. */
 export async function requireCedenteAccess(
   cedenteId: string,
   client?: AppSupabaseClient,
@@ -153,8 +154,6 @@ export async function requireCedenteAccess(
   const cedente = await loadCedente(context.supabase, cedenteId)
 
   if (context.profile.role === 'gestor') return { ...context, cedente }
-  if (cedente.user_id === context.user.id) return { ...context, cedente }
-
   let hasConsultorLink = false
   if (context.profile.role === 'consultor') {
     const { data: consultorVinculo } = await context.supabase
@@ -167,18 +166,12 @@ export async function requireCedenteAccess(
     hasConsultorLink = !!consultorVinculo
   }
 
-  // cedente_acessos so tem GRANT para service_role (canonicalizacao de ACL/
-  // RLS em 20260817150507) -- uma leitura direta pelo client autenticado
-  // falha com "permission denied" silencioso. get_user_cedente_id() e
-  // SECURITY DEFINER, ja resolve owner OU cedente_acessos ativo, e ja e
-  // GRANTed para authenticated -- reaproveitada aqui em vez de repetir a
-  // leitura direta que so o service_role pode fazer.
+  // A RPC SECURITY DEFINER resolve somente associacao ATIVA e mantem o
+  // fallback legado isolado no banco, sem checks de owner espalhados.
   const { data: cedenteIdDoUsuario } = await context.supabase.rpc('get_user_cedente_id')
 
   if (!canAccessCedente({
     role: context.profile.role,
-    userId: context.user.id,
-    ownerUserId: cedente.user_id,
     hasDelegatedAccess: cedenteIdDoUsuario === cedenteId,
     hasConsultorLink,
   })) {
@@ -186,6 +179,41 @@ export async function requireCedenteAccess(
   }
 
   return { ...context, cedente }
+}
+
+/**
+ * Gate canonico para o portal do Cedente.
+ * ADMIN satisfaz os dois escopos; OPERACIONAL satisfaz apenas o operacional.
+ */
+export async function requireCedenteOrganizationalAccess(
+  scope: CedenteAccessScope = 'operacional',
+  client?: AppSupabaseClient,
+  expectedCedenteId?: string,
+): Promise<CedenteOrganizationalContext> {
+  const context = await requireRole('cedente', client)
+  const [cedenteResult, perfilResult] = await Promise.all([
+    context.supabase.rpc('get_user_cedente_id'),
+    context.supabase.rpc('get_user_cedente_perfil_canonico'),
+  ])
+
+  if (cedenteResult.error || perfilResult.error) {
+    throw new AuthorizationError('Nao foi possivel validar o acesso organizacional ao cedente.', 'FORBIDDEN')
+  }
+
+  const cedenteId = cedenteResult.data
+  const perfil = perfilResult.data as CedenteAccessProfile | null
+  if (!cedenteId || (perfil !== 'ADMIN' && perfil !== 'OPERACIONAL')) {
+    throw new AuthorizationError('Usuario sem associacao ativa com o cedente.', 'FORBIDDEN')
+  }
+  if (expectedCedenteId && expectedCedenteId !== cedenteId) {
+    throw new AuthorizationError('Usuario sem vinculo com o cedente informado.', 'FORBIDDEN')
+  }
+  if (scope === 'administrativo' && perfil !== 'ADMIN') {
+    throw new AuthorizationError('Esta acao exige perfil ADMIN do cedente.', 'FORBIDDEN')
+  }
+
+  const cedente = await loadCedente(context.supabase, cedenteId)
+  return { ...context, cedente, cedenteAccess: { cedenteId, perfil } }
 }
 
 export async function requireOperationAccess(

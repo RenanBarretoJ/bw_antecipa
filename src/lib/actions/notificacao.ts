@@ -14,6 +14,51 @@ interface NotificacaoInput {
   href?: string
 }
 
+export type NotificacaoCedenteEscopo = 'operacional' | 'administrativo'
+
+async function listarDestinatariosAtivosCedente(
+  cedenteId: string,
+  escopo: NotificacaoCedenteEscopo,
+): Promise<string[]> {
+  const admin = createAdminClient()
+  const [{ data: cedente, error: cedenteError }, { data: acessos, error: acessosError }] = await Promise.all([
+    admin.from('cedentes').select('user_id').eq('id', cedenteId).maybeSingle(),
+    admin
+      .from('cedente_acessos')
+      .select('user_id, perfil, status')
+      .eq('cedente_id', cedenteId),
+  ])
+
+  if (cedenteError || !cedente) throw new Error('Cedente nao encontrado para notificacao.')
+  if (acessosError) throw new Error(`Nao foi possivel resolver os acessos do cedente: ${acessosError.message}`)
+
+  const todasAssociacoes = (acessos || []) as Array<{
+    user_id: string
+    perfil: 'ADMIN' | 'OPERACIONAL'
+    status: 'CONVIDADO' | 'ATIVO' | 'REVOGADO'
+  }>
+  const candidatos = todasAssociacoes
+    .filter((acesso) => acesso.status === 'ATIVO')
+    .filter((acesso) => escopo === 'operacional' || acesso.perfil === 'ADMIN')
+    .map((acesso) => acesso.user_id)
+
+  // Compatibilidade: owner somente quando o Cedente ainda nao possui nenhuma
+  // associacao canonica. REVOGADO/CONVIDADO nunca reativam o fallback.
+  if (todasAssociacoes.length === 0) {
+    candidatos.push((cedente as { user_id: string }).user_id)
+  }
+
+  const unicos = [...new Set(candidatos)]
+  if (!unicos.length) return []
+  const { data: profiles, error: profilesError } = await admin
+    .from('profiles')
+    .select('id')
+    .in('id', unicos)
+    .eq('status', 'ativo')
+  if (profilesError) throw new Error(`Nao foi possivel validar os destinatarios: ${profilesError.message}`)
+  return ((profiles || []) as Array<{ id: string }>).map((profile) => profile.id)
+}
+
 export async function criarNotificacao({ usuario_id, titulo, mensagem, tipo, dedupe_key, entidade_tipo, entidade_id, href }: NotificacaoInput) {
   try {
     const supabase = await createClient()
@@ -32,35 +77,20 @@ export async function criarNotificacao({ usuario_id, titulo, mensagem, tipo, ded
   }
 }
 
-// Envia notificacao para o dono do cedente + todos os usuarios vinculados ativos.
-export async function notificarCedente(cedenteId: string, titulo: string, mensagem: string, tipo: string, dedupeKey?: string) {
+// Envia notificacao somente a associacoes canonicas ATIVAS. O owner legado e
+// fallback exclusivo de Cedentes ainda sem qualquer associacao.
+export async function notificarCedente(
+  cedenteId: string,
+  titulo: string,
+  mensagem: string,
+  tipo: string,
+  dedupeKey?: string,
+  escopo: NotificacaoCedenteEscopo = 'operacional',
+) {
   try {
     const admin = createAdminClient()
-
-    const { data: cedente, error: cedenteError } = await admin
-      .from('cedentes')
-      .select('user_id')
-      .eq('id', cedenteId)
-      .single()
-
-    if (cedenteError || !cedente) {
-      console.error('[notificarCedente] Cedente nao encontrado:', cedenteError?.message, { cedenteId })
-      return
-    }
-
-    const { data: acessos, error: acessosError } = await admin
-      .from('cedente_acessos')
-      .select('user_id')
-      .eq('cedente_id', cedenteId)
-      .eq('ativo', true)
-
-    if (acessosError) {
-      console.error('[notificarCedente] Erro ao buscar acessos:', acessosError.message, { cedenteId })
-    }
-
-    const ownerUserId = (cedente as { user_id: string }).user_id
-    const vinculados = ((acessos || []) as { user_id: string }[]).map((a) => a.user_id)
-    const userIds = [...new Set([ownerUserId, ...vinculados])]
+    const userIds = await listarDestinatariosAtivosCedente(cedenteId, escopo)
+    if (!userIds.length) return
 
     const notificacoesLote = userIds.map((uid) => ({
       usuario_id: uid,
@@ -89,7 +119,7 @@ export async function notificarCedente(cedenteId: string, titulo: string, mensag
       })
     }
 
-    tentarEnviarEmail(ownerUserId, tipo, titulo, mensagem).catch(() => {})
+    await Promise.allSettled(userIds.map((userId) => tentarEnviarEmail(userId, tipo, titulo, mensagem)))
   } catch (err) {
     console.error('[notificarCedente] Erro inesperado:', err)
   }

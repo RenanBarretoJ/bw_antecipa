@@ -68,18 +68,17 @@ describe('P0 (correção real): usuário com acesso delegado (cedente_acessos) t
   })
 
   it('ehAdministrador (cedente.ts) usa get_user_cedente_acesso_perfil(), não lê cedente_acessos direto', () => {
-    const indiceFuncao = cedenteActions.indexOf('async function ehAdministrador')
-    const indiceFimFuncao = cedenteActions.indexOf('\n}', indiceFuncao)
-    const corpo = cedenteActions.slice(indiceFuncao, indiceFimFuncao)
-    expect(corpo).toContain("supabase.rpc('get_user_cedente_acesso_perfil')")
-    expect(corpo).not.toContain("from('cedente_acessos')")
+    expect(cedenteActions).toContain("requireCedenteOrganizationalAccess('administrativo')")
+    expect(cedenteActions).not.toContain('async function ehAdministrador')
+    expect(cedenteActions).not.toContain('cedenteUserId === userId')
   })
 
   it('usuarioEhAdministradorCedente (mfa.ts) usa get_user_cedente_acesso_perfil(), não lê cedente_acessos direto', () => {
     const indiceFuncao = mfa.indexOf('async function usuarioEhAdministradorCedente')
     const indiceFimFuncao = mfa.indexOf('\n}', indiceFuncao)
     const corpo = mfa.slice(indiceFuncao, indiceFimFuncao)
-    expect(corpo).toContain("client.rpc('get_user_cedente_acesso_perfil')")
+    expect(corpo).toContain("client.rpc('get_user_cedente_perfil_canonico')")
+    expect(corpo).not.toContain("from('cedentes')")
     expect(corpo).not.toContain("from('cedente_acessos')")
   })
 

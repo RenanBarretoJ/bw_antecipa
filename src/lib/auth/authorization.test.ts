@@ -85,8 +85,6 @@ describe('autorização server-side', () => {
   it('não autoriza cedente em entidade de outro proprietário', () => {
     expect(canAccessCedente({
       role: 'cedente',
-      userId: 'user-1',
-      ownerUserId: 'user-2',
       hasDelegatedAccess: false,
       hasConsultorLink: false,
     })).toBe(false)

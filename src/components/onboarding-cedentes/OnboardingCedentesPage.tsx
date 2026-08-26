@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { RefreshCw } from 'lucide-react'
+import { RefreshCw, UserPlus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ListPagination } from '@/components/pagination'
@@ -14,6 +14,7 @@ import { OnboardingEmptyState } from './OnboardingEmptyState'
 import { OnboardingSummaryFilters } from './OnboardingSummaryFilters'
 import { OnboardingToolbar } from './OnboardingToolbar'
 import { VincularFundoDialog } from './VincularFundoDialog'
+import { ConvidarNovoCedenteDialog } from './ConvidarNovoCedenteDialog'
 import type { FiltrosOnboarding, OnboardingCedente, ResultadoOnboarding } from './types'
 
 export function OnboardingCedentesPage({
@@ -30,6 +31,7 @@ export function OnboardingCedentesPage({
   const [vincularCedente, setVincularCedente] = useState<OnboardingCedente | null>(null)
   const [politicaCedente, setPoliticaCedente] = useState<OnboardingCedente | null>(null)
   const [drawerCedente, setDrawerCedente] = useState<OnboardingCedente | null>(null)
+  const [conviteAberto, setConviteAberto] = useState(false)
   const currentParams = useMemo(
     () => Object.fromEntries(searchParams.entries()),
     [searchParams],
@@ -58,10 +60,16 @@ export function OnboardingCedentesPage({
             </p>
           )}
         </div>
-        <Button type="button" variant="outline" onClick={atualizar} disabled={isPending}>
-          <RefreshCw className={`size-4 ${isPending ? 'animate-spin' : ''}`} aria-hidden="true" />
-          Atualizar
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button type="button" onClick={() => setConviteAberto(true)} disabled={!resultado.fundoAtivo || isPending}>
+            <UserPlus className="size-4" aria-hidden="true" />
+            Convidar novo Cedente
+          </Button>
+          <Button type="button" variant="outline" onClick={atualizar} disabled={isPending}>
+            <RefreshCw className={`size-4 ${isPending ? 'animate-spin' : ''}`} aria-hidden="true" />
+            Atualizar
+          </Button>
+        </div>
       </div>
 
       <OnboardingSummaryFilters
@@ -109,6 +117,12 @@ export function OnboardingCedentesPage({
         cedente={vincularCedente}
         fundo={resultado.fundoAtivo}
         onOpenChange={(open) => !open && setVincularCedente(null)}
+        onSuccess={atualizar}
+      />
+      <ConvidarNovoCedenteDialog
+        open={conviteAberto}
+        fundo={resultado.fundoAtivo}
+        onOpenChange={setConviteAberto}
         onSuccess={atualizar}
       />
       <DefinirPoliticaDialog

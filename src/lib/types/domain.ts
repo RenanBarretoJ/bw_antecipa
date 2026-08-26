@@ -69,8 +69,17 @@ export type OperacaoStatus = (typeof OPERACAO_STATUSES)[number]
 export const BANK_ACCOUNT_TYPES = ['corrente', 'poupanca'] as const
 export type TipoContaBancaria = (typeof BANK_ACCOUNT_TYPES)[number]
 
-export const CEDENTE_ACCESS_PROFILES = ['administrador', 'operador'] as const
+export const CEDENTE_ACCESS_PROFILES = ['ADMIN', 'OPERACIONAL'] as const
 export type CedenteAcessoPerfil = (typeof CEDENTE_ACCESS_PROFILES)[number]
+
+export const CEDENTE_ACCESS_STATUSES = ['CONVIDADO', 'ATIVO', 'REVOGADO'] as const
+export type CedenteAcessoStatus = (typeof CEDENTE_ACCESS_STATUSES)[number]
+
+export const CEDENTE_INVITATION_STATUSES = ['PENDENTE', 'ACEITO', 'EXPIRADO', 'CANCELADO'] as const
+export type CedenteConviteStatus = (typeof CEDENTE_INVITATION_STATUSES)[number]
+
+export const CEDENTE_INVITATION_TYPES = ['USUARIO_CEDENTE_EXISTENTE', 'NOVO_CEDENTE'] as const
+export type CedenteConviteTipo = (typeof CEDENTE_INVITATION_TYPES)[number]
 
 export const ALTERATION_REQUEST_STATUSES = ['pendente', 'aprovada', 'reprovada'] as const
 export type SolicitacaoAlteracaoStatus = (typeof ALTERATION_REQUEST_STATUSES)[number]

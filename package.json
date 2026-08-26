@@ -37,6 +37,8 @@
     "homolog:p0:onboarding:verify": "node scripts/homologacao/p0-onboarding/verify.mjs",
     "homolog:p0:onboarding:validate-migration": "node scripts/homologacao/p0-onboarding/validate-migration.mjs",
     "homolog:p0:onboarding:apply-migration": "node scripts/homologacao/p0-onboarding/apply-migration.mjs",
+    "homolog:p3:autorizacao:apply-migration": "node scripts/homologacao/p3-autorizacao-cedente/apply-migration.mjs",
+    "homolog:p3:autorizacao:e2e": "node scripts/homologacao/p3-autorizacao-cedente/e2e.mjs",
     "homolog:p0:documentos:apply-migrations": "node scripts/homologacao/p0-documentos-cedente/apply-migrations.mjs",
     "homolog:p0:documentos:verify": "node scripts/homologacao/p0-documentos-cedente/verify.mjs",
     "homolog:p0:documentos-gestor:apply-migration": "node scripts/homologacao/p0-analise-documentos-gestor/apply-migration.mjs",

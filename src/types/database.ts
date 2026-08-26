@@ -19,6 +19,9 @@ export type {
   RetornoIntegracaoTipo,
   ContaEscrowStatus,
   CedenteAcessoPerfil,
+  CedenteAcessoStatus,
+  CedenteConviteStatus,
+  CedenteConviteTipo,
   CedenteStatus,
   ContextoConfiguracaoStatus,
   CteFormato,
@@ -56,6 +59,9 @@ import type {
   AuditoriaAtorTipo,
   CanhotoStatus,
   CedenteAcessoPerfil,
+  CedenteAcessoStatus,
+  CedenteConviteStatus,
+  CedenteConviteTipo,
   CedenteStatus,
   CedenteFundoStatus,
   CnabConfigStatus,
@@ -204,6 +210,7 @@ export interface Cedente {
   banco_codigo: string | null
   banco_ispb: string | null
   banco_nome: string | null
+  onboarding_concluido_em: string | null
   created_at: string
   updated_at: string
 }
@@ -1427,9 +1434,33 @@ export interface CedenteAcesso {
   cedente_id: string
   user_id: string
   perfil: CedenteAcessoPerfil
+  status: CedenteAcessoStatus
   ativo: boolean
   convidado_por: string | null
+  aceito_em: string | null
+  revogado_em: string | null
   created_at: string
+  updated_at: string
+}
+
+export interface CedenteUsuarioConvite {
+  id: string
+  tipo: CedenteConviteTipo
+  cedente_id: string | null
+  fundo_id: string | null
+  cnpj_normalizado: string | null
+  email_normalizado: string
+  perfil: CedenteAcessoPerfil
+  token_hash: string
+  status: CedenteConviteStatus
+  convidado_por: string | null
+  expires_at: string
+  aceito_por_user_id: string | null
+  aceito_em: string | null
+  cancelado_em: string | null
+  expirado_em: string | null
+  created_at: string
+  updated_at: string
 }
 
 export interface LogAuditoria {
@@ -2191,6 +2222,7 @@ export interface Database {
       testemunhas: { Row: Testemunha & Record<string, unknown>; Insert: InsertShape<Testemunha, 'nome' | 'cpf'> & Record<string, unknown>; Update: UpdateShape<Testemunha> & Record<string, unknown>; Relationships: [] }
       solicitacoes_alteracao_cedente: { Row: SolicitacaoAlteracaoCedente & Record<string, unknown>; Insert: InsertShape<SolicitacaoAlteracaoCedente, 'cedente_id' | 'dados_atuais' | 'dados_propostos'> & Record<string, unknown>; Update: UpdateShape<SolicitacaoAlteracaoCedente> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'solicitacoes_alteracao_cedente_cedente_id_fkey'; columns: ['cedente_id']; isOneToOne: false; referencedRelation: 'cedentes'; referencedColumns: ['id'] }] }
       cedente_acessos: { Row: CedenteAcesso & Record<string, unknown>; Insert: InsertShape<CedenteAcesso, 'cedente_id' | 'user_id'> & Record<string, unknown>; Update: UpdateShape<CedenteAcesso> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'cedente_acessos_cedente_id_fkey'; columns: ['cedente_id']; isOneToOne: false; referencedRelation: 'cedentes'; referencedColumns: ['id'] }, { foreignKeyName: 'cedente_acessos_user_id_fkey'; columns: ['user_id']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] }] }
+      cedente_usuario_convites: { Row: CedenteUsuarioConvite & Record<string, unknown>; Insert: InsertShape<CedenteUsuarioConvite, 'email_normalizado' | 'perfil' | 'token_hash' | 'expires_at'> & Record<string, unknown>; Update: UpdateShape<CedenteUsuarioConvite> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'cedente_usuario_convites_cedente_id_fkey'; columns: ['cedente_id']; isOneToOne: false; referencedRelation: 'cedentes'; referencedColumns: ['id'] }, { foreignKeyName: 'cedente_usuario_convites_fundo_id_fkey'; columns: ['fundo_id']; isOneToOne: false; referencedRelation: 'fundos'; referencedColumns: ['id'] }, { foreignKeyName: 'cedente_usuario_convites_convidado_por_fkey'; columns: ['convidado_por']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] }, { foreignKeyName: 'cedente_usuario_convites_aceito_por_user_id_fkey'; columns: ['aceito_por_user_id']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] }] }
       logs_auditoria: { Row: LogAuditoria & Record<string, unknown>; Insert: InsertShape<LogAuditoria, 'tipo_evento' | 'entidade_tipo' | 'ator_tipo' | 'origem'> & Record<string, unknown>; Update: UpdateShape<LogAuditoria> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'logs_auditoria_usuario_id_fkey'; columns: ['usuario_id']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] }] }
       notificacoes: { Row: Notificacao & Record<string, unknown>; Insert: InsertShape<Notificacao, 'usuario_id' | 'titulo' | 'mensagem' | 'tipo'> & Record<string, unknown>; Update: UpdateShape<Notificacao> & Record<string, unknown>; Relationships: [] }
       autorizacoes_acoes_sensiveis: { Row: AutorizacaoAcaoSensivel & Record<string, unknown>; Insert: InsertShape<AutorizacaoAcaoSensivel, 'user_id' | 'session_id' | 'action_type' | 'nonce_hash' | 'expira_em'> & Record<string, unknown>; Update: UpdateShape<AutorizacaoAcaoSensivel> & Record<string, unknown>; Relationships: [] }
@@ -2215,6 +2247,18 @@ export interface Database {
     }
     Views: Record<string, never>
     Functions: {
+      criar_convite_novo_cedente: {
+        Args: { p_fundo_id: string; p_cnpj: string; p_email: string; p_token_hash: string; p_correlation_id: string }
+        Returns: { convite_id: string; fundo_id: string; fundo_nome: string; cnpj: string; email: string; expires_at: string }
+      }
+      cancelar_convite_novo_cedente: {
+        Args: { p_convite_id: string; p_motivo: string; p_correlation_id: string }
+        Returns: { cancelado: boolean; codigo: string }
+      }
+      aceitar_convite_novo_cedente: {
+        Args: { p_token_hash: string; p_correlation_id: string }
+        Returns: { ok: boolean; codigo: string; cedente_id?: string; matriz_id?: string; cedente_fundo_id?: string }
+      }
       concluir_onboarding_cedente: {
         Args: { p_cadastro: Record<string, unknown> }
         Returns: { id: string; razao_social: string; criado: boolean; idempotente: boolean }
@@ -2546,6 +2590,7 @@ export interface Database {
       get_user_role: { Args: Record<string, never>; Returns: string }
       get_user_cedente_id: { Args: Record<string, never>; Returns: string | null }
       get_user_cedente_acesso_perfil: { Args: Record<string, never>; Returns: string | null }
+      get_user_cedente_perfil_canonico: { Args: Record<string, never>; Returns: 'ADMIN' | 'OPERACIONAL' | null }
       get_user_sacado_cnpj: { Args: Record<string, never>; Returns: string | null }
       get_user_operacao_ids: { Args: Record<string, never>; Returns: string[] }
       carregar_dashboard_sacado: { Args: Record<string, never>; Returns: Record<string, unknown> }

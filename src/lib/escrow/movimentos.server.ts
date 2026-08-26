@@ -23,7 +23,7 @@ type ContaRow = {
   saldo_disponivel: number
   saldo_bloqueado: number
   status: string
-  cedentes: { razao_social: string; cnpj: string; user_id: string } | null
+  cedentes: { razao_social: string; cnpj: string } | null
 }
 
 async function autorizarConta(
@@ -33,8 +33,7 @@ async function autorizarConta(
 ): Promise<ContaEscrowDetalhe | null> {
   let cedenteProprioId: string | null = null
   if (perfil === 'cedente') {
-    // get_user_cedente_id() resolve tanto o dono (cedentes.user_id) quanto
-    // um usuario convidado via cedente_acessos.
+    // get_user_cedente_id() resolve a associacao organizacional ativa.
     const { data: cedenteIdResolvido, error: cedenteError } = await auth.supabase.rpc('get_user_cedente_id')
     if (cedenteError) throw new Error(`Nao foi possivel resolver o cedente autenticado: ${cedenteError.message}`)
     cedenteProprioId = cedenteIdResolvido || null
@@ -43,7 +42,7 @@ async function autorizarConta(
 
   let query = auth.supabase
     .from('contas_escrow')
-    .select('id, cedente_id, identificador, saldo_disponivel, saldo_bloqueado, status, cedentes(razao_social, cnpj, user_id)')
+    .select('id, cedente_id, identificador, saldo_disponivel, saldo_bloqueado, status, cedentes(razao_social, cnpj)')
   if (contaId) query = query.eq('id', contaId)
   if (cedenteProprioId) query = query.eq('cedente_id', cedenteProprioId)
   const { data, error } = await query.limit(1).maybeSingle()
@@ -74,7 +73,7 @@ async function autorizarConta(
       .maybeSingle()
     if (vinculoError) throw new Error(`Nao foi possivel validar a carteira: ${vinculoError.message}`)
     if (!vinculo) throw new AuthorizationError('Conta escrow fora da carteira do consultor.', 'FORBIDDEN')
-  } else if (row.cedentes.user_id !== auth.user.id) {
+  } else if (row.cedente_id !== cedenteProprioId) {
     throw new AuthorizationError('Conta escrow nao pertence ao cedente autenticado.', 'FORBIDDEN')
   }
 
