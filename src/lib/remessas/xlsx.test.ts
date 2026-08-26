@@ -13,13 +13,13 @@ const lote: RemessaLoteCanonico = {
     politicaOperacionalVersaoId: 'politica-v1',
     cedente: {
       id: 'cedente-1', cnpj: '12345678000195', razaoSocial: 'Cedente Teste',
-      coobrigacao: true, bancoCodigo: '001', agencia: '1234', conta: '100-7',
+      coobrigacao: true,
     },
     estabelecimento: { id: 'est-1', cnpj: '12345678000195', razaoSocial: 'Cedente Teste' },
     notas: [{
       id: 'nf-1', numero: '100', serie: '1', chaveAcesso: null, dataEmissao: '2026-08-01',
       valorBruto: 3000, quantidadeParcelasOriginal: 5,
-      emissor: { estabelecimentoId: 'est-1', cnpj: '12345678000195', nome: 'Cedente Teste' },
+      emissor: { estabelecimentoId: 'est-1', cnpj: '12345678000195', nome: 'Cedente Teste', contasBancarias: [] },
       devedor: {
         cnpj: '98765432000198', nome: 'Devedor Teste', cep: null, endereco: null,
         numero: null, complemento: null, bairro: null, municipio: null, uf: null,

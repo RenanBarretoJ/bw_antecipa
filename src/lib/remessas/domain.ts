@@ -12,6 +12,24 @@ export interface RemessaParcelaCanonica {
   taxaMensal: number | null
 }
 
+export interface RemessaContaBancariaCanonica {
+  id: string
+  estabelecimentoId: string
+  titular: {
+    estabelecimentoId: string
+    cedenteId: string
+    cpfCnpj: string
+    nome: string
+  } | null
+  bancoCodigo: string | null
+  bancoIspb: string | null
+  bancoNome: string | null
+  agencia: string
+  conta: string
+  principal: boolean
+  ativa: boolean
+}
+
 export interface RemessaNotaFiscalCanonica {
   id: string
   numero: string
@@ -24,6 +42,7 @@ export interface RemessaNotaFiscalCanonica {
     estabelecimentoId: string | null
     cnpj: string
     nome: string
+    contasBancarias: RemessaContaBancariaCanonica[]
   }
   devedor: {
     cnpj: string
@@ -51,9 +70,6 @@ export interface RemessaOperacaoCanonica {
     cnpj: string
     razaoSocial: string
     coobrigacao: boolean
-    bancoCodigo: string | null
-    agencia: string | null
-    conta: string | null
   }
   estabelecimento: {
     id: string | null

@@ -102,14 +102,18 @@ Cada linha corresponde a um registro real de `operacoes_nf_parcelas` e à memór
 | Índice | Campo VRS | Fonte BW/regra |
 |---:|---|---|
 | 0 | tipo_registro | Fixo `PAGAMENTO` |
-| 1 | codigo_banco | `cedentes.banco_codigo`, três dígitos; bloqueante |
-| 2 | codigo_agencia | `cedentes.agencia`, quatro caracteres aceitos; bloqueante |
-| 3–4 | conta e dígito | `cedentes.conta` no formato `numero-digito`; bloqueante |
-| 5 | cpf_cnpj_favorecido | `cedentes.cnpj` |
-| 6 | nome_do_favorecido | `cedentes.razao_social` |
+| 1 | codigo_banco | Conta principal ativa do estabelecimento emissor da NF: `cedente_estabelecimento_contas_bancarias.banco_codigo`, COMPE com três dígitos; bloqueante |
+| 2 | codigo_agencia | Conta principal ativa do estabelecimento emissor da NF: `agencia`, quatro caracteres aceitos; bloqueante |
+| 3–4 | conta e dígito | Conta principal ativa do estabelecimento emissor da NF: `conta` no formato `numero-digito`; bloqueante |
+| 5 | cpf_cnpj_favorecido | CNPJ normalizado do `titular_estabelecimento_id` da conta resolvida |
+| 6 | nome_do_favorecido | Razão social do `titular_estabelecimento_id` da conta resolvida |
 | 7 | valor_da_transacao | Soma dos valores presentes das parcelas selecionadas do arquivo |
 
 Valores são serializados com duas casas e vírgula decimal. Datas usam `dd/MM/yyyy`. Conteúdo com `;`, CR ou LF é rejeitado para impedir alteração estrutural do CSV.
+
+A fonte bancária é resolvida individualmente pelo `estabelecimento_id` emissor de cada NF, sem inferência por tipo Matriz/Filial e sem fallback para os campos bancários legados de `cedentes`. O favorecido vem exclusivamente do titular explicitamente vinculado à conta. Assim, uma Filial com conta própria usa a própria Filial como favorecida, enquanto uma Filial que utiliza a conta da Matriz usa a Matriz. Titular ausente ou pertencente a outro Cedente bloqueia a geração.
+
+Matriz e Filial podem compartilhar o mesmo destino bancário e titular. Se as NFs de uma mesma sub-remessa `POR_CEDENTE` resolverem destinos distintos, a geração é bloqueada com `REMESSA_VRS_MULTIPLAS_CONTAS_NAO_SUPORTADA`, pois o layout homologado não comprova a associação de múltiplos registros `PAGAMENTO` aos respectivos ativos.
 
 ## Persistência
 

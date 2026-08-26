@@ -10,6 +10,7 @@ import { notificarCedente } from './notificacao'
 import { carregarEstabelecimentosPaginados } from '@/lib/cedentes/estabelecimentos-listagem.server'
 import type { FiltrosEstabelecimentos, ResultadoEstabelecimentos } from '@/lib/cedentes/estabelecimentos-listagem'
 import type { CedenteEstabelecimento, CedenteEstabelecimentoContaBancaria, CedenteEstabelecimentoRequisito, EstabelecimentoRequisitoStatus } from '@/types/database'
+import { etapa3Schema } from '@/lib/validations/cedente'
 
 export type EstabelecimentoActionResult<T = unknown> = {
   success: boolean
@@ -34,6 +35,8 @@ async function cedenteAutenticado() {
   if (!data) throw new Error('Cadastro de cedente nao encontrado.')
   return { ...context, cedente: data as { id: string; status: string } }
 }
+
+export type TitularContaEstabelecimento = Pick<CedenteEstabelecimento, 'id' | 'cnpj' | 'razao_social' | 'tipo'>
 
 async function cedenteAdministradorAutenticado() {
   const context = await requireCedenteOrganizationalAccess('administrativo')
@@ -77,24 +80,46 @@ export async function obterStatusMatriz(): Promise<EstabelecimentoActionResult<{
 export async function carregarDetalheEstabelecimento(estabelecimentoId: string): Promise<EstabelecimentoActionResult<{
   requisitos: EstabelecimentoRequisitoStatus[]
   contas: CedenteEstabelecimentoContaBancaria[]
+  titulares: TitularContaEstabelecimento[]
 }>> {
   try {
     const context = await requireAuthenticated()
     if (context.profile.role !== 'cedente' && context.profile.role !== 'gestor') {
       throw new Error('Apenas cedente ou gestor podem consultar o detalhe.')
     }
-    const [{ data: requisitos, error: requisitosError }, { data: contas, error: contasError }] = await Promise.all([
+    const { data: estabelecimento, error: estabelecimentoError } = await context.supabase
+      .from('cedente_estabelecimentos')
+      .select('id, cedente_id')
+      .eq('id', estabelecimentoId)
+      .maybeSingle()
+    if (estabelecimentoError) throw new Error(`Nao foi possivel validar o estabelecimento: ${estabelecimentoError.message}`)
+    if (!estabelecimento) throw new Error('Estabelecimento nao encontrado ou sem acesso.')
+    const cedenteId = String((estabelecimento as { cedente_id: string }).cedente_id)
+    const [
+      { data: requisitos, error: requisitosError },
+      { data: contas, error: contasError },
+      { data: titulares, error: titularesError },
+    ] = await Promise.all([
       context.supabase.rpc('listar_requisitos_estabelecimento', { p_estabelecimento_id: estabelecimentoId }),
       context.supabase.from('cedente_estabelecimento_contas_bancarias').select('*').eq('estabelecimento_id', estabelecimentoId).eq('ativo', true),
+      context.supabase
+        .from('cedente_estabelecimentos')
+        .select('id, cnpj, razao_social, tipo')
+        .eq('cedente_id', cedenteId)
+        .eq('ativo', true)
+        .order('tipo', { ascending: false })
+        .order('razao_social'),
     ])
     if (requisitosError) throw new Error(`Nao foi possivel carregar o checklist: ${requisitosError.message}`)
     if (contasError) throw new Error(`Nao foi possivel carregar as contas: ${contasError.message}`)
+    if (titularesError) throw new Error(`Nao foi possivel carregar os titulares elegiveis: ${titularesError.message}`)
     return {
       success: true,
       message: 'Detalhe carregado.',
       data: {
         requisitos: (requisitos || []) as EstabelecimentoRequisitoStatus[],
         contas: (contas || []) as CedenteEstabelecimentoContaBancaria[],
+        titulares: (titulares || []) as TitularContaEstabelecimento[],
       },
     }
   } catch (error) {
@@ -148,17 +173,31 @@ export async function cadastrarFilial(formData: FormData): Promise<Estabelecimen
 export async function salvarContaEstabelecimento(formData: FormData): Promise<EstabelecimentoActionResult<CedenteEstabelecimentoContaBancaria>> {
   try {
     const context = await cedenteAdministradorAutenticado()
-    const opcional = (campo: string) => String(formData.get(campo) || '').trim() || null
+    const contaValidada = etapa3Schema.safeParse({
+      banco: String(formData.get('banco') || '').trim(),
+      agencia: String(formData.get('agencia') || '').trim(),
+      conta: String(formData.get('conta') || '').trim(),
+      tipo_conta: String(formData.get('tipo_conta') || '').trim(),
+      banco_codigo: String(formData.get('banco_codigo') || '').trim(),
+      banco_ispb: String(formData.get('banco_ispb') || '').trim(),
+      banco_nome: String(formData.get('banco_nome') || '').trim(),
+    })
+    if (!contaValidada.success) {
+      throw new Error(contaValidada.error.issues[0]?.message || 'Dados bancarios invalidos.')
+    }
+    const titularEstabelecimentoId = String(formData.get('titular_estabelecimento_id') || '').trim()
+    if (!titularEstabelecimentoId) throw new Error('Selecione o titular da conta bancaria.')
     const { data, error } = await context.supabase.rpc('salvar_conta_estabelecimento_cedente', {
       p_estabelecimento_id: String(formData.get('estabelecimento_id') || ''),
-      p_banco: String(formData.get('banco') || '').trim(),
-      p_agencia: String(formData.get('agencia') || '').trim(),
-      p_conta: String(formData.get('conta') || '').trim(),
-      p_tipo_conta: String(formData.get('tipo_conta') || '').trim(),
+      p_banco: contaValidada.data.banco,
+      p_agencia: contaValidada.data.agencia,
+      p_conta: contaValidada.data.conta,
+      p_tipo_conta: contaValidada.data.tipo_conta,
       p_principal: formData.get('principal') !== 'false',
-      p_banco_codigo: opcional('banco_codigo'),
-      p_banco_ispb: opcional('banco_ispb'),
-      p_banco_nome: opcional('banco_nome'),
+      p_banco_codigo: contaValidada.data.banco_codigo,
+      p_banco_ispb: contaValidada.data.banco_ispb,
+      p_banco_nome: contaValidada.data.banco_nome,
+      p_titular_estabelecimento_id: titularEstabelecimentoId,
     })
     if (error) throw new Error(`Nao foi possivel salvar a conta: ${error.message}`)
     revalidatePath('/cedente/estabelecimentos')

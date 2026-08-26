@@ -248,6 +248,7 @@ export interface CedenteEstabelecimento {
 export interface CedenteEstabelecimentoContaBancaria {
   id: string
   estabelecimento_id: string
+  titular_estabelecimento_id: string | null
   banco: string
   agencia: string
   conta: string
@@ -2412,6 +2413,7 @@ export interface Database {
           p_banco_codigo?: string | null
           p_banco_ispb?: string | null
           p_banco_nome?: string | null
+          p_titular_estabelecimento_id?: string | null
         }
         Returns: CedenteEstabelecimentoContaBancaria
       }

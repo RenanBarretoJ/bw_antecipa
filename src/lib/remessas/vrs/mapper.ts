@@ -2,6 +2,7 @@ import {
   chaveUnicaAtivo,
   chaveUnicaParcela,
   type GrupoRemessaCanonico,
+  type RemessaNotaFiscalCanonica,
 } from '@/lib/remessas/domain'
 
 export interface ConfiguracaoVrsInclusao {
@@ -68,24 +69,92 @@ function decimalBr(value: number) {
   return value.toFixed(2).replace('.', ',')
 }
 
-function valorObrigatorio(value: string, campo: string, bloqueios: string[]) {
-  if (!value) bloqueios.push(campo)
-  return value
-}
-
 function validarCampoCsv(value: string, campo: string, bloqueios: string[]) {
   if (/[;\r\n]/.test(value)) bloqueios.push(`${campo} contem delimitador ou quebra de linha nao suportada pelo CSV oficial`)
   return value
 }
 
-function parseConta(contaOriginal: string | null, bloqueios: string[]) {
+function parseConta(contaOriginal: string | null, campo: string, bloqueios: string[]) {
   const conta = texto(contaOriginal)
   const match = /^(\d{1,12})-([0-9])$/.exec(conta)
   if (!match) {
-    bloqueios.push('cedentes.conta deve estar no formato numero-digito para o PAGAMENTO VRS')
+    bloqueios.push(`${campo} deve estar no formato numero-digito para o PAGAMENTO VRS`)
     return { numero: '', digito: '' }
   }
   return { numero: match[1], digito: match[2] }
+}
+
+interface DestinoPagamentoVrs {
+  chave: string
+  banco: string
+  agencia: string
+  numeroConta: string
+  digitoConta: string
+  favorecidoCpfCnpj: string
+  favorecidoNome: string
+}
+
+function resolverDestinoPagamento(
+  nota: RemessaNotaFiscalCanonica,
+  cedenteId: string,
+  bloqueios: string[],
+): DestinoPagamentoVrs | null {
+  const contexto = `NF ${nota.numero}: conta do estabelecimento emissor`
+  if (!nota.emissor.estabelecimentoId) {
+    bloqueios.push(`NF ${nota.numero}: estabelecimento emissor nao identificado para o PAGAMENTO VRS`)
+    return null
+  }
+
+  const principaisAtivas = nota.emissor.contasBancarias.filter((conta) => (
+    conta.estabelecimentoId === nota.emissor.estabelecimentoId
+    && conta.principal
+    && conta.ativa
+  ))
+  if (principaisAtivas.length === 0) {
+    bloqueios.push(`${contexto} nao possui conta principal ativa estruturada`)
+    return null
+  }
+  if (principaisAtivas.length > 1) {
+    bloqueios.push(`${contexto} possui mais de uma conta principal ativa`)
+    return null
+  }
+
+  const conta = principaisAtivas[0]
+  const banco = texto(conta.bancoCodigo)
+  const bancoIspb = texto(conta.bancoIspb)
+  const bancoNome = texto(conta.bancoNome)
+  const agencia = texto(conta.agencia)
+  const titular = conta.titular
+  const quantidadeBloqueiosAntes = bloqueios.length
+  const contaSeparada = parseConta(conta.conta, `${contexto}.conta`, bloqueios)
+  if (!/^\d{3}$/.test(banco)) bloqueios.push(`${contexto}.banco_codigo deve possuir exatamente 3 digitos COMPE`)
+  if (!/^\d{8}$/.test(bancoIspb)) bloqueios.push(`${contexto}.banco_ispb deve possuir exatamente 8 digitos`)
+  if (!bancoNome) bloqueios.push(`${contexto}.banco_nome e obrigatorio`)
+  if (!/^[A-Za-z0-9_-]{4}$/.test(agencia)) bloqueios.push(`${contexto}.agencia deve possuir 4 caracteres aceitos pelo VRS`)
+  if (!titular) {
+    bloqueios.push(`REMESSA_VRS_TITULAR_CONTA_INDISPONIVEL: ${contexto}`)
+  } else {
+    const titularCpfCnpj = somenteDigitos(titular.cpfCnpj)
+    if (titular.cedenteId !== cedenteId) {
+      bloqueios.push(`REMESSA_VRS_TITULAR_CONTA_INVALIDO: ${contexto} possui titular de outro Cedente`)
+    }
+    if (titularCpfCnpj.length !== 14 || titular.cpfCnpj !== titularCpfCnpj || !texto(titular.nome)) {
+      bloqueios.push(`REMESSA_VRS_TITULAR_CONTA_INDISPONIVEL: ${contexto} possui titular incompleto ou nao normalizado`)
+    }
+  }
+  if (bloqueios.length > quantidadeBloqueiosAntes) return null
+
+  const favorecidoCpfCnpj = somenteDigitos(titular?.cpfCnpj)
+  const favorecidoNome = texto(titular?.nome)
+  return {
+    chave: [banco, bancoIspb, agencia, contaSeparada.numero, contaSeparada.digito, favorecidoCpfCnpj].join('|'),
+    banco,
+    agencia,
+    numeroConta: contaSeparada.numero,
+    digitoConta: contaSeparada.digito,
+    favorecidoCpfCnpj,
+    favorecidoNome,
+  }
 }
 
 export function lerConfiguracaoVrs(configuracao: Record<string, unknown>): ConfiguracaoVrsInclusao {
@@ -125,6 +194,7 @@ export function mapearGrupoParaVrs(
 
   const ativos: VrsAtivoMapeado[] = []
   const fluxos: VrsFluxoMapeado[] = []
+  const destinosPagamento = new Map<string, DestinoPagamentoVrs>()
   let valorPagamento = 0
 
   for (const operacao of grupo.operacoes) {
@@ -133,6 +203,8 @@ export function mapearGrupoParaVrs(
     for (const nota of operacao.notas) {
       const emissorCnpj = somenteDigitos(nota.emissor.cnpj)
       if (emissorCnpj.length !== 14) bloqueios.push(`NF ${nota.numero}: estabelecimento emissor sem CNPJ valido`)
+      const destinoPagamento = resolverDestinoPagamento(nota, operacao.cedente.id, bloqueios)
+      if (destinoPagamento) destinosPagamento.set(destinoPagamento.chave, destinoPagamento)
       if (nota.parcelasSelecionadas.length === 0) {
         bloqueios.push(`NF ${nota.numero} sem parcela selecionada em operacoes_nf_parcelas`)
         continue
@@ -194,15 +266,21 @@ export function mapearGrupoParaVrs(
     }
   }
 
-  const banco = somenteDigitos(cedente?.bancoCodigo)
-  const agencia = texto(cedente?.agencia)
-  const conta = parseConta(cedente?.conta ?? null, bloqueios)
-  if (!/^\d{3}$/.test(banco)) bloqueios.push('cedentes.banco_codigo deve possuir 3 digitos')
-  if (!/^[A-Za-z0-9_-]{4}$/.test(agencia)) bloqueios.push('cedentes.agencia deve possuir 4 caracteres aceitos pelo VRS')
   if (!cedente?.razaoSocial) bloqueios.push('cedentes.razao_social')
+  if (destinosPagamento.size > 1) bloqueios.push('REMESSA_VRS_MULTIPLAS_CONTAS_NAO_SUPORTADA')
+  const destinoPagamento = destinosPagamento.values().next().value as DestinoPagamentoVrs | undefined
 
   const header = ['HEADER', 'Inclusão', config.termo, config.codigoCarteira, cedenteCnpj, cedente?.coobrigacao ? 'Sim' : 'Não']
-  const pagamento = ['PAGAMENTO', banco, agencia, conta.numero, conta.digito, cedenteCnpj, cedente?.razaoSocial ?? '', decimalBr(valorPagamento)]
+  const pagamento = [
+    'PAGAMENTO',
+    destinoPagamento?.banco ?? '',
+    destinoPagamento?.agencia ?? '',
+    destinoPagamento?.numeroConta ?? '',
+    destinoPagamento?.digitoConta ?? '',
+    destinoPagamento?.favorecidoCpfCnpj ?? '',
+    destinoPagamento?.favorecidoNome ?? '',
+    decimalBr(valorPagamento),
+  ]
   header.forEach((value, index) => validarCampoCsv(value, `HEADER[${index}]`, bloqueios))
   pagamento.forEach((value, index) => validarCampoCsv(value, `PAGAMENTO[${index}]`, bloqueios))
   if (ativos.length === 0) bloqueios.push('nenhum ATIVO elegivel')

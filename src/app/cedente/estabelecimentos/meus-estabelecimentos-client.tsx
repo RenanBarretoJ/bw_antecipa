@@ -10,6 +10,7 @@ import {
   obterStatusMatriz,
   obterUrlDocumentoRequisito,
   salvarContaEstabelecimento,
+  type TitularContaEstabelecimento,
 } from '@/lib/actions/estabelecimento'
 import type { CedenteEstabelecimentoContaBancaria, EstabelecimentoRequisitoStatus } from '@/types/database'
 import { useNotifications } from '@/components/notifications/notification-provider'
@@ -37,7 +38,11 @@ const requisitoStatusLabel: Record<string, string> = {
   rejeitado: 'Rejeitado', substituido: 'Substituido', cancelado: 'Cancelado',
 }
 
-type Detalhe = { requisitos: EstabelecimentoRequisitoStatus[]; contas: CedenteEstabelecimentoContaBancaria[] }
+type Detalhe = {
+  requisitos: EstabelecimentoRequisitoStatus[]
+  contas: CedenteEstabelecimentoContaBancaria[]
+  titulares: TitularContaEstabelecimento[]
+}
 
 export function MeusEstabelecimentosClient({ filtros, resultado }: {
   filtros: FiltrosEstabelecimentos
@@ -216,7 +221,14 @@ export function MeusEstabelecimentosClient({ filtros, resultado }: {
                           <p className="text-sm text-muted-foreground">Carregando detalhes...</p>
                         ) : detalhes[item.id] ? (
                           <div className="grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
-                            <ContaBancariaSection estabelecimentoId={item.id} conta={detalhes[item.id].contas.find((c) => c.principal)} pending={pendingAction} onSubmit={submit} />
+                            <ContaBancariaSection
+                              key={`${item.id}:${detalhes[item.id].contas.find((c) => c.principal)?.id || 'nova'}`}
+                              estabelecimentoId={item.id}
+                              conta={detalhes[item.id].contas.find((c) => c.principal)}
+                              titulares={detalhes[item.id].titulares}
+                              pending={pendingAction}
+                              onSubmit={submit}
+                            />
                             <ChecklistSection estabelecimentoId={item.id} requisitos={detalhes[item.id].requisitos} pending={pendingAction} onSubmit={submit} onVerDocumento={verDocumento} />
                           </div>
                         ) : null}
@@ -371,18 +383,25 @@ function CadastroFilialForm({ pending, onSubmit, onCancelar }: {
   )
 }
 
-function ContaBancariaSection({ estabelecimentoId, conta, pending, onSubmit }: {
+function ContaBancariaSection({ estabelecimentoId, conta, titulares, pending, onSubmit }: {
   estabelecimentoId: string
   conta: CedenteEstabelecimentoContaBancaria | undefined
+  titulares: TitularContaEstabelecimento[]
   pending: boolean
   onSubmit: (action: (form: FormData) => Promise<{ success: boolean; message: string }>, form: FormData) => void
 }) {
   const [banco, setBanco] = useState<BancoSelecionado | null>(
     conta?.banco_codigo ? { codigo: conta.banco_codigo, ispb: conta.banco_ispb, nome: conta.banco_nome || '' } : null
   )
+  const [titularId, setTitularId] = useState(conta?.titular_estabelecimento_id || estabelecimentoId)
   return (
     <div className="rounded-lg border p-3">
-      <div className="mb-2 flex items-center gap-2 font-medium"><Landmark className="h-4 w-4" />Conta bancaria propria</div>
+      <div className="mb-2 flex items-center gap-2 font-medium"><Landmark className="h-4 w-4" />Conta bancaria principal</div>
+      {conta && !conta.titular_estabelecimento_id && (
+        <p className="mb-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs">
+          Confirme o titular para liberar esta conta nas remessas VRS.
+        </p>
+      )}
       <form
         className="grid gap-2 sm:grid-cols-2"
         onSubmit={(event) => {
@@ -398,8 +417,23 @@ function ContaBancariaSection({ estabelecimentoId, conta, pending, onSubmit }: {
         }}
       >
         <input type="hidden" name="estabelecimento_id" value={estabelecimentoId} />
+        <input type="hidden" name="titular_estabelecimento_id" value={titularId} />
         <div className="sm:col-span-2">
           <BancoCombobox value={banco} legacyLabel={conta?.banco} onSelect={setBanco} />
+        </div>
+        <div className="sm:col-span-2">
+          <Label className="mb-1">Titular da conta</Label>
+          <Select value={titularId} onValueChange={(value) => { if (value) setTitularId(value) }}>
+            <SelectTrigger className="w-full"><SelectValue placeholder="Selecione o titular" /></SelectTrigger>
+            <SelectContent>
+              {titulares.map((titular) => (
+                <SelectItem key={titular.id} value={titular.id}>
+                  {titular.tipo === 'matriz' ? 'Matriz' : 'Filial'} · {titular.razao_social} · {titular.cnpj}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="mt-1 text-xs text-muted-foreground">O favorecido do PAGAMENTO VRS sera este titular.</p>
         </div>
         <Input name="agencia" placeholder="Agencia" required defaultValue={conta?.agencia || ''} />
         <Input name="conta" placeholder="Conta" required defaultValue={conta?.conta || ''} />

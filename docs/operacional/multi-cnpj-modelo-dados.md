@@ -4,7 +4,7 @@
 
 - `cedentes`: relacionamento comercial/grupo econômico atendido pela plataforma. O campo legado `cedentes.cnpj` permanece como espelho do CNPJ da matriz.
 - `cedente_estabelecimentos`: pessoa jurídica operacional identificada por CNPJ. Cada registro é `matriz` ou `filial`.
-- `cedente_estabelecimento_contas_bancarias`: contas próprias do estabelecimento; somente uma conta principal ativa por estabelecimento.
+- `cedente_estabelecimento_contas_bancarias`: contas cadastradas no contexto do estabelecimento; somente uma conta principal ativa por estabelecimento. O titular real é explícito em `titular_estabelecimento_id` e deve pertencer ao mesmo Cedente, permitindo que uma Filial utilize conta própria ou a conta da Matriz sem inferência.
 - `cedente_estabelecimento_requisitos`: checklist cadastral configurável por estabelecimento e baseado em `documento_tipos`.
 - `notas_fiscais.estabelecimento_id`: origem jurídica da NF, derivada no servidor pelo CNPJ do emitente.
 - `documento_vinculos.estabelecimento_id`: vínculo de documentos cadastrais ao estabelecimento sem criar um segundo repositório.
