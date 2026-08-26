@@ -15,9 +15,9 @@ const documentosGestorListagem = readFileSync('src/components/documentos/Documen
 
 describe('correcao P0: botao "Enviar para analise" e "Configurar requisito" nao disparavam submit', () => {
   it('Enviar para analise, Enviar documento e Salvar conta tem type="submit" explicito', () => {
-    expect(meusEstabelecimentos).toContain('<Button type="submit" disabled={pendingAction}>Enviar para analise</Button>')
+    expect(meusEstabelecimentos).toContain('<Button type="submit" disabled={pending}>Enviar para analise</Button>')
     expect(meusEstabelecimentos).toContain('<Button type="submit" size="sm" variant="outline" disabled={pending}>Enviar</Button>')
-    expect(meusEstabelecimentos).toContain('<Button type="submit" className="sm:col-span-2" disabled={pending}>Salvar conta</Button>')
+    expect(meusEstabelecimentos).toContain('<Button type="submit" className="sm:col-span-2" disabled={pending || !banco}>Salvar conta</Button>')
   })
 
   it('Configurar requisito, Rejeitar e Suspender tem type="submit" explicito', () => {

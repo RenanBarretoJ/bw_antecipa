@@ -8,7 +8,6 @@ import { createClient } from '@/lib/supabase/client'
 import { formatCNPJ } from '@/lib/utils'
 import {
   etapa1Schema, etapa2Schema, etapa3Schema,
-  bancosBrasileiros,
   type CedenteFormData, type RepresentanteData,
 } from '@/lib/validations/cedente'
 import { Input } from '@/components/ui/input'
@@ -17,6 +16,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { BancoCombobox, type BancoSelecionado } from '@/components/cadastro/banco-combobox'
+import { useCamposEditadosManualmente, useCepConsulta, useCnpjConsulta } from '@/hooks/use-cadastro-autofill'
 
 const STORAGE_KEY = 'bw_antecipa_cadastro_cedente'
 
@@ -265,8 +266,7 @@ function CadastroForm() {
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState<FormErrors>({})
   const [message, setMessage] = useState('')
-  const [buscandoCep, setBuscandoCep] = useState(false)
-  const [buscandoCnpj, setBuscandoCnpj] = useState(false)
+  const { marcarEditado, filtrarNaoEditados } = useCamposEditadosManualmente()
 
   const [form, setForm] = useState<Partial<CedenteFormData>>(() => {
     if (typeof window !== 'undefined') {
@@ -283,6 +283,7 @@ function CadastroForm() {
   }, [form])
 
   const updateField = (field: string, value: string) => {
+    marcarEditado(field)
     setForm((prev) => ({ ...prev, [field]: value }))
     setErrors((prev) => {
       const next = { ...prev }
@@ -290,6 +291,45 @@ function CadastroForm() {
       return next
     })
   }
+
+  const selecionarBanco = (banco: BancoSelecionado) => {
+    setForm((prev) => ({
+      ...prev,
+      banco: `${banco.codigo} - ${banco.nome}`,
+      banco_codigo: banco.codigo,
+      banco_ispb: banco.ispb || '',
+      banco_nome: banco.nome,
+    }))
+    setErrors((prev) => { const next = { ...prev }; delete next['banco']; return next })
+  }
+
+  const { consultar: consultarCnpj, consultando: buscandoCnpj, erro: erroCnpj } = useCnpjConsulta((dados) => {
+    const patch = filtrarNaoEditados({
+      razao_social: dados.razao_social,
+      nome_fantasia: dados.nome_fantasia,
+      cnae: dados.cnae_principal,
+      logradouro: dados.logradouro,
+      numero: dados.numero,
+      complemento: dados.complemento,
+      bairro: dados.bairro,
+      cidade: dados.cidade,
+      estado: dados.uf,
+      cep: dados.cep,
+      email_comercial: dados.email,
+      telefone_comercial: dados.telefone,
+    })
+    setForm((prev) => ({ ...prev, ...patch }))
+  })
+
+  const { consultar: consultarCep, consultando: buscandoCep, erro: erroCep } = useCepConsulta((dados) => {
+    const patch = filtrarNaoEditados({
+      logradouro: dados.logradouro,
+      bairro: dados.bairro,
+      cidade: dados.cidade,
+      estado: dados.uf,
+    })
+    setForm((prev) => ({ ...prev, ...patch }))
+  })
 
   const emptyRep: RepresentanteData = { nome: '', cpf: '', rg: '', cargo: '', email: '', telefone: '' }
 
@@ -311,55 +351,6 @@ function CadastroForm() {
       updated[idx] = { ...updated[idx], [field]: value }
       return { ...prev, representantes: updated }
     })
-
-  const buscarCNPJ = async (cnpj: string) => {
-    const clean = cnpj.replace(/\D/g, '')
-    if (clean.length !== 14) return
-    setBuscandoCnpj(true)
-    try {
-      const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${clean}`)
-      if (!res.ok) return
-      const data = await res.json()
-      const telefone = (data.ddd_telefone_1 || '').replace(/\D/g, '')
-      const cepLimpo = (data.cep || '').replace(/\D/g, '')
-      setForm((prev) => ({
-        ...prev,
-        razao_social:       data.razao_social   || prev?.razao_social   || '',
-        nome_fantasia:      data.nome_fantasia   || prev?.nome_fantasia  || '',
-        cnae:               data.cnae_fiscal     ? String(data.cnae_fiscal) : prev?.cnae || '',
-        logradouro:         data.logradouro      || prev?.logradouro     || '',
-        numero:             data.numero          || prev?.numero         || '',
-        complemento:        data.complemento     || prev?.complemento    || '',
-        bairro:             data.bairro          || prev?.bairro         || '',
-        cidade:             data.municipio       || prev?.cidade         || '',
-        estado:             data.uf              || prev?.estado         || '',
-        cep:                cepLimpo             || prev?.cep            || '',
-        email_comercial:    data.email           || prev?.email_comercial || '',
-        telefone_comercial: telefone             || prev?.telefone_comercial || '',
-      }))
-    } catch { /* ignore */ }
-    setBuscandoCnpj(false)
-  }
-
-  const buscarCEP = async (cep: string) => {
-    const clean = cep.replace(/\D/g, '')
-    if (clean.length !== 8) return
-    setBuscandoCep(true)
-    try {
-      const res = await fetch(`https://viacep.com.br/ws/${clean}/json/`)
-      const data = await res.json()
-      if (!data.erro) {
-        setForm((prev) => ({
-          ...prev,
-          logradouro: data.logradouro || prev?.logradouro || '',
-          bairro: data.bairro || prev?.bairro || '',
-          cidade: data.localidade || prev?.cidade || '',
-          estado: data.uf || prev?.estado || '',
-        }))
-      }
-    } catch { /* ignore */ }
-    setBuscandoCep(false)
-  }
 
   const validarEtapa = () => {
     const schemas = { 1: etapa1Schema, 2: etapa2Schema, 3: etapa3Schema }
@@ -450,9 +441,10 @@ function CadastroForm() {
                     onChange={(e) => {
                       const v = e.target.value.replace(/\D/g, '')
                       updateField('cnpj', v)
-                      if (v.length === 14) buscarCNPJ(v)
+                      if (v.length === 14) consultarCnpj(v)
                     }} placeholder="00.000.000/0000-00" />
-                  {buscandoCnpj && <p className="text-primary text-xs mt-1">Buscando dados da empresa...</p>}
+                  {buscandoCnpj && <p className="text-primary text-xs mt-1">Consultando CNPJ...</p>}
+                  {erroCnpj && <p className="text-amber-600 text-xs mt-1">{erroCnpj}</p>}
                   {renderError('cnpj')}
                 </div>
                 <div>
@@ -483,9 +475,10 @@ function CadastroForm() {
                     onChange={(e) => {
                       const v = e.target.value.replace(/\D/g, '')
                       updateField('cep', v)
-                      if (v.length === 8) buscarCEP(v)
+                      if (v.length === 8) consultarCep(v)
                     }} placeholder="00000-000" />
-                  {buscandoCep && <p className="text-primary text-xs mt-1">Buscando endereco...</p>}
+                  {buscandoCep && <p className="text-primary text-xs mt-1">Consultando CEP...</p>}
+                  {erroCep && <p className="text-amber-600 text-xs mt-1">{erroCep}</p>}
                   {renderError('cep')}
                 </div>
                 <div className="md:col-span-2">
@@ -668,19 +661,12 @@ function CadastroForm() {
             <div className="space-y-4">
               <div>
                 <Label className="mb-1">Banco *</Label>
-                <select
-                  className={`h-11 w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
-                    errors['banco'] ? 'border-destructive' : 'border-input'
-                  }`}
-                  value={form.banco || ''}
-                  onChange={(e) => updateField('banco', e.target.value)}
-                >
-                  <option value="">Selecione o banco</option>
-                  {bancosBrasileiros.map((b) => (
-                    <option key={b.codigo} value={`${b.codigo} - ${b.nome}`}>{b.codigo} - {b.nome}</option>
-                  ))}
-                </select>
-                {renderError('banco')}
+                <BancoCombobox
+                  value={form.banco_codigo ? { codigo: form.banco_codigo, ispb: form.banco_ispb || null, nome: form.banco_nome || '' } : null}
+                  legacyLabel={form.banco}
+                  onSelect={selecionarBanco}
+                  error={errors['banco']?.[0]}
+                />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -749,7 +735,7 @@ function AlteracaoForm({ cedente, onCancelar }: { cedente: CedenteCadastrado; on
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState<FormErrors>({})
   const [message, setMessage] = useState('')
-  const [buscandoCep, setBuscandoCep] = useState(false)
+  const { marcarEditado, filtrarNaoEditados } = useCamposEditadosManualmente()
 
   const [form, setForm] = useState<Partial<CedenteFormData>>({
     nome_fantasia: cedente.nome_fantasia || '',
@@ -773,9 +759,30 @@ function AlteracaoForm({ cedente, onCancelar }: { cedente: CedenteCadastrado; on
   })
 
   const updateField = (field: string, value: string) => {
+    marcarEditado(field)
     setForm((prev) => ({ ...prev, [field]: value }))
     setErrors((prev) => { const n = { ...prev }; delete n[field]; return n })
   }
+
+  const selecionarBanco = (banco: BancoSelecionado) => {
+    setForm((prev) => ({
+      ...prev,
+      banco: `${banco.codigo} - ${banco.nome}`,
+      banco_codigo: banco.codigo,
+      banco_ispb: banco.ispb || '',
+      banco_nome: banco.nome,
+    }))
+  }
+
+  const { consultar: consultarCep, consultando: buscandoCep, erro: erroCep } = useCepConsulta((dados) => {
+    const patch = filtrarNaoEditados({
+      logradouro: dados.logradouro,
+      bairro: dados.bairro,
+      cidade: dados.cidade,
+      estado: dados.uf,
+    })
+    setForm((prev) => ({ ...prev, ...patch }))
+  })
 
   const updateRepresentante = (idx: number, field: keyof RepresentanteData, value: string) =>
     setForm((prev) => {
@@ -789,20 +796,6 @@ function AlteracaoForm({ cedente, onCancelar }: { cedente: CedenteCadastrado; on
 
   const removeRepresentante = (idx: number) =>
     setForm((prev) => ({ ...prev, representantes: (prev.representantes || []).filter((_, i) => i !== idx) }))
-
-  const buscarCEP = async (cep: string) => {
-    const clean = cep.replace(/\D/g, '')
-    if (clean.length !== 8) return
-    setBuscandoCep(true)
-    try {
-      const res = await fetch(`https://viacep.com.br/ws/${clean}/json/`)
-      const data = await res.json()
-      if (!data.erro) {
-        setForm((prev) => ({ ...prev, logradouro: data.logradouro || prev?.logradouro || '', bairro: data.bairro || prev?.bairro || '', cidade: data.localidade || prev?.cidade || '', estado: data.uf || prev?.estado || '' }))
-      }
-    } catch { /* ignore */ }
-    setBuscandoCep(false)
-  }
 
   const validarEtapa = () => {
     const schemas = { 1: etapa1Schema, 2: etapa2Schema, 3: etapa3Schema }
@@ -884,8 +877,9 @@ function AlteracaoForm({ cedente, onCancelar }: { cedente: CedenteCadastrado; on
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <Label className="mb-1">CEP</Label>
-                  <Input className="h-11" value={maskCEP(form.cep || '')} onChange={(e) => { const v = e.target.value.replace(/\D/g, ''); updateField('cep', v); if (v.length === 8) buscarCEP(v) }} placeholder="00000-000" />
-                  {buscandoCep && <p className="text-primary text-xs mt-1">Buscando endereço...</p>}
+                  <Input className="h-11" value={maskCEP(form.cep || '')} onChange={(e) => { const v = e.target.value.replace(/\D/g, ''); updateField('cep', v); if (v.length === 8) consultarCep(v) }} placeholder="00000-000" />
+                  {buscandoCep && <p className="text-primary text-xs mt-1">Consultando CEP...</p>}
+                  {erroCep && <p className="text-amber-600 text-xs mt-1">{erroCep}</p>}
                 </div>
                 <div className="md:col-span-2">
                   <Label className="mb-1">Logradouro</Label>
@@ -979,10 +973,12 @@ function AlteracaoForm({ cedente, onCancelar }: { cedente: CedenteCadastrado; on
             <div className="space-y-4">
               <div>
                 <Label className="mb-1">Banco</Label>
-                <select className={`h-11 w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${errors['banco'] ? 'border-destructive' : 'border-input'}`} value={form.banco || ''} onChange={(e) => updateField('banco', e.target.value)}>
-                  <option value="">Selecione o banco</option>
-                  {bancosBrasileiros.map((b) => <option key={b.codigo} value={`${b.codigo} - ${b.nome}`}>{b.codigo} - {b.nome}</option>)}
-                </select>
+                <BancoCombobox
+                  value={form.banco_codigo ? { codigo: form.banco_codigo, ispb: form.banco_ispb || null, nome: form.banco_nome || '' } : null}
+                  legacyLabel={form.banco}
+                  onSelect={selecionarBanco}
+                  error={errors['banco']?.[0]}
+                />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div><Label className="mb-1">Agência</Label><Input className="h-11" value={form.agencia || ''} onChange={(e) => updateField('agencia', e.target.value.replace(/\D/g, ''))} placeholder="0000" /></div>

@@ -15,6 +15,7 @@ import type { CedenteEstabelecimentoContaBancaria, EstabelecimentoRequisitoStatu
 import { useNotifications } from '@/components/notifications/notification-provider'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { DataTableContainer, EmptyState, ListNameCell, StatusBadge } from '@/components/data-display/primitives'
@@ -25,6 +26,8 @@ import {
   type FiltrosEstabelecimentos,
   type ResultadoEstabelecimentos,
 } from '@/lib/cedentes/estabelecimentos-listagem'
+import { BancoCombobox, type BancoSelecionado } from '@/components/cadastro/banco-combobox'
+import { useCamposEditadosManualmente, useCepConsulta, useCnpjConsulta } from '@/hooks/use-cadastro-autofill'
 
 const statusLabel: Record<string, string> = {
   rascunho: 'Rascunho', pendente: 'Em analise', aprovado: 'Aprovado', rejeitado: 'Rejeitado', suspenso: 'Suspenso',
@@ -141,12 +144,11 @@ export function MeusEstabelecimentosClient({ filtros, resultado }: {
       {matrizAprovada && !permiteCadastroFiliais && <div className="rounded-lg border border-warning/40 bg-warning/10 p-4 text-sm">O cadastro de novas Filiais esta desabilitado pela Gestora.</div>}
 
       {showBranch && (
-        <form className="grid gap-3 rounded-xl border bg-card p-4 md:grid-cols-3" onSubmit={(event) => { event.preventDefault(); submit(cadastrarFilial, new FormData(event.currentTarget), () => setShowBranch(false)) }}>
-          <Input name="cnpj" placeholder="CNPJ da filial" required maxLength={18} />
-          <Input name="razao_social" placeholder="Razao social" required />
-          <Input name="nome_fantasia" placeholder="Nome fantasia (opcional)" />
-          <div className="flex gap-2 md:col-span-3 md:justify-end"><Button type="button" variant="outline" onClick={() => setShowBranch(false)}>Cancelar</Button><Button type="submit" disabled={pendingAction}>Enviar para analise</Button></div>
-        </form>
+        <CadastroFilialForm
+          pending={pendingAction}
+          onSubmit={(form) => submit(cadastrarFilial, form, () => setShowBranch(false))}
+          onCancelar={() => setShowBranch(false)}
+        />
       )}
 
       <div className="flex flex-col gap-3 rounded-xl border bg-card p-4 sm:flex-row">
@@ -232,22 +234,177 @@ export function MeusEstabelecimentosClient({ filtros, resultado }: {
   )
 }
 
+function CadastroFilialForm({ pending, onSubmit, onCancelar }: {
+  pending: boolean
+  onSubmit: (form: FormData) => void
+  onCancelar: () => void
+}) {
+  const { marcarEditado, filtrarNaoEditados } = useCamposEditadosManualmente()
+  const [dados, setDados] = useState({
+    cnpj: '', razao_social: '', nome_fantasia: '', cnae_principal: '', situacao_cadastral: '',
+    cep: '', logradouro: '', numero: '', complemento: '', bairro: '', cidade: '', uf: '',
+    email: '', telefone: '',
+  })
+  const [fonteConsulta, setFonteConsulta] = useState<string | null>(null)
+
+  const atualizarCampo = (campo: keyof typeof dados, valor: string) => {
+    marcarEditado(campo)
+    setDados((prev) => ({ ...prev, [campo]: valor }))
+  }
+
+  const { consultar: consultarCnpj, consultando: buscandoCnpj, erro: erroCnpj } = useCnpjConsulta((resultado) => {
+    const patch = filtrarNaoEditados({
+      razao_social: resultado.razao_social,
+      nome_fantasia: resultado.nome_fantasia,
+      cnae_principal: resultado.cnae_principal,
+      situacao_cadastral: resultado.situacao_cadastral,
+      cep: resultado.cep,
+      logradouro: resultado.logradouro,
+      numero: resultado.numero,
+      complemento: resultado.complemento,
+      bairro: resultado.bairro,
+      cidade: resultado.cidade,
+      uf: resultado.uf,
+      email: resultado.email,
+      telefone: resultado.telefone,
+    })
+    setDados((prev) => ({ ...prev, ...patch }))
+    setFonteConsulta('brasilapi_cnpj')
+  })
+
+  const { consultar: consultarCep, consultando: buscandoCep, erro: erroCep } = useCepConsulta((resultado) => {
+    const patch = filtrarNaoEditados({
+      logradouro: resultado.logradouro,
+      bairro: resultado.bairro,
+      cidade: resultado.cidade,
+      uf: resultado.uf,
+    })
+    setDados((prev) => ({ ...prev, ...patch }))
+  })
+
+  return (
+    <form
+      className="grid gap-3 rounded-xl border bg-card p-4 md:grid-cols-3"
+      onSubmit={(event) => {
+        event.preventDefault()
+        const form = new FormData()
+        for (const [campo, valor] of Object.entries(dados)) form.set(campo, valor)
+        if (fonteConsulta) form.set('dados_consultados_fonte', fonteConsulta)
+        onSubmit(form)
+      }}
+    >
+      <div>
+        <Label className="mb-1">CNPJ da filial</Label>
+        <Input
+          value={dados.cnpj}
+          required
+          maxLength={18}
+          onChange={(e) => {
+            const v = e.target.value.replace(/\D/g, '')
+            atualizarCampo('cnpj', v)
+            if (v.length === 14) consultarCnpj(v)
+          }}
+          placeholder="00.000.000/0000-00"
+        />
+        {buscandoCnpj && <p className="text-primary text-xs mt-1">Consultando CNPJ...</p>}
+        {erroCnpj && <p className="text-amber-600 text-xs mt-1">{erroCnpj}</p>}
+      </div>
+      <div>
+        <Label className="mb-1">Razao social</Label>
+        <Input value={dados.razao_social} required onChange={(e) => atualizarCampo('razao_social', e.target.value)} />
+      </div>
+      <div>
+        <Label className="mb-1">Nome fantasia</Label>
+        <Input value={dados.nome_fantasia} onChange={(e) => atualizarCampo('nome_fantasia', e.target.value)} />
+      </div>
+      <div>
+        <Label className="mb-1">CEP</Label>
+        <Input
+          value={dados.cep}
+          onChange={(e) => {
+            const v = e.target.value.replace(/\D/g, '')
+            atualizarCampo('cep', v)
+            if (v.length === 8) consultarCep(v)
+          }}
+          placeholder="00000-000"
+        />
+        {buscandoCep && <p className="text-primary text-xs mt-1">Consultando CEP...</p>}
+        {erroCep && <p className="text-amber-600 text-xs mt-1">{erroCep}</p>}
+      </div>
+      <div>
+        <Label className="mb-1">Logradouro</Label>
+        <Input value={dados.logradouro} onChange={(e) => atualizarCampo('logradouro', e.target.value)} />
+      </div>
+      <div>
+        <Label className="mb-1">Numero</Label>
+        <Input value={dados.numero} onChange={(e) => atualizarCampo('numero', e.target.value)} />
+      </div>
+      <div>
+        <Label className="mb-1">Complemento</Label>
+        <Input value={dados.complemento} onChange={(e) => atualizarCampo('complemento', e.target.value)} />
+      </div>
+      <div>
+        <Label className="mb-1">Bairro</Label>
+        <Input value={dados.bairro} onChange={(e) => atualizarCampo('bairro', e.target.value)} />
+      </div>
+      <div>
+        <Label className="mb-1">Cidade</Label>
+        <Input value={dados.cidade} onChange={(e) => atualizarCampo('cidade', e.target.value)} />
+      </div>
+      <div>
+        <Label className="mb-1">UF</Label>
+        <Input value={dados.uf} maxLength={2} onChange={(e) => atualizarCampo('uf', e.target.value.toUpperCase())} />
+      </div>
+      <div>
+        <Label className="mb-1">E-mail</Label>
+        <Input type="email" value={dados.email} onChange={(e) => atualizarCampo('email', e.target.value)} />
+      </div>
+      <div>
+        <Label className="mb-1">Telefone</Label>
+        <Input value={dados.telefone} onChange={(e) => atualizarCampo('telefone', e.target.value)} />
+      </div>
+      <div className="flex gap-2 md:col-span-3 md:justify-end">
+        <Button type="button" variant="outline" onClick={onCancelar}>Cancelar</Button>
+        <Button type="submit" disabled={pending}>Enviar para analise</Button>
+      </div>
+    </form>
+  )
+}
+
 function ContaBancariaSection({ estabelecimentoId, conta, pending, onSubmit }: {
   estabelecimentoId: string
   conta: CedenteEstabelecimentoContaBancaria | undefined
   pending: boolean
   onSubmit: (action: (form: FormData) => Promise<{ success: boolean; message: string }>, form: FormData) => void
 }) {
+  const [banco, setBanco] = useState<BancoSelecionado | null>(
+    conta?.banco_codigo ? { codigo: conta.banco_codigo, ispb: conta.banco_ispb, nome: conta.banco_nome || '' } : null
+  )
   return (
     <div className="rounded-lg border p-3">
       <div className="mb-2 flex items-center gap-2 font-medium"><Landmark className="h-4 w-4" />Conta bancaria propria</div>
-      <form className="grid gap-2 sm:grid-cols-2" onSubmit={(event) => { event.preventDefault(); onSubmit(salvarContaEstabelecimento, new FormData(event.currentTarget)) }}>
+      <form
+        className="grid gap-2 sm:grid-cols-2"
+        onSubmit={(event) => {
+          event.preventDefault()
+          const formData = new FormData(event.currentTarget)
+          if (banco) {
+            formData.set('banco', `${banco.codigo} - ${banco.nome}`)
+            formData.set('banco_codigo', banco.codigo)
+            if (banco.ispb) formData.set('banco_ispb', banco.ispb)
+            formData.set('banco_nome', banco.nome)
+          }
+          onSubmit(salvarContaEstabelecimento, formData)
+        }}
+      >
         <input type="hidden" name="estabelecimento_id" value={estabelecimentoId} />
-        <Input name="banco" placeholder="Banco" required defaultValue={conta?.banco || ''} />
+        <div className="sm:col-span-2">
+          <BancoCombobox value={banco} legacyLabel={conta?.banco} onSelect={setBanco} />
+        </div>
         <Input name="agencia" placeholder="Agencia" required defaultValue={conta?.agencia || ''} />
         <Input name="conta" placeholder="Conta" required defaultValue={conta?.conta || ''} />
         <Input name="tipo_conta" placeholder="Tipo de conta" required defaultValue={conta?.tipo_conta || 'corrente'} />
-        <Button type="submit" className="sm:col-span-2" disabled={pending}>Salvar conta</Button>
+        <Button type="submit" className="sm:col-span-2" disabled={pending || !banco}>Salvar conta</Button>
       </form>
     </div>
   )

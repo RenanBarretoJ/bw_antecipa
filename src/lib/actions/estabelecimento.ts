@@ -114,10 +114,23 @@ export async function cadastrarFilial(formData: FormData): Promise<Estabelecimen
   try {
     const context = await cedenteAutenticado()
     if (context.cedente.status !== 'ativo') throw new Error('O cedente precisa estar ativo para cadastrar uma filial.')
+    const opcional = (campo: string) => String(formData.get(campo) || '').trim() || null
     const { data, error } = await context.supabase.rpc('cadastrar_filial_cedente', {
       p_cnpj: String(formData.get('cnpj') || ''),
       p_razao_social: String(formData.get('razao_social') || '').trim(),
-      p_nome_fantasia: String(formData.get('nome_fantasia') || '').trim() || null,
+      p_nome_fantasia: opcional('nome_fantasia'),
+      p_cnae_principal: opcional('cnae_principal'),
+      p_situacao_cadastral: opcional('situacao_cadastral'),
+      p_cep: opcional('cep'),
+      p_logradouro: opcional('logradouro'),
+      p_numero: opcional('numero'),
+      p_complemento: opcional('complemento'),
+      p_bairro: opcional('bairro'),
+      p_cidade: opcional('cidade'),
+      p_uf: opcional('uf'),
+      p_email: opcional('email'),
+      p_telefone: opcional('telefone'),
+      p_dados_consultados_fonte: opcional('dados_consultados_fonte'),
     })
     if (error) throw new Error(`Nao foi possivel cadastrar a filial: ${error.message}`)
     revalidatePath('/cedente/estabelecimentos')
@@ -130,6 +143,7 @@ export async function cadastrarFilial(formData: FormData): Promise<Estabelecimen
 export async function salvarContaEstabelecimento(formData: FormData): Promise<EstabelecimentoActionResult<CedenteEstabelecimentoContaBancaria>> {
   try {
     const context = await cedenteAutenticado()
+    const opcional = (campo: string) => String(formData.get(campo) || '').trim() || null
     const { data, error } = await context.supabase.rpc('salvar_conta_estabelecimento_cedente', {
       p_estabelecimento_id: String(formData.get('estabelecimento_id') || ''),
       p_banco: String(formData.get('banco') || '').trim(),
@@ -137,6 +151,9 @@ export async function salvarContaEstabelecimento(formData: FormData): Promise<Es
       p_conta: String(formData.get('conta') || '').trim(),
       p_tipo_conta: String(formData.get('tipo_conta') || '').trim(),
       p_principal: formData.get('principal') !== 'false',
+      p_banco_codigo: opcional('banco_codigo'),
+      p_banco_ispb: opcional('banco_ispb'),
+      p_banco_nome: opcional('banco_nome'),
     })
     if (error) throw new Error(`Nao foi possivel salvar a conta: ${error.message}`)
     revalidatePath('/cedente/estabelecimentos')

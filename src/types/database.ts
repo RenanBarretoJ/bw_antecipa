@@ -201,6 +201,9 @@ export interface Cedente {
   habilitar_escrow: boolean
   coobrigacao: boolean
   permite_cadastro_filiais: boolean
+  banco_codigo: string | null
+  banco_ispb: string | null
+  banco_nome: string | null
   created_at: string
   updated_at: string
 }
@@ -218,6 +221,19 @@ export interface CedenteEstabelecimento {
   aprovado_por: string | null
   aprovado_em: string | null
   ativo: boolean
+  cnae_principal: string | null
+  situacao_cadastral: string | null
+  cep: string | null
+  logradouro: string | null
+  numero: string | null
+  complemento: string | null
+  bairro: string | null
+  cidade: string | null
+  uf: string | null
+  email: string | null
+  telefone: string | null
+  dados_consultados_em: string | null
+  dados_consultados_fonte: string | null
   created_at: string
   updated_at: string
 }
@@ -231,6 +247,22 @@ export interface CedenteEstabelecimentoContaBancaria {
   tipo_conta: string | null
   principal: boolean
   ativo: boolean
+  banco_codigo: string | null
+  banco_ispb: string | null
+  banco_nome: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface Banco {
+  id: string
+  codigo: string
+  ispb: string | null
+  nome: string
+  nome_completo: string | null
+  ativo: boolean
+  fonte: string
+  sincronizado_em: string
   created_at: string
   updated_at: string
 }
@@ -2091,6 +2123,7 @@ export interface Database {
       cedente_estabelecimentos: { Row: CedenteEstabelecimento & Record<string, unknown>; Insert: InsertShape<CedenteEstabelecimento, 'cedente_id' | 'cnpj' | 'razao_social' | 'tipo'> & Record<string, unknown>; Update: UpdateShape<CedenteEstabelecimento> & Record<string, unknown>; Relationships: [] }
       cedente_estabelecimento_contas_bancarias: { Row: CedenteEstabelecimentoContaBancaria & Record<string, unknown>; Insert: InsertShape<CedenteEstabelecimentoContaBancaria, 'estabelecimento_id' | 'banco' | 'agencia' | 'conta' | 'tipo_conta'> & Record<string, unknown>; Update: UpdateShape<CedenteEstabelecimentoContaBancaria> & Record<string, unknown>; Relationships: [] }
       cedente_estabelecimento_requisitos: { Row: CedenteEstabelecimentoRequisito & Record<string, unknown>; Insert: InsertShape<CedenteEstabelecimentoRequisito, 'estabelecimento_id' | 'documento_tipo_id'> & Record<string, unknown>; Update: UpdateShape<CedenteEstabelecimentoRequisito> & Record<string, unknown>; Relationships: [] }
+      bancos: { Row: Banco & Record<string, unknown>; Insert: InsertShape<Banco, 'codigo' | 'nome'> & Record<string, unknown>; Update: UpdateShape<Banco> & Record<string, unknown>; Relationships: [] }
       documento_tipos: { Row: DocumentoTipoRepositorio & Record<string, unknown>; Insert: InsertShape<DocumentoTipoRepositorio, 'codigo' | 'nome' | 'dominio'> & Record<string, unknown>; Update: UpdateShape<DocumentoTipoRepositorio> & Record<string, unknown>; Relationships: [] }
       documentos_repositorio: { Row: DocumentoRepositorio & Record<string, unknown>; Insert: InsertShape<DocumentoRepositorio, 'documento_tipo_id' | 'criado_por'> & Record<string, unknown>; Update: UpdateShape<DocumentoRepositorio> & Record<string, unknown>; Relationships: [] }
       documento_versoes: { Row: DocumentoVersao & Record<string, unknown>; Insert: InsertShape<DocumentoVersao, 'documento_id' | 'nome_original' | 'mime_type' | 'tamanho_bytes' | 'sha256' | 'enviado_por'> & Record<string, unknown>; Update: UpdateShape<DocumentoVersao> & Record<string, unknown>; Relationships: [] }
@@ -2236,12 +2269,42 @@ export interface Database {
         Returns: boolean
       }
       cadastrar_filial_cedente: {
-        Args: { p_cnpj: string; p_razao_social: string; p_nome_fantasia?: string | null }
+        Args: {
+          p_cnpj: string
+          p_razao_social: string
+          p_nome_fantasia?: string | null
+          p_cnae_principal?: string | null
+          p_situacao_cadastral?: string | null
+          p_cep?: string | null
+          p_logradouro?: string | null
+          p_numero?: string | null
+          p_complemento?: string | null
+          p_bairro?: string | null
+          p_cidade?: string | null
+          p_uf?: string | null
+          p_email?: string | null
+          p_telefone?: string | null
+          p_dados_consultados_fonte?: string | null
+        }
         Returns: CedenteEstabelecimento
       }
       salvar_conta_estabelecimento_cedente: {
-        Args: { p_estabelecimento_id: string; p_banco: string; p_agencia: string; p_conta: string; p_tipo_conta: string; p_principal?: boolean }
+        Args: {
+          p_estabelecimento_id: string
+          p_banco: string
+          p_agencia: string
+          p_conta: string
+          p_tipo_conta: string
+          p_principal?: boolean
+          p_banco_codigo?: string | null
+          p_banco_ispb?: string | null
+          p_banco_nome?: string | null
+        }
         Returns: CedenteEstabelecimentoContaBancaria
+      }
+      sincronizar_bancos_super_admin: {
+        Args: { p_bancos: Array<{ codigo: string; ispb?: string | null; nome: string; nome_completo?: string | null }> }
+        Returns: Array<{ total_recebido: number; total_upsertado: number }>
       }
       decidir_estabelecimento_gestor: {
         Args: { p_estabelecimento_id: string; p_acao: 'aprovar' | 'rejeitar' | 'suspender' | 'reativar'; p_motivo?: string | null }
