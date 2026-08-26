@@ -2252,6 +2252,15 @@ export interface Database {
         Args: { p_cedente_id: string; p_habilitar: boolean }
         Returns: Array<{ cedente_id: string; permite_cadastro_filiais: boolean }>
       }
+      solicitar_alteracao_cadastral_cedente: {
+        Args: {
+          p_dados_atuais: Record<string, unknown>
+          p_dados_propostos: Record<string, unknown>
+          p_representantes_atuais?: unknown[]
+          p_representantes_propostos?: unknown[]
+        }
+        Returns: SolicitacaoAlteracaoCedente
+      }
       alternar_coobrigacao_cedente_gestor: {
         Args: { p_cedente_id: string; p_habilitar: boolean }
         Returns: Array<{ cedente_id: string; coobrigacao: boolean }>

@@ -260,25 +260,18 @@ export async function solicitarAlteracaoCedente(
 
   const { representantes: representantesPropostos, ...camposPropostos } = dados
 
-  const { error } = await supabase
-    .from('solicitacoes_alteracao_cedente')
-    .insert({
-      cedente_id: cedenteData.id,
-      dados_atuais: cedenteData,
-      dados_propostos: camposPropostos,
-      representantes_atuais: reps || [],
-      representantes_propostos: representantesPropostos || [],
-    } as never)
+  // Mutacao via RPC SECURITY DEFINER: authenticated nao tem GRANT de INSERT
+  // direto nesta tabela desde a canonicalizacao de ACL (20260817150507) --
+  // a RPC resolve o cedente pelo auth.uid(), re-valida a permissao de
+  // administrador e audita na mesma transacao.
+  const { error } = await supabase.rpc('solicitar_alteracao_cadastral_cedente', {
+    p_dados_atuais: cedenteData,
+    p_dados_propostos: camposPropostos,
+    p_representantes_atuais: reps || [],
+    p_representantes_propostos: representantesPropostos || [],
+  })
 
   if (error) return { success: false, message: `Erro ao registrar solicitacao: ${error.message}` }
-
-  await registrarLog({
-    tipo_evento: 'ALTERACAO_CADASTRAL_SOLICITADA',
-    entidade_tipo: 'cedentes',
-    entidade_id: cedenteData.id,
-    dados_antes: cedenteData,
-    dados_depois: camposPropostos as Record<string, unknown>,
-  })
 
   await notificarGestores(
     'Solicitacao de alteracao cadastral',
