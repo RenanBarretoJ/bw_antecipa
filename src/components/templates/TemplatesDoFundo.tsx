@@ -19,6 +19,7 @@ import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { DetailField, DetailSection, EmptyState, LoadingState, StatusBadge } from '@/components/data-display/primitives'
 import { useNotifications } from '@/components/notifications/notification-provider'
+import { shouldOfferTemplateConfiguration } from '@/components/templates/template-row-state'
 
 type TemplateWithVersions = TemplateDocumento & { template_versoes?: TemplateVersao[] }
 
@@ -362,8 +363,18 @@ export function TemplatesDoFundo({ fundoId, showFundoSelector = !fundoId }: { fu
                   <span className="text-xs text-muted-foreground">{state.published?.publicada_por ? 'Registrado' : 'Não informado'}</span>
                 </div>
                 <div className="flex flex-wrap gap-2 rounded-lg border border-border bg-muted/30 p-2 sm:bg-transparent sm:p-0 xl:justify-end xl:border-0">
-                  {!state.template && (
-                    <Button type="button" size="sm" onClick={() => configureDocument(state.item)} disabled={isPending}>
+                  {shouldOfferTemplateConfiguration({
+                    hasTemplate: !!state.template,
+                    hasVersion: !!state.latest,
+                  }) && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => state.template
+                        ? openEditor(state.item, state.template, 'draft')
+                        : configureDocument(state.item)}
+                      disabled={isPending}
+                    >
                       Configurar
                     </Button>
                   )}
