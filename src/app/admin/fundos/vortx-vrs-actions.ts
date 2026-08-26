@@ -9,7 +9,7 @@ import { vortxCredencialSchema, vortxTesteConexaoSchema, type VortxActionResult,
 import { resolverConfiguracaoVortxVrs } from '@/lib/integracoes/vortx/credenciais.server'
 import { validarParMtls, VortxCredencialValidacaoError } from '@/lib/integracoes/vortx/mtls-credencial-validacao'
 import { autenticarVortxVrs } from '@/lib/integracoes/vortx/vortx-vrs-client.server'
-import { criptografarPortalFidcValor } from '@/lib/portal-fidc/credenciais'
+import { criptografarPortalFidcValor, diagnosticarKeyringPortalFidc, type PortalFidcKeyringDiagnostico } from '@/lib/portal-fidc/credenciais'
 
 type RpcError = { code?: string; message?: string }
 type CategorizedError = { categoria?: string; message?: string }
@@ -168,5 +168,23 @@ export async function testarConexaoVortxVrsAdmin(input: unknown): Promise<VortxA
     }
   } catch (error) {
     return mapearErro(error, correlationId)
+  }
+}
+
+export type VortxKeyringDiagnostico = PortalFidcKeyringDiagnostico & { environment: string }
+
+/**
+ * TEMPORARIO (P0_Claude_Validar_Keyring_Runtime_Vercel_Homolog): valida, no
+ * runtime real onde esta rodando, se o keyring de criptografia usado por
+ * criptografarPortalFidcValor esta configurado corretamente -- sem nunca
+ * expor a chave, o JSON do keyring ou qualquer segredo. So metadados
+ * booleanos/nome de versao. Remover assim que a causa raiz da falha de
+ * salvamento da credencial Vortx VRS estiver confirmada e corrigida.
+ */
+export async function diagnosticarKeyringVortxVrsAdmin(): Promise<VortxKeyringDiagnostico> {
+  await requireSuperAdmin()
+  return {
+    ...diagnosticarKeyringPortalFidc(),
+    environment: process.env.NEXT_PUBLIC_APP_ENV || 'desconhecido',
   }
 }

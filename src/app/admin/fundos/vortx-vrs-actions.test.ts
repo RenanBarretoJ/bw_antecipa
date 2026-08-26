@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { rpc, requireSuperAdmin, autorizarEConsumirAcaoSensivel, criptografarPortalFidcValor, resolverConfiguracaoVortxVrs, autenticarVortxVrs, registrarEventoSeguranca, validarParMtls } = vi.hoisted(() => ({
+const { rpc, requireSuperAdmin, autorizarEConsumirAcaoSensivel, criptografarPortalFidcValor, diagnosticarKeyringPortalFidc, resolverConfiguracaoVortxVrs, autenticarVortxVrs, registrarEventoSeguranca, validarParMtls } = vi.hoisted(() => ({
   rpc: vi.fn(),
   requireSuperAdmin: vi.fn(async () => ({
     supabase: { rpc },
@@ -9,6 +9,7 @@ const { rpc, requireSuperAdmin, autorizarEConsumirAcaoSensivel, criptografarPort
   })),
   autorizarEConsumirAcaoSensivel: vi.fn(),
   criptografarPortalFidcValor: vi.fn(),
+  diagnosticarKeyringPortalFidc: vi.fn(),
   resolverConfiguracaoVortxVrs: vi.fn(),
   autenticarVortxVrs: vi.fn(),
   registrarEventoSeguranca: vi.fn(),
@@ -19,7 +20,7 @@ vi.mock('server-only', () => ({}))
 vi.mock('@/lib/auth/admin-authorization', () => ({ requireSuperAdmin }))
 vi.mock('@/lib/auth/sensitive-action', () => ({ autorizarEConsumirAcaoSensivel }))
 vi.mock('@/lib/auth/mfa', () => ({ registrarEventoSeguranca }))
-vi.mock('@/lib/portal-fidc/credenciais', () => ({ criptografarPortalFidcValor }))
+vi.mock('@/lib/portal-fidc/credenciais', () => ({ criptografarPortalFidcValor, diagnosticarKeyringPortalFidc }))
 vi.mock('@/lib/integracoes/vortx/credenciais.server', () => ({ resolverConfiguracaoVortxVrs }))
 vi.mock('@/lib/integracoes/vortx/vortx-vrs-client.server', () => ({ autenticarVortxVrs }))
 vi.mock('@/lib/integracoes/vortx/mtls-credencial-validacao', async () => {
@@ -28,7 +29,7 @@ vi.mock('@/lib/integracoes/vortx/mtls-credencial-validacao', async () => {
 })
 
 import { VortxCredencialValidacaoError } from '@/lib/integracoes/vortx/mtls-credencial-validacao'
-import { configurarCredencialVortxVrsAdmin, testarConexaoVortxVrsAdmin } from './vortx-vrs-actions'
+import { configurarCredencialVortxVrsAdmin, diagnosticarKeyringVortxVrsAdmin, testarConexaoVortxVrsAdmin } from './vortx-vrs-actions'
 
 const fundoId = 'e84fdd30-39ed-de86-292e-0d8d9d92d759'
 const CERT = '-----BEGIN CERTIFICATE-----\nfake\n-----END CERTIFICATE-----'
@@ -182,5 +183,53 @@ describe('testarConexaoVortxVrsAdmin', () => {
     autenticarVortxVrs.mockRejectedValue(new Error('falha inesperada com token=tok-secreto'))
     const result = await testarConexaoVortxVrsAdmin({ fundoId, ambiente: 'homologacao', mfaCode: '654321' })
     expect(JSON.stringify(result)).not.toContain('tok-secreto')
+  })
+})
+
+describe('diagnosticarKeyringVortxVrsAdmin', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('exige Super Admin e repassa o diagnostico sanitizado do keyring com o environment atual', async () => {
+    diagnosticarKeyringPortalFidc.mockReturnValue({
+      keyringConfigurado: true,
+      activeVersion: 'k1',
+      activeVersionFound: true,
+      keyLengthValid: true,
+      source: 'KEYS_JSON',
+    })
+    const envAnterior = process.env.NEXT_PUBLIC_APP_ENV
+    process.env.NEXT_PUBLIC_APP_ENV = 'homologacao'
+
+    try {
+      const result = await diagnosticarKeyringVortxVrsAdmin()
+
+      expect(requireSuperAdmin).toHaveBeenCalled()
+      expect(result).toEqual({
+        keyringConfigurado: true,
+        activeVersion: 'k1',
+        activeVersionFound: true,
+        keyLengthValid: true,
+        source: 'KEYS_JSON',
+        environment: 'homologacao',
+      })
+    } finally {
+      process.env.NEXT_PUBLIC_APP_ENV = envAnterior
+    }
+  })
+
+  it('nunca inclui chave, segredo ou JSON do keyring no resultado', async () => {
+    diagnosticarKeyringPortalFidc.mockReturnValue({
+      keyringConfigurado: false,
+      activeVersion: 'v1',
+      activeVersionFound: false,
+      keyLengthValid: false,
+      source: 'NONE',
+    })
+    const result = await diagnosticarKeyringVortxVrsAdmin()
+    expect(Object.keys(result).sort()).toEqual(
+      ['activeVersion', 'activeVersionFound', 'environment', 'keyLengthValid', 'keyringConfigurado', 'source'].sort(),
+    )
   })
 })

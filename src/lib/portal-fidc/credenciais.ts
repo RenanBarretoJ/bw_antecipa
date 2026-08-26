@@ -75,6 +75,54 @@ export function criptografarPortalFidcValor(valor: string): PortalFidcCiphertext
   }
 }
 
+export type PortalFidcKeyringDiagnostico = {
+  keyringConfigurado: boolean
+  activeVersion: string
+  activeVersionFound: boolean
+  keyLengthValid: boolean
+  source: 'KEYS_JSON' | 'LEGACY_FALLBACK' | 'NONE'
+}
+
+/**
+ * Diagnostico sanitizado do keyring de criptografia no runtime atual --
+ * nunca retorna a chave, o JSON do keyring ou qualquer segredo, so
+ * metadados booleanos/nome de versao. Usado para validar remotamente se o
+ * runtime (ex.: Vercel) tem PORTAL_FIDC_CREDENTIAL_KEYS_JSON/
+ * PORTAL_FIDC_CREDENTIAL_ACTIVE_KEY_VERSION configurados corretamente sem
+ * expor nenhum valor sensivel.
+ */
+export function diagnosticarKeyringPortalFidc(): PortalFidcKeyringDiagnostico {
+  // getPortalFidcActiveKeyVersion() e keyringFromEnv() fazem JSON.parse de
+  // PORTAL_FIDC_CREDENTIAL_KEYS_JSON -- se a env estiver presente mas mal
+  // formada, tratamos como keyring vazio em vez de deixar o diagnostico
+  // explodir (o proprio JSON invalido ja e o problema a reportar).
+  let keys: Record<string, string> = {}
+  try {
+    keys = keyringFromEnv()
+  } catch {
+    keys = {}
+  }
+  const activeVersion = process.env.PORTAL_FIDC_CREDENTIAL_ACTIVE_KEY_VERSION?.trim() || Object.keys(keys)[0] || 'v1'
+  const keyringConfigurado = Object.keys(keys).length > 0
+  const activeVersionFound = Object.prototype.hasOwnProperty.call(keys, activeVersion)
+  const source: PortalFidcKeyringDiagnostico['source'] = process.env.PORTAL_FIDC_CREDENTIAL_KEYS_JSON
+    ? 'KEYS_JSON'
+    : (process.env.PORTAL_FIDC_CREDENTIAL_MASTER_KEY_B64 || process.env.PORTAL_FIDC_CREDENTIAL_MASTER_KEY)
+      ? 'LEGACY_FALLBACK'
+      : 'NONE'
+
+  let keyLengthValid = false
+  if (activeVersionFound) {
+    try {
+      keyLengthValid = getPortalFidcEncryptionKey(activeVersion).length === KEY_BYTES
+    } catch {
+      keyLengthValid = false
+    }
+  }
+
+  return { keyringConfigurado, activeVersion, activeVersionFound, keyLengthValid, source }
+}
+
 export function descriptografarPortalFidcValor(ciphertext: string, chaveVersao: string) {
   const [version, ivRaw, tagRaw, encryptedRaw] = ciphertext.split(':')
   if (version !== CIPHER_VERSION || !ivRaw || !tagRaw || !encryptedRaw) {
