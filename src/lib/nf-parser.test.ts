@@ -16,6 +16,13 @@ function montarXmlComParcelas(dups: Array<{ nDup: string; dVenc: string; vDup: s
 }
 
 describe('parseNFeXML: extracao de parcelas (<cobr><dup>)', () => {
+  it('extrai endereco estruturado do destinatario para adapters de remessa', () => {
+    const xml = `<NFe><infNFe Id="NFe35260800000000000000550010000000781000000078"><ide><nNF>78</nNF><serie>1</serie><dEmi>2026-08-01</dEmi></ide><emit><CNPJ>00000000000000</CNPJ><xNome>Emitente</xNome></emit><dest><CNPJ>11111111000111</CNPJ><xNome>Devedor</xNome><enderDest><xLgr>Rua Um</xLgr><nro>10</nro><xCpl>Sala 2</xCpl><xBairro>Centro</xBairro><xMun>Sao Paulo</xMun><UF>SP</UF><CEP>01310100</CEP><fone>11999990000</fone></enderDest><email>financeiro@example.com</email></dest><total><ICMSTot><vNF>100.00</vNF></ICMSTot></total></infNFe></NFe>`
+    expect(parseNFeXML(xml).destinatario_endereco).toEqual({
+      cep: '01310100', logradouro: 'Rua Um', numero: '10', complemento: 'Sala 2',
+      bairro: 'Centro', municipio: 'Sao Paulo', uf: 'SP', email: 'financeiro@example.com', telefone: '11999990000',
+    })
+  })
   it('extrai as 4 parcelas da NF-e 78 (numero, vencimento, valor) sem descartar nDup/vDup', () => {
     const xml = montarXmlComParcelas([
       { nDup: '001', dVenc: '2026-10-11', vDup: '27540.00' },

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('server-only', () => ({}))
 
-import { createIntegrationProviderRegistry, integrationProviderRegistry } from './registry.server'
+import { createIntegrationProviderRegistry, integrationProviderRegistry, resolverDefinicaoRemessaOperacional } from './registry.server'
 
 describe('integrationProviderRegistry', () => {
   it('registra os adapters Sinqia e Vortx VRS somente para capacidades com handler comprovado', () => {
@@ -22,11 +22,23 @@ describe('integrationProviderRegistry', () => {
     expect(adapter?.requiresEndpoint).toBe(false)
   })
 
-  it('adapter Vortx VRS rejeita codigo de carteira invalido mas aceita ausente ou UUID valido', () => {
+  it('declara agrupamento no adapter sem impor POR_CEDENTE ao core', () => {
+    expect(resolverDefinicaoRemessaOperacional('vortx_vrs')).toMatchObject({
+      formato: 'VRS_CSV', estrategiaAgrupamento: 'POR_CEDENTE', envioAutomaticoSuportado: false,
+    })
+    expect(resolverDefinicaoRemessaOperacional('sinqia_portal_fidc')).toMatchObject({
+      formato: 'CNAB444', estrategiaAgrupamento: 'POR_LOTE', envioAutomaticoSuportado: true,
+    })
+  })
+
+  it('adapter Vortx VRS exige o contrato completo de Inclusao ao publicar CESSAO_ENVIO', () => {
     const adapter = integrationProviderRegistry.get('vortx_vrs')
     expect(adapter?.validatePublication({ capabilities: [], clientIdentifier: '', originatorCode: null, config: {} })).toBeNull()
-    expect(adapter?.validatePublication({ capabilities: [], clientIdentifier: '', originatorCode: null, config: { codigo_carteira: '11111111-1111-1111-1111-111111111111' } })).toBeNull()
-    expect(adapter?.validatePublication({ capabilities: [], clientIdentifier: '', originatorCode: null, config: { codigo_carteira: 'abc123' } })).toMatch(/invalido/)
+    expect(adapter?.validatePublication({ capabilities: ['CESSAO_ENVIO'], clientIdentifier: '', originatorCode: null, config: {} })).toMatch(/carteira/)
+    expect(adapter?.validatePublication({ capabilities: ['CESSAO_ENVIO'], clientIdentifier: '', originatorCode: null, config: {
+      codigo_carteira: 'CART01',
+      vrs_inclusao: { termo: 'TERMO1', cnpj_originador: '12345678000195', tipo_preco: 'PREFIXADO', metodo_preco: 'PREFIXADO', modalidade_operacao: '0202', registradora: 'CERC' },
+    } })).toBeNull()
   })
 
   it('adapter Vortx VRS direciona o teste tecnico generico para o fluxo dedicado mTLS', async () => {

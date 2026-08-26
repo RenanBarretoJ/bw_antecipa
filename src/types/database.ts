@@ -1228,6 +1228,62 @@ export interface RemessaCnabOperacao {
   created_at: string
 }
 
+export interface RemessaOperacional {
+  id: string
+  fundo_id: string
+  integracao_fundo_versao_id: string
+  adapter_key: string
+  estrategia_agrupamento: 'POR_LOTE' | 'POR_CEDENTE'
+  status: 'gerada' | 'validada' | 'enviando' | 'enviada' | 'parcial' | 'erro' | 'cancelada'
+  idempotency_key: string
+  payload_hash: string
+  excel_bucket: string | null
+  excel_storage_path: string | null
+  excel_sha256: string | null
+  gerado_por: string | null
+  gerado_em: string
+  enviado_em: string | null
+  erro_tecnico: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface RemessaOperacionalArquivo {
+  id: string
+  remessa_operacional_id: string
+  cedente_id: string | null
+  remessa_cnab_id: string | null
+  formato: 'CNAB444' | 'VRS_CSV'
+  nome_arquivo: string
+  bucket: string
+  storage_path: string
+  sha256: string
+  status: 'gerada' | 'validada' | 'enviando' | 'enviada' | 'erro' | 'cancelada'
+  idempotency_key: string
+  id_externo: string | null
+  erro_tecnico: string | null
+  enviado_em: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface RemessaOperacionalOperacao {
+  remessa_operacional_id: string
+  operacao_id: string
+  created_at: string
+}
+
+export interface RemessaOperacionalChave {
+  id: string
+  remessa_operacional_arquivo_id: string
+  operacao_id: string
+  nota_fiscal_id: string
+  parcela_id: string | null
+  chave_unica_ativo: string
+  chave_unica_parcela: string | null
+  created_at: string
+}
+
 export interface DevedorSolidario {
   id: string
   cedente_id: string
@@ -2193,6 +2249,10 @@ export interface Database {
       sequencias_remessa: { Row: SequenciaRemessa & Record<string, unknown>; Insert: InsertShape<SequenciaRemessa, 'configuracao_cnab_id' | 'data_referencia'> & Record<string, unknown>; Update: Partial<SequenciaRemessa> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'sequencias_remessa_configuracao_cnab_id_fkey'; columns: ['configuracao_cnab_id']; isOneToOne: false; referencedRelation: 'configuracoes_cnab'; referencedColumns: ['id'] }] }
       remessas_cnab: { Row: RemessaCnab & Record<string, unknown>; Insert: InsertShape<RemessaCnab, 'fundo_id' | 'configuracao_cnab_id' | 'configuracao_cnab_versao_id' | 'configuracao_versao' | 'configuracao_hash' | 'storage_path' | 'sha256' | 'quantidade_registros' | 'quantidade_titulos' | 'valor_total' | 'nome_arquivo' | 'sequencial' | 'idempotency_key' | 'payload_hash'> & Record<string, unknown>; Update: UpdateShape<RemessaCnab> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'remessas_cnab_fundo_id_fkey'; columns: ['fundo_id']; isOneToOne: false; referencedRelation: 'fundos'; referencedColumns: ['id'] }, { foreignKeyName: 'remessas_cnab_configuracao_cnab_id_fkey'; columns: ['configuracao_cnab_id']; isOneToOne: false; referencedRelation: 'configuracoes_cnab'; referencedColumns: ['id'] }, { foreignKeyName: 'remessas_cnab_configuracao_cnab_versao_id_fkey'; columns: ['configuracao_cnab_versao_id']; isOneToOne: false; referencedRelation: 'configuracao_cnab_versoes'; referencedColumns: ['id'] }, { foreignKeyName: 'remessas_cnab_integracao_fundo_versao_id_fkey'; columns: ['integracao_fundo_versao_id']; isOneToOne: false; referencedRelation: 'integracao_fundo_versoes'; referencedColumns: ['id'] }] }
       remessas_cnab_operacoes: { Row: RemessaCnabOperacao & Record<string, unknown>; Insert: RemessaCnabOperacao & Record<string, unknown>; Update: Partial<RemessaCnabOperacao> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'remessas_cnab_operacoes_remessa_cnab_id_fkey'; columns: ['remessa_cnab_id']; isOneToOne: false; referencedRelation: 'remessas_cnab'; referencedColumns: ['id'] }, { foreignKeyName: 'remessas_cnab_operacoes_operacao_id_fkey'; columns: ['operacao_id']; isOneToOne: false; referencedRelation: 'operacoes'; referencedColumns: ['id'] }] }
+      remessas_operacionais: { Row: RemessaOperacional & Record<string, unknown>; Insert: Partial<RemessaOperacional> & Pick<RemessaOperacional, 'fundo_id' | 'integracao_fundo_versao_id' | 'adapter_key' | 'estrategia_agrupamento' | 'idempotency_key' | 'payload_hash'> & Record<string, unknown>; Update: Partial<RemessaOperacional> & Record<string, unknown>; Relationships: [] }
+      remessa_operacional_arquivos: { Row: RemessaOperacionalArquivo & Record<string, unknown>; Insert: Partial<RemessaOperacionalArquivo> & Pick<RemessaOperacionalArquivo, 'remessa_operacional_id' | 'formato' | 'nome_arquivo' | 'bucket' | 'storage_path' | 'sha256' | 'idempotency_key'> & Record<string, unknown>; Update: Partial<RemessaOperacionalArquivo> & Record<string, unknown>; Relationships: [] }
+      remessa_operacional_operacoes: { Row: RemessaOperacionalOperacao & Record<string, unknown>; Insert: Pick<RemessaOperacionalOperacao, 'remessa_operacional_id' | 'operacao_id'> & Partial<RemessaOperacionalOperacao> & Record<string, unknown>; Update: Partial<RemessaOperacionalOperacao> & Record<string, unknown>; Relationships: [] }
+      remessa_operacional_chaves: { Row: RemessaOperacionalChave & Record<string, unknown>; Insert: Partial<RemessaOperacionalChave> & Pick<RemessaOperacionalChave, 'remessa_operacional_arquivo_id' | 'operacao_id' | 'nota_fiscal_id' | 'chave_unica_ativo'> & Record<string, unknown>; Update: Partial<RemessaOperacionalChave> & Record<string, unknown>; Relationships: [] }
       seguranca_eventos: { Row: SegurancaEvento & Record<string, unknown>; Insert: InsertShape<SegurancaEvento, 'tipo_evento'> & Record<string, unknown>; Update: UpdateShape<SegurancaEvento> & Record<string, unknown>; Relationships: [] }
       mfa_recovery_codes: { Row: MfaRecoveryCode & Record<string, unknown>; Insert: InsertShape<MfaRecoveryCode, 'user_id' | 'code_hash'> & Record<string, unknown>; Update: UpdateShape<MfaRecoveryCode> & Record<string, unknown>; Relationships: [] }
       sessoes_elevadas: { Row: SessaoElevada & Record<string, unknown>; Insert: InsertShape<SessaoElevada, 'user_id' | 'metodo' | 'expira_em'> & Record<string, unknown>; Update: UpdateShape<SessaoElevada> & Record<string, unknown>; Relationships: [] }

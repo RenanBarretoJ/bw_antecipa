@@ -6,12 +6,22 @@ import {
   type IntegrationCapability,
   type OperationalDeliveryMethod,
 } from './capabilities'
+import type { EstrategiaAgrupamentoRemessa, RemessaFormato } from '@/lib/remessas/domain'
+import { validarConfiguracaoInclusaoVrs } from './configuracao-vortx-vrs'
+
+export interface OperationalRemittanceDefinition {
+  formato: RemessaFormato
+  estrategiaAgrupamento: EstrategiaAgrupamentoRemessa
+  envioAutomaticoSuportado: boolean
+  motivoBloqueioEnvio?: string
+}
 
 export interface IntegrationAdapterDefinition {
   key: string
   label: string
   supports: readonly IntegrationCapability[]
   deliveryMethods: Partial<Record<IntegrationCapability, readonly OperationalDeliveryMethod[]>>
+  operationalRemittance?: OperationalRemittanceDefinition
   requiresCredential: boolean
   requiresEndpoint: boolean
   validatePublication(input: {
@@ -36,6 +46,11 @@ const adapters: readonly IntegrationAdapterDefinition[] = [
     label: 'Portal FIDC / Sinqia',
     supports: SINQIA_PORTAL_FIDC_CAPABILITIES,
     deliveryMethods: { CESSAO_ENVIO: ['CNAB'] },
+    operationalRemittance: {
+      formato: 'CNAB444',
+      estrategiaAgrupamento: 'POR_LOTE',
+      envioAutomaticoSuportado: true,
+    },
     requiresCredential: true,
     requiresEndpoint: true,
     validatePublication({ capabilities, clientIdentifier, originatorCode, config }) {
@@ -74,7 +89,13 @@ const adapters: readonly IntegrationAdapterDefinition[] = [
     key: 'vortx_vrs',
     label: 'Vórtx — VRS 2.0',
     supports: VORTX_VRS_CAPABILITIES,
-    deliveryMethods: {},
+    deliveryMethods: { CESSAO_ENVIO: ['VRS_CSV'] },
+    operationalRemittance: {
+      formato: 'VRS_CSV',
+      estrategiaAgrupamento: 'POR_CEDENTE',
+      envioAutomaticoSuportado: false,
+      motivoBloqueioEnvio: 'Envio Vortx VRS indisponivel: metodo, URL e headers de upload ainda nao foram confirmados contratualmente.',
+    },
     // A credencial Vortx (Key/Secret + certificado/chave mTLS) vive em
     // integracoes_vortx_vrs_credenciais, fora de credenciais_integracao --
     // por isso nao usa o fluxo generico credencial_integracao_id. A
@@ -84,12 +105,8 @@ const adapters: readonly IntegrationAdapterDefinition[] = [
     // O endpoint real (base_url) tambem vive na credencial Vortx, nao no
     // endpoint_base generico da versao.
     requiresEndpoint: false,
-    validatePublication({ config }) {
-      const codigoCarteira = config.codigo_carteira
-      if (codigoCarteira != null && (typeof codigoCarteira !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(codigoCarteira))) {
-        return 'Codigo da carteira VRS invalido.'
-      }
-      return null
+    validatePublication({ capabilities, config }) {
+      return capabilities.includes('CESSAO_ENVIO') ? validarConfiguracaoInclusaoVrs(config) : null
     },
     async testConnection() {
       return {
@@ -122,4 +139,8 @@ export function resolverMetodoEnvioOperacional(
 ): OperationalDeliveryMethod | null {
   const methods = integrationProviderRegistry.get(adapterKey)?.deliveryMethods[capability] ?? []
   return methods.length === 1 ? methods[0] : null
+}
+
+export function resolverDefinicaoRemessaOperacional(adapterKey: string): OperationalRemittanceDefinition | null {
+  return integrationProviderRegistry.get(adapterKey)?.operationalRemittance ?? null
 }

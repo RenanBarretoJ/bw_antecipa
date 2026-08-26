@@ -29,6 +29,17 @@ export interface NfParsedData {
   razao_social_emitente: string
   cnpj_destinatario: string
   razao_social_destinatario: string
+  destinatario_endereco: {
+    cep: string
+    logradouro: string
+    numero: string
+    complemento: string
+    bairro: string
+    municipio: string
+    uf: string
+    email: string
+    telefone: string
+  }
   valor_bruto: number
   valor_liquido: number
   valor_icms: number
@@ -103,6 +114,18 @@ export function parseNFeXML(xmlContent: string): NfParsedData {
   const destBlock = xmlContent.match(/<dest>([\s\S]*?)<\/dest>/i)?.[1] || ''
   const cnpj_destinatario = getTagValue(destBlock, 'CNPJ')
   const razao_social_destinatario = getTagValue(destBlock, 'xNome')
+  const enderecoDestinatario = destBlock.match(/<enderDest>([\s\S]*?)<\/enderDest>/i)?.[1] || ''
+  const destinatario_endereco = {
+    cep: getTagValue(enderecoDestinatario, 'CEP'),
+    logradouro: getTagValue(enderecoDestinatario, 'xLgr'),
+    numero: getTagValue(enderecoDestinatario, 'nro'),
+    complemento: getTagValue(enderecoDestinatario, 'xCpl'),
+    bairro: getTagValue(enderecoDestinatario, 'xBairro'),
+    municipio: getTagValue(enderecoDestinatario, 'xMun'),
+    uf: getTagValue(enderecoDestinatario, 'UF'),
+    email: getTagValue(destBlock, 'email'),
+    telefone: getTagValue(enderecoDestinatario, 'fone'),
+  }
 
   // Totais
   const icmsTotBlock = xmlContent.match(/<ICMSTot>([\s\S]*?)<\/ICMSTot>/i)?.[1] || ''
@@ -185,6 +208,7 @@ export function parseNFeXML(xmlContent: string): NfParsedData {
     razao_social_emitente,
     cnpj_destinatario,
     razao_social_destinatario,
+    destinatario_endereco,
     valor_bruto,
     valor_liquido,
     valor_icms,

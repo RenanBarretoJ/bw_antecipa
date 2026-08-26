@@ -28,10 +28,11 @@ export const SINQIA_PORTAL_FIDC_CAPABILITIES = [
   'LIQUIDACOES',
 ] as const satisfies readonly IntegrationCapability[]
 
-export type OperationalDeliveryMethod = 'CNAB'
+export type OperationalDeliveryMethod = 'CNAB' | 'VRS_CSV'
 
 export const OPERATIONAL_DELIVERY_METHOD_LABELS: Record<OperationalDeliveryMethod, string> = {
   CNAB: 'CNAB',
+  VRS_CSV: 'VRS CSV',
 }
 
 export function isIntegrationCapability(value: unknown): value is IntegrationCapability {

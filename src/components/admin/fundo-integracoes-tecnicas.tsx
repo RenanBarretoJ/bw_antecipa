@@ -44,7 +44,7 @@ import {
   type IntegrationCapability,
 } from '@/lib/integracoes/capabilities'
 import { possuiCapabilityFinanceira } from '@/lib/integracoes/configuracao-financeira'
-import { codigoCarteiraDaConfiguracao, prepararConfiguracaoVortxVrs } from '@/lib/integracoes/configuracao-vortx-vrs'
+import { codigoCarteiraDaConfiguracao, configuracaoInclusaoVrs, prepararConfiguracaoVortxVrs } from '@/lib/integracoes/configuracao-vortx-vrs'
 
 type Confirmation = { kind: 'activate' | 'revoke' | 'publish' | 'disable' | 'test'; id: string } | null
 const date = (value?: string | null) => value ? new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value)) : 'Nao informado'
@@ -74,6 +74,7 @@ function IntegrationDraftForm({
   const [providerKey, setProviderKey] = useState(integration?.provider_key || 'CUSTOM')
   const [systemName, setSystemName] = useState(integration?.system_name || '')
   const [codigoCarteira, setCodigoCarteira] = useState(codigoCarteiraDaConfiguracao(defaultVersion?.configuracao_nao_sensivel || {}))
+  const [vrsInclusao, setVrsInclusao] = useState(() => configuracaoInclusaoVrs(defaultVersion?.configuracao_nao_sensivel || {}))
   const catalogo = obterAdapterCatalogo(adapterKey)
   const locked = Boolean(integration?.versoes.some((item) => item.status !== 'rascunho'))
   const compatibleCredentials = activeCredentials.filter((item) => item.ambiente === environment)
@@ -123,7 +124,15 @@ function IntegrationDraftForm({
     </>}
     {(!catalogo || catalogo.showsClientIdentifier) && <label className="space-y-1"><Label>Identificador do cliente</Label><Input name="identificadorCliente" placeholder="Obrigatorio somente para publicar" value={clientId} onChange={(event) => setClientId(event.target.value)} /></label>}
     {catalogo && !catalogo.showsClientIdentifier && <input type="hidden" name="identificadorCliente" value="" />}
-    {catalogo?.credentialKind === 'vortx_mtls' && <label className="space-y-1"><Label>Código da carteira VRS (UUID)</Label><Input name="codigoCarteira" placeholder="Informe se ja disponivel" value={codigoCarteira} onChange={(event) => setCodigoCarteira(event.target.value)} /></label>}
+    {catalogo?.credentialKind === 'vortx_mtls' && <>
+      <label className="space-y-1"><Label>Código da carteira VRS</Label><Input name="codigoCarteira" placeholder="Ex.: CART01" value={codigoCarteira} onChange={(event) => setCodigoCarteira(event.target.value)} /></label>
+      <label className="space-y-1"><Label>Termo VRS</Label><Input name="vrsTermo" value={vrsInclusao.termo} onChange={(event) => setVrsInclusao((current) => ({ ...current, termo: event.target.value }))} /></label>
+      <label className="space-y-1"><Label>CNPJ do originador</Label><Input name="vrsCnpjOriginador" inputMode="numeric" value={vrsInclusao.cnpj_originador} onChange={(event) => setVrsInclusao((current) => ({ ...current, cnpj_originador: event.target.value.replace(/\D/g, '').slice(0, 14) }))} /></label>
+      <label className="space-y-1"><Label>Tipo de preço</Label><select name="vrsTipoPreco" value={vrsInclusao.tipo_preco} onChange={(event) => setVrsInclusao((current) => ({ ...current, tipo_preco: event.target.value }))} className="h-10 w-full rounded-lg border border-input bg-background px-3"><option value="">Selecione</option><option value="PREFIXADO">Prefixado</option><option value="POSFIXADO">Pos-fixado</option></select></label>
+      <label className="space-y-1"><Label>Método de preço</Label><Input name="vrsMetodoPreco" value={vrsInclusao.metodo_preco} onChange={(event) => setVrsInclusao((current) => ({ ...current, metodo_preco: event.target.value }))} /></label>
+      <label className="space-y-1"><Label>Modalidade da operação</Label><Input name="vrsModalidadeOperacao" inputMode="numeric" maxLength={4} value={vrsInclusao.modalidade_operacao} onChange={(event) => setVrsInclusao((current) => ({ ...current, modalidade_operacao: event.target.value.replace(/\D/g, '').slice(0, 4) }))} /></label>
+      <label className="space-y-1"><Label>Registradora</Label><select name="vrsRegistradora" value={vrsInclusao.registradora} onChange={(event) => setVrsInclusao((current) => ({ ...current, registradora: event.target.value }))} className="h-10 w-full rounded-lg border border-input bg-background px-3"><option value="">Selecione</option><option value="CERC">CERC</option><option value="B3">B3</option></select></label>
+    </>}
     {usesFinancialReports && <label className="space-y-1"><Label>CNPJ do fundo para relatorios financeiros</Label><Input value={normalizedFundCnpj} readOnly aria-readonly="true" /><span className="block text-xs text-muted-foreground">Obtido do cadastro do fundo e preservado automaticamente nesta versao.</span></label>}
     {!catalogo && <label className="space-y-1 md:col-span-2"><Label>Configuracao nao sensivel (JSON)</Label><textarea name="configuracao" value={config} onChange={(event) => setConfig(event.target.value)} className="min-h-24 w-full rounded-lg border border-input bg-background p-3 font-mono text-xs" /><span className="block text-xs text-muted-foreground">Parametros tecnicos adicionais. O CNPJ dos relatorios financeiros e controlado pelo cadastro do fundo.</span></label>}
     {catalogo && <input type="hidden" name="configuracao" value={config} />}
@@ -217,7 +226,18 @@ export function FundoIntegracoesTecnicas({ state, execPage, vortxConfig }: { sta
       let config: Record<string, unknown> = {}
       try { config = JSON.parse(String(formData.get('configuracao') || '{}')) as Record<string, unknown> } catch { notifications.error('O JSON de configuracao nao e valido.'); return }
       if (formData.get('adapterKey') === 'vortx_vrs') {
-        try { config = prepararConfiguracaoVortxVrs({ configuracao: config, codigoCarteira: String(formData.get('codigoCarteira') || '') }) }
+        try { config = prepararConfiguracaoVortxVrs({
+          configuracao: config,
+          codigoCarteira: String(formData.get('codigoCarteira') || ''),
+          inclusao: {
+            termo: String(formData.get('vrsTermo') || ''),
+            cnpj_originador: String(formData.get('vrsCnpjOriginador') || ''),
+            tipo_preco: String(formData.get('vrsTipoPreco') || ''),
+            metodo_preco: String(formData.get('vrsMetodoPreco') || ''),
+            modalidade_operacao: String(formData.get('vrsModalidadeOperacao') || ''),
+            registradora: String(formData.get('vrsRegistradora') || ''),
+          },
+        }) }
         catch (error) { notifications.error(error instanceof Error ? error.message : 'Codigo da carteira VRS invalido.'); return }
       }
       const result = await executarMutacaoTecnica(() => salvarIntegracaoRascunhoAdmin({

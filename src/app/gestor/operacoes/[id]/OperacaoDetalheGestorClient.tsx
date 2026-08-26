@@ -119,6 +119,16 @@ interface TaxaConfig {
   taxa_percentual: number
 }
 
+interface RemessaOperacionalUi {
+  remessaId: string
+  formato: 'CNAB444' | 'VRS_CSV'
+  estrategiaAgrupamento: 'POR_LOTE' | 'POR_CEDENTE'
+  adapterKey: string
+  excelDisponivel: boolean
+  envioAutomaticoSuportado: boolean
+  motivoBloqueioEnvio: string | null
+}
+
 interface LogisticaEntrega {
   id: string
   nota_fiscal_id: string
@@ -408,7 +418,7 @@ export default function OperacaoDetalheGestorClient({
   const [test1Id, setTest1Id] = useState('')
   const [test2Id, setTest2Id] = useState('')
   const [salvandoTest, setSalvandoTest] = useState(false)
-  const [gerandoCnab, setGerandoCnab] = useState(false)
+  const [gerandoRemessa, setGerandoRemessa] = useState(false)
   const [enviandoRemessa, setEnviandoRemessa] = useState(false)
 
   // Estado local para docs (atualizado após upload sem reload da página)
@@ -419,6 +429,7 @@ export default function OperacaoDetalheGestorClient({
   const [remessaGeradaEm, setRemessaGeradaEm] = useState<string | null>(null)
   const [remessaEnviadaEm, setRemessaEnviadaEm] = useState<string | null>(null)
   const [remessaFromtisId, setRemessaFromtisId] = useState<string | null>(null)
+  const [remessaOperacional, setRemessaOperacional] = useState<RemessaOperacionalUi | null>(null)
   const [desembolsando, setDesembolsando] = useState(false)
   const [nfSort, setNfSort] = useState<NotaFiscalSort>('vencimento')
 
@@ -487,6 +498,14 @@ export default function OperacaoDetalheGestorClient({
         setRemessaGeradaEm(o.remessa_gerado_em)
         setRemessaEnviadaEm(o.remessa_enviado_em)
         setRemessaFromtisId(o.remessa_fromtis_id)
+        const remessaResponse = await fetch(`/api/contratos/gerar-remessa?operacao_id=${encodeURIComponent(opId)}`, {
+          cache: 'no-store',
+        })
+        if (remessaResponse.ok) {
+          setRemessaOperacional(await remessaResponse.json() as RemessaOperacionalUi | null)
+        } else {
+          setRemessaOperacional(null)
+        }
 
         const { data: opNfs } = await supabase
           .from('operacoes_nfs')
@@ -856,33 +875,39 @@ export default function OperacaoDetalheGestorClient({
     setSalvandoTest(false)
   }
 
-  const handleGerarCnab = async () => {
+  const handleGerarRemessa = async () => {
     if (!op) return
-    setGerandoCnab(true)
+    setGerandoRemessa(true)
     try {
-      const res = await fetch('/api/contratos/gerar-cnab', {
+      const res = await fetch('/api/contratos/gerar-remessa', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ operacao_id: op.id }),
       })
+      const data = await res.json()
       if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.error || 'Erro ao gerar CNAB')
+        throw new Error(data.error || 'Erro ao gerar remessa')
       }
-      const blob = await res.blob()
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `REMESSA_${op.id.slice(0, 8).toUpperCase()}.REM`
-      a.click()
-      URL.revokeObjectURL(url)
+      setRemessaOperacional(data as RemessaOperacionalUi)
       setRemessaGeradaEm(new Date().toISOString())
+      setMessage(`Remessa ${data.formato === 'VRS_CSV' ? 'VRS CSV' : 'CNAB'} gerada com agrupamento ${data.estrategiaAgrupamento === 'POR_CEDENTE' ? 'por Cedente' : 'por lote'}.`)
+      setMessageType('success')
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : 'Erro ao gerar CNAB.')
+      setMessage(err instanceof Error ? err.message : 'Erro ao gerar remessa.')
       setMessageType('error')
     } finally {
-      setGerandoCnab(false)
+      setGerandoRemessa(false)
     }
+  }
+
+  const handleBaixarRemessa = (tipo: 'excel' | 'pacote') => {
+    if (!remessaOperacional) return
+    const url = `/api/contratos/gerar-remessa?remessa_id=${encodeURIComponent(remessaOperacional.remessaId)}&tipo=${tipo}`
+    const a = document.createElement('a')
+    a.href = url
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
   }
 
   const handleEnviarRemessa = async () => {
@@ -898,7 +923,7 @@ export default function OperacaoDetalheGestorClient({
       if (!res.ok) throw new Error(data.error || 'Erro ao enviar remessa')
       setRemessaEnviadaEm(new Date().toISOString())
       setRemessaFromtisId(data.idArquivo)
-      setMessage(`Remessa enviada ao Portal FIDC. Protocolo: ${data.idArquivo}`)
+      setMessage(`Remessa enviada para a administradora. Protocolo: ${data.idArquivo}`)
       setMessageType('success')
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Erro ao enviar remessa.')
@@ -1402,22 +1427,30 @@ export default function OperacaoDetalheGestorClient({
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={handleGerarCnab}
-                    disabled={gerandoCnab}
+                    onClick={handleGerarRemessa}
+                    disabled={gerandoRemessa}
                     className="w-full gap-2"
                   >
-                    {gerandoCnab ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />}
-                    {gerandoCnab ? 'Gerando...' : 'Gerar CNAB'}
+                    {gerandoRemessa ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />}
+                    {gerandoRemessa ? 'Gerando...' : 'Gerar Remessa'}
                   </Button>
+                  {remessaOperacional && (
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <Button variant="outline" size="sm" onClick={() => handleBaixarRemessa('excel')} className="w-full gap-2"><FileDown size={14} />Baixar Excel</Button>
+                      <Button variant="outline" size="sm" onClick={() => handleBaixarRemessa('pacote')} className="w-full gap-2"><FileDown size={14} />Baixar pacote</Button>
+                      <p className="sm:col-span-2 text-xs text-muted-foreground">Formato: {remessaOperacional.formato === 'VRS_CSV' ? 'VRS CSV' : 'CNAB'} · Agrupamento: {remessaOperacional.estrategiaAgrupamento === 'POR_CEDENTE' ? 'por Cedente' : 'por lote'}</p>
+                    </div>
+                  )}
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={handleEnviarRemessa}
-                    disabled={enviandoRemessa || !remessaGeradaEm}
+                    disabled={enviandoRemessa || !remessaGeradaEm || !remessaOperacional?.envioAutomaticoSuportado}
+                    title={remessaOperacional?.motivoBloqueioEnvio ?? undefined}
                     className="w-full gap-2"
                   >
                     {enviandoRemessa ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-                    {enviandoRemessa ? 'Enviando...' : remessaEnviadaEm ? `Reenviado ${formatDate(remessaEnviadaEm)}` : 'Enviar CNAB para Portal FIDC'}
+                    {enviandoRemessa ? 'Enviando...' : remessaEnviadaEm ? `Reenviado ${formatDate(remessaEnviadaEm)}` : 'Enviar Remessa para ADM'}
                   </Button>
                   {remessaFromtisId && (
                     <p className="text-xs text-muted-foreground">Protocolo Portal FIDC: {remessaFromtisId}</p>
@@ -1664,22 +1697,30 @@ export default function OperacaoDetalheGestorClient({
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={handleGerarCnab}
-                      disabled={gerandoCnab}
+                      onClick={handleGerarRemessa}
+                      disabled={gerandoRemessa}
                       className="w-full gap-2"
                     >
-                      {gerandoCnab ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />}
-                      {gerandoCnab ? 'Gerando...' : 'Gerar CNAB'}
+                      {gerandoRemessa ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />}
+                      {gerandoRemessa ? 'Gerando...' : 'Gerar Remessa'}
                     </Button>
+                    {remessaOperacional && (
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <Button variant="outline" size="sm" onClick={() => handleBaixarRemessa('excel')} className="w-full gap-2"><FileDown size={14} />Baixar Excel</Button>
+                        <Button variant="outline" size="sm" onClick={() => handleBaixarRemessa('pacote')} className="w-full gap-2"><FileDown size={14} />Baixar pacote</Button>
+                        <p className="sm:col-span-2 text-xs text-muted-foreground">Formato: {remessaOperacional.formato === 'VRS_CSV' ? 'VRS CSV' : 'CNAB'} · Agrupamento: {remessaOperacional.estrategiaAgrupamento === 'POR_CEDENTE' ? 'por Cedente' : 'por lote'}</p>
+                      </div>
+                    )}
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={handleEnviarRemessa}
-                      disabled={enviandoRemessa || !remessaGeradaEm}
+                      disabled={enviandoRemessa || !remessaGeradaEm || !remessaOperacional?.envioAutomaticoSuportado}
+                      title={remessaOperacional?.motivoBloqueioEnvio ?? undefined}
                       className="w-full gap-2"
                     >
                       {enviandoRemessa ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-                      {enviandoRemessa ? 'Enviando...' : remessaEnviadaEm ? `Reenviado ${formatDate(remessaEnviadaEm)}` : 'Enviar CNAB para Portal FIDC'}
+                      {enviandoRemessa ? 'Enviando...' : remessaEnviadaEm ? `Reenviado ${formatDate(remessaEnviadaEm)}` : 'Enviar Remessa para ADM'}
                     </Button>
                     {remessaFromtisId && (
                       <p className="text-xs text-muted-foreground">Protocolo Portal FIDC: {remessaFromtisId}</p>
