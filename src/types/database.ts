@@ -2413,6 +2413,8 @@ export interface Database {
       admin_obter_usuario_por_email: { Args: { p_email: string }; Returns: Record<string, unknown> | null }
       admin_listar_fundos_usuario: { Args: { p_usuario_id: string }; Returns: Array<Record<string, unknown>> }
       admin_listar_gestores_fundo: { Args: { p_fundo_id: string }; Returns: Array<Record<string, unknown>> }
+      admin_buscar_gestores_para_fundo: { Args: { p_fundo_id: string; p_busca: string; p_pagina?: number; p_por_pagina?: number }; Returns: Record<string, unknown> }
+      admin_buscar_fundos_para_gestor: { Args: { p_usuario_id: string; p_busca: string; p_pagina?: number; p_por_pagina?: number }; Returns: Record<string, unknown> }
       admin_listar_auditoria_usuario: { Args: { p_usuario_id: string }; Returns: Array<Record<string, unknown>> }
       admin_vincular_gestor_fundo: { Args: { p_usuario_id: string; p_fundo_id: string; p_correlation_id: string }; Returns: Record<string, unknown> }
       admin_vincular_gestor_fundos: { Args: { p_usuario_id: string; p_fundo_ids: string[]; p_correlation_id: string }; Returns: Record<string, unknown> }

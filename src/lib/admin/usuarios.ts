@@ -89,6 +89,38 @@ export type AdminFundoGestor = {
   updated_at: string | null
 }
 
+export const ADMIN_VINCULO_BUSCA_DIRECOES = ['gestores_para_fundo', 'fundos_para_gestor'] as const
+export type AdminVinculoBuscaDirecao = typeof ADMIN_VINCULO_BUSCA_DIRECOES[number]
+
+export const adminVinculoBuscaSchema = z.object({
+  direcao: z.enum(ADMIN_VINCULO_BUSCA_DIRECOES),
+  contextoId: z.uuid(),
+  busca: z.string().trim().min(2).max(120),
+  pagina: z.number().int().min(1),
+})
+
+export type AdminVinculoBuscaItem = {
+  id: string
+  nome: string
+  descricao: string
+  entidade_status: 'ativo' | 'inativo' | 'bloqueado'
+  vinculo_status: 'suspenso' | 'revogado' | null
+}
+
+export type AdminVinculoBuscaResult = {
+  itens: AdminVinculoBuscaItem[]
+  total: number
+  pagina: number
+  por_pagina: 20
+  total_paginas: number
+}
+
+export type AdminVinculoBuscaActionResult = {
+  success: boolean
+  message?: string
+  data?: AdminVinculoBuscaResult
+}
+
 export type AdminUsuarioAuditoriaItem = {
   id: string
   tipo_evento: string

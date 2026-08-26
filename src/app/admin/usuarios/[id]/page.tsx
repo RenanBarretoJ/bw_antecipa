@@ -2,8 +2,9 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { Building2, History, ShieldCheck } from 'lucide-react'
 import { AdminUserActions } from '@/components/admin/admin-user-actions'
+import { AdminVinculoSearchDialog } from '@/components/admin/admin-vinculo-search-dialog'
 import { GestorFundAccessAction } from '@/components/admin/gestor-fund-access-action'
-import { DetailField, DetailSection, EmptyState, FieldGrid, ListNameCell, MetricCard, StatusBadge } from '@/components/data-display/primitives'
+import { DetailField, DetailSection, EmptyState, FieldGrid, ListNameCell, StatusBadge } from '@/components/data-display/primitives'
 import { PageContainer } from '@/components/layout/page-container'
 import { PageHeader } from '@/components/layout/page-header'
 import { requireSuperAdmin } from '@/lib/auth/admin-authorization'
@@ -21,8 +22,6 @@ export default async function AdminUsuarioDetailPage({ params, searchParams }: {
   if (!usuario) notFound()
   const fundos = tab === 'fundos' ? await listarFundosAdminUsuario(id) : []
   const auditoria = tab === 'auditoria' ? await listarAuditoriaAdminUsuario(id) : []
-  const fundosAtivos = fundos.filter((fundo) => fundo.vinculo_status === 'ativo' && fundo.fundo_ativo).length
-  const vinculosRevogados = fundos.filter((fundo) => fundo.vinculo_status === 'revogado').length
 
   return (
     <PageContainer className="space-y-5">
@@ -35,13 +34,8 @@ export default async function AdminUsuarioDetailPage({ params, searchParams }: {
 
       {tab === 'fundos' && (usuario.papel_primario !== 'gestor' ? <EmptyState title="Sem papel operacional Gestor" description="Super Admin puro nao recebe vinculos operacionais. Nenhum acesso global a fundos e concedido implicitamente." icon={ShieldCheck} /> : (
         <div className="space-y-4">
-          <div className="grid gap-3 sm:grid-cols-3">
-            <MetricCard label="Fundos operacionais" value={fundosAtivos} tone="success" />
-            <MetricCard label="Vinculos revogados" value={vinculosRevogados} />
-            <MetricCard label="Fundos cadastrados" value={fundos.length} />
-          </div>
-          <DetailSection title="Fundos do Gestor" icon={Building2}>
-            <div className="divide-y divide-border">{fundos.map((fundo) => <div key={fundo.fundo_id} className="grid items-center gap-3 py-3 first:pt-0 last:pb-0 md:grid-cols-[minmax(0,1fr)_130px_150px_auto]"><ListNameCell name={fundo.fundo_nome} subline={fundo.fundo_cnpj} className="max-w-none" /><StatusBadge status={fundo.fundo_ativo ? 'ativo' : 'desativada'} label={`Fundo ${fundo.fundo_ativo ? 'ativo' : 'inativo'}`} /><StatusBadge status={fundo.vinculo_status === 'ativo' ? 'ativo' : 'desativada'} label={`Vinculo ${fundo.vinculo_status || 'inexistente'}`} /><GestorFundAccessAction usuarioId={usuario.id} fundoId={fundo.fundo_id} status={fundo.vinculo_status} /></div>)}</div>
+          <DetailSection title="Fundos vinculados" icon={Building2} action={<AdminVinculoSearchDialog direcao="fundos_para_gestor" contextoId={usuario.id} />}>
+            {fundos.length === 0 ? <EmptyState title="Nenhum fundo vinculado a este gestor." description="Use Vincular fundo para localizar um cadastro por nome ou CNPJ." icon={Building2} /> : <div className="divide-y divide-border">{fundos.map((fundo) => <div key={fundo.fundo_id} className="grid items-center gap-3 py-3 first:pt-0 last:pb-0 md:grid-cols-[minmax(0,1fr)_130px_150px_auto]"><ListNameCell name={fundo.fundo_nome} subline={fundo.fundo_cnpj} className="max-w-none" /><StatusBadge status={fundo.fundo_ativo ? 'ativo' : 'desativada'} label={`Fundo ${fundo.fundo_ativo ? 'ativo' : 'inativo'}`} /><StatusBadge status="ativo" label="Vinculo ativo" /><GestorFundAccessAction usuarioId={usuario.id} fundoId={fundo.fundo_id} status={fundo.vinculo_status} /></div>)}</div>}
           </DetailSection>
         </div>
       ))}

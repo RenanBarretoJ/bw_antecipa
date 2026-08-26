@@ -12,6 +12,8 @@ import type {
   AdminUsuarioResumo,
   AdminUsuarioStatusFilter,
   AdminUsuarioSuperAdminFilter,
+  AdminVinculoBuscaDirecao,
+  AdminVinculoBuscaResult,
 } from '@/lib/admin/usuarios'
 
 export async function carregarResumoAdminUsuarios(): Promise<AdminUsuarioResumo> {
@@ -61,6 +63,31 @@ export async function listarGestoresAdminFundo(fundoId: string): Promise<AdminFu
   const { data, error } = await context.supabase.rpc('admin_listar_gestores_fundo', { p_fundo_id: fundoId })
   if (error) throw new Error('Nao foi possivel carregar os gestores do fundo.')
   return (data || []) as unknown as AdminFundoGestor[]
+}
+
+export async function buscarVinculosAdmin(input: {
+  direcao: AdminVinculoBuscaDirecao
+  contextoId: string
+  busca: string
+  pagina: number
+}): Promise<AdminVinculoBuscaResult> {
+  const context = await requireSuperAdmin()
+  const chamada = input.direcao === 'gestores_para_fundo'
+    ? context.supabase.rpc('admin_buscar_gestores_para_fundo', {
+        p_fundo_id: input.contextoId,
+        p_busca: input.busca,
+        p_pagina: input.pagina,
+        p_por_pagina: 20,
+      })
+    : context.supabase.rpc('admin_buscar_fundos_para_gestor', {
+        p_usuario_id: input.contextoId,
+        p_busca: input.busca,
+        p_pagina: input.pagina,
+        p_por_pagina: 20,
+      })
+  const { data, error } = await chamada
+  if (error) throw new Error('Nao foi possivel buscar candidatos ao vinculo.')
+  return data as unknown as AdminVinculoBuscaResult
 }
 
 export async function listarAuditoriaAdminUsuario(usuarioId: string): Promise<AdminUsuarioAuditoriaItem[]> {

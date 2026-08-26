@@ -8,10 +8,13 @@ import { autorizarEConsumirAcaoSensivel } from '@/lib/auth/sensitive-action'
 import { atualizarBloqueioUsuarioAuth, convidarUsuarioAuth, removerConviteAuthIncompleto, removerFatoresMfaAuth } from '@/lib/admin/auth-admin.server'
 import {
   adminUsuarioConviteSchema,
+  adminVinculoBuscaSchema,
   conviteInputFromFormData,
+  type AdminVinculoBuscaActionResult,
   type AdminUsuarioActionResult,
   type AdminUsuarioDetalhe,
 } from '@/lib/admin/usuarios'
+import { buscarVinculosAdmin } from '@/lib/admin/usuarios.server'
 
 type RpcError = { code?: string; message?: string }
 
@@ -39,6 +42,18 @@ function revalidarUsuario(usuarioId?: string, fundoId?: string) {
   revalidatePath('/admin/fundos')
   if (usuarioId) revalidatePath(`/admin/usuarios/${usuarioId}`)
   if (fundoId) revalidatePath(`/admin/fundos/${fundoId}`)
+}
+
+export async function buscarCandidatosVinculoAdmin(input: unknown): Promise<AdminVinculoBuscaActionResult> {
+  const parsed = adminVinculoBuscaSchema.safeParse(input)
+  if (!parsed.success) return { success: false, message: 'Informe ao menos dois caracteres para buscar.' }
+  try {
+    const data = await buscarVinculosAdmin(parsed.data)
+    return { success: true, data }
+  } catch (error) {
+    if (error instanceof AuthorizationError) return { success: false, message: error.message }
+    return { success: false, message: 'Nao foi possivel realizar a busca.' }
+  }
 }
 
 export async function convidarUsuarioAdmin(formData: FormData): Promise<AdminUsuarioActionResult> {

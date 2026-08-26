@@ -7,13 +7,25 @@ import { SensitiveConfirmDialog } from '@/components/admin/sensitive-confirm-dia
 import { useNotifications } from '@/components/notifications/notification-provider'
 import { Button } from '@/components/ui/button'
 
-export function GestorFundAccessAction({ usuarioId, fundoId, status }: { usuarioId: string; fundoId: string; status: 'ativo' | 'suspenso' | 'revogado' | null }) {
+export function GestorFundAccessAction({
+  usuarioId,
+  fundoId,
+  status,
+  labelOverride,
+  onSuccess,
+}: {
+  usuarioId: string
+  fundoId: string
+  status: 'ativo' | 'suspenso' | 'revogado' | null
+  labelOverride?: string
+  onSuccess?: () => void
+}) {
   const router = useRouter()
   const notifications = useNotifications()
   const [open, setOpen] = useState(false)
   const [pending, startTransition] = useTransition()
   const operacao = status === 'ativo' ? 'revogar' : status ? 'reativar' : 'vincular'
-  const label = operacao === 'revogar' ? 'Revogar vinculo' : operacao === 'reativar' ? 'Reativar vinculo' : 'Vincular fundo'
+  const label = labelOverride || (operacao === 'revogar' ? 'Revogar vinculo' : operacao === 'reativar' ? 'Reativar vinculo' : 'Vincular fundo')
 
   function execute(mfaCode: string) {
     startTransition(async () => {
@@ -21,6 +33,7 @@ export function GestorFundAccessAction({ usuarioId, fundoId, status }: { usuario
       notifications.fromActionResult(result)
       if (!result.success) return
       setOpen(false)
+      onSuccess?.()
       router.refresh()
     })
   }

@@ -6,6 +6,7 @@ import { FundoIntegracoesTecnicas } from '@/components/admin/fundo-integracoes-t
 import { FundoEnviosOperacionais } from '@/components/admin/fundo-envios-operacionais'
 import { FundoDadosFinanceiros } from '@/components/admin/fundo-dados-financeiros'
 import { FundoStructuralForm } from '@/components/admin/fundo-structural-form'
+import { AdminVinculoSearchDialog } from '@/components/admin/admin-vinculo-search-dialog'
 import { GestorFundAccessAction } from '@/components/admin/gestor-fund-access-action'
 import { DetailField, DetailSection, EmptyState, FieldGrid, ListNameCell, StatusBadge } from '@/components/data-display/primitives'
 import { PageContainer } from '@/components/layout/page-container'
@@ -63,19 +64,19 @@ export default async function AdminFundoDetailPage({ params, searchParams }: { p
           <div className="border-t border-border p-5"><FundoStructuralForm fundo={fundo} /></div>
         </details>
       </> : tab === 'gestores' ? (
-        <DetailSection title="Gestores autorizaveis" icon={Users}>
+        <DetailSection title="Gestores vinculados" icon={Users} action={<AdminVinculoSearchDialog direcao="gestores_para_fundo" contextoId={id} />}>
           {!fundo.ativo && (
             <p className="mb-4 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning-foreground">
               Os vinculos podem ser preparados, mas este fundo esta inativo e nao concede contexto operacional.
             </p>
           )}
-          {gestores.length === 0 ? <EmptyState title="Nenhum Gestor cadastrado" description="Crie um Gestor em Usuarios & Acessos antes de vincula-lo ao fundo." icon={Users} /> : (
+          {gestores.length === 0 ? <EmptyState title="Nenhum gestor vinculado a este fundo." description="Use Vincular gestor para localizar um usuario elegivel por nome ou e-mail." icon={Users} /> : (
             <div className="divide-y divide-border">
               {gestores.map((gestor) => (
                 <div key={gestor.usuario_id} className="grid items-center gap-3 py-3 first:pt-0 last:pb-0 md:grid-cols-[minmax(0,1fr)_140px_160px_auto]">
                   <ListNameCell name={gestor.nome_completo} subline={gestor.email} className="max-w-none" sublineClassName="font-sans" />
                   <StatusBadge status={gestor.usuario_status === 'ativo' ? 'ativo' : 'desativada'} label={`Usuario ${gestor.usuario_status === 'ativo' ? 'ativo' : 'inativo'}`} />
-                  <StatusBadge status={gestor.vinculo_status === 'ativo' ? 'ativo' : 'desativada'} label={`Vinculo ${gestor.vinculo_status || 'inexistente'}`} />
+                  <StatusBadge status="ativo" label="Vinculo ativo" />
                   <GestorFundAccessAction usuarioId={gestor.usuario_id} fundoId={id} status={gestor.vinculo_status} />
                 </div>
               ))}
