@@ -2,6 +2,7 @@ import 'server-only'
 import { createHash } from 'node:crypto'
 import { createAdminClient } from '@/lib/supabase/server'
 import {
+  construirRequestPayloadSanitizado,
   decodificarImagemBase64,
   mimeDeclaradoCompativel,
   type PayloadComprovanteWebhookValidado,
@@ -82,6 +83,31 @@ type RpcRegistrarComprovanteResultado = { status: string; canhoto_id: string | n
 
 /** Status elegiveis para reprocessamento real (secao 3 do ticket). */
 export const STATUSES_REPROCESSAVEIS = ['NAO_IDENTIFICADO', 'REVISAO_MATCH', 'ERRO_REPROCESSAVEL'] as const
+
+/**
+ * Persiste a copia sanitizada do JSON efetivamente devolvido ao carrier
+ * (P0_Claude_Webhook_Transportadora_Payloads_Auditoria_v2) -- chamado pela
+ * rota logo antes de responder, so quando ja existe um webhook_evento_id
+ * real (a resposta FINAL, apos processarWebhookComprovanteTransportadora
+ * resolver). Respostas de autenticacao/validacao anteriores ao INSERT do
+ * inbox (401/400 sem evento criado ainda) nao tem linha para anexar --
+ * comportamento inalterado para esses casos.
+ */
+export async function registrarRespostaWebhookComprovante(
+  webhookEventoId: string,
+  input: { payload: unknown; httpStatus: number },
+  client: AdminClient = createAdminClient(),
+): Promise<void> {
+  if (!webhookEventoId) return
+  await client
+    .from('integracao_logistica_webhook_eventos')
+    .update({
+      response_payload: input.payload,
+      response_http_status: input.httpStatus,
+      respondido_em: new Date().toISOString(),
+    })
+    .eq('id', webhookEventoId)
+}
 
 function calcularIdempotencyKey(input: {
   integracaoId: string
@@ -363,11 +389,22 @@ async function resolverEFinalizarComprovante(input: {
  * e ERRO_REPROCESSAVEL sempre retem o arquivo (podem ser reprocessados de
  * verdade depois).
  */
+export type WebhookHttpMeta = {
+  bodyBytes: number
+  headers: { contentType: string | null; contentLength: string | null; userAgent: string | null }
+}
+
+const HTTP_META_VAZIO: WebhookHttpMeta = {
+  bodyBytes: 0,
+  headers: { contentType: null, contentLength: null, userAgent: null },
+}
+
 export async function processarWebhookComprovanteTransportadora(
   integracao: IntegracaoTransportadora,
   payload: PayloadComprovanteWebhookValidado,
   payloadHash: string,
   client: AdminClient = createAdminClient(),
+  httpMeta: WebhookHttpMeta = HTTP_META_VAZIO,
 ): Promise<ResultadoWebhookComprovante> {
   const imagem = decodificarImagemBase64(payload.imagemBase64)
   const idempotencyKey = calcularIdempotencyKey({
@@ -377,6 +414,13 @@ export async function processarWebhookComprovanteTransportadora(
     chaveNfe: payload.chaveNfe,
     dataEntregaNfe: payload.dataEntregaNfe,
     imagemSha256: imagem.sha256,
+  })
+  const requestPayload = construirRequestPayloadSanitizado({
+    payload,
+    bodyBytes: httpMeta.bodyBytes,
+    imagemBase64Length: payload.imagemBase64.length,
+    imagemDecodificada: imagem,
+    headers: httpMeta.headers,
   })
 
   const { data: inserted, error: insertError } = await client
@@ -398,6 +442,7 @@ export async function processarWebhookComprovanteTransportadora(
       data_entrega_nfe: payload.dataEntregaNfe,
       content_type: payload.contentType,
       status: 'RECEBIDO',
+      request_payload: requestPayload,
     })
     .select('id')
     .single()

@@ -74,6 +74,10 @@ export type AdminWebhookEventoDetalhe = AdminWebhookEventoResumo & {
   tipo_vinculo: string | null
   match_confianca: string | null
   canhoto_id: string | null
+  respondido_em: string | null
+  request_payload: Record<string, unknown> | null
+  response_payload: Record<string, unknown> | null
+  response_http_status: number | null
 }
 
 export type AdminWebhookEventosListResult = {

@@ -151,3 +151,62 @@ export function decodificarImagemBase64(base64: string): ImagemDecodificada {
   const sha256 = createHash('sha256').update(buffer).digest('hex')
   return { buffer, sha256, mimeReal: mimeRealDoBuffer(buffer) }
 }
+
+/** Quantos bytes iniciais do arquivo mostrar como magic bytes em HEX no diagnostico. */
+const MAGIC_BYTES_DIAGNOSTICO = 16
+
+export type RequestPayloadSanitizado = {
+  external_event_id: string | null
+  chave_nfe: string
+  chave_cte: string | null
+  cnpj_cliente: string
+  cnpj_emitente: string
+  cnpj_transportadora: string
+  data_emissao_nfe: string
+  data_entrega_nfe: string
+  content_type_declarado: string
+  tamanho_body_bytes: number
+  tamanho_base64: number
+  tamanho_decodificado_bytes: number
+  imagem_sha256: string
+  mime_detectado: string | null
+  magic_bytes_hex: string
+  headers: { 'content-type': string | null; 'content-length': string | null; 'user-agent': string | null }
+}
+
+/**
+ * Monta o snapshot sanitizado do request recebido, para diagnostico
+ * (P0_Claude_Webhook_Transportadora_Payloads_Auditoria_v2). Funcao pura --
+ * nunca inclui imagem_base64 completa, Authorization/Bearer, cookies ou
+ * qualquer outro header/segredo fora da allowlist explicita abaixo.
+ */
+export function construirRequestPayloadSanitizado(input: {
+  payload: PayloadComprovanteWebhookValidado
+  bodyBytes: number
+  imagemBase64Length: number
+  imagemDecodificada: ImagemDecodificada
+  headers: { contentType: string | null; contentLength: string | null; userAgent: string | null }
+}): RequestPayloadSanitizado {
+  return {
+    external_event_id: input.payload.externalEventId,
+    chave_nfe: input.payload.chaveNfe,
+    chave_cte: input.payload.chaveCte,
+    cnpj_cliente: input.payload.cnpjCliente,
+    cnpj_emitente: input.payload.cnpjEmitente,
+    cnpj_transportadora: input.payload.cnpjTransportadora,
+    data_emissao_nfe: input.payload.dataEmissaoNfe,
+    data_entrega_nfe: input.payload.dataEntregaNfe,
+    content_type_declarado: input.payload.contentType,
+    tamanho_body_bytes: input.bodyBytes,
+    tamanho_base64: input.imagemBase64Length,
+    tamanho_decodificado_bytes: input.imagemDecodificada.buffer.byteLength,
+    imagem_sha256: input.imagemDecodificada.sha256,
+    mime_detectado: input.imagemDecodificada.mimeReal,
+    magic_bytes_hex: input.imagemDecodificada.buffer.subarray(0, MAGIC_BYTES_DIAGNOSTICO).toString('hex'),
+    headers: {
+      'content-type': input.headers.contentType,
+      'content-length': input.headers.contentLength,
+      'user-agent': input.headers.userAgent,
+    },
+  }
+}

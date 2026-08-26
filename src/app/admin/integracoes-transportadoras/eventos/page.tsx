@@ -4,6 +4,7 @@ import { PageContainer } from '@/components/layout/page-container'
 import { PageHeader } from '@/components/layout/page-header'
 import { listarAdminWebhookEventosTransportadora } from '@/lib/admin/integracoes-transportadoras.server'
 import { parseAdminWebhookEventosFiltro, WEBHOOK_EVENTO_STATUSES, type AdminWebhookEventosFiltro } from '@/lib/admin/integracoes-transportadoras'
+import { formatDateTimeSaoPaulo } from '@/lib/utils'
 
 const outlineLink = 'inline-flex h-8 items-center justify-center rounded-lg border border-border bg-background px-3 text-sm font-medium hover:bg-muted'
 const inputClass = 'h-8 w-full min-w-0 rounded-lg border border-input bg-background px-2.5 text-sm'
@@ -65,7 +66,7 @@ export default async function AdminWebhookEventosTransportadoraPage({
                 href={`/admin/integracoes-transportadoras/eventos/${evento.id}`}
                 className="grid items-center gap-3 px-4 py-3 hover:bg-muted/40 sm:grid-cols-[140px_minmax(0,1fr)_160px]"
               >
-                <span className="text-xs text-muted-foreground">{new Date(evento.recebido_em).toLocaleString('pt-BR')}</span>
+                <span className="text-xs text-muted-foreground">{formatDateTimeSaoPaulo(evento.recebido_em)}</span>
                 <div className="min-w-0">
                   <p className="truncate text-sm">{evento.chave_nfe || evento.chave_cte || '(sem chave)'}</p>
                   <p className="truncate text-xs text-muted-foreground">

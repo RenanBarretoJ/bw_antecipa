@@ -9,6 +9,7 @@ vi.mock('@/lib/documentos-v2/storage', () => ({
 
 const {
   processarWebhookComprovanteTransportadora,
+  registrarRespostaWebhookComprovante,
   reprocessarWebhookComprovanteTransportadora,
   resolverIntegracaoPorToken,
 } = await import('./webhook-comprovante-transportadora.server')
@@ -114,6 +115,59 @@ describe('processarWebhookComprovanteTransportadora', () => {
     expect(persistUpdate?.payload.bucket).toBeDefined()
     expect(persistUpdate?.payload.path).toBeDefined()
     expect(persistUpdate?.payload.tamanho_bytes).toBeDefined()
+  })
+
+  it('grava request_payload sanitizado no INSERT do inbox, refletindo httpMeta e nunca imagem_base64', async () => {
+    const { client, calls } = criarClienteFake({
+      responder: (ctx) => {
+        const padrao = respostaPadraoInsertEUpdate(ctx)
+        if (padrao) return padrao
+        if (ctx.table === 'notas_fiscais') return { data: vendaRow, error: null }
+        if (ctx.table === 'nota_fiscal_remessas') return { data: null, error: null }
+        if (ctx.table === 'nota_fiscal_entregas') return { data: { id: 'entrega-1' }, error: null }
+        if (ctx.table === 'canhotos') return { data: null, error: null }
+        return { data: null, error: null }
+      },
+      rpc: async () => ({ data: { status: 'PROCESSADO', canhoto_id: 'canhoto-http-meta', requisito_id: null }, error: null }),
+    })
+
+    const payload = payloadBase({ externalEventId: 'evt-ext-99' })
+    await processarWebhookComprovanteTransportadora(integracao, payload, 'hash-http-meta', client, {
+      bodyBytes: 4096,
+      headers: { contentType: 'application/json', contentLength: '4096', userAgent: 'simfrete-webhook/2.1' },
+    })
+
+    const insertCall = calls.find((c) => c.table === 'integracao_logistica_webhook_eventos' && c.method === 'insert')
+    const insertPayload = insertCall?.args[0] as Record<string, unknown>
+    const requestPayload = insertPayload.request_payload as Record<string, unknown>
+
+    expect(requestPayload).toMatchObject({
+      external_event_id: 'evt-ext-99',
+      chave_nfe: payload.chaveNfe,
+      content_type_declarado: 'image/png',
+      tamanho_body_bytes: 4096,
+      mime_detectado: 'image/png',
+      headers: { 'content-type': 'application/json', 'content-length': '4096', 'user-agent': 'simfrete-webhook/2.1' },
+    })
+    expect(requestPayload.magic_bytes_hex).toMatch(/^[0-9a-f]+$/)
+    expect(JSON.stringify(insertPayload)).not.toContain(payload.imagemBase64)
+    expect(Object.keys(requestPayload)).not.toContain('imagem_base64')
+  })
+
+  it('registrarRespostaWebhookComprovante grava response_payload/response_http_status/respondido_em, e nao faz nada sem webhookEventoId', async () => {
+    const { client, updates } = criarClienteFake({ responder: () => ({ data: null, error: null }) })
+
+    await registrarRespostaWebhookComprovante('evt-resposta-1', { payload: { success: true, status: 'PROCESSADO' }, httpStatus: 200 }, client)
+    const respostaUpdate = updates.find((u) => u.table === 'integracao_logistica_webhook_eventos' && u.payload.response_http_status !== undefined)
+    expect(respostaUpdate?.payload).toMatchObject({
+      response_payload: { success: true, status: 'PROCESSADO' },
+      response_http_status: 200,
+    })
+    expect(respostaUpdate?.payload.respondido_em).toEqual(expect.any(String))
+
+    const antesDaChamadaVazia = updates.length
+    await registrarRespostaWebhookComprovante('', { payload: {}, httpStatus: 200 }, client)
+    expect(updates.length).toBe(antesDaChamadaVazia)
   })
 
   it('VIA_REMESSA: chave_nfe bate com remessa VALIDADA -> PROCESSADO', async () => {

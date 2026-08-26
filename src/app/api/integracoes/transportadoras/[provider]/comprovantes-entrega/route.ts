@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createHash } from 'node:crypto'
 import { validarPayloadComprovanteWebhook } from '@/lib/integracoes/webhook-comprovante-transportadora-payload'
-import { processarWebhookComprovanteTransportadora, resolverIntegracaoPorToken } from '@/lib/integracoes/webhook-comprovante-transportadora.server'
+import {
+  processarWebhookComprovanteTransportadora,
+  registrarRespostaWebhookComprovante,
+  resolverIntegracaoPorToken,
+} from '@/lib/integracoes/webhook-comprovante-transportadora.server'
 
 // POST /api/integracoes/transportadoras/[provider]/comprovantes-entrega
 // Webhook provider-agnostic para ingestao automatica de comprovante de
@@ -62,22 +66,32 @@ export async function POST(request: NextRequest, context: RouteContext) {
     }
 
     const payloadHash = createHash('sha256').update(rawBody, 'utf8').digest('hex')
-    const resultado = await processarWebhookComprovanteTransportadora(integracao, validacao.data, payloadHash)
+    const httpMeta = {
+      bodyBytes: Buffer.byteLength(rawBody, 'utf8'),
+      headers: {
+        contentType: request.headers.get('content-type'),
+        contentLength: request.headers.get('content-length'),
+        userAgent: request.headers.get('user-agent'),
+      },
+    }
+    const resultado = await processarWebhookComprovanteTransportadora(integracao, validacao.data, payloadHash, undefined, httpMeta)
 
     const statusRetriavel = resultado.status === 'ERRO_REPROCESSAVEL'
     const statusNaoRetriavel = resultado.status === 'ERRO_FINAL'
     const httpStatus = statusRetriavel ? 503 : statusNaoRetriavel ? 422 : 200
 
-    return NextResponse.json(
-      {
-        success: !statusRetriavel && !statusNaoRetriavel,
-        status: resultado.status,
-        webhook_evento_id: resultado.webhookEventoId,
-        canhoto_id: resultado.canhotoId,
-        detalhe: resultado.detalhe,
-      },
-      { status: httpStatus },
-    )
+    const responseBody = {
+      success: !statusRetriavel && !statusNaoRetriavel,
+      status: resultado.status,
+      webhook_evento_id: resultado.webhookEventoId,
+      canhoto_id: resultado.canhotoId,
+      detalhe: resultado.detalhe,
+    }
+    if (resultado.webhookEventoId) {
+      await registrarRespostaWebhookComprovante(resultado.webhookEventoId, { payload: responseBody, httpStatus })
+    }
+
+    return NextResponse.json(responseBody, { status: httpStatus })
   } catch (error) {
     console.error('[api/integracoes/transportadoras/comprovantes-entrega] falha inesperada', {
       erro: error instanceof Error ? error.message : 'erro_desconhecido',

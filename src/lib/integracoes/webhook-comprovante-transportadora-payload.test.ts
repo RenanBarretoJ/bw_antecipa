@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   MAX_IMAGEM_BASE64_BYTES,
+  construirRequestPayloadSanitizado,
   decodificarImagemBase64,
   mimeDeclaradoCompativel,
   mimeRealDoBuffer,
@@ -126,6 +127,18 @@ describe('mimeDeclaradoCompativel', () => {
   it('rejeita divergencia entre mime real e declarado', () => {
     expect(mimeDeclaradoCompativel('application/pdf', 'image/png')).toBe(false)
   })
+
+  it('JPEG declarado + JPEG real -- compativel', () => {
+    expect(mimeDeclaradoCompativel(mimeRealDoBuffer(Buffer.from(JPEG_BASE64, 'base64')), 'image/jpeg')).toBe(true)
+  })
+
+  it('JPEG declarado + PNG real -- incompativel (MIME_REAL_INCOMPATIVEL)', () => {
+    expect(mimeDeclaradoCompativel(mimeRealDoBuffer(Buffer.from(PNG_BASE64, 'base64')), 'image/jpeg')).toBe(false)
+  })
+
+  it('JPEG declarado + PDF real -- incompativel (MIME_REAL_INCOMPATIVEL)', () => {
+    expect(mimeDeclaradoCompativel(mimeRealDoBuffer(Buffer.from(PDF_BASE64, 'base64')), 'image/jpeg')).toBe(false)
+  })
 })
 
 describe('decodificarImagemBase64', () => {
@@ -134,5 +147,69 @@ describe('decodificarImagemBase64', () => {
     expect(resultado.buffer.byteLength).toBeGreaterThan(0)
     expect(resultado.sha256).toMatch(/^[0-9a-f]{64}$/)
     expect(resultado.mimeReal).toBe('image/png')
+  })
+})
+
+describe('construirRequestPayloadSanitizado', () => {
+  const validado = validarPayloadComprovanteWebhook(payloadValido({ external_event_id: 'evt-teste-123' }))
+  if (!validado.ok) throw new Error('fixture invalida')
+  const dadosValidados = validado.data
+  const imagem = decodificarImagemBase64(dadosValidados.imagemBase64)
+
+  function montar(overrides: Partial<Parameters<typeof construirRequestPayloadSanitizado>[0]> = {}) {
+    return construirRequestPayloadSanitizado({
+      payload: dadosValidados,
+      bodyBytes: 2048,
+      imagemBase64Length: dadosValidados.imagemBase64.length,
+      imagemDecodificada: imagem,
+      headers: { contentType: 'application/json', contentLength: '2048', userAgent: 'simfrete-webhook/1.0' },
+      ...overrides,
+    })
+  }
+
+  it('inclui todos os campos nao sensiveis do payload e do arquivo', () => {
+    const resultado = montar()
+    expect(resultado).toEqual({
+      external_event_id: 'evt-teste-123',
+      chave_nfe: dadosValidados.chaveNfe,
+      chave_cte: null,
+      cnpj_cliente: dadosValidados.cnpjCliente,
+      cnpj_emitente: dadosValidados.cnpjEmitente,
+      cnpj_transportadora: dadosValidados.cnpjTransportadora,
+      data_emissao_nfe: dadosValidados.dataEmissaoNfe,
+      data_entrega_nfe: dadosValidados.dataEntregaNfe,
+      content_type_declarado: dadosValidados.contentType,
+      tamanho_body_bytes: 2048,
+      tamanho_base64: dadosValidados.imagemBase64.length,
+      tamanho_decodificado_bytes: imagem.buffer.byteLength,
+      imagem_sha256: imagem.sha256,
+      mime_detectado: 'image/png',
+      magic_bytes_hex: imagem.buffer.subarray(0, 16).toString('hex'),
+      headers: { 'content-type': 'application/json', 'content-length': '2048', 'user-agent': 'simfrete-webhook/1.0' },
+    })
+  })
+
+  it('nunca inclui imagem_base64 completa (nem em nenhuma chave do objeto)', () => {
+    const resultado = montar()
+    const serializado = JSON.stringify(resultado)
+    expect(serializado).not.toContain(dadosValidados.imagemBase64)
+    expect(Object.keys(resultado)).not.toContain('imagem_base64')
+  })
+
+  it('nunca inclui Authorization/Bearer, cookies ou qualquer header fora da allowlist', () => {
+    const resultado = montar({
+      headers: { contentType: 'application/json', contentLength: '2048', userAgent: 'simfrete-webhook/1.0' },
+    })
+    const serializado = JSON.stringify(resultado)
+    expect(serializado.toLowerCase()).not.toContain('bearer')
+    expect(serializado.toLowerCase()).not.toContain('authorization')
+    expect(serializado.toLowerCase()).not.toContain('cookie')
+    expect(Object.keys(resultado.headers).sort()).toEqual(['content-length', 'content-type', 'user-agent'])
+  })
+
+  it('magic_bytes_hex reflete os primeiros bytes reais do arquivo decodificado (assinatura PNG)', () => {
+    const resultado = montar()
+    expect(resultado.magic_bytes_hex.startsWith('89504e470d0a1a0a')).toBe(true)
+    expect(resultado.magic_bytes_hex).toBe(imagem.buffer.subarray(0, 16).toString('hex'))
   })
 })

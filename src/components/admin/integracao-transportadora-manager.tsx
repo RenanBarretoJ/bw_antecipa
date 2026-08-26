@@ -11,6 +11,7 @@ import { TokenOnceDialog } from '@/components/admin/token-once-dialog'
 import { EmptyState, StatusBadge } from '@/components/data-display/primitives'
 import type { AdminIntegracaoTransportadora } from '@/lib/admin/integracoes-transportadoras'
 import { mascararTokenDisplay } from '@/lib/admin/integracoes-transportadoras'
+import { formatDateTimeSaoPaulo } from '@/lib/utils'
 import {
   ativarIntegracaoTransportadoraAdmin,
   criarIntegracaoTransportadoraAdmin,
@@ -150,7 +151,7 @@ export function IntegracaoTransportadoraManager({ integracoes, fundos }: { integ
                   <p className="truncate text-xs text-muted-foreground">{it.nome_fundo} {it.cnpj_transportadora ? `• CNPJ ${it.cnpj_transportadora}` : ''}</p>
                   <p className="mt-1 text-xs text-muted-foreground">
                     Token {mascararTokenDisplay(it.token_display)} ({it.token_status || 'sem token'}) •{' '}
-                    {it.ultimo_recebimento_em ? `ultimo recebimento ${new Date(it.ultimo_recebimento_em).toLocaleString('pt-BR')}` : 'sem eventos ainda'}
+                    {it.ultimo_recebimento_em ? `ultimo recebimento ${formatDateTimeSaoPaulo(it.ultimo_recebimento_em)}` : 'sem eventos ainda'}
                     {it.eventos_com_erro_7d > 0 && <span className="text-amber-600"> • {it.eventos_com_erro_7d} evento(s) com erro (7d)</span>}
                   </p>
                 </div>
