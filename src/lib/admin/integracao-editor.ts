@@ -22,6 +22,12 @@ export function editIntegrationEditorState(integrationId: string): IntegrationEd
   return { mode: 'edit', integrationId }
 }
 
+export function adapterSubmissionFields(locked: boolean) {
+  return locked
+    ? { selectName: undefined, hiddenName: 'adapterKey' as const }
+    : { selectName: 'adapterKey' as const, hiddenName: undefined }
+}
+
 export function draftIdentityForEditor(editor: IntegrationEditorState, draft?: DraftIdentity | null) {
   if (editor.mode !== 'edit') {
     return { integrationId: null, versionId: null, updatedAt: null }

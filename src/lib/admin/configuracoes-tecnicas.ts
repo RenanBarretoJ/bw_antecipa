@@ -73,6 +73,25 @@ export function obterAcoesCredencial(status: AdminCredencialStatus): AdminCreden
   return []
 }
 
+export function validarAdapterRascunhoContraHistorico(
+  adapterKey: string | null,
+  versoes: Pick<AdminIntegracaoVersao, 'adapter_key' | 'status'>[],
+): string | null {
+  const adaptersBloqueados = new Set(
+    versoes
+      .filter((versao) => versao.status !== 'rascunho' && versao.adapter_key)
+      .map((versao) => versao.adapter_key as string),
+  )
+
+  if (adaptersBloqueados.size === 0) return null
+  if (adaptersBloqueados.size > 1) return 'O historico da integracao possui adapters divergentes e requer revisao tecnica.'
+
+  const [adapterBloqueado] = adaptersBloqueados
+  if (!adapterKey) return 'O adapter da integracao publicada deve ser preservado na nova versao.'
+  if (adapterKey !== adapterBloqueado) return 'O adapter de uma integracao publicada nao pode ser alterado em uma nova versao.'
+  return null
+}
+
 export type AdminCnabVersao = {
   id: string
   versao: number

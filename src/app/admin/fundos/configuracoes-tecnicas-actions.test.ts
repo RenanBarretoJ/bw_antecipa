@@ -51,7 +51,18 @@ const base = {
 describe('salvar rascunho de integracao tecnica', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    rpc.mockResolvedValue({ data: { id: versionId, integracao_id: integrationId }, error: null })
+    rpc.mockImplementation((nome: string) => {
+      if (nome === 'admin_obter_configuracoes_tecnicas_fundo') {
+        return Promise.resolve({
+          data: { integracoes: [{ id: integrationId, versoes: [] }], credenciais: [] },
+          error: null,
+        })
+      }
+      if (nome === 'admin_salvar_integracao_rascunho') {
+        return Promise.resolve({ data: { id: versionId, integracao_id: integrationId }, error: null })
+      }
+      throw new Error(`RPC inesperada em teste: ${nome}`)
+    })
     from.mockReturnValue({
       select: vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({
@@ -112,6 +123,115 @@ describe('salvar rascunho de integracao tecnica', () => {
       p_integracao_fundo_id: integrationId,
       p_versao_id: versionId,
       p_system_name: 'PORTAL FIDC AJUSTADO',
+    }))
+  })
+
+  it('preserva o adapter definido no historico publicado ao criar nova versao', async () => {
+    rpc.mockImplementation((nome: string) => {
+      if (nome === 'admin_obter_configuracoes_tecnicas_fundo') {
+        return Promise.resolve({
+          data: {
+            integracoes: [{
+              id: integrationId,
+              versoes: [{ status: 'publicada', adapter_key: 'vortx_vrs' }],
+            }],
+            credenciais: [],
+          },
+          error: null,
+        })
+      }
+      if (nome === 'admin_salvar_integracao_rascunho') {
+        return Promise.resolve({ data: { id: versionId, integracao_id: integrationId }, error: null })
+      }
+      throw new Error(`RPC inesperada em teste: ${nome}`)
+    })
+
+    const result = await salvarIntegracaoRascunhoAdmin({
+      ...base,
+      integracaoFundoId: integrationId,
+      adapterKey: 'vortx_vrs',
+      capabilities: ['CESSAO_ENVIO'],
+    })
+
+    expect(result.success).toBe(true)
+    expect(rpc).toHaveBeenCalledWith('admin_salvar_integracao_rascunho', expect.objectContaining({
+      p_adapter_key: 'vortx_vrs',
+    }))
+  })
+
+  it('rejeita adapter ausente quando a integracao ja possui adapter publicado', async () => {
+    rpc.mockResolvedValueOnce({
+      data: {
+        integracoes: [{
+          id: integrationId,
+          versoes: [{ status: 'publicada', adapter_key: 'vortx_vrs' }],
+        }],
+        credenciais: [],
+      },
+      error: null,
+    })
+
+    const result = await salvarIntegracaoRascunhoAdmin({
+      ...base,
+      integracaoFundoId: integrationId,
+      adapterKey: null,
+    })
+
+    expect(result).toMatchObject({ success: false, message: 'O adapter da integracao publicada deve ser preservado na nova versao.' })
+    expect(rpc).not.toHaveBeenCalledWith('admin_salvar_integracao_rascunho', expect.anything())
+  })
+
+  it('rejeita troca do adapter depois da primeira publicacao', async () => {
+    rpc.mockResolvedValueOnce({
+      data: {
+        integracoes: [{
+          id: integrationId,
+          versoes: [{ status: 'publicada', adapter_key: 'vortx_vrs' }],
+        }],
+        credenciais: [],
+      },
+      error: null,
+    })
+
+    const result = await salvarIntegracaoRascunhoAdmin({
+      ...base,
+      integracaoFundoId: integrationId,
+      adapterKey: 'sinqia_portal_fidc',
+    })
+
+    expect(result).toMatchObject({ success: false, message: 'O adapter de uma integracao publicada nao pode ser alterado em uma nova versao.' })
+    expect(rpc).not.toHaveBeenCalledWith('admin_salvar_integracao_rascunho', expect.anything())
+  })
+
+  it('mantem compatibilidade com integracao Custom publicada sem adapter', async () => {
+    rpc.mockImplementation((nome: string) => {
+      if (nome === 'admin_obter_configuracoes_tecnicas_fundo') {
+        return Promise.resolve({
+          data: {
+            integracoes: [{
+              id: integrationId,
+              versoes: [{ status: 'publicada', adapter_key: null }],
+            }],
+            credenciais: [],
+          },
+          error: null,
+        })
+      }
+      if (nome === 'admin_salvar_integracao_rascunho') {
+        return Promise.resolve({ data: { id: versionId, integracao_id: integrationId }, error: null })
+      }
+      throw new Error(`RPC inesperada em teste: ${nome}`)
+    })
+
+    const result = await salvarIntegracaoRascunhoAdmin({
+      ...base,
+      integracaoFundoId: integrationId,
+      adapterKey: null,
+    })
+
+    expect(result.success).toBe(true)
+    expect(rpc).toHaveBeenCalledWith('admin_salvar_integracao_rascunho', expect.objectContaining({
+      p_adapter_key: null,
     }))
   })
 

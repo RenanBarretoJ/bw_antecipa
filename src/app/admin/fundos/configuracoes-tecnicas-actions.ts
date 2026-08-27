@@ -12,6 +12,7 @@ import {
   adminTechnicalConfirmationSchema,
   mascararIdentificador,
   obterPendenciaPublicacaoIntegracao,
+  validarAdapterRascunhoContraHistorico,
   type AdminConfiguracoesTecnicasFundo,
   type AdminTechnicalActionResult,
 } from '@/lib/admin/configuracoes-tecnicas'
@@ -175,6 +176,19 @@ export async function salvarIntegracaoRascunhoAdmin(input: unknown): Promise<Adm
     }
     const creating = parsed.data.integracaoFundoId == null
     const context = await requireSuperAdmin()
+    if (parsed.data.integracaoFundoId) {
+      const { data: configData, error: configError } = await context.supabase.rpc('admin_obter_configuracoes_tecnicas_fundo', {
+        p_fundo_id: parsed.data.fundoId,
+        p_execucoes_limite: 1,
+        p_execucoes_offset: 0,
+      })
+      if (configError || !configData) return mapearErro(configError || new Error('Configuracao da integracao nao encontrada.'), correlationId)
+      const state = configData as AdminConfiguracoesTecnicasFundo
+      const integracao = state.integracoes.find((item) => item.id === parsed.data.integracaoFundoId)
+      if (!integracao) return respostaErro('A integracao selecionada nao pertence ao fundo informado.', correlationId)
+      const adapterError = validarAdapterRascunhoContraHistorico(parsed.data.adapterKey, integracao.versoes)
+      if (adapterError) return respostaErro(adapterError, correlationId)
+    }
     const endpoint = parsed.data.endpointBase ? new URL(parsed.data.endpointBase).toString() : ''
     let configuracaoNaoSensivel = parsed.data.configuracaoNaoSensivel
     if (possuiCapabilityFinanceira(parsed.data.capabilities)) {

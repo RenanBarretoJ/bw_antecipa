@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  adapterSubmissionFields,
   draftIdentityForEditor,
   editIntegrationEditorState,
   initialIntegrationEditorState,
@@ -7,6 +8,26 @@ import {
 } from './integracao-editor'
 
 describe('lifecycle do editor de integracoes tecnicas', () => {
+  it('envia exatamente um adapter pelo hidden quando o select esta bloqueado', () => {
+    const fields = adapterSubmissionFields(true)
+    const formData = new FormData()
+    if (fields.selectName) formData.append(fields.selectName, 'vortx_vrs')
+    if (fields.hiddenName) formData.append(fields.hiddenName, 'vortx_vrs')
+
+    expect(fields.selectName).toBeUndefined()
+    expect(formData.getAll('adapterKey')).toEqual(['vortx_vrs'])
+  })
+
+  it('usa somente o select para adapter desbloqueado', () => {
+    const fields = adapterSubmissionFields(false)
+    const formData = new FormData()
+    if (fields.selectName) formData.append(fields.selectName, 'vortx_vrs')
+    if (fields.hiddenName) formData.append(fields.hiddenName, 'vortx_vrs')
+
+    expect(fields.hiddenName).toBeUndefined()
+    expect(formData.getAll('adapterKey')).toEqual(['vortx_vrs'])
+  })
+
   it('distingue nenhuma selecao de CREATE mode', () => {
     expect(initialIntegrationEditorState()).toEqual({ mode: 'none', integrationId: null })
     expect(newIntegrationEditorState()).toEqual({ mode: 'create', integrationId: null })

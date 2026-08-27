@@ -31,6 +31,7 @@ import {
 import { executarMutacaoTecnica } from '@/lib/admin/executar-mutacao-tecnica'
 import type { VortxConfiguracaoStatus } from '@/lib/admin/vortx-vrs'
 import {
+  adapterSubmissionFields,
   draftIdentityForEditor,
   editIntegrationEditorState,
   initialIntegrationEditorState,
@@ -77,6 +78,7 @@ function IntegrationDraftForm({
   const [vrsInclusao, setVrsInclusao] = useState(() => configuracaoInclusaoVrs(defaultVersion?.configuracao_nao_sensivel || {}))
   const catalogo = obterAdapterCatalogo(adapterKey)
   const locked = Boolean(integration?.versoes.some((item) => item.status !== 'rascunho'))
+  const adapterFields = adapterSubmissionFields(locked)
   const compatibleCredentials = activeCredentials.filter((item) => item.ambiente === environment)
   const usesFinancialReports = possuiCapabilityFinanceira(capabilities)
   const normalizedFundCnpj = fundCnpj.replace(/\D/g, '')
@@ -104,7 +106,7 @@ function IntegrationDraftForm({
   }
 
   return <form action={onSubmit} className="grid gap-3 md:grid-cols-2">
-    <label className="space-y-1 md:col-span-2"><Label>Sistema / Adapter</Label><select name="adapterKey" value={adapterKey} onChange={(event) => changeAdapter(event.target.value)} disabled={locked} className="h-10 w-full rounded-lg border border-input bg-background px-3"><option value="">Custom (configuracao manual)</option>{ADAPTER_CATALOG.map((item) => <option key={item.adapterKey} value={item.adapterKey}>{item.label}</option>)}</select></label>
+    <label className="space-y-1 md:col-span-2"><Label>Sistema / Adapter</Label><select name={adapterFields.selectName} value={adapterKey} onChange={(event) => changeAdapter(event.target.value)} disabled={locked} className="h-10 w-full rounded-lg border border-input bg-background px-3"><option value="">Custom (configuracao manual)</option>{ADAPTER_CATALOG.map((item) => <option key={item.adapterKey} value={item.adapterKey}>{item.label}</option>)}</select>{adapterFields.hiddenName && <input type="hidden" name={adapterFields.hiddenName} value={adapterKey} />}</label>
     {!catalogo && <>
       <label className="space-y-1"><Label>Provider</Label><Input name="providerKey" value={providerKey} onChange={(event) => setProviderKey(event.target.value)} readOnly={locked} required /></label>
       <label className="space-y-1"><Label>Nome do sistema</Label><Input name="systemName" value={systemName} onChange={(event) => setSystemName(event.target.value)} readOnly={locked} required /></label>
