@@ -1,10 +1,11 @@
 'use server'
 
-import { requireAuthenticated } from '@/lib/auth/authorization'
+import { randomUUID } from 'node:crypto'
 import { limparFluxoAutenticacao, obterFluxoAutenticacao } from '@/lib/auth/auth-flow-server'
 import { finalizarConviteGestorAutenticado, type GestorInviteRole } from '@/lib/auth/gestor-invite-completion.server'
 import { registrarEventoSeguranca } from '@/lib/auth/mfa'
 import { validarNovaSenha } from '@/lib/auth/password'
+import { createClient } from '@/lib/supabase/server'
 
 export type ConviteGestorActionState = {
   success: boolean
@@ -33,13 +34,27 @@ export async function concluirConviteGestor(
     }
   }
 
-  const context = await requireAuthenticated(undefined, { allowMfaPending: true })
+  const supabase = await createClient()
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  if (userError || !user) {
+    return {
+      success: false,
+      message: 'A sessao deste convite nao esta valida. Solicite um novo convite ao administrador.',
+      notification: { type: 'error', message: 'A sessao deste convite nao esta valida.' },
+    }
+  }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('id, role, status')
+    .eq('id', user.id)
+    .maybeSingle()
   const fluxo = await obterFluxoAutenticacao()
-  if (fluxo !== 'gestor_invite' || !['gestor', 'super_admin'].includes(context.profile.role)) {
+  if (fluxo !== 'gestor_invite' || !profile || !['gestor', 'super_admin'].includes(profile.role)) {
     await registrarEventoSeguranca({
       tipo_evento: 'ACESSO_NEGADO',
-      usuario_id: context.user.id,
-      ator_usuario_id: context.user.id,
+      usuario_id: user.id,
+      ator_usuario_id: user.id,
       origem: 'convite_gestor',
       severidade: 'warning',
       dados: { causa: 'CONVITE_GESTOR_JA_ACEITO', fluxo },
@@ -51,7 +66,8 @@ export async function concluirConviteGestor(
     }
   }
 
-  if (context.profile.status !== 'ativo') {
+  const statusEsperado = profile.role === 'gestor' ? 'inativo' : 'ativo'
+  if (profile.status !== statusEsperado) {
     await limparFluxoAutenticacao()
     return {
       success: false,
@@ -61,10 +77,11 @@ export async function concluirConviteGestor(
   }
 
   const result = await finalizarConviteGestorAutenticado({
-    supabase: context.supabase,
-    userId: context.user.id,
-    role: context.profile.role as GestorInviteRole,
+    supabase,
+    userId: user.id,
+    role: profile.role as GestorInviteRole,
     password,
+    correlationId: randomUUID(),
   })
   return {
     ...result,

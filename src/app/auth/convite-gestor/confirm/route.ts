@@ -5,6 +5,7 @@ import {
   confirmarTokenConviteGestor,
   gestorInviteLogShape,
   type GestorInviteErrorCode,
+  type GestorInviteState,
 } from '@/lib/auth/gestor-invite'
 import { finalizarConviteGestorAutenticado, type GestorInviteRole } from '@/lib/auth/gestor-invite-completion.server'
 import { registrarEventoSeguranca } from '@/lib/auth/mfa'
@@ -114,6 +115,11 @@ export async function POST(request: NextRequest) {
       if (error || !data) return null
       return data
     },
+    loadInvitation: async () => {
+      const { data, error } = await supabase.rpc('consultar_convite_gestor_atual')
+      if (error || !data) return null
+      return data as unknown as GestorInviteState
+    },
   })
 
   if (!result.success) {
@@ -142,6 +148,7 @@ export async function POST(request: NextRequest) {
     userId: result.user.id,
     role: result.profile.role as GestorInviteRole,
     password,
+    correlationId,
   })
   if (!completion.success) {
     console.info('[convite-gestor][completion]', {

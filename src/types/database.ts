@@ -2532,6 +2532,10 @@ export interface Database {
       admin_reativar_usuario: { Args: { p_usuario_id: string; p_correlation_id: string }; Returns: Record<string, unknown> }
       admin_concluir_reset_mfa: { Args: { p_usuario_id: string; p_fatores_removidos: number; p_correlation_id: string }; Returns: Record<string, unknown> }
       admin_finalizar_convite_usuario: { Args: { p_usuario_id: string; p_tipo: string; p_nome: string; p_fundo_ids?: string[]; p_correlation_id: string }; Returns: Record<string, unknown> }
+      admin_preparar_convite_gestor: { Args: { p_usuario_id: string; p_nome: string; p_fundo_ids: string[]; p_correlation_id: string }; Returns: Record<string, unknown> }
+      admin_consultar_convite_gestor: { Args: { p_usuario_id: string }; Returns: Record<string, unknown> | null }
+      consultar_convite_gestor_atual: { Args: Record<string, never>; Returns: Record<string, unknown> | null }
+      aceitar_convite_gestor: { Args: { p_correlation_id: string }; Returns: Record<string, unknown> }
       admin_obter_configuracoes_tecnicas_fundo: {
         Args: { p_fundo_id: string; p_execucoes_limite?: number; p_execucoes_offset?: number }
         Returns: Record<string, unknown>

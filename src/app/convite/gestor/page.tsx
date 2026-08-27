@@ -68,7 +68,8 @@ export default async function ConviteGestorPage({ searchParams }: { searchParams
   if (!profile || !['gestor', 'super_admin'].includes(profile.role)) {
     return <ConviteShell title={title}><EstadoErro code="PROFILE_INVALID" /></ConviteShell>
   }
-  if (profile.status !== 'ativo') return <ConviteShell title={title}><EstadoErro code="CONVITE_GESTOR_CANCELADO" /></ConviteShell>
+  const statusEsperado = profile.role === 'gestor' ? 'inativo' : 'ativo'
+  if (profile.status !== statusEsperado) return <ConviteShell title={title}><EstadoErro code="CONVITE_GESTOR_CANCELADO" /></ConviteShell>
 
   return (
     <ConviteShell title={profile.role === 'super_admin' ? 'Ativar conta Super Admin' : 'Ativar conta Gestor'}>

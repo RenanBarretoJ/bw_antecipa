@@ -11,9 +11,10 @@ import {
   adminVinculoBuscaSchema,
   conviteInputFromFormData,
   type AdminVinculoBuscaActionResult,
+  type AdminConviteGestorEstado,
+  type AdminConviteGestorPreparado,
   type AdminUsuarioActionResult,
   type AdminUsuarioDetalhe,
-  type AdminUsuarioFundo,
 } from '@/lib/admin/usuarios'
 import { buscarVinculosAdmin } from '@/lib/admin/usuarios.server'
 
@@ -72,6 +73,22 @@ export async function convidarUsuarioAdmin(formData: FormData): Promise<AdminUsu
     const existing = existingRaw as unknown as AdminUsuarioDetalhe | null
 
     if (existing) {
+      const { data: inviteRaw, error: inviteError } = await context.supabase.rpc('admin_consultar_convite_gestor', {
+        p_usuario_id: existing.id,
+      })
+      if (inviteError) return mapearErro(inviteError, correlationId)
+      const invite = inviteRaw as unknown as AdminConviteGestorEstado | null
+      if (invite && invite.status !== 'ACEITO') {
+        const message = invite.status === 'PENDENTE'
+          ? 'Este usuario ja possui um convite de Gestor pendente.'
+          : 'O convite anterior deste usuario nao pode mais ser utilizado. Cancele o cadastro pendente antes de criar outro.'
+        return {
+          success: false,
+          message,
+          notification: { type: 'warning', message },
+        }
+      }
+
       if (parsed.data.tipo === 'gestor') {
         if (existing.papel_primario !== 'gestor') {
           return falha('Este e-mail pertence a um perfil que nao pode ser convertido automaticamente em Gestor.')
@@ -103,39 +120,44 @@ export async function convidarUsuarioAdmin(formData: FormData): Promise<AdminUsu
       nome: parsed.data.nome,
       tipo: parsed.data.tipo,
     })
-    const { error: finalizeError } = await context.supabase.rpc('admin_finalizar_convite_usuario', {
-      p_usuario_id: invited.userId,
-      p_tipo: parsed.data.tipo,
-      p_nome: parsed.data.nome,
-      p_fundo_ids: parsed.data.fundoIds,
-      p_correlation_id: correlationId,
-    })
-    if (finalizeError) {
+
+    let fundos: string[] = []
+    const { data: provisionedRaw, error: provisionError } = parsed.data.tipo === 'gestor'
+      ? await context.supabase.rpc('admin_preparar_convite_gestor', {
+          p_usuario_id: invited.userId,
+          p_nome: parsed.data.nome,
+          p_fundo_ids: parsed.data.fundoIds,
+          p_correlation_id: correlationId,
+        })
+      : await context.supabase.rpc('admin_finalizar_convite_usuario', {
+          p_usuario_id: invited.userId,
+          p_tipo: parsed.data.tipo,
+          p_nome: parsed.data.nome,
+          p_fundo_ids: parsed.data.fundoIds,
+          p_correlation_id: correlationId,
+        })
+
+    if (provisionError) {
       try {
         await removerConviteAuthIncompleto(invited.userId)
       } catch {
         return falha('O convite foi criado, mas o provisionamento nao foi concluido e requer reconciliacao administrativa.', `Referencia: ${correlationId}`)
       }
-      return mapearErro(finalizeError, correlationId)
+      return mapearErro(provisionError, correlationId)
+    }
+
+    if (parsed.data.tipo === 'gestor') {
+      const prepared = provisionedRaw as unknown as AdminConviteGestorPreparado
+      if (prepared?.status !== 'PENDENTE'
+          || !Array.isArray(prepared.fundos)
+          || prepared.fundos.length !== parsed.data.fundoIds.length) {
+        await removerConviteAuthIncompleto(invited.userId)
+        return falha('O convite nao preservou todos os fundos selecionados.', `Referencia: ${correlationId}`)
+      }
+      fundos = prepared.fundos.map((fundo) => fundo.nome)
     }
 
     try {
-      let fundos: string[] = []
-      if (parsed.data.tipo === 'gestor' && parsed.data.fundoIds.length > 0) {
-        const { data: fundosRaw, error: fundosError } = await context.supabase.rpc('admin_listar_fundos_usuario', {
-          p_usuario_id: invited.userId,
-        })
-        if (fundosError) throw Object.assign(new Error('Nao foi possivel resolver os fundos do convite.'), { name: 'FUNDO_CONTEXT_ERROR' })
-        const fundosDisponiveis = (fundosRaw || []) as unknown as AdminUsuarioFundo[]
-        const fundosPorId = new Map(fundosDisponiveis.map((fundo) => [fundo.fundo_id, fundo]))
-        fundos = parsed.data.fundoIds.map((fundoId) => {
-          const fundo = fundosPorId.get(fundoId)
-          if (!fundo || fundo.vinculo_status !== 'ativo') {
-            throw Object.assign(new Error('Fundo do convite nao foi vinculado.'), { name: 'FUNDO_CONTEXT_ERROR' })
-          }
-          return fundo.fundo_nome
-        })
-      }
       await enviarConviteUsuarioAuth({ ...invited, fundos })
     } catch (sendError) {
       console.error('[admin/usuarios] Falha ao enviar convite administrativo', {

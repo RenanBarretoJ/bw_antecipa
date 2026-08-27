@@ -1,4 +1,7 @@
-export const GESTOR_INVITE_TOKEN_PATTERN = /^[0-9a-f]{64}$/i
+// O GoTrue hospedado atualmente retorna hashed_token hexadecimal com 56
+// caracteres. Convites legados do projeto usavam 64, por isso ambos permanecem
+// aceitos na validacao sintatica do GET scanner-safe.
+export const GESTOR_INVITE_TOKEN_PATTERN = /^(?:[0-9a-f]{56}|[0-9a-f]{64})$/i
 
 export type GestorInviteErrorCode =
   | 'AUTH_TOKEN_INVALID'
@@ -40,6 +43,12 @@ export type GestorInviteProfile = {
   senha_alterada_em?: string | null
 }
 
+export type GestorInviteState = {
+  id: string
+  status: 'PENDENTE' | 'ACEITO' | 'EXPIRADO' | 'CANCELADO'
+  expires_at: string
+}
+
 export type GestorInviteConfirmationResult =
   | { success: true; user: GestorInviteAuthUser; profile: GestorInviteProfile }
   | { success: false; code: GestorInviteErrorCode; authCode?: string; authStatus?: number }
@@ -50,6 +59,7 @@ export type GestorInviteConfirmationDependencies = {
     error: AuthErrorLike | null
   }>
   loadProfile: (userId: string) => Promise<GestorInviteProfile | null>
+  loadInvitation: (userId: string) => Promise<GestorInviteState | null>
 }
 
 export function isGestorInviteToken(value: string | null | undefined) {
@@ -92,10 +102,20 @@ export async function confirmarTokenConviteGestor(
   if (!profile || !['gestor', 'super_admin'].includes(profile.role)) {
     return { success: false, code: 'PROFILE_INVALID' }
   }
-  if (profile.status !== 'ativo') return { success: false, code: 'CONVITE_GESTOR_CANCELADO' }
   if (profile.senha_alterada_em) return { success: false, code: 'CONVITE_GESTOR_JA_ACEITO' }
   if (profile.email.trim().toLowerCase() !== verified.user.email.trim().toLowerCase()) {
     return { success: false, code: 'EMAIL_MISMATCH' }
+  }
+
+  if (profile.role === 'gestor') {
+    const invitation = await dependencies.loadInvitation(verified.user.id)
+    if (!invitation) return { success: false, code: 'PROFILE_INVALID' }
+    if (invitation.status === 'ACEITO') return { success: false, code: 'CONVITE_GESTOR_JA_ACEITO' }
+    if (invitation.status === 'EXPIRADO') return { success: false, code: 'CONVITE_GESTOR_EXPIRADO' }
+    if (invitation.status === 'CANCELADO') return { success: false, code: 'CONVITE_GESTOR_CANCELADO' }
+    if (profile.status !== 'inativo') return { success: false, code: 'PROFILE_INVALID' }
+  } else if (profile.status !== 'ativo') {
+    return { success: false, code: 'CONVITE_GESTOR_CANCELADO' }
   }
 
   return { success: true, user: verified.user, profile }

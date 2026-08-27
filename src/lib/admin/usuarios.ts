@@ -140,6 +140,18 @@ export type AdminUsuarioActionResult = {
   notification?: { type: 'success' | 'error' | 'warning'; message: string; details?: string }
 }
 
+export type AdminConviteGestorPreparado = {
+  convite_id: string
+  status: 'PENDENTE'
+  fundos: Array<{ id: string; nome: string }>
+}
+
+export type AdminConviteGestorEstado = {
+  id: string
+  status: 'PENDENTE' | 'ACEITO' | 'EXPIRADO' | 'CANCELADO'
+  expires_at: string
+}
+
 export function parseAdminUsuarioFilters(input: Record<string, string | string[] | undefined>) {
   const busca = typeof input.busca === 'string' ? input.busca.trim().slice(0, 120) : ''
   const papel = ADMIN_USUARIO_PAPEIS.includes(input.papel as AdminUsuarioPapelFilter)

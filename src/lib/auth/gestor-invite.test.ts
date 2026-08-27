@@ -5,6 +5,8 @@ import {
   confirmarTokenConviteGestor,
   gestorInviteLogShape,
   isGestorInviteToken,
+  type GestorInviteProfile,
+  type GestorInviteState,
 } from './gestor-invite'
 
 const page = readFileSync('src/app/convite/gestor/page.tsx', 'utf8')
@@ -15,11 +17,24 @@ const cedentePage = readFileSync('src/app/convite/cedente/page.tsx', 'utf8')
 const cedenteInviteServer = readFileSync('src/lib/auth/novo-cedente-invite.server.ts', 'utf8')
 const adapter = readFileSync('src/lib/admin/auth-admin.server.ts', 'utf8')
 const adminAction = readFileSync('src/app/admin/usuarios/actions.ts', 'utf8')
-const migration = readFileSync('supabase/migrations/20260812170000_sa2_admin_usuarios_acessos.sql', 'utf8')
+const lifecycleMigration = readFileSync('supabase/migrations/20260827150511_p0_convite_gestor_lifecycle_aceite.sql', 'utf8')
 
-const token = 'a'.repeat(64)
+const token = 'a'.repeat(56)
 const user = { id: '11111111-1111-4111-8111-111111111111', email: 'gestor@empresa.com.br' }
-const profile = { ...user, role: 'gestor', status: 'ativo' }
+const profile: GestorInviteProfile = { ...user, role: 'gestor', status: 'inativo' }
+const invitation: GestorInviteState = { id: '22222222-2222-4222-8222-222222222222', status: 'PENDENTE', expires_at: '2026-08-27T16:00:00.000Z' }
+
+function dependencies(overrides: Partial<{
+  verifyOtp: () => Promise<{ user: typeof user | null; error: { code?: string; message?: string; status?: number } | null }>
+  loadProfile: () => Promise<GestorInviteProfile | null>
+  loadInvitation: () => Promise<GestorInviteState | null>
+}> = {}) {
+  return {
+    verifyOtp: overrides.verifyOtp || (async () => ({ user, error: null })),
+    loadProfile: overrides.loadProfile || (async () => profile),
+    loadInvitation: overrides.loadInvitation || (async () => invitation),
+  }
+}
 
 describe('P0 - convite de Gestor scanner-safe', () => {
   it('mantem GET idempotente e desloca verifyOtp exclusivamente para POST', () => {
@@ -38,6 +53,8 @@ describe('P0 - convite de Gestor scanner-safe', () => {
     expect(adapter).toContain("new URL('/convite/gestor'")
     expect(adapter).toContain('enviarEmailOperacional')
     expect(adapter).not.toContain('inviteUserByEmail')
+    expect(isGestorInviteToken('a'.repeat(56))).toBe(true)
+    expect(isGestorInviteToken('a'.repeat(64))).toBe(true)
   })
 
   it('alinha o e-mail e a landing ao padrao visual aprovado do Cedente', () => {
@@ -45,7 +62,7 @@ describe('P0 - convite de Gestor scanner-safe', () => {
     expect(adapter).toContain('expira em 1 hora')
     expect(adapter).toContain('Aceitar convite')
     expect(adapter).toContain("papel = input.accessRole === 'super_admin' ? 'Super Admin' : 'Gestor'")
-    expect(adminAction).toContain("rpc('admin_listar_fundos_usuario'")
+    expect(adminAction).toContain("rpc('admin_preparar_convite_gestor'")
     expect(page).toContain("'Ativar conta Gestor'")
     expect(page).toContain('Convite de acesso')
     expect(passwordForm).toContain('Aceitar convite e continuar')
@@ -53,23 +70,27 @@ describe('P0 - convite de Gestor scanner-safe', () => {
     expect(passwordForm).toContain('name="confirmPassword"')
   })
 
-  it('provisiona pela RPC SA2 antes do envio e limita os fundos ao payload autorizado', () => {
-    expect(adminAction.indexOf("rpc('admin_finalizar_convite_usuario'")).toBeLessThan(adminAction.indexOf('enviarConviteUsuarioAuth({ ...invited, fundos })'))
+  it('persiste o convite pendente sem acesso operacional antes do envio', () => {
+    expect(adminAction.indexOf("rpc('admin_preparar_convite_gestor'")).toBeLessThan(adminAction.indexOf('enviarConviteUsuarioAuth({ ...invited, fundos })'))
     expect(adminAction).toContain('p_fundo_ids: parsed.data.fundoIds')
-    const finalize = migration.slice(migration.indexOf('CREATE OR REPLACE FUNCTION public.admin_finalizar_convite_usuario'))
-    expect(finalize).toContain('PERFORM public.admin_vincular_gestor_fundos(p_usuario_id, p_fundo_ids, p_correlation_id)')
-    const linkMany = migration.slice(migration.indexOf('CREATE OR REPLACE FUNCTION public.admin_vincular_gestor_fundos'))
-    expect(linkMany).toContain('v_ids uuid[] := COALESCE(p_fundo_ids, ARRAY[]::uuid[])')
-    expect(linkMany).toContain('FOREACH v_fundo_id IN ARRAY v_ids LOOP')
+    const prepare = lifecycleMigration.slice(
+      lifecycleMigration.indexOf('CREATE OR REPLACE FUNCTION public.admin_preparar_convite_gestor'),
+      lifecycleMigration.indexOf('CREATE OR REPLACE FUNCTION public.admin_consultar_convite_gestor'),
+    )
+    expect(prepare).toContain("status = 'inativo'::public.user_status")
+    expect(prepare).toContain('INSERT INTO private.gestor_usuario_convites')
+    expect(prepare).not.toContain('INSERT INTO public.usuario_fundos')
   })
 
-  it('confirma usuario e profile Gestor no clique humano', async () => {
+  it('confirma usuario, convite pendente e profile inativo no clique humano', async () => {
     const verifyOtp = vi.fn().mockResolvedValue({ user, error: null })
     const loadProfile = vi.fn().mockResolvedValue(profile)
+    const loadInvitation = vi.fn().mockResolvedValue(invitation)
 
-    await expect(confirmarTokenConviteGestor(token, { verifyOtp, loadProfile })).resolves.toEqual({ success: true, user, profile })
+    await expect(confirmarTokenConviteGestor(token, { verifyOtp, loadProfile, loadInvitation })).resolves.toEqual({ success: true, user, profile })
     expect(verifyOtp).toHaveBeenCalledOnce()
     expect(loadProfile).toHaveBeenCalledWith(user.id)
+    expect(loadInvitation).toHaveBeenCalledWith(user.id)
   })
 
   it('bloqueia replay e preserva a causa Auth sem registrar token', async () => {
@@ -77,9 +98,10 @@ describe('P0 - convite de Gestor scanner-safe', () => {
       .mockResolvedValueOnce({ user, error: null })
       .mockResolvedValueOnce({ user: null, error: { code: 'otp_expired', message: 'Token has already been used', status: 403 } })
     const loadProfile = vi.fn().mockResolvedValue(profile)
+    const loadInvitation = vi.fn().mockResolvedValue(invitation)
 
-    await expect(confirmarTokenConviteGestor(token, { verifyOtp, loadProfile })).resolves.toMatchObject({ success: true })
-    await expect(confirmarTokenConviteGestor(token, { verifyOtp, loadProfile })).resolves.toEqual({
+    await expect(confirmarTokenConviteGestor(token, { verifyOtp, loadProfile, loadInvitation })).resolves.toMatchObject({ success: true })
+    await expect(confirmarTokenConviteGestor(token, { verifyOtp, loadProfile, loadInvitation })).resolves.toEqual({
       success: false,
       code: 'AUTH_TOKEN_ALREADY_USED',
       authCode: 'otp_expired',
@@ -94,20 +116,29 @@ describe('P0 - convite de Gestor scanner-safe', () => {
     expect(isGestorInviteToken(token)).toBe(true)
     expect(isGestorInviteToken('curto')).toBe(false)
 
-    await expect(confirmarTokenConviteGestor(token, {
-      verifyOtp: async () => ({ user, error: null }),
-      loadProfile: async () => ({ ...profile, status: 'inativo' }),
-    })).resolves.toEqual({ success: false, code: 'CONVITE_GESTOR_CANCELADO' })
+    await expect(confirmarTokenConviteGestor(token, dependencies({
+      loadInvitation: async () => ({ ...invitation, status: 'CANCELADO' }),
+    }))).resolves.toEqual({ success: false, code: 'CONVITE_GESTOR_CANCELADO' })
 
-    await expect(confirmarTokenConviteGestor(token, {
-      verifyOtp: async () => ({ user, error: null }),
+    await expect(confirmarTokenConviteGestor(token, dependencies({
+      loadInvitation: async () => ({ ...invitation, status: 'EXPIRADO' }),
+    }))).resolves.toEqual({ success: false, code: 'CONVITE_GESTOR_EXPIRADO' })
+
+    await expect(confirmarTokenConviteGestor(token, dependencies({
       loadProfile: async () => ({ ...profile, email: 'outro@empresa.com.br' }),
-    })).resolves.toEqual({ success: false, code: 'EMAIL_MISMATCH' })
+    }))).resolves.toEqual({ success: false, code: 'EMAIL_MISMATCH' })
 
-    await expect(confirmarTokenConviteGestor(token, {
-      verifyOtp: async () => ({ user, error: null }),
+    await expect(confirmarTokenConviteGestor(token, dependencies({
       loadProfile: async () => ({ ...profile, senha_alterada_em: '2026-08-27T10:00:00.000Z' }),
-    })).resolves.toEqual({ success: false, code: 'CONVITE_GESTOR_JA_ACEITO' })
+    }))).resolves.toEqual({ success: false, code: 'CONVITE_GESTOR_JA_ACEITO' })
+  })
+
+  it('ativa profile, fundos e aceite na mesma transacao logica', () => {
+    const accept = lifecycleMigration.slice(lifecycleMigration.indexOf('CREATE OR REPLACE FUNCTION public.aceitar_convite_gestor'))
+    expect(accept).toContain("status = 'ativo'::public.user_status")
+    expect(accept).toContain('INSERT INTO public.usuario_fundos')
+    expect(accept).toContain("SET status = 'ACEITO', aceito_em = now()")
+    expect(accept).toContain("'CONVITE_GESTOR_JA_ACEITO'")
   })
 
   it('preserva os convites antigos e nao altera o fluxo de Cedente', () => {
@@ -118,5 +149,6 @@ describe('P0 - convite de Gestor scanner-safe', () => {
     expect(cedentePage).toContain('Ativar conta Cedente')
     expect(cedentePage).toContain('Aceitar convite e continuar')
     expect(adminAction).toContain("rpc('admin_finalizar_convite_usuario'")
+    expect(lifecycleMigration).not.toContain('cedente_usuario_convites')
   })
 })

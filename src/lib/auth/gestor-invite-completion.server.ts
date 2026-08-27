@@ -10,13 +10,14 @@ export type GestorInviteRole = 'gestor' | 'super_admin'
 
 export type GestorInviteCompletionResult =
   | { success: true; message: string; redirectTo: string }
-  | { success: false; message: string; code: 'PASSWORD_UPDATE_FAILED' | 'PROFILE_UPDATE_FAILED' }
+  | { success: false; message: string; code: 'PASSWORD_UPDATE_FAILED' | 'PROFILE_UPDATE_FAILED' | 'INVITE_ACTIVATION_FAILED' }
 
 export async function finalizarConviteGestorAutenticado(input: {
   supabase: AppSupabaseClient
   userId: string
   role: GestorInviteRole
   password: string
+  correlationId: string
 }): Promise<GestorInviteCompletionResult> {
   const { error: passwordError } = await input.supabase.auth.updateUser({ password: input.password })
   if (passwordError) {
@@ -35,10 +36,26 @@ export async function finalizarConviteGestorAutenticado(input: {
     }
   }
 
-  const { error: profileUpdateError } = await createAdminClient()
-    .from('profiles')
-    .update({ senha_alterada_em: new Date().toISOString() } as never)
-    .eq('id', input.userId)
+  let profileUpdateError: { code?: string; message?: string } | null = null
+  let activationCode: string | null = null
+
+  if (input.role === 'gestor') {
+    const { data, error } = await input.supabase.rpc('aceitar_convite_gestor', {
+      p_correlation_id: input.correlationId,
+    })
+    const activation = data as unknown as { success?: boolean; code?: string } | null
+    profileUpdateError = error
+    activationCode = activation?.code || null
+    if (!error && activation?.success !== true) {
+      profileUpdateError = { code: activation?.code || 'INVITE_ACTIVATION_FAILED' }
+    }
+  } else {
+    const { error } = await createAdminClient()
+      .from('profiles')
+      .update({ senha_alterada_em: new Date().toISOString() } as never)
+      .eq('id', input.userId)
+    profileUpdateError = error
+  }
 
   if (profileUpdateError) {
     await registrarEventoSeguranca({
@@ -47,12 +64,18 @@ export async function finalizarConviteGestorAutenticado(input: {
       ator_usuario_id: input.userId,
       origem: 'convite_gestor',
       severidade: 'warning',
-      dados: { etapa: 'registrar_senha_alterada', db_code: profileUpdateError.code },
+      dados: {
+        etapa: input.role === 'gestor' ? 'ativar_convite_gestor' : 'registrar_senha_alterada',
+        db_code: profileUpdateError.code || null,
+        activation_code: activationCode,
+      },
     })
     return {
       success: false,
-      code: 'PROFILE_UPDATE_FAILED',
-      message: 'A senha foi definida, mas a conclusao do convite requer reconciliacao administrativa.',
+      code: input.role === 'gestor' ? 'INVITE_ACTIVATION_FAILED' : 'PROFILE_UPDATE_FAILED',
+      message: input.role === 'gestor'
+        ? 'A senha foi definida, mas nao foi possivel ativar o convite e seus fundos. Procure o administrador.'
+        : 'A senha foi definida, mas a conclusao do convite requer reconciliacao administrativa.',
     }
   }
 
