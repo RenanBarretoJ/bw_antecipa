@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { assinarAuthFlowCookie, getAuthFlowRedirect, isAuthFlow, isMfaSetupAllowedPath, isPasswordRecoveryAllowedPath, lerAuthFlowCookieAssinado } from './auth-flow'
+import { assinarAuthFlowCookie, getAuthFlowRedirect, isAuthFlow, isGestorInviteAllowedPath, isMfaSetupAllowedPath, isPasswordRecoveryAllowedPath, lerAuthFlowCookieAssinado } from './auth-flow'
 
 describe('auth flow routing rules', () => {
   it('accepts only signed auth flow cookies as operational flow markers', async () => {
@@ -13,6 +13,7 @@ describe('auth flow routing rules', () => {
 
   it('recognizes only supported restricted auth flows', () => {
     expect(isAuthFlow('password_recovery')).toBe(true)
+    expect(isAuthFlow('gestor_invite')).toBe(true)
     expect(isAuthFlow('mfa_setup_required')).toBe(true)
     expect(isAuthFlow('mfa_recovery_temporary')).toBe(true)
     expect(isAuthFlow('normal')).toBe(false)
@@ -31,8 +32,16 @@ describe('auth flow routing rules', () => {
     expect(isMfaSetupAllowedPath('/gestor/dashboard')).toBe(false)
   })
 
+  it('restringe a sessao temporaria do convite de Gestor ao aceite e MFA', () => {
+    expect(isGestorInviteAllowedPath('/convite/gestor')).toBe(true)
+    expect(isGestorInviteAllowedPath('/mfa/setup')).toBe(true)
+    expect(isGestorInviteAllowedPath('/gestor/dashboard')).toBe(false)
+    expect(isGestorInviteAllowedPath('/admin/usuarios')).toBe(false)
+  })
+
   it('redirects restricted flows to their safe destination', () => {
     expect(getAuthFlowRedirect('password_recovery')).toBe('/redefinir-senha')
+    expect(getAuthFlowRedirect('gestor_invite')).toBe('/convite/gestor')
     expect(getAuthFlowRedirect('mfa_setup_required')).toBe('/mfa/setup')
     expect(getAuthFlowRedirect('mfa_recovery_temporary')).toBe('/mfa/setup')
   })

@@ -1,12 +1,12 @@
 export const AUTH_FLOW_COOKIE = 'bw_auth_flow'
 export const AUTH_FLOW_MAX_AGE_SECONDS = 15 * 60
 
-export type AuthFlow = 'password_recovery' | 'mfa_setup_required' | 'mfa_recovery_temporary'
+export type AuthFlow = 'password_recovery' | 'gestor_invite' | 'mfa_setup_required' | 'mfa_recovery_temporary'
 
 const AUTH_FLOW_COOKIE_VERSION = 'v1'
 
 export function isAuthFlow(value: string | null | undefined): value is AuthFlow {
-  return value === 'password_recovery' || value === 'mfa_setup_required' || value === 'mfa_recovery_temporary'
+  return value === 'password_recovery' || value === 'gestor_invite' || value === 'mfa_setup_required' || value === 'mfa_recovery_temporary'
 }
 
 function base64UrlEncode(bytes: Uint8Array) {
@@ -69,7 +69,12 @@ export function isMfaSetupAllowedPath(pathname: string) {
   return pathname.startsWith('/mfa') || pathname === '/login'
 }
 
+export function isGestorInviteAllowedPath(pathname: string) {
+  return pathname === '/convite/gestor' || pathname.startsWith('/mfa') || pathname === '/login'
+}
+
 export function getAuthFlowRedirect(flow: AuthFlow): string {
   if (flow === 'password_recovery') return '/redefinir-senha'
+  if (flow === 'gestor_invite') return '/convite/gestor'
   return '/mfa/setup'
 }

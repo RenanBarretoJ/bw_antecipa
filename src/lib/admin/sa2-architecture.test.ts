@@ -32,7 +32,9 @@ describe('arquitetura SA2 de usuarios e acessos', () => {
 
   it('isola service role no adaptador Auth e nao o usa para papeis ou vinculos', () => {
     expect(adapter).toContain("import 'server-only'")
-    expect(adapter).toContain('inviteUserByEmail')
+    expect(adapter).toContain('generateLink')
+    expect(adapter).toContain('enviarEmailOperacional')
+    expect(adapter).not.toContain('inviteUserByEmail')
     expect(adapter).toContain('updateUserById')
     expect(adapter).toContain('mfa.deleteFactor')
     expect(actions).not.toContain('createAdminClient')

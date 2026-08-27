@@ -1,6 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-import { AUTH_FLOW_COOKIE, getAuthFlowRedirect, isMfaSetupAllowedPath, isPasswordRecoveryAllowedPath, lerAuthFlowCookieAssinado } from '@/lib/auth/auth-flow'
+import { AUTH_FLOW_COOKIE, getAuthFlowRedirect, isGestorInviteAllowedPath, isMfaSetupAllowedPath, isPasswordRecoveryAllowedPath, lerAuthFlowCookieAssinado } from '@/lib/auth/auth-flow'
 import { resolverRedirectOnboardingCedente } from '@/lib/auth/cedente-onboarding-access'
 import { carregarAcessoPlataforma, resolverDestinoAposAutenticacao, usuarioPodeAcessarArea, type PortalArea } from '@/lib/auth/platform-access'
 import type { UserRole } from '@/types/database'
@@ -32,7 +32,7 @@ export async function updateSession(request: NextRequest) {
   const pathname = request.nextUrl.pathname
   const authFlowCookie = request.cookies.get(AUTH_FLOW_COOKIE)?.value
   const authFlow = await lerAuthFlowCookieAssinado(authFlowCookie)
-  const publicRoutes = ['/', '/login', '/cadastro', '/esqueci-senha', '/redefinir-senha', '/auth/confirm', '/convite/cedente']
+  const publicRoutes = ['/', '/login', '/cadastro', '/esqueci-senha', '/redefinir-senha', '/auth/confirm', '/auth/convite-gestor/confirm', '/convite/cedente', '/convite/gestor']
   const isPublicRoute = publicRoutes.some((route) => pathname === route)
   const authRoutes = ['/login', '/cadastro', '/esqueci-senha']
   const isAuthRoute = authRoutes.some((route) => pathname === route)
@@ -49,9 +49,11 @@ export async function updateSession(request: NextRequest) {
   if (authFlow) {
     const allowed = authFlow === 'password_recovery'
       ? isPasswordRecoveryAllowedPath(pathname)
+      : authFlow === 'gestor_invite'
+        ? isGestorInviteAllowedPath(pathname)
       : isMfaSetupAllowedPath(pathname)
 
-    if (!user && pathname !== '/redefinir-senha' && pathname !== '/esqueci-senha' && pathname !== '/login') {
+    if (!user && pathname !== '/redefinir-senha' && pathname !== '/esqueci-senha' && pathname !== '/convite/gestor' && pathname !== '/auth/convite-gestor/confirm' && pathname !== '/login') {
       const url = request.nextUrl.clone()
       url.pathname = '/login'
       const response = NextResponse.redirect(url)

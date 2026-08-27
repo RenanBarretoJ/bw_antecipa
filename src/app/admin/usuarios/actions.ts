@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { requireSuperAdmin } from '@/lib/auth/admin-authorization'
 import { AuthorizationError } from '@/lib/auth/authorization'
 import { autorizarEConsumirAcaoSensivel } from '@/lib/auth/sensitive-action'
-import { atualizarBloqueioUsuarioAuth, convidarUsuarioAuth, removerConviteAuthIncompleto, removerFatoresMfaAuth } from '@/lib/admin/auth-admin.server'
+import { atualizarBloqueioUsuarioAuth, enviarConviteUsuarioAuth, prepararConviteUsuarioAuth, removerConviteAuthIncompleto, removerFatoresMfaAuth } from '@/lib/admin/auth-admin.server'
 import {
   adminUsuarioConviteSchema,
   adminVinculoBuscaSchema,
@@ -13,6 +13,7 @@ import {
   type AdminVinculoBuscaActionResult,
   type AdminUsuarioActionResult,
   type AdminUsuarioDetalhe,
+  type AdminUsuarioFundo,
 } from '@/lib/admin/usuarios'
 import { buscarVinculosAdmin } from '@/lib/admin/usuarios.server'
 
@@ -97,7 +98,11 @@ export async function convidarUsuarioAdmin(formData: FormData): Promise<AdminUsu
       return { success: true, message: 'Capacidade Super Admin concedida.', data: { id: existing.id, existente: true }, notification: { type: 'success', message: 'Capacidade Super Admin concedida.' } }
     }
 
-    const invited = await convidarUsuarioAuth({ email: parsed.data.email, nome: parsed.data.nome })
+    const invited = await prepararConviteUsuarioAuth({
+      email: parsed.data.email,
+      nome: parsed.data.nome,
+      tipo: parsed.data.tipo,
+    })
     const { error: finalizeError } = await context.supabase.rpc('admin_finalizar_convite_usuario', {
       p_usuario_id: invited.userId,
       p_tipo: parsed.data.tipo,
@@ -112,6 +117,38 @@ export async function convidarUsuarioAdmin(formData: FormData): Promise<AdminUsu
         return falha('O convite foi criado, mas o provisionamento nao foi concluido e requer reconciliacao administrativa.', `Referencia: ${correlationId}`)
       }
       return mapearErro(finalizeError, correlationId)
+    }
+
+    try {
+      let fundos: string[] = []
+      if (parsed.data.tipo === 'gestor' && parsed.data.fundoIds.length > 0) {
+        const { data: fundosRaw, error: fundosError } = await context.supabase.rpc('admin_listar_fundos_usuario', {
+          p_usuario_id: invited.userId,
+        })
+        if (fundosError) throw Object.assign(new Error('Nao foi possivel resolver os fundos do convite.'), { name: 'FUNDO_CONTEXT_ERROR' })
+        const fundosDisponiveis = (fundosRaw || []) as unknown as AdminUsuarioFundo[]
+        const fundosPorId = new Map(fundosDisponiveis.map((fundo) => [fundo.fundo_id, fundo]))
+        fundos = parsed.data.fundoIds.map((fundoId) => {
+          const fundo = fundosPorId.get(fundoId)
+          if (!fundo || fundo.vinculo_status !== 'ativo') {
+            throw Object.assign(new Error('Fundo do convite nao foi vinculado.'), { name: 'FUNDO_CONTEXT_ERROR' })
+          }
+          return fundo.fundo_nome
+        })
+      }
+      await enviarConviteUsuarioAuth({ ...invited, fundos })
+    } catch (sendError) {
+      console.error('[admin/usuarios] Falha ao enviar convite administrativo', {
+        correlationId,
+        code: sendError instanceof Error ? sendError.name : 'SMTP_ERROR',
+        userId: invited.userId,
+      })
+      try {
+        await removerConviteAuthIncompleto(invited.userId)
+      } catch {
+        return falha('O convite foi provisionado, mas o envio falhou e requer reconciliacao administrativa.', `Referencia: ${correlationId}`)
+      }
+      return falha('Nao foi possivel enviar o convite. Nenhum acesso foi mantido.', `Referencia: ${correlationId}`)
     }
 
     revalidarUsuario(invited.userId)
