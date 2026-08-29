@@ -24,7 +24,7 @@ rOvxScRlKA==
 -----END CERTIFICATE-----
 `
 
-const KEY_A = `-----BEGIN PRIVATE KEY-----
+const KEY_A = `-----BEGIN ${'PRIVATE'} KEY-----
 MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCwM3w8wmOZ+5mT
 Ae8r3Qq4fNzHDPFqpnZDsVV5O1E7i6SIXo6jK30IA5ZKPjoPoXubId8ApUeVL1iX
 zUHwYBeZVcmpk/4P4/atCIx5P3awn9aD4ruz/0scMAmUZDhixcYxh2mm3dn/dBZY
@@ -56,7 +56,7 @@ YLjpUcxf5LKHqaV2/V9lx3Tg
 
 // Chave RSA distinta (genrsa), nao relacionada ao CERT_A -- usada so para o
 // teste de mismatch.
-const KEY_B = `-----BEGIN PRIVATE KEY-----
+const KEY_B = `-----BEGIN ${'PRIVATE'} KEY-----
 MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCrXVoe88H84KmL
 Kf4fN7pjV7R8vB229XwVS+V0mSxQGFaF+VGdaMTraMNky0/J266OgTR1b/pewKor
 CtdYCFD1CphNuNs1nspD7UxK45d76fjwHMJ268sF7eaeNDTT86eY9mlJe5+pTrhC

@@ -1,0 +1,2996 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-08-29T12:15:04.250Z",
+  "policy": {
+    "app_release": "Runtime, build e migrations promoviveis; exclui testes, relatorios e tooling de rehearsal.",
+    "cutover_bundle": "Artefatos operacionais explicitamente usados na janela; exclui relatorios posteriores e testes."
+  },
+  "app_release": {
+    "files": 724,
+    "hash": "60e7f5e82b7de28601839ce60325ba92365de3b515aacb269543e1fced0a4666",
+    "entries": [
+      {
+        "file": "next.config.ts",
+        "sha256": "dbeccd77f720be04773efd405e0de35f8cec2cef6dd97c67d2db1877c10e7df2"
+      },
+      {
+        "file": "package-lock.json",
+        "sha256": "9cc0848ed2da4b66db401ddb4f03fded9c55013283a6f6ed46d673aec9386e50"
+      },
+      {
+        "file": "package.json",
+        "sha256": "bb71dab301f784eb4eca4db9de832923887c0512bef6ce2f6ff88853fbc4b1f0"
+      },
+      {
+        "file": "postcss.config.mjs",
+        "sha256": "7b299d3d3b16699ddda397c0b2373b3af4f25f8fc9ccc9b3d9e64ef083bc1c21"
+      },
+      {
+        "file": "public/file.svg",
+        "sha256": "2b67812c325c199a02536cdbeea0c593a72f707d323b72ee3e08dbab06753bd4"
+      },
+      {
+        "file": "public/globe.svg",
+        "sha256": "b614b9bf183925957661ac851498fe1d8029fd43a62fbfed86f9e2624a57e7cf"
+      },
+      {
+        "file": "public/next.svg",
+        "sha256": "55995dfad6ecb4945a1e856ddca03c5e16aa5bf13fd21b4df6a74ae79357bcfc"
+      },
+      {
+        "file": "public/vercel.svg",
+        "sha256": "f081337b2fee635b455b63275406a3e7f39d6a014e25ad90dab5a67e62a12ac4"
+      },
+      {
+        "file": "public/window.svg",
+        "sha256": "644768c4aaeb4767bce293344eeb0c125fb804a94d801440424072202d85e3a1"
+      },
+      {
+        "file": "src/app/(auth)/cadastro/page.tsx",
+        "sha256": "a6e6e94e34c39bdb7bfa793af5e763c1062a008758697a69e9535d0a2f4c51f8"
+      },
+      {
+        "file": "src/app/(auth)/esqueci-senha/page.tsx",
+        "sha256": "2fb654f68069778c0249fcfd35e0bd4fb9dd45e5cc7f31c028e562c2307398e2"
+      },
+      {
+        "file": "src/app/(auth)/login/page.tsx",
+        "sha256": "412b5ec288e1165307c06ea667ff629d27b1e720ebd6a7eb395a636c8ffbf714"
+      },
+      {
+        "file": "src/app/(auth)/redefinir-senha/page.tsx",
+        "sha256": "b2ef78e425470ca9dd55910088be56ac70877b0d739426fde24fc343ce1e44aa"
+      },
+      {
+        "file": "src/app/actions/auth.ts",
+        "sha256": "67e28920c64826016884c66a237083c5532e1d446581c1597b04e5c11095ade6"
+      },
+      {
+        "file": "src/app/actions/convite-cedente.ts",
+        "sha256": "6927ab767e7e3dfff601245d398453cfc8eac404b1460fbc1c40cbeb56539f35"
+      },
+      {
+        "file": "src/app/actions/convite-gestor.ts",
+        "sha256": "50c8c3d05fb9edf8c86d77238634ab581a08cc62719fcbeff8b2eea4da52dfb9"
+      },
+      {
+        "file": "src/app/actions/mfa.ts",
+        "sha256": "be46a8e693fecbbe450c28e3ef3bc75965f8f41693d6806e530522ea093df32b"
+      },
+      {
+        "file": "src/app/actions/password.ts",
+        "sha256": "b70db2e2bb4405711e22a9289f9472d5e7a4382eb18c2dff94e020cae243cb19"
+      },
+      {
+        "file": "src/app/admin/fundos/[id]/page.tsx",
+        "sha256": "59989bf9276c9eccafd8329415de105df59a2ddefea121cbb1198cdcfe3fed38"
+      },
+      {
+        "file": "src/app/admin/fundos/actions.ts",
+        "sha256": "c3d007e708e260301e362c8653621b18f2aaebcdaf644cdf6a5c7d653d66cc22"
+      },
+      {
+        "file": "src/app/admin/fundos/configuracoes-tecnicas-actions.ts",
+        "sha256": "23098781c8539a2f305d0ea8fe89b39bca1121ae9d7d3cc239b104fd2b2fd01d"
+      },
+      {
+        "file": "src/app/admin/fundos/dados-financeiros-actions.ts",
+        "sha256": "9ca2139db9adc4bf6b68f8b84a6336a9789eeaa4b8de8427df9c1d916d8aaaa9"
+      },
+      {
+        "file": "src/app/admin/fundos/novo/page.tsx",
+        "sha256": "811bc06163450edcdc2607990677b2342b0cd0ddb4e9a9e505951da13d5081d5"
+      },
+      {
+        "file": "src/app/admin/fundos/page.tsx",
+        "sha256": "8117e44cc437cf64a6dc212dd39314cc38fbd58b24836a3a86e1035efc43dc18"
+      },
+      {
+        "file": "src/app/admin/fundos/vortx-vrs-actions.ts",
+        "sha256": "06cfac6321f351278d804302a0d6f8756bc9cf310f2eafbf6c3f7d25cbf98ca3"
+      },
+      {
+        "file": "src/app/admin/integracoes-transportadoras/actions.ts",
+        "sha256": "9986486c63b0ddabf124eb63083c2421cdf4c794cd7e08572b25eee56b7551db"
+      },
+      {
+        "file": "src/app/admin/integracoes-transportadoras/eventos/[id]/page.tsx",
+        "sha256": "c3a778207d935e6c7219153564ae65f6e634456f59a4cccce3aeeb3e8fef202c"
+      },
+      {
+        "file": "src/app/admin/integracoes-transportadoras/eventos/page.tsx",
+        "sha256": "2d73ed273298a6604701f0cdb1197c0ae940f7ac8da77f3f6c5076b4357278d9"
+      },
+      {
+        "file": "src/app/admin/integracoes-transportadoras/page.tsx",
+        "sha256": "28c6bb0674440589f30c0fb8910b951a1d7e1a157c92f6871aced53cafce7aa1"
+      },
+      {
+        "file": "src/app/admin/layout.tsx",
+        "sha256": "3b7ea3e2800d23da6077c9aba22a7ec3bae6091140638b898920566a547df37b"
+      },
+      {
+        "file": "src/app/admin/minha-conta/seguranca/page.tsx",
+        "sha256": "2e9af75db7b5fc44f46a0d1d7f4aca96b4cdd64f196098f7f11e7393629873d0"
+      },
+      {
+        "file": "src/app/admin/minha-seguranca/page.tsx",
+        "sha256": "ff9e31c8f7bec6cf0e0a173df537c6cebd721878094db0ec7559dfab8999fbec"
+      },
+      {
+        "file": "src/app/admin/page.tsx",
+        "sha256": "f0608989fafad30227e58360c0e1754e5a9b4207dfb45b9ba37bf9cc0f585c68"
+      },
+      {
+        "file": "src/app/admin/usuarios/[id]/page.tsx",
+        "sha256": "832b879c415ea798fa4558546e883ccb3c5bfe1fcc91b4b4dfc5982f7d0dea43"
+      },
+      {
+        "file": "src/app/admin/usuarios/actions.ts",
+        "sha256": "d12e9e835cb3551c2fb7d308643234776e742bb0f9cacaca4449a0d542584958"
+      },
+      {
+        "file": "src/app/admin/usuarios/novo/page.tsx",
+        "sha256": "442d8a01f897e14e40cb49571eb65ff2777973ca90d9e0532343535bb07d7138"
+      },
+      {
+        "file": "src/app/admin/usuarios/page.tsx",
+        "sha256": "b14168de6d31eb2cb9fbc4ee0f9e30af5c5c9a174bf7c019e7704f0c24eae792"
+      },
+      {
+        "file": "src/app/api/auth/session-security/route.ts",
+        "sha256": "ec08ce8508a585f367ad328e56c52dd787b0a82f7c024e96d38fe3595ba279b9"
+      },
+      {
+        "file": "src/app/api/contratos/consultar-status-remessa/route.ts",
+        "sha256": "d349df7954876ef1065ef053cacf2e48a429a8a0fc334366753a313bbcfb4980"
+      },
+      {
+        "file": "src/app/api/contratos/download/route.ts",
+        "sha256": "812e1ac138d0fb127b5852013e285786f025c9cfc7619bd64eb60a05cbb4e6fa"
+      },
+      {
+        "file": "src/app/api/contratos/enviar-remessa/route.ts",
+        "sha256": "138e9f637a5b5affbf0be6315c4fdbbdbf56f48bcc3257d42a907b3be19ff167"
+      },
+      {
+        "file": "src/app/api/contratos/gerar-cnab/route.ts",
+        "sha256": "63a920058bdbdcd9e699e51a0aaba966f3fa46028bf12d589466cd9bf7b91e10"
+      },
+      {
+        "file": "src/app/api/contratos/gerar-contrato/route.ts",
+        "sha256": "8985cdfbc109d28fe7969c96b473e06776b43b42aa03332a35a6b175e51fbfd0"
+      },
+      {
+        "file": "src/app/api/contratos/gerar-notificacao/route.ts",
+        "sha256": "cf1cbad9af8288c501661b9b9c96d4cf9f043232121b13bf36df9b67e713b17d"
+      },
+      {
+        "file": "src/app/api/contratos/gerar-quitacao/route.ts",
+        "sha256": "7ce1a2c2c23fba3a0ee665b7f77c0f0189165466960dd11ce8abd301051fdd86"
+      },
+      {
+        "file": "src/app/api/contratos/gerar-remessa/route.ts",
+        "sha256": "2ac6ac1a9508b72eea8d2b72ae7bde53492e5b2ef9fbd5ae87ec43a0af1e309a"
+      },
+      {
+        "file": "src/app/api/contratos/gerar-termo/route.ts",
+        "sha256": "1ce050b1eec7bdd1e63410f57407b229d8c46353425e2c7cccfd273a899b9a6e"
+      },
+      {
+        "file": "src/app/api/cron/comunicacoes/route.ts",
+        "sha256": "e8cc9497f1a6a4385d642b930ef008019995b43459859064582c99dd89888b6b"
+      },
+      {
+        "file": "src/app/api/cron/documentos-vencidos/route.ts",
+        "sha256": "050e519ef0c85e299eea07ff2a3695f68fe27678ae252d0e76f2054c46023400"
+      },
+      {
+        "file": "src/app/api/cron/entregas/route.ts",
+        "sha256": "e6917737d34c0ed3ad008f643f3fbae56caa0fd05383896b40e78044544cec2a"
+      },
+      {
+        "file": "src/app/api/cron/financeiro/route.ts",
+        "sha256": "a6876b3c9e93183d3019002d1d6ad13bd3a07749d88b714318a356cc8a795f0a"
+      },
+      {
+        "file": "src/app/api/cron/rlx-financeiro/route.ts",
+        "sha256": "912e68d595a740568b2024fbf63d8c171e163c43e84771e179a71e7519e5edca"
+      },
+      {
+        "file": "src/app/api/cron/vencimentos/route.ts",
+        "sha256": "764da1ea08e65235ff226b9aff82dbbd40d2961f866b665c9c051497bf1fd445"
+      },
+      {
+        "file": "src/app/api/escrow/sync/route.ts",
+        "sha256": "cc9a639511e539d438215653cc4b31dbac859399f4264735a242cc5cbfd0ad0e"
+      },
+      {
+        "file": "src/app/api/integracoes/transportadoras/[provider]/comprovantes-entrega/route.ts",
+        "sha256": "4c97cd07971165c59f005caeb4f4f4c4e68762927f6f9434f52cbf3ed21a2e6b"
+      },
+      {
+        "file": "src/app/api/operacoes/[id]/documentos-assinados/route.ts",
+        "sha256": "1499bfa9ab94c19fd2e3b84d80585841159d0fdaba347201b6818115bfae3ccd"
+      },
+      {
+        "file": "src/app/auth/confirm/route.ts",
+        "sha256": "f1dcdbb0f4b869b7be22235d9c503ab624e374b180e05447c4ec278457f50501"
+      },
+      {
+        "file": "src/app/auth/convite-gestor/confirm/route.ts",
+        "sha256": "046822f6a04d3cf34ab997c36caa7a23171170b74885b48c856c3ff7ae71f983"
+      },
+      {
+        "file": "src/app/cedente/cadastro/page.tsx",
+        "sha256": "9f5f039fc476bfda7b8f92c1cd06caa174d6bb11ba2a703dec582f0dc46a885a"
+      },
+      {
+        "file": "src/app/cedente/dashboard/page.tsx",
+        "sha256": "ba107bf2114d536aa7d61ddd3fdfd0325f148e46e91a8b270193891fa63e6968"
+      },
+      {
+        "file": "src/app/cedente/documentos/page.tsx",
+        "sha256": "34b05c28a253599cf93ddff0fc2df77d23ce10a7ef8932f984b1379670569a5f"
+      },
+      {
+        "file": "src/app/cedente/estabelecimentos/meus-estabelecimentos-client.tsx",
+        "sha256": "4eda8c945d740499f106d1345fa20208756ff9fd3b33e9ce66a02ad0227666f6"
+      },
+      {
+        "file": "src/app/cedente/estabelecimentos/page.tsx",
+        "sha256": "3897855bc610101d753a776734453387df75deb0f2a1b62338c7496371cb7109"
+      },
+      {
+        "file": "src/app/cedente/extrato/page.tsx",
+        "sha256": "fa56ebdb6572eb8baa7706069cddda2eec680a4aae14266683625c61f3ffee40"
+      },
+      {
+        "file": "src/app/cedente/layout.tsx",
+        "sha256": "e7b5c906ca6b012fa105f73bb221a0cb1d0fbd850a68594020cf7f202c01936e"
+      },
+      {
+        "file": "src/app/cedente/minha-conta/seguranca/page.tsx",
+        "sha256": "e22f4d99353c12bbe8beaf6cd899c9f45c113d40069d03c707aca46fdfa4272e"
+      },
+      {
+        "file": "src/app/cedente/notas-fiscais/[id]/page.tsx",
+        "sha256": "15d20db7138b087687c71e3bccdc165e8d55bade11c2bacdc66d88fda4b098f8"
+      },
+      {
+        "file": "src/app/cedente/notas-fiscais/layout.tsx",
+        "sha256": "1dc2d6152811dafeca48f167b2fb16c81ba3fe1081d6f05f78e7c9f260dfa1db"
+      },
+      {
+        "file": "src/app/cedente/notas-fiscais/notas-fiscais-listagem.tsx",
+        "sha256": "7253ecfd22d7e11480cd44cfab792e68ab65cbb0388ca83219f4cb7d53685253"
+      },
+      {
+        "file": "src/app/cedente/notas-fiscais/page.tsx",
+        "sha256": "a22fc5847be3cc8d2d4cc593a2532597dbf986e688bb94cb6721dab31b907f4c"
+      },
+      {
+        "file": "src/app/cedente/notificacoes/page.tsx",
+        "sha256": "6f2205020d18912b45bf9249b5c47507ccdd438c4890b01daac724fb47dad3a5"
+      },
+      {
+        "file": "src/app/cedente/operacoes/[id]/page.tsx",
+        "sha256": "b7cb2ef4f9e690f5813b218a77a241fb354f331412ed1bc8eb9c522c585b5b27"
+      },
+      {
+        "file": "src/app/cedente/operacoes/nova/nova-solicitacao-client.tsx",
+        "sha256": "034115f094a3073c5a52d8096bc59d7601a1a5e56e54f53cb55ca691eb1efcc1"
+      },
+      {
+        "file": "src/app/cedente/operacoes/nova/page.tsx",
+        "sha256": "546cec718f847f33fd6bcef80e7189408847c44d2fd605a049d819b58ca5c235"
+      },
+      {
+        "file": "src/app/cedente/operacoes/page.tsx",
+        "sha256": "b42a20e2646805624a6e8188beb52424de5cb6b0f88fd90deb72b19214571b21"
+      },
+      {
+        "file": "src/app/consultor/carteira/page.tsx",
+        "sha256": "ff6579dce9f1350a6aaef6c11c5c292cd3bd27ee507fdbdb4d1b7dacea72adb9"
+      },
+      {
+        "file": "src/app/consultor/dashboard/page.tsx",
+        "sha256": "de8882056b6490a316c06f4147246b4eb1a56a5e754f0494e15cca3b77e0a71f"
+      },
+      {
+        "file": "src/app/consultor/escrow/[id]/page.tsx",
+        "sha256": "9fbe127dbb5b3d0ffcdcac420d6e71872300c2e3145f43ace718c1f652b17ec4"
+      },
+      {
+        "file": "src/app/consultor/escrow/page.tsx",
+        "sha256": "033fcda0b3819ca6eaf987635e892cdfc4ccb08acd8e59e1570c0142b45d9793"
+      },
+      {
+        "file": "src/app/consultor/layout.tsx",
+        "sha256": "57b25b3c22e24fce0ec9a25bdfeb524d8a4a639b9e083769b7a860af52501e23"
+      },
+      {
+        "file": "src/app/consultor/minha-conta/seguranca/page.tsx",
+        "sha256": "7b6310438aa44764d48f41544d762b00193adacddd0f0eeb267bc74720955355"
+      },
+      {
+        "file": "src/app/consultor/notificacoes/page.tsx",
+        "sha256": "b7250703793e8888bef23bcc32af69fa542373d3642424dffc3d0c0d8327aefb"
+      },
+      {
+        "file": "src/app/consultor/operacoes/page.tsx",
+        "sha256": "9d4db8b40d02df87cfdc0a6b55d6e6194d2bdcd3f92546a561ff859f9b246cb7"
+      },
+      {
+        "file": "src/app/consultor/relatorios/page.tsx",
+        "sha256": "901cd1426dd1a574976dec1dad8ed4b9c38ce658de64e84207e11bd50cfd7ab1"
+      },
+      {
+        "file": "src/app/convite/cedente/page.tsx",
+        "sha256": "4de1064f7da4e1a3049c8ca6832c9be4170f6e1e21efcd4ab52f7e9785b0eb40"
+      },
+      {
+        "file": "src/app/convite/gestor/page.tsx",
+        "sha256": "c27d1d742aa644f002da01bfe6bc02284267e802a8f0087faaa804a4e6d21737"
+      },
+      {
+        "file": "src/app/favicon.ico",
+        "sha256": "2b8ad2d33455a8f736fc3a8ebf8f0bdea8848ad4c0db48a2833bd0f9cd775932"
+      },
+      {
+        "file": "src/app/gestor/auditoria/page.tsx",
+        "sha256": "80f7701cd11ad938b76f467bc8c247002fa276973482f8b9b7cdf0e832f75397"
+      },
+      {
+        "file": "src/app/gestor/cedentes/[id]/page.tsx",
+        "sha256": "80f2af9692870149ba27559b243545a3f65c8937beaa7b8a8c9a40e0f9214a2f"
+      },
+      {
+        "file": "src/app/gestor/cedentes/page.tsx",
+        "sha256": "1fdddac4d7b820b716859b900bfb7b34a1fcae09d5707c60c85f47283e9de655"
+      },
+      {
+        "file": "src/app/gestor/comunicacoes/page.tsx",
+        "sha256": "62ea42930e042ec8c5c44bb050ec70fddfe5d133bd3f68b8d38274f5d7e37c8d"
+      },
+      {
+        "file": "src/app/gestor/conciliacao/conciliacao-financeira-client.tsx",
+        "sha256": "66ca458358234608c10fb7998f5428ee902ae666ea1a141d43cf4db7224af31a"
+      },
+      {
+        "file": "src/app/gestor/conciliacao/page.tsx",
+        "sha256": "358e1c9ba40fc982d361e2739c828c505323290b304c422d0eaed1f388e01a1f"
+      },
+      {
+        "file": "src/app/gestor/configuracoes-cnab/page.tsx",
+        "sha256": "15d7f041962ea8c071b3578c5f692005fd9a0335d54f6d0c83e5f11455e14fb2"
+      },
+      {
+        "file": "src/app/gestor/configuracoes/page.tsx",
+        "sha256": "123067f6bcf5cde98053db160cb0d58cd6f413ceec11bf29d1932ba93e097462"
+      },
+      {
+        "file": "src/app/gestor/configuracoes/testemunhas/page.tsx",
+        "sha256": "1017de646ed643c2abbf84f0c517d384851a1be62f9dab718ced1522d560885d"
+      },
+      {
+        "file": "src/app/gestor/dashboard/page.tsx",
+        "sha256": "84afafe38fb63726139568a0d64abc5e2d596ba5392ff2b2d1e36a4bd50e23b1"
+      },
+      {
+        "file": "src/app/gestor/documentos/page.tsx",
+        "sha256": "d51c3f1a87283f1c39398152c5f393576297ec50c1d8d38759f73f18ac9a0b53"
+      },
+      {
+        "file": "src/app/gestor/escrow/[id]/page.tsx",
+        "sha256": "d5a03229debe0c33bb66b05e14400205496bf4507bb10bc4bdd681b6691d525e"
+      },
+      {
+        "file": "src/app/gestor/escrow/page.tsx",
+        "sha256": "9ec0ddc3a8f4a52026aae16bf3c7186128ffe0c6dbf15684be1b4736a7a8b261"
+      },
+      {
+        "file": "src/app/gestor/fundos/[id]/page.tsx",
+        "sha256": "413de915287f1a50a5f1180187105c0192d707b3559e4cd85bdfd7e731ed644f"
+      },
+      {
+        "file": "src/app/gestor/fundos/page.tsx",
+        "sha256": "f6e8dc0f8fa60d25e7335a0188865a9109c1d5f779218cdc2118265543da7686"
+      },
+      {
+        "file": "src/app/gestor/layout.tsx",
+        "sha256": "fec630cd8e4b432e113e80af2c8ae1e95d5a31f7d70b5b86ac0e9c1a18159326"
+      },
+      {
+        "file": "src/app/gestor/logistica/exportar/route.ts",
+        "sha256": "f6ece2c472d8a55ae0c1425c80e51eec6e5c7dc492854717fd7a83d69b804382"
+      },
+      {
+        "file": "src/app/gestor/logistica/page.tsx",
+        "sha256": "29928e756c008113fa1388df78dc9c2ccd999b7c8d9969c1dd00c6accad7677f"
+      },
+      {
+        "file": "src/app/gestor/minha-conta/seguranca/page.tsx",
+        "sha256": "e14c3a0f44e4b2e44bfd7784709b29cf13943e5332d526e467f2699fdd9b1104"
+      },
+      {
+        "file": "src/app/gestor/notas-fiscais/[id]/page.tsx",
+        "sha256": "10841f74a4c8293b89350bc26495e4fa39665ef62bf5b5f8b617c21a7b627387"
+      },
+      {
+        "file": "src/app/gestor/notas-fiscais/page.tsx",
+        "sha256": "440623af6fa21e796fdedd8a964790ed42fb103e23940f777b62077eeeab5173"
+      },
+      {
+        "file": "src/app/gestor/notificacoes/page.tsx",
+        "sha256": "3bd4966d66e6bdbb7753635bbbb4bc6c86fb106c84fbc34ae8a6728fd51674da"
+      },
+      {
+        "file": "src/app/gestor/onboarding-cedentes/page.tsx",
+        "sha256": "8a96fee1b3de0e037a175762813fa8a4f38fbcb02e8d9df829c77786e1a48a85"
+      },
+      {
+        "file": "src/app/gestor/operacoes/[id]/OperacaoDetalheGestorClient.tsx",
+        "sha256": "47a247b400514e86a41e1ab962f4cc3e5146fd425eb3d3715329aa86ec7cedf7"
+      },
+      {
+        "file": "src/app/gestor/operacoes/[id]/page.tsx",
+        "sha256": "8701da560608bf0fab88448f983b6fdfb433a2c2dfe962963e0b4b25d448794f"
+      },
+      {
+        "file": "src/app/gestor/operacoes/page.tsx",
+        "sha256": "79008b3782203cf491c19fc834373a6328ea333e6da138cc80ce2d4c993d29d3"
+      },
+      {
+        "file": "src/app/gestor/politicas/page.tsx",
+        "sha256": "4157a6fb50c58b7c5452065c3c460042e4b8a60bb2f2ea7dc5a0a44ab44999a4"
+      },
+      {
+        "file": "src/app/gestor/relatorios/page.tsx",
+        "sha256": "898e87679c29f3f2275162ab4b8579215427178aed2a115a6f33c62e58586683"
+      },
+      {
+        "file": "src/app/gestor/sem-fundo/page.tsx",
+        "sha256": "e5b363cb11eda98d39fee996267b5143b8f82c52208f981d59dfa27c166a396e"
+      },
+      {
+        "file": "src/app/gestor/templates/page.tsx",
+        "sha256": "e073da3c76646d7a8a281b36efa35b90f44972b8b90e56e038fa0d403501a192"
+      },
+      {
+        "file": "src/app/globals.css",
+        "sha256": "6184d0db70588ab47269b2922ef4b82ff834242d64821d0ea27aaf65c810e625"
+      },
+      {
+        "file": "src/app/layout.tsx",
+        "sha256": "3b593180b762f1587f9d0330858fa218715f797ecdb5958a3fd981ec47b6a7ea"
+      },
+      {
+        "file": "src/app/mfa/desafio/page.tsx",
+        "sha256": "1989eddd673abf20d736a4f0f2a96bbd7ff65d4c4e37c6401b63db7b8b591ffa"
+      },
+      {
+        "file": "src/app/mfa/setup/page.tsx",
+        "sha256": "a7d2c90667eb28284069c678993e9c0ed75ed16f3666aacf61f1e289e872cbbf"
+      },
+      {
+        "file": "src/app/page.tsx",
+        "sha256": "ba93b34ee148064849b689d6a5a5af1d6d11b23cc417c443e4943b7cce4c2c1e"
+      },
+      {
+        "file": "src/app/sacado/aprovacao/page.tsx",
+        "sha256": "b8be64ccf51be1a338c77e741c88b5fc0929b3ac2bcf205cf9526ed221e5be28"
+      },
+      {
+        "file": "src/app/sacado/dashboard/page.tsx",
+        "sha256": "4c0e967dc36e1fa35c44a53f311bde7302abc2546c69aebaae72705f0fd12474"
+      },
+      {
+        "file": "src/app/sacado/layout.tsx",
+        "sha256": "00d67c385b43ff8e9e17f3a3a32833b348432e963366f52defbd13716af86ca0"
+      },
+      {
+        "file": "src/app/sacado/minha-conta/seguranca/page.tsx",
+        "sha256": "fd8879bbdeb804f5a3fce0d86fdf6a56019ca8894cfceebd72200fc1f984db74"
+      },
+      {
+        "file": "src/app/sacado/notas-fiscais/page.tsx",
+        "sha256": "2a837525a7d090e1a1114b384a2d9c402e685578f3f70150810ebac93d85bee5"
+      },
+      {
+        "file": "src/app/sacado/notificacoes/page.tsx",
+        "sha256": "6e8690f8b3a6790cf3ce4cfec104c53f71ea890cda4e80bc2094c196c95e509b"
+      },
+      {
+        "file": "src/app/sacado/pagamentos/page.tsx",
+        "sha256": "99b77989c05363c418e238fc1d91c735718317d137c367559e48c9fc7daacddd"
+      },
+      {
+        "file": "src/app/shadcn-tailwind.css",
+        "sha256": "36785374073d4f540dc549bd66db583af22e87fddf083b8f32bb5797c42a8f03"
+      },
+      {
+        "file": "src/components/admin/admin-shell.tsx",
+        "sha256": "9a39b3902fd15eec66938fb9c102ecee2f87d19a88abb8fc21728303ba7cc010"
+      },
+      {
+        "file": "src/components/admin/admin-user-actions.tsx",
+        "sha256": "3bf786274fcb5ccefb8152738992b70888e176f765940af053554def536ec560"
+      },
+      {
+        "file": "src/components/admin/admin-user-invite-form.tsx",
+        "sha256": "e67319bb2832466b7b6752e54afb3b5c1013abca3893faec0ac9b7ed5a0b1eef"
+      },
+      {
+        "file": "src/components/admin/admin-vinculo-search-dialog.tsx",
+        "sha256": "e620e8d79e258355e6e722910ca9556a3c59c92d465edc6fc8bbbee4718768a3"
+      },
+      {
+        "file": "src/components/admin/copiable-json-block.tsx",
+        "sha256": "5c6d98e153e4f02bf047255e5e7dbf7ec87096ba0cf0352e66d0adcf4fc0fc24"
+      },
+      {
+        "file": "src/components/admin/fundo-cnab-tecnico.tsx",
+        "sha256": "bf88526c937d6695420852442ce72d0f8e5109991a84c2df8b1dffd1ad03846d"
+      },
+      {
+        "file": "src/components/admin/fundo-dados-financeiros.tsx",
+        "sha256": "ee186dfe597c86e2a6eaa748bc63291995ca65ebb368d330983eba63ad80a809"
+      },
+      {
+        "file": "src/components/admin/fundo-envios-operacionais.tsx",
+        "sha256": "8d234d64768a338791f5df95f227f2da9ceaaeac4eeb056e10e4ea98f01349bc"
+      },
+      {
+        "file": "src/components/admin/fundo-integracoes-tecnicas.tsx",
+        "sha256": "88efb1941fca28806a722323e5b1d53006b058c87e0146d64ea65301cfa3cd4c"
+      },
+      {
+        "file": "src/components/admin/fundo-lifecycle-action.tsx",
+        "sha256": "07abd3c5515bff03d6f0979076be80b710f935631853cf8033a78cdc2461f20f"
+      },
+      {
+        "file": "src/components/admin/fundo-structural-form.tsx",
+        "sha256": "e0bfc5b04972ee67557e661778fbbe20799a47ac87fd115e17f610ddfa20b84a"
+      },
+      {
+        "file": "src/components/admin/gestor-fund-access-action.tsx",
+        "sha256": "0d0cd70abf9c184516adf4d01f4ba062718fd45fc0aac7f696e3b85c7bbd0cfd"
+      },
+      {
+        "file": "src/components/admin/integracao-transportadora-manager.tsx",
+        "sha256": "e1c3ccc6719c7fe549eac99b15dd881444dc3975fe9f21e33c772d2d9f844c66"
+      },
+      {
+        "file": "src/components/admin/reprocessar-webhook-evento-button.tsx",
+        "sha256": "cc34d975bf3647726e16eaa8e8dab9abf2bc73ea891651d7b152f69803f29b2f"
+      },
+      {
+        "file": "src/components/admin/sensitive-confirm-dialog.tsx",
+        "sha256": "cb3712de55e9a9ac989aa85e2c1d5714631698d9eec179c5215b19417bf59a51"
+      },
+      {
+        "file": "src/components/admin/token-once-dialog.tsx",
+        "sha256": "900cdcba6eb96213cb1e3f5d3d154194f018958b111dc98e76612c1ea2613795"
+      },
+      {
+        "file": "src/components/admin/vortx-vrs-credential-section.tsx",
+        "sha256": "bae05cf06757e988a342217dc0dd35b75da181ec32a35dc3aeb69c07b7629ab5"
+      },
+      {
+        "file": "src/components/analytics/RelatorioControls.tsx",
+        "sha256": "9c9c2061f6429b211fdc99bc76659376cc03ec9a6481ae30c2a4f4bdb5807bdf"
+      },
+      {
+        "file": "src/components/auditoria/auditoria-list-client.tsx",
+        "sha256": "aaad0c9a8581cc52f1a16505f6d54ebb5a2282dc49c90c019d54588389a699c9"
+      },
+      {
+        "file": "src/components/auth/gestor-invite-password-form.tsx",
+        "sha256": "ee9742eaced53db69cac17816ef8935ac46da445090455147377485f504d894b"
+      },
+      {
+        "file": "src/components/auth/header.tsx",
+        "sha256": "fb9b05f5d3b475d636b015a51bf42bdbb6d595bbe733f8cd30ba5d944e720353"
+      },
+      {
+        "file": "src/components/auth/mfa-session-provider.tsx",
+        "sha256": "c4b8344edef1d554eca812c99aaccfd7d8425c525b85e880a375d2c98c3d7592"
+      },
+      {
+        "file": "src/components/auth/portal-layout.tsx",
+        "sha256": "68b507806aca00210afac3227f43b0619544cb6d9b6c544a404df38ab0fdf96e"
+      },
+      {
+        "file": "src/components/auth/security-page.tsx",
+        "sha256": "8a83e9b3932e5986dbf16b74925c73a00b96d6edcb02508a4a672ac298e32f4f"
+      },
+      {
+        "file": "src/components/auth/sidebar.tsx",
+        "sha256": "45566add18e5aeb56a05f432278c2efc4cfb3012a0ecf5054d4869132d84ddf3"
+      },
+      {
+        "file": "src/components/cadastro/banco-combobox.tsx",
+        "sha256": "0e0a97e5573d51fc86be9cb21a25abf385fe855bfde988ed038fee50689e0f18"
+      },
+      {
+        "file": "src/components/cedentes/CedentesGestorListagem.tsx",
+        "sha256": "146a907fc5bcb74b7c22d96995c7d538fcf1529f94667c76f9ec53a28de1bd3c"
+      },
+      {
+        "file": "src/components/cedentes/EstabelecimentosGestor.tsx",
+        "sha256": "e6135668e929df0da877959bc7ea29c263df5c5d6ea5c0cad0eff7dc8b57f3c6"
+      },
+      {
+        "file": "src/components/comunicacoes/ComunicacoesDoFundo.tsx",
+        "sha256": "6a2d66107cd85aaf04d9cb7bbceedd08bd9b02171b6f6369990e2c47f309876c"
+      },
+      {
+        "file": "src/components/contratos/BotaoDownloadArquivoOperacao.tsx",
+        "sha256": "c2625ee7bc2cc4afea8a43b35f88cc8e6c813caf89dd9a17e73e6189edb0b7da"
+      },
+      {
+        "file": "src/components/contratos/BotaoDownloadContrato.tsx",
+        "sha256": "410908d79580cda689d0fa2f4aec98412def05cb1a4e745025d139e61e6d93b0"
+      },
+      {
+        "file": "src/components/contratos/UploadDocumentoAssinado.tsx",
+        "sha256": "26b8dff896fb3075c8382747f7a909cade7a2991e4f85c8c8a39ad6ae54e56be"
+      },
+      {
+        "file": "src/components/contratos/UploadDocumentoAssinadoOperacao.tsx",
+        "sha256": "901b9c820ef7c31f66295455c6fcb6d9ad764949f175bfb1bd9eb40c56c6f5f1"
+      },
+      {
+        "file": "src/components/data-display/primitives.tsx",
+        "sha256": "0b8eeb6c6c611c4325bbe49d9c681f1a1313420b048777bf1bfde42131ce9ad6"
+      },
+      {
+        "file": "src/components/documentos-v2/ChecklistCedente.tsx",
+        "sha256": "8356f2f626f68e876babb243ef078ae8b4695b8d715c52171810b9411bc59279"
+      },
+      {
+        "file": "src/components/documentos-v2/ChecklistGestor.tsx",
+        "sha256": "32d5cde3e2d64581bf44959e407cce970e441954399bcd94e67134d1cd377f70"
+      },
+      {
+        "file": "src/components/documentos-v2/DocumentDropzone.tsx",
+        "sha256": "b9877af2d1111a78bd99b60095bd0dfc169589376d647586a3108dccbb7938ba"
+      },
+      {
+        "file": "src/components/documentos-v2/ParcelasBoletosNota.tsx",
+        "sha256": "9b91b16977e910a1d1ef14279c1adcb2b4f1efe90f27c4acae86a40239d07537"
+      },
+      {
+        "file": "src/components/documentos-v2/RequisitoComprovanteEntrega.tsx",
+        "sha256": "26d1bd8957716bc131bde6cede1c30010643f79b9a17c51356175268c6469687"
+      },
+      {
+        "file": "src/components/documentos-v2/RequisitoNfRemessa.tsx",
+        "sha256": "a40f28f5fe454678283bb1c9ab15237a25703d3427d2182ce43ffaf223bf4b34"
+      },
+      {
+        "file": "src/components/documentos/DocumentosGestorListagem.tsx",
+        "sha256": "642b14ca0993cd12702aae995f4ce20756d2e506b789b6fb2ef5e4e25d1a0bd7"
+      },
+      {
+        "file": "src/components/duplicatas/DuplicatasDaNota.tsx",
+        "sha256": "1546db3310ed8ebb5a84def66ebf944a273d94ede3fd50678aebb23b8befd8ce"
+      },
+      {
+        "file": "src/components/escrow/EscrowDetalhe.tsx",
+        "sha256": "7051f061541bf9c7859d411e42d5771a13b9fbfcd56c212707dbd81d2227a515"
+      },
+      {
+        "file": "src/components/escrow/EscrowListagem.tsx",
+        "sha256": "5687e173436406c621e3b7937aa4b01aa40f5fd3efa17e985990b765de691988"
+      },
+      {
+        "file": "src/components/fundos/cedente-fundo-ativo-selector.tsx",
+        "sha256": "88b54bd629cfd01021557e1dce01ff3551dc427ce945f2a226fa086272ae4375"
+      },
+      {
+        "file": "src/components/fundos/fundo-ativo-provider.tsx",
+        "sha256": "66f6f5cf9f149d37a55897b4d9d0ca1ac910c4034277fe7529c634e75ebfea9f"
+      },
+      {
+        "file": "src/components/fundos/fundo-ativo-selector.tsx",
+        "sha256": "61450dbb1f24244bb54fb96c98c5707544aa31c605db67255202c9bffac960fd"
+      },
+      {
+        "file": "src/components/historico/HistoricoTimelineCard.tsx",
+        "sha256": "bd0114bff8d129479d9fcde50cebf04db78aff8be89078079e4f21d7e9714cc1"
+      },
+      {
+        "file": "src/components/layout/page-container.tsx",
+        "sha256": "a6e35c1e21b46566b001f716e5e00b6d94b144673bf27b11b49057262301ed8c"
+      },
+      {
+        "file": "src/components/layout/page-header.tsx",
+        "sha256": "5e66bce1ca582ba3722ebec3ee0273e6ef3c7def35483f3700c6675327ecf166"
+      },
+      {
+        "file": "src/components/layout/portal-header.tsx",
+        "sha256": "c898df1da4d6a94741ffb7b8b617872b6ab48a2fe024c1ee7f4a2c5d5d15f2a6"
+      },
+      {
+        "file": "src/components/layout/portal-shell.tsx",
+        "sha256": "4cb56aa5b7ffc68cad8e154fb9999698c101875e97b8cf997357ad6e580f0354"
+      },
+      {
+        "file": "src/components/layout/portal-sidebar.tsx",
+        "sha256": "1e523404d0cfe822604f152041ad9ccdb010d1a1dd6ec158c7783f7cd675cac4"
+      },
+      {
+        "file": "src/components/logistica/CentralLogisticaView.tsx",
+        "sha256": "d6f41d43596de3fb051bfc9bd6427adc9179d0e4c20d4a14093960c1ba4a0c6e"
+      },
+      {
+        "file": "src/components/notas-fiscais/ArquivoOriginalCompacto.tsx",
+        "sha256": "e96f752c2a3f8675b414e082173c4805d204653cd51efb955d272037785642d8"
+      },
+      {
+        "file": "src/components/notas-fiscais/FilePreviewContent.tsx",
+        "sha256": "76ba07227e382db9ffe927ac0e18647e079561e28efb5e0a5153314d8499fce4"
+      },
+      {
+        "file": "src/components/notas-fiscais/NotasFiscaisGestorListagem.tsx",
+        "sha256": "13cbbc6b9c0841f4b2b05243d8b6b6687c9596c819c50eb9cfad99cb9e8f4169"
+      },
+      {
+        "file": "src/components/notas-fiscais/ParcelasDaNota.tsx",
+        "sha256": "88862044c628c474e733a079cac446bb1fcaddd97193e5af7a0f06ab59f7ae2a"
+      },
+      {
+        "file": "src/components/notificacoes/notificacoes-page-client.tsx",
+        "sha256": "cabb3a0e161f17cee93ed00dc956015f56da0f44a154c5b6f8b7468588b9b684"
+      },
+      {
+        "file": "src/components/notificacoes/notificacoes-page-server.tsx",
+        "sha256": "3a7872a6fc1e2fc52939bd45124ad489346769ba15537035fcdd6f08340e7032"
+      },
+      {
+        "file": "src/components/notifications/notification-provider.tsx",
+        "sha256": "94102fd97e2032fd83dd8186497fc6587a4a49d53181abe86219a7f311ab1847"
+      },
+      {
+        "file": "src/components/onboarding-cedentes/CedenteOnboardingDrawer.tsx",
+        "sha256": "47bc424d7d63eb946db43c70c1e881894bf47aaf054b25a3178ea4c8b22a45bf"
+      },
+      {
+        "file": "src/components/onboarding-cedentes/ConvidarNovoCedenteDialog.tsx",
+        "sha256": "0de189044fb39a6533fb993c23310a9c3c452bcfc6e24e49de7763b94c862268"
+      },
+      {
+        "file": "src/components/onboarding-cedentes/DefinirPoliticaDialog.tsx",
+        "sha256": "6ee76e86c8c597d5c52ecebb93a1e689e2dc2eb88081e529c7964448663313d7"
+      },
+      {
+        "file": "src/components/onboarding-cedentes/OnboardingCedentesPage.tsx",
+        "sha256": "5326c0e1225713f9e340dfa772c56f96e73fbc678224f0f30c6c4101e5938ff8"
+      },
+      {
+        "file": "src/components/onboarding-cedentes/OnboardingCedentesTable.tsx",
+        "sha256": "9ae533eeb226c6b86f870121559a60cafeb728f0f244ced0794798748cc50513"
+      },
+      {
+        "file": "src/components/onboarding-cedentes/OnboardingEmptyState.tsx",
+        "sha256": "d78198f5cec60ad2f6d15271b37c7784e24247eac97330ae105fb32ff234d1b8"
+      },
+      {
+        "file": "src/components/onboarding-cedentes/OnboardingSummaryFilters.tsx",
+        "sha256": "f24ca10968d81d39caea60c4a8f9acb488dcd4f0f96fec1be2993115580b68aa"
+      },
+      {
+        "file": "src/components/onboarding-cedentes/OnboardingToolbar.tsx",
+        "sha256": "986463e9fd735e808f1ce79941a6dc5ecb057601c4008d3560346bea1c318ce7"
+      },
+      {
+        "file": "src/components/onboarding-cedentes/VincularFundoDialog.tsx",
+        "sha256": "e2a9759ffd1245985a048b0827f0a32d9306ba7a738e9f58d419e23e8e5866b6"
+      },
+      {
+        "file": "src/components/onboarding-cedentes/types.ts",
+        "sha256": "cf15da79883ae9987f597b136cc1e6fcdc2e276b5ccf8f4fa167d1a12b642f10"
+      },
+      {
+        "file": "src/components/onboarding-cedentes/utils.ts",
+        "sha256": "ecc2439aabcdccd4bfa53aef81d36f9199fc810f3d3135095c2c160c8f5cbbf7"
+      },
+      {
+        "file": "src/components/operacoes/AcompanhamentoLogisticoOperacao.tsx",
+        "sha256": "2be9c323ea48d1e37a63ed1bcaba3dd7361acddd1f9ab9ce7dd4f531f9df99f7"
+      },
+      {
+        "file": "src/components/operacoes/AndamentoOperacaoCard.tsx",
+        "sha256": "0154d76f75393aeae6b7f52d1cf538aec99f404aa8a1b06badf9e5705b7e597c"
+      },
+      {
+        "file": "src/components/operacoes/ExposicaoLogisticaCard.tsx",
+        "sha256": "5680a4dbf5bf2b2af178a318105a0e77bc8f31d08ee4307b528d1ff37b6e2120"
+      },
+      {
+        "file": "src/components/operacoes/ExposicaoLogisticaOperacaoServer.tsx",
+        "sha256": "59c0f2639dca7911e6956592a0a025536ea4f699788d12f874e04f10a1bc57e8"
+      },
+      {
+        "file": "src/components/operacoes/OperacaoNotaFiscalCard.tsx",
+        "sha256": "fc397d669a13f4a4ce6361cbaddc5f5d4b3e69d3895ead5ac22505eb7395262b"
+      },
+      {
+        "file": "src/components/operacoes/OperacoesPaginadas.tsx",
+        "sha256": "ac01a9a28587091b46bff8020c207cb38157dc811eb0e95c3bca0aae680bb506"
+      },
+      {
+        "file": "src/components/pagination/ListPagination.tsx",
+        "sha256": "46af99f33ee01c0e976bfc71d7016d4643739035e024f72b168ed8159998fe77"
+      },
+      {
+        "file": "src/components/pagination/LoadMoreButton.tsx",
+        "sha256": "605244ec303ac3f77c4e6c51c73d0fc0641bc6a7981763a57649972fb1465eb6"
+      },
+      {
+        "file": "src/components/pagination/index.ts",
+        "sha256": "7122d14e3d9c9fb303d64d7581bb42e43e8a505758373a4c57c4fc0594d4c974"
+      },
+      {
+        "file": "src/components/politicas/PoliticasDoFundo.tsx",
+        "sha256": "82b411779cd031658336b91aedc07f9df445fc135510be0a2ed40f091faa2e83"
+      },
+      {
+        "file": "src/components/sacado/AprovacoesSacadoListagem.tsx",
+        "sha256": "69837598f80a740f14472a72bfdf246544163eb485f77dd0600fde875cf38ce5"
+      },
+      {
+        "file": "src/components/sacado/NotasFiscaisSacadoListagem.tsx",
+        "sha256": "8c2105a3e1e7881389cebe07d75fad3e95bdfc6cf3ba43148738dea1e68505ba"
+      },
+      {
+        "file": "src/components/sacado/PagamentosSacadoListagem.tsx",
+        "sha256": "d4d4d7db97166acb9e136b3e40c9475e6dcff36851060e45382008366e70d669"
+      },
+      {
+        "file": "src/components/selectors/RemoteEntitySelector.tsx",
+        "sha256": "720c97d35d7a4a035ea644a54ef4881ad7a7dc640739227f9bdadca23debd386"
+      },
+      {
+        "file": "src/components/templates/TemplatesDoFundo.tsx",
+        "sha256": "0bee1b1f729286681f0dc3445f5472d011bf33ed3ada0bcac122350f120f2e01"
+      },
+      {
+        "file": "src/components/templates/template-row-state.ts",
+        "sha256": "3be0c7481b3bf6ca5c99dca96258c91e508b4b56b3d51fb99171cb6c9a32bceb"
+      },
+      {
+        "file": "src/components/theme/theme-provider.tsx",
+        "sha256": "4df095c133be041ed281e2de3eb113cc5d7ddb2dbedb485133f9f8531ed0e00a"
+      },
+      {
+        "file": "src/components/theme/theme-toggle.tsx",
+        "sha256": "72ecfa004abd42cbc728f2c257692255aea6949c8655e9702a214918c078e61d"
+      },
+      {
+        "file": "src/components/ui/avatar.tsx",
+        "sha256": "c52c54196ece17beb13f2d5d349c21cea7c53ac06fa062e54e29f9de74acb47c"
+      },
+      {
+        "file": "src/components/ui/badge.tsx",
+        "sha256": "d28c229c3f41ad0e17c90b25bc7c409dd960c3d6b077c39be72b6854aee07e48"
+      },
+      {
+        "file": "src/components/ui/button.tsx",
+        "sha256": "669734b5a6a3147fc242e8b9b0196fb49817009739f16ce71542c668943a1659"
+      },
+      {
+        "file": "src/components/ui/card.tsx",
+        "sha256": "c8f6fcc22121320bd53bbdbd62982f159d2d3e8c93e3d9e2f2112e6bd8a1ce0a"
+      },
+      {
+        "file": "src/components/ui/dialog.tsx",
+        "sha256": "c149626c7842a6ccf5b0b6cbb280d059e6b636dc820b37f62abe0269378f1f18"
+      },
+      {
+        "file": "src/components/ui/input.tsx",
+        "sha256": "aa7d45bfb5cff98663124a091a5fcd86735b9b037e8e84d9bfd3a54aba2a6f77"
+      },
+      {
+        "file": "src/components/ui/label.tsx",
+        "sha256": "9662973c34f20f4a1e13103ae3d558e6a63a33593c98b2821b2fbe8de25b5099"
+      },
+      {
+        "file": "src/components/ui/notification-bell.tsx",
+        "sha256": "54aa6f8453a0183f9476d9594e48516946af65ccb90bbb15849a8abced9a5d6f"
+      },
+      {
+        "file": "src/components/ui/select.tsx",
+        "sha256": "63be1491cc58534c41f224d6ff0a3c0fb4a75fb1950cb9ff59fbdcce3f6a94c5"
+      },
+      {
+        "file": "src/components/ui/separator.tsx",
+        "sha256": "6f584fe7ab840824d05da0216f5b2c151c52026515b0bd6b6c2fdd5f95a96dbe"
+      },
+      {
+        "file": "src/components/ui/sheet.tsx",
+        "sha256": "b6fd176a1fd1999aabac0fe6c80913a31f5be10a7aea2332eb737c20c2257eb2"
+      },
+      {
+        "file": "src/components/ui/skeleton.tsx",
+        "sha256": "6943aea99efa26e56d3d546bd7f41c8d4336bf56a258519e49248aa063f02ade"
+      },
+      {
+        "file": "src/components/ui/table.tsx",
+        "sha256": "7ab1e688506467e3b3345bbf6728ba2feaf7c1f31ae21553ad884eec3d7dec51"
+      },
+      {
+        "file": "src/components/ui/tabs.tsx",
+        "sha256": "b11030dd29bdee9bacfdb613746a1a6b10c98a7664c2c688736e71d2337e39d9"
+      },
+      {
+        "file": "src/components/ui/tooltip.tsx",
+        "sha256": "7fa132aa8be94a3cf05823fb40bbe0f762785f9a9e9a5917c0ea8a14a478da13"
+      },
+      {
+        "file": "src/hooks/use-cadastro-autofill.ts",
+        "sha256": "2dc622e1b33b74f15d095a8fd0a32ccf0e31c8bf14a773768ee422d2471942d0"
+      },
+      {
+        "file": "src/hooks/useAuth.ts",
+        "sha256": "645939e710737d716f5eb7dc51c6faba9901819237416f493105b72f57fabd83"
+      },
+      {
+        "file": "src/hooks/useProfile.ts",
+        "sha256": "4dc2529e0fe0b79c638df22f9fe4da2a14c3ec47fff7e6bb61a6d8af5ca7d258"
+      },
+      {
+        "file": "src/lib/actions/arquivo-nota-fiscal.ts",
+        "sha256": "5d05c11536c83bd435f4ae8870ff453861a0fd01a734060cf81fc3cae1db76a1"
+      },
+      {
+        "file": "src/lib/actions/auditoria-listagem.ts",
+        "sha256": "0e8bb62d970aa4bbec5c6864928f247328c8d1ee52871b5174dbd857f8f3a128"
+      },
+      {
+        "file": "src/lib/actions/auditoria.ts",
+        "sha256": "57befa70a4d339a41b77ec42fb1641913957d770bc30cdee48c2dcbaece808e1"
+      },
+      {
+        "file": "src/lib/actions/cadastro.ts",
+        "sha256": "6fa4fe1518bb903470360e39f06f91aa6c67c9e85be30d3bc4e383a38add2070"
+      },
+      {
+        "file": "src/lib/actions/canhoto-remessa.ts",
+        "sha256": "dad03aeb63d1bd27328ca3e0089879bd6173a5fd57e2ae9c12a3c4c19b001988"
+      },
+      {
+        "file": "src/lib/actions/cedente-fundo-ativo.ts",
+        "sha256": "88cbb68b6907a74b50272ff8cc3d7df4a9aa27c73dee668c8d96ecab0deab41a"
+      },
+      {
+        "file": "src/lib/actions/cedente.ts",
+        "sha256": "f79de01a38382705d273af1886e8fb050cfb63fa92e52989a0d53e4239e64dac"
+      },
+      {
+        "file": "src/lib/actions/comunicacoes.ts",
+        "sha256": "837ece626b9f652eaaeff2b531f8565afe6693d73e763d02b3e5d71cd676d107"
+      },
+      {
+        "file": "src/lib/actions/conciliacao.ts",
+        "sha256": "e8b5e3d5bf584835c7b288eef5e2c2a05a106c24a8d5736161e16b891811cd23"
+      },
+      {
+        "file": "src/lib/actions/configuracoes-cnab.ts",
+        "sha256": "aaf3490ca2d3269680b6083354db73815d222b8cec94622288bbdf6186c996b9"
+      },
+      {
+        "file": "src/lib/actions/convite-novo-cedente.ts",
+        "sha256": "369fd3e1712a61aa17ea019464bb00b47425b70f17710332037a968bbb362584"
+      },
+      {
+        "file": "src/lib/actions/documento-v2.ts",
+        "sha256": "b53083c6cecbc6870dd8745b35d02f649a1ae44239eb0ca3e41e1ca6da29d315"
+      },
+      {
+        "file": "src/lib/actions/duplicata.ts",
+        "sha256": "a9b994fba8016e683d4e097a1483321417a37f1d6cf60dc4f7c32fff20dac766"
+      },
+      {
+        "file": "src/lib/actions/escrow.ts",
+        "sha256": "74480e111a6a5869092416eddf2c6bbb95b1cedf570aa7c877c0925273c808a2"
+      },
+      {
+        "file": "src/lib/actions/estabelecimento.ts",
+        "sha256": "7a73428fbd63a6feefedc230de1a9ac549c7ad55bfcf20403f13940cbf846400"
+      },
+      {
+        "file": "src/lib/actions/exposicao.ts",
+        "sha256": "3d5354bbf91fd684a610f0123d62dfffd8b684bdd3822bc0a8243e505fd611f3"
+      },
+      {
+        "file": "src/lib/actions/fundo-ativo.ts",
+        "sha256": "d7857045da183ae8115e52f1465300aef2f3d0da936c8c0539d3f8bab947ba2a"
+      },
+      {
+        "file": "src/lib/actions/gestor.ts",
+        "sha256": "a08595f17980f393e0254033442f9a3d9820744863e6831b5d8c76a4d1e5acf1"
+      },
+      {
+        "file": "src/lib/actions/historico.ts",
+        "sha256": "a3b84b19d742b2524dfd1eb3a1cc180f7b53f9f4ebb676eb97c44e7f3c7692df"
+      },
+      {
+        "file": "src/lib/actions/liquidacao.ts",
+        "sha256": "031eaedc2d0ab9a55610a9fbb852ec308e6c6ddca30895683fc6e8e27d264e9b"
+      },
+      {
+        "file": "src/lib/actions/logistica.ts",
+        "sha256": "88ea01d4a706b81145b9eea0e8a8253f797841f1bb2dda44a0ecf091242d0e80"
+      },
+      {
+        "file": "src/lib/actions/nota-fiscal-remessa.ts",
+        "sha256": "b6bea4941bddff0610ce87bba15751febdd7b8a884eb5098685b3713bc07471c"
+      },
+      {
+        "file": "src/lib/actions/nota-fiscal.ts",
+        "sha256": "9f26648d162eefbf37e436c389d8d70b654f7370c8221f686da8c703ed945995"
+      },
+      {
+        "file": "src/lib/actions/notificacao.ts",
+        "sha256": "87547ceefb200a73bd44d17e25d7daf5771cfafcc6d627ea60f0e8d4ffa32d28"
+      },
+      {
+        "file": "src/lib/actions/notificacoes-listagem.ts",
+        "sha256": "3267ab7768ba9e453b316436205837c5cd6eabebd29d5fda50a150b99b58d8c1"
+      },
+      {
+        "file": "src/lib/actions/onboarding-cedentes.ts",
+        "sha256": "ba8d0549474c932a0c80ce78c238966d0083388d3945f09be63c72fbf38c59c2"
+      },
+      {
+        "file": "src/lib/actions/operacao.ts",
+        "sha256": "2fc3435f8cfd41e7c045b1887b95640d3cc530c8bc5e63305444c85ffdbbc495"
+      },
+      {
+        "file": "src/lib/actions/parcelas-nf.ts",
+        "sha256": "23549a17d856776c8a2a1e6b75cdf9e762b10aa95eda7b7a3e2d098ad6016ac6"
+      },
+      {
+        "file": "src/lib/actions/politica.ts",
+        "sha256": "c14aba59115613557e8c9e657b9af3127214e0976d1bd0b5e514e6645d497a77"
+      },
+      {
+        "file": "src/lib/actions/postergacao-canhoto.ts",
+        "sha256": "dc0f4c92d1e29e7378ed916b62f541263bffe3365ef36668fd31a0aef4ad33d8"
+      },
+      {
+        "file": "src/lib/actions/sacado-portal.ts",
+        "sha256": "115c81353ed1bcf991f49a019d4b3859a2c636cb06a21399eb03d28fcb1376fa"
+      },
+      {
+        "file": "src/lib/actions/sacado.ts",
+        "sha256": "01f6e9a980a5205c6c71e0967aa934328a8f66e821cde1e72db428a3fa7158fd"
+      },
+      {
+        "file": "src/lib/actions/selectors.ts",
+        "sha256": "a180f06c28f9c42ccbfd05f483dfec5d0e6ec53cca486d5fe8ff6acfcf65977a"
+      },
+      {
+        "file": "src/lib/actions/templates.ts",
+        "sha256": "51faca1ce7fe96062ffe9df695146f94930686430cda244aa5d811942d95b14d"
+      },
+      {
+        "file": "src/lib/actions/testemunhas.ts",
+        "sha256": "fe62c52f327608ec55af6b469d4eb0c7da4e5c593ed044482aba86da681bc207"
+      },
+      {
+        "file": "src/lib/admin/auth-admin.server.ts",
+        "sha256": "13d04d6e7284cea4f135f7976df4ce199a3793ec485b972c378ad05ec35b81a1"
+      },
+      {
+        "file": "src/lib/admin/configuracoes-tecnicas.server.ts",
+        "sha256": "2b8aa4a35aa9abf2ab00b9e5d99cf5a123426e5fe9387b13a52dee1462e14b9a"
+      },
+      {
+        "file": "src/lib/admin/configuracoes-tecnicas.ts",
+        "sha256": "f1ddec96c4ad01866258095661018a2d0792ad4bffa6c7a742f3b6dba27bc71b"
+      },
+      {
+        "file": "src/lib/admin/dados-financeiros.server.ts",
+        "sha256": "c9b4c9a5de6aa7235f856b73bccf573b72a60ea0d9bf28cd09b0dc5778860356"
+      },
+      {
+        "file": "src/lib/admin/dados-financeiros.ts",
+        "sha256": "ef1f2c7db479ccb8f38b49eb8d337b59751516829540c9a8ed43f27d5c3bd8ed"
+      },
+      {
+        "file": "src/lib/admin/endpoint-seguro.server.ts",
+        "sha256": "f23f848f1095d1943ddf59c445ef111eb54cde7e6732213fdffd1eb8a944cb1d"
+      },
+      {
+        "file": "src/lib/admin/executar-mutacao-tecnica.ts",
+        "sha256": "1e0fb757d13ae577f6616f0e48429031d93358a11cdb65ec25f39221ef54782b"
+      },
+      {
+        "file": "src/lib/admin/fundos.server.ts",
+        "sha256": "0344f9cf9e24f2baf9560fd2644ed15858a26af8429ec47bf316302e554a788b"
+      },
+      {
+        "file": "src/lib/admin/fundos.ts",
+        "sha256": "bc0995bfcfd450357a33c55d76cefed7a21cb8cb5caca507396704473307bf23"
+      },
+      {
+        "file": "src/lib/admin/integracao-editor.ts",
+        "sha256": "658862f300afd771d5d6e60aeaf0244cfa3d578f6603d728814515081cc51b31"
+      },
+      {
+        "file": "src/lib/admin/integracoes-transportadoras.server.ts",
+        "sha256": "1ea96a4e44ace54dd36fa6b10c7d0869c237599141aa89112b824c8f939e9147"
+      },
+      {
+        "file": "src/lib/admin/integracoes-transportadoras.ts",
+        "sha256": "79754df7da7b61e0212178d2af301cb67dd1251bba2950e5d5d868d5b5e5a308"
+      },
+      {
+        "file": "src/lib/admin/usuarios.server.ts",
+        "sha256": "4bd7e64fe207270e6f4140731fbef67be3528271a2209c362915b90ea94ad209"
+      },
+      {
+        "file": "src/lib/admin/usuarios.ts",
+        "sha256": "8d3b253a559c527af4512eeaf397069834ef06d7b028a33f5b64eb7f203688fa"
+      },
+      {
+        "file": "src/lib/admin/vortx-vrs.ts",
+        "sha256": "a50dab901c5ce9b07b208900b38725a8b36f9825e4bd44c033cffac8a5035d37"
+      },
+      {
+        "file": "src/lib/analytics/contracts.ts",
+        "sha256": "4e493f76b52f0550cf041949f544de98d939c7ca9312cabfcdb3d1d261bcc73d"
+      },
+      {
+        "file": "src/lib/analytics/loaders.server.ts",
+        "sha256": "b94c66a35dea4c8ea4ff4bb033658dcf3e42bbc8da6804e55ca5c1fc1097c863"
+      },
+      {
+        "file": "src/lib/auditoria/contracts.ts",
+        "sha256": "7e828dcff496edeb15eb1e1283d81dc8ec9b4bb641fc1bca6f82ac067667a914"
+      },
+      {
+        "file": "src/lib/auditoria/listagem.server.ts",
+        "sha256": "63af952fcd1ee7046093c97dda05ad144d66865d78d16d92b73036bbd7c5eb69"
+      },
+      {
+        "file": "src/lib/auditoria/privacy.ts",
+        "sha256": "65bc5b6d623e3d4ce6df08d3c9dbd23f9e79f9a3e00f289f2a3ae8549a7d76b0"
+      },
+      {
+        "file": "src/lib/auth/admin-authorization.ts",
+        "sha256": "8297d6e20175a57c5be280673226c1b8c6b102dd4d0371822e3d2d3976534569"
+      },
+      {
+        "file": "src/lib/auth/audit-actor.ts",
+        "sha256": "50418f55bc603b636dfeb273a70c35510b4dc83c422552ee9a21c659b006cce5"
+      },
+      {
+        "file": "src/lib/auth/auth-flow-server.ts",
+        "sha256": "7e4d7d573cb986e5d98ffbdd19820dbcfeefa09f7cadd92ec77f6fe03cab7eb4"
+      },
+      {
+        "file": "src/lib/auth/auth-flow.ts",
+        "sha256": "21f6acb4da05e26f8cdd32e3f27e226aeb32cd4ab8d9afec6ebcbd94ab3f38cc"
+      },
+      {
+        "file": "src/lib/auth/authorization.ts",
+        "sha256": "1d062aa532503fc0630ddda36fb76b2d5e4c83a8172673f92ba8bf333605c2cb"
+      },
+      {
+        "file": "src/lib/auth/cedente-onboarding-access.ts",
+        "sha256": "87dc243e6ee58f47f17909b7a02d276dce713c0f4ef1f3951fd53d87aa287244"
+      },
+      {
+        "file": "src/lib/auth/gestor-invite-completion.server.ts",
+        "sha256": "d69537a3e21a838cc48464b3215a62b78f69dcad7e3c02d25b457413516e4a5f"
+      },
+      {
+        "file": "src/lib/auth/gestor-invite.ts",
+        "sha256": "5186057dd60393977f275f0455abacbd3083e7c482ee70737866cb2c8ff3065f"
+      },
+      {
+        "file": "src/lib/auth/identity-query.ts",
+        "sha256": "24f2df9a1e04aef7a666cd6fdb8246e40fc6cc77846e8f6f5d864f3625721205"
+      },
+      {
+        "file": "src/lib/auth/mfa-session.ts",
+        "sha256": "d2e5abaa9bbf6515eb0b52e6d2dab9bccb330759d68a16c14250a70f65004129"
+      },
+      {
+        "file": "src/lib/auth/mfa.ts",
+        "sha256": "722f1cb2bc1e138f7fcd7a1e75eee9c49b42cb64949bd5159482f8a6cac73ed7"
+      },
+      {
+        "file": "src/lib/auth/novo-cedente-invite.server.ts",
+        "sha256": "32007760468c7dbb442f0e741ef1f2da02d48bc98b22b6e38f864af829e0677d"
+      },
+      {
+        "file": "src/lib/auth/novo-cedente-invite.ts",
+        "sha256": "9476b92f6601f33faa7dfa80c903626eb7ec97d6f3ecc659e8a2d9314cce647f"
+      },
+      {
+        "file": "src/lib/auth/password-recovery.ts",
+        "sha256": "91232c06ce21bc37adca9a48c24769dc91575d491afdc082abad24d701f811c0"
+      },
+      {
+        "file": "src/lib/auth/password.ts",
+        "sha256": "2904c64459c31ca27a744dcac0cb536254817a1ae875a985b5053b87889ebc1a"
+      },
+      {
+        "file": "src/lib/auth/permissoes.ts",
+        "sha256": "fbb9024ec9775da3da203d706372d62dd1c645e1451d4960060a44beec139d91"
+      },
+      {
+        "file": "src/lib/auth/platform-access.ts",
+        "sha256": "1d55e7fc252ec01b9425e56dd4218e37151c9ca6f38bd80cce46c14119aa97c2"
+      },
+      {
+        "file": "src/lib/auth/role-routing.ts",
+        "sha256": "f01ac42c0eb4ac99ff591f0422b40c673fb423c3c5167c68b40cf92e453dc00d"
+      },
+      {
+        "file": "src/lib/auth/security-display.ts",
+        "sha256": "062726d05aef2f0c6d09f00441c499817ce3ed64e7f1c2d663cf473494a3c225"
+      },
+      {
+        "file": "src/lib/auth/sensitive-action.ts",
+        "sha256": "bb79a2db7d612a74df364d7e8c4cdf6d1cc6c29a237ddc1db5349a718684e3b9"
+      },
+      {
+        "file": "src/lib/auth/signup-feedback.ts",
+        "sha256": "a7f5e11f1225889fe3fa840809540940860bb70499814869c1119f179ef985b1"
+      },
+      {
+        "file": "src/lib/cadastro/bancos.server.ts",
+        "sha256": "0b0ad65eaeefa8a46a8a78503416b45989d332eea1f06282855927ad9a8079ed"
+      },
+      {
+        "file": "src/lib/cadastro/cep.server.ts",
+        "sha256": "2234a5c992d9a530b0e22ce7fcc7114f9ea9874674cb031c382a248ddd6c5538"
+      },
+      {
+        "file": "src/lib/cadastro/cnpj.server.ts",
+        "sha256": "e388999bde78a3ddaf1b1e1d4d07c964c970a8e33870fb569bbc62fb47acc6aa"
+      },
+      {
+        "file": "src/lib/cadastro/types.ts",
+        "sha256": "5f2defda688e46bbeb7fe856906fe7cc32e39af0049b0f3a2eb8e0983f7dffeb"
+      },
+      {
+        "file": "src/lib/cedentes/estabelecimentos-listagem.server.ts",
+        "sha256": "3c999039862114088c27d17852ec931b641ba211b1b7e2d1bd9a1063196bcabb"
+      },
+      {
+        "file": "src/lib/cedentes/estabelecimentos-listagem.ts",
+        "sha256": "f80d90d6ad18bedc290b2822e77de683153f9f21eae457e281635c58e074fee2"
+      },
+      {
+        "file": "src/lib/cedentes/estabelecimentos.server.ts",
+        "sha256": "14cf86ce73faeff2d4e5dcfe26052f78759fe4a989e0bb2e2d5d7290e2d8b78a"
+      },
+      {
+        "file": "src/lib/cedentes/estabelecimentos.ts",
+        "sha256": "6531332f3877a0c2ca5d7350375226cb9956763d63d090d49204851bb5d785a8"
+      },
+      {
+        "file": "src/lib/cedentes/gestor-listagem.server.ts",
+        "sha256": "3467fb0dddd026337d8256f2b14ed097dc692353faa78fda59fcebcdcbda7e48"
+      },
+      {
+        "file": "src/lib/cedentes/gestor-listagem.ts",
+        "sha256": "5a3f88001ff334d74e2ed1affb0deddf9bd5533159725b8729b544f6a39eb577"
+      },
+      {
+        "file": "src/lib/cnab/__fixtures__/cnab444-golden.json",
+        "sha256": "ff78f0dad67814598a4ad131d0e32734741d9e9b8da3e70056ae37286b5e0a98"
+      },
+      {
+        "file": "src/lib/cnab/domain.ts",
+        "sha256": "cae4f7426cdd4a12bcc39a3bd4798a6e0c6e9978c938f270536eb5083b879de3"
+      },
+      {
+        "file": "src/lib/cnab/gerarCnab444.ts",
+        "sha256": "caac4aabd47b73d48bb10a224167b39b3476e9cd06dfa3c2cfd6cbbcd336e3f8"
+      },
+      {
+        "file": "src/lib/cnab/layouts/cnab444.ts",
+        "sha256": "d336bff269888e9c38b5268a16e3cfb25821ec250d535d5d470ea347d4926620"
+      },
+      {
+        "file": "src/lib/cnab/resolver-configuracao.ts",
+        "sha256": "915da3339ab47a004f28c4ccce5a76c60ed177a4e19a1acca2c5cb8c1317bcbf"
+      },
+      {
+        "file": "src/lib/cnab/validar-remessa.ts",
+        "sha256": "88d5e88176136223d028540c5b18ec91f72a24d3f4cd125852a17f1706c6692d"
+      },
+      {
+        "file": "src/lib/comunicacoes/agrupamento.ts",
+        "sha256": "070dd5e58d6f8bd035e5e74e771c82224bffda6fb28175c40ced4a8c7a826334"
+      },
+      {
+        "file": "src/lib/comunicacoes/calendario.ts",
+        "sha256": "0cce9e0877500d35517a45b8e9dcfdcce42f2512a1f4176cf7a23eafbcf967e0"
+      },
+      {
+        "file": "src/lib/comunicacoes/motor.server.ts",
+        "sha256": "0988fb8df36ff52eb47b1526ed72ac45971cadd38e5c12b88250f3c8f71af1f1"
+      },
+      {
+        "file": "src/lib/comunicacoes/regua.ts",
+        "sha256": "fb78927e70e7374083458f16d2ac9bf7a18d1bd4b37e2a697f754a726710ad79"
+      },
+      {
+        "file": "src/lib/comunicacoes/remetente.ts",
+        "sha256": "4c276088209303ab0cb04c8df8e9249b2b46fff3f5fc6d363a1dfb4bccf57501"
+      },
+      {
+        "file": "src/lib/comunicacoes/templates.ts",
+        "sha256": "d9c8211338d5cfea33ed95f43d8c7261198e6ec1a74fbc28fdb0c5c11bebf765"
+      },
+      {
+        "file": "src/lib/comunicacoes/tipos.ts",
+        "sha256": "cecd0d861b9474f72e825018955c0e7de8bebf9ffced0420c091918ee2de2737"
+      },
+      {
+        "file": "src/lib/documentos-cadastrais/upload.ts",
+        "sha256": "4c791db90c9c73549945e0f3a33dc2a9826716b32bc805ffb20ee0b17083dd80"
+      },
+      {
+        "file": "src/lib/documentos-v2/base-documentos.ts",
+        "sha256": "b3da087e2bb60e6da30226a9e6a43df787c381485d7419200ff33c0060a079c6"
+      },
+      {
+        "file": "src/lib/documentos-v2/boleto-beneficiario.ts",
+        "sha256": "10f054b800d2ce966b6b0109475b6de718cdbb5dbab210b0089950fcca1f3076"
+      },
+      {
+        "file": "src/lib/documentos-v2/canhoto-vinculo-remessa.ts",
+        "sha256": "96c3ff4040f0cb91d4e3354190d8d14f00083862f3fd77b35344ac04e2cbcb08"
+      },
+      {
+        "file": "src/lib/documentos-v2/checklist-state.ts",
+        "sha256": "aaddd39ca03485f7a9b7c22ac5c8063df75bb2ab7e8a622d7aa3f70c29f064d7"
+      },
+      {
+        "file": "src/lib/documentos-v2/codigos.ts",
+        "sha256": "c948158b478a1992b8a5ccfb28e6475527247e99bd29887c4d35263376c23a18"
+      },
+      {
+        "file": "src/lib/documentos-v2/nf-remessa-status-visual.ts",
+        "sha256": "585a3e151dd349d233f3b566cf183fd472a1621e50623410fcfb90a49a507af1"
+      },
+      {
+        "file": "src/lib/documentos-v2/prazos.ts",
+        "sha256": "6d23e7007c0d8b1f4e614e360073720c2d2db8e68783ee4cdb209b470e43b74d"
+      },
+      {
+        "file": "src/lib/documentos-v2/reconciliacao.ts",
+        "sha256": "0d18a79d87b707923a3cb6abab8655349168417e6dd969f22a58c5cd0461b5a0"
+      },
+      {
+        "file": "src/lib/documentos-v2/requisitos-pos-cessao.ts",
+        "sha256": "823f94c73337be898b04f79d0261385c7a0faed5716ca7851e60c3d0ebd990f5"
+      },
+      {
+        "file": "src/lib/documentos-v2/requisitos.ts",
+        "sha256": "8ef3e141cda044a9f7b962998567fefe928c9984336f26bdc62f51d57b37daf0"
+      },
+      {
+        "file": "src/lib/documentos-v2/resumo-operacional.ts",
+        "sha256": "0ad8b34f1a47e7984523d114cb76b594a6918f0d29a628721733c8ac1db0e31b"
+      },
+      {
+        "file": "src/lib/documentos-v2/satisfacao-requisito.ts",
+        "sha256": "29e5cfc4a20aab75c01b5b75a08b996b2438091a07a43c3b194c82a5a79f026d"
+      },
+      {
+        "file": "src/lib/documentos-v2/storage.ts",
+        "sha256": "64026b15f36cd7842acdd1b31189144d5e7749254da855b8838803ce638796ca"
+      },
+      {
+        "file": "src/lib/documentos-v2/tipos.ts",
+        "sha256": "1f40e59ebae0a258a439a7aedb8f676542ef349cb5d6103b714f807a00f56ebd"
+      },
+      {
+        "file": "src/lib/documentos-v2/upload.ts",
+        "sha256": "d0c9e1313aff1cebc4e1325c881ba569437ad44867ba3658a2a4601654a3f487"
+      },
+      {
+        "file": "src/lib/documentos.ts",
+        "sha256": "f7fea2b8ae5b145f2cb531b1a83127a9b23c478443c553fe3883010720c61aec"
+      },
+      {
+        "file": "src/lib/documentos/gestor-listagem.server.ts",
+        "sha256": "16f1f63430c5c675e76b43ad66fab6effd17f760207793d27aefa8b8416d102b"
+      },
+      {
+        "file": "src/lib/documentos/gestor-listagem.ts",
+        "sha256": "6b9d3639731c3b2bba32c1ad4b7abf9ca3dd25c5e3ad8b9a2c70c481a946d511"
+      },
+      {
+        "file": "src/lib/duplicatas/arquivo.ts",
+        "sha256": "107de4824884da6bd142fa58a848b3adaab1970d9f479f3b2c240bc5ac120985"
+      },
+      {
+        "file": "src/lib/duplicatas/gate.server.ts",
+        "sha256": "d2dd87f4740c006a10c32b088c73d9b54efe4e55a8f6be26f6e61f16832ef478"
+      },
+      {
+        "file": "src/lib/duplicatas/parser.ts",
+        "sha256": "1908037502802a6b5e3b04250d1b17dbf5fb8f4b65726db879826954114a4b4b"
+      },
+      {
+        "file": "src/lib/duplicatas/pdf.server.ts",
+        "sha256": "6457011026b235124569c543948a9877ba0eef0202a5ea231b6e9b637a5db4b8"
+      },
+      {
+        "file": "src/lib/duplicatas/types.ts",
+        "sha256": "8ea7891d7d75b82229d229e9379209a8cdd1b7a01aaea955e9b8c16c28854a9f"
+      },
+      {
+        "file": "src/lib/duplicatas/validacao.ts",
+        "sha256": "bd343e3b6656e7d966397d613f20fe65a504d1bd70d19d8f13e9fd109a19d1c0"
+      },
+      {
+        "file": "src/lib/email.ts",
+        "sha256": "f3b85a101ef7600490a72938432ce4d8596c602a67def52078eb3ab43cea8754"
+      },
+      {
+        "file": "src/lib/escrow/listagem.server.ts",
+        "sha256": "5cf10ff39067f011f17a684994facc19e077b2d98a1a6ed6950559898f05edbe"
+      },
+      {
+        "file": "src/lib/escrow/listagem.ts",
+        "sha256": "a647e8a2f6b06bbd14c38201463896d20515cf0dd8c74e1ae0d8c61d88319425"
+      },
+      {
+        "file": "src/lib/escrow/movimentos.server.ts",
+        "sha256": "a4d88ede7b0f46e3a731800a1094318bf9f0ab998c5b6d4fb2b8e5feb85fb678"
+      },
+      {
+        "file": "src/lib/escrow/movimentos.ts",
+        "sha256": "e5545a8469d7a35b8dcc1bd827237960bc81168e342fcebe05f9682627ba6a8d"
+      },
+      {
+        "file": "src/lib/eventos-dominio/formatters.ts",
+        "sha256": "58162fd0f477e8daede18b13b00280fcebcfd02f583ee0ce4e5f307f5db18645"
+      },
+      {
+        "file": "src/lib/eventos-dominio/registrar.ts",
+        "sha256": "8f344a930a7ef06a26b125921b4ee4e4cb52504e6917f33ed9ab092d399fd20a"
+      },
+      {
+        "file": "src/lib/financeiro/bootstrap/detector.server.ts",
+        "sha256": "936982f1b91abe303faeeef4fc7d300d2f5de93346fa9f76ff26ac0cfee43759"
+      },
+      {
+        "file": "src/lib/financeiro/conciliacao/base-financeira.ts",
+        "sha256": "64729ffa29d466730d1200cd73b8372e1c453a88e922d804bce2cb820d916c0e"
+      },
+      {
+        "file": "src/lib/financeiro/conciliacao/loaders.server.ts",
+        "sha256": "b25728f890be0905e92a2653ce3706dca03c51dfe47d669b66b761b6b4d739ec"
+      },
+      {
+        "file": "src/lib/financeiro/conciliacao/processor.server.ts",
+        "sha256": "d2d99b6a07f8c2d7208769c96d78cddc8371f064659ad69638ce177fefcb9724"
+      },
+      {
+        "file": "src/lib/financeiro/conciliacao/reconciliation.ts",
+        "sha256": "69619f512e8e1d3fe24a47e4bde1caa32422fb576ebb1969d83e0938170e0ab1"
+      },
+      {
+        "file": "src/lib/financeiro/conciliacao/types.ts",
+        "sha256": "371f7ea4cdea6c76d6381d9b6cef23609e02d0200b4ae8534bdb31ff0d135f4d"
+      },
+      {
+        "file": "src/lib/financeiro/exposicao/calculo.ts",
+        "sha256": "e661050e84927d6ab8de35d5f2137df454e8cee39d03dba454e005dfb278ae4e"
+      },
+      {
+        "file": "src/lib/financeiro/exposicao/fingerprint.ts",
+        "sha256": "a83b7edc0042b95a5b699cf448bcb80baf753c9013fe0709a8afb9d22e6582f4"
+      },
+      {
+        "file": "src/lib/financeiro/exposicao/processor.server.ts",
+        "sha256": "020578a56a23c5a27190a32eaeb284872ca11980cc667e990d12ec2b33243e8c"
+      },
+      {
+        "file": "src/lib/financeiro/exposicao/types.ts",
+        "sha256": "10ae3ade1f4e92f72d84bc354275ea2b07ea4131949dcd3e18d60123089bb10a"
+      },
+      {
+        "file": "src/lib/financeiro/ingestao/cron-contract.ts",
+        "sha256": "7fc686d2b211aa1756ffa26e0ef1e0b1b1d150f5d90e3a9df25f74874318ddde"
+      },
+      {
+        "file": "src/lib/financeiro/ingestao/cron.server.ts",
+        "sha256": "0ca7086a10a65b8d7ab7bfa54b57268641d170cfab51d268d7d898124eca347a"
+      },
+      {
+        "file": "src/lib/financeiro/ingestao/fund-context.ts",
+        "sha256": "bc8bcfa2bd6197a22f0233098a0d9787bde92f34d91415b2b25c7f0a004a101f"
+      },
+      {
+        "file": "src/lib/financeiro/ingestao/ingestao.server.ts",
+        "sha256": "377534dc9c1e9794aaf91fd173efdbeb415f82419f0d7c8f0ba4ef075195b9c3"
+      },
+      {
+        "file": "src/lib/financeiro/ingestao/layouts.ts",
+        "sha256": "2b1a020db067550e3f7281a531f33b618348fb04883b0922fb2bca30f084e677"
+      },
+      {
+        "file": "src/lib/financeiro/ingestao/parser.ts",
+        "sha256": "f0854e0d0f8d01e9a8b4eb11799d9a3a93874c3c7604be9ea149702c30e1e155"
+      },
+      {
+        "file": "src/lib/financeiro/ingestao/provider.ts",
+        "sha256": "aeea336d4efcf9d15fc35ee114cfda546e3c741ecf8b22160a1725dd1c466a9d"
+      },
+      {
+        "file": "src/lib/financeiro/ingestao/sinqia-portal-fidc.server.ts",
+        "sha256": "e62af3b73e8bec99479e4be9aaf405728ca7ca05f6a144c13d3c94f4f00f823c"
+      },
+      {
+        "file": "src/lib/financeiro/ingestao/types.ts",
+        "sha256": "0830e9c26b9be583fb97906835cf9615acfc7b48623e46d268e3595139c69a26"
+      },
+      {
+        "file": "src/lib/financeiro/logistica/evidencias.server.ts",
+        "sha256": "869ff0070599c6d6b001daaa4bc76596a53c15f5a63403adf1802c959906d7cd"
+      },
+      {
+        "file": "src/lib/financeiro/logistica/fingerprint.ts",
+        "sha256": "755910d1fa7ce866434492e496e8cfa97d10a6d4abc5d9ab59b8c5194fd8eb62"
+      },
+      {
+        "file": "src/lib/financeiro/logistica/processor.server.ts",
+        "sha256": "ce8a465c789fdaef2f25dcbd19f3a280013a1185b347a0059f15648d2b5ba474"
+      },
+      {
+        "file": "src/lib/financeiro/logistica/snapshot.ts",
+        "sha256": "13508d9d55b51b42b3aa8f34dda710543c5dd9f97280aa42217e3592b28b4b71"
+      },
+      {
+        "file": "src/lib/financeiro/logistica/types.ts",
+        "sha256": "b97185c6bcd949ea22b5d8b5b2799ec908a5d433ec1913e20e96974bb5f0cbe9"
+      },
+      {
+        "file": "src/lib/financeiro/matching/matching.ts",
+        "sha256": "9173450e946512ef642e15954824753b67f2afbcea505563f70ee412b635f25e"
+      },
+      {
+        "file": "src/lib/financeiro/pl-referencia.server.ts",
+        "sha256": "c8e2d2ff43d107023aa388daf26ed96b85f3bb6dd94097010cec6e6a82eb5571"
+      },
+      {
+        "file": "src/lib/financeiro/pl-referencia.ts",
+        "sha256": "6355eb1e9baa245f1e0ba4addca7f7e12c0d653318907ccb3e30eaa7d6920a1b"
+      },
+      {
+        "file": "src/lib/financeiro/qa/pl-sintetico.ts",
+        "sha256": "7d80a6f963811531799ca8a12985e6d49019f378b936a2eeefa5f8264ab749d8"
+      },
+      {
+        "file": "src/lib/financeiro/risco/benchmark-stats.ts",
+        "sha256": "abecd30a336f912b467a9a2a077fe845cb2f46599ea2c250e87f2465c0b864c8"
+      },
+      {
+        "file": "src/lib/financeiro/risco/classificador.ts",
+        "sha256": "1b5e12f9d26c2e8d8b72f297cebca33f29ab56c61ccc3a72bb7ac16130076f3c"
+      },
+      {
+        "file": "src/lib/financeiro/risco/fingerprint.ts",
+        "sha256": "9bd1e9702b3e52c45508afacf7f0c5ed5c682136224c772810ab1bae7176955c"
+      },
+      {
+        "file": "src/lib/financeiro/risco/processor.server.ts",
+        "sha256": "39fb1c7e47d1b61fbc29dc6e08fa738d4dbb57d61e22a35352617186e42394d6"
+      },
+      {
+        "file": "src/lib/financeiro/risco/proforma-selecao.server.ts",
+        "sha256": "d17de3fa462c896f9264ac4dd699ebbb8811dba82ab249d0831ac83d38e4b29a"
+      },
+      {
+        "file": "src/lib/financeiro/risco/proforma-selecao.ts",
+        "sha256": "2c68d1412d00cd9b16ca4b81f71c57c73953276f760cd2bda249746f16d7d3d4"
+      },
+      {
+        "file": "src/lib/financeiro/risco/types.ts",
+        "sha256": "66cf390f06e9999fd02475342ab17870e2202022265e68da5400c3e1322acd13"
+      },
+      {
+        "file": "src/lib/financeiro/risco/visao-operacional.server.ts",
+        "sha256": "1309fce7142b9e5b3511de205fa324433f4cbc8a40fa95d1aa47892eebe63360"
+      },
+      {
+        "file": "src/lib/financeiro/risco/visao-operacional.ts",
+        "sha256": "ea64774fc1a2649c6b62a0c9a1dfbf91781b36b801fbdfa442dd3bff0d07c8d4"
+      },
+      {
+        "file": "src/lib/fromtis/remessa.ts",
+        "sha256": "7ed283c5a90ee73ae7667aa306b4a884d4b10deb83ab0365658339f5cd57c0ee"
+      },
+      {
+        "file": "src/lib/fundos/cedente-fundo-ativo.ts",
+        "sha256": "3ed1fdb0373d5be4ed2dde9b59bd36e672b3cf47f374c63166c288f56b1e07ec"
+      },
+      {
+        "file": "src/lib/fundos/cedente-fundo.ts",
+        "sha256": "8ae98c3ef1ab7fa87a0e066acee56fd94426c6821f5b2ab8904f688c2e90874a"
+      },
+      {
+        "file": "src/lib/fundos/fundo-ativo.server.ts",
+        "sha256": "d87889e74fa6681ef631fa904da3c2dade3122692e90fab88d0913489888b6da"
+      },
+      {
+        "file": "src/lib/fundos/fundo-ativo.ts",
+        "sha256": "265a4bd00c3fd4a9ae819d71eaea1de3e84746ea267834a95ccc3226c649424f"
+      },
+      {
+        "file": "src/lib/gestor/contexto-fundo.server.ts",
+        "sha256": "b0eb3a37bfbd2fece7190de235bee1fc29e87714d1ffa7b3d4c86a422b2b3ad2"
+      },
+      {
+        "file": "src/lib/integracoes/adapter-catalog.ts",
+        "sha256": "e9d145fca6ef2745f38367c4519c9b29803f0db51c4aec318a89e5a0b6562549"
+      },
+      {
+        "file": "src/lib/integracoes/capabilities.ts",
+        "sha256": "ca4622d5a227516df392c7eed127a6645b9f2337d2ed56bf8ed0afbedee4eb2f"
+      },
+      {
+        "file": "src/lib/integracoes/configuracao-financeira.ts",
+        "sha256": "11318d108dfa5409833dd552079f369f4cf78371de93dbf2968040a03072a5ac"
+      },
+      {
+        "file": "src/lib/integracoes/configuracao-vortx-vrs.ts",
+        "sha256": "ef706d420c876a57d6315c52decf828a19098cbf191c4212a6fd25f5f3ae7c24"
+      },
+      {
+        "file": "src/lib/integracoes/credentials.server.ts",
+        "sha256": "555bdc18d2150e45f1edf7764f02f23fd61f760d7dd6bf0316111c083c9f60aa"
+      },
+      {
+        "file": "src/lib/integracoes/legacy-env.ts",
+        "sha256": "1fbb4128960b155c703f0dc22fa8131c7358607b51f4d30bb13e1961a64b9854"
+      },
+      {
+        "file": "src/lib/integracoes/registry.server.ts",
+        "sha256": "e59bf88e0eb63f56c698b09ef992a241a714aaa841149ff98de38cddb800f9d7"
+      },
+      {
+        "file": "src/lib/integracoes/resolver.server.ts",
+        "sha256": "0188b414cf37c601729eb46ed6f8d241d8e279bb34b04b941801d060787613d6"
+      },
+      {
+        "file": "src/lib/integracoes/vortx/credenciais.server.ts",
+        "sha256": "f10a5cbf52f72da96a16f3ec62d82b2ef3ca0c1dfbdbc1d6382ed638fafe6623"
+      },
+      {
+        "file": "src/lib/integracoes/vortx/mtls-credencial-validacao.ts",
+        "sha256": "5f4f7721ef1f403079c8d92fe61d3694b3e7eac572078b8a5e8c11c3855e93ce"
+      },
+      {
+        "file": "src/lib/integracoes/vortx/mtls-http-client.server.ts",
+        "sha256": "99d3b78d9ac908b027a2574d85905cf6c3b17d66f12bf0ce55273f3673171862"
+      },
+      {
+        "file": "src/lib/integracoes/vortx/token-cache.server.ts",
+        "sha256": "95bfa1ac59198d055149407d8860552b11ac9e162788ca8525a059d99a95ea2e"
+      },
+      {
+        "file": "src/lib/integracoes/vortx/vortx-vrs-client.server.ts",
+        "sha256": "64f25b8f67c3243b241cd243e498e652f09786f5079651ee00537b0c330515ad"
+      },
+      {
+        "file": "src/lib/integracoes/webhook-comprovante-transportadora-matching.ts",
+        "sha256": "fc93c488e7040fccbd50c3764c1c6773ebff94cd55dde20036c6ecba89ea64ca"
+      },
+      {
+        "file": "src/lib/integracoes/webhook-comprovante-transportadora-payload.ts",
+        "sha256": "89d189f450f9fd72744cb1ff2e5a3f689e59daa4371e77bb173bf8c6def2a6c6"
+      },
+      {
+        "file": "src/lib/integracoes/webhook-comprovante-transportadora.server.ts",
+        "sha256": "da4bfa3814f4cf3802af9105cf3baefa0e930bb968071b97e8727b16eafc8d51"
+      },
+      {
+        "file": "src/lib/logistica/__fixtures__/reais/149-cte-direto.xml",
+        "sha256": "eae62371e6622a14e0aae8a97ffaa9d517e442566db398bc761921a6e5e06be8"
+      },
+      {
+        "file": "src/lib/logistica/__fixtures__/reais/149-venda-direta.xml",
+        "sha256": "f4a0acdcf2a0e694c1e7322811465dcb3ec7ee7c125994b9cae5c14ce0c07bd6"
+      },
+      {
+        "file": "src/lib/logistica/__fixtures__/reais/5576-cte.xml",
+        "sha256": "6bfe21da4f1ccd8f070514f5294ae976c35d178064332e694795cdcfff42e7b4"
+      },
+      {
+        "file": "src/lib/logistica/__fixtures__/reais/5576-remessa.xml",
+        "sha256": "8bffb17adc516b5b67472e758323551d7e7a644d8869f571cde2c2d6b491fc4f"
+      },
+      {
+        "file": "src/lib/logistica/__fixtures__/reais/5576-venda.xml",
+        "sha256": "d690e6b416323cf46e466cc18794190d0da34ec4666f108cbd812a1d1302619e"
+      },
+      {
+        "file": "src/lib/logistica/acompanhamento-operacao.server.ts",
+        "sha256": "9500688dae18260fa52986377db96869eed4eb2e0ac61a53ea92c8291b7e501f"
+      },
+      {
+        "file": "src/lib/logistica/acompanhamento-operacao.ts",
+        "sha256": "3be0cdad2530ae333bdf0d95a5216efd31657ce914986483090798a74a37d243"
+      },
+      {
+        "file": "src/lib/logistica/candidatas-cte.server.ts",
+        "sha256": "c41568c7ae0e7272b0a2e9ea18c691307ffcf898d6419bde8e029c32691702aa"
+      },
+      {
+        "file": "src/lib/logistica/central/central-logistica.server.ts",
+        "sha256": "33d6bb975251c5359c930669da530ca1d4dead7ca49da154931a88619cee149e"
+      },
+      {
+        "file": "src/lib/logistica/central/dominio.ts",
+        "sha256": "33537130c56cc6bfbabb144fded40dc100514a310da82ce650764bccc1d765d0"
+      },
+      {
+        "file": "src/lib/logistica/central/filtros.ts",
+        "sha256": "4fca3d50f34a2c46f9785dcc867df1de484712a0c1acf57df5843b306c7fc4ad"
+      },
+      {
+        "file": "src/lib/logistica/central/tipos.ts",
+        "sha256": "3d5539fdeeb2057ea19a4fc376295e548bba8f73da46c2aaa8a898cba9fed6cb"
+      },
+      {
+        "file": "src/lib/logistica/cte-parser.ts",
+        "sha256": "1da53be5c5b87eab8a7dc84764acf9a0673d41a8f12d917ad7c6f94ec8cbb9b3"
+      },
+      {
+        "file": "src/lib/logistica/evidencias-logisticas.ts",
+        "sha256": "6ce884b6f476d637e5fd13d846f8f79744d98a5f40a8905bf20232f7a4993dc3"
+      },
+      {
+        "file": "src/lib/logistica/nf-remessa-matching.ts",
+        "sha256": "d6a0ca1e2db2be7c969dce20c86951f06a7496b08746101de6e980b0812a824a"
+      },
+      {
+        "file": "src/lib/logistica/postergacao-canhoto.ts",
+        "sha256": "f53b7232c16f8c2705c600bf32f02855a6c8aab7e110d67261ba622dfe313c8b"
+      },
+      {
+        "file": "src/lib/logistica/upload-antecipado.server.ts",
+        "sha256": "42c08513272fcf3f7ab2d439b70e9190895eee124ec94cb13f4daa3c25e40a4f"
+      },
+      {
+        "file": "src/lib/logistica/validacao-cte-config.ts",
+        "sha256": "e676186bd0ad7424dcaa80133f3b90c944524becaca7b223b3b25339f4b60bfa"
+      },
+      {
+        "file": "src/lib/logistica/validacao-cte-nfe.ts",
+        "sha256": "fdb054dac7bc0fd8be49c9e9a10e4d85937762452f7658b2e37d7c6e75dd9c5c"
+      },
+      {
+        "file": "src/lib/navigation/sidebar-active.ts",
+        "sha256": "b250f7c3a5f84259458d57d8c6e2866b78da8b7884dc65cf75e7faaddeae2f8b"
+      },
+      {
+        "file": "src/lib/nf-parser.ts",
+        "sha256": "8c91ad865acb1646fe096a60eefc775c389fc1a6c3214681de2ca51800309aff"
+      },
+      {
+        "file": "src/lib/notas-fiscais/avaliacao-checklist-aprovacao.ts",
+        "sha256": "0db9802d522165682ee7d0dbeea8347931b4326e6e12a7ea1a104ea20e3d6369"
+      },
+      {
+        "file": "src/lib/notas-fiscais/elegibilidade-aprovacao.ts",
+        "sha256": "f416dc4b44df4b1f10bd7439ce4e5bff946c72e9b114368ddef1ea5b3e6b68a6"
+      },
+      {
+        "file": "src/lib/notas-fiscais/elegibilidade-submissao.ts",
+        "sha256": "209c2a90d3b1d40fd6135c5dd58de984d6f191f3fe3e26edf95eb63e35d962a7"
+      },
+      {
+        "file": "src/lib/notas-fiscais/emitente-autorizado.ts",
+        "sha256": "e2e7bdaa39d9abf73c9a7547844632f2a557343e407c36827aeb920877abe143"
+      },
+      {
+        "file": "src/lib/notas-fiscais/gestor-listagem.server.ts",
+        "sha256": "c44376d148f305df261471366e2dd5ffede1b0127a2b633911a88adbd9713262"
+      },
+      {
+        "file": "src/lib/notas-fiscais/gestor-listagem.ts",
+        "sha256": "75db23bf08d764057c6a2eab8acf486b8964f1e048d638556faf18f55b0602e2"
+      },
+      {
+        "file": "src/lib/notas-fiscais/listagem.server.ts",
+        "sha256": "9da35a7f932f1e5af7213fb976e89486d221a115bebf09bfd1bc9b6ba6feb4f4"
+      },
+      {
+        "file": "src/lib/notas-fiscais/listagem.ts",
+        "sha256": "67e8e2c58b9361edc0da1f683606c4d95b4840b492c8bbcbfe296c044f625505"
+      },
+      {
+        "file": "src/lib/notas-fiscais/resumo-documental-gestor.server.ts",
+        "sha256": "a219fd9f18b35f9f7c8ceff154c4c311e19f7d353aff6fab9db80003d743df2c"
+      },
+      {
+        "file": "src/lib/notas-fiscais/upload-context.ts",
+        "sha256": "0119f3fd01c211b990b2f52fe65b860d2f8210bc57f1208590cdb7fa63db06e1"
+      },
+      {
+        "file": "src/lib/notificacoes/contracts.ts",
+        "sha256": "68dd4e7ce84f4c69fe9b5842d73e074d30c2358d9a8866a07e1b65d43c671fdc"
+      },
+      {
+        "file": "src/lib/notificacoes/listagem.server.ts",
+        "sha256": "94d2423da280af37247dff016c116fd7008a99f12ffa506513547aeef795f22f"
+      },
+      {
+        "file": "src/lib/notifications.ts",
+        "sha256": "c1f362b2c31c81dfe07a46f10b6a1d4089833388c8d2b9844c4c84b66a56820a"
+      },
+      {
+        "file": "src/lib/onboarding-cedentes/contexto.server.ts",
+        "sha256": "9302d064a24bd4cf3c65cea2e8c1fd1121d31c138520db0378cba559f53871d4"
+      },
+      {
+        "file": "src/lib/onboarding-cedentes/listagem.server.ts",
+        "sha256": "327e9ddce4f7bf4373c7690e6d5aa713aa9fafceaa9879ac09f14dc464c55451"
+      },
+      {
+        "file": "src/lib/onboarding-cedentes/listagem.ts",
+        "sha256": "63bfb80bb3506b15bfeb0bf352497b155ad795f5ff28111c00a44fd26a8e00a4"
+      },
+      {
+        "file": "src/lib/operacoes/calculo.ts",
+        "sha256": "43b388295cac8d5bb4479b7a2f374dc5e5b0e5fe8a0645a6c8307418e6fbe300"
+      },
+      {
+        "file": "src/lib/operacoes/cedente-detalhe.server.ts",
+        "sha256": "e45bb3f10d83da34e5f0712a5ca004228179cdd74e6c74c5cd2c27a3cb3e9cda"
+      },
+      {
+        "file": "src/lib/operacoes/cedente-detalhe.ts",
+        "sha256": "a47777f6e8fbff89799eb926696254333b686dff37b07ec6bf8c61c0dc9f9d24"
+      },
+      {
+        "file": "src/lib/operacoes/data-operacional.server.ts",
+        "sha256": "b2af335a4d6824a38fda824513c322426aa8228edc9380734ddeed472d46a6f5"
+      },
+      {
+        "file": "src/lib/operacoes/documentos-assinados.server.ts",
+        "sha256": "c6eb4d16d2c2d3b60243fee6bec0e14dcc1f0f1e9c98f457f5a70f383db675e8"
+      },
+      {
+        "file": "src/lib/operacoes/documentos-assinados.ts",
+        "sha256": "b3cb98fd58adec302a815198927a17246b954ebd612aaeac12dc30b24fc2b00b"
+      },
+      {
+        "file": "src/lib/operacoes/elegibilidade-documental.server.ts",
+        "sha256": "d68c89632b905ad18e1b7da32140f5d3ddd12e1a68de4d3d8fb2f346788d6035"
+      },
+      {
+        "file": "src/lib/operacoes/elegibilidade-documental.ts",
+        "sha256": "ed2458035ee58d3e4e997b76d64aa8877ebda06a754b8928ed742f73e3a51521"
+      },
+      {
+        "file": "src/lib/operacoes/elegibilidade.ts",
+        "sha256": "cb8de88c16eda31afd65b828d02bfea2bd842df0fe78cf46841da55e6d86ce42"
+      },
+      {
+        "file": "src/lib/operacoes/idempotencia.ts",
+        "sha256": "1c2c76f5abef2152d75a86cf13276abac7ed6133560d9f9c6a42c27b615f1387"
+      },
+      {
+        "file": "src/lib/operacoes/listagem.server.ts",
+        "sha256": "25cc46bfdc931b749b7f1b419e73241463276f02981b63cfcea6506cbdf1602d"
+      },
+      {
+        "file": "src/lib/operacoes/listagem.ts",
+        "sha256": "8b8e9c477e6c5967efca1e24db769e62345c5c0c9527b3e0be58656e12f716f0"
+      },
+      {
+        "file": "src/lib/operacoes/nova-solicitacao-block.ts",
+        "sha256": "7b4a3511af59f251fc73a1bec6078bf2535be6ec643baf106492446805fbd68b"
+      },
+      {
+        "file": "src/lib/operacoes/nova-solicitacao.server.ts",
+        "sha256": "5560bde2357bce6f82cac5b2ada0ee0b0f027c3a79961416736a7a9d16ca1952"
+      },
+      {
+        "file": "src/lib/operacoes/nova-solicitacao.ts",
+        "sha256": "9fc578e56a49bdc411a882abbc7f5694302d58b1c1ffc7041ce3a3b79f7aec42"
+      },
+      {
+        "file": "src/lib/operacoes/politica-operacao.ts",
+        "sha256": "0309bacaadc8c87413bab724bb6d59b114820eac201056e06d7087565f0d912a"
+      },
+      {
+        "file": "src/lib/operacoes/politica.ts",
+        "sha256": "1b713dcc5a1128ff984e7038c4ee8e3c3232d9c9b371b16dcc319141942e866e"
+      },
+      {
+        "file": "src/lib/pagination/cursor.ts",
+        "sha256": "63663592c2bc41739fb1971be287d1d94087cd517a5be97aecfc162100c53381"
+      },
+      {
+        "file": "src/lib/pagination/index.ts",
+        "sha256": "e3f5aafa2ffa06606839c4eb1d900ee1f48b583789e3cc7cf6450f24200aff2b"
+      },
+      {
+        "file": "src/lib/pagination/keyset.ts",
+        "sha256": "51cc2a78d62f66a8d19382f3ca34715e2380252748b83cf2c691ac930cd6ea70"
+      },
+      {
+        "file": "src/lib/pagination/offset.ts",
+        "sha256": "19d51f157bc9b5e0d2e7ce50e8716fd25c0a18385959a831d2458c2b997726f5"
+      },
+      {
+        "file": "src/lib/pagination/params.ts",
+        "sha256": "606fb32c704c769d4f93de846670d80cbb1eda4743857766cacf509d345d90d2"
+      },
+      {
+        "file": "src/lib/pagination/search.ts",
+        "sha256": "1872fa7df871b4713aa100c8b48c971599cbefe5d8fc188983028e2df09f18b2"
+      },
+      {
+        "file": "src/lib/pagination/sort.ts",
+        "sha256": "0fa0689caf708412e53f09a8bfaf513efcf1fefffee5f7a75becd9cb873a9ed7"
+      },
+      {
+        "file": "src/lib/pagination/types.ts",
+        "sha256": "c653d78af3c7a747abfdef4f1ff18cd1891865cee75c0e2cdaf2d6c9dcaa0564"
+      },
+      {
+        "file": "src/lib/pagination/url.ts",
+        "sha256": "23f3223e1749e38787f258429b4f15b19292f349820043303e27a6b8324cfecc"
+      },
+      {
+        "file": "src/lib/pdf-nf-parser.ts",
+        "sha256": "c182d301177f0102f65b3fc9d6c88860e51ac8aed003b3eb7879a1bab94ec256"
+      },
+      {
+        "file": "src/lib/pdf/gerarContrato.ts",
+        "sha256": "ea4baa3d208fad461f1f3c29c6a3a2703039fafc7882e248ce66ea466f03b4b8"
+      },
+      {
+        "file": "src/lib/politicas/requisitos-documentais.ts",
+        "sha256": "26126d16eeb2179fc939bb5b8a5991f3aa411289e8bf18b1a893bc597183fcc0"
+      },
+      {
+        "file": "src/lib/politicas/ui.ts",
+        "sha256": "0dce98de283ed679985dd5e6a6448381ce33f4c7c24cff106992799df3e6a6ef"
+      },
+      {
+        "file": "src/lib/portal-fidc/credenciais.ts",
+        "sha256": "5c04e5bfc05823d9ea42808710dec1208da087c819ff91521c0db46b89345e0c"
+      },
+      {
+        "file": "src/lib/portal-fidc/integracao.ts",
+        "sha256": "cb85deca5081d54adba6b2fab6222b4fed97a51a0d6c0260f5a3457f062fe6c1"
+      },
+      {
+        "file": "src/lib/remessas/adapters/cnab444.server.ts",
+        "sha256": "cc9e17c4c31baf9d96820f80d18d38bf87ea8be462a5d512e57087ac94ddf8e4"
+      },
+      {
+        "file": "src/lib/remessas/domain.ts",
+        "sha256": "d06888e14ed79b01435b074dfc83323f69e868962811bb1e7fd39a2cf8f8412c"
+      },
+      {
+        "file": "src/lib/remessas/loader.server.ts",
+        "sha256": "71117987a93a16ebb257545b98bcfb45ba5c731856cf990e7accd56e0b88fd2d"
+      },
+      {
+        "file": "src/lib/remessas/service.server.ts",
+        "sha256": "e73b42c6fae0632b517813e58ba7954de685f84e23db2f9bc0583c94f6dbd088"
+      },
+      {
+        "file": "src/lib/remessas/vrs/csv.ts",
+        "sha256": "59b4ffa991c28d363d597ff4f39f5dca7680f2693bd771106d489326f2434a4d"
+      },
+      {
+        "file": "src/lib/remessas/vrs/mapper.ts",
+        "sha256": "633248935f309560a1486f0651b6620195d1fb7313135f07a008f8bc30142539"
+      },
+      {
+        "file": "src/lib/remessas/xlsx.ts",
+        "sha256": "adde470207d1f8af7da5f3e4f010a6dd893ec84b92edc1da08bf9242bbbac393"
+      },
+      {
+        "file": "src/lib/sacado/contexto.server.ts",
+        "sha256": "457df0810a48bbfebfecc75d83910ec09bc207a144fa96bd51ef731207fa4f58"
+      },
+      {
+        "file": "src/lib/sacado/portal-domain.ts",
+        "sha256": "3539d2afce8ebca78c87dbe5453cf61c0e41d73df2736eb518d069bc4427b5f3"
+      },
+      {
+        "file": "src/lib/sacado/portal-listagens.ts",
+        "sha256": "69504c95c45333fbe6c04007a2822ab18d637dc4025005f9c4e89582cb2a05c7"
+      },
+      {
+        "file": "src/lib/sacado/portal-loaders.server.ts",
+        "sha256": "087e8a72248fc044dbb89fc0af10d884dfe7f15b86a68fa500593f75089af5e1"
+      },
+      {
+        "file": "src/lib/security/rate-limit.ts",
+        "sha256": "b7bc3ade2fe8bbabd7af450aad93d351d71db29198617c5f066a2af9b69a6ae0"
+      },
+      {
+        "file": "src/lib/selectors/remote.ts",
+        "sha256": "bf1ae89f06fe5170694ae0b76514aa691a92e53e0358046fd2a63c42542abeb5"
+      },
+      {
+        "file": "src/lib/storage.ts",
+        "sha256": "66f7a0dec2f5882e9f2cca0fc3194e2c9615a04743b3a05f7b938a40fb060d56"
+      },
+      {
+        "file": "src/lib/supabase/client.ts",
+        "sha256": "00c34f899f9bfb157ce7aaa7ad5ec90b967b4e03a25285e621273aedf8115ad7"
+      },
+      {
+        "file": "src/lib/supabase/middleware.ts",
+        "sha256": "a8a8f06ad98cf42dcdca9f1732a17eda479081ef48243184c22db603f99958d9"
+      },
+      {
+        "file": "src/lib/supabase/server.ts",
+        "sha256": "f1503418cfae596bf06684e6438aecaefcf5823fc02cdb7f597a7d3365a4d2f0"
+      },
+      {
+        "file": "src/lib/templates/resolver-template.ts",
+        "sha256": "77c9e3f1a97cdeb3101b4ed83dfa05c2ec4b9e6a85889b10aaeafe04f64ab3ac"
+      },
+      {
+        "file": "src/lib/types/domain.ts",
+        "sha256": "9c08bb55e37da84a5b9d61fb13fd75bc75c2799e5bad2a75b1697c44cbf03707"
+      },
+      {
+        "file": "src/lib/utils.ts",
+        "sha256": "8523fe9b313b82fc037e74895ae9e3b9b24b73d8d53792f122f0b8b612bc88b9"
+      },
+      {
+        "file": "src/lib/validations/auth.ts",
+        "sha256": "9c07a1a879a8c8c6926462661ab7aebb56e1997dca7c0f6d99b9866f05a21936"
+      },
+      {
+        "file": "src/lib/validations/cedente.ts",
+        "sha256": "f7b799b7d28e7b4e60a80597ea1a7bad579813b2f6e1d9788223ef6fa02cd584"
+      },
+      {
+        "file": "src/lib/validations/documento.ts",
+        "sha256": "464a0bda55c15c9e80d39e0239d9b222180db2a6307fda2b0ed1a5c03716e270"
+      },
+      {
+        "file": "src/lib/validations/nf.ts",
+        "sha256": "8da7ba977cc8a817ab8925221f81ab62826406f7201da1df2e8268f358fea5b6"
+      },
+      {
+        "file": "src/lib/validations/operacao.ts",
+        "sha256": "fffdb9c4f64a65b6dc9e735e1adfa9faf63423353eb0099d6412f2ddae4c4389"
+      },
+      {
+        "file": "src/proxy.ts",
+        "sha256": "aea0cb8dc294273ca0ffd02bb3edd55527071d5bda74dac53dc668db402b2f92"
+      },
+      {
+        "file": "src/templates/contratos/contrato-cessao-sem-coobrigacao.html",
+        "sha256": "bbdc0c13ff44a7ab1cb3f3b887bce06e907b04a9e6cce6b2e3be8701123935e4"
+      },
+      {
+        "file": "src/templates/contratos/contrato-cessao.html",
+        "sha256": "4bce0a7da8a362bce21f0450e3fa78e0f73a8746021757682787c7ba03e10e97"
+      },
+      {
+        "file": "src/templates/contratos/notificacao-cessao-ao-sacado.html",
+        "sha256": "8e817e357923a04489c80838706a6456e324e046aacaa3695637e92d533bf235"
+      },
+      {
+        "file": "src/templates/contratos/termo-cessao.html",
+        "sha256": "a1f17fb92a7708212bcbe6593cfc18df5d6bcb67ef837363bdab49ae71590f5f"
+      },
+      {
+        "file": "src/templates/contratos/termo_quitacao.html",
+        "sha256": "80d5fc6d9bf637d9a0569296c6a18c07970c352c837b50d8e1a508c93952c317"
+      },
+      {
+        "file": "src/test/server-only.ts",
+        "sha256": "e1f8a39a233a1c9212b6a8c5439c64fc86c1c35efeb5af6f30e36391a402219b"
+      },
+      {
+        "file": "src/types/database.ts",
+        "sha256": "084c8472a80055191534fc322cabd19ec221d796ae83586c6fbeb9fe58616e30"
+      },
+      {
+        "file": "supabase/migrations/003_storage_buckets_env.sql",
+        "sha256": "4ba544c24bed3aa1c1e3cc1fc96fb4182ad51cb756e807cf8f00cc6f0ab48a7a"
+      },
+      {
+        "file": "supabase/migrations/004_aceite_sacado_em.sql",
+        "sha256": "cdd6861559be3b6013b7f94ee491c679f01e4484d1721fb9f750c5866889dd1e"
+      },
+      {
+        "file": "supabase/migrations/005_testemunhas.sql",
+        "sha256": "e6bec003fd61fdbce9be04df34b019af3dc8a725b0bf0b227747542e91e7e4a7"
+      },
+      {
+        "file": "supabase/migrations/006_documentos_assinados.sql",
+        "sha256": "9940ff0c5240e81d77e455b7fe5dbcf97e562d0a420429c8b7ca479528b799bb"
+      },
+      {
+        "file": "supabase/migrations/007_rename_aceite_sacado_em.sql",
+        "sha256": "043fc17128d3bafc241a1c5d5ab27be8ab40c65053cb29e6244a3ec73d97e9a0"
+      },
+      {
+        "file": "supabase/migrations/008_document_update_request.sql",
+        "sha256": "eed67a8da9b3e12b865717209ee73d8651cf283bfea86238a3ee4185061ffb12"
+      },
+      {
+        "file": "supabase/migrations/009_habilitar_escrow_cedente.sql",
+        "sha256": "9b0e294c524c9b2c5aa4b0abc1e7dca197bd3a4e0a26fc2558edea13c8347a5d"
+      },
+      {
+        "file": "supabase/migrations/010_solicitacoes_alteracao_cedente.sql",
+        "sha256": "5cc92074cc180b25cd4274b5c1083152ed16352c04f71e1cac99ce0640942ab1"
+      },
+      {
+        "file": "supabase/migrations/011_cedente_acessos.sql",
+        "sha256": "7d630bc95b10879dce83555e5e05ff4978644bbef7d981a07c86da779edbcc5b"
+      },
+      {
+        "file": "supabase/migrations/012_storage_policies_acesso_vinculado.sql",
+        "sha256": "703e242e477dd692092e85c047f4ad53c20a7db74e1ec82b9bb5a75ba1d3367d"
+      },
+      {
+        "file": "supabase/migrations/013_nf_solicitar_ajuste.sql",
+        "sha256": "235e2efa1d91e13f6be08af8c21a6345bd7bc374848ccd080e2137f5f1df7f49"
+      },
+      {
+        "file": "supabase/migrations/014_coobrigacao_notificacao.sql",
+        "sha256": "77ebce503ceeeabafa327171fba64614c3b80fb96bbd9f7924e61481a99709e9"
+      },
+      {
+        "file": "supabase/migrations/015_remessa_fromtis.sql",
+        "sha256": "35194d2c6224a85ac6dd5e9952a8a4956f06ea9ae87bbcbf3dd359386094da3b"
+      },
+      {
+        "file": "supabase/migrations/016_termo_quitacao.sql",
+        "sha256": "638ba7fecf2098fc4f20d3d665b7575dcccc5954d6d9ee5d769b0ad1a43ad8ff"
+      },
+      {
+        "file": "supabase/migrations/20260720203009_fase1_auditoria_atores_origem.sql",
+        "sha256": "1e048b35ddcc8aa407b99201fa47f86a3d00c62be2c415305e6b2bcbe24f5eea"
+      },
+      {
+        "file": "supabase/migrations/20260721123935_fase2_nucleo_multifundo_politicas_snapshot.sql",
+        "sha256": "9fa469e34a42992863600f45bdc214f3195bfd39d728bfc0e6f24db4d5d21786"
+      },
+      {
+        "file": "supabase/migrations/20260721132903_fase3_repositorio_documental_nf.sql",
+        "sha256": "eba7c2917a4d52f64687df047c7787a110523ad4553d143a81d6ce0ca45a0d25"
+      },
+      {
+        "file": "supabase/migrations/20260721170157_fase4_roteamento_aceite_sacado.sql",
+        "sha256": "82292d60675ed4c880b8640548ee0b38b03503ed4838564b08e84f79943549a8"
+      },
+      {
+        "file": "supabase/migrations/20260721183540_fase5_logistica_pos_cessao.sql",
+        "sha256": "87cae20dd406dd90e66097cb8dd1416f909dc348b6fc1d5494f030470d30c50e"
+      },
+      {
+        "file": "supabase/migrations/20260721190904_fase6_templates_juridicos_fundo.sql",
+        "sha256": "6dfd484ca9d3628d66d26aa6add47609dd26c5e29b523f42c1f29f5a1904c8e3"
+      },
+      {
+        "file": "supabase/migrations/20260721194546_fase7_cnab_configuravel_rastreavel.sql",
+        "sha256": "78b7f19a52d72ea988c1dabd9d4e19aaabac025cd11148b318ab1c875992c859"
+      },
+      {
+        "file": "supabase/migrations/20260722090000_fase8_portal_fidc_fundo.sql",
+        "sha256": "b700fbd3c15b50cf83c81c96215d9d418bcf26ad1101cb026ae7ba33f398f6d1"
+      },
+      {
+        "file": "supabase/migrations/20260722132525_fase9_mfa_totp_hardening.sql",
+        "sha256": "a9e7f289dd420d6d484a59b6b3bc2fc590a22e9538a83e4f182939252eab6b44"
+      },
+      {
+        "file": "supabase/migrations/20260722143728_fase10_reset_administrativo_mfa.sql",
+        "sha256": "fe3c8d41a6979ed83d1d89fb02e6eff2064d50991ad747a1448139b53b0ba24c"
+      },
+      {
+        "file": "supabase/migrations/20260722145820_complemento_credenciais_portal_fidc_banco.sql",
+        "sha256": "c0456fe74240f876c806b4e2ec1572f6435e5c899fd56ebdd52619a9a0228329"
+      },
+      {
+        "file": "supabase/migrations/20260722170510_corrigir_templates_juridicos_multifundo.sql",
+        "sha256": "8d0a318baef79ee7d4e4efc2647a1899eae654264c295e7f57418195a61b7440"
+      },
+      {
+        "file": "supabase/migrations/20260722183107_ampliar_catalogo_requisitos_politica_operacional.sql",
+        "sha256": "b84cc1e1b5ce022770be9755ba0e05baa4770ea9c45d47bd3b8165059b8a7a8d"
+      },
+      {
+        "file": "supabase/migrations/20260722191000_corrigir_contexto_multifundo_upload_nf.sql",
+        "sha256": "55dccfd032bbcbc6243129e8caf4e861aa7380374a2d43f3944323cd7944770a"
+      },
+      {
+        "file": "supabase/migrations/20260722192500_corrigir_rls_fundos_cedente_vinculado.sql",
+        "sha256": "793e511db4deaa8ba6182cb0a9d8f4549fdd7fcea21ee6b5e7ee41403c8ad998"
+      },
+      {
+        "file": "supabase/migrations/20260722193500_corrigir_catalogo_documental_requisitos_nf.sql",
+        "sha256": "a24b2b733a31af13506f15100fa3f617cf868fb3686cdedac008c17405025452"
+      },
+      {
+        "file": "supabase/migrations/20260723124410_corrigir_constraints_desembolso_logistica.sql",
+        "sha256": "53b8f0d426c5627167729abfd919ff83f3125d9304f535929cd51a425ec87507"
+      },
+      {
+        "file": "supabase/migrations/20260723124929_corrigir_contexto_requisito_logistico_nullable.sql",
+        "sha256": "cadbde66e9768175399cbca792efd9a46e218550a5158084b2b0fa13861a633f"
+      },
+      {
+        "file": "supabase/migrations/20260723125851_corrigir_fluxo_status_entrega_pos_cessao.sql",
+        "sha256": "58301d8f35063e1218c071f0160118a2e98311b1ca4f8ba02ed71ec1b0140207"
+      },
+      {
+        "file": "supabase/migrations/20260723134849_estabilizacao_operacoes_atomicas_cnab_compensacao.sql",
+        "sha256": "b3dc4f40487adf32fb3832cdb6925308275c060060904d889b906c63cbed28ed"
+      },
+      {
+        "file": "supabase/migrations/20260723143749_evoluir_documentos_pos_cessao_nf_cedente.sql",
+        "sha256": "e3d4a961a1e6b7c87d010f3bcffbefccc0d30bc49a2984185aef1482e88b82ad"
+      },
+      {
+        "file": "supabase/migrations/20260723165651_corrigir_requisitos_pos_cessao_snapshot.sql",
+        "sha256": "30c8c4609c418a8d0d0682df209d3fc50997d9c67bf48c04fa6052ebee649587"
+      },
+      {
+        "file": "supabase/migrations/20260723195804_corrigir_validacao_politica_operacao_atomica.sql",
+        "sha256": "849205dd780f8fa56fc138cab3dc690f947842dd9686c8e53e85fe483455ab8d"
+      },
+      {
+        "file": "supabase/migrations/20260727130046_fundo_ativo_usuario_fundos.sql",
+        "sha256": "c12e9c0edc997416889244ca0ace8ee47ab92e5948579cdf9829e8cbbd20d4fe"
+      },
+      {
+        "file": "supabase/migrations/20260727142150_validacao_cte_nfe.sql",
+        "sha256": "0dd44f3e159b5eb42ec631d1b50b35b71f716ca003e2913d9f44897e8ef07eb9"
+      },
+      {
+        "file": "supabase/migrations/20260727151731_politicas_catalogo_fundo.sql",
+        "sha256": "6c5fd0d69fd1345c4d4c597785e4c4b6a15ea8a0745a4ccf62f1c97706080945"
+      },
+      {
+        "file": "supabase/migrations/20260727192402_onboarding_cedentes_sem_fundo_fallback.sql",
+        "sha256": "accde7a4c8647fbcbcbf4f0b162734dc06f4124d0c19590d0105e14f1f798a60"
+      },
+      {
+        "file": "supabase/migrations/20260727202747_desacoplar_politicas_operacionais_cedente_fundo.sql",
+        "sha256": "c329c1a5e4d7fc906a85195470a4224713e0d5605d20da9353ac27bcac4a36e8"
+      },
+      {
+        "file": "supabase/migrations/20260727204346_relaxar_cedente_fundo_versoes_politica.sql",
+        "sha256": "6788c7b9d7dde984eb1349e248ae415da552b4517350f39b3234ad04705ad3d7"
+      },
+      {
+        "file": "supabase/migrations/20260727205426_corrigir_instanciacao_checklist_nf_sem_colunas_contexto.sql",
+        "sha256": "338871496d935b20d01a2883e2264c442698427fd27675f74ac5e9bddb626d43"
+      },
+      {
+        "file": "supabase/migrations/20260727212053_reconciliar_documentos_base_nf_checklist.sql",
+        "sha256": "baa332f68ff9d9985ed741a384f3d18b250ef93d6bff15466841fd0c58f3994d"
+      },
+      {
+        "file": "supabase/migrations/20260727212953_corrigir_documento_tipo_requisitos_nf.sql",
+        "sha256": "863a1df60e82ad52a3a4414d7c1cabfc7a5076ddf1de3780b503d053e957da4e"
+      },
+      {
+        "file": "supabase/migrations/20260728122849_corrigir_status_documentos_upload_aguardando_aprovacao.sql",
+        "sha256": "12d340f766d4bbbaeea76c1429479b8946f328313d3cb8ebb5300bb13f02fe80"
+      },
+      {
+        "file": "supabase/migrations/20260728123821_permitir_tipo_cte_catalogado_em_requisito_generico.sql",
+        "sha256": "f9d5eee7ddab75f79a46ccf1f8a213aadb850dd610ca3dda185f7032bc91e7be"
+      },
+      {
+        "file": "supabase/migrations/20260728130438_historico_operacional_eventos_dominio.sql",
+        "sha256": "1a0637e2e90971e2aa9e7fc73ddd26d5d002eda295db6c4e820c8c9126ac175e"
+      },
+      {
+        "file": "supabase/migrations/20260728145033_password_recovery_flow.sql",
+        "sha256": "76cac28681d9d47881a7b43e3f482e4768c32fc0b30b5d4ec6f0a1fcd31a5d23"
+      },
+      {
+        "file": "supabase/migrations/20260728155942_password_recovery_security_hardening.sql",
+        "sha256": "09bf56cea60e068fc5ff8803f238223490cf56d237691bc8e9a88ae19def44c2"
+      },
+      {
+        "file": "supabase/migrations/20260728172000_password_reauth_nonce_event.sql",
+        "sha256": "4bc9901d0244733970cc9f8de165384c75fd1ebc7e8b6e3888232263e46e6263"
+      },
+      {
+        "file": "supabase/migrations/20260728181152_corrigir_rls_politica_versionada_cedente.sql",
+        "sha256": "6562de3fc0223e22891ace9348b68aaf684eb6dd9dcfbd94cc7413a95fed91d4"
+      },
+      {
+        "file": "supabase/migrations/20260728182000_rls_historico_portal_sacado.sql",
+        "sha256": "07c5ecc73a53debb66f769480bf5f0a642177a4431470bc827c309644f594c3e"
+      },
+      {
+        "file": "supabase/migrations/20260728190000_auditoria_portal_sacado_contexto.sql",
+        "sha256": "c799c84e90e0a3d0e6ab76259e309c5f97515545a8862fd2b0f84462608af86b"
+      },
+      {
+        "file": "supabase/migrations/20260728200000_historico_aceite_sacado_operacao.sql",
+        "sha256": "986458e373659c843f322fd88062bba9847ebceaed462987f0c357ee63cd4739"
+      },
+      {
+        "file": "supabase/migrations/20260728210000_permitir_evento_documento_entrega.sql",
+        "sha256": "13b4e76c0d576faf8c93bebcb5eac283b5a2d6b37399907c0a64f42cbbc120d3"
+      },
+      {
+        "file": "supabase/migrations/20260728213000_corrigir_trigger_historico_aceite_nf_status.sql",
+        "sha256": "3eabd8f0aa250cce6d86faf0ca9d871da50e8072d0a713cf60f6fdeb1ffb9db9"
+      },
+      {
+        "file": "supabase/migrations/20260728220000_reconciliar_documentos_base_nf_checklist_v2.sql",
+        "sha256": "620678785fb5c62c0ae4f0409dc86a8f1b6eeb3bbe7b1d0227c1b83e9cf56ec5"
+      },
+      {
+        "file": "supabase/migrations/20260728223000_corrigir_perfil_evento_reconciliacao.sql",
+        "sha256": "b1566c5624ddf9261044025babc27ce8351807494106e4a9adf8b21adebf1ca2"
+      },
+      {
+        "file": "supabase/migrations/20260729133826_nf_submissao_manual.sql",
+        "sha256": "ef1a311ae8377fa3c9fc2f961ebd4e4ccee905d98affc7d09f45fce4eb580dd7"
+      },
+      {
+        "file": "supabase/migrations/20260729180000_simplificar_requisitos_documentais_politica.sql",
+        "sha256": "85c19dbc5a6cd7f34af782c4d41bd879edbe996fd15697cfcf633c7c19f48e15"
+      },
+      {
+        "file": "supabase/migrations/20260729185443_performance_escopo2_onboarding_paginado.sql",
+        "sha256": "a60a826545514ad3b64e445f6e93fdb111aa13dc7a3012428c72121fd16d9c4f"
+      },
+      {
+        "file": "supabase/migrations/20260729203749_performance_portal_sacado_dashboard.sql",
+        "sha256": "d66490dad4cafcc6419084eb1128c5a62bd780e9c301a8590345b02675d67695"
+      },
+      {
+        "file": "supabase/migrations/20260730143000_performance_escopo6_escrow_rls.sql",
+        "sha256": "6b229e67e84b23b506f802abbf129d776598bb3f490e0d7144b1ecfc4895144b"
+      },
+      {
+        "file": "supabase/migrations/20260730152328_performance_escopo7_dashboards_relatorios.sql",
+        "sha256": "604b97d951975af019911966be158f7e7d2fe6ef41a251c596162ca338fecd77"
+      },
+      {
+        "file": "supabase/migrations/20260730170007_performance_escopo8_hardening_grants_rls.sql",
+        "sha256": "42ff63ac2b73dd328534647182f06baaf80709d1b5812a205f4f9043c31e54df"
+      },
+      {
+        "file": "supabase/migrations/20260730190000_escopo9b_corrigir_isolamento_rls.sql",
+        "sha256": "3cfa520f990645b37e5d6c3048937773a1a6719fde8fb8594d99d060db69ae52"
+      },
+      {
+        "file": "supabase/migrations/20260730194500_escopo9b_policies_explicitas.sql",
+        "sha256": "8b1c37c82d8d2f5367524fcacb534b0d5be9e91f5bf03d84ef91287683403571"
+      },
+      {
+        "file": "supabase/migrations/20260730200000_escopo9b_corrigir_recursao_sacado_rls.sql",
+        "sha256": "0ec8234cdbad8a1646fe2b41a599ab09c63cce085d7362cbb8f3f05f615f50b5"
+      },
+      {
+        "file": "supabase/migrations/20260731140710_escopo9c_storage_autorizacao_multifundo.sql",
+        "sha256": "903854c5d38b0575909dc167abd6563edca5d3018341713bfc927e00e6bfe3e8"
+      },
+      {
+        "file": "supabase/migrations/20260731171219_postergacao_upload_canhoto.sql",
+        "sha256": "e6ba8d2eed578288636dcc0124567a70116e0c062a1136012598596e3024e9e7"
+      },
+      {
+        "file": "supabase/migrations/20260803172546_mfa_sessao_24h.sql",
+        "sha256": "e01881dd9d87d23a747ce5f3d75784ac6dd329ef4203868d7eaec243f22f5e23"
+      },
+      {
+        "file": "supabase/migrations/20260804093210_corrigir_ambiguidade_registrar_sessao_mfa.sql",
+        "sha256": "b807adfec837efdc8b8f8ea499317def36c4ed9652ed56b0ea5fcb1b9c5fd69f"
+      },
+      {
+        "file": "supabase/migrations/20260804171538_corrigir_recursao_rls_cedente_fundos.sql",
+        "sha256": "b8543bcce1c912f7258c737d9eed5fa27307cc6252fa9e54199668ff99fd5f4b"
+      },
+      {
+        "file": "supabase/migrations/20260805160000_metodos_calculo_financeiro_operacao.sql",
+        "sha256": "9588186dbe861e6b739613f370e83a4768ef8546b7157eec7e41b71b5e15f919"
+      },
+      {
+        "file": "supabase/migrations/20260805170000_corrigir_ambiguidade_valor_bruto_aprovacao.sql",
+        "sha256": "731d4054978f9a2eaaeb104b6e81f0b09b02dcb6455d0dbf49f143dd9f8a85b9"
+      },
+      {
+        "file": "supabase/migrations/20260805180000_endurecer_aprovacao_financeira.sql",
+        "sha256": "056fbe73ab8b8ee17bb2d3def4d4d96aeaa21cde3a854285841a74014b5a9c8a"
+      },
+      {
+        "file": "supabase/migrations/20260806170000_envio_antecipado_documentos_logisticos.sql",
+        "sha256": "04bae069b323d378512c83aefc8ad91d564451ea7dc2ada9af00d34accad4b79"
+      },
+      {
+        "file": "supabase/migrations/20260806180000_excluir_nfs_rascunho_cedente.sql",
+        "sha256": "f9c2a19ca13d605061c6bcbbf80d34f520274749e000c4b0bb6384a7050eab37"
+      },
+      {
+        "file": "supabase/migrations/20260806190000_corrigir_record_nf_upload_logistico_antecipado.sql",
+        "sha256": "4c921c0d2de63ed00cbfa1ca75d4e8d4e059ef4ee06f63aa765774169d79c438"
+      },
+      {
+        "file": "supabase/migrations/20260806200000_corrigir_exclusao_rascunho_eventos_dominio.sql",
+        "sha256": "2224a75c0a8a250989c6f8119d1311fe1c10b55ee3d5012d827273ce8d8f5175"
+      },
+      {
+        "file": "supabase/migrations/20260807132532_corrigir_evento_entrega_em_validacao.sql",
+        "sha256": "e3af5d6cdec149b514ecda64433953aff2be102373322f54e8ad298e64babf0e"
+      },
+      {
+        "file": "supabase/migrations/20260807170000_p1_motor_comunicacoes_email.sql",
+        "sha256": "f8088be476061447fcf55c53dc6195f342f180bb82fcf9a4c9d216fe9a31dbca"
+      },
+      {
+        "file": "supabase/migrations/20260810120000_usar_smtp_ionos_comunicacoes.sql",
+        "sha256": "77a09176461a889195a7cdd78e247b47f24e4925cf1a4103852571ae4eb80efc"
+      },
+      {
+        "file": "supabase/migrations/20260810121000_snapshot_remetente_gestora_comunicacoes.sql",
+        "sha256": "fb0463a9642864b8b236d7e49de879043b9c9cd251426d3ba220daddf273b0fe"
+      },
+      {
+        "file": "supabase/migrations/20260811120000_p2_0_duplicata_ativo_financeiro.sql",
+        "sha256": "42b6c826342b609f36cae0b0e55db67c523e90bfa35fd646d2dd8ec0391d5bec"
+      },
+      {
+        "file": "supabase/migrations/20260812115900_sa0_super_admin_enum.sql",
+        "sha256": "e1344d7b71a6dceef8d6c89dda22f0805a7655cca16ab08924295b0bd0737c7d"
+      },
+      {
+        "file": "supabase/migrations/20260812120000_sa0_super_admin_roles.sql",
+        "sha256": "bc882297d3e458d65da070709281c155399e20fbf686dd57484a5d83b577971b"
+      },
+      {
+        "file": "supabase/migrations/20260812143000_sa1_admin_fundos.sql",
+        "sha256": "b3d8546b128eb73fae7ad0a7dd4fa452382ea1a83987223aac375bb77188faef"
+      },
+      {
+        "file": "supabase/migrations/20260812170000_sa2_admin_usuarios_acessos.sql",
+        "sha256": "2e08d627c2c66f8925867b154de829eba94225dfa1d77b0d62e19febed727928"
+      },
+      {
+        "file": "supabase/migrations/20260812190000_sa3_admin_configuracoes_tecnicas.sql",
+        "sha256": "71b7c8850c70dbba07569c6d7022a1deb06c6fed2d675da4887fabc8f7783094"
+      },
+      {
+        "file": "supabase/migrations/20260813103000_corrigir_ciclo_vida_credenciais_sa3.sql",
+        "sha256": "f6c681c7b831c7ddbece5098070df1f85690b703eb9529086cd94f1a7ddc0723"
+      },
+      {
+        "file": "supabase/migrations/20260813150432_corrigir_semantica_rascunhos_sa3.sql",
+        "sha256": "83e7b4250921ca2640e8317f32ee5388a61ecfa6a5c6ab8ba602467461d2996a"
+      },
+      {
+        "file": "supabase/migrations/20260813191143_p2_2_ingestao_financeira_versionada_rlx.sql",
+        "sha256": "23000f38f89af9fe780c8b295074f2b522988b7b5fc6502201ac9d94d67d9f3f"
+      },
+      {
+        "file": "supabase/migrations/20260813193629_p2_2_complemento_linhagem_sem_movimento_rlx.sql",
+        "sha256": "76e34e2f66ff9c098d954f6e3c102056466e786d9816bc84b9cb96ed18ea4d1a"
+      },
+      {
+        "file": "supabase/migrations/20260813194809_p2_2_lock_ciclo_financeiro_rlx.sql",
+        "sha256": "aa50f52b8a65749a5b399992d19b8f19b32495446ff4e5fe9cbdb27bfafb0de1"
+      },
+      {
+        "file": "supabase/migrations/20260813195427_p2_2_refresh_views_linhagem_rlx.sql",
+        "sha256": "b47c6f034906abdb8777b12c0e9587318854f0882c855d10d1e7f68c4ab807e7"
+      },
+      {
+        "file": "supabase/migrations/20260813201000_p2_2_hardening_rls_indices_rlx.sql",
+        "sha256": "64e162d2824332d409b45d6298464bc8ef1c2e2038863d046f103d41e36b8571"
+      },
+      {
+        "file": "supabase/migrations/20260813202000_p2_2_escopo_hibrido_rlx.sql",
+        "sha256": "a4f781f498bb7d31f6943d4a90c72787fa4177c5cf6aaf4bd903becc4fe0b29b"
+      },
+      {
+        "file": "supabase/migrations/20260813203000_p2_2_helper_rls_super_admin_rlx.sql",
+        "sha256": "dcdb99cf9648b6036be10df9915bb6311927a24f7b3ce0c38d970e1992241064"
+      },
+      {
+        "file": "supabase/migrations/20260813210000_p2_2_1_integracoes_capabilities.sql",
+        "sha256": "fffbbc9700f0d39518af21120b137f1e3c9fb01224f5cf3a7a58e0933065f238"
+      },
+      {
+        "file": "supabase/migrations/20260814123000_p2_2_2_sinqia_financeiro_envios.sql",
+        "sha256": "d08d5eda3bc018c7c7ab5ce860b584fc194225c5498494a4ba99bd817b8bf24c"
+      },
+      {
+        "file": "supabase/migrations/20260814141629_p2_3_matching_conciliacao_rlx.sql",
+        "sha256": "97b645c91fd4b67988c8d49a1000e384abe1e5d689f346ab077fcbc83ab8c29a"
+      },
+      {
+        "file": "supabase/migrations/20260814144500_p2_2_2_cnpj_financeiro_derivado_fundo.sql",
+        "sha256": "ae4d4568a38d78444907e42695f90a410e6099d8d22b7b0e4fb43e16b07923bb"
+      },
+      {
+        "file": "supabase/migrations/20260814164101_p2_4_posicao_logistica_rlx.sql",
+        "sha256": "8e4c7dbafbcfd1a556f99660ac4df5620b0cf82db4c57a81e77d9bd7f958e72f"
+      },
+      {
+        "file": "supabase/migrations/20260814170500_p2_4_precisao_valores_logisticos.sql",
+        "sha256": "6850f9afa8aa9f5a057144f96d57c831837e4bff6f5867bed93fabadba08d5a4"
+      },
+      {
+        "file": "supabase/migrations/20260814213000_p2_5_exposicao_pl_overlay.sql",
+        "sha256": "bc7d6eeef15146573d5c40c5c78f83e72dd89071d0f780d60469b0e6ff9ad376"
+      },
+      {
+        "file": "supabase/migrations/20260814214500_p2_5_politica_exposicao_imutavel.sql",
+        "sha256": "53208e6da9c670fad67732be77c69bc4ec6a84318ccf2fb98c58f6bf53eff095"
+      },
+      {
+        "file": "supabase/migrations/20260814220000_p2_5_1_generalizacao_dominio_financeiro.sql",
+        "sha256": "6e6ece8ec7554e1a6e864e8045d82da74a2243be341c1b99e9830c20b1fd98a2"
+      },
+      {
+        "file": "supabase/migrations/20260814230000_p2_6_gate_risco_decisao_operacional.sql",
+        "sha256": "923ce02a83773e9e07715c549bf39004c2c3c4e622fd7904421b1810a3e0352b"
+      },
+      {
+        "file": "supabase/migrations/20260817150505_p2_6_4_canonicalizar_schema_funcional.sql",
+        "sha256": "d70aa522ce8dd9d57f92c181cf97e43c465d1e0455ea097a87eea0888ca5b12c"
+      },
+      {
+        "file": "supabase/migrations/20260817150507_p2_6_4_canonicalizar_acl_rls.sql",
+        "sha256": "952c08943c30e072b699fb32f2503f60118db89b6ecb823abacc270f8ffb123f"
+      },
+      {
+        "file": "supabase/migrations/20260817150510_p2_6_4_canonicalizar_storage.sql",
+        "sha256": "4369e8d71df267fb46bd1c63a2bb47c2065aadd1ba06b3207bc2c555a74f8322"
+      },
+      {
+        "file": "supabase/migrations/20260817152140_p2_6_4_fechar_acl_rotinas_internas.sql",
+        "sha256": "48b80e0bf9b55fbfe1948a3e9d4edbc3cd2040476beb051cbfc48f4dc65f506a"
+      },
+      {
+        "file": "supabase/migrations/20260817154500_p2_6_4_restaurar_leitura_carteira_consultor.sql",
+        "sha256": "b6ea1c40941163a955875b9d3ddac866103736cb5c605cfd998130d9f6ecb966"
+      },
+      {
+        "file": "supabase/migrations/20260817171441_p2_6_6_hardening_rls_multifundo_documental_logistico.sql",
+        "sha256": "faa2371ddfa6322241b0eca394f86d38171aa57b402ce889fef181196a05b947"
+      },
+      {
+        "file": "supabase/migrations/20260817171442_p2_6_6_corrigir_acessos_financeiros_legitimos.sql",
+        "sha256": "32e2e3a5a08e045fe034365d87773bc3881144ad2c249fabbdabf7fca04b5621"
+      },
+      {
+        "file": "supabase/migrations/20260817174233_p2_6_6_remover_gestor_global_politicas_operacionais.sql",
+        "sha256": "4f6f8aea6172bb59082c26a8e2193bd1aa75ba05ff3cd5f8df2ee44f05b5fdcd"
+      },
+      {
+        "file": "supabase/migrations/20260817182112_hotfix_restaurar_leitura_identidade_autenticada.sql",
+        "sha256": "6f589866bd26e38aba759cd7f446dac1a1543c32b4a0d843a8dfef3faad09ed0"
+      },
+      {
+        "file": "supabase/migrations/20260817185117_hotfix_dashboard_gestor_acl.sql",
+        "sha256": "3155aec91220deadd4a30e43fa312f9292063c043d57bff59bc27257d8d2e2c9"
+      },
+      {
+        "file": "supabase/migrations/20260817200014_p2_6_8_remover_legado_estrutural_rlx.sql",
+        "sha256": "beb19d1994d9ce398bbaa183ee4773e3ecbf61ea8e86ed5ad6c37818c756600c"
+      },
+      {
+        "file": "supabase/migrations/20260817204159_p2_6_8_1_hardening_rls_identidade_profiles.sql",
+        "sha256": "db8779338e3198091bcfa8c21c2e9434c98c2be8622f26372fbf19c0a8bf5511"
+      },
+      {
+        "file": "supabase/migrations/20260818191418_p0_onboarding_cedente_rpc_segura.sql",
+        "sha256": "3bceeefeb5ec9ecdddb5bccd44a7b2d5054758a7ba1eb365f8cbeca002fed3d3"
+      },
+      {
+        "file": "supabase/migrations/20260818194455_p0_upload_documentos_cedente_permission_denied.sql",
+        "sha256": "a588ae9ffc777314721f3030e3ec411b5ec019abd802655b24e4fe714c0a233d"
+      },
+      {
+        "file": "supabase/migrations/20260818195119_p0_compensacao_storage_documentos_cedente.sql",
+        "sha256": "1f21c735d9809ab4a781405e6ddbf19fe38c2e28b5f5e6af8c45ef72e6306786"
+      },
+      {
+        "file": "supabase/migrations/20260818200641_multi_cnpj_cedente_estabelecimentos.sql",
+        "sha256": "e2583436710c0d3dc5aa3a10d320b94abc476382d6b3152b5eba44e1ebfc8ae6"
+      },
+      {
+        "file": "supabase/migrations/20260819120000_p0_analise_documentos_gestor_permission_denied.sql",
+        "sha256": "300cb5e1c47d75bfa7a6473c1e828b8e1d30a54df09c0d9299b2ad32f630da99"
+      },
+      {
+        "file": "supabase/migrations/20260819140000_p0_mutacoes_cadastro_cedente_gestor.sql",
+        "sha256": "fe4a7f3c601039dff7589ae5c9f826cf64397bbb8f7584f43bcfad112febef6f"
+      },
+      {
+        "file": "supabase/migrations/20260819141000_p0_cedentes_leitura_multifundo_gestor.sql",
+        "sha256": "01f7f78f0c08947018cd11bac8f589ba17fa24c1b641ea94aba8fb937c1cd5a8"
+      },
+      {
+        "file": "supabase/migrations/20260819150000_p0_catalogo_documental_cadastro_estabelecimento.sql",
+        "sha256": "da7b0dce858fa7c2477ae1576d77e586c2d3ef75dfa617a92b2b5fcf201daafd"
+      },
+      {
+        "file": "supabase/migrations/20260819160000_p0_novo_tipo_comprovante_residencia_representante.sql",
+        "sha256": "f34af08fb4c44ec7f0c0f5ffc9b6170146bd02556c2767a1b5fab546459c4aa1"
+      },
+      {
+        "file": "supabase/migrations/20260819160500_p0_backfill_comprovante_residencia_representante.sql",
+        "sha256": "859c90c7f8e0d9b45abb5ce8abb7c5472e8b6206df796af830be6e865f814b7b"
+      },
+      {
+        "file": "supabase/migrations/20260819161000_p0_representantes_leitura_multifundo_gestor.sql",
+        "sha256": "9e51e263a58ba7c57ec9a49d0d6d2d17b0cb67278453984b66ddcf28a410dc59"
+      },
+      {
+        "file": "supabase/migrations/20260819170000_evolucao_estabelecimentos_reuso_documental.sql",
+        "sha256": "350510fc56cf7bd3e36ce60eba9a2ede0a579caa5616746f555afa3ae8e44860"
+      },
+      {
+        "file": "supabase/migrations/20260819180000_evolucao_estabelecimentos_listagem_paginada.sql",
+        "sha256": "d65d87e105160375efca114fe262b3f83bb7616fa7f139c1a292700410c90fad"
+      },
+      {
+        "file": "supabase/migrations/20260819190000_p0_validacao_raiz_cnpj_filial.sql",
+        "sha256": "3f36128541c6213a039469c2d33a238a85f8158cddedd579650e39be78c625c4"
+      },
+      {
+        "file": "supabase/migrations/20260819200000_p0_permissao_cadastro_filiais_cedente.sql",
+        "sha256": "02b4e59fcd66427a8d0bded8809dc08b11e2f07b2e0112e1fd65b395ffdebb4b"
+      },
+      {
+        "file": "supabase/migrations/20260819210000_fase1_parcelas_nf_boleto_por_parcela.sql",
+        "sha256": "fe65c720a4d7e6002879b1ef7d1d46925fde974375086a7f2ead9ef3393669f2"
+      },
+      {
+        "file": "supabase/migrations/20260819220000_fase1_boleto_por_parcela.sql",
+        "sha256": "b07f81ce223b0c9dc5033adb209af712ca38863c43f4b20d6ba25097a3a71299"
+      },
+      {
+        "file": "supabase/migrations/20260819230000_fase2_selecao_parcelas_operacao.sql",
+        "sha256": "5283d3936dd94552e0e2a289f985029148e93ae604bd4e0e591487a8a6843767"
+      },
+      {
+        "file": "supabase/migrations/20260819240000_fase2_solicitar_aprovar_operacao_por_parcela.sql",
+        "sha256": "fc056cdb8ceee41b75abbcd878d69a752c18a23fd58afc1118f5787eac9a0efe"
+      },
+      {
+        "file": "supabase/migrations/20260820100000_p0_gate_aprovacao_logistica_fonte_unificada.sql",
+        "sha256": "725739c3df1d37fa780e66ba5a2bad41a19caa88c7b676801d586f37cfc1196f"
+      },
+      {
+        "file": "supabase/migrations/20260820110000_p0_segundo_gate_logistico_submissao_nf78.sql",
+        "sha256": "63c8ef849b1fae9c15e0e7f9afbbcc9e0331496a3a3f7d126fb279efb1f658a0"
+      },
+      {
+        "file": "supabase/migrations/20260820120000_ui_parcelas_nf_operacao_editar_parcelas.sql",
+        "sha256": "36da7ae6cb86c315e9d41593bc39f39147debc0f446f6ae836f84c51d670235e"
+      },
+      {
+        "file": "supabase/migrations/20260820130000_liberar_parcelas_operacao_rejeitada_cancelada.sql",
+        "sha256": "2be49fd65470ac2843e74094049667a9525f3c8388195cfec3f3d9acf1342fd3"
+      },
+      {
+        "file": "supabase/migrations/20260820140000_permitir_cedente_cancelar_propria_operacao.sql",
+        "sha256": "dd6318d8028d18175c4aa4a09e41c0ba4f7998836d3d39b18ac4bd944decb1c1"
+      },
+      {
+        "file": "supabase/migrations/20260820150000_get_user_cedente_acesso_perfil.sql",
+        "sha256": "1fa14cd55141030b9e5519d50b2fcb34dd836c951f7c0dc88fab680e6ad09fa0"
+      },
+      {
+        "file": "supabase/migrations/20260820160000_dashboard_cedente_resumo_acesso_delegado.sql",
+        "sha256": "266d86c284868c9bc8d666f89cfbdef20c376ba540f08cc6e28e9ae28b8eab39"
+      },
+      {
+        "file": "supabase/migrations/20260820170000_simular_memoria_financeira_operacao_parcelas.sql",
+        "sha256": "c46338d0503473d6ac76adbf8cd91dec5e2ed9317d2bca655b85f0a51583978a"
+      },
+      {
+        "file": "supabase/migrations/20260820180000_persistir_matching_execucao_universo_vazio.sql",
+        "sha256": "8097c552d5960bc0e4dda3837dfb20eb189dbdda24e7527d16793d30fd7fcd3d"
+      },
+      {
+        "file": "supabase/migrations/20260821000000_bootstrap_fundo_virgem_carteira_qa.sql",
+        "sha256": "8b5938dfdd94e270d5907cf7b58ed758630ff33cc343a56a33e6499a62e03f85"
+      },
+      {
+        "file": "supabase/migrations/20260821010000_bootstrap_risco_motivos_pl_oficial_indisponivel.sql",
+        "sha256": "27ce799b6ff2d0ad30521368b323d39eb41d9cfba56a674bdab029886ba61700"
+      },
+      {
+        "file": "supabase/migrations/20260821020000_bootstrap_exposicao_flag_persistido.sql",
+        "sha256": "9bfa24764350ee1cd807dd57d9f83257ee3ff01e3ae41308503cc6f2938c99d8"
+      },
+      {
+        "file": "supabase/migrations/20260821030000_bootstrap_fundo_virgem_evidencia_economica.sql",
+        "sha256": "efa40e13374f2e9eacf3b89ca1e9c721250447ab57a9309076e34162b7f087d7"
+      },
+      {
+        "file": "supabase/migrations/20260821040000_p0_nf_remessa_lastro_logistico.sql",
+        "sha256": "62ffae283aeef84afe736b338eb76fb48b5855a29d9eb6c810e51dac7d1107e8"
+      },
+      {
+        "file": "supabase/migrations/20260821050000_p0_ajustes_finais_nf_remessa.sql",
+        "sha256": "91da94297fed0716ee1dde829e13f5b2318b6997434bd0771f78e2f7066a6a89"
+      },
+      {
+        "file": "supabase/migrations/20260821060000_p0_politica_nf_remessa_requisito.sql",
+        "sha256": "7b20c42a0807febcd0783823b4dcf2d9cfe23d49ca5e1e5afb5e2fedb1dac52a"
+      },
+      {
+        "file": "supabase/migrations/20260821070000_p0_nf_remessa_requisito_politica_satisfacao.sql",
+        "sha256": "4c77432be59ecccdc18f95d3ec275e0a162224ac84d9e5ba76916eb3b4d450e0"
+      },
+      {
+        "file": "supabase/migrations/20260823130000_p0_nf_remessa_aprovacao_documental.sql",
+        "sha256": "c098b0c6c53a43797ec79a0e7add729d695b77004267812c4080c6d9edabe03c"
+      },
+      {
+        "file": "supabase/migrations/20260823140000_p0_canhoto_requisito_checklist.sql",
+        "sha256": "f3740a9f22b9c3cba270e9c39ae8137de123d013fac8cf79e394a34061c545e9"
+      },
+      {
+        "file": "supabase/migrations/20260823150000_p0_nf_remessa_atualizar_mesma_chave.sql",
+        "sha256": "51c6a95f57e6743f6f91829f30c7ab27bfc87e99a5b93f337cb5ded396a0dcda"
+      },
+      {
+        "file": "supabase/migrations/20260824100000_p0_webhook_comprovante_transportadora.sql",
+        "sha256": "98c5d3f4c46ad1edd134e78e1270e1789a0550ac42fbcb65b9ca774e0843dd51"
+      },
+      {
+        "file": "supabase/migrations/20260824150000_p0_fechar_webhook_transportadora_gaps.sql",
+        "sha256": "6f139bbc504766cd460150a706d08e4c4905075fcf7c9c54ee08ce97da280151"
+      },
+      {
+        "file": "supabase/migrations/20260824180000_p1_super_admin_integracao_transportadora.sql",
+        "sha256": "05a441ec3b268459b1ebe54098064b82ef30380118a32f457ce6c00fbe9ceaed"
+      },
+      {
+        "file": "supabase/migrations/20260824190000_p1_corrigir_idempotencia_backfill_token.sql",
+        "sha256": "40dbde0ac803237c70b2d3f0e9e99e417462226411aeedd11a9af07359a972c9"
+      },
+      {
+        "file": "supabase/migrations/20260824200000_corrigir_digest_integracao_transportadora.sql",
+        "sha256": "273542915d8685cb28708bedd0bd219516c3e58a955b68ac1e0cab3d2e4a2e31"
+      },
+      {
+        "file": "supabase/migrations/20260824210000_corrigir_acl_webhook_transportadora_service_role.sql",
+        "sha256": "0a81d78bfce990868cd0978367a7f83f482a6d64f67567ecfa74b1840d915d3d"
+      },
+      {
+        "file": "supabase/migrations/20260825100000_p0_vortx_vrs2_auth_mtls.sql",
+        "sha256": "940f63fc0417a4728dd2084e204e856796f698e3c64de5832c814fd74d836f8d"
+      },
+      {
+        "file": "supabase/migrations/20260825130000_p0_vortx_vrs2_adapter_capabilities.sql",
+        "sha256": "653dacbcfd9d8408aa2021fdb556d916042b7d01b8f54874c87f9b33e4588ae8"
+      },
+      {
+        "file": "supabase/migrations/20260826100000_p0_webhook_transportadora_payload_auditoria.sql",
+        "sha256": "f3b38c45e12847dac0b6d75f387bcc0eff468dee4bdcb22a1ecb82d8be1fcd3c"
+      },
+      {
+        "file": "supabase/migrations/20260826110000_p0_cadastro_cnpj_cep_bancos_filiais.sql",
+        "sha256": "e05299048b694a2daa248e32cc386e416641901b8e09bfafb7344b8e776d9227"
+      },
+      {
+        "file": "supabase/migrations/20260826111500_p0_corrigir_overloads_cadastro_filiais.sql",
+        "sha256": "c5474ad86afc620b5a530eefddc3aa0783d7a55467cf52a0e8f9af4040a2c8d7"
+      },
+      {
+        "file": "supabase/migrations/20260826120000_p0_corrigir_permissao_solicitacao_alteracao_cedente.sql",
+        "sha256": "508036f0bee16ecfdabcb0d5c214e12d98a0d2519a5e95ed8c8042e1716dd7fa"
+      },
+      {
+        "file": "supabase/migrations/20260826143321_p0_vinculo_gestor_fundo_busca_paginada.sql",
+        "sha256": "34e90ccbe4228183ca1d1f8eba28a9fe3e6265ecb4264b7c00d48c8576f7850c"
+      },
+      {
+        "file": "supabase/migrations/20260826172150_p1_identidade_organizacional_cedente.sql",
+        "sha256": "1c66decc7075cfec8c4d3a40792c74f72b9df0463bd8e5aec7a066415dcde16f"
+      },
+      {
+        "file": "supabase/migrations/20260826190000_p2_invite_first_novo_cedente.sql",
+        "sha256": "5e58d5570c2626acee5a368cd98fdba6b861db60c244c8455655c93bc652e0a9"
+      },
+      {
+        "file": "supabase/migrations/20260826193000_p2_invite_first_compatibilidade_convites_existentes.sql",
+        "sha256": "f9c4d4abacb585928d10a3df6f2d7c816f1826cb29293862f30b8169a07f7aa5"
+      },
+      {
+        "file": "supabase/migrations/20260826200000_p3_cutover_autorizacao_cedente.sql",
+        "sha256": "609f279e3d4a3eff04ac1ff1d151b620f9d03f3a92ca23ba635e131a81e123ce"
+      },
+      {
+        "file": "supabase/migrations/20260826201000_p3_notificacoes_cedente_ativas.sql",
+        "sha256": "6bfb3e6f238aeb0614e9afde6fbdfc7ddc50de22d51345e21f60aa4c7c03c879"
+      },
+      {
+        "file": "supabase/migrations/20260826202000_p3_hardening_acl_rpcs_cedente.sql",
+        "sha256": "4b7b2d796ec91ff8703b7f727fbb6b0b793db05aee4ad1e00de198b6fb9a899b"
+      },
+      {
+        "file": "supabase/migrations/20260826211301_p4_remessas_operacionais_adapter.sql",
+        "sha256": "17951a8db672a314fe917ef7702e332a8008dbfb4b855e44791734d75e768154"
+      },
+      {
+        "file": "supabase/migrations/20260826211522_p4_index_remessas_gerado_por.sql",
+        "sha256": "91680fe217ebaef4c496dfc5a495dae64e32472708e55ae125b9fd94037b1080"
+      },
+      {
+        "file": "supabase/migrations/20260826220731_p4_1_pagamento_vrs_estabelecimento.sql",
+        "sha256": "6343c34c0c2d6d51f2bd7a5cb9d3e84c8d78a1cc8eeea211e1ec7ab2e8c83316"
+      },
+      {
+        "file": "supabase/migrations/20260826223437_p4_1_1_titular_pagamento_vrs.sql",
+        "sha256": "52e789b8e438d891bee605ec643700190d790cb98e144ebdb1ba743e3cc9d12b"
+      },
+      {
+        "file": "supabase/migrations/20260827150511_p0_convite_gestor_lifecycle_aceite.sql",
+        "sha256": "7057e41085cd56c7656e070011a7c053449bb29a64a856caf067b57146808053"
+      },
+      {
+        "file": "supabase/migrations/20260827183411_bridge_consultor_cedentes_para_consultor_cedente.sql",
+        "sha256": "1af2fd5d3fbcef9886099fd7200ce31ca215ec44fec51c69ca6aa25c2e5212ea"
+      },
+      {
+        "file": "supabase/migrations/20260827184403_bridge_documentos_representante_legado.sql",
+        "sha256": "22f072a03f6ace149c82796b53067d4eed686a40fa48d233fabad253c2a13ad3"
+      },
+      {
+        "file": "supabase/migrations/20260827185557_bridge_remover_policies_legadas_gestor_global.sql",
+        "sha256": "f4c629f2fc26da18cc10485c5d83543c1daea6a6d203310db3660a21a75de221"
+      },
+      {
+        "file": "supabase/migrations/20260827203000_p2_runtime_compatibilidade_sacado_admin.sql",
+        "sha256": "8629a9d9ebd0ae29c955e5d04548895bea622d55998d4f2f163fc0b2bc2c3867"
+      },
+      {
+        "file": "supabase/migrations/20260827204000_p2_runtime_notificacoes_authenticated.sql",
+        "sha256": "d450a37b8fc4b1e6d7c40fae9a8cb9fa5a34394231a9a6ba6d988cb349c6a6a3"
+      },
+      {
+        "file": "supabase/migrations/20260827205000_p2_runtime_restaurar_trigger_profile_auth.sql",
+        "sha256": "452a2d13eb8f5f5820e51638407bde2d25ea1d0286acea7d3fbedbecf9d58e80"
+      },
+      {
+        "file": "supabase/migrations/20260827213304_p3_1_vincular_cedentes_dlz.sql",
+        "sha256": "cf10c805bcd7b1137fc0f57bbee56b33759cd836ed30df75571ec1f3c8b97eda"
+      },
+      {
+        "file": "tsconfig.json",
+        "sha256": "3a38db76f40ee19d66a90807487b7b26f3bcbf10321bf7873f7339083886bbc5"
+      }
+    ]
+  },
+  "cutover_bundle": {
+    "files": 20,
+    "hash": "dc7ef0d88a4dbde49107b62a30a906dcc675de6ae6ed3e9f274f6b2529289a90",
+    "entries": [
+      {
+        "file": "docs/homologacao/p3-checklist-configuracoes-secrets.md",
+        "sha256": "7ece0fc6390bf956459355111ca908eb6efe24ec9bc4e2dcdaef6241ce9f4ef8"
+      },
+      {
+        "file": "docs/homologacao/p3-manifesto-migrations-producao.md",
+        "sha256": "5edcfe46d71a7dc60812dd8fd305ce4a356e9df3e1e5047ff83ae5fc83338280"
+      },
+      {
+        "file": "docs/homologacao/p3-runbook-cutover-producao.md",
+        "sha256": "db5fb6cf9e90aeee26be15c9b70fd70718376ae18f8db06db76c3281e87174f2"
+      },
+      {
+        "file": "docs/homologacao/p3-runbook-rollback-producao.md",
+        "sha256": "039cfa1e1299330f9c978e4b0ac9279cd2c9a5c34e5baa7b131b5614c0af0093"
+      },
+      {
+        "file": "docs/homologacao/p4-preflight-final-producao-dlz-health.md",
+        "sha256": "e115ce6cec697052b4e421570b67b759fbd9250628c4c113234f8fac4e57656d"
+      },
+      {
+        "file": "docs/homologacao/sql/p4-postflight-producao-read-only.sql",
+        "sha256": "c55e6ebc6b270f25edf9805e742ab640373a0a87a4fab5e4c81522bc18c67ac4"
+      },
+      {
+        "file": "docs/homologacao/sql/p4-preflight-producao-read-only.sql",
+        "sha256": "0531fe06bfc5e70fd1bc333d7980269126547257a14ddb13aa71b744de656d77"
+      },
+      {
+        "file": "rehearsal/manifests/dlz-production-config.json",
+        "sha256": "71557af94c34801ae2002e3d3431e1dc407c6fc50f5c81b703d9422433b8e085"
+      },
+      {
+        "file": "rehearsal/manifests/dlz-production-config.sha256",
+        "sha256": "47cf23c5474e313025de63aced11805dd7ddf1b469a7e8fe174b48ccaa50b048"
+      },
+      {
+        "file": "rehearsal/manifests/production-migrations.json",
+        "sha256": "662bb5bcc92ee7fee118c2654e1b9d9fe1a88229946465241242b3e87e373710"
+      },
+      {
+        "file": "rehearsal/scripts/configure-dlz-production.mjs",
+        "sha256": "100ab39ed1a8ce31b8e9f6d174f3911d50d645d8598c77658248201b909ab72a"
+      },
+      {
+        "file": "rehearsal/scripts/cutover-dry-run.mjs",
+        "sha256": "1626bfc79eb6407b501e77d510c30a4a988ae5c2ebfb255d616b424bd45b2cf8"
+      },
+      {
+        "file": "rehearsal/scripts/dlz-production-config.mjs",
+        "sha256": "2fd462d7de9b61c786539a46f7d24106897a5f3ed73673a81264a56b12239d73"
+      },
+      {
+        "file": "rehearsal/scripts/lib.mjs",
+        "sha256": "723cb79def0be26187825d32e22e1d88e761ace673080ec1760d5b3a561dd4ee"
+      },
+      {
+        "file": "rehearsal/scripts/p4-2-dlz-dry-run.mjs",
+        "sha256": "9895cb6dfc0695248c8c13930f7d166e489d53df93cad4d5716f9d8335f67109"
+      },
+      {
+        "file": "rehearsal/scripts/preflight-release-candidate.mjs",
+        "sha256": "dd9fcd846194379238d539632a54faca9aab2cd0e3da9d7eda84010990c056b4"
+      },
+      {
+        "file": "rehearsal/scripts/production-manifest.mjs",
+        "sha256": "4aca1d4cdda51578acd8c1cd1cc5d0a9843ba8a8ad521a146d9ac05856cfc024"
+      },
+      {
+        "file": "rehearsal/scripts/release-candidate-inventory.mjs",
+        "sha256": "4c9d2c74b06abfc94f92c74044dd1462073f536810808bb895d1ccf9e32d87e8"
+      },
+      {
+        "file": "rehearsal/scripts/release-scopes.mjs",
+        "sha256": "d0d1dbe77f546bd5ecdc766c9fea40479e815d1facd966b68568dff3f913a94c"
+      },
+      {
+        "file": "rehearsal/scripts/validate-production-manifest.mjs",
+        "sha256": "b4915c9d379a766365c49dbc7edfa7e7a76ea1c52bf58facdd8c980e05459c06"
+      }
+    ]
+  }
+}

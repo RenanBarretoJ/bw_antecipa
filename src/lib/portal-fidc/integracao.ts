@@ -6,6 +6,7 @@ import { registrarEventoSeguranca } from '@/lib/auth/mfa'
 import { integrationProviderRegistry, resolverMetodoEnvioOperacional } from '@/lib/integracoes/registry.server'
 import { integrationRuntimeEnvironment, resolverIntegracaoPorCapability } from '@/lib/integracoes/resolver.server'
 import { descriptografarPortalFidcValor } from '@/lib/portal-fidc/credenciais'
+import { isLegacyEnvSinqiaTerraConfig, resolverLegacyEnvSinqiaTerra } from '@/lib/integracoes/legacy-env'
 
 export const PORTAL_FIDC_PROVIDER = 'fromtis'
 export const PORTAL_FIDC_LABEL = 'Portal FIDC'
@@ -50,8 +51,9 @@ export type PortalFidcVersaoResolvida = {
 type PortalFidcCredenciais = {
   username: string
   password: string
-  source: 'banco'
-  credencialIntegracaoId: string
+  endpointBase: string | null
+  source: 'banco' | 'legacy_env'
+  credencialIntegracaoId: string | null
 }
 
 type RemessaPortalFidc = {
@@ -138,10 +140,28 @@ async function resolverCredenciaisPortalFidcBanco(
     entidade_id: credencial.id,
     dados: { fundo_id: integracao.fundoId, integracao_fundo_id: integracao.integracaoId, ambiente: integracao.ambiente, versao_id: integracao.id },
   })
-  return { username, password, source: 'banco', credencialIntegracaoId: credencial.id }
+  return { username, password, endpointBase: null, source: 'banco', credencialIntegracaoId: credencial.id }
 }
 
 export async function resolverCredenciaisPortalFidcSeguras(admin: AdminClient, integracao: PortalFidcVersaoResolvida): Promise<PortalFidcCredenciais> {
+  if (isLegacyEnvSinqiaTerraConfig(integracao.configuracao, integracao.fundoId)) {
+    const legacy = resolverLegacyEnvSinqiaTerra()
+    await registrarEventoSeguranca({
+      tipo_evento: 'CREDENCIAL_USADA',
+      ator_tipo: 'integracao',
+      severidade: 'info',
+      entidade_tipo: 'integracao_fundo_versoes',
+      entidade_id: integracao.id,
+      dados: { fundo_id: integracao.fundoId, ambiente: integracao.ambiente, source: 'legacy_env_sinqia_terra' },
+    })
+    return {
+      username: legacy.username,
+      password: legacy.password,
+      endpointBase: legacy.endpoint,
+      source: 'legacy_env',
+      credencialIntegracaoId: null,
+    }
+  }
   const credencialBanco = await resolverCredenciaisPortalFidcBanco(admin, integracao)
   if (credencialBanco) return credencialBanco
   await registrarEventoSeguranca({
@@ -382,7 +402,12 @@ async function enviarSoapPortalFidc(input: {
   remessa: RemessaPortalFidc
   cnabBuffer: Buffer
 }) {
-  const tipoRecebivel = input.remessa.configuracao?.tipo_recebivel || String(input.integracao.configuracao.tipoRecebivel || '01')
+  const legacy = isLegacyEnvSinqiaTerraConfig(input.integracao.configuracao, input.integracao.fundoId)
+    ? resolverLegacyEnvSinqiaTerra()
+    : null
+  const tipoRecebivel = input.remessa.configuracao?.tipo_recebivel
+    || legacy?.tipoRecebivel
+    || String(input.integracao.configuracao.tipoRecebivel || '01')
   const nomeRem = input.remessa.nome_arquivo
   const nomeZip = nomeRem.replace(/\.REM$/i, '.zip')
   const zip = new JSZip()
@@ -407,7 +432,7 @@ async function enviarSoapPortalFidc(input: {
 </soapenv:Body>\
 </soapenv:Envelope>`
 
-  const response = await fetch(input.integracao.endpointBase, {
+  const response = await fetch(input.credenciais.endpointBase || input.integracao.endpointBase, {
     method: 'POST',
     headers: {
       'Content-Type': 'text/xml; charset=utf-8',
@@ -450,7 +475,7 @@ export async function testarConexaoPortalFidc(fundoId: string, versaoId: string)
   try {
     const credenciais = await resolverCredenciaisPortalFidcSeguras(admin, integracao)
     const before = Date.now()
-    const response = await fetch(integracao.endpointBase, {
+    const response = await fetch(credenciais.endpointBase || integracao.endpointBase, {
       method: 'GET',
       headers: {
         username: credenciais.username,

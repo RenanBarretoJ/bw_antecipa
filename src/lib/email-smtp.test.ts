@@ -13,6 +13,7 @@ const SMTP_ENV_KEYS = [
   'SMTP_HOST',
   'SMTP_PORT',
   'SMTP_SECURE',
+  'SMTP_ALLOW_INSECURE_LOCAL',
   'SMTP_USER',
   'SMTP_PASSWORD',
   'EMAIL_FROM',
@@ -69,11 +70,46 @@ describe('transporte SMTP IONOS', () => {
         host: 'smtp.ionos.com',
         port: 465,
         secure: true,
+        requireTls: false,
+        ignoreTls: false,
         user: 'notificacoes@betterwith.com.br',
         password: 'test-secret',
         from: 'BETTER WITH <notificacoes@betterwith.com.br>',
       },
     })
+  })
+
+  it('permite SMTP sem TLS somente para sink loopback explicitamente marcado como rehearsal', async () => {
+    const { resolverConfiguracaoSmtp } = await import('./email')
+    const result = resolverConfiguracaoSmtp({
+      NEXT_PUBLIC_APP_ENV: 'rehearsal/local',
+      SMTP_HOST: '127.0.0.1',
+      SMTP_PORT: '55325',
+      SMTP_SECURE: 'false',
+      SMTP_ALLOW_INSECURE_LOCAL: 'true',
+      SMTP_USER: 'rehearsal@bw-antecipa.invalid',
+      SMTP_PASSWORD: 'local-only',
+      EMAIL_FROM: 'BETTER WITH <rehearsal@bw-antecipa.invalid>',
+    })
+
+    expect(result).toMatchObject({ enabled: true, config: { requireTls: false, ignoreTls: true } })
+  })
+
+  it('mantem TLS obrigatorio em host remoto ou fora do rehearsal', async () => {
+    const { resolverConfiguracaoSmtp } = await import('./email')
+    const base = {
+      SMTP_PORT: '2525',
+      SMTP_SECURE: 'false',
+      SMTP_ALLOW_INSECURE_LOCAL: 'true',
+      SMTP_USER: 'mailer@example.com',
+      SMTP_PASSWORD: 'test-secret',
+      EMAIL_FROM: 'BETTER WITH <mailer@example.com>',
+    }
+
+    expect(resolverConfiguracaoSmtp({ ...base, SMTP_HOST: 'smtp.example.com', NEXT_PUBLIC_APP_ENV: 'rehearsal/local' }))
+      .toMatchObject({ enabled: true, config: { requireTls: true, ignoreTls: false } })
+    expect(resolverConfiguracaoSmtp({ ...base, SMTP_HOST: '127.0.0.1', NEXT_PUBLIC_APP_ENV: 'homolog' }))
+      .toMatchObject({ enabled: true, config: { requireTls: true, ignoreTls: false } })
   })
 
   it('envia texto, HTML, CC, Message-ID e chave de idempotencia via SMTP', async () => {

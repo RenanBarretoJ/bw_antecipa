@@ -31,6 +31,8 @@ type ConfiguracaoSmtp = {
   host: string
   port: number
   secure: boolean
+  requireTls: boolean
+  ignoreTls: boolean
   user: string
   password: string
   from: string
@@ -97,6 +99,9 @@ export function resolverConfiguracaoSmtp(env: AmbienteSmtp = process.env): Resul
   const userAddress = extrairEnderecoEmail(user)
   const from = env.EMAIL_FROM?.trim() || `BETTER WITH <${user}>`
   const fromAddress = extrairEnderecoEmail(from)
+  const localSinkSemTls = env.NEXT_PUBLIC_APP_ENV === 'rehearsal/local'
+    && ['127.0.0.1', 'localhost'].includes(host.toLowerCase())
+    && env.SMTP_ALLOW_INSECURE_LOCAL === 'true'
 
   if (!Number.isInteger(port) || port < 1 || port > 65_535) {
     return { enabled: false, errorCode: 'SMTP_CONFIG_INVALID', errorMessage: 'SMTP_PORT deve ser uma porta valida.' }
@@ -111,7 +116,19 @@ export function resolverConfiguracaoSmtp(env: AmbienteSmtp = process.env): Resul
     return { enabled: false, errorCode: 'SMTP_CONFIG_INVALID', errorMessage: 'EMAIL_FROM deve usar o mesmo dominio da conta SMTP IONOS.' }
   }
 
-  return { enabled: true, config: { host, port, secure, user, password, from } }
+  return {
+    enabled: true,
+    config: {
+      host,
+      port,
+      secure,
+      requireTls: !secure && !localSinkSemTls,
+      ignoreTls: localSinkSemTls,
+      user,
+      password,
+      from,
+    },
+  }
 }
 
 function obterTransporter(config: ConfiguracaoSmtp): Transporter {
@@ -120,7 +137,8 @@ function obterTransporter(config: ConfiguracaoSmtp): Transporter {
     host: config.host,
     port: config.port,
     secure: config.secure,
-    requireTLS: !config.secure,
+    requireTLS: config.requireTls,
+    ignoreTLS: config.ignoreTls,
     auth: { user: config.user, pass: config.password },
     connectionTimeout: 10_000,
     greetingTimeout: 10_000,

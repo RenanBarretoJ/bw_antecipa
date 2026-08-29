@@ -1,0 +1,68 @@
+project_id = "bw-antecipa-prod-rehearsal"
+
+[api]
+enabled = true
+port = 55321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 55322
+shadow_port = 55320
+major_version = 17
+health_timeout = "2m"
+
+[db.pooler]
+enabled = false
+port = 55329
+
+[db.migrations]
+enabled = false
+
+[db.seed]
+enabled = false
+sql_paths = ["./seed.sql"]
+
+[realtime]
+enabled = true
+
+[studio]
+enabled = true
+port = 55323
+api_url = "http://127.0.0.1"
+
+[local_smtp]
+enabled = true
+port = 55324
+smtp_port = 55325
+pop3_port = 55326
+
+[storage]
+enabled = true
+file_size_limit = "50MiB"
+
+[auth]
+enabled = true
+site_url = "http://localhost:3001"
+additional_redirect_urls = ["http://127.0.0.1:3001", "http://localhost:3001"]
+enable_signup = false
+
+[auth.email]
+# O portal continua invite-first e nao expoe signup funcional. Este flag precisa
+# permanecer ativo no stack local para o GoTrue aceitar login por senha dos
+# usuarios clonados que recebem uma credencial exclusivamente de rehearsal.
+enable_signup = true
+enable_confirmations = true
+
+[auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true
+
+[analytics]
+enabled = false
+port = 55327
+backend = "postgres"
+
+[edge_runtime]
+enabled = false

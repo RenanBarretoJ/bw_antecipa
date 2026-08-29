@@ -46,7 +46,7 @@ describe('resolverConfiguracaoVortxVrs', () => {
       .mockReturnValueOnce('key-plano')
       .mockReturnValueOnce('secret-plano')
       .mockReturnValueOnce('-----BEGIN CERTIFICATE-----')
-      .mockReturnValueOnce('-----BEGIN PRIVATE KEY-----')
+      .mockReturnValueOnce('-----BEGIN PRIVATE KEY-----') // dummy fixture
 
     const result = await resolverConfiguracaoVortxVrs('fundo-1', 'homologacao', admin)
 
@@ -56,7 +56,7 @@ describe('resolverConfiguracaoVortxVrs', () => {
       baseUrl: 'https://api-stg.vortx.com.br',
       key: 'key-plano',
       secret: 'secret-plano',
-      credential: { certificadoPem: '-----BEGIN CERTIFICATE-----', chavePrivadaPem: '-----BEGIN PRIVATE KEY-----' },
+      credential: { certificadoPem: '-----BEGIN CERTIFICATE-----', chavePrivadaPem: '-----BEGIN PRIVATE KEY-----' }, // dummy fixture
     })
     expect(from).toHaveBeenCalledWith('integracoes_vortx_vrs_credenciais')
     expect(eq).toHaveBeenCalledWith('fundo_id', 'fundo-1')

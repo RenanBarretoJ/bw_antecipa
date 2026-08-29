@@ -78,6 +78,33 @@ describe('resolvedor canonico de integracoes por capability', () => {
     expect(rpcClient.rpc).toHaveBeenCalledTimes(1)
   })
 
+  it('aceita credencial ausente somente no modo legado env de cessao', async () => {
+    const legacy = await resolverIntegracaoPorCapability(
+      { fundoId: '7a114257-7816-468e-adf4-d796b93364df', ambiente: 'producao', capability: 'CESSAO_ENVIO' },
+      client(configured({
+        ambiente: 'producao',
+        credencial_integracao_id: null,
+        credential_ref: 'legacy-env:FROMTIS',
+        configuracao_nao_sensivel: { runtime_mode: 'legacy_env_sinqia_terra' },
+      })),
+    )
+    const withoutMode = await resolverIntegracaoPorCapability(
+      { fundoId, ambiente: 'producao', capability: 'CESSAO_ENVIO' },
+      client(configured({ ambiente: 'producao', credencial_integracao_id: null })),
+    )
+    const financial = await resolverIntegracaoPorCapability(
+      { fundoId, ambiente: 'producao', capability: 'ESTOQUE' },
+      client(configured({
+        ambiente: 'producao', capability: 'ESTOQUE', credencial_integracao_id: null,
+        configuracao_nao_sensivel: { runtime_mode: 'legacy_env_sinqia_terra' },
+      })),
+    )
+
+    expect(legacy.status).toBe('CONFIGURADA')
+    expect(withoutMode).toEqual({ status: 'INDISPONIVEL', reason: 'CREDENCIAL_INDISPONIVEL' })
+    expect(financial).toEqual({ status: 'INDISPONIVEL', reason: 'CREDENCIAL_INDISPONIVEL' })
+  })
+
   it('bloqueia adapter ausente ou capability nao implementada', async () => {
     const absent = await resolverIntegracaoPorCapability(
       { fundoId, ambiente: 'homologacao', capability: 'ESTOQUE' },

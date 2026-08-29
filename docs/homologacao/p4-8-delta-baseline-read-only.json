@@ -1,0 +1,40 @@
+{
+  "schema": "bw-antecipa-p4-8-production-delta-read-only-v1",
+  "project_ref": "wwsndnuvnjuabpbjwlck",
+  "previous_snapshot_at": "2026-08-28T00:40:51.443Z",
+  "validated_at": "2026-08-29T11:51:34.085121Z",
+  "classification": "RECERTIFICADA_DLZ",
+  "expected_fund_id": "7a114257-7816-468e-adf4-d796b93364df",
+  "operation": {
+    "id": "b5420ea5-e86c-4c80-bf31-8a7f4a696f4d",
+    "status": "solicitada",
+    "linked_invoice_count": 1,
+    "fund_matches": true,
+    "cedente_valid": true
+  },
+  "invoices": [
+    { "id": "3a3c551c-ab1c-4361-aa3f-b6ed9f4a72f2", "fund_matches": true, "cedente_valid": true, "cnpj_consistent": true },
+    { "id": "41b80152-011d-4946-a903-55561030e4fb", "fund_matches": true, "cedente_valid": true, "cnpj_consistent": true },
+    { "id": "842bfa0d-0513-4f8e-ab75-711c20c25ddb", "fund_matches": true, "cedente_valid": true, "cnpj_consistent": true },
+    { "id": "8db7feb6-739b-4592-8331-6ec20f7649d7", "fund_matches": true, "cedente_valid": true, "cnpj_consistent": true },
+    { "id": "b494b6f5-7cb3-4731-9f1e-8d33b624c27a", "fund_matches": true, "cedente_valid": true, "cnpj_consistent": true },
+    { "id": "c3517e61-36a6-4c0b-b138-18ff807f9153", "fund_matches": true, "cedente_valid": true, "cnpj_consistent": true },
+    { "id": "d15df3e4-44ca-444e-9e22-863f26b0dd4d", "fund_matches": true, "cedente_valid": true, "cnpj_consistent": true }
+  ],
+  "storage": {
+    "new_objects": 9,
+    "invoice_objects": 7,
+    "contract_objects": 2,
+    "all_referenced": true,
+    "owners_consistent": true
+  },
+  "checks": {
+    "impulse_records": 0,
+    "critical_orphans": 0,
+    "unknown_statuses": 0,
+    "synthetic_markers": 0,
+    "rehearsal_markers": 0
+  },
+  "pii_included": false,
+  "secrets_included": false
+}

@@ -3,6 +3,7 @@ import 'server-only'
 import { createAdminClient } from '@/lib/supabase/server'
 import { isIntegrationCapability, type IntegrationCapability } from './capabilities'
 import { integrationProviderRegistry } from './registry.server'
+import { isLegacyEnvSinqiaTerraConfig } from './legacy-env'
 
 export type IntegrationEnvironment = 'homologacao' | 'producao'
 
@@ -86,7 +87,11 @@ export async function resolverIntegracaoPorCapability(
     return { status: 'INDISPONIVEL', reason: 'CONFIGURACAO_INCOMPLETA' }
   }
   if (adapter.requiresEndpoint && !values.endpointBase) return { status: 'INDISPONIVEL', reason: 'ENDPOINT_INDISPONIVEL' }
-  if (adapter.requiresCredential && (!values.credentialReference || !values.credentialId)) {
+  const config = object(row?.configuracao_nao_sensivel) || {}
+  const legacyEnvCessao = input.capability === 'CESSAO_ENVIO'
+    && adapterKey === 'sinqia_portal_fidc'
+    && isLegacyEnvSinqiaTerraConfig(config, input.fundoId)
+  if (adapter.requiresCredential && !legacyEnvCessao && (!values.credentialReference || !values.credentialId)) {
     return { status: 'INDISPONIVEL', reason: 'CREDENCIAL_INDISPONIVEL' }
   }
 
@@ -107,7 +112,7 @@ export async function resolverIntegracaoPorCapability(
       originatorCode: requiredString(row?.codigo_originador),
       credentialReference: values.credentialReference || '',
       credentialId: values.credentialId || '',
-      config: object(row?.configuracao_nao_sensivel) || {},
+      config,
     },
   }
 }

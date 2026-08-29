@@ -17,6 +17,13 @@ const nextConfig: NextConfig = {
     const isDev = process.env.NODE_ENV === 'development'
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
     const supabaseOrigin = supabaseUrl ? new URL(supabaseUrl).origin : 'https://*.supabase.co'
+    const supabaseWebSocketOrigin = supabaseUrl
+      ? (() => {
+          const url = new URL(supabaseUrl)
+          url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
+          return url.origin
+        })()
+      : 'wss://*.supabase.co'
     return [
       {
         source: '/:path*',
@@ -25,7 +32,7 @@ const nextConfig: NextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              `connect-src 'self' ${supabaseOrigin} https://*.supabase.co wss://*.supabase.co`,
+              `connect-src 'self' ${supabaseOrigin} ${supabaseWebSocketOrigin} https://*.supabase.co wss://*.supabase.co`,
               "img-src 'self' data: blob:",
               "font-src 'self' data:",
               "style-src 'self' 'unsafe-inline'",
