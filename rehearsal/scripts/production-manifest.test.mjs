@@ -1,6 +1,21 @@
 import assert from 'node:assert/strict'
+import crypto from 'node:crypto'
 import test from 'node:test'
-import { buildProductionManifest, validateProductionManifest } from './production-manifest.mjs'
+import { buildProductionManifest, sqlContentMatchesSha256, validateProductionManifest } from './production-manifest.mjs'
+
+function sha256(value) {
+  return crypto.createHash('sha256').update(value).digest('hex')
+}
+
+test('hash SQL preserva certificacao entre LF e CRLF sem aceitar mudanca semantica', () => {
+  const lf = 'select 1;\nselect 2;\n'
+  const crlf = lf.replace(/\n/gu, '\r\n')
+  const expected = sha256(Buffer.from(lf, 'utf8'))
+
+  assert.equal(sqlContentMatchesSha256(Buffer.from(lf, 'utf8'), expected), true)
+  assert.equal(sqlContentMatchesSha256(Buffer.from(crlf, 'utf8'), expected), true)
+  assert.equal(sqlContentMatchesSha256(Buffer.from('select 3;\n', 'utf8'), expected), false)
+})
 
 test('manifesto atual cobre toda a cadeia e bloqueia resets de homologacao', () => {
   const result = validateProductionManifest(buildProductionManifest())

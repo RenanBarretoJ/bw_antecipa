@@ -17,6 +17,8 @@ test('APP_RELEASE possui escopo material e exclui evidencias e testes', () => {
   assert.ok(files.includes('supabase/migrations/20260827213304_p3_1_vincular_cedentes_dlz.sql'))
   assert.equal(files.some((file) => file.startsWith('docs/')), false)
   assert.equal(files.some((file) => file.startsWith('rehearsal/')), false)
+  assert.equal(files.some((file) => file.includes('/__fixtures__/')), false)
+  assert.equal(files.some((file) => file.startsWith('src/lib/logistica/__fixtures__/reais/')), false)
   assert.equal(files.some((file) => /\.(?:test|spec)\.[^.]+$/u.test(file)), false)
 })
 

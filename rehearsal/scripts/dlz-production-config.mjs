@@ -5,11 +5,10 @@ import {
   REHEARSAL_ROOT,
   REPOSITORY_ROOT,
   extractProjectRef,
-  fileSha256,
   sha256,
   stableJson,
 } from './lib.mjs'
-import { validateProductionManifest } from './production-manifest.mjs'
+import { sqlContentMatchesSha256, validateProductionManifest } from './production-manifest.mjs'
 
 export const DLZ_ID = '7a114257-7816-468e-adf4-d796b93364df'
 export const IMPULSE_ID = 'cb372689-65c8-43af-8a20-7438002a3b91'
@@ -57,7 +56,7 @@ export function loadDlzConfigManifest() {
   const production = validateProductionManifest()
   assert(production.manifest_hash === manifest.production_migrations_manifest_hash, 'Hash do manifesto de migrations diverge do P4.2.')
   const preflightPath = path.join(REPOSITORY_ROOT, 'docs', 'homologacao', 'sql', 'p4-preflight-producao-read-only.sql')
-  assert(fileSha256(preflightPath) === manifest.preflight_sql_sha256, 'Preflight SQL diverge do hash certificado.')
+  assert(sqlContentMatchesSha256(fs.readFileSync(preflightPath), manifest.preflight_sql_sha256), 'Preflight SQL diverge do hash certificado.')
   return { manifest, manifestHash: calculatedHash, production }
 }
 

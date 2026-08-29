@@ -69,6 +69,17 @@ function assertExactArray(actual, expected, label) {
   }
 }
 
+export function sqlContentMatchesSha256(content, expectedHash) {
+  const raw = Buffer.isBuffer(content) ? content : Buffer.from(content, 'utf8')
+  if (sha256(raw) === expectedHash) return true
+
+  const lf = raw.toString('utf8').replace(/\r\n?/gu, '\n')
+  if (sha256(Buffer.from(lf, 'utf8')) === expectedHash) return true
+
+  const crlf = lf.replace(/\n/gu, '\r\n')
+  return sha256(Buffer.from(crlf, 'utf8')) === expectedHash
+}
+
 export function buildProductionManifest() {
   const files = fs.readdirSync(MIGRATIONS_DIRECTORY)
     .filter((file) => file.endsWith('.sql'))
@@ -139,8 +150,8 @@ export function validateProductionManifest(manifest = null) {
 
   for (const section of ['baseline_existing', 'pre_upgrade_bridges', 'upgrade_order', 'post_upgrade_data_patches', 'blocked_homolog_only']) {
     for (const entry of parsed[section] ?? []) {
-      const currentHash = fileSha256(path.join(MIGRATIONS_DIRECTORY, entry.file))
-      if (currentHash !== entry.sha256) throw new Error(`Conteudo alterado apos certificacao: ${entry.file}.`)
+      const content = fs.readFileSync(path.join(MIGRATIONS_DIRECTORY, entry.file))
+      if (!sqlContentMatchesSha256(content, entry.sha256)) throw new Error(`Conteudo alterado apos certificacao: ${entry.file}.`)
     }
   }
 

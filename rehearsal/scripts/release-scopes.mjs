@@ -1,4 +1,5 @@
 import crypto from 'node:crypto'
+import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -65,25 +66,35 @@ function stableJson(value) {
 function isRuntimeFile(file) {
   const normalized = normalize(file)
   return !normalized.includes('/__tests__/')
+    && !normalized.includes('/__fixtures__/')
     && !/\.(?:test|spec|stories)\.[^.]+$/u.test(normalized)
     && !/\.(?:architecture|runtime)\.test\.[^.]+$/u.test(normalized)
 }
 
-function walk(directory) {
-  if (!fs.existsSync(directory)) return []
-  return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-    const absolute = path.join(directory, entry.name)
-    return entry.isDirectory() ? walk(absolute) : [absolute]
+function gitIndexFiles(pathspecs = []) {
+  const output = execFileSync('git', ['ls-files', '-z', '--', ...pathspecs], {
+    cwd: REPOSITORY_ROOT,
+    encoding: 'utf8',
+    maxBuffer: 50 * 1024 * 1024,
+  })
+  return output.split('\0').filter(Boolean).map(normalize)
+}
+
+function gitIndexContent(file) {
+  return execFileSync('git', ['show', `:${file}`], {
+    cwd: REPOSITORY_ROOT,
+    maxBuffer: 50 * 1024 * 1024,
   })
 }
 
 function assertFilesExist(files, label) {
-  const missing = files.filter((file) => !fs.existsSync(path.join(REPOSITORY_ROOT, file)))
+  const tracked = new Set(gitIndexFiles())
+  const missing = files.filter((file) => !tracked.has(file))
   if (missing.length) throw new Error(`${label} contem arquivos ausentes: ${missing.join(', ')}`)
 }
 
 function productionMigrationFiles() {
-  const manifest = JSON.parse(fs.readFileSync(PRODUCTION_MIGRATIONS_MANIFEST, 'utf8'))
+  const manifest = JSON.parse(gitIndexContent(normalize(path.relative(REPOSITORY_ROOT, PRODUCTION_MIGRATIONS_MANIFEST))).toString('utf8'))
   const files = MIGRATION_GROUPS.flatMap((group) => {
     const entries = manifest[group]
     if (!Array.isArray(entries)) throw new Error(`Grupo de migrations ausente: ${group}`)
@@ -93,9 +104,8 @@ function productionMigrationFiles() {
 }
 
 export function canonicalAppFiles() {
-  const runtimeFiles = APP_RUNTIME_ROOTS.flatMap((root) => walk(path.join(REPOSITORY_ROOT, root)))
+  const runtimeFiles = gitIndexFiles(APP_RUNTIME_ROOTS)
     .filter(isRuntimeFile)
-    .map((absolute) => normalize(path.relative(REPOSITORY_ROOT, absolute)))
   const files = [...new Set([...runtimeFiles, ...APP_BUILD_FILES, ...productionMigrationFiles()])].sort()
   assertFilesExist(files, 'APP_RELEASE')
   return files
@@ -110,7 +120,7 @@ export function canonicalCutoverFiles() {
 function entries(files) {
   return files.map((file) => ({
     file,
-    sha256: sha256(fs.readFileSync(path.join(REPOSITORY_ROOT, file))),
+    sha256: sha256(gitIndexContent(file)),
   }))
 }
 
