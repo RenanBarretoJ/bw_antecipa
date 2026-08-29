@@ -50,6 +50,10 @@ test('postflight cobre cadeia canonica, exclusoes, DLZ, CNAB, integracao e grant
     'total_migrations_confere',
     '20260723182639',
     '20260827205000',
+    '20260829173938',
+    'APPLIED_HISTORICALLY_BUT_NEUTRALIZED',
+    'ACTIVE_DANGEROUS_ARTIFACT',
+    'reset_operacional_fundo_homolog%',
     'd1311000-0000-4000-8000-000000000002',
     'd1312000-0000-4000-8000-000000000002',
     'd1313000-0000-4000-8000-000000000002',
@@ -59,12 +63,14 @@ test('postflight cobre cadeia canonica, exclusoes, DLZ, CNAB, integracao e grant
   ]) assert.match(value, new RegExp(expected, 'u'))
 })
 
-test('manifesto permanece na topologia certificada do P4', () => {
+test('manifesto preserva bloqueios do P4 e incorpora a neutralizacao P5.2', () => {
   const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
   assert.equal(manifest.baseline_existing.length, 14)
   assert.equal(manifest.pre_upgrade_bridges.length, 3)
-  assert.equal(manifest.upgrade_order.length, 175)
+  assert.equal(manifest.upgrade_order.length, 176)
   assert.equal(manifest.post_upgrade_data_patches.length, 1)
   assert.equal(manifest.blocked_homolog_only.length, 5)
-  assert.equal(manifest.manifest_hash, 'cc708283d55bae027ec3d1cd47ed47edb955bcd47bd84a64049008692628a318')
+  assert.equal(manifest.production_history.expected_history_after_p5_2, 199)
+  assert.equal(manifest.production_history.forward_production_applied_version, '20260829173938')
+  assert.equal(manifest.production_history.blocked_effect_state, 'APPLIED_HISTORICALLY_BUT_NEUTRALIZED')
 })

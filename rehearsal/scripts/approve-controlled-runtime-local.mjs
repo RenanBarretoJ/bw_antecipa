@@ -62,6 +62,13 @@ async function main() {
     await page.waitForFunction(() => document.body.innerText.includes('MFA ativado com sucesso.'), { timeout: 30_000 })
     await page.evaluate(() => [...document.querySelectorAll('button')].find((item) => item.textContent?.includes('Continuar para o portal'))?.click())
     await page.waitForFunction(() => location.pathname === '/gestor/dashboard', { timeout: 30_000 })
+    await page.setCookie({
+      name: 'bw_fundo_ativo_id',
+      value: fixture.fundo_id,
+      url: APP_URL,
+      httpOnly: true,
+      sameSite: 'Lax',
+    })
     const response = await page.goto(`${APP_URL}/gestor/operacoes/${fixture.operacao_id}`, { waitUntil: 'domcontentloaded', timeout: 45_000 })
     await new Promise((resolve) => setTimeout(resolve, 3_000))
     const destination = new URL(page.url()).pathname

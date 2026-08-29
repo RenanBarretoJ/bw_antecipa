@@ -59,19 +59,49 @@ with bloqueadas(version) as (
     ('20260827185557'::text),
     ('20260827203000'::text),
     ('20260827204000'::text),
-    ('20260827205000'::text)
+    ('20260827205000'::text),
+    ('20260827213304'::text),
+    -- O aplicador remoto registrou a forward com a versao operacional abaixo.
+    -- O arquivo canonico permanece 20260829170408_p5_2_*.sql.
+    ('20260829173938'::text)
 )
 select
-  (select count(*) from supabase_migrations.schema_migrations) = 192 as total_migrations_confere,
+  (select count(*) from supabase_migrations.schema_migrations) = 199 as total_migrations_confere,
   not exists (
     select 1 from bloqueadas b
-    join supabase_migrations.schema_migrations m using (version)
-  ) as migrations_homolog_ausentes,
+    left join supabase_migrations.schema_migrations m using (version)
+    where m.version is null
+  ) as migrations_homolog_presentes_historicamente,
   not exists (
     select 1 from obrigatorias o
     left join supabase_migrations.schema_migrations m using (version)
     where m.version is null
-  ) as bridges_e_correcoes_presentes;
+  ) as bridges_correcoes_patch_e_forward_presentes,
+  case
+    when not exists (
+      select 1
+        from pg_proc p
+        join pg_namespace n on n.oid = p.pronamespace
+       where n.nspname = 'public'
+         and p.proname like 'reset_operacional_fundo_homolog%'
+    ) then 'APPLIED_HISTORICALLY_BUT_NEUTRALIZED'
+    else 'ACTIVE_DANGEROUS_ARTIFACT'
+  end as blocked_migrations_effect_state,
+  not exists (
+    select 1
+      from pg_proc p
+      join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public'
+       and p.proname like 'reset_operacional_fundo_homolog%'
+  ) as reset_homolog_ausente,
+  not exists (
+    select 1
+      from information_schema.routine_privileges rp
+     where rp.routine_schema = 'public'
+       and rp.routine_name like 'reset_operacional_fundo_homolog%'
+       and rp.grantee in ('anon', 'authenticated', 'service_role')
+       and rp.privilege_type = 'EXECUTE'
+  ) as reset_homolog_sem_execute;
 
 select * from (
   values

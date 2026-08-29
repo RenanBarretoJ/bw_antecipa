@@ -121,6 +121,8 @@
     "rehearsal:post-upgrade": "node rehearsal/scripts/post-upgrade-local.mjs",
     "rehearsal:verify-upgrade": "node rehearsal/scripts/verify-upgrade-determinism.mjs",
     "rehearsal:test-bridges": "node rehearsal/scripts/verify-bridges-idempotency.mjs",
+    "rehearsal:p5.2:contaminate": "node rehearsal/scripts/p5-2-forward-local.mjs --stage=contaminate",
+    "rehearsal:p5.2:neutralize": "node rehearsal/scripts/p5-2-forward-local.mjs --stage=neutralize",
     "rehearsal:test": "node --test rehearsal/scripts/*.test.mjs",
     "rehearsal:release:manifest:build": "node rehearsal/scripts/build-production-manifest.mjs",
     "rehearsal:release:manifest:validate": "node rehearsal/scripts/validate-production-manifest.mjs",

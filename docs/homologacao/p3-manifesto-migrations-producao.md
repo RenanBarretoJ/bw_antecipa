@@ -4,10 +4,10 @@
 
 O manifesto executável e versionável está em `rehearsal/manifests/production-migrations.json`.
 
-- hash do manifesto: `0197f9f8361e528b663f1bcc632bf23efc08de80557133fb8881fd3650ca1947`;
+- hash do manifesto P5.2: `04b3aced455f39ab033b3261c4d079f175b071ea9231e6d0d51a2494d1b92d0e`;
 - baseline já registrado em produção: 14 migrations;
 - bridges pré-upgrade: 3;
-- migrations promovíveis após o baseline: 175;
+- migrations promovíveis após o baseline: 176, incluindo a forward P5.2;
 - migrations destrutivas exclusivas de homologação: 5, formalmente excluídas.
 
 Cada entrada contém o nome do arquivo e o SHA-256 do SQL. A validação falha se um arquivo for alterado, omitido, duplicado, reordenado ou incluído indevidamente.
@@ -35,6 +35,19 @@ As migrations abaixo não pertencem ao caminho de produção:
 5. `20260823125731_corrigir_reset_dependencias_risco.sql`
 
 Elas implementam ou corrigem resets destrutivos de homologação. Sua presença no diretório não autoriza aplicação em produção.
+
+## Histórico real após o incidente P5.2
+
+As cinco migrations bloqueadas foram aplicadas automaticamente em produção antes
+da desativação de **Deploy to production**. Elas permanecem no histórico com o
+estado `APPLIED_HISTORICALLY_BUT_NEUTRALIZED`; não se usa `migration repair` e
+nenhuma linha do histórico é removida.
+
+A migration promovível
+`20260829170408_p5_2_neutralizar_resets_homolog_producao.sql` remove somente os
+artefatos executáveis de reset. Em produção existente, ela é a única migration
+aplicada manualmente nesta correção. Em upgrade limpo, as cinco migrations acima
+são omitidas e a P5.2 executa como no-op idempotente.
 
 ## Classificação das correções P2
 

@@ -4,6 +4,25 @@
 
 Este runbook não autoriza execução enquanto `CUTOVER_PRODUCAO` estiver `NO_GO`.
 
+## P5.2 — estado real após o incidente de auto-migration
+
+A integração GitHub do Supabase aplicou em produção as cinco migrations de
+reset exclusivas de homologação. O histórico é factual e não deve ser reparado,
+apagado ou renumerado. O estado canônico passa a ser:
+
+- cinco migrations bloqueadas: `APPLIED_HISTORICALLY_BUT_NEUTRALIZED`;
+- patch `20260827213304_p3_1_vincular_cedentes_dlz.sql`: legítimo e preservado;
+- migration `20260829170408_p5_2_neutralizar_resets_homolog_producao.sql`:
+  forward de neutralização presente;
+- nenhuma função `public.reset_operacional_fundo_homolog%` existente ou
+  executável;
+- deploy automático de migrations da branch `main`: desabilitado.
+
+Em um upgrade limpo futuro, as cinco migrations continuam bloqueadas e somente
+a forward P5.2 é aplicada, de forma idempotente/no-op. Em produção existente,
+aplica-se manualmente somente a forward P5.2. `supabase db push`, glob do
+diretório e repair do histórico permanecem proibidos.
+
 ## Papéis mínimos
 
 - executor de banco;
@@ -35,7 +54,7 @@ Este runbook não autoriza execução enquanto `CUTOVER_PRODUCAO` estiver `NO_GO
 7. armazenar os artefatos fora do Git e validar seus checksums;
 8. validar novamente o manifesto e as cinco exclusões;
 9. somente depois de o backup ser aprovado, aplicar as três bridges na ordem canônica;
-10. aplicar as 175 migrations promovíveis, uma a uma, com `ON_ERROR_STOP` e registro de cada versão;
+10. em upgrade limpo, aplicar as 176 migrations promovíveis, incluindo a forward P5.2 idempotente, uma a uma, com `ON_ERROR_STOP` e registro de cada versão;
 11. executar pós-check de schema, grants, RLS, triggers, contagens e integridade;
 12. aplicar somente data patches previamente aprovados e idempotentes;
 13. criar/publicar as configurações aprovadas de cada fundo;
@@ -81,7 +100,8 @@ Se ocorrer qualquer DML entre o freeze e o término do backup, o checkpoint é i
 
 - manifesto e hashes conferidos;
 - baseline histórico sem divergência;
-- zero migration bloqueada;
+- cinco migrations bloqueadas presentes apenas no histórico e com efeitos neutralizados;
+- migration forward P5.2 presente e nenhuma RPC de reset de homologação ativa;
 - dois Cedentes sem fundo decididos;
 - configurações dos dois fundos publicadas;
 - secrets provisionados e testados;
@@ -102,7 +122,8 @@ Pré-condições adicionais:
 3. manifesto DLZ `5833541e93b9f9213c21b300771f53b47de3cf06242b7afd5fb51b5c06202d6c` revisado;
 4. preflight SQL executado sem divergência e seu hash registrado na janela;
 5. 12 Cedentes ativos resolvendo para o DLZ;
-6. cinco migrations exclusivas de homologação ausentes;
+6. cinco migrations exclusivas de homologação bloqueadas no manifesto; em
+   produção existente, presentes historicamente e neutralizadas pela P5.2;
 7. dois revisores presentes e correlation ID registrado.
 
 Executar primeiro em modo somente leitura:

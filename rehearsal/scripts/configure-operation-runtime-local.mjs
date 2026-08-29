@@ -75,6 +75,18 @@ async function main() {
           'DIAS_CORRIDOS_365', false
         )
       `, [versionId, policyId, row.cedente_fundo_id, row.fundo_id, contentHash, row.user_id])
+      // O clone P5.2 ja possui a politica DLZ publicada para todos os Cedentes.
+      // Encerra somente no ambiente local a atribuicao vigente da fixture antes
+      // de instalar a politica sintetica isolada do smoke.
+      await client.query(`
+        update public.cedente_fundo_politicas
+           set status = 'encerrada',
+               vigente_ate = now(),
+               motivo = 'Substituida somente no clone pelo smoke controlado P5.2',
+               updated_at = now()
+         where cedente_fundo_id = $1
+           and status = 'ativa'
+      `, [row.cedente_fundo_id])
       await client.query(`
         insert into public.cedente_fundo_politicas (cedente_fundo_id, politica_operacional_id, status, atribuido_por, motivo)
         values ($1, $2, 'ativa', $3, 'Configuracao sintetica local do P2')

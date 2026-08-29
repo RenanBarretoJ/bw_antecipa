@@ -1,6 +1,6 @@
 {
-  "schema_version": 1,
-  "release": "P3_RELEASE_CANDIDATE_PRODUCAO",
+  "schema_version": 2,
+  "release": "P5_2_FORWARD_REMEDIATION_PRODUCAO",
   "baseline_existing": [
     {
       "file": "003_storage_buckets_env.sql",
@@ -773,6 +773,10 @@
     {
       "file": "20260827205000_p2_runtime_restaurar_trigger_profile_auth.sql",
       "sha256": "452a2d13eb8f5f5820e51638407bde2d25ea1d0286acea7d3fbedbecf9d58e80"
+    },
+    {
+      "file": "20260829170408_p5_2_neutralizar_resets_homolog_producao.sql",
+      "sha256": "a1be0513172332a9c95aa78ee38a489fba6a58d73ac8cffe32f2038551a06da3"
     }
   ],
   "post_upgrade_data_patches": [
@@ -813,5 +817,20 @@
       "sha256": "74c94f747860910baeba073de1359b97eead9703a0d4405328689e8e9c46fb41"
     }
   ],
-  "manifest_hash": "cc708283d55bae027ec3d1cd47ed47edb955bcd47bd84a64049008692628a318"
+  "production_history": {
+    "state_before_p5_2": "CONTAMINATED_198",
+    "historically_applied_blocked": [
+      "20260723182639_reset_operacional_fundo_homolog_rpc.sql",
+      "20260728153646_reset_operacional_eventos_dominio.sql",
+      "20260804103235_corrigir_reset_postergacoes_canhoto.sql",
+      "20260811153000_corrigir_reset_dependencias_logisticas_duplicatas.sql",
+      "20260823125731_corrigir_reset_dependencias_risco.sql"
+    ],
+    "legitimate_patch_historically_applied": "20260827213304_p3_1_vincular_cedentes_dlz.sql",
+    "forward_neutralization": "20260829170408_p5_2_neutralizar_resets_homolog_producao.sql",
+    "forward_production_applied_version": "20260829173938",
+    "expected_history_after_p5_2": 199,
+    "blocked_effect_state": "APPLIED_HISTORICALLY_BUT_NEUTRALIZED"
+  },
+  "manifest_hash": "04b3aced455f39ab033b3261c4d079f175b071ea9231e6d0d51a2494d1b92d0e"
 }

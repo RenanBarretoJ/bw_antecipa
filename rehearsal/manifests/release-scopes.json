@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-08-29T16:14:16.605Z",
+  "generated_at": "2026-08-29T17:43:56.466Z",
   "policy": {
     "app_release": "Runtime, build e migrations promoviveis; exclui testes, relatorios e tooling de rehearsal.",
     "cutover_bundle": "Artefatos operacionais explicitamente usados na janela; exclui relatorios posteriores e testes."
   },
   "app_release": {
-    "files": 718,
-    "hash": "8fc83a735a2db5402062d8ad4d38c222ec57a88a57cf6b9b1885eeba22fbe856",
+    "files": 719,
+    "hash": "26f6508f0608c6a3012b14162f55e47a6287a2bdcf80432f39a1e689c4d15d04",
     "entries": [
       {
         "file": "next.config.ts",
@@ -19,7 +19,7 @@
       },
       {
         "file": "package.json",
-        "sha256": "bb035fe676b15183f9da8e45faa7faac8c72e53963d9274b02b2a328ef75736e"
+        "sha256": "40382c4f25382f6c6507431749d38aa1c628a7846f32f0e60b9ae1810d50ac21"
       },
       {
         "file": "postcss.config.mjs",
@@ -2878,14 +2878,18 @@
         "sha256": "cf10c805bcd7b1137fc0f57bbee56b33759cd836ed30df75571ec1f3c8b97eda"
       },
       {
+        "file": "supabase/migrations/20260829170408_p5_2_neutralizar_resets_homolog_producao.sql",
+        "sha256": "a1be0513172332a9c95aa78ee38a489fba6a58d73ac8cffe32f2038551a06da3"
+      },
+      {
         "file": "tsconfig.json",
         "sha256": "b992ea793a4d6108091cfa3cfab802cd7427e491bbe32ea064ab3b49125ba6a5"
       }
     ]
   },
   "cutover_bundle": {
-    "files": 20,
-    "hash": "abcfe0d5c377e914507b79c259b5e750a1d894562d46ebcf9708bf6cdf5896bb",
+    "files": 23,
+    "hash": "ccafb6e5ddf76adf5cdf11a6120be58dc48a74a02386800799b9b2774648f5a6",
     "entries": [
       {
         "file": "docs/homologacao/p3-checklist-configuracoes-secrets.md",
@@ -2893,11 +2897,11 @@
       },
       {
         "file": "docs/homologacao/p3-manifesto-migrations-producao.md",
-        "sha256": "5edcfe46d71a7dc60812dd8fd305ce4a356e9df3e1e5047ff83ae5fc83338280"
+        "sha256": "513f7f377f2b94c6df6cb3885c85b16b8792e9606f0665893353647e9bbfd591"
       },
       {
         "file": "docs/homologacao/p3-runbook-cutover-producao.md",
-        "sha256": "db5fb6cf9e90aeee26be15c9b70fd70718376ae18f8db06db76c3281e87174f2"
+        "sha256": "be32d78046498680196661770ebf550f95ac1b387bff1ca5023f71583a57cd91"
       },
       {
         "file": "docs/homologacao/p3-runbook-rollback-producao.md",
@@ -2908,8 +2912,12 @@
         "sha256": "e115ce6cec697052b4e421570b67b759fbd9250628c4c113234f8fac4e57656d"
       },
       {
+        "file": "docs/homologacao/p5-2-neutralizacao-migrations-homolog.md",
+        "sha256": "43679c5b90c69b6a4eb4a18756b2c5fe91d7e6fc3405b2f98517c1d91245e9c1"
+      },
+      {
         "file": "docs/homologacao/sql/p4-postflight-producao-read-only.sql",
-        "sha256": "c55e6ebc6b270f25edf9805e742ab640373a0a87a4fab5e4c81522bc18c67ac4"
+        "sha256": "3661994f45b042bb40a6d34eb87619c888d5e3fb2d7347a18e545dcc3d1f0852"
       },
       {
         "file": "docs/homologacao/sql/p4-preflight-producao-read-only.sql",
@@ -2925,7 +2933,7 @@
       },
       {
         "file": "rehearsal/manifests/production-migrations.json",
-        "sha256": "662bb5bcc92ee7fee118c2654e1b9d9fe1a88229946465241242b3e87e373710"
+        "sha256": "bd5a5899f9c493a5f328079d06a04efa390489dbcb78e7b8e156278d4a17c094"
       },
       {
         "file": "rehearsal/scripts/configure-dlz-production.mjs",
@@ -2948,12 +2956,16 @@
         "sha256": "9895cb6dfc0695248c8c13930f7d166e489d53df93cad4d5716f9d8335f67109"
       },
       {
+        "file": "rehearsal/scripts/p5-2-forward-local.mjs",
+        "sha256": "7821c0340db944035f8f5b4fa8f2367a3e08722c5fcc5fb629b43a8925afb303"
+      },
+      {
         "file": "rehearsal/scripts/preflight-release-candidate.mjs",
         "sha256": "dd9fcd846194379238d539632a54faca9aab2cd0e3da9d7eda84010990c056b4"
       },
       {
         "file": "rehearsal/scripts/production-manifest.mjs",
-        "sha256": "37cbc9e1ee3629416bfa59da4333bb00ef982b6b24177d8a7d44db4f72e5a07e"
+        "sha256": "597d081cad8ad060c35f343204f38f4a9abbbea7a4130d0424a570ff8e30531d"
       },
       {
         "file": "rehearsal/scripts/release-candidate-inventory.mjs",
@@ -2961,7 +2973,11 @@
       },
       {
         "file": "rehearsal/scripts/release-scopes.mjs",
-        "sha256": "00a44d328657bf19b4ee1901f2cf43d017e9ea8a19733c6642678fb418c8756d"
+        "sha256": "1ba331c07be9bbf85345329dda0bd98c76b971c298117fa4d7fc1ffc7e1d7d91"
+      },
+      {
+        "file": "rehearsal/scripts/upgrade-local.mjs",
+        "sha256": "ea8eb8aeea08193f3cbdb884bd67b9b3e9b9f50da890b34845b233e83e637a27"
       },
       {
         "file": "rehearsal/scripts/validate-production-manifest.mjs",

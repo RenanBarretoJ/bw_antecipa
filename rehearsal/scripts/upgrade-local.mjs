@@ -3,6 +3,7 @@ import path from 'node:path'
 import {
   REPORT_DIR,
   REPOSITORY_ROOT,
+  TMP_DIR,
   assertLocalTarget,
   formatError,
   localPgConfig,
@@ -15,6 +16,8 @@ import { validateProductionManifest } from './production-manifest.mjs'
 const LOCAL_DB_CONTAINER = 'supabase_db_bw-antecipa-prod-rehearsal'
 const CONTAINER_MIGRATION = '/tmp/bw-antecipa-upgrade-migration.sql'
 const MIGRATIONS_DIR = path.join(REPOSITORY_ROOT, 'supabase', 'migrations')
+const OMIT_P5_2_FORWARD_FOR_CONTAMINATION = process.argv.includes('--omit-p5-2-forward-for-contamination-rehearsal')
+const P5_2_FORWARD_FILE = '20260829170408_p5_2_neutralizar_resets_homolog_producao.sql'
 const BASELINE_EXPECTED = Object.freeze({
   cedentes: 12,
   operacoes: 46,
@@ -77,7 +80,13 @@ async function appliedVersions(client) {
 }
 
 function applyMigrationFile(filePath) {
-  run('docker', ['cp', filePath, `${LOCAL_DB_CONTAINER}:${CONTAINER_MIGRATION}`])
+  // O Dashboard/Management API envia SQL normalizado em LF. Reproduzir esse
+  // transporte evita falso negativo em migrations que comparam trechos de
+  // pg_get_functiondef e receberam o arquivo CRLF do checkout Windows.
+  const normalizedPath = path.join(TMP_DIR, 'upgrade-migration-lf.sql')
+  fs.mkdirSync(TMP_DIR, { recursive: true })
+  fs.writeFileSync(normalizedPath, fs.readFileSync(filePath, 'utf8').replace(/\r\n?/gu, '\n'), 'utf8')
+  run('docker', ['cp', normalizedPath, `${LOCAL_DB_CONTAINER}:${CONTAINER_MIGRATION}`])
   try {
     run('docker', [
       'exec', LOCAL_DB_CONTAINER,
@@ -92,6 +101,7 @@ function applyMigrationFile(filePath) {
     ])
   } finally {
     run('docker', ['exec', LOCAL_DB_CONTAINER, 'rm', '-f', CONTAINER_MIGRATION])
+    fs.rmSync(normalizedPath, { force: true })
   }
 }
 
@@ -131,6 +141,7 @@ async function main() {
     production_manifest_hash: manifestHash,
     already_applied: [],
     blocked_homolog_only: [],
+    omitted_for_contamination_rehearsal: [],
     pre_upgrade_bridges: [],
     applied: [],
     first_failure: null,
@@ -165,6 +176,10 @@ async function main() {
   report.blocked_homolog_only = manifest.blocked_homolog_only.map(({ file, reason }) => ({ file, reason }))
 
   for (const { file: fileName } of manifest.upgrade_order) {
+    if (OMIT_P5_2_FORWARD_FOR_CONTAMINATION && fileName === P5_2_FORWARD_FILE) {
+      report.omitted_for_contamination_rehearsal.push(fileName)
+      continue
+    }
     const version = migrationVersion(fileName)
     if (initial.applied.has(version)) {
       report.already_applied.push(fileName)

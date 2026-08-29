@@ -1,9 +1,9 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { execFileSync } from 'node:child_process'
 import {
   REHEARSAL_ROOT,
   REPOSITORY_ROOT,
-  fileSha256,
   sha256,
   stableJson,
   writeJson,
@@ -53,8 +53,48 @@ export const BLOCKED_HOMOLOG_MIGRATIONS = Object.freeze([
   { file: '20260823125731_corrigir_reset_dependencias_risco.sql', reason: 'Correcao da RPC destrutiva de homologacao' },
 ])
 
+export const P5_2_FORWARD_MIGRATION = '20260829170408_p5_2_neutralizar_resets_homolog_producao.sql'
+export const P5_2_PRODUCTION_APPLIED_VERSION = '20260829173938'
+
+let certifiedHashesCache
+
+function certifiedMigrationHashes() {
+  if (certifiedHashesCache) return certifiedHashesCache
+  let previous
+  try {
+    previous = JSON.parse(execFileSync(
+      'git',
+      ['show', 'HEAD:rehearsal/manifests/production-migrations.json'],
+      { cwd: REPOSITORY_ROOT, encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 },
+    ))
+  } catch {
+    previous = fs.existsSync(PRODUCTION_MANIFEST_PATH)
+      ? JSON.parse(fs.readFileSync(PRODUCTION_MANIFEST_PATH, 'utf8'))
+      : {}
+  }
+  certifiedHashesCache = new Map(
+    [
+      'baseline_existing',
+      'pre_upgrade_bridges',
+      'upgrade_order',
+      'post_upgrade_data_patches',
+      'blocked_homolog_only',
+    ].flatMap((section) => previous[section] ?? [])
+      .filter((entry) => entry?.file && entry?.sha256)
+      .map((entry) => [entry.file, entry.sha256]),
+  )
+  return certifiedHashesCache
+}
+
 function migrationEntry(file) {
-  return { file, sha256: fileSha256(path.join(MIGRATIONS_DIRECTORY, file)) }
+  const content = fs.readFileSync(path.join(MIGRATIONS_DIRECTORY, file))
+  const certifiedHash = certifiedMigrationHashes().get(file)
+  // Preserva a certificacao anterior quando a unica diferenca e a conversao
+  // LF/CRLF do checkout. Alteracao semantica recebe hash novo e fica visivel.
+  if (certifiedHash && sqlContentMatchesSha256(content, certifiedHash)) {
+    return { file, sha256: certifiedHash }
+  }
+  return { file, sha256: sha256(content) }
 }
 
 function manifestPayload(manifest) {
@@ -92,14 +132,23 @@ export function buildProductionManifest() {
   ])
   const upgradeFiles = files.filter((file) => !excluded.has(file))
   const payload = {
-    schema_version: 1,
-    release: 'P3_RELEASE_CANDIDATE_PRODUCAO',
+    schema_version: 2,
+    release: 'P5_2_FORWARD_REMEDIATION_PRODUCAO',
     baseline_existing: BASELINE_FILES.map(migrationEntry),
     pre_upgrade_bridges: PRE_UPGRADE_BRIDGES.map(migrationEntry),
     upgrade_order: upgradeFiles.map(migrationEntry),
     post_upgrade_data_patches: POST_UPGRADE_DATA_PATCHES.map(migrationEntry),
     p2_production_corrections: [...P2_PRODUCTION_CORRECTIONS],
     blocked_homolog_only: BLOCKED_HOMOLOG_MIGRATIONS.map(({ file, reason }) => ({ file, reason, sha256: migrationEntry(file).sha256 })),
+    production_history: {
+      state_before_p5_2: 'CONTAMINATED_198',
+      historically_applied_blocked: BLOCKED_HOMOLOG_MIGRATIONS.map(({ file }) => file),
+      legitimate_patch_historically_applied: POST_UPGRADE_DATA_PATCHES[0],
+      forward_neutralization: P5_2_FORWARD_MIGRATION,
+      forward_production_applied_version: P5_2_PRODUCTION_APPLIED_VERSION,
+      expected_history_after_p5_2: 199,
+      blocked_effect_state: 'APPLIED_HISTORICALLY_BUT_NEUTRALIZED',
+    },
   }
   return { ...payload, manifest_hash: sha256(stableJson(payload)) }
 }
@@ -113,7 +162,7 @@ export function writeProductionManifest() {
 
 export function validateProductionManifest(manifest = null) {
   const parsed = manifest ?? JSON.parse(fs.readFileSync(PRODUCTION_MANIFEST_PATH, 'utf8'))
-  if (parsed.schema_version !== 1 || parsed.release !== 'P3_RELEASE_CANDIDATE_PRODUCAO') {
+  if (parsed.schema_version !== 2 || parsed.release !== 'P5_2_FORWARD_REMEDIATION_PRODUCAO') {
     throw new Error('Cabecalho do manifesto de producao invalido.')
   }
   const expectedHash = sha256(stableJson(manifestPayload(parsed)))
@@ -134,6 +183,27 @@ export function validateProductionManifest(manifest = null) {
   assertExactArray(upgrades, sortedUpgrades, 'Migrations de upgrade')
   for (const correction of P2_PRODUCTION_CORRECTIONS) {
     if (!upgrades.includes(correction)) throw new Error(`Correcao P2 ausente do manifesto: ${correction}.`)
+  }
+  if (!upgrades.includes(P5_2_FORWARD_MIGRATION)) {
+    throw new Error(`Correcao forward P5.2 ausente do manifesto: ${P5_2_FORWARD_MIGRATION}.`)
+  }
+  const history = parsed.production_history
+  if (
+    history?.state_before_p5_2 !== 'CONTAMINATED_198'
+    || history?.forward_neutralization !== P5_2_FORWARD_MIGRATION
+    || history?.forward_production_applied_version !== P5_2_PRODUCTION_APPLIED_VERSION
+    || history?.expected_history_after_p5_2 !== 199
+    || history?.blocked_effect_state !== 'APPLIED_HISTORICALLY_BUT_NEUTRALIZED'
+  ) {
+    throw new Error('Historico real da remediacao P5.2 diverge do modelo canonico.')
+  }
+  assertExactArray(
+    history.historically_applied_blocked,
+    BLOCKED_HOMOLOG_MIGRATIONS.map(({ file }) => file),
+    'Historico das migrations bloqueadas aplicadas',
+  )
+  if (history.legitimate_patch_historically_applied !== POST_UPGRADE_DATA_PATCHES[0]) {
+    throw new Error('Patch legitimo P3.1 ausente do historico real de producao.')
   }
   for (const file of blocked) {
     if (upgrades.includes(file) || bridges.includes(file) || baseline.includes(file)) {

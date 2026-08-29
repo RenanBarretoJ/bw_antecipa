@@ -38,6 +38,8 @@ const CUTOVER_FILES = [
   'rehearsal/scripts/dlz-production-config.mjs',
   'rehearsal/scripts/cutover-dry-run.mjs',
   'rehearsal/scripts/p4-2-dlz-dry-run.mjs',
+  'rehearsal/scripts/upgrade-local.mjs',
+  'rehearsal/scripts/p5-2-forward-local.mjs',
   'docs/homologacao/sql/p4-preflight-producao-read-only.sql',
   'docs/homologacao/sql/p4-postflight-producao-read-only.sql',
   'docs/homologacao/p3-manifesto-migrations-producao.md',
@@ -45,6 +47,7 @@ const CUTOVER_FILES = [
   'docs/homologacao/p3-runbook-cutover-producao.md',
   'docs/homologacao/p3-runbook-rollback-producao.md',
   'docs/homologacao/p4-preflight-final-producao-dlz-health.md',
+  'docs/homologacao/p5-2-neutralizacao-migrations-homolog.md',
 ]
 
 function normalize(file) {
