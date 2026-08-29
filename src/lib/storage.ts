@@ -7,4 +7,6 @@ export const buckets = {
   documentos: 'documentos-cedentes',
   notasFiscais: 'notas-fiscais',
   contratos: 'contratos',
+  remessasCnab: 'remessas-cnab',
+  retornosIntegracao: 'retornos-integracao',
 } as const

@@ -1,0 +1,58 @@
+{
+  "schema": "rlx_expected_import_lifecycle_v2",
+  "dataset_version": "RLX_GOLDEN_V2",
+  "duplicate": {
+    "fixture": "duplicados/estoque-D-1-copia.csv",
+    "reuses_import": true
+  },
+  "rectifications": [
+    {
+      "type": "ESTOQUE",
+      "date": "2026-08-07",
+      "revisions": [
+        1,
+        2
+      ]
+    },
+    {
+      "type": "AQUISICOES",
+      "date": "2026-08-07",
+      "revisions": [
+        1,
+        2
+      ]
+    }
+  ],
+  "complete_empty": [
+    {
+      "day": "D-4",
+      "date": "2026-08-04",
+      "type": "AQUISICOES"
+    },
+    {
+      "day": "D-4",
+      "date": "2026-08-04",
+      "type": "LIQUIDACOES"
+    },
+    {
+      "day": "D-3",
+      "date": "2026-08-05",
+      "type": "AQUISICOES"
+    },
+    {
+      "day": "D-3",
+      "date": "2026-08-05",
+      "type": "LIQUIDACOES"
+    },
+    {
+      "day": "D-2",
+      "date": "2026-08-06",
+      "type": "AQUISICOES"
+    },
+    {
+      "day": "D-2",
+      "date": "2026-08-06",
+      "type": "LIQUIDACOES"
+    }
+  ]
+}

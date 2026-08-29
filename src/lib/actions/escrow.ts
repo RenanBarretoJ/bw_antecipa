@@ -1,12 +1,32 @@
 'use server'
 
+import { carregarMovimentosEscrow } from '@/lib/escrow/movimentos.server'
+import type { FiltrosMovimentos, PerfilExtrato } from '@/lib/escrow/movimentos'
 import { createClient } from '@/lib/supabase/server'
+import { requireAuthenticated } from '@/lib/auth/authorization'
 import { registrarLog } from './auditoria'
 
 export type EscrowActionState = {
   success?: boolean
   message?: string
 } | undefined
+
+export async function carregarMaisMovimentosEscrow(input: {
+  perfil: PerfilExtrato
+  contaId: string
+  filtros: Partial<FiltrosMovimentos>
+  cursor?: string | null
+}) {
+  try {
+    const resultado = await carregarMovimentosEscrow(input.perfil, input.contaId, input.filtros, input.cursor)
+    return { success: true as const, resultado }
+  } catch (error) {
+    return {
+      success: false as const,
+      message: error instanceof Error ? error.message : 'Nao foi possivel carregar os movimentos.',
+    }
+  }
+}
 
 // Registrar movimento na conta escrow (usado internamente e pela API externa)
 export async function registrarMovimentoEscrow({
@@ -22,6 +42,7 @@ export async function registrarMovimentoEscrow({
   valor: number
   operacao_id?: string | null
 }): Promise<EscrowActionState> {
+  await requireAuthenticated()
   const supabase = await createClient()
 
   if (valor <= 0) return { success: false, message: 'Valor deve ser positivo.' }
@@ -89,6 +110,7 @@ export async function registrarMovimentosLote(
     referencia_externa?: string
   }>
 ): Promise<EscrowActionState> {
+  await requireAuthenticated()
   const supabase = await createClient()
 
   const { data: conta } = await supabase

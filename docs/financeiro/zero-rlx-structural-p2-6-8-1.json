@@ -1,0 +1,26 @@
+{
+  "schema": "bw-antecipa-zero-rlx-structural-p2-6-8-1-v1",
+  "generated_at": "2026-08-17",
+  "environment": "homolog",
+  "project_ref": "fhgkmggthxikfpogrvaa",
+  "production_touched": false,
+  "status": "PASS",
+  "database": {
+    "active_structural_rlx_objects": 0,
+    "private.rlx_gestor_tem_acesso_fundo(uuid)": "ABSENT",
+    "canonical_operational_helper": "private.gestor_tem_acesso_fundo_operacional(uuid)",
+    "canonical_financial_helper": "private.financeiro_gestor_tem_acesso_fundo(uuid)"
+  },
+  "runtime": {
+    "active_target_references": 0,
+    "unexpected_legacy": []
+  },
+  "clean_room": {
+    "artifact": "clean-room-e2e-p2-6-8-1.json",
+    "status": "PASS",
+    "migrations": "127/127",
+    "schema_material_differences": 0
+  },
+  "historical_allowlist_preserved": true,
+  "credential_rotation_required": true
+}

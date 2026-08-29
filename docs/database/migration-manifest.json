@@ -1,0 +1,3715 @@
+{
+  "format": "bw-antecipa-perf9d-migration-manifest-v1",
+  "generatedAt": "2026-07-31T17:41:02.010Z",
+  "projectRef": "fhgkmggthxikfpogrvaa",
+  "branch": "homolog",
+  "head": "db4ef876ed547de1f71346bcb2d85f2cafcc278d",
+  "sourceEvidenceSha256": "b8883afe8414153a3db13c5071d2f325482f6a978c5a07b6af002e669f5cbe5a",
+  "remoteReadOnly": true,
+  "mutationExecuted": false,
+  "counts": {
+    "local": 74,
+    "remoteHistory": 5,
+    "classifications": {
+      "divergent": 2,
+      "indeterminate": 45,
+      "materially_fully_applied_without_history": 14,
+      "materially_partially_applied": 8,
+      "registered_and_equivalent": 4,
+      "local_pending_review": 1
+    },
+    "remoteObjectsWithoutLocalOrigin": 86
+  },
+  "duplicateVersions": [],
+  "invalidFilenames": [],
+  "migrations": [
+    {
+      "order": 1,
+      "version": "003",
+      "name": "storage_buckets_env",
+      "path": "supabase/migrations/003_storage_buckets_env.sql",
+      "sha256": "4ba544c24bed3aa1c1e3cc1fc96fb4182ad51cb756e807cf8f00cc6f0ab48a7a",
+      "canonicalStatementSha256": "8b4cbed0faefd40db43de6aa85d0bb444421cfe7f40c8d233f9680147c5a37fe",
+      "bytes": 5384,
+      "statements": 31,
+      "dependencies": [
+        "cedentes",
+        "storage.buckets",
+        "storage.objects",
+        "using"
+      ],
+      "expectationCounts": {
+        "data_mutation": 3,
+        "policy": 14
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": true,
+        "unsafeRerun": true,
+        "explicitTransaction": false,
+        "dynamicSql": false,
+        "manualAssumption": false
+      },
+      "remoteHistory": {
+        "version": "003",
+        "name": "storage_buckets_env",
+        "equivalent": true
+      },
+      "materialEvidenceCounts": {
+        "indeterminate": 3,
+        "superseded": 13,
+        "equivalent": 1
+      },
+      "classification": "registered_and_equivalent",
+      "reconciliationDecision": "já registrada; preservar"
+    },
+    {
+      "order": 2,
+      "version": "004",
+      "name": "aceite_sacado_em",
+      "path": "supabase/migrations/004_aceite_sacado_em.sql",
+      "sha256": "cdd6861559be3b6013b7f94ee491c679f01e4484d1721fb9f750c5866889dd1e",
+      "canonicalStatementSha256": "23581ee68e79befff93021de386ba2b64937b5faf1992576a0477f55e95d697e",
+      "bytes": 406,
+      "statements": 2,
+      "dependencies": [
+        "notas_fiscais"
+      ],
+      "expectationCounts": {
+        "column": 2
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": false,
+        "explicitTransaction": false,
+        "dynamicSql": false,
+        "manualAssumption": false
+      },
+      "remoteHistory": {
+        "version": "004",
+        "name": "aceite_sacado_em",
+        "equivalent": true
+      },
+      "materialEvidenceCounts": {
+        "absent": 1,
+        "equivalent": 1
+      },
+      "classification": "registered_and_equivalent",
+      "reconciliationDecision": "já registrada; preservar"
+    },
+    {
+      "order": 3,
+      "version": "005",
+      "name": "testemunhas",
+      "path": "supabase/migrations/005_testemunhas.sql",
+      "sha256": "e6bec003fd61fdbce9be04df34b019af3dc8a725b0bf0b227747542e91e7e4a7",
+      "canonicalStatementSha256": "9521a2607aba215bc94e5be91e13b8ea534a77c01096e24ff481b673c45a7982",
+      "bytes": 1056,
+      "statements": 6,
+      "dependencies": [
+        "operacoes",
+        "testemunhas"
+      ],
+      "expectationCounts": {
+        "table": 1,
+        "data_mutation": 1,
+        "rls_enabled": 1,
+        "policy": 2,
+        "column": 1
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": true,
+        "explicitTransaction": false,
+        "dynamicSql": false,
+        "manualAssumption": false
+      },
+      "remoteHistory": {
+        "version": "005",
+        "name": "testemunhas",
+        "equivalent": true
+      },
+      "materialEvidenceCounts": {
+        "indeterminate": 2,
+        "equivalent": 4
+      },
+      "classification": "registered_and_equivalent",
+      "reconciliationDecision": "já registrada; preservar"
+    },
+    {
+      "order": 4,
+      "version": "006",
+      "name": "documentos_assinados",
+      "path": "supabase/migrations/006_documentos_assinados.sql",
+      "sha256": "9940ff0c5240e81d77e455b7fe5dbcf97e562d0a420429c8b7ca479528b799bb",
+      "canonicalStatementSha256": "a510a383c1b4891f970c9fdc2cb2ca07142481ef271e903d7f61830077018360",
+      "bytes": 304,
+      "statements": 2,
+      "dependencies": [
+        "cedentes",
+        "operacoes"
+      ],
+      "expectationCounts": {
+        "column": 2
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": false,
+        "explicitTransaction": false,
+        "dynamicSql": false,
+        "manualAssumption": false
+      },
+      "remoteHistory": {
+        "version": "006",
+        "name": "documentos_assinados",
+        "equivalent": true
+      },
+      "materialEvidenceCounts": {
+        "equivalent": 2
+      },
+      "classification": "registered_and_equivalent",
+      "reconciliationDecision": "já registrada; preservar"
+    },
+    {
+      "order": 5,
+      "version": "007",
+      "name": "rename_aceite_sacado_em",
+      "path": "supabase/migrations/007_rename_aceite_sacado_em.sql",
+      "sha256": "043fc17128d3bafc241a1c5d5ab27be8ab40c65053cb29e6244a3ec73d97e9a0",
+      "canonicalStatementSha256": "d7dc765ae80680f238577e265a5667f29419afab04a1c992cf590be5bb649d64",
+      "bytes": 168,
+      "statements": 1,
+      "dependencies": [
+        "notas_fiscais"
+      ],
+      "expectationCounts": {
+        "unparsed_ddl": 1
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": false,
+        "explicitTransaction": false,
+        "dynamicSql": false,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "indeterminate": 1
+      },
+      "classification": "indeterminate",
+      "reconciliationDecision": "exige comparação adicional"
+    },
+    {
+      "order": 6,
+      "version": "008",
+      "name": "document_update_request",
+      "path": "supabase/migrations/008_document_update_request.sql",
+      "sha256": "eed67a8da9b3e12b865717209ee73d8651cf283bfea86238a3ee4185061ffb12",
+      "canonicalStatementSha256": "a8e466b025c9dc2213fbabb9fc1331b49b21af1f8de3c8160dc5a684265f5b34",
+      "bytes": 255,
+      "statements": 1,
+      "dependencies": [
+        "auth.users",
+        "documentos"
+      ],
+      "expectationCounts": {
+        "column": 1
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": false,
+        "explicitTransaction": false,
+        "dynamicSql": false,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "equivalent": 1
+      },
+      "classification": "materially_fully_applied_without_history",
+      "reconciliationDecision": "candidata após controle formal"
+    },
+    {
+      "order": 7,
+      "version": "009",
+      "name": "habilitar_escrow_cedente",
+      "path": "supabase/migrations/009_habilitar_escrow_cedente.sql",
+      "sha256": "9b0e294c524c9b2c5aa4b0abc1e7dca197bd3a4e0a26fc2558edea13c8347a5d",
+      "canonicalStatementSha256": "b47698ade683823f1a5e78cfaa85689cc1583c2308433b91d2090644a084f541",
+      "bytes": 167,
+      "statements": 1,
+      "dependencies": [
+        "cedentes"
+      ],
+      "expectationCounts": {
+        "column": 1
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": false,
+        "explicitTransaction": false,
+        "dynamicSql": false,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "equivalent": 1
+      },
+      "classification": "materially_fully_applied_without_history",
+      "reconciliationDecision": "candidata após controle formal"
+    },
+    {
+      "order": 8,
+      "version": "010",
+      "name": "solicitacoes_alteracao_cedente",
+      "path": "supabase/migrations/010_solicitacoes_alteracao_cedente.sql",
+      "sha256": "5cc92074cc180b25cd4274b5c1083152ed16352c04f71e1cac99ce0640942ab1",
+      "canonicalStatementSha256": "8fc432aeaccfabc9c8558967a94fcde5e1ebad3198308a4522a8a1e1cd1b038b",
+      "bytes": 1624,
+      "statements": 7,
+      "dependencies": [
+        "auth.users",
+        "cedentes",
+        "profiles",
+        "solicitacoes_alteracao_cedente"
+      ],
+      "expectationCounts": {
+        "table": 1,
+        "index": 2,
+        "rls_enabled": 1,
+        "policy": 3
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": true,
+        "explicitTransaction": false,
+        "dynamicSql": false,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "indeterminate": 2,
+        "equivalent": 5
+      },
+      "classification": "indeterminate",
+      "reconciliationDecision": "exige comparação adicional"
+    },
+    {
+      "order": 9,
+      "version": "011",
+      "name": "cedente_acessos",
+      "path": "supabase/migrations/011_cedente_acessos.sql",
+      "sha256": "7d630bc95b10879dce83555e5e05ff4978644bbef7d981a07c86da779edbcc5b",
+      "canonicalStatementSha256": "c2fa1ce252f074a65945ab11dd797ede1b4b0d90ecb37332e90a32b1869d755c",
+      "bytes": 1729,
+      "statements": 8,
+      "dependencies": [
+        "auth.users",
+        "cedente_acessos",
+        "cedentes",
+        "profiles"
+      ],
+      "expectationCounts": {
+        "table": 1,
+        "index": 2,
+        "function": 1,
+        "policy": 3,
+        "rls_enabled": 1
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": true,
+        "explicitTransaction": false,
+        "dynamicSql": false,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "indeterminate": 1,
+        "equivalent": 6,
+        "superseded": 1
+      },
+      "classification": "indeterminate",
+      "reconciliationDecision": "exige comparação adicional"
+    },
+    {
+      "order": 10,
+      "version": "012",
+      "name": "storage_policies_acesso_vinculado",
+      "path": "supabase/migrations/012_storage_policies_acesso_vinculado.sql",
+      "sha256": "703e242e477dd692092e85c047f4ad53c20a7db74e1ec82b9bb5a75ba1d3367d",
+      "canonicalStatementSha256": "84bb2a1d3b653efd7d745f35d31c114878c34afca1479a2100cd35bd93404a0b",
+      "bytes": 2307,
+      "statements": 12,
+      "dependencies": [
+        "cedentes",
+        "storage.objects",
+        "using"
+      ],
+      "expectationCounts": {
+        "policy": 6
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": true,
+        "explicitTransaction": false,
+        "dynamicSql": false,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "indeterminate": 3,
+        "superseded": 3
+      },
+      "classification": "indeterminate",
+      "reconciliationDecision": "exige comparação adicional"
+    },
+    {
+      "order": 11,
+      "version": "013",
+      "name": "nf_solicitar_ajuste",
+      "path": "supabase/migrations/013_nf_solicitar_ajuste.sql",
+      "sha256": "235e2efa1d91e13f6be08af8c21a6345bd7bc374848ccd080e2137f5f1df7f49",
+      "canonicalStatementSha256": "f211fb2a9f5e7fb35ff9ea35de4350e4dadd8304182212ba8e7f30a987fae254",
+      "bytes": 137,
+      "statements": 2,
+      "dependencies": [
+        "notas_fiscais"
+      ],
+      "expectationCounts": {
+        "unparsed_ddl": 1,
+        "column": 1
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": false,
+        "explicitTransaction": false,
+        "dynamicSql": false,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "indeterminate": 1,
+        "equivalent": 1
+      },
+      "classification": "indeterminate",
+      "reconciliationDecision": "exige comparação adicional"
+    },
+    {
+      "order": 12,
+      "version": "014",
+      "name": "coobrigacao_notificacao",
+      "path": "supabase/migrations/014_coobrigacao_notificacao.sql",
+      "sha256": "77ebce503ceeeabafa327171fba64614c3b80fb96bbd9f7924e61481a99709e9",
+      "canonicalStatementSha256": "12b63716b7f2d3c065a23cb17c3ccda8407846f0789730f79c05e8a1edb34505",
+      "bytes": 324,
+      "statements": 4,
+      "dependencies": [
+        "cedentes",
+        "operacoes"
+      ],
+      "expectationCounts": {
+        "column": 4
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": false,
+        "explicitTransaction": false,
+        "dynamicSql": false,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "equivalent": 4
+      },
+      "classification": "materially_fully_applied_without_history",
+      "reconciliationDecision": "candidata após controle formal"
+    },
+    {
+      "order": 13,
+      "version": "015",
+      "name": "remessa_fromtis",
+      "path": "supabase/migrations/015_remessa_fromtis.sql",
+      "sha256": "35194d2c6224a85ac6dd5e9952a8a4956f06ea9ae87bbcbf3dd359386094da3b",
+      "canonicalStatementSha256": "cfe7a0ee0e1e0264b6b5d4e57b196ea1a24ccce464af544439cc97b9c24092b8",
+      "bytes": 404,
+      "statements": 5,
+      "dependencies": [
+        "operacoes"
+      ],
+      "expectationCounts": {
+        "column": 5
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": false,
+        "explicitTransaction": false,
+        "dynamicSql": false,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "equivalent": 5
+      },
+      "classification": "materially_fully_applied_without_history",
+      "reconciliationDecision": "candidata após controle formal"
+    },
+    {
+      "order": 14,
+      "version": "016",
+      "name": "termo_quitacao",
+      "path": "supabase/migrations/016_termo_quitacao.sql",
+      "sha256": "9114857796e5f413dbc862314ba115affe0016e3a3bf1e275c1733dd43b0e9bc",
+      "canonicalStatementSha256": "118ac461433d7c8d67c1a5e35da3f8b9b41f2e9acfeb541c0507fd3f4d24255b",
+      "bytes": 328,
+      "statements": 1,
+      "dependencies": [
+        "operacoes"
+      ],
+      "expectationCounts": {
+        "column": 1
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": false,
+        "explicitTransaction": false,
+        "dynamicSql": false,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "equivalent": 1
+      },
+      "classification": "materially_fully_applied_without_history",
+      "reconciliationDecision": "candidata após controle formal"
+    },
+    {
+      "order": 15,
+      "version": "20260720203009",
+      "name": "fase1_auditoria_atores_origem",
+      "path": "supabase/migrations/20260720203009_fase1_auditoria_atores_origem.sql",
+      "sha256": "d7dad90dd905507b3e0244b7e43326e772d03fa1249a038da7ad7487267e5a27",
+      "canonicalStatementSha256": "658833d9083ce69eea76692554f6b09d9f7d274dd1eee6eb4a36f681fa402991",
+      "bytes": 1940,
+      "statements": 12,
+      "dependencies": [
+        "pg_constraint",
+        "public.logs_auditoria"
+      ],
+      "expectationCounts": {
+        "unparsed_ddl": 1,
+        "column": 1,
+        "dynamic_sql_block": 1,
+        "index": 3,
+        "policy": 4
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": true,
+        "explicitTransaction": false,
+        "dynamicSql": false,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "indeterminate": 2,
+        "equivalent": 1,
+        "superseded": 3,
+        "divergent": 2,
+        "absent": 2
+      },
+      "classification": "indeterminate",
+      "reconciliationDecision": "exige comparação adicional"
+    },
+    {
+      "order": 16,
+      "version": "20260721123935",
+      "name": "fase2_nucleo_multifundo_politicas_snapshot",
+      "path": "supabase/migrations/20260721123935_fase2_nucleo_multifundo_politicas_snapshot.sql",
+      "sha256": "0aafadb32166a9494611af2a4f9d9a593eeed23421e4ca4ebda0085e19c63b5a",
+      "canonicalStatementSha256": "78ffcfdacdedb5c780d879ceb57713b28d6d01f4ed3ad9447a08b5d8371a5532",
+      "bytes": 18529,
+      "statements": 47,
+      "dependencies": [
+        "old.aceite_sacado_exigido",
+        "old.aceite_sacado_obrigatorio",
+        "old.cedente_fundo_id",
+        "old.cessao_no_desembolso",
+        "old.configuracao",
+        "old.conteudo_hash",
+        "old.contexto_capturado_em",
+        "old.contexto_configuracao_status",
+        "old.cria_acompanhamento_entrega",
+        "old.politica_operacional_id",
+        "old.politica_operacional_versao_id",
+        "old.politica_snapshot",
+        "old.politica_snapshot_hash",
+        "old.politica_versao",
+        "old.publicada_em",
+        "old.publicada_por",
+        "old.versao",
+        "old.vigente_desde",
+        "on",
+        "or",
+        "public.cedente_fundos",
+        "public.cedentes",
+        "public.consultor_cedente",
+        "public.fundos",
+        "public.operacoes",
+        "public.politica_operacional_versoes",
+        "public.politica_requisitos_documentais",
+        "public.politicas_operacionais",
+        "public.profiles"
+      ],
+      "expectationCounts": {
+        "table": 4,
+        "index": 13,
+        "trigger": 6,
+        "data_mutation": 3,
+        "function": 4,
+        "column": 1,
+        "constraint": 1,
+        "rls_enabled": 4,
+        "policy": 9,
+        "unparsed_ddl": 2
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": true,
+        "explicitTransaction": false,
+        "dynamicSql": true,
+        "manualAssumption": true
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "indeterminate": 12,
+        "equivalent": 27,
+        "absent": 2,
+        "superseded": 6
+      },
+      "classification": "indeterminate",
+      "reconciliationDecision": "exige comparação adicional"
+    },
+    {
+      "order": 17,
+      "version": "20260721132903",
+      "name": "fase3_repositorio_documental_nf",
+      "path": "supabase/migrations/20260721132903_fase3_repositorio_documental_nf.sql",
+      "sha256": "0c50114fd76ba31d204224f24c5a1841044ea2376e1fff985b59f47d8b46d574",
+      "canonicalStatementSha256": "eb5c219bb4e813bac86d195533ba886d7d52d81d081ccfdb5d636752a2f464f2",
+      "bytes": 25125,
+      "statements": 53,
+      "dependencies": [
+        "analysis_id",
+        "cf.id",
+        "doc_id",
+        "dr.id",
+        "function",
+        "nf_cedente",
+        "old.bucket",
+        "old.documento_id",
+        "old.enviado_em",
+        "old.enviado_por",
+        "old.mime_type",
+        "old.nome_original",
+        "old.numero_versao",
+        "old.path",
+        "old.sha256",
+        "old.status",
+        "old.substitui_versao_id",
+        "old.tamanho_bytes",
+        "on",
+        "or",
+        "po.id",
+        "policy_cedente_fundo",
+        "public",
+        "public.cedente_fundos",
+        "public.cedentes",
+        "public.consultor_cedente",
+        "public.documento_analises",
+        "public.documento_requisito_instancias",
+        "public.documento_tipos",
+        "public.documento_versoes",
+        "public.documento_vinculos",
+        "public.documentos_repositorio",
+        "public.notas_fiscais",
+        "public.operacoes",
+        "public.politica_operacional_versoes",
+        "public.politica_requisitos_documentais",
+        "public.politicas_operacionais",
+        "public.profiles",
+        "requirement",
+        "same_hash",
+        "storage.buckets",
+        "storage.objects",
+        "v.documento_id",
+        "version_id",
+        "version_number",
+        "version_row"
+      ],
+      "expectationCounts": {
+        "table": 6,
+        "trigger": 5,
+        "data_mutation": 3,
+        "column": 1,
+        "index": 7,
+        "function": 5,
+        "rls_enabled": 6,
+        "policy": 13,
+        "unparsed_ddl": 3,
+        "grant": 6
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": true,
+        "unsafeRerun": true,
+        "explicitTransaction": false,
+        "dynamicSql": true,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "indeterminate": 14,
+        "equivalent": 37,
+        "superseded": 4
+      },
+      "classification": "indeterminate",
+      "reconciliationDecision": "exige comparação adicional"
+    },
+    {
+      "order": 18,
+      "version": "20260721170157",
+      "name": "fase4_roteamento_aceite_sacado",
+      "path": "supabase/migrations/20260721170157_fase4_roteamento_aceite_sacado.sql",
+      "sha256": "f7fc83c637540bab5d97c423aadce04af5247469b88ff4c1f5f8fb06f3d53a22",
+      "canonicalStatementSha256": "d0de6475d4a39089477fd42c15a8570fa0f0c583184e46591e078fe49bf8b82e",
+      "bytes": 8304,
+      "statements": 7,
+      "dependencies": [
+        "c.id",
+        "function",
+        "loop",
+        "nf.id",
+        "onf.nota_fiscal_id",
+        "op.id",
+        "public",
+        "public.cedente_acessos",
+        "public.cedentes",
+        "public.logs_auditoria",
+        "public.notas_fiscais",
+        "public.notificacoes",
+        "public.operacoes",
+        "public.operacoes_nfs",
+        "public.profiles",
+        "public.sacados",
+        "unnest",
+        "v_found_count",
+        "v_sacado_cnpj",
+        "v_total"
+      ],
+      "expectationCounts": {
+        "column": 1,
+        "index": 1,
+        "policy": 2,
+        "function": 1,
+        "grant": 2
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": false,
+        "explicitTransaction": false,
+        "dynamicSql": true,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "equivalent": 4,
+        "superseded": 2,
+        "absent": 1
+      },
+      "classification": "materially_partially_applied",
+      "reconciliationDecision": "exige migration corretiva"
+    },
+    {
+      "order": 19,
+      "version": "20260721183540",
+      "name": "fase5_logistica_pos_cessao",
+      "path": "supabase/migrations/20260721183540_fase5_logistica_pos_cessao.sql",
+      "sha256": "87cae20dd406dd90e66097cb8dd1416f909dc348b6fc1d5494f030470d30c50e",
+      "canonicalStatementSha256": "07637a5f02e7acd423dc4d4846c33d3412f7a18eda9ae82df75b5b573331939f",
+      "bytes": 44507,
+      "statements": 73,
+      "dependencies": [
+        "1",
+        "c.id",
+        "canhoto_id",
+        "canhoto_row",
+        "cc.cedente_id",
+        "cedente",
+        "cte_row",
+        "doc_id",
+        "dt.codigo",
+        "entrega",
+        "entrega_id",
+        "escrow_saldo",
+        "function",
+        "has_cte",
+        "jsonb_array_elements",
+        "n.id",
+        "nfe.nota_fiscal_id",
+        "on",
+        "op",
+        "op.id",
+        "or",
+        "public",
+        "public.canhotos",
+        "public.cedentes",
+        "public.consultor_cedente",
+        "public.contas_escrow",
+        "public.cte_notas_fiscais",
+        "public.ctes",
+        "public.documento_analises",
+        "public.documento_requisito_instancias",
+        "public.documento_tipos",
+        "public.documento_versoes",
+        "public.documento_vinculos",
+        "public.documentos_repositorio",
+        "public.eventos_entrega",
+        "public.movimentos_escrow",
+        "public.nota_fiscal_entregas",
+        "public.notas_fiscais",
+        "public.notificacoes",
+        "public.operacoes",
+        "public.operacoes_nfs",
+        "public.politica_requisitos_documentais",
+        "public.profiles",
+        "set",
+        "tipo",
+        "unnest",
+        "v_cte_id",
+        "v_doc_id",
+        "v_version_id",
+        "version_id"
+      ],
+      "expectationCounts": {
+        "precondition_block": 1,
+        "column": 3,
+        "data_mutation": 1,
+        "table": 5,
+        "trigger": 4,
+        "function": 10,
+        "unparsed_ddl": 5,
+        "constraint": 2,
+        "index": 9,
+        "rls_enabled": 5,
+        "policy": 10,
+        "grant": 18
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": true,
+        "unsafeRerun": true,
+        "explicitTransaction": false,
+        "dynamicSql": true,
+        "manualAssumption": true
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "equivalent": 51,
+        "indeterminate": 12,
+        "absent": 5,
+        "superseded": 3,
+        "divergent": 1
+      },
+      "classification": "indeterminate",
+      "reconciliationDecision": "exige comparação adicional"
+    },
+    {
+      "order": 20,
+      "version": "20260721190904",
+      "name": "fase6_templates_juridicos_fundo",
+      "path": "supabase/migrations/20260721190904_fase6_templates_juridicos_fundo.sql",
+      "sha256": "b8b45512ec8bf2ed9b0a7e9bacbdb5686fb5899018360d8376439cfe7c92d13c",
+      "canonicalStatementSha256": "61893bf796801428d2b1cbb68818eb559640cbc4d01bb50f23735a0a9b49d9fd",
+      "bytes": 10484,
+      "statements": 31,
+      "dependencies": [
+        "c.id",
+        "cc.cedente_id",
+        "function",
+        "old.conteudo_html",
+        "old.publicada_em",
+        "old.publicada_por",
+        "old.sha256",
+        "old.template_id",
+        "old.variaveis_schema",
+        "old.versao",
+        "old.vigente_desde",
+        "on",
+        "or",
+        "public",
+        "public.cedentes",
+        "public.consultor_cedente",
+        "public.documentos_gerados",
+        "public.fundos",
+        "public.operacoes",
+        "public.profiles",
+        "public.template_versoes",
+        "public.templates_documentos",
+        "tv.id"
+      ],
+      "expectationCounts": {
+        "precondition_block": 1,
+        "function": 5,
+        "table": 3,
+        "trigger": 4,
+        "index": 6,
+        "rls_enabled": 3,
+        "policy": 4,
+        "unparsed_ddl": 3,
+        "grant": 2
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": true,
+        "explicitTransaction": false,
+        "dynamicSql": true,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "superseded": 1,
+        "indeterminate": 7,
+        "equivalent": 20,
+        "divergent": 2
+      },
+      "classification": "indeterminate",
+      "reconciliationDecision": "exige comparação adicional"
+    },
+    {
+      "order": 21,
+      "version": "20260721194546",
+      "name": "fase7_cnab_configuravel_rastreavel",
+      "path": "supabase/migrations/20260721194546_fase7_cnab_configuravel_rastreavel.sql",
+      "sha256": "a5d028299c9d698d886e6c6a5e3396a6d070fe0e712742b4de478bdaf4471d06",
+      "canonicalStatementSha256": "4a35b72839fd579f52d26ec8f476123660a404d195524e4f775d268256e6eb8c",
+      "bytes": 22806,
+      "statements": 65,
+      "dependencies": [
+        "c.id",
+        "cc.cedente_id",
+        "function",
+        "o.id",
+        "old.agencia",
+        "old.ambiente",
+        "old.banco",
+        "old.carteira",
+        "old.codigo_banco",
+        "old.codigo_empresa",
+        "old.codigo_originador",
+        "old.configuracao",
+        "old.configuracao_cnab_id",
+        "old.configuracao_nao_sensivel",
+        "old.conta",
+        "old.conteudo_hash",
+        "old.convenio",
+        "old.credential_ref",
+        "old.digito_conta",
+        "old.endpoint_base",
+        "old.especie_titulo",
+        "old.identificador_cliente",
+        "old.integracao_fundo_id",
+        "old.layout",
+        "old.numero_inscricao",
+        "old.publicada_em",
+        "old.publicada_por",
+        "old.secret_name",
+        "old.tipo_inscricao",
+        "old.tipo_recebivel",
+        "old.vault_key",
+        "old.versao",
+        "old.versao_layout",
+        "old.vigente_desde",
+        "on",
+        "or",
+        "pg_constraint",
+        "public",
+        "public.cedentes",
+        "public.configuracao_cnab_versoes",
+        "public.configuracoes_cnab",
+        "public.consultor_cedente",
+        "public.fundos",
+        "public.integracao_fundo_versoes",
+        "public.integracoes_fundo",
+        "public.operacoes",
+        "public.profiles",
+        "public.remessas_cnab",
+        "public.remessas_cnab_operacoes",
+        "public.sequencias_remessa",
+        "ro.remessa_cnab_id",
+        "set",
+        "storage.buckets",
+        "v_sequencial"
+      ],
+      "expectationCounts": {
+        "precondition_block": 1,
+        "function": 7,
+        "data_mutation": 2,
+        "table": 7,
+        "index": 11,
+        "trigger": 7,
+        "column": 2,
+        "unparsed_ddl": 6,
+        "constraint": 1,
+        "dynamic_sql_block": 1,
+        "rls_enabled": 7,
+        "policy": 9,
+        "grant": 4
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": true,
+        "unsafeRerun": true,
+        "explicitTransaction": false,
+        "dynamicSql": true,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "superseded": 1,
+        "indeterminate": 18,
+        "equivalent": 41,
+        "divergent": 4
+      },
+      "classification": "indeterminate",
+      "reconciliationDecision": "exige comparação adicional"
+    },
+    {
+      "order": 22,
+      "version": "20260722090000",
+      "name": "fase8_portal_fidc_fundo",
+      "path": "supabase/migrations/20260722090000_fase8_portal_fidc_fundo.sql",
+      "sha256": "ed1ebddebe4fa522f3eb9b78c67fc6bde29f36f00ec50e695c1cc562a9c6fd37",
+      "canonicalStatementSha256": "2913b509102f2fc8142382ece3d85b428451c7dd72b26c6dfba1ebad1c527e69",
+      "bytes": 7236,
+      "statements": 23,
+      "dependencies": [
+        "c.id",
+        "cc.cedente_id",
+        "function",
+        "o.id",
+        "on",
+        "public",
+        "public.cedentes",
+        "public.consultor_cedente",
+        "public.fundos",
+        "public.integracao_execucoes",
+        "public.integracao_fundo_versoes",
+        "public.operacoes",
+        "public.remessas_cnab",
+        "public.remessas_cnab_operacoes",
+        "public.retornos_integracao",
+        "ro.remessa_cnab_id",
+        "set",
+        "storage.buckets"
+      ],
+      "expectationCounts": {
+        "precondition_block": 1,
+        "data_mutation": 1,
+        "unparsed_ddl": 3,
+        "constraint": 1,
+        "table": 2,
+        "index": 6,
+        "function": 1,
+        "rls_enabled": 2,
+        "policy": 4,
+        "grant": 2
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": true,
+        "unsafeRerun": true,
+        "explicitTransaction": false,
+        "dynamicSql": true,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "indeterminate": 7,
+        "equivalent": 14,
+        "divergent": 1
+      },
+      "classification": "indeterminate",
+      "reconciliationDecision": "exige comparação adicional"
+    },
+    {
+      "order": 23,
+      "version": "20260722132525",
+      "name": "fase9_mfa_totp_hardening",
+      "path": "supabase/migrations/20260722132525_fase9_mfa_totp_hardening.sql",
+      "sha256": "e11063de984adbeebbc06b10c2018568300f654dee1e618db83503c50d9b171b",
+      "canonicalStatementSha256": "c2053664461e5bdee330f6330a5538d9f1ec5e7200ba873653cc76f22ee9ac58",
+      "bytes": 5597,
+      "statements": 24,
+      "dependencies": [
+        "public.mfa_recovery_codes",
+        "public.profiles",
+        "public.seguranca_eventos",
+        "public.seguranca_rate_limits",
+        "public.sessoes_elevadas"
+      ],
+      "expectationCounts": {
+        "column": 1,
+        "table": 4,
+        "index": 6,
+        "rls_enabled": 4,
+        "policy": 4,
+        "unparsed_ddl": 4,
+        "function": 1
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": true,
+        "explicitTransaction": false,
+        "dynamicSql": false,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "equivalent": 14,
+        "indeterminate": 8,
+        "divergent": 2
+      },
+      "classification": "indeterminate",
+      "reconciliationDecision": "exige comparação adicional"
+    },
+    {
+      "order": 24,
+      "version": "20260722143728",
+      "name": "fase10_reset_administrativo_mfa",
+      "path": "supabase/migrations/20260722143728_fase10_reset_administrativo_mfa.sql",
+      "sha256": "55f04507b86b9d5594df5f52eaf8131bbe7951e8cab89e95b31398513ed362ff",
+      "canonicalStatementSha256": "829256a42c84ad95182d2a5466bfc0a03fe2a08c5777a7ef820fd6bd8ca3c1de",
+      "bytes": 4624,
+      "statements": 24,
+      "dependencies": [
+        "function",
+        "on",
+        "public",
+        "public.cedente_acessos",
+        "public.cedentes",
+        "public.mfa_reset_solicitacoes",
+        "public.operacoes",
+        "public.profiles",
+        "public.sacados"
+      ],
+      "expectationCounts": {
+        "table": 1,
+        "index": 3,
+        "rls_enabled": 1,
+        "policy": 2,
+        "unparsed_ddl": 3,
+        "function": 5,
+        "trigger": 1,
+        "grant": 8
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": true,
+        "explicitTransaction": false,
+        "dynamicSql": true,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "indeterminate": 4,
+        "equivalent": 14,
+        "superseded": 2,
+        "divergent": 4
+      },
+      "classification": "indeterminate",
+      "reconciliationDecision": "exige comparação adicional"
+    },
+    {
+      "order": 25,
+      "version": "20260722145820",
+      "name": "complemento_credenciais_portal_fidc_banco",
+      "path": "supabase/migrations/20260722145820_complemento_credenciais_portal_fidc_banco.sql",
+      "sha256": "60acaa204bfad8fad8e9aaf96cd22c9fa5ca81a4eb80308b661bbd0677a82462",
+      "canonicalStatementSha256": "435328b792c3c36e184487c13b2e763ffdd6a502183885d5bed4926d14a66f79",
+      "bytes": 7480,
+      "statements": 26,
+      "dependencies": [
+        "anon",
+        "authenticated",
+        "cred",
+        "function",
+        "integ",
+        "integracao_fundo",
+        "on",
+        "public",
+        "public.credenciais_integracao",
+        "public.fundos",
+        "public.integracao_fundo_versoes",
+        "public.integracoes_fundo",
+        "public.profiles"
+      ],
+      "expectationCounts": {
+        "precondition_block": 1,
+        "table": 1,
+        "column": 1,
+        "index": 5,
+        "function": 3,
+        "unparsed_ddl": 7,
+        "trigger": 3,
+        "rls_enabled": 1,
+        "grant": 4
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": true,
+        "explicitTransaction": false,
+        "dynamicSql": true,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "indeterminate": 8,
+        "equivalent": 17
+      },
+      "classification": "indeterminate",
+      "reconciliationDecision": "exige comparação adicional"
+    },
+    {
+      "order": 26,
+      "version": "20260722170510",
+      "name": "corrigir_templates_juridicos_multifundo",
+      "path": "supabase/migrations/20260722170510_corrigir_templates_juridicos_multifundo.sql",
+      "sha256": "79bb927b89a50e6dca4d596ee46d6b1899c2692b9bc80ebcec8ed0eaaf4e3a8b",
+      "canonicalStatementSha256": "10332190e2b2c9f6f03a6461e1ccb9ae5dc4afd616ecdd7936d6cfc1fb9f9f45",
+      "bytes": 2703,
+      "statements": 1,
+      "dependencies": [
+        "duplicate_count",
+        "ns.oid",
+        "pg_attribute",
+        "pg_class",
+        "pg_constraint",
+        "pg_namespace",
+        "public.templates_documentos"
+      ],
+      "expectationCounts": {
+        "dynamic_sql_block": 1
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": false,
+        "explicitTransaction": false,
+        "dynamicSql": true,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "indeterminate": 1
+      },
+      "classification": "indeterminate",
+      "reconciliationDecision": "exige comparação adicional"
+    },
+    {
+      "order": 27,
+      "version": "20260722183107",
+      "name": "ampliar_catalogo_requisitos_politica_operacional",
+      "path": "supabase/migrations/20260722183107_ampliar_catalogo_requisitos_politica_operacional.sql",
+      "sha256": "6f20b5941ad31633b83963d01c80a91362f4bc974e92a27d7f402c99b28540b0",
+      "canonicalStatementSha256": "b4c570862b395b801af9b80867233dfe6b6a7307016c3afcadae4ba940093d42",
+      "bytes": 603,
+      "statements": 2,
+      "dependencies": [
+        "public.politica_requisitos_documentais"
+      ],
+      "expectationCounts": {
+        "unparsed_ddl": 1,
+        "constraint": 1
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": false,
+        "explicitTransaction": false,
+        "dynamicSql": false,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "indeterminate": 2
+      },
+      "classification": "indeterminate",
+      "reconciliationDecision": "exige comparação adicional"
+    },
+    {
+      "order": 28,
+      "version": "20260722191000",
+      "name": "corrigir_contexto_multifundo_upload_nf",
+      "path": "supabase/migrations/20260722191000_corrigir_contexto_multifundo_upload_nf.sql",
+      "sha256": "d537ba08322f86bf2fac30e9c213b0808811e33ab120a192179a6c433d1bdf0f",
+      "canonicalStatementSha256": "b14c3e8e354d9aa81d04cb45b231bbf88ad94e21496beb35e2d1c455169d5856",
+      "bytes": 11896,
+      "statements": 17,
+      "dependencies": [
+        "cf.id",
+        "doc_id",
+        "f.id",
+        "function",
+        "link_row",
+        "nf_cedente",
+        "of",
+        "po.id",
+        "policy_cedente_fundo",
+        "public",
+        "public.cedente_fundos",
+        "public.documento_requisito_instancias",
+        "public.documento_versoes",
+        "public.documento_vinculos",
+        "public.documentos_repositorio",
+        "public.fundos",
+        "public.notas_fiscais",
+        "public.politica_operacional_versoes",
+        "public.politica_requisitos_documentais",
+        "public.politicas_operacionais",
+        "requirement",
+        "same_hash",
+        "to",
+        "version_id",
+        "version_number",
+        "vinculos_unicos"
+      ],
+      "expectationCounts": {
+        "column": 1,
+        "index": 3,
+        "function": 3,
+        "unparsed_ddl": 1,
+        "trigger": 1,
+        "policy": 2,
+        "grant": 4
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": true,
+        "explicitTransaction": false,
+        "dynamicSql": true,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "equivalent": 10,
+        "indeterminate": 1,
+        "superseded": 4
+      },
+      "classification": "indeterminate",
+      "reconciliationDecision": "exige comparação adicional"
+    },
+    {
+      "order": 29,
+      "version": "20260722192500",
+      "name": "corrigir_rls_fundos_cedente_vinculado",
+      "path": "supabase/migrations/20260722192500_corrigir_rls_fundos_cedente_vinculado.sql",
+      "sha256": "8d431d1a044d113995b95a76fc965992ba88ff6dd456d4ca917677d5f52fa4e9",
+      "canonicalStatementSha256": "c6259c0ce2acf813195c84464bf6c4f3774a94a0f70f7d204f74b938dd4ad3ce",
+      "bytes": 1473,
+      "statements": 9,
+      "dependencies": [
+        "cc.cedente_id",
+        "public.cedente_fundos",
+        "public.consultor_cedente",
+        "public.fundos"
+      ],
+      "expectationCounts": {
+        "rls_enabled": 1,
+        "unparsed_ddl": 2,
+        "policy": 3
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": true,
+        "explicitTransaction": false,
+        "dynamicSql": false,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "equivalent": 1,
+        "indeterminate": 2,
+        "superseded": 3
+      },
+      "classification": "indeterminate",
+      "reconciliationDecision": "exige comparação adicional"
+    },
+    {
+      "order": 30,
+      "version": "20260722193500",
+      "name": "corrigir_catalogo_documental_requisitos_nf",
+      "path": "supabase/migrations/20260722193500_corrigir_catalogo_documental_requisitos_nf.sql",
+      "sha256": "e7febf860518103df7f0e7e26a574d4ecd501b6b4e4413b1232cafa9fb86f989",
+      "canonicalStatementSha256": "68a23dd0d358a2170dca29f1f4c7d43022ae036bbf599d00b7cc208353014026",
+      "bytes": 6116,
+      "statements": 6,
+      "dependencies": [
+        "cf.id",
+        "dt.codigo",
+        "dt.id",
+        "function",
+        "nf_cedente",
+        "po.id",
+        "policy_cedente_fundo",
+        "public",
+        "public.cedente_fundos",
+        "public.documento_requisito_instancias",
+        "public.documento_tipos",
+        "public.notas_fiscais",
+        "public.politica_operacional_versoes",
+        "public.politica_requisitos_documentais",
+        "public.politicas_operacionais",
+        "set"
+      ],
+      "expectationCounts": {
+        "data_mutation": 3,
+        "function": 1,
+        "grant": 2
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": false,
+        "explicitTransaction": false,
+        "dynamicSql": true,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "indeterminate": 3,
+        "superseded": 1,
+        "equivalent": 2
+      },
+      "classification": "indeterminate",
+      "reconciliationDecision": "exige comparação adicional"
+    },
+    {
+      "order": 31,
+      "version": "20260723124410",
+      "name": "corrigir_constraints_desembolso_logistica",
+      "path": "supabase/migrations/20260723124410_corrigir_constraints_desembolso_logistica.sql",
+      "sha256": "b902677e199badf77bb4e052744c207f7bebe5fe807d757f1787200d381ac94a",
+      "canonicalStatementSha256": "98fde301017db82c0f6030bbb52e051212619f11ca714bc7b9e5a918f5bc3ae0",
+      "bytes": 2429,
+      "statements": 2,
+      "dependencies": [
+        "pg_constraint",
+        "public.documento_requisito_instancias",
+        "public.nota_fiscal_entregas"
+      ],
+      "expectationCounts": {
+        "dynamic_sql_block": 2
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": false,
+        "explicitTransaction": false,
+        "dynamicSql": false,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "indeterminate": 2
+      },
+      "classification": "indeterminate",
+      "reconciliationDecision": "exige comparação adicional"
+    },
+    {
+      "order": 32,
+      "version": "20260723124929",
+      "name": "corrigir_contexto_requisito_logistico_nullable",
+      "path": "supabase/migrations/20260723124929_corrigir_contexto_requisito_logistico_nullable.sql",
+      "sha256": "6dad78ee6ce44b4142da6bf5772dc19dd3873d4f091c581688298e77936673e9",
+      "canonicalStatementSha256": "d488427768ea5ed973214dbd8439a0576e66ad8fc6359f086f448673c88265fd",
+      "bytes": 1211,
+      "statements": 1,
+      "dependencies": [
+        "public.documento_requisito_instancias"
+      ],
+      "expectationCounts": {
+        "dynamic_sql_block": 1
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": false,
+        "explicitTransaction": false,
+        "dynamicSql": false,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "indeterminate": 1
+      },
+      "classification": "indeterminate",
+      "reconciliationDecision": "exige comparação adicional"
+    },
+    {
+      "order": 33,
+      "version": "20260723125851",
+      "name": "corrigir_fluxo_status_entrega_pos_cessao",
+      "path": "supabase/migrations/20260723125851_corrigir_fluxo_status_entrega_pos_cessao.sql",
+      "sha256": "5f5d7e89bf9a701778efb1bf84a3770a70003e28f7a064eca6e81f4d87cd32d8",
+      "canonicalStatementSha256": "cec64fad71213893449bb0f9197eaff0e56ea84f55bbff8e0fe04e046ca543ae",
+      "bytes": 6972,
+      "statements": 11,
+      "dependencies": [
+        "canhoto_data_assinatura",
+        "entrega",
+        "function",
+        "obrigatorios_total",
+        "public",
+        "public.canhotos",
+        "public.cte_notas_fiscais",
+        "public.documento_requisito_instancias",
+        "public.nota_fiscal_entregas",
+        "status_atual",
+        "tem_documento_aprovado"
+      ],
+      "expectationCounts": {
+        "function": 3,
+        "unparsed_ddl": 2,
+        "trigger": 2,
+        "grant": 4
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": true,
+        "explicitTransaction": false,
+        "dynamicSql": true,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "divergent": 3,
+        "indeterminate": 2,
+        "equivalent": 6
+      },
+      "classification": "indeterminate",
+      "reconciliationDecision": "exige comparação adicional"
+    },
+    {
+      "order": 34,
+      "version": "20260723134849",
+      "name": "estabilizacao_operacoes_atomicas_cnab_compensacao",
+      "path": "supabase/migrations/20260723134849_estabilizacao_operacoes_atomicas_cnab_compensacao.sql",
+      "sha256": "eeb707df06823fa2539801a46f8b630e881f46cd42834f434f74cf4efca7b684",
+      "canonicalStatementSha256": "4c0bea45bd345f70b918067bd821452440eaeecd930fe9f974ef3caa13b964e6",
+      "bytes": 11929,
+      "statements": 8,
+      "dependencies": [
+        "already_linked_count",
+        "cedente_row",
+        "escrow_row",
+        "existing_op",
+        "expected_count",
+        "function",
+        "inserted_op_id",
+        "locked_nfs",
+        "matched_count",
+        "n.id",
+        "of",
+        "op",
+        "op.cedente_fundo_id",
+        "public",
+        "public.cedente_fundos",
+        "public.cedentes",
+        "public.contas_escrow",
+        "public.fundos",
+        "public.logs_auditoria",
+        "public.notas_fiscais",
+        "public.operacoes",
+        "public.operacoes_nfs",
+        "public.politica_operacional_versoes",
+        "public.politicas_operacionais",
+        "unnest",
+        "v.id",
+        "vinculo_row"
+      ],
+      "expectationCounts": {
+        "column": 1,
+        "index": 1,
+        "function": 2,
+        "grant": 4
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": false,
+        "explicitTransaction": false,
+        "dynamicSql": true,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "equivalent": 5,
+        "superseded": 1,
+        "divergent": 2
+      },
+      "classification": "materially_partially_applied",
+      "reconciliationDecision": "exige migration corretiva"
+    },
+    {
+      "order": 35,
+      "version": "20260723143749",
+      "name": "evoluir_documentos_pos_cessao_nf_cedente",
+      "path": "supabase/migrations/20260723143749_evoluir_documentos_pos_cessao_nf_cedente.sql",
+      "sha256": "5c2897b0af9219d59fdbb04e0df8394aa5fcf9d136c35bcc36884dc4ed5637ef",
+      "canonicalStatementSha256": "5818d9966f0c13329ac071f7d618590053064e6c34ab78a42d31543d6310ae0b",
+      "bytes": 16257,
+      "statements": 6,
+      "dependencies": [
+        "1",
+        "analysis_id",
+        "doc_id",
+        "dr.id",
+        "dt.codigo",
+        "entrega",
+        "entrega_id",
+        "escrow_saldo",
+        "function",
+        "jsonb_array_elements",
+        "n.id",
+        "op",
+        "public",
+        "public.cedentes",
+        "public.contas_escrow",
+        "public.documento_analises",
+        "public.documento_requisito_instancias",
+        "public.documento_tipos",
+        "public.documento_versoes",
+        "public.documento_vinculos",
+        "public.documentos_repositorio",
+        "public.movimentos_escrow",
+        "public.nota_fiscal_entregas",
+        "public.notas_fiscais",
+        "public.notificacoes",
+        "public.operacoes",
+        "public.operacoes_nfs",
+        "public.politica_requisitos_documentais",
+        "requirement",
+        "same_hash",
+        "set",
+        "version_id",
+        "version_number",
+        "version_row"
+      ],
+      "expectationCounts": {
+        "data_mutation": 1,
+        "function": 3,
+        "grant": 2
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": false,
+        "explicitTransaction": false,
+        "dynamicSql": true,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "indeterminate": 1,
+        "superseded": 2,
+        "absent": 1,
+        "equivalent": 2
+      },
+      "classification": "indeterminate",
+      "reconciliationDecision": "exige comparação adicional"
+    },
+    {
+      "order": 36,
+      "version": "20260723165651",
+      "name": "corrigir_requisitos_pos_cessao_snapshot",
+      "path": "supabase/migrations/20260723165651_corrigir_requisitos_pos_cessao_snapshot.sql",
+      "sha256": "5130190fcf0cf738ceafed9a6849a621995551cb5922aeb126470d89ce576bf2",
+      "canonicalStatementSha256": "c4d2846d16b9bdddad599e885ba3616b753937807c2df124ae19781216bb60e2",
+      "bytes": 16308,
+      "statements": 6,
+      "dependencies": [
+        "1",
+        "comprovante_prazo",
+        "cte_prazo",
+        "deleted",
+        "deleted_ids",
+        "dt.codigo",
+        "entrega_id",
+        "escrow_saldo",
+        "function",
+        "jsonb_array_elements",
+        "n.id",
+        "op",
+        "pr.politica_operacional_versao_id",
+        "public",
+        "public.cedentes",
+        "public.contas_escrow",
+        "public.documento_requisito_instancias",
+        "public.documento_tipos",
+        "public.logs_auditoria",
+        "public.movimentos_escrow",
+        "public.nota_fiscal_entregas",
+        "public.notas_fiscais",
+        "public.notificacoes",
+        "public.operacoes",
+        "public.operacoes_nfs",
+        "public.politica_requisitos_documentais",
+        "set"
+      ],
+      "expectationCounts": {
+        "function": 2,
+        "grant": 4
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": false,
+        "explicitTransaction": false,
+        "dynamicSql": true,
+        "manualAssumption": true
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "divergent": 1,
+        "equivalent": 5
+      },
+      "classification": "materially_partially_applied",
+      "reconciliationDecision": "exige migration corretiva"
+    },
+    {
+      "order": 37,
+      "version": "20260723182639",
+      "name": "reset_operacional_fundo_homolog_rpc",
+      "path": "supabase/migrations/20260723182639_reset_operacional_fundo_homolog_rpc.sql",
+      "sha256": "9aaed8973dc4ca6bdba9ee56fa48066ae69d399fdd958884026592146d20b493",
+      "canonicalStatementSha256": "0729fb4d98f75f8e1000b07d5dfe7bd1b57676387c21ce1a08c0d6581aae4eb9",
+      "bytes": 34566,
+      "statements": 4,
+      "dependencies": [
+        "cf.id",
+        "commit",
+        "e.enumtypid",
+        "function",
+        "op.id",
+        "pg_enum",
+        "pg_type",
+        "public",
+        "public.canhotos",
+        "public.cedente_fundo_politicas",
+        "public.cedente_fundos",
+        "public.configuracao_cnab_versoes",
+        "public.configuracoes_cnab",
+        "public.credenciais_integracao",
+        "public.cte_notas_fiscais",
+        "public.ctes",
+        "public.documento_analises",
+        "public.documento_requisito_instancias",
+        "public.documento_versoes",
+        "public.documento_vinculos",
+        "public.documentos_gerados",
+        "public.documentos_repositorio",
+        "public.eventos_dominio",
+        "public.eventos_entrega",
+        "public.fundos",
+        "public.integracao_execucoes",
+        "public.integracao_fundo_versoes",
+        "public.integracoes_fundo",
+        "public.logs_auditoria",
+        "public.movimentos_escrow",
+        "public.nota_fiscal_entregas",
+        "public.notas_fiscais",
+        "public.notificacoes",
+        "public.operacoes",
+        "public.operacoes_nfs",
+        "public.politica_operacional_versoes",
+        "public.politica_requisitos_documentais",
+        "public.politicas_operacionais",
+        "public.remessas_cnab",
+        "public.remessas_cnab_operacoes",
+        "public.retornos_integracao",
+        "public.sequencias_remessa",
+        "public.template_versoes",
+        "public.templates_documentos",
+        "tmp.id",
+        "tmp_reset_cedente_fundo_politicas",
+        "tmp_reset_configuracao_cnab_versoes",
+        "tmp_reset_configuracoes_cnab",
+        "tmp_reset_credenciais_integracao",
+        "tmp_reset_ctes",
+        "tmp_reset_documento_versoes",
+        "tmp_reset_documentos",
+        "tmp_reset_documentos_gerados",
+        "tmp_reset_entregas",
+        "tmp_reset_integracao_execucoes",
+        "tmp_reset_integracao_fundo_versoes",
+        "tmp_reset_integracoes_fundo",
+        "tmp_reset_notas_fiscais",
+        "tmp_reset_operacoes",
+        "tmp_reset_politica_requisitos",
+        "tmp_reset_politica_versoes",
+        "tmp_reset_politicas",
+        "tmp_reset_remessas",
+        "tmp_reset_requisitos",
+        "tmp_reset_storage_objects_to_delete",
+        "tmp_reset_template_versoes",
+        "tmp_reset_templates",
+        "v_fundo_nome",
+        "v_status_nf_reset",
+        "v_storage_objects"
+      ],
+      "expectationCounts": {
+        "unparsed_ddl": 1,
+        "function": 1,
+        "grant": 2
+      },
+      "risks": {
+        "destructiveDrop": true,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": false,
+        "explicitTransaction": false,
+        "dynamicSql": true,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "indeterminate": 1,
+        "superseded": 1,
+        "equivalent": 2
+      },
+      "classification": "indeterminate",
+      "reconciliationDecision": "exige comparação adicional"
+    },
+    {
+      "order": 38,
+      "version": "20260723195804",
+      "name": "corrigir_validacao_politica_operacao_atomica",
+      "path": "supabase/migrations/20260723195804_corrigir_validacao_politica_operacao_atomica.sql",
+      "sha256": "39c2e1f62d8cc4de1f30a3386d2c99d7ec3e06d39d39ed56c71bfe60cafd58d2",
+      "canonicalStatementSha256": "9b50bf0cac648526dc7547653566c4b8c48a2336a42170c75862ade6d37ceb10",
+      "bytes": 7440,
+      "statements": 3,
+      "dependencies": [
+        "already_linked_count",
+        "cedente_row",
+        "escrow_row",
+        "existing_op",
+        "expected_count",
+        "function",
+        "inserted_op_id",
+        "locked_nfs",
+        "matched_count",
+        "public",
+        "public.cedente_fundos",
+        "public.cedentes",
+        "public.contas_escrow",
+        "public.fundos",
+        "public.logs_auditoria",
+        "public.notas_fiscais",
+        "public.operacoes",
+        "public.operacoes_nfs",
+        "public.politica_operacional_versoes",
+        "public.politicas_operacionais",
+        "unnest",
+        "v.id",
+        "vinculo_row"
+      ],
+      "expectationCounts": {
+        "function": 1,
+        "grant": 2
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": false,
+        "explicitTransaction": false,
+        "dynamicSql": true,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "superseded": 1,
+        "equivalent": 1,
+        "divergent": 1
+      },
+      "classification": "materially_partially_applied",
+      "reconciliationDecision": "exige migration corretiva"
+    },
+    {
+      "order": 39,
+      "version": "20260727130046",
+      "name": "fundo_ativo_usuario_fundos",
+      "path": "supabase/migrations/20260727130046_fundo_ativo_usuario_fundos.sql",
+      "sha256": "4a8cbf205fef75fb70ae25e085052a177fcf1c46833421804017683a4f87b15c",
+      "canonicalStatementSha256": "01769247e2157e0ba48052371e9652280d270d0561fab634b82cb20384cfd929",
+      "bytes": 4914,
+      "statements": 21,
+      "dependencies": [
+        "if",
+        "on",
+        "pg_constraint",
+        "public.fundos",
+        "public.logs_auditoria",
+        "public.profiles",
+        "public.usuario_fundos",
+        "uf.usuario_id"
+      ],
+      "expectationCounts": {
+        "unparsed_ddl": 5,
+        "dynamic_sql_block": 1,
+        "index": 6,
+        "table": 1,
+        "trigger": 1,
+        "rls_enabled": 1,
+        "policy": 2,
+        "data_mutation": 2
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": true,
+        "explicitTransaction": false,
+        "dynamicSql": true,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "indeterminate": 9,
+        "equivalent": 7,
+        "divergent": 1,
+        "superseded": 2
+      },
+      "classification": "indeterminate",
+      "reconciliationDecision": "exige comparação adicional"
+    },
+    {
+      "order": 40,
+      "version": "20260727142150",
+      "name": "validacao_cte_nfe",
+      "path": "supabase/migrations/20260727142150_validacao_cte_nfe.sql",
+      "sha256": "62236772287ef9e3f9b021a36fa4ebeb20a94cc5e151a35892ba9c6a6719b777",
+      "canonicalStatementSha256": "81dda07f6724a739c12ed920c9ed09a341c42f80e5407e97cc677508140c5dd6",
+      "bytes": 16432,
+      "statements": 15,
+      "dependencies": [
+        "c.id",
+        "cedente",
+        "expected_count",
+        "function",
+        "jsonb_array_elements",
+        "lateral",
+        "link",
+        "nfe.id",
+        "nfe.nota_fiscal_id",
+        "pg_constraint",
+        "public",
+        "public.cedente_fundos",
+        "public.cte_notas_fiscais",
+        "public.ctes",
+        "public.documento_requisito_instancias",
+        "public.documento_tipos",
+        "public.documento_versoes",
+        "public.documento_vinculos",
+        "public.documentos_repositorio",
+        "public.fundos",
+        "public.logs_auditoria",
+        "public.nota_fiscal_entregas",
+        "public.notas_fiscais",
+        "public.notificacoes",
+        "public.profiles",
+        "public.usuario_fundos",
+        "tipo",
+        "true",
+        "unnest",
+        "v_cte_id",
+        "v_doc_id",
+        "v_version_id"
+      ],
+      "expectationCounts": {
+        "precondition_block": 1,
+        "column": 2,
+        "dynamic_sql_block": 1,
+        "data_mutation": 1,
+        "index": 4,
+        "function": 2,
+        "grant": 4
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": false,
+        "explicitTransaction": false,
+        "dynamicSql": true,
+        "manualAssumption": true
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "equivalent": 10,
+        "indeterminate": 2,
+        "absent": 1,
+        "divergent": 1
+      },
+      "classification": "indeterminate",
+      "reconciliationDecision": "exige comparação adicional"
+    },
+    {
+      "order": 41,
+      "version": "20260727151731",
+      "name": "politicas_catalogo_fundo",
+      "path": "supabase/migrations/20260727151731_politicas_catalogo_fundo.sql",
+      "sha256": "aadf4725eeae03f8fb8804d294b6d61124921196c725e158847471a8fe4a7003",
+      "canonicalStatementSha256": "f0b3572dc3003db2bf41543a8fad9360784c51380637584b4ada1ef54ea833f5",
+      "bytes": 32120,
+      "statements": 58,
+      "dependencies": [
+        "active_counts",
+        "already_linked_count",
+        "canonicas",
+        "cedente_row",
+        "cfp.politica_operacional_id",
+        "commit",
+        "current_versions",
+        "cv.politica_operacional_id",
+        "d.original_id",
+        "escrow_row",
+        "existing_op",
+        "expected_count",
+        "function",
+        "hashes",
+        "if",
+        "inserted_op_id",
+        "lateral",
+        "locked_nfs",
+        "matched_count",
+        "nf_cedente",
+        "on",
+        "p.id",
+        "po.id",
+        "politica_atribuicao_row",
+        "public",
+        "public.cedente_fundo_politicas",
+        "public.cedente_fundos",
+        "public.cedentes",
+        "public.contas_escrow",
+        "public.documento_requisito_instancias",
+        "public.fundos",
+        "public.logs_auditoria",
+        "public.notas_fiscais",
+        "public.operacoes",
+        "public.operacoes_nfs",
+        "public.politica_operacional_versoes",
+        "public.politica_requisitos_documentais",
+        "public.politicas_operacionais",
+        "public.profiles",
+        "r.politica_operacional_versao_id",
+        "ranked_codes",
+        "requirements",
+        "set",
+        "tmp_politicas_catalogo_dedup",
+        "true",
+        "unnest",
+        "v.id",
+        "v_atribuicao",
+        "v_fundo_id",
+        "v_politica",
+        "v_politica_fundo_id",
+        "v_requisitos",
+        "v_versao",
+        "v_vinculo",
+        "version_number",
+        "vinculo_row"
+      ],
+      "expectationCounts": {
+        "unparsed_ddl": 16,
+        "data_mutation": 5,
+        "dynamic_sql_block": 8,
+        "constraint": 2,
+        "index": 6,
+        "table": 1,
+        "function": 5,
+        "trigger": 3,
+        "rls_enabled": 1,
+        "policy": 2,
+        "grant": 4,
+        "column": 1
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": true,
+        "explicitTransaction": false,
+        "dynamicSql": true,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "indeterminate": 32,
+        "superseded": 3,
+        "divergent": 4,
+        "equivalent": 14,
+        "absent": 1
+      },
+      "classification": "indeterminate",
+      "reconciliationDecision": "exige comparação adicional"
+    },
+    {
+      "order": 42,
+      "version": "20260727192402",
+      "name": "onboarding_cedentes_sem_fundo_fallback",
+      "path": "supabase/migrations/20260727192402_onboarding_cedentes_sem_fundo_fallback.sql",
+      "sha256": "fce0840da6b1267de55b45cff6f23c09f97d622060041fb7049163e39e9e8056",
+      "canonicalStatementSha256": "b0c8638fcc9534639dde1378ddf20b026d504dc6d8cd6f4951edef2a7434fe7a",
+      "bytes": 5068,
+      "statements": 12,
+      "dependencies": [
+        "c.fundo_id",
+        "candidatos",
+        "f.id",
+        "if",
+        "legado",
+        "public.cedente_fundo_migracao_legado_relatorio",
+        "public.cedente_fundos",
+        "public.cedentes",
+        "public.fundos",
+        "public.logs_auditoria",
+        "relatorio"
+      ],
+      "expectationCounts": {
+        "unparsed_ddl": 4,
+        "table": 1,
+        "index": 1,
+        "rls_enabled": 1,
+        "policy": 1,
+        "data_mutation": 1
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": true,
+        "explicitTransaction": false,
+        "dynamicSql": false,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "indeterminate": 6,
+        "divergent": 1,
+        "equivalent": 2
+      },
+      "classification": "indeterminate",
+      "reconciliationDecision": "exige comparação adicional"
+    },
+    {
+      "order": 43,
+      "version": "20260727202747",
+      "name": "desacoplar_politicas_operacionais_cedente_fundo",
+      "path": "supabase/migrations/20260727202747_desacoplar_politicas_operacionais_cedente_fundo.sql",
+      "sha256": "94cce1da65836304f2ed5cd32265d4ab446d296efe806b703b1d5c3c01823fba",
+      "canonicalStatementSha256": "08ea9b8bca0f7d5695efaf77a4f6725d0c0c9ac277772f019500c370d1180957",
+      "bytes": 9908,
+      "statements": 25,
+      "dependencies": [
+        "att.attrelid",
+        "cf.fundo_id",
+        "cf.id",
+        "cfp.cedente_fundo_id",
+        "cls.oid",
+        "duplicate_record",
+        "has_legacy_column",
+        "if",
+        "information_schema.columns",
+        "legacy_attnum",
+        "nsp.oid",
+        "pg_attribute",
+        "pg_class",
+        "pg_constraint",
+        "pg_index",
+        "pg_namespace",
+        "po.id",
+        "public.cedente_fundo_politicas",
+        "public.cedente_fundos",
+        "public.fundos",
+        "public.politica_operacional_versoes",
+        "public.politica_requisitos_documentais",
+        "public.politicas_operacionais",
+        "rel.oid"
+      ],
+      "expectationCounts": {
+        "unparsed_ddl": 9,
+        "dynamic_sql_block": 7,
+        "precondition_block": 2,
+        "data_mutation": 2,
+        "policy": 2,
+        "index": 2
+      },
+      "risks": {
+        "destructiveDrop": true,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": true,
+        "explicitTransaction": false,
+        "dynamicSql": true,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "indeterminate": 18,
+        "equivalent": 3,
+        "divergent": 1
+      },
+      "classification": "indeterminate",
+      "reconciliationDecision": "exige comparação adicional"
+    },
+    {
+      "order": 44,
+      "version": "20260727204346",
+      "name": "relaxar_cedente_fundo_versoes_politica",
+      "path": "supabase/migrations/20260727204346_relaxar_cedente_fundo_versoes_politica.sql",
+      "sha256": "2921d31d4d410d11ef56521dfa28d5fac37289e45dd424e50a93503b74c35b11",
+      "canonicalStatementSha256": "4e57e175c097da5e3a7f598411cac3e74082d6afaa3a42b88e024f75f2e7011a",
+      "bytes": 2203,
+      "statements": 6,
+      "dependencies": [
+        "if",
+        "information_schema.columns",
+        "po.id",
+        "public.politica_operacional_versoes",
+        "public.politica_requisitos_documentais",
+        "public.politicas_operacionais"
+      ],
+      "expectationCounts": {
+        "unparsed_ddl": 2,
+        "data_mutation": 2,
+        "dynamic_sql_block": 2
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": false,
+        "explicitTransaction": false,
+        "dynamicSql": false,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "indeterminate": 6
+      },
+      "classification": "indeterminate",
+      "reconciliationDecision": "exige comparação adicional"
+    },
+    {
+      "order": 45,
+      "version": "20260727205426",
+      "name": "corrigir_instanciacao_checklist_nf_sem_colunas_contexto",
+      "path": "supabase/migrations/20260727205426_corrigir_instanciacao_checklist_nf_sem_colunas_contexto.sql",
+      "sha256": "2f31e49b9dc4000e09b0b351ae12daf322ed36bde45bcf2bd36c5fb9af07b30e",
+      "canonicalStatementSha256": "ef5a83daf9ef17459fb6126d40bb097c7c3802a539aa8b16326c2f8d94351109",
+      "bytes": 3943,
+      "statements": 3,
+      "dependencies": [
+        "cfp.politica_operacional_id",
+        "function",
+        "nf_cedente",
+        "po.id",
+        "public",
+        "public.cedente_fundo_politicas",
+        "public.documento_requisito_instancias",
+        "public.notas_fiscais",
+        "public.politica_operacional_versoes",
+        "public.politica_requisitos_documentais",
+        "public.politicas_operacionais",
+        "set",
+        "version_number"
+      ],
+      "expectationCounts": {
+        "function": 1,
+        "grant": 2
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": false,
+        "explicitTransaction": false,
+        "dynamicSql": true,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "superseded": 1,
+        "equivalent": 2
+      },
+      "classification": "materially_fully_applied_without_history",
+      "reconciliationDecision": "candidata após controle formal"
+    },
+    {
+      "order": 46,
+      "version": "20260727212053",
+      "name": "reconciliar_documentos_base_nf_checklist",
+      "path": "supabase/migrations/20260727212053_reconciliar_documentos_base_nf_checklist.sql",
+      "sha256": "a2e52bba1340d794c3765e7bc1544124c476fa329e7932a44b77de6e5b218e25",
+      "canonicalStatementSha256": "6bbad3c44d6172243b65d7bd8cc7d44a61289978390b5b6c57af43f18c7c8327",
+      "bytes": 6632,
+      "statements": 6,
+      "dependencies": [
+        "cfp.politica_operacional_id",
+        "document_type.id",
+        "dr.id",
+        "dv.documento_id",
+        "function",
+        "latest_base_documents",
+        "nf_cedente",
+        "po.id",
+        "public",
+        "public.cedente_fundo_politicas",
+        "public.documento_requisito_instancias",
+        "public.documento_tipos",
+        "public.documento_versoes",
+        "public.documento_vinculos",
+        "public.documentos_repositorio",
+        "public.notas_fiscais",
+        "public.politica_operacional_versoes",
+        "public.politica_requisitos_documentais",
+        "public.politicas_operacionais",
+        "reconciled_count",
+        "requirement_type.codigo",
+        "set",
+        "updated",
+        "version_number",
+        "vinculo.nota_fiscal_id"
+      ],
+      "expectationCounts": {
+        "function": 2,
+        "grant": 4
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": false,
+        "explicitTransaction": false,
+        "dynamicSql": true,
+        "manualAssumption": true
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "superseded": 2,
+        "equivalent": 4
+      },
+      "classification": "materially_fully_applied_without_history",
+      "reconciliationDecision": "candidata após controle formal"
+    },
+    {
+      "order": 47,
+      "version": "20260727212953",
+      "name": "corrigir_documento_tipo_requisitos_nf",
+      "path": "supabase/migrations/20260727212953_corrigir_documento_tipo_requisitos_nf.sql",
+      "sha256": "0f6685bc791d3482db607f21874c1009b59bc9b85e758922fb9f41a33ea04f5d",
+      "canonicalStatementSha256": "6eecd57afe2c4f0f99ddade3721edf82447c128f21384b645ca082de28750270",
+      "bytes": 4906,
+      "statements": 4,
+      "dependencies": [
+        "cfp.politica_operacional_id",
+        "dt.codigo",
+        "dt.id",
+        "function",
+        "nf_cedente",
+        "po.id",
+        "public",
+        "public.cedente_fundo_politicas",
+        "public.documento_requisito_instancias",
+        "public.documento_tipos",
+        "public.notas_fiscais",
+        "public.politica_operacional_versoes",
+        "public.politica_requisitos_documentais",
+        "public.politicas_operacionais",
+        "set",
+        "version_number"
+      ],
+      "expectationCounts": {
+        "data_mutation": 1,
+        "function": 1,
+        "grant": 2
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": false,
+        "explicitTransaction": false,
+        "dynamicSql": true,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "indeterminate": 1,
+        "divergent": 1,
+        "equivalent": 2
+      },
+      "classification": "indeterminate",
+      "reconciliationDecision": "exige comparação adicional"
+    },
+    {
+      "order": 48,
+      "version": "20260728122849",
+      "name": "corrigir_status_documentos_upload_aguardando_aprovacao",
+      "path": "supabase/migrations/20260728122849_corrigir_status_documentos_upload_aguardando_aprovacao.sql",
+      "sha256": "1e7520fbf1e0c1a1f5b913bd1f0c9bb1af65894f54eb4abaf5401579c8234bdc",
+      "canonicalStatementSha256": "dc680f8c528efe663776832fa102195b5535bf66b3c2a34791dee5632bb9a3f4",
+      "bytes": 3730,
+      "statements": 4,
+      "dependencies": [
+        "document_type.id",
+        "dr.id",
+        "dv.documento_id",
+        "function",
+        "latest_base_documents",
+        "public",
+        "public.documento_requisito_instancias",
+        "public.documento_tipos",
+        "public.documento_versoes",
+        "public.documento_vinculos",
+        "public.documentos_repositorio",
+        "public.notas_fiscais",
+        "reconciled_count",
+        "requirement_type.codigo",
+        "updated",
+        "vinculo.nota_fiscal_id"
+      ],
+      "expectationCounts": {
+        "function": 1,
+        "grant": 2,
+        "data_mutation": 1
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": false,
+        "explicitTransaction": false,
+        "dynamicSql": true,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "superseded": 1,
+        "equivalent": 2,
+        "indeterminate": 1
+      },
+      "classification": "indeterminate",
+      "reconciliationDecision": "exige comparação adicional"
+    },
+    {
+      "order": 49,
+      "version": "20260728123821",
+      "name": "permitir_tipo_cte_catalogado_em_requisito_generico",
+      "path": "supabase/migrations/20260728123821_permitir_tipo_cte_catalogado_em_requisito_generico.sql",
+      "sha256": "fbb18284b11a1d4af6b0b96c7de7844d4822cfbcbb0a9011fe07614b6400792d",
+      "canonicalStatementSha256": "a264d48c5a217bc52488f08b4a458c7ff27ae0662d2f5c5cf4a88d0083fa0009",
+      "bytes": 10941,
+      "statements": 9,
+      "dependencies": [
+        "doc_id",
+        "entrega",
+        "function",
+        "n.id",
+        "nf_cedente",
+        "p_documento_tipo_id",
+        "public",
+        "public.documento_requisito_instancias",
+        "public.documento_tipos",
+        "public.documento_versoes",
+        "public.documento_vinculos",
+        "public.documentos_repositorio",
+        "public.nota_fiscal_entregas",
+        "public.notas_fiscais",
+        "requirement",
+        "same_hash",
+        "version_id",
+        "version_number"
+      ],
+      "expectationCounts": {
+        "function": 3,
+        "grant": 6
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": false,
+        "explicitTransaction": false,
+        "dynamicSql": true,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "equivalent": 6,
+        "divergent": 1,
+        "absent": 2
+      },
+      "classification": "materially_partially_applied",
+      "reconciliationDecision": "exige migration corretiva"
+    },
+    {
+      "order": 50,
+      "version": "20260728130438",
+      "name": "historico_operacional_eventos_dominio",
+      "path": "supabase/migrations/20260728130438_historico_operacional_eventos_dominio.sql",
+      "sha256": "7c63e6f78854de21aed5865053c171236cc1583fb5e8174fd43a433bc8965622",
+      "canonicalStatementSha256": "a90dc484501b748cec3fef29c583c49bf24f06a91ee9730bb0cdb807364b70f9",
+      "bytes": 9448,
+      "statements": 23,
+      "dependencies": [
+        "column",
+        "dr.id",
+        "dt.id",
+        "entrega.id",
+        "lateral",
+        "nf.id",
+        "nf_entrega.id",
+        "nfo.id",
+        "op.id",
+        "p.id",
+        "public.cedente_fundos",
+        "public.cedentes",
+        "public.documento_tipos",
+        "public.documento_versoes",
+        "public.documento_vinculos",
+        "public.documentos_repositorio",
+        "public.eventos_dominio",
+        "public.fundos",
+        "public.nota_fiscal_entregas",
+        "public.notas_fiscais",
+        "public.operacoes",
+        "public.operacoes_nfs",
+        "public.profiles",
+        "public.usuario_fundos",
+        "true",
+        "v.documento_id"
+      ],
+      "expectationCounts": {
+        "table": 1,
+        "index": 7,
+        "rls_enabled": 1,
+        "policy": 3,
+        "unparsed_ddl": 2,
+        "data_mutation": 3
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": true,
+        "explicitTransaction": false,
+        "dynamicSql": false,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "indeterminate": 6,
+        "equivalent": 10,
+        "divergent": 1
+      },
+      "classification": "indeterminate",
+      "reconciliationDecision": "exige comparação adicional"
+    },
+    {
+      "order": 51,
+      "version": "20260728145033",
+      "name": "password_recovery_flow",
+      "path": "supabase/migrations/20260728145033_password_recovery_flow.sql",
+      "sha256": "af08a9da269433f1406e13e222a777925fe9e1047e2914a3ce1635a34593add4",
+      "canonicalStatementSha256": "ed4298760d500a57fbbbe00c4e655b715cbd20ab20a4e3c0d340fa4ea3e60914",
+      "bytes": 1647,
+      "statements": 6,
+      "dependencies": [
+        "public.profiles",
+        "public.seguranca_eventos",
+        "public.seguranca_rate_limits"
+      ],
+      "expectationCounts": {
+        "unparsed_ddl": 3,
+        "column": 1,
+        "constraint": 2
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": false,
+        "explicitTransaction": false,
+        "dynamicSql": false,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "indeterminate": 5,
+        "equivalent": 1
+      },
+      "classification": "indeterminate",
+      "reconciliationDecision": "exige comparação adicional"
+    },
+    {
+      "order": 52,
+      "version": "20260728153646",
+      "name": "reset_operacional_eventos_dominio",
+      "path": "supabase/migrations/20260728153646_reset_operacional_eventos_dominio.sql",
+      "sha256": "9aaed8973dc4ca6bdba9ee56fa48066ae69d399fdd958884026592146d20b493",
+      "canonicalStatementSha256": "0729fb4d98f75f8e1000b07d5dfe7bd1b57676387c21ce1a08c0d6581aae4eb9",
+      "bytes": 34566,
+      "statements": 4,
+      "dependencies": [
+        "cf.id",
+        "commit",
+        "e.enumtypid",
+        "function",
+        "op.id",
+        "pg_enum",
+        "pg_type",
+        "public",
+        "public.canhotos",
+        "public.cedente_fundo_politicas",
+        "public.cedente_fundos",
+        "public.configuracao_cnab_versoes",
+        "public.configuracoes_cnab",
+        "public.credenciais_integracao",
+        "public.cte_notas_fiscais",
+        "public.ctes",
+        "public.documento_analises",
+        "public.documento_requisito_instancias",
+        "public.documento_versoes",
+        "public.documento_vinculos",
+        "public.documentos_gerados",
+        "public.documentos_repositorio",
+        "public.eventos_dominio",
+        "public.eventos_entrega",
+        "public.fundos",
+        "public.integracao_execucoes",
+        "public.integracao_fundo_versoes",
+        "public.integracoes_fundo",
+        "public.logs_auditoria",
+        "public.movimentos_escrow",
+        "public.nota_fiscal_entregas",
+        "public.notas_fiscais",
+        "public.notificacoes",
+        "public.operacoes",
+        "public.operacoes_nfs",
+        "public.politica_operacional_versoes",
+        "public.politica_requisitos_documentais",
+        "public.politicas_operacionais",
+        "public.remessas_cnab",
+        "public.remessas_cnab_operacoes",
+        "public.retornos_integracao",
+        "public.sequencias_remessa",
+        "public.template_versoes",
+        "public.templates_documentos",
+        "tmp.id",
+        "tmp_reset_cedente_fundo_politicas",
+        "tmp_reset_configuracao_cnab_versoes",
+        "tmp_reset_configuracoes_cnab",
+        "tmp_reset_credenciais_integracao",
+        "tmp_reset_ctes",
+        "tmp_reset_documento_versoes",
+        "tmp_reset_documentos",
+        "tmp_reset_documentos_gerados",
+        "tmp_reset_entregas",
+        "tmp_reset_integracao_execucoes",
+        "tmp_reset_integracao_fundo_versoes",
+        "tmp_reset_integracoes_fundo",
+        "tmp_reset_notas_fiscais",
+        "tmp_reset_operacoes",
+        "tmp_reset_politica_requisitos",
+        "tmp_reset_politica_versoes",
+        "tmp_reset_politicas",
+        "tmp_reset_remessas",
+        "tmp_reset_requisitos",
+        "tmp_reset_storage_objects_to_delete",
+        "tmp_reset_template_versoes",
+        "tmp_reset_templates",
+        "v_fundo_nome",
+        "v_status_nf_reset",
+        "v_storage_objects"
+      ],
+      "expectationCounts": {
+        "unparsed_ddl": 1,
+        "function": 1,
+        "grant": 2
+      },
+      "risks": {
+        "destructiveDrop": true,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": false,
+        "explicitTransaction": false,
+        "dynamicSql": true,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "indeterminate": 1,
+        "absent": 1,
+        "equivalent": 2
+      },
+      "classification": "indeterminate",
+      "reconciliationDecision": "exige comparação adicional"
+    },
+    {
+      "order": 53,
+      "version": "20260728155942",
+      "name": "password_recovery_security_hardening",
+      "path": "supabase/migrations/20260728155942_password_recovery_security_hardening.sql",
+      "sha256": "21f6fcfd25b8567cc8bfa64a828becbc6f55cd041570d375f523df6199776686",
+      "canonicalStatementSha256": "329dc144ac24bceb408f7a421b0ddc639a20a5a50323f7245732ff8abcfd074d",
+      "bytes": 1536,
+      "statements": 3,
+      "dependencies": [
+        "public.seguranca_eventos"
+      ],
+      "expectationCounts": {
+        "unparsed_ddl": 2,
+        "constraint": 1
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": false,
+        "explicitTransaction": false,
+        "dynamicSql": false,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "indeterminate": 3
+      },
+      "classification": "indeterminate",
+      "reconciliationDecision": "exige comparação adicional"
+    },
+    {
+      "order": 54,
+      "version": "20260728172000",
+      "name": "password_reauth_nonce_event",
+      "path": "supabase/migrations/20260728172000_password_reauth_nonce_event.sql",
+      "sha256": "ba4600007d38069005e33801215f8de40b139bb55566625b01f966b1facbcdd0",
+      "canonicalStatementSha256": "03fbe09ae7d4c244b678e08bf69659d4130b4d81e4ea238ee3229d2b894d12b8",
+      "bytes": 1412,
+      "statements": 2,
+      "dependencies": [
+        "public.seguranca_eventos"
+      ],
+      "expectationCounts": {
+        "unparsed_ddl": 1,
+        "constraint": 1
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": false,
+        "explicitTransaction": false,
+        "dynamicSql": false,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "indeterminate": 2
+      },
+      "classification": "indeterminate",
+      "reconciliationDecision": "exige comparação adicional"
+    },
+    {
+      "order": 55,
+      "version": "20260728181152",
+      "name": "corrigir_rls_politica_versionada_cedente",
+      "path": "supabase/migrations/20260728181152_corrigir_rls_politica_versionada_cedente.sql",
+      "sha256": "e06e373fb9c78fbc27d472f26ada59f68c28e936be7ae9a7ff07ff20a6aaef1b",
+      "canonicalStatementSha256": "4a08b48c1ffffa96414ad7e68a8805105f18f1290e433292cbf2928eae289c09",
+      "bytes": 3970,
+      "statements": 6,
+      "dependencies": [
+        "cc.cedente_id",
+        "cf.fundo_id",
+        "cfp.cedente_fundo_id",
+        "public.cedente_fundo_politicas",
+        "public.cedente_fundos",
+        "public.consultor_cedente",
+        "public.politica_operacional_versoes",
+        "public.politica_requisitos_documentais"
+      ],
+      "expectationCounts": {
+        "rls_enabled": 2,
+        "policy": 2
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": true,
+        "explicitTransaction": false,
+        "dynamicSql": false,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "equivalent": 4
+      },
+      "classification": "materially_fully_applied_without_history",
+      "reconciliationDecision": "candidata após controle formal"
+    },
+    {
+      "order": 56,
+      "version": "20260728182000",
+      "name": "rls_historico_portal_sacado",
+      "path": "supabase/migrations/20260728182000_rls_historico_portal_sacado.sql",
+      "sha256": "343bcce9a7caa6e014f0c09375aedac1929192ea99f4ae84c7854ae3b04badbc",
+      "canonicalStatementSha256": "fec695b5c4fb16f57c279b2f707f4aa6b22aa81055891e7faf2e29452da3a2dc",
+      "bytes": 3287,
+      "statements": 1,
+      "dependencies": [
+        "nf.id",
+        "public.eventos_dominio",
+        "public.notas_fiscais",
+        "public.operacoes_nfs",
+        "public.usuario_fundos"
+      ],
+      "expectationCounts": {
+        "dynamic_sql_block": 1
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": false,
+        "explicitTransaction": false,
+        "dynamicSql": false,
+        "manualAssumption": true
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "indeterminate": 1
+      },
+      "classification": "indeterminate",
+      "reconciliationDecision": "exige comparação adicional"
+    },
+    {
+      "order": 57,
+      "version": "20260728190000",
+      "name": "auditoria_portal_sacado_contexto",
+      "path": "supabase/migrations/20260728190000_auditoria_portal_sacado_contexto.sql",
+      "sha256": "7529811277b1f68563f956434c5caabcd177d1f92cd38b6106850b78c7ce167a",
+      "canonicalStatementSha256": "55bed0effaacd1e0455933a96c6294ba22276d482070f2ca471a8aa42cbaa5d8",
+      "bytes": 2297,
+      "statements": 5,
+      "dependencies": [
+        "function",
+        "nf.id",
+        "pg_publication",
+        "pg_publication_tables",
+        "public",
+        "public.eventos_dominio",
+        "public.notas_fiscais",
+        "public.operacoes_nfs",
+        "public.sacados"
+      ],
+      "expectationCounts": {
+        "function": 1,
+        "grant": 2,
+        "dynamic_sql_block": 2
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": false,
+        "explicitTransaction": false,
+        "dynamicSql": true,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "equivalent": 2,
+        "divergent": 1,
+        "indeterminate": 2
+      },
+      "classification": "indeterminate",
+      "reconciliationDecision": "exige comparação adicional"
+    },
+    {
+      "order": 58,
+      "version": "20260728200000",
+      "name": "historico_aceite_sacado_operacao",
+      "path": "supabase/migrations/20260728200000_historico_aceite_sacado_operacao.sql",
+      "sha256": "27529bf11c16eb26a33b1a6234124b91026dc29e742e36353bddc84223d5e8e7",
+      "canonicalStatementSha256": "8d7cc86e974a38aca64eebe79ea95cee9acdfab7ccf8f4ca09bd76f8b5dcd2e4",
+      "bytes": 3839,
+      "statements": 5,
+      "dependencies": [
+        "function",
+        "new.status",
+        "of",
+        "op.id",
+        "public",
+        "public.eventos_dominio",
+        "public.notas_fiscais",
+        "public.operacoes",
+        "public.operacoes_nfs",
+        "public.profiles",
+        "set",
+        "v_nome"
+      ],
+      "expectationCounts": {
+        "function": 1,
+        "unparsed_ddl": 1,
+        "trigger": 1,
+        "grant": 2
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": true,
+        "explicitTransaction": false,
+        "dynamicSql": true,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "superseded": 1,
+        "indeterminate": 1,
+        "equivalent": 2,
+        "divergent": 1
+      },
+      "classification": "indeterminate",
+      "reconciliationDecision": "exige comparação adicional"
+    },
+    {
+      "order": 59,
+      "version": "20260728210000",
+      "name": "permitir_evento_documento_entrega",
+      "path": "supabase/migrations/20260728210000_permitir_evento_documento_entrega.sql",
+      "sha256": "4a0842f690dfb21d0e14c8485d7f5f45ca482592b686a0350e1c35c25a45b7a6",
+      "canonicalStatementSha256": "90680be645634a1219809826f2f38448009f76fcc384cb93bcefb0b59e256b5b",
+      "bytes": 895,
+      "statements": 1,
+      "dependencies": [
+        "public.eventos_entrega"
+      ],
+      "expectationCounts": {
+        "dynamic_sql_block": 1
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": false,
+        "explicitTransaction": false,
+        "dynamicSql": false,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "indeterminate": 1
+      },
+      "classification": "indeterminate",
+      "reconciliationDecision": "exige comparação adicional"
+    },
+    {
+      "order": 60,
+      "version": "20260728213000",
+      "name": "corrigir_trigger_historico_aceite_nf_status",
+      "path": "supabase/migrations/20260728213000_corrigir_trigger_historico_aceite_nf_status.sql",
+      "sha256": "0e4bd954604f9a4b35e30859870f163015e4a35d61e07f1990238d1fe6cc3d49",
+      "canonicalStatementSha256": "7c2162b521e2b783da52cae80b9f1366659ec3aecaf7ad72e491a93d54df1d04",
+      "bytes": 3521,
+      "statements": 1,
+      "dependencies": [
+        "new.status",
+        "op.id",
+        "public.eventos_dominio",
+        "public.operacoes",
+        "public.operacoes_nfs",
+        "public.profiles",
+        "set",
+        "v_nome"
+      ],
+      "expectationCounts": {
+        "function": 1
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": false,
+        "explicitTransaction": false,
+        "dynamicSql": false,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "divergent": 1
+      },
+      "classification": "divergent",
+      "reconciliationDecision": "exige investigação/correção"
+    },
+    {
+      "order": 61,
+      "version": "20260728220000",
+      "name": "reconciliar_documentos_base_nf_checklist_v2",
+      "path": "supabase/migrations/20260728220000_reconciliar_documentos_base_nf_checklist_v2.sql",
+      "sha256": "5de9533249cfe91a9d5375a02f373ff2c3811e0c6b48031586721fa36311a07b",
+      "canonicalStatementSha256": "5b356c9b2efb3a6160cdd6fc68bb219d609e623156e1e5e748d603b15030a9bf",
+      "bytes": 13072,
+      "statements": 14,
+      "dependencies": [
+        "document_type.id",
+        "dr.id",
+        "dv.status",
+        "function",
+        "lateral",
+        "nf_context",
+        "of",
+        "old.documento_id",
+        "pg_constraint",
+        "public",
+        "public.documento_analises",
+        "public.documento_requisito_instancias",
+        "public.documento_tipos",
+        "public.documento_versoes",
+        "public.documento_vinculos",
+        "public.documentos_repositorio",
+        "public.eventos_dominio",
+        "public.notas_fiscais",
+        "public.profiles",
+        "true"
+      ],
+      "expectationCounts": {
+        "column": 1,
+        "dynamic_sql_block": 1,
+        "index": 1,
+        "function": 3,
+        "grant": 6,
+        "unparsed_ddl": 1,
+        "trigger": 1
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": true,
+        "explicitTransaction": false,
+        "dynamicSql": true,
+        "manualAssumption": true
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "equivalent": 10,
+        "indeterminate": 2,
+        "superseded": 1,
+        "divergent": 1
+      },
+      "classification": "indeterminate",
+      "reconciliationDecision": "exige comparação adicional"
+    },
+    {
+      "order": 62,
+      "version": "20260728223000",
+      "name": "corrigir_perfil_evento_reconciliacao",
+      "path": "supabase/migrations/20260728223000_corrigir_perfil_evento_reconciliacao.sql",
+      "sha256": "e8401618d12e4371a0b8a0295f598c23c201bd1f2420d1958167e81909422e9d",
+      "canonicalStatementSha256": "abab8350efe6c0083195400d38b9300abe6f7471442eff17b71963845fe32249",
+      "bytes": 9310,
+      "statements": 3,
+      "dependencies": [
+        "document_type.id",
+        "dr.id",
+        "dv.status",
+        "function",
+        "lateral",
+        "nf_context",
+        "of",
+        "public",
+        "public.documento_analises",
+        "public.documento_requisito_instancias",
+        "public.documento_tipos",
+        "public.documento_versoes",
+        "public.documento_vinculos",
+        "public.documentos_repositorio",
+        "public.eventos_dominio",
+        "public.notas_fiscais",
+        "public.profiles",
+        "true"
+      ],
+      "expectationCounts": {
+        "function": 1,
+        "grant": 2
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": false,
+        "explicitTransaction": false,
+        "dynamicSql": true,
+        "manualAssumption": true
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "divergent": 1,
+        "equivalent": 2
+      },
+      "classification": "materially_partially_applied",
+      "reconciliationDecision": "exige migration corretiva"
+    },
+    {
+      "order": 63,
+      "version": "20260729133826",
+      "name": "nf_submissao_manual",
+      "path": "supabase/migrations/20260729133826_nf_submissao_manual.sql",
+      "sha256": "cf14b01af4da4c054e1f16fd333c2eb39c28d02ca657a82797d6908905aeb9ed",
+      "canonicalStatementSha256": "7b8a2270b411c22a86a8a14d186d4392b8be1dddd44903ecd2c8430dc88e8044",
+      "bytes": 791,
+      "statements": 4,
+      "dependencies": [
+        "column",
+        "public.notas_fiscais",
+        "public.profiles"
+      ],
+      "expectationCounts": {
+        "column": 1,
+        "index": 1
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": false,
+        "explicitTransaction": false,
+        "dynamicSql": false,
+        "manualAssumption": true
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "equivalent": 2
+      },
+      "classification": "materially_fully_applied_without_history",
+      "reconciliationDecision": "candidata após controle formal"
+    },
+    {
+      "order": 64,
+      "version": "20260729180000",
+      "name": "simplificar_requisitos_documentais_politica",
+      "path": "supabase/migrations/20260729180000_simplificar_requisitos_documentais_politica.sql",
+      "sha256": "ca876c160bb5d214f433e910d39548edc586211690e027ac9dac718e95f5d2ff",
+      "canonicalStatementSha256": "257e1e32bce56c4e03c4d0bfaecdb9d036c799fcaae8e59efad83d4fff50f38e",
+      "bytes": 2765,
+      "statements": 7,
+      "dependencies": [
+        "column",
+        "momento_obrigatorio",
+        "obrigatorio",
+        "pg_constraint",
+        "public.politica_requisitos_documentais"
+      ],
+      "expectationCounts": {
+        "precondition_block": 1,
+        "dynamic_sql_block": 3
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": false,
+        "explicitTransaction": false,
+        "dynamicSql": true,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "indeterminate": 3
+      },
+      "classification": "indeterminate",
+      "reconciliationDecision": "exige comparação adicional"
+    },
+    {
+      "order": 65,
+      "version": "20260729185443",
+      "name": "performance_escopo2_onboarding_paginado",
+      "path": "supabase/migrations/20260729185443_performance_escopo2_onboarding_paginado.sql",
+      "sha256": "b544263565b42048b17fc933f899ba88329c47536b23edc53f56fddb48103346",
+      "canonicalStatementSha256": "3e0ec028f2928e3f4e03a533fb36164039f108c6d96d399577be3b8f211f1f35",
+      "bytes": 10513,
+      "statements": 3,
+      "dependencies": [
+        "base",
+        "cf.status",
+        "contagens",
+        "f.id",
+        "filtrados",
+        "function",
+        "lateral",
+        "pagina",
+        "po.id",
+        "public",
+        "public.cedente_fundo_politicas",
+        "public.cedente_fundos",
+        "public.cedentes",
+        "public.fundos",
+        "public.politica_operacional_versoes",
+        "public.politica_requisitos_documentais",
+        "public.politicas_operacionais",
+        "public.usuario_fundos",
+        "total_filtrado",
+        "true",
+        "v_result"
+      ],
+      "expectationCounts": {
+        "function": 1,
+        "grant": 2
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": false,
+        "explicitTransaction": false,
+        "dynamicSql": true,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "absent": 1,
+        "equivalent": 1,
+        "divergent": 1
+      },
+      "classification": "materially_partially_applied",
+      "reconciliationDecision": "exige migration corretiva"
+    },
+    {
+      "order": 66,
+      "version": "20260729203749",
+      "name": "performance_portal_sacado_dashboard",
+      "path": "supabase/migrations/20260729203749_performance_portal_sacado_dashboard.sql",
+      "sha256": "b88efe4f64c4381c44b177f10a0f856d7389f051c67417335ec501bfb6756eef",
+      "canonicalStatementSha256": "0c7ffd7aae9062963c0c5b06549c330f2e4580e63af79c61e89cc9db48d58134",
+      "bytes": 7088,
+      "statements": 9,
+      "dependencies": [
+        "ativas",
+        "ce.id",
+        "cedentes",
+        "contexto",
+        "function",
+        "indicadores",
+        "nfs_contexto",
+        "onf.nota_fiscal_id",
+        "op.id",
+        "p.id",
+        "proximos",
+        "public",
+        "public.contas_escrow",
+        "public.notas_fiscais",
+        "public.operacoes",
+        "public.operacoes_nfs",
+        "public.profiles",
+        "public.sacados",
+        "regexp_replace"
+      ],
+      "expectationCounts": {
+        "function": 3,
+        "grant": 6
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": false,
+        "explicitTransaction": false,
+        "dynamicSql": true,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "equivalent": 9
+      },
+      "classification": "materially_fully_applied_without_history",
+      "reconciliationDecision": "candidata após controle formal"
+    },
+    {
+      "order": 67,
+      "version": "20260730143000",
+      "name": "performance_escopo6_escrow_rls",
+      "path": "supabase/migrations/20260730143000_performance_escopo6_escrow_rls.sql",
+      "sha256": "1954b5fa244b560e0ddcb23679fdfe1956c4205fcea1068b840cb1703752d76c",
+      "canonicalStatementSha256": "e846489db193909163c83d7bcff0a5fa0808adb408285669f1608e24c1acae1b",
+      "bytes": 5200,
+      "statements": 19,
+      "dependencies": [
+        "cc.cedente_id",
+        "cf.cedente_id",
+        "function",
+        "public",
+        "public.cedente_fundos",
+        "public.cedentes",
+        "public.consultor_cedente",
+        "public.contas_escrow",
+        "public.documentos",
+        "public.movimentos_escrow",
+        "public.usuario_fundos",
+        "uf.fundo_id"
+      ],
+      "expectationCounts": {
+        "rls_enabled": 1,
+        "unparsed_ddl": 1,
+        "policy": 7,
+        "function": 1,
+        "grant": 2
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": true,
+        "explicitTransaction": false,
+        "dynamicSql": true,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "equivalent": 9,
+        "indeterminate": 1,
+        "superseded": 2
+      },
+      "classification": "indeterminate",
+      "reconciliationDecision": "exige comparação adicional"
+    },
+    {
+      "order": 68,
+      "version": "20260730152328",
+      "name": "performance_escopo7_dashboards_relatorios",
+      "path": "supabase/migrations/20260730152328_performance_escopo7_dashboards_relatorios.sql",
+      "sha256": "9c5ea78fd27c6248a5341d18e07a32e1253a36b3e1acb1207f9e5afa4bc6673b",
+      "canonicalStatementSha256": "c8fa1e75e6b2e0398a13e19e0a8f43063ed44801d6cca0a5dcaafaeb9d79b9f9",
+      "bytes": 28138,
+      "statements": 18,
+      "dependencies": [
+        "c.cedente_fundo_id",
+        "c.cedente_id",
+        "c.id",
+        "carteira",
+        "carteira_recente",
+        "cedentes_escopo",
+        "contexto",
+        "escrow",
+        "f.id",
+        "function",
+        "l.id",
+        "latest_docs",
+        "linhas",
+        "linhas_paginadas",
+        "links",
+        "nf.id",
+        "o.cedente_id",
+        "operacoes_escopo",
+        "operacoes_tabela",
+        "ops_mes",
+        "ops_validas_mes",
+        "public",
+        "public.cedente_fundos",
+        "public.cedentes",
+        "public.consultor_cedente",
+        "public.contas_escrow",
+        "public.documentos",
+        "public.fundos",
+        "public.nota_fiscal_entregas",
+        "public.notas_fiscais",
+        "public.operacoes",
+        "public.usuario_fundos",
+        "recentes",
+        "resumo",
+        "v_result"
+      ],
+      "expectationCounts": {
+        "function": 5,
+        "grant": 10,
+        "policy": 1,
+        "schema_cache_reload": 1
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": true,
+        "explicitTransaction": false,
+        "dynamicSql": true,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "divergent": 3,
+        "absent": 2,
+        "equivalent": 10,
+        "superseded": 1
+      },
+      "classification": "materially_partially_applied",
+      "reconciliationDecision": "exige migration corretiva"
+    },
+    {
+      "order": 69,
+      "version": "20260730170007",
+      "name": "performance_escopo8_hardening_grants_rls",
+      "path": "supabase/migrations/20260730170007_performance_escopo8_hardening_grants_rls.sql",
+      "sha256": "039482666894c8072266ea507fa92c7761315644bdda7a27d9ae112647c8534e",
+      "canonicalStatementSha256": "3d3410366a19e466ad6f4c599afdea805f84eb6148c847d58b76c9e307ea904e",
+      "bytes": 4058,
+      "statements": 28,
+      "dependencies": [
+        "anon",
+        "function",
+        "public",
+        "public.cedente_fundos",
+        "public.taxas_cedente",
+        "public.usuario_fundos",
+        "uf.fundo_id"
+      ],
+      "expectationCounts": {
+        "rls_enabled": 1,
+        "grant": 22,
+        "policy": 2,
+        "schema_cache_reload": 1
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": true,
+        "explicitTransaction": false,
+        "dynamicSql": true,
+        "manualAssumption": false
+      },
+      "remoteHistory": {
+        "version": "20260730170007",
+        "name": "performance_escopo8_hardening_grants_rls",
+        "equivalent": false
+      },
+      "materialEvidenceCounts": {
+        "equivalent": 22,
+        "divergent": 3
+      },
+      "classification": "divergent",
+      "reconciliationDecision": "exige investigação/correção"
+    },
+    {
+      "order": 70,
+      "version": "20260730190000",
+      "name": "escopo9b_corrigir_isolamento_rls",
+      "path": "supabase/migrations/20260730190000_escopo9b_corrigir_isolamento_rls.sql",
+      "sha256": "758f1a2a13855708dae175b4f8a40d80a3b6bb13b7217290dab6619961ff9870",
+      "canonicalStatementSha256": "552863154ad67c63be37ef7d4b168ebe20bf6c0f8cc60cd90b439da3aa616d69",
+      "bytes": 21524,
+      "statements": 118,
+      "dependencies": [
+        "anon",
+        "cf.id",
+        "f.id",
+        "function",
+        "information_schema.columns",
+        "nf.id",
+        "public",
+        "public.cedente_fundos",
+        "public.consultor_cedente",
+        "public.fundos",
+        "public.notas_fiscais",
+        "public.operacoes",
+        "public.operacoes_nfs",
+        "public.usuario_fundos",
+        "schema",
+        "to"
+      ],
+      "expectationCounts": {
+        "precondition_block": 1,
+        "rls_enabled": 7,
+        "schema": 1,
+        "grant": 20,
+        "function": 2,
+        "policy": 52,
+        "schema_cache_reload": 1
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": true,
+        "explicitTransaction": true,
+        "dynamicSql": true,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "equivalent": 63,
+        "superseded": 19
+      },
+      "classification": "materially_fully_applied_without_history",
+      "reconciliationDecision": "candidata após controle formal"
+    },
+    {
+      "order": 71,
+      "version": "20260730194500",
+      "name": "escopo9b_policies_explicitas",
+      "path": "supabase/migrations/20260730194500_escopo9b_policies_explicitas.sql",
+      "sha256": "3d0f5616cde2cf13476286de1aab6099b45d823da7d393d1764c9538f950d606",
+      "canonicalStatementSha256": "3f0a5042756c9772e84b340800c609674366850cf326fa637a4bb958870c6a9a",
+      "bytes": 4686,
+      "statements": 28,
+      "dependencies": [
+        "public.cedente_fundos",
+        "public.consultor_cedente",
+        "public.fundos",
+        "public.usuario_fundos",
+        "to"
+      ],
+      "expectationCounts": {
+        "policy": 14,
+        "schema_cache_reload": 1
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": true,
+        "explicitTransaction": true,
+        "dynamicSql": false,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "equivalent": 14
+      },
+      "classification": "materially_fully_applied_without_history",
+      "reconciliationDecision": "candidata após controle formal"
+    },
+    {
+      "order": 72,
+      "version": "20260730200000",
+      "name": "escopo9b_corrigir_recursao_sacado_rls",
+      "path": "supabase/migrations/20260730200000_escopo9b_corrigir_recursao_sacado_rls.sql",
+      "sha256": "5ed9a2142952bf06a7ad1b63a820d2116ba1b6867f1832396079e13d27428bdc",
+      "canonicalStatementSha256": "9b3bdaee2367dbe6003a3187625e854fc5b91bb3bb2f9c0e281e343376cc2c71",
+      "bytes": 3612,
+      "statements": 19,
+      "dependencies": [
+        "function",
+        "nf.id",
+        "public",
+        "public.notas_fiscais",
+        "public.operacoes",
+        "public.operacoes_nfs",
+        "to"
+      ],
+      "expectationCounts": {
+        "function": 2,
+        "grant": 4,
+        "policy": 5,
+        "schema_cache_reload": 1
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": true,
+        "explicitTransaction": true,
+        "dynamicSql": true,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "equivalent": 11
+      },
+      "classification": "materially_fully_applied_without_history",
+      "reconciliationDecision": "candidata após controle formal"
+    },
+    {
+      "order": 73,
+      "version": "20260731140710",
+      "name": "escopo9c_storage_autorizacao_multifundo",
+      "path": "supabase/migrations/20260731140710_escopo9c_storage_autorizacao_multifundo.sql",
+      "sha256": "3ae11bfe08b8ea9f18849fc8f91a68fb715e52973de2b7bbba5864f9c6f4e99d",
+      "canonicalStatementSha256": "d7f09fc6805253765468de0881c5fb2c71480a284e81255b71ab6902702538aa",
+      "bytes": 8085,
+      "statements": 25,
+      "dependencies": [
+        "cf.id",
+        "function",
+        "nf.id",
+        "public",
+        "public.cedente_fundos",
+        "public.cte_notas_fiscais",
+        "public.documento_versoes",
+        "public.documento_vinculos",
+        "public.documentos",
+        "public.documentos_gerados",
+        "public.nota_fiscal_entregas",
+        "public.notas_fiscais",
+        "public.operacoes",
+        "public.remessas_cnab",
+        "public.retornos_integracao",
+        "public.sacados",
+        "storage.objects",
+        "vinculo.documento_id"
+      ],
+      "expectationCounts": {
+        "precondition_block": 1,
+        "index": 6,
+        "function": 1,
+        "grant": 2,
+        "policy": 12
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": true,
+        "explicitTransaction": true,
+        "dynamicSql": true,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {
+        "equivalent": 21
+      },
+      "classification": "materially_fully_applied_without_history",
+      "reconciliationDecision": "candidata após controle formal"
+    },
+    {
+      "order": 74,
+      "version": "20260731171219",
+      "name": "postergacao_upload_canhoto",
+      "path": "supabase/migrations/20260731171219_postergacao_upload_canhoto.sql",
+      "sha256": "20659024f3a732f232deacc1d8ad387db9a47cbf48fe3373c8613a9697a89bb7",
+      "canonicalStatementSha256": "601ca73f8855a37b08604648ee0e1c4e5e1747b893fcf5512323a647e6a3ff92",
+      "bytes": 22554,
+      "statements": 31,
+      "dependencies": [
+        "public.canhotos",
+        "public.cedente_fundos",
+        "public.cedentes",
+        "public.documento_requisito_instancias",
+        "public.documento_versoes",
+        "public.eventos_dominio",
+        "public.eventos_entrega",
+        "public.fundos",
+        "public.logs_auditoria",
+        "public.nota_fiscal_entregas",
+        "public.notas_fiscais",
+        "public.notificacoes",
+        "public.operacoes",
+        "public.politica_operacional_versoes",
+        "public.profiles",
+        "public.usuario_fundos"
+      ],
+      "expectationCounts": {
+        "precondition_block": 1,
+        "column": 2,
+        "dynamic_sql_block": 2,
+        "function": 3,
+        "table": 1,
+        "index": 2,
+        "trigger": 1,
+        "rls_enabled": 1,
+        "policy": 3,
+        "unparsed_ddl": 4,
+        "constraint": 1,
+        "grant": 2,
+        "schema_cache_reload": 1
+      },
+      "risks": {
+        "destructiveDrop": false,
+        "nonTransactional": false,
+        "environmentDependent": false,
+        "unsafeRerun": true,
+        "explicitTransaction": true,
+        "dynamicSql": true,
+        "manualAssumption": false
+      },
+      "remoteHistory": null,
+      "materialEvidenceCounts": {},
+      "classification": "local_pending_review",
+      "reconciliationDecision": "aplicar primeiro em homologacao e validar a RPC antes de promover"
+    }
+  ]
+}

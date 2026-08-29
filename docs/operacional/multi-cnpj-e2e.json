@@ -1,0 +1,51 @@
+{
+  "feature": "multi_cnpj_cedente",
+  "environment": "homolog",
+  "project_ref": "fhgkmggthxikfpogrvaa",
+  "executed_at": "2026-08-18",
+  "status": "PASS",
+  "transaction_result": "ROLLED_BACK",
+  "summary": {
+    "total": 18,
+    "passed": 18,
+    "failed": 0
+  },
+  "cases": [
+    "legacy_cedente_backfilled_as_matrix",
+    "new_cedente_receives_matrix",
+    "approved_matrix_can_register_branch",
+    "pending_branch_cannot_originate",
+    "approved_branch_can_originate",
+    "foreign_or_unknown_cnpj_is_blocked_before_storage",
+    "suspended_branch_is_blocked",
+    "suspended_matrix_blocks_all_branches",
+    "historical_nf_remains_readable_after_suspension",
+    "branch_inherits_cedente_funds",
+    "bank_accounts_are_isolated_per_establishment",
+    "checklists_are_isolated_per_establishment",
+    "gestor_cross_fund_access_is_denied",
+    "pure_super_admin_operational_access_is_denied",
+    "anon_access_is_denied",
+    "operation_identifies_establishment_set_without_deciding_mixed_cnpj_rule"
+  ],
+  "evidence": [
+    { "case": "legacy_cedente_backfilled_as_matrix", "result": "PASS" },
+    { "case": "new_cedente_receives_matrix", "result": "PASS" },
+    { "case": "approved_matrix_can_register_branch", "result": "PASS" },
+    { "case": "cnpj_is_globally_unique", "result": "PASS" },
+    { "case": "cedente_reads_only_own_establishments", "result": "PASS" },
+    { "case": "cross_cedente_access_is_denied", "result": "PASS" },
+    { "case": "gestor_reads_only_authorized_fund", "result": "PASS" },
+    { "case": "branch_inherits_cedente_funds", "result": "PASS" },
+    { "case": "bank_accounts_are_isolated_per_establishment", "result": "PASS" },
+    { "case": "checklists_are_isolated_per_establishment", "result": "PASS" },
+    { "case": "approved_branch_can_originate", "result": "PASS" },
+    { "case": "foreign_or_unknown_cnpj_is_blocked_before_storage", "result": "PASS" },
+    { "case": "pending_branch_cannot_originate", "result": "PASS" },
+    { "case": "suspended_matrix_blocks_all_branches", "result": "PASS" },
+    { "case": "nf_trigger_blocks_suspended_matrix", "result": "PASS" },
+    { "case": "pure_super_admin_operational_access_is_denied", "result": "PASS" },
+    { "case": "anon_access_is_denied", "result": "PASS" },
+    { "case": "mutations_generate_audit_logs", "result": "PASS" }
+  ]
+}

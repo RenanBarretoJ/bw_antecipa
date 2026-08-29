@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { registrarLog } from '@/lib/actions/auditoria'
 
 // API Route para sincronizar movimentos da conta escrow com sistema externo.
 // Autenticada via API key no header Authorization.
@@ -131,8 +132,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Registrar log
-    await supabaseAdmin.from('logs_auditoria').insert({
-      usuario_id: null,
+    await registrarLog({
       tipo_evento: 'ESCROW_SYNC_API',
       entidade_tipo: 'contas_escrow',
       entidade_id: contaData.id,
@@ -141,6 +141,7 @@ export async function POST(request: NextRequest) {
         saldo_final: saldoAtual,
         source: 'api_externa',
       },
+      ator: { tipo: 'integracao', origem: 'api/escrow/sync', identificador: 'escrow' },
     })
 
     return Response.json({

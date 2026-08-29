@@ -1,0 +1,59 @@
+{
+  "schema": "rlx_expected_exposure_v1",
+  "datasetVersion": "RLX_GOLDEN_V1",
+  "authoritativeDecision": false,
+  "plD2": 50000000,
+  "scenarios": [
+    {
+      "code": "EXPOSICAO_25_PCT",
+      "percentage": 25,
+      "exposure": 12500000,
+      "expected": "FIXTURE_ONLY_NO_ELIGIBILITY_DECISION"
+    },
+    {
+      "code": "EXPOSICAO_37_PCT",
+      "percentage": 37,
+      "exposure": 18500000,
+      "expected": "FIXTURE_ONLY_NO_ELIGIBILITY_DECISION"
+    },
+    {
+      "code": "EXPOSICAO_39_8_PCT",
+      "percentage": 39.8,
+      "exposure": 19900000,
+      "expected": "FIXTURE_ONLY_NO_ELIGIBILITY_DECISION"
+    },
+    {
+      "code": "EXPOSICAO_40_PCT",
+      "percentage": 40,
+      "exposure": 20000000,
+      "expected": "FIXTURE_ONLY_NO_ELIGIBILITY_DECISION"
+    },
+    {
+      "code": "EXPOSICAO_42_PCT",
+      "percentage": 42,
+      "exposure": 21000000,
+      "expected": "FIXTURE_ONLY_NO_ELIGIBILITY_DECISION"
+    }
+  ],
+  "intradayOverlay": {
+    "operationIds": [
+      "57ddc1b7-a33e-0e19-d143-df774d3c7f17",
+      "797fb873-7881-2cc3-9363-013c250712be",
+      "109b418e-71e2-7fb7-f357-6551ea85aca2",
+      "e1e661ee-a9ab-7bcc-d27d-cc8eaf195250",
+      "15e14ba7-48fd-97f3-d490-79a60f1cf7a5",
+      "e0756366-a9c9-6bfa-af60-e4aff38789d7",
+      "d03297cf-361f-b0c3-1a96-2e22a88a0b9f",
+      "2cd0a514-c894-136c-a26d-14b7c9c7e679",
+      "47cfabcf-1cc9-c7e8-55b4-359c2b06a709",
+      "a55edea8-2476-d004-d798-7c06c55c2c6a"
+    ],
+    "absentFromStockD1": true,
+    "estoqueD1ValorAquisicaoTotal": 7430043.89,
+    "estoqueD1EmTransitoValorAquisicao": 2936853.53,
+    "intradayEmTransitoValorAquisicao": 445377.81,
+    "plD2": 50000000,
+    "percentualBase": 5.873707,
+    "percentualComOverlay": 6.764463
+  }
+}

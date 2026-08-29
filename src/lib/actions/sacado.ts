@@ -1,286 +1,240 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { revalidatePath } from 'next/cache'
+import type { AppSupabaseClient } from '@/lib/auth/authorization'
+import { carregarContextoEventoOperacao, registrarEventoDominio } from '@/lib/eventos-dominio/registrar'
+import { normalizarCnpjSacado, resolverContextoSacado } from '@/lib/sacado/contexto.server'
 import { registrarLog } from './auditoria'
-import { criarNotificacao, notificarGestores } from './notificacao'
+import { notificarGestores } from './notificacao'
 
 export type SacadoActionState = {
   success?: boolean
   message?: string
 } | undefined
 
-async function getSacadoDoUsuario() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
-
-  const { data: sacado } = await supabase
-    .from('sacados')
-    .select('id, cnpj, razao_social, user_id')
-    .eq('user_id', user.id)
-    .single()
-
-  if (!sacado) return null
-  return sacado as { id: string; cnpj: string; razao_social: string; user_id: string }
+function revalidarAceiteSacado() {
+  revalidatePath('/sacado/dashboard')
+  revalidatePath('/sacado/notas-fiscais')
+  revalidatePath('/sacado/aprovacao')
 }
 
-// Aprovar cessao de NF
-export async function aprovarCessao(nfId: string): Promise<SacadoActionState> {
-  const supabase = await createClient()
-  const sacado = await getSacadoDoUsuario()
-  if (!sacado) return { success: false, message: 'Sacado nao encontrado.' }
-
-  // Verificar se a NF e destinada a este sacado
-  const { data: nf } = await supabase
+async function validarLoteAceiteSacado(
+  supabase: AppSupabaseClient,
+  cnpj: string,
+  nfIds: string[],
+): Promise<string | null> {
+  const ids = [...new Set(nfIds)]
+  const { data: nfs, error: nfsError } = await supabase
     .from('notas_fiscais')
-    .select('id, numero_nf, cnpj_destinatario, cnpj_emitente, razao_social_emitente, status, cedente_id')
-    .eq('id', nfId)
-    .single()
+    .select('id, status, cnpj_destinatario')
+    .in('id', ids)
 
-  if (!nf) return { success: false, message: 'NF nao encontrada.' }
-  const nfData = nf as { id: string; numero_nf: string; cnpj_destinatario: string; cnpj_emitente: string; razao_social_emitente: string; status: string; cedente_id: string }
-
-  if (nfData.cnpj_destinatario !== sacado.cnpj) {
-    return { success: false, message: 'Esta NF nao e destinada a voce.' }
+  if (nfsError) return `Nao foi possivel validar as NFs: ${nfsError.message}`
+  if ((nfs || []).length !== ids.length) return 'Uma ou mais NFs nao foram encontradas.'
+  if ((nfs || []).some((nf) => normalizarCnpjSacado(nf.cnpj_destinatario) !== cnpj)) {
+    return 'Uma ou mais NFs nao pertencem ao sacado autenticado.'
+  }
+  if ((nfs || []).some((nf) => nf.status !== 'em_antecipacao')) {
+    return 'Uma ou mais NFs nao estao abertas para aceite.'
   }
 
-  if (nfData.status !== 'em_antecipacao') {
-    return { success: false, message: 'Esta NF nao pode ser aceita no status atual.' }
+  const { data: links, error: linksError } = await supabase
+    .from('operacoes_nfs')
+    .select('nota_fiscal_id, operacao_id')
+    .in('nota_fiscal_id', ids)
+  if (linksError) return `Nao foi possivel validar os vinculos operacionais: ${linksError.message}`
+
+  const operacoesPorNota = new Map<string, string[]>()
+  for (const link of links || []) {
+    operacoesPorNota.set(link.nota_fiscal_id, [
+      ...(operacoesPorNota.get(link.nota_fiscal_id) || []),
+      link.operacao_id,
+    ])
+  }
+  if (ids.some((id) => (operacoesPorNota.get(id) || []).length !== 1)) {
+    return 'Todas as NFs precisam possuir um unico vinculo operacional.'
   }
 
-  // Atualizar status da NF para aceita e registrar timestamp do aceite
-  const { error: updateError } = await supabase
-    .from('notas_fiscais')
-    .update({ status: 'aceita', aprovacao_sacado_em: new Date().toISOString() } as never)
-    .eq('id', nfId)
+  const operacaoIds = Array.from(new Set((links || []).map((link) => link.operacao_id)))
+  const { data: operacoes, error: operacoesError } = await supabase
+    .from('operacoes')
+    .select('id, status, aceite_sacado_exigido, aceite_sacado_status')
+    .in('id', operacaoIds)
 
-  if (updateError) return { success: false, message: 'Erro ao registrar aceite.' }
-
-  // Notificar gestor e cedente do aceite
-  const { data: cedente } = await supabase
-    .from('cedentes')
-    .select('user_id, razao_social')
-    .eq('id', nfData.cedente_id)
-    .single()
-
-  if (cedente) {
-    const cedData = cedente as { user_id: string; razao_social: string }
-    await criarNotificacao({
-      usuario_id: cedData.user_id,
-      titulo: 'Aceite de cessao confirmado',
-      mensagem: `O sacado ${sacado.razao_social} aceitou a cessao da NF ${nfData.numero_nf}.`,
-      tipo: 'cessao_aceita',
-    })
+  if (operacoesError) return `Nao foi possivel validar as operacoes: ${operacoesError.message}`
+  if ((operacoes || []).length !== operacaoIds.length) return 'Uma ou mais operacoes nao estao acessiveis.'
+  if ((operacoes || []).some((operacao) => (
+    !['solicitada', 'em_analise'].includes(operacao.status)
+    || operacao.aceite_sacado_exigido !== true
+    || operacao.aceite_sacado_status !== 'pendente'
+  ))) {
+    return 'Uma ou mais operacoes nao estao abertas para aceite.'
   }
+  return null
+}
 
-  await notificarGestores(
-    'Cessao aceita pelo sacado',
-    `O sacado ${sacado.razao_social} aceitou a cessao da NF ${nfData.numero_nf} (emitente: ${nfData.razao_social_emitente}).`,
-    'cessao_aceita'
+async function executarAceite(
+  nfIds: string[],
+  acao: 'aceitar' | 'contestar',
+  motivo?: string,
+) {
+  const contexto = await resolverContextoSacado()
+  const ids = [...new Set(nfIds)]
+  const validacao = await validarLoteAceiteSacado(
+    contexto.auth.supabase,
+    contexto.cnpj,
+    ids,
   )
+  if (validacao) return { errorMessage: validacao }
 
-  await registrarLog({
-    tipo_evento: 'CESSAO_ACEITA',
-    entidade_tipo: 'notas_fiscais',
-    entidade_id: nfId,
-    dados_depois: { sacado_cnpj: sacado.cnpj, aceite: true },
+  const { data, error } = await contexto.auth.supabase.rpc('processar_aceite_sacado', {
+    p_nota_fiscal_ids: ids,
+    p_acao: acao,
+    p_motivo: motivo || null,
   })
+  if (error) {
+    const lower = error.message.toLowerCase()
+    if (lower.includes('não exige aceite') || lower.includes('nao exige aceite')) {
+      return { errorMessage: 'Esta operacao nao exige aceite do sacado.' }
+    }
+    return { errorMessage: error.message }
+  }
+  return { data: data as Record<string, unknown> }
+}
 
+async function registrarEventoPagamentoSacado(
+  supabase: AppSupabaseClient,
+  operacaoId: string,
+  comprovante?: string,
+) {
+  const contexto = await carregarContextoEventoOperacao(supabase, operacaoId)
+  await registrarEventoDominio({
+    ...contexto,
+    tipo_evento: 'pagamento_informado_sacado',
+    categoria: 'conclusao',
+    descricao: `Sacado informou pagamento da operacao #${operacaoId.substring(0, 8)}.`,
+    metadata: {
+      comprovante_informado: !!comprovante,
+      status_operacao: contexto.status ?? null,
+    },
+    visibilidade: 'ambos',
+    origem: 'portal_sacado',
+    origem_evento: 'confirmar_pagamento_sacado',
+    origem_registro_id: operacaoId,
+  }, supabase)
+}
+
+export async function aprovarCessao(nfId: string): Promise<SacadoActionState> {
+  const result = await executarAceite([nfId], 'aceitar')
+  if (result.errorMessage) return { success: false, message: result.errorMessage }
+  revalidarAceiteSacado()
   return { success: true, message: 'Cessao aceita com sucesso.' }
 }
 
-// Aprovar cessao de multiplas NFs em lote
-export async function aprovarCessaoLote(nfIds: string[]): Promise<SacadoActionState & { aprovadas?: number; invalidas?: number }> {
-  const supabase = await createClient()
-  const sacado = await getSacadoDoUsuario()
-  if (!sacado) return { success: false, message: 'Sacado nao encontrado.' }
-
+export async function aprovarCessaoLote(
+  nfIds: string[],
+): Promise<SacadoActionState & { aprovadas?: number; invalidas?: number }> {
   if (!nfIds || nfIds.length === 0) {
     return { success: false, message: 'Nenhuma NF selecionada.' }
   }
-
-  // Buscar todas as NFs de uma vez e validar pertencimento + status
-  const { data: nfs } = await supabase
-    .from('notas_fiscais')
-    .select('id, numero_nf, cnpj_destinatario, razao_social_emitente, status, cedente_id')
-    .in('id', nfIds)
-
-  if (!nfs || nfs.length === 0) return { success: false, message: 'NFs nao encontradas.' }
-
-  const nfsValidas = (nfs as Array<{
-    id: string; numero_nf: string; cnpj_destinatario: string;
-    razao_social_emitente: string; status: string; cedente_id: string
-  }>).filter((nf) => nf.cnpj_destinatario === sacado.cnpj && nf.status === 'em_antecipacao')
-
-  if (nfsValidas.length === 0) {
-    return { success: false, message: 'Nenhuma NF valida para aprovacao.' }
-  }
-
-  const idsValidos = nfsValidas.map((nf) => nf.id)
-  const agora = new Date().toISOString()
-
-  const { error } = await supabase
-    .from('notas_fiscais')
-    .update({ status: 'aceita', aprovacao_sacado_em: agora } as never)
-    .in('id', idsValidos)
-
-  if (error) return { success: false, message: 'Erro ao registrar aprovacoes.' }
-
-  // Notificar por cedente (agrupado)
-  const porCedente = nfsValidas.reduce<Record<string, string[]>>((acc, nf) => {
-    acc[nf.cedente_id] = acc[nf.cedente_id] || []
-    acc[nf.cedente_id].push(nf.numero_nf)
-    return acc
-  }, {})
-
-  for (const [cedenteId, numeros] of Object.entries(porCedente)) {
-    const { data: cedente } = await supabase
-      .from('cedentes')
-      .select('user_id, razao_social')
-      .eq('id', cedenteId)
-      .single()
-
-    if (cedente) {
-      const cedData = cedente as { user_id: string; razao_social: string }
-      await criarNotificacao({
-        usuario_id: cedData.user_id,
-        titulo: 'Aprovação de cessão em lote',
-        mensagem: `O sacado ${sacado.razao_social} aprovou ${numeros.length} NF(s): ${numeros.join(', ')}.`,
-        tipo: 'cessao_aceita',
-      })
-    }
-  }
-
-  await notificarGestores(
-    'Aprovação de cessão em lote pelo sacado',
-    `O sacado ${sacado.razao_social} aprovou ${nfsValidas.length} cessão(ões) em lote.`,
-    'cessao_aceita'
-  )
-
-  await registrarLog({
-    tipo_evento: 'CESSAO_ACEITA_LOTE',
-    entidade_tipo: 'notas_fiscais',
-    entidade_id: undefined,
-    dados_depois: { sacado_cnpj: sacado.cnpj, nf_ids: idsValidos, quantidade: idsValidos.length },
-  })
-
+  const ids = [...new Set(nfIds)]
+  const result = await executarAceite(ids, 'aceitar')
+  if (result.errorMessage) return { success: false, message: result.errorMessage }
+  revalidarAceiteSacado()
   return {
     success: true,
-    message: `${nfsValidas.length} cessão(ões) aprovada(s) com sucesso.`,
-    aprovadas: nfsValidas.length,
-    invalidas: nfIds.length - nfsValidas.length,
+    message: `${ids.length} cessao(oes) aprovada(s) com sucesso.`,
+    aprovadas: ids.length,
+    invalidas: 0,
   }
 }
 
-// Contestar cessao de NF
-export async function contestarCessao(nfId: string, motivo: string): Promise<SacadoActionState> {
-  const supabase = await createClient()
-  const sacado = await getSacadoDoUsuario()
-  if (!sacado) return { success: false, message: 'Sacado nao encontrado.' }
-
-  if (!motivo?.trim()) return { success: false, message: 'Motivo da contestacao e obrigatorio.' }
-
-  const { data: nf } = await supabase
-    .from('notas_fiscais')
-    .select('id, numero_nf, cnpj_destinatario, razao_social_emitente, cedente_id, status')
-    .eq('id', nfId)
-    .single()
-
-  if (!nf) return { success: false, message: 'NF nao encontrada.' }
-  const nfData = nf as { id: string; numero_nf: string; cnpj_destinatario: string; razao_social_emitente: string; cedente_id: string; status: string }
-
-  if (nfData.cnpj_destinatario !== sacado.cnpj) {
-    return { success: false, message: 'Esta NF nao e destinada a voce.' }
+export async function contestarCessao(
+  nfId: string,
+  motivo: string,
+): Promise<SacadoActionState> {
+  if (!motivo?.trim()) {
+    return { success: false, message: 'Motivo da contestacao e obrigatorio.' }
   }
-
-  if (nfData.status !== 'em_antecipacao') {
-    return { success: false, message: 'Esta NF nao pode ser contestada no status atual.' }
-  }
-
-  // Atualizar status da NF para contestada
-  const { error: updateError } = await supabase
-    .from('notas_fiscais')
-    .update({ status: 'contestada' } as never)
-    .eq('id', nfId)
-
-  if (updateError) return { success: false, message: 'Erro ao registrar contestacao.' }
-
-  // Notificar gestor urgente
-  await notificarGestores(
-    'ALERTA: Cessao contestada pelo sacado',
-    `O sacado ${sacado.razao_social} CONTESTOU a cessao da NF ${nfData.numero_nf} (emitente: ${nfData.razao_social_emitente}). Motivo: ${motivo}`,
-    'cessao_contestada'
-  )
-
-  // Notificar cedente
-  const { data: cedente } = await supabase
-    .from('cedentes')
-    .select('user_id')
-    .eq('id', nfData.cedente_id)
-    .single()
-
-  if (cedente) {
-    const cedData = cedente as { user_id: string }
-    await criarNotificacao({
-      usuario_id: cedData.user_id,
-      titulo: 'Cessao contestada pelo sacado',
-      mensagem: `O sacado ${sacado.razao_social} contestou a cessao da NF ${nfData.numero_nf}. Motivo: ${motivo}. O gestor foi notificado.`,
-      tipo: 'cessao_contestada',
-    })
-  }
-
-  await registrarLog({
-    tipo_evento: 'CESSAO_CONTESTADA',
-    entidade_tipo: 'notas_fiscais',
-    entidade_id: nfId,
-    dados_depois: { sacado_cnpj: sacado.cnpj, contestacao: true, motivo },
-  })
-
+  const result = await executarAceite([nfId], 'contestar', motivo.trim())
+  if (result.errorMessage) return { success: false, message: result.errorMessage }
+  revalidarAceiteSacado()
   return { success: true, message: 'Contestacao registrada. O gestor foi notificado.' }
 }
 
-// Registrar confirmacao de pagamento (sacado informa que pagou)
-export async function confirmarPagamento(operacaoId: string, comprovante?: string): Promise<SacadoActionState> {
-  const supabase = await createClient()
-  const sacado = await getSacadoDoUsuario()
-  if (!sacado) return { success: false, message: 'Sacado nao encontrado.' }
+export async function confirmarPagamento(
+  operacaoId: string,
+  comprovante?: string,
+): Promise<SacadoActionState> {
+  const contexto = await resolverContextoSacado()
+  const supabase = contexto.auth.supabase
 
-  // Buscar operacao vinculada ao sacado
-  const { data: opNfs } = await supabase
+  const { data: opNfs, error: vinculosError } = await supabase
     .from('operacoes_nfs')
     .select('nota_fiscal_id, operacao_id')
     .eq('operacao_id', operacaoId)
 
+  if (vinculosError) {
+    return { success: false, message: `Nao foi possivel validar a operacao: ${vinculosError.message}` }
+  }
   if (!opNfs || opNfs.length === 0) {
     return { success: false, message: 'Operacao nao encontrada.' }
   }
 
-  // Verificar que pelo menos uma NF da operacao pertence a este sacado
-  const nfIds = (opNfs as Array<{ nota_fiscal_id: string }>).map((n) => n.nota_fiscal_id)
-  const { data: nfs } = await supabase
+  const nfIds = opNfs.map((item) => item.nota_fiscal_id)
+  const { data: nfs, error: nfsError } = await supabase
     .from('notas_fiscais')
-    .select('id')
+    .select('id, cnpj_destinatario')
     .in('id', nfIds)
-    .eq('cnpj_destinatario', sacado.cnpj)
-    .limit(1)
 
-  if (!nfs || nfs.length === 0) {
+  if (nfsError) {
+    return { success: false, message: `Nao foi possivel validar as NFs da operacao: ${nfsError.message}` }
+  }
+  if (
+    !nfs
+    || nfs.length !== nfIds.length
+    || nfs.some((nota) => normalizarCnpjSacado(nota.cnpj_destinatario) !== contexto.cnpj)
+  ) {
     return { success: false, message: 'Operacao nao vinculada a voce.' }
   }
 
-  // Notificar gestor
+  const { data: operacao, error: operacaoError } = await supabase
+    .from('operacoes')
+    .select('status')
+    .eq('id', operacaoId)
+    .maybeSingle()
+
+  if (operacaoError || !operacao) {
+    return { success: false, message: 'Operacao nao encontrada.' }
+  }
+  if (!['em_andamento', 'inadimplente'].includes(operacao.status)) {
+    return {
+      success: false,
+      message: 'Esta operacao ainda nao esta aberta para confirmacao de pagamento.',
+    }
+  }
+
   await notificarGestores(
     'Sacado informou pagamento',
-    `O sacado ${sacado.razao_social} informou que realizou o pagamento da operacao #${operacaoId.substring(0, 8)}.${comprovante ? ' Comprovante informado.' : ''}`,
-    'pagamento_informado'
+    `O sacado ${contexto.razaoSocial} informou que realizou o pagamento da operacao #${operacaoId.substring(0, 8)}.${comprovante ? ' Comprovante informado.' : ''}`,
+    'pagamento_informado',
   )
 
   await registrarLog({
     tipo_evento: 'PAGAMENTO_INFORMADO',
     entidade_tipo: 'operacoes',
     entidade_id: operacaoId,
-    dados_depois: { sacado_cnpj: sacado.cnpj, comprovante: comprovante || null },
+    dados_depois: {
+      sacado_cnpj: contexto.cnpj,
+      comprovante: comprovante || null,
+    },
   })
+  await registrarEventoPagamentoSacado(supabase, operacaoId, comprovante)
 
-  return { success: true, message: 'Pagamento informado. O gestor ira confirmar a liquidacao.' }
+  revalidatePath('/sacado/pagamentos')
+  revalidatePath('/sacado/dashboard')
+  return {
+    success: true,
+    message: 'Pagamento informado. O gestor ira confirmar a liquidacao.',
+  }
 }

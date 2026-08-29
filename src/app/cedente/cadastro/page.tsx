@@ -8,15 +8,15 @@ import { createClient } from '@/lib/supabase/client'
 import { formatCNPJ } from '@/lib/utils'
 import {
   etapa1Schema, etapa2Schema, etapa3Schema,
-  bancosBrasileiros,
   type CedenteFormData, type RepresentanteData,
 } from '@/lib/validations/cedente'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { BancoCombobox, type BancoSelecionado } from '@/components/cadastro/banco-combobox'
+import { useCamposEditadosManualmente, useCepConsulta } from '@/hooks/use-cadastro-autofill'
 
 const STORAGE_KEY = 'bw_antecipa_cadastro_cedente'
 
@@ -60,6 +60,7 @@ interface CedenteCadastrado {
   conta: string | null
   tipo_conta: string | null
   status: string
+  onboarding_concluido_em: string | null
   created_at: string
   representantes: RepresentanteCadastrado[]
 }
@@ -259,21 +260,21 @@ function maskCEP(v: string) {
   return v.replace(/\D/g, '').replace(/(\d{5})(\d)/, '$1-$2').slice(0, 9)
 }
 
-function CadastroForm() {
+function CadastroForm({ cnpjConvidado }: { cnpjConvidado: string }) {
   const router = useRouter()
   const [etapa, setEtapa] = useState(1)
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState<FormErrors>({})
   const [message, setMessage] = useState('')
-  const [buscandoCep, setBuscandoCep] = useState(false)
-  const [buscandoCnpj, setBuscandoCnpj] = useState(false)
+  const { marcarEditado, filtrarNaoEditados } = useCamposEditadosManualmente()
 
   const [form, setForm] = useState<Partial<CedenteFormData>>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem(STORAGE_KEY)
-      if (saved) return JSON.parse(saved)
+      if (saved) return { ...JSON.parse(saved), cnpj: cnpjConvidado }
     }
     return {
+      cnpj: cnpjConvidado,
       representantes: [{ nome: '', cpf: '', rg: '', cargo: '', email: '', telefone: '' }],
     }
   })
@@ -283,6 +284,7 @@ function CadastroForm() {
   }, [form])
 
   const updateField = (field: string, value: string) => {
+    marcarEditado(field)
     setForm((prev) => ({ ...prev, [field]: value }))
     setErrors((prev) => {
       const next = { ...prev }
@@ -290,6 +292,27 @@ function CadastroForm() {
       return next
     })
   }
+
+  const selecionarBanco = (banco: BancoSelecionado) => {
+    setForm((prev) => ({
+      ...prev,
+      banco: `${banco.codigo} - ${banco.nome}`,
+      banco_codigo: banco.codigo,
+      banco_ispb: banco.ispb || '',
+      banco_nome: banco.nome,
+    }))
+    setErrors((prev) => { const next = { ...prev }; delete next['banco']; return next })
+  }
+
+  const { consultar: consultarCep, consultando: buscandoCep, erro: erroCep } = useCepConsulta((dados) => {
+    const patch = filtrarNaoEditados({
+      logradouro: dados.logradouro,
+      bairro: dados.bairro,
+      cidade: dados.cidade,
+      estado: dados.uf,
+    })
+    setForm((prev) => ({ ...prev, ...patch }))
+  })
 
   const emptyRep: RepresentanteData = { nome: '', cpf: '', rg: '', cargo: '', email: '', telefone: '' }
 
@@ -311,55 +334,6 @@ function CadastroForm() {
       updated[idx] = { ...updated[idx], [field]: value }
       return { ...prev, representantes: updated }
     })
-
-  const buscarCNPJ = async (cnpj: string) => {
-    const clean = cnpj.replace(/\D/g, '')
-    if (clean.length !== 14) return
-    setBuscandoCnpj(true)
-    try {
-      const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${clean}`)
-      if (!res.ok) return
-      const data = await res.json()
-      const telefone = (data.ddd_telefone_1 || '').replace(/\D/g, '')
-      const cepLimpo = (data.cep || '').replace(/\D/g, '')
-      setForm((prev) => ({
-        ...prev,
-        razao_social:       data.razao_social   || prev?.razao_social   || '',
-        nome_fantasia:      data.nome_fantasia   || prev?.nome_fantasia  || '',
-        cnae:               data.cnae_fiscal     ? String(data.cnae_fiscal) : prev?.cnae || '',
-        logradouro:         data.logradouro      || prev?.logradouro     || '',
-        numero:             data.numero          || prev?.numero         || '',
-        complemento:        data.complemento     || prev?.complemento    || '',
-        bairro:             data.bairro          || prev?.bairro         || '',
-        cidade:             data.municipio       || prev?.cidade         || '',
-        estado:             data.uf              || prev?.estado         || '',
-        cep:                cepLimpo             || prev?.cep            || '',
-        email_comercial:    data.email           || prev?.email_comercial || '',
-        telefone_comercial: telefone             || prev?.telefone_comercial || '',
-      }))
-    } catch { /* ignore */ }
-    setBuscandoCnpj(false)
-  }
-
-  const buscarCEP = async (cep: string) => {
-    const clean = cep.replace(/\D/g, '')
-    if (clean.length !== 8) return
-    setBuscandoCep(true)
-    try {
-      const res = await fetch(`https://viacep.com.br/ws/${clean}/json/`)
-      const data = await res.json()
-      if (!data.erro) {
-        setForm((prev) => ({
-          ...prev,
-          logradouro: data.logradouro || prev?.logradouro || '',
-          bairro: data.bairro || prev?.bairro || '',
-          cidade: data.localidade || prev?.cidade || '',
-          estado: data.uf || prev?.estado || '',
-        }))
-      }
-    } catch { /* ignore */ }
-    setBuscandoCep(false)
-  }
 
   const validarEtapa = () => {
     const schemas = { 1: etapa1Schema, 2: etapa2Schema, 3: etapa3Schema }
@@ -403,7 +377,7 @@ function CadastroForm() {
   const inputClass = (field: string) =>
     errors[field] ? 'border-destructive focus-visible:ring-destructive' : ''
 
-  const ErrorMsg = ({ field }: { field: string }) =>
+  const renderError = (field: string) =>
     errors[field] ? <p className="text-destructive text-sm mt-1">{errors[field][0]}</p> : null
 
   return (
@@ -447,19 +421,15 @@ function CadastroForm() {
                 <div>
                   <Label className="mb-1">CNPJ *</Label>
                   <Input className={`h-11 ${inputClass('cnpj')}`} value={maskCNPJ(form.cnpj || '')}
-                    onChange={(e) => {
-                      const v = e.target.value.replace(/\D/g, '')
-                      updateField('cnpj', v)
-                      if (v.length === 14) buscarCNPJ(v)
-                    }} placeholder="00.000.000/0000-00" />
-                  {buscandoCnpj && <p className="text-primary text-xs mt-1">Buscando dados da empresa...</p>}
-                  <ErrorMsg field="cnpj" />
+                    readOnly aria-readonly="true" placeholder="00.000.000/0000-00" />
+                  <p className="mt-1 text-xs text-muted-foreground">CNPJ definido pelo convite e nao editavel.</p>
+                  {renderError('cnpj')}
                 </div>
                 <div>
                   <Label className="mb-1">Razao Social *</Label>
                   <Input className={`h-11 ${inputClass('razao_social')}`} value={form.razao_social || ''}
                     onChange={(e) => updateField('razao_social', e.target.value)} />
-                  <ErrorMsg field="razao_social" />
+                  {renderError('razao_social')}
                 </div>
               </div>
 
@@ -483,16 +453,17 @@ function CadastroForm() {
                     onChange={(e) => {
                       const v = e.target.value.replace(/\D/g, '')
                       updateField('cep', v)
-                      if (v.length === 8) buscarCEP(v)
+                      if (v.length === 8) consultarCep(v)
                     }} placeholder="00000-000" />
-                  {buscandoCep && <p className="text-primary text-xs mt-1">Buscando endereco...</p>}
-                  <ErrorMsg field="cep" />
+                  {buscandoCep && <p className="text-primary text-xs mt-1">Consultando CEP...</p>}
+                  {erroCep && <p className="text-amber-600 text-xs mt-1">{erroCep}</p>}
+                  {renderError('cep')}
                 </div>
                 <div className="md:col-span-2">
                   <Label className="mb-1">Logradouro *</Label>
                   <Input className={`h-11 ${inputClass('logradouro')}`} value={form.logradouro || ''}
                     onChange={(e) => updateField('logradouro', e.target.value)} />
-                  <ErrorMsg field="logradouro" />
+                  {renderError('logradouro')}
                 </div>
               </div>
 
@@ -501,7 +472,7 @@ function CadastroForm() {
                   <Label className="mb-1">Numero *</Label>
                   <Input className={`h-11 ${inputClass('numero')}`} value={form.numero || ''}
                     onChange={(e) => updateField('numero', e.target.value)} />
-                  <ErrorMsg field="numero" />
+                  {renderError('numero')}
                 </div>
                 <div>
                   <Label className="mb-1">Complemento</Label>
@@ -512,13 +483,13 @@ function CadastroForm() {
                   <Label className="mb-1">Bairro *</Label>
                   <Input className={`h-11 ${inputClass('bairro')}`} value={form.bairro || ''}
                     onChange={(e) => updateField('bairro', e.target.value)} />
-                  <ErrorMsg field="bairro" />
+                  {renderError('bairro')}
                 </div>
                 <div>
                   <Label className="mb-1">Cidade *</Label>
                   <Input className={`h-11 ${inputClass('cidade')}`} value={form.cidade || ''}
                     onChange={(e) => updateField('cidade', e.target.value)} />
-                  <ErrorMsg field="cidade" />
+                  {renderError('cidade')}
                 </div>
               </div>
 
@@ -527,19 +498,19 @@ function CadastroForm() {
                   <Label className="mb-1">Estado *</Label>
                   <Input className={`h-11 ${inputClass('estado')}`} value={form.estado || ''} maxLength={2}
                     onChange={(e) => updateField('estado', e.target.value.toUpperCase())} placeholder="UF" />
-                  <ErrorMsg field="estado" />
+                  {renderError('estado')}
                 </div>
                 <div>
                   <Label className="mb-1">Telefone Comercial *</Label>
                   <Input className={`h-11 ${inputClass('telefone_comercial')}`} value={maskPhone(form.telefone_comercial || '')}
                     onChange={(e) => updateField('telefone_comercial', e.target.value.replace(/\D/g, ''))} placeholder="(00) 00000-0000" />
-                  <ErrorMsg field="telefone_comercial" />
+                  {renderError('telefone_comercial')}
                 </div>
                 <div>
                   <Label className="mb-1">E-mail Comercial *</Label>
                   <Input className={`h-11 ${inputClass('email_comercial')}`} type="email" value={form.email_comercial || ''}
                     onChange={(e) => updateField('email_comercial', e.target.value)} />
-                  <ErrorMsg field="email_comercial" />
+                  {renderError('email_comercial')}
                 </div>
               </div>
             </div>
@@ -668,19 +639,12 @@ function CadastroForm() {
             <div className="space-y-4">
               <div>
                 <Label className="mb-1">Banco *</Label>
-                <select
-                  className={`h-11 w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
-                    errors['banco'] ? 'border-destructive' : 'border-input'
-                  }`}
-                  value={form.banco || ''}
-                  onChange={(e) => updateField('banco', e.target.value)}
-                >
-                  <option value="">Selecione o banco</option>
-                  {bancosBrasileiros.map((b) => (
-                    <option key={b.codigo} value={`${b.codigo} - ${b.nome}`}>{b.codigo} - {b.nome}</option>
-                  ))}
-                </select>
-                <ErrorMsg field="banco" />
+                <BancoCombobox
+                  value={form.banco_codigo ? { codigo: form.banco_codigo, ispb: form.banco_ispb || null, nome: form.banco_nome || '' } : null}
+                  legacyLabel={form.banco}
+                  onSelect={selecionarBanco}
+                  error={errors['banco']?.[0]}
+                />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -688,13 +652,13 @@ function CadastroForm() {
                   <Label className="mb-1">Agencia *</Label>
                   <Input className={`h-11 ${inputClass('agencia')}`} value={form.agencia || ''}
                     onChange={(e) => updateField('agencia', e.target.value.replace(/\D/g, ''))} placeholder="0000" />
-                  <ErrorMsg field="agencia" />
+                  {renderError('agencia')}
                 </div>
                 <div>
                   <Label className="mb-1">Conta *</Label>
                   <Input className={`h-11 ${inputClass('conta')}`} value={form.conta || ''}
                     onChange={(e) => updateField('conta', e.target.value)} placeholder="00000-0" />
-                  <ErrorMsg field="conta" />
+                  {renderError('conta')}
                 </div>
                 <div>
                   <Label className="mb-1">Tipo de Conta *</Label>
@@ -709,7 +673,7 @@ function CadastroForm() {
                     <option value="corrente">Corrente</option>
                     <option value="poupanca">Poupanca</option>
                   </select>
-                  <ErrorMsg field="tipo_conta" />
+                  {renderError('tipo_conta')}
                 </div>
               </div>
             </div>
@@ -749,7 +713,7 @@ function AlteracaoForm({ cedente, onCancelar }: { cedente: CedenteCadastrado; on
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState<FormErrors>({})
   const [message, setMessage] = useState('')
-  const [buscandoCep, setBuscandoCep] = useState(false)
+  const { marcarEditado, filtrarNaoEditados } = useCamposEditadosManualmente()
 
   const [form, setForm] = useState<Partial<CedenteFormData>>({
     nome_fantasia: cedente.nome_fantasia || '',
@@ -773,9 +737,30 @@ function AlteracaoForm({ cedente, onCancelar }: { cedente: CedenteCadastrado; on
   })
 
   const updateField = (field: string, value: string) => {
+    marcarEditado(field)
     setForm((prev) => ({ ...prev, [field]: value }))
     setErrors((prev) => { const n = { ...prev }; delete n[field]; return n })
   }
+
+  const selecionarBanco = (banco: BancoSelecionado) => {
+    setForm((prev) => ({
+      ...prev,
+      banco: `${banco.codigo} - ${banco.nome}`,
+      banco_codigo: banco.codigo,
+      banco_ispb: banco.ispb || '',
+      banco_nome: banco.nome,
+    }))
+  }
+
+  const { consultar: consultarCep, consultando: buscandoCep, erro: erroCep } = useCepConsulta((dados) => {
+    const patch = filtrarNaoEditados({
+      logradouro: dados.logradouro,
+      bairro: dados.bairro,
+      cidade: dados.cidade,
+      estado: dados.uf,
+    })
+    setForm((prev) => ({ ...prev, ...patch }))
+  })
 
   const updateRepresentante = (idx: number, field: keyof RepresentanteData, value: string) =>
     setForm((prev) => {
@@ -789,20 +774,6 @@ function AlteracaoForm({ cedente, onCancelar }: { cedente: CedenteCadastrado; on
 
   const removeRepresentante = (idx: number) =>
     setForm((prev) => ({ ...prev, representantes: (prev.representantes || []).filter((_, i) => i !== idx) }))
-
-  const buscarCEP = async (cep: string) => {
-    const clean = cep.replace(/\D/g, '')
-    if (clean.length !== 8) return
-    setBuscandoCep(true)
-    try {
-      const res = await fetch(`https://viacep.com.br/ws/${clean}/json/`)
-      const data = await res.json()
-      if (!data.erro) {
-        setForm((prev) => ({ ...prev, logradouro: data.logradouro || prev?.logradouro || '', bairro: data.bairro || prev?.bairro || '', cidade: data.localidade || prev?.cidade || '', estado: data.uf || prev?.estado || '' }))
-      }
-    } catch { /* ignore */ }
-    setBuscandoCep(false)
-  }
 
   const validarEtapa = () => {
     const schemas = { 1: etapa1Schema, 2: etapa2Schema, 3: etapa3Schema }
@@ -839,7 +810,8 @@ function AlteracaoForm({ cedente, onCancelar }: { cedente: CedenteCadastrado; on
   const maskCPF = (v: string) => v.replace(/\D/g, '').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d{1,2})$/, '$1-$2').slice(0, 14)
   const maskCEP = (v: string) => v.replace(/\D/g, '').replace(/(\d{5})(\d)/, '$1-$2').slice(0, 9)
   const inputClass = (field: string) => errors[field] ? 'border-destructive focus-visible:ring-destructive' : ''
-  const ErrorMsg = ({ field }: { field: string }) => errors[field] ? <p className="text-destructive text-sm mt-1">{errors[field][0]}</p> : null
+  const renderError = (field: string) =>
+    errors[field] ? <p className="text-destructive text-sm mt-1">{errors[field][0]}</p> : null
 
   return (
     <div className="max-w-3xl mx-auto">
@@ -883,8 +855,9 @@ function AlteracaoForm({ cedente, onCancelar }: { cedente: CedenteCadastrado; on
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <Label className="mb-1">CEP</Label>
-                  <Input className="h-11" value={maskCEP(form.cep || '')} onChange={(e) => { const v = e.target.value.replace(/\D/g, ''); updateField('cep', v); if (v.length === 8) buscarCEP(v) }} placeholder="00000-000" />
-                  {buscandoCep && <p className="text-primary text-xs mt-1">Buscando endereço...</p>}
+                  <Input className="h-11" value={maskCEP(form.cep || '')} onChange={(e) => { const v = e.target.value.replace(/\D/g, ''); updateField('cep', v); if (v.length === 8) consultarCep(v) }} placeholder="00000-000" />
+                  {buscandoCep && <p className="text-primary text-xs mt-1">Consultando CEP...</p>}
+                  {erroCep && <p className="text-amber-600 text-xs mt-1">{erroCep}</p>}
                 </div>
                 <div className="md:col-span-2">
                   <Label className="mb-1">Logradouro</Label>
@@ -902,12 +875,12 @@ function AlteracaoForm({ cedente, onCancelar }: { cedente: CedenteCadastrado; on
                 <div>
                   <Label className="mb-1">Telefone Comercial</Label>
                   <Input className={`h-11 ${inputClass('telefone_comercial')}`} value={maskPhone(form.telefone_comercial || '')} onChange={(e) => updateField('telefone_comercial', e.target.value.replace(/\D/g, ''))} placeholder="(00) 00000-0000" />
-                  <ErrorMsg field="telefone_comercial" />
+                  {renderError('telefone_comercial')}
                 </div>
                 <div>
                   <Label className="mb-1">E-mail Comercial</Label>
                   <Input className={`h-11 ${inputClass('email_comercial')}`} type="email" value={form.email_comercial || ''} onChange={(e) => updateField('email_comercial', e.target.value)} />
-                  <ErrorMsg field="email_comercial" />
+                  {renderError('email_comercial')}
                 </div>
               </div>
             </div>
@@ -978,10 +951,12 @@ function AlteracaoForm({ cedente, onCancelar }: { cedente: CedenteCadastrado; on
             <div className="space-y-4">
               <div>
                 <Label className="mb-1">Banco</Label>
-                <select className={`h-11 w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${errors['banco'] ? 'border-destructive' : 'border-input'}`} value={form.banco || ''} onChange={(e) => updateField('banco', e.target.value)}>
-                  <option value="">Selecione o banco</option>
-                  {bancosBrasileiros.map((b) => <option key={b.codigo} value={`${b.codigo} - ${b.nome}`}>{b.codigo} - {b.nome}</option>)}
-                </select>
+                <BancoCombobox
+                  value={form.banco_codigo ? { codigo: form.banco_codigo, ispb: form.banco_ispb || null, nome: form.banco_nome || '' } : null}
+                  legacyLabel={form.banco}
+                  onSelect={selecionarBanco}
+                  error={errors['banco']?.[0]}
+                />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div><Label className="mb-1">Agência</Label><Input className="h-11" value={form.agencia || ''} onChange={(e) => updateField('agencia', e.target.value.replace(/\D/g, ''))} placeholder="0000" /></div>
@@ -1033,7 +1008,7 @@ export default function CadastroCedentePage() {
 
       const { data } = await supabase
         .from('cedentes')
-        .select('id, cnpj, razao_social, nome_fantasia, cnae, cep, logradouro, numero, complemento, bairro, cidade, estado, telefone_comercial, email_comercial, banco, agencia, conta, tipo_conta, status, created_at')
+        .select('id, cnpj, razao_social, nome_fantasia, cnae, cep, logradouro, numero, complemento, bairro, cidade, estado, telefone_comercial, email_comercial, banco, agencia, conta, tipo_conta, status, onboarding_concluido_em, created_at')
         .single()
 
       if (!data) { setCedente(null); return }
@@ -1074,6 +1049,10 @@ export default function CadastroCedentePage() {
     )
   }
 
+  if (cedente && !cedente.onboarding_concluido_em) {
+    return <CadastroForm cnpjConvidado={cedente.cnpj} />
+  }
+
   if (cedente && modoEdicao) {
     return <AlteracaoForm cedente={cedente} onCancelar={() => setModoEdicao(false)} />
   }
@@ -1088,5 +1067,17 @@ export default function CadastroCedentePage() {
     )
   }
 
-  return <CadastroForm />
+  return (
+    <div className="mx-auto max-w-2xl">
+      <Card>
+        <CardHeader>
+          <CardTitle>Acesso por convite necessario</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm text-muted-foreground">
+          <p>Sua conta ainda nao esta vinculada a uma organizacao Cedente.</p>
+          <p>Solicite ao gestor do fundo um convite para o CNPJ da sua empresa. Nenhum Cedente e criado sem esse vinculo.</p>
+        </CardContent>
+      </Card>
+    </div>
+  )
 }

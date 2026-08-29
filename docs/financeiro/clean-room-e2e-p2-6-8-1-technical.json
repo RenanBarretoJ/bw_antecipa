@@ -1,0 +1,104 @@
+{
+  "schema": "bw-antecipa-p2-6-8-1-technical-clean-room-e2e-v1",
+  "status": "PASS",
+  "started_at": "2026-08-17T20:48:34.590Z",
+  "node": "v22.23.1",
+  "project_id": "bw-antecipa-p2681technical-clean-room",
+  "migration_history": {
+    "expected": 127,
+    "applied": 127,
+    "bootstrap_applied": true,
+    "total_history_rows": 128,
+    "first": "003_storage_buckets_env.sql",
+    "last": "20260817204159_p2_6_8_1_hardening_rls_identidade_profiles.sql",
+    "manifest_sha256": "49724bd24e5a8de024ae07b2389da8b6345faf9a35e445033d2a7de94ed2fdba",
+    "status": "PASS",
+    "remote_status": "DEFERRED_PRE_HOMOLOG"
+  },
+  "schema_parity": {
+    "status": "DEFERRED_PRE_HOMOLOG",
+    "material_differences": null,
+    "allowed_differences": null
+  },
+  "bootstrap": {
+    "status": "PASS",
+    "source": "schema-base-candidate.sql + migrations canonicas",
+    "auth_api": "PASS",
+    "rest_api": "PASS",
+    "storage_api": "PASS"
+  },
+  "golden": "PASS",
+  "runtime": {
+    "node": "v22.23.1",
+    "package_engine": "22.x",
+    "docker_context": "desktop-linux",
+    "docker_os": "linux",
+    "docker_server_version": "29.7.2"
+  },
+  "api_auth_matrix": "PASS",
+  "cross_fund": "PASS",
+  "storage_api": "PASS",
+  "application": {
+    "status": "PASS",
+    "checks": [
+      {
+        "surface": "NEXT_LOGIN",
+        "expected": 200,
+        "actual": 200,
+        "status": "PASS"
+      },
+      {
+        "surface": "CRON_UNAUTHORIZED",
+        "expected": 401,
+        "actual": 401,
+        "status": "PASS"
+      },
+      {
+        "surface": "CRON_FINANCEIRO",
+        "expected": 200,
+        "actual": 200,
+        "status": "PASS"
+      },
+      {
+        "surface": "CRON_RLX_ALIAS",
+        "expected": 200,
+        "actual": 200,
+        "status": "PASS"
+      }
+    ],
+    "external_providers_called": false,
+    "detail": "Next e crons locais responderam sem 500."
+  },
+  "repository_checks": {
+    "typescript": {
+      "status": "PASS",
+      "detail": ""
+    },
+    "tests": {
+      "status": "PASS",
+      "detail": "RUN  v4.1.10 C:/Users/BrenoAlvim/documentos/github-renan/bw_antecipa\n\n\n Test Files  144 passed | 1 skipped (145)\n      Tests  1031 passed | 3 skipped (1034)\n   Start at  17:50:35\n   Duration  15.84s (transform 16.48s, setup 0ms, import 55.88s, tests 7.02s, environment 74ms)"
+    },
+    "lint": {
+      "status": "PASS",
+      "detail": "C:\\Users\\BrenoAlvim\\documentos\\github-renan\\bw_antecipa\\src\\app\\cedente\\cadastro\\page.tsx\n  18:10  warning  'Badge' is defined but never used  @typescript-eslint/no-unused-vars\n\nC:\\Users\\BrenoAlvim\\documentos\\github-renan\\bw_antecipa\\src\\app\\cedente\\documentos\\page.tsx\n  7:29  warning  'CardHeader' is defined but never used  @typescript-eslint/no-unused-vars\n  7:41  warning  'CardTitle' is defined but never used   @typescript-eslint/no-unused-vars\n\nC:\\Users\\BrenoAlvim\\documentos\\github-renan\\bw_antecipa\\src\\app\\consultor\\carteira\\page.tsx\n  5:38  warning  'formatDate' is defined but never used  @typescript-eslint/no-unused-vars\n  6:8   warning  'Link' is defined but never used        @typescript-eslint/no-unused-vars\n\nC:\\Users\\BrenoAlvim\\documentos\\github-renan\\bw_antecipa\\src\\lib\\actions\\liquidacao.ts\n  6:28  warning  'notificarGestores' is defined but never used  @typescript-eslint/no-unused-vars\n\n✖ 6 problems (0 errors, 6 warnings)"
+    },
+    "diff_check": {
+      "status": "PASS",
+      "detail": "lden/fixtures/D-4/estoque.csv', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/homologacao/rlx-golden/fixtures/D-4/liquidacoes.csv', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/homologacao/rlx-golden/fixtures/adversarial/estoque-D-1.csv', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/homologacao/rlx-golden/fixtures/duplicados/estoque-D-1-copia.csv', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/homologacao/rlx-golden/fixtures/edge-cases/alternate-header.csv', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/homologacao/rlx-golden/fixtures/edge-cases/decimal-formats.csv', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/homologacao/rlx-golden/fixtures/edge-cases/duplicate-file-reference.json', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/homologacao/rlx-golden/fixtures/edge-cases/extra-column.csv', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/homologacao/rlx-golden/fixtures/edge-cases/impossible-date.csv', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/homologacao/rlx-golden/fixtures/edge-cases/incomplete-snapshot.json', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/homologacao/rlx-golden/fixtures/edge-cases/latin1.csv', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/homologacao/rlx-golden/fixtures/edge-cases/matching-identifiers.csv', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/homologacao/rlx-golden/fixtures/edge-cases/quoted-semicolon.csv', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/homologacao/rlx-golden/fixtures/edge-cases/required-blank.csv', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/homologacao/rlx-golden/fixtures/edge-cases/utf8-bom.csv', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/homologacao/rlx-golden/fixtures/expected/expected-exposure.json', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/homologacao/rlx-golden/fixtures/expected/expected-logistics.json', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/homologacao/rlx-golden/fixtures/expected/expected-matching.json', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/homologacao/rlx-golden/fixtures/expected/expected-reconciliation.json', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/homologacao/rlx-golden/fixtures/manifest.json', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/homologacao/rlx-golden/fixtures/retificacoes/aquisicoes-D-2-v2.csv', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/homologacao/rlx-golden/fixtures/retificacoes/estoque-D-1-v2.csv', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'src/app/gestor/cedentes/[id]/page.tsx', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'src/lib/actions/gestor.ts', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'src/lib/actions/notificacao.ts', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'src/lib/auditoria/listagem.server.ts', LF will be replaced by CRLF the next time Git touches it"
+    },
+    "build": {
+      "status": "PASS",
+      "detail": "▲ Next.js 16.3.1 (webpack)\n✓ Running next.config.ts took 51ms\n- Experiments (use with caution):\n  · proxyClientMaxBodySize: \"50mb\"\n  · serverActions\n\n  Creating an optimized production build ...\n✓ Compiled successfully in 39.9s\n  Running TypeScript ...\n  Finished TypeScript in 7.2s ...\n  Collecting page data using 15 workers ...\n  Generating static pages using 15 workers (0/78) ...\n  Generating static pages using 15 workers (19/78) \r\n  Generating static pages using 15 workers (38/78) \r\n  Generating static pages using 15 workers (58/78) \r\n✓ Generating static pages using 15 workers (78/78) in 3.4s\n  Finalizing page optimization ...\n  Collecting build traces ...\n\nRoute (app)\n┌ ○ /\n├ ○ /_not-found\n├ ƒ /admin\n├ ƒ /admin/fundos\n├ ƒ /admin/fundos/[id]\n├ ƒ /admin/fundos/novo\n├ ƒ /admin/minha-conta/seguranca\n├ ƒ /admin/minha-seguranca\n├ ƒ /admin/usuarios\n├ ƒ /admin/usuarios/[id]\n├ ƒ /admin/usuarios/novo\n├ ƒ /api/auth/session-security\n├ ƒ /api/contratos/consultar-status-remessa\n├ ƒ /api/contratos/download\n├ ƒ /api/contratos/enviar-remessa\n├ ƒ /api/contratos/gerar-cnab\n├ ƒ /api/contratos/gerar-contrato\n├ ƒ /api/contratos/gerar-notificacao\n├ ƒ /api/contratos/gerar-quitacao\n├ ƒ /api/contratos/gerar-termo\n├ ƒ /api/cron/comunicacoes\n├ ƒ /api/cron/documentos-vencidos\n├ ƒ /api/cron/entregas\n├ ƒ /api/cron/financeiro\n├ ƒ /api/cron/rlx-financeiro\n├ ƒ /api/cron/vencimentos\n├ ƒ /api/escrow/sync\n├ ƒ /api/operacoes/[id]/documentos-assinados\n├ ƒ /auth/confirm\n├ ○ /cadastro\n├ ○ /cedente/cadastro\n├ ƒ /cedente/dashboard\n├ ○ /cedente/documentos\n├ ƒ /cedente/extrato\n├ ○ /cedente/minha-conta/seguranca\n├ ƒ /cedente/notas-fiscais\n├ ƒ /cedente/notas-fiscais/[id]\n├ ƒ /cedente/notificacoes\n├ ƒ /cedente/operacoes\n├ ƒ /cedente/operacoes/[id]\n├ ƒ /cedente/operacoes/nova\n├ ○ /consultor/carteira\n├ ƒ /consultor/dashboard\n├ ƒ /consultor/escrow\n├ ƒ /consultor/escrow/[id]\n├ ○ /consultor/minha-conta/seguranca\n├ ƒ /consultor/notificacoes\n├ ƒ /consultor/operacoes\n├ ƒ /consultor/relatorios\n├ ○ /esqueci-senha\n├ ƒ /gestor/auditoria\n├ ƒ /gestor/cedentes\n├ ƒ /gestor/cedentes/[id]\n├ ○ /gestor/comunicacoes\n├ ƒ /gestor/conciliacao\n├ ƒ /gestor/configuracoes\n├ ○ /gestor/configuracoes-cnab\n├ ○ /gestor/configuracoes/testemunhas\n├ ƒ /gestor/dashboard\n├ ƒ /gestor/documentos\n├ ƒ /gestor/escrow\n├ ƒ /gestor/escrow/[id]\n├ ○ /gestor/fundos\n├ ƒ /gestor/fundos/[id]\n├ ƒ /gestor/logistica\n├ ƒ /gestor/logistica/exportar\n├ ○ /gestor/minha-conta/seguranca\n├ ƒ /gestor/notas-fiscais\n├ ƒ /gestor/notas-fiscais/[id]\n├ ƒ /gestor/notificacoes\n├ ƒ /gestor/onboarding-cedentes\n├ ƒ /gestor/operacoes\n├ ƒ /gestor/operacoes/[id]\n├ ○ /gestor/politicas\n├ ƒ /gestor/relatorios\n├ ƒ /gestor/sem-fundo\n├ ○ /gestor/templates\n├ ○ /login\n├ ○ /mfa/desafio\n├ ○ /mfa/setup\n├ ○ /redefinir-senha\n├ ƒ /sacado/aprovacao\n├ ƒ /sacado/dashboard\n├ ○ /sacado/minha-conta/seguranca\n├ ƒ /sacado/notas-fiscais\n├ ƒ /sacado/notificacoes\n└ ƒ /sacado/pagamentos\n\n\nƒ Proxy (Middleware)\n\n○  (Static)   prerendered as static content\nƒ  (Dynamic)  server-rendered on demand"
+    }
+  },
+  "deployment_dry_run": "PASS",
+  "production_mutated": false,
+  "homolog_mutated": false,
+  "failure": null,
+  "cleanup": {
+    "status": "PASS",
+    "stack_stopped": true,
+    "workspace_removed": true
+  },
+  "finished_at": "2026-08-17T20:52:49.001Z"
+}

@@ -1,0 +1,21 @@
+{
+  "gate": "TOCTOU_OPERATION",
+  "environment": "homolog",
+  "project_ref": "fhgkmggthxikfpogrvaa",
+  "production_touched": false,
+  "executed_at": "2026-08-18T15:29:28.495Z",
+  "status": "FAIL",
+  "execution": "NOT_COMPLETED",
+  "operation_id": "36156774-ad52-d6a4-4803-9fbd205b7919",
+  "status_before": "solicitada",
+  "status_after": "solicitada",
+  "risk_executions": 0,
+  "approval_events": 0,
+  "stale_context_denied": null,
+  "blocker": "Nao foi concluida uma corrida autenticada valida entre avaliacao e mutacao oficial de input.",
+  "related_runtime_defects": [
+    "Server Actions globais falham ao contar notificacoes para os atores QA.",
+    "A Central tenta modificar o cookie de fundo ativo durante renderizacao server-side."
+  ],
+  "evidence_integrity": "Nenhuma aprovacao foi produzida e nenhum resultado positivo foi inferido sem execucao E2E."
+}

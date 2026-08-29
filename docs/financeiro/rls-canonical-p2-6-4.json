@@ -1,0 +1,59 @@
+{
+  "schema": "bw-antecipa-p2-6-4-rls-canonical-v1",
+  "unresolved": 0,
+  "objects": [
+    {
+      "relation": "public.cedentes",
+      "rls": true,
+      "acl": {
+        "anon": "NONE",
+        "authenticated": "SELECT",
+        "direct_write": "DENIED"
+      },
+      "preserve": ["cedentes_consultor_select", "demais policies vigentes de leitura por papel"],
+      "consultor_scope": "somente cedentes associados ao consultor autenticado",
+      "validation": "Escopo 9B autenticado: consultores A/B leem somente a propria carteira e cross-fund permanece oculto"
+    },
+    {
+      "relation": "public.devedores_solidarios",
+      "rls": true,
+      "remove": ["devedores_cedente_select", "devedores_gestor_select", "devedores_gestor_all"],
+      "create": [
+        {
+          "name": "devedores_solidarios_cedente_select",
+          "command": "SELECT",
+          "role": "authenticated",
+          "scope": "cedente_id = get_user_cedente_id()"
+        },
+        {
+          "name": "devedores_solidarios_gestor_select_multifundo",
+          "command": "SELECT",
+          "role": "authenticated",
+          "scope": "exists cedente_fundos ativo cujo fundo esteja autorizado por private.usuario_tem_acesso_fundo"
+        }
+      ],
+      "direct_write": "DENIED"
+    },
+    {
+      "relation": "public.logs_auditoria",
+      "rls": true,
+      "remove": ["logs_auditoria_gestor_all", "logs_auditoria_insert", "logs_auditoria_gestor_select", "logs_auditoria_insert_usuario"],
+      "create": ["logs_auditoria_gestor_select", "logs_auditoria_insert_usuario"],
+      "update_delete": "DENIED_TO_AUTHENTICATED"
+    },
+    {
+      "relation": "public.eventos_dominio",
+      "rls": true,
+      "remove": ["eventos_dominio_insert"],
+      "create": ["eventos_dominio_insert com gestor, cedente e sacado controlados"],
+      "sacado_scope": "proprio CNPJ destinatario e visibilidade ambos"
+    },
+    {
+      "relation": "storage.objects",
+      "rls": true,
+      "remove": ["storage_contratos_gestor_insert", "storage_contratos_gestor_update"],
+      "create": [],
+      "write": "SERVER_SIDE_ONLY"
+    }
+  ]
+}

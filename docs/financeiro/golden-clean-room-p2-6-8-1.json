@@ -1,0 +1,79 @@
+{
+  "schema": "bw-antecipa-p2-6-8-1-golden-v1",
+  "v1": {
+    "fixtures": {
+      "status": "PASS",
+      "detail": "Fixtures deterministicas: 37 arquivos conferidos."
+    },
+    "seed": {
+      "status": "PASS",
+      "detail": "BW Antecipa - P2.1 Golden Dataset Temporal RLX\nAmbiente: clean-room; projeto: bw-antecipa-p2681-clean-room; dataset: RLX_GOLDEN_V1\nModo: EXECUTE\nBase temporal: 2026-08-10; fundos: QA RLX GOLDEN FIDC | QA RLX GOLDEN ADVERSARIAL FIDC\nPlano: 123 NFs, 10 operacoes D0, 111 boletos documentais.\n\nSeed transacional concluido; Storage permaneceu vazio por desenho.\nManifesto operacional restrito: C:\\Users\\BrenoAlvim\\AppData\\Local\\BWAntecipa\\homologacao\\rlx-golden\\manifest.json\nNenhum gestor acessivel foi vinculado; use RLX_GOLDEN_GESTOR_EMAIL se necessario."
+    },
+    "verify": {
+      "status": "PASS",
+      "detail": "BW Antecipa - verificacao read-only P2.1 RLX\nProjeto: bw-antecipa-p2681-clean-room; dataset: RLX_GOLDEN_V1\n\nVerificacao concluida: dataset deterministico, isolado, reconciliavel e coerente com o dominio BW atual."
+    }
+  },
+  "v2": {
+    "e2e": {
+      "status": "PASS",
+      "detail": "08b546d3-a42b-4688-8afa-a7c255ee88bb\",\n      \"status\": \"VALIDA\",\n      \"completeness\": \"COMPLETO_COM_DADOS\",\n      \"duplicate\": false\n    },\n    {\n      \"scenario\": \"D-1/LIQUIDACOES\",\n      \"fundId\": \"ca8b721e-333c-4051-a87b-9359e51449c4\",\n      \"type\": \"LIQUIDACOES\",\n      \"date\": \"2026-08-07\",\n      \"importId\": \"63ec1419-eacd-4a52-acd8-ae6693f4d5e3\",\n      \"status\": \"VALIDA\",\n      \"completeness\": \"COMPLETO_COM_DADOS\",\n      \"duplicate\": false\n    },\n    {\n      \"scenario\": \"ADVERSARIAL/ESTOQUE\",\n      \"fundId\": \"0d81663a-e91d-8e2d-5e26-710ebb177e12\",\n      \"type\": \"ESTOQUE\",\n      \"date\": \"2026-08-07\",\n      \"importId\": \"7d6ceddb-92a8-4421-8b8f-c6a2207b9ddc\",\n      \"status\": \"VALIDA\",\n      \"completeness\": \"COMPLETO_COM_DADOS\",\n      \"duplicate\": false\n    },\n    {\n      \"scenario\": \"ADVERSARIAL/AQUISICOES\",\n      \"fundId\": \"0d81663a-e91d-8e2d-5e26-710ebb177e12\",\n      \"type\": \"AQUISICOES\",\n      \"date\": \"2026-08-07\",\n      \"importId\": \"170ddd03-e461-4068-93b7-e02515e5a4c6\",\n      \"status\": \"VALIDA\",\n      \"completeness\": \"COMPLETO_VAZIO\",\n      \"duplicate\": false\n    },\n    {\n      \"scenario\": \"ADVERSARIAL/LIQUIDACOES\",\n      \"fundId\": \"0d81663a-e91d-8e2d-5e26-710ebb177e12\",\n      \"type\": \"LIQUIDACOES\",\n      \"date\": \"2026-08-07\",\n      \"importId\": \"187413a7-95e5-49f9-a334-d72edcf2a9db\",\n      \"status\": \"VALIDA\",\n      \"completeness\": \"COMPLETO_VAZIO\",\n      \"duplicate\": false\n    },\n    {\n      \"scenario\": \"DUPLICATE/ESTOQUE_D1\",\n      \"fundId\": \"ca8b721e-333c-4051-a87b-9359e51449c4\",\n      \"type\": \"ESTOQUE\",\n      \"date\": \"2026-08-07\",\n      \"importId\": \"f44358b0-b3b0-479c-9ea0-3440a9d67acf\",\n      \"status\": \"PUBLICADA\",\n      \"completeness\": \"COMPLETO_COM_DADOS\",\n      \"duplicate\": true\n    }\n  ]\n}\n{\n  \"dataset\": \"RLX_GOLDEN_V2\",\n  \"phase\": \"A\",\n  \"matching\": {\n    \"execucaoId\": \"205b6c1b-f958-427f-b938-ecce17625ac2\",\n    \"total\": 24,\n    \"signature\": \"[SECRET_REDACTED]\",\n    \"correlationId\": \"a506d362-71ff-4de2-aff5-b1ccff69bc31\"\n  },\n  \"adversarialMatching\": {\n    \"execucaoId\": \"986005cb-5c1d-4adb-8296-ca5194edb12b\",\n    \"total\": 1,\n    \"signature\": \"[SECRET_REDACTED]\",\n    \"correlationId\": \"3ded3cd4-f8a5-4974-8966-d8a8bb0af169\"\n  },\n  \"reconciliation\": {\n    \"execucaoId\": \"02c545ba-4bcd-481a-9661-0b65c6c1fcf8\",\n    \"status\": \"CONCLUIDA\",\n    \"total\": 18,\n    \"signature\": \"[SECRET_REDACTED]\",\n    \"correlationId\": \"1eafda16-6874-44ea-9c31-dd24d59ff45c\"\n  }\n}\n{\n  \"dataset\": \"RLX_GOLDEN_V2\",\n  \"phase\": \"rectify\",\n  \"results\": [\n    {\n      \"scenario\": \"RETIFICACAO/ESTOQUE_D1_V2\",\n      \"fundId\": \"ca8b721e-333c-4051-a87b-9359e51449c4\",\n      \"type\": \"ESTOQUE\",\n      \"date\": \"2026-08-07\",\n      \"importId\": \"54859878-6de0-4539-ae90-928284a905a8\",\n      \"status\": \"VALIDA\",\n      \"completeness\": \"COMPLETO_COM_DADOS\",\n      \"duplicate\": false\n    },\n    {\n      \"scenario\": \"RETIFICACAO/AQUISICOES_D1_V2\",\n      \"fundId\": \"ca8b721e-333c-4051-a87b-9359e51449c4\",\n      \"type\": \"AQUISICOES\",\n      \"date\": \"2026-08-07\",\n      \"importId\": \"600901fc-9a33-45ef-b93c-29a667b5373e\",\n      \"status\": \"VALIDA\",\n      \"completeness\": \"COMPLETO_COM_DADOS\",\n      \"duplicate\": false\n    }\n  ]\n}\n{\n  \"dataset\": \"RLX_GOLDEN_V2\",\n  \"phase\": \"B\",\n  \"matching\": {\n    \"execucaoId\": \"32c6568b-9952-4003-b6cf-3d4f659af8bf\",\n    \"total\": 24,\n    \"signature\": \"[SECRET_REDACTED]\",\n    \"correlationId\": \"4e8abdc3-3393-4171-b020-fb1405a2d7f2\"\n  },\n  \"adversarialMatching\": {\n    \"execucaoId\": \"986005cb-5c1d-4adb-8296-ca5194edb12b\",\n    \"total\": 1,\n    \"signature\": \"[SECRET_REDACTED]\",\n    \"correlationId\": \"9e33b320-bdf9-4c5e-ab16-baaddf440d25\"\n  },\n  \"reconciliation\": {\n    \"execucaoId\": \"dbfedf4f-974e-469d-9601-b4ffcdc191cf\",\n    \"status\": \"CONCLUIDA\",\n    \"total\": 18,\n    \"signature\": \"[SECRET_REDACTED]\",\n    \"correlationId\": \"b976f6a0-02b0-48ff-9319-f8ae42399ccc\"\n  }\n}\nGolden V2 aprovado: 384/384 verificacoes e cobertura esperada 100%.\nSecurity Golden V2 aprovado: 5/5 verificacoes transacionais.\nGolden V2 E2E concluido. A massa foi mantida em homolog para QA."
+    }
+  },
+  "p24": {
+    "run": {
+      "status": "PASS",
+      "detail": "{\n  \"dataset\": \"RLX_GOLDEN_V2\",\n  \"main\": {\n    \"execucaoId\": \"fb571875-7e5b-4106-be35-a21de5ab5934\",\n    \"total\": 15,\n    \"signature\": \"[SECRET_REDACTED]\",\n    \"fingerprintLogistico\": \"[SECRET_REDACTED]\",\n    \"correlationId\": \"2ef861b8-3d9e-43ab-8380-ca335d9e3d6f\",\n    \"logisticaAsOf\": \"2026-08-17T20:55:44.88+00:00\"\n  },\n  \"adversarial\": {\n    \"execucaoId\": \"a9fcbc17-c113-4917-bba3-1c4793886b9a\",\n    \"total\": 1,\n    \"signature\": \"[SECRET_REDACTED]\",\n    \"fingerprintLogistico\": \"[SECRET_REDACTED]\",\n    \"correlationId\": \"3eed0634-3b73-4f11-9531-97cac18f903a\",\n    \"logisticaAsOf\": \"2026-08-17T20:55:45.019+00:00\"\n  }\n}"
+    },
+    "verify": {
+      "status": "PASS",
+      "detail": "P2.4 aprovado: 13 verificacoes read-only; expected-logistics 100%."
+    },
+    "security": {
+      "status": "PASS",
+      "detail": "BW Antecipa - verificacao transacional RLS P2.4\nProjeto homolog: bw-antecipa-p2681-clean-room\nP2.4 security verify aprovado: 27 verificacoes; mutacoes revertidas."
+    }
+  },
+  "p25": {
+    "configure": {
+      "status": "PASS",
+      "detail": "Golden V2 enriquecido com RLX_EXPOSICAO_V1 e limite 40% em bw-antecipa-p2681-clean-room; versoes deterministicas preservadas."
+    },
+    "run": {
+      "status": "PASS",
+      "detail": "{\n  \"dataset\": \"RLX_GOLDEN_V2\",\n  \"result\": {\n    \"execucaoId\": \"6b436bb1-beed-40ff-89e1-9f3e91e38500\",\n    \"status\": \"CALCULADA\",\n    \"percentual\": 0,\n    \"classificacao\": \"ABAIXO_LIMITE\",\n    \"signature\": \"[SECRET_REDACTED]\"\n  }\n}"
+    },
+    "verify": {
+      "status": "PASS",
+      "detail": "P2.5 aprovado: 19 verificacoes read-only; expected-exposure preservado."
+    },
+    "security": {
+      "status": "PASS",
+      "detail": "P2.5 security aprovado: 16 verificacoes; mutacoes revertidas."
+    }
+  },
+  "p26": {
+    "configure": {
+      "status": "PASS",
+      "detail": "Golden V2 enriquecido com GATE_RISCO_V1 em bw-antecipa-p2681-clean-room; versoes deterministicas preservadas."
+    },
+    "run": {
+      "status": "PASS",
+      "detail": "ns\": [\n          {\n            \"code\": \"POSICAO_SEM_MATCH\",\n            \"severity\": \"BLOQUEIO\",\n            \"quantity\": 3,\n            \"monetaryValue\": \"1021648.91\"\n          },\n          {\n            \"code\": \"EXPOSICAO_INDETERMINADA\",\n            \"severity\": \"REVISAO\",\n            \"quantity\": 12,\n            \"monetaryValue\": \"147803.4500\"\n          },\n          {\n            \"code\": \"LIQUIDACAO_PARCIAL_PRESENTE\",\n            \"severity\": \"INFORMATIVO\"\n          }\n        ]\n      },\n      \"signature\": \"[SECRET_REDACTED]\",\n      \"correlationId\": \"0c5c1588-db29-46c5-9cf2-5a4c5cc71424\",\n      \"timings\": {\n        \"matchingMs\": 93,\n        \"reconciliationMs\": 99,\n        \"logisticsMs\": 123,\n        \"exposureMs\": 144,\n        \"candidateSimulationMs\": 0,\n        \"classificationMs\": 2,\n        \"persistenceMs\": 38,\n        \"totalMs\": 524\n      }\n    },\n    {\n      \"execution\": {\n        \"id\": \"f5b75a5e-4bda-4758-aadf-47605cfaef0d\",\n        \"fundo_id\": \"0d81663a-e91d-8e2d-5e26-710ebb177e12\",\n        \"operacao_id\": null,\n        \"escopo\": \"FUNDO\",\n        \"origem\": \"CENTRAL_RISCO\",\n        \"regra_versao\": \"GATE_RISCO_V1\",\n        \"politica_operacional_versao_id\": \"43368694-15fb-7737-709d-2e4dc258e00c\",\n        \"exposicao_execucao_id\": \"ac97ae76-1781-47b7-88a2-6197706136fe\",\n        \"data_operacional\": \"2026-08-10\",\n        \"logistica_as_of\": \"2026-08-17T20:55:45.019+00:00\",\n        \"overlay_as_of\": \"2026-08-17T20:55:52.32+00:00\",\n        \"operacao_updated_at_snapshot\": null,\n        \"taxa_desconto_snapshot\": null,\n        \"aplicavel\": true,\n        \"status_tecnico\": \"CONCLUIDA\",\n        \"decisao\": \"BLOQUEADO\",\n        \"limite_pct\": 40,\n        \"limite_inclusivo\": true,\n        \"patrimonio_liquido_d2\": null,\n        \"exposicao_atual_valor\": null,\n        \"exposicao_atual_pct\": null,\n        \"operacao_valor_aquisicao\": null,\n        \"operacao_valor_em_transito\": null,\n        \"operacao_valor_indeterminado\": null,\n        \"exposicao_projetada_valor\": 0,\n        \"exposicao_projetada_pct\": null,\n        \"quantidade_indeterminada\": 0,\n        \"quantidade_sem_match\": 0,\n        \"quantidade_valor_aquisicao_ausente\": 0,\n        \"quantidade_operacao_nao_incorporada\": 0,\n        \"liquidacao_parcial_presente\": false,\n        \"assinatura_inputs\": \"[SECRET_REDACTED]\",\n        \"detalhes\": {\n          \"source\": \"P2.3-P2.4-P2.5\",\n          \"candidate\": null,\n          \"technical_error\": null\n        },\n        \"correlation_id\": \"85f1e7da-ba94-41c6-9f43-40af48856b09\",\n        \"criado_por\": \"88773673-b0c4-4042-84c0-a7a486684981\",\n        \"iniciado_em\": \"2026-08-17T20:55:52.43607+00:00\",\n        \"finalizado_em\": \"2026-08-17T20:55:52.43607+00:00\",\n        \"created_at\": \"2026-08-17T20:55:52.43607+00:00\"\n      },\n      \"reasons\": [\n        {\n          \"id\": \"e582d901-a5a2-4a6a-8454-6ef1ecd64608\",\n          \"risco_execucao_id\": \"f5b75a5e-4bda-4758-aadf-47605cfaef0d\",\n          \"fundo_id\": \"0d81663a-e91d-8e2d-5e26-710ebb177e12\",\n          \"codigo\": \"PL_D2_INDISPONIVEL\",\n          \"severidade\": \"BLOQUEIO\",\n          \"valor_numerico\": null,\n          \"valor_monetario\": null,\n          \"quantidade\": null,\n          \"detalhes\": {},\n          \"created_at\": \"2026-08-17T20:55:52.436628+00:00\"\n        }\n      ],\n      \"review\": null,\n      \"classification\": {\n        \"applicable\": true,\n        \"technicalStatus\": \"CONCLUIDA\",\n        \"decision\": \"BLOQUEADO\",\n        \"currentPercent\": null,\n        \"projectedPercent\": null,\n        \"projectedExposureValue\": \"0.0000\",\n        \"reasons\": [\n          {\n            \"code\": \"PL_D2_INDISPONIVEL\",\n            \"severity\": \"BLOQUEIO\"\n          }\n        ]\n      },\n      \"signature\": \"[SECRET_REDACTED]\",\n      \"correlationId\": \"85f1e7da-ba94-41c6-9f43-40af48856b09\",\n      \"timings\": {\n        \"matchingMs\": 52,\n        \"reconciliationMs\": 52,\n        \"logisticsMs\": 99,\n        \"exposureMs\": 78,\n        \"candidateSimulationMs\": 0,\n        \"classificationMs\": 0,\n        \"persistenceMs\": 31,\n        \"totalMs\": 346\n      }\n    }\n  ]\n}"
+    },
+    "verify": {
+      "status": "PASS",
+      "detail": "P2.6 aprovado: 8 verificacoes read-only; expected-risk-gate preservado."
+    },
+    "security": {
+      "status": "PASS",
+      "detail": "P2.6 security aprovado: 25 verificacoes; mutacoes de teste revertidas."
+    }
+  },
+  "status": "PASS",
+  "security_actors": {
+    "status": "PASS",
+    "detail": "P2.6.8.1: atores sinteticos locais preparados para os gates de seguranca."
+  },
+  "completed_at": "2026-08-17T20:55:53.085Z"
+}

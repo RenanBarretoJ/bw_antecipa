@@ -1,0 +1,22 @@
+{
+  "schema": "bw-antecipa-p2-6-4-risk-pipeline-benchmark-v1",
+  "status": "RECORDED",
+  "environment": "homolog",
+  "project_ref": "fhgkmggthxikfpogrvaa",
+  "node": "v22.23.2",
+  "samples": 5,
+  "technical_statuses": ["CONCLUIDA"],
+  "decisions": ["BLOQUEADO"],
+  "timings_ms": {
+    "matching": {"p50": 734, "p95": 1043, "max": 1043},
+    "reconciliation": {"p50": 980, "p95": 1055, "max": 1055},
+    "logistics": {"p50": 1386, "p95": 1525, "max": 1525},
+    "exposure": {"p50": 2149, "p95": 2708, "max": 2708},
+    "candidate": {"p50": 533, "p95": 538, "max": 538},
+    "classification": {"p50": 0, "p95": 2, "max": 2},
+    "persistence": {"p50": 344, "p95": 405, "max": 405},
+    "total": {"p50": 6927, "p95": 7390, "max": 7390}
+  },
+  "interpretation": "A canonicalizacao nao introduziu falha funcional no pipeline. O tempo total permanece risco de performance independente e nao foi otimizado no P2.6.4.",
+  "production_mutated": false
+}

@@ -1,0 +1,48 @@
+{
+  "schema": "bw-antecipa-p2-6-1-computational-benchmark-v1",
+  "node": "v24.19.0",
+  "results": [
+    {
+      "positions": 10000,
+      "overlay": 1000,
+      "samples": 7,
+      "p50_ms": 10.89,
+      "p95_ms": 17.68,
+      "max_ms": 17.68,
+      "heap_before_mb": 10.11,
+      "heap_after_mb": 11.46,
+      "heap_delta_mb": 1.34,
+      "decisions": [
+        "BLOQUEADO"
+      ]
+    },
+    {
+      "positions": 25000,
+      "overlay": 2500,
+      "samples": 7,
+      "p50_ms": 21.99,
+      "p95_ms": 27.15,
+      "max_ms": 27.15,
+      "heap_before_mb": 13.16,
+      "heap_after_mb": 16.59,
+      "heap_delta_mb": 3.43,
+      "decisions": [
+        "BLOQUEADO"
+      ]
+    },
+    {
+      "positions": 50000,
+      "overlay": 5000,
+      "samples": 7,
+      "p50_ms": 43.61,
+      "p95_ms": 56.3,
+      "max_ms": 56.3,
+      "heap_before_mb": 19.42,
+      "heap_after_mb": 17.69,
+      "heap_delta_mb": -1.73,
+      "decisions": [
+        "BLOQUEADO"
+      ]
+    }
+  ]
+}

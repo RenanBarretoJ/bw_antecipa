@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { requireGestor } from '@/lib/auth/authorization'
 import { registrarLog } from './auditoria'
 import { notificarCedente, notificarGestores } from './notificacao'
 
@@ -11,6 +12,7 @@ export type LiquidacaoState = {
 
 // Gestor: liquidar operacao (confirmar que sacado pagou)
 export async function liquidarOperacao(operacaoId: string): Promise<LiquidacaoState> {
+  await requireGestor()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, message: 'Nao autenticado.' }
@@ -107,6 +109,7 @@ export async function liquidarOperacao(operacaoId: string): Promise<LiquidacaoSt
 
 // Gestor: marcar operacao como inadimplente
 export async function marcarInadimplente(operacaoId: string): Promise<LiquidacaoState> {
+  await requireGestor()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, message: 'Nao autenticado.' }

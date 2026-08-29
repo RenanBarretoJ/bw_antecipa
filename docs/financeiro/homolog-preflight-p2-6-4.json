@@ -1,0 +1,132 @@
+{
+  "schema": "bw-antecipa-p2-6-4-homolog-preflight-v1",
+  "status": "PASS",
+  "captured_at": "2026-08-17T15:18:02.213Z",
+  "environment": {
+    "project_ref": "fhgkmggthxikfpogrvaa",
+    "transaction": "READ ONLY",
+    "production_mutated": false,
+    "homolog_mutated": false
+  },
+  "migration_history": {
+    "local_total": 118,
+    "remote_total": 115,
+    "missing_remote": [
+      {
+        "version": "20260817150505",
+        "filename": "20260817150505_p2_6_4_canonicalizar_schema_funcional.sql",
+        "sha256": "d70aa522ce8dd9d57f92c181cf97e43c465d1e0455ea097a87eea0888ca5b12c"
+      },
+      {
+        "version": "20260817150507",
+        "filename": "20260817150507_p2_6_4_canonicalizar_acl_rls.sql",
+        "sha256": "952c08943c30e072b699fb32f2503f60118db89b6ecb823abacc270f8ffb123f"
+      },
+      {
+        "version": "20260817150510",
+        "filename": "20260817150510_p2_6_4_canonicalizar_storage.sql",
+        "sha256": "4369e8d71df267fb46bd1c63a2bb47c2065aadd1ba06b3207bc2c555a74f8322"
+      }
+    ],
+    "extra_remote": [],
+    "name_mismatches": [],
+    "aligned": false
+  },
+  "row_counts": {
+    "notas_fiscais": "234",
+    "operacoes": "21",
+    "operacoes_nfs": "21",
+    "documentos": "9",
+    "documento_versoes": "620",
+    "remessas_cnab": "0",
+    "integracao_fundo_versoes": "3",
+    "logs_auditoria": "114",
+    "eventos_dominio": "259",
+    "importacoes_financeiras": "40",
+    "matching_resultados": "49",
+    "conciliacao_resultados": "36",
+    "posicao_logistica_resultados": "16",
+    "exposicao_execucoes": "2",
+    "risco_operacao_resultados": null
+  },
+  "compatibility": {
+    "notas_valor_nao_positivo": "0",
+    "remessas_integracao_orfas": "0",
+    "devedores_solidarios": "0"
+  },
+  "acl_summary": [
+    {
+      "grantee": "PUBLIC",
+      "kind": "routine",
+      "privileges": 21
+    },
+    {
+      "grantee": "anon",
+      "kind": "routine",
+      "privileges": 59
+    },
+    {
+      "grantee": "anon",
+      "kind": "table",
+      "privileges": 385
+    },
+    {
+      "grantee": "authenticated",
+      "kind": "routine",
+      "privileges": 127
+    },
+    {
+      "grantee": "authenticated",
+      "kind": "table",
+      "privileges": 450
+    },
+    {
+      "grantee": "service_role",
+      "kind": "routine",
+      "privileges": 120
+    },
+    {
+      "grantee": "service_role",
+      "kind": "table",
+      "privileges": 721
+    }
+  ],
+  "default_acl": [
+    {
+      "owner": "postgres",
+      "schema": "public",
+      "defaclobjtype": "S",
+      "acl": "{postgres=rwU/postgres,anon=rwU/postgres,authenticated=rwU/postgres,service_role=rwU/postgres}"
+    },
+    {
+      "owner": "postgres",
+      "schema": "public",
+      "defaclobjtype": "f",
+      "acl": "{postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}"
+    },
+    {
+      "owner": "postgres",
+      "schema": "public",
+      "defaclobjtype": "r",
+      "acl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}"
+    },
+    {
+      "owner": "supabase_admin",
+      "schema": "public",
+      "defaclobjtype": "S",
+      "acl": "{postgres=rwU/supabase_admin,anon=rwU/supabase_admin,authenticated=rwU/supabase_admin,service_role=rwU/supabase_admin}"
+    },
+    {
+      "owner": "supabase_admin",
+      "schema": "public",
+      "defaclobjtype": "f",
+      "acl": "{postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "owner": "supabase_admin",
+      "schema": "public",
+      "defaclobjtype": "r",
+      "acl": "{postgres=arwdDxtm/supabase_admin,anon=arwdDxtm/supabase_admin,authenticated=arwdDxtm/supabase_admin,service_role=arwdDxtm/supabase_admin}"
+    }
+  ]
+}

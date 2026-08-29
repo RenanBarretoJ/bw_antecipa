@@ -1,23 +1,17 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { DOCUMENT_TYPES, type DocumentoTipo } from '@/lib/types/domain'
+import { requireAuthenticated, requireCedenteOrganizationalAccess, requireGestor } from '@/lib/auth/authorization'
 import { cedenteSchema, type CedenteFormData } from '@/lib/validations/cedente'
 import { registrarLog } from './auditoria'
 import { notificarGestores } from './notificacao'
-import { buckets } from '@/lib/storage'
-
-type SupabaseClient = Awaited<ReturnType<typeof createClient>>
-
-async function ehAdministrador(supabase: SupabaseClient, userId: string, cedenteUserId: string): Promise<boolean> {
-  if (cedenteUserId === userId) return true
-  const { data: acesso } = await supabase
-    .from('cedente_acessos')
-    .select('perfil')
-    .eq('user_id', userId)
-    .eq('ativo', true)
-    .single()
-  return !!(acesso && (acesso as { perfil: string }).perfil === 'administrador')
-}
+import {
+  criarCaminhoDocumentoCadastral,
+  executarUploadDocumentoCadastral,
+  validarArquivoDocumentoCadastral,
+  type DocumentoCadastralUploadClient,
+} from '@/lib/documentos-cadastrais/upload'
 
 export type CedenteActionState = {
   success?: boolean
@@ -26,6 +20,7 @@ export type CedenteActionState = {
 } | undefined
 
 export async function cadastrarCedente(data: CedenteFormData): Promise<CedenteActionState> {
+  await requireAuthenticated()
   const validated = cedenteSchema.safeParse(data)
 
   if (!validated.success) {
@@ -42,86 +37,64 @@ export async function cadastrarCedente(data: CedenteFormData): Promise<CedenteAc
     return { success: false, message: 'Usuario nao autenticado.' }
   }
 
-  const existing = await supabase
-    .from('cedentes')
-    .select('id')
-    .eq('user_id', user.id)
-    .single()
-
-  if (existing.data) {
-    return { success: false, message: 'Voce ja possui um cadastro de cedente.' }
-  }
-
-  const { representantes, ...cedenteFields } = validated.data
-
-  const { data: cedente, error } = await supabase
-    .from('cedentes')
-    .insert({
-      ...cedenteFields,
-      user_id: user.id,
-      status: 'pendente' as const,
-    } as never)
-    .select('id, razao_social')
-    .single()
-
-  if (error) {
-    console.error('[cadastrarCedente]', error.message)
-    return { success: false, message: `Erro ao cadastrar: ${error.message}` }
-  }
-
-  const cedenteData = cedente as { id: string; razao_social: string }
-
-  const { error: repError } = await supabase
-    .from('representantes')
-    .insert(representantes.map((rep, idx) => ({
-      ...rep,
-      cedente_id: cedenteData.id,
-      principal: idx === 0,
-    })) as never)
-
-  if (repError) {
-    await supabase.from('cedentes').delete().eq('id', cedenteData.id)
-    return { success: false, message: `Erro ao salvar representantes: ${repError.message}` }
-  }
-
-  await registrarLog({
-    tipo_evento: 'CEDENTE_CADASTRADO',
-    entidade_tipo: 'cedentes',
-    entidade_id: cedenteData.id,
-    dados_depois: validated.data as unknown as Record<string, unknown>,
+  const { data: cedente, error } = await supabase.rpc('concluir_onboarding_cedente', {
+    p_cadastro: validated.data,
   })
 
-  await notificarGestores(
-    'Novo cedente cadastrado',
-    `O cedente ${cedenteData.razao_social} (${validated.data.cnpj}) realizou o cadastro e aguarda analise.`,
-    'cadastro_cedente'
-  )
+  if (error) {
+    console.error('[cadastrarCedente]', {
+      codigo: error.code,
+      mensagem: error.message,
+      usuario_id: user.id,
+    })
+    return {
+      success: false,
+      message: error.code === '23505' || error.code === '42501' || error.code === '22023'
+        ? error.message
+        : 'Nao foi possivel concluir o cadastro. Tente novamente.',
+    }
+  }
 
-  return { success: true, message: 'Cadastro realizado com sucesso!' }
+  const cedenteData = cedente as { id: string; razao_social: string; criado: boolean; idempotente: boolean }
+
+  if (cedenteData.criado) {
+    await registrarLog({
+      tipo_evento: 'CEDENTE_CADASTRADO',
+      entidade_tipo: 'cedentes',
+      entidade_id: cedenteData.id,
+      dados_depois: validated.data as unknown as Record<string, unknown>,
+    })
+
+    await notificarGestores(
+      'Novo cedente cadastrado',
+      `O cedente ${cedenteData.razao_social} (${validated.data.cnpj}) realizou o cadastro e aguarda analise.`,
+      'cadastro_cedente'
+    )
+  }
+
+  return {
+    success: true,
+    message: cedenteData.idempotente
+      ? 'Cadastro ja concluido anteriormente.'
+      : 'Cadastro realizado com sucesso!',
+  }
 }
 
 export async function uploadDocumento(formData: FormData): Promise<CedenteActionState> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    return { success: false, message: 'Usuario nao autenticado.' }
-  }
+  const context = await requireCedenteOrganizationalAccess('administrativo')
+  const { supabase, user } = context
 
   const { data: cedente } = await supabase
     .from('cedentes')
-    .select('id, cnpj, user_id')
+    .select('id, cnpj')
+    .eq('id', context.cedenteAccess.cedenteId)
     .single()
 
   if (!cedente) {
     return { success: false, message: 'Cadastro de cedente nao encontrado.' }
   }
 
-  const cedenteData = cedente as { id: string; cnpj: string; user_id: string }
-
-  if (!await ehAdministrador(supabase, user.id, cedenteData.user_id)) {
-    return { success: false, message: 'Sem permissao para enviar documentos. Apenas administradores do cedente podem realizar esta acao.' }
-  }
+  const cedenteData = cedente as { id: string; cnpj: string }
   const file = formData.get('arquivo') as File
   const tipo = formData.get('tipo') as string
   const representanteId = (formData.get('representante_id') as string | null) || null
@@ -130,65 +103,53 @@ export async function uploadDocumento(formData: FormData): Promise<CedenteAction
     return { success: false, message: 'Arquivo e tipo sao obrigatorios.' }
   }
 
-  const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png']
-  if (!allowedTypes.includes(file.type)) {
-    return { success: false, message: 'Formato invalido. Aceitos: PDF, JPG, PNG.' }
+  if (!DOCUMENT_TYPES.includes(tipo as DocumentoTipo)) {
+    return { success: false, message: 'Tipo de documento invalido.' }
   }
+  const tipoDocumento = tipo as DocumentoTipo
 
-  if (file.size > 20 * 1024 * 1024) {
-    return { success: false, message: 'Arquivo muito grande. Maximo: 20MB.' }
-  }
+  const fileValidationError = validarArquivoDocumentoCadastral(file)
+  if (fileValidationError) return { success: false, message: fileValidationError }
 
-  // Buscar versao atual, filtrando por representante_id se presente
-  let versionQuery = supabase
-    .from('documentos')
-    .select('versao')
-    .eq('cedente_id', cedenteData.id)
-    .eq('tipo', tipo)
-    .order('versao', { ascending: false })
-    .limit(1)
+  const filePath = criarCaminhoDocumentoCadastral({
+    cnpj: cedenteData.cnpj,
+    tipo: tipoDocumento,
+    nomeArquivo: file.name,
+    representanteId,
+    uploadId: crypto.randomUUID(),
+  })
 
-  if (representanteId) {
-    versionQuery = versionQuery.eq('representante_id', representanteId)
-  } else {
-    versionQuery = versionQuery.is('representante_id', null)
-  }
+  const result = await executarUploadDocumentoCadastral({
+    client: supabase as unknown as DocumentoCadastralUploadClient,
+    file,
+    tipo: tipoDocumento,
+    storagePath: filePath,
+    representanteId,
+  })
 
-  const { data: existingDocs } = await versionQuery
-
-  const docs = (existingDocs || []) as Array<{ versao: number }>
-  const novaVersao = docs.length > 0 ? docs[0].versao + 1 : 1
-
-  const timestamp = Date.now()
-  const cleanName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
-  const subpasta = representanteId ? `representantes/${representanteId}` : tipo
-  const filePath = `${cedenteData.cnpj}/${subpasta}/${novaVersao}_${timestamp}_${cleanName}`
-
-  const { error: uploadError } = await supabase.storage
-    .from(buckets.documentos)
-    .upload(filePath, file)
-
-  if (uploadError) {
-    console.error('[uploadDocumento]', uploadError.message)
-    return { success: false, message: `Erro no upload: ${uploadError.message}` }
-  }
-
-  const { error: dbError } = await supabase
-    .from('documentos')
-    .insert({
+  if (!result.ok) {
+    console.error('[uploadDocumento]', {
+      etapa: result.etapa,
+      codigo: result.etapa === 'database' ? 'DOCUMENT_DATABASE_FAILURE' : 'DOCUMENT_STORAGE_FAILURE',
+      usuario_id: user.id,
       cedente_id: cedenteData.id,
-      tipo,
-      versao: novaVersao,
-      status: 'enviado',
-      url_arquivo: filePath,
-      nome_arquivo: file.name,
-      representante_id: representanteId || null,
-    } as never)
-
-  if (dbError) {
-    console.error('[uploadDocumento db]', dbError.message)
-    return { success: false, message: `Erro ao registrar documento: ${dbError.message}` }
+      tipo: tipoDocumento,
+      representante_id: representanteId,
+      storage_path: filePath,
+      erro: result.message,
+      compensacao_erro: result.compensationError || null,
+    })
+    return {
+      success: false,
+      message: result.compensationError
+        ? 'Nao foi possivel registrar o documento e a limpeza automatica do arquivo falhou. Contate o suporte.'
+        : result.etapa === 'storage'
+          ? 'Nao foi possivel enviar o arquivo. Tente novamente.'
+          : 'Nao foi possivel registrar o documento. O arquivo enviado foi removido; tente novamente.',
+    }
   }
+
+  const novaVersao = result.documento.versao
 
   await registrarLog({
     tipo_evento: 'DOCUMENTO_ENVIADO',
@@ -206,6 +167,7 @@ export async function uploadDocumento(formData: FormData): Promise<CedenteAction
 }
 
 export async function reenviarDocumento(documentoId: string, formData: FormData): Promise<CedenteActionState> {
+  await requireAuthenticated()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -215,7 +177,7 @@ export async function reenviarDocumento(documentoId: string, formData: FormData)
 
   const { data: doc } = await supabase
     .from('documentos')
-    .select('tipo, cedente_id')
+    .select('tipo, cedente_id, representante_id')
     .eq('id', documentoId)
     .single()
 
@@ -223,12 +185,13 @@ export async function reenviarDocumento(documentoId: string, formData: FormData)
     return { success: false, message: 'Documento nao encontrado.' }
   }
 
-  const docData = doc as { tipo: string; cedente_id: string }
+  const docData = doc as { tipo: string; cedente_id: string; representante_id: string | null }
 
   // Usar uploadDocumento reutilizando a logica
   const newFormData = new FormData()
   newFormData.set('arquivo', formData.get('arquivo') as File)
   newFormData.set('tipo', docData.tipo)
+  if (docData.representante_id) newFormData.set('representante_id', docData.representante_id)
 
   return uploadDocumento(newFormData)
 }
@@ -237,22 +200,18 @@ export async function reenviarDocumento(documentoId: string, formData: FormData)
 export async function solicitarAlteracaoCedente(
   dados: Partial<CedenteFormData>
 ): Promise<CedenteActionState> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { success: false, message: 'Usuario nao autenticado.' }
+  const context = await requireCedenteOrganizationalAccess('administrativo')
+  const { supabase } = context
 
   const { data: cedente } = await supabase
     .from('cedentes')
-    .select('id, user_id, cnpj, razao_social, nome_fantasia, cnae, cep, logradouro, numero, complemento, bairro, cidade, estado, telefone_comercial, email_comercial, banco, agencia, conta, tipo_conta')
+    .select('id, cnpj, razao_social, nome_fantasia, cnae, cep, logradouro, numero, complemento, bairro, cidade, estado, telefone_comercial, email_comercial, banco, agencia, conta, tipo_conta')
+    .eq('id', context.cedenteAccess.cedenteId)
     .single()
 
   if (!cedente) return { success: false, message: 'Cedente nao encontrado.' }
 
-  const cedenteData = cedente as { id: string; user_id: string } & Record<string, unknown>
-
-  if (!await ehAdministrador(supabase, user.id, cedenteData.user_id)) {
-    return { success: false, message: 'Sem permissao para solicitar alteracoes cadastrais.' }
-  }
+  const cedenteData = cedente as { id: string } & Record<string, unknown>
 
   // Bloquear se já há solicitação pendente
   const { data: pendente } = await supabase
@@ -275,25 +234,18 @@ export async function solicitarAlteracaoCedente(
 
   const { representantes: representantesPropostos, ...camposPropostos } = dados
 
-  const { error } = await supabase
-    .from('solicitacoes_alteracao_cedente')
-    .insert({
-      cedente_id: cedenteData.id,
-      dados_atuais: cedenteData,
-      dados_propostos: camposPropostos,
-      representantes_atuais: reps || [],
-      representantes_propostos: representantesPropostos || [],
-    } as never)
+  // Mutacao via RPC SECURITY DEFINER: authenticated nao tem GRANT de INSERT
+  // direto nesta tabela desde a canonicalizacao de ACL (20260817150507) --
+  // a RPC resolve o cedente pelo auth.uid(), re-valida a permissao de
+  // administrador e audita na mesma transacao.
+  const { error } = await supabase.rpc('solicitar_alteracao_cadastral_cedente', {
+    p_dados_atuais: cedenteData,
+    p_dados_propostos: camposPropostos,
+    p_representantes_atuais: reps || [],
+    p_representantes_propostos: representantesPropostos || [],
+  })
 
   if (error) return { success: false, message: `Erro ao registrar solicitacao: ${error.message}` }
-
-  await registrarLog({
-    tipo_evento: 'ALTERACAO_CADASTRAL_SOLICITADA',
-    entidade_tipo: 'cedentes',
-    entidade_id: cedenteData.id,
-    dados_antes: cedenteData,
-    dados_depois: camposPropostos as Record<string, unknown>,
-  })
 
   await notificarGestores(
     'Solicitacao de alteracao cadastral',
@@ -308,6 +260,7 @@ export async function salvarContratoAssinado(
   cedenteId: string,
   path: string
 ): Promise<{ success: boolean; message: string }> {
+  await requireGestor()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, message: 'Nao autenticado.' }

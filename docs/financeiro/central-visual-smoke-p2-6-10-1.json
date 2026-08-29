@@ -1,0 +1,440 @@
+{
+  "gate": "CENTRAL_VISUAL_SMOKE",
+  "environment": "homolog",
+  "project_ref": "fhgkmggthxikfpogrvaa",
+  "production_touched": false,
+  "executed_at": "2026-08-18T16:14:29.081Z",
+  "login": {
+    "status": "PASS",
+    "login_page_status": 200,
+    "password_submit_result": "PASS",
+    "aal_before_totp": "aal1",
+    "mfa_challenge_visible": true,
+    "invalid_totp_denied": true,
+    "totp_submit_result": "PASS",
+    "aal_after_totp": "aal2",
+    "redirect_final": "/gestor/dashboard",
+    "no_500": true,
+    "no_loop": true,
+    "cookies_session_established": true,
+    "diagnostics": {
+      "consoleErrors": [],
+      "failedRequests": [],
+      "fiveXx": []
+    }
+  },
+  "central": {
+    "status": "PASS",
+    "authenticated_actor": "gestor_a",
+    "aal": "aal2",
+    "results": [
+      {
+        "viewport": "desktop",
+        "tab": "matching",
+        "http_status": 200,
+        "final_path": "/gestor/conciliacao?tab=matching",
+        "title": "Conciliacao",
+        "has_tabs": true,
+        "has_filters": true,
+        "has_cards": true,
+        "error_page": false,
+        "diagnostics": {
+          "consoleErrors": [],
+          "failedRequests": [],
+          "fiveXx": []
+        }
+      },
+      {
+        "viewport": "desktop",
+        "tab": "conciliacao",
+        "http_status": 200,
+        "final_path": "/gestor/conciliacao?tab=conciliacao",
+        "title": "Conciliacao",
+        "has_tabs": true,
+        "has_filters": true,
+        "has_cards": true,
+        "error_page": false,
+        "diagnostics": {
+          "consoleErrors": [],
+          "failedRequests": [],
+          "fiveXx": []
+        }
+      },
+      {
+        "viewport": "desktop",
+        "tab": "logistica",
+        "http_status": 200,
+        "final_path": "/gestor/conciliacao?tab=logistica",
+        "title": "Conciliacao",
+        "has_tabs": true,
+        "has_filters": true,
+        "has_cards": true,
+        "error_page": false,
+        "diagnostics": {
+          "consoleErrors": [],
+          "failedRequests": [],
+          "fiveXx": []
+        }
+      },
+      {
+        "viewport": "desktop",
+        "tab": "exposicao",
+        "http_status": 200,
+        "final_path": "/gestor/conciliacao?tab=exposicao",
+        "title": "Conciliacao",
+        "has_tabs": true,
+        "has_filters": true,
+        "has_cards": true,
+        "error_page": false,
+        "diagnostics": {
+          "consoleErrors": [],
+          "failedRequests": [],
+          "fiveXx": []
+        }
+      },
+      {
+        "viewport": "desktop",
+        "tab": "risco",
+        "http_status": 200,
+        "final_path": "/gestor/conciliacao?tab=risco",
+        "title": "Conciliacao",
+        "has_tabs": true,
+        "has_filters": true,
+        "has_cards": true,
+        "error_page": false,
+        "diagnostics": {
+          "consoleErrors": [],
+          "failedRequests": [],
+          "fiveXx": []
+        }
+      },
+      {
+        "viewport": "desktop",
+        "tab": "excecoes",
+        "http_status": 200,
+        "final_path": "/gestor/conciliacao?tab=excecoes",
+        "title": "Conciliacao",
+        "has_tabs": true,
+        "has_filters": true,
+        "has_cards": true,
+        "error_page": false,
+        "diagnostics": {
+          "consoleErrors": [],
+          "failedRequests": [],
+          "fiveXx": []
+        }
+      },
+      {
+        "viewport": "compact",
+        "tab": "matching",
+        "http_status": 200,
+        "final_path": "/gestor/conciliacao?tab=matching",
+        "title": "Conciliacao",
+        "has_tabs": true,
+        "has_filters": true,
+        "has_cards": true,
+        "error_page": false,
+        "diagnostics": {
+          "consoleErrors": [],
+          "failedRequests": [],
+          "fiveXx": []
+        }
+      },
+      {
+        "viewport": "compact",
+        "tab": "conciliacao",
+        "http_status": 200,
+        "final_path": "/gestor/conciliacao?tab=conciliacao",
+        "title": "Conciliacao",
+        "has_tabs": true,
+        "has_filters": true,
+        "has_cards": true,
+        "error_page": false,
+        "diagnostics": {
+          "consoleErrors": [],
+          "failedRequests": [],
+          "fiveXx": []
+        }
+      },
+      {
+        "viewport": "compact",
+        "tab": "logistica",
+        "http_status": 200,
+        "final_path": "/gestor/conciliacao?tab=logistica",
+        "title": "Conciliacao",
+        "has_tabs": true,
+        "has_filters": true,
+        "has_cards": true,
+        "error_page": false,
+        "diagnostics": {
+          "consoleErrors": [],
+          "failedRequests": [],
+          "fiveXx": []
+        }
+      },
+      {
+        "viewport": "compact",
+        "tab": "exposicao",
+        "http_status": 200,
+        "final_path": "/gestor/conciliacao?tab=exposicao",
+        "title": "Conciliacao",
+        "has_tabs": true,
+        "has_filters": true,
+        "has_cards": true,
+        "error_page": false,
+        "diagnostics": {
+          "consoleErrors": [],
+          "failedRequests": [],
+          "fiveXx": []
+        }
+      },
+      {
+        "viewport": "compact",
+        "tab": "risco",
+        "http_status": 200,
+        "final_path": "/gestor/conciliacao?tab=risco",
+        "title": "Conciliacao",
+        "has_tabs": true,
+        "has_filters": true,
+        "has_cards": true,
+        "error_page": false,
+        "diagnostics": {
+          "consoleErrors": [],
+          "failedRequests": [],
+          "fiveXx": []
+        }
+      },
+      {
+        "viewport": "compact",
+        "tab": "excecoes",
+        "http_status": 200,
+        "final_path": "/gestor/conciliacao?tab=excecoes",
+        "title": "Conciliacao",
+        "has_tabs": true,
+        "has_filters": true,
+        "has_cards": true,
+        "error_page": false,
+        "diagnostics": {
+          "consoleErrors": [],
+          "failedRequests": [],
+          "fiveXx": []
+        }
+      }
+    ],
+    "notification_bell_visible": true,
+    "notification_dropdown_visible": true,
+    "notification_diagnostics": {
+      "consoleErrors": [],
+      "failedRequests": [],
+      "fiveXx": []
+    },
+    "fund_switch_via_server_action": true,
+    "fund_persisted_after_reload": true
+  },
+  "status": "PASS",
+  "authenticated_actor": "gestor_a",
+  "aal": "aal2",
+  "results": [
+    {
+      "viewport": "desktop",
+      "tab": "matching",
+      "http_status": 200,
+      "final_path": "/gestor/conciliacao?tab=matching",
+      "title": "Conciliacao",
+      "has_tabs": true,
+      "has_filters": true,
+      "has_cards": true,
+      "error_page": false,
+      "diagnostics": {
+        "consoleErrors": [],
+        "failedRequests": [],
+        "fiveXx": []
+      }
+    },
+    {
+      "viewport": "desktop",
+      "tab": "conciliacao",
+      "http_status": 200,
+      "final_path": "/gestor/conciliacao?tab=conciliacao",
+      "title": "Conciliacao",
+      "has_tabs": true,
+      "has_filters": true,
+      "has_cards": true,
+      "error_page": false,
+      "diagnostics": {
+        "consoleErrors": [],
+        "failedRequests": [],
+        "fiveXx": []
+      }
+    },
+    {
+      "viewport": "desktop",
+      "tab": "logistica",
+      "http_status": 200,
+      "final_path": "/gestor/conciliacao?tab=logistica",
+      "title": "Conciliacao",
+      "has_tabs": true,
+      "has_filters": true,
+      "has_cards": true,
+      "error_page": false,
+      "diagnostics": {
+        "consoleErrors": [],
+        "failedRequests": [],
+        "fiveXx": []
+      }
+    },
+    {
+      "viewport": "desktop",
+      "tab": "exposicao",
+      "http_status": 200,
+      "final_path": "/gestor/conciliacao?tab=exposicao",
+      "title": "Conciliacao",
+      "has_tabs": true,
+      "has_filters": true,
+      "has_cards": true,
+      "error_page": false,
+      "diagnostics": {
+        "consoleErrors": [],
+        "failedRequests": [],
+        "fiveXx": []
+      }
+    },
+    {
+      "viewport": "desktop",
+      "tab": "risco",
+      "http_status": 200,
+      "final_path": "/gestor/conciliacao?tab=risco",
+      "title": "Conciliacao",
+      "has_tabs": true,
+      "has_filters": true,
+      "has_cards": true,
+      "error_page": false,
+      "diagnostics": {
+        "consoleErrors": [],
+        "failedRequests": [],
+        "fiveXx": []
+      }
+    },
+    {
+      "viewport": "desktop",
+      "tab": "excecoes",
+      "http_status": 200,
+      "final_path": "/gestor/conciliacao?tab=excecoes",
+      "title": "Conciliacao",
+      "has_tabs": true,
+      "has_filters": true,
+      "has_cards": true,
+      "error_page": false,
+      "diagnostics": {
+        "consoleErrors": [],
+        "failedRequests": [],
+        "fiveXx": []
+      }
+    },
+    {
+      "viewport": "compact",
+      "tab": "matching",
+      "http_status": 200,
+      "final_path": "/gestor/conciliacao?tab=matching",
+      "title": "Conciliacao",
+      "has_tabs": true,
+      "has_filters": true,
+      "has_cards": true,
+      "error_page": false,
+      "diagnostics": {
+        "consoleErrors": [],
+        "failedRequests": [],
+        "fiveXx": []
+      }
+    },
+    {
+      "viewport": "compact",
+      "tab": "conciliacao",
+      "http_status": 200,
+      "final_path": "/gestor/conciliacao?tab=conciliacao",
+      "title": "Conciliacao",
+      "has_tabs": true,
+      "has_filters": true,
+      "has_cards": true,
+      "error_page": false,
+      "diagnostics": {
+        "consoleErrors": [],
+        "failedRequests": [],
+        "fiveXx": []
+      }
+    },
+    {
+      "viewport": "compact",
+      "tab": "logistica",
+      "http_status": 200,
+      "final_path": "/gestor/conciliacao?tab=logistica",
+      "title": "Conciliacao",
+      "has_tabs": true,
+      "has_filters": true,
+      "has_cards": true,
+      "error_page": false,
+      "diagnostics": {
+        "consoleErrors": [],
+        "failedRequests": [],
+        "fiveXx": []
+      }
+    },
+    {
+      "viewport": "compact",
+      "tab": "exposicao",
+      "http_status": 200,
+      "final_path": "/gestor/conciliacao?tab=exposicao",
+      "title": "Conciliacao",
+      "has_tabs": true,
+      "has_filters": true,
+      "has_cards": true,
+      "error_page": false,
+      "diagnostics": {
+        "consoleErrors": [],
+        "failedRequests": [],
+        "fiveXx": []
+      }
+    },
+    {
+      "viewport": "compact",
+      "tab": "risco",
+      "http_status": 200,
+      "final_path": "/gestor/conciliacao?tab=risco",
+      "title": "Conciliacao",
+      "has_tabs": true,
+      "has_filters": true,
+      "has_cards": true,
+      "error_page": false,
+      "diagnostics": {
+        "consoleErrors": [],
+        "failedRequests": [],
+        "fiveXx": []
+      }
+    },
+    {
+      "viewport": "compact",
+      "tab": "excecoes",
+      "http_status": 200,
+      "final_path": "/gestor/conciliacao?tab=excecoes",
+      "title": "Conciliacao",
+      "has_tabs": true,
+      "has_filters": true,
+      "has_cards": true,
+      "error_page": false,
+      "diagnostics": {
+        "consoleErrors": [],
+        "failedRequests": [],
+        "fiveXx": []
+      }
+    }
+  ],
+  "notification_bell_visible": true,
+  "notification_dropdown_visible": true,
+  "notification_diagnostics": {
+    "consoleErrors": [],
+    "failedRequests": [],
+    "fiveXx": []
+  },
+  "fund_switch_via_server_action": true,
+  "fund_persisted_after_reload": true
+}

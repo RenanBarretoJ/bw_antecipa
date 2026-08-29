@@ -1,0 +1,39 @@
+{
+  "schema": "bw-antecipa-p2-6-7-dependency-changes-v1",
+  "direct_changes": [
+    {"package":"handlebars","before":"4.7.8","after":"4.7.9","direct":true,"reason":"security","advisories":["8 GHSA do baseline npm audit"],"breaking_change":false,"tests":["resolver-template.test.ts","gerarContrato.runtime.test.ts"]},
+    {"package":"next","before":"16.2.6","after":"16.3.1","direct":true,"reason":"security; 16.2.11 ainda mantinha PostCSS vulneravel","advisories":["9 GHSA diretos/transitivos do baseline"],"breaking_change":false,"tests":["TypeScript","full Vitest","Next webpack build","clean-room HTTP"]},
+    {"package":"eslint-config-next","before":"16.2.6","after":"16.3.1","direct":true,"reason":"align Next toolchain","advisories":[],"breaking_change":false,"tests":["eslint"]},
+    {"package":"puppeteer-core","before":"24.40.0","after":"25.8.0","direct":true,"reason":"security; patched browser resolver requires isolated major","advisories":["@puppeteer/browsers/extract-zip"],"breaking_change":true,"tests":["3 real Chromium PDF smokes","TypeScript","Next build"]},
+    {"package":"@sparticuz/chromium","before":"143.0.4","after":"149.0.0","direct":true,"reason":"align external Chromium runtime with Puppeteer 25 and Node 22","advisories":[],"breaking_change":true,"tests":["runtime selection test","Next build"]},
+    {"package":"shadcn","before":"4.1.0 production","after":"4.1.0 development","direct":true,"reason":"CLI/build tooling has no application runtime import","advisories":["removed production reachability of CLI tree"],"breaking_change":false,"tests":["npm ci","npm ls --all","build"]}
+  ],
+  "principal_transitive_changes": [
+    {"package":"@puppeteer/browsers","before":"2.13.0","after":"3.2.1","resolution":"upgrade"},
+    {"package":"extract-zip","before":"2.0.1","after":null,"resolution":"removed"},
+    {"package":"basic-ftp","before":"5.2.0","after":null,"resolution":"removed"},
+    {"package":"postcss","before":"8.5.20","after":"8.5.23","resolution":"upgrade"},
+    {"package":"sharp","before":"0.34.5","after":"0.35.3","resolution":"upgrade"},
+    {"package":"nanoid","before":"3.3.16","after":"3.3.18","resolution":"upgrade"},
+    {"package":"ws","before":"8.20.0","after":"8.21.3","resolution":"upgrade"},
+    {"package":"@babel/core","before":"7.29.0","after":"7.29.7","resolution":"upgrade"},
+    {"package":"@hono/node-server","before":"1.19.11","after":"1.19.17","resolution":"upgrade"},
+    {"package":"hono","before":"4.12.8","after":"4.13.2","resolution":"upgrade"},
+    {"package":"body-parser","before":"2.2.2","after":"2.3.0","resolution":"upgrade"},
+    {"package":"brace-expansion","before":"1.1.12","after":"1.1.18","resolution":"upgrade"},
+    {"package":"express-rate-limit","before":"8.3.1","after":"8.6.2","resolution":"upgrade"},
+    {"package":"fast-uri","before":"3.1.0","after":"3.1.5","resolution":"upgrade"},
+    {"package":"follow-redirects","before":"1.15.11","after":null,"resolution":"removed obsolete path"},
+    {"package":"ip-address","before":"10.1.0","after":"10.5.0","resolution":"upgrade"},
+    {"package":"js-yaml","before":"4.1.1","after":"4.3.1","resolution":"upgrade"},
+    {"package":"path-to-regexp (nested)","before":"8.3.0","after":"8.4.2","resolution":"upgrade"},
+    {"package":"picomatch","before":"2.3.1 / 4.0.3","after":"2.3.2 / 4.0.5","resolution":"upgrade"},
+    {"package":"qs","before":"6.15.0","after":"6.15.3","resolution":"upgrade"}
+  ],
+  "new_direct_packages": [],
+  "removed_direct_packages": [],
+  "overrides_added": [],
+  "audit_fix_force_used": false,
+  "dedupe_applied": false,
+  "dedupe_dry_run": "PASS; suggested unrelated churn was intentionally not applied"
+}

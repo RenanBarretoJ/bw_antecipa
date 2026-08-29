@@ -1,0 +1,306 @@
+{
+  "schema": "bw-antecipa-p2-6-5-cross-fund-v1",
+  "status": "FAIL",
+  "checks": [
+    {
+      "actor": "GESTOR_A",
+      "resource": "notas_fiscais",
+      "action": "SELECT_FUNDO_B",
+      "expected": "DENY",
+      "actual": "DENY",
+      "http_status": 200,
+      "rows_visible": 0,
+      "status": "PASS"
+    },
+    {
+      "actor": "GESTOR_B",
+      "resource": "notas_fiscais",
+      "action": "SELECT_FUNDO_A",
+      "expected": "DENY",
+      "actual": "DENY",
+      "http_status": 200,
+      "rows_visible": 0,
+      "status": "PASS"
+    },
+    {
+      "actor": "CEDENTE_A",
+      "resource": "notas_fiscais",
+      "action": "SELECT_FUNDO_B",
+      "expected": "DENY",
+      "actual": "DENY",
+      "http_status": 200,
+      "rows_visible": 0,
+      "status": "PASS"
+    },
+    {
+      "actor": "CEDENTE_B",
+      "resource": "notas_fiscais",
+      "action": "SELECT_FUNDO_A",
+      "expected": "DENY",
+      "actual": "DENY",
+      "http_status": 200,
+      "rows_visible": 0,
+      "status": "PASS"
+    },
+    {
+      "actor": "CONSULTOR_A",
+      "resource": "cedentes",
+      "action": "SELECT_CEDENTE_B",
+      "expected": "DENY",
+      "actual": "DENY",
+      "http_status": 200,
+      "status": "PASS"
+    },
+    {
+      "actor": "CONSULTOR_A",
+      "resource": "notas_fiscais",
+      "action": "SELECT_FUNDO_B",
+      "expected": "DENY",
+      "actual": "DENY",
+      "http_status": 200,
+      "rows_visible": 0,
+      "status": "PASS"
+    },
+    {
+      "actor": "SACADO_A",
+      "resource": "notas_fiscais",
+      "action": "SELECT_FUNDO_B",
+      "expected": "DENY",
+      "actual": "DENY",
+      "http_status": 200,
+      "rows_visible": 0,
+      "status": "PASS"
+    },
+    {
+      "actor": "SUPER_ADMIN_GESTOR_A",
+      "resource": "notas_fiscais",
+      "action": "SELECT_FUNDO_B",
+      "expected": "DENY",
+      "actual": "DENY",
+      "http_status": 200,
+      "rows_visible": 0,
+      "status": "PASS"
+    },
+    {
+      "actor": "GESTOR_B",
+      "resource": "operacoes",
+      "action": "SELECT_FUNDO_A",
+      "expected": "DENY",
+      "actual": "DENY",
+      "http_status": 200,
+      "rows_visible": 0,
+      "status": "PASS"
+    },
+    {
+      "actor": "CEDENTE_B",
+      "resource": "operacoes",
+      "action": "SELECT_FUNDO_A",
+      "expected": "DENY",
+      "actual": "DENY",
+      "http_status": 200,
+      "rows_visible": 0,
+      "status": "PASS"
+    },
+    {
+      "actor": "CEDENTE_A",
+      "resource": "devedores_solidarios",
+      "action": "SELECT_ID",
+      "expected": "DENY",
+      "actual": "DENY",
+      "http_status": 200,
+      "rows_visible": 0,
+      "status": "PASS"
+    },
+    {
+      "actor": "GESTOR_B",
+      "resource": "devedores_solidarios",
+      "action": "SELECT_ID",
+      "expected": "DENY",
+      "actual": "DENY",
+      "http_status": 200,
+      "rows_visible": 0,
+      "status": "PASS"
+    },
+    {
+      "actor": "GESTOR_B",
+      "resource": "matching_resultados",
+      "action": "SELECT_FUNDO_A",
+      "expected": "DENY",
+      "actual": "DENY",
+      "http_status": 200,
+      "rows_visible": 0,
+      "status": "PASS"
+    },
+    {
+      "actor": "GESTOR_B",
+      "resource": "conciliacao_resultados",
+      "action": "SELECT_FUNDO_A",
+      "expected": "DENY",
+      "actual": "DENY",
+      "http_status": 200,
+      "rows_visible": 0,
+      "status": "PASS"
+    },
+    {
+      "actor": "GESTOR_B",
+      "resource": "exposicao_execucoes",
+      "action": "SELECT_FUNDO_A",
+      "expected": "DENY",
+      "actual": "DENY",
+      "http_status": 200,
+      "rows_visible": 0,
+      "status": "PASS"
+    },
+    {
+      "actor": "GESTOR_B",
+      "resource": "risco_execucoes",
+      "action": "SELECT_FUNDO_A",
+      "expected": "DENY",
+      "actual": "DENY",
+      "http_status": 200,
+      "rows_visible": 0,
+      "status": "PASS"
+    },
+    {
+      "actor": "GESTOR_B",
+      "resource": "posicao_logistica_execucoes",
+      "action": "SELECT_FUNDO_A",
+      "expected": "DENY",
+      "actual": "DENY",
+      "http_status": 200,
+      "rows_visible": 0,
+      "status": "PASS"
+    },
+    {
+      "actor": "GESTOR_B",
+      "resource": "posicao_logistica_resultados",
+      "action": "SELECT_FUNDO_A",
+      "expected": "DENY",
+      "actual": "DENY",
+      "http_status": 200,
+      "rows_visible": 0,
+      "status": "PASS"
+    },
+    {
+      "actor": "CEDENTE_A",
+      "resource": "documento_requisito_instancias",
+      "action": "SELECT_NOTA_FISCAL_ID",
+      "expected": "DENY",
+      "actual": "DENY",
+      "http_status": 200,
+      "rows_visible": 0,
+      "status": "PASS"
+    },
+    {
+      "actor": "GESTOR_B",
+      "resource": "documento_requisito_instancias",
+      "action": "SELECT_NOTA_FISCAL_ID",
+      "expected": "DENY",
+      "actual": "ALLOW",
+      "http_status": 200,
+      "rows_visible": 1,
+      "status": "FAIL"
+    },
+    {
+      "actor": "GESTOR_B",
+      "resource": "estoque_atual",
+      "action": "SELECT_FUNDO_ID",
+      "expected": "DENY",
+      "actual": "DENY",
+      "http_status": 200,
+      "rows_visible": 0,
+      "status": "PASS"
+    },
+    {
+      "actor": "GESTOR_B",
+      "resource": "aquisicoes_atuais",
+      "action": "SELECT_FUNDO_ID",
+      "expected": "DENY",
+      "actual": "DENY",
+      "http_status": 200,
+      "rows_visible": 0,
+      "status": "PASS"
+    },
+    {
+      "actor": "GESTOR_B",
+      "resource": "liquidacoes_atuais",
+      "action": "SELECT_FUNDO_ID",
+      "expected": "DENY",
+      "actual": "DENY",
+      "http_status": 200,
+      "rows_visible": 0,
+      "status": "PASS"
+    },
+    {
+      "actor": "GESTOR_B",
+      "resource": "carteira_atual",
+      "action": "SELECT_FUNDO_ID",
+      "expected": "DENY",
+      "actual": "DENY",
+      "http_status": 200,
+      "rows_visible": 0,
+      "status": "PASS"
+    },
+    {
+      "actor": "SACADO_A",
+      "resource": "eventos_dominio",
+      "action": "INSERT_NF_OUTRO_SACADO",
+      "expected": "DENY",
+      "actual": "DENY",
+      "http_status": 403,
+      "error_code": "42501",
+      "status": "PASS"
+    },
+    {
+      "actor": "GESTOR_A",
+      "resource": "notas_fiscais",
+      "action": "UPDATE_FUNDO_B",
+      "expected": "DENY",
+      "actual": "DENY",
+      "http_status": 200,
+      "status": "PASS"
+    },
+    {
+      "actor": "GESTOR_B",
+      "resource": "operacoes",
+      "action": "UPDATE_FUNDO_A",
+      "expected": "DENY",
+      "actual": "DENY",
+      "http_status": 200,
+      "status": "PASS"
+    },
+    {
+      "actor": "GESTOR_B",
+      "resource": "ctes",
+      "action": "SELECT_ID",
+      "expected": "DENY",
+      "actual": "ALLOW",
+      "http_status": 200,
+      "rows_visible": 1,
+      "status": "FAIL"
+    },
+    {
+      "actor": "GESTOR_B",
+      "resource": "canhotos",
+      "action": "SELECT_ID",
+      "expected": "DENY",
+      "actual": "ALLOW",
+      "http_status": 200,
+      "rows_visible": 1,
+      "status": "FAIL"
+    },
+    {
+      "actor": "CEDENTE_A",
+      "bucket": "notas-fiscais",
+      "action": "DOWNLOAD",
+      "expected": "DENY",
+      "actual": "DENY",
+      "http_status": 400,
+      "error_code": "StorageApiError",
+      "resource": "storage.notas-fiscais",
+      "status": "PASS"
+    }
+  ],
+  "zero_leak": false,
+  "failure": "FAIL CRITICO: acesso indevido GESTOR_B:documento_requisito_instancias:SELECT_NOTA_FISCAL_ID."
+}

@@ -1,0 +1,3828 @@
+{
+  "schema": "bw-antecipa-p2-6-9-performance-full-pipeline-v2",
+  "generated_at": "2026-08-18T14:05:56.261Z",
+  "phase": "P2.6.9",
+  "status": "PASS",
+  "blocking_code": null,
+  "environment": "homolog",
+  "project_ref": "fhgkmggthxikfpogrvaa",
+  "production_touched": false,
+  "homolog_mutated": true,
+  "credential_rotation_required": false,
+  "credential_rotation_completed": true,
+  "administrative_credential_used": true,
+  "previous_attempt": {
+    "generated_at": "2026-08-18",
+    "status": "PERFORMANCE_BLOCKED_BY_CREDENTIAL_ROTATION",
+    "credential_rotation_required": true,
+    "credential_rotation_completed": false,
+    "administrative_credential_used": false,
+    "measured_runs": 0,
+    "note": "Evidencia historica preservada. A tentativa anterior foi interrompida antes do benchmark por credencial administrativa pendente de rotacao."
+  },
+  "workload": {
+    "dataset": "RLX_GOLDEN_V2",
+    "data_operacional": "2026-08-10",
+    "benchmark_case_id": "RLX_GOLDEN_V2:ca8b721e-333c-4051-a87b-9359e51449c4:80bd0bec-88eb-fb5e-b585-7cc7e6ac8ce0:2026-08-10",
+    "fundo_qa_id": "ca8b721e-333c-4051-a87b-9359e51449c4",
+    "operacao_qa_id": "80bd0bec-88eb-fb5e-b585-7cc7e6ac8ce0",
+    "quantidade_nfs_fixture": 110,
+    "quantidade_nfs_fundo_qa": 100,
+    "quantidade_operacoes_fixture": 10,
+    "quantidade_matching_fixture": 9,
+    "quantidade_conciliacao_fixture": 10,
+    "comparable_case_executed": true
+  },
+  "warmups": {
+    "required": 5,
+    "before_executed": 5,
+    "after_executed": 5
+  },
+  "before": {
+    "schema": "bw-antecipa-p2-6-9-benchmark-batch-v2",
+    "generated_at": "2026-08-18T13:43:07.535Z",
+    "batch": "before",
+    "environment": "homolog",
+    "project_ref": "fhgkmggthxikfpogrvaa",
+    "production_touched": false,
+    "credential_rotation_required": false,
+    "credential_rotation_completed": true,
+    "administrative_credential_used": true,
+    "workload": {
+      "dataset": "RLX_GOLDEN_V2",
+      "data_operacional": "2026-08-10",
+      "benchmark_case_id": "RLX_GOLDEN_V2:ca8b721e-333c-4051-a87b-9359e51449c4:80bd0bec-88eb-fb5e-b585-7cc7e6ac8ce0:2026-08-10",
+      "fundo_qa_id": "ca8b721e-333c-4051-a87b-9359e51449c4",
+      "operacao_qa_id": "80bd0bec-88eb-fb5e-b585-7cc7e6ac8ce0",
+      "quantidade_nfs_fixture": 110,
+      "quantidade_nfs_fundo_qa": 100,
+      "quantidade_operacoes_fixture": 10,
+      "quantidade_matching_fixture": 9,
+      "quantidade_conciliacao_fixture": 10
+    },
+    "protocol": {
+      "warmups_executed": 5,
+      "measured_runs": 20,
+      "outliers_removed": 0,
+      "percentile_method": "nearest-rank"
+    },
+    "samples": [
+      {
+        "run": 1,
+        "timings": {
+          "matchingMs": 720,
+          "reconciliationMs": 902,
+          "logisticsMs": 1375,
+          "exposureMs": 2079,
+          "candidateSimulationMs": 516,
+          "classificationMs": 0,
+          "persistenceMs": 328,
+          "totalMs": 6613
+        },
+        "requests": {
+          "total": 66,
+          "rpc": 6,
+          "rest": 60,
+          "other": 0,
+          "methods": {
+            "GET": 59,
+            "POST": 6,
+            "HEAD": 1
+          }
+        },
+        "technical_status": "CONCLUIDA",
+        "decision": "BLOQUEADO",
+        "reason_codes": [
+          "POSICAO_SEM_MATCH",
+          "EXPOSICAO_INDETERMINADA",
+          "LIQUIDACAO_PARCIAL_PRESENTE"
+        ],
+        "error": null
+      },
+      {
+        "run": 2,
+        "timings": {
+          "matchingMs": 710,
+          "reconciliationMs": 891,
+          "logisticsMs": 1630,
+          "exposureMs": 2110,
+          "candidateSimulationMs": 508,
+          "classificationMs": 0,
+          "persistenceMs": 352,
+          "totalMs": 6914
+        },
+        "requests": {
+          "total": 66,
+          "rpc": 6,
+          "rest": 60,
+          "other": 0,
+          "methods": {
+            "GET": 59,
+            "POST": 6,
+            "HEAD": 1
+          }
+        },
+        "technical_status": "CONCLUIDA",
+        "decision": "BLOQUEADO",
+        "reason_codes": [
+          "POSICAO_SEM_MATCH",
+          "EXPOSICAO_INDETERMINADA",
+          "LIQUIDACAO_PARCIAL_PRESENTE"
+        ],
+        "error": null
+      },
+      {
+        "run": 3,
+        "timings": {
+          "matchingMs": 722,
+          "reconciliationMs": 953,
+          "logisticsMs": 1433,
+          "exposureMs": 2076,
+          "candidateSimulationMs": 658,
+          "classificationMs": 0,
+          "persistenceMs": 422,
+          "totalMs": 6986
+        },
+        "requests": {
+          "total": 66,
+          "rpc": 6,
+          "rest": 60,
+          "other": 0,
+          "methods": {
+            "GET": 59,
+            "POST": 6,
+            "HEAD": 1
+          }
+        },
+        "technical_status": "CONCLUIDA",
+        "decision": "BLOQUEADO",
+        "reason_codes": [
+          "POSICAO_SEM_MATCH",
+          "EXPOSICAO_INDETERMINADA",
+          "LIQUIDACAO_PARCIAL_PRESENTE"
+        ],
+        "error": null
+      },
+      {
+        "run": 4,
+        "timings": {
+          "matchingMs": 783,
+          "reconciliationMs": 991,
+          "logisticsMs": 1536,
+          "exposureMs": 3781,
+          "candidateSimulationMs": 626,
+          "classificationMs": 0,
+          "persistenceMs": 362,
+          "totalMs": 8864
+        },
+        "requests": {
+          "total": 66,
+          "rpc": 6,
+          "rest": 60,
+          "other": 0,
+          "methods": {
+            "GET": 59,
+            "POST": 6,
+            "HEAD": 1
+          }
+        },
+        "technical_status": "CONCLUIDA",
+        "decision": "BLOQUEADO",
+        "reason_codes": [
+          "POSICAO_SEM_MATCH",
+          "EXPOSICAO_INDETERMINADA",
+          "LIQUIDACAO_PARCIAL_PRESENTE"
+        ],
+        "error": null
+      },
+      {
+        "run": 5,
+        "timings": {
+          "matchingMs": 754,
+          "reconciliationMs": 1199,
+          "logisticsMs": 1428,
+          "exposureMs": 2195,
+          "candidateSimulationMs": 570,
+          "classificationMs": 1,
+          "persistenceMs": 343,
+          "totalMs": 7242
+        },
+        "requests": {
+          "total": 66,
+          "rpc": 6,
+          "rest": 60,
+          "other": 0,
+          "methods": {
+            "GET": 59,
+            "POST": 6,
+            "HEAD": 1
+          }
+        },
+        "technical_status": "CONCLUIDA",
+        "decision": "BLOQUEADO",
+        "reason_codes": [
+          "POSICAO_SEM_MATCH",
+          "EXPOSICAO_INDETERMINADA",
+          "LIQUIDACAO_PARCIAL_PRESENTE"
+        ],
+        "error": null
+      },
+      {
+        "run": 6,
+        "timings": {
+          "matchingMs": 710,
+          "reconciliationMs": 1195,
+          "logisticsMs": 1406,
+          "exposureMs": 2135,
+          "candidateSimulationMs": 839,
+          "classificationMs": 0,
+          "persistenceMs": 435,
+          "totalMs": 7409
+        },
+        "requests": {
+          "total": 66,
+          "rpc": 6,
+          "rest": 60,
+          "other": 0,
+          "methods": {
+            "GET": 59,
+            "POST": 6,
+            "HEAD": 1
+          }
+        },
+        "technical_status": "CONCLUIDA",
+        "decision": "BLOQUEADO",
+        "reason_codes": [
+          "POSICAO_SEM_MATCH",
+          "EXPOSICAO_INDETERMINADA",
+          "LIQUIDACAO_PARCIAL_PRESENTE"
+        ],
+        "error": null
+      },
+      {
+        "run": 7,
+        "timings": {
+          "matchingMs": 944,
+          "reconciliationMs": 1196,
+          "logisticsMs": 1390,
+          "exposureMs": 2122,
+          "candidateSimulationMs": 584,
+          "classificationMs": 0,
+          "persistenceMs": 343,
+          "totalMs": 7303
+        },
+        "requests": {
+          "total": 66,
+          "rpc": 6,
+          "rest": 60,
+          "other": 0,
+          "methods": {
+            "GET": 59,
+            "POST": 6,
+            "HEAD": 1
+          }
+        },
+        "technical_status": "CONCLUIDA",
+        "decision": "BLOQUEADO",
+        "reason_codes": [
+          "POSICAO_SEM_MATCH",
+          "EXPOSICAO_INDETERMINADA",
+          "LIQUIDACAO_PARCIAL_PRESENTE"
+        ],
+        "error": null
+      },
+      {
+        "run": 8,
+        "timings": {
+          "matchingMs": 702,
+          "reconciliationMs": 918,
+          "logisticsMs": 1398,
+          "exposureMs": 2175,
+          "candidateSimulationMs": 503,
+          "classificationMs": 0,
+          "persistenceMs": 343,
+          "totalMs": 6704
+        },
+        "requests": {
+          "total": 66,
+          "rpc": 6,
+          "rest": 60,
+          "other": 0,
+          "methods": {
+            "GET": 59,
+            "POST": 6,
+            "HEAD": 1
+          }
+        },
+        "technical_status": "CONCLUIDA",
+        "decision": "BLOQUEADO",
+        "reason_codes": [
+          "POSICAO_SEM_MATCH",
+          "EXPOSICAO_INDETERMINADA",
+          "LIQUIDACAO_PARCIAL_PRESENTE"
+        ],
+        "error": null
+      },
+      {
+        "run": 9,
+        "timings": {
+          "matchingMs": 742,
+          "reconciliationMs": 2128,
+          "logisticsMs": 1346,
+          "exposureMs": 2080,
+          "candidateSimulationMs": 572,
+          "classificationMs": 1,
+          "persistenceMs": 366,
+          "totalMs": 7957
+        },
+        "requests": {
+          "total": 66,
+          "rpc": 6,
+          "rest": 60,
+          "other": 0,
+          "methods": {
+            "GET": 59,
+            "POST": 6,
+            "HEAD": 1
+          }
+        },
+        "technical_status": "CONCLUIDA",
+        "decision": "BLOQUEADO",
+        "reason_codes": [
+          "POSICAO_SEM_MATCH",
+          "EXPOSICAO_INDETERMINADA",
+          "LIQUIDACAO_PARCIAL_PRESENTE"
+        ],
+        "error": null
+      },
+      {
+        "run": 10,
+        "timings": {
+          "matchingMs": 812,
+          "reconciliationMs": 981,
+          "logisticsMs": 1497,
+          "exposureMs": 2325,
+          "candidateSimulationMs": 522,
+          "classificationMs": 1,
+          "persistenceMs": 334,
+          "totalMs": 7202
+        },
+        "requests": {
+          "total": 66,
+          "rpc": 6,
+          "rest": 60,
+          "other": 0,
+          "methods": {
+            "GET": 59,
+            "POST": 6,
+            "HEAD": 1
+          }
+        },
+        "technical_status": "CONCLUIDA",
+        "decision": "BLOQUEADO",
+        "reason_codes": [
+          "POSICAO_SEM_MATCH",
+          "EXPOSICAO_INDETERMINADA",
+          "LIQUIDACAO_PARCIAL_PRESENTE"
+        ],
+        "error": null
+      },
+      {
+        "run": 11,
+        "timings": {
+          "matchingMs": 754,
+          "reconciliationMs": 913,
+          "logisticsMs": 1359,
+          "exposureMs": 1983,
+          "candidateSimulationMs": 499,
+          "classificationMs": 0,
+          "persistenceMs": 339,
+          "totalMs": 6511
+        },
+        "requests": {
+          "total": 66,
+          "rpc": 6,
+          "rest": 60,
+          "other": 0,
+          "methods": {
+            "GET": 59,
+            "POST": 6,
+            "HEAD": 1
+          }
+        },
+        "technical_status": "CONCLUIDA",
+        "decision": "BLOQUEADO",
+        "reason_codes": [
+          "POSICAO_SEM_MATCH",
+          "EXPOSICAO_INDETERMINADA",
+          "LIQUIDACAO_PARCIAL_PRESENTE"
+        ],
+        "error": null
+      },
+      {
+        "run": 12,
+        "timings": {
+          "matchingMs": 688,
+          "reconciliationMs": 944,
+          "logisticsMs": 1391,
+          "exposureMs": 2024,
+          "candidateSimulationMs": 538,
+          "classificationMs": 0,
+          "persistenceMs": 340,
+          "totalMs": 6597
+        },
+        "requests": {
+          "total": 66,
+          "rpc": 6,
+          "rest": 60,
+          "other": 0,
+          "methods": {
+            "GET": 59,
+            "POST": 6,
+            "HEAD": 1
+          }
+        },
+        "technical_status": "CONCLUIDA",
+        "decision": "BLOQUEADO",
+        "reason_codes": [
+          "POSICAO_SEM_MATCH",
+          "EXPOSICAO_INDETERMINADA",
+          "LIQUIDACAO_PARCIAL_PRESENTE"
+        ],
+        "error": null
+      },
+      {
+        "run": 13,
+        "timings": {
+          "matchingMs": 713,
+          "reconciliationMs": 982,
+          "logisticsMs": 1367,
+          "exposureMs": 2113,
+          "candidateSimulationMs": 500,
+          "classificationMs": 0,
+          "persistenceMs": 341,
+          "totalMs": 6722
+        },
+        "requests": {
+          "total": 66,
+          "rpc": 6,
+          "rest": 60,
+          "other": 0,
+          "methods": {
+            "GET": 59,
+            "POST": 6,
+            "HEAD": 1
+          }
+        },
+        "technical_status": "CONCLUIDA",
+        "decision": "BLOQUEADO",
+        "reason_codes": [
+          "POSICAO_SEM_MATCH",
+          "EXPOSICAO_INDETERMINADA",
+          "LIQUIDACAO_PARCIAL_PRESENTE"
+        ],
+        "error": null
+      },
+      {
+        "run": 14,
+        "timings": {
+          "matchingMs": 685,
+          "reconciliationMs": 1196,
+          "logisticsMs": 1392,
+          "exposureMs": 2085,
+          "candidateSimulationMs": 555,
+          "classificationMs": 0,
+          "persistenceMs": 398,
+          "totalMs": 6960
+        },
+        "requests": {
+          "total": 66,
+          "rpc": 6,
+          "rest": 60,
+          "other": 0,
+          "methods": {
+            "GET": 59,
+            "POST": 6,
+            "HEAD": 1
+          }
+        },
+        "technical_status": "CONCLUIDA",
+        "decision": "BLOQUEADO",
+        "reason_codes": [
+          "POSICAO_SEM_MATCH",
+          "EXPOSICAO_INDETERMINADA",
+          "LIQUIDACAO_PARCIAL_PRESENTE"
+        ],
+        "error": null
+      },
+      {
+        "run": 15,
+        "timings": {
+          "matchingMs": 795,
+          "reconciliationMs": 1024,
+          "logisticsMs": 1393,
+          "exposureMs": 2042,
+          "candidateSimulationMs": 518,
+          "classificationMs": 0,
+          "persistenceMs": 352,
+          "totalMs": 6867
+        },
+        "requests": {
+          "total": 66,
+          "rpc": 6,
+          "rest": 60,
+          "other": 0,
+          "methods": {
+            "GET": 59,
+            "POST": 6,
+            "HEAD": 1
+          }
+        },
+        "technical_status": "CONCLUIDA",
+        "decision": "BLOQUEADO",
+        "reason_codes": [
+          "POSICAO_SEM_MATCH",
+          "EXPOSICAO_INDETERMINADA",
+          "LIQUIDACAO_PARCIAL_PRESENTE"
+        ],
+        "error": null
+      },
+      {
+        "run": 16,
+        "timings": {
+          "matchingMs": 699,
+          "reconciliationMs": 877,
+          "logisticsMs": 1359,
+          "exposureMs": 2128,
+          "candidateSimulationMs": 554,
+          "classificationMs": 0,
+          "persistenceMs": 330,
+          "totalMs": 6649
+        },
+        "requests": {
+          "total": 66,
+          "rpc": 6,
+          "rest": 60,
+          "other": 0,
+          "methods": {
+            "GET": 59,
+            "POST": 6,
+            "HEAD": 1
+          }
+        },
+        "technical_status": "CONCLUIDA",
+        "decision": "BLOQUEADO",
+        "reason_codes": [
+          "POSICAO_SEM_MATCH",
+          "EXPOSICAO_INDETERMINADA",
+          "LIQUIDACAO_PARCIAL_PRESENTE"
+        ],
+        "error": null
+      },
+      {
+        "run": 17,
+        "timings": {
+          "matchingMs": 754,
+          "reconciliationMs": 941,
+          "logisticsMs": 1530,
+          "exposureMs": 2092,
+          "candidateSimulationMs": 517,
+          "classificationMs": 0,
+          "persistenceMs": 353,
+          "totalMs": 6902
+        },
+        "requests": {
+          "total": 66,
+          "rpc": 6,
+          "rest": 60,
+          "other": 0,
+          "methods": {
+            "GET": 59,
+            "POST": 6,
+            "HEAD": 1
+          }
+        },
+        "technical_status": "CONCLUIDA",
+        "decision": "BLOQUEADO",
+        "reason_codes": [
+          "POSICAO_SEM_MATCH",
+          "EXPOSICAO_INDETERMINADA",
+          "LIQUIDACAO_PARCIAL_PRESENTE"
+        ],
+        "error": null
+      },
+      {
+        "run": 18,
+        "timings": {
+          "matchingMs": 764,
+          "reconciliationMs": 918,
+          "logisticsMs": 1412,
+          "exposureMs": 2074,
+          "candidateSimulationMs": 524,
+          "classificationMs": 0,
+          "persistenceMs": 332,
+          "totalMs": 6734
+        },
+        "requests": {
+          "total": 66,
+          "rpc": 6,
+          "rest": 60,
+          "other": 0,
+          "methods": {
+            "GET": 59,
+            "POST": 6,
+            "HEAD": 1
+          }
+        },
+        "technical_status": "CONCLUIDA",
+        "decision": "BLOQUEADO",
+        "reason_codes": [
+          "POSICAO_SEM_MATCH",
+          "EXPOSICAO_INDETERMINADA",
+          "LIQUIDACAO_PARCIAL_PRESENTE"
+        ],
+        "error": null
+      },
+      {
+        "run": 19,
+        "timings": {
+          "matchingMs": 865,
+          "reconciliationMs": 900,
+          "logisticsMs": 1337,
+          "exposureMs": 2059,
+          "candidateSimulationMs": 508,
+          "classificationMs": 0,
+          "persistenceMs": 332,
+          "totalMs": 6665
+        },
+        "requests": {
+          "total": 66,
+          "rpc": 6,
+          "rest": 60,
+          "other": 0,
+          "methods": {
+            "GET": 59,
+            "POST": 6,
+            "HEAD": 1
+          }
+        },
+        "technical_status": "CONCLUIDA",
+        "decision": "BLOQUEADO",
+        "reason_codes": [
+          "POSICAO_SEM_MATCH",
+          "EXPOSICAO_INDETERMINADA",
+          "LIQUIDACAO_PARCIAL_PRESENTE"
+        ],
+        "error": null
+      },
+      {
+        "run": 20,
+        "timings": {
+          "matchingMs": 697,
+          "reconciliationMs": 891,
+          "logisticsMs": 1375,
+          "exposureMs": 2090,
+          "candidateSimulationMs": 586,
+          "classificationMs": 0,
+          "persistenceMs": 348,
+          "totalMs": 6691
+        },
+        "requests": {
+          "total": 66,
+          "rpc": 6,
+          "rest": 60,
+          "other": 0,
+          "methods": {
+            "GET": 59,
+            "POST": 6,
+            "HEAD": 1
+          }
+        },
+        "technical_status": "CONCLUIDA",
+        "decision": "BLOQUEADO",
+        "reason_codes": [
+          "POSICAO_SEM_MATCH",
+          "EXPOSICAO_INDETERMINADA",
+          "LIQUIDACAO_PARCIAL_PRESENTE"
+        ],
+        "error": null
+      }
+    ],
+    "stats": {
+      "matchingMs": {
+        "count": 20,
+        "min": 685,
+        "p25": 702,
+        "p50": 722,
+        "p75": 764,
+        "p90": 812,
+        "p95": 865,
+        "max": 944,
+        "mean": 750.65,
+        "standardDeviation": 63.31
+      },
+      "reconciliationMs": {
+        "count": 20,
+        "min": 877,
+        "p25": 902,
+        "p50": 944,
+        "p75": 1024,
+        "p90": 1196,
+        "p95": 1199,
+        "max": 2128,
+        "mean": 1047,
+        "standardDeviation": 271.32
+      },
+      "logisticsMs": {
+        "count": 20,
+        "min": 1337,
+        "p25": 1367,
+        "p50": 1392,
+        "p75": 1428,
+        "p90": 1530,
+        "p95": 1536,
+        "max": 1630,
+        "mean": 1417.7,
+        "standardDeviation": 72.93
+      },
+      "exposureMs": {
+        "count": 20,
+        "min": 1983,
+        "p25": 2074,
+        "p50": 2090,
+        "p75": 2128,
+        "p90": 2195,
+        "p95": 2325,
+        "max": 3781,
+        "mean": 2188.4,
+        "standardDeviation": 371.79
+      },
+      "candidateSimulationMs": {
+        "count": 20,
+        "min": 499,
+        "p25": 508,
+        "p50": 524,
+        "p75": 572,
+        "p90": 626,
+        "p95": 658,
+        "max": 839,
+        "mean": 559.85,
+        "standardDeviation": 76.85
+      },
+      "classificationMs": {
+        "count": 20,
+        "min": 0,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 1,
+        "p95": 1,
+        "max": 1,
+        "mean": 0.15,
+        "standardDeviation": 0.36
+      },
+      "persistenceMs": {
+        "count": 20,
+        "min": 328,
+        "p25": 334,
+        "p50": 343,
+        "p75": 353,
+        "p90": 398,
+        "p95": 422,
+        "max": 435,
+        "mean": 354.65,
+        "standardDeviation": 29.1
+      },
+      "totalMs": {
+        "count": 20,
+        "min": 6511,
+        "p25": 6665,
+        "p50": 6867,
+        "p75": 7202,
+        "p90": 7409,
+        "p95": 7957,
+        "max": 8864,
+        "mean": 7024.6,
+        "standardDeviation": 542.73
+      }
+    },
+    "request_stats": {
+      "total": {
+        "count": 20,
+        "min": 66,
+        "p25": 66,
+        "p50": 66,
+        "p75": 66,
+        "p90": 66,
+        "p95": 66,
+        "max": 66,
+        "mean": 66,
+        "standardDeviation": 0
+      },
+      "rpc": {
+        "count": 20,
+        "min": 6,
+        "p25": 6,
+        "p50": 6,
+        "p75": 6,
+        "p90": 6,
+        "p95": 6,
+        "max": 6,
+        "mean": 6,
+        "standardDeviation": 0
+      },
+      "rest": {
+        "count": 20,
+        "min": 60,
+        "p25": 60,
+        "p50": 60,
+        "p75": 60,
+        "p90": 60,
+        "p95": 60,
+        "max": 60,
+        "mean": 60,
+        "standardDeviation": 0
+      },
+      "other": {
+        "count": 20,
+        "min": 0,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 0,
+        "p95": 0,
+        "max": 0,
+        "mean": 0,
+        "standardDeviation": 0
+      }
+    },
+    "stability": {
+      "successful_runs": 20,
+      "errors": 0,
+      "timeouts": 0,
+      "technical_errors": 0,
+      "semantic_outcomes_distinct": 1,
+      "semantic_outcome": {
+        "technical_status": "CONCLUIDA",
+        "decision": "BLOQUEADO",
+        "reason_codes": [
+          "POSICAO_SEM_MATCH",
+          "EXPOSICAO_INDETERMINADA",
+          "LIQUIDACAO_PARCIAL_PRESENTE"
+        ]
+      }
+    }
+  },
+  "profiling": {
+    "schema": "bw-antecipa-p2-6-9-performance-profile-v2",
+    "generated_at": "2026-08-18T14:05:56.261Z",
+    "status": "PASS",
+    "environment": "homolog",
+    "project_ref": "fhgkmggthxikfpogrvaa",
+    "production_touched": false,
+    "credential_rotation_required": false,
+    "credential_rotation_completed": true,
+    "administrative_credential_used": true,
+    "previous_attempt": {
+      "generated_at": "2026-08-18",
+      "status": "PERFORMANCE_BLOCKED_BY_CREDENTIAL_ROTATION",
+      "credential_rotation_required": true,
+      "credential_rotation_completed": false,
+      "administrative_credential_used": false,
+      "measured_runs": 0,
+      "note": "Evidencia historica preservada. A tentativa anterior foi interrompida antes do benchmark por credencial administrativa pendente de rotacao."
+    },
+    "profiling_executed": true,
+    "protocol": {
+      "profile_before": {
+        "warmups": 1,
+        "runs": 3
+      },
+      "profile_after": {
+        "warmups": 1,
+        "runs": 3
+      },
+      "formal_before": {
+        "warmups_executed": 5,
+        "measured_runs": 20,
+        "outliers_removed": 0,
+        "percentile_method": "nearest-rank"
+      },
+      "formal_after": {
+        "warmups_executed": 5,
+        "measured_runs": 20,
+        "outliers_removed": 0,
+        "percentile_method": "nearest-rank"
+      }
+    },
+    "round_trips": {
+      "before": {
+        "total": 66,
+        "rpc": 6,
+        "rest": 60,
+        "by_stage": {
+          "policy": {
+            "total": 3,
+            "rpc": 0,
+            "rest": 3,
+            "other": 0
+          },
+          "matching": {
+            "total": 10,
+            "rpc": 1,
+            "rest": 9,
+            "other": 0
+          },
+          "reconciliation": {
+            "total": 16,
+            "rpc": 1,
+            "rest": 15,
+            "other": 0
+          },
+          "logistics": {
+            "total": 13,
+            "rpc": 1,
+            "rest": 12,
+            "other": 0
+          },
+          "exposure": {
+            "total": 13,
+            "rpc": 1,
+            "rest": 12,
+            "other": 0
+          },
+          "candidateSimulation": {
+            "total": 7,
+            "rpc": 1,
+            "rest": 6,
+            "other": 0
+          },
+          "persistence": {
+            "total": 4,
+            "rpc": 1,
+            "rest": 3,
+            "other": 0
+          }
+        }
+      },
+      "after": {
+        "total": 58,
+        "rpc": 6,
+        "rest": 52,
+        "by_stage": {
+          "policy": {
+            "total": 3,
+            "rpc": 0,
+            "rest": 3,
+            "other": 0
+          },
+          "matching": {
+            "total": 17,
+            "rpc": 2,
+            "rest": 15,
+            "other": 0
+          },
+          "reconciliation": {
+            "total": 8,
+            "rpc": 1,
+            "rest": 7,
+            "other": 0
+          },
+          "logistics": {
+            "total": 13,
+            "rpc": 1,
+            "rest": 12,
+            "other": 0
+          },
+          "exposure": {
+            "total": 13,
+            "rpc": 1,
+            "rest": 12,
+            "other": 0
+          },
+          "persistence": {
+            "total": 4,
+            "rpc": 1,
+            "rest": 3,
+            "other": 0
+          }
+        }
+      },
+      "delta": {
+        "before": 66,
+        "after": 58,
+        "absolute": -8,
+        "percent": -12.12
+      },
+      "note": "A atribuicao por etapa muda apos o cache compartilhado porque leituras reutilizadas passam a ocorrer na primeira etapa consumidora. O total instrumentado e a metrica comparavel."
+    },
+    "stage_profile": {
+      "before": {
+        "matchingMs": {
+          "count": 20,
+          "min": 685,
+          "p25": 702,
+          "p50": 722,
+          "p75": 764,
+          "p90": 812,
+          "p95": 865,
+          "max": 944,
+          "mean": 750.65,
+          "standardDeviation": 63.31
+        },
+        "reconciliationMs": {
+          "count": 20,
+          "min": 877,
+          "p25": 902,
+          "p50": 944,
+          "p75": 1024,
+          "p90": 1196,
+          "p95": 1199,
+          "max": 2128,
+          "mean": 1047,
+          "standardDeviation": 271.32
+        },
+        "logisticsMs": {
+          "count": 20,
+          "min": 1337,
+          "p25": 1367,
+          "p50": 1392,
+          "p75": 1428,
+          "p90": 1530,
+          "p95": 1536,
+          "max": 1630,
+          "mean": 1417.7,
+          "standardDeviation": 72.93
+        },
+        "exposureMs": {
+          "count": 20,
+          "min": 1983,
+          "p25": 2074,
+          "p50": 2090,
+          "p75": 2128,
+          "p90": 2195,
+          "p95": 2325,
+          "max": 3781,
+          "mean": 2188.4,
+          "standardDeviation": 371.79
+        },
+        "candidateSimulationMs": {
+          "count": 20,
+          "min": 499,
+          "p25": 508,
+          "p50": 524,
+          "p75": 572,
+          "p90": 626,
+          "p95": 658,
+          "max": 839,
+          "mean": 559.85,
+          "standardDeviation": 76.85
+        },
+        "classificationMs": {
+          "count": 20,
+          "min": 0,
+          "p25": 0,
+          "p50": 0,
+          "p75": 0,
+          "p90": 1,
+          "p95": 1,
+          "max": 1,
+          "mean": 0.15,
+          "standardDeviation": 0.36
+        },
+        "persistenceMs": {
+          "count": 20,
+          "min": 328,
+          "p25": 334,
+          "p50": 343,
+          "p75": 353,
+          "p90": 398,
+          "p95": 422,
+          "max": 435,
+          "mean": 354.65,
+          "standardDeviation": 29.1
+        },
+        "totalMs": {
+          "count": 20,
+          "min": 6511,
+          "p25": 6665,
+          "p50": 6867,
+          "p75": 7202,
+          "p90": 7409,
+          "p95": 7957,
+          "max": 8864,
+          "mean": 7024.6,
+          "standardDeviation": 542.73
+        }
+      },
+      "after": {
+        "matchingMs": {
+          "count": 20,
+          "min": 702,
+          "p25": 723,
+          "p50": 736,
+          "p75": 784,
+          "p90": 978,
+          "p95": 1215,
+          "max": 1516,
+          "mean": 818.25,
+          "standardDeviation": 197.36
+        },
+        "reconciliationMs": {
+          "count": 20,
+          "min": 834,
+          "p25": 866,
+          "p50": 880,
+          "p75": 932,
+          "p90": 950,
+          "p95": 953,
+          "max": 960,
+          "mean": 893.4,
+          "standardDeviation": 37.97
+        },
+        "logisticsMs": {
+          "count": 20,
+          "min": 1364,
+          "p25": 1389,
+          "p50": 1419,
+          "p75": 1442,
+          "p90": 1456,
+          "p95": 1477,
+          "max": 1521,
+          "mean": 1422.55,
+          "standardDeviation": 36.43
+        },
+        "exposureMs": {
+          "count": 20,
+          "min": 1822,
+          "p25": 1877,
+          "p50": 1902,
+          "p75": 1933,
+          "p90": 1950,
+          "p95": 1961,
+          "max": 2079,
+          "mean": 1913,
+          "standardDeviation": 49.85
+        },
+        "candidateSimulationMs": {
+          "count": 20,
+          "min": 541,
+          "p25": 557,
+          "p50": 582,
+          "p75": 614,
+          "p90": 654,
+          "p95": 889,
+          "max": 1206,
+          "mean": 632.65,
+          "standardDeviation": 150.09
+        },
+        "classificationMs": {
+          "count": 20,
+          "min": 0,
+          "p25": 0,
+          "p50": 0,
+          "p75": 1,
+          "p90": 1,
+          "p95": 1,
+          "max": 1,
+          "mean": 0.4,
+          "standardDeviation": 0.49
+        },
+        "persistenceMs": {
+          "count": 20,
+          "min": 330,
+          "p25": 346,
+          "p50": 362,
+          "p75": 381,
+          "p90": 415,
+          "p95": 417,
+          "max": 479,
+          "mean": 373.25,
+          "standardDeviation": 33.75
+        },
+        "totalMs": {
+          "count": 20,
+          "min": 5855,
+          "p25": 5938,
+          "p50": 6065,
+          "p75": 6129,
+          "p90": 6331,
+          "p95": 6839,
+          "max": 6916,
+          "mean": 6127.85,
+          "standardDeviation": 272.47
+        }
+      }
+    },
+    "pg_stat_statements": {
+      "available": true,
+      "observation": "As consultas/RPCs observadas permaneceram na faixa de sub-milisegundos a poucos milissegundos no PostgreSQL; a latencia acumulada de rede/Data API dominava o tempo total.",
+      "samples": [
+        {
+          "operation": "simulacao de memoria financeira",
+          "mean_exec_ms": 3.847
+        },
+        {
+          "operation": "persistencia de posicao",
+          "mean_exec_ms": 2.739
+        },
+        {
+          "operation": "leituras canonicas",
+          "mean_exec_ms_range": [
+            0.3,
+            0.5
+          ]
+        }
+      ]
+    },
+    "query_plans": [
+      {
+        "query": "ultima importacao financeira publicada por fundo/capability",
+        "command": "EXPLAIN (ANALYZE, BUFFERS)",
+        "plan": "Index Scan using importacoes_publicada_unica_idx",
+        "shared_buffers": "hit only",
+        "execution_ms": 0.185,
+        "conclusion": "Indice existente adequado; nenhuma migration ou indice adicional justificado."
+      }
+    ],
+    "bottleneck": {
+      "primary": "round_trips_repetidos_via_data_api",
+      "evidence": "66 requests por execucao antes, com SQL individual rapido; 58 requests apos reutilizar leituras imutaveis."
+    },
+    "selected_optimizations": [
+      {
+        "id": "REQUEST_SCOPED_FINANCIAL_READ_CACHE",
+        "description": "Compartilha, apenas durante uma execucao do pipeline, leituras imutaveis da ultima importacao publicada e das linhas canonicas entre matching e conciliacao.",
+        "safety": "Promessas com falha sao removidas do cache; crosswalk mutavel nao e cacheado; nenhuma decisao, regra, assinatura ou persistencia foi alterada."
+      },
+      {
+        "id": "PARALLEL_CANDIDATE_PROJECTION",
+        "description": "Executa a projecao candidata em paralelo com a atualizacao canonica independente.",
+        "safety": "As duas tarefas permanecem obrigatorias e sao aguardadas antes da classificacao e persistencia."
+      },
+      {
+        "id": "PARALLEL_EXPOSURE_READS",
+        "description": "Agrupa leituras independentes de reconciliacao, posicao e overlay com Promise.all.",
+        "safety": "Somente a ordem de espera foi alterada; filtros, dados retornados e regras de exposicao foram preservados."
+      }
+    ],
+    "rejected_optimizations": [
+      {
+        "id": "NO_SPECULATIVE_INDEX",
+        "reason": "O plano real ja utiliza indice e executa em 0.185 ms."
+      },
+      {
+        "id": "NO_RPC_REWRITE",
+        "reason": "A reducao necessaria foi atingida sem alterar contratos SQL/RPC."
+      },
+      {
+        "id": "NO_TIMEOUT_INCREASE",
+        "reason": "O limite nao foi elevado para mascarar latencia."
+      },
+      {
+        "id": "NO_CONTROL_REMOVAL",
+        "reason": "RLS, auditoria, locks, idempotencia e fail-closed foram preservados."
+      }
+    ]
+  },
+  "changes": {
+    "schema": "bw-antecipa-p2-6-9-performance-changes-v2",
+    "generated_at": "2026-08-18T14:05:56.261Z",
+    "status": "PASS",
+    "environment": "homolog",
+    "project_ref": "fhgkmggthxikfpogrvaa",
+    "previous_attempt": {
+      "generated_at": "2026-08-18",
+      "status": "PERFORMANCE_BLOCKED_BY_CREDENTIAL_ROTATION",
+      "credential_rotation_required": true,
+      "credential_rotation_completed": false,
+      "administrative_credential_used": false,
+      "measured_runs": 0,
+      "note": "Evidencia historica preservada. A tentativa anterior foi interrompida antes do benchmark por credencial administrativa pendente de rotacao."
+    },
+    "changes": [
+      {
+        "id": "REQUEST_SCOPED_FINANCIAL_READ_CACHE",
+        "files": [
+          "src/lib/financeiro/conciliacao/processor.server.ts"
+        ],
+        "description": "Compartilha, apenas durante uma execucao do pipeline, leituras imutaveis da ultima importacao publicada e das linhas canonicas entre matching e conciliacao.",
+        "safety": "Promessas com falha sao removidas do cache; crosswalk mutavel nao e cacheado; nenhuma decisao, regra, assinatura ou persistencia foi alterada."
+      },
+      {
+        "id": "PARALLEL_CANDIDATE_PROJECTION",
+        "files": [
+          "src/lib/financeiro/risco/processor.server.ts"
+        ],
+        "description": "Executa a projecao candidata em paralelo com a atualizacao canonica independente.",
+        "safety": "As duas tarefas permanecem obrigatorias e sao aguardadas antes da classificacao e persistencia."
+      },
+      {
+        "id": "PARALLEL_EXPOSURE_READS",
+        "files": [
+          "src/lib/financeiro/exposicao/processor.server.ts"
+        ],
+        "description": "Agrupa leituras independentes de reconciliacao, posicao e overlay com Promise.all.",
+        "safety": "Somente a ordem de espera foi alterada; filtros, dados retornados e regras de exposicao foram preservados."
+      },
+      {
+        "id": "REPRODUCIBLE_BENCHMARK_INSTRUMENTATION",
+        "files": [
+          "scripts/homologacao/financeiro/risco/benchmark.mjs",
+          "scripts/homologacao/financeiro/risco/benchmark-worker.ts",
+          "src/lib/financeiro/risco/benchmark-stats.ts",
+          "src/lib/financeiro/risco/benchmark-stats.test.ts"
+        ],
+        "description": "Adiciona protocolo formal de warm-up/amostragem, percentis nearest-rank, todas as amostras, tracing de requests e guard estrito de homologacao.",
+        "safety": "O runner recusa projeto diferente de homologacao e nunca serializa credenciais."
+      }
+    ],
+    "migrations_created": 0,
+    "indexes_created": 0,
+    "rpcs_changed": 0,
+    "application_files_changed": 7,
+    "semantic_rules_changed": 0,
+    "security_controls_removed": 0
+  },
+  "after": {
+    "schema": "bw-antecipa-p2-6-9-benchmark-batch-v2",
+    "generated_at": "2026-08-18T13:50:30.598Z",
+    "batch": "after",
+    "profile_only": false,
+    "environment": "homolog",
+    "project_ref": "fhgkmggthxikfpogrvaa",
+    "production_touched": false,
+    "credential_rotation_required": false,
+    "credential_rotation_completed": true,
+    "administrative_credential_used": true,
+    "workload": {
+      "dataset": "RLX_GOLDEN_V2",
+      "data_operacional": "2026-08-10",
+      "benchmark_case_id": "RLX_GOLDEN_V2:ca8b721e-333c-4051-a87b-9359e51449c4:80bd0bec-88eb-fb5e-b585-7cc7e6ac8ce0:2026-08-10",
+      "fundo_qa_id": "ca8b721e-333c-4051-a87b-9359e51449c4",
+      "operacao_qa_id": "80bd0bec-88eb-fb5e-b585-7cc7e6ac8ce0",
+      "quantidade_nfs_fixture": 110,
+      "quantidade_nfs_fundo_qa": 100,
+      "quantidade_operacoes_fixture": 10,
+      "quantidade_matching_fixture": 9,
+      "quantidade_conciliacao_fixture": 10
+    },
+    "protocol": {
+      "warmups_executed": 5,
+      "measured_runs": 20,
+      "outliers_removed": 0,
+      "percentile_method": "nearest-rank"
+    },
+    "samples": [
+      {
+        "run": 1,
+        "timings": {
+          "matchingMs": 784,
+          "reconciliationMs": 845,
+          "logisticsMs": 1439,
+          "exposureMs": 1885,
+          "candidateSimulationMs": 582,
+          "classificationMs": 0,
+          "persistenceMs": 342,
+          "totalMs": 6101
+        },
+        "requests": {
+          "total": 58,
+          "rpc": 6,
+          "rest": 52,
+          "other": 0,
+          "methods": {
+            "GET": 51,
+            "POST": 6,
+            "HEAD": 1
+          },
+          "byStage": {
+            "policy": {
+              "total": 3,
+              "rpc": 0,
+              "rest": 3,
+              "other": 0
+            },
+            "matching": {
+              "total": 17,
+              "rpc": 2,
+              "rest": 15,
+              "other": 0
+            },
+            "reconciliation": {
+              "total": 8,
+              "rpc": 1,
+              "rest": 7,
+              "other": 0
+            },
+            "logistics": {
+              "total": 13,
+              "rpc": 1,
+              "rest": 12,
+              "other": 0
+            },
+            "exposure": {
+              "total": 13,
+              "rpc": 1,
+              "rest": 12,
+              "other": 0
+            },
+            "persistence": {
+              "total": 4,
+              "rpc": 1,
+              "rest": 3,
+              "other": 0
+            }
+          }
+        },
+        "technical_status": "CONCLUIDA",
+        "decision": "BLOQUEADO",
+        "reason_codes": [
+          "POSICAO_SEM_MATCH",
+          "EXPOSICAO_INDETERMINADA",
+          "LIQUIDACAO_PARCIAL_PRESENTE"
+        ],
+        "error": null
+      },
+      {
+        "run": 2,
+        "timings": {
+          "matchingMs": 800,
+          "reconciliationMs": 834,
+          "logisticsMs": 1404,
+          "exposureMs": 1933,
+          "candidateSimulationMs": 579,
+          "classificationMs": 1,
+          "persistenceMs": 381,
+          "totalMs": 6016
+        },
+        "requests": {
+          "total": 58,
+          "rpc": 6,
+          "rest": 52,
+          "other": 0,
+          "methods": {
+            "GET": 51,
+            "POST": 6,
+            "HEAD": 1
+          },
+          "byStage": {
+            "policy": {
+              "total": 3,
+              "rpc": 0,
+              "rest": 3,
+              "other": 0
+            },
+            "matching": {
+              "total": 17,
+              "rpc": 2,
+              "rest": 15,
+              "other": 0
+            },
+            "reconciliation": {
+              "total": 8,
+              "rpc": 1,
+              "rest": 7,
+              "other": 0
+            },
+            "logistics": {
+              "total": 13,
+              "rpc": 1,
+              "rest": 12,
+              "other": 0
+            },
+            "exposure": {
+              "total": 13,
+              "rpc": 1,
+              "rest": 12,
+              "other": 0
+            },
+            "persistence": {
+              "total": 4,
+              "rpc": 1,
+              "rest": 3,
+              "other": 0
+            }
+          }
+        },
+        "technical_status": "CONCLUIDA",
+        "decision": "BLOQUEADO",
+        "reason_codes": [
+          "POSICAO_SEM_MATCH",
+          "EXPOSICAO_INDETERMINADA",
+          "LIQUIDACAO_PARCIAL_PRESENTE"
+        ],
+        "error": null
+      },
+      {
+        "run": 3,
+        "timings": {
+          "matchingMs": 749,
+          "reconciliationMs": 909,
+          "logisticsMs": 1456,
+          "exposureMs": 1937,
+          "candidateSimulationMs": 574,
+          "classificationMs": 0,
+          "persistenceMs": 346,
+          "totalMs": 6089
+        },
+        "requests": {
+          "total": 58,
+          "rpc": 6,
+          "rest": 52,
+          "other": 0,
+          "methods": {
+            "GET": 51,
+            "POST": 6,
+            "HEAD": 1
+          },
+          "byStage": {
+            "policy": {
+              "total": 3,
+              "rpc": 0,
+              "rest": 3,
+              "other": 0
+            },
+            "matching": {
+              "total": 17,
+              "rpc": 2,
+              "rest": 15,
+              "other": 0
+            },
+            "reconciliation": {
+              "total": 8,
+              "rpc": 1,
+              "rest": 7,
+              "other": 0
+            },
+            "logistics": {
+              "total": 13,
+              "rpc": 1,
+              "rest": 12,
+              "other": 0
+            },
+            "exposure": {
+              "total": 13,
+              "rpc": 1,
+              "rest": 12,
+              "other": 0
+            },
+            "persistence": {
+              "total": 4,
+              "rpc": 1,
+              "rest": 3,
+              "other": 0
+            }
+          }
+        },
+        "technical_status": "CONCLUIDA",
+        "decision": "BLOQUEADO",
+        "reason_codes": [
+          "POSICAO_SEM_MATCH",
+          "EXPOSICAO_INDETERMINADA",
+          "LIQUIDACAO_PARCIAL_PRESENTE"
+        ],
+        "error": null
+      },
+      {
+        "run": 4,
+        "timings": {
+          "matchingMs": 758,
+          "reconciliationMs": 852,
+          "logisticsMs": 1409,
+          "exposureMs": 1899,
+          "candidateSimulationMs": 566,
+          "classificationMs": 0,
+          "persistenceMs": 389,
+          "totalMs": 5971
+        },
+        "requests": {
+          "total": 58,
+          "rpc": 6,
+          "rest": 52,
+          "other": 0,
+          "methods": {
+            "GET": 51,
+            "POST": 6,
+            "HEAD": 1
+          },
+          "byStage": {
+            "policy": {
+              "total": 3,
+              "rpc": 0,
+              "rest": 3,
+              "other": 0
+            },
+            "matching": {
+              "total": 17,
+              "rpc": 2,
+              "rest": 15,
+              "other": 0
+            },
+            "reconciliation": {
+              "total": 8,
+              "rpc": 1,
+              "rest": 7,
+              "other": 0
+            },
+            "logistics": {
+              "total": 13,
+              "rpc": 1,
+              "rest": 12,
+              "other": 0
+            },
+            "exposure": {
+              "total": 13,
+              "rpc": 1,
+              "rest": 12,
+              "other": 0
+            },
+            "persistence": {
+              "total": 4,
+              "rpc": 1,
+              "rest": 3,
+              "other": 0
+            }
+          }
+        },
+        "technical_status": "CONCLUIDA",
+        "decision": "BLOQUEADO",
+        "reason_codes": [
+          "POSICAO_SEM_MATCH",
+          "EXPOSICAO_INDETERMINADA",
+          "LIQUIDACAO_PARCIAL_PRESENTE"
+        ],
+        "error": null
+      },
+      {
+        "run": 5,
+        "timings": {
+          "matchingMs": 702,
+          "reconciliationMs": 933,
+          "logisticsMs": 1454,
+          "exposureMs": 1877,
+          "candidateSimulationMs": 591,
+          "classificationMs": 1,
+          "persistenceMs": 344,
+          "totalMs": 5938
+        },
+        "requests": {
+          "total": 58,
+          "rpc": 6,
+          "rest": 52,
+          "other": 0,
+          "methods": {
+            "GET": 51,
+            "POST": 6,
+            "HEAD": 1
+          },
+          "byStage": {
+            "policy": {
+              "total": 3,
+              "rpc": 0,
+              "rest": 3,
+              "other": 0
+            },
+            "matching": {
+              "total": 17,
+              "rpc": 2,
+              "rest": 15,
+              "other": 0
+            },
+            "reconciliation": {
+              "total": 8,
+              "rpc": 1,
+              "rest": 7,
+              "other": 0
+            },
+            "logistics": {
+              "total": 13,
+              "rpc": 1,
+              "rest": 12,
+              "other": 0
+            },
+            "exposure": {
+              "total": 13,
+              "rpc": 1,
+              "rest": 12,
+              "other": 0
+            },
+            "persistence": {
+              "total": 4,
+              "rpc": 1,
+              "rest": 3,
+              "other": 0
+            }
+          }
+        },
+        "technical_status": "CONCLUIDA",
+        "decision": "BLOQUEADO",
+        "reason_codes": [
+          "POSICAO_SEM_MATCH",
+          "EXPOSICAO_INDETERMINADA",
+          "LIQUIDACAO_PARCIAL_PRESENTE"
+        ],
+        "error": null
+      },
+      {
+        "run": 6,
+        "timings": {
+          "matchingMs": 726,
+          "reconciliationMs": 875,
+          "logisticsMs": 1399,
+          "exposureMs": 1906,
+          "candidateSimulationMs": 889,
+          "classificationMs": 1,
+          "persistenceMs": 330,
+          "totalMs": 5895
+        },
+        "requests": {
+          "total": 58,
+          "rpc": 6,
+          "rest": 52,
+          "other": 0,
+          "methods": {
+            "GET": 51,
+            "POST": 6,
+            "HEAD": 1
+          },
+          "byStage": {
+            "policy": {
+              "total": 3,
+              "rpc": 0,
+              "rest": 3,
+              "other": 0
+            },
+            "matching": {
+              "total": 17,
+              "rpc": 2,
+              "rest": 15,
+              "other": 0
+            },
+            "reconciliation": {
+              "total": 8,
+              "rpc": 1,
+              "rest": 7,
+              "other": 0
+            },
+            "logistics": {
+              "total": 13,
+              "rpc": 1,
+              "rest": 12,
+              "other": 0
+            },
+            "exposure": {
+              "total": 13,
+              "rpc": 1,
+              "rest": 12,
+              "other": 0
+            },
+            "persistence": {
+              "total": 4,
+              "rpc": 1,
+              "rest": 3,
+              "other": 0
+            }
+          }
+        },
+        "technical_status": "CONCLUIDA",
+        "decision": "BLOQUEADO",
+        "reason_codes": [
+          "POSICAO_SEM_MATCH",
+          "EXPOSICAO_INDETERMINADA",
+          "LIQUIDACAO_PARCIAL_PRESENTE"
+        ],
+        "error": null
+      },
+      {
+        "run": 7,
+        "timings": {
+          "matchingMs": 722,
+          "reconciliationMs": 888,
+          "logisticsMs": 1378,
+          "exposureMs": 1871,
+          "candidateSimulationMs": 589,
+          "classificationMs": 0,
+          "persistenceMs": 346,
+          "totalMs": 5855
+        },
+        "requests": {
+          "total": 58,
+          "rpc": 6,
+          "rest": 52,
+          "other": 0,
+          "methods": {
+            "GET": 51,
+            "POST": 6,
+            "HEAD": 1
+          },
+          "byStage": {
+            "policy": {
+              "total": 3,
+              "rpc": 0,
+              "rest": 3,
+              "other": 0
+            },
+            "matching": {
+              "total": 17,
+              "rpc": 2,
+              "rest": 15,
+              "other": 0
+            },
+            "reconciliation": {
+              "total": 8,
+              "rpc": 1,
+              "rest": 7,
+              "other": 0
+            },
+            "logistics": {
+              "total": 13,
+              "rpc": 1,
+              "rest": 12,
+              "other": 0
+            },
+            "exposure": {
+              "total": 13,
+              "rpc": 1,
+              "rest": 12,
+              "other": 0
+            },
+            "persistence": {
+              "total": 4,
+              "rpc": 1,
+              "rest": 3,
+              "other": 0
+            }
+          }
+        },
+        "technical_status": "CONCLUIDA",
+        "decision": "BLOQUEADO",
+        "reason_codes": [
+          "POSICAO_SEM_MATCH",
+          "EXPOSICAO_INDETERMINADA",
+          "LIQUIDACAO_PARCIAL_PRESENTE"
+        ],
+        "error": null
+      },
+      {
+        "run": 8,
+        "timings": {
+          "matchingMs": 723,
+          "reconciliationMs": 911,
+          "logisticsMs": 1424,
+          "exposureMs": 1961,
+          "candidateSimulationMs": 654,
+          "classificationMs": 0,
+          "persistenceMs": 368,
+          "totalMs": 6031
+        },
+        "requests": {
+          "total": 58,
+          "rpc": 6,
+          "rest": 52,
+          "other": 0,
+          "methods": {
+            "GET": 51,
+            "POST": 6,
+            "HEAD": 1
+          },
+          "byStage": {
+            "policy": {
+              "total": 3,
+              "rpc": 0,
+              "rest": 3,
+              "other": 0
+            },
+            "matching": {
+              "total": 17,
+              "rpc": 2,
+              "rest": 15,
+              "other": 0
+            },
+            "reconciliation": {
+              "total": 8,
+              "rpc": 1,
+              "rest": 7,
+              "other": 0
+            },
+            "logistics": {
+              "total": 13,
+              "rpc": 1,
+              "rest": 12,
+              "other": 0
+            },
+            "exposure": {
+              "total": 13,
+              "rpc": 1,
+              "rest": 12,
+              "other": 0
+            },
+            "persistence": {
+              "total": 4,
+              "rpc": 1,
+              "rest": 3,
+              "other": 0
+            }
+          }
+        },
+        "technical_status": "CONCLUIDA",
+        "decision": "BLOQUEADO",
+        "reason_codes": [
+          "POSICAO_SEM_MATCH",
+          "EXPOSICAO_INDETERMINADA",
+          "LIQUIDACAO_PARCIAL_PRESENTE"
+        ],
+        "error": null
+      },
+      {
+        "run": 9,
+        "timings": {
+          "matchingMs": 704,
+          "reconciliationMs": 866,
+          "logisticsMs": 1443,
+          "exposureMs": 2079,
+          "candidateSimulationMs": 554,
+          "classificationMs": 1,
+          "persistenceMs": 376,
+          "totalMs": 6171
+        },
+        "requests": {
+          "total": 58,
+          "rpc": 6,
+          "rest": 52,
+          "other": 0,
+          "methods": {
+            "GET": 51,
+            "POST": 6,
+            "HEAD": 1
+          },
+          "byStage": {
+            "policy": {
+              "total": 3,
+              "rpc": 0,
+              "rest": 3,
+              "other": 0
+            },
+            "matching": {
+              "total": 17,
+              "rpc": 2,
+              "rest": 15,
+              "other": 0
+            },
+            "reconciliation": {
+              "total": 8,
+              "rpc": 1,
+              "rest": 7,
+              "other": 0
+            },
+            "logistics": {
+              "total": 13,
+              "rpc": 1,
+              "rest": 12,
+              "other": 0
+            },
+            "exposure": {
+              "total": 13,
+              "rpc": 1,
+              "rest": 12,
+              "other": 0
+            },
+            "persistence": {
+              "total": 4,
+              "rpc": 1,
+              "rest": 3,
+              "other": 0
+            }
+          }
+        },
+        "technical_status": "CONCLUIDA",
+        "decision": "BLOQUEADO",
+        "reason_codes": [
+          "POSICAO_SEM_MATCH",
+          "EXPOSICAO_INDETERMINADA",
+          "LIQUIDACAO_PARCIAL_PRESENTE"
+        ],
+        "error": null
+      },
+      {
+        "run": 10,
+        "timings": {
+          "matchingMs": 811,
+          "reconciliationMs": 953,
+          "logisticsMs": 1386,
+          "exposureMs": 1822,
+          "candidateSimulationMs": 619,
+          "classificationMs": 1,
+          "persistenceMs": 359,
+          "totalMs": 6031
+        },
+        "requests": {
+          "total": 58,
+          "rpc": 6,
+          "rest": 52,
+          "other": 0,
+          "methods": {
+            "GET": 51,
+            "POST": 6,
+            "HEAD": 1
+          },
+          "byStage": {
+            "policy": {
+              "total": 3,
+              "rpc": 0,
+              "rest": 3,
+              "other": 0
+            },
+            "matching": {
+              "total": 17,
+              "rpc": 2,
+              "rest": 15,
+              "other": 0
+            },
+            "reconciliation": {
+              "total": 8,
+              "rpc": 1,
+              "rest": 7,
+              "other": 0
+            },
+            "logistics": {
+              "total": 13,
+              "rpc": 1,
+              "rest": 12,
+              "other": 0
+            },
+            "exposure": {
+              "total": 13,
+              "rpc": 1,
+              "rest": 12,
+              "other": 0
+            },
+            "persistence": {
+              "total": 4,
+              "rpc": 1,
+              "rest": 3,
+              "other": 0
+            }
+          }
+        },
+        "technical_status": "CONCLUIDA",
+        "decision": "BLOQUEADO",
+        "reason_codes": [
+          "POSICAO_SEM_MATCH",
+          "EXPOSICAO_INDETERMINADA",
+          "LIQUIDACAO_PARCIAL_PRESENTE"
+        ],
+        "error": null
+      },
+      {
+        "run": 11,
+        "timings": {
+          "matchingMs": 731,
+          "reconciliationMs": 853,
+          "logisticsMs": 1421,
+          "exposureMs": 1902,
+          "candidateSimulationMs": 614,
+          "classificationMs": 1,
+          "persistenceMs": 351,
+          "totalMs": 5938
+        },
+        "requests": {
+          "total": 58,
+          "rpc": 6,
+          "rest": 52,
+          "other": 0,
+          "methods": {
+            "GET": 51,
+            "POST": 6,
+            "HEAD": 1
+          },
+          "byStage": {
+            "policy": {
+              "total": 3,
+              "rpc": 0,
+              "rest": 3,
+              "other": 0
+            },
+            "matching": {
+              "total": 17,
+              "rpc": 2,
+              "rest": 15,
+              "other": 0
+            },
+            "reconciliation": {
+              "total": 8,
+              "rpc": 1,
+              "rest": 7,
+              "other": 0
+            },
+            "logistics": {
+              "total": 13,
+              "rpc": 1,
+              "rest": 12,
+              "other": 0
+            },
+            "exposure": {
+              "total": 13,
+              "rpc": 1,
+              "rest": 12,
+              "other": 0
+            },
+            "persistence": {
+              "total": 4,
+              "rpc": 1,
+              "rest": 3,
+              "other": 0
+            }
+          }
+        },
+        "technical_status": "CONCLUIDA",
+        "decision": "BLOQUEADO",
+        "reason_codes": [
+          "POSICAO_SEM_MATCH",
+          "EXPOSICAO_INDETERMINADA",
+          "LIQUIDACAO_PARCIAL_PRESENTE"
+        ],
+        "error": null
+      },
+      {
+        "run": 12,
+        "timings": {
+          "matchingMs": 732,
+          "reconciliationMs": 880,
+          "logisticsMs": 1389,
+          "exposureMs": 1872,
+          "candidateSimulationMs": 557,
+          "classificationMs": 0,
+          "persistenceMs": 362,
+          "totalMs": 5919
+        },
+        "requests": {
+          "total": 58,
+          "rpc": 6,
+          "rest": 52,
+          "other": 0,
+          "methods": {
+            "GET": 51,
+            "POST": 6,
+            "HEAD": 1
+          },
+          "byStage": {
+            "policy": {
+              "total": 3,
+              "rpc": 0,
+              "rest": 3,
+              "other": 0
+            },
+            "matching": {
+              "total": 17,
+              "rpc": 2,
+              "rest": 15,
+              "other": 0
+            },
+            "reconciliation": {
+              "total": 8,
+              "rpc": 1,
+              "rest": 7,
+              "other": 0
+            },
+            "logistics": {
+              "total": 13,
+              "rpc": 1,
+              "rest": 12,
+              "other": 0
+            },
+            "exposure": {
+              "total": 13,
+              "rpc": 1,
+              "rest": 12,
+              "other": 0
+            },
+            "persistence": {
+              "total": 4,
+              "rpc": 1,
+              "rest": 3,
+              "other": 0
+            }
+          }
+        },
+        "technical_status": "CONCLUIDA",
+        "decision": "BLOQUEADO",
+        "reason_codes": [
+          "POSICAO_SEM_MATCH",
+          "EXPOSICAO_INDETERMINADA",
+          "LIQUIDACAO_PARCIAL_PRESENTE"
+        ],
+        "error": null
+      },
+      {
+        "run": 13,
+        "timings": {
+          "matchingMs": 978,
+          "reconciliationMs": 868,
+          "logisticsMs": 1408,
+          "exposureMs": 1950,
+          "candidateSimulationMs": 614,
+          "classificationMs": 0,
+          "persistenceMs": 407,
+          "totalMs": 6331
+        },
+        "requests": {
+          "total": 58,
+          "rpc": 6,
+          "rest": 52,
+          "other": 0,
+          "methods": {
+            "GET": 51,
+            "POST": 6,
+            "HEAD": 1
+          },
+          "byStage": {
+            "policy": {
+              "total": 3,
+              "rpc": 0,
+              "rest": 3,
+              "other": 0
+            },
+            "matching": {
+              "total": 17,
+              "rpc": 2,
+              "rest": 15,
+              "other": 0
+            },
+            "reconciliation": {
+              "total": 8,
+              "rpc": 1,
+              "rest": 7,
+              "other": 0
+            },
+            "logistics": {
+              "total": 13,
+              "rpc": 1,
+              "rest": 12,
+              "other": 0
+            },
+            "exposure": {
+              "total": 13,
+              "rpc": 1,
+              "rest": 12,
+              "other": 0
+            },
+            "persistence": {
+              "total": 4,
+              "rpc": 1,
+              "rest": 3,
+              "other": 0
+            }
+          }
+        },
+        "technical_status": "CONCLUIDA",
+        "decision": "BLOQUEADO",
+        "reason_codes": [
+          "POSICAO_SEM_MATCH",
+          "EXPOSICAO_INDETERMINADA",
+          "LIQUIDACAO_PARCIAL_PRESENTE"
+        ],
+        "error": null
+      },
+      {
+        "run": 14,
+        "timings": {
+          "matchingMs": 1215,
+          "reconciliationMs": 950,
+          "logisticsMs": 1521,
+          "exposureMs": 1918,
+          "candidateSimulationMs": 552,
+          "classificationMs": 0,
+          "persistenceMs": 361,
+          "totalMs": 6916
+        },
+        "requests": {
+          "total": 58,
+          "rpc": 6,
+          "rest": 52,
+          "other": 0,
+          "methods": {
+            "GET": 51,
+            "POST": 6,
+            "HEAD": 1
+          },
+          "byStage": {
+            "policy": {
+              "total": 3,
+              "rpc": 0,
+              "rest": 3,
+              "other": 0
+            },
+            "matching": {
+              "total": 17,
+              "rpc": 2,
+              "rest": 15,
+              "other": 0
+            },
+            "reconciliation": {
+              "total": 8,
+              "rpc": 1,
+              "rest": 7,
+              "other": 0
+            },
+            "logistics": {
+              "total": 13,
+              "rpc": 1,
+              "rest": 12,
+              "other": 0
+            },
+            "exposure": {
+              "total": 13,
+              "rpc": 1,
+              "rest": 12,
+              "other": 0
+            },
+            "persistence": {
+              "total": 4,
+              "rpc": 1,
+              "rest": 3,
+              "other": 0
+            }
+          }
+        },
+        "technical_status": "CONCLUIDA",
+        "decision": "BLOQUEADO",
+        "reason_codes": [
+          "POSICAO_SEM_MATCH",
+          "EXPOSICAO_INDETERMINADA",
+          "LIQUIDACAO_PARCIAL_PRESENTE"
+        ],
+        "error": null
+      },
+      {
+        "run": 15,
+        "timings": {
+          "matchingMs": 783,
+          "reconciliationMs": 960,
+          "logisticsMs": 1419,
+          "exposureMs": 1920,
+          "candidateSimulationMs": 550,
+          "classificationMs": 0,
+          "persistenceMs": 360,
+          "totalMs": 6129
+        },
+        "requests": {
+          "total": 58,
+          "rpc": 6,
+          "rest": 52,
+          "other": 0,
+          "methods": {
+            "GET": 51,
+            "POST": 6,
+            "HEAD": 1
+          },
+          "byStage": {
+            "policy": {
+              "total": 3,
+              "rpc": 0,
+              "rest": 3,
+              "other": 0
+            },
+            "matching": {
+              "total": 17,
+              "rpc": 2,
+              "rest": 15,
+              "other": 0
+            },
+            "reconciliation": {
+              "total": 8,
+              "rpc": 1,
+              "rest": 7,
+              "other": 0
+            },
+            "logistics": {
+              "total": 13,
+              "rpc": 1,
+              "rest": 12,
+              "other": 0
+            },
+            "exposure": {
+              "total": 13,
+              "rpc": 1,
+              "rest": 12,
+              "other": 0
+            },
+            "persistence": {
+              "total": 4,
+              "rpc": 1,
+              "rest": 3,
+              "other": 0
+            }
+          }
+        },
+        "technical_status": "CONCLUIDA",
+        "decision": "BLOQUEADO",
+        "reason_codes": [
+          "POSICAO_SEM_MATCH",
+          "EXPOSICAO_INDETERMINADA",
+          "LIQUIDACAO_PARCIAL_PRESENTE"
+        ],
+        "error": null
+      },
+      {
+        "run": 16,
+        "timings": {
+          "matchingMs": 734,
+          "reconciliationMs": 932,
+          "logisticsMs": 1433,
+          "exposureMs": 1872,
+          "candidateSimulationMs": 541,
+          "classificationMs": 1,
+          "persistenceMs": 417,
+          "totalMs": 6065
+        },
+        "requests": {
+          "total": 58,
+          "rpc": 6,
+          "rest": 52,
+          "other": 0,
+          "methods": {
+            "GET": 51,
+            "POST": 6,
+            "HEAD": 1
+          },
+          "byStage": {
+            "policy": {
+              "total": 3,
+              "rpc": 0,
+              "rest": 3,
+              "other": 0
+            },
+            "matching": {
+              "total": 17,
+              "rpc": 2,
+              "rest": 15,
+              "other": 0
+            },
+            "reconciliation": {
+              "total": 8,
+              "rpc": 1,
+              "rest": 7,
+              "other": 0
+            },
+            "logistics": {
+              "total": 13,
+              "rpc": 1,
+              "rest": 12,
+              "other": 0
+            },
+            "exposure": {
+              "total": 13,
+              "rpc": 1,
+              "rest": 12,
+              "other": 0
+            },
+            "persistence": {
+              "total": 4,
+              "rpc": 1,
+              "rest": 3,
+              "other": 0
+            }
+          }
+        },
+        "technical_status": "CONCLUIDA",
+        "decision": "BLOQUEADO",
+        "reason_codes": [
+          "POSICAO_SEM_MATCH",
+          "EXPOSICAO_INDETERMINADA",
+          "LIQUIDACAO_PARCIAL_PRESENTE"
+        ],
+        "error": null
+      },
+      {
+        "run": 17,
+        "timings": {
+          "matchingMs": 1516,
+          "reconciliationMs": 890,
+          "logisticsMs": 1442,
+          "exposureMs": 1931,
+          "candidateSimulationMs": 1206,
+          "classificationMs": 1,
+          "persistenceMs": 363,
+          "totalMs": 6839
+        },
+        "requests": {
+          "total": 58,
+          "rpc": 6,
+          "rest": 52,
+          "other": 0,
+          "methods": {
+            "GET": 51,
+            "POST": 6,
+            "HEAD": 1
+          },
+          "byStage": {
+            "policy": {
+              "total": 3,
+              "rpc": 0,
+              "rest": 3,
+              "other": 0
+            },
+            "matching": {
+              "total": 17,
+              "rpc": 2,
+              "rest": 15,
+              "other": 0
+            },
+            "reconciliation": {
+              "total": 8,
+              "rpc": 1,
+              "rest": 7,
+              "other": 0
+            },
+            "logistics": {
+              "total": 13,
+              "rpc": 1,
+              "rest": 12,
+              "other": 0
+            },
+            "exposure": {
+              "total": 13,
+              "rpc": 1,
+              "rest": 12,
+              "other": 0
+            },
+            "persistence": {
+              "total": 4,
+              "rpc": 1,
+              "rest": 3,
+              "other": 0
+            }
+          }
+        },
+        "technical_status": "CONCLUIDA",
+        "decision": "BLOQUEADO",
+        "reason_codes": [
+          "POSICAO_SEM_MATCH",
+          "EXPOSICAO_INDETERMINADA",
+          "LIQUIDACAO_PARCIAL_PRESENTE"
+        ],
+        "error": null
+      },
+      {
+        "run": 18,
+        "timings": {
+          "matchingMs": 718,
+          "reconciliationMs": 866,
+          "logisticsMs": 1477,
+          "exposureMs": 1890,
+          "candidateSimulationMs": 638,
+          "classificationMs": 0,
+          "persistenceMs": 415,
+          "totalMs": 6082
+        },
+        "requests": {
+          "total": 58,
+          "rpc": 6,
+          "rest": 52,
+          "other": 0,
+          "methods": {
+            "GET": 51,
+            "POST": 6,
+            "HEAD": 1
+          },
+          "byStage": {
+            "policy": {
+              "total": 3,
+              "rpc": 0,
+              "rest": 3,
+              "other": 0
+            },
+            "matching": {
+              "total": 17,
+              "rpc": 2,
+              "rest": 15,
+              "other": 0
+            },
+            "reconciliation": {
+              "total": 8,
+              "rpc": 1,
+              "rest": 7,
+              "other": 0
+            },
+            "logistics": {
+              "total": 13,
+              "rpc": 1,
+              "rest": 12,
+              "other": 0
+            },
+            "exposure": {
+              "total": 13,
+              "rpc": 1,
+              "rest": 12,
+              "other": 0
+            },
+            "persistence": {
+              "total": 4,
+              "rpc": 1,
+              "rest": 3,
+              "other": 0
+            }
+          }
+        },
+        "technical_status": "CONCLUIDA",
+        "decision": "BLOQUEADO",
+        "reason_codes": [
+          "POSICAO_SEM_MATCH",
+          "EXPOSICAO_INDETERMINADA",
+          "LIQUIDACAO_PARCIAL_PRESENTE"
+        ],
+        "error": null
+      },
+      {
+        "run": 19,
+        "timings": {
+          "matchingMs": 743,
+          "reconciliationMs": 933,
+          "logisticsMs": 1364,
+          "exposureMs": 1936,
+          "candidateSimulationMs": 612,
+          "classificationMs": 0,
+          "persistenceMs": 369,
+          "totalMs": 6175
+        },
+        "requests": {
+          "total": 58,
+          "rpc": 6,
+          "rest": 52,
+          "other": 0,
+          "methods": {
+            "GET": 51,
+            "POST": 6,
+            "HEAD": 1
+          },
+          "byStage": {
+            "policy": {
+              "total": 3,
+              "rpc": 0,
+              "rest": 3,
+              "other": 0
+            },
+            "matching": {
+              "total": 17,
+              "rpc": 2,
+              "rest": 15,
+              "other": 0
+            },
+            "reconciliation": {
+              "total": 8,
+              "rpc": 1,
+              "rest": 7,
+              "other": 0
+            },
+            "logistics": {
+              "total": 13,
+              "rpc": 1,
+              "rest": 12,
+              "other": 0
+            },
+            "exposure": {
+              "total": 13,
+              "rpc": 1,
+              "rest": 12,
+              "other": 0
+            },
+            "persistence": {
+              "total": 4,
+              "rpc": 1,
+              "rest": 3,
+              "other": 0
+            }
+          }
+        },
+        "technical_status": "CONCLUIDA",
+        "decision": "BLOQUEADO",
+        "reason_codes": [
+          "POSICAO_SEM_MATCH",
+          "EXPOSICAO_INDETERMINADA",
+          "LIQUIDACAO_PARCIAL_PRESENTE"
+        ],
+        "error": null
+      },
+      {
+        "run": 20,
+        "timings": {
+          "matchingMs": 736,
+          "reconciliationMs": 870,
+          "logisticsMs": 1385,
+          "exposureMs": 1899,
+          "candidateSimulationMs": 572,
+          "classificationMs": 0,
+          "persistenceMs": 479,
+          "totalMs": 6065
+        },
+        "requests": {
+          "total": 58,
+          "rpc": 6,
+          "rest": 52,
+          "other": 0,
+          "methods": {
+            "GET": 51,
+            "POST": 6,
+            "HEAD": 1
+          },
+          "byStage": {
+            "policy": {
+              "total": 3,
+              "rpc": 0,
+              "rest": 3,
+              "other": 0
+            },
+            "matching": {
+              "total": 17,
+              "rpc": 2,
+              "rest": 15,
+              "other": 0
+            },
+            "reconciliation": {
+              "total": 8,
+              "rpc": 1,
+              "rest": 7,
+              "other": 0
+            },
+            "logistics": {
+              "total": 13,
+              "rpc": 1,
+              "rest": 12,
+              "other": 0
+            },
+            "exposure": {
+              "total": 13,
+              "rpc": 1,
+              "rest": 12,
+              "other": 0
+            },
+            "persistence": {
+              "total": 4,
+              "rpc": 1,
+              "rest": 3,
+              "other": 0
+            }
+          }
+        },
+        "technical_status": "CONCLUIDA",
+        "decision": "BLOQUEADO",
+        "reason_codes": [
+          "POSICAO_SEM_MATCH",
+          "EXPOSICAO_INDETERMINADA",
+          "LIQUIDACAO_PARCIAL_PRESENTE"
+        ],
+        "error": null
+      }
+    ],
+    "stats": {
+      "matchingMs": {
+        "count": 20,
+        "min": 702,
+        "p25": 723,
+        "p50": 736,
+        "p75": 784,
+        "p90": 978,
+        "p95": 1215,
+        "max": 1516,
+        "mean": 818.25,
+        "standardDeviation": 197.36
+      },
+      "reconciliationMs": {
+        "count": 20,
+        "min": 834,
+        "p25": 866,
+        "p50": 880,
+        "p75": 932,
+        "p90": 950,
+        "p95": 953,
+        "max": 960,
+        "mean": 893.4,
+        "standardDeviation": 37.97
+      },
+      "logisticsMs": {
+        "count": 20,
+        "min": 1364,
+        "p25": 1389,
+        "p50": 1419,
+        "p75": 1442,
+        "p90": 1456,
+        "p95": 1477,
+        "max": 1521,
+        "mean": 1422.55,
+        "standardDeviation": 36.43
+      },
+      "exposureMs": {
+        "count": 20,
+        "min": 1822,
+        "p25": 1877,
+        "p50": 1902,
+        "p75": 1933,
+        "p90": 1950,
+        "p95": 1961,
+        "max": 2079,
+        "mean": 1913,
+        "standardDeviation": 49.85
+      },
+      "candidateSimulationMs": {
+        "count": 20,
+        "min": 541,
+        "p25": 557,
+        "p50": 582,
+        "p75": 614,
+        "p90": 654,
+        "p95": 889,
+        "max": 1206,
+        "mean": 632.65,
+        "standardDeviation": 150.09
+      },
+      "classificationMs": {
+        "count": 20,
+        "min": 0,
+        "p25": 0,
+        "p50": 0,
+        "p75": 1,
+        "p90": 1,
+        "p95": 1,
+        "max": 1,
+        "mean": 0.4,
+        "standardDeviation": 0.49
+      },
+      "persistenceMs": {
+        "count": 20,
+        "min": 330,
+        "p25": 346,
+        "p50": 362,
+        "p75": 381,
+        "p90": 415,
+        "p95": 417,
+        "max": 479,
+        "mean": 373.25,
+        "standardDeviation": 33.75
+      },
+      "totalMs": {
+        "count": 20,
+        "min": 5855,
+        "p25": 5938,
+        "p50": 6065,
+        "p75": 6129,
+        "p90": 6331,
+        "p95": 6839,
+        "max": 6916,
+        "mean": 6127.85,
+        "standardDeviation": 272.47
+      }
+    },
+    "request_stats": {
+      "total": {
+        "count": 20,
+        "min": 58,
+        "p25": 58,
+        "p50": 58,
+        "p75": 58,
+        "p90": 58,
+        "p95": 58,
+        "max": 58,
+        "mean": 58,
+        "standardDeviation": 0
+      },
+      "rpc": {
+        "count": 20,
+        "min": 6,
+        "p25": 6,
+        "p50": 6,
+        "p75": 6,
+        "p90": 6,
+        "p95": 6,
+        "max": 6,
+        "mean": 6,
+        "standardDeviation": 0
+      },
+      "rest": {
+        "count": 20,
+        "min": 52,
+        "p25": 52,
+        "p50": 52,
+        "p75": 52,
+        "p90": 52,
+        "p95": 52,
+        "max": 52,
+        "mean": 52,
+        "standardDeviation": 0
+      },
+      "other": {
+        "count": 20,
+        "min": 0,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 0,
+        "p95": 0,
+        "max": 0,
+        "mean": 0,
+        "standardDeviation": 0
+      }
+    },
+    "request_profile_by_stage": [
+      {
+        "policy": {
+          "total": 3,
+          "rpc": 0,
+          "rest": 3,
+          "other": 0
+        },
+        "matching": {
+          "total": 17,
+          "rpc": 2,
+          "rest": 15,
+          "other": 0
+        },
+        "reconciliation": {
+          "total": 8,
+          "rpc": 1,
+          "rest": 7,
+          "other": 0
+        },
+        "logistics": {
+          "total": 13,
+          "rpc": 1,
+          "rest": 12,
+          "other": 0
+        },
+        "exposure": {
+          "total": 13,
+          "rpc": 1,
+          "rest": 12,
+          "other": 0
+        },
+        "persistence": {
+          "total": 4,
+          "rpc": 1,
+          "rest": 3,
+          "other": 0
+        }
+      },
+      {
+        "policy": {
+          "total": 3,
+          "rpc": 0,
+          "rest": 3,
+          "other": 0
+        },
+        "matching": {
+          "total": 17,
+          "rpc": 2,
+          "rest": 15,
+          "other": 0
+        },
+        "reconciliation": {
+          "total": 8,
+          "rpc": 1,
+          "rest": 7,
+          "other": 0
+        },
+        "logistics": {
+          "total": 13,
+          "rpc": 1,
+          "rest": 12,
+          "other": 0
+        },
+        "exposure": {
+          "total": 13,
+          "rpc": 1,
+          "rest": 12,
+          "other": 0
+        },
+        "persistence": {
+          "total": 4,
+          "rpc": 1,
+          "rest": 3,
+          "other": 0
+        }
+      },
+      {
+        "policy": {
+          "total": 3,
+          "rpc": 0,
+          "rest": 3,
+          "other": 0
+        },
+        "matching": {
+          "total": 17,
+          "rpc": 2,
+          "rest": 15,
+          "other": 0
+        },
+        "reconciliation": {
+          "total": 8,
+          "rpc": 1,
+          "rest": 7,
+          "other": 0
+        },
+        "logistics": {
+          "total": 13,
+          "rpc": 1,
+          "rest": 12,
+          "other": 0
+        },
+        "exposure": {
+          "total": 13,
+          "rpc": 1,
+          "rest": 12,
+          "other": 0
+        },
+        "persistence": {
+          "total": 4,
+          "rpc": 1,
+          "rest": 3,
+          "other": 0
+        }
+      },
+      {
+        "policy": {
+          "total": 3,
+          "rpc": 0,
+          "rest": 3,
+          "other": 0
+        },
+        "matching": {
+          "total": 17,
+          "rpc": 2,
+          "rest": 15,
+          "other": 0
+        },
+        "reconciliation": {
+          "total": 8,
+          "rpc": 1,
+          "rest": 7,
+          "other": 0
+        },
+        "logistics": {
+          "total": 13,
+          "rpc": 1,
+          "rest": 12,
+          "other": 0
+        },
+        "exposure": {
+          "total": 13,
+          "rpc": 1,
+          "rest": 12,
+          "other": 0
+        },
+        "persistence": {
+          "total": 4,
+          "rpc": 1,
+          "rest": 3,
+          "other": 0
+        }
+      },
+      {
+        "policy": {
+          "total": 3,
+          "rpc": 0,
+          "rest": 3,
+          "other": 0
+        },
+        "matching": {
+          "total": 17,
+          "rpc": 2,
+          "rest": 15,
+          "other": 0
+        },
+        "reconciliation": {
+          "total": 8,
+          "rpc": 1,
+          "rest": 7,
+          "other": 0
+        },
+        "logistics": {
+          "total": 13,
+          "rpc": 1,
+          "rest": 12,
+          "other": 0
+        },
+        "exposure": {
+          "total": 13,
+          "rpc": 1,
+          "rest": 12,
+          "other": 0
+        },
+        "persistence": {
+          "total": 4,
+          "rpc": 1,
+          "rest": 3,
+          "other": 0
+        }
+      },
+      {
+        "policy": {
+          "total": 3,
+          "rpc": 0,
+          "rest": 3,
+          "other": 0
+        },
+        "matching": {
+          "total": 17,
+          "rpc": 2,
+          "rest": 15,
+          "other": 0
+        },
+        "reconciliation": {
+          "total": 8,
+          "rpc": 1,
+          "rest": 7,
+          "other": 0
+        },
+        "logistics": {
+          "total": 13,
+          "rpc": 1,
+          "rest": 12,
+          "other": 0
+        },
+        "exposure": {
+          "total": 13,
+          "rpc": 1,
+          "rest": 12,
+          "other": 0
+        },
+        "persistence": {
+          "total": 4,
+          "rpc": 1,
+          "rest": 3,
+          "other": 0
+        }
+      },
+      {
+        "policy": {
+          "total": 3,
+          "rpc": 0,
+          "rest": 3,
+          "other": 0
+        },
+        "matching": {
+          "total": 17,
+          "rpc": 2,
+          "rest": 15,
+          "other": 0
+        },
+        "reconciliation": {
+          "total": 8,
+          "rpc": 1,
+          "rest": 7,
+          "other": 0
+        },
+        "logistics": {
+          "total": 13,
+          "rpc": 1,
+          "rest": 12,
+          "other": 0
+        },
+        "exposure": {
+          "total": 13,
+          "rpc": 1,
+          "rest": 12,
+          "other": 0
+        },
+        "persistence": {
+          "total": 4,
+          "rpc": 1,
+          "rest": 3,
+          "other": 0
+        }
+      },
+      {
+        "policy": {
+          "total": 3,
+          "rpc": 0,
+          "rest": 3,
+          "other": 0
+        },
+        "matching": {
+          "total": 17,
+          "rpc": 2,
+          "rest": 15,
+          "other": 0
+        },
+        "reconciliation": {
+          "total": 8,
+          "rpc": 1,
+          "rest": 7,
+          "other": 0
+        },
+        "logistics": {
+          "total": 13,
+          "rpc": 1,
+          "rest": 12,
+          "other": 0
+        },
+        "exposure": {
+          "total": 13,
+          "rpc": 1,
+          "rest": 12,
+          "other": 0
+        },
+        "persistence": {
+          "total": 4,
+          "rpc": 1,
+          "rest": 3,
+          "other": 0
+        }
+      },
+      {
+        "policy": {
+          "total": 3,
+          "rpc": 0,
+          "rest": 3,
+          "other": 0
+        },
+        "matching": {
+          "total": 17,
+          "rpc": 2,
+          "rest": 15,
+          "other": 0
+        },
+        "reconciliation": {
+          "total": 8,
+          "rpc": 1,
+          "rest": 7,
+          "other": 0
+        },
+        "logistics": {
+          "total": 13,
+          "rpc": 1,
+          "rest": 12,
+          "other": 0
+        },
+        "exposure": {
+          "total": 13,
+          "rpc": 1,
+          "rest": 12,
+          "other": 0
+        },
+        "persistence": {
+          "total": 4,
+          "rpc": 1,
+          "rest": 3,
+          "other": 0
+        }
+      },
+      {
+        "policy": {
+          "total": 3,
+          "rpc": 0,
+          "rest": 3,
+          "other": 0
+        },
+        "matching": {
+          "total": 17,
+          "rpc": 2,
+          "rest": 15,
+          "other": 0
+        },
+        "reconciliation": {
+          "total": 8,
+          "rpc": 1,
+          "rest": 7,
+          "other": 0
+        },
+        "logistics": {
+          "total": 13,
+          "rpc": 1,
+          "rest": 12,
+          "other": 0
+        },
+        "exposure": {
+          "total": 13,
+          "rpc": 1,
+          "rest": 12,
+          "other": 0
+        },
+        "persistence": {
+          "total": 4,
+          "rpc": 1,
+          "rest": 3,
+          "other": 0
+        }
+      },
+      {
+        "policy": {
+          "total": 3,
+          "rpc": 0,
+          "rest": 3,
+          "other": 0
+        },
+        "matching": {
+          "total": 17,
+          "rpc": 2,
+          "rest": 15,
+          "other": 0
+        },
+        "reconciliation": {
+          "total": 8,
+          "rpc": 1,
+          "rest": 7,
+          "other": 0
+        },
+        "logistics": {
+          "total": 13,
+          "rpc": 1,
+          "rest": 12,
+          "other": 0
+        },
+        "exposure": {
+          "total": 13,
+          "rpc": 1,
+          "rest": 12,
+          "other": 0
+        },
+        "persistence": {
+          "total": 4,
+          "rpc": 1,
+          "rest": 3,
+          "other": 0
+        }
+      },
+      {
+        "policy": {
+          "total": 3,
+          "rpc": 0,
+          "rest": 3,
+          "other": 0
+        },
+        "matching": {
+          "total": 17,
+          "rpc": 2,
+          "rest": 15,
+          "other": 0
+        },
+        "reconciliation": {
+          "total": 8,
+          "rpc": 1,
+          "rest": 7,
+          "other": 0
+        },
+        "logistics": {
+          "total": 13,
+          "rpc": 1,
+          "rest": 12,
+          "other": 0
+        },
+        "exposure": {
+          "total": 13,
+          "rpc": 1,
+          "rest": 12,
+          "other": 0
+        },
+        "persistence": {
+          "total": 4,
+          "rpc": 1,
+          "rest": 3,
+          "other": 0
+        }
+      },
+      {
+        "policy": {
+          "total": 3,
+          "rpc": 0,
+          "rest": 3,
+          "other": 0
+        },
+        "matching": {
+          "total": 17,
+          "rpc": 2,
+          "rest": 15,
+          "other": 0
+        },
+        "reconciliation": {
+          "total": 8,
+          "rpc": 1,
+          "rest": 7,
+          "other": 0
+        },
+        "logistics": {
+          "total": 13,
+          "rpc": 1,
+          "rest": 12,
+          "other": 0
+        },
+        "exposure": {
+          "total": 13,
+          "rpc": 1,
+          "rest": 12,
+          "other": 0
+        },
+        "persistence": {
+          "total": 4,
+          "rpc": 1,
+          "rest": 3,
+          "other": 0
+        }
+      },
+      {
+        "policy": {
+          "total": 3,
+          "rpc": 0,
+          "rest": 3,
+          "other": 0
+        },
+        "matching": {
+          "total": 17,
+          "rpc": 2,
+          "rest": 15,
+          "other": 0
+        },
+        "reconciliation": {
+          "total": 8,
+          "rpc": 1,
+          "rest": 7,
+          "other": 0
+        },
+        "logistics": {
+          "total": 13,
+          "rpc": 1,
+          "rest": 12,
+          "other": 0
+        },
+        "exposure": {
+          "total": 13,
+          "rpc": 1,
+          "rest": 12,
+          "other": 0
+        },
+        "persistence": {
+          "total": 4,
+          "rpc": 1,
+          "rest": 3,
+          "other": 0
+        }
+      },
+      {
+        "policy": {
+          "total": 3,
+          "rpc": 0,
+          "rest": 3,
+          "other": 0
+        },
+        "matching": {
+          "total": 17,
+          "rpc": 2,
+          "rest": 15,
+          "other": 0
+        },
+        "reconciliation": {
+          "total": 8,
+          "rpc": 1,
+          "rest": 7,
+          "other": 0
+        },
+        "logistics": {
+          "total": 13,
+          "rpc": 1,
+          "rest": 12,
+          "other": 0
+        },
+        "exposure": {
+          "total": 13,
+          "rpc": 1,
+          "rest": 12,
+          "other": 0
+        },
+        "persistence": {
+          "total": 4,
+          "rpc": 1,
+          "rest": 3,
+          "other": 0
+        }
+      },
+      {
+        "policy": {
+          "total": 3,
+          "rpc": 0,
+          "rest": 3,
+          "other": 0
+        },
+        "matching": {
+          "total": 17,
+          "rpc": 2,
+          "rest": 15,
+          "other": 0
+        },
+        "reconciliation": {
+          "total": 8,
+          "rpc": 1,
+          "rest": 7,
+          "other": 0
+        },
+        "logistics": {
+          "total": 13,
+          "rpc": 1,
+          "rest": 12,
+          "other": 0
+        },
+        "exposure": {
+          "total": 13,
+          "rpc": 1,
+          "rest": 12,
+          "other": 0
+        },
+        "persistence": {
+          "total": 4,
+          "rpc": 1,
+          "rest": 3,
+          "other": 0
+        }
+      },
+      {
+        "policy": {
+          "total": 3,
+          "rpc": 0,
+          "rest": 3,
+          "other": 0
+        },
+        "matching": {
+          "total": 17,
+          "rpc": 2,
+          "rest": 15,
+          "other": 0
+        },
+        "reconciliation": {
+          "total": 8,
+          "rpc": 1,
+          "rest": 7,
+          "other": 0
+        },
+        "logistics": {
+          "total": 13,
+          "rpc": 1,
+          "rest": 12,
+          "other": 0
+        },
+        "exposure": {
+          "total": 13,
+          "rpc": 1,
+          "rest": 12,
+          "other": 0
+        },
+        "persistence": {
+          "total": 4,
+          "rpc": 1,
+          "rest": 3,
+          "other": 0
+        }
+      },
+      {
+        "policy": {
+          "total": 3,
+          "rpc": 0,
+          "rest": 3,
+          "other": 0
+        },
+        "matching": {
+          "total": 17,
+          "rpc": 2,
+          "rest": 15,
+          "other": 0
+        },
+        "reconciliation": {
+          "total": 8,
+          "rpc": 1,
+          "rest": 7,
+          "other": 0
+        },
+        "logistics": {
+          "total": 13,
+          "rpc": 1,
+          "rest": 12,
+          "other": 0
+        },
+        "exposure": {
+          "total": 13,
+          "rpc": 1,
+          "rest": 12,
+          "other": 0
+        },
+        "persistence": {
+          "total": 4,
+          "rpc": 1,
+          "rest": 3,
+          "other": 0
+        }
+      },
+      {
+        "policy": {
+          "total": 3,
+          "rpc": 0,
+          "rest": 3,
+          "other": 0
+        },
+        "matching": {
+          "total": 17,
+          "rpc": 2,
+          "rest": 15,
+          "other": 0
+        },
+        "reconciliation": {
+          "total": 8,
+          "rpc": 1,
+          "rest": 7,
+          "other": 0
+        },
+        "logistics": {
+          "total": 13,
+          "rpc": 1,
+          "rest": 12,
+          "other": 0
+        },
+        "exposure": {
+          "total": 13,
+          "rpc": 1,
+          "rest": 12,
+          "other": 0
+        },
+        "persistence": {
+          "total": 4,
+          "rpc": 1,
+          "rest": 3,
+          "other": 0
+        }
+      },
+      {
+        "policy": {
+          "total": 3,
+          "rpc": 0,
+          "rest": 3,
+          "other": 0
+        },
+        "matching": {
+          "total": 17,
+          "rpc": 2,
+          "rest": 15,
+          "other": 0
+        },
+        "reconciliation": {
+          "total": 8,
+          "rpc": 1,
+          "rest": 7,
+          "other": 0
+        },
+        "logistics": {
+          "total": 13,
+          "rpc": 1,
+          "rest": 12,
+          "other": 0
+        },
+        "exposure": {
+          "total": 13,
+          "rpc": 1,
+          "rest": 12,
+          "other": 0
+        },
+        "persistence": {
+          "total": 4,
+          "rpc": 1,
+          "rest": 3,
+          "other": 0
+        }
+      }
+    ],
+    "stability": {
+      "successful_runs": 20,
+      "errors": 0,
+      "timeouts": 0,
+      "technical_errors": 0,
+      "semantic_outcomes_distinct": 1,
+      "semantic_outcome": {
+        "technical_status": "CONCLUIDA",
+        "decision": "BLOQUEADO",
+        "reason_codes": [
+          "POSICAO_SEM_MATCH",
+          "EXPOSICAO_INDETERMINADA",
+          "LIQUIDACAO_PARCIAL_PRESENTE"
+        ]
+      }
+    }
+  },
+  "comparison": {
+    "p50_ms": {
+      "before": 6867,
+      "after": 6065,
+      "absolute": -802,
+      "percent": -11.68
+    },
+    "p95_ms": {
+      "before": 7957,
+      "after": 6839,
+      "absolute": -1118,
+      "percent": -14.05
+    },
+    "max_ms": {
+      "before": 8864,
+      "after": 6916,
+      "absolute": -1948,
+      "percent": -21.98
+    },
+    "mean_ms": {
+      "before": 7024.6,
+      "after": 6127.85,
+      "absolute": -896.75,
+      "percent": -12.77
+    },
+    "round_trips": {
+      "before": 66,
+      "after": 58,
+      "absolute": -8,
+      "percent": -12.12
+    },
+    "formal_limit_headroom_ms": 517,
+    "desired_limit_headroom_ms": 161
+  },
+  "semantic_parity": {
+    "validated_after_changes": true,
+    "same_benchmark_case": true,
+    "before": {
+      "technical_status": "CONCLUIDA",
+      "decision": "BLOQUEADO",
+      "reason_codes": [
+        "POSICAO_SEM_MATCH",
+        "EXPOSICAO_INDETERMINADA",
+        "LIQUIDACAO_PARCIAL_PRESENTE"
+      ]
+    },
+    "after": {
+      "technical_status": "CONCLUIDA",
+      "decision": "BLOQUEADO",
+      "reason_codes": [
+        "POSICAO_SEM_MATCH",
+        "EXPOSICAO_INDETERMINADA",
+        "LIQUIDACAO_PARCIAL_PRESENTE"
+      ]
+    },
+    "equal": true
+  },
+  "gates": {
+    "golden": "PASS",
+    "data_api": "PASS",
+    "cross_fund": "PASS",
+    "zero_cross_fund_leak": true,
+    "storage": "PASS",
+    "clean_room": "PASS",
+    "clean_room_cleanup": "PASS",
+    "local_validation": {
+      "typescript": "PASS",
+      "tests": {
+        "status": "PASS",
+        "files_passed": 145,
+        "files_skipped": 1,
+        "tests_passed": 1033,
+        "tests_skipped": 3,
+        "targeted_finance_tests": 65,
+        "benchmark_stats_tests": 2
+      },
+      "lint": {
+        "status": "PASS",
+        "errors": 0,
+        "warnings": 6
+      },
+      "build": {
+        "status": "PASS",
+        "next": "16.3.1",
+        "bundler": "webpack"
+      },
+      "dependency_audit": {
+        "status": "PASS",
+        "vulnerabilities": 0
+      },
+      "secret_scan": {
+        "status": "PASS",
+        "files_scanned": 1077,
+        "findings": 0
+      },
+      "git_diff_check": "PASS"
+    }
+  },
+  "migrations": {
+    "local": 127,
+    "remote_homolog_via_mcp": 127,
+    "same_first_and_last": true,
+    "created_by_phase": 0,
+    "history_changed": false,
+    "direct_postgres_snapshot": "DEFERRED_STALE_DB_PASSWORD_AFTER_ROTATION",
+    "parity_basis": "MCP confirmou 127 migrations remotas iguais ao inventario local; P2.6.8.1 ja comprovou paridade material e a P2.6.9 nao altera schema."
+  },
+  "gate": {
+    "name": "PERFORMANCE_FULL_PIPELINE",
+    "formal_p95_limit_ms": 7356,
+    "desired_p95_limit_ms": 7000,
+    "minimum_measured_runs": 20,
+    "actual_measured_runs": 20,
+    "p95_ms": 6839,
+    "zero_timeouts": true,
+    "zero_technical_errors": true,
+    "result": "PASS"
+  },
+  "readiness_effect": {
+    "performance_full_pipeline": "PASS",
+    "global_recommendation": "NO-GO",
+    "reason": "O gate P2.6.9 foi aprovado, mas permanecem gates E2E autenticados/concorrencia de outras fases marcados como bloqueadores pendentes."
+  }
+}

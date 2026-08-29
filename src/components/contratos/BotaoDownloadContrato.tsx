@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { FileText, Download, RefreshCw, Loader2, AlertTriangle } from 'lucide-react'
+import { useNotifications } from '@/components/notifications/notification-provider'
 
 interface Props {
   tipo: 'contrato' | 'termo' | 'notificacao' | 'quitacao'
@@ -14,6 +15,7 @@ interface Props {
 }
 
 export function BotaoDownloadContrato({ tipo, id, storagePath, hasSignedDoc, label, className }: Props) {
+  const notifications = useNotifications()
   const [gerando, setGerando] = useState(false)
   const [currentPath, setCurrentPath] = useState(storagePath)
   const [downloading, setDownloading] = useState(false)
@@ -44,14 +46,15 @@ export function BotaoDownloadContrato({ tipo, id, storagePath, hasSignedDoc, lab
       const data = await res.json()
       if (data.sucesso && data.path) {
         setCurrentPath(data.path)
+        notifications.success('Documento gerado.')
         if (data.url) {
           window.open(data.url, '_blank')
         }
       } else {
-        alert(data.error || 'Erro ao gerar documento.')
+        notifications.error(data.error || 'Erro ao gerar documento.')
       }
     } catch {
-      alert('Erro ao gerar documento. Tente novamente.')
+      notifications.error('Erro ao gerar documento. Tente novamente.')
     } finally {
       setGerando(false)
     }
@@ -70,15 +73,27 @@ export function BotaoDownloadContrato({ tipo, id, storagePath, hasSignedDoc, lab
     if (!currentPath) return
     setDownloading(true)
     try {
-      const res = await fetch(`/api/contratos/download?path=${encodeURIComponent(currentPath)}`)
+      const tipoDocumento = tipo === 'contrato'
+        ? 'contrato'
+        : tipo === 'termo'
+          ? 'termo'
+          : tipo === 'notificacao'
+            ? 'notificacao'
+            : 'quitacao'
+      const params = new URLSearchParams({
+        tipo_entidade: tipo === 'contrato' ? 'cedente' : 'operacao',
+        entidade_id: id,
+        tipo_documento: tipoDocumento,
+      })
+      const res = await fetch(`/api/contratos/download?${params.toString()}`)
       const data = await res.json()
       if (data.url) {
         window.open(data.url, '_blank')
       } else {
-        alert('Erro ao obter link de download.')
+        notifications.error('Erro ao obter link de download.')
       }
     } catch {
-      alert('Erro ao baixar documento.')
+      notifications.error('Erro ao baixar documento.')
     } finally {
       setDownloading(false)
     }
@@ -142,8 +157,8 @@ export function BotaoDownloadContrato({ tipo, id, storagePath, hasSignedDoc, lab
         {showConfirm && (
           <div className={`rounded-lg border p-3 text-xs space-y-2 ${
             isCritico
-              ? 'bg-red-50 border-red-300 text-red-800'
-              : 'bg-amber-50 border-amber-300 text-amber-800'
+              ? 'bg-destructive/10 border-destructive/30 text-destructive'
+              : 'bg-warning/10 border-warning/30 text-warning-foreground'
           }`}>
             <div className="flex items-start gap-2">
               <AlertTriangle size={14} className="mt-0.5 shrink-0" />
@@ -160,7 +175,7 @@ export function BotaoDownloadContrato({ tipo, id, storagePath, hasSignedDoc, lab
               </Button>
               <Button
                 size="sm"
-                className={`h-7 text-xs text-white ${isCritico ? 'bg-red-600 hover:bg-red-700' : 'bg-amber-600 hover:bg-amber-700'}`}
+                className={`h-7 text-xs ${isCritico ? 'bg-destructive text-destructive-foreground hover:bg-destructive/85' : 'bg-warning text-warning-foreground hover:bg-warning/85'}`}
                 onClick={handleGerar}
                 disabled={gerando}
               >

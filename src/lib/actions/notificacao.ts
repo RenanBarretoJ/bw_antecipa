@@ -8,14 +8,63 @@ interface NotificacaoInput {
   titulo: string
   mensagem: string
   tipo: string
+  dedupe_key?: string
+  entidade_tipo?: string
+  entidade_id?: string
+  href?: string
 }
 
-export async function criarNotificacao({ usuario_id, titulo, mensagem, tipo }: NotificacaoInput) {
+export type NotificacaoCedenteEscopo = 'operacional' | 'administrativo'
+
+async function listarDestinatariosAtivosCedente(
+  cedenteId: string,
+  escopo: NotificacaoCedenteEscopo,
+): Promise<string[]> {
+  const admin = createAdminClient()
+  const [{ data: cedente, error: cedenteError }, { data: acessos, error: acessosError }] = await Promise.all([
+    admin.from('cedentes').select('user_id').eq('id', cedenteId).maybeSingle(),
+    admin
+      .from('cedente_acessos')
+      .select('user_id, perfil, status')
+      .eq('cedente_id', cedenteId),
+  ])
+
+  if (cedenteError || !cedente) throw new Error('Cedente nao encontrado para notificacao.')
+  if (acessosError) throw new Error(`Nao foi possivel resolver os acessos do cedente: ${acessosError.message}`)
+
+  const todasAssociacoes = (acessos || []) as Array<{
+    user_id: string
+    perfil: 'ADMIN' | 'OPERACIONAL'
+    status: 'CONVIDADO' | 'ATIVO' | 'REVOGADO'
+  }>
+  const candidatos = todasAssociacoes
+    .filter((acesso) => acesso.status === 'ATIVO')
+    .filter((acesso) => escopo === 'operacional' || acesso.perfil === 'ADMIN')
+    .map((acesso) => acesso.user_id)
+
+  // Compatibilidade: owner somente quando o Cedente ainda nao possui nenhuma
+  // associacao canonica. REVOGADO/CONVIDADO nunca reativam o fallback.
+  if (todasAssociacoes.length === 0) {
+    candidatos.push((cedente as { user_id: string }).user_id)
+  }
+
+  const unicos = [...new Set(candidatos)]
+  if (!unicos.length) return []
+  const { data: profiles, error: profilesError } = await admin
+    .from('profiles')
+    .select('id')
+    .in('id', unicos)
+    .eq('status', 'ativo')
+  if (profilesError) throw new Error(`Nao foi possivel validar os destinatarios: ${profilesError.message}`)
+  return ((profiles || []) as Array<{ id: string }>).map((profile) => profile.id)
+}
+
+export async function criarNotificacao({ usuario_id, titulo, mensagem, tipo, dedupe_key, entidade_tipo, entidade_id, href }: NotificacaoInput) {
   try {
     const supabase = await createClient()
     const { error } = await supabase
       .from('notificacoes')
-      .insert({ usuario_id, titulo, mensagem, tipo } as never)
+      .insert({ usuario_id, titulo, mensagem, tipo, dedupe_key, entidade_tipo, entidade_id, href } as never)
 
     if (error) {
       console.error('[criarNotificacao] Falha ao inserir:', error.message, { usuario_id, tipo })
@@ -28,55 +77,55 @@ export async function criarNotificacao({ usuario_id, titulo, mensagem, tipo }: N
   }
 }
 
-// Envia notificacao para o dono do cedente + todos os usuarios vinculados ativos.
-export async function notificarCedente(cedenteId: string, titulo: string, mensagem: string, tipo: string) {
+// Envia notificacao somente a associacoes canonicas ATIVAS. O owner legado e
+// fallback exclusivo de Cedentes ainda sem qualquer associacao.
+export async function notificarCedente(
+  cedenteId: string,
+  titulo: string,
+  mensagem: string,
+  tipo: string,
+  dedupeKey?: string,
+  escopo: NotificacaoCedenteEscopo = 'operacional',
+) {
   try {
     const admin = createAdminClient()
+    const userIds = await listarDestinatariosAtivosCedente(cedenteId, escopo)
+    if (!userIds.length) return
 
-    const { data: cedente, error: cedenteError } = await admin
-      .from('cedentes')
-      .select('user_id')
-      .eq('id', cedenteId)
-      .single()
+    const notificacoesLote = userIds.map((uid) => ({
+      usuario_id: uid,
+      titulo,
+      mensagem,
+      tipo,
+      ...(dedupeKey ? { dedupe_key: `${dedupeKey}:${uid}` } : {}),
+    }))
 
-    if (cedenteError || !cedente) {
-      console.error('[notificarCedente] Cedente nao encontrado:', cedenteError?.message, { cedenteId })
-      return
-    }
-
-    const { data: acessos, error: acessosError } = await admin
-      .from('cedente_acessos')
-      .select('user_id')
-      .eq('cedente_id', cedenteId)
-      .eq('ativo', true)
-
-    if (acessosError) {
-      console.error('[notificarCedente] Erro ao buscar acessos:', acessosError.message, { cedenteId })
-    }
-
-    const ownerUserId = (cedente as { user_id: string }).user_id
-    const vinculados = ((acessos || []) as { user_id: string }[]).map((a) => a.user_id)
-    const userIds = [...new Set([ownerUserId, ...vinculados])]
-
-    // Inserir individualmente para que falha de um nao bloqueie os demais
-    await Promise.allSettled(
-      userIds.map(async (uid) => {
-        const { error } = await admin
+    const { error: notificacoesError } = dedupeKey
+      ? await admin
           .from('notificacoes')
-          .insert({ usuario_id: uid, titulo, mensagem, tipo } as never)
-        if (error) {
-          console.error('[notificarCedente] Falha ao inserir para', uid, ':', error.message)
-        }
-      })
-    )
+          .upsert(notificacoesLote as never[], {
+            onConflict: 'usuario_id,dedupe_key',
+            ignoreDuplicates: true,
+          })
+      : await admin
+          .from('notificacoes')
+          .insert(notificacoesLote as never[])
 
-    tentarEnviarEmail(ownerUserId, tipo, titulo, mensagem).catch(() => {})
+    if (notificacoesError) {
+      console.error('[notificarCedente] Falha ao inserir notificacoes:', notificacoesError.message, {
+        cedenteId,
+        tipo,
+        count: notificacoesLote.length,
+      })
+    }
+
+    await Promise.allSettled(userIds.map((userId) => tentarEnviarEmail(userId, tipo, titulo, mensagem)))
   } catch (err) {
     console.error('[notificarCedente] Erro inesperado:', err)
   }
 }
 
-export async function notificarGestores(titulo: string, mensagem: string, tipo: string) {
+export async function notificarGestores(titulo: string, mensagem: string, tipo: string, dedupeKey?: string) {
   try {
     const supabase = createAdminClient()
     const { data: gestores, error: queryError } = await supabase
@@ -99,6 +148,7 @@ export async function notificarGestores(titulo: string, mensagem: string, tipo: 
       titulo,
       mensagem,
       tipo,
+      dedupe_key: dedupeKey ? `${dedupeKey}:${(g as { id: string }).id}` : undefined,
     }))
 
     const { error: insertError } = await supabase
@@ -117,7 +167,7 @@ export async function notificarGestores(titulo: string, mensagem: string, tipo: 
 // Non-blocking: erros sao logados mas nao propagados.
 async function tentarEnviarEmail(usuarioId: string, tipo: string, titulo: string, mensagem: string) {
   try {
-    const supabase = await createClient()
+    const supabase = createAdminClient()
 
     // Buscar email do usuario
     const { data: profile } = await supabase

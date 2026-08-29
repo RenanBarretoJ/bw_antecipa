@@ -2,6 +2,23 @@
 // Parser de NF-e XML (padrao SEFAZ) e extrator basico de PDF
 // ============================================================
 
+export interface NfParsedParcela {
+  numero_parcela: number
+  data_vencimento: string
+  valor_nominal: number
+}
+
+export interface NfParsedItem {
+  descricao: string
+  /** cProd -- codigo do produto no catalogo do emitente. Usado para matching deterministico (regra 4 do ticket de ajustes finais). */
+  codigo: string
+  /** NCM -- classificacao fiscal do produto. Segundo criterio deterministico quando cProd nao casa (emitentes diferentes usam catalogos proprios). */
+  ncm: string
+  quantidade: number
+  unidade: string
+  valor: number
+}
+
 export interface NfParsedData {
   numero_nf: string
   serie: string
@@ -12,6 +29,17 @@ export interface NfParsedData {
   razao_social_emitente: string
   cnpj_destinatario: string
   razao_social_destinatario: string
+  destinatario_endereco: {
+    cep: string
+    logradouro: string
+    numero: string
+    complemento: string
+    bairro: string
+    municipio: string
+    uf: string
+    email: string
+    telefone: string
+  }
   valor_bruto: number
   valor_liquido: number
   valor_icms: number
@@ -21,6 +49,16 @@ export interface NfParsedData {
   valor_ipi: number
   descricao_itens: string
   condicao_pagamento: string
+  /** Parcelas extraidas de <cobr><dup> do XML. Vazio quando a NF nao tem <dup> (comportamento legado preservado). */
+  parcelas: NfParsedParcela[]
+  /** Itens estruturados de <det><prod> (codigo/descricao/quantidade/unidade/valor), para matching de remessa e auditoria. */
+  itensEstruturados: NfParsedItem[]
+  /** Soma de qCom de todos os <det><prod>. Usado como saldo logistico entre NF de venda e suas remessas. */
+  quantidadeTotal: number
+  /** Chaves referenciadas em <NFref><refNFe>, na ordem em que aparecem no XML. Usado por NF de remessa para provar o vinculo com a venda. */
+  nfRefChaves: string[]
+  /** Texto de <infAdic><infCpl>, evidencia complementar (nao substitui NFref estruturado). */
+  evidenciaComplementar: string
 }
 
 function getTagValue(xml: string, tag: string): string {
@@ -76,6 +114,18 @@ export function parseNFeXML(xmlContent: string): NfParsedData {
   const destBlock = xmlContent.match(/<dest>([\s\S]*?)<\/dest>/i)?.[1] || ''
   const cnpj_destinatario = getTagValue(destBlock, 'CNPJ')
   const razao_social_destinatario = getTagValue(destBlock, 'xNome')
+  const enderecoDestinatario = destBlock.match(/<enderDest>([\s\S]*?)<\/enderDest>/i)?.[1] || ''
+  const destinatario_endereco = {
+    cep: getTagValue(enderecoDestinatario, 'CEP'),
+    logradouro: getTagValue(enderecoDestinatario, 'xLgr'),
+    numero: getTagValue(enderecoDestinatario, 'nro'),
+    complemento: getTagValue(enderecoDestinatario, 'xCpl'),
+    bairro: getTagValue(enderecoDestinatario, 'xBairro'),
+    municipio: getTagValue(enderecoDestinatario, 'xMun'),
+    uf: getTagValue(enderecoDestinatario, 'UF'),
+    email: getTagValue(destBlock, 'email'),
+    telefone: getTagValue(enderecoDestinatario, 'fone'),
+  }
 
   // Totais
   const icmsTotBlock = xmlContent.match(/<ICMSTot>([\s\S]*?)<\/ICMSTot>/i)?.[1] || ''
@@ -94,22 +144,49 @@ export function parseNFeXML(xmlContent: string): NfParsedData {
 
   // Itens / produtos
   const detBlocks = getAllBlocks(xmlContent, 'det')
-  const itens = detBlocks.map((det) => {
+  const itensEstruturados: NfParsedItem[] = detBlocks.map((det) => {
     const prodBlock = det.match(/<prod>([\s\S]*?)<\/prod>/i)?.[1] || ''
-    const nome = getTagValue(prodBlock, 'xProd')
-    const qtd = getTagValue(prodBlock, 'qCom')
-    const valor = getTagValue(prodBlock, 'vProd')
-    return `${nome} (Qtd: ${qtd}, R$ ${valor})`
+    return {
+      descricao: getTagValue(prodBlock, 'xProd'),
+      codigo: getTagValue(prodBlock, 'cProd'),
+      ncm: getTagValue(prodBlock, 'NCM'),
+      quantidade: parseNumber(getTagValue(prodBlock, 'qCom')),
+      unidade: getTagValue(prodBlock, 'uCom'),
+      valor: parseNumber(getTagValue(prodBlock, 'vProd')),
+    }
   })
-  const descricao_itens = itens.join('; ')
+  const descricao_itens = itensEstruturados
+    .map((item) => `${item.descricao} (Qtd: ${item.quantidade}, R$ ${item.valor})`)
+    .join('; ')
+  const quantidadeTotal = itensEstruturados.reduce((total, item) => total + item.quantidade, 0)
 
-  // Vencimento — duplicatas
+  // NFref/refNFe: chave(s) da(s) NF-e referenciada(s) por esta NF (usado pela
+  // NF de remessa para provar o vinculo com a NF de venda). infAdic/infCpl e
+  // apenas evidencia complementar, nunca substitui a referencia estruturada.
+  const nfRefBlocks = getAllBlocks(xmlContent, 'NFref')
+  const nfRefChaves = nfRefBlocks
+    .map((bloco) => getTagValue(bloco, 'refNFe'))
+    .filter((chave) => /^\d{44}$/.test(chave))
+  const infAdicBlock = xmlContent.match(/<infAdic>([\s\S]*?)<\/infAdic>/i)?.[1] || ''
+  const evidenciaComplementar = getTagValue(infAdicBlock, 'infCpl')
+
+  // Vencimento — duplicatas. O agregado da NF preserva o comportamento
+  // legado (data da ultima <dup>); parcelas captura cada <dup> individual
+  // (nDup/dVenc/vDup) para a Fase 1 de Parcelas de NF.
   const dupBlocks = getAllBlocks(xmlContent, 'dup')
   let data_vencimento = ''
   if (dupBlocks.length > 0) {
     const lastDup = dupBlocks[dupBlocks.length - 1]
     data_vencimento = formatDateISO(getTagValue(lastDup, 'dVenc'))
   }
+  const parcelas: NfParsedParcela[] = dupBlocks.map((dup, index) => {
+    const nDup = parseInt(getTagValue(dup, 'nDup'), 10)
+    return {
+      numero_parcela: Number.isInteger(nDup) && nDup > 0 ? nDup : index + 1,
+      data_vencimento: formatDateISO(getTagValue(dup, 'dVenc')),
+      valor_nominal: parseNumber(getTagValue(dup, 'vDup')),
+    }
+  })
 
   // Condicao de pagamento
   const pagBlock = xmlContent.match(/<pag>([\s\S]*?)<\/pag>/i)?.[1] || ''
@@ -131,6 +208,7 @@ export function parseNFeXML(xmlContent: string): NfParsedData {
     razao_social_emitente,
     cnpj_destinatario,
     razao_social_destinatario,
+    destinatario_endereco,
     valor_bruto,
     valor_liquido,
     valor_icms,
@@ -140,5 +218,10 @@ export function parseNFeXML(xmlContent: string): NfParsedData {
     valor_ipi,
     descricao_itens,
     condicao_pagamento,
+    parcelas,
+    itensEstruturados,
+    quantidadeTotal,
+    nfRefChaves,
+    evidenciaComplementar,
   }
 }

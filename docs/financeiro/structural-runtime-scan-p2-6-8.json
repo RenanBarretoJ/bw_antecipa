@@ -1,0 +1,77 @@
+{
+  "schema": "bw-antecipa-structural-runtime-scan-p2-6-8-v1",
+  "generated_at": "2026-08-17T17:12:14-03:00",
+  "environment": "homolog",
+  "project_ref": "fhgkmggthxikfpogrvaa",
+  "production_touched": false,
+  "status": "PASS",
+  "db_objects": {
+    "before": ["private.rlx_gestor_tem_acesso_fundo(uuid)"],
+    "after": []
+  },
+  "runtime_references": {
+    "active_before": [],
+    "active_after": []
+  },
+  "database": {
+    "schemas_scanned": ["public", "private"],
+    "catalogs_scanned": ["pg_class", "pg_proc", "pg_trigger", "pg_policy", "pg_constraint", "pg_indexes", "information_schema"],
+    "before": {
+      "active_rlx_structural_count": 1,
+      "objects": ["private.rlx_gestor_tem_acesso_fundo(uuid)"],
+      "dependents": []
+    },
+    "after": {
+      "active_rlx_structural_count": 0,
+      "objects": [],
+      "target_consumers": []
+    }
+  },
+  "runtime": {
+    "scope": "src excluding test files",
+    "active_target_references_before": [],
+    "active_target_references_after": [],
+    "unexpected_rlx_structural_references": []
+  },
+  "historical_references_preserved": {
+    "target_function": [
+      "supabase/migrations/20260813191143_p2_2_ingestao_financeira_versionada_rlx.sql",
+      "supabase/migrations/20260814141629_p2_3_matching_conciliacao_rlx.sql",
+      "supabase/migrations/20260814164101_p2_4_posicao_logistica_rlx.sql",
+      "supabase/migrations/20260814213000_p2_5_exposicao_pl_overlay.sql",
+      "supabase/migrations/20260814220000_p2_5_1_generalizacao_dominio_financeiro.sql",
+      "supabase/migrations/20260817171442_p2_6_6_corrigir_acessos_financeiros_legitimos.sql",
+      "supabase/migrations/20260817200014_p2_6_8_remover_legado_estrutural_rlx.sql",
+      "src/lib/financeiro/ingestao/migration.test.ts",
+      "scripts/homologacao/financeiro/readiness/audit-rls-p2-6-6.mjs",
+      "docs/financeiro historical evidence"
+    ],
+    "frozen_identifiers": ["RLX_GOLDEN_V1", "RLX_GOLDEN_V2", "RLX_MATCH_V1", "RLX_RECON_V1", "RLX_LOGISTICA_V1", "RLX_EXPOSICAO_V1"],
+    "temporary_compatibility": ["RLX_MAX_PARSE_MS", "RLX_MAX_IMPORT_ROWS", "RLX_PROVIDER_TIMEOUT_MS", "/api/cron/rlx-financeiro"]
+  },
+  "historical_references": {
+    "migrations": true,
+    "qa_and_tests": true,
+    "reports": true
+  },
+  "allowed_legacy": [
+    "RLX_GOLDEN_V1",
+    "RLX_GOLDEN_V2",
+    "RLX_MATCH_V1",
+    "RLX_RECON_V1",
+    "RLX_LOGISTICA_V1",
+    "RLX_EXPOSICAO_V1",
+    "RLX_MAX_PARSE_MS",
+    "RLX_MAX_IMPORT_ROWS",
+    "RLX_PROVIDER_TIMEOUT_MS",
+    "/api/cron/rlx-financeiro",
+    "historical migration filenames/content"
+  ],
+  "classification": {
+    "removed_object": "DEAD_LEGACY",
+    "unresolved_count": 0,
+    "historical_allowlist_violations": 0
+  },
+  "unexpected_legacy": [],
+  "credential_rotation_required": true
+}

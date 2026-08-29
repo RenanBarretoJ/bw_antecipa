@@ -78,6 +78,9 @@ export const etapa3Schema = z.object({
   agencia: z.string().min(1, { message: 'Agencia e obrigatoria.' }),
   conta: z.string().min(1, { message: 'Conta e obrigatoria.' }),
   tipo_conta: z.enum(['corrente', 'poupanca'], { message: 'Selecione o tipo de conta.' }),
+  banco_codigo: z.string().regex(/^\d{3}$/, { message: 'Selecione um banco valido no catalogo.' }),
+  banco_ispb: z.string().regex(/^\d{8}$/, { message: 'O banco selecionado nao possui ISPB valido.' }),
+  banco_nome: z.string().min(1, { message: 'Selecione um banco valido no catalogo.' }),
 })
 
 // Schema completo

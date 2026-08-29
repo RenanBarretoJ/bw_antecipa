@@ -1,0 +1,618 @@
+{
+  "schema": "bw-antecipa-p2-6-1-read-only-v1",
+  "target": {
+    "ambiente": "homolog",
+    "project_ref": "fhgkmggthxikfpogrvaa",
+    "production_mutated": false
+  },
+  "migrations": {
+    "local_total": 127,
+    "remote_total": 127,
+    "missing_remote": [],
+    "extra_remote": [],
+    "name_mismatches": [],
+    "aligned": true
+  },
+  "schema_state": {
+    "rlx": {
+      "relations": [],
+      "routines": [],
+      "active_code_references": []
+    },
+    "generic_domain": [
+      {
+        "present": true,
+        "name": "public.importacoes_financeiras"
+      },
+      {
+        "present": true,
+        "name": "public.matching_execucoes"
+      },
+      {
+        "present": true,
+        "name": "public.conciliacao_execucoes"
+      },
+      {
+        "present": true,
+        "name": "public.posicao_logistica_execucoes"
+      },
+      {
+        "present": true,
+        "name": "public.exposicao_execucoes"
+      },
+      {
+        "present": true,
+        "name": "public.risco_execucoes"
+      },
+      {
+        "present": true,
+        "name": "public.risco_motivos"
+      },
+      {
+        "present": true,
+        "name": "public.risco_revisoes"
+      }
+    ],
+    "rls": [
+      {
+        "relname": "conciliacao_execucoes",
+        "relrowsecurity": true,
+        "relforcerowsecurity": false,
+        "policies": 1
+      },
+      {
+        "relname": "conciliacao_resultados",
+        "relrowsecurity": true,
+        "relforcerowsecurity": false,
+        "policies": 1
+      },
+      {
+        "relname": "exposicao_execucoes",
+        "relrowsecurity": true,
+        "relforcerowsecurity": false,
+        "policies": 1
+      },
+      {
+        "relname": "exposicao_overlay_itens",
+        "relrowsecurity": true,
+        "relforcerowsecurity": false,
+        "policies": 1
+      },
+      {
+        "relname": "importacao_linhas",
+        "relrowsecurity": true,
+        "relforcerowsecurity": false,
+        "policies": 1
+      },
+      {
+        "relname": "importacoes_financeiras",
+        "relrowsecurity": true,
+        "relforcerowsecurity": false,
+        "policies": 1
+      },
+      {
+        "relname": "matching_execucoes",
+        "relrowsecurity": true,
+        "relforcerowsecurity": false,
+        "policies": 1
+      },
+      {
+        "relname": "matching_resultados",
+        "relrowsecurity": true,
+        "relforcerowsecurity": false,
+        "policies": 1
+      },
+      {
+        "relname": "posicao_logistica_execucoes",
+        "relrowsecurity": true,
+        "relforcerowsecurity": false,
+        "policies": 1
+      },
+      {
+        "relname": "posicao_logistica_resultados",
+        "relrowsecurity": true,
+        "relforcerowsecurity": false,
+        "policies": 1
+      },
+      {
+        "relname": "risco_execucoes",
+        "relrowsecurity": true,
+        "relforcerowsecurity": false,
+        "policies": 1
+      },
+      {
+        "relname": "risco_motivos",
+        "relrowsecurity": true,
+        "relforcerowsecurity": false,
+        "policies": 1
+      },
+      {
+        "relname": "risco_revisoes",
+        "relrowsecurity": true,
+        "relforcerowsecurity": false,
+        "policies": 1
+      }
+    ],
+    "risk_functions": [
+      {
+        "signature": "aprovar_operacao_com_risco_atomica(uuid,numeric,uuid,text)",
+        "prosecdef": true,
+        "anon_execute": false,
+        "authenticated_execute": true,
+        "service_execute": false
+      },
+      {
+        "signature": "decidir_revisao_risco(uuid,text,text,uuid)",
+        "prosecdef": true,
+        "anon_execute": false,
+        "authenticated_execute": true,
+        "service_execute": false
+      },
+      {
+        "signature": "persistir_risco_execucao(jsonb)",
+        "prosecdef": true,
+        "anon_execute": false,
+        "authenticated_execute": false,
+        "service_execute": true
+      },
+      {
+        "signature": "simular_memoria_financeira_operacao(uuid,numeric)",
+        "prosecdef": true,
+        "anon_execute": false,
+        "authenticated_execute": false,
+        "service_execute": true
+      }
+    ],
+    "storage": {
+      "buckets": [
+        {
+          "id": "contratos",
+          "name": "contratos",
+          "public": false,
+          "file_size_limit": null,
+          "allowed_mime_types": null
+        },
+        {
+          "id": "documentos-cedentes",
+          "name": "documentos-cedentes",
+          "public": false,
+          "file_size_limit": null,
+          "allowed_mime_types": null
+        },
+        {
+          "id": "documentos-v2",
+          "name": "documentos-v2",
+          "public": false,
+          "file_size_limit": null,
+          "allowed_mime_types": null
+        },
+        {
+          "id": "financeiro-importacoes",
+          "name": "financeiro-importacoes",
+          "public": false,
+          "file_size_limit": "20971520",
+          "allowed_mime_types": [
+            "text/csv",
+            "text/plain"
+          ]
+        },
+        {
+          "id": "notas-fiscais",
+          "name": "notas-fiscais",
+          "public": false,
+          "file_size_limit": null,
+          "allowed_mime_types": null
+        },
+        {
+          "id": "remessas-cnab",
+          "name": "remessas-cnab",
+          "public": false,
+          "file_size_limit": "10485760",
+          "allowed_mime_types": null
+        },
+        {
+          "id": "retornos-integracao",
+          "name": "retornos-integracao",
+          "public": false,
+          "file_size_limit": "10485760",
+          "allowed_mime_types": null
+        }
+      ],
+      "policies": [
+        {
+          "policyname": "financeiro_importacoes_super_admin_read",
+          "cmd": "SELECT",
+          "roles": "{authenticated}",
+          "qual": "[PRESENT]"
+        },
+        {
+          "policyname": "storage_docs_cedente_insert",
+          "cmd": "INSERT",
+          "roles": "{public}",
+          "qual": null
+        },
+        {
+          "policyname": "storage_docs_cedente_update",
+          "cmd": "UPDATE",
+          "roles": "{public}",
+          "qual": "[PRESENT]"
+        },
+        {
+          "policyname": "storage_docs_gestor_insert_multifundo",
+          "cmd": "INSERT",
+          "roles": "{authenticated}",
+          "qual": null
+        },
+        {
+          "policyname": "storage_nfs_cedente_insert",
+          "cmd": "INSERT",
+          "roles": "{public}",
+          "qual": null
+        },
+        {
+          "policyname": "storage_private_objects_select_authorized",
+          "cmd": "SELECT",
+          "roles": "{authenticated}",
+          "qual": "[PRESENT]"
+        }
+      ]
+    },
+    "golden": {
+      "risco_execucoes": 19,
+      "exposicao_execucoes": 12,
+      "logistica_execucoes": 10,
+      "matching_execucoes": 11
+    }
+  },
+  "checks": [
+    {
+      "check_id": "MIGRATION_HISTORY",
+      "categoria": "migrations",
+      "status": "PASS",
+      "evidencia": {
+        "local": 127,
+        "remoto": 127,
+        "ausentes": 0,
+        "excedentes": 0,
+        "nomes_divergentes": 0
+      },
+      "blocker": false,
+      "observacao": null
+    },
+    {
+      "check_id": "STRUCTURAL_RLX_ZERO",
+      "categoria": "schema",
+      "status": "PASS",
+      "evidencia": {
+        "relations": [],
+        "routines": [],
+        "active_code_references": []
+      },
+      "blocker": false,
+      "observacao": null
+    },
+    {
+      "check_id": "GENERIC_DOMAIN",
+      "categoria": "schema",
+      "status": "PASS",
+      "evidencia": [
+        {
+          "present": true,
+          "name": "public.importacoes_financeiras"
+        },
+        {
+          "present": true,
+          "name": "public.matching_execucoes"
+        },
+        {
+          "present": true,
+          "name": "public.conciliacao_execucoes"
+        },
+        {
+          "present": true,
+          "name": "public.posicao_logistica_execucoes"
+        },
+        {
+          "present": true,
+          "name": "public.exposicao_execucoes"
+        },
+        {
+          "present": true,
+          "name": "public.risco_execucoes"
+        },
+        {
+          "present": true,
+          "name": "public.risco_motivos"
+        },
+        {
+          "present": true,
+          "name": "public.risco_revisoes"
+        }
+      ],
+      "blocker": false,
+      "observacao": null
+    },
+    {
+      "check_id": "RLS_FINANCEIRO",
+      "categoria": "seguranca",
+      "status": "PASS",
+      "evidencia": [
+        {
+          "relname": "conciliacao_execucoes",
+          "relrowsecurity": true,
+          "relforcerowsecurity": false,
+          "policies": 1
+        },
+        {
+          "relname": "conciliacao_resultados",
+          "relrowsecurity": true,
+          "relforcerowsecurity": false,
+          "policies": 1
+        },
+        {
+          "relname": "exposicao_execucoes",
+          "relrowsecurity": true,
+          "relforcerowsecurity": false,
+          "policies": 1
+        },
+        {
+          "relname": "exposicao_overlay_itens",
+          "relrowsecurity": true,
+          "relforcerowsecurity": false,
+          "policies": 1
+        },
+        {
+          "relname": "importacao_linhas",
+          "relrowsecurity": true,
+          "relforcerowsecurity": false,
+          "policies": 1
+        },
+        {
+          "relname": "importacoes_financeiras",
+          "relrowsecurity": true,
+          "relforcerowsecurity": false,
+          "policies": 1
+        },
+        {
+          "relname": "matching_execucoes",
+          "relrowsecurity": true,
+          "relforcerowsecurity": false,
+          "policies": 1
+        },
+        {
+          "relname": "matching_resultados",
+          "relrowsecurity": true,
+          "relforcerowsecurity": false,
+          "policies": 1
+        },
+        {
+          "relname": "posicao_logistica_execucoes",
+          "relrowsecurity": true,
+          "relforcerowsecurity": false,
+          "policies": 1
+        },
+        {
+          "relname": "posicao_logistica_resultados",
+          "relrowsecurity": true,
+          "relforcerowsecurity": false,
+          "policies": 1
+        },
+        {
+          "relname": "risco_execucoes",
+          "relrowsecurity": true,
+          "relforcerowsecurity": false,
+          "policies": 1
+        },
+        {
+          "relname": "risco_motivos",
+          "relrowsecurity": true,
+          "relforcerowsecurity": false,
+          "policies": 1
+        },
+        {
+          "relname": "risco_revisoes",
+          "relrowsecurity": true,
+          "relforcerowsecurity": false,
+          "policies": 1
+        }
+      ],
+      "blocker": false,
+      "observacao": null
+    },
+    {
+      "check_id": "RISK_RPC_GRANTS",
+      "categoria": "seguranca",
+      "status": "PASS",
+      "evidencia": [
+        {
+          "signature": "aprovar_operacao_com_risco_atomica(uuid,numeric,uuid,text)",
+          "prosecdef": true,
+          "anon_execute": false,
+          "authenticated_execute": true,
+          "service_execute": false
+        },
+        {
+          "signature": "decidir_revisao_risco(uuid,text,text,uuid)",
+          "prosecdef": true,
+          "anon_execute": false,
+          "authenticated_execute": true,
+          "service_execute": false
+        },
+        {
+          "signature": "persistir_risco_execucao(jsonb)",
+          "prosecdef": true,
+          "anon_execute": false,
+          "authenticated_execute": false,
+          "service_execute": true
+        },
+        {
+          "signature": "simular_memoria_financeira_operacao(uuid,numeric)",
+          "prosecdef": true,
+          "anon_execute": false,
+          "authenticated_execute": false,
+          "service_execute": true
+        }
+      ],
+      "blocker": false,
+      "observacao": null
+    },
+    {
+      "check_id": "OLD_APPROVAL_BYPASS",
+      "categoria": "bypass",
+      "status": "PASS",
+      "evidencia": {
+        "old_two": false,
+        "old_three": false
+      },
+      "blocker": false,
+      "observacao": null
+    },
+    {
+      "check_id": "STORAGE_PRIVATE",
+      "categoria": "storage",
+      "status": "PASS",
+      "evidencia": {
+        "buckets": [
+          {
+            "id": "contratos",
+            "name": "contratos",
+            "public": false,
+            "file_size_limit": null,
+            "allowed_mime_types": null
+          },
+          {
+            "id": "documentos-cedentes",
+            "name": "documentos-cedentes",
+            "public": false,
+            "file_size_limit": null,
+            "allowed_mime_types": null
+          },
+          {
+            "id": "documentos-v2",
+            "name": "documentos-v2",
+            "public": false,
+            "file_size_limit": null,
+            "allowed_mime_types": null
+          },
+          {
+            "id": "financeiro-importacoes",
+            "name": "financeiro-importacoes",
+            "public": false,
+            "file_size_limit": "20971520",
+            "allowed_mime_types": [
+              "text/csv",
+              "text/plain"
+            ]
+          },
+          {
+            "id": "notas-fiscais",
+            "name": "notas-fiscais",
+            "public": false,
+            "file_size_limit": null,
+            "allowed_mime_types": null
+          },
+          {
+            "id": "remessas-cnab",
+            "name": "remessas-cnab",
+            "public": false,
+            "file_size_limit": "10485760",
+            "allowed_mime_types": null
+          },
+          {
+            "id": "retornos-integracao",
+            "name": "retornos-integracao",
+            "public": false,
+            "file_size_limit": "10485760",
+            "allowed_mime_types": null
+          }
+        ],
+        "policies": [
+          {
+            "policyname": "financeiro_importacoes_super_admin_read",
+            "cmd": "SELECT",
+            "roles": "{authenticated}",
+            "qual": "[PRESENT]"
+          },
+          {
+            "policyname": "storage_docs_cedente_insert",
+            "cmd": "INSERT",
+            "roles": "{public}",
+            "qual": null
+          },
+          {
+            "policyname": "storage_docs_cedente_update",
+            "cmd": "UPDATE",
+            "roles": "{public}",
+            "qual": "[PRESENT]"
+          },
+          {
+            "policyname": "storage_docs_gestor_insert_multifundo",
+            "cmd": "INSERT",
+            "roles": "{authenticated}",
+            "qual": null
+          },
+          {
+            "policyname": "storage_nfs_cedente_insert",
+            "cmd": "INSERT",
+            "roles": "{public}",
+            "qual": null
+          },
+          {
+            "policyname": "storage_private_objects_select_authorized",
+            "cmd": "SELECT",
+            "roles": "{authenticated}",
+            "qual": "[PRESENT]"
+          }
+        ]
+      },
+      "blocker": false,
+      "observacao": null
+    },
+    {
+      "check_id": "CRON_CANONICAL",
+      "categoria": "cron",
+      "status": "PASS",
+      "evidencia": {
+        "route": "/api/cron/financeiro",
+        "secret": true,
+        "capability": true,
+        "anbima": true
+      },
+      "blocker": false,
+      "observacao": null
+    },
+    {
+      "check_id": "ENV_CANONICAL",
+      "categoria": "configuracao",
+      "status": "PENDENTE",
+      "evidencia": {
+        "fallbacks_legados": [
+          "RLX_MAX_PARSE_MS",
+          "RLX_MAX_IMPORT_ROWS",
+          "RLX_PROVIDER_TIMEOUT_MS"
+        ]
+      },
+      "blocker": false,
+      "observacao": "Fallbacks legados devem ter plano de retirada; nao bloqueiam o core nesta fase."
+    },
+    {
+      "check_id": "GOLDEN_STATE_PRESENT",
+      "categoria": "golden",
+      "status": "PASS",
+      "evidencia": {
+        "risco_execucoes": 19,
+        "exposicao_execucoes": 12,
+        "logistica_execucoes": 10,
+        "matching_execucoes": 11
+      },
+      "blocker": false,
+      "observacao": null
+    }
+  ],
+  "summary": {
+    "pass": 9,
+    "fail": 0,
+    "pending": 1,
+    "blockers": []
+  }
+}

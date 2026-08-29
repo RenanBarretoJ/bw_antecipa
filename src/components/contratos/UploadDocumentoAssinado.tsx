@@ -5,32 +5,42 @@ import { Upload, Download, Loader2, Paperclip } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/client'
 import { buckets } from '@/lib/storage'
+import type { ContratoDocumentType, ContratoEntityType } from '@/lib/types/domain'
+import { useNotifications } from '@/components/notifications/notification-provider'
 
 interface Props {
   label: string
   storagePath: string | null
   uploadPath: string  // caminho destino no bucket (ex: 'cedentes/{id}/contrato-assinado.pdf')
+  tipoEntidade: ContratoEntityType
+  entidadeId: string
+  tipoDocumento: ContratoDocumentType
   accept?: string     // default: 'application/pdf'
   onSuccess: (path: string) => void
 }
 
-export function UploadDocumentoAssinado({ label, storagePath, uploadPath, accept = 'application/pdf', onSuccess }: Props) {
+export function UploadDocumentoAssinado({ label, storagePath, uploadPath, tipoEntidade, entidadeId, tipoDocumento, accept = 'application/pdf', onSuccess }: Props) {
+  const notifications = useNotifications()
   const inputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
   const [downloading, setDownloading] = useState(false)
   const [currentPath, setCurrentPath] = useState(storagePath)
-  const [error, setError] = useState('')
 
   const handleDownload = async () => {
     if (!currentPath) return
     setDownloading(true)
     try {
-      const res = await fetch(`/api/contratos/download?path=${encodeURIComponent(currentPath)}`)
+      const params = new URLSearchParams({
+        tipo_entidade: tipoEntidade,
+        entidade_id: entidadeId,
+        tipo_documento: tipoDocumento,
+      })
+      const res = await fetch(`/api/contratos/download?${params.toString()}`)
       const data = await res.json()
       if (data.url) window.open(data.url, '_blank')
-      else setError('Erro ao obter link de download.')
+      else notifications.error('Erro ao obter link de download.')
     } catch {
-      setError('Erro ao baixar arquivo.')
+      notifications.error('Erro ao baixar arquivo.')
     } finally {
       setDownloading(false)
     }
@@ -40,7 +50,6 @@ export function UploadDocumentoAssinado({ label, storagePath, uploadPath, accept
     const file = e.target.files?.[0]
     if (!file) return
 
-    setError('')
     setUploading(true)
 
     try {
@@ -53,8 +62,9 @@ export function UploadDocumentoAssinado({ label, storagePath, uploadPath, accept
 
       setCurrentPath(uploadPath)
       onSuccess(uploadPath)
+      notifications.success('Documento assinado enviado.')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao enviar arquivo.')
+      notifications.error(err instanceof Error ? err.message : 'Erro ao enviar arquivo.')
     } finally {
       setUploading(false)
       if (inputRef.current) inputRef.current.value = ''
@@ -110,8 +120,6 @@ export function UploadDocumentoAssinado({ label, storagePath, uploadPath, accept
           )}
         </Button>
       )}
-
-      {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   )
 }

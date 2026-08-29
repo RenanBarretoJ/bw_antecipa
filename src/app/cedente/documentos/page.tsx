@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useNotifications } from '@/components/notifications/notification-provider'
 
 interface DocInfo {
   key: string
@@ -27,7 +28,7 @@ const docsEmpresa: DocInfo[] = [
 const docsRepresentante: DocInfo[] = [
   { key: 'rg_cpf', label: 'RG e CPF', obrigatorio: true },
   { key: 'comprovante_de_renda', label: 'Comprovante de Renda', obrigatorio: false },
-  { key: 'comprovante_endereco', label: 'Comprovante de Residencia (ultimos 90 dias)', obrigatorio: true },
+  { key: 'representante_comprovante_residencia', label: 'Comprovante de Residencia (ultimos 90 dias)', obrigatorio: true },
   { key: 'procuracao', label: 'Procuracao', obrigatorio: false },
 ]
 
@@ -58,12 +59,20 @@ const statusConfig: Record<string, { label: string; variant: 'secondary' | 'outl
 }
 
 export default function DocumentosCedentePage() {
+  const notifications = useNotifications()
   const [docs, setDocs] = useState<DocRecord[]>([])
   const [representantes, setRepresentantes] = useState<RepresentanteRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState<string | null>(null)
   const [message, setMessage] = useState('')
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
+
+  useEffect(() => {
+    if (!message) return
+    const isSuccess = message.includes('sucesso') || message.includes('enviado')
+    notifications.notify({ type: isSuccess ? 'success' : 'error', message, dedupeKey: `${isSuccess ? 'success' : 'error'}:${message}` })
+    queueMicrotask(() => setMessage(''))
+  }, [message, notifications])
 
   const loadDocs = async () => {
     const supabase = createClient()
@@ -132,8 +141,6 @@ export default function DocumentosCedentePage() {
   )
   const totalAprovados = aprovadosEmpresa + aprovadosReps
   const totalObrigFinal = totalObrig > 0 ? totalObrig : docsEmpresa.filter((d) => d.obrigatorio).length + docsRepObrig.length
-
-  const isSuccess = message.includes('sucesso') || message.includes('enviado')
 
   const renderDocCard = (docConfig: DocInfo, representanteId: string | null = null, keyPrefix = '') => {
     const uploadKey = representanteId
@@ -260,14 +267,6 @@ export default function DocumentosCedentePage() {
           </div>
         </CardContent>
       </Card>
-
-      {message && (
-        <div className={`mb-4 p-3 rounded-lg text-sm border ${
-          isSuccess
-            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-            : 'bg-destructive/10 text-destructive border-destructive/20'
-        }`}>{message}</div>
-      )}
 
       {loading ? (
         <div className="space-y-3">

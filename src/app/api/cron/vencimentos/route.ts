@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { registrarLog } from '@/lib/actions/auditoria'
 
 // Cron job: verificar vencimentos e enviar alertas D-5, D-1 e inadimplencia
 // Executado diariamente as 08:00 UTC via Vercel Cron (vercel.json)
@@ -41,7 +42,7 @@ export async function GET(request: Request) {
     // Buscar operacoes em_andamento
     const { data: ops, error: opsError } = await supabaseAdmin
       .from('operacoes')
-      .select('id, data_vencimento, cedente_id, cedentes(user_id, razao_social)')
+      .select('id, data_vencimento, cedente_id, cedentes(razao_social)')
       .eq('status', 'em_andamento')
 
     if (opsError) {
@@ -56,22 +57,23 @@ export async function GET(request: Request) {
     for (const opRaw of ops) {
       const op = opRaw as unknown as {
         id: string; data_vencimento: string; cedente_id: string;
-        cedentes: { user_id: string; razao_social: string }
+        cedentes: { razao_social: string }
       }
 
       try {
         const vencimento = op.data_vencimento
+        const destinatariosCedente = await listarUsuariosCedenteCron(supabaseAdmin, op.cedente_id)
 
         // D-5 alert
         if (vencimento === formatDate(em5dias)) {
-          const { error } = await supabaseAdmin.from('notificacoes').insert([
-            {
-              usuario_id: op.cedentes.user_id,
+          const { error } = destinatariosCedente.length
+            ? await supabaseAdmin.from('notificacoes').insert(destinatariosCedente.map((usuarioId) => ({
+              usuario_id: usuarioId,
               titulo: 'Vencimento em 5 dias',
               mensagem: `A operacao #${op.id.substring(0, 8)} vence em 5 dias (${vencimento}).`,
               tipo: 'alerta_vencimento',
-            },
-          ] as never[])
+            })) as never[])
+            : { error: null }
           if (error) {
             console.error(`[cron/vencimentos] Erro notificacao D-5 op ${op.id}:`, error.message)
             resultados.erros++
@@ -87,12 +89,14 @@ export async function GET(request: Request) {
 
         // D-1 alert
         if (vencimento === formatDate(em1dia)) {
-          const { error } = await supabaseAdmin.from('notificacoes').insert({
-            usuario_id: op.cedentes.user_id,
+          const { error } = destinatariosCedente.length
+            ? await supabaseAdmin.from('notificacoes').insert(destinatariosCedente.map((usuarioId) => ({
+            usuario_id: usuarioId,
             titulo: 'VENCIMENTO AMANHA',
             mensagem: `A operacao #${op.id.substring(0, 8)} vence AMANHA (${vencimento}).`,
             tipo: 'alerta_vencimento_urgente',
-          } as never)
+          })) as never[])
+            : { error: null }
           if (error) {
             console.error(`[cron/vencimentos] Erro notificacao D-1 op ${op.id}:`, error.message)
             resultados.erros++
@@ -126,28 +130,27 @@ export async function GET(request: Request) {
             `A operacao #${op.id.substring(0, 8)} do cedente ${op.cedentes.razao_social} venceu em ${vencimento} e o sacado NAO pagou.`,
             'inadimplencia_urgente')
 
-          const { error: notifError } = await supabaseAdmin.from('notificacoes').insert({
-            usuario_id: op.cedentes.user_id,
+          const { error: notifError } = destinatariosCedente.length
+            ? await supabaseAdmin.from('notificacoes').insert(destinatariosCedente.map((usuarioId) => ({
+            usuario_id: usuarioId,
             titulo: 'Operacao inadimplente',
             mensagem: `A operacao #${op.id.substring(0, 8)} esta inadimplente. O sacado nao efetuou o pagamento no vencimento.`,
             tipo: 'operacao_inadimplente',
-          } as never)
+          })) as never[])
+            : { error: null }
           if (notifError) {
             console.error(`[cron/vencimentos] Erro notificacao inadimplente op ${op.id}:`, notifError.message)
             resultados.erros++
           }
 
-          const { error: logError } = await supabaseAdmin.from('logs_auditoria').insert({
-            usuario_id: null,
+          await registrarLog({
             tipo_evento: 'OPERACAO_INADIMPLENTE_AUTO',
             entidade_tipo: 'operacoes',
             entidade_id: op.id,
             dados_antes: { status: 'em_andamento' },
             dados_depois: { status: 'inadimplente', source: 'cron' },
-          } as never)
-          if (logError) {
-            console.error(`[cron/vencimentos] Erro log auditoria op ${op.id}:`, logError.message)
-          }
+            ator: { tipo: 'cron', origem: 'cron/vencimentos', identificador: 'vencimentos' },
+          })
 
           resultados.inadimplentes++
         }
@@ -172,6 +175,30 @@ export async function GET(request: Request) {
 }
 
 // Helpers para o cron (nao usam createClient do server pois nao ha contexto de request auth)
+
+async function listarUsuariosCedenteCron(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  cedenteId: string,
+): Promise<string[]> {
+  const [{ data: cedente }, { data: acessos, error }] = await Promise.all([
+    supabase.from('cedentes').select('user_id').eq('id', cedenteId).maybeSingle(),
+    supabase.from('cedente_acessos').select('user_id, status').eq('cedente_id', cedenteId),
+  ])
+  if (error) throw new Error(`Nao foi possivel resolver destinatarios do Cedente: ${error.message}`)
+  const associacoes = (acessos || []) as Array<{ user_id: string; status: string }>
+  const ativos = associacoes.filter((acesso) => acesso.status === 'ATIVO').map((acesso) => acesso.user_id)
+  if (associacoes.length === 0 && cedente?.user_id) ativos.push(String(cedente.user_id))
+  const candidatos = [...new Set(ativos)]
+  if (!candidatos.length) return []
+  const { data: profiles, error: profilesError } = await supabase
+    .from('profiles')
+    .select('id')
+    .in('id', candidatos)
+    .eq('status', 'ativo')
+  if (profilesError) throw new Error(`Nao foi possivel validar destinatarios ativos: ${profilesError.message}`)
+  return (profiles || []).map((profile: { id: string }) => profile.id)
+}
 
 async function notificarGestoresCron(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

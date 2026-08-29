@@ -1,0 +1,13 @@
+{
+  "schema": "rlx_expected_exposure_v2",
+  "dataset_version": "RLX_GOLDEN_V2",
+  "authoritative_decision": false,
+  "scenarios_percent": [
+    25,
+    37,
+    39.8,
+    40,
+    42
+  ],
+  "description": "Contrato descritivo; nenhuma regra de concentracao de 40% e inferida."
+}

@@ -76,7 +76,7 @@ export default function CarteiraConsultorPage() {
       const supabase = createClient()
 
       const [carteiraRes, opsRes] = await Promise.all([
-        supabase.from('consultor_cedentes')
+        supabase.from('consultor_cedente')
           .select('cedente_id, comissao_percentual, created_at, cedentes(razao_social, cnpj, status, created_at, nome_fantasia)')
           .order('created_at', { ascending: false }),
         supabase.from('operacoes')

@@ -1,8 +1,21 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient, createClient } from '@/lib/supabase/server'
+import { assertRole, requireAuthenticated, requireGestor, type AppSupabaseClient } from '@/lib/auth/authorization'
+import { exigirSessaoElevada } from '@/lib/auth/mfa'
 import { registrarLog } from './auditoria'
 import { criarNotificacao, notificarCedente, notificarGestores } from './notificacao'
+import { criarSnapshotPolitica, resolverPoliticaAtivaPorVinculo, statusAceiteInicial } from '@/lib/operacoes/politica'
+import { CedenteFundoError } from '@/lib/fundos/cedente-fundo'
+import { validarElegibilidadeAprovacao, validarElegibilidadeSolicitacao } from '@/lib/operacoes/elegibilidade'
+import { carregarElegibilidadeDocumentalOperacaoEmLote } from '@/lib/operacoes/elegibilidade-documental.server'
+import { montarIdempotencyKeySolicitacaoOperacao } from '@/lib/operacoes/idempotencia'
+import { obterFundoAtivoAutorizado } from '@/lib/fundos/fundo-ativo.server'
+import { carregarContextoEventoOperacao, registrarEventoDominio } from '@/lib/eventos-dominio/registrar'
+import { calcularAntecipacaoEmLote } from '@/lib/operacoes/calculo'
+import { obterDataCivilOperacional } from '@/lib/operacoes/data-operacional.server'
+import { executarGateRisco } from '@/lib/financeiro/risco/processor.server'
+import { validarComposicaoEstabelecimentosOperacao } from '@/lib/cedentes/estabelecimentos'
 
 export type OperacaoActionState = {
   success?: boolean
@@ -10,24 +23,92 @@ export type OperacaoActionState = {
   data?: Record<string, unknown>
 } | undefined
 
+export async function listarTestemunhasOperacao(operacaoId: string) {
+  await requireGestor()
+  const supabase = await createClient()
+  const acessoOperacao = await validarOperacaoNoFundoAtivo(supabase, operacaoId)
+  if (!acessoOperacao?.success) return { success: false, message: acessoOperacao?.message || 'Acesso negado.', data: [] }
+
+  const { data, error } = await createAdminClient()
+    .from('testemunhas')
+    .select('id, nome, cpf')
+    .eq('ativo', true)
+    .order('created_at', { ascending: true })
+
+  if (error) return { success: false, message: 'Nao foi possivel carregar as testemunhas.', data: [] }
+  return { success: true, data: data || [] }
+}
+
+async function registrarEventoOperacao(
+  supabase: AppSupabaseClient,
+  operacaoId: string,
+  input: {
+    tipo_evento: string
+    categoria: 'operacao' | 'aprovacao' | 'reprovacao' | 'desembolso' | 'logistica'
+    descricao: string
+    metadata?: Record<string, unknown>
+    visibilidade?: 'interno' | 'cedente' | 'ambos'
+    origem?: string
+  },
+) {
+  const contextoEvento = await carregarContextoEventoOperacao(supabase, operacaoId)
+  await registrarEventoDominio({
+    ...contextoEvento,
+    tipo_evento: input.tipo_evento,
+    categoria: input.categoria,
+    descricao: input.descricao,
+    metadata: {
+      status: contextoEvento.status,
+      valor_bruto_total: contextoEvento.valor_bruto_total,
+      quantidade_nfs: contextoEvento.quantidade_nfs,
+      ...input.metadata,
+    },
+    visibilidade: input.visibilidade ?? 'ambos',
+    origem: input.origem ?? 'operacao_action',
+  }, supabase)
+}
+
+/**
+ * Reprovacao/cancelamento de operacao: devolve as parcelas cedidas para
+ * 'disponivel' e remove os vinculos operacoes_nf_parcelas -- diferente do
+ * legado operacoes_nfs (nunca apagado), pois operacoes_nf_parcelas tem
+ * UNIQUE(parcela_id): uma parcela so pode estar vinculada a uma operacao
+ * ATIVA por vez, entao o vinculo precisa ser desfeito para a parcela poder
+ * entrar numa operacao futura e diferente.
+ *
+ * Passa pela RPC liberar_parcelas_operacao_rejeitada em vez de UPDATE/DELETE
+ * diretos: nota_fiscal_parcelas e operacoes_nf_parcelas so tem GRANT SELECT
+ * para authenticated (escrita e exclusiva de RPC SECURITY DEFINER); a
+ * chamada direta falhava com "permission denied" a cada reprovacao/
+ * cancelamento, silenciosamente, sem reverter as parcelas.
+ */
+async function liberarParcelasDaOperacao(supabase: AppSupabaseClient, operacaoId: string) {
+  const { error } = await supabase.rpc('liberar_parcelas_operacao_rejeitada', { p_operacao_id: operacaoId } as never)
+  if (error) {
+    console.error('[liberarParcelasDaOperacao]', { operacao_id: operacaoId, erro: error.message })
+  }
+}
+
 // ============================================================
 // CEDENTE — Solicitar antecipacao
 // ============================================================
 
-export async function solicitarAntecipacao(nfIds: string[]): Promise<OperacaoActionState> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { success: false, message: 'Nao autenticado.' }
+export async function solicitarAntecipacao(nfIds: string[], parcelaIds?: string[]): Promise<OperacaoActionState> {
+  const auth = await requireAuthenticated()
+  assertRole(auth.profile.role, ['cedente'])
+  const supabase = auth.supabase
+  const user = auth.user
 
   if (!nfIds || nfIds.length === 0) {
     return { success: false, message: 'Selecione ao menos uma NF.' }
   }
 
-  // Buscar cedente
-  const { data: cedente } = await supabase
-    .from('cedentes')
-    .select('id, cnpj, razao_social, status')
-    .single()
+  // Buscar cedente -- get_user_cedente_id() resolve tanto o dono
+  // (cedentes.user_id) quanto um usuario convidado via cedente_acessos.
+  const { data: cedenteIdDoUsuario } = await supabase.rpc('get_user_cedente_id')
+  const { data: cedente } = cedenteIdDoUsuario
+    ? await supabase.from('cedentes').select('id, cnpj, razao_social, status').eq('id', cedenteIdDoUsuario).maybeSingle()
+    : { data: null }
 
   if (!cedente) return { success: false, message: 'Cadastro de cedente nao encontrado.' }
   const ced = cedente as { id: string; cnpj: string; razao_social: string; status: string }
@@ -45,12 +126,11 @@ export async function solicitarAntecipacao(nfIds: string[]): Promise<OperacaoAct
     .single()
 
   if (!escrow) return { success: false, message: 'Conta escrow nao encontrada ou inativa.' }
-  const escrowData = escrow as { id: string }
 
   // Buscar NFs selecionadas — devem ser aprovadas e pertencer ao cedente
   const { data: nfs } = await supabase
     .from('notas_fiscais')
-    .select('id, valor_bruto, data_vencimento, status, numero_nf, cnpj_destinatario, razao_social_destinatario')
+    .select('id, estabelecimento_id, valor_bruto, data_vencimento, status, numero_nf, cnpj_destinatario, razao_social_destinatario, cedente_fundo_id, fundo_id')
     .in('id', nfIds)
     .eq('cedente_id', ced.id)
     .eq('status', 'aprovada')
@@ -60,8 +140,9 @@ export async function solicitarAntecipacao(nfIds: string[]): Promise<OperacaoAct
   }
 
   const nfsTyped = nfs as Array<{
-    id: string; valor_bruto: number; data_vencimento: string; status: string;
-    numero_nf: string; cnpj_destinatario: string; razao_social_destinatario: string
+    id: string; estabelecimento_id: string | null; valor_bruto: number; data_vencimento: string; status: string;
+    numero_nf: string; cnpj_destinatario: string; razao_social_destinatario: string;
+    cedente_fundo_id: string | null; fundo_id: string | null
   }>
 
   if (nfsTyped.length !== nfIds.length) {
@@ -71,8 +152,133 @@ export async function solicitarAntecipacao(nfIds: string[]): Promise<OperacaoAct
     }
   }
 
-  // Calcular por NF: prazo individual → taxa individual → valor antecipado individual
-  const hoje = new Date()
+  // Parcelas selecionadas (quando a NF tiver parcelas cadastradas): valida
+  // pertencimento/disponibilidade e agrupa por NF, usado tanto para o gate
+  // de elegibilidade documental por parcela quanto para a precificacao.
+  const parcelaIdsUnicos = [...new Set((parcelaIds || []).filter(Boolean))]
+  const parcelasPorNf = new Map<string, Array<{ id: string; valor_nominal: number; data_vencimento: string }>>()
+  if (parcelaIdsUnicos.length > 0) {
+    const { data: parcelasSelecionadasRows, error: parcelasError } = await supabase
+      .from('nota_fiscal_parcelas')
+      .select('id, nota_fiscal_id, valor_nominal, data_vencimento')
+      .in('id', parcelaIdsUnicos)
+      .in('nota_fiscal_id', nfIds)
+      .eq('status', 'disponivel')
+    if (parcelasError) return { success: false, message: `Nao foi possivel validar as parcelas selecionadas: ${parcelasError.message}` }
+    const parcelasRows = (parcelasSelecionadasRows || []) as Array<{ id: string; nota_fiscal_id: string; valor_nominal: number; data_vencimento: string }>
+    if (parcelasRows.length !== parcelaIdsUnicos.length) {
+      return { success: false, message: 'Uma ou mais parcelas selecionadas nao estao disponiveis ou nao pertencem as NFs selecionadas.' }
+    }
+    for (const parcela of parcelasRows) {
+      const lista = parcelasPorNf.get(parcela.nota_fiscal_id) || []
+      lista.push(parcela)
+      parcelasPorNf.set(parcela.nota_fiscal_id, lista)
+    }
+  }
+  const { data: parcelasExistentesRows, error: parcelasExistentesError } = await supabase
+    .from('nota_fiscal_parcelas')
+    .select('nota_fiscal_id')
+    .in('nota_fiscal_id', nfIds)
+  if (parcelasExistentesError) {
+    return { success: false, message: `Nao foi possivel verificar as parcelas das NFs selecionadas: ${parcelasExistentesError.message}` }
+  }
+  const nfsComParcelas = new Set(((parcelasExistentesRows || []) as Array<{ nota_fiscal_id: string }>).map((row) => row.nota_fiscal_id))
+  const nfSemSelecaoDeParcela = nfsTyped.find((nf) => nfsComParcelas.has(nf.id) && !parcelasPorNf.get(nf.id)?.length)
+  if (nfSemSelecaoDeParcela) {
+    return { success: false, message: `NF ${nfSemSelecaoDeParcela.numero_nf}: selecione ao menos uma parcela para antecipar.` }
+  }
+
+  // FUTURE_DECISION_RULE_1: centraliza a composicao de CNPJs sem decidir,
+  // nesta fase, se uma operacao pode ou nao misturar estabelecimentos.
+  validarComposicaoEstabelecimentosOperacao({
+    cedenteId: ced.id,
+    estabelecimentoIds: nfsTyped.map((nf) => nf.estabelecimento_id).filter((value): value is string => Boolean(value)),
+  })
+
+  // Calcular por NF: prazo individual -> taxa unica da operacao -> valor presente individual.
+  const cedenteFundoIds = [...new Set(nfsTyped.map((nf) => nf.cedente_fundo_id).filter(Boolean))]
+  const fundoIds = [...new Set(nfsTyped.map((nf) => nf.fundo_id).filter(Boolean))]
+  if (cedenteFundoIds.length !== 1 || fundoIds.length !== 1) {
+    return {
+      success: false,
+      message: 'As NFs selecionadas precisam pertencer ao mesmo fundo operacional.',
+    }
+  }
+
+  // A operacao nova precisa capturar o contexto vigente do vinculo das proprias NFs.
+  // No multi-fundo, resolver pelo cedente genericamente pode selecionar outro vinculo ativo/cookie.
+  let politicaContexto
+  try {
+    politicaContexto = await resolverPoliticaAtivaPorVinculo({
+      cedenteId: ced.id,
+      cedenteFundoId: cedenteFundoIds[0]!,
+      fundoId: fundoIds[0]!,
+    }, supabase)
+  } catch (error) {
+    if (error instanceof CedenteFundoError) return { success: false, message: error.message }
+    return { success: false, message: 'Nao foi possivel resolver a politica operacional vigente.' }
+  }
+  const politicaSnapshot = criarSnapshotPolitica(politicaContexto)
+  const aceiteSacadoExigido = politicaContexto.versao.aceite_sacado_obrigatorio
+  const aceiteSacadoStatus = statusAceiteInicial(aceiteSacadoExigido)
+
+  let elegibilidadePorNf
+  try {
+    elegibilidadePorNf = await carregarElegibilidadeDocumentalOperacaoEmLote({
+      client: supabase,
+      politicaVersaoId: politicaContexto.versao.id,
+      notas: nfsTyped.map((nf) => ({
+        id: nf.id,
+        status: nf.status,
+        numero: nf.numero_nf,
+        dataEmissao: null,
+        dataVencimento: nf.data_vencimento,
+        cnpjEmitente: null,
+        razaoSocialEmitente: null,
+        cnpjDestinatario: nf.cnpj_destinatario,
+        razaoSocialDestinatario: nf.razao_social_destinatario,
+        valorBruto: Number(nf.valor_bruto),
+      })),
+      parcelaIdsSelecionadasPorNota: new Map(
+        [...parcelasPorNf.entries()].map(([nfId, lista]) => [nfId, lista.map((parcela) => parcela.id)]),
+      ),
+    })
+  } catch (error) {
+    return {
+      success: false,
+      message: 'Nao foi possivel revalidar a documentacao das NFs selecionadas.',
+      data: {
+        detalhe: error instanceof Error ? error.message : 'Falha documental nao identificada.',
+      },
+    }
+  }
+  const elegibilidades = nfsTyped.map((nf) => ({
+    nf,
+    resultado: elegibilidadePorNf.get(nf.id)!,
+  }))
+  const inelegiveis = elegibilidades.filter(({ resultado }) => !resultado.elegivel)
+  if (inelegiveis.length > 0) {
+    return {
+      success: false,
+      message: inelegiveis.map(({ nf, resultado }) => `NF ${nf.numero_nf}: ${resultado.motivos.join(', ')}`).join(' | '),
+      data: {
+        nfsInelegiveis: inelegiveis.map(({ nf, resultado }) => ({
+          notaFiscalId: nf.id,
+          numero: nf.numero_nf,
+          motivos: resultado.motivos,
+          requisitosPendentes: resultado.requisitosPendentes,
+        })),
+      },
+    }
+  }
+
+  const solicitacaoGate = validarElegibilidadeSolicitacao({
+    snapshot: politicaSnapshot.snapshot as unknown as Record<string, unknown>,
+    politicaOperacionalVersaoId: politicaContexto.versao.id,
+    aceiteSacadoObrigatorio: aceiteSacadoExigido,
+    quantidadeNfs: nfsTyped.length,
+  })
+  if (!solicitacaoGate.elegivel) return { success: false, message: solicitacaoGate.bloqueios.join(' ') }
 
   // Buscar todas as taxas do cedente em uma unica query
   const { data: todasTaxas } = await supabase
@@ -82,93 +288,142 @@ export async function solicitarAntecipacao(nfIds: string[]): Promise<OperacaoAct
 
   const taxasDisp = (todasTaxas || []) as Array<{ prazo_min: number; prazo_max: number; taxa_percentual: number }>
 
-  const nfsCalculadas = nfsTyped.map((nf) => {
-    const prazoDias = Math.max(1, Math.ceil(
-      (new Date(nf.data_vencimento).getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24)
-    ))
-    const taxaConfig = taxasDisp.find((t) => prazoDias >= t.prazo_min && prazoDias <= t.prazo_max)
-    const taxa = taxaConfig?.taxa_percentual || 0
-    const fator = Math.pow(1 + taxa / 100, prazoDias / 30)
-    const valorAntecipado = Math.round((nf.valor_bruto / fator) * 100) / 100
-    return { ...nf, prazoDias, taxa, valorAntecipado }
+  // Itens de calculo: por parcela quando a NF tiver parcelas selecionadas
+  // (o VP e somado por vencimento de cada parcela), senao a NF inteira
+  // (legado). A formula/motor de calculo (calcularAntecipacaoEmLote) e a
+  // mesma nos dois casos.
+  const itensCalculo = nfsTyped.flatMap((nf) => {
+    const parcelasDaNf = parcelasPorNf.get(nf.id)
+    if (parcelasDaNf && parcelasDaNf.length > 0) {
+      return parcelasDaNf.map((parcela) => ({
+        id: parcela.id,
+        valorBruto: Number(parcela.valor_nominal),
+        vencimento: parcela.data_vencimento,
+      }))
+    }
+    return [{ id: nf.id, valorBruto: Number(nf.valor_bruto), vencimento: nf.data_vencimento }]
   })
 
-  const valorBrutoTotal = nfsCalculadas.reduce((acc, nf) => acc + nf.valor_bruto, 0)
-  const valorLiquidoDesembolso = nfsCalculadas.reduce((acc, nf) => acc + nf.valorAntecipado, 0)
-
-  // Taxa e prazo medios ponderados (referencia para a operacao)
-  const taxaMedia = valorBrutoTotal > 0
-    ? nfsCalculadas.reduce((acc, nf) => acc + nf.taxa * nf.valor_bruto, 0) / valorBrutoTotal
-    : 0
-  const prazoMedio = valorBrutoTotal > 0
-    ? Math.round(nfsCalculadas.reduce((acc, nf) => acc + nf.prazoDias * nf.valor_bruto, 0) / valorBrutoTotal)
-    : 0
-  const dataVencimento = nfsCalculadas.reduce(
-    (max, nf) => nf.data_vencimento > max ? nf.data_vencimento : max,
-    nfsCalculadas[0].data_vencimento
+  let calculo
+  try {
+    calculo = calcularAntecipacaoEmLote({
+      notas: itensCalculo,
+      taxas: taxasDisp,
+      dataBase: obterDataCivilOperacional(),
+      metodo: politicaContexto.versao.metodo_calculo_financeiro,
+    })
+  } catch (error) {
+    return { success: false, message: error instanceof Error ? error.message : 'Nao foi possivel calcular a operacao.' }
+  }
+  const valorBrutoTotal = calculo.valorBrutoTotal
+  const valorLiquidoDesembolso = calculo.valorLiquidoTotal
+  const taxaMedia = calculo.taxaMedia
+  const prazoMedio = calculo.prazoMedio
+  const dataVencimento = itensCalculo.reduce(
+    (max, item) => item.vencimento > max ? item.vencimento : max,
+    itensCalculo[0].vencimento,
   )
 
-  // Criar operacao
-  const { data: operacao, error: opError } = await supabase
-    .from('operacoes')
-    .insert({
-      cedente_id: ced.id,
-      conta_escrow_id: escrowData.id,
-      valor_bruto_total: valorBrutoTotal,
-      taxa_desconto: taxaMedia,
-      prazo_dias: prazoMedio,
-      valor_liquido_desembolso: Math.max(0, valorLiquidoDesembolso),
-      data_vencimento: dataVencimento,
-      status: 'solicitada',
-    } as never)
-    .select('id')
-    .single()
+  const idempotencyKey = montarIdempotencyKeySolicitacaoOperacao({
+    userId: user.id,
+    cedenteId: ced.id,
+    cedenteFundoId: politicaContexto.cedenteFundo.id,
+    politicaVersaoId: politicaContexto.versao.id,
+    nfIds: [...nfIds, ...parcelaIdsUnicos],
+  })
+
+  const { data: operacao, error: opError } = await supabase.rpc('solicitar_operacao_antecipacao_atomica', {
+    p_cedente_id: ced.id,
+    p_cedente_fundo_id: politicaContexto.cedenteFundo.id,
+    p_politica_operacional_id: politicaContexto.politica.id,
+    p_politica_operacional_versao_id: politicaContexto.versao.id,
+    p_politica_versao: politicaContexto.versao.versao,
+    p_politica_snapshot: politicaSnapshot.snapshot,
+    p_politica_snapshot_hash: politicaSnapshot.hash,
+    p_aceite_sacado_exigido: aceiteSacadoExigido,
+    p_aceite_sacado_status: aceiteSacadoStatus,
+    p_nota_fiscal_ids: nfIds,
+    p_valor_bruto_total: valorBrutoTotal,
+    p_taxa_desconto: taxaMedia,
+    p_prazo_dias: prazoMedio,
+    p_valor_liquido_desembolso: valorLiquidoDesembolso,
+    p_data_vencimento: dataVencimento,
+    p_idempotency_key: idempotencyKey,
+    p_parcela_ids: parcelaIdsUnicos.length ? parcelaIdsUnicos : null,
+  } as never)
 
   if (opError) {
-    console.error('[solicitarAntecipacao]', opError.message)
+    console.error('[solicitarAntecipacao]', {
+      etapa: 'rpc_solicitar_operacao_antecipacao_atomica',
+      user_id: user.id,
+      cedente_id: ced.id,
+      cedente_fundo_id: politicaContexto.cedenteFundo.id,
+      nf_ids: nfIds,
+      erro: opError.message,
+    })
     return { success: false, message: `Erro ao criar operacao: ${opError.message}` }
   }
 
-  const opData = operacao as { id: string }
+  const operacaoResultado = operacao as { operacao_id?: string; idempotent_replay?: boolean } | null
+  const opData = { id: operacaoResultado?.operacao_id || '', idempotentReplay: !!operacaoResultado?.idempotent_replay }
+  if (!opData.id) return { success: false, message: 'Operacao criada sem identificador retornado pelo banco.' }
 
-  // Vincular NFs a operacao
-  const vinculos = nfsTyped.map((nf) => ({
-    operacao_id: opData.id,
-    nota_fiscal_id: nf.id,
-  }))
+  const mensagemSolicitacao = `O cedente ${ced.razao_social} solicitou antecipacao de ${nfsTyped.length} NF(s), valor bruto total ${formatBRL(valorBrutoTotal)}.`
+  if (opData.idempotentReplay) {
+    // Retry idempotente: a operacao ja existe; nao reenfileira notificacoes nem logs complementares.
+  } else if (aceiteSacadoExigido) {
+    await notificarGestores('Nova solicitacao de antecipacao', mensagemSolicitacao, 'operacao_solicitada', `operacao:${opData.id}:solicitada`)
+  } else {
+    await notificarGestores(
+      'Nova operação disponível para análise',
+      `${mensagemSolicitacao} O aceite do sacado foi dispensado pela política registrada no snapshot.`,
+      'operacao_disponivel_analise',
+      `operacao:${opData.id}:encaminhada_gestor`,
+    )
+    await notificarCedente(
+      ced.id,
+      'Operação solicitada e encaminhada à gestora',
+      `A operação foi criada e encaminhada para análise da gestora. O aceite do sacado foi dispensado pela política da operação.`,
+      'operacao_encaminhada_gestor',
+      `operacao:${opData.id}:encaminhada_cedente`,
+    )
+    await registrarLog({
+      tipo_evento: 'ACEITE_SACADO_DISPENSADO',
+      entidade_tipo: 'operacoes',
+      entidade_id: opData.id,
+      dados_depois: { aceite_sacado_exigido: false, aceite_sacado_status: 'dispensado', politica_snapshot_hash: politicaSnapshot.hash },
+    })
+    await registrarLog({
+      tipo_evento: 'OPERACAO_ENCAMINHADA_GESTOR',
+      entidade_tipo: 'operacoes',
+      entidade_id: opData.id,
+      dados_depois: { status: 'solicitada', aceite_sacado_status: 'dispensado' },
+    })
+  }
 
-  await supabase.from('operacoes_nfs').insert(vinculos as never[])
-
-  // Atualizar status das NFs para em_antecipacao
-  await supabase
-    .from('notas_fiscais')
-    .update({ status: 'em_antecipacao' } as never)
-    .in('id', nfIds)
-
-  // Notificar gestores
-  await notificarGestores(
-    'Nova solicitacao de antecipacao',
-    `O cedente ${ced.razao_social} solicitou antecipacao de ${nfsTyped.length} NF(s), valor bruto total ${formatBRL(valorBrutoTotal)}.`,
-    'operacao_solicitada'
-  )
-
-  await registrarLog({
-    tipo_evento: 'OPERACAO_SOLICITADA',
-    entidade_tipo: 'operacoes',
-    entidade_id: opData.id,
-    dados_depois: {
-      valor_bruto_total: valorBrutoTotal,
-      taxa_desconto: taxaMedia,
-      prazo_dias: prazoMedio,
-      nfs: nfsCalculadas.map((n) => n.numero_nf),
-    },
-  })
+  if (!opData.idempotentReplay) {
+    await registrarEventoOperacao(supabase, opData.id, {
+      tipo_evento: 'operacao_solicitada',
+      categoria: 'operacao',
+      descricao: 'Operacao de antecipacao solicitada pelo cedente.',
+      metadata: {
+        valor_bruto_total: valorBrutoTotal,
+        valor_liquido_desembolso: valorLiquidoDesembolso,
+        quantidade_nfs: nfsTyped.length,
+        aceite_sacado_status: aceiteSacadoStatus,
+      },
+    })
+  }
 
   return {
     success: true,
-    message: taxaMedia > 0
-      ? `Solicitacao criada! Valor liquido estimado: ${formatBRL(valorLiquidoDesembolso)}.`
-      : 'Solicitacao criada! O gestor definira a taxa e valor liquido.',
+    message: opData.idempotentReplay
+      ? 'Solicitacao ja havia sido registrada; exibindo a operacao existente.'
+      : taxaMedia === null
+      ? 'Solicitacao criada! O gestor definira a taxa e o valor liquido antes da aprovacao.'
+      : !aceiteSacadoExigido
+      ? 'Solicitacao criada e encaminhada para analise da gestora.'
+      : `Solicitacao criada! Valor liquido estimado: ${formatBRL(valorLiquidoDesembolso as number)}.`,
     data: { operacaoId: opData.id },
   }
 }
@@ -180,8 +435,9 @@ export async function solicitarAntecipacao(nfIds: string[]): Promise<OperacaoAct
 export async function aprovarOperacao(
   operacaoId: string,
   taxaDesconto: number,
-  valorLiquidoDesembolso: number
 ): Promise<OperacaoActionState> {
+  const context = await requireGestor()
+  await exigirSessaoElevada(context)
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, message: 'Nao autenticado.' }
@@ -193,7 +449,8 @@ export async function aprovarOperacao(
   }
 
   if (taxaDesconto < 0) return { success: false, message: 'Taxa deve ser >= 0.' }
-  if (valorLiquidoDesembolso <= 0) return { success: false, message: 'Valor liquido deve ser > 0.' }
+  const acessoOperacao = await validarOperacaoNoFundoAtivo(supabase, operacaoId)
+  if (!acessoOperacao?.success) return acessoOperacao
 
   // Buscar operacao
   const { data: op } = await supabase
@@ -209,6 +466,21 @@ export async function aprovarOperacao(
     cedentes: { user_id: string; razao_social: string; cnpj: string }
   }
 
+  const { data: taxaConfigurada, error: taxaError } = await supabase
+    .from('taxas_cedente')
+    .select('id')
+    .eq('cedente_id', opData.cedente_id)
+    .eq('taxa_percentual', taxaDesconto)
+    .limit(1)
+    .maybeSingle()
+  if (taxaError) return { success: false, message: `Nao foi possivel validar a taxa configurada: ${taxaError.message}` }
+  if (!taxaConfigurada) {
+    return { success: false, message: 'Selecione uma taxa configurada para este cedente antes de aprovar.' }
+  }
+
+  if (opData.status === 'aprovada') {
+    return { success: false, message: 'A operacao ja foi aprovada e nao pode ser aprovada novamente.' }
+  }
   if (opData.status !== 'solicitada' && opData.status !== 'em_analise') {
     return { success: false, message: `Operacao com status "${opData.status}" nao pode ser aprovada.` }
   }
@@ -232,60 +504,64 @@ export async function aprovarOperacao(
       cnpj_destinatario: string; razao_social_destinatario: string
     }>
 
-  // Verificar aceite de todas as NFs
-  const pendentes = nfsTyped.filter((n) => n.status !== 'aceita').map((n) => n.numero_nf)
-  if (pendentes.length > 0) {
+  const gate = await validarElegibilidadeAprovacao(supabase, operacaoId, {
+    taxaDesconto,
+  })
+  if (!gate.elegivel) return { success: false, message: gate.bloqueios.join(' ') }
+
+  const fundoId = String(acessoOperacao.data?.fundoId || '')
+  if (!fundoId) return { success: false, message: 'Nao foi possivel resolver o fundo da operacao para o gate de risco.' }
+
+  let risco
+  try {
+    risco = await executarGateRisco({
+      fundoId,
+      operacaoId,
+      taxaDesconto,
+      dataOperacional: obterDataCivilOperacional(),
+      atorUsuarioId: user.id,
+      origem: 'APROVACAO_OPERACAO',
+    })
+  } catch (error) {
+    return { success: false, message: `A avaliacao de risco nao pode ser concluida: ${error instanceof Error ? error.message : 'falha desconhecida'}` }
+  }
+
+  if (risco.classification.decision === 'BLOQUEADO') {
     return {
       success: false,
-      message: `As seguintes NFs ainda nao foram aceitas pelo sacado: ${pendentes.join(', ')}`,
+      message: `Operacao bloqueada pelo gate de risco: ${risco.classification.reasons.map((reason) => reason.code).join(', ')}.`,
+      data: { riscoExecucaoId: risco.execution.id },
+    }
+  }
+  if (risco.classification.decision === 'REVISAO_MANUAL' && risco.review?.status !== 'LIBERADA') {
+    return {
+      success: false,
+      message: 'A operacao exige revisao manual do risco antes da aprovacao.',
+      data: { riscoExecucaoId: risco.execution.id, riscoRevisaoId: risco.review?.id || null },
     }
   }
 
+  const { data: aprovacao, error: aprovacaoError } = await supabase.rpc('aprovar_operacao_com_risco_atomica', {
+    p_operacao_id: operacaoId,
+    p_taxa_desconto: taxaDesconto,
+    p_risco_execucao_id: risco.execution.id,
+    p_assinatura_inputs: risco.signature,
+  })
+
+  if (aprovacaoError) return { success: false, message: `Erro ao aprovar: ${aprovacaoError.message}` }
+  const aprovacaoResultado = aprovacao as unknown as {
+    valor_liquido_desembolso?: number
+    metodo_calculo_financeiro?: string
+    data_base?: string
+  } | null
+
   // Calcular prazo medio ponderado a partir dos vencimentos individuais (referencia)
-  const hoje = new Date()
-  const somaBase = nfsTyped.reduce((acc, nf) => acc + (nf.valor_liquido || nf.valor_bruto), 0)
-  const prazoMedio = somaBase > 0
-    ? Math.round(
-        nfsTyped.reduce((acc, nf) => {
-          const prazoDias = Math.max(1, Math.ceil(
-            (new Date(nf.data_vencimento).getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24)
-          ))
-          return acc + prazoDias * (nf.valor_liquido || nf.valor_bruto)
-        }, 0) / somaBase
-      )
-    : 0
-
   // Atualizar operacao (sem desembolso ainda — status vai para aprovada)
-  const { error } = await supabase
-    .from('operacoes')
-    .update({
-      taxa_desconto: taxaDesconto,
-      prazo_dias: prazoMedio,
-      valor_liquido_desembolso: valorLiquidoDesembolso,
-      status: 'aprovada',
-      aprovado_por: user.id,
-      aprovado_em: new Date().toISOString(),
-    } as never)
-    .eq('id', operacaoId)
-
-  if (error) return { success: false, message: `Erro ao aprovar: ${error.message}` }
+  // A atualizacao da operacao foi feita pela RPC transacional.
 
   // Calcular e salvar taxa_desagio e valor_antecipado por NF com prazo individual
   if (nfsTyped.length > 0) {
-    for (const nf of nfsTyped) {
-      const prazoDias = Math.max(1, Math.ceil(
-        (new Date(nf.data_vencimento).getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24)
-      ))
-      const fator = Math.pow(1 + taxaDesconto / 100, prazoDias / 30)
-      const base = nf.valor_liquido || nf.valor_bruto
-      const valor = Math.round((base / fator) * 100) / 100
-      await supabase
-        .from('notas_fiscais')
-        .update({ taxa_desagio: taxaDesconto, valor_antecipado: valor } as never)
-        .eq('id', nf.id)
-    }
-
-    // Notificar sacados
+    // Notificar sacados (fila historica preservada nesta fase).
     const sacadosCnpjs = [...new Set(nfsTyped.map((n) => n.cnpj_destinatario))]
     for (const cnpj of sacadosCnpjs) {
       const { data: sacado } = await supabase
@@ -311,20 +587,24 @@ export async function aprovarOperacao(
     }
   }
 
-  await registrarLog({
-    tipo_evento: 'OPERACAO_APROVADA',
-    entidade_tipo: 'operacoes',
-    entidade_id: operacaoId,
-    dados_antes: { status: opData.status },
-    dados_depois: {
-      status: 'aprovada',
+  await registrarEventoOperacao(supabase, operacaoId, {
+    tipo_evento: 'operacao_aprovada',
+    categoria: 'aprovacao',
+    descricao: 'Operacao aprovada pela gestora.',
+    metadata: {
       taxa_desconto: taxaDesconto,
-      prazo_dias: prazoMedio,
-      valor_liquido_desembolso: valorLiquidoDesembolso,
+      valor_liquido_desembolso: aprovacaoResultado?.valor_liquido_desembolso ?? null,
+      metodo_calculo_financeiro: aprovacaoResultado?.metodo_calculo_financeiro ?? null,
+      data_base: aprovacaoResultado?.data_base ?? null,
+      status_anterior: opData.status,
+      status_novo: 'aprovada',
     },
   })
 
-  return { success: true, message: `Operacao aprovada. Envie os documentos assinados e o comprovante TED para desembolsar.` }
+  return {
+    success: true,
+    message: 'Operacao aprovada. Envie os documentos assinados e o comprovante TED para desembolsar.',
+  }
 }
 
 // ============================================================
@@ -332,6 +612,8 @@ export async function aprovarOperacao(
 // ============================================================
 
 export async function desembolsarOperacao(operacaoId: string): Promise<OperacaoActionState> {
+  const context = await requireGestor()
+  await exigirSessaoElevada(context)
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, message: 'Nao autenticado.' }
@@ -340,6 +622,8 @@ export async function desembolsarOperacao(operacaoId: string): Promise<OperacaoA
   if (!profile || (profile as { role: string }).role !== 'gestor') {
     return { success: false, message: 'Acesso negado.' }
   }
+  const acessoOperacao = await validarOperacaoNoFundoAtivo(supabase, operacaoId)
+  if (!acessoOperacao?.success) return acessoOperacao
 
   const { data: op } = await supabase
     .from('operacoes')
@@ -368,36 +652,10 @@ export async function desembolsarOperacao(operacaoId: string): Promise<OperacaoA
     return { success: false, message: 'Envie o comprovante de desembolso (TED) antes de confirmar.' }
   }
 
-  const { error } = await supabase
-    .from('operacoes')
-    .update({ status: 'em_andamento' } as never)
-    .eq('id', operacaoId)
-
+  const { data: desembolso, error } = await supabase.rpc('desembolsar_operacao_com_logistica', {
+    p_operacao_id: operacaoId,
+  })
   if (error) return { success: false, message: `Erro ao desembolsar: ${error.message}` }
-
-  // Creditar conta escrow
-  const { data: escrow } = await supabase
-    .from('contas_escrow')
-    .select('saldo_disponivel')
-    .eq('id', opData.conta_escrow_id)
-    .single()
-
-  const saldoAtual = (escrow as { saldo_disponivel: number } | null)?.saldo_disponivel || 0
-  const novoSaldo = saldoAtual + opData.valor_liquido_desembolso
-
-  await supabase
-    .from('contas_escrow')
-    .update({ saldo_disponivel: novoSaldo } as never)
-    .eq('id', opData.conta_escrow_id)
-
-  await supabase.from('movimentos_escrow').insert({
-    conta_escrow_id: opData.conta_escrow_id,
-    tipo: 'credito',
-    descricao: `Desembolso antecipacao - Operacao ${operacaoId.substring(0, 8)}`,
-    valor: opData.valor_liquido_desembolso,
-    saldo_apos: novoSaldo,
-    operacao_id: operacaoId,
-  } as never)
 
   await notificarCedente(
     opData.cedente_id,
@@ -414,6 +672,17 @@ export async function desembolsarOperacao(operacaoId: string): Promise<OperacaoA
     dados_depois: {
       status: 'em_andamento',
       valor_liquido_desembolso: opData.valor_liquido_desembolso,
+      logistica: desembolso,
+    },
+  })
+  await registrarEventoOperacao(supabase, operacaoId, {
+    tipo_evento: 'operacao_desembolsada',
+    categoria: 'desembolso',
+    descricao: 'Desembolso confirmado pela gestora.',
+    metadata: {
+      status_anterior: 'aprovada',
+      status_novo: 'em_andamento',
+      valor_liquido_desembolso: opData.valor_liquido_desembolso,
     },
   })
 
@@ -425,11 +694,14 @@ export async function desembolsarOperacao(operacaoId: string): Promise<OperacaoA
 // ============================================================
 
 export async function reprovarOperacao(operacaoId: string, motivo: string): Promise<OperacaoActionState> {
+  await requireGestor()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, message: 'Nao autenticado.' }
 
   if (!motivo?.trim()) return { success: false, message: 'Motivo e obrigatorio.' }
+  const acessoOperacao = await validarOperacaoNoFundoAtivo(supabase, operacaoId)
+  if (!acessoOperacao?.success) return acessoOperacao
 
   const { data: op } = await supabase
     .from('operacoes')
@@ -461,6 +733,7 @@ export async function reprovarOperacao(operacaoId: string, motivo: string): Prom
       .update({ status: 'aprovada', aprovacao_sacado_em: null } as never)
       .in('id', nfIds)
   }
+  await liberarParcelasDaOperacao(supabase, operacaoId)
 
   await notificarCedente(
     opData.cedente_id,
@@ -476,6 +749,12 @@ export async function reprovarOperacao(operacaoId: string, motivo: string): Prom
     dados_antes: { status: opData.status },
     dados_depois: { status: 'reprovada', motivo },
   })
+  await registrarEventoOperacao(supabase, operacaoId, {
+    tipo_evento: 'operacao_reprovada',
+    categoria: 'reprovacao',
+    descricao: 'Operacao reprovada pela gestora.',
+    metadata: { status_anterior: opData.status, status_novo: 'reprovada', motivo_resumido: motivo.slice(0, 120) },
+  })
 
   return { success: true, message: 'Operacao reprovada.' }
 }
@@ -485,6 +764,7 @@ export async function reprovarOperacao(operacaoId: string, motivo: string): Prom
 // ============================================================
 
 export async function cancelarOperacao(operacaoId: string): Promise<OperacaoActionState> {
+  await requireAuthenticated()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, message: 'Nao autenticado.' }
@@ -531,6 +811,7 @@ export async function cancelarOperacao(operacaoId: string): Promise<OperacaoActi
       .update({ status: 'aprovada', aprovacao_sacado_em: null } as never)
       .in('id', nfIds)
   }
+  await liberarParcelasDaOperacao(supabase, operacaoId)
 
   await registrarLog({
     tipo_evento: 'OPERACAO_CANCELADA',
@@ -538,6 +819,12 @@ export async function cancelarOperacao(operacaoId: string): Promise<OperacaoActi
     entidade_id: operacaoId,
     dados_antes: { status: opData.status },
     dados_depois: { status: 'cancelada' },
+  })
+  await registrarEventoOperacao(supabase, operacaoId, {
+    tipo_evento: 'operacao_cancelada',
+    categoria: 'operacao',
+    descricao: 'Operacao cancelada pelo cedente.',
+    metadata: { status_anterior: opData.status, status_novo: 'cancelada' },
   })
 
   return { success: true, message: 'Operacao cancelada. NFs disponiveis para nova solicitacao.' }
@@ -551,6 +838,7 @@ export async function salvarTaxasCedente(
   cedenteId: string,
   taxas: Array<{ prazo_min: number; prazo_max: number; taxa_percentual: number }>
 ): Promise<OperacaoActionState> {
+  await requireGestor()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, message: 'Nao autenticado.' }
@@ -597,6 +885,7 @@ export async function removerNfDaOperacao(
   operacaoId: string,
   nfId: string
 ): Promise<OperacaoActionState> {
+  await requireGestor()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, message: 'Nao autenticado.' }
@@ -605,6 +894,8 @@ export async function removerNfDaOperacao(
   if (!profile || (profile as { role: string }).role !== 'gestor') {
     return { success: false, message: 'Acesso negado.' }
   }
+  const acessoOperacao = await validarOperacaoNoFundoAtivo(supabase, operacaoId)
+  if (!acessoOperacao?.success) return acessoOperacao
 
   // Buscar operacao
   const { data: op } = await supabase
@@ -616,11 +907,14 @@ export async function removerNfDaOperacao(
   if (!op) return { success: false, message: 'Operacao nao encontrada.' }
   const opData = op as {
     id: string; status: string; cedente_id: string; conta_escrow_id: string;
-    valor_bruto_total: number; taxa_desconto: number;
+    valor_bruto_total: number; taxa_desconto: number | null;
+    metodo_calculo_financeiro: string | null; calculo_data_base: string | null;
     cedentes: { user_id: string; razao_social: string }
   }
 
-  const statusPermitidos = ['solicitada', 'em_analise', 'em_andamento']
+  // Valores aprovados e a memoria por NF sao historicos. Remover uma NF depois
+  // da aprovacao exigiria uma nova decisao operacional, nao um recalculo oculto.
+  const statusPermitidos = ['solicitada', 'em_analise']
   if (!statusPermitidos.includes(opData.status)) {
     return { success: false, message: `Nao e possivel remover NFs de uma operacao com status "${opData.status}".` }
   }
@@ -663,8 +957,6 @@ export async function removerNfDaOperacao(
     .select('nota_fiscal_id')
     .eq('operacao_id', operacaoId)
 
-  const wasEmAndamento = opData.status === 'em_andamento'
-
   if (!restantes || restantes.length === 0) {
     // Sem NFs restantes — cancelar operacao
     await supabase
@@ -686,54 +978,70 @@ export async function removerNfDaOperacao(
       'operacao_cancelada',
     )
 
-    const aviso = wasEmAndamento ? ' ATENCAO: A operacao ja estava em andamento — verifique o saldo da conta escrow.' : ''
-    return { success: true, message: `NF ${nfData.numero_nf} removida. Operacao cancelada pois nao havia mais NFs.${aviso}` }
+    await registrarEventoOperacao(supabase, operacaoId, {
+      tipo_evento: 'nota_fiscal_removida_operacao',
+      categoria: 'operacao',
+      descricao: `NF ${nfData.numero_nf} removida da operacao; operacao cancelada.`,
+      metadata: { numero_nf: nfData.numero_nf, operacao_cancelada: true, status_novo: 'cancelada' },
+    })
+
+    return { success: true, message: `NF ${nfData.numero_nf} removida. Operacao cancelada pois nao havia mais NFs.` }
   }
 
-  // Recalcular valor_bruto_total e valor_liquido_desembolso com NFs restantes
+  // Recalcular apenas a previa pre-aprovacao com o dominio financeiro central.
+  // A aprovacao refara o calculo atomicamente com sua propria data-base.
   const nfIdsRestantes = (restantes as Array<{ nota_fiscal_id: string }>).map((n) => n.nota_fiscal_id)
   const { data: nfsRestantes } = await supabase
     .from('notas_fiscais')
-    .select('valor_bruto, valor_liquido, data_vencimento')
+    .select('id, valor_bruto, data_vencimento')
     .in('id', nfIdsRestantes)
 
-  const hoje = new Date()
-  const taxaDesconto = opData.taxa_desconto || 0
-  const nfsRestantesTyped = (nfsRestantes || []) as Array<{ valor_bruto: number; valor_liquido: number | null; data_vencimento: string }>
-
-  const novoValorBruto = nfsRestantesTyped.reduce((acc, n) => acc + (n.valor_bruto || 0), 0)
-  const novoValorLiquido = Math.round(
-    nfsRestantesTyped.reduce((acc, n) => {
-      const prazoDias = Math.max(1, Math.ceil(
-        (new Date(n.data_vencimento).getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24)
-      ))
-      const fator = Math.pow(1 + taxaDesconto / 100, prazoDias / 30)
-      const base = n.valor_liquido || n.valor_bruto
-      return acc + base / fator
-    }, 0) * 100
-  ) / 100
+  const nfsRestantesTyped = (nfsRestantes || []) as Array<{
+    id: string
+    valor_bruto: number
+    data_vencimento: string
+  }>
+  const previaAtualizada = calcularAntecipacaoEmLote({
+    notas: nfsRestantesTyped.map((item) => ({
+      id: item.id,
+      valorBruto: Number(item.valor_bruto),
+      vencimento: item.data_vencimento,
+    })),
+    taxaMensal: opData.taxa_desconto,
+    dataBase: opData.calculo_data_base || obterDataCivilOperacional(),
+    metodo: opData.metodo_calculo_financeiro,
+  })
 
   await supabase
     .from('operacoes')
-    .update({ valor_bruto_total: novoValorBruto, valor_liquido_desembolso: novoValorLiquido } as never)
+    .update({
+      valor_bruto_total: previaAtualizada.valorBrutoTotal,
+      valor_liquido_desembolso: previaAtualizada.valorLiquidoTotal,
+    } as never)
     .eq('id', operacaoId)
 
   await registrarLog({
     tipo_evento: 'NF_REMOVIDA_OPERACAO',
     entidade_tipo: 'operacoes',
     entidade_id: operacaoId,
-    dados_depois: { nf_removida: nfData.numero_nf, novo_valor_bruto: novoValorBruto },
+    dados_depois: { nf_removida: nfData.numero_nf, novo_valor_bruto: previaAtualizada.valorBrutoTotal },
   })
 
   await notificarCedente(
     opData.cedente_id,
     'NF removida da operacao',
-    `A NF ${nfData.numero_nf} foi removida da operacao pelo gestor. O valor bruto da operacao foi recalculado para ${formatBRL(novoValorBruto)}.`,
+    `A NF ${nfData.numero_nf} foi removida da operacao pelo gestor. O valor bruto da operacao foi recalculado para ${formatBRL(previaAtualizada.valorBrutoTotal)}.`,
     'nf_removida_operacao',
   )
 
-  const aviso = wasEmAndamento ? ' ATENCAO: A operacao ja estava em andamento — os termos financeiros precisam ser ajustados manualmente.' : ''
-  return { success: true, message: `NF ${nfData.numero_nf} removida. Novo valor bruto: ${formatBRL(novoValorBruto)}.${aviso}` }
+  await registrarEventoOperacao(supabase, operacaoId, {
+    tipo_evento: 'nota_fiscal_removida_operacao',
+    categoria: 'operacao',
+    descricao: `NF ${nfData.numero_nf} removida da operacao.`,
+    metadata: { numero_nf: nfData.numero_nf, novo_valor_bruto: previaAtualizada.valorBrutoTotal },
+  })
+
+  return { success: true, message: `NF ${nfData.numero_nf} removida. Novo valor bruto: ${formatBRL(previaAtualizada.valorBrutoTotal)}.` }
 }
 
 export async function salvarTestemunhasOperacao(
@@ -741,6 +1049,7 @@ export async function salvarTestemunhasOperacao(
   testemunha1Id: string,
   testemunha2Id: string
 ): Promise<OperacaoActionState> {
+  await requireGestor()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, message: 'Nao autenticado.' }
@@ -749,6 +1058,8 @@ export async function salvarTestemunhasOperacao(
   if (!profile || (profile as { role: string }).role !== 'gestor') {
     return { success: false, message: 'Acesso negado.' }
   }
+  const acessoOperacao = await validarOperacaoNoFundoAtivo(supabase, operacaoId)
+  if (!acessoOperacao?.success) return acessoOperacao
 
   const { error } = await supabase
     .from('operacoes')
@@ -759,76 +1070,11 @@ export async function salvarTestemunhasOperacao(
   return { success: true, message: 'Testemunhas salvas.' }
 }
 
-export async function salvarTermoAssinado(
-  operacaoId: string,
-  path: string
-): Promise<OperacaoActionState> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { success: false, message: 'Nao autenticado.' }
-
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-  if (!profile || (profile as { role: string }).role !== 'gestor') {
-    return { success: false, message: 'Acesso negado.' }
-  }
-
-  const { error } = await supabase
-    .from('operacoes')
-    .update({ termo_assinado_url: path } as never)
-    .eq('id', operacaoId)
-
-  if (error) return { success: false, message: `Erro: ${error.message}` }
-  return { success: true, message: 'Termo assinado salvo.' }
-}
-
-export async function salvarComprovantePagamento(
-  operacaoId: string,
-  path: string
-): Promise<OperacaoActionState> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { success: false, message: 'Nao autenticado.' }
-
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-  if (!profile || (profile as { role: string }).role !== 'gestor') {
-    return { success: false, message: 'Acesso negado.' }
-  }
-
-  const { error } = await supabase
-    .from('operacoes')
-    .update({ comprovante_pagamento_url: path } as never)
-    .eq('id', operacaoId)
-
-  if (error) return { success: false, message: `Erro: ${error.message}` }
-  return { success: true, message: 'Comprovante salvo.' }
-}
-
-export async function salvarNotificacaoAssinada(
-  operacaoId: string,
-  path: string
-): Promise<OperacaoActionState> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { success: false, message: 'Nao autenticado.' }
-
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-  if (!profile || (profile as { role: string }).role !== 'gestor') {
-    return { success: false, message: 'Acesso negado.' }
-  }
-
-  const { error } = await supabase
-    .from('operacoes')
-    .update({ notificacao_assinada_url: path } as never)
-    .eq('id', operacaoId)
-
-  if (error) return { success: false, message: `Erro: ${error.message}` }
-  return { success: true, message: 'Notificacao assinada salva.' }
-}
-
 export async function salvarQuitacaoAssinada(
   operacaoId: string,
   path: string
 ): Promise<OperacaoActionState> {
+  await requireGestor()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, message: 'Nao autenticado.' }
@@ -837,6 +1083,8 @@ export async function salvarQuitacaoAssinada(
   if (!profile || (profile as { role: string }).role !== 'gestor') {
     return { success: false, message: 'Acesso negado.' }
   }
+  const acessoOperacao = await validarOperacaoNoFundoAtivo(supabase, operacaoId)
+  if (!acessoOperacao?.success) return acessoOperacao
 
   const { error } = await supabase
     .from('operacoes')
@@ -848,6 +1096,38 @@ export async function salvarQuitacaoAssinada(
 }
 
 // Helper
+async function validarOperacaoNoFundoAtivo(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  operacaoId: string,
+): Promise<OperacaoActionState> {
+  const contexto = await obterFundoAtivoAutorizado()
+  if (!contexto.fundoId) return { success: false, message: 'Selecione um fundo ativo antes de executar esta ação.' }
+
+  const { data: op, error: opError } = await supabase
+    .from('operacoes')
+    .select('id, cedente_fundo_id')
+    .eq('id', operacaoId)
+    .maybeSingle()
+
+  if (opError) return { success: false, message: `Erro ao validar fundo da operação: ${opError.message}` }
+  if (!op) return { success: false, message: 'Operação não encontrada.' }
+
+  const cedenteFundoId = (op as { cedente_fundo_id?: string | null }).cedente_fundo_id
+  if (!cedenteFundoId) return { success: false, message: 'Operação sem vínculo de fundo.' }
+
+  const { data: link, error: linkError } = await supabase
+    .from('cedente_fundos')
+    .select('id')
+    .eq('id', cedenteFundoId)
+    .eq('fundo_id', contexto.fundoId)
+    .maybeSingle()
+
+  if (linkError) return { success: false, message: `Erro ao validar acesso ao fundo: ${linkError.message}` }
+  if (!link) return { success: false, message: 'Operação não pertence ao fundo ativo.' }
+
+  return { success: true, data: { fundoId: contexto.fundoId } }
+}
+
 function formatBRL(value: number): string {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
 }

@@ -1,0 +1,369 @@
+{
+  "schema": "bw-antecipa-p2-6-4-canonical-decisions-v1",
+  "source": "docs/financeiro/schema-parity-p2-6-3.json",
+  "precedence": [
+    "seguranca_e_arquitetura_aprovadas",
+    "runtime_atual",
+    "contratos_e_testes_p2_2_a_p2_6",
+    "migration_deliberada_mais_recente",
+    "homolog",
+    "clean_room"
+  ],
+  "initial": {
+    "material_differences": 690,
+    "environmental_differences": 49,
+    "material_by_category": {
+      "relations": 1,
+      "constraints": 2,
+      "indexes": 1,
+      "routines": 4,
+      "triggers": 1,
+      "policies": 10,
+      "grants": 671
+    }
+  },
+  "classification_counts": {
+    "CANON_HOMOLOG": 0,
+    "CANON_CLEAN_ROOM": 8,
+    "CANON_NOVO_ESTADO": 4,
+    "AMBIENTAL_ALLOWLIST": 49,
+    "REMOVER_LEGADO": 8,
+    "UNRESOLVED": 0
+  },
+  "decisions": [
+    {
+      "category": "relations",
+      "object": "public.devedores_solidarios",
+      "difference": "RLS habilitada apenas em homologacao, acompanhada por tres policies legadas e sobrepostas.",
+      "homolog_state": "RLS habilitada; policies cedente_select, gestor_select e gestor_all.",
+      "clean_room_state": "RLS desabilitada; sem policies.",
+      "canonical": "CANON_NOVO_ESTADO",
+      "canonical_definition": "RLS habilitada; leitura autenticada do cedente proprietario e leitura do gestor limitada aos fundos autorizados; nenhuma escrita direta de aplicacao.",
+      "evidence": [
+        "supabase/migrations/20260730190000_escopo9b_corrigir_isolamento_rls.sql",
+        "supabase/migrations/20260804171538_corrigir_recursao_rls_cedente_fundos.sql",
+        "src sem consumidor runtime direto de devedores_solidarios"
+      ],
+      "security_impact": "HIGH",
+      "runtime_impact": "LOW",
+      "migration_action": "Habilitar RLS, remover policies legadas e criar duas policies SELECT multifundo.",
+      "rationale": "O estado novo elimina gestor global e falha fechado para escrita sem inventar um fundo_id inexistente na tabela.",
+      "status": "RESOLVED"
+    },
+    {
+      "category": "constraints",
+      "object": "public.notas_fiscais.notas_fiscais_valor_bruto_check",
+      "difference": "Homolog aceita zero; clean-room exige valor positivo.",
+      "homolog_state": "CHECK (valor_bruto >= 0)",
+      "clean_room_state": "CHECK (valor_bruto > 0)",
+      "canonical": "CANON_CLEAN_ROOM",
+      "canonical_definition": "CHECK (valor_bruto > 0)",
+      "evidence": [
+        "scripts/perf9e/bootstrap/schema-base-candidate.sql",
+        "validacao de aplicacao exige valor_bruto > 0",
+        "homolog read-only: zero registros com valor_bruto = 0"
+      ],
+      "security_impact": "LOW",
+      "runtime_impact": "MEDIUM",
+      "migration_action": "Precheck de dados, recriar constraint e valida-la na mesma transacao.",
+      "rationale": "NF com valor nominal zero nao e elegivel ao fluxo financeiro.",
+      "status": "RESOLVED"
+    },
+    {
+      "category": "constraints",
+      "object": "public.remessas_cnab.remessas_cnab_integracao_fundo_versao_id_fkey",
+      "difference": "FK ausente em homolog e presente no clean-room.",
+      "homolog_state": "Coluna sem FK materializada.",
+      "clean_room_state": "FK RESTRICT para integracao_fundo_versoes(id).",
+      "canonical": "CANON_CLEAN_ROOM",
+      "canonical_definition": "FOREIGN KEY (integracao_fundo_versao_id) REFERENCES public.integracao_fundo_versoes(id) ON DELETE RESTRICT",
+      "evidence": [
+        "supabase/migrations/20260721194546_fase7_cnab_configuravel_rastreavel.sql",
+        "arquitetura P2.2.1/P2.2.2 preserva a versao de integracao usada",
+        "homolog read-only: zero referencias orfas"
+      ],
+      "security_impact": "MEDIUM",
+      "runtime_impact": "MEDIUM",
+      "migration_action": "Precheck de orfaos, adicionar e validar FK.",
+      "rationale": "A remessa deve preservar referencia historica valida.",
+      "status": "RESOLVED"
+    },
+    {
+      "category": "indexes",
+      "object": "public.idx_operacao_calculo_nfs_operacao",
+      "difference": "Indice simples existe apenas em homologacao.",
+      "homolog_state": "btree(operacao_id)",
+      "clean_room_state": "Ausente; indice UNIQUE (operacao_id, nota_fiscal_id) cobre o prefixo.",
+      "canonical": "REMOVER_LEGADO",
+      "canonical_definition": "Ausente",
+      "evidence": [
+        "supabase/migrations/20260805160000_metodos_calculo_financeiro_operacao.sql",
+        "supabase/migrations/20260805180000_endurecer_aprovacao_financeira.sql"
+      ],
+      "security_impact": "NONE",
+      "runtime_impact": "LOW",
+      "migration_action": "DROP INDEX com assert do indice composto equivalente.",
+      "rationale": "Indice redundante, removido deliberadamente pelo hardening posterior.",
+      "status": "RESOLVED"
+    },
+    {
+      "category": "routines",
+      "object": "public.aprovar_operacao_atomica_financeiro_v1(uuid,numeric)",
+      "difference": "Motor interno existe apenas no clean-room.",
+      "homolog_state": "Corpo financeiro ainda ocupa aprovar_operacao_atomica.",
+      "clean_room_state": "Motor interno separado e sem EXECUTE para browser.",
+      "canonical": "CANON_CLEAN_ROOM",
+      "canonical_definition": "Motor financeiro SECURITY DEFINER interno, sem PUBLIC/anon/authenticated EXECUTE.",
+      "evidence": [
+        "supabase/migrations/20260805170000_corrigir_ambiguidade_valor_bruto_aprovacao.sql",
+        "supabase/migrations/20260805180000_endurecer_aprovacao_financeira.sql",
+        "supabase/migrations/20260814230000_p2_6_gate_risco_decisao_operacional.sql"
+      ],
+      "security_impact": "HIGH",
+      "runtime_impact": "HIGH",
+      "migration_action": "Recriar explicitamente o motor interno pela definicao validada.",
+      "rationale": "aprovar_operacao_com_risco_atomica depende desta separacao e nenhuma aprovacao pode contornar o P2.6.",
+      "status": "RESOLVED"
+    },
+    {
+      "category": "routines",
+      "object": "public.aprovar_operacao_atomica(uuid,numeric)",
+      "difference": "Homolog contem motor completo; clean-room contem wrapper endurecido.",
+      "homolog_state": "Motor financeiro diretamente exposto na assinatura historica.",
+      "clean_room_state": "Wrapper defensivo; P2.6 revoga authenticated no estado final.",
+      "canonical": "CANON_CLEAN_ROOM",
+      "canonical_definition": "Wrapper endurecido preservado, sem EXECUTE para PUBLIC, anon ou authenticated apos P2.6.",
+      "evidence": [
+        "src/lib/actions/operacao.ts usa aprovar_operacao_com_risco_atomica",
+        "supabase/migrations/20260814230000_p2_6_gate_risco_decisao_operacional.sql"
+      ],
+      "security_impact": "CRITICAL",
+      "runtime_impact": "HIGH",
+      "migration_action": "CREATE OR REPLACE wrapper e revogar acesso de aplicacao direto.",
+      "rationale": "Mantem compatibilidade nominal sem reintroduzir bypass de aprovacao.",
+      "status": "RESOLVED"
+    },
+    {
+      "category": "routines",
+      "object": "public.bloquear_aprovacao_financeira_direta()",
+      "difference": "Funcao de trigger ausente em homolog.",
+      "homolog_state": "Ausente.",
+      "clean_room_state": "Defense-in-depth contra INSERT/UPDATE direto para status aprovada.",
+      "canonical": "CANON_CLEAN_ROOM",
+      "canonical_definition": "Trigger function sem EXECUTE de aplicacao.",
+      "evidence": [
+        "supabase/migrations/20260805180000_endurecer_aprovacao_financeira.sql",
+        "testes de bypass do gate P2.6"
+      ],
+      "security_impact": "CRITICAL",
+      "runtime_impact": "HIGH",
+      "migration_action": "Recriar funcao e trigger.",
+      "rationale": "Impede mutacao direta de status fora do motor financeiro autorizado.",
+      "status": "RESOLVED"
+    },
+    {
+      "category": "routines",
+      "object": "public.registrar_cte_documento(uuid[],text,text,text,bigint,text,text,text,text,text,text,date,text,text,text,numeric,text,jsonb)",
+      "difference": "Homolog nao vincula documento a entrega nem atualiza requisito; clean-room faz ambos.",
+      "homolog_state": "Registra repositorio, versao, CT-e e vinculo CT-e.",
+      "clean_room_state": "Tambem cria documento_vinculos para nota_fiscal_entrega e atualiza documento_requisito_instancias.",
+      "canonical": "CANON_CLEAN_ROOM",
+      "canonical_definition": "Implementacao integral da migration de validacao CT-e/NF.",
+      "evidence": [
+        "supabase/migrations/20260727142150_validacao_cte_nfe.sql",
+        "runtime documental e logistico atual usa nota_fiscal_entregas e documento_requisito_instancias"
+      ],
+      "security_impact": "MEDIUM",
+      "runtime_impact": "HIGH",
+      "migration_action": "CREATE OR REPLACE pela definicao versionada, sem copiar dump de ambiente.",
+      "rationale": "Mantem uma unica evidencia documental coerente entre NF, entrega e checklist.",
+      "status": "RESOLVED"
+    },
+    {
+      "category": "triggers",
+      "object": "public.operacoes.operacoes_bloquear_aprovacao_financeira_direta",
+      "difference": "Trigger existe apenas no clean-room.",
+      "homolog_state": "Ausente.",
+      "clean_room_state": "BEFORE INSERT OR UPDATE OF status.",
+      "canonical": "CANON_CLEAN_ROOM",
+      "canonical_definition": "Trigger BEFORE por linha chamando bloquear_aprovacao_financeira_direta().",
+      "evidence": ["supabase/migrations/20260805180000_endurecer_aprovacao_financeira.sql"],
+      "security_impact": "CRITICAL",
+      "runtime_impact": "HIGH",
+      "migration_action": "DROP/CREATE convergente.",
+      "rationale": "Defense-in-depth obrigatoria para o gate P2.6.",
+      "status": "RESOLVED"
+    },
+    {
+      "category": "policies",
+      "object": "public.logs_auditoria",
+      "difference": "Homolog usa ALL/INSERT legados; clean-room usa SELECT + INSERT append-only.",
+      "homolog_state": "logs_auditoria_gestor_all e logs_auditoria_insert.",
+      "clean_room_state": "logs_auditoria_gestor_select e logs_auditoria_insert_usuario.",
+      "canonical": "CANON_CLEAN_ROOM",
+      "canonical_definition": "Leitura autenticada de gestor; INSERT autenticado somente do proprio ator; sem UPDATE/DELETE.",
+      "evidence": ["supabase/migrations/20260720203009_fase1_auditoria_atores_origem.sql"],
+      "security_impact": "HIGH",
+      "runtime_impact": "MEDIUM",
+      "migration_action": "Remover quatro nomes conhecidos e recriar somente duas policies append-only.",
+      "rationale": "Auditoria operacional deve ser imutavel.",
+      "status": "RESOLVED"
+    },
+    {
+      "category": "policies",
+      "object": "public.eventos_dominio.eventos_dominio_insert",
+      "difference": "Homolog nao permite eventos do sacado; clean-room permite dentro do proprio CNPJ.",
+      "homolog_state": "Gestor e cedente.",
+      "clean_room_state": "Gestor, cedente e sacado com vinculo NF/operacao e visibilidade ambos.",
+      "canonical": "CANON_CLEAN_ROOM",
+      "canonical_definition": "Policy da migration do portal sacado, mantendo restricoes por fundo, cedente e CNPJ.",
+      "evidence": [
+        "supabase/migrations/20260728182000_rls_historico_portal_sacado.sql",
+        "portal sacado atual registra aceite, contestacao e pagamento"
+      ],
+      "security_impact": "HIGH",
+      "runtime_impact": "HIGH",
+      "migration_action": "DROP/CREATE policy canonical.",
+      "rationale": "O portal sacado atual depende da escrita controlada, sem ampliar visibilidade.",
+      "status": "RESOLVED"
+    },
+    {
+      "category": "policies",
+      "object": "storage.objects:storage_contratos_gestor_insert,storage_contratos_gestor_update",
+      "difference": "Policies legadas existem apenas em homologacao.",
+      "homolog_state": "INSERT e UPDATE diretos do gestor no bucket contratos.",
+      "clean_room_state": "Ausentes; leitura centralizada e escrita server-side.",
+      "canonical": "REMOVER_LEGADO",
+      "canonical_definition": "Sem escrita direta do browser no bucket contratos.",
+      "evidence": [
+        "supabase/migrations/20260731140710_escopo9c_storage_autorizacao_multifundo.sql",
+        "src/lib/operacoes/documentos-assinados.server.ts usa cliente administrativo server-side"
+      ],
+      "security_impact": "HIGH",
+      "runtime_impact": "MEDIUM",
+      "migration_action": "DROP POLICY dos dois nomes legados.",
+      "rationale": "Storage e fronteira de seguranca e o fluxo atual nao depende de escrita direta autenticada.",
+      "status": "RESOLVED"
+    },
+    {
+      "category": "grants",
+      "object": "anon:55 relations + 59 routines",
+      "difference": "Homolog possui 279 ACLs extras para anon; clean-room nao.",
+      "homolog_state": "SELECT/INSERT/UPDATE/DELETE em 55 relacoes e EXECUTE em 59 rotinas.",
+      "clean_room_state": "ACLs extras ausentes.",
+      "canonical": "REMOVER_LEGADO",
+      "canonical_definition": "Nenhum grant anon nos objetos divergentes; PUBLIC EXECUTE tambem removido das rotinas de aplicacao alteradas.",
+      "evidence": [
+        "schema-parity-p2-6-3.json",
+        "nenhum consumidor anon legitimo localizado em src",
+        "autenticacao obrigatoria nos fluxos BW"
+      ],
+      "security_impact": "CRITICAL",
+      "runtime_impact": "LOW",
+      "migration_action": "REVOKE explicito por lista fechada de objetos e assinatura.",
+      "rationale": "Exposicao anonima nao possui contrato runtime aprovado.",
+      "status": "RESOLVED",
+      "covered_differences": 279
+    },
+    {
+      "category": "grants",
+      "object": "authenticated:direct relation mutations + trigger/helper routines",
+      "difference": "Homolog possui 155 ACLs extras de tabela e 28 EXECUTEs de helper/trigger.",
+      "homolog_state": "Acesso direto amplo e execucao de funcoes internas.",
+      "clean_room_state": "ACL explicita das migrations atuais; extras ausentes.",
+      "canonical": "REMOVER_LEGADO",
+      "canonical_definition": "Remover somente ACLs divergentes; manter grants explicitamente versionados para RPCs e tabelas com RLS.",
+      "evidence": [
+        "schema-parity-p2-6-3.json",
+        "arquitetura atual privilegia RPC/server action para mutacoes criticas"
+      ],
+      "security_impact": "CRITICAL",
+      "runtime_impact": "MEDIUM",
+      "migration_action": "REVOKE deterministico das ACLs extras por objeto/privilegio.",
+      "rationale": "RLS e ACL sao complementares; funcoes de trigger nao sao API publica.",
+      "status": "RESOLVED",
+      "covered_differences": 183
+    },
+    {
+      "category": "grants",
+      "object": "service_role:38 relations + 85 routines",
+      "difference": "Homolog possui 237 ACLs extras originadas por defaults/bootstrap historico.",
+      "homolog_state": "CRUD em 38 relacoes e EXECUTE em 85 rotinas alem do estado versionado.",
+      "clean_room_state": "Somente grants explicitamente produzidos pela cadeia atual.",
+      "canonical": "CANON_NOVO_ESTADO",
+      "canonical_definition": "Preservar acesso server-side somente nas tabelas-base comprovadamente consumidas; views financeiras apenas SELECT; remover EXECUTE de helpers/triggers e manter RPCs tecnicas somente quando explicitamente versionadas.",
+      "evidence": [
+        "schema-parity-p2-6-3.json",
+        "src/lib/supabase/server.ts",
+        "consumidores createAdminClient em src/lib e scripts/homologacao"
+      ],
+      "security_impact": "HIGH",
+      "runtime_impact": "HIGH",
+      "migration_action": "Normalizar ACL por lista fechada; nunca GRANT ALL ON ALL.",
+      "rationale": "service_role exige capacidade tecnica, mas nao execucao indiscriminada de helpers nem escrita em views.",
+      "status": "RESOLVED",
+      "covered_differences": 209
+    },
+    {
+      "category": "default_privileges",
+      "object": "pg_default_acl:postgres/supabase_admin:public/storage",
+      "difference": "Homolog possui defaults historicos amplos para anon/authenticated/service_role.",
+      "homolog_state": "Novas tabelas, sequences e funcoes podem herdar grants amplos.",
+      "clean_room_state": "Defaults variam conforme bootstrap/versao Supabase.",
+      "canonical": "CANON_NOVO_ESTADO",
+      "canonical_definition": "Fail-closed para PUBLIC, anon e authenticated; service_role depende de grant explicito na migration do objeto.",
+      "evidence": [
+        "pg_default_acl read-only de homologacao",
+        "Supabase 2026: novos projetos nao concedem automaticamente Data API table privileges"
+      ],
+      "security_impact": "CRITICAL",
+      "runtime_impact": "MEDIUM",
+      "migration_action": "ALTER DEFAULT PRIVILEGES por owner/schema, sem alterar objetos de negocio existentes fora da matriz.",
+      "rationale": "Evita recorrencia do drift e exige revisao intencional por novo objeto.",
+      "status": "RESOLVED"
+    },
+    {
+      "category": "grants",
+      "object": "public.cedentes",
+      "difference": "A primeira normalizacao de ACL removeu o SELECT necessario para o consultor resolver sua carteira sob RLS.",
+      "homolog_state": "Antes do P2.6.4 havia SELECT autenticado misturado a grants historicos amplos; apos a primeira canonicalizacao o SELECT ficou ausente.",
+      "clean_room_state": "A primeira canonicalizacao reproduziu a ausencia do SELECT e o teste autenticado retornou 42501.",
+      "canonical": "CANON_NOVO_ESTADO",
+      "canonical_definition": "authenticated recebe somente SELECT em public.cedentes; a policy cedentes_consultor_select limita o consultor aos cedentes da propria carteira. anon e escritas diretas permanecem revogados.",
+      "evidence": [
+        "scripts/perf9a/verify-escopo9b-homolog.mjs",
+        "supabase/migrations/20260817154500_p2_6_4_restaurar_leitura_carteira_consultor.sql",
+        "matriz autenticada Escopo 9B executada apos a canonicalizacao"
+      ],
+      "security_impact": "HIGH",
+      "runtime_impact": "HIGH",
+      "migration_action": "GRANT SELECT ON public.cedentes TO authenticated, preservando RLS e revogando anon/INSERT/UPDATE/DELETE.",
+      "rationale": "ACL precisa permitir a consulta antes de a RLS restringir linhas; remover o grant quebrou o fluxo legitimo sem aumentar isolamento.",
+      "status": "RESOLVED",
+      "covered_differences": 0,
+      "discovered_by": "authenticated_runtime_validation"
+    },
+    {
+      "category": "environment",
+      "object": "storage.iceberg_namespaces, storage.iceberg_tables, storage.filename(text)",
+      "difference": "49 diferencas internas da versao local/managed do Supabase Storage.",
+      "homolog_state": "Storage gerenciado.",
+      "clean_room_state": "Storage local 2.111.0 com objetos Iceberg e corpo interno diferente de filename(text).",
+      "canonical": "AMBIENTAL_ALLOWLIST",
+      "canonical_definition": "Allowlist exata por objeto/assinatura, nunca por schema amplo.",
+      "evidence": ["scripts/homologacao/financeiro/readiness/schema-snapshot.mjs"],
+      "security_impact": "NONE",
+      "runtime_impact": "NONE",
+      "migration_action": "Nenhuma.",
+      "rationale": "Objetos de infraestrutura nao pertencem ao dominio BW.",
+      "status": "RESOLVED",
+      "covered_differences": 49
+    }
+  ],
+  "coverage": {
+    "material_differences_classified": 690,
+    "environmental_differences_classified": 49,
+    "unresolved": 0,
+    "migration_gate": "OPEN"
+  }
+}

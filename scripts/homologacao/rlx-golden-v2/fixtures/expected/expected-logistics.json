@@ -1,0 +1,68 @@
+{
+  "schema": "rlx_expected_logistics_v2",
+  "dataset_version": "RLX_GOLDEN_V2",
+  "authoritative_in_p2_3_1": false,
+  "reserved_for": "P2.4",
+  "cases": [
+    {
+      "scenario_id": "LOGISTICA_D0_01",
+      "operation_id": "05cc724e-728f-5f98-a0f0-ac74bc40bce8",
+      "nota_fiscal_id": "2eecb909-97c6-fcdd-3ded-d6384af106cd",
+      "expected_descriptive_status": "ENTREGUE"
+    },
+    {
+      "scenario_id": "LOGISTICA_D0_02",
+      "operation_id": "4a793042-e4e1-7de6-8b65-47619526f559",
+      "nota_fiscal_id": "55e3a5d7-e237-d117-cbbf-4b365769ffd4",
+      "expected_descriptive_status": "EM_TRANSITO"
+    },
+    {
+      "scenario_id": "LOGISTICA_D0_03",
+      "operation_id": "649db214-c044-85ac-f105-801ad4d7ea8d",
+      "nota_fiscal_id": "b6eef7a2-05a2-539b-70fc-1df0a27344bb",
+      "expected_descriptive_status": "INDETERMINADA"
+    },
+    {
+      "scenario_id": "LOGISTICA_D0_04",
+      "operation_id": "c9086953-2472-b3f8-1673-0690b87c1b1e",
+      "nota_fiscal_id": "b09442bf-44d7-a046-96df-22334e2294df",
+      "expected_descriptive_status": "ENTREGUE"
+    },
+    {
+      "scenario_id": "LOGISTICA_D0_05",
+      "operation_id": "ad43a530-b6be-0089-4ec7-61955dee68a7",
+      "nota_fiscal_id": "57a154cb-3a39-d2fd-eb70-540b2c0a716e",
+      "expected_descriptive_status": "EM_TRANSITO"
+    },
+    {
+      "scenario_id": "LOGISTICA_D0_06",
+      "operation_id": "ff6ac111-17c7-ca60-a42d-e9ed96b57133",
+      "nota_fiscal_id": "a632a12f-b259-a356-84ad-eed1ecc52c95",
+      "expected_descriptive_status": "INDETERMINADA"
+    },
+    {
+      "scenario_id": "LOGISTICA_D0_07",
+      "operation_id": "ec4e907e-581d-72af-7cd4-5a20c78c945f",
+      "nota_fiscal_id": "62ee0d39-e8f5-e3d1-56af-b1dfc42cd527",
+      "expected_descriptive_status": "ENTREGUE"
+    },
+    {
+      "scenario_id": "LOGISTICA_D0_08",
+      "operation_id": "913a4a29-7d7b-1cca-469f-46a631933a9c",
+      "nota_fiscal_id": "439aabd0-980d-1937-ea00-18160d05138a",
+      "expected_descriptive_status": "EM_TRANSITO"
+    },
+    {
+      "scenario_id": "LOGISTICA_D0_09",
+      "operation_id": "80f8a73f-db54-35dc-0890-a3bf97cc0ec4",
+      "nota_fiscal_id": "74d64c2a-82a8-c18e-708f-3c8181edc1de",
+      "expected_descriptive_status": "INDETERMINADA"
+    },
+    {
+      "scenario_id": "LOGISTICA_D0_10",
+      "operation_id": "5ead5b08-c274-4b5b-abec-4aa0f616a871",
+      "nota_fiscal_id": "adca58b6-aa2b-a6d2-8be0-6f12b9a3e415",
+      "expected_descriptive_status": "ENTREGUE"
+    }
+  ]
+}

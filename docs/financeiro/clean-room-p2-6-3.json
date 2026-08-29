@@ -1,0 +1,138 @@
+{
+  "schema": "bw-antecipa-p2-6-3-clean-room-v1",
+  "status": "FAIL",
+  "started_at": "2026-08-17T14:31:20.981Z",
+  "node": {
+    "version": "v22.23.2",
+    "expected": "22.x",
+    "executable": "C:\\Users\\BrenoAlvim\\AppData\\Local\\Temp\\bw-antecipa-node22\\node-v22.23.2-win-x64\\node.exe"
+  },
+  "docker": {
+    "client_server": {
+      "Client": {
+        "Version": "29.7.2",
+        "ApiVersion": "1.55",
+        "DefaultAPIVersion": "1.55",
+        "GitCommit": "a7dcaa6",
+        "GoVersion": "go1.26.5",
+        "Os": "windows",
+        "Arch": "amd64",
+        "BuildTime": "Wed Aug  5 18:31:33 2026",
+        "Context": "desktop-linux"
+      },
+      "Server": {
+        "Platform": {
+          "Name": "Docker Desktop 4.86.0 (236216)"
+        },
+        "Version": "29.7.2",
+        "ApiVersion": "1.55",
+        "MinAPIVersion": "1.40",
+        "Os": "linux",
+        "Arch": "amd64",
+        "Components": [
+          {
+            "Name": "Engine",
+            "Version": "29.7.2",
+            "Details": {
+              "ApiVersion": "1.55",
+              "Arch": "amd64",
+              "BuildTime": "Wed Aug  5 18:28:36 2026",
+              "Experimental": "false",
+              "GitCommit": "6a43e3d",
+              "GoVersion": "go1.26.5",
+              "KernelVersion": "6.18.33.2-microsoft-standard-WSL2",
+              "MinAPIVersion": "1.40",
+              "Module": "github.com/moby/moby/v2",
+              "ModuleVersion": "v2.0.0+unknown",
+              "Os": "linux"
+            }
+          },
+          {
+            "Name": "containerd",
+            "Version": "v2.2.5",
+            "Details": {
+              "GitCommit": "e53c7c1516c3b2bff98eb76f1f4117477e6f4e66"
+            }
+          },
+          {
+            "Name": "runc",
+            "Version": "1.3.6",
+            "Details": {
+              "GitCommit": "v1.3.6-0-g491b69ba"
+            }
+          },
+          {
+            "Name": "docker-init",
+            "Version": "0.19.0",
+            "Details": {
+              "GitCommit": "de40ad0"
+            }
+          }
+        ],
+        "GitCommit": "6a43e3d",
+        "GoVersion": "go1.26.5",
+        "KernelVersion": "6.18.33.2-microsoft-standard-WSL2",
+        "BuildTime": "2026-08-05T18:28:36.000000000+00:00"
+      }
+    },
+    "server_version": "29.7.2",
+    "os_type": "linux",
+    "context": "desktop-linux"
+  },
+  "wsl": {
+    "version_2_present": true,
+    "distributions": [
+      "NAME              STATE           VERSION",
+      "* Ubuntu-24.04      Stopped         2",
+      "docker-desktop    Running         2"
+    ]
+  },
+  "supabase_cli": "2.111.0",
+  "migration_count": 115,
+  "migration_first": "003_storage_buckets_env.sql",
+  "migration_last": "20260814230000_p2_6_gate_risco_decisao_operacional.sql",
+  "migration_result": {
+    "status": "PASS",
+    "applied": 115,
+    "bootstrap_applied": true,
+    "total_history_rows": 116,
+    "failed_at": null,
+    "retry_count": 0
+  },
+  "bootstrap": {
+    "status": "BLOCKED_BY_SCHEMA_PARITY",
+    "source": "bootstrap_9e_versionado_mais_migrations",
+    "manual_sql": false
+  },
+  "golden": {
+    "status": "PENDING"
+  },
+  "rls": {
+    "status": "PENDING"
+  },
+  "storage": {
+    "status": "PENDING"
+  },
+  "build": {
+    "status": "PASS",
+    "node": "v22.23.2",
+    "typescript": "PASS",
+    "tests": "140 arquivos, 1017 testes",
+    "lint": "PASS com 6 warnings preexistentes",
+    "next_webpack": "PASS com warnings Handlebars preexistentes"
+  },
+  "cleanup": {
+    "status": "PASS",
+    "stack_stopped": true,
+    "workspace_removed": true
+  },
+  "production_mutated": false,
+  "homolog_mutated": false,
+  "clean_room_root": "C:\\Users\\BrenoAlvim\\AppData\\Local\\BWAntecipa\\p2-6-3\\2026-08-17T14-31-20-981Z",
+  "failure": {
+    "classification": "SCHEMA PARITY",
+    "message": "Schema parity encontrou 690 diferencas materiais.",
+    "failed_at": null
+  },
+  "finished_at": "2026-08-17T14:32:56.466Z"
+}

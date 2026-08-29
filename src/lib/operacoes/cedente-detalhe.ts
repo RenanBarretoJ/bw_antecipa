@@ -1,0 +1,442 @@
+import {
+  construirEtapasOperacao,
+  construirPendenciasOperacao,
+  obterCapacidadesOperacao,
+  type DocumentoOperacaoParaPolitica,
+  type EtapaOperacao,
+} from '@/lib/operacoes/politica-operacao'
+
+export type OperacaoCedenteStatus =
+  | 'solicitada'
+  | 'em_analise'
+  | 'aprovada'
+  | 'em_andamento'
+  | 'liquidada'
+  | 'inadimplente'
+  | 'reprovada'
+  | 'cancelada'
+  | string
+
+export type EntregaCedenteStatus =
+  | 'nao_aplicavel'
+  | 'em_transito'
+  | 'aguardando_validacao'
+  | 'entregue'
+  | 'entrega_com_pendencia'
+  | 'devolvida'
+  | 'cancelada'
+  | string
+
+export type RequisitoCedenteStatus = 'pendente' | 'satisfeito' | 'vencido' | 'dispensado' | 'cancelado' | string
+
+export interface OperacaoCedenteRaw {
+  id: string
+  cedente_id: string
+  cedente_fundo_id: string | null
+  valor_bruto_total: number
+  taxa_desconto: number | null
+  prazo_dias: number
+  valor_liquido_desembolso: number | null
+  data_vencimento: string
+  status: OperacaoCedenteStatus
+  aceite_sacado_exigido: boolean | null
+  aceite_sacado_status: string | null
+  aceite_sacado_em: string | null
+  aprovado_em: string | null
+  cessao_efetivada_em: string | null
+  liquidada_em: string | null
+  created_at: string
+  motivo_reprovacao: string | null
+  termo_assinado_url: string | null
+  comprovante_pagamento_url: string | null
+  quitacao_assinada_url: string | null
+  politica_snapshot?: unknown | null
+  conta_escrow_id?: string | null
+  remessa_gerado_em?: string | null
+  remessa_enviado_em?: string | null
+  cedentes: { razao_social: string; cnpj: string } | null
+}
+
+export interface NotaFiscalCedenteRaw {
+  id: string
+  numero_nf: string | null
+  cnpj_destinatario: string | null
+  razao_social_destinatario: string | null
+  valor_bruto: number
+  valor_liquido: number | null
+  valor_antecipado: number | null
+  data_vencimento: string
+  status: string
+}
+
+export interface EntregaCedenteRaw {
+  id: string
+  nota_fiscal_id: string
+  status_entrega: EntregaCedenteStatus
+  data_limite_cte: string | null
+  data_limite_canhoto: string | null
+  data_entrega: string | null
+  entrega_confirmada_em: string | null
+  motivo_pendencia: string | null
+}
+
+export interface RequisitoCedenteRaw {
+  id: string
+  tipo_documento_codigo_snapshot: string
+  escopo_snapshot: string
+  nota_fiscal_id: string | null
+  nota_fiscal_entrega_id: string | null
+  operacao_id: string | null
+  status: RequisitoCedenteStatus
+  versao_aprovada_id?: string | null
+  obrigatorio: boolean
+  prazo_limite: string | null
+  responsavel_upload_snapshot: string
+}
+
+export interface ParcelaCedidaOperacaoRaw {
+  nota_fiscal_id: string
+  parcela_id: string
+  numero_parcela: number
+  valor_nominal: number
+  data_vencimento: string
+}
+
+export interface MemoriaCalculoParcelaRaw {
+  nota_fiscal_id: string
+  parcela_id: string | null
+  dias_aplicados: number
+  vencimento_contratual: string
+  valor_nominal: number
+  valor_presente: number
+  desconto: number
+}
+
+export interface TotalParcelasNotaRaw {
+  nota_fiscal_id: string
+}
+
+export interface ParcelaCedidaOperacaoView {
+  parcelaId: string
+  numero: number
+  vencimentoOriginal: string
+  valorNominal: number
+  prazoDias: number | null
+  valorAntecipado: number | null
+  desconto: number | null
+  statusFinanceiro: string | null
+}
+
+export interface OperacaoCedenteDetalhe {
+  id: string
+  codigoCurto: string
+  status: string
+  statusLabel: string
+  solicitadaEm: string
+  cedente: { razaoSocial: string; cnpj: string }
+  mensagemAceite: string | null
+  possuiPendenciaCedente: boolean
+  financeiro: {
+    valorBrutoSolicitado: number
+    valorLiquidoAprovado: number | null
+    valorEfetivamenteDesembolsado: number | null
+    taxaAplicada: number | null
+    prazoDias: number
+    vencimento: string
+    aprovadoEm: string | null
+    desembolsadoEm: string | null
+    liquidadaEm: string | null
+  }
+  notasFiscais: Array<{
+    id: string
+    numero: string
+    sacado: string
+    cnpjSacado: string | null
+    valorBruto: number
+    valorAntecipado: number | null
+    vencimento: string
+    status: string
+    statusLabel: string
+    href: string
+    parcelasCedidas: ParcelaCedidaOperacaoView[]
+    totalParcelas: number
+  }>
+  fluxoFinanceiro: Array<ParcelaCedidaOperacaoView & {
+    notaFiscalId: string
+    notaFiscalNumero: string
+  }>
+  timeline: EtapaOperacao[]
+  pendenciasCedente: Array<{
+    id: string
+    descricao: string
+    notaFiscalId: string | null
+    notaFiscalNumero: string | null
+    prazo: string | null
+    situacaoPrazo: 'sem_prazo' | 'no_prazo' | 'vence_hoje' | 'atrasado'
+    dias: number | null
+    status: string
+    acaoHref: string | null
+  }>
+  logistica: {
+    habilitada: boolean
+    statusLabel: string
+    emTransito: number
+    comPendencia: number
+    concluidas: number
+    prazoMaisProximo: string | null
+    diasPrazoMaisProximo: number | null
+    notas: Array<{ notaFiscalId: string; numero: string | null; status: string; statusLabel: string; prazoMaisProximo: string | null; href: string }>
+  }
+  comprovantes: Array<{ key: 'termo_assinado' | 'comprovante_pagamento' | 'quitacao_assinada'; label: string; tipoDocumento: string }>
+}
+
+const operacaoStatusLabels: Record<string, string> = {
+  solicitada: 'Solicitada',
+  em_analise: 'Em análise',
+  aprovada: 'Aprovada — aguardando desembolso',
+  em_andamento: 'Em andamento',
+  liquidada: 'Liquidada',
+  inadimplente: 'Inadimplente',
+  reprovada: 'Reprovada',
+  cancelada: 'Cancelada',
+}
+
+const nfStatusLabels: Record<string, string> = {
+  rascunho: 'Rascunho',
+  submetida: 'Submetida',
+  em_analise: 'Em análise',
+  aprovada: 'Validada',
+  em_antecipacao: 'Em antecipação',
+  aceita: 'Antecipada',
+  liquidada: 'Liquidada',
+  cancelada: 'Cancelada',
+}
+
+const entregaStatusLabels: Record<string, string> = {
+  nao_aplicavel: 'Sem acompanhamento',
+  em_transito: 'Em trânsito',
+  aguardando_validacao: 'Comprovante enviado',
+  entregue: 'Entrega confirmada',
+  entrega_com_pendencia: 'Em atraso',
+  devolvida: 'Devolvida',
+  cancelada: 'Cancelada',
+}
+
+const tipoDocumentoLabels: Record<string, string> = {
+  cte: 'CT-e',
+  cte_xml: 'CT-e XML',
+  cte_pdf_dacte: 'DACTE',
+  canhoto: 'Canhoto',
+  comprovante_entrega: 'Comprovante de entrega',
+  nf_xml: 'XML da NF-e',
+  nf_danfe_pdf: 'DANFE em PDF',
+  nf_pedido_compra: 'Pedido de compra',
+}
+
+function differenceInCalendarDays(date: string, today: Date) {
+  const base = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()
+  const target = new Date(`${date.slice(0, 10)}T00:00:00`).getTime()
+  return Math.round((target - base) / 86_400_000)
+}
+
+export function calcularSituacaoPrazo(prazo: string | null, today = new Date()) {
+  if (!prazo) return { situacaoPrazo: 'sem_prazo' as const, dias: null }
+  const dias = differenceInCalendarDays(prazo, today)
+  if (dias < 0) return { situacaoPrazo: 'atrasado' as const, dias }
+  if (dias === 0) return { situacaoPrazo: 'vence_hoje' as const, dias }
+  return { situacaoPrazo: 'no_prazo' as const, dias }
+}
+
+function prazoMaisProximo(entrega: EntregaCedenteRaw) {
+  const prazos = [entrega.data_limite_cte, entrega.data_limite_canhoto].filter(Boolean) as string[]
+  return prazos.sort()[0] || null
+}
+
+export function montarDetalheOperacaoCedente({
+  operacao,
+  notasFiscais,
+  entregas,
+  requisitos,
+  parcelasCedidas = [],
+  memoriasCalculo = [],
+  totaisParcelas = [],
+  today = new Date(),
+}: {
+  operacao: OperacaoCedenteRaw
+  notasFiscais: NotaFiscalCedenteRaw[]
+  entregas: EntregaCedenteRaw[]
+  requisitos: RequisitoCedenteRaw[]
+  parcelasCedidas?: ParcelaCedidaOperacaoRaw[]
+  memoriasCalculo?: MemoriaCalculoParcelaRaw[]
+  totaisParcelas?: TotalParcelasNotaRaw[]
+  today?: Date
+}): OperacaoCedenteDetalhe {
+  const nfById = new Map(notasFiscais.map((nf) => [nf.id, nf]))
+  const entregaById = new Map(entregas.map((entrega) => [entrega.id, entrega]))
+  const desembolsada = ['em_andamento', 'liquidada', 'inadimplente'].includes(operacao.status)
+  const documentosPolitica = requisitos as DocumentoOperacaoParaPolitica[]
+  const capacidades = obterCapacidadesOperacao(operacao, { documentos: documentosPolitica, logistica: entregas })
+  const memoriaPorParcela = new Map(
+    memoriasCalculo.filter((item) => item.parcela_id).map((item) => [item.parcela_id!, item]),
+  )
+  const totalParcelasPorNf = new Map<string, number>()
+  for (const item of totaisParcelas) {
+    totalParcelasPorNf.set(item.nota_fiscal_id, (totalParcelasPorNf.get(item.nota_fiscal_id) || 0) + 1)
+  }
+  const parcelasPorNf = new Map<string, ParcelaCedidaOperacaoView[]>()
+  for (const item of parcelasCedidas) {
+    const memoria = memoriaPorParcela.get(item.parcela_id)
+    const lista = parcelasPorNf.get(item.nota_fiscal_id) || []
+    lista.push({
+      parcelaId: item.parcela_id,
+      numero: item.numero_parcela,
+      vencimentoOriginal: item.data_vencimento,
+      valorNominal: Number(item.valor_nominal),
+      prazoDias: memoria?.dias_aplicados ?? null,
+      valorAntecipado: memoria ? Number(memoria.valor_presente) : null,
+      desconto: memoria ? Number(memoria.desconto) : null,
+      statusFinanceiro: operacao.status === 'liquidada'
+        ? 'Liquidada'
+        : memoria ? 'Cronograma aprovado' : null,
+    })
+    parcelasPorNf.set(item.nota_fiscal_id, lista)
+  }
+  for (const lista of parcelasPorNf.values()) {
+    lista.sort((left, right) => left.vencimentoOriginal.localeCompare(right.vencimentoOriginal) || left.numero - right.numero)
+  }
+  const pendenciasAplicaveis = construirPendenciasOperacao({ capacidades, documentos: documentosPolitica })
+  const pendenciasCedente = pendenciasAplicaveis
+    .map((requisito) => {
+      const nf = requisito.nota_fiscal_id ? nfById.get(requisito.nota_fiscal_id) : requisito.nota_fiscal_entrega_id ? nfById.get(entregaById.get(requisito.nota_fiscal_entrega_id)?.nota_fiscal_id || '') : null
+      const prazo = requisito.prazo_limite || null
+      const situacao = calcularSituacaoPrazo(prazo, today)
+      const tipoCodigo = requisito.tipo_documento_codigo_snapshot || requisito.codigo || 'documento'
+      const tipo = tipoDocumentoLabels[tipoCodigo] || tipoCodigo
+      return {
+        id: requisito.id || `${tipoCodigo}-${requisito.nota_fiscal_id || requisito.nota_fiscal_entrega_id || 'operacao'}`,
+        descricao: `${tipo}${requisito.obrigatorio ? ' obrigatório' : ' opcional'} pendente`,
+        notaFiscalId: nf?.id || requisito.nota_fiscal_id || null,
+        notaFiscalNumero: nf?.numero_nf || null,
+        prazo: prazo || null,
+        situacaoPrazo: situacao.situacaoPrazo,
+        dias: situacao.dias,
+        status: requisito.status || 'pendente',
+        acaoHref: nf?.id ? `/cedente/notas-fiscais/${nf.id}` : null,
+      }
+    })
+
+  const prazoLogisticoMaisProximo = entregas.map(prazoMaisProximo).filter(Boolean).sort()[0] || null
+  const statusLogistico = entregas.length === 0
+    ? (desembolsada ? 'Sem acompanhamento logístico' : 'Aguardando desembolso')
+    : entregas.some((entrega) => entrega.status_entrega === 'entrega_com_pendencia')
+      ? 'Em atraso'
+      : entregas.every((entrega) => entrega.status_entrega === 'entregue')
+        ? 'Entrega confirmada'
+        : entregas.some((entrega) => entrega.status_entrega === 'aguardando_validacao')
+          ? 'Comprovante enviado'
+          : entregas.some((entrega) => entrega.status_entrega === 'em_transito')
+            ? 'Em trânsito'
+            : 'Acompanhamento iniciado'
+
+  const detalhe = {
+    id: operacao.id,
+    codigoCurto: operacao.id.slice(0, 8),
+    status: operacao.status,
+    statusLabel: operacaoStatusLabels[operacao.status] || operacao.status.replaceAll('_', ' '),
+    solicitadaEm: operacao.created_at,
+    cedente: {
+      razaoSocial: operacao.cedentes?.razao_social || 'Cedente não informado',
+      cnpj: operacao.cedentes?.cnpj || '',
+    },
+    mensagemAceite: operacao.aceite_sacado_status === 'contestado' ? 'Contestada pelo sacado.' : null,
+    possuiPendenciaCedente: pendenciasCedente.length > 0,
+    financeiro: {
+      valorBrutoSolicitado: operacao.valor_bruto_total,
+      valorLiquidoAprovado: operacao.valor_liquido_desembolso,
+      valorEfetivamenteDesembolsado: desembolsada ? operacao.valor_liquido_desembolso : null,
+      taxaAplicada: operacao.taxa_desconto,
+      prazoDias: operacao.prazo_dias,
+      vencimento: operacao.data_vencimento,
+      aprovadoEm: operacao.aprovado_em,
+      desembolsadoEm: operacao.cessao_efetivada_em,
+      liquidadaEm: operacao.liquidada_em,
+    },
+    notasFiscais: notasFiscais.map((nf) => {
+      const cedidas = parcelasPorNf.get(nf.id) || []
+      const memoriaCompleta = cedidas.length > 0 && cedidas.every((item) => item.valorAntecipado !== null)
+      const operacaoEmPreparacao = operacao.status === 'solicitada' || operacao.status === 'em_analise'
+      return {
+        id: nf.id,
+        numero: nf.numero_nf || '—',
+        sacado: nf.razao_social_destinatario || '—',
+        cnpjSacado: nf.cnpj_destinatario,
+        valorBruto: cedidas.length ? cedidas.reduce((total, item) => total + item.valorNominal, 0) : nf.valor_bruto,
+        valorAntecipado: cedidas.length
+          ? memoriaCompleta
+            ? cedidas.reduce((total, item) => total + (item.valorAntecipado || 0), 0)
+            : null
+          : operacaoEmPreparacao ? null : nf.valor_antecipado ?? nf.valor_liquido,
+        vencimento: cedidas.length ? cedidas[cedidas.length - 1].vencimentoOriginal : nf.data_vencimento,
+        status: nf.status,
+        statusLabel: nfStatusLabels[nf.status] || nf.status.replaceAll('_', ' '),
+        href: `/cedente/notas-fiscais/${nf.id}`,
+        parcelasCedidas: cedidas,
+        totalParcelas: totalParcelasPorNf.get(nf.id) || 0,
+      }
+    }),
+    fluxoFinanceiro: notasFiscais.flatMap((nf) => (parcelasPorNf.get(nf.id) || []).map((parcela) => ({
+      ...parcela,
+      notaFiscalId: nf.id,
+      notaFiscalNumero: nf.numero_nf || '—',
+    }))).sort((left, right) => left.vencimentoOriginal.localeCompare(right.vencimentoOriginal) || left.numero - right.numero),
+    timeline: construirEtapasOperacao({
+      operacao,
+      capacidades,
+      documentos: documentosPolitica,
+      logistica: entregas,
+    }),
+    pendenciasCedente,
+    logistica: {
+      habilitada: entregas.length > 0,
+      statusLabel: statusLogistico,
+      emTransito: entregas.filter((entrega) => entrega.status_entrega === 'em_transito').length,
+      comPendencia: entregas.filter((entrega) => entrega.status_entrega === 'entrega_com_pendencia').length,
+      concluidas: entregas.filter((entrega) => entrega.status_entrega === 'entregue').length,
+      prazoMaisProximo: prazoLogisticoMaisProximo,
+      diasPrazoMaisProximo: prazoLogisticoMaisProximo ? calcularSituacaoPrazo(prazoLogisticoMaisProximo, today).dias : null,
+      notas: entregas.map((entrega) => {
+        const nf = nfById.get(entrega.nota_fiscal_id)
+        const prazo = prazoMaisProximo(entrega)
+        return {
+          notaFiscalId: entrega.nota_fiscal_id,
+          numero: nf?.numero_nf || null,
+          status: entrega.status_entrega,
+          statusLabel: entregaStatusLabels[entrega.status_entrega] || entrega.status_entrega.replaceAll('_', ' '),
+          prazoMaisProximo: prazo,
+          href: `/cedente/notas-fiscais/${entrega.nota_fiscal_id}`,
+        }
+      }),
+    },
+    comprovantes: [
+      ...(operacao.termo_assinado_url ? [{ key: 'termo_assinado' as const, label: 'Termo de cessão assinado', tipoDocumento: 'termo_assinado' }] : []),
+      ...(operacao.comprovante_pagamento_url ? [{ key: 'comprovante_pagamento' as const, label: 'Comprovante de pagamento', tipoDocumento: 'comprovante_pagamento' }] : []),
+      ...(operacao.quitacao_assinada_url ? [{ key: 'quitacao_assinada' as const, label: 'Termo de quitação assinado', tipoDocumento: 'quitacao_assinada' }] : []),
+    ],
+  }
+
+  return {
+    ...detalhe,
+    logistica: {
+      ...detalhe.logistica,
+      habilitada: capacidades.usaAcompanhamentoLogistico,
+      prazoMaisProximo: capacidades.usaAcompanhamentoLogistico ? detalhe.logistica.prazoMaisProximo : null,
+      diasPrazoMaisProximo: capacidades.usaAcompanhamentoLogistico ? detalhe.logistica.diasPrazoMaisProximo : null,
+      notas: capacidades.usaAcompanhamentoLogistico ? detalhe.logistica.notas : [],
+    },
+  }
+}
+
+export function contemCampoTecnicoExposto(value: unknown): boolean {
+  const serialized = JSON.stringify(value)
+  return ['cnab', 'remessa', 'fromtis', 'portal_fidc', 'integracao', 'configuracao_cnab', 'protocolo'].some((term) => serialized.toLowerCase().includes(term))
+}

@@ -1,0 +1,55 @@
+{
+  "schema": "bw-antecipa-p2-6-4-schema-drift-v1",
+  "initial_material_differences": 690,
+  "initial_environmental_differences": 49,
+  "classification_counts": {
+    "CANON_HOMOLOG": 0,
+    "CANON_CLEAN_ROOM": 8,
+    "CANON_NOVO_ESTADO": 4,
+    "REMOVER_LEGADO": 8,
+    "AMBIENTAL_ALLOWLIST": 49,
+    "UNRESOLVED": 0
+  },
+  "canonical_homolog": [],
+  "canonical_clean_room": [
+    "notas_fiscais_valor_bruto_check",
+    "remessas_cnab_integracao_fundo_versao_id_fkey",
+    "aprovar_operacao_atomica_financeiro_v1",
+    "aprovar_operacao_atomica wrapper",
+    "bloquear_aprovacao_financeira_direta",
+    "registrar_cte_documento",
+    "eventos_dominio_insert",
+    "logs_auditoria append-only"
+  ],
+  "canonical_new": [
+    "devedores_solidarios multifundo read-only",
+    "ACL service_role explicita por objeto",
+    "default privileges fail-closed",
+    "cedentes SELECT autenticado limitado pela RLS da carteira do consultor"
+  ],
+  "removed_legacy": [
+    "idx_operacao_calculo_nfs_operacao",
+    "devedores_gestor_all",
+    "devedores policies sobrepostas",
+    "logs_auditoria_gestor_all",
+    "logs_auditoria_insert",
+    "storage_contratos_gestor_insert",
+    "storage_contratos_gestor_update",
+    "ACLs extras sem consumidor aprovado"
+  ],
+  "unresolved": 0,
+  "final_material_differences": 0,
+  "final_environmental_differences": 49,
+  "final_allowlist": [
+    "storage.iceberg_namespaces",
+    "storage.iceberg_tables",
+    "storage.filename(text)"
+  ],
+  "migration_history": {
+    "local": 120,
+    "remote": 120,
+    "missing": 0,
+    "remote_only": 0
+  },
+  "status": "PASS"
+}

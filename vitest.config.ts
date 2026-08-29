@@ -1,0 +1,22 @@
+import path from 'node:path'
+import { defineConfig } from 'vitest/config'
+
+export default defineConfig({
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, 'src'),
+      'server-only': path.resolve(__dirname, 'src/test/server-only.ts'),
+    },
+  },
+  test: {
+    environment: 'node',
+    include: [
+      'src/**/*.test.ts',
+      'scripts/perf9d/**/*.test.mjs',
+      'scripts/perf9e/**/*.test.mjs',
+      'scripts/homologacao/financeiro/readiness/**/*.test.mjs',
+      'scripts/homologacao/rlx-golden/**/*.test.mjs',
+      'scripts/homologacao/rlx-golden-v2/**/*.test.ts',
+    ],
+  },
+})

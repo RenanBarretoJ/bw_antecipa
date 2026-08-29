@@ -1,0 +1,43 @@
+{
+  "lineCount": 3,
+  "lineLength": 444,
+  "header": {
+    "recordType": "0",
+    "literalRemessa": "REMESSA",
+    "codigoServico": "01",
+    "literalServico": "COBRANCA",
+    "codigoOriginador": "00000000000000500497",
+    "nomeOriginador": "CEDENTE ACME LTDA",
+    "codigoBanco": "611",
+    "nomeBanco": "BBBBBBBBBBBBBBB",
+    "dataGravacao": "210726",
+    "identificacaoSistema": "MX",
+    "sequencialArquivo": "0000042",
+    "sequencialRegistro": "000001"
+  },
+  "detail": {
+    "recordType": "1",
+    "coobrigacao": "01",
+    "seuNumero": "CED12332120260410112-1",
+    "ocorrencia": "01",
+    "documento": "987654321",
+    "vencimento": "150826",
+    "valorTitulo": "0000000123456",
+    "especieTitulo": "61",
+    "emissao": "100426",
+    "valorPresente": "0000000100012",
+    "tipoInscricaoSacado": "02",
+    "sacadoCnpj": "98765432000198",
+    "nomeSacado": "SACADO SAO JOAO S/A",
+    "numeroNf": "987654321",
+    "cepSacado": "00000000",
+    "nomeCedente": "CEDENTE ACME LTDA",
+    "cedenteCnpj": "12345678000112",
+    "chaveNfe": "35260412345678000112550010009876541000043210",
+    "sequencialRegistro": "000002"
+  },
+  "trailer": {
+    "recordType": "9",
+    "sequencialRegistro": "000003"
+  }
+}

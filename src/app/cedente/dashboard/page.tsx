@@ -1,274 +1,78 @@
-'use client'
-
-import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { connection } from 'next/server'
 import Link from 'next/link'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { redirect } from 'next/navigation'
+import { AlertTriangle, ArrowRight, Banknote, FileCheck, Plus, Receipt, Wallet } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
-import {
-  FileCheck,
-  Receipt,
-  Banknote,
-  Wallet,
-  ArrowRight,
-  AlertTriangle,
-  Plus,
-  TrendingUp,
-  Loader2,
-} from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { carregarDashboardCedente } from '@/lib/analytics/loaders.server'
+import { formatCurrency, formatDate } from '@/lib/utils'
+import { ExposicaoLogisticaCard } from '@/components/operacoes/ExposicaoLogisticaCard'
 
-interface CedenteStats {
-  saldoDisponivel: number
-  saldoBloqueado: number
-  contaEscrow: string | null
-  habilitarEscrow: boolean
-  nfsAprovadas: number
-  nfsTotal: number
-  opsAtivas: number
-  opsPendentes: number
-  volumeAtivo: number
-  docsReprovados: number
+const statusLabel: Record<string, string> = {
+  solicitada: 'Solicitada',
+  em_analise: 'Em análise',
+  em_andamento: 'Em andamento',
+  liquidada: 'Liquidada',
+  reprovada: 'Reprovada',
+  cancelada: 'Cancelada',
+  inadimplente: 'Inadimplente',
 }
 
-interface OperacaoRecente {
-  id: string
-  valor_bruto_total: number
-  valor_liquido_desembolso: number
-  status: string
-  data_vencimento: string
-  created_at: string
-}
-
-const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
-  solicitada: { label: 'Solicitada', variant: 'secondary' },
-  em_analise: { label: 'Em Analise', variant: 'outline' },
-  em_andamento: { label: 'Em Andamento', variant: 'default' },
-  liquidada: { label: 'Liquidada', variant: 'secondary' },
-  reprovada: { label: 'Reprovada', variant: 'destructive' },
-}
-
-function DashboardSkeleton() {
-  return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <Skeleton className="h-8 w-40" />
-        <Skeleton className="h-10 w-44" />
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {[1, 2, 3].map((i) => (
-          <Card key={i}><CardContent className="pt-5"><Skeleton className="h-10 w-32 mb-2" /><Skeleton className="h-4 w-20" /></CardContent></Card>
-        ))}
-      </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card><CardContent className="pt-5 space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-12 w-full" />)}</CardContent></Card>
-        <div className="space-y-3">{[1,2,3,4].map(i => <Skeleton key={i} className="h-16 w-full rounded-xl" />)}</div>
-      </div>
-    </div>
-  )
-}
-
-export default function CedenteDashboard() {
-  const [stats, setStats] = useState<CedenteStats>({
-    saldoDisponivel: 0, saldoBloqueado: 0, contaEscrow: null, habilitarEscrow: false,
-    nfsAprovadas: 0, nfsTotal: 0, opsAtivas: 0, opsPendentes: 0,
-    volumeAtivo: 0, docsReprovados: 0,
-  })
-  const [opsRecentes, setOpsRecentes] = useState<OperacaoRecente[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    const load = async () => {
-      const supabase = createClient()
-
-      const [escrow, nfs, ops, docs, cedenteRow] = await Promise.all([
-        supabase.from('contas_escrow').select('saldo_disponivel, saldo_bloqueado, identificador').limit(1),
-        supabase.from('notas_fiscais').select('id, status'),
-        supabase.from('operacoes')
-          .select('id, valor_bruto_total, valor_liquido_desembolso, status, data_vencimento, created_at')
-          .order('created_at', { ascending: false }),
-        supabase.from('documentos').select('id, tipo, representante_id, versao, status').order('versao', { ascending: false }),
-        supabase.from('cedentes').select('habilitar_escrow').limit(1).single(),
-      ])
-
-      const escrowData = (escrow.data || []) as Array<{ saldo_disponivel: number; saldo_bloqueado: number; identificador: string }>
-      const nfsData = (nfs.data || []) as Array<{ id: string; status: string }>
-      const opsData = (ops.data || []) as OperacaoRecente[]
-      const docsData = (docs.data || []) as Array<{ id: string; tipo: string; representante_id: string | null; versao: number; status: string }>
-
-      // Versão mais recente por (tipo, representante_id)
-      const latestDocs = Object.values(
-        docsData.reduce<Record<string, typeof docsData[0]>>((acc, d) => {
-          const k = `${d.tipo}_${d.representante_id ?? 'null'}`
-          if (!acc[k] || d.versao > acc[k].versao) acc[k] = d
-          return acc
-        }, {})
-      )
-
-      const opsAtivas = opsData.filter((o) => o.status === 'em_andamento')
-      const opsPendentes = opsData.filter((o) => o.status === 'solicitada' || o.status === 'em_analise')
-
-      setStats({
-        saldoDisponivel: escrowData[0]?.saldo_disponivel || 0,
-        saldoBloqueado: escrowData[0]?.saldo_bloqueado || 0,
-        contaEscrow: escrowData[0]?.identificador || null,
-        habilitarEscrow: (cedenteRow.data as { habilitar_escrow: boolean } | null)?.habilitar_escrow ?? false,
-        nfsAprovadas: nfsData.filter((n) => n.status === 'aprovada').length,
-        nfsTotal: nfsData.length,
-        opsAtivas: opsAtivas.length,
-        opsPendentes: opsPendentes.length,
-        volumeAtivo: opsAtivas.reduce((a, o) => a + o.valor_liquido_desembolso, 0),
-        docsReprovados: latestDocs.filter((d) => d.status === 'reprovado').length,
-      })
-      setOpsRecentes(opsData.slice(0, 5))
-      setLoading(false)
-    }
-    load()
-  }, [])
-
-  if (loading) return <DashboardSkeleton />
+export default async function CedenteDashboard() {
+  await connection()
+  const stats = await carregarDashboardCedente()
+  if (!stats) redirect('/cedente/cadastro')
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
-          {stats.contaEscrow && (
-            <p className="text-sm text-muted-foreground mt-0.5">
-              Conta Escrow: <span className="font-mono text-foreground/70">{stats.contaEscrow}</span>
-            </p>
-          )}
-        </div>
-        <Link href="/cedente/operacoes/nova">
-          <Button className="gap-2">
-            <Plus size={16} /> Nova Antecipacao
-          </Button>
-        </Link>
+    <div className="mx-auto max-w-6xl space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div><h1 className="text-2xl font-bold">Dashboard</h1><p className="text-muted-foreground">{stats.contaEscrow ? <>Conta Escrow: <span className="font-mono">{stats.contaEscrow}</span></> : 'Visão geral das suas antecipações.'}</p></div>
+        <Link href="/cedente/operacoes/nova" className="inline-flex h-9 items-center gap-2 rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground"><Plus className="size-4" /> Nova solicitação</Link>
       </div>
 
-      {/* Alerta documentos reprovados */}
       {stats.docsReprovados > 0 && (
-        <Link href="/cedente/documentos" className="block">
-          <Card className="border-destructive/30 bg-destructive/5 hover:bg-destructive/10 transition-colors cursor-pointer">
-            <CardContent className="flex items-center gap-3 py-4">
-              <div className="p-2 rounded-lg bg-destructive/10">
-                <AlertTriangle size={20} className="text-destructive" />
-              </div>
-              <div>
-                <p className="font-semibold text-destructive">{stats.docsReprovados} documento(s) reprovado(s)</p>
-                <p className="text-sm text-destructive/70">Reenvie para continuar operando</p>
-              </div>
-            </CardContent>
-          </Card>
+        <Link href="/cedente/documentos" className="flex items-center justify-between rounded-xl border border-destructive/40 bg-destructive/10 p-4">
+          <span className="flex items-center gap-3"><AlertTriangle className="text-destructive" /><span><span className="block font-semibold">{stats.docsReprovados} documento(s) precisam de ajuste</span><span className="text-sm text-muted-foreground">Revise os documentos reprovados.</span></span></span>
+          <ArrowRight className="size-4" />
         </Link>
       )}
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="pt-5">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-500/20">
-                <Wallet size={18} className="text-emerald-600 dark:text-emerald-400" />
-              </div>
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Saldo Disponivel</span>
-            </div>
-            <p className="text-3xl font-bold text-emerald-700 dark:text-emerald-400 tabular-nums">{formatCurrency(stats.saldoDisponivel)}</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-5">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-500/20">
-                <TrendingUp size={18} className="text-purple-600 dark:text-purple-400" />
-              </div>
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Volume Ativo</span>
-            </div>
-            <p className="text-3xl font-bold text-purple-700 dark:text-purple-400 tabular-nums">{formatCurrency(stats.volumeAtivo)}</p>
-            <p className="text-xs text-muted-foreground mt-1">{stats.opsAtivas} operacao(es)</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-5">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-500/20">
-                <Receipt size={18} className="text-blue-600 dark:text-blue-400" />
-              </div>
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">NFs Disponiveis</span>
-            </div>
-            <p className="text-3xl font-bold text-blue-700 dark:text-blue-400 tabular-nums">{stats.nfsAprovadas}</p>
-            <p className="text-xs text-muted-foreground mt-1">de {stats.nfsTotal} total</p>
-          </CardContent>
-        </Card>
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card><CardContent className="p-5"><div className="mb-2 flex items-center gap-2 text-sm text-muted-foreground"><Wallet className="size-4" /> Saldo disponível</div><p className="text-2xl font-bold text-success-foreground">{formatCurrency(stats.saldoDisponivel)}</p><p className="text-xs text-muted-foreground">{stats.contaEscrow ?? (stats.habilitarEscrow ? 'Conta em configuração' : 'Escrow não habilitado')}</p></CardContent></Card>
+        <Card><CardContent className="p-5"><div className="mb-2 flex items-center gap-2 text-sm text-muted-foreground"><Banknote className="size-4" /> Volume ativo</div><p className="text-2xl font-bold">{formatCurrency(stats.volumeAtivo)}</p><p className="text-xs text-muted-foreground">{stats.opsAtivas} operação(ões) em andamento</p></CardContent></Card>
+        <Card><CardContent className="p-5"><div className="mb-2 flex items-center gap-2 text-sm text-muted-foreground"><FileCheck className="size-4" /> Notas fiscais</div><p className="text-2xl font-bold">{stats.nfsAprovadas}</p><p className="text-xs text-muted-foreground">de {stats.nfsTotal} aprovadas</p></CardContent></Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Operacoes recentes */}
+      {stats.exposicaoLogistica && (
+        <ExposicaoLogisticaCard visao={stats.exposicaoLogistica} variante="cedente-dashboard" />
+      )}
+
+      <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader className="flex-row items-center justify-between">
-            <CardTitle>Operacoes Recentes</CardTitle>
-            <Link href="/cedente/operacoes" className="text-sm text-primary hover:text-primary/80 flex items-center gap-1 font-medium">
-              Ver todas <ArrowRight size={14} />
-            </Link>
+            <div><CardTitle>Operações recentes</CardTitle><p className="text-sm text-muted-foreground">Últimas cinco solicitações do fundo selecionado.</p></div>
+            <Link href="/cedente/operacoes" className="text-sm font-medium text-primary">Ver todas</Link>
           </CardHeader>
-          <CardContent>
-            {opsRecentes.length === 0 ? (
-              <div className="text-center py-8">
-                <Receipt size={32} className="text-muted-foreground/30 mx-auto mb-2" />
-                <p className="text-muted-foreground text-sm">Nenhuma operacao ainda</p>
-                <Link href="/cedente/operacoes/nova">
-                  <Button variant="outline" size="sm" className="mt-3 gap-1.5">
-                    <Plus size={14} /> Criar primeira
-                  </Button>
-                </Link>
-              </div>
-            ) : (
-              <div className="space-y-1">
-                {opsRecentes.map((op) => {
-                  const st = statusConfig[op.status]
-                  return (
-                    <div key={op.id} className="flex items-center justify-between py-2.5 border-b border-border/50 last:border-0">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-mono text-muted-foreground">#{op.id.substring(0, 8)}</span>
-                          <Badge variant={st?.variant || 'secondary'}>
-                            {st?.label || op.status}
-                          </Badge>
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-0.5">Venc: {formatDate(op.data_vencimento)}</p>
-                      </div>
-                      <p className="text-sm font-bold tabular-nums">{formatCurrency(op.valor_bruto_total)}</p>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
+          <CardContent className="divide-y p-0">
+            {stats.operacoesRecentes.length === 0 ? (
+              <div className="py-12 text-center text-sm text-muted-foreground"><Receipt className="mx-auto mb-2 size-8 opacity-40" />Nenhuma operação cadastrada.</div>
+            ) : stats.operacoesRecentes.map((op) => (
+              <Link key={op.id} href={`/cedente/operacoes/${op.id}`} className="flex items-center justify-between gap-4 px-6 py-4 hover:bg-muted/40">
+                <div><div className="flex items-center gap-2"><span className="font-mono text-xs">#{op.id.slice(0, 8)}</span><Badge variant="secondary">{statusLabel[op.status] ?? op.status}</Badge></div><p className="mt-1 text-xs text-muted-foreground">{formatDate(op.createdAt)} · vence em {formatDate(op.dataVencimento)}</p></div>
+                <p className="font-semibold tabular-nums">{formatCurrency(op.valorBruto)}</p>
+              </Link>
+            ))}
           </CardContent>
         </Card>
-
-        {/* Links rapidos */}
-        <div className="space-y-3">
+        <div className="grid gap-3">
           {[
-            { label: 'Meus Documentos', href: '/cedente/documentos', icon: FileCheck, color: 'bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400' },
-            { label: 'Minhas NFs', href: '/cedente/notas-fiscais', icon: Receipt, color: 'bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400' },
-            { label: 'Minhas Operacoes', href: '/cedente/operacoes', icon: Banknote, color: 'bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400' },
-            ...(stats.habilitarEscrow ? [{ label: 'Extrato Escrow', href: '/cedente/extrato', icon: Wallet, color: 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' }] : []),
+            { label: 'Meus documentos', href: '/cedente/documentos', icon: FileCheck },
+            { label: 'Minhas NFs', href: '/cedente/notas-fiscais', icon: Receipt },
+            { label: 'Minhas operações', href: '/cedente/operacoes', icon: Banknote },
+            ...(stats.habilitarEscrow ? [{ label: 'Extrato Escrow', href: '/cedente/extrato', icon: Wallet }] : []),
           ].map((item) => (
-            <Link key={item.href} href={item.href}>
-              <Card className="hover:ring-2 hover:ring-primary/20 transition-all cursor-pointer group">
-                <CardContent className="flex items-center justify-between py-4">
-                  <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${item.color}`}><item.icon size={18} /></div>
-                    <span className="font-medium text-foreground">{item.label}</span>
-                  </div>
-                  <ArrowRight size={18} className="text-muted-foreground/40 group-hover:text-primary transition-colors" />
-                </CardContent>
-              </Card>
+            <Link key={item.href} href={item.href} className="flex items-center justify-between rounded-xl border bg-card p-4 font-medium hover:border-primary/30">
+              <span className="flex items-center gap-3"><item.icon className="size-5 text-primary" />{item.label}</span><ArrowRight className="size-4 text-muted-foreground" />
             </Link>
           ))}
         </div>

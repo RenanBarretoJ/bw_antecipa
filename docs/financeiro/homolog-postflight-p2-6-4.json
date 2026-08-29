@@ -1,0 +1,171 @@
+{
+  "schema": "bw-antecipa-p2-6-4-homolog-postflight-v1",
+  "status": "PASS",
+  "captured_at": "2026-08-17T16:03:21.400Z",
+  "environment": {
+    "project_ref": "fhgkmggthxikfpogrvaa",
+    "transaction": "READ ONLY",
+    "production_mutated": false
+  },
+  "migration_history": {
+    "local_total": 120,
+    "remote_total": 120,
+    "missing_remote": [],
+    "extra_remote": [],
+    "name_mismatches": [],
+    "aligned": true
+  },
+  "db_push_dry_run": {
+    "status": "PASS",
+    "output": "{\"upToDate\":true,\"dryRun\":true,\"migrations\":[],\"seeds\":[],\"roles\":[],\"message\":\"Remote database is up to date.\"}\n\nDRY RUN: migrations will *not* be pushed to the database.\nConnecting to remote database..."
+  },
+  "checks": {
+    "nf_compativel": true,
+    "remessas_sem_orfas": true,
+    "devedores_rls": true,
+    "anon_sem_aprovacao": true,
+    "authenticated_sem_aprovacao": true,
+    "service_sem_motor_interno": true,
+    "service_sem_trigger_interno": true,
+    "storage_legado_ausente": true
+  },
+  "acl_summary": [
+    {
+      "grantee": "PUBLIC",
+      "kind": "routine",
+      "privileges": 21
+    },
+    {
+      "grantee": "authenticated",
+      "kind": "routine",
+      "privileges": 99
+    },
+    {
+      "grantee": "authenticated",
+      "kind": "table",
+      "privileges": 327
+    },
+    {
+      "grantee": "service_role",
+      "kind": "routine",
+      "privileges": 34
+    },
+    {
+      "grantee": "service_role",
+      "kind": "table",
+      "privileges": 595
+    }
+  ],
+  "default_acl": [
+    {
+      "owner": "postgres",
+      "schema": "public",
+      "defaclobjtype": "S",
+      "acl": "{postgres=rwU/postgres}"
+    },
+    {
+      "owner": "postgres",
+      "schema": "public",
+      "defaclobjtype": "f",
+      "acl": "{postgres=X/postgres}"
+    },
+    {
+      "owner": "postgres",
+      "schema": "public",
+      "defaclobjtype": "r",
+      "acl": "{postgres=arwdDxtm/postgres}"
+    },
+    {
+      "owner": "supabase_admin",
+      "schema": "public",
+      "defaclobjtype": "S",
+      "acl": "{postgres=rwU/supabase_admin,anon=rwU/supabase_admin,authenticated=rwU/supabase_admin,service_role=rwU/supabase_admin}"
+    },
+    {
+      "owner": "supabase_admin",
+      "schema": "public",
+      "defaclobjtype": "f",
+      "acl": "{postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "owner": "supabase_admin",
+      "schema": "public",
+      "defaclobjtype": "r",
+      "acl": "{postgres=arwdDxtm/supabase_admin,anon=arwdDxtm/supabase_admin,authenticated=arwdDxtm/supabase_admin,service_role=arwdDxtm/supabase_admin}"
+    }
+  ],
+  "canonical_policies": [
+    {
+      "schema": "public",
+      "relation": "devedores_solidarios",
+      "name": "devedores_solidarios_cedente_select",
+      "cmd": "SELECT",
+      "roles": "{authenticated}",
+      "qual": "((get_user_role() = 'cedente'::text) AND (cedente_id = get_user_cedente_id()))",
+      "with_check": null
+    },
+    {
+      "schema": "public",
+      "relation": "devedores_solidarios",
+      "name": "devedores_solidarios_gestor_select_multifundo",
+      "cmd": "SELECT",
+      "roles": "{authenticated}",
+      "qual": "((get_user_role() = 'gestor'::text) AND (EXISTS ( SELECT 1\n   FROM cedente_fundos cf\n  WHERE ((cf.cedente_id = devedores_solidarios.cedente_id) AND (cf.status = 'ativo'::text) AND private.usuario_tem_acesso_fundo(cf.fundo_id)))))",
+      "with_check": null
+    },
+    {
+      "schema": "public",
+      "relation": "eventos_dominio",
+      "name": "eventos_dominio_cedente_select",
+      "cmd": "SELECT",
+      "roles": "{authenticated}",
+      "qual": "((get_user_role() = 'cedente'::text) AND (visibilidade = ANY (ARRAY['cedente'::text, 'ambos'::text])) AND (cedente_id = get_user_cedente_id()))",
+      "with_check": null
+    },
+    {
+      "schema": "public",
+      "relation": "eventos_dominio",
+      "name": "eventos_dominio_gestor_select",
+      "cmd": "SELECT",
+      "roles": "{authenticated}",
+      "qual": "((get_user_role() = 'gestor'::text) AND (visibilidade = ANY (ARRAY['interno'::text, 'ambos'::text])) AND ((fundo_id IS NULL) OR (EXISTS ( SELECT 1\n   FROM usuario_fundos uf\n  WHERE ((uf.usuario_id = ( SELECT auth.uid() AS uid)) AND (uf.fundo_id = eventos_dominio.fundo_id) AND (uf.status = 'ativo'::text))))))",
+      "with_check": null
+    },
+    {
+      "schema": "public",
+      "relation": "eventos_dominio",
+      "name": "eventos_dominio_insert",
+      "cmd": "INSERT",
+      "roles": "{authenticated}",
+      "qual": null,
+      "with_check": "(((get_user_role() = 'gestor'::text) AND ((fundo_id IS NULL) OR (EXISTS ( SELECT 1\n   FROM usuario_fundos uf\n  WHERE ((uf.usuario_id = ( SELECT auth.uid() AS uid)) AND (uf.fundo_id = eventos_dominio.fundo_id) AND (uf.status = 'ativo'::text)))))) OR ((get_user_role() = 'cedente'::text) AND (cedente_id = get_user_cedente_id()) AND (visibilidade = ANY (ARRAY['cedente'::text, 'ambos'::text]))) OR ((get_user_role() = 'sacado'::text) AND (visibilidade = 'ambos'::text) AND (((nota_fiscal_id IS NOT NULL) AND (EXISTS ( SELECT 1\n   FROM notas_fiscais nf\n  WHERE ((nf.id = eventos_dominio.nota_fiscal_id) AND (nf.cnpj_destinatario = get_user_sacado_cnpj()))))) OR ((operacao_id IS NOT NULL) AND (EXISTS ( SELECT 1\n   FROM (operacoes_nfs onf\n     JOIN notas_fiscais nf ON ((nf.id = onf.nota_fiscal_id)))\n  WHERE ((onf.operacao_id = eventos_dominio.operacao_id) AND (nf.cnpj_destinatario = get_user_sacado_cnpj()))))))))"
+    },
+    {
+      "schema": "public",
+      "relation": "eventos_dominio",
+      "name": "eventos_dominio_sacado_select",
+      "cmd": "SELECT",
+      "roles": "{authenticated}",
+      "qual": "((get_user_role() = 'sacado'::text) AND (visibilidade = ANY (ARRAY['cedente'::text, 'ambos'::text])) AND (((nota_fiscal_id IS NOT NULL) AND (EXISTS ( SELECT 1\n   FROM notas_fiscais nf\n  WHERE ((nf.id = eventos_dominio.nota_fiscal_id) AND (NULLIF(regexp_replace(COALESCE(nf.cnpj_destinatario, ''::text), '\\D'::text, ''::text, 'g'::text), ''::text) = get_user_sacado_cnpj()))))) OR ((operacao_id IS NOT NULL) AND (EXISTS ( SELECT 1\n   FROM (operacoes_nfs onf\n     JOIN notas_fiscais nf ON ((nf.id = onf.nota_fiscal_id)))\n  WHERE ((onf.operacao_id = eventos_dominio.operacao_id) AND (NULLIF(regexp_replace(COALESCE(nf.cnpj_destinatario, ''::text), '\\D'::text, ''::text, 'g'::text), ''::text) = get_user_sacado_cnpj())))))))",
+      "with_check": null
+    },
+    {
+      "schema": "public",
+      "relation": "logs_auditoria",
+      "name": "logs_auditoria_gestor_select",
+      "cmd": "SELECT",
+      "roles": "{authenticated}",
+      "qual": "(get_user_role() = 'gestor'::text)",
+      "with_check": null
+    },
+    {
+      "schema": "public",
+      "relation": "logs_auditoria",
+      "name": "logs_auditoria_insert_usuario",
+      "cmd": "INSERT",
+      "roles": "{authenticated}",
+      "qual": null,
+      "with_check": "((ator_tipo = 'usuario'::text) AND (usuario_id = ( SELECT auth.uid() AS uid)))"
+    }
+  ]
+}

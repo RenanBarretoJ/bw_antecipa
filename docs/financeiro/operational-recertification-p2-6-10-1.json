@@ -1,0 +1,182 @@
+{
+  "schema": "bw-antecipa-operational-recertification-p2-6-10-1-v1",
+  "environment": "homolog",
+  "project_ref": "fhgkmggthxikfpogrvaa",
+  "production_touched": false,
+  "executed_at": "2026-08-18T17:26:47.931Z",
+  "status": "PASS",
+  "migrations": {
+    "status": "BASELINE_PRESERVED",
+    "local": 127,
+    "remote": 127,
+    "new_migrations": 0
+  },
+  "direct_postgres": {
+    "target_project_ref": "fhgkmggthxikfpogrvaa",
+    "db_target_matches_expected": true,
+    "direct_postgres_connection_credential_updated": true,
+    "direct_postgres_connection_test": "PASS",
+    "tested_at": "2026-08-18T17:08:05.884Z"
+  },
+  "runtime_fixes": {
+    "status": "PASS",
+    "evidence": "runtime-central-fixes-p2-6-10-1.json"
+  },
+  "qa_cleanup": {
+    "status": "PASS",
+    "evidence": "qa-cleanup-p2-6-10-1.json",
+    "unresolved_actors": 0
+  },
+  "gates": {
+    "CENTRAL_VISUAL_SMOKE": {
+      "status": "PASS",
+      "evidence": "central-visual-smoke-p2-6-10-1.json"
+    },
+    "SMOKE_REVISAO_MANUAL": {
+      "status": "PASS",
+      "evidence": "smoke-revisao-manual-p2-6-10-1.json"
+    },
+    "TOCTOU_OPERATION": {
+      "status": "PASS",
+      "evidence": "toctou-operation-p2-6-10-1.json",
+      "overlap_ms": 21909
+    },
+    "STALE_REVIEW": {
+      "status": "PASS",
+      "evidence": "stale-review-p2-6-10-1.json"
+    }
+  },
+  "manual_review": {
+    "release": "PASS",
+    "reject": "PASS",
+    "no_totp": "DENY",
+    "invalid_totp": "DENY",
+    "pure_super_admin": "DENY",
+    "cross_fund_manager": "DENY",
+    "manager_without_link": "DENY"
+  },
+  "regressions": {
+    "AUTHENTICATED_SMOKE_LOGIN_MFA": {
+      "status": "PASS",
+      "evidence": "authenticated-smoke-login-mfa-p2-6-10.json"
+    },
+    "SMOKE_APTO_APPROVAL": {
+      "status": "PASS",
+      "evidence": "smoke-apto-approval-p2-6-10.json"
+    },
+    "SMOKE_NO_LIMITE_40": {
+      "status": "PASS",
+      "evidence": "smoke-no-limite-40-p2-6-10.json"
+    },
+    "DOUBLE_OPERATION_APPROVAL": {
+      "status": "PASS",
+      "evidence": "double-operation-approval-p2-6-10.json"
+    },
+    "APPROVAL_BYPASS": {
+      "status": "PASS",
+      "evidence": "P2.6 security verify: 25 verificacoes transacionais; mutacoes revertidas"
+    },
+    "TIMEOUT_FAIL_CLOSED": {
+      "status": "PASS",
+      "evidence": "suite permanente de risco + P2.6 security verify"
+    },
+    "GOLDEN_V1": {
+      "status": "PASS",
+      "evidence": "verify read-only RLX_GOLDEN_V1"
+    },
+    "GOLDEN_V2": {
+      "status": "PASS",
+      "evidence": "384/384; verificador acompanha a versao publicada atual da politica"
+    },
+    "GOLDEN_SECURITY": {
+      "status": "PASS",
+      "evidence": "5/5 verificacoes transacionais"
+    },
+    "P2_2": {
+      "status": "PASS",
+      "evidence": "44 read-only + 29 security"
+    },
+    "P2_2_1": {
+      "status": "PASS",
+      "evidence": "schema, isolamento, backfill e linhagem"
+    },
+    "P2_3": {
+      "status": "PASS",
+      "evidence": "28 read-only com 2 ressalvas esperadas + 23 security"
+    },
+    "P2_4": {
+      "status": "PASS",
+      "evidence": "13 read-only + 27 security"
+    },
+    "P2_5": {
+      "status": "PASS",
+      "evidence": "19 read-only + 16 security"
+    },
+    "P2_6": {
+      "status": "PASS",
+      "evidence": "8 read-only + 25 security"
+    },
+    "DATA_API": {
+      "status": "PASS",
+      "checks": "118/118",
+      "evidence": "api-auth-matrix-p2-6-9.json; schema/RLS nao alterados nesta fase"
+    },
+    "CROSS_FUND": {
+      "status": "PASS",
+      "checks": "39/39",
+      "zero_leak": true,
+      "evidence": "cross-fund-api-p2-6-9.json + negativos autenticados P2.6.10.1"
+    },
+    "STORAGE": {
+      "status": "PASS",
+      "checks": "15/15",
+      "evidence": "storage-api-p2-6-9.json; Storage nao alterado nesta fase"
+    },
+    "IDENTITY": {
+      "status": "PASS",
+      "evidence": "identity-rls-hardening-p2-6-8-1.json + readiness read-only atual"
+    },
+    "PERFORMANCE_FULL_PIPELINE": {
+      "status": "PASS",
+      "evidence": "performance-full-pipeline-p2-6-9.json; sanity por build e testes"
+    }
+  },
+  "quality": {
+    "node": "22.23.2",
+    "typescript": "PASS",
+    "tests": {
+      "status": "PASS",
+      "passed": 1040,
+      "skipped": 3,
+      "files_passed": 148,
+      "files_skipped": 1
+    },
+    "lint": {
+      "status": "PASS_WITH_WARNINGS",
+      "errors": 0,
+      "warnings": 6
+    },
+    "diff_check": "PASS",
+    "build": "PASS",
+    "npm_audit_production": {
+      "status": "PASS",
+      "vulnerabilities": 0
+    }
+  },
+  "secret_scan": {
+    "status": "PASS",
+    "findings": [],
+    "evidence": "secret-scan-p2-6-1.json"
+  },
+  "remaining_pending": [
+    "LEGACY_ENV_RETIREMENT",
+    "SINQIA_EXTERNAL"
+  ],
+  "readiness_expected": {
+    "pass": 46,
+    "fail": 0,
+    "pending": 2,
+    "na": 1
+  },
+  "recommendation": "NO-GO"
+}

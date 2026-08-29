@@ -4,26 +4,32 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { aprovarNF, reprovarNF, solicitarAjusteNF } from '@/lib/actions/nota-fiscal'
+import { obterUrlArquivoNotaFiscal } from '@/lib/actions/arquivo-nota-fiscal'
 import { formatCurrency, formatCNPJ, formatDate, parseLocalDate } from '@/lib/utils'
-import { buckets } from '@/lib/storage'
 import Link from 'next/link'
 import {
   ArrowLeft,
   CheckCircle,
   XCircle,
   FileText,
-  ExternalLink,
   AlertCircle,
   Upload,
   Banknote,
   Wrench,
+  Truck,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
+import { ChecklistGestor } from '@/components/documentos-v2/ChecklistGestor'
+import { useNotifications } from '@/components/notifications/notification-provider'
+import { ArquivoOriginalCompacto } from '@/components/notas-fiscais/ArquivoOriginalCompacto'
+import { useFundoAtivo } from '@/components/fundos/fundo-ativo-provider'
+import { HistoricoTimelineCard } from '@/components/historico/HistoricoTimelineCard'
+import { DuplicatasDaNota } from '@/components/duplicatas/DuplicatasDaNota'
+import { ParcelasDaNota } from '@/components/notas-fiscais/ParcelasDaNota'
 
 interface NfCompleta {
   id: string
@@ -49,6 +55,13 @@ interface NfCompleta {
   status: string
   created_at: string
   cedente_id: string
+  fundo_id: string | null
+}
+
+interface EntregaResumo {
+  id: string
+  status_entrega: string
+  motivo_pendencia: string | null
 }
 
 const statusConfig: Record<string, { label: string; icon: typeof CheckCircle; variant: 'default' | 'secondary' | 'destructive' | 'outline'; className: string }> = {
@@ -62,12 +75,24 @@ const statusConfig: Record<string, { label: string; icon: typeof CheckCircle; va
   requer_ajuste: { label: 'Requer Ajuste', icon: Wrench, variant: 'default', className: 'bg-orange-100 text-orange-700 border-transparent' },
 }
 
+const entregaStatusConfig: Record<string, { label: string; className: string }> = {
+  em_transito: { label: 'Em trânsito', className: 'bg-blue-100 text-blue-700 border-transparent dark:bg-blue-500/15 dark:text-blue-200' },
+  aguardando_validacao: { label: 'Documento enviado — em análise', className: 'bg-cyan-100 text-cyan-700 border-transparent dark:bg-cyan-500/15 dark:text-cyan-200' },
+  entregue: { label: 'Entrega confirmada', className: 'bg-green-100 text-green-700 border-transparent dark:bg-green-500/15 dark:text-green-200' },
+  entrega_com_pendencia: { label: 'Em atraso / com pendência', className: 'bg-red-100 text-red-700 border-transparent dark:bg-red-500/15 dark:text-red-200' },
+  devolvida: { label: 'Devolvida', className: 'bg-red-100 text-red-700 border-transparent dark:bg-red-500/15 dark:text-red-200' },
+  cancelada: { label: 'Cancelada', className: 'bg-muted text-muted-foreground' },
+}
+
 export default function NfDetalheGestorPage() {
   const params = useParams()
   const router = useRouter()
+  const notifications = useNotifications()
+  const { loading: loadingFundo, fundoAtivo, bloqueado } = useFundoAtivo()
   const nfId = params.id as string
 
   const [nf, setNf] = useState<NfCompleta | null>(null)
+  const [entrega, setEntrega] = useState<EntregaResumo | null>(null)
   const [loading, setLoading] = useState(true)
   const [processing, setProcessing] = useState(false)
   const [message, setMessage] = useState('')
@@ -77,14 +102,30 @@ export default function NfDetalheGestorPage() {
   const [motivo, setMotivo] = useState('')
   const [showAjuste, setShowAjuste] = useState(false)
   const [motivoAjuste, setMotivoAjuste] = useState('')
+  const [todayMs] = useState(() => Date.now())
+  const [temParcelas, setTemParcelas] = useState(false)
+
+  useEffect(() => {
+    if (!message) return
+    notifications.notify({ type: messageType, message, dedupeKey: `${messageType}:${message}` })
+    queueMicrotask(() => setMessage(''))
+  }, [message, messageType, notifications])
 
   useEffect(() => {
     const load = async () => {
+      if (loadingFundo) return
+      if (bloqueado || !fundoAtivo?.id) {
+        setNf(null)
+        setEntrega(null)
+        setLoading(false)
+        return
+      }
       const supabase = createClient()
       const { data } = await supabase
         .from('notas_fiscais')
         .select('*')
         .eq('id', nfId)
+        .eq('fundo_id', fundoAtivo.id)
         .single()
 
       if (data) {
@@ -92,16 +133,24 @@ export default function NfDetalheGestorPage() {
         setNf(nfData)
 
         if (nfData.arquivo_url) {
-          const { data: signedData } = await supabase.storage
-            .from(buckets.notasFiscais)
-            .createSignedUrl(nfData.arquivo_url, 3600)
-          if (signedData) setPreviewUrl(signedData.signedUrl)
+          const signed = await obterUrlArquivoNotaFiscal(nfData.id)
+          if (signed.success && signed.url) setPreviewUrl(signed.url)
         }
       }
+
+      const { data: entregaData } = await supabase
+        .from('nota_fiscal_entregas')
+        .select('id, status_entrega, motivo_pendencia, created_at')
+        .eq('nota_fiscal_id', nfId)
+        .neq('status_entrega', 'nao_aplicavel')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      setEntrega(entregaData as EntregaResumo | null)
       setLoading(false)
     }
     load()
-  }, [nfId])
+  }, [nfId, loadingFundo, bloqueado, fundoAtivo?.id])
 
   const handleAprovar = async () => {
     setProcessing(true)
@@ -186,14 +235,15 @@ export default function NfDetalheGestorPage() {
   }
 
   const status = statusConfig[nf.status] || statusConfig.rascunho
+  const entregaStatus = entrega ? entregaStatusConfig[entrega.status_entrega] || entregaStatusConfig.em_transito : null
   const StatusIcon = status.icon
   const canAnalyze = nf.status === 'submetida' || nf.status === 'em_analise'
   const impostos = nf.valor_icms + nf.valor_iss + nf.valor_pis + nf.valor_cofins + nf.valor_ipi
 
   return (
-    <div className="max-w-5xl mx-auto">
+    <div className="max-w-5xl mx-auto space-y-6 pb-10">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Link href="/gestor/notas-fiscais">
             <Button variant="ghost" size="icon">
@@ -208,6 +258,13 @@ export default function NfDetalheGestorPage() {
               <StatusIcon size={12} />
               {status.label}
             </Badge>
+            {entregaStatus && (
+              <Badge variant="default" className={`ml-2 ${entregaStatus.className}`}>
+                <Truck size={12} />
+                {entregaStatus.label}
+              </Badge>
+            )}
+            {entrega?.motivo_pendencia && <p className="mt-1 text-xs text-destructive">{entrega.motivo_pendencia}</p>}
           </div>
         </div>
 
@@ -241,16 +298,6 @@ export default function NfDetalheGestorPage() {
           </div>
         )}
       </div>
-
-      {message && (
-        <div className={`mb-4 p-3 rounded-lg text-sm ${
-          messageType === 'success'
-            ? 'bg-green-50 text-green-700 border border-green-200'
-            : 'bg-destructive/10 text-destructive border border-destructive/20'
-        }`}>
-          {message}
-        </div>
-      )}
 
       {/* Painel reprovar */}
       {showReprovar && (
@@ -326,15 +373,19 @@ export default function NfDetalheGestorPage() {
         </div>
       )}
 
+      <ChecklistGestor notaFiscalId={nfId} />
+
+      <DuplicatasDaNota notaFiscalId={nfId} mode="gestor" />
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Dados — 2 colunas */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-4">
           {/* Dados basicos */}
           <Card>
-            <CardHeader className="pb-3">
+            <CardHeader className="pb-2">
               <CardTitle className="text-lg">Dados da NF</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-0">
               <div className="grid grid-cols-3 gap-4 text-sm">
                 <div>
                   <span className="text-muted-foreground">Numero</span>
@@ -348,10 +399,12 @@ export default function NfDetalheGestorPage() {
                   <span className="text-muted-foreground">Data Emissao</span>
                   <p className="font-medium tabular-nums">{formatDate(nf.data_emissao)}</p>
                 </div>
-                <div>
-                  <span className="text-muted-foreground">Data Vencimento</span>
-                  <p className="font-medium tabular-nums">{formatDate(nf.data_vencimento)}</p>
-                </div>
+                {!temParcelas && (
+                  <div>
+                    <span className="text-muted-foreground">Data Vencimento</span>
+                    <p className="font-medium tabular-nums">{formatDate(nf.data_vencimento)}</p>
+                  </div>
+                )}
                 <div className="col-span-2">
                   <span className="text-muted-foreground">Chave de Acesso</span>
                   <p className="font-mono text-xs break-all">{nf.chave_acesso || '—'}</p>
@@ -361,12 +414,12 @@ export default function NfDetalheGestorPage() {
           </Card>
 
           {/* Emitente e Destinatario */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <Card>
-              <CardHeader className="pb-3">
+              <CardHeader className="pb-2">
                 <CardTitle className="text-base">Emitente (Cedente)</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="pt-0">
                 <div className="text-sm space-y-1">
                   <p className="font-medium">{nf.razao_social_emitente}</p>
                   <p className="text-muted-foreground tabular-nums">{formatCNPJ(nf.cnpj_emitente)}</p>
@@ -374,10 +427,10 @@ export default function NfDetalheGestorPage() {
               </CardContent>
             </Card>
             <Card>
-              <CardHeader className="pb-3">
+              <CardHeader className="pb-2">
                 <CardTitle className="text-base">Destinatario (Sacado)</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="pt-0">
                 <div className="text-sm space-y-1">
                   <p className="font-medium">{nf.razao_social_destinatario || '—'}</p>
                   <p className="text-muted-foreground tabular-nums">{nf.cnpj_destinatario ? formatCNPJ(nf.cnpj_destinatario) : '—'}</p>
@@ -388,10 +441,10 @@ export default function NfDetalheGestorPage() {
 
           {/* Valores */}
           <Card>
-            <CardHeader className="pb-3">
+            <CardHeader className="pb-2">
               <CardTitle className="text-base">Valores</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-0">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 <div>
                   <span className="text-muted-foreground">Valor Bruto</span>
@@ -429,13 +482,13 @@ export default function NfDetalheGestorPage() {
             </CardContent>
           </Card>
 
+          <ParcelasDaNota notaFiscalId={nfId} mode="gestor" onTemParcelas={setTemParcelas} />
+
           {/* Itens e pagamento */}
           {(nf.descricao_itens || nf.condicao_pagamento) && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Detalhes</CardTitle>
-              </CardHeader>
-              <CardContent>
+            <details className="rounded-xl border bg-card p-4">
+              <summary className="cursor-pointer text-base font-semibold text-foreground">Itens e condição de pagamento</summary>
+              <div className="mt-3">
                 {nf.descricao_itens && (
                   <div className="mb-4">
                     <span className="text-sm text-muted-foreground">Itens</span>
@@ -448,19 +501,19 @@ export default function NfDetalheGestorPage() {
                     <p className="text-sm mt-1">{nf.condicao_pagamento}</p>
                   </div>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </details>
           )}
         </div>
 
         {/* Sidebar */}
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* Resumo rapido */}
           <Card>
-            <CardHeader className="pb-3">
+            <CardHeader className="pb-2">
               <CardTitle className="text-base">Resumo</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-0">
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Valor Bruto</span>
@@ -477,41 +530,14 @@ export default function NfDetalheGestorPage() {
                 <div className="border-t pt-2 flex justify-between">
                   <span className="text-muted-foreground">Dias ate vencimento</span>
                   <span className="font-medium tabular-nums">
-                    {Math.ceil((parseLocalDate(nf.data_vencimento).getTime() - Date.now()) / (1000 * 60 * 60 * 24))} dias
+                    {Math.ceil((parseLocalDate(nf.data_vencimento).getTime() - todayMs) / (1000 * 60 * 60 * 24))} dias
                   </span>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Preview do arquivo */}
-          {previewUrl && (
-            <Card>
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base">Arquivo</CardTitle>
-                  <a href={previewUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:text-primary/80">
-                    <ExternalLink size={16} />
-                  </a>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {nf.arquivo_url?.endsWith('.pdf') ? (
-                  <iframe src={previewUrl} className="w-full h-80 rounded-lg border" />
-                ) : nf.arquivo_url?.match(/\.(jpg|jpeg|png)$/i) ? (
-                  <img src={previewUrl} alt="NF" className="w-full rounded-lg border" />
-                ) : (
-                  <div className="bg-muted rounded-lg p-4 text-center">
-                    <FileText size={32} className="mx-auto text-muted-foreground mb-2" />
-                    <p className="text-sm text-muted-foreground">Arquivo XML</p>
-                    <a href={previewUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline">
-                      Baixar
-                    </a>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
+          <ArquivoOriginalCompacto previewUrl={previewUrl} arquivoUrl={nf.arquivo_url} title="Arquivo original" />
 
           {/* Metadados */}
           <div className="bg-muted/50 rounded-xl p-4 text-sm">
@@ -519,6 +545,8 @@ export default function NfDetalheGestorPage() {
           </div>
         </div>
       </div>
+
+      <HistoricoTimelineCard entidade="nota_fiscal" entidadeId={nfId} />
     </div>
   )
 }

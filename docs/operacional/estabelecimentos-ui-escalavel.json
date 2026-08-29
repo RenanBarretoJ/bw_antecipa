@@ -1,0 +1,41 @@
+{
+  "titulo": "UI escalavel de Estabelecimentos (Cedente e Gestor)",
+  "padroes_reaproveitados": {
+    "paginacao": "src/lib/pagination/* (ALLOWED_PAGE_SIZES=[10,20,40], buildPaginatedResult, buildPaginationMeta, buildListUrl)",
+    "componente_paginacao": "src/components/pagination (ListPagination)",
+    "tabela": "src/components/data-display/primitives (DataTableContainer, ListNameCell, StatusBadge, EmptyState, LoadingState)",
+    "referencia_de_listagem": "src/components/cedentes/CedentesGestorListagem.tsx (busca com debounce 350ms + Selects + ListPagination) -- padrao seguido literalmente, sem criar componente paralelo",
+    "expansao_sob_demanda": "inspirado em src/components/auditoria/auditoria-list-client.tsx (estado expanded + fetch lazy + memoizacao por id), adaptado para TableRow/TableCell colSpan (padrao novo no projeto, nao existia linha de tabela expansivel antes)"
+  },
+  "rpc_unica_para_ambas_telas": {
+    "nome": "listar_estabelecimentos_pagina(p_cedente_id, p_tipo, p_status, p_pendencia, p_q, p_page, p_page_size)",
+    "motivo": "Cedente ve os proprios estabelecimentos, Gestor ve os estabelecimentos de um Cedente sob sua gestao -- mesma forma, escopo diferente, resolvido internamente por private.usuario_tem_acesso_cedente / private.gestor_tem_acesso_cedente",
+    "agregacao_no_banco": "1 query com LEFT JOIN LATERAL + count(*) FILTER + count(*) OVER() -- calcula total_obrigatorios, aprovados_obrigatorios, aguardando_analise, tem_conta_principal e pendencia classificada, tudo paginado em uma unica ida ao banco por pagina"
+  },
+  "tela_cedente": {
+    "rota": "/cedente/estabelecimentos",
+    "padrao": "Server Component le searchParams -> carregarMeusEstabelecimentosPaginados -> passa para MeusEstabelecimentosClient (Client Component apenas para interatividade)",
+    "antes": "Client Component carregava TUDO via listarMeusEstabelecimentos() no mount, sem paginacao/filtro/busca",
+    "filtros": ["busca textual (CNPJ/razao social/nome fantasia)", "tipo (Todos|Matriz|Filial)", "status", "pendencia documental (5 valores + Todos)"],
+    "paginacao": "10/20/40, default 10",
+    "linha_resumo": ["CNPJ", "Razao Social/Nome Fantasia", "Tipo", "Status", "x/y aprovados", "Conta OK/Pendente", "badge de Pendencia", "Ver detalhes"],
+    "detalhe_expandido": ["conta bancaria (form)", "checklist documental (upload + Ver documento + origem cadastro_inicial + motivo de rejeicao)"]
+  },
+  "tela_gestor": {
+    "componente": "src/components/cedentes/EstabelecimentosGestor.tsx, embutido em /gestor/cedentes/[id]",
+    "padrao": "Client Component (pagina pai e client-only) chama a Server Action listarEstabelecimentosGestor(cedenteId, filtros) a cada mudanca de filtro -- nunca carrega tudo",
+    "antes": "Client Component fazia supabase.from('cedente_estabelecimentos').select('*').eq('cedente_id', cedenteId) direto no browser, sem paginacao, e um segundo select trazendo TODOS os requisitos de TODOS os estabelecimentos de uma vez",
+    "matriz_primeiro": "garantido pelo ORDER BY (tipo='matriz') DESC no RPC, nao no cliente",
+    "filtros": ["busca", "tipo", "status", "documentacao/pendencia (Aguardando documentos | Documentos aguardando analise | Pronto para aprovacao=completo | Pendencia pos-aprovacao | Conta pendente)"],
+    "detalhe_expandido": ["decisao (Aprovar/Rejeitar/Suspender/Reativar, com os codigos de gate refletidos na mensagem de erro)", "conta bancaria (somente leitura)", "checklist com Analisar (Aprovar/Pedir ajuste/Reprovar) por documento", "Configurar requisito + Ativo/Inativo + Desativar/Reativar (preservado da entrega anterior)"]
+  },
+  "performance_e_n_mais_1": {
+    "garantia": "nenhuma query por estabelecimento -- 1 unica chamada de RPC por pagina calcula agregados de TODOS os estabelecimentos filtrados via LEFT JOIN LATERAL + GROUP BY, e so os 10/20/40 da pagina atual sao retornados ao cliente",
+    "detalhe_carregado_sob_demanda": "checklist completo e contas bancarias so sao buscados (carregarDetalheEstabelecimento) quando o usuario expande uma linha especifica, com memoizacao (nao rebusca se ja tem os dados)",
+    "teste_de_escala": {
+      "script": "scripts/homologacao/evolucao-estabelecimentos/perf-50-filiais.mjs",
+      "cenario": "1 Matriz + 55 Filiais sinteticas (56 estabelecimentos) no mesmo Cedente",
+      "resultado": "10/10 checks PASS -- pagina 1 respondeu em ~294ms, EXPLAIN confirmou plano de execucao unico (nao 56 scans), filtros de tipo/pendencia/busca e paginacao (pagina 2 != pagina 1) corretos"
+    }
+  }
+}

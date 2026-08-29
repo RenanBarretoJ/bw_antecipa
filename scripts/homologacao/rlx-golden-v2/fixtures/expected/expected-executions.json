@@ -1,0 +1,18 @@
+{
+  "schema": "rlx_expected_executions_v2",
+  "dataset_version": "RLX_GOLDEN_V2",
+  "executions": [
+    {
+      "phase": "A",
+      "stock_revision": 1,
+      "acquisition_revision": 1,
+      "immutable_after_retification": true
+    },
+    {
+      "phase": "B",
+      "stock_revision": 2,
+      "acquisition_revision": 2,
+      "uses_current_imports": true
+    }
+  ]
+}

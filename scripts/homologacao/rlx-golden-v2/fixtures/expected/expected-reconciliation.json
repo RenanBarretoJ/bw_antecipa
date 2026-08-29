@@ -1,0 +1,205 @@
+{
+  "schema": "rlx_expected_reconciliation_v2",
+  "dataset_version": "RLX_GOLDEN_V2",
+  "rule_version": "RLX_RECON_V1",
+  "cases": [
+    {
+      "scenario_id": "RECON_MANTIDO",
+      "external_identity": "V2-RECON_MANTIDO",
+      "expected_status": "MANTIDO_CORRETO",
+      "expected_values": {
+        "presente_d2": true,
+        "presente_d1": true,
+        "aquisicoes_count": 0,
+        "liquidacoes_count": 0
+      }
+    },
+    {
+      "scenario_id": "RECON_ENTRADA_INCORPORADA",
+      "external_identity": "V2-RECON_ENTRADA_INCORPORADA",
+      "expected_status": "ENTRADA_INCORPORADA",
+      "expected_values": {
+        "presente_d2": false,
+        "presente_d1": true,
+        "aquisicoes_count": 1,
+        "liquidacoes_count": 0
+      }
+    },
+    {
+      "scenario_id": "RECON_ENTRADA_NAO_INCORPORADA",
+      "external_identity": "V2-RECON_ENTRADA_NAO_INCORPORADA",
+      "expected_status": "ENTRADA_NAO_INCORPORADA",
+      "expected_values": {
+        "presente_d2": false,
+        "presente_d1": false,
+        "aquisicoes_count": 1,
+        "liquidacoes_count": 0
+      }
+    },
+    {
+      "scenario_id": "RECON_ENTRADA_SEM_AQUISICAO",
+      "external_identity": "V2-RECON_ENTRADA_SEM_AQUISICAO",
+      "expected_status": "ENTRADA_SEM_AQUISICAO",
+      "expected_values": {
+        "presente_d2": false,
+        "presente_d1": true,
+        "aquisicoes_count": 0,
+        "liquidacoes_count": 0
+      }
+    },
+    {
+      "scenario_id": "RECON_SAIDA_REFLETIDA",
+      "external_identity": "V2-RECON_SAIDA_REFLETIDA",
+      "expected_status": "SAIDA_REFLETIDA",
+      "expected_values": {
+        "presente_d2": true,
+        "presente_d1": false,
+        "aquisicoes_count": 0,
+        "liquidacoes_count": 1
+      }
+    },
+    {
+      "scenario_id": "RECON_SAIDA_SEM_LIQUIDACAO",
+      "external_identity": "V2-RECON_SAIDA_SEM_LIQUIDACAO",
+      "expected_status": "SAIDA_SEM_LIQUIDACAO",
+      "expected_values": {
+        "presente_d2": true,
+        "presente_d1": false,
+        "aquisicoes_count": 0,
+        "liquidacoes_count": 0
+      }
+    },
+    {
+      "scenario_id": "RECON_LIQUIDADO_NO_ESTOQUE",
+      "external_identity": "V2-RECON_LIQUIDADO_NO_ESTOQUE",
+      "expected_status": "LIQUIDADO_AINDA_NO_ESTOQUE",
+      "expected_values": {
+        "presente_d2": true,
+        "presente_d1": true,
+        "aquisicoes_count": 0,
+        "liquidacoes_count": 1
+      }
+    },
+    {
+      "scenario_id": "RECON_LIQUIDACAO_PARCIAL",
+      "external_identity": "V2-RECON_LIQUIDACAO_PARCIAL",
+      "expected_status": "LIQUIDACAO_PARCIAL_SALDO",
+      "expected_values": {
+        "presente_d2": true,
+        "presente_d1": true,
+        "aquisicoes_count": 0,
+        "liquidacoes_count": 1
+      }
+    },
+    {
+      "scenario_id": "RECON_LIQUIDACAO_REPETIDA",
+      "external_identity": "V2-RECON_LIQUIDACAO_REPETIDA",
+      "expected_status": "LIQUIDACAO_REPETIDA_MESMO_DIA",
+      "expected_values": {
+        "presente_d2": true,
+        "presente_d1": true,
+        "aquisicoes_count": 0,
+        "liquidacoes_count": 2
+      }
+    },
+    {
+      "scenario_id": "RECON_DIVERGENCIA_VALOR",
+      "external_identity": "V2-RECON_DIVERGENCIA_VALOR",
+      "expected_status": "DIVERGENCIA_VALOR",
+      "expected_values": {
+        "presente_d2": true,
+        "presente_d1": true,
+        "aquisicoes_count": 0,
+        "liquidacoes_count": 0
+      }
+    },
+    {
+      "scenario_id": "MATCH_CHAVE_RECON",
+      "external_identity": "V2-MATCH_CHAVE",
+      "expected_status": "ENTRADA_SEM_AQUISICAO",
+      "expected_values": {
+        "presente_d2": false,
+        "presente_d1": true,
+        "aquisicoes_count": 0,
+        "liquidacoes_count": 0
+      }
+    },
+    {
+      "scenario_id": "MATCH_SEU_NUMERO_RECON",
+      "external_identity": "V2-MATCH_SEU_NUMERO",
+      "expected_status": "ENTRADA_SEM_AQUISICAO",
+      "expected_values": {
+        "presente_d2": false,
+        "presente_d1": true,
+        "aquisicoes_count": 0,
+        "liquidacoes_count": 0
+      }
+    },
+    {
+      "scenario_id": "MATCH_PROPAGACAO_RECON",
+      "external_identity": "900719925474099312345",
+      "expected_status": "ENTRADA_INCORPORADA",
+      "expected_values": {
+        "presente_d2": false,
+        "presente_d1": true,
+        "aquisicoes_count": 1,
+        "liquidacoes_count": 1
+      }
+    },
+    {
+      "scenario_id": "MATCH_COMPOSTO_RECON",
+      "external_identity": "V2-MATCH_COMPOSTO",
+      "expected_status": "ENTRADA_SEM_AQUISICAO",
+      "expected_values": {
+        "presente_d2": false,
+        "presente_d1": true,
+        "aquisicoes_count": 0,
+        "liquidacoes_count": 0
+      }
+    },
+    {
+      "scenario_id": "MATCH_AMBIGUO_RECON",
+      "external_identity": "V2-MATCH_AMBIGUO",
+      "expected_status": "ENTRADA_SEM_AQUISICAO",
+      "expected_values": {
+        "presente_d2": false,
+        "presente_d1": true,
+        "aquisicoes_count": 0,
+        "liquidacoes_count": 0
+      }
+    },
+    {
+      "scenario_id": "MATCH_NAO_CONCILIADO_RECON",
+      "external_identity": "V2-MATCH_NAO_CONCILIADO",
+      "expected_status": "ENTRADA_SEM_AQUISICAO",
+      "expected_values": {
+        "presente_d2": false,
+        "presente_d1": true,
+        "aquisicoes_count": 0,
+        "liquidacoes_count": 0
+      }
+    },
+    {
+      "scenario_id": "MATCH_CONFLITO_RECON",
+      "external_identity": "V2-MATCH_CONFLITO",
+      "expected_status": "ENTRADA_SEM_AQUISICAO",
+      "expected_values": {
+        "presente_d2": false,
+        "presente_d1": true,
+        "aquisicoes_count": 0,
+        "liquidacoes_count": 0
+      }
+    },
+    {
+      "scenario_id": "MATCH_CROSS_FUND_MAIN_RECON",
+      "external_identity": "900719925474099399999",
+      "expected_status": "ENTRADA_SEM_AQUISICAO",
+      "expected_values": {
+        "presente_d2": false,
+        "presente_d1": true,
+        "aquisicoes_count": 0,
+        "liquidacoes_count": 0
+      }
+    }
+  ]
+}

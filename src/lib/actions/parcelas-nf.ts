@@ -1,0 +1,444 @@
+'use server'
+
+import { requireGestor, requireNotaFiscalAccess } from '@/lib/auth/authorization'
+import { exigirSessaoElevada } from '@/lib/auth/mfa'
+import { DOCUMENTO_V2_BUCKET, mimeArquivo, sha256Arquivo, validarArquivoContraTipo } from '@/lib/documentos-v2/tipos'
+import { enviarObjetoDocumento, gerarCaminhoDocumento, removerObjetoDocumento } from '@/lib/documentos-v2/storage'
+import { notificarCedente } from './notificacao'
+import { registrarLog } from './auditoria'
+import { revalidatePath } from 'next/cache'
+import type { NotaFiscalParcela } from '@/types/database'
+import { encontrarBeneficiarioUnico, extrairCandidatosCnpj } from '@/lib/documentos-v2/boleto-beneficiario'
+
+// pdf-parse está em serverExternalPackages (next.config.ts): o Next.js usa o require
+// nativo do Node.js, mesmo padrão de src/lib/pdf-nf-parser.ts (nao alterado por este arquivo).
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const pdfParse = require('pdf-parse') as (buffer: Buffer) => Promise<{ text: string }>
+
+export type ParcelaActionResult<T = unknown> = {
+  success: boolean
+  message: string
+  data?: T
+}
+
+function falha<T = unknown>(error: unknown, fallback: string): ParcelaActionResult<T> {
+  return { success: false, message: error instanceof Error ? error.message : fallback }
+}
+
+export interface ParcelaBoletoItem {
+  parcela: NotaFiscalParcela
+  requisitoId: string
+  obrigatorio: boolean
+  status: string
+  documentoVersaoId: string | null
+  nomeArquivo: string | null
+  numeroVersao: number | null
+  motivo: string | null
+  beneficiarioEstabelecimentoId: string | null
+}
+
+/**
+ * documento_requisito_instancias.status so e confiavel nos estados
+ * terminais (satisfeito apos aprovacao, dispensado/cancelado/vencido).
+ * registrar_documento_upload sempre grava 'pendente' apos qualquer envio
+ * (novo ou reenvio) -- o estado real durante a analise so existe em
+ * documento_versoes.status / documento_analises.resultado, exatamente
+ * como RequirementCard/statusVisual (ChecklistCedente.tsx) ja deriva para
+ * os documentos por_nf. Esta funcao aplica a mesma logica para boleto.
+ */
+function derivarStatusBoleto(
+  statusInstancia: string,
+  versaoAtual: { status: string } | null,
+  ultimaAnalise: { resultado: string } | null,
+): string {
+  if (['satisfeito', 'dispensado', 'cancelado', 'vencido'].includes(statusInstancia)) return statusInstancia
+  if (!versaoAtual) return 'pendente'
+  if (versaoAtual.status === 'rejeitado' || ultimaAnalise?.resultado === 'rejeitado') return 'rejeitado'
+  if (ultimaAnalise?.resultado === 'requer_ajuste') return 'requer_ajuste'
+  return 'em_analise'
+}
+
+export async function listarParcelasBoletosDaNota(notaFiscalId: string): Promise<ParcelaActionResult<ParcelaBoletoItem[]>> {
+  try {
+    const context = await requireNotaFiscalAccess(notaFiscalId)
+    const supabase = context.supabase
+
+    const { data: parcelas, error: parcelasError } = await supabase
+      .from('nota_fiscal_parcelas')
+      .select('*')
+      .eq('nota_fiscal_id', notaFiscalId)
+      .order('numero_parcela')
+    if (parcelasError) throw new Error(`Nao foi possivel carregar as parcelas: ${parcelasError.message}`)
+
+    const parcelasRows = (parcelas || []) as NotaFiscalParcela[]
+    if (parcelasRows.length === 0) return { success: true, message: 'NF sem parcelas cadastradas.', data: [] }
+
+    const { data: requisitos, error: requisitosError } = await supabase
+      .from('documento_requisito_instancias')
+      .select('id, parcela_id, obrigatorio, status, documento_id, tipo_documento_codigo_snapshot')
+      .eq('nota_fiscal_id', notaFiscalId)
+      .eq('tipo_documento_codigo_snapshot', 'boleto')
+      .not('parcela_id', 'is', null)
+    if (requisitosError) throw new Error(`Nao foi possivel carregar os requisitos de boleto: ${requisitosError.message}`)
+
+    // So existe requisito de boleto quando a politica da NF realmente exige
+    // boleto (instanciar_requisitos_nota so cria a instancia nesse caso).
+    // Uma NF com parcelas mas sem boleto na politica nao deve gerar nenhum
+    // item aqui -- por isso o resultado e construido a partir das
+    // instancias reais, nao de todas as parcelas da NF.
+    type RequisitoRow = { id: string; parcela_id: string; obrigatorio: boolean; status: string; documento_id: string | null }
+    const requisitosRows = (requisitos || []) as RequisitoRow[]
+    if (requisitosRows.length === 0) return { success: true, message: 'Politica desta NF nao exige boleto.', data: [] }
+    const documentoIds = requisitosRows.map((r) => r.documento_id).filter((id): id is string => Boolean(id))
+
+    const { data: versoes, error: versoesError } = documentoIds.length
+      ? await supabase
+        .from('documento_versoes')
+        .select('id, documento_id, numero_versao, status, nome_original, beneficiario_estabelecimento_id')
+        .in('documento_id', documentoIds)
+        .order('numero_versao', { ascending: false })
+      : { data: [], error: null }
+    if (versoesError) throw new Error(`Nao foi possivel carregar as versoes do boleto: ${versoesError.message}`)
+
+    type VersaoRow = { id: string; documento_id: string; numero_versao: number; status: string; nome_original: string; beneficiario_estabelecimento_id: string | null }
+    const versoesRows = (versoes || []) as VersaoRow[]
+    const versaoIds = versoesRows.map((v) => v.id)
+
+    const { data: analises, error: analisesError } = versaoIds.length
+      ? await supabase
+        .from('documento_analises')
+        .select('documento_versao_id, resultado, observacoes, analisado_em')
+        .in('documento_versao_id', versaoIds)
+        .order('analisado_em', { ascending: false })
+      : { data: [], error: null }
+    if (analisesError) throw new Error(`Nao foi possivel carregar as analises do boleto: ${analisesError.message}`)
+
+    type AnaliseRow = { documento_versao_id: string; resultado: string; observacoes: string | null }
+    const analisesRows = (analises || []) as AnaliseRow[]
+
+    const items: ParcelaBoletoItem[] = requisitosRows
+      .map((requisito) => {
+        const parcela = parcelasRows.find((p) => p.id === requisito.parcela_id)
+        if (!parcela) return null
+        const versaoAtual = requisito.documento_id
+          ? versoesRows.find((v) => v.documento_id === requisito.documento_id) || null
+          : null
+        const ultimaAnalise = versaoAtual ? analisesRows.find((a) => a.documento_versao_id === versaoAtual.id) || null : null
+        return {
+          parcela,
+          requisitoId: requisito.id,
+          obrigatorio: requisito.obrigatorio,
+          status: derivarStatusBoleto(requisito.status, versaoAtual, ultimaAnalise),
+          documentoVersaoId: versaoAtual?.id ?? null,
+          nomeArquivo: versaoAtual?.nome_original ?? null,
+          numeroVersao: versaoAtual?.numero_versao ?? null,
+          motivo: ultimaAnalise?.observacoes ?? null,
+          beneficiarioEstabelecimentoId: versaoAtual?.beneficiario_estabelecimento_id ?? null,
+        }
+      })
+      .filter((item): item is ParcelaBoletoItem => item !== null)
+      .sort((a, b) => a.parcela.numero_parcela - b.parcela.numero_parcela)
+
+    return { success: true, message: 'Parcelas carregadas.', data: items }
+  } catch (error) {
+    return falha(error, 'Nao foi possivel carregar as parcelas da nota fiscal.')
+  }
+}
+
+export interface ParcelaDaNotaItem {
+  id: string
+  numeroParcela: number
+  dataVencimento: string
+  valorNominal: number
+  status: string
+  origem: string
+}
+
+export interface ParcelasDaNotaResumo {
+  itens: ParcelaDaNotaItem[]
+  total: number
+  quantidade: number
+  editavel: boolean
+}
+
+/**
+ * Secao "Parcelas da Nota Fiscal" -- independente de a politica exigir
+ * boleto (diferente de listarParcelasBoletosDaNota, que so retorna algo
+ * quando ha requisito de boleto instanciado). NF sem parcelas retorna
+ * lista vazia (comportamento legado inalterado).
+ */
+export async function listarParcelasDaNota(notaFiscalId: string): Promise<ParcelaActionResult<ParcelasDaNotaResumo>> {
+  try {
+    const context = await requireNotaFiscalAccess(notaFiscalId)
+    const supabase = context.supabase
+
+    const { data: nf, error: nfError } = await supabase.from('notas_fiscais').select('status').eq('id', notaFiscalId).maybeSingle()
+    if (nfError || !nf) throw new Error('Nota fiscal nao encontrada.')
+
+    const { data, error } = await supabase
+      .from('nota_fiscal_parcelas')
+      .select('id, numero_parcela, data_vencimento, valor_nominal, status, origem')
+      .eq('nota_fiscal_id', notaFiscalId)
+      .order('numero_parcela')
+    if (error) throw new Error(`Nao foi possivel carregar as parcelas: ${error.message}`)
+
+    type Row = { id: string; numero_parcela: number; data_vencimento: string; valor_nominal: number; status: string; origem: string }
+    const rows = (data || []) as Row[]
+    const itens: ParcelaDaNotaItem[] = rows.map((row) => ({
+      id: row.id,
+      numeroParcela: row.numero_parcela,
+      dataVencimento: row.data_vencimento,
+      valorNominal: Number(row.valor_nominal),
+      status: row.status,
+      origem: row.origem,
+    }))
+    const total = itens.reduce((soma, item) => soma + item.valorNominal, 0)
+    const editavel = context.profile.role === 'cedente' && (nf as { status: string }).status === 'rascunho'
+
+    return { success: true, message: 'Parcelas carregadas.', data: { itens, total, quantidade: itens.length, editavel } }
+  } catch (error) {
+    return falha(error, 'Nao foi possivel carregar as parcelas da nota fiscal.')
+  }
+}
+
+export interface ParcelaEdicaoInput {
+  id: string
+  valorNominal: number
+  dataVencimento: string
+}
+
+/**
+ * Corrige vencimento/valor das parcelas ja registradas -- so enquanto a NF
+ * esta em rascunho (checado no banco pela RPC, nao apenas no cliente).
+ * Numero da parcela permanece imutavel (nota_fiscal_parcelas_unique exige
+ * unicidade por NF, e renumerar nao e necessario para o caso de uso de
+ * correcao de valor/vencimento pedido pelo ticket). A RPC valida: NF do
+ * cedente autenticado, NF em rascunho, cada parcela ainda 'disponivel',
+ * nenhuma com boleto ja aprovado, soma dentro da tolerancia do valor
+ * bruto, e atualiza notas_fiscais.data_vencimento para o novo MAX.
+ */
+export async function editarParcelasDaNota(
+  notaFiscalId: string,
+  parcelas: ParcelaEdicaoInput[],
+): Promise<ParcelaActionResult<{ soma: number; vencimentoAgregado: string }>> {
+  try {
+    const context = await requireNotaFiscalAccess(notaFiscalId)
+    if (context.profile.role !== 'cedente') throw new Error('Somente o cedente dono da NF pode editar parcelas.')
+
+    const payload = parcelas.map((item) => ({
+      id: item.id,
+      valor_nominal: item.valorNominal,
+      data_vencimento: item.dataVencimento,
+    }))
+    const { data, error } = await context.supabase.rpc('editar_parcelas_nota_fiscal', {
+      p_nota_fiscal_id: notaFiscalId,
+      p_parcelas: payload,
+    })
+    if (error) throw new Error(error.message)
+
+    const resultado = data as { soma: number; vencimento_agregado: string }
+
+    registrarLog({
+      tipo_evento: 'PARCELAS_NF_EDITADAS',
+      entidade_tipo: 'nota_fiscal_parcelas',
+      entidade_id: notaFiscalId,
+      dados_depois: { nota_fiscal_id: notaFiscalId, ...resultado },
+    }).catch(() => {})
+
+    revalidatePath(`/cedente/notas-fiscais/${notaFiscalId}`)
+    revalidatePath(`/gestor/notas-fiscais/${notaFiscalId}`)
+    return {
+      success: true,
+      message: 'Parcelas atualizadas com sucesso.',
+      data: { soma: Number(resultado.soma), vencimentoAgregado: resultado.vencimento_agregado },
+    }
+  } catch (error) {
+    return falha(error, 'Nao foi possivel salvar as parcelas.')
+  }
+}
+
+export async function listarBeneficiariosElegiveisDaNota(notaFiscalId: string): Promise<ParcelaActionResult<Array<{ id: string; razaoSocial: string; cnpj: string; tipo: string }>>> {
+  try {
+    const context = await requireNotaFiscalAccess(notaFiscalId)
+    const supabase = context.supabase
+    const { data: nf, error: nfError } = await supabase.from('notas_fiscais').select('cedente_id').eq('id', notaFiscalId).maybeSingle()
+    if (nfError || !nf) throw new Error('Nota fiscal nao encontrada.')
+
+    const { data, error } = await supabase
+      .from('cedente_estabelecimentos')
+      .select('id, razao_social, cnpj, tipo')
+      .eq('cedente_id', (nf as { cedente_id: string }).cedente_id)
+      .eq('status', 'aprovado')
+      .order('tipo')
+    if (error) throw new Error(`Nao foi possivel carregar os estabelecimentos: ${error.message}`)
+
+    const rows = (data || []) as Array<{ id: string; razao_social: string; cnpj: string; tipo: string }>
+    return {
+      success: true,
+      message: 'Estabelecimentos carregados.',
+      data: rows.map((row) => ({ id: row.id, razaoSocial: row.razao_social, cnpj: row.cnpj, tipo: row.tipo })),
+    }
+  } catch (error) {
+    return falha(error, 'Nao foi possivel carregar os estabelecimentos elegiveis.')
+  }
+}
+
+/**
+ * Extrai o texto bruto de um PDF com o mesmo guard-rail de
+ * extractDanfeFromPdf (src/lib/pdf-nf-parser.ts): timeout de 20s e
+ * descarte de PDFs escaneados (texto insuficiente). Duplicado aqui (em vez
+ * de importar) para nao alterar o comportamento/testes daquele modulo --
+ * ambos usam pdf-parse via serverExternalPackages.
+ */
+async function extrairTextoBrutoPdf(buffer: Buffer): Promise<string> {
+  try {
+    const resultado = await Promise.race([
+      pdfParse(buffer),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('pdf-parse timeout')), 20000)),
+    ])
+    const texto = resultado.text || ''
+    if (texto.replace(/\s/g, '').length < 50) return ''
+    return texto
+  } catch {
+    return ''
+  }
+}
+
+/**
+ * Tenta identificar automaticamente o beneficiario de um boleto ainda NAO
+ * enviado (arquivo so esta preparado no cliente) lendo o texto do PDF e
+ * cruzando os CNPJs encontrados contra os estabelecimentos elegiveis da
+ * NF. Sempre retorna { estabelecimentoId: null } em qualquer cenario
+ * inseguro/ambiguo/de falha -- nunca lanca erro nem bloqueia o preparo do
+ * arquivo no cliente. O cedente pode sempre sobrescrever manualmente.
+ */
+export async function identificarBeneficiarioBoleto(
+  notaFiscalId: string,
+  formData: FormData,
+): Promise<ParcelaActionResult<{ estabelecimentoId: string | null }>> {
+  try {
+    await requireNotaFiscalAccess(notaFiscalId)
+
+    const arquivo = formData.get('arquivo')
+    if (!(arquivo instanceof File) || mimeArquivo(arquivo) !== 'application/pdf') {
+      return { success: true, message: 'Arquivo invalido para identificacao automatica.', data: { estabelecimentoId: null } }
+    }
+
+    const buffer = Buffer.from(await arquivo.arrayBuffer())
+    const texto = await extrairTextoBrutoPdf(buffer)
+    if (!texto) return { success: true, message: 'Nao foi possivel ler o texto do PDF.', data: { estabelecimentoId: null } }
+
+    const candidatos = extrairCandidatosCnpj(texto)
+    if (candidatos.length === 0) return { success: true, message: 'Nenhum CNPJ identificado no arquivo.', data: { estabelecimentoId: null } }
+
+    const beneficiariosResult = await listarBeneficiariosElegiveisDaNota(notaFiscalId)
+    if (!beneficiariosResult.success || !beneficiariosResult.data) {
+      return { success: true, message: 'Nao foi possivel carregar os beneficiarios elegiveis.', data: { estabelecimentoId: null } }
+    }
+
+    const estabelecimentoId = encontrarBeneficiarioUnico(candidatos, beneficiariosResult.data)
+    return { success: true, message: 'Identificacao concluida.', data: { estabelecimentoId } }
+  } catch {
+    return { success: true, message: 'Nao foi possivel identificar o beneficiario automaticamente.', data: { estabelecimentoId: null } }
+  }
+}
+
+export async function enviarBoletoDaParcela(formData: FormData): Promise<ParcelaActionResult> {
+  let path: string | null = null
+  try {
+    const notaFiscalId = String(formData.get('nota_fiscal_id') || '')
+    const context = await requireNotaFiscalAccess(notaFiscalId)
+    if (!['cedente', 'gestor'].includes(context.profile.role)) throw new Error('Somente cedente ou gestor pode enviar o boleto.')
+    const supabase = context.supabase
+
+    const requisitoId = String(formData.get('requisito_id') || '')
+    const estabelecimentoBeneficiarioId = String(formData.get('estabelecimento_beneficiario_id') || '')
+    const arquivo = formData.get('arquivo')
+    if (!(arquivo instanceof File)) throw new Error('Selecione um arquivo valido.')
+    if (!estabelecimentoBeneficiarioId) throw new Error('Selecione o beneficiario do boleto.')
+
+    const { data: tipo, error: tipoError } = await supabase.from('documento_tipos').select('*').eq('codigo', 'boleto').eq('ativo', true).maybeSingle()
+    if (tipoError || !tipo) throw new Error('Tipo documental "boleto" nao encontrado ou inativo.')
+    const tipoData = tipo as { id: string; mime_types_aceitos: string[]; extensoes_aceitas: string[]; tamanho_max_bytes: number }
+    const validacao = validarArquivoContraTipo(arquivo, tipoData as never)
+    if (validacao) throw new Error(validacao)
+
+    const { data: nf, error: nfError } = await supabase.from('notas_fiscais').select('cedente_id').eq('id', notaFiscalId).maybeSingle()
+    if (nfError || !nf) throw new Error('Nota fiscal nao encontrada.')
+
+    path = gerarCaminhoDocumento({
+      cedenteId: (nf as { cedente_id: string }).cedente_id,
+      notaFiscalId,
+      tipoCodigo: 'boleto',
+      nomeOriginal: arquivo.name,
+    })
+    await enviarObjetoDocumento(path, arquivo, mimeArquivo(arquivo))
+
+    const { data: resultado, error } = await supabase.rpc('registrar_documento_boleto_parcela', {
+      p_nota_fiscal_id: notaFiscalId,
+      p_requisito_id: requisitoId,
+      p_documento_tipo_id: tipoData.id,
+      p_estabelecimento_beneficiario_id: estabelecimentoBeneficiarioId,
+      p_bucket: DOCUMENTO_V2_BUCKET,
+      p_path: path,
+      p_nome_original: arquivo.name,
+      p_mime_type: mimeArquivo(arquivo),
+      p_tamanho_bytes: arquivo.size,
+      p_sha256: await sha256Arquivo(arquivo),
+      p_enviado_por: context.user.id,
+    })
+    if (error) throw new Error(`Nao foi possivel registrar o boleto: ${error.message}`)
+
+    registrarLog({
+      tipo_evento: 'BOLETO_PARCELA_ENVIADO',
+      entidade_tipo: 'documento_requisito_instancias',
+      entidade_id: requisitoId,
+      dados_depois: { nota_fiscal_id: notaFiscalId, ...(resultado as Record<string, unknown>) },
+    }).catch(() => {})
+
+    revalidatePath(`/cedente/notas-fiscais/${notaFiscalId}`)
+    revalidatePath(`/gestor/notas-fiscais/${notaFiscalId}`)
+    return { success: true, message: 'Boleto enviado para analise.' }
+  } catch (error) {
+    if (path) await removerObjetoDocumento(path).catch(() => undefined)
+    return falha(error, 'Nao foi possivel enviar o boleto.')
+  }
+}
+
+export async function analisarBoletoDaParcela(formData: FormData): Promise<ParcelaActionResult> {
+  try {
+    const context = await requireGestor()
+    await exigirSessaoElevada(context)
+    const notaFiscalId = String(formData.get('nota_fiscal_id') || '')
+    const documentoVersaoId = String(formData.get('documento_versao_id') || '')
+    const resultado = String(formData.get('resultado') || '') as 'aprovado' | 'rejeitado' | 'requer_ajuste'
+    const observacoes = String(formData.get('observacoes') || '').trim() || null
+    if (resultado !== 'aprovado' && !observacoes) throw new Error('Motivo obrigatorio para reprovar ou pedir ajuste.')
+
+    const { error } = await context.supabase.rpc('analisar_documento_boleto_gestor', {
+      p_documento_versao_id: documentoVersaoId,
+      p_resultado: resultado,
+      p_observacoes: observacoes,
+    })
+    if (error) throw new Error(`Nao foi possivel analisar o boleto: ${error.message}`)
+
+    const { data: nf } = await context.supabase.from('notas_fiscais').select('cedente_id').eq('id', notaFiscalId).maybeSingle()
+    if (nf) {
+      const labelResultado = resultado === 'aprovado' ? 'aprovado' : resultado === 'rejeitado' ? 'reprovado' : 'com ajuste solicitado'
+      await notificarCedente(
+        (nf as { cedente_id: string }).cedente_id,
+        `Boleto de parcela ${labelResultado}`,
+        resultado === 'aprovado'
+          ? 'O boleto de uma parcela da sua NF foi aprovado.'
+          : `O boleto de uma parcela da sua NF foi ${labelResultado}. Motivo: ${observacoes}`,
+        `boleto_parcela_${resultado}`,
+      )
+    }
+
+    revalidatePath(`/gestor/notas-fiscais/${notaFiscalId}`)
+    revalidatePath(`/cedente/notas-fiscais/${notaFiscalId}`)
+    return { success: true, message: 'Boleto analisado com sucesso.' }
+  } catch (error) {
+    return falha(error, 'Nao foi possivel analisar o boleto.')
+  }
+}

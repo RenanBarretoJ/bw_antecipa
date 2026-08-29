@@ -1,0 +1,1 @@
+-- Intencionalmente vazio. O rehearsal restaura um snapshot controlado de producao.

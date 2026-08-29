@@ -1,0 +1,945 @@
+{
+  "schema": "bw-antecipa-p2-6-6-clean-room-e2e-v1",
+  "status": "PASS",
+  "started_at": "2026-08-17T17:45:40.355Z",
+  "node": "v22.23.2",
+  "project_id": "bw-antecipa-p266-clean-room",
+  "migration_history": {
+    "expected": 123,
+    "applied": 123,
+    "bootstrap_applied": true,
+    "total_history_rows": 124,
+    "first": "003_storage_buckets_env.sql",
+    "last": "20260817174233_p2_6_6_remover_gestor_global_politicas_operacionais.sql",
+    "manifest_sha256": "6c6961a77894be9e90d81c21edc954f9bf041169069a28571eae01aecf3b39f5",
+    "status": "PASS",
+    "remote_applied": 123,
+    "remote_total_history_rows": 123,
+    "remote_status": "PASS"
+  },
+  "schema_parity": {
+    "status": "PASS",
+    "material_differences": 0,
+    "allowed_differences": 49,
+    "allowed_details": [
+      {
+        "category": "relations",
+        "key": "storage|iceberg_namespaces|r",
+        "homolog": null,
+        "clean_room": {
+          "schema": "storage",
+          "name": "iceberg_namespaces",
+          "relkind": "r",
+          "rls": true,
+          "force_rls": false,
+          "access_method": "heap"
+        },
+        "classification": "ALLOWED_ENVIRONMENT",
+        "reason": "Objeto interno do Supabase Storage local (Iceberg), fora do dominio BW."
+      },
+      {
+        "category": "relations",
+        "key": "storage|iceberg_tables|r",
+        "homolog": null,
+        "clean_room": {
+          "schema": "storage",
+          "name": "iceberg_tables",
+          "relkind": "r",
+          "rls": true,
+          "force_rls": false,
+          "access_method": "heap"
+        },
+        "classification": "ALLOWED_ENVIRONMENT",
+        "reason": "Objeto interno do Supabase Storage local (Iceberg), fora do dominio BW."
+      },
+      {
+        "category": "columns",
+        "key": "storage|iceberg_namespaces|1",
+        "homolog": null,
+        "clean_room": {
+          "schema": "storage",
+          "relation": "iceberg_namespaces",
+          "position": 1,
+          "name": "id",
+          "type": "uuid",
+          "not_null": true,
+          "default": "gen_random_uuid()",
+          "identity": "",
+          "generated": "",
+          "collation": ""
+        },
+        "classification": "ALLOWED_ENVIRONMENT",
+        "reason": "Objeto interno do Supabase Storage local (Iceberg), fora do dominio BW."
+      },
+      {
+        "category": "columns",
+        "key": "storage|iceberg_namespaces|2",
+        "homolog": null,
+        "clean_room": {
+          "schema": "storage",
+          "relation": "iceberg_namespaces",
+          "position": 2,
+          "name": "bucket_name",
+          "type": "text",
+          "not_null": true,
+          "default": null,
+          "identity": "",
+          "generated": "",
+          "collation": "default"
+        },
+        "classification": "ALLOWED_ENVIRONMENT",
+        "reason": "Objeto interno do Supabase Storage local (Iceberg), fora do dominio BW."
+      },
+      {
+        "category": "columns",
+        "key": "storage|iceberg_namespaces|3",
+        "homolog": null,
+        "clean_room": {
+          "schema": "storage",
+          "relation": "iceberg_namespaces",
+          "position": 3,
+          "name": "name",
+          "type": "text",
+          "not_null": true,
+          "default": null,
+          "identity": "",
+          "generated": "",
+          "collation": "C"
+        },
+        "classification": "ALLOWED_ENVIRONMENT",
+        "reason": "Objeto interno do Supabase Storage local (Iceberg), fora do dominio BW."
+      },
+      {
+        "category": "columns",
+        "key": "storage|iceberg_namespaces|4",
+        "homolog": null,
+        "clean_room": {
+          "schema": "storage",
+          "relation": "iceberg_namespaces",
+          "position": 4,
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "not_null": true,
+          "default": "now()",
+          "identity": "",
+          "generated": "",
+          "collation": ""
+        },
+        "classification": "ALLOWED_ENVIRONMENT",
+        "reason": "Objeto interno do Supabase Storage local (Iceberg), fora do dominio BW."
+      },
+      {
+        "category": "columns",
+        "key": "storage|iceberg_namespaces|5",
+        "homolog": null,
+        "clean_room": {
+          "schema": "storage",
+          "relation": "iceberg_namespaces",
+          "position": 5,
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "not_null": true,
+          "default": "now()",
+          "identity": "",
+          "generated": "",
+          "collation": ""
+        },
+        "classification": "ALLOWED_ENVIRONMENT",
+        "reason": "Objeto interno do Supabase Storage local (Iceberg), fora do dominio BW."
+      },
+      {
+        "category": "columns",
+        "key": "storage|iceberg_namespaces|6",
+        "homolog": null,
+        "clean_room": {
+          "schema": "storage",
+          "relation": "iceberg_namespaces",
+          "position": 6,
+          "name": "metadata",
+          "type": "jsonb",
+          "not_null": true,
+          "default": "'{}'::jsonb",
+          "identity": "",
+          "generated": "",
+          "collation": ""
+        },
+        "classification": "ALLOWED_ENVIRONMENT",
+        "reason": "Objeto interno do Supabase Storage local (Iceberg), fora do dominio BW."
+      },
+      {
+        "category": "columns",
+        "key": "storage|iceberg_namespaces|7",
+        "homolog": null,
+        "clean_room": {
+          "schema": "storage",
+          "relation": "iceberg_namespaces",
+          "position": 7,
+          "name": "catalog_id",
+          "type": "uuid",
+          "not_null": true,
+          "default": null,
+          "identity": "",
+          "generated": "",
+          "collation": ""
+        },
+        "classification": "ALLOWED_ENVIRONMENT",
+        "reason": "Objeto interno do Supabase Storage local (Iceberg), fora do dominio BW."
+      },
+      {
+        "category": "columns",
+        "key": "storage|iceberg_tables|1",
+        "homolog": null,
+        "clean_room": {
+          "schema": "storage",
+          "relation": "iceberg_tables",
+          "position": 1,
+          "name": "id",
+          "type": "uuid",
+          "not_null": true,
+          "default": "gen_random_uuid()",
+          "identity": "",
+          "generated": "",
+          "collation": ""
+        },
+        "classification": "ALLOWED_ENVIRONMENT",
+        "reason": "Objeto interno do Supabase Storage local (Iceberg), fora do dominio BW."
+      },
+      {
+        "category": "columns",
+        "key": "storage|iceberg_tables|10",
+        "homolog": null,
+        "clean_room": {
+          "schema": "storage",
+          "relation": "iceberg_tables",
+          "position": 10,
+          "name": "shard_id",
+          "type": "text",
+          "not_null": false,
+          "default": null,
+          "identity": "",
+          "generated": "",
+          "collation": "default"
+        },
+        "classification": "ALLOWED_ENVIRONMENT",
+        "reason": "Objeto interno do Supabase Storage local (Iceberg), fora do dominio BW."
+      },
+      {
+        "category": "columns",
+        "key": "storage|iceberg_tables|11",
+        "homolog": null,
+        "clean_room": {
+          "schema": "storage",
+          "relation": "iceberg_tables",
+          "position": 11,
+          "name": "catalog_id",
+          "type": "uuid",
+          "not_null": true,
+          "default": null,
+          "identity": "",
+          "generated": "",
+          "collation": ""
+        },
+        "classification": "ALLOWED_ENVIRONMENT",
+        "reason": "Objeto interno do Supabase Storage local (Iceberg), fora do dominio BW."
+      },
+      {
+        "category": "columns",
+        "key": "storage|iceberg_tables|2",
+        "homolog": null,
+        "clean_room": {
+          "schema": "storage",
+          "relation": "iceberg_tables",
+          "position": 2,
+          "name": "namespace_id",
+          "type": "uuid",
+          "not_null": true,
+          "default": null,
+          "identity": "",
+          "generated": "",
+          "collation": ""
+        },
+        "classification": "ALLOWED_ENVIRONMENT",
+        "reason": "Objeto interno do Supabase Storage local (Iceberg), fora do dominio BW."
+      },
+      {
+        "category": "columns",
+        "key": "storage|iceberg_tables|3",
+        "homolog": null,
+        "clean_room": {
+          "schema": "storage",
+          "relation": "iceberg_tables",
+          "position": 3,
+          "name": "bucket_name",
+          "type": "text",
+          "not_null": true,
+          "default": null,
+          "identity": "",
+          "generated": "",
+          "collation": "default"
+        },
+        "classification": "ALLOWED_ENVIRONMENT",
+        "reason": "Objeto interno do Supabase Storage local (Iceberg), fora do dominio BW."
+      },
+      {
+        "category": "columns",
+        "key": "storage|iceberg_tables|4",
+        "homolog": null,
+        "clean_room": {
+          "schema": "storage",
+          "relation": "iceberg_tables",
+          "position": 4,
+          "name": "name",
+          "type": "text",
+          "not_null": true,
+          "default": null,
+          "identity": "",
+          "generated": "",
+          "collation": "C"
+        },
+        "classification": "ALLOWED_ENVIRONMENT",
+        "reason": "Objeto interno do Supabase Storage local (Iceberg), fora do dominio BW."
+      },
+      {
+        "category": "columns",
+        "key": "storage|iceberg_tables|5",
+        "homolog": null,
+        "clean_room": {
+          "schema": "storage",
+          "relation": "iceberg_tables",
+          "position": 5,
+          "name": "location",
+          "type": "text",
+          "not_null": true,
+          "default": null,
+          "identity": "",
+          "generated": "",
+          "collation": "default"
+        },
+        "classification": "ALLOWED_ENVIRONMENT",
+        "reason": "Objeto interno do Supabase Storage local (Iceberg), fora do dominio BW."
+      },
+      {
+        "category": "columns",
+        "key": "storage|iceberg_tables|6",
+        "homolog": null,
+        "clean_room": {
+          "schema": "storage",
+          "relation": "iceberg_tables",
+          "position": 6,
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "not_null": true,
+          "default": "now()",
+          "identity": "",
+          "generated": "",
+          "collation": ""
+        },
+        "classification": "ALLOWED_ENVIRONMENT",
+        "reason": "Objeto interno do Supabase Storage local (Iceberg), fora do dominio BW."
+      },
+      {
+        "category": "columns",
+        "key": "storage|iceberg_tables|7",
+        "homolog": null,
+        "clean_room": {
+          "schema": "storage",
+          "relation": "iceberg_tables",
+          "position": 7,
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "not_null": true,
+          "default": "now()",
+          "identity": "",
+          "generated": "",
+          "collation": ""
+        },
+        "classification": "ALLOWED_ENVIRONMENT",
+        "reason": "Objeto interno do Supabase Storage local (Iceberg), fora do dominio BW."
+      },
+      {
+        "category": "columns",
+        "key": "storage|iceberg_tables|8",
+        "homolog": null,
+        "clean_room": {
+          "schema": "storage",
+          "relation": "iceberg_tables",
+          "position": 8,
+          "name": "remote_table_id",
+          "type": "text",
+          "not_null": false,
+          "default": null,
+          "identity": "",
+          "generated": "",
+          "collation": "default"
+        },
+        "classification": "ALLOWED_ENVIRONMENT",
+        "reason": "Objeto interno do Supabase Storage local (Iceberg), fora do dominio BW."
+      },
+      {
+        "category": "columns",
+        "key": "storage|iceberg_tables|9",
+        "homolog": null,
+        "clean_room": {
+          "schema": "storage",
+          "relation": "iceberg_tables",
+          "position": 9,
+          "name": "shard_key",
+          "type": "text",
+          "not_null": false,
+          "default": null,
+          "identity": "",
+          "generated": "",
+          "collation": "default"
+        },
+        "classification": "ALLOWED_ENVIRONMENT",
+        "reason": "Objeto interno do Supabase Storage local (Iceberg), fora do dominio BW."
+      },
+      {
+        "category": "constraints",
+        "key": "storage|iceberg_namespaces|iceberg_namespaces_catalog_id_fkey",
+        "homolog": null,
+        "clean_room": {
+          "schema": "storage",
+          "relation": "iceberg_namespaces",
+          "name": "iceberg_namespaces_catalog_id_fkey",
+          "contype": "f",
+          "definition": "FOREIGN KEY (catalog_id) REFERENCES storage.buckets_analytics(id) ON DELETE CASCADE",
+          "deferrable": false,
+          "initially_deferred": false,
+          "validated": true
+        },
+        "classification": "ALLOWED_ENVIRONMENT",
+        "reason": "Objeto interno do Supabase Storage local (Iceberg), fora do dominio BW."
+      },
+      {
+        "category": "constraints",
+        "key": "storage|iceberg_namespaces|iceberg_namespaces_pkey",
+        "homolog": null,
+        "clean_room": {
+          "schema": "storage",
+          "relation": "iceberg_namespaces",
+          "name": "iceberg_namespaces_pkey",
+          "contype": "p",
+          "definition": "PRIMARY KEY (id)",
+          "deferrable": false,
+          "initially_deferred": false,
+          "validated": true
+        },
+        "classification": "ALLOWED_ENVIRONMENT",
+        "reason": "Objeto interno do Supabase Storage local (Iceberg), fora do dominio BW."
+      },
+      {
+        "category": "constraints",
+        "key": "storage|iceberg_tables|iceberg_tables_catalog_id_fkey",
+        "homolog": null,
+        "clean_room": {
+          "schema": "storage",
+          "relation": "iceberg_tables",
+          "name": "iceberg_tables_catalog_id_fkey",
+          "contype": "f",
+          "definition": "FOREIGN KEY (catalog_id) REFERENCES storage.buckets_analytics(id) ON DELETE CASCADE",
+          "deferrable": false,
+          "initially_deferred": false,
+          "validated": true
+        },
+        "classification": "ALLOWED_ENVIRONMENT",
+        "reason": "Objeto interno do Supabase Storage local (Iceberg), fora do dominio BW."
+      },
+      {
+        "category": "constraints",
+        "key": "storage|iceberg_tables|iceberg_tables_namespace_id_fkey",
+        "homolog": null,
+        "clean_room": {
+          "schema": "storage",
+          "relation": "iceberg_tables",
+          "name": "iceberg_tables_namespace_id_fkey",
+          "contype": "f",
+          "definition": "FOREIGN KEY (namespace_id) REFERENCES storage.iceberg_namespaces(id) ON DELETE CASCADE",
+          "deferrable": false,
+          "initially_deferred": false,
+          "validated": true
+        },
+        "classification": "ALLOWED_ENVIRONMENT",
+        "reason": "Objeto interno do Supabase Storage local (Iceberg), fora do dominio BW."
+      },
+      {
+        "category": "constraints",
+        "key": "storage|iceberg_tables|iceberg_tables_pkey",
+        "homolog": null,
+        "clean_room": {
+          "schema": "storage",
+          "relation": "iceberg_tables",
+          "name": "iceberg_tables_pkey",
+          "contype": "p",
+          "definition": "PRIMARY KEY (id)",
+          "deferrable": false,
+          "initially_deferred": false,
+          "validated": true
+        },
+        "classification": "ALLOWED_ENVIRONMENT",
+        "reason": "Objeto interno do Supabase Storage local (Iceberg), fora do dominio BW."
+      },
+      {
+        "category": "indexes",
+        "key": "storage|iceberg_namespaces|iceberg_namespaces_pkey",
+        "homolog": null,
+        "clean_room": {
+          "schema": "storage",
+          "relation": "iceberg_namespaces",
+          "name": "iceberg_namespaces_pkey",
+          "unique": true,
+          "method": "btree",
+          "definition": "CREATE UNIQUE INDEX iceberg_namespaces_pkey ON storage.iceberg_namespaces USING btree (id)",
+          "predicate": null
+        },
+        "classification": "ALLOWED_ENVIRONMENT",
+        "reason": "Objeto interno do Supabase Storage local (Iceberg), fora do dominio BW."
+      },
+      {
+        "category": "indexes",
+        "key": "storage|iceberg_namespaces|idx_iceberg_namespaces_bucket_id",
+        "homolog": null,
+        "clean_room": {
+          "schema": "storage",
+          "relation": "iceberg_namespaces",
+          "name": "idx_iceberg_namespaces_bucket_id",
+          "unique": true,
+          "method": "btree",
+          "definition": "CREATE UNIQUE INDEX idx_iceberg_namespaces_bucket_id ON storage.iceberg_namespaces USING btree (catalog_id, name)",
+          "predicate": null
+        },
+        "classification": "ALLOWED_ENVIRONMENT",
+        "reason": "Objeto interno do Supabase Storage local (Iceberg), fora do dominio BW."
+      },
+      {
+        "category": "indexes",
+        "key": "storage|iceberg_tables|iceberg_tables_pkey",
+        "homolog": null,
+        "clean_room": {
+          "schema": "storage",
+          "relation": "iceberg_tables",
+          "name": "iceberg_tables_pkey",
+          "unique": true,
+          "method": "btree",
+          "definition": "CREATE UNIQUE INDEX iceberg_tables_pkey ON storage.iceberg_tables USING btree (id)",
+          "predicate": null
+        },
+        "classification": "ALLOWED_ENVIRONMENT",
+        "reason": "Objeto interno do Supabase Storage local (Iceberg), fora do dominio BW."
+      },
+      {
+        "category": "indexes",
+        "key": "storage|iceberg_tables|idx_iceberg_tables_location",
+        "homolog": null,
+        "clean_room": {
+          "schema": "storage",
+          "relation": "iceberg_tables",
+          "name": "idx_iceberg_tables_location",
+          "unique": true,
+          "method": "btree",
+          "definition": "CREATE UNIQUE INDEX idx_iceberg_tables_location ON storage.iceberg_tables USING btree (location)",
+          "predicate": null
+        },
+        "classification": "ALLOWED_ENVIRONMENT",
+        "reason": "Objeto interno do Supabase Storage local (Iceberg), fora do dominio BW."
+      },
+      {
+        "category": "indexes",
+        "key": "storage|iceberg_tables|idx_iceberg_tables_namespace_id",
+        "homolog": null,
+        "clean_room": {
+          "schema": "storage",
+          "relation": "iceberg_tables",
+          "name": "idx_iceberg_tables_namespace_id",
+          "unique": true,
+          "method": "btree",
+          "definition": "CREATE UNIQUE INDEX idx_iceberg_tables_namespace_id ON storage.iceberg_tables USING btree (catalog_id, namespace_id, name)",
+          "predicate": null
+        },
+        "classification": "ALLOWED_ENVIRONMENT",
+        "reason": "Objeto interno do Supabase Storage local (Iceberg), fora do dominio BW."
+      },
+      {
+        "category": "routines",
+        "key": "storage|filename|name text",
+        "homolog": {
+          "schema": "storage",
+          "name": "filename",
+          "identity_arguments": "name text",
+          "result": "text",
+          "prokind": "f",
+          "security_definer": false,
+          "volatility": "i",
+          "parallel": "u",
+          "config": null,
+          "definition": "CREATE OR REPLACE FUNCTION storage.filename(name text) RETURNS text LANGUAGE plpgsql IMMUTABLE AS $function$ DECLARE _parts text[]; BEGIN SELECT string_to_array(name, '/') INTO _parts; RETURN _parts[array_length(_parts, 1)]; END $function$"
+        },
+        "clean_room": {
+          "schema": "storage",
+          "name": "filename",
+          "identity_arguments": "name text",
+          "result": "text",
+          "prokind": "f",
+          "security_definer": false,
+          "volatility": "v",
+          "parallel": "u",
+          "config": null,
+          "definition": "CREATE OR REPLACE FUNCTION storage.filename(name text) RETURNS text LANGUAGE plpgsql AS $function$ DECLARE _parts text[]; BEGIN select string_to_array(name, '/') into _parts; return _parts[array_length(_parts,1)]; END $function$"
+        },
+        "classification": "ALLOWED_ENVIRONMENT",
+        "reason": "Implementacao interna versionada pelo Supabase Storage; assinatura preservada."
+      },
+      {
+        "category": "grants",
+        "key": "table|storage|iceberg_namespaces||anon|SELECT",
+        "homolog": null,
+        "clean_room": {
+          "kind": "table",
+          "schema": "storage",
+          "relation": "iceberg_namespaces",
+          "grantee": "anon",
+          "privilege_type": "SELECT",
+          "is_grantable": "NO"
+        },
+        "classification": "ALLOWED_ENVIRONMENT",
+        "reason": "Objeto interno do Supabase Storage local (Iceberg), fora do dominio BW."
+      },
+      {
+        "category": "grants",
+        "key": "table|storage|iceberg_namespaces||authenticated|SELECT",
+        "homolog": null,
+        "clean_room": {
+          "kind": "table",
+          "schema": "storage",
+          "relation": "iceberg_namespaces",
+          "grantee": "authenticated",
+          "privilege_type": "SELECT",
+          "is_grantable": "NO"
+        },
+        "classification": "ALLOWED_ENVIRONMENT",
+        "reason": "Objeto interno do Supabase Storage local (Iceberg), fora do dominio BW."
+      },
+      {
+        "category": "grants",
+        "key": "table|storage|iceberg_namespaces||service_role|DELETE",
+        "homolog": null,
+        "clean_room": {
+          "kind": "table",
+          "schema": "storage",
+          "relation": "iceberg_namespaces",
+          "grantee": "service_role",
+          "privilege_type": "DELETE",
+          "is_grantable": "NO"
+        },
+        "classification": "ALLOWED_ENVIRONMENT",
+        "reason": "Objeto interno do Supabase Storage local (Iceberg), fora do dominio BW."
+      },
+      {
+        "category": "grants",
+        "key": "table|storage|iceberg_namespaces||service_role|INSERT",
+        "homolog": null,
+        "clean_room": {
+          "kind": "table",
+          "schema": "storage",
+          "relation": "iceberg_namespaces",
+          "grantee": "service_role",
+          "privilege_type": "INSERT",
+          "is_grantable": "NO"
+        },
+        "classification": "ALLOWED_ENVIRONMENT",
+        "reason": "Objeto interno do Supabase Storage local (Iceberg), fora do dominio BW."
+      },
+      {
+        "category": "grants",
+        "key": "table|storage|iceberg_namespaces||service_role|REFERENCES",
+        "homolog": null,
+        "clean_room": {
+          "kind": "table",
+          "schema": "storage",
+          "relation": "iceberg_namespaces",
+          "grantee": "service_role",
+          "privilege_type": "REFERENCES",
+          "is_grantable": "NO"
+        },
+        "classification": "ALLOWED_ENVIRONMENT",
+        "reason": "Objeto interno do Supabase Storage local (Iceberg), fora do dominio BW."
+      },
+      {
+        "category": "grants",
+        "key": "table|storage|iceberg_namespaces||service_role|SELECT",
+        "homolog": null,
+        "clean_room": {
+          "kind": "table",
+          "schema": "storage",
+          "relation": "iceberg_namespaces",
+          "grantee": "service_role",
+          "privilege_type": "SELECT",
+          "is_grantable": "NO"
+        },
+        "classification": "ALLOWED_ENVIRONMENT",
+        "reason": "Objeto interno do Supabase Storage local (Iceberg), fora do dominio BW."
+      },
+      {
+        "category": "grants",
+        "key": "table|storage|iceberg_namespaces||service_role|TRIGGER",
+        "homolog": null,
+        "clean_room": {
+          "kind": "table",
+          "schema": "storage",
+          "relation": "iceberg_namespaces",
+          "grantee": "service_role",
+          "privilege_type": "TRIGGER",
+          "is_grantable": "NO"
+        },
+        "classification": "ALLOWED_ENVIRONMENT",
+        "reason": "Objeto interno do Supabase Storage local (Iceberg), fora do dominio BW."
+      },
+      {
+        "category": "grants",
+        "key": "table|storage|iceberg_namespaces||service_role|TRUNCATE",
+        "homolog": null,
+        "clean_room": {
+          "kind": "table",
+          "schema": "storage",
+          "relation": "iceberg_namespaces",
+          "grantee": "service_role",
+          "privilege_type": "TRUNCATE",
+          "is_grantable": "NO"
+        },
+        "classification": "ALLOWED_ENVIRONMENT",
+        "reason": "Objeto interno do Supabase Storage local (Iceberg), fora do dominio BW."
+      },
+      {
+        "category": "grants",
+        "key": "table|storage|iceberg_namespaces||service_role|UPDATE",
+        "homolog": null,
+        "clean_room": {
+          "kind": "table",
+          "schema": "storage",
+          "relation": "iceberg_namespaces",
+          "grantee": "service_role",
+          "privilege_type": "UPDATE",
+          "is_grantable": "NO"
+        },
+        "classification": "ALLOWED_ENVIRONMENT",
+        "reason": "Objeto interno do Supabase Storage local (Iceberg), fora do dominio BW."
+      },
+      {
+        "category": "grants",
+        "key": "table|storage|iceberg_tables||anon|SELECT",
+        "homolog": null,
+        "clean_room": {
+          "kind": "table",
+          "schema": "storage",
+          "relation": "iceberg_tables",
+          "grantee": "anon",
+          "privilege_type": "SELECT",
+          "is_grantable": "NO"
+        },
+        "classification": "ALLOWED_ENVIRONMENT",
+        "reason": "Objeto interno do Supabase Storage local (Iceberg), fora do dominio BW."
+      },
+      {
+        "category": "grants",
+        "key": "table|storage|iceberg_tables||authenticated|SELECT",
+        "homolog": null,
+        "clean_room": {
+          "kind": "table",
+          "schema": "storage",
+          "relation": "iceberg_tables",
+          "grantee": "authenticated",
+          "privilege_type": "SELECT",
+          "is_grantable": "NO"
+        },
+        "classification": "ALLOWED_ENVIRONMENT",
+        "reason": "Objeto interno do Supabase Storage local (Iceberg), fora do dominio BW."
+      },
+      {
+        "category": "grants",
+        "key": "table|storage|iceberg_tables||service_role|DELETE",
+        "homolog": null,
+        "clean_room": {
+          "kind": "table",
+          "schema": "storage",
+          "relation": "iceberg_tables",
+          "grantee": "service_role",
+          "privilege_type": "DELETE",
+          "is_grantable": "NO"
+        },
+        "classification": "ALLOWED_ENVIRONMENT",
+        "reason": "Objeto interno do Supabase Storage local (Iceberg), fora do dominio BW."
+      },
+      {
+        "category": "grants",
+        "key": "table|storage|iceberg_tables||service_role|INSERT",
+        "homolog": null,
+        "clean_room": {
+          "kind": "table",
+          "schema": "storage",
+          "relation": "iceberg_tables",
+          "grantee": "service_role",
+          "privilege_type": "INSERT",
+          "is_grantable": "NO"
+        },
+        "classification": "ALLOWED_ENVIRONMENT",
+        "reason": "Objeto interno do Supabase Storage local (Iceberg), fora do dominio BW."
+      },
+      {
+        "category": "grants",
+        "key": "table|storage|iceberg_tables||service_role|REFERENCES",
+        "homolog": null,
+        "clean_room": {
+          "kind": "table",
+          "schema": "storage",
+          "relation": "iceberg_tables",
+          "grantee": "service_role",
+          "privilege_type": "REFERENCES",
+          "is_grantable": "NO"
+        },
+        "classification": "ALLOWED_ENVIRONMENT",
+        "reason": "Objeto interno do Supabase Storage local (Iceberg), fora do dominio BW."
+      },
+      {
+        "category": "grants",
+        "key": "table|storage|iceberg_tables||service_role|SELECT",
+        "homolog": null,
+        "clean_room": {
+          "kind": "table",
+          "schema": "storage",
+          "relation": "iceberg_tables",
+          "grantee": "service_role",
+          "privilege_type": "SELECT",
+          "is_grantable": "NO"
+        },
+        "classification": "ALLOWED_ENVIRONMENT",
+        "reason": "Objeto interno do Supabase Storage local (Iceberg), fora do dominio BW."
+      },
+      {
+        "category": "grants",
+        "key": "table|storage|iceberg_tables||service_role|TRIGGER",
+        "homolog": null,
+        "clean_room": {
+          "kind": "table",
+          "schema": "storage",
+          "relation": "iceberg_tables",
+          "grantee": "service_role",
+          "privilege_type": "TRIGGER",
+          "is_grantable": "NO"
+        },
+        "classification": "ALLOWED_ENVIRONMENT",
+        "reason": "Objeto interno do Supabase Storage local (Iceberg), fora do dominio BW."
+      },
+      {
+        "category": "grants",
+        "key": "table|storage|iceberg_tables||service_role|TRUNCATE",
+        "homolog": null,
+        "clean_room": {
+          "kind": "table",
+          "schema": "storage",
+          "relation": "iceberg_tables",
+          "grantee": "service_role",
+          "privilege_type": "TRUNCATE",
+          "is_grantable": "NO"
+        },
+        "classification": "ALLOWED_ENVIRONMENT",
+        "reason": "Objeto interno do Supabase Storage local (Iceberg), fora do dominio BW."
+      },
+      {
+        "category": "grants",
+        "key": "table|storage|iceberg_tables||service_role|UPDATE",
+        "homolog": null,
+        "clean_room": {
+          "kind": "table",
+          "schema": "storage",
+          "relation": "iceberg_tables",
+          "grantee": "service_role",
+          "privilege_type": "UPDATE",
+          "is_grantable": "NO"
+        },
+        "classification": "ALLOWED_ENVIRONMENT",
+        "reason": "Objeto interno do Supabase Storage local (Iceberg), fora do dominio BW."
+      }
+    ]
+  },
+  "bootstrap": {
+    "status": "PASS",
+    "source": "schema-base-candidate.sql + migrations canonicas",
+    "auth_api": "PASS",
+    "rest_api": "PASS",
+    "storage_api": "PASS"
+  },
+  "golden": "PASS",
+  "runtime": {
+    "node": "v22.23.2",
+    "package_engine": "22.x",
+    "docker_context": "desktop-linux",
+    "docker_os": "linux",
+    "docker_server_version": "29.7.2"
+  },
+  "api_auth_matrix": "PASS",
+  "cross_fund": "PASS",
+  "storage_api": "PASS",
+  "application": {
+    "status": "PASS",
+    "checks": [
+      {
+        "surface": "NEXT_LOGIN",
+        "expected": 200,
+        "actual": 200,
+        "status": "PASS"
+      },
+      {
+        "surface": "CRON_UNAUTHORIZED",
+        "expected": 401,
+        "actual": 401,
+        "status": "PASS"
+      },
+      {
+        "surface": "CRON_FINANCEIRO",
+        "expected": 200,
+        "actual": 200,
+        "status": "PASS"
+      },
+      {
+        "surface": "CRON_RLX_ALIAS",
+        "expected": 200,
+        "actual": 200,
+        "status": "PASS"
+      }
+    ],
+    "external_providers_called": false,
+    "detail": "Next e crons locais responderam sem 500."
+  },
+  "repository_checks": {
+    "typescript": {
+      "status": "PASS",
+      "detail": ""
+    },
+    "tests": {
+      "status": "PASS",
+      "detail": "RUN  v4.1.10 C:/Users/BrenoAlvim/documentos/github-renan/bw_antecipa\n\n\n Test Files  141 passed (141)\n      Tests  1019 passed (1019)\n   Start at  14:48:08\n   Duration  44.65s (transform 27.54s, setup 0ms, import 157.25s, tests 14.74s, environment 172ms)"
+    },
+    "lint": {
+      "status": "PASS",
+      "detail": "C:\\Users\\BrenoAlvim\\documentos\\github-renan\\bw_antecipa\\src\\app\\cedente\\cadastro\\page.tsx\n  18:10  warning  'Badge' is defined but never used  @typescript-eslint/no-unused-vars\n\nC:\\Users\\BrenoAlvim\\documentos\\github-renan\\bw_antecipa\\src\\app\\cedente\\documentos\\page.tsx\n  7:29  warning  'CardHeader' is defined but never used  @typescript-eslint/no-unused-vars\n  7:41  warning  'CardTitle' is defined but never used   @typescript-eslint/no-unused-vars\n\nC:\\Users\\BrenoAlvim\\documentos\\github-renan\\bw_antecipa\\src\\app\\consultor\\carteira\\page.tsx\n  5:38  warning  'formatDate' is defined but never used  @typescript-eslint/no-unused-vars\n  6:8   warning  'Link' is defined but never used        @typescript-eslint/no-unused-vars\n\nC:\\Users\\BrenoAlvim\\documentos\\github-renan\\bw_antecipa\\src\\lib\\actions\\liquidacao.ts\n  6:28  warning  'notificarGestores' is defined but never used  @typescript-eslint/no-unused-vars\n\n✖ 6 problems (0 errors, 6 warnings)"
+    },
+    "diff_check": {
+      "status": "PASS",
+      "detail": " the working copy of 'scripts/homologacao/rlx-golden/fixtures/D-3/liquidacoes.csv', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/homologacao/rlx-golden/fixtures/D-4/aquisicoes.csv', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/homologacao/rlx-golden/fixtures/D-4/carteira.csv', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/homologacao/rlx-golden/fixtures/D-4/estoque.csv', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/homologacao/rlx-golden/fixtures/D-4/liquidacoes.csv', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/homologacao/rlx-golden/fixtures/adversarial/estoque-D-1.csv', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/homologacao/rlx-golden/fixtures/duplicados/estoque-D-1-copia.csv', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/homologacao/rlx-golden/fixtures/edge-cases/alternate-header.csv', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/homologacao/rlx-golden/fixtures/edge-cases/decimal-formats.csv', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/homologacao/rlx-golden/fixtures/edge-cases/duplicate-file-reference.json', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/homologacao/rlx-golden/fixtures/edge-cases/extra-column.csv', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/homologacao/rlx-golden/fixtures/edge-cases/impossible-date.csv', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/homologacao/rlx-golden/fixtures/edge-cases/incomplete-snapshot.json', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/homologacao/rlx-golden/fixtures/edge-cases/latin1.csv', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/homologacao/rlx-golden/fixtures/edge-cases/matching-identifiers.csv', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/homologacao/rlx-golden/fixtures/edge-cases/quoted-semicolon.csv', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/homologacao/rlx-golden/fixtures/edge-cases/required-blank.csv', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/homologacao/rlx-golden/fixtures/edge-cases/utf8-bom.csv', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/homologacao/rlx-golden/fixtures/expected/expected-exposure.json', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/homologacao/rlx-golden/fixtures/expected/expected-logistics.json', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/homologacao/rlx-golden/fixtures/expected/expected-matching.json', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/homologacao/rlx-golden/fixtures/expected/expected-reconciliation.json', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/homologacao/rlx-golden/fixtures/manifest.json', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/homologacao/rlx-golden/fixtures/retificacoes/aquisicoes-D-2-v2.csv', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/homologacao/rlx-golden/fixtures/retificacoes/estoque-D-1-v2.csv', LF will be replaced by CRLF the next time Git touches it"
+    },
+    "build": {
+      "status": "PASS",
+      "detail": "8s\n  Finalizing page optimization ...\n  Collecting build traces ...\n\nRoute (app)\n┌ ○ /\n├ ○ /_not-found\n├ ƒ /admin\n├ ƒ /admin/fundos\n├ ƒ /admin/fundos/[id]\n├ ƒ /admin/fundos/novo\n├ ƒ /admin/minha-conta/seguranca\n├ ƒ /admin/minha-seguranca\n├ ƒ /admin/usuarios\n├ ƒ /admin/usuarios/[id]\n├ ƒ /admin/usuarios/novo\n├ ƒ /api/auth/session-security\n├ ƒ /api/contratos/consultar-status-remessa\n├ ƒ /api/contratos/download\n├ ƒ /api/contratos/enviar-remessa\n├ ƒ /api/contratos/gerar-cnab\n├ ƒ /api/contratos/gerar-contrato\n├ ƒ /api/contratos/gerar-notificacao\n├ ƒ /api/contratos/gerar-quitacao\n├ ƒ /api/contratos/gerar-termo\n├ ƒ /api/cron/comunicacoes\n├ ƒ /api/cron/documentos-vencidos\n├ ƒ /api/cron/entregas\n├ ƒ /api/cron/financeiro\n├ ƒ /api/cron/rlx-financeiro\n├ ƒ /api/cron/vencimentos\n├ ƒ /api/escrow/sync\n├ ƒ /api/operacoes/[id]/documentos-assinados\n├ ƒ /auth/confirm\n├ ○ /cadastro\n├ ○ /cedente/cadastro\n├ ƒ /cedente/dashboard\n├ ○ /cedente/documentos\n├ ƒ /cedente/extrato\n├ ○ /cedente/minha-conta/seguranca\n├ ƒ /cedente/notas-fiscais\n├ ƒ /cedente/notas-fiscais/[id]\n├ ƒ /cedente/notificacoes\n├ ƒ /cedente/operacoes\n├ ƒ /cedente/operacoes/[id]\n├ ƒ /cedente/operacoes/nova\n├ ○ /consultor/carteira\n├ ƒ /consultor/dashboard\n├ ƒ /consultor/escrow\n├ ƒ /consultor/escrow/[id]\n├ ○ /consultor/minha-conta/seguranca\n├ ƒ /consultor/notificacoes\n├ ƒ /consultor/operacoes\n├ ƒ /consultor/relatorios\n├ ○ /esqueci-senha\n├ ƒ /gestor/auditoria\n├ ƒ /gestor/cedentes\n├ ƒ /gestor/cedentes/[id]\n├ ○ /gestor/comunicacoes\n├ ƒ /gestor/conciliacao\n├ ƒ /gestor/configuracoes\n├ ○ /gestor/configuracoes-cnab\n├ ○ /gestor/configuracoes/testemunhas\n├ ƒ /gestor/dashboard\n├ ƒ /gestor/documentos\n├ ƒ /gestor/escrow\n├ ƒ /gestor/escrow/[id]\n├ ○ /gestor/fundos\n├ ƒ /gestor/fundos/[id]\n├ ƒ /gestor/logistica\n├ ƒ /gestor/logistica/exportar\n├ ○ /gestor/minha-conta/seguranca\n├ ƒ /gestor/notas-fiscais\n├ ƒ /gestor/notas-fiscais/[id]\n├ ƒ /gestor/notificacoes\n├ ƒ /gestor/onboarding-cedentes\n├ ƒ /gestor/operacoes\n├ ƒ /gestor/operacoes/[id]\n├ ○ /gestor/politicas\n├ ƒ /gestor/relatorios\n├ ƒ /gestor/sem-fundo\n├ ○ /gestor/templates\n├ ○ /login\n├ ○ /mfa/desafio\n├ ○ /mfa/setup\n├ ○ /redefinir-senha\n├ ƒ /sacado/aprovacao\n├ ƒ /sacado/dashboard\n├ ○ /sacado/minha-conta/seguranca\n├ ƒ /sacado/notas-fiscais\n├ ƒ /sacado/notificacoes\n└ ƒ /sacado/pagamentos\n\n\nƒ Proxy (Middleware)\n\n○  (Static)   prerendered as static content\nƒ  (Dynamic)  server-rendered on demand\n\n\n⚠ Compiled with warnings in 36.6s\n\n./node_modules/handlebars/lib/index.js\nrequire.extensions is not supported by webpack. Use a loader instead.\n\nImport trace for requested module:\n./node_modules/handlebars/lib/index.js\n./src/lib/templates/resolver-template.ts\n./src/lib/actions/templates.ts\n\n./node_modules/handlebars/lib/index.js\nrequire.extensions is not supported by webpack. Use a loader instead.\n\nImport trace for requested module:\n./node_modules/handlebars/lib/index.js\n./src/lib/templates/resolver-template.ts\n./src/lib/actions/templates.ts\n\n./node_modules/handlebars/lib/index.js\nrequire.extensions is not supported by webpack. Use a loader instead.\n\nImport trace for requested module:\n./node_modules/handlebars/lib/index.js\n./src/lib/templates/resolver-template.ts\n./src/lib/actions/templates.ts\n\n./node_modules/handlebars/lib/index.js\nrequire.extensions is not supported by webpack. Use a loader instead.\n\nImport trace for requested module:\n./node_modules/handlebars/lib/index.js\n./src/lib/pdf/gerarContrato.ts\n./src/app/api/contratos/gerar-contrato/route.ts\n\n./node_modules/handlebars/lib/index.js\nrequire.extensions is not supported by webpack. Use a loader instead.\n\nImport trace for requested module:\n./node_modules/handlebars/lib/index.js\n./src/lib/pdf/gerarContrato.ts\n./src/app/api/contratos/gerar-contrato/route.ts\n\n./node_modules/handlebars/lib/index.js\nrequire.extensions is not supported by webpack. Use a loader instead.\n\nImport trace for requested module:\n./node_modules/handlebars/lib/index.js\n./src/lib/pdf/gerarContrato.ts\n./src/app/api/contratos/gerar-contrato/route.ts"
+    }
+  },
+  "deployment_dry_run": "PASS",
+  "production_mutated": false,
+  "homolog_mutated": false,
+  "failure": null,
+  "cleanup": {
+    "status": "PASS",
+    "stack_stopped": true,
+    "workspace_removed": true
+  },
+  "finished_at": "2026-08-17T17:55:20.273Z"
+}

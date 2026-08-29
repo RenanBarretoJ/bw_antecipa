@@ -1,0 +1,132 @@
+{
+  "schema": "bw-antecipa-access-denials-analysis-p2-6-6-v1",
+  "status": "PASS",
+  "environment": "homolog",
+  "project_ref": "fhgkmggthxikfpogrvaa",
+  "production_touched": false,
+  "principle": "Nenhum acesso foi aberto apenas para satisfazer o runner; cada ALLOW possui consumidor runtime e permanece limitado ao fundo ativo.",
+  "items": [
+    {
+      "resource": "operacoes",
+      "actor": "CEDENTE_A",
+      "observed_before": "DENY",
+      "classification": "FIXTURE_BUG",
+      "runtime_evidence": [
+        "src/lib/operacoes/listagem.server.ts:134",
+        "src/lib/operacoes/cedente-detalhe.server.ts:17",
+        "src/lib/notas-fiscais/listagem.server.ts:399"
+      ],
+      "decision": "O portal do cedente consulta operacoes diretamente com a sessao autenticada; o expected ALLOW era correto. O runner passou a selecionar uma operacao realmente pertencente ao cedente do fixture.",
+      "resolution": "Fixture corrigida; policy existente preservada.",
+      "final": {"expected": "ALLOW", "actual": "ALLOW", "rows_visible": 1, "status": "PASS"}
+    },
+    {
+      "resource": "matching_resultados",
+      "actor": "GESTOR_A",
+      "observed_before": "DENY",
+      "classification": "POLICY_BUG",
+      "runtime_evidence": ["src/lib/financeiro/conciliacao/loaders.server.ts:330", "src/lib/financeiro/logistica/processor.server.ts:41"],
+      "decision": "A Central Financeira usa o cliente autenticado para leitura. A helper antiga exigia perfil_no_fundo='gestor' e negava gestores validos com perfil administrador no fundo.",
+      "resolution": "Helper financeiro canonicalizado para private.gestor_tem_acesso_fundo_operacional; acesso continua restrito por fundo.",
+      "final": {"expected": "ALLOW", "actual": "ALLOW", "rows_visible": 1, "status": "PASS"}
+    },
+    {
+      "resource": "conciliacao_resultados",
+      "actor": "GESTOR_A",
+      "observed_before": "DENY",
+      "classification": "POLICY_BUG",
+      "runtime_evidence": ["src/lib/financeiro/conciliacao/loaders.server.ts:386", "src/lib/financeiro/exposicao/processor.server.ts:173"],
+      "decision": "Leitura autenticada necessaria para conciliacao e exposicao; o acesso deve ser contextual ao fundo, nao service-role-only.",
+      "resolution": "Helper financeiro canonicalizado sem ampliar DML.",
+      "final": {"expected": "ALLOW", "actual": "ALLOW", "rows_visible": 1, "status": "PASS"}
+    },
+    {
+      "resource": "exposicao_execucoes",
+      "actor": "GESTOR_A",
+      "observed_before": "DENY",
+      "classification": "POLICY_BUG",
+      "runtime_evidence": ["src/lib/financeiro/conciliacao/loaders.server.ts:110", "src/lib/financeiro/conciliacao/loaders.server.ts:135", "src/lib/financeiro/risco/processor.server.ts:209"],
+      "decision": "A Central Financeira consulta execucoes de exposicao diretamente com sessao autenticada.",
+      "resolution": "Helper financeiro canonicalizado com usuario_fundos ativo.",
+      "final": {"expected": "ALLOW", "actual": "ALLOW", "rows_visible": 1, "status": "PASS"}
+    },
+    {
+      "resource": "risco_execucoes",
+      "actor": "GESTOR_A",
+      "observed_before": "DENY",
+      "classification": "POLICY_BUG",
+      "runtime_evidence": ["src/lib/financeiro/conciliacao/loaders.server.ts:111", "src/lib/financeiro/conciliacao/loaders.server.ts:192"],
+      "decision": "A tela de risco pagina e agrega execucoes pelo cliente autenticado.",
+      "resolution": "Helper financeiro canonicalizado com escopo do fundo.",
+      "final": {"expected": "ALLOW", "actual": "ALLOW", "rows_visible": 1, "status": "PASS"}
+    },
+    {
+      "resource": "posicao_logistica_execucoes",
+      "actor": "GESTOR_A",
+      "observed_before": "DENY",
+      "classification": "POLICY_BUG",
+      "runtime_evidence": ["src/lib/financeiro/conciliacao/loaders.server.ts:109", "src/lib/financeiro/conciliacao/loaders.server.ts:134", "src/lib/financeiro/logistica/processor.server.ts:130"],
+      "decision": "A Central Financeira consulta a execucao logistica corrente e datas de referencia diretamente.",
+      "resolution": "Helper financeiro canonicalizado com escopo do fundo.",
+      "final": {"expected": "ALLOW", "actual": "ALLOW", "rows_visible": 1, "status": "PASS"}
+    },
+    {
+      "resource": "posicao_logistica_resultados",
+      "actor": "GESTOR_A",
+      "observed_before": "DENY",
+      "classification": "POLICY_BUG",
+      "runtime_evidence": ["src/lib/financeiro/conciliacao/loaders.server.ts:295", "src/lib/financeiro/exposicao/processor.server.ts:156"],
+      "decision": "A Central Financeira pagina os resultados logisticos pelo cliente autenticado.",
+      "resolution": "Helper financeiro canonicalizado com escopo do fundo.",
+      "final": {"expected": "ALLOW", "actual": "ALLOW", "rows_visible": 1, "status": "PASS"}
+    },
+    {
+      "resource": "estoque_atual",
+      "actor": "GESTOR_A",
+      "observed_before": "DENY",
+      "classification": "POLICY_BUG",
+      "runtime_evidence": ["Views financeiras canonicalizadas sao fonte read-only da Central Financeira."],
+      "decision": "SELECT direto e legitimo; INSERT, UPDATE e DELETE devem continuar proibidos.",
+      "resolution": "SELECT preservado com filtragem segura por fundo; DML explicitamente revogado.",
+      "final": {"select": "ALLOW", "rows_visible": 2, "update": "DENY", "delete": "DENY", "status": "PASS"}
+    },
+    {
+      "resource": "aquisicoes_atuais",
+      "actor": "GESTOR_A",
+      "observed_before": "DENY",
+      "classification": "POLICY_BUG",
+      "runtime_evidence": ["Views financeiras canonicalizadas sao fonte read-only da Central Financeira."],
+      "decision": "SELECT direto e legitimo; DML permanece proibido.",
+      "resolution": "SELECT por fundo; DML revogado.",
+      "final": {"select": "ALLOW", "rows_visible": 2, "update": "DENY", "delete": "DENY", "status": "PASS"}
+    },
+    {
+      "resource": "liquidacoes_atuais",
+      "actor": "GESTOR_A",
+      "observed_before": "DENY",
+      "classification": "POLICY_BUG",
+      "runtime_evidence": ["Views financeiras canonicalizadas sao fonte read-only da Central Financeira."],
+      "decision": "SELECT direto e legitimo; DML permanece proibido.",
+      "resolution": "SELECT por fundo; DML revogado.",
+      "final": {"select": "ALLOW", "rows_visible": 2, "update": "DENY", "delete": "DENY", "status": "PASS"}
+    },
+    {
+      "resource": "carteira_atual",
+      "actor": "GESTOR_A",
+      "observed_before": "DENY",
+      "classification": "POLICY_BUG",
+      "runtime_evidence": ["Views financeiras canonicalizadas sao fonte read-only da Central Financeira."],
+      "decision": "SELECT direto e legitimo; DML permanece proibido.",
+      "resolution": "SELECT por fundo; DML revogado.",
+      "final": {"select": "ALLOW", "rows_visible": 2, "update": "DENY", "delete": "DENY", "status": "PASS"}
+    }
+  ],
+  "summary": {
+    "POLICY_BUG": 10,
+    "FIXTURE_BUG": 1,
+    "ACL_BUG": 0,
+    "EXPECTED_INCORRETO": 0,
+    "SERVER_SIDE_ONLY": 0,
+    "unresolved": 0
+  }
+}

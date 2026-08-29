@@ -1,0 +1,873 @@
+{
+  "schema": "rlx_expected_matching_v1",
+  "datasetVersion": "RLX_GOLDEN_V1",
+  "rules": [
+    {
+      "order": 1,
+      "code": "MATCH_ID_RECEBIVEL",
+      "scope": [
+        "fundo_id",
+        "provedor",
+        "id_recebivel"
+      ]
+    },
+    {
+      "order": 2,
+      "code": "MATCH_SEU_NUMERO",
+      "scope": [
+        "fundo_id",
+        "provedor",
+        "seu_numero"
+      ]
+    },
+    {
+      "order": 3,
+      "code": "MATCH_CHAVE_NFE",
+      "scope": [
+        "fundo_id",
+        "chave_nfe"
+      ]
+    },
+    {
+      "order": 4,
+      "code": "MATCH_COMPOSTO",
+      "scope": [
+        "fundo_id",
+        "cedente",
+        "sacado",
+        "documento",
+        "vencimento",
+        "valor"
+      ]
+    }
+  ],
+  "crossFundCollision": {
+    "seuNumero": "QA-000001",
+    "idRecebivel": "900719925474099312345",
+    "mainNoteId": "5d5bbc72-e332-eeac-565d-6b455b407982",
+    "adversarialNoteId": "d20ce89b-5869-f406-2c5c-24986c946e6d",
+    "expected": "DOIS_MATCHES_INDEPENDENTES_POR_FUNDO"
+  },
+  "bigIntegerContract": {
+    "type": "string",
+    "sample": "900719925474099312345"
+  },
+  "cases": [
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000002",
+      "expectedNfId": null,
+      "expectedMethod": "AMBIGUO",
+      "expectedStatus": "AMBIGUO"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000003",
+      "expectedNfId": "9bed122b-fe0f-275e-a3dc-03ff1bf9c655",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000004",
+      "expectedNfId": "3a8e9366-d622-54b3-2ff9-6fdebad840df",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000005",
+      "expectedNfId": "75641a81-2adf-c28b-4fad-8b3b5727b77f",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000006",
+      "expectedNfId": "2b9764ac-af3a-c72e-c827-862699123c31",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000007",
+      "expectedNfId": "46aa3b79-044f-7e15-54ed-cbd279cc154d",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000008",
+      "expectedNfId": "a37e8079-2b16-5087-ff45-ce0bb890d478",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000009",
+      "expectedNfId": "e5c04486-8dfc-4d73-b33c-0d93a1ccd5a5",
+      "expectedMethod": "SEU_NUMERO",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000010",
+      "expectedNfId": "3f9f8ec9-cc42-0306-8376-056246398ea0",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000012",
+      "expectedNfId": "916d2f56-9be1-f025-0336-0a4e98799f42",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000013",
+      "expectedNfId": "f02daf44-d92a-f45b-f3dc-493f6f69717d",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000014",
+      "expectedNfId": "dfd545f0-e4da-7afe-0919-df9419ed7c7b",
+      "expectedMethod": "COMPOSTO",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000015",
+      "expectedNfId": "ff8ff174-c1b4-3dda-b855-34cb24882992",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000016",
+      "expectedNfId": "fa2ba238-434e-16c5-b74a-e40ac08c1f6b",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000017",
+      "expectedNfId": "de46d4a8-4d9e-ffda-96d9-3b011dec7d35",
+      "expectedMethod": "SEU_NUMERO",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000018",
+      "expectedNfId": "4ce02b29-794f-e43d-a149-b0e301551839",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000019",
+      "expectedNfId": "4c4fefea-cefb-3f55-efe1-74f50fe5c26a",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000020",
+      "expectedNfId": null,
+      "expectedMethod": "AMBIGUO",
+      "expectedStatus": "AMBIGUO"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000022",
+      "expectedNfId": "572c3100-5131-8b94-2227-f89d3ff42b16",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000023",
+      "expectedNfId": null,
+      "expectedMethod": "NAO_CONCILIADO",
+      "expectedStatus": "NAO_CONCILIADO"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000024",
+      "expectedNfId": "a19dde05-13c2-7da3-3ae9-1abd6330d79c",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000025",
+      "expectedNfId": "dfb6f003-ae41-a81f-14c5-791304bbaa98",
+      "expectedMethod": "SEU_NUMERO",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000026",
+      "expectedNfId": "2195face-1e60-78b8-a185-f6ace589bd72",
+      "expectedMethod": "COMPOSTO",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000027",
+      "expectedNfId": "ac78b739-708e-e9e6-1874-f2daf9e9bc0b",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000028",
+      "expectedNfId": "e0bdadaa-d18b-a6ec-92f7-0e74c0934017",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000029",
+      "expectedNfId": "575e20fc-188c-cc95-75fb-3469ee1edf58",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000030",
+      "expectedNfId": "217ef03a-921c-a65b-f6b8-ddc82530030f",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000032",
+      "expectedNfId": "d4a00d62-e093-1505-98d8-2590f51f62c6",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000033",
+      "expectedNfId": "3cd7a6a4-ecd3-c7a8-2c66-ff864b61b304",
+      "expectedMethod": "SEU_NUMERO",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000034",
+      "expectedNfId": "4e2d5670-4702-a91f-528b-7d7273191038",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000035",
+      "expectedNfId": "2bc98a7a-2d0d-85ed-a584-c568245f4720",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000036",
+      "expectedNfId": "d2e5c76b-6849-0b28-f1a1-e6184c61da70",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000037",
+      "expectedNfId": "ae1bcafd-fd9f-9685-f656-c9de7fc8c8d0",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000038",
+      "expectedNfId": "fdc776f7-efa3-c63e-7e38-006be53f4069",
+      "expectedMethod": "COMPOSTO",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000039",
+      "expectedNfId": null,
+      "expectedMethod": "AMBIGUO",
+      "expectedStatus": "AMBIGUO"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000040",
+      "expectedNfId": "3d46dda1-210a-b2f5-eb2a-c60fd9c6c894",
+      "expectedMethod": "SEU_NUMERO",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000042",
+      "expectedNfId": "8cc3ca22-589c-f55a-f487-9a4b322000cb",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000043",
+      "expectedNfId": "5f7dbe94-7157-0af5-030d-3446ada93820",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000044",
+      "expectedNfId": null,
+      "expectedMethod": "NAO_CONCILIADO",
+      "expectedStatus": "NAO_CONCILIADO"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000045",
+      "expectedNfId": "e8e2b695-30c5-3f1c-96a4-2c19f9e25497",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000047",
+      "expectedNfId": "d98020da-89c4-1b16-68b3-eab77de2eca9",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000048",
+      "expectedNfId": "1936787a-efd7-c782-3f5b-082828eeac9b",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000049",
+      "expectedNfId": "cad6f3df-52cc-2094-d508-2bc59e116348",
+      "expectedMethod": "SEU_NUMERO",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000050",
+      "expectedNfId": "3e0c6f72-9dc2-7fe3-7a79-e2c67ef2e589",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000051",
+      "expectedNfId": "12a53db8-68ce-392b-0268-fd54c9119e07",
+      "expectedMethod": "COMPOSTO",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000052",
+      "expectedNfId": "ca561434-1b30-5bb1-3309-18212584b534",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000053",
+      "expectedNfId": "ab19ea1c-a0f6-8214-e68b-a63837d867b1",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000054",
+      "expectedNfId": "de33312a-b15c-e7fe-15c5-63743ef6b3b4",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000055",
+      "expectedNfId": "4f17d9fe-033d-b7a9-e501-3e9cad7d5e49",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000057",
+      "expectedNfId": "38c19b6f-6dfa-0824-5d2f-aff51f657f0d",
+      "expectedMethod": "SEU_NUMERO",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000058",
+      "expectedNfId": "9b0a2796-a8ec-d4a3-69ea-c17950130e37",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000059",
+      "expectedNfId": null,
+      "expectedMethod": "AMBIGUO",
+      "expectedStatus": "AMBIGUO"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000060",
+      "expectedNfId": "4b505636-f744-f861-e1ee-94b422453077",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000061",
+      "expectedNfId": "8b0a77a2-2b31-197e-6099-9187cc142d5c",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000062",
+      "expectedNfId": "0df883e3-3515-8053-44f3-ff10dc98be95",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000063",
+      "expectedNfId": "aca9c924-abdd-68bc-8f30-acc8351851ad",
+      "expectedMethod": "COMPOSTO",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000064",
+      "expectedNfId": "2bd6887c-1c21-e20c-8367-fa822e1279dc",
+      "expectedMethod": "SEU_NUMERO",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000065",
+      "expectedNfId": null,
+      "expectedMethod": "NAO_CONCILIADO",
+      "expectedStatus": "NAO_CONCILIADO"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000067",
+      "expectedNfId": "eac35e00-6750-73d9-3bd9-9f9e19932186",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000068",
+      "expectedNfId": "2f6cbcbc-4a5d-f00d-13fa-40e647bdb430",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000069",
+      "expectedNfId": "8138552d-8208-6351-ceff-bb1a9bd5b67e",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000070",
+      "expectedNfId": "64404421-e1cb-0a11-7aa8-da83fd25089c",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000071",
+      "expectedNfId": "6c8ed394-23db-97dc-23d4-ba2648eea52a",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000072",
+      "expectedNfId": "b9e3703d-e1b1-6844-7379-97419591cdf8",
+      "expectedMethod": "SEU_NUMERO",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000073",
+      "expectedNfId": "4d0af497-d6f1-67c0-db6e-8bec1eb5e8fb",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000074",
+      "expectedNfId": "00bddbb7-6e36-b428-ab3d-0e39557bb7da",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000075",
+      "expectedNfId": "fc961ded-77ae-1caa-1cad-563394e73f11",
+      "expectedMethod": "COMPOSTO",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000077",
+      "expectedNfId": "fcc88975-bed6-e909-8392-b45d84686e31",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000078",
+      "expectedNfId": null,
+      "expectedMethod": "AMBIGUO",
+      "expectedStatus": "AMBIGUO"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000079",
+      "expectedNfId": "1a074fc4-7fe4-6ce7-0e04-d30bf80a9db7",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000080",
+      "expectedNfId": "f40244a4-805b-5a90-67ea-bb4a7afcbac1",
+      "expectedMethod": "SEU_NUMERO",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000081",
+      "expectedNfId": "4c5b594a-9c8f-d252-26f9-b793111c0e43",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000082",
+      "expectedNfId": "83492d03-2be6-3d30-38ed-55b2bcd47e79",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000083",
+      "expectedNfId": "026c2792-bab9-b5a9-6074-a0c8f5f9eec2",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000084",
+      "expectedNfId": "e2a68391-6a4d-6825-2be5-4954d68dc374",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000085",
+      "expectedNfId": "551535c2-545d-6797-0c97-a2986f60e022",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000087",
+      "expectedNfId": null,
+      "expectedMethod": "NAO_CONCILIADO",
+      "expectedStatus": "NAO_CONCILIADO"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000088",
+      "expectedNfId": "efca5710-9f4d-e748-c6b1-5d4231d84d77",
+      "expectedMethod": "COMPOSTO",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000089",
+      "expectedNfId": "129a5db2-913c-8afa-bf5f-02d46e890dd3",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000090",
+      "expectedNfId": "d1d8a1d0-7efb-b298-40c9-5b59445bccff",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000091",
+      "expectedNfId": "c2cd1703-1d8f-9ae2-0dc1-791435966358",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000092",
+      "expectedNfId": "eeadf19b-dd7b-7107-8c91-fff3825c987c",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000093",
+      "expectedNfId": "be089e25-6770-6602-161d-838b07246ed2",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000094",
+      "expectedNfId": "7148d2af-5c51-118a-ad5f-4af59559777a",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000095",
+      "expectedNfId": "a4d75f51-9da3-19e1-41fa-ef08a80c7f67",
+      "expectedMethod": "SEU_NUMERO",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000096",
+      "expectedNfId": null,
+      "expectedMethod": "AMBIGUO",
+      "expectedStatus": "AMBIGUO"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000097",
+      "expectedNfId": "307bb117-be9a-92fe-9827-3a9c31e881a3",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000098",
+      "expectedNfId": "da86d1c0-2661-ffe7-f8e2-e26d838eb2cb",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000099",
+      "expectedNfId": "26b39d0f-6df8-a3cd-d5f9-a58498e025ea",
+      "expectedMethod": "COMPOSTO",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "61f02178-58af-bbfa-9a33-f97ac5b3dd96",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "910000000000000000100",
+      "expectedNfId": "50f8a3c4-df7f-9a85-d47b-33817ed4215d",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "e84fdd30-39ed-de86-292e-0d8d9d92d759",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "900719925474099312345",
+      "expectedNfId": "d20ce89b-5869-f406-2c5c-24986c946e6d",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "e84fdd30-39ed-de86-292e-0d8d9d92d759",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "920000000000000000002",
+      "expectedNfId": "6171f074-126a-9ece-fbfe-10902760d861",
+      "expectedMethod": "SEU_NUMERO",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "e84fdd30-39ed-de86-292e-0d8d9d92d759",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "920000000000000000003",
+      "expectedNfId": "8a6828a4-36be-4faf-36e9-9ff8ed1c54ed",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "e84fdd30-39ed-de86-292e-0d8d9d92d759",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "920000000000000000004",
+      "expectedNfId": "925e548e-b934-6e9e-1996-0570ad10c62f",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "e84fdd30-39ed-de86-292e-0d8d9d92d759",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "920000000000000000005",
+      "expectedNfId": "4ea5af45-965b-2d3f-6c6f-58ea7982395f",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "e84fdd30-39ed-de86-292e-0d8d9d92d759",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "920000000000000000006",
+      "expectedNfId": null,
+      "expectedMethod": "NAO_CONCILIADO",
+      "expectedStatus": "NAO_CONCILIADO"
+    },
+    {
+      "fundId": "e84fdd30-39ed-de86-292e-0d8d9d92d759",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "920000000000000000007",
+      "expectedNfId": "67fcb3d9-f2cf-0380-eadd-7ca072fe6ccb",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "e84fdd30-39ed-de86-292e-0d8d9d92d759",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "920000000000000000008",
+      "expectedNfId": "bd3954fa-cbcc-3fd3-c104-20459b02b1b4",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "e84fdd30-39ed-de86-292e-0d8d9d92d759",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "920000000000000000009",
+      "expectedNfId": "b0bb208c-8acc-c747-239a-580adbb10efc",
+      "expectedMethod": "SEU_NUMERO",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "e84fdd30-39ed-de86-292e-0d8d9d92d759",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "920000000000000000010",
+      "expectedNfId": "0ac6fda2-1de1-d7d7-4589-710142e11c1a",
+      "expectedMethod": "COMPOSTO",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "e84fdd30-39ed-de86-292e-0d8d9d92d759",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "920000000000000000011",
+      "expectedNfId": "0c3f2547-d015-7f23-7940-a665e661bfd1",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    },
+    {
+      "fundId": "e84fdd30-39ed-de86-292e-0d8d9d92d759",
+      "provider": "SC1_SINQIA_GOLDEN",
+      "externalTitleId": "920000000000000000012",
+      "expectedNfId": "8d70a02e-8acf-6acc-a133-f77153182ed0",
+      "expectedMethod": "CHAVE_NFE",
+      "expectedStatus": "MATCH_FORTE"
+    }
+  ]
+}

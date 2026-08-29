@@ -1,0 +1,113 @@
+{
+  "schema": "bw-antecipa-rls-hardening-p2-6-6-v1",
+  "status": "PASS",
+  "environment": "homolog",
+  "project_ref": "fhgkmggthxikfpogrvaa",
+  "production_touched": false,
+  "credential_rotation_required": true,
+  "leaks_before": [
+    {"actor":"GESTOR_B","resource":"documento_requisito_instancias","target_fund":"FUNDO_A","http_status":200,"rows_visible":1,"severity":"CRITICAL"},
+    {"actor":"GESTOR_B","resource":"ctes","target_fund":"FUNDO_A","http_status":200,"rows_visible":1,"severity":"CRITICAL"},
+    {"actor":"GESTOR_B","resource":"canhotos","target_fund":"FUNDO_A","http_status":200,"rows_visible":1,"severity":"CRITICAL"}
+  ],
+  "root_cause": "Policies permissivas baseadas apenas no papel global gestor eram combinadas por OR com policies multifundo e anulavam a restricao contextual de usuario_fundos.",
+  "policies_removed": [
+    "documentos_repositorio_gestor_all",
+    "documento_versoes_gestor_all",
+    "documento_vinculos_gestor_all",
+    "documento_requisito_gestor_all",
+    "documento_analises_gestor_all",
+    "nota_fiscal_entregas_gestor_all",
+    "eventos_entrega_insert_gestor",
+    "canhotos_gestor_all",
+    "ctes_select",
+    "ctes_gestor_all",
+    "cte_notas_gestor_all",
+    "cedente_fundo_politicas_gestor_all",
+    "politicas_operacionais_gestor_all",
+    "politica_operacional_versoes_gestor_all",
+    "politica_requisitos_gestor_all",
+    "templates_documentos_gestor_all",
+    "template_versoes_gestor_all",
+    "documentos_gerados_gestor_all",
+    "remessas_cnab_gestor_all",
+    "remessas_cnab_operacoes_gestor_all",
+    "sequencias_remessa_gestor_select",
+    "storage_docs_gestor_insert"
+  ],
+  "additional_vulnerable_policies_corrected": [
+    "politicas_operacionais_fundo_select",
+    "politica_operacional_versoes_vinculo_select",
+    "politica_requisitos_vinculo_select"
+  ],
+  "policies_created": [
+    "documentos_repositorio_gestor_multifundo_select",
+    "documento_versoes_gestor_multifundo_select",
+    "documento_vinculos_gestor_multifundo_select",
+    "documento_requisito_gestor_multifundo_select",
+    "documento_analises_gestor_multifundo_select",
+    "nota_fiscal_entregas_gestor_multifundo_all",
+    "eventos_entrega_insert_gestor_multifundo",
+    "canhotos_gestor_multifundo_all",
+    "ctes_contexto_select",
+    "ctes_gestor_multifundo_all",
+    "cte_notas_gestor_multifundo_all",
+    "cedente_fundo_politicas_gestor_multifundo_all",
+    "politicas_operacionais_gestor_multifundo_all",
+    "politica_operacional_versoes_gestor_multifundo_all",
+    "politica_requisitos_gestor_multifundo_all",
+    "templates_documentos_gestor_multifundo_all",
+    "template_versoes_gestor_multifundo_all",
+    "documentos_gerados_gestor_multifundo_all",
+    "remessas_cnab_gestor_multifundo_all",
+    "remessas_cnab_operacoes_gestor_multifundo_all",
+    "sequencias_remessa_gestor_multifundo_select",
+    "storage_docs_gestor_insert_multifundo"
+  ],
+  "helpers_changed": [
+    "private.gestor_tem_acesso_fundo_operacional(uuid)",
+    "private.usuario_tem_acesso_fundo(uuid)",
+    "private.gestor_tem_acesso_contexto_documental(uuid,uuid,uuid)",
+    "private.gestor_tem_acesso_documento(uuid)",
+    "private.gestor_tem_acesso_requisito_documental(uuid)",
+    "private.gestor_tem_acesso_entrega(uuid)",
+    "private.gestor_tem_acesso_cte_contexto(uuid,uuid)",
+    "private.gestor_tem_acesso_cte_nota(uuid,uuid)",
+    "public.logistica_usuario_pode_ler_entrega(uuid)",
+    "public.usuario_pode_ler_documento_gerado(uuid)",
+    "public.usuario_pode_ler_remessa_cnab(uuid)",
+    "private.financeiro_gestor_tem_acesso_fundo(uuid)",
+    "private.rlx_gestor_tem_acesso_fundo(uuid)"
+  ],
+  "canonical_manager_rule": {
+    "authenticated": true,
+    "active_profile": true,
+    "operational_manager_role": true,
+    "active_usuario_fundos_for_target_fund": true,
+    "pure_super_admin_implicitly_allowed": false,
+    "hybrid_requires_manager_role_and_assignment": true
+  },
+  "global_gestor_audit": {
+    "status": "PASS",
+    "occurrences": 146,
+    "policies": 80,
+    "helpers": 66,
+    "GLOBAL_LEGITIMO": 47,
+    "MULTIFUNDO_CORRETO": 33,
+    "HELPER_INTERNO": 66,
+    "MULTIFUNDO_VULNERAVEL": 0,
+    "UNRESOLVED": 0,
+    "artifact": "docs/financeiro/rls-global-gestor-audit-p2-6-6.json"
+  },
+  "leaks_after": [
+    {"actor":"GESTOR_B","resource":"documento_requisito_instancias","target_fund":"FUNDO_A","http_status":200,"rows_visible":0,"actual":"DENY","status":"PASS"},
+    {"actor":"GESTOR_B","resource":"ctes","target_fund":"FUNDO_A","http_status":200,"rows_visible":0,"actual":"DENY","status":"PASS"},
+    {"actor":"GESTOR_B","resource":"canhotos","target_fund":"FUNDO_A","http_status":200,"rows_visible":0,"actual":"DENY","status":"PASS"}
+  ],
+  "final_evidence": {
+    "access_matrix": "86/86 PASS",
+    "cross_fund": "39/39 PASS; zero leak",
+    "storage": "15/15 PASS",
+    "schema_parity_material_differences": 0
+  }
+}

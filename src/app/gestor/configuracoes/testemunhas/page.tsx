@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { adicionarTestemunha, listarTestemunhas, toggleTestemunhaAtivo } from '@/lib/actions/testemunhas'
+import { useNotifications } from '@/components/notifications/notification-provider'
 
 interface Testemunha {
   id: string
@@ -20,10 +21,9 @@ interface Testemunha {
 }
 
 export default function TestemunhasPage() {
+  const notifications = useNotifications()
   const [testemunhas, setTestemunhas] = useState<Testemunha[]>([])
   const [loading, setLoading] = useState(true)
-  const [message, setMessage] = useState('')
-  const [messageType, setMessageType] = useState<'success' | 'error'>('success')
 
   // Form nova testemunha
   const [nome, setNome] = useState('')
@@ -37,18 +37,26 @@ export default function TestemunhasPage() {
     setLoading(false)
   }
 
-  useEffect(() => { carregar() }, [])
+  useEffect(() => {
+    let mounted = true
+    async function carregarInicial() {
+      const data = await listarTestemunhas()
+      if (!mounted) return
+      setTestemunhas(data as Testemunha[])
+      setLoading(false)
+    }
+    void carregarInicial()
+    return () => { mounted = false }
+  }, [])
 
   const handleAdicionar = async () => {
     if (!nome.trim() || !cpf.trim()) {
-      setMessage('Nome e CPF sao obrigatorios.')
-      setMessageType('error')
+      notifications.error('Nome e CPF são obrigatórios.')
       return
     }
     setAdicionando(true)
     const result = await adicionarTestemunha(nome, cpf, email || null)
-    setMessage(result.message)
-    setMessageType(result.success ? 'success' : 'error')
+    notifications.fromActionResult(result)
     if (result.success) {
       setNome('')
       setCpf('')
@@ -60,8 +68,7 @@ export default function TestemunhasPage() {
 
   const handleToggle = async (id: string, ativo: boolean) => {
     const result = await toggleTestemunhaAtivo(id, !ativo)
-    setMessage(result.message)
-    setMessageType(result.success ? 'success' : 'error')
+    notifications.fromActionResult(result)
     if (result.success) await carregar()
   }
 
@@ -78,16 +85,6 @@ export default function TestemunhasPage() {
           <p className="text-sm text-muted-foreground">Lista global de testemunhas usadas nos termos de cessao.</p>
         </div>
       </div>
-
-      {message && (
-        <div className={`mb-4 p-3 rounded-lg text-sm ${
-          messageType === 'success'
-            ? 'bg-green-50 text-green-700 border border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800'
-            : 'bg-destructive/10 text-destructive border border-destructive/20'
-        }`}>
-          {message}
-        </div>
-      )}
 
       <div className="space-y-6">
         {/* Lista */}

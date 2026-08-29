@@ -1,7 +1,7 @@
+import nodemailer, { type Transporter } from 'nodemailer'
+
 // ============================================================
-// BW Antecipa — Servico de Email Transacional
-// Preparado para Resend (https://resend.com)
-// Para ativar: npm install resend, preencher RESEND_API_KEY no .env.local
+// BW Antecipa — Servico de Email Transacional via SMTP IONOS
 // ============================================================
 
 interface EmailPayload {
@@ -10,41 +10,208 @@ interface EmailPayload {
   html: string
 }
 
-const RESEND_API_KEY = process.env.RESEND_API_KEY
-const EMAIL_FROM = process.env.EMAIL_FROM || 'BW Antecipa <noreply@bluewaveasset.com.br>'
-const EMAIL_ENABLED = !!RESEND_API_KEY
+export interface EmailOperacionalPayload extends EmailPayload {
+  text?: string
+  cc?: string[]
+  messageId?: string
+  idempotencyKey?: string
+  fromName?: string
+}
 
-export async function enviarEmail({ to, subject, html }: EmailPayload): Promise<boolean> {
-  if (!EMAIL_ENABLED) {
-    console.log(`[email] (desabilitado) To: ${to} | Subject: ${subject}`)
-    return false
+export type EmailOperacionalResultado = {
+  success: boolean
+  providerId: string | null
+  errorCode: string | null
+  errorMessage: string | null
+}
+
+export const EMAIL_PROVIDER = 'ionos_smtp'
+
+type ConfiguracaoSmtp = {
+  host: string
+  port: number
+  secure: boolean
+  requireTls: boolean
+  ignoreTls: boolean
+  user: string
+  password: string
+  from: string
+}
+
+type AmbienteSmtp = Readonly<Record<string, string | undefined>>
+
+export type ResultadoConfiguracaoSmtp =
+  | { enabled: true; config: ConfiguracaoSmtp }
+  | { enabled: false; errorCode: 'EMAIL_DISABLED' | 'SMTP_CONFIG_INVALID'; errorMessage: string }
+
+type InformacaoSmtp = {
+  accepted: string[]
+  rejected: string[]
+  messageId: string | null
+}
+
+let transporter: Transporter | null = null
+
+function extrairEnderecoEmail(value: string): string | null {
+  const trimmed = value.trim()
+  const angleMatch = trimmed.match(/<\s*([^<>]+)\s*>$/)
+  const address = (angleMatch?.[1] || trimmed).trim().toLowerCase()
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address) ? address : null
+}
+
+function normalizarNomeCabecalho(value: string | undefined): string | null {
+  const nome = String(value || '')
+    .replace(/[\u0000-\u001F\u007F]/gu, ' ')
+    .replace(/\s+/gu, ' ')
+    .trim()
+  return nome ? nome.slice(0, 120) : null
+}
+
+function resolverRemetente(from: string, fromName: string | undefined): string | { name: string; address: string } {
+  const name = normalizarNomeCabecalho(fromName)
+  const address = extrairEnderecoEmail(from)
+  return name && address ? { name, address } : from
+}
+
+function parseSecure(value: string | undefined, port: number): boolean | null {
+  if (value === undefined || value.trim() === '') return port === 465
+  if (value.trim().toLowerCase() === 'true') return true
+  if (value.trim().toLowerCase() === 'false') return false
+  return null
+}
+
+export function resolverConfiguracaoSmtp(env: AmbienteSmtp = process.env): ResultadoConfiguracaoSmtp {
+  const user = env.SMTP_USER?.trim() || ''
+  const password = env.SMTP_PASSWORD || ''
+  if (!user && !password) {
+    return { enabled: false, errorCode: 'EMAIL_DISABLED', errorMessage: 'Transporte SMTP nao configurado.' }
   }
 
+  const missing = [!user ? 'SMTP_USER' : '', !password ? 'SMTP_PASSWORD' : ''].filter(Boolean)
+  if (missing.length) {
+    return { enabled: false, errorCode: 'SMTP_CONFIG_INVALID', errorMessage: `Configuracao SMTP incompleta: ${missing.join(', ')}.` }
+  }
+
+  const host = env.SMTP_HOST?.trim() || 'smtp.ionos.com'
+  const rawPort = env.SMTP_PORT?.trim() || '465'
+  const port = Number(rawPort)
+  const secure = parseSecure(env.SMTP_SECURE, port)
+  const userAddress = extrairEnderecoEmail(user)
+  const from = env.EMAIL_FROM?.trim() || `BETTER WITH <${user}>`
+  const fromAddress = extrairEnderecoEmail(from)
+  const localSinkSemTls = env.NEXT_PUBLIC_APP_ENV === 'rehearsal/local'
+    && ['127.0.0.1', 'localhost'].includes(host.toLowerCase())
+    && env.SMTP_ALLOW_INSECURE_LOCAL === 'true'
+
+  if (!Number.isInteger(port) || port < 1 || port > 65_535) {
+    return { enabled: false, errorCode: 'SMTP_CONFIG_INVALID', errorMessage: 'SMTP_PORT deve ser uma porta valida.' }
+  }
+  if (secure === null || (port === 465 && !secure) || (port === 587 && secure)) {
+    return { enabled: false, errorCode: 'SMTP_CONFIG_INVALID', errorMessage: 'SMTP_SECURE e incompatível com a porta SMTP informada.' }
+  }
+  if (!userAddress || !fromAddress) {
+    return { enabled: false, errorCode: 'SMTP_CONFIG_INVALID', errorMessage: 'SMTP_USER e EMAIL_FROM devem conter enderecos de e-mail validos.' }
+  }
+  if (userAddress.split('@')[1] !== fromAddress.split('@')[1]) {
+    return { enabled: false, errorCode: 'SMTP_CONFIG_INVALID', errorMessage: 'EMAIL_FROM deve usar o mesmo dominio da conta SMTP IONOS.' }
+  }
+
+  return {
+    enabled: true,
+    config: {
+      host,
+      port,
+      secure,
+      requireTls: !secure && !localSinkSemTls,
+      ignoreTls: localSinkSemTls,
+      user,
+      password,
+      from,
+    },
+  }
+}
+
+function obterTransporter(config: ConfiguracaoSmtp): Transporter {
+  if (transporter) return transporter
+  transporter = nodemailer.createTransport({
+    host: config.host,
+    port: config.port,
+    secure: config.secure,
+    requireTLS: config.requireTls,
+    ignoreTLS: config.ignoreTls,
+    auth: { user: config.user, pass: config.password },
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 20_000,
+    tls: { minVersion: 'TLSv1.2', servername: config.host },
+  })
+  return transporter
+}
+
+function normalizarInformacaoSmtp(value: unknown): InformacaoSmtp {
+  if (!value || typeof value !== 'object') return { accepted: [], rejected: [], messageId: null }
+  const record = value as Record<string, unknown>
+  const accepted = Array.isArray(record.accepted) ? record.accepted.map(String) : []
+  const rejected = Array.isArray(record.rejected) ? record.rejected.map(String) : []
+  return { accepted, rejected, messageId: typeof record.messageId === 'string' ? record.messageId : null }
+}
+
+function codigoErroSmtp(value: unknown): string {
+  if (!value || typeof value !== 'object') return 'SMTP_ERROR'
+  const record = value as Record<string, unknown>
+  if (typeof record.responseCode === 'number' && Number.isInteger(record.responseCode)) return `SMTP_${record.responseCode}`
+  if (typeof record.code === 'string' && /^[A-Z0-9_]+$/.test(record.code)) return `SMTP_${record.code}`
+  return 'SMTP_ERROR'
+}
+
+export async function enviarEmail({ to, subject, html }: EmailPayload): Promise<boolean> {
+  const result = await enviarEmailOperacional({ to, subject, html })
+  return result.success
+}
+
+function sanitizarErroProvider(value: unknown): string {
+  const message = value instanceof Error ? value.message : String(value || 'Falha desconhecida no provedor.')
+  return message.replace(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/g, '[email]').slice(0, 300)
+}
+
+export async function enviarEmailOperacional({
+  to,
+  subject,
+  html,
+  text,
+  cc = [],
+  messageId,
+  idempotencyKey,
+  fromName,
+}: EmailOperacionalPayload): Promise<EmailOperacionalResultado> {
+  const resolved = resolverConfiguracaoSmtp()
+  if (!resolved.enabled) return { success: false, providerId: null, errorCode: resolved.errorCode, errorMessage: resolved.errorMessage }
+
   try {
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${RESEND_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: EMAIL_FROM,
-        to: [to],
-        subject,
-        html,
-      }),
+    const rawInfo: unknown = await obterTransporter(resolved.config).sendMail({
+      from: resolverRemetente(resolved.config.from, fromName),
+      to,
+      ...(cc.length ? { cc } : {}),
+      subject,
+      html,
+      ...(text ? { text } : {}),
+      ...(messageId ? { messageId } : {}),
+      ...(idempotencyKey ? { headers: { 'X-BW-Idempotency-Key': idempotencyKey } } : {}),
     })
-
-    if (!response.ok) {
-      const error = await response.text()
-      console.error('[email] Erro ao enviar:', error)
-      return false
+    const info = normalizarInformacaoSmtp(rawInfo)
+    const target = extrairEnderecoEmail(to)
+    const accepted = target && info.accepted.some((item) => extrairEnderecoEmail(item) === target)
+    if (!accepted) {
+      return {
+        success: false,
+        providerId: info.messageId,
+        errorCode: 'SMTP_RECIPIENT_REJECTED',
+        errorMessage: info.rejected.length ? 'O servidor SMTP rejeitou o destinatario principal.' : 'O servidor SMTP nao confirmou o destinatario principal.',
+      }
     }
-
-    return true
+    return { success: true, providerId: info.messageId || messageId || null, errorCode: null, errorMessage: null }
   } catch (error) {
-    console.error('[email] Erro:', error)
-    return false
+    return { success: false, providerId: null, errorCode: codigoErroSmtp(error), errorMessage: sanitizarErroProvider(error) }
   }
 }
 
@@ -60,13 +227,13 @@ function baseTemplate(content: string): string {
     <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; padding: 20px;">
       <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
         <div style="background: #1e3a5f; padding: 24px; text-align: center;">
-          <h1 style="color: white; margin: 0; font-size: 22px;">BW Antecipa</h1>
+          <h1 style="color: white; margin: 0; font-size: 22px;">BETTER WITH</h1>
         </div>
         <div style="padding: 32px;">
           ${content}
         </div>
         <div style="background: #f9f9f9; padding: 16px 32px; text-align: center; font-size: 12px; color: #999;">
-          <p>BW BI LTDA — Portal de Antecipacao de Recebiveis</p>
+          <p>BETTER WITH — Portal de Antecipacao de Recebiveis</p>
           <p>Este e um email automatico. Nao responda.</p>
         </div>
       </div>
@@ -196,6 +363,22 @@ export const emailTemplates = {
       <p>Ola <strong>${nome}</strong>,</p>
       <p>A operacao <strong>#${operacaoId}</strong> foi liquidada. O sacado efetuou o pagamento.</p>
       <p>Confira o extrato atualizado no portal.</p>
+    `),
+  }),
+
+  // Seguranca
+  senhaAlterada: (nome: string, dataHora: string, navegador: string, ipAproximado: string) => ({
+    subject: 'Sua senha foi alterada',
+    html: baseTemplate(`
+      <h2 style="color: #1e3a5f;">Senha alterada</h2>
+      <p>Ola <strong>${nome}</strong>,</p>
+      <p>Sua senha de acesso ao BW Antecipa foi alterada.</p>
+      <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 16px; margin: 16px 0;">
+        <p><strong>Data e hora:</strong> ${dataHora}</p>
+        <p><strong>Navegador:</strong> ${navegador}</p>
+        <p><strong>IP aproximado:</strong> ${ipAproximado}</p>
+      </div>
+      <p>Se nao foi voce, entre em contato imediatamente com a equipe Better With.</p>
     `),
   }),
 }

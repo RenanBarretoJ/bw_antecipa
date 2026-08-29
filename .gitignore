@@ -43,3 +43,26 @@ supabase/.temp/
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+design-reference
+
+# fixtures reais de NF/CT-e copiados manualmente para testes locais
+# (dados de cedentes/sacados reais, com certificados X.509 -- nunca commitar)
+nfs
+src/lib/logistica/__fixtures__/reais
+
+# rehearsal local de producao (dados reais/sensiveis nunca entram no Git)
+.env.rehearsal*
+/rehearsal/snapshots/*
+!/rehearsal/snapshots/.gitignore
+/rehearsal/reports/*
+!/rehearsal/reports/.gitignore
+/rehearsal/tmp/*
+!/rehearsal/tmp/.gitignore
+/rehearsal/**/*.dump
+/rehearsal/**/*.sql.gz
+/rehearsal/**/*.backup
+/rehearsal/**/*.cert
+/rehearsal/**/*.key
+/rehearsal/supabase/.temp/
+/rehearsal/supabase/.branches/
