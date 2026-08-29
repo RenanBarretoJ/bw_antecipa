@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-08-29T17:43:56.466Z",
+  "generated_at": "2026-08-29T17:48:42.376Z",
   "policy": {
     "app_release": "Runtime, build e migrations promoviveis; exclui testes, relatorios e tooling de rehearsal.",
     "cutover_bundle": "Artefatos operacionais explicitamente usados na janela; exclui relatorios posteriores e testes."
@@ -2889,7 +2889,7 @@
   },
   "cutover_bundle": {
     "files": 23,
-    "hash": "ccafb6e5ddf76adf5cdf11a6120be58dc48a74a02386800799b9b2774648f5a6",
+    "hash": "74ffab62e0a3df53acd3b519a84d5b9bded081933875dff9f0dd2dbf1fa98c18",
     "entries": [
       {
         "file": "docs/homologacao/p3-checklist-configuracoes-secrets.md",
@@ -2913,7 +2913,7 @@
       },
       {
         "file": "docs/homologacao/p5-2-neutralizacao-migrations-homolog.md",
-        "sha256": "43679c5b90c69b6a4eb4a18756b2c5fe91d7e6fc3405b2f98517c1d91245e9c1"
+        "sha256": "8927308bfd91f9df91efd3f59fc2c0413418fc4d299d8ebe198dfb3d0fe7fac2"
       },
       {
         "file": "docs/homologacao/sql/p4-postflight-producao-read-only.sql",

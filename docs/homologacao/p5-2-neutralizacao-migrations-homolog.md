@@ -91,13 +91,38 @@ já executadas em produção não é apagado, reparado, renumerado ou adulterado
 | `FORWARD_MIGRATION` | `CERTIFIED` |
 | `P5_2_FORWARD_FIX_REHEARSAL` | `DETERMINISTICO` |
 | `P5_2_CLONE_SMOKE` | `PASS` |
+| `P5_2_HOLD_POINT` | `PASS` |
 | `P5_2_PRODUCTION_FORWARD_MIGRATION` | `PASS` |
 | `P5_2_PRODUCTION_POSTFLIGHT` | `PASS` |
+| `P5_2_REPO_SYNC` | `PASS` |
+| `SUPABASE_NO_AUTO_MIGRATION_AFTER_PUSH` | `PASS` |
+| `VERCEL_PRODUCTION` | `READY_HTTP_200` |
+| `P5_2_REAL_SMOKE` | `PENDENTE_VALIDACAO_AUTENTICADA` |
+| `P5_2_FINAL_POSTFLIGHT` | `PASS` |
 | `OPERATION_FREEZE_RELEASED` | `NAO` |
 
 O freeze permanece ativo até todos os gates de produção e o smoke real serem
 concluídos. Esta etapa não autoriza chamadas Sinqia/Terra, envio externo de CNAB,
 alteração de IMPULSE ou habilitação de risco/financeiro.
+
+Após o push do commit `3cef1afda831d6fb96fa1f45cfb6d2758af6b888` para
+`homolog` e `main`, o histórico permaneceu com exatamente 199 migrations; não
+houve branch action de migration e a última entrada continuou sendo
+`20260829173938_p5_2_neutralizar_resets_homolog_producao`. A aplicação permaneceu
+`Ready` na Vercel e o domínio oficial respondeu HTTP 200 com HSTS. As rotas
+protegidas de Admin, Gestor, Cedente e Sacado redirecionaram sessões anônimas
+para `/login`.
+
+O smoke autenticado real não foi marcado como aprovado porque nenhuma credencial
+de QA de produção foi disponibilizada no ambiente ou no cofre local. Não foram
+criados usuários, sessões, operações ou documentos para contornar essa ausência.
+O freeze deve permanecer ativo até a validação manual de Super Admin, Gestor,
+Cedente, Sacado e MFA, sem envio externo.
+
+O postflight final de 29/08/2026 confirmou 199 migrations, as cinco entradas
+históricas bloqueadas, a forward operacional, zero funções/grants de reset, a
+baseline 2/12/46/910/123/1.644/23/23/26, zero órfãos/FKs inválidas, RLS ativo nas
+tabelas protegidas e DLZ `READY`.
 
 ## Evidências do clone
 
