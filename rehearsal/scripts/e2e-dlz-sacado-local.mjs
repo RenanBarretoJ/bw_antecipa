@@ -9,7 +9,6 @@ const FIXTURE = Object.freeze({
   sacadoUser: '15becd99-ae1b-4a91-a5de-0ece124b6d49',
   gestorUser: '10690e0c-c1a9-4282-892a-f2ce803f95d7',
   policy: 'd1311000-0000-4000-8000-000000000001',
-  policyVersion: 'd1311000-0000-4000-8000-000000000002',
 })
 
 function nfeDigit(base43) {
@@ -49,14 +48,14 @@ async function createOperation(client, suffix, action, context) {
   const assignment = await client.query(`select id from public.cedente_fundo_politicas where cedente_fundo_id=$1 and politica_operacional_id=$2 and status='ativa'`, [context.cedente_fundo_id, FIXTURE.policy])
   const snapshot = {
     schema: 'bw-antecipa.politica-operacional.v1', cedente_fundo_id: context.cedente_fundo_id, fundo_id: FIXTURE.fundo,
-    politica_operacional_id: FIXTURE.policy, politica_operacional_versao_id: FIXTURE.policyVersion, politica_versao: 1,
+    politica_operacional_id: FIXTURE.policy, politica_operacional_versao_id: context.policy_version_id, politica_versao: context.policy_version,
     politica_atribuicao_id: assignment.rows[0].id, aceite_sacado_obrigatorio: true, cessao_no_desembolso: true,
     cria_acompanhamento_entrega: false, exigir_status_logistico_pre_cessao: false,
     permite_postergacao_upload_canhoto: false, limite_postergacao_upload_canhoto_dias: null,
     controle_exposicao_logistica_ativo: false, limite_exposicao_em_transito_pct: null, gate_risco_ativo: false,
     limite_inclusivo: true, tipo_ativo_financeiro: 'NOTA_FISCAL',
     calculo_financeiro: {
-      metodo: 'DIAS_CORRIDOS_365', descricao: '365 - Dias corridos', base: 365, periodo_taxa: 'mensal',
+      metodo: context.financial_method, descricao: '365 - Dias corridos', base: 365, periodo_taxa: 'mensal',
       divisor_mensal: null, unidade_contagem: 'dias_corridos', calendario: null, convencao: null,
       versao_motor: 1, arredondamento: 'ROUND_HALF_UP_2_CASAS',
     },
@@ -65,9 +64,9 @@ async function createOperation(client, suffix, action, context) {
   const snapshotHash = crypto.createHash('sha256').update(stableJson(snapshot)).digest('hex')
   const requested = await client.query(`
     select public.solicitar_operacao_antecipacao_atomica(
-      $1,$2,$3,$4,1,$5::jsonb,$6,true,'pendente',array[$7]::uuid[],1000,1,90,970,current_date+90,$8,null
+      $1,$2,$3,$4,$5,$6::jsonb,$7,true,'pendente',array[$8]::uuid[],1000,1,90,970,current_date+90,$9,null
     ) as value
-  `, [FIXTURE.cedente, context.cedente_fundo_id, FIXTURE.policy, FIXTURE.policyVersion, JSON.stringify(snapshot), snapshotHash, nfId, `p3.1-dlz-${action}-${suffix}`])
+  `, [FIXTURE.cedente, context.cedente_fundo_id, FIXTURE.policy, context.policy_version_id, context.policy_version, JSON.stringify(snapshot), snapshotHash, nfId, `p5.5-dlz-${action}-${suffix}`])
   const operationId = requested.rows[0].value.operacao_id
   const pending = await client.query('select aceite_sacado_exigido,aceite_sacado_status,status::text from public.operacoes where id=$1', [operationId])
   if (!pending.rows[0]?.aceite_sacado_exigido || pending.rows[0]?.aceite_sacado_status !== 'pendente') throw new Error('Nova operacao DLZ nao iniciou no gate do sacado.')
@@ -78,7 +77,23 @@ async function createOperation(client, suffix, action, context) {
   if (action === 'aceitar') {
     if (afterSacado.rows[0]?.aceite_sacado_status !== 'aceito') throw new Error('Aceite do sacado nao consolidou a operacao.')
     await setIdentity(client, FIXTURE.gestorUser)
-    await client.query('select public.aprovar_operacao_atomica_financeiro_v1($1,5)', [operationId])
+    const riskSignature = crypto.createHash('sha256').update(`p5.5:${operationId}:5`).digest('hex')
+    const risk = await client.query(`
+      insert into public.risco_execucoes (
+        fundo_id,operacao_id,escopo,origem,politica_operacional_versao_id,
+        data_operacional,overlay_as_of,operacao_updated_at_snapshot,taxa_desconto_snapshot,
+        aplicavel,status_tecnico,decisao,assinatura_inputs,detalhes,criado_por
+      )
+      select $2,o.id,'OPERACAO','APROVACAO_OPERACAO',$3,
+             current_date,clock_timestamp(),o.updated_at,5,
+             false,'NAO_APLICAVEL',null,$4,'{"rehearsal":true,"external_send":false}'::jsonb,$5
+        from public.operacoes o where o.id=$1
+      returning id
+    `, [operationId, FIXTURE.fundo, context.policy_version_id, riskSignature, FIXTURE.gestorUser])
+    await client.query(
+      'select public.aprovar_operacao_com_risco_atomica($1,5,$2,$3)',
+      [operationId, risk.rows[0].id, riskSignature],
+    )
   } else if (afterSacado.rows[0]?.aceite_sacado_status !== 'contestado') {
     throw new Error('Contestacao do sacado nao consolidou a operacao.')
   }
@@ -92,29 +107,40 @@ async function main() {
     await client.query('begin')
     try {
       const contextResult = await client.query(`
-        select cf.id as cedente_fundo_id, ce.id as estabelecimento_id
+        select cf.id as cedente_fundo_id, ce.id as estabelecimento_id,
+               pov.id as policy_version_id, pov.versao as policy_version,
+               pov.metodo_calculo_financeiro as financial_method
           from public.cedente_fundos cf
           join public.cedente_estabelecimentos ce on ce.cedente_id=cf.cedente_id and ce.ativo is true
+          join public.politica_operacional_versoes pov
+            on pov.politica_operacional_id=$3
+           and pov.fundo_id=cf.fundo_id
+           and pov.status='publicada'
+           and pov.vigente_ate is null
          where cf.cedente_id=$1 and cf.fundo_id=$2 and cf.status='ativo'
          order by ce.id limit 1
-      `, [FIXTURE.cedente, FIXTURE.fundo])
+      `, [FIXTURE.cedente, FIXTURE.fundo, FIXTURE.policy])
       if (!contextResult.rows[0]) throw new Error('Contexto DLZ da fixture E2E nao encontrado.')
+      if (contextResult.rows[0].policy_version !== 5 || contextResult.rows[0].financial_method !== 'DIAS_CORRIDOS_365') {
+        throw new Error('A politica DLZ vigente no clone nao corresponde a v5/DIAS_CORRIDOS_365.')
+      }
       const accepted = await createOperation(client, '01', 'aceitar', contextResult.rows[0])
       const contested = await createOperation(client, '02', 'contestar', contextResult.rows[0])
-      const noFinancialDependencies = await client.query(`
-        select not exists(select 1 from public.risco_execucoes where operacao_id in (
-          select id from public.operacoes where solicitacao_idempotency_key like 'p3.1-dlz-%'
-        )) as ok
+      const riskGate = await client.query(`
+        select count(*) filter (where r.aplicavel is false and r.status_tecnico='NAO_APLICAVEL')=1 as ok
+          from public.risco_execucoes r
+          join public.operacoes o on o.id=r.operacao_id
+         where o.solicitacao_idempotency_key like 'p5.5-dlz-aceitar-%'
       `)
       await client.query('rollback')
-      return { accepted, contested, no_financial_dependencies: noFinancialDependencies.rows[0].ok, synthetic_cleanup: 'ROLLBACK' }
+      return { accepted, contested, risk_gate_non_applicable: riskGate.rows[0].ok, synthetic_cleanup: 'ROLLBACK' }
     } catch (error) {
       await client.query('rollback')
       throw error
     }
   })
   const passed = result.accepted.gate_final === 'aceito' && result.accepted.operation_status === 'aprovada'
-    && result.contested.gate_final === 'contestado' && result.no_financial_dependencies === true
+    && result.contested.gate_final === 'contestado' && result.risk_gate_non_applicable === true
   writeJson(path.join(REPORT_DIR, 'P3_1_DLZ_SACADO_E2E.json'), {
     generated_at: new Date().toISOString(), environment: 'rehearsal/local', authenticated_context: 'database/JWT claims against canonical RPCs',
     production_access: 'none', stopped_before_external_send: true, ...result, passed,

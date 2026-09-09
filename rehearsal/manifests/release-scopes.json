@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-08-29T17:48:42.376Z",
+  "generated_at": "2026-09-09T01:31:00.385Z",
   "policy": {
     "app_release": "Runtime, build e migrations promoviveis; exclui testes, relatorios e tooling de rehearsal.",
     "cutover_bundle": "Artefatos operacionais explicitamente usados na janela; exclui relatorios posteriores e testes."
@@ -2888,8 +2888,8 @@
     ]
   },
   "cutover_bundle": {
-    "files": 23,
-    "hash": "74ffab62e0a3df53acd3b519a84d5b9bded081933875dff9f0dd2dbf1fa98c18",
+    "files": 31,
+    "hash": "8a7d3dad269b6cebb429ab136bc5db979ef49f11a4afc7cb744043eb2f15522e",
     "entries": [
       {
         "file": "docs/homologacao/p3-checklist-configuracoes-secrets.md",
@@ -2917,19 +2917,31 @@
       },
       {
         "file": "docs/homologacao/sql/p4-postflight-producao-read-only.sql",
-        "sha256": "3661994f45b042bb40a6d34eb87619c888d5e3fb2d7347a18e545dcc3d1f0852"
+        "sha256": "e1c73f66bdf0dfd40b0b5adbe3ebc655190310a7f5d9d38de615fdf4710447ae"
       },
       {
         "file": "docs/homologacao/sql/p4-preflight-producao-read-only.sql",
         "sha256": "0531fe06bfc5e70fd1bc333d7980269126547257a14ddb13aa71b744de656d77"
       },
       {
+        "file": "docs/homologacao/sql/p5-5-postflight-producao-read-only.sql",
+        "sha256": "f15fb1943aa7c816549bc6ca9c7a7baeffc87ad0121b36746aeb655f1bbaa879"
+      },
+      {
+        "file": "docs/homologacao/sql/p5-5-preflight-producao-read-only.sql",
+        "sha256": "53b6949edf3be68cf3e1253bf0c92c1acc749dfa457f48f3298a13d7d0b493c1"
+      },
+      {
         "file": "rehearsal/manifests/dlz-production-config.json",
-        "sha256": "71557af94c34801ae2002e3d3431e1dc407c6fc50f5c81b703d9422433b8e085"
+        "sha256": "6ff49490f4f853d990f5866e258e07aa87c6a3bf47749bf8c6f51835bd3f9a6d"
       },
       {
         "file": "rehearsal/manifests/dlz-production-config.sha256",
-        "sha256": "47cf23c5474e313025de63aced11805dd7ddf1b469a7e8fe174b48ccaa50b048"
+        "sha256": "d88cc15a8df64d811e7d4d2dcdfac6ad10ceafdf3417d4200689c32030d9ac9a"
+      },
+      {
+        "file": "rehearsal/manifests/p5-5-storage-known-exceptions.json",
+        "sha256": "a9d666fb5c31556010a0de2856e980217bc7b69b8caffccd8eb27e0484e5e542"
       },
       {
         "file": "rehearsal/manifests/production-migrations.json",
@@ -2944,8 +2956,16 @@
         "sha256": "1626bfc79eb6407b501e77d510c30a4a988ae5c2ebfb255d616b424bd45b2cf8"
       },
       {
+        "file": "rehearsal/scripts/dlz-policy-readiness.mjs",
+        "sha256": "81d07ad4e3993af43a5594fb234868ce42169e2b157a3186776a30bd08a4008a"
+      },
+      {
+        "file": "rehearsal/scripts/dlz-policy-v5.mjs",
+        "sha256": "2cc95b9bbc47f73e081ceda11710127eca9268ffa7e78c2e70e18c3d496df74f"
+      },
+      {
         "file": "rehearsal/scripts/dlz-production-config.mjs",
-        "sha256": "f90a069d3867190437f27f6dd283c1f15d013b4cdd22e54bcd870fc0f042cdf1"
+        "sha256": "900b14a2b1c73845dc53acccd2a036d6f34b9071d00e4298fbf9a3b27d5ad33d"
       },
       {
         "file": "rehearsal/scripts/lib.mjs",
@@ -2968,12 +2988,24 @@
         "sha256": "597d081cad8ad060c35f343204f38f4a9abbbea7a4130d0424a570ff8e30531d"
       },
       {
+        "file": "rehearsal/scripts/publish-dlz-policy-v5.sql",
+        "sha256": "d13f70e31de93ac9867fad8982c23e8ab7fc1d718a28933f4620ae951ed812a5"
+      },
+      {
+        "file": "rehearsal/scripts/readiness-dlz-release-candidate.mjs",
+        "sha256": "3a7884589a1c60cb3480fc19099b38faa1cc311a070e6d030896931fb8164d5b"
+      },
+      {
         "file": "rehearsal/scripts/release-candidate-inventory.mjs",
         "sha256": "4c9d2c74b06abfc94f92c74044dd1462073f536810808bb895d1ccf9e32d87e8"
       },
       {
         "file": "rehearsal/scripts/release-scopes.mjs",
-        "sha256": "1ba331c07be9bbf85345329dda0bd98c76b971c298117fa4d7fc1ffc7e1d7d91"
+        "sha256": "bae1f1e4ee10965f6980feb339e9445f02cd19699e306e434b2c4c6265302d32"
+      },
+      {
+        "file": "rehearsal/scripts/storage-known-exceptions.mjs",
+        "sha256": "85f307e992bfcaf8aa89e170991f5616e269ebb398110d18bba7149c11547a58"
       },
       {
         "file": "rehearsal/scripts/upgrade-local.mjs",

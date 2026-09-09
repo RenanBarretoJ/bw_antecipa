@@ -14,7 +14,7 @@ export const DLZ_ID = '7a114257-7816-468e-adf4-d796b93364df'
 export const IMPULSE_ID = 'cb372689-65c8-43af-8a20-7438002a3b91'
 export const PRODUCTION_CONFIRMATION = 'DLZ_HEALTH_PRODUCTION_CUTOVER'
 export const CONFIG_MANIFEST_PATH = path.join(REHEARSAL_ROOT, 'manifests', 'dlz-production-config.json')
-export const EXPECTED_CONFIG_MANIFEST_HASH = '5833541e93b9f9213c21b300771f53b47de3cf06242b7afd5fb51b5c06202d6c'
+export const EXPECTED_CONFIG_MANIFEST_HASH = 'a3d215d12b5629148112def0523a11b29438224cb2b8478f045ddc75fa2765d7'
 
 function payloadOf(manifest) {
   const payload = { ...manifest }

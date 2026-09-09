@@ -28,6 +28,7 @@ const CUTOVER_FILES = [
   'rehearsal/manifests/production-migrations.json',
   'rehearsal/manifests/dlz-production-config.json',
   'rehearsal/manifests/dlz-production-config.sha256',
+  'rehearsal/manifests/p5-5-storage-known-exceptions.json',
   'rehearsal/scripts/release-scopes.mjs',
   'rehearsal/scripts/lib.mjs',
   'rehearsal/scripts/production-manifest.mjs',
@@ -36,12 +37,19 @@ const CUTOVER_FILES = [
   'rehearsal/scripts/release-candidate-inventory.mjs',
   'rehearsal/scripts/configure-dlz-production.mjs',
   'rehearsal/scripts/dlz-production-config.mjs',
+  'rehearsal/scripts/dlz-policy-readiness.mjs',
+  'rehearsal/scripts/dlz-policy-v5.mjs',
+  'rehearsal/scripts/storage-known-exceptions.mjs',
+  'rehearsal/scripts/publish-dlz-policy-v5.sql',
+  'rehearsal/scripts/readiness-dlz-release-candidate.mjs',
   'rehearsal/scripts/cutover-dry-run.mjs',
   'rehearsal/scripts/p4-2-dlz-dry-run.mjs',
   'rehearsal/scripts/upgrade-local.mjs',
   'rehearsal/scripts/p5-2-forward-local.mjs',
   'docs/homologacao/sql/p4-preflight-producao-read-only.sql',
   'docs/homologacao/sql/p4-postflight-producao-read-only.sql',
+  'docs/homologacao/sql/p5-5-preflight-producao-read-only.sql',
+  'docs/homologacao/sql/p5-5-postflight-producao-read-only.sql',
   'docs/homologacao/p3-manifesto-migrations-producao.md',
   'docs/homologacao/p3-checklist-configuracoes-secrets.md',
   'docs/homologacao/p3-runbook-cutover-producao.md',
@@ -196,4 +204,3 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     process.exitCode = 1
   }
 }
-

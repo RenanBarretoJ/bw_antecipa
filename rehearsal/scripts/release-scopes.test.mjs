@@ -28,8 +28,11 @@ test('CUTOVER_BUNDLE e uma allowlist operacional explicita', () => {
     'rehearsal/manifests/production-migrations.json',
     'rehearsal/manifests/dlz-production-config.json',
     'rehearsal/scripts/configure-dlz-production.mjs',
+    'rehearsal/scripts/publish-dlz-policy-v5.sql',
+    'rehearsal/manifests/p5-5-storage-known-exceptions.json',
     'docs/homologacao/sql/p4-preflight-producao-read-only.sql',
     'docs/homologacao/sql/p4-postflight-producao-read-only.sql',
+    'docs/homologacao/sql/p5-5-postflight-producao-read-only.sql',
     'docs/homologacao/p3-runbook-cutover-producao.md',
     'docs/homologacao/p3-runbook-rollback-producao.md',
   ]) assert.ok(files.includes(expected))
@@ -44,4 +47,3 @@ test('manifesto persistido possui listas e hashes reproduziveis', () => {
   assert.match(verified.cutover_bundle.hash, /^[a-f0-9]{64}$/u)
   assert.ok(verified.app_release.entries.length > verified.cutover_bundle.entries.length)
 })
-

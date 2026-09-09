@@ -186,6 +186,17 @@ async function main() {
     ...exclusions,
   ], { connection: remote, outputDirectory: temporaryDirectory, readOnly: true })
 
+  // O schema publico possui triggers e policies que chamam funcoes no schema
+  // private. Exportamos somente a estrutura privada para preservar essas
+  // dependencias no clone, sem copiar dados adicionais de producao.
+  runPgTool('pg_dump', [
+    '--format=custom',
+    '--file=/output/production-private-schema.dump',
+    '--no-owner',
+    '--schema-only',
+    '--schema=private',
+  ], { connection: remote, outputDirectory: temporaryDirectory, readOnly: true })
+
   runPgTool('pg_dump', [
     '--format=plain',
     '--file=/output/production-migration-history.sql',
@@ -206,6 +217,7 @@ async function main() {
 
   const artifactNames = [
     'production-public.dump',
+    'production-private-schema.dump',
     'production-storage-metadata.sql',
     'production-migration-history.sql',
     'production-auth-sanitized.sql',
@@ -222,7 +234,7 @@ async function main() {
       buckets: ['id', 'name', 'owner', 'created_at', 'updated_at', 'public', 'avif_autodetection', 'file_size_limit', 'allowed_mime_types', 'owner_id', 'type'],
       objects: ['id', 'bucket_id', 'name', 'owner', 'created_at', 'updated_at', 'last_accessed_at', 'metadata', 'version', 'owner_id', 'user_metadata'],
     },
-    included: ['public schema e dados', 'auth.users/identities sanitizados', 'storage.buckets/objects metadata', 'migration history'],
+    included: ['public schema e dados', 'private schema sem dados', 'auth.users/identities sanitizados', 'storage.buckets/objects metadata', 'migration history'],
     excluded: ['auth passwords/tokens/sessions/MFA', 'storage binaries', 'storage versioning_status/archived_at/delete markers', 'vault', 'public sensitive table data'],
     sensitive_public_tables_without_data: sensitiveTables.map((table) => `${table.table_schema}.${table.table_name}`),
     artifacts: Object.fromEntries(artifactNames.map((name) => [name, fileSha256(path.join(temporaryDirectory, name))])),

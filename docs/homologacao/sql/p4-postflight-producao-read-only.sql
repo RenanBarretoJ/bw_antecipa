@@ -118,13 +118,28 @@ select * from (
       where politica_operacional_id = 'd1311000-0000-4000-8000-000000000001'::uuid and status = 'ativa'
     ), 12::bigint),
     ('politica_dlz_publicada', (
-      select count(*) from public.politica_operacional_versoes
-      where id = 'd1311000-0000-4000-8000-000000000002'::uuid
-        and fundo_id = '7a114257-7816-468e-adf4-d796b93364df'::uuid
-        and status = 'publicada'
-        and aceite_sacado_obrigatorio is true
-        and gate_risco_ativo is false
-        and controle_exposicao_logistica_ativo is false
+      select case when
+        count(*) filter (where v.status = 'publicada') = 1
+        and count(*) filter (where
+          v.status = 'publicada'
+          and v.aceite_sacado_obrigatorio is true
+          and v.cessao_no_desembolso is true
+          and v.cria_acompanhamento_entrega is false
+          and v.permite_postergacao_upload_canhoto is false
+          and v.metodo_calculo_financeiro = 'DIAS_CORRIDOS_365'
+          and v.exigir_status_logistico_pre_cessao is false
+          and v.tipo_ativo_financeiro = 'NOTA_FISCAL'
+          and v.gate_risco_ativo is false
+          and v.controle_exposicao_logistica_ativo is false
+          and not exists (
+            select 1 from public.politica_requisitos_documentais r
+            where r.politica_operacional_versao_id = v.id
+          )
+        ) = 1
+      then 1 else 0 end
+      from public.politica_operacional_versoes v
+      join public.politicas_operacionais p on p.id = v.politica_operacional_id
+      where p.fundo_id = '7a114257-7816-468e-adf4-d796b93364df'::uuid
     ), 1::bigint),
     ('cnab_dlz_publicado', (
       select count(*) from public.configuracao_cnab_versoes
@@ -244,7 +259,25 @@ order by bucket_id;
 select case when
   exists(select 1 from public.fundos where id='7a114257-7816-468e-adf4-d796b93364df'::uuid and ativo is true)
   and (select count(distinct cedente_id) from public.cedente_fundos where fundo_id='7a114257-7816-468e-adf4-d796b93364df'::uuid and status='ativo')=12
-  and exists(select 1 from public.politica_operacional_versoes where id='d1311000-0000-4000-8000-000000000002'::uuid and status='publicada' and aceite_sacado_obrigatorio is true and gate_risco_ativo is false and controle_exposicao_logistica_ativo is false)
+  and 1 = (select case when
+    count(*) filter (where v.status='publicada') = 1
+    and count(*) filter (where
+      v.status='publicada'
+      and v.aceite_sacado_obrigatorio is true
+      and v.cessao_no_desembolso is true
+      and v.cria_acompanhamento_entrega is false
+      and v.permite_postergacao_upload_canhoto is false
+      and v.metodo_calculo_financeiro='DIAS_CORRIDOS_365'
+      and v.exigir_status_logistico_pre_cessao is false
+      and v.tipo_ativo_financeiro='NOTA_FISCAL'
+      and v.gate_risco_ativo is false
+      and v.controle_exposicao_logistica_ativo is false
+      and not exists (select 1 from public.politica_requisitos_documentais r where r.politica_operacional_versao_id=v.id)
+    ) = 1
+    then 1 else 0 end
+    from public.politica_operacional_versoes v
+    join public.politicas_operacionais p on p.id=v.politica_operacional_id
+    where p.fundo_id='7a114257-7816-468e-adf4-d796b93364df'::uuid)
   and exists(select 1 from public.configuracao_cnab_versoes where id='d1312000-0000-4000-8000-000000000002'::uuid and status='publicada' and codigo_originador='00000000000000500497')
   and exists(select 1 from public.integracao_fundo_versoes where id='d1313000-0000-4000-8000-000000000002'::uuid and status='publicada' and adapter_key='sinqia_portal_fidc' and configuracao_nao_sensivel->>'runtime_mode'='legacy_env_sinqia_terra' and credencial_integracao_id is null)
   and exists(select 1 from public.integracao_fundo_versao_capacidades where integracao_fundo_versao_id='d1313000-0000-4000-8000-000000000002'::uuid and capability='CESSAO_ENVIO')

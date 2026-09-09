@@ -13,12 +13,14 @@ import {
 
 const ARTIFACTS = [
   'production-public.dump',
+  'production-private-schema.dump',
   'production-storage-metadata.sql',
   'production-migration-history.sql',
   'production-auth-sanitized.sql',
 ]
 const LOCAL_DB_CONTAINER = 'supabase_db_bw-antecipa-prod-rehearsal'
 const CONTAINER_PUBLIC_DUMP = '/tmp/bw-antecipa-production-public.dump'
+const CONTAINER_PRIVATE_DUMP = '/tmp/bw-antecipa-production-private-schema.dump'
 
 async function main() {
   assertLocalTarget()
@@ -42,13 +44,19 @@ async function main() {
       create table if not exists supabase_migrations.schema_migrations (
         version text primary key,
         statements text[],
-        name text
+        name text,
+        created_by text,
+        idempotency_key text,
+        rollback text[]
       );
+      alter table supabase_migrations.schema_migrations add column if not exists created_by text;
+      alter table supabase_migrations.schema_migrations add column if not exists idempotency_key text;
+      alter table supabase_migrations.schema_migrations add column if not exists rollback text[];
     `)
   })
 
   // Remover primeiro os schemas recriados pelas migrations elimina as FKs
-  // que apontam para Auth. O snapshot de origem nao possui schema private.
+  // que apontam para Auth. O snapshot leva somente a estrutura de private.
   // Assim, o TRUNCATE CASCADE de auth.users permanece restrito ao schema Auth
   // e nao tenta truncar tabelas publicas pertencentes a supabase_admin.
   await withPgClient(localAdmin, async (client) => {
@@ -60,6 +68,19 @@ async function main() {
     connection: localAdmin,
     outputDirectory: SNAPSHOT_DIR,
   })
+
+  console.log('Restaurando dependencias do schema private...')
+  run('docker', ['cp', path.join(SNAPSHOT_DIR, 'production-private-schema.dump'), `${LOCAL_DB_CONTAINER}:${CONTAINER_PRIVATE_DUMP}`])
+  run('docker', [
+    'exec', LOCAL_DB_CONTAINER,
+    'pg_restore',
+    '--username=supabase_admin',
+    '--exit-on-error',
+    '--no-owner',
+    '--section=pre-data',
+    '--dbname=postgres',
+    CONTAINER_PRIVATE_DUMP,
+  ])
 
   console.log('Restaurando schema e dados publicos...')
   run('docker', ['cp', path.join(SNAPSHOT_DIR, 'production-public.dump'), `${LOCAL_DB_CONTAINER}:${CONTAINER_PUBLIC_DUMP}`])
@@ -76,6 +97,20 @@ async function main() {
   } finally {
     run('docker', ['exec', LOCAL_DB_CONTAINER, 'rm', '-f', CONTAINER_PUBLIC_DUMP])
   }
+
+  console.log('Finalizando constraints e indices do schema private...')
+  run('docker', [
+    'exec', LOCAL_DB_CONTAINER,
+    'pg_restore',
+    '--username=supabase_admin',
+    '--exit-on-error',
+    '--no-owner',
+    '--section=post-data',
+    '--dbname=postgres',
+    CONTAINER_PRIVATE_DUMP,
+  ])
+
+  run('docker', ['exec', LOCAL_DB_CONTAINER, 'rm', '-f', CONTAINER_PRIVATE_DUMP])
 
   await withPgClient(local, async (client) => {
     await client.query('truncate table storage.objects, storage.buckets cascade')

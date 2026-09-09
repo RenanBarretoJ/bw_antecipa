@@ -7,6 +7,9 @@ import { fileURLToPath } from 'node:url'
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const preflightPath = path.join(repositoryRoot, 'docs', 'homologacao', 'sql', 'p4-preflight-producao-read-only.sql')
 const postflightPath = path.join(repositoryRoot, 'docs', 'homologacao', 'sql', 'p4-postflight-producao-read-only.sql')
+const p55PreflightPath = path.join(repositoryRoot, 'docs', 'homologacao', 'sql', 'p5-5-preflight-producao-read-only.sql')
+const p55PostflightPath = path.join(repositoryRoot, 'docs', 'homologacao', 'sql', 'p5-5-postflight-producao-read-only.sql')
+const p55PublishPath = path.join(repositoryRoot, 'rehearsal', 'scripts', 'publish-dlz-policy-v5.sql')
 const manifestPath = path.join(repositoryRoot, 'rehearsal', 'manifests', 'production-migrations.json')
 
 function sql(file) {
@@ -29,6 +32,22 @@ function assertReadOnly(value) {
 test('preflight e postflight sao protegidos por transacao read-only', () => {
   assertReadOnly(sql(preflightPath))
   assertReadOnly(sql(postflightPath))
+})
+
+test('P5.5 possui preflight e postflight estritamente read-only', () => {
+  assertReadOnly(sql(p55PreflightPath))
+  assertReadOnly(sql(p55PostflightPath))
+  assert.match(sql(p55PostflightPath), /historico_operacoes_preservado/u)
+  assert.match(sql(p55PostflightPath), /storage_excecoes_registradas/u)
+})
+
+test('publicacao P5.5 preserva Storage e limita a v5 ao metodo financeiro', () => {
+  const value = sql(p55PublishPath)
+  assert.match(value, /TRINTA_360/u)
+  assert.match(value, /DIAS_CORRIDOS_365/u)
+  assert.match(value, /diff v4\/v5 possui alteracao adicional/u)
+  assert.doesNotMatch(value, /\b(delete|truncate)\s+(?:from\s+)?storage\./iu)
+  assert.doesNotMatch(value, /\bupdate\s+storage\./iu)
 })
 
 test('preflight cobre baseline, delta, patch DLZ, integridade, policies, Storage e Auth', () => {
@@ -54,13 +73,15 @@ test('postflight cobre cadeia canonica, exclusoes, DLZ, CNAB, integracao e grant
     'APPLIED_HISTORICALLY_BUT_NEUTRALIZED',
     'ACTIVE_DANGEROUS_ARTIFACT',
     'reset_operacional_fundo_homolog%',
-    'd1311000-0000-4000-8000-000000000002',
+    'politica_operacional_versao_id = v.id',
+    "metodo_calculo_financeiro = 'DIAS_CORRIDOS_365'",
     'd1312000-0000-4000-8000-000000000002',
     'd1313000-0000-4000-8000-000000000002',
     'legacy_env_sinqia_terra',
     'on_auth_user_created',
     'notificacoes_own_update',
   ]) assert.match(value, new RegExp(expected, 'u'))
+  assert.doesNotMatch(value, /d1311000-0000-4000-8000-000000000002/u)
 })
 
 test('manifesto preserva bloqueios do P4 e incorpora a neutralizacao P5.2', () => {

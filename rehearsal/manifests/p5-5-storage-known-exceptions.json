@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "release": "P5_5_STORAGE_KNOWN_EXCEPTIONS",
+  "environment": "production",
+  "project_ref": "wwsndnuvnjuabpbjwlck",
+  "context": "DLZ_HEALTH",
+  "classification": "KNOWN_UNREFERENCED_STORAGE",
+  "decision": "PRESERVAR",
+  "registered_at": "2026-09-09T00:48:35.047Z",
+  "correlation_id": "fa463f40-761a-49e2-8759-7dea7eba5c66",
+  "reason": "Objetos privados criados por Cedente DLZ ativo durante tentativas de importacao sem persistencia relacional concluida; preservados por decisao explicita do P5.5.",
+  "review": {
+    "required": true,
+    "trigger": "Proxima revisao de consistencia do Storage ou antes de qualquer limpeza definitiva."
+  },
+  "scope": {
+    "created_after": "2026-08-29T17:48:42.376Z",
+    "expected_storage_objects": 1663,
+    "expected_known_exceptions": 2,
+    "expected_baseline": {
+      "fundos": 2,
+      "cedentes": 12,
+      "operacoes": 47,
+      "notas_fiscais": 916,
+      "documentos": 123,
+      "storage_objects": 1663,
+      "auth_users": 23,
+      "profiles": 23,
+      "operacoes_fromtis_legado": 26
+    }
+  },
+  "exceptions": [
+    {
+      "identifier": "P5_5_STORAGE_EXCEPTION_01",
+      "object_id": "923954aa-bb86-4294-be35-90deb55af01e",
+      "bucket": "notas-fiscais",
+      "fingerprint_sha256": "e61f9086963e4fac9264cf75e5b9d9544a5ad4c5ceb1817039af9237f9a9e8ec",
+      "content_etag": "3a9eeca4bb4c78981cfac6d558652e2c",
+      "content_type": "image/jpeg",
+      "size_bytes": 497306
+    },
+    {
+      "identifier": "P5_5_STORAGE_EXCEPTION_02",
+      "object_id": "6c15cbed-3b11-4105-9bfb-022e44892225",
+      "bucket": "notas-fiscais",
+      "fingerprint_sha256": "e60c2b27474a12546423f7e1dd0482c6c86b352d4a66b5d1b8e4359a2e3ea4b3",
+      "content_etag": "3a9eeca4bb4c78981cfac6d558652e2c",
+      "content_type": "image/jpeg",
+      "size_bytes": 497306
+    }
+  ]
+}
