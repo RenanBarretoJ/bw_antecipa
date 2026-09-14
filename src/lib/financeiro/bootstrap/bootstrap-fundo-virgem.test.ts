@@ -132,6 +132,6 @@ describe('P0 (correcao real): bootstrap de fundo virgem + Carteira QA', () => {
     expect(classificador).toContain("new Set(['CALCULADA', 'PL_D2_INDISPONIVEL', 'PL_D2_INVALIDO', 'PL_OFICIAL_INDISPONIVEL'])")
     const indice = classificador.indexOf("if (input.exposureStatus === 'PL_OFICIAL_INDISPONIVEL')")
     expect(indice).toBeGreaterThan(-1)
-    expect(classificador.slice(indice, indice + 120)).toContain("reason('PL_OFICIAL_INDISPONIVEL', 'BLOQUEIO')")
+    expect(classificador.slice(indice, indice + 180)).toContain("reason('PL_OFICIAL_INDISPONIVEL', 'BLOQUEIO')")
   })
 })

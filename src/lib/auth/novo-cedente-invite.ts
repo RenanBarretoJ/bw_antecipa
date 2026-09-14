@@ -24,7 +24,32 @@ export const aceitarNovoCedenteInviteSchema = z.object({
 
 export type NovoCedenteInviteInput = z.input<typeof novoCedenteInviteSchema>
 
+export type ConviteNovoCedenteErrorCode =
+  | 'EMAIL_ALREADY_REGISTERED'
+  | 'AUTH_LOOKUP_FAILED'
+  | 'AUTH_GENERATE_LINK_FAILED'
+  | 'EMAIL_DISABLED'
+  | 'SMTP_CONFIG_INVALID'
+  | 'SMTP_EAUTH'
+  | 'SMTP_535'
+  | 'SMTP_RECIPIENT_REJECTED'
+  | 'SMTP_550'
+  | 'SMTP_553'
+  | 'SMTP_ERROR'
+
+export const EMAIL_NOVO_CEDENTE_JA_CADASTRADO =
+  'Este e-mail já está cadastrado na plataforma. Para cadastrar um novo Cedente/CNPJ, informe um novo e-mail para o responsável.'
+
+export const EMAIL_NOVO_CEDENTE_NAO_VALIDADO =
+  'Não foi possível validar o e-mail no serviço de autenticação. Tente novamente em alguns instantes.'
+
 export function mensagemFalhaEnvioConvite(codigo: string): string {
+  if (codigo === 'EMAIL_ALREADY_REGISTERED') {
+    return EMAIL_NOVO_CEDENTE_JA_CADASTRADO
+  }
+  if (codigo === 'AUTH_LOOKUP_FAILED') {
+    return EMAIL_NOVO_CEDENTE_NAO_VALIDADO
+  }
   if (codigo === 'EMAIL_DISABLED') {
     return 'O envio de e-mail nao esta configurado neste ambiente. Nenhum Cedente foi criado.'
   }
@@ -37,7 +62,7 @@ export function mensagemFalhaEnvioConvite(codigo: string): string {
   if (codigo === 'SMTP_RECIPIENT_REJECTED' || codigo === 'SMTP_550' || codigo === 'SMTP_553') {
     return 'O servidor de e-mail recusou o destinatario informado. Nenhum Cedente foi criado.'
   }
-  if (codigo === 'AUTH_LINK_ERROR') {
+  if (codigo === 'AUTH_LINK_ERROR' || codigo === 'AUTH_GENERATE_LINK_FAILED') {
     return 'Nao foi possivel preparar o acesso do usuario no Supabase Auth. Nenhum Cedente foi criado.'
   }
   return 'Nao foi possivel enviar o convite. Nenhum Cedente foi criado.'

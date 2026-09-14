@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 const migration = readFileSync(
   join(process.cwd(), 'supabase/migrations/20260823150000_p0_nf_remessa_atualizar_mesma_chave.sql'),
   'utf8',
-)
+).replaceAll('\r\n', '\n')
 
 describe('contrato da migration: versionamento real (append-only) da NF de Remessa', () => {
   it('e incremental e transacional', () => {

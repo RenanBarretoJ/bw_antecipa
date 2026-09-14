@@ -21,7 +21,8 @@ describe('RLX Golden Dataset V2', () => {
     for (const file of files) {
       digest.update(relative(root, file).replaceAll('\\', '/'))
       digest.update('\0')
-      digest.update(readFileSync(file))
+      const bytes = readFileSync(file)
+      digest.update(Buffer.from(bytes.toString('latin1').replaceAll('\r\n', '\n'), 'latin1'))
       digest.update('\0')
     }
     expect(files).toHaveLength(37)

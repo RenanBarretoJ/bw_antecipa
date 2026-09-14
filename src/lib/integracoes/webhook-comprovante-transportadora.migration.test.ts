@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 const migration = readFileSync(
   join(process.cwd(), 'supabase/migrations/20260824100000_p0_webhook_comprovante_transportadora.sql'),
   'utf8',
-)
+).replaceAll('\r\n', '\n')
 
 describe('contrato da migration do webhook de comprovante de transportadora', () => {
   it('e transacional', () => {

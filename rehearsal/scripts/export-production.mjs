@@ -183,6 +183,8 @@ async function main() {
     '--file=/output/production-public.dump',
     '--no-owner',
     '--schema=public',
+    '--schema=private',
+    '--exclude-table-data=private.*',
     ...exclusions,
   ], { connection: remote, outputDirectory: temporaryDirectory, readOnly: true })
 
@@ -222,8 +224,8 @@ async function main() {
       buckets: ['id', 'name', 'owner', 'created_at', 'updated_at', 'public', 'avif_autodetection', 'file_size_limit', 'allowed_mime_types', 'owner_id', 'type'],
       objects: ['id', 'bucket_id', 'name', 'owner', 'created_at', 'updated_at', 'last_accessed_at', 'metadata', 'version', 'owner_id', 'user_metadata'],
     },
-    included: ['public schema e dados', 'auth.users/identities sanitizados', 'storage.buckets/objects metadata', 'migration history'],
-    excluded: ['auth passwords/tokens/sessions/MFA', 'storage binaries', 'storage versioning_status/archived_at/delete markers', 'vault', 'public sensitive table data'],
+    included: ['public schema e dados', 'private schema sem dados', 'auth.users/identities sanitizados', 'storage.buckets/objects metadata', 'migration history'],
+    excluded: ['auth passwords/tokens/sessions/MFA', 'storage binaries', 'storage versioning_status/archived_at/delete markers', 'vault', 'public sensitive table data', 'private table data'],
     sensitive_public_tables_without_data: sensitiveTables.map((table) => `${table.table_schema}.${table.table_name}`),
     artifacts: Object.fromEntries(artifactNames.map((name) => [name, fileSha256(path.join(temporaryDirectory, name))])),
   }

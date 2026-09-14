@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 const migration = readFileSync(
   resolve(process.cwd(), 'supabase/migrations/20260826110000_p0_cadastro_cnpj_cep_bancos_filiais.sql'),
   'utf8',
-)
+).replaceAll('\r\n', '\n')
 const cadastroPage = readFileSync(resolve(process.cwd(), 'src/app/cedente/cadastro/page.tsx'), 'utf8')
 const meusEstabelecimentos = readFileSync(
   resolve(process.cwd(), 'src/app/cedente/estabelecimentos/meus-estabelecimentos-client.tsx'),

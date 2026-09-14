@@ -7,7 +7,7 @@
   "impulse_fundo_id": "cb372689-65c8-43af-8a20-7438002a3b91",
   "actor_id": "10690e0c-c1a9-4282-892a-f2ce803f95d7",
   "configured_at": "2026-08-27T21:33:04.000Z",
-  "production_migrations_manifest_hash": "cc708283d55bae027ec3d1cd47ed47edb955bcd47bd84a64049008692628a318",
+  "production_migrations_manifest_hash": "b0c710be730f1d9b08e1244e558f0fa78984821099b5c4d4d6014dfaadc677d5",
   "preflight_sql_sha256": "0531fe06bfc5e70fd1bc333d7980269126547257a14ddb13aa71b744de656d77",
   "expected_baseline": {
     "fundos": 2,
@@ -115,5 +115,5 @@
     "credential_required": false,
     "database_secret": false
   },
-  "manifest_hash": "5833541e93b9f9213c21b300771f53b47de3cf06242b7afd5fb51b5c06202d6c"
+  "manifest_hash": "155aae6a3dda1711af7d7e6a05d1101dad49a4ae843454233b9a460fe48c52fd"
 }

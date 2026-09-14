@@ -292,6 +292,11 @@ function createContentHash(content) {
   return createHash('sha256').update(bytes).digest('hex')
 }
 
+function canonicalFixtureBytes(content) {
+  const bytes = Buffer.isBuffer(content) ? content : Buffer.from(content)
+  return Buffer.from(bytes.toString('latin1').replaceAll('\r\n', '\n'), 'latin1')
+}
+
 export function writeFixtures({ check = false } = {}) {
   const dataset = buildDataset()
   const files = buildFixtureFiles(dataset)
@@ -301,7 +306,9 @@ export function writeFixtures({ check = false } = {}) {
     const target = resolve(FIXTURES_ROOT, path)
     const bytes = Buffer.isBuffer(content) ? content : Buffer.from(content)
     if (check) {
-      if (!existsSync(target) || !readFileSync(target).equals(bytes)) differences.push(path)
+      if (!existsSync(target) || !canonicalFixtureBytes(readFileSync(target)).equals(canonicalFixtureBytes(bytes))) {
+        differences.push(path)
+      }
       continue
     }
     mkdirSync(dirname(target), { recursive: true })

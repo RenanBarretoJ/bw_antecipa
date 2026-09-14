@@ -777,6 +777,10 @@
     {
       "file": "20260829170408_p5_2_neutralizar_resets_homolog_producao.sql",
       "sha256": "a1be0513172332a9c95aa78ee38a489fba6a58d73ac8cffe32f2038551a06da3"
+    },
+    {
+      "file": "20260914135436_p6_1_expirar_convites_novo_cedente_antes_retry.sql",
+      "sha256": "8719450ea90b038b7e430150140c11e4f802aa0593550e139042641529e96cfb"
     }
   ],
   "post_upgrade_data_patches": [
@@ -832,5 +836,5 @@
     "expected_history_after_p5_2": 199,
     "blocked_effect_state": "APPLIED_HISTORICALLY_BUT_NEUTRALIZED"
   },
-  "manifest_hash": "04b3aced455f39ab033b3261c4d079f175b071ea9231e6d0d51a2494d1b92d0e"
+  "manifest_hash": "b0c710be730f1d9b08e1244e558f0fa78984821099b5c4d4d6014dfaadc677d5"
 }

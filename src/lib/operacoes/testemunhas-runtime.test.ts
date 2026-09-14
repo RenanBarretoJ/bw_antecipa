@@ -5,7 +5,7 @@ import { resolve } from 'node:path'
 describe('carregamento seguro de testemunhas da operacao', () => {
   it('nao depende de SELECT cliente na tabela endurecida e valida o fundo ativo antes do service role', () => {
     const client = readFileSync(resolve('src/app/gestor/operacoes/[id]/OperacaoDetalheGestorClient.tsx'), 'utf8')
-    const action = readFileSync(resolve('src/lib/actions/operacao.ts'), 'utf8')
+    const action = readFileSync(resolve('src/lib/actions/operacao.ts'), 'utf8').replaceAll('\r\n', '\n')
 
     expect(client).toContain('listarTestemunhasOperacao(opId)')
     expect(client).not.toMatch(/from\(['"]testemunhas['"]\)/)

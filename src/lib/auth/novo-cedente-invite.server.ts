@@ -4,6 +4,77 @@ import { createHash, randomBytes } from 'node:crypto'
 import { createAdminClient } from '@/lib/supabase/server'
 import { enviarEmailOperacional } from '@/lib/email'
 
+const AUTH_USERS_PAGE_SIZE = 1000
+const AUTH_EMAIL_ALREADY_EXISTS_CODES = new Set(['email_exists', 'user_already_exists'])
+
+export type EmailAuthPreflightResult =
+  | { outcome: 'AVAILABLE' }
+  | { outcome: 'ALREADY_EXISTS' }
+  | { outcome: 'LOOKUP_ERROR'; providerCode: string | null; status: number | null }
+
+export type NovoCedenteAuthErrorCode = 'EMAIL_ALREADY_REGISTERED' | 'AUTH_GENERATE_LINK_FAILED'
+
+export class NovoCedenteAuthError extends Error {
+  constructor(
+    readonly code: NovoCedenteAuthErrorCode,
+    readonly providerCode: string | null,
+    readonly status: number | null,
+  ) {
+    super(code)
+    this.name = 'NovoCedenteAuthError'
+  }
+}
+
+function normalizarEmail(email: string) {
+  return email.trim().toLowerCase()
+}
+
+function detalhesErroAuth(error: unknown) {
+  if (!error || typeof error !== 'object') return { providerCode: null, status: null }
+  const candidate = error as { code?: unknown; status?: unknown }
+  return {
+    providerCode: typeof candidate.code === 'string' ? candidate.code : null,
+    status: typeof candidate.status === 'number' ? candidate.status : null,
+  }
+}
+
+function erroIndicaEmailExistente(error: unknown) {
+  const { providerCode } = detalhesErroAuth(error)
+  return providerCode !== null && AUTH_EMAIL_ALREADY_EXISTS_CODES.has(providerCode.toLowerCase())
+}
+
+/**
+ * Preflight server-only do fluxo NOVO CEDENTE. A API Admin nao oferece busca
+ * pontual por e-mail no SDK, portanto a listagem e percorrida com paginacao e
+ * encerrada assim que encontra a identidade ou chega ao fim.
+ */
+export async function consultarDisponibilidadeEmailNovoCedente(email: string): Promise<EmailAuthPreflightResult> {
+  const emailNormalizado = normalizarEmail(email)
+  let page = 1
+
+  try {
+    const admin = createAdminClient()
+    while (true) {
+      const { data, error } = await admin.auth.admin.listUsers({ page, perPage: AUTH_USERS_PAGE_SIZE })
+      if (error) {
+        const details = detalhesErroAuth(error)
+        return { outcome: 'LOOKUP_ERROR', ...details }
+      }
+
+      const users = data?.users || []
+      if (users.some((user) => normalizarEmail(user.email || '') === emailNormalizado)) {
+        return { outcome: 'ALREADY_EXISTS' }
+      }
+      if (users.length < AUTH_USERS_PAGE_SIZE) return { outcome: 'AVAILABLE' }
+
+      page += 1
+    }
+  } catch (error) {
+    const details = detalhesErroAuth(error)
+    return { outcome: 'LOOKUP_ERROR', ...details }
+  }
+}
+
 export function gerarTokenConviteNovoCedente() {
   const token = randomBytes(32).toString('hex')
   return { token, tokenHash: hashTokenConviteNovoCedente(token) }
@@ -49,7 +120,12 @@ export async function gerarLinkAuthNovoCedente(input: {
   })
 
   if (error || !data.properties?.hashed_token || !data.user) {
-    throw new Error(error?.message || 'O Supabase Auth nao gerou o link de convite.')
+    const details = detalhesErroAuth(error)
+    throw new NovoCedenteAuthError(
+      erroIndicaEmailExistente(error) ? 'EMAIL_ALREADY_REGISTERED' : 'AUTH_GENERATE_LINK_FAILED',
+      details.providerCode,
+      details.status,
+    )
   }
 
   const confirmUrl = new URL('/auth/confirm', obterAppBaseUrl())

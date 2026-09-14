@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 const migration = readFileSync(
   join(process.cwd(), 'supabase/migrations/20260821050000_p0_ajustes_finais_nf_remessa.sql'),
   'utf8',
-)
+).replaceAll('\r\n', '\n')
 const migrationLower = migration.toLowerCase()
 
 const enviarCanhotoAction = readFileSync(join(process.cwd(), 'src/lib/actions/logistica.ts'), 'utf8')

@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 const migration = readFileSync(
   join(process.cwd(), 'supabase/migrations/20260823130000_p0_nf_remessa_aprovacao_documental.sql'),
   'utf8',
-)
+).replaceAll('\r\n', '\n')
 
 describe('contrato da migration: separacao matching tecnico / aprovacao documental do requisito nf_remessa', () => {
   it('e incremental e transacional', () => {

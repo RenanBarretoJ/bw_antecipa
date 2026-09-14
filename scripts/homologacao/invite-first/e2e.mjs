@@ -13,6 +13,10 @@ const emails = {
   cedente: `qa-p2-cedente-${runId}@qa-bw.invalid`,
   expirado: `qa-p2-expirado-${runId}@qa-bw.invalid`,
   semOrganizacao: `qa-p2-sem-org-${runId}@qa-bw.invalid`,
+  existente: `qa-p61-existente-${runId}@qa-bw.invalid`,
+  corrida: `qa-p61-corrida-${runId}@qa-bw.invalid`,
+  lifecycle: `qa-p61-lifecycle-${runId}@qa-bw.invalid`,
+  cancelado: `qa-p61-cancelado-${runId}@qa-bw.invalid`,
 }
 const password = `Qa@${randomBytes(18).toString('base64url')}9Z`
 const authUserIds = []
@@ -41,6 +45,8 @@ await db.connect()
 try {
   const migration = await db.query("select 1 from supabase_migrations.schema_migrations where version = '20260826190000'")
   assert(migration.rowCount === 1, 'migration P2 aplicada')
+  const p61Migration = await db.query("select 1 from supabase_migrations.schema_migrations where version = '20260914135436'")
+  assert(p61Migration.rowCount === 1, 'migration P6.1 aplicada')
 
   const funds = await db.query('select id from public.fundos where ativo is true order by created_at, id limit 2')
   assert(funds.rowCount >= 1, 'fundo ativo disponivel')
@@ -53,6 +59,104 @@ try {
     [gestorId, fundoId],
   )
   const gestorClient = await signIn(emails.gestor)
+
+  const existingUser = await createAuthUser(emails.existente, 'cedente')
+  assert(await authEmailExists(emails.existente), 'preflight identifica e-mail Auth existente')
+  const existingInviteBefore = await invitationCountByEmail(emails.existente)
+  assert(existingInviteBefore === 0, 'e-mail existente inicia sem convite de aplicacao')
+  const existingOrganization = await db.query('select count(*)::int total from public.cedentes where user_id = $1', [existingUser.id])
+  assert(existingOrganization.rows[0].total === 0, 'e-mail existente sintetico nao possui organizacao Cedente')
+
+  const raceCnpj = cnpjDigits(`96${runId.replace(/[^0-9]/g, '').padEnd(10, '4')}`)
+  assert(!(await authEmailExists(emails.corrida)), 'preflight da corrida observa e-mail disponivel')
+  const raceInvite = await gestorClient.rpc('criar_convite_novo_cedente', {
+    p_fundo_id: fundoId,
+    p_cnpj: raceCnpj,
+    p_email: emails.corrida,
+    p_token_hash: sha256(randomBytes(32).toString('hex')),
+    p_correlation_id: randomUUID(),
+  })
+  assert(!raceInvite.error && raceInvite.data?.convite_id, 'convite da corrida criado apos preflight')
+  inviteIds.push(raceInvite.data.convite_id)
+  const raceUser = await createAuthUser(emails.corrida, 'cedente')
+  const raceLink = await admin.auth.admin.generateLink({ type: 'invite', email: emails.corrida })
+  assert(raceLink.error?.code === 'email_exists', 'generateLink protege corrida com email_exists')
+  const raceCancelled = await gestorClient.rpc('cancelar_convite_novo_cedente', {
+    p_convite_id: raceInvite.data.convite_id,
+    p_motivo: 'email_already_registered',
+    p_correlation_id: randomUUID(),
+  })
+  assert(!raceCancelled.error && raceCancelled.data?.cancelado === true, 'corrida compensa convite PENDENTE')
+  const raceOrganization = await db.query('select count(*)::int total from public.cedentes where user_id = $1', [raceUser.id])
+  assert(raceOrganization.rows[0].total === 0, 'corrida nao cria organizacao Cedente')
+
+  const lifecycleCnpj = cnpjDigits(`97${runId.replace(/[^0-9]/g, '').padEnd(10, '3')}`)
+  const lifecycleExpired = await gestorClient.rpc('criar_convite_novo_cedente', {
+    p_fundo_id: fundoId,
+    p_cnpj: lifecycleCnpj,
+    p_email: emails.lifecycle,
+    p_token_hash: sha256(randomBytes(32).toString('hex')),
+    p_correlation_id: randomUUID(),
+  })
+  assert(!lifecycleExpired.error && lifecycleExpired.data?.convite_id, 'convite para retry expirado criado')
+  inviteIds.push(lifecycleExpired.data.convite_id)
+  await db.query(
+    "update public.cedente_usuario_convites set created_at = now() - interval '2 hours', expires_at = now() - interval '1 hour' where id = $1",
+    [lifecycleExpired.data.convite_id],
+  )
+  const lifecycleRetry = await gestorClient.rpc('criar_convite_novo_cedente', {
+    p_fundo_id: fundoId,
+    p_cnpj: lifecycleCnpj,
+    p_email: emails.lifecycle,
+    p_token_hash: sha256(randomBytes(32).toString('hex')),
+    p_correlation_id: randomUUID(),
+  })
+  assert(!lifecycleRetry.error && lifecycleRetry.data?.convite_id, 'convite expirado permite novo convite')
+  inviteIds.push(lifecycleRetry.data.convite_id)
+  const lifecycleStates = await db.query(
+    'select id, status::text from public.cedente_usuario_convites where id = any($1::uuid[]) order by created_at',
+    [[lifecycleExpired.data.convite_id, lifecycleRetry.data.convite_id]],
+  )
+  assert(
+    lifecycleStates.rows.some((row) => row.id === lifecycleExpired.data.convite_id && row.status === 'EXPIRADO')
+      && lifecycleStates.rows.some((row) => row.id === lifecycleRetry.data.convite_id && row.status === 'PENDENTE'),
+    'retry preserva expirado e cria novo PENDENTE',
+  )
+  await gestorClient.rpc('cancelar_convite_novo_cedente', {
+    p_convite_id: lifecycleRetry.data.convite_id,
+    p_motivo: 'qa_cleanup_lifecycle',
+    p_correlation_id: randomUUID(),
+  })
+
+  const cancelledCnpj = cnpjDigits(`98${runId.replace(/[^0-9]/g, '').padEnd(10, '2')}`)
+  const cancelledInvite = await gestorClient.rpc('criar_convite_novo_cedente', {
+    p_fundo_id: fundoId,
+    p_cnpj: cancelledCnpj,
+    p_email: emails.cancelado,
+    p_token_hash: sha256(randomBytes(32).toString('hex')),
+    p_correlation_id: randomUUID(),
+  })
+  assert(!cancelledInvite.error && cancelledInvite.data?.convite_id, 'convite para retry cancelado criado')
+  inviteIds.push(cancelledInvite.data.convite_id)
+  await gestorClient.rpc('cancelar_convite_novo_cedente', {
+    p_convite_id: cancelledInvite.data.convite_id,
+    p_motivo: 'qa_retry_cancelado',
+    p_correlation_id: randomUUID(),
+  })
+  const cancelledRetry = await gestorClient.rpc('criar_convite_novo_cedente', {
+    p_fundo_id: fundoId,
+    p_cnpj: cancelledCnpj,
+    p_email: emails.cancelado,
+    p_token_hash: sha256(randomBytes(32).toString('hex')),
+    p_correlation_id: randomUUID(),
+  })
+  assert(!cancelledRetry.error && cancelledRetry.data?.convite_id, 'convite cancelado com e-mail livre permite novo')
+  inviteIds.push(cancelledRetry.data.convite_id)
+  await gestorClient.rpc('cancelar_convite_novo_cedente', {
+    p_convite_id: cancelledRetry.data.convite_id,
+    p_motivo: 'qa_cleanup_cancelado',
+    p_correlation_id: randomUUID(),
+  })
 
   const cnpj = cnpjDigits(`91${runId.replace(/[^0-9]/g, '').padEnd(10, '7')}`)
   const appToken = randomBytes(32).toString('hex')
@@ -120,6 +224,9 @@ try {
   })
   assert(unauthorizedFund.error?.code === '42501', 'fundo nao autorizado bloqueado')
 
+  const bankResult = await db.query("select codigo, ispb, nome from public.bancos where ativo is true and codigo ~ '^[0-9]{3}$' and ispb ~ '^[0-9]{8}$' order by codigo limit 1")
+  assert(bankResult.rowCount === 1, 'catalogo bancario possui banco ativo valido')
+  const bank = bankResult.rows[0]
   const onboarding = await invitedClient.rpc('concluir_onboarding_cedente', {
     p_cadastro: {
       cnpj,
@@ -127,8 +234,8 @@ try {
       nome_fantasia: 'QA P2',
       cep: '01310100', logradouro: 'Avenida Paulista', numero: '1000', complemento: '',
       bairro: 'Bela Vista', cidade: 'Sao Paulo', estado: 'SP', telefone_comercial: '11999999999',
-      email_comercial: emails.cedente, cnae: 'Teste de homologacao', banco: '001 - Banco do Brasil',
-      agencia: '0001', conta: '12345-6', tipo_conta: 'corrente', banco_codigo: '001', banco_ispb: '00000000', banco_nome: 'Banco do Brasil',
+      email_comercial: emails.cedente, cnae: 'Teste de homologacao', banco: `${bank.codigo} - ${bank.nome}`,
+      agencia: '0001', conta: '12345-6', tipo_conta: 'corrente', banco_codigo: bank.codigo, banco_ispb: bank.ispb, banco_nome: bank.nome,
       representantes: [{ nome: 'Responsavel QA P2', cpf: '37834157809', rg: '123456789', cargo: 'Administrador', email: emails.cedente, telefone: '11999999999' }],
     },
   })
@@ -249,6 +356,24 @@ async function cleanup() {
 }
 
 function sha256(value) { return createHash('sha256').update(value).digest('hex') }
+async function invitationCountByEmail(email) {
+  const result = await db.query(
+    'select count(*)::int total from public.cedente_usuario_convites where email_normalizado = lower(trim($1))',
+    [email],
+  )
+  return result.rows[0].total
+}
+async function authEmailExists(email) {
+  const normalized = email.trim().toLowerCase()
+  let page = 1
+  while (true) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 })
+    if (error) throw new Error(`Falha no preflight Auth sintetico: ${error.code || 'AUTH_LOOKUP_FAILED'}`)
+    if ((data.users || []).some((user) => String(user.email || '').trim().toLowerCase() === normalized)) return true
+    if ((data.users || []).length < 1000) return false
+    page += 1
+  }
+}
 function cnpjDigits(seed) {
   const base = String(seed).replace(/\D/g, '').padEnd(12, '7').slice(0, 12)
   const digit = (digits, weights) => {

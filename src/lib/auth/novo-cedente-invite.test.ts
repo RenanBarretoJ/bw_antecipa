@@ -16,6 +16,10 @@ const compatibilityMigration = readFileSync(
   resolve(process.cwd(), 'supabase/migrations/20260826193000_p2_invite_first_compatibilidade_convites_existentes.sql'),
   'utf8',
 )
+const p61LifecycleMigration = readFileSync(
+  resolve(process.cwd(), 'supabase/migrations/20260914135436_p6_1_expirar_convites_novo_cedente_antes_retry.sql'),
+  'utf8',
+)
 const signupAction = readFileSync(resolve(process.cwd(), 'src/app/actions/auth.ts'), 'utf8')
 const inviteAction = readFileSync(resolve(process.cwd(), 'src/lib/actions/convite-novo-cedente.ts'), 'utf8')
 const authConfirm = readFileSync(resolve(process.cwd(), 'src/app/auth/confirm/route.ts'), 'utf8')
@@ -99,12 +103,35 @@ describe('P2 - invite-first para novo Cedente', () => {
     expect(mensagemFalhaEnvioConvite('SMTP_ERROR')).toContain('Nenhum Cedente foi criado.')
   })
 
+  it('faz preflight Auth antes da escrita e preserva a defesa de corrida', () => {
+    expect(inviteAction.indexOf('consultarDisponibilidadeEmailNovoCedente'))
+      .toBeLessThan(inviteAction.indexOf(".rpc('criar_convite_novo_cedente'"))
+    expect(inviteAction).toContain("code: 'EMAIL_ALREADY_REGISTERED'")
+    expect(inviteAction).toContain("p_motivo: motivoCancelamentoConvite(sendErrorCode)")
+    expect(mensagemFalhaEnvioConvite('EMAIL_ALREADY_REGISTERED')).toBe(
+      'Este e-mail já está cadastrado na plataforma. Para cadastrar um novo Cedente/CNPJ, informe um novo e-mail para o responsável.',
+    )
+    expect(mensagemFalhaEnvioConvite('AUTH_LOOKUP_FAILED')).toContain('serviço de autenticação')
+  })
+
+  it('expira convite pendente vencido antes de avaliar a duplicidade', () => {
+    const expirePosition = p61LifecycleMigration.indexOf("SET status = 'EXPIRADO'")
+    const duplicatePosition = p61LifecycleMigration.indexOf("IF EXISTS (\n    SELECT 1 FROM public.cedente_usuario_convites")
+    expect(expirePosition).toBeGreaterThan(0)
+    expect(duplicatePosition).toBeGreaterThan(expirePosition)
+    expect(p61LifecycleMigration).toContain("ci.expires_at <= now()")
+    expect(p61LifecycleMigration).toContain("'motivo', 'lifecycle_retry'")
+    expect(p61LifecycleMigration).toContain('pg_advisory_xact_lock')
+    expect(p61LifecycleMigration).toContain('REVOKE ALL ON FUNCTION public.criar_convite_novo_cedente')
+  })
+
   it('informa a categoria segura da falha de envio sem expor detalhes do provedor', () => {
     expect(mensagemFalhaEnvioConvite('EMAIL_DISABLED')).toContain('nao esta configurado')
     expect(mensagemFalhaEnvioConvite('SMTP_CONFIG_INVALID')).toContain('configuracao do servidor')
     expect(mensagemFalhaEnvioConvite('SMTP_EAUTH')).toContain('autenticar')
     expect(mensagemFalhaEnvioConvite('SMTP_RECIPIENT_REJECTED')).toContain('recusou o destinatario')
     expect(mensagemFalhaEnvioConvite('AUTH_LINK_ERROR')).toContain('Supabase Auth')
+    expect(mensagemFalhaEnvioConvite('AUTH_GENERATE_LINK_FAILED')).toContain('Supabase Auth')
     expect(mensagemFalhaEnvioConvite('ERRO_DESCONHECIDO')).toContain('Nao foi possivel enviar')
   })
 

@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 const migration = readFileSync(
   join(process.cwd(), 'supabase/migrations/20260825100000_p0_vortx_vrs2_auth_mtls.sql'),
   'utf8',
-)
+).replaceAll('\r\n', '\n')
 
 describe('contrato da migration P0 (Vortx VRS 2.0 -- autenticacao mTLS)', () => {
   it('e transacional', () => {

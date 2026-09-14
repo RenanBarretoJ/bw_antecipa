@@ -47,8 +47,9 @@ async function main() {
     `)
   })
 
-  // Remover primeiro os schemas recriados pelas migrations elimina as FKs
-  // que apontam para Auth. O snapshot de origem nao possui schema private.
+  // Remover primeiro os schemas recriados pelo snapshot elimina as FKs
+  // que apontam para Auth. O dump inclui o schema private sem dados para
+  // preservar as dependencias de funcoes usadas por triggers de public.
   // Assim, o TRUNCATE CASCADE de auth.users permanece restrito ao schema Auth
   // e nao tenta truncar tabelas publicas pertencentes a supabase_admin.
   await withPgClient(localAdmin, async (client) => {
