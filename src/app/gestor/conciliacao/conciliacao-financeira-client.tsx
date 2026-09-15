@@ -23,17 +23,11 @@ import {
 } from '@/lib/actions/conciliacao'
 import { cn } from '@/lib/utils'
 import type { ConciliacaoDashboard, ConciliacaoTab, MatchingViewRow } from '@/lib/financeiro/conciliacao/loaders.server'
+import { rotuloEstadoExecucaoFinanceira } from '@/lib/financeiro/conciliacao/execution-state'
 import { RISK_REASON_CODES } from '@/lib/financeiro/risco/types'
-
-const tabs: Array<{ id: ConciliacaoTab; label: string }> = [
-  { id: 'visao-geral', label: 'Visao geral' },
-  { id: 'matching', label: 'Matching' },
-  { id: 'conciliacao', label: 'Conciliacao' },
-  { id: 'logistica', label: 'Logistica' },
-  { id: 'exposicao', label: 'Exposicao' },
-  { id: 'risco', label: 'Risco' },
-  { id: 'excecoes', label: 'Excecoes' },
-]
+import { CONCILIACAO_SUBTABS, resumirBaseFinanceira } from './central-ux'
+import { PipelineCockpit } from './pipeline-cockpit'
+import type { AcaoEsteiraFinanceiraId } from '@/lib/financeiro/conciliacao/pipeline-status.server'
 
 type NoteOption = {
   id: string
@@ -58,14 +52,16 @@ function date(value: string | null | undefined) {
 }
 
 function badge(status: string) {
-  const ok = ['MATCH_FORTE', 'MANTIDO_CORRETO', 'ENTRADA_INCORPORADA', 'SAIDA_REFLETIDA', 'CONCLUIDA', 'APTO', 'LIBERADA', 'INFORMATIVO'].includes(status)
-  const warning = ['AMBIGUO', 'BASE_INCOMPLETA', 'PROCESSANDO', 'EM_TRANSITO', 'INDETERMINADA', 'REVISAO_MANUAL', 'PENDENTE', 'REVISAO', 'NAO_APLICAVEL'].includes(status)
+  const ok = ['MATCH_FORTE', 'MANTIDO_CORRETO', 'ENTRADA_INCORPORADA', 'SAIDA_REFLETIDA', 'CONCLUIDA', 'EXECUTADA', 'EXECUTADA_SEM_MOVIMENTO', 'PRONTA', 'SEM_MOVIMENTO', 'APTO', 'LIBERADA', 'INFORMATIVO'].includes(status)
+  const warning = ['AMBIGUO', 'BASE_INCOMPLETA', 'INDISPONIVEL', 'PROCESSANDO', 'EM_TRANSITO', 'INDETERMINADA', 'REVISAO_MANUAL', 'PENDENTE', 'REVISAO'].includes(status)
+  const neutral = ['SEM_EXECUCAO', 'HISTORICA_NAO_APLICAVEL', 'NAO_APLICAVEL'].includes(status)
   const logisticsOk = status === 'ENTREGUE'
   return cn(
     'inline-flex rounded-full px-2 py-0.5 text-xs font-medium',
     (ok || logisticsOk) && 'bg-success/15 text-success-foreground',
     warning && 'bg-warning/20 text-warning-foreground',
-    !ok && !logisticsOk && !warning && 'bg-destructive/10 text-destructive',
+    neutral && 'bg-muted text-muted-foreground',
+    !ok && !logisticsOk && !warning && !neutral && 'bg-destructive/10 text-destructive',
   )
 }
 
@@ -112,25 +108,30 @@ function BaseFinanceiraCard({ dashboard }: { dashboard: ConciliacaoDashboard }) 
   const base = dashboard.baseFinanceira
   if (!base) return <BlockError message="Selecione uma data operacional para resolver as bases financeiras." />
   const items = [
+    ['Estoque D-2', base.estoqueD2, `esperado em ${date(base.estoqueD2.dataEsperada)}`],
     ['Estoque D-1', base.estoque, `esperado em ${date(base.estoque.dataEsperada)}`],
-    ['Aquisicoes D-1', base.aquisicoes, `esperado em ${date(base.aquisicoes.dataEsperada)}`],
-    ['Liquidacoes D-1', base.liquidacoes, `esperado em ${date(base.liquidacoes.dataEsperada)}`],
-    ['PL de referencia', base.carteira, base.carteira.dataReferencia
-      ? `data-base ${date(base.carteira.dataReferencia)} · ${base.carteira.defasagem || 'defasagem indisponivel'}`
-      : 'nenhum PL valido anterior a data operacional'],
+    ['Aquisições D-1', base.aquisicoes, `esperado em ${date(base.aquisicoes.dataEsperada)}`],
+    ['Liquidações D-1', base.liquidacoes, `esperado em ${date(base.liquidacoes.dataEsperada)}`],
+    ['PL de referência', base.carteira, base.carteira.dataReferencia
+      ? `data-base ${date(base.carteira.dataReferencia)} · ${base.carteira.defasagem || 'defasagem indisponível'}`
+      : 'nenhum PL válido anterior à data operacional'],
   ] as const
-  const statusLabel = base.statusGeral === 'PRONTA' ? 'Pronta para calculo' : base.statusGeral === 'BASE_INCOMPLETA' ? 'Base incompleta' : base.statusGeral === 'SEM_MOVIMENTO' ? 'Sem movimento' : 'Indisponivel'
+  const summary = resumirBaseFinanceira(base)
+  const statusLabel = base.statusGeral === 'PRONTA' ? 'Pronta para cálculo' : base.statusGeral === 'BASE_INCOMPLETA' ? 'Base incompleta' : base.statusGeral === 'SEM_MOVIMENTO' ? 'Sem movimento' : 'Indisponível'
   return (
     <Card>
       <CardHeader className="pb-3">
         <div className="flex flex-wrap items-start justify-between gap-2">
-          <div><CardTitle>Base financeira da data</CardTitle><p className="mt-1 text-sm text-muted-foreground">Data operacional {date(base.dataOperacional)} · movimentos em D-1 {date(base.dataD1)} · PL mais recente anterior a data</p></div>
+          <div><CardTitle>Base financeira da data</CardTitle><p className="mt-1 text-sm text-muted-foreground">Data operacional {date(base.dataOperacional)} · D-2 {date(base.dataD2)} · D-1 {date(base.dataD1)} · PL mais recente anterior à data</p></div>
           <span className={badge(base.statusGeral)}>{statusLabel}</span>
         </div>
       </CardHeader>
-      <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {items.map(([label, item, reference]) => <div key={label} className="rounded-lg border bg-muted/20 p-3"><p className="text-xs font-medium uppercase text-muted-foreground">{label} · {reference}</p><p className="mt-1 font-semibold tabular-nums">{baseValue(item)}</p><p className="mt-1 truncate text-xs text-muted-foreground" title={sourceLabel(item)}>{sourceLabel(item)}</p></div>)}
-        {dashboard.erros.base && <div className="sm:col-span-2 xl:col-span-4"><BlockError message={dashboard.erros.base} /></div>}
+      <CardContent className="space-y-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          {items.map(([label, item, reference]) => <div key={label} className="min-w-0 rounded-lg border bg-muted/20 p-3"><p className="text-xs font-medium uppercase text-muted-foreground">{label} · {reference}</p><p className="mt-1 font-semibold tabular-nums">{baseValue(item)}</p><p className="mt-1 truncate text-xs text-muted-foreground" title={sourceLabel(item)}>{sourceLabel(item)}</p></div>)}
+        </div>
+        <p role="status" className={cn('rounded-lg border px-3 py-2 text-sm', summary.tone === 'success' && 'border-success/25 bg-success/5 text-success-foreground', summary.tone === 'warning' && 'border-warning/30 bg-warning/10 text-warning-foreground', summary.tone === 'default' && 'bg-muted/40 text-muted-foreground')}>{summary.message}</p>
+        {dashboard.erros.base && <BlockError message={dashboard.erros.base} />}
       </CardContent>
     </Card>
   )
@@ -138,7 +139,19 @@ function BaseFinanceiraCard({ dashboard }: { dashboard: ConciliacaoDashboard }) 
 
 function PreviousExecution({ label, value }: { label: string; value: string | null | undefined }) {
   if (!value) return null
-  return <p className="rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning-foreground">Sem execucao atual. Ultima {label} anterior: {date(value)}. Ela nao foi usada como resultado da data selecionada.</p>
+  return <p className="rounded-lg border bg-muted/40 px-3 py-2 text-sm text-muted-foreground"><strong className="text-foreground">Histórico — não aplicável à data selecionada.</strong> Última {label} anterior: {date(value)}. Ela não foi usada como resultado atual.</p>
+}
+
+function SubtabIntro({ tab }: { tab: ConciliacaoTab }) {
+  const content = CONCILIACAO_SUBTABS.find((item) => item.id === tab) || CONCILIACAO_SUBTABS[0]
+  return (
+    <section aria-labelledby={`conciliacao-tab-${content.id}`} className="rounded-xl border bg-card px-4 py-3">
+      <h2 id={`conciliacao-tab-${content.id}`} className="font-semibold">{content.label}</h2>
+      <p className="mt-1 text-sm text-muted-foreground">{content.description}</p>
+      {content.formula && <p className="mt-3 rounded-lg bg-muted px-3 py-2 text-center text-sm font-semibold tabular-nums">{content.formula}</p>}
+      {content.detail && <p className="mt-2 text-xs text-muted-foreground">{content.detail}</p>}
+    </section>
+  )
 }
 
 export function ConciliacaoFinanceiraClient({ dashboard }: { dashboard: ConciliacaoDashboard }) {
@@ -159,25 +172,22 @@ export function ConciliacaoFinanceiraClient({ dashboard }: { dashboard: Concilia
   const [riskJustification, setRiskJustification] = useState('')
   const [riskTotp, setRiskTotp] = useState('')
 
-  const matchingCoverage = dashboard.matchingExecucao?.total_registros
+  const matchingCoverage = dashboard.matchingExecucao && dashboard.matchingExecucao.total_registros > 0
     ? Math.round((dashboard.matchingExecucao.matched / dashboard.matchingExecucao.total_registros) * 100)
     : null
+  const matchingCoverageLabel = matchingCoverage === null
+    ? rotuloEstadoExecucaoFinanceira(dashboard.estadosExecucao.matching)
+    : `${matchingCoverage}%`
+  const reconciliationStateLabel = rotuloEstadoExecucaoFinanceira(dashboard.estadosExecucao.conciliacao)
   const reconCounts = dashboard.conciliacaoExecucao?.contagens || {}
   const correct = Number(reconCounts.MANTIDO_CORRETO || 0) + Number(reconCounts.ENTRADA_INCORPORADA || 0) + Number(reconCounts.SAIDA_REFLETIDA || 0)
   const divergences = Object.entries(reconCounts)
     .filter(([status]) => !['MANTIDO_CORRETO', 'ENTRADA_INCORPORADA', 'SAIDA_REFLETIDA'].includes(status))
     .reduce((sum, [, count]) => sum + Number(count || 0), 0)
-  const baseIds = dashboard.conciliacaoExecucao
-    ? [
-        dashboard.conciliacaoExecucao.estoque_d2_importacao_id,
-        dashboard.conciliacaoExecucao.estoque_d1_importacao_id,
-        dashboard.conciliacaoExecucao.aquisicoes_d1_importacao_id,
-        dashboard.conciliacaoExecucao.liquidacoes_d1_importacao_id,
-      ].filter(Boolean)
-    : dashboard.matchingExecucao?.input_import_ids || []
   const noExceptions = dashboard.filtros.tab === 'excecoes'
     && !dashboard.erros.matching && !dashboard.erros.conciliacao && !dashboard.erros.logistica
     && dashboard.matching.total === 0 && dashboard.conciliacao.total === 0 && dashboard.logistica.total === 0
+  const pipelineActions = new Map(dashboard.esteira.etapas.flatMap((stage) => stage.acao ? [[stage.acao.id, stage.acao]] : []))
 
   const initialCandidates = useMemo(() => manualRow?.candidatos
     .map((candidate) => candidate.notaFiscal as NoteOption | null)
@@ -202,42 +212,56 @@ export function ConciliacaoFinanceiraClient({ dashboard }: { dashboard: Concilia
     setTotp('')
   }
 
+  function executePipelineAction(action: AcaoEsteiraFinanceiraId) {
+    if (!pipelineActions.get(action)?.habilitada) return
+    if (action === 'matching') return run(() => executarMatchingAction({ dataReferencia: dashboard.esteira.dataD1 }))
+    if (action === 'conciliacao') return run(() => executarConciliacaoAction({ dataReferencia: dashboard.esteira.dataD1 }))
+    if (action === 'logistica') return run(() => executarPosicaoLogisticaAction({ dataReferencia: dashboard.esteira.dataD1 }))
+    if (action === 'exposicao') return run(() => executarExposicaoAction({ dataReferencia: dashboard.esteira.dataOperacional }))
+    return run(() => executarGateRiscoAction({ dataReferencia: dashboard.filtros.dataReferencia }))
+  }
+
   return (
     <div className="mx-auto max-w-7xl space-y-4 pb-10">
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <header className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">Fundo ativo · {dashboard.fundo.nome}</p>
-          <h1 className="mt-1 text-2xl font-bold">Conciliacao</h1>
-          <p className="text-muted-foreground">Matching auditavel entre titulos financeiros e NFs, seguido da reconciliacao temporal das bases publicadas.</p>
+          <h1 className="mt-1 text-2xl font-bold">Conciliação</h1>
+          <p className="max-w-3xl text-muted-foreground">Acompanhamento operacional de bases financeiras, vínculo Título × NF, conciliação, logística, exposição e risco.</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" disabled={pending || !dashboard.baseFinanceira?.dataD1} onClick={() => run(() => executarMatchingAction({ dataReferencia: dashboard.baseFinanceira!.dataD1 }))}>
-            <Play /> Executar matching
-          </Button>
-          <Button disabled={pending || !dashboard.baseFinanceira?.dataD1} onClick={() => run(() => executarConciliacaoAction({ dataReferencia: dashboard.baseFinanceira!.dataD1 }))}>
-            <GitCompareArrows /> Executar conciliacao
-          </Button>
-          <Button variant="outline" disabled={pending || !dashboard.baseFinanceira?.dataD1} onClick={() => run(() => executarPosicaoLogisticaAction({ dataReferencia: dashboard.baseFinanceira!.dataD1 }))}>
-            <Truck /> Atualizar logistica
-          </Button>
-          <Button variant="outline" disabled={pending || !dashboard.filtros.dataReferencia} onClick={() => run(() => executarExposicaoAction({ dataReferencia: dashboard.filtros.dataReferencia }))}>
-            <Calculator /> Calcular exposicao
-          </Button>
-          <Button variant="outline" disabled={pending || !dashboard.filtros.dataReferencia} onClick={() => run(() => executarGateRiscoAction({ dataReferencia: dashboard.filtros.dataReferencia }))}>
-            <ShieldCheck /> Atualizar risco
-          </Button>
+        <div className="min-w-0">
+          <div className="grid gap-2 sm:flex sm:flex-wrap sm:justify-end">
+            <Button variant={dashboard.filtros.tab === 'matching' ? 'default' : 'outline'} disabled={pending || !pipelineActions.get('matching')?.habilitada} onClick={() => executePipelineAction('matching')}>
+              <Play /> Executar vínculo
+            </Button>
+            <Button variant={dashboard.filtros.tab === 'conciliacao' ? 'default' : 'outline'} disabled={pending || !pipelineActions.get('conciliacao')?.habilitada} onClick={() => executePipelineAction('conciliacao')}>
+              <GitCompareArrows /> Executar conciliação
+            </Button>
+            <Button variant={dashboard.filtros.tab === 'logistica' ? 'default' : 'outline'} disabled={pending || !pipelineActions.get('logistica')?.habilitada} onClick={() => executePipelineAction('logistica')}>
+              <Truck /> Atualizar logística
+            </Button>
+            <Button variant={dashboard.filtros.tab === 'exposicao' ? 'default' : 'outline'} disabled={pending || !pipelineActions.get('exposicao')?.habilitada} onClick={() => executePipelineAction('exposicao')}>
+              <Calculator /> Calcular exposição
+            </Button>
+            <Button aria-describedby="risk-action-help" variant={dashboard.filtros.tab === 'risco' ? 'default' : 'outline'} disabled={pending || !pipelineActions.get('risco')?.habilitada} onClick={() => executePipelineAction('risco')}>
+              <ShieldCheck /> Atualizar risco
+            </Button>
+          </div>
+          <p id="risk-action-help" className={cn('mt-2 max-w-2xl text-xs text-muted-foreground lg:text-right', dashboard.filtros.tab !== 'risco' && 'sr-only')}>Reprocessa Matching, Conciliação, Logística e Exposição antes de recalcular o Gate de Risco.</p>
         </div>
       </header>
 
       <BaseFinanceiraCard dashboard={dashboard} />
 
-      <nav className="flex flex-wrap gap-1 rounded-xl bg-muted p-1" aria-label="Secoes da conciliacao">
-        {tabs.map((tab) => (
-          <Link key={tab.id} href={currentQuery(dashboard, tab.id)} className={cn('rounded-lg px-3 py-2 text-sm font-medium', dashboard.filtros.tab === tab.id ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}>
+      <nav className="grid grid-cols-2 gap-1 rounded-xl bg-muted p-1 md:grid-cols-4 xl:grid-cols-7" aria-label="Seções da conciliação">
+        {CONCILIACAO_SUBTABS.map((tab) => (
+          <Link key={tab.id} href={currentQuery(dashboard, tab.id)} aria-current={dashboard.filtros.tab === tab.id ? 'page' : undefined} className={cn('flex min-h-10 items-center justify-center rounded-lg px-2 py-2 text-center text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', dashboard.filtros.tab === tab.id ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}>
             {tab.label}
           </Link>
         ))}
       </nav>
+
+      <SubtabIntro tab={dashboard.filtros.tab} />
 
       <Card>
         <CardContent>
@@ -308,31 +332,12 @@ export function ConciliacaoFinanceiraClient({ dashboard }: { dashboard: Concilia
 
       {dashboard.filtros.tab === 'visao-geral' && (
         <>
+          <PipelineCockpit pipeline={dashboard.esteira} pending={pending} onAction={executePipelineAction} />
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <SummaryCard label="Cobertura do matching" value={matchingCoverage === null ? 'Sem execucao' : `${matchingCoverage}%`} tone={matchingCoverage === null ? 'default' : matchingCoverage >= 90 ? 'success' : 'warning'} />
-            <SummaryCard label="Conciliacoes corretas" value={dashboard.conciliacaoExecucao ? correct : 'Sem execucao'} tone={dashboard.conciliacaoExecucao ? 'success' : 'default'} />
-            <SummaryCard label="Divergencias" value={dashboard.conciliacaoExecucao ? divergences : 'Sem execucao'} tone={dashboard.conciliacaoExecucao && divergences ? 'danger' : dashboard.conciliacaoExecucao ? 'success' : 'default'} />
-            <SummaryCard label="Ambiguos / nao conciliados" value={dashboard.matchingExecucao ? dashboard.matchingExecucao.ambiguos + dashboard.matchingExecucao.nao_conciliados : 'Sem execucao'} tone={dashboard.matchingExecucao ? 'warning' : 'default'} />
-          </div>
-          <div className="grid gap-4 lg:grid-cols-2">
-            <Card>
-              <CardHeader><CardTitle>Execucao de matching</CardTitle></CardHeader>
-              <CardContent className="grid grid-cols-2 gap-3 text-sm">
-                <div><span className="text-muted-foreground">Data</span><p className="font-medium">{date(dashboard.matchingExecucao?.data_referencia)}</p></div>
-                <div><span className="text-muted-foreground">Status</span><p><span className={badge(dashboard.matchingExecucao?.status || 'SEM_EXECUCAO')}>{dashboard.matchingExecucao?.status || 'Sem execucao'}</span></p></div>
-                <div><span className="text-muted-foreground">Regra</span><p className="font-medium">{dashboard.matchingExecucao?.regra_versao || '—'}</p></div>
-                <div><span className="text-muted-foreground">Titulos</span><p className="font-medium tabular-nums">{dashboard.matchingExecucao?.total_registros ?? 'Sem execucao'}</p></div>
-                <div className="col-span-2"><PreviousExecution label="execucao de matching" value={dashboard.execucoesAnteriores.matching?.data_referencia} /></div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader><CardTitle>Execucao de conciliacao</CardTitle></CardHeader>
-              <CardContent className="grid grid-cols-2 gap-3 text-sm">
-                <div><span className="text-muted-foreground">Data</span><p className="font-medium">{date(dashboard.conciliacaoExecucao?.data_referencia)}</p></div>
-                <div><span className="text-muted-foreground">Status</span><p><span className={badge(dashboard.conciliacaoExecucao?.status || 'SEM_EXECUCAO')}>{dashboard.conciliacaoExecucao?.status || 'Sem execucao'}</span></p></div>
-                <div className="col-span-2"><span className="text-muted-foreground">Bases utilizadas</span><p className="break-all font-mono text-xs">{baseIds.length ? baseIds.join(' · ') : 'Nenhuma base resolvida'}</p></div>
-              </CardContent>
-            </Card>
+            <SummaryCard label="Cobertura do matching" value={matchingCoverageLabel} tone={dashboard.estadosExecucao.matching === 'EXECUTADA_SEM_MOVIMENTO' ? 'success' : matchingCoverage === null ? 'default' : matchingCoverage >= 90 ? 'success' : 'warning'} />
+            <SummaryCard label="Conciliações corretas" value={dashboard.conciliacaoExecucao ? correct : reconciliationStateLabel} tone={dashboard.conciliacaoExecucao ? 'success' : 'default'} />
+            <SummaryCard label="Divergências" value={dashboard.conciliacaoExecucao ? divergences : reconciliationStateLabel} tone={dashboard.conciliacaoExecucao && divergences ? 'danger' : dashboard.conciliacaoExecucao ? 'success' : 'default'} />
+            <SummaryCard label="Ambíguos / não conciliados" value={dashboard.matchingExecucao ? dashboard.matchingExecucao.ambiguos + dashboard.matchingExecucao.nao_conciliados : rotuloEstadoExecucaoFinanceira(dashboard.estadosExecucao.matching)} tone={dashboard.matchingExecucao ? 'warning' : 'default'} />
           </div>
         </>
       )}
@@ -382,7 +387,7 @@ export function ConciliacaoFinanceiraClient({ dashboard }: { dashboard: Concilia
           {manualRow && (
             <div className="max-h-[60vh] space-y-4 overflow-y-auto pr-1">
               <div className="grid gap-3 rounded-lg bg-muted p-3 sm:grid-cols-3">
-                <div><p className="text-xs text-muted-foreground">Titulo externo</p><p className="font-medium">{manualRow.identidade_externa}</p></div>
+                <div><p className="text-xs text-muted-foreground">Título financeiro / ID externo</p><p className="font-medium">{manualRow.identidade_externa}</p></div>
                 <div><p className="text-xs text-muted-foreground">Cedente / sacado</p><p className="truncate font-medium" title={`${manualRow.cedente_nome || ''} · ${manualRow.sacado_nome || ''}`}>{manualRow.cedente_nome || '—'} · {manualRow.sacado_nome || '—'}</p></div>
                 <div><p className="text-xs text-muted-foreground">Valor / vencimento</p><p className="font-medium">{money(manualRow.valor_referencia)} · {date(manualRow.data_vencimento)}</p></div>
               </div>
@@ -450,10 +455,10 @@ export function ConciliacaoFinanceiraClient({ dashboard }: { dashboard: Concilia
 function MatchingTable({ rows, total, onManual, onRevoke }: { rows: MatchingViewRow[]; total: number; onManual: (row: MatchingViewRow) => void; onRevoke: (row: MatchingViewRow) => void }) {
   return (
     <Card>
-      <CardHeader><CardTitle>Matching ({total})</CardTitle></CardHeader>
+      <CardHeader><CardTitle>Vínculo Título × NF ({total})</CardTitle></CardHeader>
       <CardContent className="overflow-x-auto">
         <table className="w-full min-w-[980px] text-left text-sm">
-          <thead className="border-b text-xs uppercase text-muted-foreground"><tr><th className="py-2 pr-3">Titulo externo</th><th className="pr-3">Cedente</th><th className="pr-3">Sacado</th><th className="pr-3">Valor</th><th className="pr-3">Vencimento</th><th className="pr-3">Metodo</th><th className="pr-3">NF</th><th>Status</th><th className="text-right">Acoes</th></tr></thead>
+          <thead className="border-b text-xs uppercase text-muted-foreground"><tr><th className="py-2 pr-3">Título financeiro / ID externo</th><th className="pr-3">Cedente</th><th className="pr-3">Sacado</th><th className="pr-3">Valor</th><th className="pr-3">Vencimento</th><th className="pr-3">Método</th><th className="pr-3">NF</th><th>Status</th><th className="text-right">Ações</th></tr></thead>
           <tbody className="divide-y">
             {rows.map((row) => <tr key={row.id}><td className="max-w-48 truncate py-3 pr-3 font-mono text-xs" title={row.identidade_externa}>{row.identidade_externa}</td><td className="max-w-44 truncate pr-3" title={row.cedente_nome || ''}>{row.cedente_nome || '—'}</td><td className="max-w-44 truncate pr-3" title={row.sacado_nome || ''}>{row.sacado_nome || '—'}</td><td className="pr-3 tabular-nums">{money(row.valor_referencia)}</td><td className="pr-3">{date(row.data_vencimento)}</td><td className="pr-3">{row.metodo}</td><td className="pr-3">{row.nota_fiscal_id ? row.nota_fiscal_id.slice(0, 8) : '—'}</td><td><span className={badge(row.status)}>{row.status}</span></td><td className="space-x-1 text-right">{['AMBIGUO', 'NAO_CONCILIADO', 'CONFLITO'].includes(row.status) && <Button size="sm" variant="outline" onClick={() => onManual(row)}>Associar</Button>}{row.vinculo?.origem === 'MANUAL' && row.vinculo.status === 'ATIVO' && <Button size="sm" variant="destructive" onClick={() => onRevoke(row)}>Revogar</Button>}</td></tr>)}
           </tbody>
@@ -467,10 +472,10 @@ function MatchingTable({ rows, total, onManual, onRevoke }: { rows: MatchingView
 function ReconciliationTable({ rows, total }: { rows: ConciliacaoDashboard['conciliacao']['rows']; total: number }) {
   return (
     <Card>
-      <CardHeader><CardTitle>Conciliacao D-2 → D-1 ({total})</CardTitle></CardHeader>
+      <CardHeader><CardTitle>Conciliação Financeira D-2 → D-1 ({total})</CardTitle></CardHeader>
       <CardContent className="overflow-x-auto">
         <table className="w-full min-w-[920px] text-left text-sm">
-          <thead className="border-b text-xs uppercase text-muted-foreground"><tr><th className="py-2 pr-3">Titulo / NF</th><th className="pr-3">D-2</th><th className="pr-3">Aquisicoes</th><th className="pr-3">Liquidacoes</th><th className="pr-3">D-1</th><th>Resultado</th></tr></thead>
+          <thead className="border-b text-xs uppercase text-muted-foreground"><tr><th className="py-2 pr-3">Título / NF</th><th className="pr-3">Estoque D-2</th><th className="pr-3">Aquisições D-1</th><th className="pr-3">Liquidações D-1</th><th className="pr-3">Estoque D-1</th><th>Resultado</th></tr></thead>
           <tbody className="divide-y">{rows.map((row) => <tr key={row.id}><td className="max-w-64 truncate py-3 pr-3 font-mono text-xs" title={row.identidade_externa}>{row.identidade_externa}{row.nota_fiscal_id ? ` · NF ${row.nota_fiscal_id.slice(0, 8)}` : ''}</td><td className="pr-3 tabular-nums">{row.presente_d2 ? money(row.valor_aquisicao_d2) : 'Ausente'}</td><td className="pr-3 tabular-nums">{row.aquisicoes_count} · {money(row.aquisicoes_valor)}</td><td className="pr-3 tabular-nums">{row.liquidacoes_count} · {money(row.liquidacoes_valor_pago)}</td><td className="pr-3 tabular-nums">{row.presente_d1 ? money(row.valor_aquisicao_d1) : 'Ausente'}</td><td><span className={badge(row.status)}>{row.status}</span></td></tr>)}</tbody>
         </table>
         {!rows.length && <p className="py-10 text-center text-muted-foreground">Nenhum resultado de conciliacao para os filtros informados.</p>}
@@ -481,7 +486,7 @@ function ReconciliationTable({ rows, total }: { rows: ConciliacaoDashboard['conc
 
 function LogisticsView({ dashboard }: { dashboard: ConciliacaoDashboard }) {
   const execution = dashboard.logisticaExecucao
-  if (!execution) return <Card><CardHeader><CardTitle>Posicao logistica</CardTitle></CardHeader><CardContent className="space-y-3"><p className="text-sm text-muted-foreground">Nenhuma execucao logistica disponivel para D-1 {date(dashboard.baseFinanceira?.dataD1)}. Nenhuma contagem ou valor foi inferido.</p><PreviousExecution label="posicao logistica" value={dashboard.execucoesAnteriores.logistica?.data_referencia} /></CardContent></Card>
+  if (!execution) return <Card><CardHeader><CardTitle>Posição Logística</CardTitle></CardHeader><CardContent className="space-y-3"><p className="text-sm text-muted-foreground">Situação logística dos títulos do estoque com base em evidências aprovadas.</p><p className="text-sm text-muted-foreground">Nenhuma execução logística disponível para D-1 {date(dashboard.baseFinanceira?.dataD1)}. Nenhuma contagem ou valor foi inferido.</p><PreviousExecution label="posição logística" value={dashboard.execucoesAnteriores.logistica?.data_referencia} /></CardContent></Card>
   const cards = [
     ['Posicao total', execution.total_posicoes, execution.valor_total_aquisicao],
     ['Matched', execution.posicoes_matched, execution.valor_matched],
@@ -495,8 +500,9 @@ function LogisticsView({ dashboard }: { dashboard: ConciliacaoDashboard }) {
       {cards.map(([label, count, value]) => <Card size="sm" key={label}><CardContent><p className="text-xs uppercase text-muted-foreground">{label}</p><p className="mt-1 text-xl font-semibold tabular-nums">{count}</p><p className="text-xs font-medium tabular-nums text-muted-foreground">{value === null || value === undefined ? 'Valor nao informado' : money(value)}</p></CardContent></Card>)}
     </div>
     <Card>
-      <CardHeader><CardTitle>Posicao logistica ({dashboard.logistica.total})</CardTitle></CardHeader>
+      <CardHeader><CardTitle>Posição Logística ({dashboard.logistica.total})</CardTitle></CardHeader>
       <CardContent>
+        <p className="mb-3 text-sm text-muted-foreground">Situação logística dos títulos do estoque com base em evidências aprovadas.</p>
         <div className="mb-4 grid gap-2 rounded-lg bg-muted p-3 text-sm sm:grid-cols-3"><div><span className="text-muted-foreground">Estoque</span><p className="font-mono text-xs">{execution.estoque_importacao_id ? execution.estoque_importacao_id.slice(0, 8) : 'Indisponivel'}</p></div><div><span className="text-muted-foreground">Logistica as-of</span><p>{execution.logistica_as_of ? new Date(execution.logistica_as_of).toLocaleString('pt-BR') : 'Indisponivel'}</p></div><div><span className="text-muted-foreground">Regra</span><p>{execution.regra_versao}</p></div></div>
         <div className="overflow-x-auto"><table className="w-full min-w-[1100px] text-left text-sm"><thead className="border-b text-xs uppercase text-muted-foreground"><tr><th className="py-2 pr-3">Titulo / NF</th><th className="pr-3">Cedente</th><th className="pr-3">Sacado</th><th className="pr-3">Aquisicao</th><th className="pr-3">Matching</th><th className="pr-3">Logistica</th><th className="pr-3">Evidencia</th><th>Vencimento</th></tr></thead><tbody className="divide-y">
           {dashboard.logistica.rows.map((row) => <tr key={row.id}><td className="max-w-48 truncate py-3 pr-3" title={row.id_recebivel || row.seu_numero || ''}><p className="font-mono text-xs">{row.id_recebivel || row.seu_numero || row.numero_documento || '—'}</p>{row.nota_fiscal_id ? <Link className="text-xs font-medium text-primary hover:underline" href={`/gestor/notas-fiscais/${row.nota_fiscal_id}`}>Ver NF</Link> : <Link className="text-xs font-medium text-primary hover:underline" href={currentQuery(dashboard, 'matching')}>Resolver matching</Link>}</td><td className="max-w-44 truncate pr-3" title={row.cedente_nome || ''}>{row.cedente_nome || '—'}</td><td className="max-w-44 truncate pr-3" title={row.sacado_nome || ''}>{row.sacado_nome || '—'}</td><td className="pr-3 tabular-nums">{row.valor_aquisicao === null ? <span className="text-warning-foreground">Ausente</span> : money(row.valor_aquisicao)}</td><td className="pr-3"><span className={badge(row.matching_status)}>{row.matching_status}</span></td><td className="pr-3">{row.status_logistico ? <span className={badge(row.status_logistico)}>{row.status_logistico}</span> : <span className={badge(row.status_vinculo)}>{row.status_vinculo}</span>}</td><td className="max-w-44 truncate pr-3" title={row.fundamento}>{row.evidencia_familia || row.fundamento}</td><td>{date(row.data_vencimento)}</td></tr>)}
@@ -524,12 +530,12 @@ function ExposureView({ dashboard, operationId, onOperationId, simulation, pendi
   if (!execution) return <div className="space-y-4"><Card><CardHeader><CardTitle>Exposicao conhecida em transito</CardTitle></CardHeader><CardContent className="space-y-3"><p className="text-sm text-muted-foreground">Nenhum calculo compativel com a data operacional {date(dashboard.baseFinanceira?.dataOperacional)}, D-1 {date(dashboard.baseFinanceira?.dataD1)} e o PL de referencia {date(dashboard.baseFinanceira?.carteira.dataReferencia)}. Valores ausentes nao foram convertidos em zero.</p>{dashboard.exposicaoExecucaoIncompativel && <p className="rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning-foreground">Existe uma execucao da mesma data com referencias antigas ({date(dashboard.exposicaoExecucaoIncompativel.data_referencia_estoque)} / {date(dashboard.exposicaoExecucaoIncompativel.data_referencia_pl)}). Ela foi preservada apenas como historico e nao e o resultado atual.</p>}<PreviousExecution label="execucao de exposicao" value={dashboard.execucoesAnteriores.exposicao?.data_operacional} /></CardContent></Card></div>
   const neutralClassification = execution?.classificacao_limite || execution?.status || 'SEM_EXECUCAO'
   const cards = [
-    ['PL de referencia', money(execution?.patrimonio_liquido_d2)],
+    ['Valor em trânsito', money(execution?.exposicao_em_transito_total)],
+    ['PL de referência', money(execution?.patrimonio_liquido_d2)],
+    ['Exposição', percentValue(execution?.percentual_exposicao)],
     ['Posicao D-1', money(execution?.valor_posicao_total)],
     ['Em transito no Estoque', money(execution?.valor_em_transito_estoque)],
     ['Overlay intraday em transito', money(execution?.overlay_em_transito)],
-    ['Exposicao conhecida em transito', money(execution?.exposicao_em_transito_total)],
-    ['Percentual', percentValue(execution?.percentual_exposicao)],
     ['Limite de referencia', percentValue(execution?.limite_referencia_pct)],
     ['Classificacao matematica', neutralClassification],
   ] as const
@@ -547,7 +553,7 @@ function ExposureView({ dashboard, operationId, onOperationId, simulation, pendi
         <div><span className="text-muted-foreground">Regra</span><p className="font-medium">{execution?.regra_versao || 'Nao executada'}</p></div>
       </CardContent>
     </Card>
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {cards.map(([label, value]) => <SummaryCard key={label} label={label} value={value} />)}
     </div>
     <Card>
@@ -618,12 +624,12 @@ function RiskView({ dashboard, onReview }: {
         <div><span className="text-muted-foreground">Ultima avaliacao</span><p className="font-medium">{evaluatedAt ? new Date(evaluatedAt).toLocaleString('pt-BR') : 'Nao realizada'}</p></div>
       </CardContent>
     </Card>
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-      <SummaryCard label="Decisao atual" value={execution?.decisao || (execution?.aplicavel === false ? 'NAO_APLICAVEL' : 'Sem avaliacao')} tone={execution?.decisao === 'BLOQUEADO' ? 'danger' : execution?.decisao === 'REVISAO_MANUAL' ? 'warning' : 'success'} />
-      <SummaryCard label="PL de referencia" value={execution?.patrimonio_liquido_d2 == null ? 'Indisponivel' : money(execution.patrimonio_liquido_d2)} />
-      <SummaryCard label="Exposicao atual" value={execution?.exposicao_atual_pct == null ? 'Indeterminada' : percentValue(execution.exposicao_atual_pct)} />
-      <SummaryCard label="Exposicao projetada" value={execution?.exposicao_projetada_pct == null ? 'Nao calculada' : percentValue(execution.exposicao_projetada_pct)} />
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      <SummaryCard label="Exposição atual" value={execution?.exposicao_atual_pct == null ? 'Indeterminada' : percentValue(execution.exposicao_atual_pct)} />
       <SummaryCard label="Limite" value={execution?.limite_pct == null ? 'Nao configurado' : percentValue(execution.limite_pct)} />
+      <SummaryCard label="Resultado" value={execution?.decisao || (execution?.aplicavel === false ? 'NAO_APLICAVEL' : 'Sem avaliacao')} tone={execution?.decisao === 'BLOQUEADO' ? 'danger' : execution?.decisao === 'REVISAO_MANUAL' ? 'warning' : 'success'} />
+      <SummaryCard label="PL de referência" value={execution?.patrimonio_liquido_d2 == null ? 'Indisponível' : money(execution.patrimonio_liquido_d2)} />
+      <SummaryCard label="Exposição projetada" value={execution?.exposicao_projetada_pct == null ? 'Não calculada' : percentValue(execution.exposicao_projetada_pct)} />
       <SummaryCard label="Em transito" value={execution?.exposicao_atual_valor == null ? 'Indisponivel' : money(execution.exposicao_atual_valor)} />
       <SummaryCard label="Indeterminadas" value={execution?.quantidade_indeterminada || 0} tone={execution?.quantidade_indeterminada ? 'warning' : 'success'} />
       <SummaryCard label="Sem match" value={execution?.quantidade_sem_match || 0} tone={execution?.quantidade_sem_match ? 'danger' : 'success'} />

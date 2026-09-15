@@ -23,6 +23,7 @@ describe('base financeira D-1/D-2 da conciliacao', () => {
       snapshots: [{ importacao_id: '737c449c-a723-4b33-8f47-4089c88dc1f8', patrimonio_liquido: '1000000', vigente: true }],
     })
     expect(result).toMatchObject({ dataD1: '2026-08-21', dataD2: '2026-08-20', statusGeral: 'BASE_INCOMPLETA' })
+    expect(result.estoqueD2).toMatchObject({ estado: 'INDISPONIVEL', dataEsperada: '2026-08-20' })
     expect(result.carteira).toMatchObject({ estado: 'VALOR', valor: '1000000.0000', origemQa: true })
     expect(result.estoque).toMatchObject({ estado: 'INDISPONIVEL', valor: null })
     expect(result.aquisicoes.valor).toBeNull()
@@ -51,12 +52,14 @@ describe('base financeira D-1/D-2 da conciliacao', () => {
       importacoes: [
         importacao({}),
         importacao({ id: '11111111-1111-4111-8111-111111111111', tipo_base: 'ESTOQUE', data_referencia: '2026-08-21', origem: 'MANUAL', provedor: 'administradora', valor_total: '0' }),
+        importacao({ id: '44444444-4444-4444-8444-444444444444', tipo_base: 'ESTOQUE', data_referencia: '2026-08-20', origem: 'MANUAL', provedor: 'administradora', valor_total: '100' }),
         importacao({ id: '22222222-2222-4222-8222-222222222222', tipo_base: 'AQUISICOES', data_referencia: '2026-08-21', completude: 'COMPLETO_VAZIO', declaracao_sem_movimento: true }),
         importacao({ id: '33333333-3333-4333-8333-333333333333', tipo_base: 'LIQUIDACOES', data_referencia: '2026-08-21', completude: 'COMPLETO_VAZIO', declaracao_sem_movimento: true }),
       ],
       snapshots: [{ importacao_id: '737c449c-a723-4b33-8f47-4089c88dc1f8', patrimonio_liquido: '1000000', vigente: true }],
     })
     expect(result.estoque.estado).toBe('ZERO')
+    expect(result.estoqueD2.estado).toBe('VALOR')
     expect(result.aquisicoes.estado).toBe('SEM_MOVIMENTO')
     expect(result.liquidacoes.estado).toBe('SEM_MOVIMENTO')
     expect(result.statusGeral).toBe('PRONTA')

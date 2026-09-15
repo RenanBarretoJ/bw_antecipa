@@ -25,6 +25,12 @@ import type {
   RiscoRevisao,
   TituloNfVinculo,
 } from '@/types/database'
+import {
+  classificarEstadoExecucaoFinanceira,
+  totalDeContagens,
+  type EstadoExecucaoFinanceira,
+} from './execution-state'
+import { resolverStatusEsteiraFinanceira, type StatusEsteiraFinanceira } from './pipeline-status.server'
 
 export type ConciliacaoTab = 'visao-geral' | 'matching' | 'conciliacao' | 'logistica' | 'exposicao' | 'risco' | 'excecoes'
 
@@ -55,13 +61,14 @@ export type MatchingViewRow = MatchingResultado & {
   vinculo?: TituloNfVinculo | null
 }
 
-export type ConciliacaoBlock = 'datas' | 'base' | 'matching' | 'conciliacao' | 'logistica' | 'exposicao' | 'risco'
+export type ConciliacaoBlock = 'datas' | 'base' | 'politica' | 'matching' | 'conciliacao' | 'logistica' | 'exposicao' | 'risco'
 
 export type PoliticaFinanceiraDaData = {
   estado: 'APLICAVEL' | 'SEM_POLITICA_PADRAO' | 'SEM_VERSAO_VIGENTE' | 'NAO_CONFIGURADA' | 'INDISPONIVEL'
   nome: string | null
   versao: number | null
   versaoId: string | null
+  criaAcompanhamentoEntrega: boolean
   controleExposicaoAtivo: boolean
   gateRiscoAtivo: boolean
   limitePct: string | number | null
@@ -82,7 +89,12 @@ export type ConciliacaoDashboard = {
   baseFinanceira: BaseFinanceiraDaData | null
   politicaDaData: PoliticaFinanceiraDaData
   erros: Partial<Record<ConciliacaoBlock, string>>
+  esteira: StatusEsteiraFinanceira
   execucoesAnteriores: ExecucoesAnteriores
+  estadosExecucao: {
+    matching: EstadoExecucaoFinanceira
+    conciliacao: EstadoExecucaoFinanceira
+  }
   exposicaoExecucaoIncompativel: ExposicaoExecucao | null
   matchingExecucao: MatchingExecucao | null
   conciliacaoExecucao: ConciliacaoExecucao | null
@@ -165,7 +177,7 @@ async function carregarBaseFinanceira(
       .select('id,tipo_base,data_referencia,completude,declaracao_sem_movimento,origem,provedor,linhas_publicadas,valor_total,publicada_em')
       .eq('fundo_id', fundoId).eq('status', 'PUBLICADA')
       .in('tipo_base', ['ESTOQUE', 'AQUISICOES', 'LIQUIDACOES'])
-      .eq('data_referencia', expected.dataD1)
+      .in('data_referencia', [expected.dataD1, expected.dataD2])
       .order('publicada_em', { ascending: false }),
     resolverPlReferencia(supabase, { fundoId, dataOperacional }),
   ])
@@ -188,24 +200,51 @@ async function carregarPoliticaDaData(
   const policies = await supabase.from('politicas_operacionais').select('id,nome,padrao')
     .eq('fundo_id', fundoId).eq('status', 'ativa')
   if (policies.error) throw new Error(`Nao foi possivel resolver a politica financeira: ${policies.error.message}`)
-  if (!policies.data?.length) return { estado: 'NAO_CONFIGURADA', nome: null, versao: null, versaoId: null, controleExposicaoAtivo: false, gateRiscoAtivo: false, limitePct: null }
+  if (!policies.data?.length) return { estado: 'NAO_CONFIGURADA', nome: null, versao: null, versaoId: null, criaAcompanhamentoEntrega: false, controleExposicaoAtivo: false, gateRiscoAtivo: false, limitePct: null }
   const policy = policies.data.find((item) => item.padrao === true)
-  if (!policy) return { estado: 'SEM_POLITICA_PADRAO', nome: null, versao: null, versaoId: null, controleExposicaoAtivo: false, gateRiscoAtivo: false, limitePct: null }
+  if (!policy) return { estado: 'SEM_POLITICA_PADRAO', nome: null, versao: null, versaoId: null, criaAcompanhamentoEntrega: false, controleExposicaoAtivo: false, gateRiscoAtivo: false, limitePct: null }
   const version = await supabase.from('politica_operacional_versoes')
-    .select('id,versao,controle_exposicao_logistica_ativo,gate_risco_ativo,limite_exposicao_em_transito_pct')
+    .select('id,versao,cria_acompanhamento_entrega,controle_exposicao_logistica_ativo,gate_risco_ativo,limite_exposicao_em_transito_pct')
     .eq('politica_operacional_id', policy.id).eq('fundo_id', fundoId)
     .in('status', ['publicada', 'substituida'])
     .lte('vigente_desde', `${dataOperacional}T23:59:59.999-03:00`)
     .or(`vigente_ate.is.null,vigente_ate.gte.${dataOperacional}T00:00:00-03:00`)
     .order('versao', { ascending: false }).limit(1).maybeSingle()
   if (version.error) throw new Error(`Nao foi possivel resolver a versao vigente da politica financeira: ${version.error.message}`)
-  if (!version.data) return { estado: 'SEM_VERSAO_VIGENTE', nome: String(policy.nome), versao: null, versaoId: null, controleExposicaoAtivo: false, gateRiscoAtivo: false, limitePct: null }
+  if (!version.data) return { estado: 'SEM_VERSAO_VIGENTE', nome: String(policy.nome), versao: null, versaoId: null, criaAcompanhamentoEntrega: false, controleExposicaoAtivo: false, gateRiscoAtivo: false, limitePct: null }
   return {
     estado: 'APLICAVEL', nome: String(policy.nome), versao: Number(version.data.versao), versaoId: String(version.data.id),
+    criaAcompanhamentoEntrega: version.data.cria_acompanhamento_entrega === true,
     controleExposicaoAtivo: version.data.controle_exposicao_logistica_ativo === true,
     gateRiscoAtivo: version.data.gate_risco_ativo === true,
     limitePct: version.data.limite_exposicao_em_transito_pct,
   }
+}
+
+async function carregarEstadoFundoVirgem(
+  supabase: Awaited<ReturnType<typeof requireGestor>>['supabase'],
+  fundoId: string,
+) {
+  const imports = await supabase.from('importacoes_financeiras')
+    .select('id', { count: 'exact', head: true })
+    .eq('fundo_id', fundoId)
+    .eq('status', 'PUBLICADA')
+    .in('tipo_base', ['ESTOQUE', 'AQUISICOES', 'LIQUIDACOES'])
+  if (imports.error) throw new Error(`Nao foi possivel resolver o historico financeiro do fundo: ${imports.error.message}`)
+  if ((imports.count || 0) > 0) return false
+
+  const links = await supabase.from('cedente_fundos').select('id').eq('fundo_id', fundoId)
+  if (links.error) throw new Error(`Nao foi possivel resolver os vinculos do fundo: ${links.error.message}`)
+  const linkIds = (links.data || []).map((row) => row.id)
+  if (!linkIds.length) return true
+
+  const operations = await supabase.from('operacoes')
+    .select('id', { count: 'exact', head: true })
+    .in('cedente_fundo_id', linkIds)
+    .in('status', ['em_andamento', 'inadimplente', 'liquidada'])
+    .not('cessao_efetivada_em', 'is', null)
+  if (operations.error) throw new Error(`Nao foi possivel resolver o historico operacional do fundo: ${operations.error.message}`)
+  return (operations.count || 0) === 0
 }
 
 type LatestExecutionResult = {
@@ -523,27 +562,48 @@ export async function carregarConciliacaoGestor(filters: ConciliacaoFilters): Pr
     ? { ...normalizedFilters, dataReferencia: '' }
     : normalizedFilters
   let base = requestedDate ? montarBaseFinanceiraDaData({ dataOperacional: requestedDate, importacoes: [], snapshots: [] }) : null
+  let policy: PoliticaFinanceiraDaData = { estado: 'INDISPONIVEL', nome: null, versao: null, versaoId: null, criaAcompanhamentoEntrega: false, controleExposicaoAtivo: false, gateRiscoAtivo: false, limitePct: null }
+  let fundoVirgem = false
   if (requestedDate) {
-    try {
-      base = await carregarBaseFinanceira(context.supabase, fundo.id, requestedDate)
-    } catch (error) {
-      console.error('[conciliacao][base]', error instanceof Error ? error.message : 'erro desconhecido')
+    const [baseResult, policyResult, virginResult] = await Promise.allSettled([
+      carregarBaseFinanceira(context.supabase, fundo.id, requestedDate),
+      carregarPoliticaDaData(context.supabase, fundo.id, requestedDate),
+      carregarEstadoFundoVirgem(context.supabase, fundo.id),
+    ])
+    if (baseResult.status === 'fulfilled') base = baseResult.value
+    else {
+      console.error('[conciliacao][base]', baseResult.reason instanceof Error ? baseResult.reason.message : 'erro desconhecido')
       errors.base = 'Nao foi possivel carregar todas as bases financeiras desta data.'
     }
-  }
-  let policy: PoliticaFinanceiraDaData = { estado: 'INDISPONIVEL', nome: null, versao: null, versaoId: null, controleExposicaoAtivo: false, gateRiscoAtivo: false, limitePct: null }
-  if (requestedDate) {
-    try {
-      policy = await carregarPoliticaDaData(context.supabase, fundo.id, requestedDate)
-    } catch (error) {
-      console.error('[conciliacao][politica]', error instanceof Error ? error.message : 'erro desconhecido')
-      errors.risco = 'Nao foi possivel resolver a politica financeira desta data.'
+    if (policyResult.status === 'fulfilled') policy = policyResult.value
+    else {
+      console.error('[conciliacao][politica]', policyResult.reason instanceof Error ? policyResult.reason.message : 'erro desconhecido')
+      errors.politica = 'Nao foi possivel resolver a politica financeira desta data.'
+    }
+    if (virginResult.status === 'fulfilled') fundoVirgem = virginResult.value
+    else {
+      console.error('[conciliacao][bootstrap]', virginResult.reason instanceof Error ? virginResult.reason.message : 'erro desconhecido')
+      errors.base = errors.base || 'Nao foi possivel resolver o historico financeiro do fundo.'
     }
   }
   const executions = base
     ? await latestExecutions(context.supabase, fundo.id, base)
     : { current: emptyExecutions(), previous: emptyExecutions(), incompatibleExposure: null, errors: {} }
   Object.assign(errors, executions.errors)
+  const estadosExecucao = {
+    matching: classificarEstadoExecucaoFinanceira({
+      atual: executions.current.matching,
+      anterior: executions.previous.matching,
+      totalRegistros: executions.current.matching?.total_registros ?? null,
+    }),
+    conciliacao: classificarEstadoExecucaoFinanceira({
+      atual: executions.current.conciliacao,
+      anterior: executions.previous.conciliacao,
+      totalRegistros: executions.current.conciliacao
+        ? totalDeContagens(executions.current.conciliacao.contagens)
+        : null,
+    }),
+  }
 
   let matching: ConciliacaoDashboard['matching'] = { rows: [], total: 0 }
   let reconciliation: ConciliacaoDashboard['conciliacao'] = { rows: [], total: 0 }
@@ -567,6 +627,15 @@ export async function carregarConciliacaoGestor(filters: ConciliacaoFilters): Pr
   if (normalizedFilters.tab === 'exposicao') tasks.push(load('exposicao', () => exposureRows({ supabase: context.supabase, fundoId: fundo.id, executionId: executions.current.exposicao?.id || null, filters: normalizedFilters }), (value) => { exposure = value }))
   if (normalizedFilters.tab === 'risco') tasks.push(load('risco', () => riskRows({ supabase: context.supabase, fundoId: fundo.id, filters: riskListFilters }), (value) => { risk = value }))
   await Promise.all(tasks)
+  const esteira = resolverStatusEsteiraFinanceira({
+    base: base!,
+    politica: policy,
+    execucoes: executions.current,
+    execucoesAnteriores: executions.previous,
+    exposicaoIncompativel: executions.incompatibleExposure,
+    erros: errors,
+    fundoVirgem,
+  })
   return {
     fundo,
     filtros: normalizedFilters,
@@ -574,7 +643,9 @@ export async function carregarConciliacaoGestor(filters: ConciliacaoFilters): Pr
     baseFinanceira: base,
     politicaDaData: policy,
     erros: errors,
+    esteira,
     execucoesAnteriores: executions.previous,
+    estadosExecucao,
     exposicaoExecucaoIncompativel: executions.incompatibleExposure,
     matchingExecucao: executions.current.matching,
     conciliacaoExecucao: executions.current.conciliacao,

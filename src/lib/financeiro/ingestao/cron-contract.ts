@@ -1,11 +1,7 @@
-import { adicionarDiasCivis, diaUtilAnteriorOuIgual } from '@/lib/comunicacoes/calendario'
+import { diaUtilAnterior } from '@/lib/comunicacoes/calendario'
 import type { TipoBaseFinanceiro } from './types'
 
 export type ExpectativasCicloFinanceiro = Record<TipoBaseFinanceiro, string>
-
-function diaUtilAnterior(value: string): string {
-  return diaUtilAnteriorOuIgual(adicionarDiasCivis(value, -1))
-}
 
 /**
  * Datas esperadas pelo ciclo D0. Este contrato apenas valida a ingestao;

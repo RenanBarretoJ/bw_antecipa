@@ -23,6 +23,10 @@ export function diaUtilAnteriorOuIgual(value: string): string {
   return cursor
 }
 
+export function diaUtilAnterior(value: string): string {
+  return diaUtilAnteriorOuIgual(adicionarDiasCivis(value, -1))
+}
+
 export function proximoDiaUtilOuIgual(value: string): string {
   let cursor = value
   while (!ehDiaUtilAnbima(cursor)) cursor = adicionarDiasCivis(cursor, 1)
