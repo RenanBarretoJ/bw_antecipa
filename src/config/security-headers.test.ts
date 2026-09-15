@@ -34,4 +34,24 @@ describe('security headers', () => {
       else process.env.NEXT_PUBLIC_SUPABASE_URL = previousUrl
     }
   })
+
+  it('autoriza preview de imagem somente na origem Supabase configurada', async () => {
+    const previousUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://homolog-example.supabase.co'
+
+    try {
+      const rules = await nextConfig.headers!()
+      const csp = rules
+        .flatMap((rule) => rule.headers)
+        .find((header) => header.key.toLowerCase() === 'content-security-policy')
+        ?.value
+      const imageDirective = csp?.split('; ').find((directive) => directive.startsWith('img-src'))
+
+      expect(imageDirective).toBe("img-src 'self' data: blob: https://homolog-example.supabase.co")
+      expect(imageDirective).not.toContain('https://*.supabase.co')
+    } finally {
+      if (previousUrl === undefined) delete process.env.NEXT_PUBLIC_SUPABASE_URL
+      else process.env.NEXT_PUBLIC_SUPABASE_URL = previousUrl
+    }
+  })
 })

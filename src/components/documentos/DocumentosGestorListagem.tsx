@@ -44,7 +44,7 @@ export function DocumentosGestorListagem({
   const notifications = useNotifications()
   const [isPending, startTransition] = useTransition()
   const [busca, setBusca] = useState(filtros.q)
-  const [modal, setModal] = useState<{ doc: DocumentoGestorListagemItem; url: string } | null>(null)
+  const [modal, setModal] = useState<{ doc: DocumentoGestorListagemItem; url: string; fileName: string } | null>(null)
   const [motivo, setMotivo] = useState('')
   const [processing, setProcessing] = useState(false)
   const currentParams = useMemo(() => Object.fromEntries(searchParams.entries()), [searchParams])
@@ -68,7 +68,7 @@ export function DocumentosGestorListagem({
       setProcessing(false)
       return
     }
-    setModal({ doc, url: result.url })
+    setModal({ doc, url: result.url, fileName: result.nome || doc.nome })
     setMotivo('')
     setProcessing(false)
   }
@@ -181,7 +181,7 @@ export function DocumentosGestorListagem({
       {modal && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
         <div className="flex max-h-[90vh] w-full max-w-4xl flex-col rounded-xl border bg-card shadow-xl">
           <div className="flex items-center justify-between border-b p-4"><div><h3 className="font-semibold">{modal.doc.nome} — v{modal.doc.versaoAtual.numero}</h3><p className="text-sm text-muted-foreground">{modal.doc.cedente.nome}</p></div><Button variant="ghost" size="icon" onClick={() => setModal(null)}><X size={20} /></Button></div>
-          <div className="flex-1 overflow-auto p-4"><FilePreviewContent url={modal.url} title={modal.doc.nome} className="h-[500px]" /></div>
+          <div className="flex-1 overflow-auto p-4"><FilePreviewContent url={modal.url} filePath={modal.fileName} title={modal.doc.nome} className="h-[500px]" /></div>
           {['enviado', 'em_analise'].includes(modal.doc.status) && <div className="space-y-3 border-t p-4">
             <div className="flex gap-3"><Button disabled={processing} onClick={() => analisar('aprovado')} className="flex-1 bg-green-600 text-white hover:bg-green-700">Aprovar</Button><Button disabled={processing} onClick={() => analisar('reprovado')} variant="destructive" className="flex-1">Reprovar</Button></div>
             <div><Label htmlFor="motivo-documento">Motivo da reprovacao</Label><textarea id="motivo-documento" className="mt-1 w-full rounded-lg border bg-transparent px-3 py-2 text-sm" rows={2} value={motivo} onChange={(event) => setMotivo(event.target.value)} /></div>

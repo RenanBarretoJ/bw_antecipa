@@ -24,6 +24,8 @@ const nextConfig: NextConfig = {
           return url.origin
         })()
       : 'wss://*.supabase.co'
+    const imageSources = ["'self'", 'data:', 'blob:']
+    if (supabaseUrl) imageSources.push(supabaseOrigin)
     return [
       {
         source: '/:path*',
@@ -33,7 +35,7 @@ const nextConfig: NextConfig = {
             value: [
               "default-src 'self'",
               `connect-src 'self' ${supabaseOrigin} ${supabaseWebSocketOrigin} https://*.supabase.co wss://*.supabase.co`,
-              "img-src 'self' data: blob:",
+              `img-src ${imageSources.join(' ')}`,
               "font-src 'self' data:",
               "style-src 'self' 'unsafe-inline'",
               `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''}`,
