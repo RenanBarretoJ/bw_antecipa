@@ -3,6 +3,7 @@ import 'server-only'
 import { createHash, randomUUID } from 'node:crypto'
 import Decimal from 'decimal.js'
 import { createAdminClient } from '@/lib/supabase/server'
+import { diaUtilAnterior } from '@/lib/comunicacoes/calendario'
 import {
   chavesPropagaveis,
   executarMatchDeterministico,
@@ -48,12 +49,6 @@ const admin = () => createAdminClient() as ReturnType<typeof createAdminClient> 
 
 function sha256(parts: unknown) {
   return createHash('sha256').update(JSON.stringify(parts)).digest('hex')
-}
-
-function previousDate(value: string) {
-  const date = new Date(`${value}T12:00:00.000Z`)
-  date.setUTCDate(date.getUTCDate() - 1)
-  return date.toISOString().slice(0, 10)
 }
 
 function text(value: unknown) {
@@ -280,7 +275,7 @@ async function retifiedIdentities(current: ImportRow | null, type: 'ESTOQUE' | '
 }
 
 export async function executarConciliacaoFinanceira(input: { fundoId: string; dataReferencia: string; atorUsuarioId: string; readCache?: FinancialPipelineReadCache }) {
-  const d2Date = previousDate(input.dataReferencia)
+  const d2Date = diaUtilAnterior(input.dataReferencia)
   const [stockD2, stockD1, acquisitionsD1, liquidationsD1] = await Promise.all([
     latestImport(input.fundoId, 'ESTOQUE', d2Date, input.readCache), latestImport(input.fundoId, 'ESTOQUE', input.dataReferencia, input.readCache),
     latestImport(input.fundoId, 'AQUISICOES', input.dataReferencia, input.readCache), latestImport(input.fundoId, 'LIQUIDACOES', input.dataReferencia, input.readCache),

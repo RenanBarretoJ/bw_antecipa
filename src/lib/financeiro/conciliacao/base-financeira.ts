@@ -42,6 +42,7 @@ export type BaseFinanceiraDaData = {
   dataD1: string
   dataD2: string
   estoque: BaseFinanceiraResolvida
+  estoqueD2: BaseFinanceiraResolvida
   carteira: BaseFinanceiraResolvida
   aquisicoes: BaseFinanceiraResolvida
   liquidacoes: BaseFinanceiraResolvida
@@ -114,6 +115,7 @@ export function montarBaseFinanceiraDaData(input: {
 }): BaseFinanceiraDaData {
   const datas = resolverExpectativasCicloFinanceiro(input.dataOperacional)
   const estoque = resolveBase({ ...input, tipo: 'ESTOQUE', dataEsperada: datas.ESTOQUE })
+  const estoqueD2 = resolveBase({ ...input, tipo: 'ESTOQUE', dataEsperada: datas.CARTEIRA })
   const aquisicoes = resolveBase({ ...input, tipo: 'AQUISICOES', dataEsperada: datas.AQUISICOES })
   const liquidacoes = resolveBase({ ...input, tipo: 'LIQUIDACOES', dataEsperada: datas.LIQUIDACOES })
   const escopoFundo = input.fundoId || '__escopo_consulta__'
@@ -162,10 +164,11 @@ export function montarBaseFinanceiraDaData(input: {
     dataD1: datas.ESTOQUE,
     dataD2: datas.CARTEIRA,
     estoque,
+    estoqueD2,
     carteira,
     aquisicoes,
     liquidacoes,
-    statusGeral: statusGeral([estoque, carteira, aquisicoes, liquidacoes]),
+    statusGeral: statusGeral([estoqueD2, estoque, carteira, aquisicoes, liquidacoes]),
   }
 }
 

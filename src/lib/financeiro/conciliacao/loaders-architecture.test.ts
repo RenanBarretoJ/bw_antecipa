@@ -13,6 +13,11 @@ describe('arquitetura temporal e estados da Central de Conciliacao', () => {
     expect(loader).toContain(".eq('escopo', 'FUNDO').eq('data_operacional', base.dataOperacional)")
   })
 
+  it('disponibiliza Estoque D-2 sem substituir a referencia D-1 dos processors', () => {
+    expect(loader).toContain(".in('data_referencia', [expected.dataD1, expected.dataD2])")
+    expect(loader).toContain('totalDeContagens(executions.current.conciliacao.contagens)')
+  })
+
   it('isola falhas por bloco em vez de derrubar a pagina inteira', () => {
     expect(loader).toContain("errors[block] = 'Nao foi possivel carregar este bloco. Tente novamente.'")
     expect(client).toContain('dashboard.erros.logistica ? <BlockError')
@@ -21,8 +26,8 @@ describe('arquitetura temporal e estados da Central de Conciliacao', () => {
   })
 
   it('executa matching, conciliacao e logistica com a data D-1 resolvida no servidor', () => {
-    expect(client.match(/dashboard\.baseFinanceira!\.dataD1/g)).toHaveLength(3)
-    expect(client).toContain('executarExposicaoAction({ dataReferencia: dashboard.filtros.dataReferencia })')
+    expect(client.match(/dataReferencia: dashboard\.esteira\.dataD1/g)).toHaveLength(3)
+    expect(client).toContain('executarExposicaoAction({ dataReferencia: dashboard.esteira.dataOperacional })')
     expect(client).toContain('executarGateRiscoAction({ dataReferencia: dashboard.filtros.dataReferencia })')
   })
 
@@ -30,6 +35,13 @@ describe('arquitetura temporal e estados da Central de Conciliacao', () => {
     expect(client).toContain("if (value === null || value === undefined || value === '') return 'Indisponivel'")
     expect(client).not.toContain('Number(value || 0)')
     expect(client).toContain('QA SYNTHETIC')
+  })
+
+  it('deriva os estados da colecao de execucoes e nao de total_registros como booleano', () => {
+    expect(loader).toContain('classificarEstadoExecucaoFinanceira({')
+    expect(client).toContain('dashboard.estadosExecucao.matching')
+    expect(client).toContain('rotuloEstadoExecucaoFinanceira(dashboard.estadosExecucao.matching)')
+    expect(client).not.toContain("matchingCoverage === null ? 'Sem execucao'")
   })
 
   it('usa hoje em Sao Paulo como default e nao a ultima execucao disponivel', () => {

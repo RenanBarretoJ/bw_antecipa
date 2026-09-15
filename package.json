@@ -109,6 +109,7 @@
     "homolog:financeiro:migrations:reconcile-history": "node scripts/homologacao/financeiro/migrations/reconcile-history.mjs",
     "homolog:financeiro:generalizacao:apply": "node scripts/homologacao/financeiro/apply-generalizacao.mjs",
     "homolog:financeiro:generalizacao:verify": "node scripts/homologacao/financeiro/verify-generalizacao.mjs",
+    "homolog:financeiro:p7-4-1:verify-security": "node scripts/homologacao/financeiro/p7-4-1/verify-security.mjs",
     "rehearsal:start": "node rehearsal/scripts/local-stack.mjs start",
     "rehearsal:stop": "node rehearsal/scripts/local-stack.mjs stop",
     "rehearsal:destroy": "node rehearsal/scripts/local-stack.mjs destroy",
