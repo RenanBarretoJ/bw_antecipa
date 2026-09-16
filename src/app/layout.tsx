@@ -17,6 +17,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "BW Antecipa - Portal de Antecipacao de Recebiveis",
   description: "Sistema financeiro de antecipacao de recebiveis por cessao de Notas Fiscais",
+  icons: {
+    icon: { url: "/better-with-logo.png", type: "image/png" },
+    shortcut: "/better-with-logo.png",
+    apple: { url: "/better-with-logo.png", type: "image/png" },
+  },
 };
 
 export default function RootLayout({
