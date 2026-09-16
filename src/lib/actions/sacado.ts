@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import type { AppSupabaseClient } from '@/lib/auth/authorization'
 import { carregarContextoEventoOperacao, registrarEventoDominio } from '@/lib/eventos-dominio/registrar'
 import { normalizarCnpjSacado, resolverContextoSacado } from '@/lib/sacado/contexto.server'
+import { agruparVinculosOperacionaisAtivos, operacaoContaComoVinculoAtivo } from '@/lib/sacado/vinculo-operacional'
 import { registrarLog } from './auditoria'
 import { notificarGestores } from './notificacao'
 
@@ -44,17 +45,6 @@ async function validarLoteAceiteSacado(
     .in('nota_fiscal_id', ids)
   if (linksError) return `Nao foi possivel validar os vinculos operacionais: ${linksError.message}`
 
-  const operacoesPorNota = new Map<string, string[]>()
-  for (const link of links || []) {
-    operacoesPorNota.set(link.nota_fiscal_id, [
-      ...(operacoesPorNota.get(link.nota_fiscal_id) || []),
-      link.operacao_id,
-    ])
-  }
-  if (ids.some((id) => (operacoesPorNota.get(id) || []).length !== 1)) {
-    return 'Todas as NFs precisam possuir um unico vinculo operacional.'
-  }
-
   const operacaoIds = Array.from(new Set((links || []).map((link) => link.operacao_id)))
   const { data: operacoes, error: operacoesError } = await supabase
     .from('operacoes')
@@ -63,7 +53,12 @@ async function validarLoteAceiteSacado(
 
   if (operacoesError) return `Nao foi possivel validar as operacoes: ${operacoesError.message}`
   if ((operacoes || []).length !== operacaoIds.length) return 'Uma ou mais operacoes nao estao acessiveis.'
-  if ((operacoes || []).some((operacao) => (
+
+  const operacoesPorNota = agruparVinculosOperacionaisAtivos(links || [], operacoes || [])
+  if (ids.some((id) => (operacoesPorNota.get(id)?.size ?? 0) !== 1)) {
+    return 'Todas as NFs precisam possuir um unico vinculo operacional ativo.'
+  }
+  if ((operacoes || []).filter((operacao) => operacaoContaComoVinculoAtivo(operacao.status)).some((operacao) => (
     !['solicitada', 'em_analise'].includes(operacao.status)
     || operacao.aceite_sacado_exigido !== true
     || operacao.aceite_sacado_status !== 'pendente'
