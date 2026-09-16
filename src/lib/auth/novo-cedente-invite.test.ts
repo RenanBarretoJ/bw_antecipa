@@ -116,7 +116,7 @@ describe('P2 - invite-first para novo Cedente', () => {
 
   it('expira convite pendente vencido antes de avaliar a duplicidade', () => {
     const expirePosition = p61LifecycleMigration.indexOf("SET status = 'EXPIRADO'")
-    const duplicatePosition = p61LifecycleMigration.indexOf("IF EXISTS (\n    SELECT 1 FROM public.cedente_usuario_convites")
+    const duplicatePosition = p61LifecycleMigration.search(/IF EXISTS \(\s*SELECT 1 FROM public\.cedente_usuario_convites\s+ci\b/)
     expect(expirePosition).toBeGreaterThan(0)
     expect(duplicatePosition).toBeGreaterThan(expirePosition)
     expect(p61LifecycleMigration).toContain("ci.expires_at <= now()")
