@@ -12,6 +12,7 @@ const migrations = [
   '20260813203000_p2_2_helper_rls_super_admin_rlx.sql',
 ]
 const sql = migrations.map((file) => readFileSync(join(process.cwd(), `supabase/migrations/${file}`), 'utf8')).join('\n')
+const semMovimentoFix = readFileSync(join(process.cwd(), 'supabase/migrations/20260916103000_corrigir_declaracao_financeira_sem_movimento_digest.sql'), 'utf8')
 
 describe('arquitetura SQL da ingestao financeira RLX', () => {
   it('publica somente pela RPC atomica com lock e preserva retificacao', () => {
@@ -51,6 +52,16 @@ describe('arquitetura SQL da ingestao financeira RLX', () => {
     expect(sql).toContain('iniciar_ciclo_importacao_financeira_rlx')
     expect(sql).toContain('ON CONFLICT ON CONSTRAINT rlx_importacao_ciclos_lock_unique')
     expect(sql).toContain("interval '30 minutes'")
+  })
+
+  it('resolve SHA-256 da declaracao com search_path vazio apos generalizacao financeira', () => {
+    expect(semMovimentoFix).toContain('CREATE OR REPLACE FUNCTION public.registrar_importacao_financeira_sem_movimento')
+    expect(semMovimentoFix).toContain("SET search_path = ''")
+    expect(semMovimentoFix).toContain('extensions.digest(concat_ws(')
+    expect(semMovimentoFix).toContain('public.importacoes_financeiras')
+    expect(semMovimentoFix).toContain('private.financeiro_autorizar_tecnico()')
+    expect(semMovimentoFix).toContain('private.financeiro_auditar(')
+    expect(semMovimentoFix).not.toContain('public.rlx_importacoes_financeiras')
   })
 
   it('nao antecipa matching, conciliacao, logistica ou exposicao', () => {
