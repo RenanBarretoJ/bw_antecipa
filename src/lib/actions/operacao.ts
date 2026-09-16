@@ -15,7 +15,9 @@ import { carregarContextoEventoOperacao, registrarEventoDominio } from '@/lib/ev
 import { calcularAntecipacaoEmLote } from '@/lib/operacoes/calculo'
 import { obterDataCivilOperacional } from '@/lib/operacoes/data-operacional.server'
 import { executarGateRisco } from '@/lib/financeiro/risco/processor.server'
+import { atualizarRiscoAposCessao } from '@/lib/financeiro/risco/atualizacao-pos-cessao.server'
 import { validarComposicaoEstabelecimentosOperacao } from '@/lib/cedentes/estabelecimentos'
+import { revalidatePath } from 'next/cache'
 
 export type OperacaoActionState = {
   success?: boolean
@@ -657,6 +659,19 @@ export async function desembolsarOperacao(operacaoId: string): Promise<OperacaoA
   })
   if (error) return { success: false, message: `Erro ao desembolsar: ${error.message}` }
 
+  // A cessao so integra a exposicao depois do commit da RPC. Atualizar o
+  // snapshot antes de liberar a proxima operacao para analise; uma falha aqui
+  // nao pode transformar um desembolso ja confirmado em resposta de erro.
+  const riscoAtualizado = await atualizarRiscoAposCessao({
+    fundoId: String(acessoOperacao.data?.fundoId || ''),
+    operacaoId,
+    atorUsuarioId: user.id,
+    dataOperacional: obterDataCivilOperacional(),
+  })
+  revalidatePath('/gestor/conciliacao')
+  revalidatePath('/gestor/operacoes')
+  revalidatePath('/gestor/operacoes/[id]', 'page')
+
   await notificarCedente(
     opData.cedente_id,
     'Desembolso realizado!',
@@ -686,7 +701,11 @@ export async function desembolsarOperacao(operacaoId: string): Promise<OperacaoA
     },
   })
 
-  return { success: true, message: `Desembolso de ${formatBRL(opData.valor_liquido_desembolso)} confirmado.` }
+  return {
+    success: true,
+    message: `Desembolso de ${formatBRL(opData.valor_liquido_desembolso)} confirmado.`,
+    data: { riscoAtualizado },
+  }
 }
 
 // ============================================================

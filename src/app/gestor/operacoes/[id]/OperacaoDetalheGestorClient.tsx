@@ -823,6 +823,9 @@ export default function OperacaoDetalheGestorClient({
     if (result?.success) {
       setMessage(result.message || 'Desembolso confirmado!')
       setMessageType('success')
+      if (result.data?.riscoAtualizado === false) {
+        notifications.warning('O desembolso foi confirmado, mas o risco nao foi atualizado automaticamente. Use "Atualizar risco" na Conciliacao antes de analisar a proxima operacao.')
+      }
       setOp((current) => current ? { ...current, status: 'em_andamento' } : current)
       await carregarLogistica()
       setTimeout(() => router.push('/gestor/operacoes'), 2000)
