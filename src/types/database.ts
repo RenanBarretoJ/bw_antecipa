@@ -2192,6 +2192,21 @@ export interface RiscoRevisao {
   updated_at: string
 }
 
+export type DocumentoUploadIntentRow = {
+  id: string; cedente_id: string; usuario_id: string; tipo_documento: DocumentoTipo;
+  representante_id: string | null; storage_bucket: string; storage_path: string;
+  nome_original: string; mime_type: string; tamanho_esperado: number;
+  status: 'PREPARED' | 'UPLOADED' | 'FINALIZING' | 'FINALIZED' | 'FAILED' | 'EXPIRED' | 'CLEANUP_PENDING' | 'CLEANED';
+  documento_id: string | null; documento_versao_id: string | null;
+  expires_at: string; uploaded_at: string | null; finalized_at: string | null;
+  cleanup_after: string; cleaned_at: string | null; last_error_code: string | null;
+  attempt_count: number; created_at: string; updated_at: string;
+}
+export type DocumentoUploadIntentInsert = Pick<DocumentoUploadIntentRow,
+  'id' | 'cedente_id' | 'usuario_id' | 'tipo_documento' | 'representante_id' |
+  'storage_bucket' | 'storage_path' | 'nome_original' | 'mime_type' | 'tamanho_esperado' |
+  'expires_at' | 'cleanup_after'> & Partial<DocumentoUploadIntentRow>
+
 export interface Database {
   public: {
     Tables: {
@@ -2261,6 +2276,7 @@ export interface Database {
       mfa_reset_solicitacoes: { Row: MfaResetSolicitacao & Record<string, unknown>; Insert: InsertShape<MfaResetSolicitacao, 'usuario_id' | 'solicitante_id' | 'motivo'> & Record<string, unknown>; Update: UpdateShape<MfaResetSolicitacao> & Record<string, unknown>; Relationships: [] }
       representantes: { Row: Representante & Record<string, unknown>; Insert: InsertShape<Representante, 'cedente_id' | 'nome' | 'cpf' | 'rg' | 'cargo' | 'email' | 'telefone'> & Record<string, unknown>; Update: UpdateShape<Representante> & Record<string, unknown>; Relationships: [] }
       documentos: { Row: Documento & Record<string, unknown>; Insert: InsertShape<Documento, 'cedente_id' | 'tipo'> & Record<string, unknown>; Update: UpdateShape<Documento> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'documentos_cedente_id_fkey'; columns: ['cedente_id']; isOneToOne: false; referencedRelation: 'cedentes'; referencedColumns: ['id'] }, { foreignKeyName: 'documentos_representante_id_fkey'; columns: ['representante_id']; isOneToOne: false; referencedRelation: 'representantes'; referencedColumns: ['id'] }, { foreignKeyName: 'documentos_analisado_por_fkey'; columns: ['analisado_por']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] }] }
+      documento_upload_intents: { Row: DocumentoUploadIntentRow; Insert: DocumentoUploadIntentInsert; Update: Partial<DocumentoUploadIntentRow>; Relationships: [] }
       contas_escrow: { Row: ContaEscrow & Record<string, unknown>; Insert: InsertShape<ContaEscrow, 'cedente_id' | 'identificador'> & Record<string, unknown>; Update: UpdateShape<ContaEscrow> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'contas_escrow_cedente_id_fkey'; columns: ['cedente_id']; isOneToOne: false; referencedRelation: 'cedentes'; referencedColumns: ['id'] }] }
       movimentos_escrow: { Row: MovimentoEscrow & Record<string, unknown>; Insert: InsertShape<MovimentoEscrow, 'conta_escrow_id' | 'tipo' | 'descricao' | 'valor' | 'saldo_apos'> & Record<string, unknown>; Update: UpdateShape<MovimentoEscrow> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'movimentos_escrow_conta_escrow_id_fkey'; columns: ['conta_escrow_id']; isOneToOne: false; referencedRelation: 'contas_escrow'; referencedColumns: ['id'] }, { foreignKeyName: 'fk_movimentos_operacao'; columns: ['operacao_id']; isOneToOne: false; referencedRelation: 'operacoes'; referencedColumns: ['id'] }] }
       fundos: { Row: Fundo & Record<string, unknown>; Insert: InsertShape<Fundo, 'nome' | 'cnpj' | 'administradora_nome' | 'administradora_cnpj'> & Record<string, unknown>; Update: UpdateShape<Fundo> & Record<string, unknown>; Relationships: [] }
@@ -2332,6 +2348,10 @@ export interface Database {
           p_representante_id?: string | null
         }
         Returns: Array<{ documento_id: string; versao: number; status: DocumentoStatus; storage_path: string }>
+      }
+      finalizar_documento_upload_intent: {
+        Args: { p_intent_id: string }
+        Returns: Array<{ documento_id: string; versao: number; status: DocumentoStatus; storage_path: string; novo_registro: boolean }>
       }
       analisar_documento_gestor: {
         Args: { p_documento_id: string; p_decisao: string; p_motivo?: string | null }
