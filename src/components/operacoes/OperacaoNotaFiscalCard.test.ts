@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { buildOperacaoNotaFiscalView, prazoDiasAteVencimento, resolveStatusCurtoDaNota } from './OperacaoNotaFiscalCard'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { formatCurrency } from '@/lib/utils'
+import { buildOperacaoNotaFiscalView, OperacaoNotaFiscalCard, prazoDiasAteVencimento, resolveStatusCurtoDaNota } from './OperacaoNotaFiscalCard'
 
 const baseNf = {
   id: 'nf-1',
@@ -55,5 +58,42 @@ describe('OperacaoNotaFiscalCard helpers', () => {
 
   it('mantem status curto para operacao liquidada', () => {
     expect(resolveStatusCurtoDaNota('liquidada')).toBe('Liquidada')
+  })
+
+  it('exibe memoria legada congelada no proprio card, sem usar o prazo dinamico', () => {
+    const notaFiscal = buildOperacaoNotaFiscalView({
+      notaFiscal: baseNf,
+      valorAntecipado: 900,
+      nowMs: new Date('2026-08-21T12:00:00Z').getTime(),
+    })
+    const html = renderToStaticMarkup(createElement(OperacaoNotaFiscalCard, {
+      notaFiscal,
+      memoriaLegada: { dias_aplicados: 42, valor_nominal: 1000, desconto: 100, valor_presente: 900 },
+      statusNode: null,
+      href: '/gestor/notas-fiscais/nf-1',
+    }))
+
+    expect(notaFiscal.prazo_dias).toBe(3)
+    expect(html).toContain('Prazo aplicado')
+    expect(html).toContain('42 dias')
+    expect(html).not.toContain('3 dias')
+    expect(html).toContain('Memória congelada da NF')
+    expect(html).toContain(formatCurrency(1000))
+    expect(html).toContain(formatCurrency(100))
+    expect(html).toContain(formatCurrency(900))
+    expect(html).toContain('Desconto:')
+    expect(html).toContain('Antecipado (VP):')
+  })
+
+  it('nao mostra memoria legada quando a NF nao recebe memoria sem parcela', () => {
+    const notaFiscal = buildOperacaoNotaFiscalView({ notaFiscal: baseNf, valorAntecipado: null })
+    const html = renderToStaticMarkup(createElement(OperacaoNotaFiscalCard, {
+      notaFiscal,
+      statusNode: null,
+      href: '/gestor/notas-fiscais/nf-1',
+    }))
+
+    expect(html).not.toContain('Memória congelada da NF')
+    expect(html).not.toContain('Prazo aplicado')
   })
 })

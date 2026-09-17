@@ -45,6 +45,7 @@ import { useFundoAtivo } from '@/components/fundos/fundo-ativo-provider'
 import { HistoricoTimelineCard } from '@/components/historico/HistoricoTimelineCard'
 import { obterCapacidadesOperacao, type CapabilitiesOperacao, type DocumentoOperacaoParaPolitica } from '@/lib/operacoes/politica-operacao'
 import { AndamentoOperacaoCard } from '@/components/operacoes/AndamentoOperacaoCard'
+import { OperacaoParcelaCedidaRow, PARCELA_CEDIDA_COLUNAS, type ParcelaCedidaOperacao } from '@/components/operacoes/OperacaoParcelaCedidaRow'
 import {
   calcularAntecipacaoEmLote,
   METODOS_CALCULO_LABELS,
@@ -163,16 +164,6 @@ interface MemoriaCalculoNf {
   valor_nominal: number
   valor_presente: number
   desconto: number
-}
-
-interface ParcelaCedidaOperacao {
-  parcelaId: string
-  numeroParcela: number
-  dataVencimento: string
-  valorNominal: number
-  diasAplicados: number | null
-  valorPresente: number | null
-  desconto: number | null
 }
 
 type BadgeVariant = 'default' | 'secondary' | 'destructive' | 'outline' | 'ghost' | 'link'
@@ -1110,10 +1101,14 @@ export default function OperacaoDetalheGestorClient({
                   const totalParcelas = totalParcelasPorNf.get(nf.id) || 0
                   const cedidas = parcelasCedidasPorNf.get(nf.id) || []
                   const expandido = nfsExpandidas.has(nf.id)
+                  const memoriaLegada = totalParcelas === 0
+                    ? memoriasCalculo.find((memoria) => memoria.nota_fiscal_id === nf.id && memoria.parcela_id === null)
+                    : null
                   return (
                     <div key={nf.id}>
                       <OperacaoNotaFiscalCard
                         notaFiscal={nf}
+                        memoriaLegada={memoriaLegada}
                         href={`/gestor/notas-fiscais/${nf.id}`}
                         menuPlacement={index === notasFiscaisView.length - 1 ? 'top' : 'bottom'}
                         canRemove={canRemoveNf}
@@ -1128,39 +1123,25 @@ export default function OperacaoDetalheGestorClient({
                           />
                         )}
                       />
-                      {/* Objetivo A: NF continua agrupadora visual; NF sem
-                          parcelas (totalParcelas === 0) nao mostra nada
-                          extra -- legado intacto. */}
                       {totalParcelas > 0 && (
                         <div className="mt-1 rounded-lg border bg-muted/20">
                           <button
                             type="button"
                             onClick={() => toggleNfExpandida(nf.id)}
-                            className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm text-muted-foreground"
+                            className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                             aria-expanded={expandido}
+                            aria-controls={`parcelas-${nf.id}`}
                           >
                             <span>{cedidas.length}/{totalParcelas} parcelas cedidas</span>
                             {expandido ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
                           </button>
                           {expandido && (
-                            <div className="divide-y divide-border border-t">
-                              <div className="hidden grid-cols-[3.5rem_6rem_7rem_5rem_7rem_7rem] gap-2 px-3 py-1.5 text-xs font-medium text-muted-foreground sm:grid">
-                                <span>Parcela</span>
-                                <span>Vencimento</span>
-                                <span>Valor nominal</span>
-                                <span>Prazo</span>
-                                <span>Antecipado (VP)</span>
-                                <span>Desconto</span>
+                            <div id={`parcelas-${nf.id}`} className="divide-y divide-border border-t">
+                              <div aria-hidden="true" className="hidden grid-cols-[3.5rem_6rem_7rem_5rem_7rem_7rem] gap-2 px-3 py-1.5 text-xs font-medium text-muted-foreground md:grid">
+                                {PARCELA_CEDIDA_COLUNAS.map((label) => <span key={label}>{label}</span>)}
                               </div>
                               {cedidas.map((parcela) => (
-                                <div key={parcela.parcelaId} className="grid grid-cols-2 gap-2 px-3 py-2 text-xs sm:grid-cols-[3.5rem_6rem_7rem_5rem_7rem_7rem]">
-                                  <span className="font-mono tabular-nums">{String(parcela.numeroParcela).padStart(3, '0')}</span>
-                                  <span className="tabular-nums">{formatDate(parcela.dataVencimento)}</span>
-                                  <span className="tabular-nums">{formatCurrency(parcela.valorNominal)}</span>
-                                  <span>{parcela.diasAplicados !== null ? `${parcela.diasAplicados} dias` : '—'}</span>
-                                  <span className="tabular-nums">{parcela.valorPresente !== null ? formatCurrency(parcela.valorPresente) : '—'}</span>
-                                  <span className="tabular-nums">{parcela.desconto !== null ? formatCurrency(parcela.desconto) : '—'}</span>
-                                </div>
+                                <OperacaoParcelaCedidaRow key={parcela.parcelaId} parcela={parcela} />
                               ))}
                             </div>
                           )}
@@ -1381,25 +1362,6 @@ export default function OperacaoDetalheGestorClient({
                     <span>{formatDate(op.aprovado_em)}</span>
                   </div>
                 )}
-                {memoriasCalculo.length > 0 && (
-                  <details className="rounded-lg border p-3 text-xs">
-                    <summary className="cursor-pointer font-medium">Ver memoria de calculo por NF</summary>
-                    <div className="mt-3 space-y-2">
-                      {memoriasCalculo.map((memoria) => (
-                        <div key={`${memoria.nota_fiscal_id}:${memoria.parcela_id || 'nf'}`} className="rounded-md bg-muted/50 p-2">
-                          <strong>NF {nfs.find((nf) => nf.id === memoria.nota_fiscal_id)?.numero_nf || memoria.nota_fiscal_id.slice(0, 8)}</strong>
-                          <div className="mt-1 grid grid-cols-2 gap-1 text-muted-foreground">
-                            <span>{memoria.dias_aplicados} dia(s)</span>
-                            <span className="text-right">VP {formatCurrency(memoria.valor_presente)}</span>
-                            <span>Nominal {formatCurrency(memoria.valor_nominal)}</span>
-                            <span className="text-right">Desconto {formatCurrency(memoria.desconto)}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </details>
-                )}
-
                 <div className="border-t pt-4 mt-2 space-y-3">
                   <p className="text-xs font-medium text-muted-foreground">Documentos gerados</p>
                   <div className="flex flex-col gap-2">
@@ -1553,25 +1515,6 @@ export default function OperacaoDetalheGestorClient({
                     <span>{formatDate(op.aprovado_em)}</span>
                   </div>
                 )}
-                {memoriasCalculo.length > 0 && (
-                  <details className="rounded-lg border p-3 text-xs">
-                    <summary className="cursor-pointer font-medium">Ver memoria de calculo por NF</summary>
-                    <div className="mt-3 space-y-2">
-                      {memoriasCalculo.map((memoria) => (
-                        <div key={`${memoria.nota_fiscal_id}:${memoria.parcela_id || 'nf'}`} className="rounded-md bg-muted/50 p-2">
-                          <strong>NF {nfs.find((nf) => nf.id === memoria.nota_fiscal_id)?.numero_nf || memoria.nota_fiscal_id.slice(0, 8)}</strong>
-                          <div className="mt-1 grid grid-cols-2 gap-1 text-muted-foreground">
-                            <span>{memoria.dias_aplicados} dia(s)</span>
-                            <span className="text-right">VP {formatCurrency(memoria.valor_presente)}</span>
-                            <span>Nominal {formatCurrency(memoria.valor_nominal)}</span>
-                            <span className="text-right">Desconto {formatCurrency(memoria.desconto)}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </details>
-                )}
-
                 {(op.status === 'em_andamento' || op.status === 'inadimplente') && (
                   <div className="space-y-2 border-t pt-4 mt-2">
                     <Button
