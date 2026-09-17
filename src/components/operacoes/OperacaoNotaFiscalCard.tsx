@@ -17,6 +17,13 @@ export interface OperacaoNotaFiscalView {
   status: string
 }
 
+export interface MemoriaNfLegada {
+  dias_aplicados: number
+  valor_nominal: number
+  desconto: number
+  valor_presente: number
+}
+
 export function prazoDiasAteVencimento(dataVencimento: string, nowMs = Date.now()) {
   return Math.max(1, Math.ceil((new Date(dataVencimento).getTime() - nowMs) / (1000 * 60 * 60 * 24)))
 }
@@ -53,6 +60,7 @@ export function buildOperacaoNotaFiscalView({
 
 export function OperacaoNotaFiscalCard({
   notaFiscal,
+  memoriaLegada,
   statusNode,
   href,
   canRemove,
@@ -61,6 +69,7 @@ export function OperacaoNotaFiscalCard({
   menuPlacement = 'bottom',
 }: {
   notaFiscal: OperacaoNotaFiscalView
+  memoriaLegada?: MemoriaNfLegada | null
   statusNode: ReactNode
   href: string
   canRemove?: boolean
@@ -82,7 +91,7 @@ export function OperacaoNotaFiscalCard({
         <div className="grid min-w-0 flex-1 grid-cols-2 gap-3 sm:grid-cols-4">
           <Metric label="Bruto" value={formatCurrency(notaFiscal.valor_bruto)} />
           <Metric label="Antecipado" value={notaFiscal.valor_antecipado === null ? '—' : formatCurrency(notaFiscal.valor_antecipado)} highlight />
-          <Metric label="Prazo" value={`${notaFiscal.prazo_dias} dias`} />
+          <Metric label={memoriaLegada ? 'Prazo aplicado' : 'Prazo'} value={`${memoriaLegada?.dias_aplicados ?? notaFiscal.prazo_dias} dias`} />
           <Metric label="Vencimento" value={formatDate(notaFiscal.data_vencimento)} />
         </div>
 
@@ -124,6 +133,13 @@ export function OperacaoNotaFiscalCard({
           </details>
         </div>
       </div>
+      {memoriaLegada && (
+        <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1 border-t pt-2 text-xs sm:grid-cols-3" aria-label="Memória congelada da NF">
+          <span className="min-w-0 text-muted-foreground">Nominal: <strong className="text-foreground tabular-nums">{formatCurrency(memoriaLegada.valor_nominal)}</strong></span>
+          <span className="min-w-0 text-muted-foreground">Desconto: <strong className="text-foreground tabular-nums">{formatCurrency(memoriaLegada.desconto)}</strong></span>
+          <span className="min-w-0 text-muted-foreground">Antecipado (VP): <strong className="text-foreground tabular-nums">{formatCurrency(memoriaLegada.valor_presente)}</strong></span>
+        </div>
+      )}
     </article>
   )
 }

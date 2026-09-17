@@ -399,6 +399,26 @@ describe('UI/Operacional: detalhe por parcela na Operacao do Gestor (nao mais ag
     expect(operacaoDetalheGestorClient).toContain('parcelas cedidas')
     expect(operacaoDetalheGestorClient).toContain('toggleNfExpandida')
   })
+
+  it('P11.1 preserva a memoria para parcelas e CSV, mas retira os dois details redundantes', () => {
+    expect(operacaoDetalheGestorClient).not.toContain('Ver memoria de calculo por NF')
+    expect(operacaoDetalheGestorClient).toContain(".from('operacao_calculo_nfs')")
+    expect(operacaoDetalheGestorClient).toContain('setMemoriasCalculo(memoriasRows)')
+    expect(operacaoDetalheGestorClient).toContain('const memoria = memoriaPorParcela.get(row.parcela_id)')
+    expect(operacaoDetalheGestorClient).toContain('diasAplicados: memoria?.dias_aplicados')
+    expect(operacaoDetalheGestorClient).toContain('valorPresente: memoria ? Number(memoria.valor_presente)')
+    expect(operacaoDetalheGestorClient).toContain('desconto: memoria ? Number(memoria.desconto)')
+    expect(operacaoDetalheGestorClient).toContain('const antecipadoLegadoPersistido = memoriasDaNf.length > 0')
+    expect(operacaoDetalheGestorClient).toContain('...notasFiscaisView.map((nf) => {')
+  })
+
+  it('P11.1 mostra memoria apenas para NF legada, em qualquer etapa da operacao', () => {
+    expect(operacaoDetalheGestorClient).toContain('totalParcelas === 0')
+    expect(operacaoDetalheGestorClient).toContain('memoria.parcela_id === null')
+    expect(operacaoDetalheGestorClient).toContain('memoriaLegada={memoriaLegada}')
+    expect(operacaoDetalheGestorClient).toContain('{canDisburse && (')
+    expect(operacaoDetalheGestorClient).toContain('{!canAnalyze && !canDisburse && (')
+  })
 })
 
 // P0 (correcao real, confirmada ao vivo em homolog): reprovarOperacao/
