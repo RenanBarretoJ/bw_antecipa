@@ -13,8 +13,9 @@ export interface NfPdfExtracted {
   // sempre usam os dados do cedente autenticado — não confiamos no PDF
   cnpj_destinatario?: string  // só dígitos
   razao_social_destinatario?: string
-  valor_bruto?: number   // V. TOTAL PRODUTOS
-  valor_liquido?: number // V. TOTAL DA NOTA
+  valor_bruto?: number   // Valor total canonico da NF
+  valor_liquido?: number // Valor total da NF (sem desconto financeiro)
+  origem_valor_bruto?: 'valor_total_nota' | 'valor_total_produtos'
   condicao_pagamento?: string
   descricao_itens?: string    // conteúdo de "INFORMAÇÕES COMPLEMENTARES"
   campos_extraidos: string[]  // lista dos campos extraídos com sucesso
@@ -49,16 +50,20 @@ export async function extractDanfeFromPdf(buffer: Buffer): Promise<NfPdfExtracte
   // Normalizar: múltiplos espaços → um espaço, manter case original para regex case-insensitive
   const normalized = text.replace(/[ \t]+/g, ' ').replace(/\r\n/g, '\n').trim()
 
+  return extractDanfeFromText(normalized)
+}
+
+export function extractDanfeFromText(normalized: string): NfPdfExtracted {
   const campos_extraidos: string[] = []
   const extracted: NfPdfExtracted = { campos_extraidos }
 
-  const numero = extractNumeroNF(normalized)
+  const chave = extractChaveAcesso(normalized)
+  const numero = chave ? String(Number(chave.slice(25, 34))) : extractNumeroNF(normalized)
   if (numero) { extracted.numero_nf = numero; campos_extraidos.push('numero_nf') }
 
-  const serie = extractSerie(normalized)
+  const serie = chave ? String(Number(chave.slice(22, 25))) : extractSerie(normalized)
   if (serie) { extracted.serie = serie; campos_extraidos.push('serie') }
 
-  const chave = extractChaveAcesso(normalized)
   if (chave) { extracted.chave_acesso = chave; campos_extraidos.push('chave_acesso') }
 
   const dataEmissao = extractDataEmissao(normalized)
@@ -73,11 +78,15 @@ export async function extractDanfeFromPdf(buffer: Buffer): Promise<NfPdfExtracte
   const razaoDest = extractRazaoSocialDestinatario(normalized)
   if (razaoDest) { extracted.razao_social_destinatario = razaoDest; campos_extraidos.push('razao_social_destinatario') }
 
-  const valor = extractValorProdutos(normalized)
-  if (valor) { extracted.valor_bruto = valor; campos_extraidos.push('valor_bruto') }
-
   const valorNota = extractValorNota(normalized)
-  if (valorNota) { extracted.valor_liquido = valorNota; campos_extraidos.push('valor_liquido') }
+  const possuiRotuloTotalNota = /(?:V\.?|VALOR)\s*TOTAL\s+DA\s+NOTA/i.test(normalized)
+  const valorCanonico = valorNota ?? (!possuiRotuloTotalNota ? extractValorProdutos(normalized) : undefined)
+  if (valorCanonico) {
+    extracted.valor_bruto = valorCanonico
+    extracted.valor_liquido = valorCanonico
+    extracted.origem_valor_bruto = valorNota ? 'valor_total_nota' : 'valor_total_produtos'
+    campos_extraidos.push('valor_bruto', 'valor_liquido')
+  }
 
   const condicao = extractCondicaoPagamento(normalized)
   if (condicao) { extracted.condicao_pagamento = condicao; campos_extraidos.push('condicao_pagamento') }
@@ -129,6 +138,7 @@ function extractChaveAcesso(text: string): string | undefined {
 
 function extractDataEmissao(text: string): string | undefined {
   const patterns = [
+    /EMISS[ÃA]O\s*:\s*(\d{2}[-/]\d{2}[-/]\d{4})/i,
     /DATA\s+(?:DE\s+)?EMISS[ÃA]O\s*[:\-\/]?\s*(\d{2}\/\d{2}\/\d{4})/i,
     /EMISS[ÃA]O\s*[:\-]?\s*(\d{2}\/\d{2}\/\d{4})/i,
     // data aparece em linha de dados abaixo do cabeçalho de coluna (Vida Saúde e similares)
@@ -144,6 +154,7 @@ function extractDataEmissao(text: string): string | undefined {
 function extractDataVencimento(text: string): string | undefined {
   // Campo explícito de vencimento
   const explicitPatterns = [
+    /DUPLICATAS[\s\S]{0,100}?(\d{2}[-/]\d{2}[-/]\d{4})/i,
     /DATA\s+(?:DE\s+)?VENCIMENTO\s*[:\-\/]?\s*(\d{2}\/\d{2}\/\d{4})/i,
     /VENCIMENTO\s*[:\-]?\s*(\d{2}\/\d{2}\/\d{4})/i,
     // "PARCELAS 001 15/04/2026 16.661,60" — MD SAUDE, BIOREGENERA
@@ -267,24 +278,17 @@ function extractValorProdutos(text: string): number | undefined {
 // V. TOTAL DA NOTA → valor_liquido
 function extractValorNota(text: string): number | undefined {
   const patterns = [
-    /V\.?\s*TOTAL\s+DA\s+NOTA\s*R?\$?\s*([\d.,]+)/i,
-    /VALOR\s+TOTAL\s+DA\s+NOTA\s*R?\$?\s*([\d.,]+)/i,
-    /TOTAL\s+DA\s+(?:NF|NOTA)\s*R?\$?\s*([\d.,]+)/i,
+    /V\.?\s*TOTAL\s+DA\s+NOTA[ \t]*R?\$?[ \t]*(\d[\d.]*,\d{2})(?![\d.,])/i,
+    /VALOR\s+TOTAL\s+DA\s+NOTA[ \t]*R?\$?[ \t]*(\d[\d.]*,\d{2})(?![\d.,])/i,
+    /TOTAL\s+DA\s+(?:NF|NOTA)[ \t]*R?\$?[ \t]*(\d[\d.]*,\d{2})(?![\d.,])/i,
+    // Alguns DANFEs gerados em colunas concatenam "0,00" e o total na tabela.
+    // O canhoto traz o total completo e separado mesmo quando a tabela nao traz.
+    /VALOR\s+TOTAL\s*:\s*R\$[ \t]*(\d[\d.]*,\d{2})(?![\d.,])/i,
   ]
   for (const re of patterns) {
     const m = text.match(re)
     if (m?.[1]) {
       const v = parseBRLValue(m[1])
-      if (v > 0) return v
-    }
-  }
-  // layout de bloco: frete/seguro/desconto/outras/IPI/total aparecem numa linha concatenada
-  // ex: "0,000,000,000,005.007,18" — o último valor é o TOTAL DA NOTA
-  const mLinhaConcat = text.match(/\n(0,00(?:[\d.,]+,\d{2})+)\s*(?:\n|$)/m)
-  if (mLinhaConcat?.[1]) {
-    const allVals = [...mLinhaConcat[1].matchAll(/([\d.]+,\d{2})/g)]
-    if (allVals.length > 0) {
-      const v = parseBRLValue(allVals[allVals.length - 1][1])
       if (v > 0) return v
     }
   }
@@ -321,12 +325,23 @@ function extractInformacoesComplementares(text: string): string | undefined {
 
 /** Converte DD/MM/AAAA para YYYY-MM-DD */
 function parseBRDate(raw: string): string {
-  const [d, m, y] = raw.split('/')
+  const [d, m, y] = raw.split(/[-/]/)
   return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`
 }
 
 /** Converte valor monetário BR (1.234,56) para number */
 function parseBRLValue(raw: string): number {
-  // Remove pontos de milhar, troca vírgula decimal por ponto
-  return parseFloat(raw.replace(/\./g, '').replace(',', '.')) || 0
+  if (!/^(?:\d{1,3}(?:\.\d{3})+|\d+),\d{2}$/.test(raw)) return 0
+  return Number(raw.replace(/\./g, '').replace(',', '.'))
+}
+
+export function valorTotalExtraidoValido(
+  extracted: NfPdfExtracted,
+): extracted is NfPdfExtracted & { valor_bruto: number } {
+  const valor = extracted.valor_bruto
+  return valor !== undefined
+    && Number.isFinite(valor)
+    && valor > 0
+    && valor <= 1_000_000_000_000
+    && extracted.origem_valor_bruto !== undefined
 }
