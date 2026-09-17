@@ -44,11 +44,20 @@ export type ExecutarUploadDocumentoCadastralResult =
   | { ok: false; etapa: 'storage' | 'database'; message: string; compensationError?: string }
 
 export function validarArquivoDocumentoCadastral(file: File): string | null {
-  if (!DOCUMENTO_CADASTRAL_MIME_TYPES.includes(file.type as (typeof DOCUMENTO_CADASTRAL_MIME_TYPES)[number])) {
+  return validarMetadadosDocumentoCadastral({ nome: file.name, mime: file.type, tamanho: file.size })
+}
+
+export function validarMetadadosDocumentoCadastral(input: { nome: string; mime: string; tamanho: number }): string | null {
+  if (!DOCUMENTO_CADASTRAL_MIME_TYPES.includes(input.mime as (typeof DOCUMENTO_CADASTRAL_MIME_TYPES)[number]) ||
+    !/\.(pdf|jpe?g|png)$/i.test(input.nome) ||
+    (input.mime === 'application/pdf' && !/\.pdf$/i.test(input.nome)) ||
+    (input.mime === 'image/jpeg' && !/\.jpe?g$/i.test(input.nome)) ||
+    (input.mime === 'image/png' && !/\.png$/i.test(input.nome))) {
     return 'Formato invalido. Aceitos: PDF, JPG, PNG.'
   }
-  if (file.size <= 0) return 'O arquivo esta vazio.'
-  if (file.size > DOCUMENTO_CADASTRAL_MAX_BYTES) return 'Arquivo muito grande. Maximo: 20MB.'
+  if (!input.nome || input.nome.length > 255 || /[\x00-\x1f\x7f]/.test(input.nome)) return 'Nome de arquivo invalido.'
+  if (!Number.isSafeInteger(input.tamanho) || input.tamanho <= 0) return 'O arquivo esta vazio.'
+  if (input.tamanho > DOCUMENTO_CADASTRAL_MAX_BYTES) return 'Arquivo muito grande. Maximo: 20MB.'
   return null
 }
 

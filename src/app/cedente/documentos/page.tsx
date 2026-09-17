@@ -2,9 +2,11 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { uploadDocumento } from '@/lib/actions/cedente'
+import { prepararUploadDocumentoCadastral, finalizarUploadDocumentoCadastral, reconciliarUploadDocumentoCadastral } from '@/lib/actions/cedente-documento-upload'
+import { DOCUMENTO_CADASTRAL_BUCKET, validarArquivoDocumentoCadastral } from '@/lib/documentos-cadastrais/upload'
+import { aguardarUploadComPrazo, UploadTimeoutError } from '@/lib/documentos-cadastrais/upload-timeout'
 import { Upload, CheckCircle, XCircle, Clock, AlertCircle, FileText, Loader2, RefreshCw } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -64,8 +66,10 @@ export default function DocumentosCedentePage() {
   const [representantes, setRepresentantes] = useState<RepresentanteRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState<string | null>(null)
+  const [uploadStage, setUploadStage] = useState<'preparando' | 'enviando' | 'finalizando' | 'confirmando' | null>(null)
   const [message, setMessage] = useState('')
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
+  const uploadInFlightRef = useRef(false)
 
   useEffect(() => {
     if (!message) return
@@ -102,34 +106,95 @@ export default function DocumentosCedentePage() {
   }
 
   const handleUpload = async (tipo: string, file: File, representanteId?: string) => {
-    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png']
-    if (!allowedTypes.includes(file.type)) {
-      setMessage('Formato invalido. Aceitos: PDF, JPG, PNG.')
-      return
-    }
-    if (file.size > 20 * 1024 * 1024) {
-      setMessage('Arquivo muito grande. Maximo: 20MB.')
-      return
-    }
+    const invalidFile = validarArquivoDocumentoCadastral(file)
+    if (invalidFile) { setMessage(invalidFile); return }
+    if (uploadInFlightRef.current) return
+    uploadInFlightRef.current = true
 
     const uploadKey = representanteId ? `${tipo}_${representanteId}` : tipo
     setUploading(uploadKey)
+    setUploadStage('preparando')
     setMessage('')
-
-    const formData = new FormData()
-    formData.set('arquivo', file)
-    formData.set('tipo', tipo)
-    if (representanteId) formData.set('representante_id', representanteId)
-
-    const result = await uploadDocumento(formData)
-
-    if (result?.success) {
-      setMessage(result.message || 'Documento enviado!')
-      await loadDocs()
-    } else {
-      setMessage(result?.message || 'Erro no upload.')
+    let stage: 'preparando' | 'enviando' | 'finalizando' = 'preparando'
+    let finalizado = false
+    const correlationId = crypto.randomUUID()
+    const reconcile = async (token: string) => {
+      for (const delay of [500, 1500, 3000]) {
+        await new Promise((resolve) => setTimeout(resolve, delay))
+        const state = await aguardarUploadComPrazo(reconciliarUploadDocumentoCadastral(token), 30_000, 'RECONCILE', correlationId)
+        if (state !== 'NOT_UPLOADED') return state
+      }
+      return 'NOT_UPLOADED'
     }
-    setUploading(null)
+    try {
+      const prepared = await aguardarUploadComPrazo(
+        prepararUploadDocumentoCadastral({
+          tipo, nomeArquivo: file.name, mime: file.type, tamanho: file.size, representanteId,
+        }), 30_000, 'PREPARE', correlationId,
+      )
+      if (!prepared.success) { setMessage(prepared.message); return }
+      const intentTag = prepared.storagePath.match(/[0-9a-f]{8}-[0-9a-f-]{27}_[^/]+$/i)?.[0].slice(0, 8) || 'unknown'
+      console.info('document-upload-intent', { correlationId, intentTag })
+      stage = 'enviando'
+      setUploadStage(stage)
+      const supabase = createClient()
+      const transfer = supabase.storage.from(DOCUMENTO_CADASTRAL_BUCKET)
+        .uploadToSignedUrl(prepared.storagePath, prepared.uploadToken, file, { contentType: file.type, upsert: false })
+      let uploadResult: Awaited<typeof transfer> | null = null
+      try {
+        uploadResult = await aguardarUploadComPrazo(transfer, 120_000, 'UPLOAD', correlationId)
+      } catch (error) {
+        setUploadStage('confirmando')
+        const state = await reconcile(prepared.intent)
+        if (state !== 'UPLOADED_NOT_FINALIZED' && state !== 'FINALIZED') throw error
+        // A resposta do Storage pode chegar depois do prazo local: o estado canonico prevalece.
+        void transfer.catch(() => {})
+      }
+      const uploadError = uploadResult?.error
+      if (uploadError) {
+        setUploadStage('confirmando')
+        const state = await reconcile(prepared.intent)
+        if (state !== 'UPLOADED_NOT_FINALIZED' && state !== 'FINALIZED') {
+          console.info('document-upload-result', { correlationId, phase: 'enviando', outcome: 'SUPABASE_STORAGE_ERROR', errorCode: uploadError.name })
+          setMessage('Nao foi possivel enviar o arquivo. Tente novamente.')
+          return
+        }
+      }
+      stage = 'finalizando'
+      setUploadStage(stage)
+      let result: Awaited<ReturnType<typeof finalizarUploadDocumentoCadastral>>
+      try {
+        result = await aguardarUploadComPrazo(finalizarUploadDocumentoCadastral(prepared.intent), 30_000, 'FINALIZE', correlationId)
+      } catch (error) {
+        setUploadStage('confirmando')
+        const state = await reconcile(prepared.intent)
+        if (state === 'FINALIZED') result = { success: true, message: 'Documento enviado com sucesso!' }
+        else if (state === 'UPLOADED_NOT_FINALIZED') {
+          result = await aguardarUploadComPrazo(finalizarUploadDocumentoCadastral(prepared.intent), 30_000, 'FINALIZE', correlationId)
+        } else throw error
+      }
+      if (!result.success) {
+        const state = await reconcile(prepared.intent)
+        if (state === 'FINALIZED') result = { success: true, message: 'Documento enviado com sucesso!' }
+      }
+      setMessage(result.message)
+      if (result.success) {
+        finalizado = true
+        await loadDocs()
+      }
+    } catch (error) {
+      console.info('document-upload-result', { correlationId, phase: stage, outcome: error instanceof UploadTimeoutError ? `${error.phase}_TIMEOUT` : 'NETWORK_FAILURE' })
+      setMessage(finalizado
+        ? 'Documento registrado, mas a lista nao foi atualizada. Recarregue a pagina.'
+        : stage === 'finalizando'
+        ? 'O arquivo foi enviado, mas nao foi possivel concluir o registro do documento. Tente novamente.'
+        : 'Nao foi possivel enviar o arquivo. Tente novamente.')
+    } finally {
+      // The intent and cleanup are durable; no browser timer can own deletion.
+      setUploadStage(null)
+      setUploading(null)
+      uploadInFlightRef.current = false
+    }
   }
 
   // Calcular progresso: docs empresa + docs obrigatórios por representante
@@ -155,7 +220,7 @@ export default function DocumentosCedentePage() {
     const canUpload = !latestDoc || status === 'aguardando_envio' || status === 'reprovado' || atualizacaoSolicitada
 
     const uploadButtonLabel = isUploading
-      ? 'Enviando...'
+      ? uploadStage === 'preparando' ? 'Preparando...' : uploadStage === 'finalizando' ? 'Finalizando...' : uploadStage === 'confirmando' ? 'Estamos confirmando o envio...' : 'Enviando arquivo...'
       : status === 'reprovado'
       ? 'Reenviar'
       : atualizacaoSolicitada && status !== 'aguardando_envio'
@@ -219,13 +284,13 @@ export default function DocumentosCedentePage() {
                     variant={uploadButtonVariant as 'destructive' | 'outline' | 'default'}
                     size="sm"
                     onClick={() => fileInputRefs.current[uploadKey]?.click()}
-                    disabled={isUploading}
+                    disabled={!!uploading}
                     className={atualizacaoSolicitada && status !== 'reprovado' ? 'text-amber-600 border-amber-300 hover:bg-amber-50' : ''}
                   >
                     {isUploading ? (
                       <>
                         <Loader2 size={14} className="animate-spin" />
-                        Enviando...
+                        {uploadButtonLabel}
                       </>
                     ) : (
                       <>

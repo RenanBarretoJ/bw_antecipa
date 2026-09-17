@@ -17,6 +17,7 @@ export default defineConfig({
       'scripts/homologacao/financeiro/readiness/**/*.test.mjs',
       'scripts/homologacao/rlx-golden/**/*.test.mjs',
       'scripts/homologacao/rlx-golden-v2/**/*.test.ts',
+      'scripts/homologacao/p9-3-*.test.mjs',
     ],
   },
 })
