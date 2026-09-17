@@ -4,7 +4,7 @@ import { createAdminClient, createClient } from '@/lib/supabase/server'
 import { requireAuthenticated, requireGestor as requireGestorBase, type AppSupabaseClient, type AuthContext } from '@/lib/auth/authorization'
 import { exigirSessaoElevada } from '@/lib/auth/mfa'
 import { notaFiscalSchema, type NotaFiscalFormData } from '@/lib/validations/nf'
-import { extractDanfeFromPdf, type NfPdfExtracted } from '@/lib/pdf-nf-parser'
+import { extractDanfeFromPdf, valorTotalExtraidoValido, type NfPdfExtracted } from '@/lib/pdf-nf-parser'
 import { registrarLog } from './auditoria'
 import { notificarGestores, notificarCedente } from './notificacao'
 import { buckets } from '@/lib/storage'
@@ -539,6 +539,13 @@ async function processarArquivo(
       const cnpjEmitenteOficial = extracted.chave_acesso
         ? extrairCnpjDaChaveAcesso(extracted.chave_acesso)
         : cnpjLimpo
+      if (!valorTotalExtraidoValido(extracted)) {
+        return {
+          ok: false,
+          error: `${arquivo.name}: Não foi possível identificar corretamente o valor total da Nota Fiscal. Revise o arquivo ou informe os dados manualmente.`,
+        }
+      }
+      const valorBruto = extracted.valor_bruto
       const estabelecimento = await resolverEstabelecimentoOrigem({
         supabase,
         cedenteId: cedente.id,
@@ -570,8 +577,8 @@ async function processarArquivo(
           razao_social_emitente: estabelecimento.razaoSocial,
           cnpj_destinatario: extracted.cnpj_destinatario ?? '',
           razao_social_destinatario: extracted.razao_social_destinatario ?? '',
-          valor_bruto: extracted.valor_bruto ?? 0,
-          valor_liquido: extracted.valor_bruto ?? 0,
+          valor_bruto: valorBruto,
+          valor_liquido: valorBruto,
           valor_icms: 0, valor_iss: 0, valor_pis: 0, valor_cofins: 0, valor_ipi: 0,
           condicao_pagamento: extracted.condicao_pagamento ?? null,
           descricao_itens: extracted.descricao_itens ?? null,
@@ -581,9 +588,10 @@ async function processarArquivo(
         .select('id').single()
 
       if (dbError) {
-        await supabase.storage.from(buckets.notasFiscais).remove([filePath])
-        logUploadNf('insert_nf_rascunho_erro', { ...context, chaveAcesso: extracted.chave_acesso ?? null, erro: dbError })
-        return { ok: false, error: `${arquivo.name}: erro ao salvar - ${dbError.message}` }
+        const { error: cleanupError } = await supabase.storage.from(buckets.notasFiscais).remove([filePath])
+        if (cleanupError) logUploadNf('insert_nf_rascunho_storage_compensacao_erro', { ...context, chaveAcesso: null, erro: { code: cleanupError.name } })
+        logUploadNf('insert_nf_rascunho_erro', { ...context, chaveAcesso: null, erro: { code: dbError.code } })
+        return { ok: false, error: `${arquivo.name}: não foi possível salvar a Nota Fiscal. Revise o arquivo ou tente novamente.` }
       }
 
       const nfData = nf as { id: string }
@@ -609,7 +617,7 @@ async function processarArquivo(
         descricao: isPdf ? 'Nota fiscal cadastrada por upload de PDF.' : 'Nota fiscal cadastrada por upload.',
         metadata: {
           status_novo: 'rascunho',
-          valor_bruto: extracted.valor_bruto ?? 0,
+          valor_bruto: valorBruto,
           tipo_documento: isPdf ? 'nf_danfe_pdf' : 'arquivo',
         },
         origem: isPdf ? 'upload_nf_pdf' : 'upload_nf_arquivo',
