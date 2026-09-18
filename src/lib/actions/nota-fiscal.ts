@@ -24,6 +24,7 @@ import { revalidatePath } from 'next/cache'
 import { resolverContextoFundoGestor } from '@/lib/gestor/contexto-fundo.server'
 import { carregarResumoDocumentalDasNotas } from '@/lib/notas-fiscais/resumo-documental-gestor.server'
 import { resolverEstabelecimentoOrigem } from '@/lib/cedentes/estabelecimentos.server'
+import { executarUploadPorArquivo, type ProcessedUploadFile, type UploadBatchResult } from '@/lib/notas-fiscais/upload-batch'
 
 export type NfActionState = {
   success?: boolean
@@ -32,6 +33,7 @@ export type NfActionState = {
   message?: string
   ids?: string[]
   rascunhos?: string[]
+  uploadBatch?: UploadBatchResult
   data?: {
     id: string
     parsed?: Record<string, unknown>
@@ -181,9 +183,7 @@ async function resolverContextoUploadCedente(
   }
 }
 
-type ArquivoResult =
-  | { ok: true; id: string; isRascunho: boolean }
-  | { ok: false; error: string }
+type ArquivoResult = ProcessedUploadFile
 
 type NfExistente = {
   id: string
@@ -301,7 +301,6 @@ async function removerNotaFiscalParcial(
 }
 
 async function recuperarDuplicidadeIncompleta(
-  arquivo: File,
   context: CedenteUploadContext,
   chaveAcesso: string,
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -320,7 +319,7 @@ async function recuperarDuplicidadeIncompleta(
   const possuiXml = await notaFiscalPossuiDocumentoXml(supabase, existente.id)
   const acao = decidirAcaoDuplicidadeNotaFiscal({ existeNota: true, possuiXmlDocumentalValido: possuiXml })
   if (acao === 'conflito_xml_existente') {
-    return { ok: false, error: `${arquivo.name}: ${mensagemDuplicidadeNotaFiscal(acao)}` }
+    return { ok: false, status: 'DUPLICATE', error: mensagemDuplicidadeNotaFiscal(acao) }
   }
 
   logUploadNf('duplicidade_incompleta_recuperacao', { ...context, chaveAcesso, notaFiscalId: existente.id })
@@ -357,16 +356,17 @@ async function processarArquivo(
   const isImage = arquivo.type === 'image/jpeg' || arquivo.type === 'image/png'
 
   if (!isXml && !isPdf && !isImage) {
-    return { ok: false, error: `${arquivo.name}: formato invalido. Aceitos: XML, PDF, JPG, PNG.` }
+    return { ok: false, status: 'REJECTED_INVALID', error: 'Formato inválido. Aceitos: XML, PDF, JPG, PNG.' }
   }
   if (arquivo.size > maxSize) {
-    return { ok: false, error: `${arquivo.name}: arquivo muito grande (max 20MB).` }
+    return { ok: false, status: 'REJECTED_INVALID', error: 'Arquivo muito grande (máximo 20 MB).' }
   }
 
   const cnpjLimpo = cedente.cnpj.replace(/\D/g, '')
   const timestamp = Date.now()
   const cleanName = arquivo.name.replace(/[^a-zA-Z0-9._-]/g, '_')
   const filePath = `${cnpjLimpo}/nf/${timestamp}_${cleanName}`
+  let notaFiscalPersistidaId: string | null = null
 
   try {
     if (isXml) {
@@ -383,7 +383,7 @@ async function processarArquivo(
           cnpjEmitente: preValidacao.cnpjEmitente,
         })
         logUploadNf('validar_emitente_xml_bloqueado', { ...context, chaveAcesso: null, erro: preValidacao.message })
-        return { ok: false, error: `${arquivo.name}: ${preValidacao.message}${detalhes}` }
+        return { ok: false, status: 'REJECTED_INVALID', error: `${preValidacao.message}${detalhes}` }
       }
 
       const parsed = preValidacao.parsed
@@ -395,14 +395,15 @@ async function processarArquivo(
       })
 
       if (parsed.chave_acesso) {
-        const duplicidade = await recuperarDuplicidadeIncompleta(arquivo, context, parsed.chave_acesso, supabase)
+        const duplicidade = await recuperarDuplicidadeIncompleta(context, parsed.chave_acesso, supabase)
         if (duplicidade) return duplicidade
       }
 
       const { error: uploadError } = await supabase.storage
         .from(buckets.notasFiscais).upload(filePath, arquivo)
       if (uploadError) {
-        return { ok: false, error: `${arquivo.name}: erro no upload - ${uploadError.message}` }
+        logUploadNf('upload_xml_storage_erro', { ...context, chaveAcesso: parsed.chave_acesso, erro: { code: uploadError.name } })
+        return { ok: false, status: 'STORAGE_ERROR', error: 'Não foi possível armazenar o XML. Tente novamente.' }
       }
 
       const { data: nf, error: dbError } = await supabase
@@ -439,12 +440,17 @@ async function processarArquivo(
         .select('id').single()
 
       if (dbError) {
-        await supabase.storage.from(buckets.notasFiscais).remove([filePath])
+        const { error: cleanupError } = await createAdminClient().storage.from(buckets.notasFiscais).remove([filePath])
+        if (cleanupError) logUploadNf('insert_nf_xml_storage_compensacao_erro', { ...context, chaveAcesso: parsed.chave_acesso, erro: { code: cleanupError.name } })
         logUploadNf('insert_nf_erro', { ...context, chaveAcesso: parsed.chave_acesso, erro: dbError })
-        return { ok: false, error: `${arquivo.name}: erro ao salvar - ${dbError.message}` }
+        return { ok: false, status: dbError.code === '23505' ? 'DUPLICATE' : 'PERSISTENCE_ERROR', error: cleanupError
+          ? 'A NF não foi salva, mas a limpeza do arquivo falhou. Contate o suporte antes de reenviar.'
+          : dbError.code === '23505' ? 'Esta Nota Fiscal já foi cadastrada.'
+          : 'Não foi possível salvar a Nota Fiscal. Tente novamente.' }
       }
 
       const nfData = nf as { id: string }
+      notaFiscalPersistidaId = nfData.id
 
       // Registrar as parcelas ANTES de instanciar os requisitos documentais
       // (feito abaixo, dentro de uploadDocumentoSeRequerido -> instanciarRequisitosDaNota):
@@ -471,12 +477,14 @@ async function processarArquivo(
               context,
             })
           } catch (cleanupError) {
+            logUploadNf('registrar_parcelas_compensacao_erro', { ...context, erro: cleanupError, notaFiscalId: nfData.id })
             return {
               ok: false,
-              error: `${arquivo.name}: as parcelas do XML nao correspondem ao valor total da nota e a limpeza automatica falhou - ${cleanupError instanceof Error ? cleanupError.message : 'erro desconhecido'}`,
+              status: 'PERSISTENCE_ERROR',
+              error: 'Não foi possível concluir o XML e a limpeza automática falhou. Verifique a NF antes de reenviar.',
             }
           }
-          return { ok: false, error: `${arquivo.name}: as parcelas do XML (<dup>) nao correspondem ao valor total da nota fiscal - ${parcelasError.message}` }
+          return { ok: false, status: 'REJECTED_INVALID', error: 'As parcelas do XML não correspondem ao valor total da Nota Fiscal.' }
         }
       }
 
@@ -493,12 +501,14 @@ async function processarArquivo(
             context,
           })
         } catch (cleanupError) {
+          logUploadNf('registrar_xml_documental_compensacao_erro', { ...context, erro: cleanupError, notaFiscalId: nfData.id })
           return {
             ok: false,
-            error: `${arquivo.name}: nao foi possivel registrar o XML no repositorio documental e a limpeza automatica falhou - ${cleanupError instanceof Error ? cleanupError.message : 'erro desconhecido'}`,
+            status: 'PERSISTENCE_ERROR',
+            error: 'Não foi possível concluir o XML e a limpeza automática falhou. Verifique a NF antes de reenviar.',
           }
         }
-        return { ok: false, error: `${arquivo.name}: nao foi possivel registrar o XML no repositorio documental - ${error instanceof Error ? error.message : 'erro desconhecido'}` }
+        return { ok: false, status: 'PERSISTENCE_ERROR', error: 'Não foi possível registrar o XML no repositório documental.' }
       }
       registrarLog({
         tipo_evento: 'NF_SALVA_RASCUNHO',
@@ -522,7 +532,7 @@ async function processarArquivo(
         origem: 'upload_nf_xml',
       })
 
-      return { ok: true, id: nfData.id, isRascunho: true }
+      return { ok: true, id: nfData.id, isRascunho: true, nfNumero: parsed.numero_nf }
 
     } else {
       let extracted: NfPdfExtracted = { campos_extraidos: [] }
@@ -550,8 +560,19 @@ async function processarArquivo(
       if (!valorTotalExtraidoValido(extracted) || gateDanfe?.ok === false) {
         return {
           ok: false,
-          error: `${arquivo.name}: Não foi possível interpretar esta Nota Fiscal com segurança. Revise os dados extraídos ou informe-os manualmente.`,
+          status: 'REJECTED_AMBIGUOUS',
+          error: 'Não foi possível interpretar esta Nota Fiscal com segurança. Revise os dados extraídos ou informe-os manualmente.',
         }
+      }
+      if (extracted.chave_acesso) {
+        const { data: duplicada, error: duplicidadeError } = await supabase
+          .from('notas_fiscais')
+          .select('id')
+          .eq('chave_acesso', extracted.chave_acesso)
+          .limit(1)
+          .maybeSingle()
+        if (duplicidadeError) throw new Error(`Erro ao verificar duplicidade do PDF: ${duplicidadeError.message}`)
+        if (duplicada) return { ok: false, status: 'DUPLICATE', error: 'Esta Nota Fiscal já foi cadastrada.' }
       }
       const valorBruto = extracted.valor_bruto
       const estabelecimento = await resolverEstabelecimentoOrigem({
@@ -564,7 +585,8 @@ async function processarArquivo(
       const { error: uploadError } = await supabase.storage
         .from(buckets.notasFiscais).upload(filePath, arquivo)
       if (uploadError) {
-        return { ok: false, error: `${arquivo.name}: erro no upload - ${uploadError.message}` }
+        logUploadNf('upload_pdf_storage_erro', { ...context, erro: { code: uploadError.name } })
+        return { ok: false, status: 'STORAGE_ERROR', error: 'Não foi possível armazenar o arquivo. Tente novamente.' }
       }
 
       const today = new Date().toISOString().split('T')[0]
@@ -596,13 +618,17 @@ async function processarArquivo(
         .select('id').single()
 
       if (dbError) {
-        const { error: cleanupError } = await supabase.storage.from(buckets.notasFiscais).remove([filePath])
+        const { error: cleanupError } = await createAdminClient().storage.from(buckets.notasFiscais).remove([filePath])
         if (cleanupError) logUploadNf('insert_nf_rascunho_storage_compensacao_erro', { ...context, chaveAcesso: null, erro: { code: cleanupError.name } })
         logUploadNf('insert_nf_rascunho_erro', { ...context, chaveAcesso: null, erro: { code: dbError.code } })
-        return { ok: false, error: `${arquivo.name}: não foi possível salvar a Nota Fiscal. Revise o arquivo ou tente novamente.` }
+        return { ok: false, status: dbError.code === '23505' ? 'DUPLICATE' : 'PERSISTENCE_ERROR', error: cleanupError
+          ? 'A NF não foi salva, mas a limpeza do arquivo falhou. Contate o suporte antes de reenviar.'
+          : dbError.code === '23505' ? 'Esta Nota Fiscal já foi cadastrada.'
+          : 'Não foi possível salvar a Nota Fiscal. Revise o arquivo ou tente novamente.' }
       }
 
       const nfData = nf as { id: string }
+      notaFiscalPersistidaId = nfData.id
       if (isPdf) {
         try {
           await uploadDocumentoSeRequerido(nfData.id, 'nf_danfe_pdf', arquivo, supabase, contextoDocumentoDaNota(context, nfData.id), extracted)
@@ -615,7 +641,7 @@ async function processarArquivo(
             etapa: 'registrar_danfe_documental',
             context,
           })
-          return { ok: false, error: `${arquivo.name}: nao foi possivel registrar o DANFE no repositorio documental - ${error instanceof Error ? error.message : 'erro desconhecido'}` }
+          return { ok: false, status: 'PERSISTENCE_ERROR', error: 'Não foi possível registrar o DANFE no repositório documental.' }
         }
       }
 
@@ -631,11 +657,25 @@ async function processarArquivo(
         origem: isPdf ? 'upload_nf_pdf' : 'upload_nf_arquivo',
       })
 
-      return { ok: true, id: nfData.id, isRascunho: true }
+      return { ok: true, id: nfData.id, isRascunho: true, nfNumero: extracted.numero_nf }
     }
   } catch (e) {
     logUploadNf('erro_inesperado_processar_arquivo', { ...context, erro: e })
-    return { ok: false, error: `${arquivo.name}: ${e instanceof Error ? e.message : 'erro inesperado ao processar.'}` }
+    if (notaFiscalPersistidaId) {
+      try {
+        await removerNotaFiscalParcial({
+          notaFiscalId: notaFiscalPersistidaId,
+          cedenteId: cedente.id,
+          arquivoUrl: filePath,
+          etapa: 'erro_inesperado_processar_arquivo',
+          context,
+        })
+      } catch (cleanupError) {
+        logUploadNf('erro_inesperado_processar_arquivo_compensacao_erro', { ...context, erro: cleanupError, notaFiscalId: notaFiscalPersistidaId })
+        return { ok: false, status: 'PERSISTENCE_ERROR', error: 'Não foi possível concluir nem limpar a NF parcial. Verifique suas NFs ou contate o suporte antes de reenviar.' }
+      }
+    }
+    return { ok: false, status: 'PERSISTENCE_ERROR', error: 'Não foi possível concluir este arquivo. Verifique a NF antes de reenviar.' }
   }
 }
 
@@ -650,40 +690,22 @@ export async function uploadNFs(formData: FormData): Promise<NfActionState> {
   const arquivos = formData.getAll('arquivos') as File[]
   if (!arquivos || arquivos.length === 0) return { success: false, message: 'Nenhum arquivo selecionado.' }
 
-  const resultados = await Promise.allSettled(
-    arquivos.map((arquivo) => processarArquivo(arquivo, context, supabase))
+  const { batch: uploadBatch, ids: nfsCriadas, rascunhos: nfsRascunho } = await executarUploadPorArquivo(
+    arquivos,
+    (arquivo) => processarArquivo(arquivo, context, supabase),
+    (error) => logUploadNf('processar_arquivo_rejeitado', { ...context, erro: error }),
   )
 
-  const erros: string[] = []
-  const nfsCriadas: string[] = []
-  const nfsRascunho: string[] = []
-
-  for (const r of resultados) {
-    if (r.status === 'rejected') {
-      erros.push('Erro inesperado ao processar arquivo.')
-    } else if (!r.value.ok) {
-      erros.push(r.value.error)
-    } else {
-      nfsCriadas.push(r.value.id)
-      if (r.value.isRascunho) nfsRascunho.push(r.value.id)
-    }
-  }
-
-  // Notificação não bloqueia a resposta ao usuário
-  if (erros.length > 0 && nfsCriadas.length === 0) {
-    return { success: false, message: erros.join('\n') }
-  }
-
-  const msg = nfsCriadas.length === 1
-    ? '1 nota fiscal salva como rascunho!'
-    : `${nfsCriadas.length} notas fiscais salvas como rascunho!`
-
-  revalidatePath('/cedente/notas-fiscais')
+  if (uploadBatch.successCount > 0) revalidatePath('/cedente/notas-fiscais')
+  const message = `${uploadBatch.successCount} de ${uploadBatch.total} arquivo(s) importado(s).`
   return {
-    success: true,
-    message: erros.length > 0 ? `${msg} (${erros.length} erro(s): ${erros.join('; ')})` : msg,
+    success: uploadBatch.successCount > 0,
+    message: uploadBatch.errorCount === uploadBatch.total
+      ? uploadBatch.results.map((result) => `${result.fileName}: ${result.status === 'IMPORTED' ? 'Importada' : result.message}`).join('\n')
+      : message,
     ids: nfsCriadas,
     rascunhos: nfsRascunho,
+    uploadBatch,
   }
 }
 

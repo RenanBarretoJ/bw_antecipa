@@ -8,6 +8,8 @@ import { validarXmlNfeParaUploadCedente } from '@/lib/notas-fiscais/emitente-aut
 
 const cnpj = process.argv.find((arg) => arg.startsWith('--cnpj='))?.slice('--cnpj='.length).replace(/\D/g, '') ?? ''
 if (!/^\d{14}$/.test(cnpj)) throw new Error('Informe --cnpj=14_DIGITOS do Cedente QA autorizado em homologacao.')
+const numberOffset = Number(process.argv.find((arg) => arg.startsWith('--number-offset='))?.slice('--number-offset='.length) ?? 0)
+if (!Number.isInteger(numberOffset) || numberOffset < 0 || numberOffset > 1000) throw new Error('Use --number-offset=0..1000 para uma rodada QA distinta.')
 
 function accessKey(numero: number, serie: number): string {
   const body = `292609${cnpj}55${String(serie).padStart(3, '0')}${String(numero).padStart(9, '0')}112345678`
@@ -33,10 +35,10 @@ async function makePdf(lines: string[], browser: Browser): Promise<Buffer> {
   }
 }
 const cases = [
-  { name: 'MK-like', numero: 990154801, serie: 1, total: 97792.26, pt: '97.792,26', dot: '97792.26', layout: 'canhoto_total' },
-  { name: 'BAHIAMED-like-154806', numero: 990154806, serie: 2, total: 8371.99, pt: '8.371,99', dot: '8371.99', layout: 'fiscal_grid_after_labels' },
-  { name: 'BAHIAMED-like-154810', numero: 990154810, serie: 2, total: 12388.10, pt: '12.388,10', dot: '12388.10', layout: 'fiscal_grid_after_labels' },
-  { name: 'ambiguous-blocked', numero: 990154811, serie: 2, total: 8371.99, pt: '8.371,99', dot: '8372.99', layout: 'generic_danfe' },
+  { name: 'MK-like', numero: 990154801 + numberOffset, serie: 1, total: 97792.26, pt: '97.792,26', dot: '97792.26', layout: 'canhoto_total' },
+  { name: 'BAHIAMED-like-154806', numero: 990154806 + numberOffset, serie: 2, total: 8371.99, pt: '8.371,99', dot: '8371.99', layout: 'fiscal_grid_after_labels' },
+  { name: 'BAHIAMED-like-154810', numero: 990154810 + numberOffset, serie: 2, total: 12388.10, pt: '12.388,10', dot: '12388.10', layout: 'fiscal_grid_after_labels' },
+  { name: 'ambiguous-blocked', numero: 990154811 + numberOffset, serie: 2, total: 8371.99, pt: '8.371,99', dot: '8372.99', layout: 'generic_danfe' },
 ] as const
 
 async function main() {
@@ -78,7 +80,7 @@ try {
       `0,000,000,000,00${item.pt}`,
     )
     const pdf = await makePdf(lines, browser)
-    const path = join(directory, `QA_P12_${item.name}.pdf`)
+    const path = join(directory, `QA_P12_${item.name}${numberOffset ? `-r${numberOffset}` : ''}.pdf`)
     writeFileSync(path, pdf)
     const parsed = await extractDanfeFromPdf(pdf)
     const gate = validarDanfeParaPersistencia(parsed)
@@ -88,12 +90,12 @@ try {
     }
     process.stdout.write(`${item.name}: ${path} | expected=${item.total} | gate=${gate.ok}\n`)
   }
-  const numero = 990154812
+  const numero = 990154812 + numberOffset
   const key = accessKey(numero, 2)
   const xml = `<nfeProc><NFe><infNFe Id="NFe${key}"><ide><nNF>${numero}</nNF><serie>2</serie><dhEmi>2026-09-18T10:00:00-03:00</dhEmi></ide><emit><CNPJ>${cnpj}</CNPJ><xNome>CEDENTE QA</xNome></emit><dest><CNPJ>11222333000181</CNPJ><xNome>SACADO SINTETICO</xNome></dest><total><ICMSTot><vNF>100.00</vNF></ICMSTot></total><cobr><dup><nDup>001</nDup><dVenc>2026-10-31</dVenc><vDup>100.00</vDup></dup></cobr></infNFe></NFe></nfeProc>`
   const xmlValidation = validarXmlNfeParaUploadCedente({ xmlContent: xml, cnpjCedente: cnpj, permitirEstabelecimentoDoCedente: true })
   if (!xmlValidation.ok) throw new Error(`XML QA invalido: ${xmlValidation.message}`)
-  const xmlPath = join(directory, 'QA_P12_XML-regression.xml')
+  const xmlPath = join(directory, `QA_P12_XML-regression${numberOffset ? `-r${numberOffset}` : ''}.xml`)
   writeFileSync(xmlPath, xml, 'utf8')
   process.stdout.write(`XML-regression: ${xmlPath}\n`)
 } finally {

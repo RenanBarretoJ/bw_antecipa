@@ -49,6 +49,7 @@ import {
 } from '@/components/ui/table'
 import { useNotifications } from '@/components/notifications/notification-provider'
 import { ListNameCell } from '@/components/data-display/primitives'
+import { arquivosPendentesDeRetry, type UploadBatchResult } from '@/lib/notas-fiscais/upload-batch'
 
 interface NfRecord {
   id: string
@@ -134,6 +135,7 @@ export default function NotasFiscaisListagem({ resultado, filtros }: Props) {
   })
   const [dragActive, setDragActive] = useState(false)
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
+  const [uploadBatch, setUploadBatch] = useState<UploadBatchResult | null>(null)
   const [excluindo, setExcluindo] = useState<string | null>(null)
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set())
   const [excluindoLote, setExcluindoLote] = useState(false)
@@ -197,6 +199,7 @@ export default function NotasFiscaisListagem({ resultado, filtros }: Props) {
   }, [])
 
   const addFiles = useCallback((files: File[]) => {
+    if (uploading) return
     const validExtensions = ['.xml', '.pdf', '.jpg', '.jpeg', '.png']
     const validFiles = files.filter((f) => {
       const ext = '.' + f.name.split('.').pop()?.toLowerCase()
@@ -206,55 +209,59 @@ export default function NotasFiscaisListagem({ resultado, filtros }: Props) {
       notifications.warning(`${files.length - validFiles.length} arquivo(s) ignorado(s) — formato inválido.`)
     }
     setSelectedFiles((prev) => [...prev, ...validFiles])
-  }, [notifications])
+    setUploadBatch(null)
+  }, [notifications, uploading])
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
     setDragActive(false)
-    addFiles(Array.from(e.dataTransfer.files))
-  }, [addFiles])
+    if (!uploading) addFiles(Array.from(e.dataTransfer.files))
+  }, [addFiles, uploading])
 
   const removeFile = (index: number) => {
     setSelectedFiles((prev) => prev.filter((_, i) => i !== index))
   }
 
   const handleUpload = async () => {
-    if (selectedFiles.length === 0) return
+    if (selectedFiles.length === 0 || uploading) return
 
     setUploading(true)
+    const filesToSend = selectedFiles
 
     const formData = new FormData()
-    selectedFiles.forEach((file) => formData.append('arquivos', file))
+    filesToSend.forEach((file) => formData.append('arquivos', file))
 
-    const result = await uploadNFs(formData)
-
-    if (result?.success) {
-      setSelectedFiles([])
-
-      // PDFs viram rascunho — se for só 1, redirecionar para preencher
-      if (result.rascunhos && result.rascunhos.length === 1 && (result.ids?.length ?? 0) === 1) {
-        router.push(`/cedente/notas-fiscais/${result.rascunhos[0]}`)
+    try {
+      const result = await uploadNFs(formData)
+      const batch = result?.uploadBatch
+      if (!batch || batch.results.length !== filesToSend.length) {
+        notifications.fromActionResult(result, 'Não foi possível confirmar o resultado do envio.')
         return
       }
 
-      // Multiplos PDFs: mostrar aviso para preencher cada um
-      if (result.rascunhos && result.rascunhos.length > 0) {
-        const xmlCount = (result.ids?.length ?? 0) - result.rascunhos.length
-        const parts: string[] = []
-        if (xmlCount > 0) parts.push(`${xmlCount} NF(s) salva(s) como rascunho — revise os dados e submeta manualmente`)
-        if (result.rascunhos.length > 0) parts.push(`${result.rascunhos.length} NF(s) salva(s) como rascunho — clique em "Preencher" em cada uma para revisar os dados`)
-        notifications.success(parts.join('. ') + '.')
+      setUploadBatch(batch)
+      setSelectedFiles(arquivosPendentesDeRetry(filesToSend, batch))
+
+      if (batch.errorCount === 0) {
+        notifications.success(`${batch.successCount} de ${batch.total} arquivo(s) importado(s).`)
+      } else if (batch.successCount > 0) {
+        notifications.warning('Alguns arquivos não foram importados. Revise os itens destacados.')
+      } else if (batch.total === 1 && batch.results[0].status !== 'IMPORTED') {
+        notifications.error(`${batch.results[0].fileName}: ${batch.results[0].message}`)
       } else {
-        notifications.fromActionResult(result, 'NFs enviadas com sucesso!')
+        notifications.error('Nenhum arquivo foi importado. Revise os itens destacados.')
       }
 
-      router.refresh()
-    } else {
-      notifications.fromActionResult(result, 'Erro no envio.')
+      if (batch.successCount > 0) router.refresh()
+      if (batch.total === 1 && batch.errorCount === 0 && result?.rascunhos?.length === 1) {
+        router.push(`/cedente/notas-fiscais/${result.rascunhos[0]}`)
+      }
+    } catch {
+      notifications.error('Não foi possível confirmar o envio. Verifique suas NFs antes de tentar novamente.')
+    } finally {
+      setUploading(false)
     }
-
-    setUploading(false)
   }
 
   const navegarComFiltros = (overrides: {
@@ -337,6 +344,7 @@ export default function NotasFiscaisListagem({ resultado, filtros }: Props) {
             <input
               type="file"
               multiple
+              disabled={uploading}
               accept=".xml,.pdf,.jpg,.jpeg,.png"
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
               onChange={(e) => {
@@ -363,7 +371,8 @@ export default function NotasFiscaisListagem({ resultado, filtros }: Props) {
                 <Button
                   variant="ghost"
                   size="xs"
-                  onClick={() => setSelectedFiles([])}
+                  disabled={uploading}
+                  onClick={() => { setSelectedFiles([]); setUploadBatch(null) }}
                   className="text-destructive hover:text-destructive"
                 >
                   Limpar todos
@@ -395,6 +404,7 @@ export default function NotasFiscaisListagem({ resultado, filtros }: Props) {
                     <Button
                       variant="ghost"
                       size="icon-xs"
+                      disabled={uploading}
                       onClick={() => removeFile(index)}
                       className="text-muted-foreground hover:text-destructive ml-2 shrink-0"
                     >
@@ -416,6 +426,35 @@ export default function NotasFiscaisListagem({ resultado, filtros }: Props) {
                   <><Upload /> Enviar {selectedFiles.length} arquivo(s)</>
                 )}
               </Button>
+            </div>
+          )}
+          {uploadBatch && (
+            <div className="mt-4 rounded-lg border border-border p-4" role="status" aria-live="polite">
+              <p className="font-medium text-foreground">
+                {uploadBatch.successCount} de {uploadBatch.total} arquivo(s) importado(s).
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {uploadBatch.errorCount > 0
+                  ? `${uploadBatch.errorCount} arquivo(s) não importado(s) permanecem na fila para revisão. Os arquivos importados foram salvos como rascunho e não serão reenviados.`
+                  : 'As Notas Fiscais foram salvas como rascunho. Revise os dados antes de submetê-las.'}
+              </p>
+              <ul className="mt-3 space-y-2">
+                {uploadBatch.results.map((item, index) => (
+                  <li key={index} className="min-w-0 rounded-md bg-muted/40 px-3 py-2 text-sm">
+                    <div className="flex items-start gap-2">
+                      {item.status === 'IMPORTED'
+                        ? <CheckCircle size={16} className="mt-0.5 shrink-0 text-green-600" aria-hidden="true" />
+                        : <AlertCircle size={16} className="mt-0.5 shrink-0 text-amber-600" aria-hidden="true" />}
+                      <div className="min-w-0 break-words">
+                        <span className="font-medium">{item.fileName}</span>
+                        <span> — {item.status === 'IMPORTED'
+                          ? `Importada${item.nfNumero ? ` (NF ${item.nfNumero})` : ''}`
+                          : `Não importada: ${item.message}`}</span>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
         </CardContent>

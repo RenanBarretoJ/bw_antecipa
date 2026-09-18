@@ -8,4 +8,12 @@ O resultado inclui candidatos, confiança, origem e corroboradores por campo cr�
 
 Para incorporar outro layout, crie primeiro uma fixture de texto sintética e um caso de falha segura em `src/lib/danfe/multilayout.test.ts`. Adicione um extrator por âncora estrutural, atribua pontuação conservadora e use validação cruzada antes de elevar sua confiança. Nunca condicione o parser a CNPJ, nome do arquivo ou primeiro valor monetário. As cinco notas Bahiamed e a MK são verificadas localmente com PDFs reais sem versioná-los; `scripts/qa/p12-generate-synthetic-danfes.ts` gera PDFs/XML apenas em diretório temporário para o E2E de homologação.
 
+## Upload de lotes mistos (P12.2)
+
+`uploadNFs` processa cada arquivo independentemente e preserva resultados parciais: uma rejeição não desfaz NFs já importadas. `src/lib/notas-fiscais/upload-batch.ts` consolida, na ordem de seleção, `total`, `successCount`, `errorCount` e o resultado de cada arquivo. Os estados são `IMPORTED`, `REJECTED_AMBIGUOUS`, `REJECTED_INVALID`, `DUPLICATE`, `STORAGE_ERROR` e `PERSISTENCE_ERROR`. A interface distingue sucesso total, parcial e falha total; mostra o motivo individual sem expor erros brutos do banco e mantém na fila somente os arquivos falhos. O retry não reenvia os importados.
+
+O gate de ambiguidade e a checagem de chave já cadastrada para PDFs ocorrem antes do upload ao Storage. Se o INSERT falhar depois do upload, a action remove o caminho exato com o cliente administrativo do servidor e informa quando a compensação falha; esse cliente nunca é enviado ao navegador. A proteção de unicidade do banco continua necessária para concorrência. XML mantém sua validação e recuperação de duplicidade próprias. A rejeição pelo parser não cria objeto nem NF.
+
+Para repetir E2E sem conflitar com NFs QA anteriores, gere um conjunto sintético novo com `npx tsx scripts/qa/p12-generate-synthetic-danfes.ts --cnpj=<CNPJ_QA> --number-offset=<0..1000>`. Use apenas CNPJ de cedente autorizado em homologação, confirme pela interface o resumo por arquivo e confronte NFs e objetos Storage pelo número/caminho antes do cleanup. Não versione PDFs reais nem faça cleanup por prefixo amplo.
+
 Limites conhecidos: PDF escaneado sem camada textual não é interpretado; uma grade fiscal sem total direto nem duplicata completa permanece abaixo da confiança mínima; layout sem chave requer CNPJ contextual inequívoco do emitente. A adição de OCR ou revisão manual assistida exige fluxo separado e não deve contornar este gate.
