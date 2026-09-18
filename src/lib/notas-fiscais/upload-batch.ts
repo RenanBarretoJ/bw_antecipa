@@ -37,7 +37,7 @@ export function arquivosPendentesDeRetry<T>(files: readonly T[], batch: UploadBa
 
 export async function executarUploadPorArquivo<T extends { name: string }>(
   files: readonly T[],
-  processar: (file: T) => Promise<ProcessedUploadFile>,
+  processar: (file: T, index: number) => Promise<ProcessedUploadFile>,
   onUnexpectedError?: (error: unknown) => void,
 ) {
   const settled = await Promise.allSettled(files.map(processar))

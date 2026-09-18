@@ -1,6 +1,5 @@
 'use server'
 
-import { randomUUID } from 'node:crypto'
 import { createAdminClient, createClient } from '@/lib/supabase/server'
 import { requireAuthenticated, requireGestor as requireGestorBase, type AppSupabaseClient, type AuthContext } from '@/lib/auth/authorization'
 import { exigirSessaoElevada } from '@/lib/auth/mfa'
@@ -25,6 +24,7 @@ import { resolverContextoFundoGestor } from '@/lib/gestor/contexto-fundo.server'
 import { carregarResumoDocumentalDasNotas } from '@/lib/notas-fiscais/resumo-documental-gestor.server'
 import { resolverEstabelecimentoOrigem } from '@/lib/cedentes/estabelecimentos.server'
 import { executarUploadPorArquivo, type ProcessedUploadFile, type UploadBatchResult } from '@/lib/notas-fiscais/upload-batch'
+import { createUploadTelemetry, logUploadStage, type UploadTelemetry } from '@/lib/notas-fiscais/upload-observability'
 
 export type NfActionState = {
   success?: boolean
@@ -103,16 +103,8 @@ function logUploadNf(
   etapa: string,
   context: Partial<CedenteUploadContext> & { chaveAcesso?: string | null; erro?: unknown; notaFiscalId?: string | null },
 ) {
-  console.error('[uploadNFs][cedente]', {
-    etapa,
-    user_id: context.userId ?? null,
-    cedente_id: context.cedente?.id ?? null,
-    cedente_fundo_id: context.cedenteFundoId ?? null,
-    fundo_id: context.fundoId ?? null,
-    chave_acesso: context.chaveAcesso ?? null,
-    nota_fiscal_id: context.notaFiscalId ?? null,
-    erro: context.erro instanceof Error ? context.erro.message : context.erro ?? null,
-  })
+  void context
+  logUploadStage(etapa)
 }
 
 async function getCedenteComUsuario(supabaseParam?: Awaited<ReturnType<typeof createClient>>) {
@@ -229,6 +221,7 @@ async function removerNotaFiscalParcial(
     arquivoUrl?: string | null
     etapa: string
     context: CedenteUploadContext
+    onCompensated?: () => void
   },
 ) {
   const admin = createAdminClient()
@@ -298,6 +291,7 @@ async function removerNotaFiscalParcial(
     logUploadNf(`${input.etapa}_nf_compensacao_erro`, { ...input.context, erro: deleteError, notaFiscalId: input.notaFiscalId })
     throw new Error(`Nao foi possivel remover NF parcial: ${deleteError.message}`)
   }
+  input.onCompensated?.()
 }
 
 async function recuperarDuplicidadeIncompleta(
@@ -346,7 +340,9 @@ function contextoDocumentoDaNota(context: CedenteUploadContext, notaFiscalId: st
 async function processarArquivo(
   arquivo: File,
   context: CedenteUploadContext,
-  supabase: Awaited<ReturnType<typeof createClient>>
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  telemetry: UploadTelemetry,
+  fileIndex: number,
 ): Promise<ArquivoResult> {
   const { cedente } = context
   const maxSize = 20 * 1024 * 1024
@@ -387,6 +383,7 @@ async function processarArquivo(
       }
 
       const parsed = preValidacao.parsed
+      telemetry.parsed(fileIndex, { parseStrategy: 'xml' })
       const estabelecimento = await resolverEstabelecimentoOrigem({
         supabase,
         cedenteId: cedente.id,
@@ -441,6 +438,7 @@ async function processarArquivo(
 
       if (dbError) {
         const { error: cleanupError } = await createAdminClient().storage.from(buckets.notasFiscais).remove([filePath])
+        if (!cleanupError) telemetry.compensated(fileIndex)
         if (cleanupError) logUploadNf('insert_nf_xml_storage_compensacao_erro', { ...context, chaveAcesso: parsed.chave_acesso, erro: { code: cleanupError.name } })
         logUploadNf('insert_nf_erro', { ...context, chaveAcesso: parsed.chave_acesso, erro: dbError })
         return { ok: false, status: dbError.code === '23505' ? 'DUPLICATE' : 'PERSISTENCE_ERROR', error: cleanupError
@@ -475,6 +473,7 @@ async function processarArquivo(
               arquivoUrl: filePath,
               etapa: 'registrar_parcelas',
               context,
+              onCompensated: () => telemetry.compensated(fileIndex),
             })
           } catch (cleanupError) {
             logUploadNf('registrar_parcelas_compensacao_erro', { ...context, erro: cleanupError, notaFiscalId: nfData.id })
@@ -499,6 +498,7 @@ async function processarArquivo(
             arquivoUrl: filePath,
             etapa: 'registrar_xml_documental',
             context,
+            onCompensated: () => telemetry.compensated(fileIndex),
           })
         } catch (cleanupError) {
           logUploadNf('registrar_xml_documental_compensacao_erro', { ...context, erro: cleanupError, notaFiscalId: nfData.id })
@@ -538,6 +538,11 @@ async function processarArquivo(
       let extracted: NfPdfExtracted = { campos_extraidos: [] }
       if (isPdf) {
         extracted = await extractDanfeFromPdf(Buffer.from(await arquivo.arrayBuffer()))
+        telemetry.parsed(fileIndex, {
+          layoutFingerprint: extracted.layout_fingerprint,
+          parseStrategy: extracted.strategies?.[0],
+          confidence: extracted.confianca?.valor_bruto,
+        })
       }
 
       // A chave validada prevalece. Sem chave, o PDF so segue se o emitente
@@ -546,17 +551,6 @@ async function processarArquivo(
         ? extrairCnpjDaChaveAcesso(extracted.chave_acesso)
         : extracted.cnpj_emitente ?? cnpjLimpo
       const gateDanfe = isPdf ? validarDanfeParaPersistencia(extracted) : null
-      if (gateDanfe && !gateDanfe.ok) {
-        console.warn('[uploadNFs][danfe_parse_bloqueado]', {
-          correlation_id: randomUUID(),
-          layout: extracted.layout_fingerprint || 'unknown',
-          strategies: extracted.strategies || [],
-          candidates: (extracted.candidatos?.valor_bruto || []).slice(0, 20).map((item) => ({ source: item.source, confidence: item.confidence })),
-          failed_fields: gateDanfe.failedFields,
-          reasons: gateDanfe.reasons,
-          timings_ms: extracted.timings_ms || null,
-        })
-      }
       if (!valorTotalExtraidoValido(extracted) || gateDanfe?.ok === false) {
         return {
           ok: false,
@@ -619,6 +613,7 @@ async function processarArquivo(
 
       if (dbError) {
         const { error: cleanupError } = await createAdminClient().storage.from(buckets.notasFiscais).remove([filePath])
+        if (!cleanupError) telemetry.compensated(fileIndex)
         if (cleanupError) logUploadNf('insert_nf_rascunho_storage_compensacao_erro', { ...context, chaveAcesso: null, erro: { code: cleanupError.name } })
         logUploadNf('insert_nf_rascunho_erro', { ...context, chaveAcesso: null, erro: { code: dbError.code } })
         return { ok: false, status: dbError.code === '23505' ? 'DUPLICATE' : 'PERSISTENCE_ERROR', error: cleanupError
@@ -640,6 +635,7 @@ async function processarArquivo(
             arquivoUrl: filePath,
             etapa: 'registrar_danfe_documental',
             context,
+            onCompensated: () => telemetry.compensated(fileIndex),
           })
           return { ok: false, status: 'PERSISTENCE_ERROR', error: 'Não foi possível registrar o DANFE no repositório documental.' }
         }
@@ -669,6 +665,7 @@ async function processarArquivo(
           arquivoUrl: filePath,
           etapa: 'erro_inesperado_processar_arquivo',
           context,
+          onCompensated: () => telemetry.compensated(fileIndex),
         })
       } catch (cleanupError) {
         logUploadNf('erro_inesperado_processar_arquivo_compensacao_erro', { ...context, erro: cleanupError, notaFiscalId: notaFiscalPersistidaId })
@@ -689,12 +686,17 @@ export async function uploadNFs(formData: FormData): Promise<NfActionState> {
 
   const arquivos = formData.getAll('arquivos') as File[]
   if (!arquivos || arquivos.length === 0) return { success: false, message: 'Nenhum arquivo selecionado.' }
+  const telemetry = createUploadTelemetry(arquivos.length)
 
   const { batch: uploadBatch, ids: nfsCriadas, rascunhos: nfsRascunho } = await executarUploadPorArquivo(
     arquivos,
-    (arquivo) => processarArquivo(arquivo, context, supabase),
+    (arquivo, fileIndex) => {
+      telemetry.start(fileIndex)
+      return processarArquivo(arquivo, context, supabase, telemetry, fileIndex)
+    },
     (error) => logUploadNf('processar_arquivo_rejeitado', { ...context, erro: error }),
   )
+  telemetry.complete(uploadBatch)
 
   if (uploadBatch.successCount > 0) revalidatePath('/cedente/notas-fiscais')
   const message = `${uploadBatch.successCount} de ${uploadBatch.total} arquivo(s) importado(s).`
