@@ -78,9 +78,10 @@ describe('total financeiro do DANFE', () => {
   it('bloqueia total inválido antes de Storage e INSERT no ramo PDF', () => {
     const action = readFileSync('src/lib/actions/nota-fiscal.ts', 'utf8')
     const pdfBranch = action.slice(action.indexOf('let extracted: NfPdfExtracted'), action.indexOf('export async function uploadNFs'))
-    expect(pdfBranch.indexOf('if (!valorTotalExtraidoValido(extracted))')).toBeGreaterThanOrEqual(0)
-    expect(pdfBranch.indexOf('if (!valorTotalExtraidoValido(extracted))')).toBeLessThan(pdfBranch.indexOf('.from(buckets.notasFiscais).upload(filePath, arquivo)'))
-    expect(pdfBranch.indexOf('if (!valorTotalExtraidoValido(extracted))')).toBeLessThan(pdfBranch.indexOf(".from('notas_fiscais')"))
+    expect(pdfBranch).toContain('validarDanfeParaPersistencia(extracted)')
+    expect(pdfBranch).toContain('!valorTotalExtraidoValido(extracted) || gateDanfe?.ok === false')
+    expect(pdfBranch.indexOf('validarDanfeParaPersistencia(extracted)')).toBeLessThan(pdfBranch.indexOf('.from(buckets.notasFiscais).upload(filePath, arquivo)'))
+    expect(pdfBranch.indexOf('validarDanfeParaPersistencia(extracted)')).toBeLessThan(pdfBranch.indexOf(".from('notas_fiscais')"))
     expect(pdfBranch).not.toContain('valor_bruto: extracted.valor_bruto ?? 0')
   })
 })

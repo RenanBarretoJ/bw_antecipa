@@ -52,8 +52,6 @@ export default async function NotasFiscaisCedentePage({
         filtros.emissaoAte,
         filtros.vencimentoDe,
         filtros.vencimentoAte,
-        resultado.total,
-        resultado.itens.map((item) => `${item.id}:${item.status}:${item.estadoSubmissao}`).join(','),
       ].join(':')}
       resultado={resultado}
       filtros={filtros}

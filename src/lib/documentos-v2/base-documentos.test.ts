@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { validarDocumentoBaseDaNotaComDadosDanfe, validarDocumentoBaseDaNotaComDadosXml } from './base-documentos'
+import { validarDocumentoBaseDaNota, validarDocumentoBaseDaNotaComDadosDanfe, validarDocumentoBaseDaNotaComDadosXml } from './base-documentos'
 
 const referencia = {
   chaveAcesso: '41260500262371000575550010000131911836000001',
@@ -31,6 +31,17 @@ describe('documentos-base da NF', () => {
         campos_extraidos: ['chave_acesso', 'numero_nf', 'serie'],
       },
     }).codigo).toBe('nf_danfe_pdf')
+  })
+
+  it('reutiliza o DANFE prevalidado sem reler o PDF apos o primeiro upload no Storage', async () => {
+    const arquivo = { arrayBuffer: () => { throw new Error('PDF relido indevidamente') } } as unknown as File
+    const resultado = await validarDocumentoBaseDaNota({
+      codigo: 'nf_danfe_pdf',
+      arquivo,
+      referencia,
+      parsedDanfe: { chave_acesso: referencia.chaveAcesso, numero_nf: referencia.numero, serie: referencia.serie, campos_extraidos: ['chave_acesso', 'numero_nf', 'serie'] },
+    })
+    expect(resultado?.codigo).toBe('nf_danfe_pdf')
   })
 
   it('rejeita PDF identificado como outra NF', () => {
