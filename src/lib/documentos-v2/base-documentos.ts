@@ -126,10 +126,13 @@ export async function validarDocumentoBaseDaNota(input: {
   codigo: string
   arquivo: File
   referencia: NotaFiscalBaseReferencia
+  parsedDanfe?: NfPdfExtracted
 }): Promise<DocumentoBaseValidado | null> {
   if (input.codigo === 'nf_xml') return validarXmlBase({ xml: await input.arquivo.text(), referencia: input.referencia })
   if (input.codigo === 'nf_danfe_pdf') {
-    const parsed = await extractDanfeFromPdf(Buffer.from(await input.arquivo.arrayBuffer()))
+    // No upload inicial, reutiliza a leitura do MESMO arquivo feita antes do
+    // Storage/INSERT. Continua conferindo a identidade contra a NF persistida.
+    const parsed = input.parsedDanfe ?? await extractDanfeFromPdf(Buffer.from(await input.arquivo.arrayBuffer()))
     return validarDanfeBase({ parsed, referencia: input.referencia })
   }
   return null

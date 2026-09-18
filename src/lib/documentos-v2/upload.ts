@@ -10,12 +10,14 @@ import { classificarTomadorCte, resolverVinculoCtePorNf, type ItemComparavel, ty
 import { obterFundoAtivoAutorizado } from '@/lib/fundos/fundo-ativo.server'
 import { carregarContextoEventoNota, registrarEventoDominio } from '@/lib/eventos-dominio/registrar'
 import { validarDocumentoBaseDaNota } from './base-documentos'
+import type { NfPdfExtracted } from '@/lib/pdf-nf-parser'
 
 export interface UploadDocumentoNotaInput {
   notaFiscalId: string
   requisitoId: string
   arquivo: File
   contexto?: ContextoDocumentoNotaFiscal
+  parsedDanfe?: NfPdfExtracted
 }
 
 export interface UploadDocumentoEntregaInput {
@@ -257,6 +259,7 @@ export async function uploadDocumentoDaNota(
     await validarDocumentoBaseDaNota({
       codigo: codigoSnapshot,
       arquivo: input.arquivo,
+      parsedDanfe: input.parsedDanfe,
       referencia: {
         chaveAcesso: notaFiscalBase.chave_acesso,
         numero: notaFiscalBase.numero_nf,
@@ -567,6 +570,7 @@ export async function uploadDocumentoSeRequerido(
   arquivo: File,
   client: AppSupabaseClient,
   contexto?: ContextoDocumentoNotaFiscal,
+  parsedDanfe?: NfPdfExtracted,
 ): Promise<boolean> {
   await instanciarRequisitosDaNota(notaFiscalId, client, contexto)
   const { data: requirement } = await client
@@ -578,6 +582,6 @@ export async function uploadDocumentoSeRequerido(
     .limit(1)
     .maybeSingle()
   if (!requirement) return false
-  await uploadDocumentoDaNota({ notaFiscalId, requisitoId: requirement.id, arquivo, contexto }, client)
+  await uploadDocumentoDaNota({ notaFiscalId, requisitoId: requirement.id, arquivo, contexto, parsedDanfe }, client)
   return true
 }

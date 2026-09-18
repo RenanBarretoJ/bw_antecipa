@@ -1,22 +1,62 @@
+import { resolveDanfeValue, type DanfeLayout, type ValorSource } from './danfe/valor'
+
 // pdf-parse está em serverExternalPackages (next.config.ts): o Next.js usa o require
 // nativo do Node.js, evitando o problema do index.js tentar ler arquivo de teste ao ser bundlado.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const pdfParse = require('pdf-parse') as (buffer: Buffer) => Promise<{ text: string }>
 
+export type DanfeCriticalField = 'numero_nf' | 'serie' | 'chave_acesso' | 'cnpj_emitente' | 'cnpj_destinatario' | 'data_emissao' | 'data_vencimento' | 'valor_bruto'
+
+export interface DanfeFieldCandidate {
+  field: DanfeCriticalField
+  value: string | number
+  source: string
+  anchor: string
+  confidence: number
+  rawText?: string
+  corroboratedBy: string[]
+}
+
+const MIN_CRITICAL_CONFIDENCE = 0.85
+
+function normalizeDanfeText(text: string): string {
+  return text.normalize('NFC').replace(/[\u200B-\u200D\uFEFF]/g, '').replace(/\r\n?/g, '\n').replace(/[ \t]+/g, ' ').trim()
+}
+
+function validNfeKey(key: string): boolean {
+  if (!/^\d{44}$/.test(key)) return false
+  let sum = 0
+  let weight = 2
+  for (let index = 42; index >= 0; index -= 1) {
+    sum += Number(key[index]) * weight
+    weight = weight === 9 ? 2 : weight + 1
+  }
+  const remainder = sum % 11
+  return Number(key[43]) === (remainder < 2 ? 0 : 11 - remainder)
+}
+
 export interface NfPdfExtracted {
   numero_nf?: string
   serie?: string
   chave_acesso?: string
+  cnpj_emitente?: string
   data_emissao?: string       // YYYY-MM-DD
   data_vencimento?: string    // YYYY-MM-DD
-  // cnpj_emitente e razao_social_emitente são intencionalmente omitidos:
-  // sempre usam os dados do cedente autenticado — não confiamos no PDF
+  // A identidade do emitente vem da chave fiscal validada; o cadastro autorizado
+  // continua sendo resolvido no servidor antes de qualquer persistencia.
   cnpj_destinatario?: string  // só dígitos
   razao_social_destinatario?: string
   valor_bruto?: number   // Valor total canonico da NF
   valor_liquido?: number // Valor total da NF (sem desconto financeiro)
-  origem_valor_bruto?: 'valor_total_nota' | 'valor_total_produtos'
+  origem_valor_bruto?: 'valor_total_nota' | 'valor_total_produtos' | 'duplicata_soma' | 'valor_original' | 'valor_liquido'
   condicao_pagamento?: string
+  layout_fingerprint?: DanfeLayout
+  candidatos?: Partial<Record<DanfeCriticalField, DanfeFieldCandidate[]>>
+  confianca?: Partial<Record<DanfeCriticalField, number>>
+  proveniencia?: Partial<Record<DanfeCriticalField, { source: string; corroboratedBy: string[] }>>
+  motivos_bloqueio?: string[]
+  strategies?: ValorSource[]
+  timings_ms?: { extraction: number; parsing: number }
   descricao_itens?: string    // conteúdo de "INFORMAÇÕES COMPLEMENTARES"
   campos_extraidos: string[]  // lista dos campos extraídos com sucesso
 }
@@ -28,63 +68,121 @@ export interface NfPdfExtracted {
  */
 export async function extractDanfeFromPdf(buffer: Buffer): Promise<NfPdfExtracted> {
   let text = ''
+  const started = performance.now()
+  let timeoutId: ReturnType<typeof setTimeout> | undefined
 
   try {
     // Timeout de 20s: em ambientes serverless o PDF.js pode travar sem rejeitar
+    // Alguns PDFs textuais validos fazem o pdf-parse falhar transitoriamente na
+    // primeira leitura; duas novas tentativas sao limitadas pelo mesmo timeout.
+    const parseWithRetry = async (): Promise<{ text: string }> => {
+      let lastError: unknown
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try { return await pdfParse(Buffer.from(buffer)) }
+        catch (error) { lastError = error }
+      }
+      throw lastError
+    }
     const result = await Promise.race([
-      pdfParse(buffer),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('pdf-parse timeout')), 20000)
-      ),
+      parseWithRetry(),
+      new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error('pdf-parse timeout')), 20000)
+      }),
     ])
     text = result.text || ''
   } catch {
-    return { campos_extraidos: [] }
+    return { campos_extraidos: [], motivos_bloqueio: ['pdf_text_extraction_failed'], timings_ms: { extraction: Math.round(performance.now() - started), parsing: 0 } }
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId)
   }
 
   // PDF escaneado (imagem) — texto insuficiente para extração
   if (text.replace(/\s/g, '').length < 50) {
-    return { campos_extraidos: [] }
+    return { campos_extraidos: [], motivos_bloqueio: ['pdf_without_readable_text'], timings_ms: { extraction: Math.round(performance.now() - started), parsing: 0 } }
   }
 
   // Normalizar: múltiplos espaços → um espaço, manter case original para regex case-insensitive
-  const normalized = text.replace(/[ \t]+/g, ' ').replace(/\r\n/g, '\n').trim()
-
-  return extractDanfeFromText(normalized)
+  const extractedAt = performance.now()
+  const parsed = extractDanfeFromText(text)
+  parsed.timings_ms = { extraction: Math.round(extractedAt - started), parsing: Math.round(performance.now() - extractedAt) }
+  return parsed
 }
 
-export function extractDanfeFromText(normalized: string): NfPdfExtracted {
+export function extractDanfeFromText(input: string): NfPdfExtracted {
+  const normalized = normalizeDanfeText(input)
   const campos_extraidos: string[] = []
-  const extracted: NfPdfExtracted = { campos_extraidos }
+  const candidatos: Partial<Record<DanfeCriticalField, DanfeFieldCandidate[]>> = {}
+  const confianca: Partial<Record<DanfeCriticalField, number>> = {}
+  const proveniencia: Partial<Record<DanfeCriticalField, { source: string; corroboratedBy: string[] }>> = {}
+  const extracted: NfPdfExtracted = { campos_extraidos, candidatos, confianca, proveniencia, motivos_bloqueio: [] }
+  const record = (field: DanfeCriticalField, value: string | number, source: string, confidence: number, corroboratedBy: string[] = [], rawText?: string) => {
+    const item: DanfeFieldCandidate = { field, value, source, anchor: source, confidence, corroboratedBy, ...(rawText ? { rawText } : {}) }
+    candidatos[field] = [...(candidatos[field] || []), item]
+    if (confidence > (confianca[field] || 0)) {
+      confianca[field] = confidence
+      proveniencia[field] = { source, corroboratedBy }
+    }
+  }
 
-  const chave = extractChaveAcesso(normalized)
-  const numero = chave ? String(Number(chave.slice(25, 34))) : extractNumeroNF(normalized)
-  if (numero) { extracted.numero_nf = numero; campos_extraidos.push('numero_nf') }
+  const chaveLida = extractChaveAcesso(normalized)
+  const chave = chaveLida && validNfeKey(chaveLida) ? chaveLida : undefined
+  if (chaveLida && !chave) extracted.motivos_bloqueio?.push('invalid_access_key')
+  const numeroCabecalho = extractNumeroNF(normalized)
+  const numero = chave ? String(Number(chave.slice(25, 34))) : numeroCabecalho
+  if (chave && numeroCabecalho && Number(numeroCabecalho) !== Number(numero)) extracted.motivos_bloqueio?.push('invoice_key_conflict')
+  if (numero) { extracted.numero_nf = numero; campos_extraidos.push('numero_nf'); record('numero_nf', numero, chave ? 'chave_acesso' : 'cabecalho_nf', chave ? 0.99 : 0.86) }
 
-  const serie = chave ? String(Number(chave.slice(22, 25))) : extractSerie(normalized)
-  if (serie) { extracted.serie = serie; campos_extraidos.push('serie') }
+  const serieCabecalho = extractSerie(normalized)
+  const serie = chave ? String(Number(chave.slice(22, 25))) : serieCabecalho
+  if (chave && serieCabecalho && Number(serieCabecalho) !== Number(serie)) extracted.motivos_bloqueio?.push('series_key_conflict')
+  if (serie) { extracted.serie = serie; campos_extraidos.push('serie'); record('serie', serie, chave ? 'chave_acesso' : 'cabecalho_serie', chave ? 0.99 : 0.82) }
 
-  if (chave) { extracted.chave_acesso = chave; campos_extraidos.push('chave_acesso') }
+  if (chave) {
+    extracted.chave_acesso = chave
+    extracted.cnpj_emitente = chave.slice(6, 20)
+    campos_extraidos.push('chave_acesso', 'cnpj_emitente')
+    record('chave_acesso', chave, 'chave_44_digitos_dv', 0.99)
+    record('cnpj_emitente', extracted.cnpj_emitente, 'chave_acesso', 0.99)
+  }
+  const cnpjEmitenteTextual = extractCnpjEmitenteContextual(normalized)
+  if (cnpjEmitenteTextual) {
+    record('cnpj_emitente', cnpjEmitenteTextual, 'identificacao_emitente', 0.88)
+    if (extracted.cnpj_emitente && extracted.cnpj_emitente !== cnpjEmitenteTextual) {
+      extracted.motivos_bloqueio?.push('issuer_key_conflict')
+    } else if (!extracted.cnpj_emitente) {
+      extracted.cnpj_emitente = cnpjEmitenteTextual
+      campos_extraidos.push('cnpj_emitente')
+    } else {
+      proveniencia.cnpj_emitente = { source: 'chave_acesso', corroboratedBy: ['identificacao_emitente'] }
+    }
+  }
 
   const dataEmissao = extractDataEmissao(normalized)
-  if (dataEmissao) { extracted.data_emissao = dataEmissao; campos_extraidos.push('data_emissao') }
+  if (dataEmissao) { extracted.data_emissao = dataEmissao; campos_extraidos.push('data_emissao'); record('data_emissao', dataEmissao, 'rotulo_emissao', 0.90) }
 
   const dataVencimento = extractDataVencimento(normalized)
-  if (dataVencimento) { extracted.data_vencimento = dataVencimento; campos_extraidos.push('data_vencimento') }
+  if (dataVencimento) { extracted.data_vencimento = dataVencimento; campos_extraidos.push('data_vencimento'); record('data_vencimento', dataVencimento, 'rotulo_ou_duplicata', 0.88) }
 
   const { destinatario: cnpjDest } = extractCnpjs(normalized)
-  if (cnpjDest) { extracted.cnpj_destinatario = cnpjDest; campos_extraidos.push('cnpj_destinatario') }
+  if (cnpjDest) { extracted.cnpj_destinatario = cnpjDest; campos_extraidos.push('cnpj_destinatario'); record('cnpj_destinatario', cnpjDest, 'secao_destinatario', 0.88) }
 
   const razaoDest = extractRazaoSocialDestinatario(normalized)
   if (razaoDest) { extracted.razao_social_destinatario = razaoDest; campos_extraidos.push('razao_social_destinatario') }
 
-  const valorNota = extractValorNota(normalized)
-  const possuiRotuloTotalNota = /(?:V\.?|VALOR)\s*TOTAL\s+DA\s+NOTA/i.test(normalized)
-  const valorCanonico = valorNota ?? (!possuiRotuloTotalNota ? extractValorProdutos(normalized) : undefined)
-  if (valorCanonico) {
-    extracted.valor_bruto = valorCanonico
-    extracted.valor_liquido = valorCanonico
-    extracted.origem_valor_bruto = valorNota ? 'valor_total_nota' : 'valor_total_produtos'
+  const valor = resolveDanfeValue(normalized, numero)
+  extracted.layout_fingerprint = valor.layout
+  extracted.strategies = valor.strategies
+  extracted.motivos_bloqueio?.push(...valor.reasons)
+  for (const item of valor.candidates) record('valor_bruto', item.value, item.source, item.confidence, item.corroboratedBy, item.rawText)
+  if (valor.selected) {
+    extracted.valor_bruto = valor.selected.value
+    extracted.valor_liquido = valor.selected.value
+    extracted.origem_valor_bruto = valor.selected.source === 'VALOR_TOTAL_DOS_PRODUTOS' ? 'valor_total_produtos'
+      : valor.selected.source === 'DUPLICATA_SUM' ? 'duplicata_soma'
+        : valor.selected.source === 'VALOR_ORIGINAL' ? 'valor_original'
+          : valor.selected.source === 'VALOR_LIQUIDO' ? 'valor_liquido' : 'valor_total_nota'
+    confianca.valor_bruto = valor.confidence
+    proveniencia.valor_bruto = { source: valor.selected.source, corroboratedBy: valor.selected.corroboratedBy }
     campos_extraidos.push('valor_bruto', 'valor_liquido')
   }
 
@@ -102,9 +200,9 @@ export function extractDanfeFromText(normalized: string): NfPdfExtracted {
 function extractNumeroNF(text: string): string | undefined {
   const patterns = [
     // "NF-e\nNº. 000.006.942" — cabeçalho do DANFE (mais confiável)
-    /NF-?e[\s\n]+N[°º]\.?\s*(\d[\d.]{0,11})/i,
+    /NF-?e[\s\n]+N\.?[°º]\.?\s*(\d[\d.]{0,11})/i,
     // "Nº. 000.006.942" no início de linha
-    /^N[°º]\.?\s+(\d[\d.]{0,11})/im,
+    /^N\.?[°º]\.?\s+(\d[\d.]{0,11})/im,
     // "ELETRÔNICA Nº 9.700" — banner de rodapé (MD SAUDE, BIOREGENERA)
     /ELETR[ÔO]NICA\s+N[°º]\.?\s*(\d[\d.,]{0,11})/i,
     /N[°º]\s+DA\s+NOTA\s*[:\-]?\s*(\d[\d.]{0,11})/i,
@@ -120,7 +218,7 @@ function extractNumeroNF(text: string): string | undefined {
 }
 
 function extractSerie(text: string): string | undefined {
-  const m = text.match(/S[ÉE]R(?:IE|\.)\s*[:\-]?\s*(\d{1,3})/i)
+  const m = text.match(/S[ÉE]R(?:IE|\.)\s*[:\-]?\s*(\d{1,3})(?!\d)/i)
   return m?.[1] ?? undefined
 }
 
@@ -250,49 +348,15 @@ function extractRazaoSocialDestinatario(text: string): string | undefined {
   return undefined
 }
 
-// V. TOTAL PRODUTOS → valor_bruto
-function extractValorProdutos(text: string): number | undefined {
-  const patterns = [
-    /V\.?\s*TOTAL\s+(?:DOS\s+)?PRODUTOS\s*R?\$?\s*([\d.,]+)/i,
-    /VALOR\s+TOTAL\s+(?:DOS\s+)?PRODUTOS\s*R?\$?\s*([\d.,]+)/i,
-    /TOTAL\s+(?:DOS\s+)?PRODUTOS\s*R?\$?\s*([\d.,]+)/i,
-  ]
-  for (const re of patterns) {
-    const m = text.match(re)
-    if (m?.[1]) {
-      const v = parseBRLValue(m[1])
-      if (v > 0) return v
-    }
-  }
-  // layout de bloco: valor dos produtos aparece sozinho numa linha imediatamente antes
-  // da linha de valores concatenados de frete/seguro/desconto/IPI/total
-  // ex: "\n5.007,18\n0,000,000,000,005.007,18\n"
-  const mBloco = text.match(/\n([\d.]+,\d{2})\n0,00(?:0,00)+/)
-  if (mBloco?.[1]) {
-    const v = parseBRLValue(mBloco[1])
-    if (v > 0) return v
-  }
-  return undefined
-}
-
-// V. TOTAL DA NOTA → valor_liquido
-function extractValorNota(text: string): number | undefined {
-  const patterns = [
-    /V\.?\s*TOTAL\s+DA\s+NOTA[ \t]*R?\$?[ \t]*(\d[\d.]*,\d{2})(?![\d.,])/i,
-    /VALOR\s+TOTAL\s+DA\s+NOTA[ \t]*R?\$?[ \t]*(\d[\d.]*,\d{2})(?![\d.,])/i,
-    /TOTAL\s+DA\s+(?:NF|NOTA)[ \t]*R?\$?[ \t]*(\d[\d.]*,\d{2})(?![\d.,])/i,
-    // Alguns DANFEs gerados em colunas concatenam "0,00" e o total na tabela.
-    // O canhoto traz o total completo e separado mesmo quando a tabela nao traz.
-    /VALOR\s+TOTAL\s*:\s*R\$[ \t]*(\d[\d.]*,\d{2})(?![\d.,])/i,
-  ]
-  for (const re of patterns) {
-    const m = text.match(re)
-    if (m?.[1]) {
-      const v = parseBRLValue(m[1])
-      if (v > 0) return v
-    }
-  }
-  return undefined
+function extractCnpjEmitenteContextual(text: string): string | undefined {
+  const start = text.search(/IDENTIFICA[ÇC][ÃA]O\s+DO\s+EMITENTE|DADOS\s+DO\s+EMITENTE/i)
+  if (start < 0) return undefined
+  const destination = text.slice(start).search(/DESTINAT[ÁA]RIO\s*\/\s*REMETENTE/i)
+  const block = text.slice(start, start + Math.min(destination > 0 ? destination : 1500, 1500))
+  const matches = [...block.matchAll(/\b(\d{2}[.\s]?\d{3}[.\s]?\d{3}[\/\s]?\d{4}[-\s]?\d{2})\b/g)]
+    .map((match) => match[1].replace(/\D/g, ''))
+  const unique = [...new Set(matches)]
+  return unique.length === 1 ? unique[0] : undefined
 }
 
 function extractCondicaoPagamento(text: string): string | undefined {
@@ -324,15 +388,14 @@ function extractInformacoesComplementares(text: string): string | undefined {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 /** Converte DD/MM/AAAA para YYYY-MM-DD */
-function parseBRDate(raw: string): string {
+function parseBRDate(raw: string): string | undefined {
   const [d, m, y] = raw.split(/[-/]/)
+  const day = Number(d)
+  const month = Number(m)
+  const year = Number(y)
+  const date = new Date(Date.UTC(year, month - 1, day))
+  if (year < 1900 || year > 2200 || date.getUTCFullYear() !== year || date.getUTCMonth() + 1 !== month || date.getUTCDate() !== day) return undefined
   return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`
-}
-
-/** Converte valor monetário BR (1.234,56) para number */
-function parseBRLValue(raw: string): number {
-  if (!/^(?:\d{1,3}(?:\.\d{3})+|\d+),\d{2}$/.test(raw)) return 0
-  return Number(raw.replace(/\./g, '').replace(',', '.'))
 }
 
 export function valorTotalExtraidoValido(
@@ -344,4 +407,22 @@ export function valorTotalExtraidoValido(
     && valor > 0
     && valor <= 1_000_000_000_000
     && extracted.origem_valor_bruto !== undefined
+    && (extracted.confianca?.valor_bruto ?? 0) >= MIN_CRITICAL_CONFIDENCE
+    && !extracted.motivos_bloqueio?.some((reason) => reason.endsWith('_conflict'))
+}
+
+export type DanfePersistenceGate =
+  | { ok: true }
+  | { ok: false; failedFields: DanfeCriticalField[]; reasons: string[] }
+
+export function validarDanfeParaPersistencia(extracted: NfPdfExtracted): DanfePersistenceGate {
+  const failedFields: DanfeCriticalField[] = []
+  if (!extracted.numero_nf || (extracted.confianca?.numero_nf ?? 0) < MIN_CRITICAL_CONFIDENCE) failedFields.push('numero_nf')
+  if (!extracted.cnpj_emitente || (extracted.confianca?.cnpj_emitente ?? 0) < MIN_CRITICAL_CONFIDENCE) failedFields.push('cnpj_emitente')
+  if (!extracted.data_emissao || (extracted.confianca?.data_emissao ?? 0) < MIN_CRITICAL_CONFIDENCE) failedFields.push('data_emissao')
+  if (!valorTotalExtraidoValido(extracted)) failedFields.push('valor_bruto')
+  const reasons = extracted.motivos_bloqueio || []
+  return failedFields.length || reasons.some((reason) => reason === 'invalid_access_key' || reason.endsWith('_conflict'))
+    ? { ok: false, failedFields, reasons }
+    : { ok: true }
 }

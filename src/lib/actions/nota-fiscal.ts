@@ -1,10 +1,11 @@
 'use server'
 
+import { randomUUID } from 'node:crypto'
 import { createAdminClient, createClient } from '@/lib/supabase/server'
 import { requireAuthenticated, requireGestor as requireGestorBase, type AppSupabaseClient, type AuthContext } from '@/lib/auth/authorization'
 import { exigirSessaoElevada } from '@/lib/auth/mfa'
 import { notaFiscalSchema, type NotaFiscalFormData } from '@/lib/validations/nf'
-import { extractDanfeFromPdf, valorTotalExtraidoValido, type NfPdfExtracted } from '@/lib/pdf-nf-parser'
+import { extractDanfeFromPdf, validarDanfeParaPersistencia, valorTotalExtraidoValido, type NfPdfExtracted } from '@/lib/pdf-nf-parser'
 import { registrarLog } from './auditoria'
 import { notificarGestores, notificarCedente } from './notificacao'
 import { buckets } from '@/lib/storage'
@@ -527,22 +528,29 @@ async function processarArquivo(
       let extracted: NfPdfExtracted = { campos_extraidos: [] }
       if (isPdf) {
         extracted = await extractDanfeFromPdf(Buffer.from(await arquivo.arrayBuffer()))
-        if (!extracted.chave_acesso && !extracted.numero_nf) {
-          return { ok: false, error: `${arquivo.name}: o PDF nao foi reconhecido como DANFE de uma NF.` }
-        }
       }
 
-      // O parser de DANFE não confia em CNPJ textual do PDF. Quando existe chave
-      // oficial, o CNPJ emitente é derivado das posições fiscais da própria chave.
-      // Arquivos sem chave preservam o fallback legado para a Matriz e deverão ser
-      // confirmados no preenchimento manual antes da submissão.
+      // A chave validada prevalece. Sem chave, o PDF so segue se o emitente
+      // contextual tiver confianca suficiente e pertencer ao Cedente autorizado.
       const cnpjEmitenteOficial = extracted.chave_acesso
         ? extrairCnpjDaChaveAcesso(extracted.chave_acesso)
-        : cnpjLimpo
-      if (!valorTotalExtraidoValido(extracted)) {
+        : extracted.cnpj_emitente ?? cnpjLimpo
+      const gateDanfe = isPdf ? validarDanfeParaPersistencia(extracted) : null
+      if (gateDanfe && !gateDanfe.ok) {
+        console.warn('[uploadNFs][danfe_parse_bloqueado]', {
+          correlation_id: randomUUID(),
+          layout: extracted.layout_fingerprint || 'unknown',
+          strategies: extracted.strategies || [],
+          candidates: (extracted.candidatos?.valor_bruto || []).slice(0, 20).map((item) => ({ source: item.source, confidence: item.confidence })),
+          failed_fields: gateDanfe.failedFields,
+          reasons: gateDanfe.reasons,
+          timings_ms: extracted.timings_ms || null,
+        })
+      }
+      if (!valorTotalExtraidoValido(extracted) || gateDanfe?.ok === false) {
         return {
           ok: false,
-          error: `${arquivo.name}: Não foi possível identificar corretamente o valor total da Nota Fiscal. Revise o arquivo ou informe os dados manualmente.`,
+          error: `${arquivo.name}: Não foi possível interpretar esta Nota Fiscal com segurança. Revise os dados extraídos ou informe-os manualmente.`,
         }
       }
       const valorBruto = extracted.valor_bruto
@@ -597,7 +605,7 @@ async function processarArquivo(
       const nfData = nf as { id: string }
       if (isPdf) {
         try {
-          await uploadDocumentoSeRequerido(nfData.id, 'nf_danfe_pdf', arquivo, supabase, contextoDocumentoDaNota(context, nfData.id))
+          await uploadDocumentoSeRequerido(nfData.id, 'nf_danfe_pdf', arquivo, supabase, contextoDocumentoDaNota(context, nfData.id), extracted)
         } catch (error) {
           logUploadNf('registrar_danfe_documental_erro', { ...context, chaveAcesso: extracted.chave_acesso ?? null, erro: error, notaFiscalId: nfData.id })
           await removerNotaFiscalParcial({
