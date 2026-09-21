@@ -21,6 +21,31 @@ export type ProcessedUploadFile =
   | { ok: true; id: string; isRascunho: boolean; nfNumero?: string }
   | { ok: false; status: Exclude<UploadFileStatus, 'IMPORTED'>; error: string }
 
+export const DEFAULT_UPLOAD_REQUEST_CONCURRENCY = 2
+
+export async function executarComConcorrenciaLimitada<T, R>(
+  items: readonly T[],
+  processar: (item: T, index: number) => Promise<R>,
+  maxConcurrent = DEFAULT_UPLOAD_REQUEST_CONCURRENCY,
+): Promise<R[]> {
+  if (items.length === 0) return []
+
+  const concurrency = Math.max(1, Math.min(Math.floor(maxConcurrent), items.length))
+  const results = new Array<R>(items.length)
+  let nextIndex = 0
+
+  const worker = async () => {
+    while (nextIndex < items.length) {
+      const index = nextIndex
+      nextIndex += 1
+      results[index] = await processar(items[index], index)
+    }
+  }
+
+  await Promise.all(Array.from({ length: concurrency }, worker))
+  return results
+}
+
 export function resumirUploadBatch(results: UploadFileResult[]): UploadBatchResult {
   const successCount = results.filter((result) => result.status === 'IMPORTED').length
   return {

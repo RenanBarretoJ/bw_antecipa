@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { uploadNFs, excluirRascunho, excluirRascunhos } from '@/lib/actions/nota-fiscal'
+import { uploadNFs, excluirRascunho, excluirRascunhos, type NfActionState } from '@/lib/actions/nota-fiscal'
 import { formatCurrency, formatCNPJ, formatDate } from '@/lib/utils'
 import {
   LIMITES_LISTAGEM_NF,
@@ -49,7 +49,13 @@ import {
 } from '@/components/ui/table'
 import { useNotifications } from '@/components/notifications/notification-provider'
 import { ListNameCell } from '@/components/data-display/primitives'
-import { arquivosPendentesDeRetry, type UploadBatchResult } from '@/lib/notas-fiscais/upload-batch'
+import {
+  arquivosPendentesDeRetry,
+  executarComConcorrenciaLimitada,
+  resumirUploadBatch,
+  type UploadBatchResult,
+  type UploadFileResult,
+} from '@/lib/notas-fiscais/upload-batch'
 
 interface NfRecord {
   id: string
@@ -229,16 +235,30 @@ export default function NotasFiscaisListagem({ resultado, filtros }: Props) {
     setUploading(true)
     const filesToSend = selectedFiles
 
-    const formData = new FormData()
-    filesToSend.forEach((file) => formData.append('arquivos', file))
-
     try {
-      const result = await uploadNFs(formData)
-      const batch = result?.uploadBatch
-      if (!batch || batch.results.length !== filesToSend.length) {
-        notifications.fromActionResult(result, 'Não foi possível confirmar o resultado do envio.')
-        return
-      }
+      const units = await executarComConcorrenciaLimitada(filesToSend, async (file) => {
+        const formData = new FormData()
+        formData.append('arquivos', file)
+
+        let actionResult: NfActionState
+        try {
+          actionResult = await uploadNFs(formData)
+        } catch {
+          actionResult = undefined
+        }
+
+        const result = actionResult?.uploadBatch?.results[0]
+        const normalized: UploadFileResult = result
+          ? { ...result, fileName: file.name }
+          : {
+              fileName: file.name,
+              status: 'PERSISTENCE_ERROR',
+              message: 'Não foi possível processar este arquivo. Tente novamente.',
+            }
+
+        return { actionResult, result: normalized }
+      })
+      const batch = resumirUploadBatch(units.map((unit) => unit.result))
 
       setUploadBatch(batch)
       setSelectedFiles(arquivosPendentesDeRetry(filesToSend, batch))
@@ -254,8 +274,11 @@ export default function NotasFiscaisListagem({ resultado, filtros }: Props) {
       }
 
       if (batch.successCount > 0) router.refresh()
-      if (batch.total === 1 && batch.errorCount === 0 && result?.rascunhos?.length === 1) {
-        router.push(`/cedente/notas-fiscais/${result.rascunhos[0]}`)
+      const singleDraftId = units[0]?.actionResult?.rascunhos?.length === 1
+        ? units[0].actionResult.rascunhos[0]
+        : undefined
+      if (batch.total === 1 && batch.errorCount === 0 && singleDraftId) {
+        router.push(`/cedente/notas-fiscais/${singleDraftId}`)
       }
     } catch {
       notifications.error('Não foi possível confirmar o envio. Verifique suas NFs antes de tentar novamente.')

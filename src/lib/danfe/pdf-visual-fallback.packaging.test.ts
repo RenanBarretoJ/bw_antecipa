@@ -7,9 +7,12 @@ describe('empacotamento do fallback visual de PDF', () => {
 
     expect(includes).toEqual(expect.arrayContaining([
       './node_modules/@tesseract.js-data/por/**/*',
+      './node_modules/@napi-rs/canvas/**/*',
+      './node_modules/@napi-rs/canvas-*/**/*',
       './node_modules/tesseract.js-core/**/*',
       './node_modules/pdfjs-dist/standard_fonts/**/*',
       './node_modules/zxing-wasm/dist/reader/*.wasm',
     ]))
+    expect(nextConfig.serverExternalPackages).toContain('@napi-rs/canvas')
   })
 })
