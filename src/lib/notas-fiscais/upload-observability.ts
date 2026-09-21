@@ -21,6 +21,12 @@ type SafeEvent = {
   layout_fingerprint?: string
   parse_strategy?: string
   confidence_bucket?: 'high' | 'medium' | 'low' | 'unknown'
+  extraction_source?: 'pdf_text_native' | 'pdf_visual_fallback'
+  native_text_length_bucket?: 'empty' | 'short' | 'medium' | 'long'
+  fallback_trigger_reason?: 'NO_TEXT_LAYER' | 'TEXT_INSUFFICIENT' | 'MISSING_CORE_ANCHORS' | 'NATIVE_EXTRACTION_FAILED'
+  fallback_status?: 'success' | 'failed'
+  fallback_duration_ms?: number
+  visual_ocr_confidence_bucket?: 'high' | 'medium' | 'low' | 'unknown'
   error_code?: string
   error_class?: 'validation' | 'duplicate' | 'storage' | 'persistence' | 'unknown'
   stage?: string
@@ -57,7 +63,17 @@ export function createUploadTelemetry(batchSize: number, sink: Sink = defaultSin
   const correlationId = randomUUID()
   const startedAt = Date.now()
   const fileStarted = new Map<number, number>()
-  const parsed = new Map<number, Pick<SafeEvent, 'layout_fingerprint' | 'parse_strategy' | 'confidence_bucket'>>()
+  const parsed = new Map<number, Pick<SafeEvent,
+    | 'layout_fingerprint'
+    | 'parse_strategy'
+    | 'confidence_bucket'
+    | 'extraction_source'
+    | 'native_text_length_bucket'
+    | 'fallback_trigger_reason'
+    | 'fallback_status'
+    | 'fallback_duration_ms'
+    | 'visual_ocr_confidence_bucket'
+  >>()
   const compensated = new Set<number>()
 
   function emit(fileIndex: number, event: FileEvent, extra: Partial<SafeEvent> = {}) {
@@ -78,12 +94,35 @@ export function createUploadTelemetry(batchSize: number, sink: Sink = defaultSin
       fileStarted.set(fileIndex, Date.now())
       emit(fileIndex, 'NF_UPLOAD_FILE_STARTED')
     },
-    parsed(fileIndex: number, details: { layoutFingerprint?: unknown; parseStrategy?: unknown; confidence?: unknown }) {
+    parsed(fileIndex: number, details: {
+      layoutFingerprint?: unknown
+      parseStrategy?: unknown
+      confidence?: unknown
+      extractionSource?: SafeEvent['extraction_source']
+      nativeTextLengthBucket?: SafeEvent['native_text_length_bucket']
+      fallbackTriggerReason?: SafeEvent['fallback_trigger_reason']
+      fallbackStatus?: SafeEvent['fallback_status']
+      fallbackDurationMs?: unknown
+      visualOcrConfidence?: unknown
+    }) {
       const confidence = typeof details.confidence === 'number' && Number.isFinite(details.confidence) ? details.confidence : null
+      const visualConfidence = typeof details.visualOcrConfidence === 'number' && Number.isFinite(details.visualOcrConfidence)
+        ? details.visualOcrConfidence
+        : null
       parsed.set(fileIndex, {
         layout_fingerprint: opaque(details.layoutFingerprint),
         parse_strategy: opaque(details.parseStrategy),
         confidence_bucket: confidence === null ? 'unknown' : confidence >= 0.85 ? 'high' : confidence >= 0.6 ? 'medium' : 'low',
+        extraction_source: details.extractionSource,
+        native_text_length_bucket: details.nativeTextLengthBucket,
+        fallback_trigger_reason: details.fallbackTriggerReason,
+        fallback_status: details.fallbackStatus,
+        fallback_duration_ms: typeof details.fallbackDurationMs === 'number' && Number.isFinite(details.fallbackDurationMs)
+          ? Math.max(0, Math.round(details.fallbackDurationMs))
+          : undefined,
+        visual_ocr_confidence_bucket: visualConfidence === null
+          ? 'unknown'
+          : visualConfidence >= 80 ? 'high' : visualConfidence >= 60 ? 'medium' : 'low',
       })
       emit(fileIndex, 'NF_UPLOAD_FILE_PARSED')
     },
