@@ -1,7 +1,7 @@
 'use server'
 
 import { createAdminClient, createClient } from '@/lib/supabase/server'
-import { assertRole, requireAuthenticated, requireGestor, type AppSupabaseClient } from '@/lib/auth/authorization'
+import { requireAuthenticated, requireGestor, type AppSupabaseClient } from '@/lib/auth/authorization'
 import { exigirSessaoElevada } from '@/lib/auth/mfa'
 import { registrarLog } from './auditoria'
 import { criarNotificacao, notificarCedente, notificarGestores } from './notificacao'
@@ -17,6 +17,7 @@ import { obterDataCivilOperacional } from '@/lib/operacoes/data-operacional.serv
 import { executarGateRisco } from '@/lib/financeiro/risco/processor.server'
 import { atualizarRiscoAposCessao } from '@/lib/financeiro/risco/atualizacao-pos-cessao.server'
 import { validarComposicaoEstabelecimentosOperacao } from '@/lib/cedentes/estabelecimentos'
+import { resolverCedenteSolicitanteOperacao } from '@/lib/operacoes/solicitante.server'
 import { revalidatePath } from 'next/cache'
 
 export type OperacaoActionState = {
@@ -92,12 +93,15 @@ async function liberarParcelasDaOperacao(supabase: AppSupabaseClient, operacaoId
 }
 
 // ============================================================
-// CEDENTE — Solicitar antecipacao
+// CEDENTE / CONSULTOR — Solicitar antecipacao
 // ============================================================
 
-export async function solicitarAntecipacao(nfIds: string[], parcelaIds?: string[]): Promise<OperacaoActionState> {
+export async function solicitarAntecipacao(
+  nfIds: string[],
+  parcelaIds?: string[],
+  cedenteId?: string,
+): Promise<OperacaoActionState> {
   const auth = await requireAuthenticated()
-  assertRole(auth.profile.role, ['cedente'])
   const supabase = auth.supabase
   const user = auth.user
 
@@ -105,19 +109,16 @@ export async function solicitarAntecipacao(nfIds: string[], parcelaIds?: string[
     return { success: false, message: 'Selecione ao menos uma NF.' }
   }
 
-  // Buscar cedente -- get_user_cedente_id() resolve tanto o dono
-  // (cedentes.user_id) quanto um usuario convidado via cedente_acessos.
-  const { data: cedenteIdDoUsuario } = await supabase.rpc('get_user_cedente_id')
-  const { data: cedente } = cedenteIdDoUsuario
-    ? await supabase.from('cedentes').select('id, cnpj, razao_social, status').eq('id', cedenteIdDoUsuario).maybeSingle()
-    : { data: null }
-
-  if (!cedente) return { success: false, message: 'Cadastro de cedente nao encontrado.' }
-  const ced = cedente as { id: string; cnpj: string; razao_social: string; status: string }
-
-  if (ced.status !== 'ativo') {
-    return { success: false, message: 'Seu cadastro precisa estar ativo para solicitar antecipacoes.' }
+  let solicitante
+  try {
+    solicitante = await resolverCedenteSolicitanteOperacao(auth, cedenteId)
+  } catch (error) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Nao foi possivel validar o Cedente da operacao.',
+    }
   }
+  const ced = solicitante.cedente
 
   // Buscar conta escrow
   const { data: escrow } = await supabase
@@ -370,7 +371,10 @@ export async function solicitarAntecipacao(nfIds: string[], parcelaIds?: string[
   const opData = { id: operacaoResultado?.operacao_id || '', idempotentReplay: !!operacaoResultado?.idempotent_replay }
   if (!opData.id) return { success: false, message: 'Operacao criada sem identificador retornado pelo banco.' }
 
-  const mensagemSolicitacao = `O cedente ${ced.razao_social} solicitou antecipacao de ${nfsTyped.length} NF(s), valor bruto total ${formatBRL(valorBrutoTotal)}.`
+  const atorSolicitacao = solicitante.perfil === 'consultor'
+    ? `O consultor ${auth.profile.nome_completo}, em nome do Cedente ${ced.razao_social}, solicitou`
+    : `O Cedente ${ced.razao_social} solicitou`
+  const mensagemSolicitacao = `${atorSolicitacao} antecipacao de ${nfsTyped.length} NF(s), valor bruto total ${formatBRL(valorBrutoTotal)}.`
   if (opData.idempotentReplay) {
     // Retry idempotente: a operacao ja existe; nao reenfileira notificacoes nem logs complementares.
   } else if (aceiteSacadoExigido) {
@@ -407,8 +411,13 @@ export async function solicitarAntecipacao(nfIds: string[], parcelaIds?: string[
     await registrarEventoOperacao(supabase, opData.id, {
       tipo_evento: 'operacao_solicitada',
       categoria: 'operacao',
-      descricao: 'Operacao de antecipacao solicitada pelo cedente.',
+      descricao: solicitante.perfil === 'consultor'
+        ? 'Operacao de antecipacao solicitada pelo Consultor em nome do Cedente.'
+        : 'Operacao de antecipacao solicitada pelo Cedente.',
       metadata: {
+        solicitado_por_role: solicitante.perfil,
+        solicitado_por_usuario_id: user.id,
+        cedente_id: ced.id,
         valor_bruto_total: valorBrutoTotal,
         valor_liquido_desembolso: valorLiquidoDesembolso,
         quantidade_nfs: nfsTyped.length,

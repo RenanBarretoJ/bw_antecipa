@@ -36,6 +36,7 @@ const estabelecimentosListagem = readFileSync('src/lib/cedentes/estabelecimentos
 const platformAccess = readFileSync('src/lib/auth/platform-access.ts', 'utf8')
 const escrowMovimentos = readFileSync('src/lib/escrow/movimentos.server.ts', 'utf8')
 const novaSolicitacaoServer = readFileSync('src/lib/operacoes/nova-solicitacao.server.ts', 'utf8')
+const solicitanteOperacaoServer = readFileSync('src/lib/operacoes/solicitante.server.ts', 'utf8')
 const operacaoActions = readFileSync('src/lib/actions/operacao.ts', 'utf8')
 const estabelecimentoActions = readFileSync('src/lib/actions/estabelecimento.ts', 'utf8')
 const cedenteFundoAtivoActions = readFileSync('src/lib/actions/cedente-fundo-ativo.ts', 'utf8')
@@ -201,20 +202,23 @@ describe('P0 (correção real, achado pelo usuário ao vivo): mesmo padrão user
     expect(extratoPage).not.toContain(".eq('user_id', auth.user.id)")
   })
 
-  it('carregarNovaSolicitacaoOperacao resolve via get_user_cedente_id()', () => {
+  it('carregarNovaSolicitacaoOperacao delega a resolucao via get_user_cedente_id() ao resolver compartilhado', () => {
     const indiceFuncao = novaSolicitacaoServer.indexOf('export async function carregarNovaSolicitacaoOperacao')
     const indiceFimFuncao = novaSolicitacaoServer.indexOf('const contexto = await resolverCedenteFundoAtivo', indiceFuncao)
     const corpo = novaSolicitacaoServer.slice(indiceFuncao, indiceFimFuncao)
-    expect(corpo).toContain("auth.supabase.rpc('get_user_cedente_id')")
+    expect(corpo).toContain('resolverCedenteSolicitanteOperacao(auth, options.cedenteId)')
     expect(corpo).not.toContain(".eq('user_id', auth.user.id)")
+    expect(solicitanteOperacaoServer).toContain("auth.supabase.rpc('get_user_cedente_id')")
+    expect(solicitanteOperacaoServer).not.toContain(".eq('user_id', auth.user.id)")
   })
 
-  it('solicitarAntecipacao resolve o cedente via get_user_cedente_id()', () => {
+  it('solicitarAntecipacao delega a resolucao via get_user_cedente_id() ao resolver compartilhado', () => {
     const indiceFuncao = operacaoActions.indexOf('export async function solicitarAntecipacao')
-    const indiceFimFuncao = operacaoActions.indexOf('if (!cedente)', indiceFuncao)
+    const indiceFimFuncao = operacaoActions.indexOf('const cedente = solicitante.cedente', indiceFuncao)
     const corpo = operacaoActions.slice(indiceFuncao, indiceFimFuncao)
-    expect(corpo).toContain("supabase.rpc('get_user_cedente_id')")
+    expect(corpo).toContain('resolverCedenteSolicitanteOperacao(auth, cedenteId)')
     expect(corpo).not.toContain(".eq('user_id', user.id)")
+    expect(solicitanteOperacaoServer).toContain("auth.supabase.rpc('get_user_cedente_id')")
   })
 
   it('selecionarCedenteFundoAtivo resolve via get_user_cedente_id()', () => {
