@@ -6,7 +6,23 @@ const nextConfig: NextConfig = {
   logging: false,
   // pdf-parse usa require() interno e acessa o filesystem — não pode ser bundlado pelo Webpack.
   // Com esta flag Next.js usa o require nativo do Node.js, eliminando o workaround do lazy require.
-  serverExternalPackages: ['pdf-parse', 'jszip', 'handlebars'],
+  serverExternalPackages: [
+    'pdf-parse',
+    'pdf-to-img',
+    'sharp',
+    'tesseract.js',
+    'tesseract.js-core',
+    'zxing-wasm',
+    'jszip',
+    'handlebars',
+  ],
+  outputFileTracingIncludes: {
+    '/*': [
+      './node_modules/@tesseract.js-data/por/**/*',
+      './node_modules/pdfjs-dist/standard_fonts/**/*',
+      './node_modules/zxing-wasm/dist/reader/*.wasm',
+    ],
+  },
   reactCompiler: true,
   experimental: {
     serverActions: {
