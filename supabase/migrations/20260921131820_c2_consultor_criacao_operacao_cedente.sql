@@ -76,10 +76,10 @@ SET search_path = ''
 AS $$
   WITH parametros AS (
     SELECT
-      pg_catalog.btrim(pg_catalog.coalesce(p_termo, '')) AS termo,
-      extensions.unaccent(pg_catalog.lower(pg_catalog.btrim(pg_catalog.coalesce(p_termo, '')))) AS termo_normalizado,
-      pg_catalog.regexp_replace(pg_catalog.coalesce(p_termo, ''), '[^0-9]', '', 'g') AS termo_cnpj,
-      pg_catalog.greatest(1, pg_catalog.least(pg_catalog.coalesce(p_limite, 10), 10)) AS limite
+      pg_catalog.btrim(coalesce(p_termo, '')) AS termo,
+      extensions.unaccent(pg_catalog.lower(pg_catalog.btrim(coalesce(p_termo, '')))) AS termo_normalizado,
+      pg_catalog.regexp_replace(coalesce(p_termo, ''), '[^0-9]', '', 'g') AS termo_cnpj,
+      greatest(1, least(coalesce(p_limite, 10), 10)) AS limite
   )
   SELECT c.id, c.razao_social, c.nome_fantasia, c.cnpj
   FROM public.consultor_cedente cc
@@ -96,7 +96,7 @@ AS $$
       JOIN public.fundos f ON f.id = cf.fundo_id
       WHERE cf.cedente_id = c.id
         AND cf.status = 'ativo'
-        AND pg_catalog.coalesce(f.ativo, true) = true
+        AND coalesce(f.ativo, true) = true
     )
     AND (
       p.termo = ''
@@ -104,7 +104,7 @@ AS $$
         pg_catalog.char_length(p.termo) >= 4
         AND (
           pg_catalog.strpos(extensions.unaccent(pg_catalog.lower(c.razao_social)), p.termo_normalizado) > 0
-          OR pg_catalog.strpos(extensions.unaccent(pg_catalog.lower(pg_catalog.coalesce(c.nome_fantasia, ''))), p.termo_normalizado) > 0
+          OR pg_catalog.strpos(extensions.unaccent(pg_catalog.lower(coalesce(c.nome_fantasia, ''))), p.termo_normalizado) > 0
           OR (p.termo_cnpj <> '' AND pg_catalog.strpos(pg_catalog.regexp_replace(c.cnpj, '[^0-9]', '', 'g'), p.termo_cnpj) > 0)
         )
       )
