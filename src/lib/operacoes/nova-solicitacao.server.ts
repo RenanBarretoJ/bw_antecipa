@@ -7,7 +7,7 @@ import {
   type PaginatedResult,
   type SearchParamsRecord,
 } from '@/lib/pagination'
-import { assertRole, requireAuthenticated } from '@/lib/auth/authorization'
+import { requireAuthenticated } from '@/lib/auth/authorization'
 import { resolverCedenteFundoAtivo } from '@/lib/fundos/cedente-fundo'
 import type { NotaFiscalElegibilidadeComDados } from '@/lib/notas-fiscais/listagem'
 import type { ElegibilidadeDocumental } from '@/lib/actions/documento-v2'
@@ -21,6 +21,10 @@ import type { MetodoCalculoNovaPolitica } from './calculo'
 import { obterPoliticaAplicavelAoCedenteFundo } from './politica'
 import { simularExposicaoSelecaoCanonica } from '@/lib/financeiro/risco/proforma-selecao.server'
 import type { ProformaExposicaoSelecao } from '@/lib/financeiro/risco/visao-operacional'
+import {
+  resolverCedenteSolicitanteOperacao,
+  type PerfilSolicitanteOperacao,
+} from './solicitante.server'
 
 export type ParcelaCandidataOperacao = {
   id: string
@@ -47,6 +51,13 @@ export type NfCandidataOperacao = NotaFiscalElegibilidadeComDados & {
 }
 
 export type ResultadoNovaSolicitacao = {
+  perfil: PerfilSolicitanteOperacao
+  cedente: {
+    id: string
+    cnpj: string
+    razaoSocial: string
+    nomeFantasia: string | null
+  }
   candidatas: PaginatedResult<NfCandidataOperacao>
   taxas: Array<{ prazo_min: number; prazo_max: number; taxa_percentual: number }>
   filtros: FiltrosNovaSolicitacao
@@ -89,19 +100,12 @@ function buscaPostgrestSegura(value: string) {
 
 export async function carregarNovaSolicitacaoOperacao(
   searchParams: SearchParamsRecord,
+  options: { cedenteId?: string | null } = {},
 ): Promise<ResultadoNovaSolicitacao> {
   const auth = await requireAuthenticated()
-  assertRole(auth.profile.role, ['cedente'])
   const filtros = parseFiltrosNovaSolicitacao(searchParams)
-  // get_user_cedente_id() resolve tanto o dono (cedentes.user_id) quanto um
-  // usuario convidado via cedente_acessos -- filtrar so por user_id
-  // quebrava esta pagina para todo usuario convidado.
-  const { data: cedenteIdDoUsuario } = await auth.supabase.rpc('get_user_cedente_id')
-  const { data: cedente, error: cedenteError } = cedenteIdDoUsuario
-    ? await auth.supabase.from('cedentes').select('id, status').eq('id', cedenteIdDoUsuario).maybeSingle()
-    : { data: null, error: null }
-  if (cedenteError) throw new Error(`Nao foi possivel consultar o cedente: ${cedenteError.message}`)
-  if (!cedente || cedente.status !== 'ativo') throw new Error('O cadastro do cedente precisa estar ativo.')
+  const solicitante = await resolverCedenteSolicitanteOperacao(auth, options.cedenteId)
+  const cedente = solicitante.cedente
 
   const contexto = await resolverCedenteFundoAtivo(cedente.id, auth.supabase)
   if (!contexto.cedenteFundo || !contexto.fundo) throw new Error('O cedente nao possui fundo operacional ativo.')
@@ -229,6 +233,13 @@ export async function carregarNovaSolicitacaoOperacao(
   })
 
   return {
+    perfil: solicitante.perfil,
+    cedente: {
+      id: cedente.id,
+      cnpj: cedente.cnpj,
+      razaoSocial: cedente.razao_social,
+      nomeFantasia: cedente.nome_fantasia,
+    },
     candidatas: buildPaginatedResult(candidatas, {
       page: meta.page,
       pageSize: limite,
