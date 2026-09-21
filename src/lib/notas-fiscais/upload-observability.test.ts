@@ -60,6 +60,34 @@ describe('upload NF observability', () => {
     expect(new Set(events.map((event) => event.correlation_id))).toEqual(new Set([telemetry.correlationId]))
   })
 
+  it('registra o fallback visual sem texto fiscal, CNPJ ou chave de acesso', () => {
+    const events: Record<string, unknown>[] = []
+    const telemetry = createUploadTelemetry(1, (event) => events.push(event))
+    telemetry.start(0)
+    telemetry.parsed(0, {
+      layoutFingerprint: sensitive.join(' '),
+      parseStrategy: sensitive.join(' '),
+      confidence: 0.9,
+      extractionSource: 'pdf_visual_fallback',
+      nativeTextLengthBucket: 'empty',
+      fallbackTriggerReason: 'NO_TEXT_LAYER',
+      fallbackStatus: 'success',
+      fallbackDurationMs: 4321.4,
+      visualOcrConfidence: 78.4,
+    })
+    const parsed = events.find((event) => event.event === 'NF_UPLOAD_FILE_PARSED')
+    expect(parsed).toMatchObject({
+      extraction_source: 'pdf_visual_fallback',
+      native_text_length_bucket: 'empty',
+      fallback_trigger_reason: 'NO_TEXT_LAYER',
+      fallback_status: 'success',
+      fallback_duration_ms: 4321,
+      visual_ocr_confidence_bucket: 'medium',
+    })
+    const output = JSON.stringify(events)
+    for (const secret of sensitive) expect(output).not.toContain(secret)
+  })
+
   it('never serializes raw context or error in legacy stage diagnostics', () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {
