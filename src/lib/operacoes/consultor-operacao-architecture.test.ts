@@ -38,7 +38,7 @@ describe('C2 - Consultor cria operacao por Cedente', () => {
     expect(selector).toContain('label htmlFor={triggerId}')
     expect(selector).toContain('Cedente <span aria-hidden="true">*</span>')
     expect(selector).toContain('aria-activedescendant')
-    expect(migration).toContain('pg_catalog.least(pg_catalog.coalesce(p_limite, 10), 10)')
+    expect(migration).toContain('least(coalesce(p_limite, 10), 10)')
     expect(migration).toContain('extensions.unaccent')
     expect(migration).toContain("pg_catalog.regexp_replace(c.cnpj, '[^0-9]', '', 'g')")
   })
