@@ -19,6 +19,7 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     '/*': [
       './node_modules/@tesseract.js-data/por/**/*',
+      './node_modules/tesseract.js-core/**/*',
       './node_modules/pdfjs-dist/standard_fonts/**/*',
       './node_modules/zxing-wasm/dist/reader/*.wasm',
     ],
