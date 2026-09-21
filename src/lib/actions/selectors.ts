@@ -65,6 +65,7 @@ export async function buscarOpcoesEscopo(input: {
         .from('consultor_cedente')
         .select('cedente_id')
         .eq('consultor_id', auth.user.id)
+        .eq('status', 'ativo')
       if (error) throw error
       cedenteIds = Array.from(new Set((data || []).map((item) => item.cedente_id)))
     } else if (auth.profile.role === 'cedente') {
