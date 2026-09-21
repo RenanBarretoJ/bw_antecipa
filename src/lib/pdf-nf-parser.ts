@@ -57,19 +57,82 @@ export interface NfPdfExtracted {
   motivos_bloqueio?: string[]
   strategies?: ValorSource[]
   timings_ms?: { extraction: number; parsing: number }
+  extraction_source?: 'pdf_text_native' | 'pdf_visual_fallback'
+  native_text_length_bucket?: 'empty' | 'short' | 'medium' | 'long'
+  fallback_trigger_reason?: 'NO_TEXT_LAYER' | 'TEXT_INSUFFICIENT' | 'MISSING_CORE_ANCHORS' | 'NATIVE_EXTRACTION_FAILED'
+  fallback_duration_ms?: number
+  fallback_status?: 'success' | 'failed'
+  visual_ocr_confidence?: number
   descricao_itens?: string    // conteúdo de "INFORMAÇÕES COMPLEMENTARES"
   campos_extraidos: string[]  // lista dos campos extraídos com sucesso
 }
 
+type PdfExtractionDependencies = {
+  extractNative?: (buffer: Buffer) => Promise<{ text: string }>
+  extractVisual?: (
+    buffer: Buffer,
+    reason: NonNullable<NfPdfExtracted['fallback_trigger_reason']>,
+  ) => Promise<{ text: string; ocrConfidence: number; durationMs: number; fallbackTriggerReason: NonNullable<NfPdfExtracted['fallback_trigger_reason']> }>
+}
+
+function nativeTextLengthBucket(text: string): NonNullable<NfPdfExtracted['native_text_length_bucket']> {
+  const length = text.replace(/\s/g, '').length
+  if (length === 0) return 'empty'
+  if (length < 50) return 'short'
+  if (length < 1_000) return 'medium'
+  return 'long'
+}
+
+function nativeFallbackReason(text: string): NonNullable<NfPdfExtracted['fallback_trigger_reason']> | undefined {
+  const compactLength = text.replace(/\s/g, '').length
+  if (compactLength === 0) return 'NO_TEXT_LAYER'
+  if (compactLength < 50) return 'TEXT_INSUFFICIENT'
+  const comparable = text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase()
+  const structural = comparable.replace(/[^A-Z0-9]/g, '')
+  const anchors = [
+    structural.includes('CHAVEDEACESSO') || /\b\d{44}\b/.test(comparable),
+    structural.includes('VALORTOTALDANOTA'),
+    structural.includes('DATAEMISSAO') || structural.includes('DATADAEMISSAO'),
+    structural.includes('DESTINATARIO') || structural.includes('REMETENTE'),
+  ].filter(Boolean).length
+  return anchors < 2 ? 'MISSING_CORE_ANCHORS' : undefined
+}
+
+function capVisualConfidence(parsed: NfPdfExtracted): void {
+  const barcodeDerived = new Set<DanfeCriticalField>(['numero_nf', 'serie', 'chave_acesso', 'cnpj_emitente'])
+  for (const field of Object.keys(parsed.confianca || {}) as DanfeCriticalField[]) {
+    if (!barcodeDerived.has(field) && parsed.confianca?.[field] !== undefined) {
+      parsed.confianca[field] = Math.min(parsed.confianca[field]!, 0.9)
+    }
+  }
+}
+
+function crossValidateVisualDates(parsed: NfPdfExtracted): void {
+  if (!parsed.chave_acesso) {
+    parsed.motivos_bloqueio = [...(parsed.motivos_bloqueio || []), 'visual_access_key_missing']
+  }
+  if (parsed.chave_acesso && parsed.data_emissao) {
+    const keyYearMonth = `20${parsed.chave_acesso.slice(2, 6)}`
+    if (parsed.data_emissao.slice(0, 7).replace('-', '') !== keyYearMonth) {
+      parsed.motivos_bloqueio = [...(parsed.motivos_bloqueio || []), 'issue_date_key_conflict']
+    }
+  }
+  if (parsed.data_emissao && parsed.data_vencimento && parsed.data_vencimento < parsed.data_emissao) {
+    parsed.motivos_bloqueio = [...(parsed.motivos_bloqueio || []), 'due_date_issue_conflict']
+  }
+}
+
 /**
  * Tenta extrair dados de um DANFE (NF-e) em PDF.
- * Funciona apenas para PDFs com texto embedado (não escaneados).
+ * Prioriza PDFs com texto embutido e usa aquisicao visual generica quando a
+ * camada textual nao e suficiente. Os dois caminhos reutilizam o parser P12.
  * Em caso de falha total, retorna { campos_extraidos: [] }.
  */
-export async function extractDanfeFromPdf(buffer: Buffer): Promise<NfPdfExtracted> {
+export async function extractDanfeFromPdf(buffer: Buffer, dependencies: PdfExtractionDependencies = {}): Promise<NfPdfExtracted> {
   let text = ''
   const started = performance.now()
   let timeoutId: ReturnType<typeof setTimeout> | undefined
+  let fallbackReason: NonNullable<NfPdfExtracted['fallback_trigger_reason']> | undefined
 
   try {
     // Timeout de 20s: em ambientes serverless o PDF.js pode travar sem rejeitar
@@ -78,7 +141,7 @@ export async function extractDanfeFromPdf(buffer: Buffer): Promise<NfPdfExtracte
     const parseWithRetry = async (): Promise<{ text: string }> => {
       let lastError: unknown
       for (let attempt = 0; attempt < 3; attempt += 1) {
-        try { return await pdfParse(Buffer.from(buffer)) }
+        try { return await (dependencies.extractNative || pdfParse)(Buffer.from(buffer)) }
         catch (error) { lastError = error }
       }
       throw lastError
@@ -91,19 +154,57 @@ export async function extractDanfeFromPdf(buffer: Buffer): Promise<NfPdfExtracte
     ])
     text = result.text || ''
   } catch {
-    return { campos_extraidos: [], motivos_bloqueio: ['pdf_text_extraction_failed'], timings_ms: { extraction: Math.round(performance.now() - started), parsing: 0 } }
+    fallbackReason = 'NATIVE_EXTRACTION_FAILED'
   } finally {
     if (timeoutId) clearTimeout(timeoutId)
   }
 
   // PDF escaneado (imagem) — texto insuficiente para extração
-  if (text.replace(/\s/g, '').length < 50) {
-    return { campos_extraidos: [], motivos_bloqueio: ['pdf_without_readable_text'], timings_ms: { extraction: Math.round(performance.now() - started), parsing: 0 } }
+  const lengthBucket = nativeTextLengthBucket(text)
+  fallbackReason ||= nativeFallbackReason(text)
+  if (fallbackReason) {
+    try {
+      const visualExtractor = dependencies.extractVisual || (await import('./danfe/pdf-visual-fallback.server')).extractDanfeVisualText
+      const visual = await visualExtractor(buffer, fallbackReason)
+      const extractedAt = performance.now()
+      const parsed = extractDanfeFromText(visual.text)
+      capVisualConfidence(parsed)
+      crossValidateVisualDates(parsed)
+      parsed.extraction_source = 'pdf_visual_fallback'
+      parsed.native_text_length_bucket = lengthBucket
+      parsed.fallback_trigger_reason = visual.fallbackTriggerReason
+      parsed.fallback_duration_ms = visual.durationMs
+      parsed.fallback_status = 'success'
+      parsed.visual_ocr_confidence = Math.max(0, Math.min(100, visual.ocrConfidence))
+      parsed.timings_ms = {
+        extraction: Math.round(extractedAt - started),
+        parsing: Math.round(performance.now() - extractedAt),
+      }
+      return parsed
+    } catch (error) {
+      const safeCode = error instanceof Error && /^[A-Z0-9_]{1,80}$/.test(error.message)
+        ? error.message
+        : 'VISUAL_PDF_FALLBACK_FAILED'
+      return {
+        campos_extraidos: [],
+        motivos_bloqueio: [
+          fallbackReason === 'NATIVE_EXTRACTION_FAILED' ? 'pdf_text_extraction_failed' : 'pdf_without_readable_text',
+          safeCode.toLowerCase(),
+        ],
+        extraction_source: 'pdf_visual_fallback',
+        native_text_length_bucket: lengthBucket,
+        fallback_trigger_reason: fallbackReason,
+        fallback_status: 'failed',
+        timings_ms: { extraction: Math.round(performance.now() - started), parsing: 0 },
+      }
+    }
   }
 
   // Normalizar: múltiplos espaços → um espaço, manter case original para regex case-insensitive
   const extractedAt = performance.now()
   const parsed = extractDanfeFromText(text)
+  parsed.extraction_source = 'pdf_text_native'
+  parsed.native_text_length_bucket = lengthBucket
   parsed.timings_ms = { extraction: Math.round(extractedAt - started), parsing: Math.round(performance.now() - extractedAt) }
   return parsed
 }
@@ -422,7 +523,10 @@ export function validarDanfeParaPersistencia(extracted: NfPdfExtracted): DanfePe
   if (!extracted.data_emissao || (extracted.confianca?.data_emissao ?? 0) < MIN_CRITICAL_CONFIDENCE) failedFields.push('data_emissao')
   if (!valorTotalExtraidoValido(extracted)) failedFields.push('valor_bruto')
   const reasons = extracted.motivos_bloqueio || []
-  return failedFields.length || reasons.some((reason) => reason === 'invalid_access_key' || reason.endsWith('_conflict'))
+  return failedFields.length || reasons.some((reason) =>
+    reason === 'invalid_access_key'
+    || reason === 'visual_access_key_missing'
+    || reason.endsWith('_conflict'))
     ? { ok: false, failedFields, reasons }
     : { ok: true }
 }

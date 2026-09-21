@@ -542,6 +542,12 @@ async function processarArquivo(
           layoutFingerprint: extracted.layout_fingerprint,
           parseStrategy: extracted.strategies?.[0],
           confidence: extracted.confianca?.valor_bruto,
+          extractionSource: extracted.extraction_source,
+          nativeTextLengthBucket: extracted.native_text_length_bucket,
+          fallbackTriggerReason: extracted.fallback_trigger_reason,
+          fallbackStatus: extracted.fallback_status,
+          fallbackDurationMs: extracted.fallback_duration_ms,
+          visualOcrConfidence: extracted.visual_ocr_confidence,
         })
       }
 
