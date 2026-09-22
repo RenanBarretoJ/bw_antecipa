@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
 const migration = readFileSync(
-  'supabase/migrations/20260921131820_c2_consultor_criacao_operacao_cedente.sql',
+  'supabase/migrations/20260922214000_c2_consultor_criacao_operacao_cedente.sql',
   'utf8',
 )
 const action = readFileSync('src/lib/actions/operacao.ts', 'utf8')
@@ -55,6 +55,15 @@ describe('C2 - Consultor cria operacao por Cedente', () => {
     expect(migration).toContain("VALUES (actor_id, 'OPERACAO_SOLICITADA'")
     expect(migration).toContain("'solicitado_por_role', actor_role")
     expect(migration).not.toContain('service_role')
+  })
+
+  it('roda depois do P14 e preserva o reuso de NF de operacao reprovada', () => {
+    expect(Number('20260922214000')).toBeGreaterThan(Number('20260922182301'))
+    expect(migration).toContain('JOIN public.operacoes op ON op.id = onf.operacao_id')
+    expect(migration).toContain('private.operacao_status_reserva_nf(op.status)')
+    expect(migration).toContain("ERRCODE = 'P1401'")
+    expect(migration).toContain("MESSAGE = 'NF_ALREADY_LINKED_TO_ACTIVE_OPERATION'")
+    expect(migration).not.toContain('Uma ou mais NFs ja estao vinculadas a uma operacao')
   })
 
   it('nao amplia EXECUTE para anon e preserva a revogacao explicita', () => {
