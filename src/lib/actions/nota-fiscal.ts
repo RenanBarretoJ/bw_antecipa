@@ -548,6 +548,7 @@ async function processarArquivo(
           fallbackStatus: extracted.fallback_status,
           fallbackDurationMs: extracted.fallback_duration_ms,
           visualOcrConfidence: extracted.visual_ocr_confidence,
+          aiExtractionConfidence: extracted.ai_extraction_confidence,
         })
       }
 

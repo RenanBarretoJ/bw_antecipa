@@ -88,6 +88,29 @@ describe('upload NF observability', () => {
     for (const secret of sensitive) expect(output).not.toContain(secret)
   })
 
+  it('registra o fallback de IA apenas em buckets, sem conteudo fiscal', () => {
+    const events: Record<string, unknown>[] = []
+    const telemetry = createUploadTelemetry(1, (event) => events.push(event))
+    telemetry.start(0)
+    telemetry.parsed(0, {
+      layoutFingerprint: sensitive.join(' '),
+      parseStrategy: sensitive.join(' '),
+      confidence: 0.9,
+      extractionSource: 'pdf_ai_fallback',
+      nativeTextLengthBucket: 'empty',
+      fallbackTriggerReason: 'NO_TEXT_LAYER',
+      fallbackStatus: 'success',
+      fallbackDurationMs: 2310,
+      aiExtractionConfidence: 0.94,
+    })
+    expect(events.find((event) => event.event === 'NF_UPLOAD_FILE_PARSED')).toMatchObject({
+      extraction_source: 'pdf_ai_fallback',
+      ai_extraction_confidence_bucket: 'high',
+    })
+    const output = JSON.stringify(events)
+    for (const secret of sensitive) expect(output).not.toContain(secret)
+  })
+
   it('never serializes raw context or error in legacy stage diagnostics', () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {

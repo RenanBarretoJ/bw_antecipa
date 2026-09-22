@@ -57,12 +57,13 @@ export interface NfPdfExtracted {
   motivos_bloqueio?: string[]
   strategies?: ValorSource[]
   timings_ms?: { extraction: number; parsing: number }
-  extraction_source?: 'pdf_text_native' | 'pdf_visual_fallback'
+  extraction_source?: 'pdf_text_native' | 'pdf_visual_fallback' | 'pdf_ai_fallback'
   native_text_length_bucket?: 'empty' | 'short' | 'medium' | 'long'
   fallback_trigger_reason?: 'NO_TEXT_LAYER' | 'TEXT_INSUFFICIENT' | 'MISSING_CORE_ANCHORS' | 'NATIVE_EXTRACTION_FAILED'
   fallback_duration_ms?: number
   fallback_status?: 'success' | 'failed'
   visual_ocr_confidence?: number
+  ai_extraction_confidence?: number
   descricao_itens?: string    // conteúdo de "INFORMAÇÕES COMPLEMENTARES"
   campos_extraidos: string[]  // lista dos campos extraídos com sucesso
 }
@@ -73,6 +74,10 @@ type PdfExtractionDependencies = {
     buffer: Buffer,
     reason: NonNullable<NfPdfExtracted['fallback_trigger_reason']>,
   ) => Promise<{ text: string; ocrConfidence: number; durationMs: number; fallbackTriggerReason: NonNullable<NfPdfExtracted['fallback_trigger_reason']> }>
+  extractAi?: (
+    buffer: Buffer,
+    reason: NonNullable<NfPdfExtracted['fallback_trigger_reason']>,
+  ) => Promise<{ text: string; confidence: number; durationMs: number; fallbackTriggerReason: NonNullable<NfPdfExtracted['fallback_trigger_reason']> }>
 }
 
 function nativeTextLengthBucket(text: string): NonNullable<NfPdfExtracted['native_text_length_bucket']> {
@@ -163,6 +168,8 @@ export async function extractDanfeFromPdf(buffer: Buffer, dependencies: PdfExtra
   const lengthBucket = nativeTextLengthBucket(text)
   fallbackReason ||= nativeFallbackReason(text)
   if (fallbackReason) {
+    let visualParsed: NfPdfExtracted | undefined
+    let visualFailureCode = 'VISUAL_PDF_FALLBACK_FAILED'
     try {
       const visualExtractor = dependencies.extractVisual || (await import('./danfe/pdf-visual-fallback.server')).extractDanfeVisualText
       const visual = await visualExtractor(buffer, fallbackReason)
@@ -180,18 +187,54 @@ export async function extractDanfeFromPdf(buffer: Buffer, dependencies: PdfExtra
         extraction: Math.round(extractedAt - started),
         parsing: Math.round(performance.now() - extractedAt),
       }
-      return parsed
+      if (validarDanfeParaPersistencia(parsed).ok) return parsed
+      parsed.fallback_status = 'failed'
+      visualParsed = parsed
+      visualFailureCode = 'VISUAL_PDF_FALLBACK_AMBIGUOUS'
     } catch (error) {
-      const safeCode = error instanceof Error && /^[A-Z0-9_]{1,80}$/.test(error.message)
+      visualFailureCode = error instanceof Error && /^[A-Z0-9_]{1,80}$/.test(error.message)
         ? error.message
         : 'VISUAL_PDF_FALLBACK_FAILED'
+    }
+
+    try {
+      const aiExtractor = dependencies.extractAi || (await import('./danfe/openai-pdf-fallback.server')).extractDanfeWithOpenAi
+      const ai = await aiExtractor(buffer, fallbackReason)
+      const extractedAt = performance.now()
+      const parsed = extractDanfeFromText(ai.text)
+      capVisualConfidence(parsed)
+      crossValidateVisualDates(parsed)
+      parsed.extraction_source = 'pdf_ai_fallback'
+      parsed.native_text_length_bucket = lengthBucket
+      parsed.fallback_trigger_reason = ai.fallbackTriggerReason
+      parsed.fallback_duration_ms = ai.durationMs
+      parsed.fallback_status = 'success'
+      parsed.ai_extraction_confidence = Math.max(0, Math.min(1, ai.confidence))
+      parsed.timings_ms = {
+        extraction: Math.round(extractedAt - started),
+        parsing: Math.round(performance.now() - extractedAt),
+      }
+      if (!validarDanfeParaPersistencia(parsed).ok) throw new Error('OPENAI_NF_FISCAL_VALIDATION_FAILED')
+      return parsed
+    } catch (error) {
+      const aiFailureCode = error instanceof Error && /^[A-Z0-9_]{1,80}$/.test(error.message)
+        ? error.message
+        : 'OPENAI_NF_REQUEST_FAILED'
+      if (visualParsed) {
+        visualParsed.motivos_bloqueio = [
+          ...(visualParsed.motivos_bloqueio || []),
+          aiFailureCode.toLowerCase(),
+        ]
+        return visualParsed
+      }
       return {
         campos_extraidos: [],
         motivos_bloqueio: [
           fallbackReason === 'NATIVE_EXTRACTION_FAILED' ? 'pdf_text_extraction_failed' : 'pdf_without_readable_text',
-          safeCode.toLowerCase(),
+          visualFailureCode.toLowerCase(),
+          aiFailureCode.toLowerCase(),
         ],
-        extraction_source: 'pdf_visual_fallback',
+        extraction_source: 'pdf_ai_fallback',
         native_text_length_bucket: lengthBucket,
         fallback_trigger_reason: fallbackReason,
         fallback_status: 'failed',

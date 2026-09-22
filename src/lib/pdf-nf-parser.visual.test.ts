@@ -44,6 +44,7 @@ describe('fallback visual do parser PDF', () => {
   })
 
   it('aciona o fallback somente sem texto util e reutiliza o parser P12', async () => {
+    const extractAi = vi.fn()
     const extractVisual = vi.fn(async (_buffer: Buffer, reason: 'NO_TEXT_LAYER' | 'TEXT_INSUFFICIENT' | 'MISSING_CORE_ANCHORS' | 'NATIVE_EXTRACTION_FAILED') => ({
       text: validDanfeText(),
       ocrConfidence: 78.4,
@@ -53,8 +54,10 @@ describe('fallback visual do parser PDF', () => {
     const result = await extractDanfeFromPdf(Buffer.from('pdf'), {
       extractNative: async () => ({ text: '\n\n' }),
       extractVisual,
+      extractAi,
     })
     expect(extractVisual).toHaveBeenCalledOnce()
+    expect(extractAi).not.toHaveBeenCalled()
     expect(result).toMatchObject({
       numero_nf: '154806',
       cnpj_emitente: EMITENTE,
@@ -70,6 +73,68 @@ describe('fallback visual do parser PDF', () => {
     })
     expect(result.confianca?.valor_bruto).toBeLessThanOrEqual(0.9)
     expect(validarDanfeParaPersistencia(result)).toEqual({ ok: true })
+  })
+
+  it('usa OpenAI somente depois da falha do fallback visual e conserva os gates P12', async () => {
+    const extractAi = vi.fn(async (_buffer: Buffer, reason: 'NO_TEXT_LAYER' | 'TEXT_INSUFFICIENT' | 'MISSING_CORE_ANCHORS' | 'NATIVE_EXTRACTION_FAILED') => ({
+      text: validDanfeText(),
+      confidence: 0.94,
+      durationMs: 2310,
+      fallbackTriggerReason: reason,
+    }))
+    const result = await extractDanfeFromPdf(Buffer.from('pdf'), {
+      extractNative: async () => ({ text: '' }),
+      extractVisual: async () => { throw new Error('VISUAL_PDF_RENDER_FAILED') },
+      extractAi,
+    })
+    expect(extractAi).toHaveBeenCalledOnce()
+    expect(result).toMatchObject({
+      numero_nf: '154806',
+      extraction_source: 'pdf_ai_fallback',
+      fallback_status: 'success',
+      fallback_duration_ms: 2310,
+      ai_extraction_confidence: 0.94,
+    })
+    expect(validarDanfeParaPersistencia(result)).toEqual({ ok: true })
+  })
+
+  it('permite que a IA recupere um OCR local ambiguo sem ignorar a validacao final', async () => {
+    const result = await extractDanfeFromPdf(Buffer.from('pdf'), {
+      extractNative: async () => ({ text: '' }),
+      extractVisual: async (_buffer, reason) => ({
+        text: 'DATA DE EMISSAO 16/09/2026',
+        ocrConfidence: 30,
+        durationMs: 100,
+        fallbackTriggerReason: reason,
+      }),
+      extractAi: async (_buffer, reason) => ({
+        text: validDanfeText(),
+        confidence: 0.91,
+        durationMs: 500,
+        fallbackTriggerReason: reason,
+      }),
+    })
+    expect(result.extraction_source).toBe('pdf_ai_fallback')
+    expect(validarDanfeParaPersistencia(result)).toEqual({ ok: true })
+  })
+
+  it('marca como falha a resposta de IA que nao atravessa o gate fiscal', async () => {
+    const result = await extractDanfeFromPdf(Buffer.from('pdf'), {
+      extractNative: async () => ({ text: '' }),
+      extractVisual: async () => { throw new Error('VISUAL_PDF_RENDER_FAILED') },
+      extractAi: async (_buffer, reason) => ({
+        text: 'CHAVE DE ACESSO 29260912345678000195550020001548061123456780',
+        confidence: 0.99,
+        durationMs: 500,
+        fallbackTriggerReason: reason,
+      }),
+    })
+    expect(result).toMatchObject({
+      extraction_source: 'pdf_ai_fallback',
+      fallback_status: 'failed',
+    })
+    expect(result.motivos_bloqueio).toContain('openai_nf_fiscal_validation_failed')
+    expect(validarDanfeParaPersistencia(result).ok).toBe(false)
   })
 
   it('falha fechado quando a data visual conflita com o ano-mes da chave', async () => {
@@ -109,10 +174,16 @@ describe('fallback visual do parser PDF', () => {
     const result = await extractDanfeFromPdf(Buffer.from('pdf'), {
       extractNative: async () => { throw new Error('native secret') },
       extractVisual: async () => { throw new Error('CNPJ 12.345.678/0001-95 token secreto') },
+      extractAi: async () => { throw new Error('Bearer outro-segredo') },
     })
     expect(result.fallback_status).toBe('failed')
-    expect(result.motivos_bloqueio).toEqual(['pdf_text_extraction_failed', 'visual_pdf_fallback_failed'])
+    expect(result.motivos_bloqueio).toEqual([
+      'pdf_text_extraction_failed',
+      'visual_pdf_fallback_failed',
+      'openai_nf_request_failed',
+    ])
     expect(JSON.stringify(result)).not.toContain('token secreto')
+    expect(JSON.stringify(result)).not.toContain('outro-segredo')
     expect(validarDanfeParaPersistencia(result).ok).toBe(false)
   })
 })
