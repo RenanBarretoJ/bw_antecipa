@@ -161,6 +161,7 @@ export async function requireCedenteAccess(
       .select('id')
       .eq('consultor_id', context.user.id)
       .eq('cedente_id', cedenteId)
+      .eq('status', 'ativo')
       .maybeSingle()
 
     hasConsultorLink = !!consultorVinculo

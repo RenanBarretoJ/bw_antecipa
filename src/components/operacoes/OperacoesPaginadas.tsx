@@ -133,12 +133,12 @@ export function OperacoesPaginadas({
             {perfil === 'gestor'
               ? 'Gerencie as solicitacoes de antecipacao.'
               : perfil === 'consultor'
-                ? 'Operacoes dos cedentes da sua carteira (somente leitura).'
+                ? 'Crie e acompanhe operacoes dos Cedentes ativos da sua carteira.'
                 : 'Acompanhe suas solicitacoes de antecipacao.'}
           </p>
         </div>
-        {perfil === 'cedente' && (
-          <Link href="/cedente/operacoes/nova"><Button>Nova solicitacao</Button></Link>
+        {(perfil === 'cedente' || perfil === 'consultor') && (
+          <Link href={`/${perfil}/operacoes/nova`}><Button>Nova solicitacao</Button></Link>
         )}
       </div>
 
