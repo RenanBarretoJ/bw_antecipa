@@ -2,6 +2,8 @@
 -- A coluna de status e a menor extensao estrutural necessaria para representar
 -- vinculo revogado sem apagar historico. A RPC de criacao permanece a fronteira
 -- transacional autoritativa e registra o usuario real em logs_auditoria.
+-- Esta migration e posterior ao P14 e preserva a regra canonica que libera
+-- NFs vinculadas somente a operacoes reprovadas.
 
 BEGIN;
 
@@ -222,11 +224,19 @@ BEGIN
   SELECT count(DISTINCT id) INTO matched_count FROM locked_nfs;
   IF matched_count <> expected_count THEN RAISE EXCEPTION 'Uma ou mais NFs nao pertencem ao contexto ativo ou nao estao aprovadas'; END IF;
 
+  -- P14: operacoes_nfs preserva historico. Somente operacoes em status que
+  -- reservam a NF bloqueiam o novo pedido; reprovada permanece reutilizavel.
   SELECT count(*) INTO already_linked_count
   FROM public.operacoes_nfs onf
+  JOIN public.operacoes op ON op.id = onf.operacao_id
   WHERE onf.nota_fiscal_id = ANY(p_nota_fiscal_ids)
-    AND NOT EXISTS (SELECT 1 FROM public.nota_fiscal_parcelas p WHERE p.nota_fiscal_id = onf.nota_fiscal_id);
-  IF already_linked_count > 0 THEN RAISE EXCEPTION 'Uma ou mais NFs ja estao vinculadas a uma operacao'; END IF;
+    AND NOT EXISTS (SELECT 1 FROM public.nota_fiscal_parcelas p WHERE p.nota_fiscal_id = onf.nota_fiscal_id)
+    AND private.operacao_status_reserva_nf(op.status);
+  IF already_linked_count > 0 THEN
+    RAISE EXCEPTION USING
+      ERRCODE = 'P1401',
+      MESSAGE = 'NF_ALREADY_LINKED_TO_ACTIVE_OPERATION';
+  END IF;
 
   IF p_parcela_ids IS NOT NULL AND cardinality(p_parcela_ids) > 0 THEN
     SELECT count(DISTINCT id) INTO parcelas_expected_count FROM unnest(p_parcela_ids) AS item(id);
