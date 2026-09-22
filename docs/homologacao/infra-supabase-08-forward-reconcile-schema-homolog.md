@@ -124,7 +124,7 @@ O comando legado `npm run rehearsal:test` tem 13 falhas no SHA-base e as mesmas 
 
 ## Supabase Preview
 
-A listagem de branches Preview retornou falta de permissão. Nenhuma branch paga foi criada e nenhuma Preview ativa foi apagada. Resultado: `NOT_EXECUTED`.
+A listagem direta de branches retornou falta de permissão, por isso nenhuma branch foi criada manualmente e nenhuma Preview ativa foi apagada. Após a abertura do PR #40, a integração GitHub provisionou automaticamente a Preview temporária `kgczksvbvbqmrphfkaqq`; o check concluiu `PASS` em 24 segundos. O CI também concluiu `PASS` em 2 minutos e 38 segundos, e o Vercel Preview concluiu `PASS`.
 
 ## Hold point
 
@@ -160,7 +160,7 @@ FORWARD_MIGRATION_APP_REGRESSION = PASS
 CLEAN_ROOM_MIGRATIONS = 208
 CLEAN_ROOM_FORWARD_REBUILD = PASS
 
-SUPABASE_PREVIEW_FORWARD = NOT_EXECUTED
+SUPABASE_PREVIEW_FORWARD = PASS
 
 FORWARD_RECONCILIATION_PR_READY = YES
 
