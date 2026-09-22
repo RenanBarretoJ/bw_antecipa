@@ -85,6 +85,7 @@ Nao complete, corrija, calcule ou infira caracteres ausentes. Use null quando um
 - chaves_acesso_candidatas: todas as leituras plausiveis de 44 digitos para a chave, sem inventar alternativas.
 - numero_nf e serie: valores da NF-e, sem pontuacao.
 - CNPJs: somente os 14 digitos, distinguindo emitente e destinatario/remetente.
+- razao_social_destinatario: nome empresarial visivel do destinatario/remetente; use null se nao estiver legivel.
 - datas: formato YYYY-MM-DD.
 - data_vencimento: ultimo vencimento explicitamente exibido, quando houver parcelas.
 - valor_total_nota: somente o campo canonico VALOR TOTAL DA NOTA; nao use total de produtos, impostos, duplicatas ou valor liquido.

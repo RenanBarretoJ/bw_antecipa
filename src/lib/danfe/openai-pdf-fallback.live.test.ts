@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 vi.mock('server-only', () => ({}))
 
 import { extractDanfeFromPdf, validarDanfeParaPersistencia } from '../pdf-nf-parser'
+import { resolverRazaoSocialDestinatario } from '../notas-fiscais/destinatario.server'
 
 const liveEnabled = process.env.RUN_OPENAI_NF_LIVE_TEST === 'true'
   && Boolean(process.env.OPENAI_API_KEY)
@@ -14,7 +15,6 @@ describe.runIf(liveEnabled)('fallback OpenAI real para DANFE PDF', () => {
     const buffer = await readFile(process.env.OPENAI_NF_LIVE_FIXTURE!)
     const extracted = await extractDanfeFromPdf(buffer, {
       extractNative: async () => ({ text: '' }),
-      extractVisual: async () => { throw new Error('VISUAL_PDF_RENDER_FAILED') },
     })
 
     if (extracted.fallback_status !== 'success') {
@@ -25,5 +25,12 @@ describe.runIf(liveEnabled)('fallback OpenAI real para DANFE PDF', () => {
     expect(extracted.fallback_status).toBe('success')
     expect(extracted.ai_extraction_confidence).toBeGreaterThanOrEqual(0.8)
     expect(validarDanfeParaPersistencia(extracted)).toEqual({ ok: true })
+
+    const destinatario = await resolverRazaoSocialDestinatario({
+      cnpj: extracted.cnpj_destinatario,
+      razaoSocial: null,
+    })
+    expect(destinatario.source, `cnpj_destinatario=${extracted.cnpj_destinatario || 'missing'}`).toBe('cnpj_lookup')
+    expect(destinatario.razaoSocial.length).toBeGreaterThan(2)
   }, 60_000)
 })

@@ -25,6 +25,7 @@ import { carregarResumoDocumentalDasNotas } from '@/lib/notas-fiscais/resumo-doc
 import { resolverEstabelecimentoOrigem } from '@/lib/cedentes/estabelecimentos.server'
 import { executarUploadPorArquivo, type ProcessedUploadFile, type UploadBatchResult } from '@/lib/notas-fiscais/upload-batch'
 import { createUploadTelemetry, logUploadStage, type UploadTelemetry } from '@/lib/notas-fiscais/upload-observability'
+import { resolverRazaoSocialDestinatario } from '@/lib/notas-fiscais/destinatario.server'
 
 export type NfActionState = {
   success?: boolean
@@ -547,7 +548,6 @@ async function processarArquivo(
           fallbackTriggerReason: extracted.fallback_trigger_reason,
           fallbackStatus: extracted.fallback_status,
           fallbackDurationMs: extracted.fallback_duration_ms,
-          visualOcrConfidence: extracted.visual_ocr_confidence,
           aiExtractionConfidence: extracted.ai_extraction_confidence,
         })
       }
@@ -582,6 +582,11 @@ async function processarArquivo(
         fundoId: context.fundoId,
         cnpjEmitente: cnpjEmitenteOficial,
       })
+      const destinatario = await resolverRazaoSocialDestinatario({
+        cnpj: extracted.cnpj_destinatario,
+        razaoSocial: extracted.razao_social_destinatario,
+      })
+      extracted.razao_social_destinatario = destinatario.razaoSocial
 
       const { error: uploadError } = await supabase.storage
         .from(buckets.notasFiscais).upload(filePath, arquivo)
@@ -705,7 +710,9 @@ export async function uploadNFs(formData: FormData): Promise<NfActionState> {
   )
   telemetry.complete(uploadBatch)
 
-  if (uploadBatch.successCount > 0) revalidatePath('/cedente/notas-fiscais')
+  // A UI envia um arquivo por Server Action para respeitar o limite do runtime.
+  // Revalidar aqui faria um lote invalidar a rota uma vez por arquivo; a tela
+  // executa uma unica atualizacao quando todas as requisicoes terminam.
   const message = `${uploadBatch.successCount} de ${uploadBatch.total} arquivo(s) importado(s).`
   return {
     success: uploadBatch.successCount > 0,

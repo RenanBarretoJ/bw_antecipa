@@ -57,12 +57,11 @@ export interface NfPdfExtracted {
   motivos_bloqueio?: string[]
   strategies?: ValorSource[]
   timings_ms?: { extraction: number; parsing: number }
-  extraction_source?: 'pdf_text_native' | 'pdf_visual_fallback' | 'pdf_ai_fallback'
+  extraction_source?: 'pdf_text_native' | 'pdf_ai_fallback'
   native_text_length_bucket?: 'empty' | 'short' | 'medium' | 'long'
   fallback_trigger_reason?: 'NO_TEXT_LAYER' | 'TEXT_INSUFFICIENT' | 'MISSING_CORE_ANCHORS' | 'NATIVE_EXTRACTION_FAILED'
   fallback_duration_ms?: number
   fallback_status?: 'success' | 'failed'
-  visual_ocr_confidence?: number
   ai_extraction_confidence?: number
   descricao_itens?: string    // conteúdo de "INFORMAÇÕES COMPLEMENTARES"
   campos_extraidos: string[]  // lista dos campos extraídos com sucesso
@@ -70,10 +69,6 @@ export interface NfPdfExtracted {
 
 type PdfExtractionDependencies = {
   extractNative?: (buffer: Buffer) => Promise<{ text: string }>
-  extractVisual?: (
-    buffer: Buffer,
-    reason: NonNullable<NfPdfExtracted['fallback_trigger_reason']>,
-  ) => Promise<{ text: string; ocrConfidence: number; durationMs: number; fallbackTriggerReason: NonNullable<NfPdfExtracted['fallback_trigger_reason']> }>
   extractAi?: (
     buffer: Buffer,
     reason: NonNullable<NfPdfExtracted['fallback_trigger_reason']>,
@@ -103,7 +98,7 @@ function nativeFallbackReason(text: string): NonNullable<NfPdfExtracted['fallbac
   return anchors < 2 ? 'MISSING_CORE_ANCHORS' : undefined
 }
 
-function capVisualConfidence(parsed: NfPdfExtracted): void {
+function capFallbackConfidence(parsed: NfPdfExtracted): void {
   const barcodeDerived = new Set<DanfeCriticalField>(['numero_nf', 'serie', 'chave_acesso', 'cnpj_emitente'])
   for (const field of Object.keys(parsed.confianca || {}) as DanfeCriticalField[]) {
     if (!barcodeDerived.has(field) && parsed.confianca?.[field] !== undefined) {
@@ -112,9 +107,9 @@ function capVisualConfidence(parsed: NfPdfExtracted): void {
   }
 }
 
-function crossValidateVisualDates(parsed: NfPdfExtracted): void {
+function crossValidateFallbackDates(parsed: NfPdfExtracted): void {
   if (!parsed.chave_acesso) {
-    parsed.motivos_bloqueio = [...(parsed.motivos_bloqueio || []), 'visual_access_key_missing']
+    parsed.motivos_bloqueio = [...(parsed.motivos_bloqueio || []), 'fallback_access_key_missing']
   }
   if (parsed.chave_acesso && parsed.data_emissao) {
     const keyYearMonth = `20${parsed.chave_acesso.slice(2, 6)}`
@@ -129,8 +124,9 @@ function crossValidateVisualDates(parsed: NfPdfExtracted): void {
 
 /**
  * Tenta extrair dados de um DANFE (NF-e) em PDF.
- * Prioriza PDFs com texto embutido e usa aquisicao visual generica quando a
- * camada textual nao e suficiente. Os dois caminhos reutilizam o parser P12.
+ * Prioriza PDFs com texto embutido e envia o PDF diretamente para a API de
+ * visao quando a camada textual nao e suficiente. Os dois caminhos reutilizam
+ * o parser P12.
  * Em caso de falha total, retorna { campos_extraidos: [] }.
  */
 export async function extractDanfeFromPdf(buffer: Buffer, dependencies: PdfExtractionDependencies = {}): Promise<NfPdfExtracted> {
@@ -164,46 +160,17 @@ export async function extractDanfeFromPdf(buffer: Buffer, dependencies: PdfExtra
     if (timeoutId) clearTimeout(timeoutId)
   }
 
-  // PDF escaneado (imagem) — texto insuficiente para extração
+  // PDF escaneado (imagem) — texto insuficiente segue direto para a API.
   const lengthBucket = nativeTextLengthBucket(text)
   fallbackReason ||= nativeFallbackReason(text)
   if (fallbackReason) {
-    let visualParsed: NfPdfExtracted | undefined
-    let visualFailureCode = 'VISUAL_PDF_FALLBACK_FAILED'
-    try {
-      const visualExtractor = dependencies.extractVisual || (await import('./danfe/pdf-visual-fallback.server')).extractDanfeVisualText
-      const visual = await visualExtractor(buffer, fallbackReason)
-      const extractedAt = performance.now()
-      const parsed = extractDanfeFromText(visual.text)
-      capVisualConfidence(parsed)
-      crossValidateVisualDates(parsed)
-      parsed.extraction_source = 'pdf_visual_fallback'
-      parsed.native_text_length_bucket = lengthBucket
-      parsed.fallback_trigger_reason = visual.fallbackTriggerReason
-      parsed.fallback_duration_ms = visual.durationMs
-      parsed.fallback_status = 'success'
-      parsed.visual_ocr_confidence = Math.max(0, Math.min(100, visual.ocrConfidence))
-      parsed.timings_ms = {
-        extraction: Math.round(extractedAt - started),
-        parsing: Math.round(performance.now() - extractedAt),
-      }
-      if (validarDanfeParaPersistencia(parsed).ok) return parsed
-      parsed.fallback_status = 'failed'
-      visualParsed = parsed
-      visualFailureCode = 'VISUAL_PDF_FALLBACK_AMBIGUOUS'
-    } catch (error) {
-      visualFailureCode = error instanceof Error && /^[A-Z0-9_]{1,80}$/.test(error.message)
-        ? error.message
-        : 'VISUAL_PDF_FALLBACK_FAILED'
-    }
-
     try {
       const aiExtractor = dependencies.extractAi || (await import('./danfe/openai-pdf-fallback.server')).extractDanfeWithOpenAi
       const ai = await aiExtractor(buffer, fallbackReason)
       const extractedAt = performance.now()
       const parsed = extractDanfeFromText(ai.text)
-      capVisualConfidence(parsed)
-      crossValidateVisualDates(parsed)
+      capFallbackConfidence(parsed)
+      crossValidateFallbackDates(parsed)
       parsed.extraction_source = 'pdf_ai_fallback'
       parsed.native_text_length_bucket = lengthBucket
       parsed.fallback_trigger_reason = ai.fallbackTriggerReason
@@ -220,18 +187,10 @@ export async function extractDanfeFromPdf(buffer: Buffer, dependencies: PdfExtra
       const aiFailureCode = error instanceof Error && /^[A-Z0-9_]{1,80}$/.test(error.message)
         ? error.message
         : 'OPENAI_NF_REQUEST_FAILED'
-      if (visualParsed) {
-        visualParsed.motivos_bloqueio = [
-          ...(visualParsed.motivos_bloqueio || []),
-          aiFailureCode.toLowerCase(),
-        ]
-        return visualParsed
-      }
       return {
         campos_extraidos: [],
         motivos_bloqueio: [
           fallbackReason === 'NATIVE_EXTRACTION_FAILED' ? 'pdf_text_extraction_failed' : 'pdf_without_readable_text',
-          visualFailureCode.toLowerCase(),
           aiFailureCode.toLowerCase(),
         ],
         extraction_source: 'pdf_ai_fallback',
@@ -569,6 +528,7 @@ export function validarDanfeParaPersistencia(extracted: NfPdfExtracted): DanfePe
   return failedFields.length || reasons.some((reason) =>
     reason === 'invalid_access_key'
     || reason === 'visual_access_key_missing'
+    || reason === 'fallback_access_key_missing'
     || reason.endsWith('_conflict'))
     ? { ok: false, failedFields, reasons }
     : { ok: true }

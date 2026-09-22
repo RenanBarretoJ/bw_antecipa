@@ -37,7 +37,7 @@ export function PortalSidebar({ items, role, open = false, onClose }: { items: P
           {items.map((item) => {
             const Icon = item.icon
             const active = isSidebarItemActive(pathname, item.href, role)
-            return <li key={item.href}><Link href={item.href} onClick={onClose} aria-current={active ? 'page' : undefined} className={cn('flex min-h-10 items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors', active ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-sm' : 'text-sidebar-foreground/65 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground')}><Icon size={18} aria-hidden="true" className={cn(active ? 'text-sidebar-primary-foreground' : 'text-sidebar-foreground/70')} /><span className="truncate">{item.label}</span></Link></li>
+            return <li key={item.href}><Link href={item.href} prefetch={false} onClick={onClose} aria-current={active ? 'page' : undefined} className={cn('flex min-h-10 items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors', active ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-sm' : 'text-sidebar-foreground/65 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground')}><Icon size={18} aria-hidden="true" className={cn(active ? 'text-sidebar-primary-foreground' : 'text-sidebar-foreground/70')} /><span className="truncate">{item.label}</span></Link></li>
           })}
         </ul>
       </nav>

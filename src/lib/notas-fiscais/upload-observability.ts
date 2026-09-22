@@ -21,12 +21,11 @@ type SafeEvent = {
   layout_fingerprint?: string
   parse_strategy?: string
   confidence_bucket?: 'high' | 'medium' | 'low' | 'unknown'
-  extraction_source?: 'pdf_text_native' | 'pdf_visual_fallback' | 'pdf_ai_fallback'
+  extraction_source?: 'pdf_text_native' | 'pdf_ai_fallback'
   native_text_length_bucket?: 'empty' | 'short' | 'medium' | 'long'
   fallback_trigger_reason?: 'NO_TEXT_LAYER' | 'TEXT_INSUFFICIENT' | 'MISSING_CORE_ANCHORS' | 'NATIVE_EXTRACTION_FAILED'
   fallback_status?: 'success' | 'failed'
   fallback_duration_ms?: number
-  visual_ocr_confidence_bucket?: 'high' | 'medium' | 'low' | 'unknown'
   ai_extraction_confidence_bucket?: 'high' | 'medium' | 'low' | 'unknown'
   error_code?: string
   error_class?: 'validation' | 'duplicate' | 'storage' | 'persistence' | 'unknown'
@@ -73,7 +72,6 @@ export function createUploadTelemetry(batchSize: number, sink: Sink = defaultSin
     | 'fallback_trigger_reason'
     | 'fallback_status'
     | 'fallback_duration_ms'
-    | 'visual_ocr_confidence_bucket'
     | 'ai_extraction_confidence_bucket'
   >>()
   const compensated = new Set<number>()
@@ -105,13 +103,9 @@ export function createUploadTelemetry(batchSize: number, sink: Sink = defaultSin
       fallbackTriggerReason?: SafeEvent['fallback_trigger_reason']
       fallbackStatus?: SafeEvent['fallback_status']
       fallbackDurationMs?: unknown
-      visualOcrConfidence?: unknown
       aiExtractionConfidence?: unknown
     }) {
       const confidence = typeof details.confidence === 'number' && Number.isFinite(details.confidence) ? details.confidence : null
-      const visualConfidence = typeof details.visualOcrConfidence === 'number' && Number.isFinite(details.visualOcrConfidence)
-        ? details.visualOcrConfidence
-        : null
       const aiConfidence = typeof details.aiExtractionConfidence === 'number' && Number.isFinite(details.aiExtractionConfidence)
         ? details.aiExtractionConfidence
         : null
@@ -126,9 +120,6 @@ export function createUploadTelemetry(batchSize: number, sink: Sink = defaultSin
         fallback_duration_ms: typeof details.fallbackDurationMs === 'number' && Number.isFinite(details.fallbackDurationMs)
           ? Math.max(0, Math.round(details.fallbackDurationMs))
           : undefined,
-        visual_ocr_confidence_bucket: visualConfidence === null
-          ? 'unknown'
-          : visualConfidence >= 80 ? 'high' : visualConfidence >= 60 ? 'medium' : 'low',
         ai_extraction_confidence_bucket: aiConfidence === null
           ? 'unknown'
           : aiConfidence >= 0.85 ? 'high' : aiConfidence >= 0.7 ? 'medium' : 'low',

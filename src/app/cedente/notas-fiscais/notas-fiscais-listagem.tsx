@@ -273,12 +273,13 @@ export default function NotasFiscaisListagem({ resultado, filtros }: Props) {
         notifications.error('Nenhum arquivo foi importado. Revise os itens destacados.')
       }
 
-      if (batch.successCount > 0) router.refresh()
       const singleDraftId = units[0]?.actionResult?.rascunhos?.length === 1
         ? units[0].actionResult.rascunhos[0]
         : undefined
       if (batch.total === 1 && batch.errorCount === 0 && singleDraftId) {
         router.push(`/cedente/notas-fiscais/${singleDraftId}`)
+      } else if (batch.successCount > 0) {
+        router.refresh()
       }
     } catch {
       notifications.error('Não foi possível confirmar o envio. Verifique suas NFs antes de tentar novamente.')
@@ -793,6 +794,7 @@ export default function NotasFiscaisListagem({ resultado, filtros }: Props) {
                       <div className="flex items-center gap-3">
                         <Link
                           href={`/cedente/notas-fiscais/${nf.id}`}
+                          prefetch={false}
                           className="inline-flex items-center gap-1 text-sm text-primary hover:text-primary/80 font-medium"
                         >
                           <Eye size={14} />
