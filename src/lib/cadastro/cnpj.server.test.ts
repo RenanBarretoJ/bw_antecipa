@@ -63,7 +63,13 @@ describe('consultarCnpj (Matriz e Filial usam o mesmo service)', () => {
     expect(resultado.dados.uf).toBe('SP')
     expect(fetchFn).toHaveBeenCalledWith(
       expect.stringContaining(CNPJ_VALIDO),
-      expect.objectContaining({ method: 'GET' }),
+      expect.objectContaining({
+        method: 'GET',
+        headers: expect.objectContaining({
+          accept: 'application/json',
+          'user-agent': 'BW-Antecipa/1.0 (cnpj-enrichment)',
+        }),
+      }),
     )
   })
 

@@ -57,7 +57,12 @@ export async function consultarCnpj(cnpjBruto: string, fetchFn: typeof fetch = f
     response = await fetchFn(`${BRASILAPI_BASE_URL}/${cnpj}`, {
       method: 'GET',
       signal: AbortSignal.timeout(TIMEOUT_MS),
-      headers: { accept: 'application/json' },
+      headers: {
+        accept: 'application/json',
+        // A BrasilAPI limita clientes HTTP genericos. Identificar o consumidor
+        // evita 429 indevido no fetch server-side e facilita rastreabilidade.
+        'user-agent': 'BW-Antecipa/1.0 (cnpj-enrichment)',
+      },
     })
   } catch (error) {
     if (error instanceof Error && error.name === 'TimeoutError') {
