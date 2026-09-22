@@ -10,6 +10,7 @@ import { CedenteFundoError } from '@/lib/fundos/cedente-fundo'
 import { validarElegibilidadeAprovacao, validarElegibilidadeSolicitacao } from '@/lib/operacoes/elegibilidade'
 import { carregarElegibilidadeDocumentalOperacaoEmLote } from '@/lib/operacoes/elegibilidade-documental.server'
 import { montarIdempotencyKeySolicitacaoOperacao } from '@/lib/operacoes/idempotencia'
+import { mensagemErroSolicitacaoOperacao } from '@/lib/operacoes/erro-solicitacao'
 import { obterFundoAtivoAutorizado } from '@/lib/fundos/fundo-ativo.server'
 import { carregarContextoEventoOperacao, registrarEventoDominio } from '@/lib/eventos-dominio/registrar'
 import { calcularAntecipacaoEmLote } from '@/lib/operacoes/calculo'
@@ -363,7 +364,7 @@ export async function solicitarAntecipacao(nfIds: string[], parcelaIds?: string[
       nf_ids: nfIds,
       erro: opError.message,
     })
-    return { success: false, message: `Erro ao criar operacao: ${opError.message}` }
+    return { success: false, message: mensagemErroSolicitacaoOperacao(opError) }
   }
 
   const operacaoResultado = operacao as { operacao_id?: string; idempotent_replay?: boolean } | null
