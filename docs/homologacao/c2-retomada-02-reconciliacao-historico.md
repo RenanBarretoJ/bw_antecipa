@@ -1,6 +1,6 @@
 # C2 RETOMADA 02 - reconciliacao do historico de homologacao
 
-Data de referencia: 22/09/2026
+Data de referencia: 23/09/2026
 
 Projeto Supabase de homologacao: `fhgkmggthxikfpogrvaa`
 
@@ -57,11 +57,76 @@ As 13 falhas de rehearsal continuam concentradas nos manifestos de producao cong
 - nenhuma migration SQL foi aplicada pelo reparo de historico;
 - P13 e P14 nao tiveram codigo funcional alterado;
 - nenhuma alteracao de layout, menu lateral ou texto de autenticacao integra este escopo;
-- o smoke autenticado do C2 pertence a etapa posterior, depois da reconstrucao sobre a `main` atual.
+- o pedido de alteracao do menu lateral e do texto de autenticacao foi explicitamente retirado do escopo; nenhum arquivo de layout foi modificado.
+
+## C2 reconstruido sobre a main atual
+
+O C2 foi reconstruido a partir da `main` `3597e07428f1beae7a4546704fb4968ed0c9ffb6`, sem merge cego da branch historica. A migration foi reposicionada depois do P14, em `20260922214000`, e passou a usar `private.operacao_status_reserva_nf(op.status)`. Isso preserva o reuso de NF vinculada apenas a operacao reprovada e mantem o bloqueio quando existe uma operacao ativa.
+
+O Preview limpo confirmou a migration nova, a ausencia da versao C2 antiga, a presenca do helper P14 e a RPC com autorizacao de Consultor e sem regressao da regra P14. A integracao permanente em homologacao aplicou somente `20260922214000_c2_consultor_criacao_operacao_cedente.sql`.
+
+| Evidencia C2 | Resultado |
+|---|---|
+| Branch de validacao | `validation/c2-consultor-on-current-main` |
+| Pull request de validacao | `#42` |
+| Commit final em homologacao | `cc8f01a63b38e8fe8a8cb2f8ee6a846e54a4551e` |
+| Migrations remotas apos C2 | 211 |
+| Hash do historico apos C2 | `dcd800edfba2d1ce664d8009eac7792d` |
+| `supabase db push --dry-run --linked` | vazio / up to date |
+| CI de homologacao | PASS |
+| Supabase check | PASS |
+| Vercel homologacao | PASS / Ready |
+| Deployment | `dpl_5e9uxkxzpCcx4Gxvq1sZupRJhGAX` |
+
+## Smoke autenticado do Consultor em homologacao
+
+O script `scripts/homologacao/c2-consultor/e2e.mjs` criou atores, Cedentes, NFs e operacoes exclusivamente sinteticos no projeto `fhgkmggthxikfpogrvaa`. O script exige confirmacao explicita do project ref, bloqueia producao, usa JWTs reais para RLS/RPC, autentica o Consultor com TOTP e remove a fixture em uma transacao ao final.
+
+A rodada final `QA_C2_1790167910630_` terminou com **30/30 verificacoes aprovadas**:
+
+- seletor obrigatorio, minimo de quatro caracteres e estado vazio;
+- busca sem acento, sem diferenca de caixa e por CNPJ;
+- limite de dez resultados e invisibilidade de Cedente nao vinculado ou pendente;
+- navegacao por teclado, foco operacional e viewport mobile sem overflow horizontal;
+- selecao do Cedente A, troca para B e descarte da selecao/contexto anterior;
+- criacao por Consultor para A com NF nova e NF reutilizada de operacao reprovada;
+- criacao por Consultor para B;
+- negacao de NF de outro Cedente, UUID de Cedente sem vinculo e NF reservada por operacao ativa;
+- concorrencia sobre a mesma NF com exatamente um vencedor;
+- auditoria com o `usuario_id` do Consultor real e `solicitado_por_role=consultor`;
+- regressao de criacao pelo Cedente e leitura pelo Gestor;
+- zero vinculo cross-tenant entre operacao e NF;
+- cleanup com zero Cedentes, NFs, operacoes, escrows ou usuarios QA residuais e restauracao exata das contagens iniciais.
+
+As memorias logisticas append-only geradas pelos triggers foram removidas no cleanup usando o mesmo padrao controlado dos resets oficiais de homologacao: desativacao temporaria do trigger dentro da transacao, `DELETE` limitado aos IDs QA e reativacao antes do commit.
 
 ```ini
 HOMOLOG_HISTORY_REPAIR_REHEARSAL = PASS
 HOMOLOG_MIGRATION_HISTORY_RECONCILED = PASS
+HOMOLOG_GIT_ALIGNED_WITH_SCHEMA = PASS
+INFRA_HOMOLOG_READY = YES
+
+C2_DEPENDENCY_C1 = PASS
+C2_REBASED_ON_CURRENT_MAIN = PASS
+C2_P14_COMPATIBILITY = PASS
+C2_FEATURE_TESTS = PASS
+C2_FEATURE_CI = PASS
+C2_SUPABASE_PREVIEW = PASS
+C2_VERCEL_PREVIEW = PASS
+C2_READY_FOR_HOMOLOG = YES
+
+C2_HOMOLOG_SELECTOR = PASS
+C2_HOMOLOG_SEARCH = PASS
+C2_HOMOLOG_P14_COMPATIBILITY = PASS
+C2_HOMOLOG_SINGLE_CEDENTE = PASS
+C2_HOMOLOG_SECURITY = PASS
+C2_HOMOLOG_CONCURRENCY = PASS
+C2_HOMOLOG_AUDIT = PASS
+C2_HOMOLOG_CEDENTE_REGRESSION = PASS
+C2_HOMOLOG_GESTOR_REGRESSION = PASS
+C2_HOMOLOG_CLEANUP = PASS
+C2_HOMOLOG_READY = YES
+
 P14_CHANGED = NO
 P13_CHANGED = NO
 PRODUCTION_CHANGED = NO
