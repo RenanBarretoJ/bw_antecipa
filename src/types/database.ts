@@ -1450,6 +1450,7 @@ export interface ConsultorCedente {
   consultor_id: string
   cedente_id: string
   comissao_percentual: number
+  status: 'ativo' | 'inativo'
   created_at: string
 }
 
@@ -2674,6 +2675,10 @@ export interface Database {
       iniciar_execucao_comunicacoes: { Args: { p_data_referencia: string }; Returns: string | null }
       registrar_comunicacao_operacional: { Args: { p_comunicacao: Record<string, unknown>; p_itens: Array<Record<string, unknown>> }; Returns: string | null }
       get_user_role: { Args: Record<string, never>; Returns: string }
+      buscar_cedentes_elegiveis_consultor: {
+        Args: { p_termo?: string | null; p_limite?: number }
+        Returns: Array<{ id: string; razao_social: string; nome_fantasia: string | null; cnpj: string }>
+      }
       get_user_cedente_id: { Args: Record<string, never>; Returns: string | null }
       get_user_cedente_acesso_perfil: { Args: Record<string, never>; Returns: string | null }
       get_user_cedente_perfil_canonico: { Args: Record<string, never>; Returns: 'ADMIN' | 'OPERACIONAL' | null }

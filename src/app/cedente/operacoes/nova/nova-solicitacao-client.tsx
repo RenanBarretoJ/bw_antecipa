@@ -17,6 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ExposicaoLogisticaCard } from '@/components/operacoes/ExposicaoLogisticaCard'
+import { ConsultorCedenteSelector } from '@/components/operacoes/ConsultorCedenteSelector'
 
 export default function NovaSolicitacaoClient({ resultado }: { resultado: ResultadoNovaSolicitacao }) {
   const router = useRouter()
@@ -33,17 +34,20 @@ export default function NovaSolicitacaoClient({ resultado }: { resultado: Result
   const simulacaoAtual = useRef(0)
   const [busca, setBusca] = useState(resultado.filtros.q)
   const params = useMemo(() => Object.fromEntries(searchParams.entries()), [searchParams])
+  const operacoesPath = `/${resultado.perfil}/operacoes`
+  const cedenteIdAcao = resultado.perfil === 'consultor' ? resultado.cedente.id : undefined
   const pagina = resultado.candidatas.items
   const elegiveisPagina = pagina.filter((item) => item.elegibilidade.elegivel)
   const selecaoProforma = useMemo(() => ({
     notaFiscalIds: [...selected.keys()].sort(),
+    cedenteId: cedenteIdAcao,
     parcelaIds: [...selected.values()].flatMap((nf) => {
       if (!nf.parcelas.length) return []
       const selecionadasDaNf = parcelasSelecionadas.get(nf.id)
         || new Set(nf.parcelas.map((parcela) => parcela.id))
       return [...selecionadasDaNf]
     }).sort(),
-  }), [selected, parcelasSelecionadas])
+  }), [selected, parcelasSelecionadas, cedenteIdAcao])
 
   const navegar = (updates: Record<string, string | number | null>) => {
     startTransition(() => router.replace(buildListUrl(pathname, params, updates)))
@@ -191,21 +195,32 @@ export default function NovaSolicitacaoClient({ resultado }: { resultado: Result
       const selecionadasDaNf = parcelasSelecionadas.get(nf.id) || new Set(nf.parcelas.map((parcela) => parcela.id))
       return [...selecionadasDaNf]
     })
-    const result = await solicitarAntecipacao([...selected.keys()], parcelaIds.length ? parcelaIds : undefined)
+    const result = await solicitarAntecipacao(
+      [...selected.keys()],
+      parcelaIds.length ? parcelaIds : undefined,
+      cedenteIdAcao,
+    )
     notifications.fromActionResult(result, 'Solicitacao criada.')
-    if (result?.success) router.push('/cedente/operacoes')
+    if (result?.success) router.push(operacoesPath)
     setSubmitting(false)
   }
 
   return (
     <div className="mx-auto max-w-[1440px]">
       <div className="mb-6 flex items-center gap-3">
-        <Link href="/cedente/operacoes"><Button variant="ghost" size="icon"><ArrowLeft /></Button></Link>
+        <Link href={operacoesPath}><Button variant="ghost" size="icon"><ArrowLeft /></Button></Link>
         <div>
           <h1 className="text-2xl font-bold">Nova solicitacao de antecipacao</h1>
           <p className="text-muted-foreground">Selecione NFs aprovadas e documentalmente elegiveis.</p>
         </div>
       </div>
+      {resultado.perfil === 'consultor' ? (
+        <Card className="mb-4">
+          <CardContent className="py-4">
+            <ConsultorCedenteSelector selecionado={resultado.cedente} />
+          </CardContent>
+        </Card>
+      ) : null}
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(400px,440px)]">
         <div className="min-w-0">
           <Card className="mb-4">
