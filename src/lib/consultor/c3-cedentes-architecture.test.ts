@@ -10,7 +10,7 @@ const c2Migration = readFileSync(
   'utf8',
 )
 const c31GrantMigration = readFileSync(
-  'supabase/migrations/20260923220500_c3_1_restaurar_select_solicitacoes_alteracao.sql',
+  'supabase/migrations/20260923220357_c3_1_restaurar_select_solicitacoes_alteracao.sql',
   'utf8',
 )
 const action = readFileSync('src/lib/actions/consultor-cedentes.ts', 'utf8')
