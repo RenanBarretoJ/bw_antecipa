@@ -59,7 +59,7 @@ try {
 
   await verifySearch(consultant.client, fixture)
   await verifyBrowser(actors.consultant, fixture)
-  await verifySecurityAndOperations(consultant.client, cedenteAClient.client, gestor.client, template, fixture, actors)
+  await verifySecurityAndOperations(consultant.client, cedenteAClient.client, gestor.client, template, fixture)
   await verifyAuditAndIsolation(fixture, actors)
 } catch (error) {
   console.error(JSON.stringify({ project_ref: apiRef, prefix: PREFIX, error: safeError(error), checks }, null, 2))
@@ -325,7 +325,7 @@ async function verifyZeroResult(page) {
   return true
 }
 
-async function verifySecurityAndOperations(consultant, cedenteAClient, gestor, template, fixture, actors) {
+async function verifySecurityAndOperations(consultant, cedenteAClient, gestor, template, fixture) {
   const rpc = (client, cedente, noteIds, key) => client.rpc('solicitar_operacao_antecipacao_atomica', rpcArgs(template, cedente, noteIds, key))
 
   const cross = await rpc(consultant, fixture.cedentes.A, [fixture.notes.bNew.id], `${PREFIX}CROSS_TENANT_123456`)
