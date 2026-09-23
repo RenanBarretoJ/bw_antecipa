@@ -26,7 +26,7 @@ export default async function ConsultorDashboard() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
-          <CardHeader className="flex-row items-center justify-between"><CardTitle>Minha carteira</CardTitle><Link href="/consultor/carteira" className="inline-flex items-center gap-1 text-sm text-primary">Ver todos <ArrowRight className="size-4" /></Link></CardHeader>
+          <CardHeader className="flex-row items-center justify-between"><CardTitle>Minha carteira</CardTitle><Link href="/consultor/cedentes" className="inline-flex items-center gap-1 text-sm text-primary">Ver todos <ArrowRight className="size-4" /></Link></CardHeader>
           <CardContent className="divide-y">
             {data.carteiraRecente.length === 0 ? <p className="py-8 text-center text-sm text-muted-foreground">Nenhum cedente vinculado.</p> : data.carteiraRecente.map((cedente) => (
               <div key={cedente.cedenteId} className="flex items-center justify-between gap-3 py-3">
@@ -51,7 +51,7 @@ export default async function ConsultorDashboard() {
 
       <div className="grid gap-3 sm:grid-cols-3">
         {[
-          { label: 'Minha carteira', href: '/consultor/carteira', icon: Briefcase },
+          { label: 'Cedentes', href: '/consultor/cedentes', icon: Briefcase },
           { label: 'Operações', href: '/consultor/operacoes', icon: CreditCard },
           { label: 'Relatórios', href: '/consultor/relatorios', icon: BarChart3 },
         ].map((item) => <Link key={item.href} href={item.href} className="flex items-center justify-between rounded-xl border bg-card p-4 font-medium hover:border-primary/30"><span className="flex items-center gap-2"><item.icon className="size-4 text-primary" />{item.label}</span><ArrowRight className="size-4" /></Link>)}
