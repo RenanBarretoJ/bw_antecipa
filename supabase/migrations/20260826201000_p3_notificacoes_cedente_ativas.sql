@@ -64,16 +64,85 @@ DECLARE
   v_oid regprocedure;
   v_definicao text;
   v_nova_definicao text;
+  v_trecho_normalizado text;
+  v_trecho_novo_normalizado text;
+  v_padrao text := '';
+  v_char text;
+  v_pos integer := 1;
+  v_em_literal boolean := false;
+  v_ocorrencias bigint;
 BEGIN
   v_oid := pg_catalog.to_regprocedure(p_assinatura);
   IF v_oid IS NULL THEN
     RAISE EXCEPTION 'P3: funcao nao encontrada: %', p_assinatura;
   END IF;
+
   v_definicao := pg_catalog.replace(pg_catalog.pg_get_functiondef(v_oid), E'\r\n', E'\n');
-  IF position(p_trecho_antigo IN v_definicao) = 0 THEN
-    RAISE EXCEPTION 'P3: trecho esperado nao encontrado em %', p_assinatura;
+  v_trecho_normalizado := pg_catalog.replace(p_trecho_antigo, E'\r\n', E'\n');
+  v_trecho_novo_normalizado := pg_catalog.replace(p_trecho_novo, E'\r\n', E'\n');
+
+  -- Converte o anchor em regex literal, flexibilizando somente whitespace
+  -- fora de strings SQL. Tokens, nomes e conteudo das strings permanecem
+  -- obrigatorios, evitando que um trecho apenas semelhante seja alterado.
+  WHILE v_pos <= pg_catalog.char_length(v_trecho_normalizado) LOOP
+    v_char := pg_catalog.substr(v_trecho_normalizado, v_pos, 1);
+
+    IF v_char = '''' THEN
+      v_padrao := v_padrao || v_char;
+      IF v_em_literal
+         AND pg_catalog.substr(v_trecho_normalizado, v_pos + 1, 1) = '''' THEN
+        v_padrao := v_padrao || '''';
+        v_pos := v_pos + 2;
+        CONTINUE;
+      END IF;
+      v_em_literal := NOT v_em_literal;
+      v_pos := v_pos + 1;
+      CONTINUE;
+    END IF;
+
+    IF NOT v_em_literal AND v_char ~ '[[:space:]]' THEN
+      v_padrao := v_padrao || '[[:space:]]+';
+      WHILE v_pos <= pg_catalog.char_length(v_trecho_normalizado)
+        AND pg_catalog.substr(v_trecho_normalizado, v_pos, 1) ~ '[[:space:]]'
+      LOOP
+        v_pos := v_pos + 1;
+      END LOOP;
+      CONTINUE;
+    END IF;
+
+    IF pg_catalog.strpos(E'\\.^$|?*+()[]{}', v_char) > 0 THEN
+      v_padrao := v_padrao || E'\\' || v_char;
+    ELSE
+      v_padrao := v_padrao || v_char;
+    END IF;
+    v_pos := v_pos + 1;
+  END LOOP;
+
+  IF v_em_literal THEN
+    RAISE EXCEPTION 'P3: anchor SQL invalido para %', p_assinatura;
   END IF;
-  v_nova_definicao := pg_catalog.replace(v_definicao, p_trecho_antigo, p_trecho_novo);
+
+  SELECT pg_catalog.count(*)
+    INTO v_ocorrencias
+    FROM pg_catalog.regexp_matches(v_definicao, v_padrao, 'g');
+
+  IF v_ocorrencias <> 1 THEN
+    RAISE EXCEPTION 'P3: esperado exatamente 1 trecho em %, encontrados %',
+      p_assinatura,
+      v_ocorrencias;
+  END IF;
+
+  v_nova_definicao := pg_catalog.regexp_replace(
+    v_definicao,
+    v_padrao,
+    v_trecho_novo_normalizado
+  );
+
+  IF v_nova_definicao = v_definicao
+     OR pg_catalog.regexp_match(v_nova_definicao, v_padrao) IS NOT NULL THEN
+    RAISE EXCEPTION 'P3: transformacao nao consumiu o anchor de %', p_assinatura;
+  END IF;
+
   EXECUTE v_nova_definicao;
 END;
 $function$;
