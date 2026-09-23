@@ -5,6 +5,10 @@ const migration = readFileSync(
   'supabase/migrations/20260922214000_c2_consultor_criacao_operacao_cedente.sql',
   'utf8',
 )
+const legacyPolicyMigration = readFileSync(
+  'supabase/migrations/20260923113000_c2_remover_policy_legada_taxas_consultor.sql',
+  'utf8',
+)
 const action = readFileSync('src/lib/actions/operacao.ts', 'utf8')
 const exposureAction = readFileSync('src/lib/actions/exposicao.ts', 'utf8')
 const loader = readFileSync('src/lib/operacoes/nova-solicitacao.server.ts', 'utf8')
@@ -55,6 +59,10 @@ describe('C2 - Consultor cria operacao por Cedente', () => {
     expect(migration).toContain("VALUES (actor_id, 'OPERACAO_SOLICITADA'")
     expect(migration).toContain("'solicitado_por_role', actor_role")
     expect(migration).not.toContain('service_role')
+    expect(legacyPolicyMigration).toContain(
+      'DROP POLICY IF EXISTS taxas_consultor_select ON public.taxas_cedente',
+    )
+    expect(legacyPolicyMigration).not.toMatch(/CREATE\s+POLICY\s+taxas_consultor_select/iu)
   })
 
   it('roda depois do P14 e preserva o reuso de NF de operacao reprovada', () => {
