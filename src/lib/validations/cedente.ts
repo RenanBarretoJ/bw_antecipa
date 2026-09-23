@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-function validarCNPJ(cnpj: string): boolean {
+export function validarCNPJ(cnpj: string): boolean {
   const nums = cnpj.replace(/\D/g, '')
   if (nums.length !== 14 || /^(\d)\1+$/.test(nums)) return false
   const calc = (slice: string, weights: number[]) =>

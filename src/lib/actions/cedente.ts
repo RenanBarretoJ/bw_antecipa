@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { DOCUMENT_TYPES, type DocumentoTipo } from '@/lib/types/domain'
-import { requireAuthenticated, requireCedenteOrganizationalAccess, requireGestor } from '@/lib/auth/authorization'
+import { requireAuthenticated, requireCedenteManagementAccess, requireCedenteOrganizationalAccess, requireGestor } from '@/lib/auth/authorization'
 import { cedenteSchema, type CedenteFormData } from '@/lib/validations/cedente'
 import { registrarLog } from './auditoria'
 import { notificarGestores } from './notificacao'
@@ -19,8 +19,8 @@ export type CedenteActionState = {
   message?: string
 } | undefined
 
-export async function cadastrarCedente(data: CedenteFormData): Promise<CedenteActionState> {
-  await requireAuthenticated()
+export async function cadastrarCedente(data: CedenteFormData, managedCedenteId?: string): Promise<CedenteActionState> {
+  const context = await requireAuthenticated()
   const validated = cedenteSchema.safeParse(data)
 
   if (!validated.success) {
@@ -30,22 +30,24 @@ export async function cadastrarCedente(data: CedenteFormData): Promise<CedenteAc
     }
   }
 
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    return { success: false, message: 'Usuario nao autenticado.' }
+  const supabase = context.supabase
+  if (managedCedenteId && context.profile.role !== 'consultor') {
+    return { success: false, message: 'O cadastro gerenciado e exclusivo para Consultor autorizado.' }
   }
 
-  const { data: cedente, error } = await supabase.rpc('concluir_onboarding_cedente', {
-    p_cadastro: validated.data,
-  })
+  const { data: cedente, error } = managedCedenteId
+    ? await supabase.rpc('concluir_onboarding_cedente_delegado', {
+        p_cedente_id: managedCedenteId,
+        p_cadastro: validated.data,
+      })
+    : await supabase.rpc('concluir_onboarding_cedente', { p_cadastro: validated.data })
 
   if (error) {
     console.error('[cadastrarCedente]', {
       codigo: error.code,
       mensagem: error.message,
-      usuario_id: user.id,
+      usuario_id: context.user.id,
+      cedente_id: managedCedenteId || null,
     })
     return {
       success: false,
@@ -57,7 +59,7 @@ export async function cadastrarCedente(data: CedenteFormData): Promise<CedenteAc
 
   const cedenteData = cedente as { id: string; razao_social: string; criado: boolean; idempotente: boolean }
 
-  if (cedenteData.criado) {
+  if (cedenteData.criado && !managedCedenteId) {
     await registrarLog({
       tipo_evento: 'CEDENTE_CADASTRADO',
       entidade_tipo: 'cedentes',
@@ -198,9 +200,10 @@ export async function reenviarDocumento(documentoId: string, formData: FormData)
 
 
 export async function solicitarAlteracaoCedente(
-  dados: Partial<CedenteFormData>
+  dados: Partial<CedenteFormData>,
+  managedCedenteId?: string,
 ): Promise<CedenteActionState> {
-  const context = await requireCedenteOrganizationalAccess('administrativo')
+  const context = await requireCedenteManagementAccess(managedCedenteId)
   const { supabase } = context
 
   const { data: cedente } = await supabase
@@ -238,12 +241,20 @@ export async function solicitarAlteracaoCedente(
   // direto nesta tabela desde a canonicalizacao de ACL (20260817150507) --
   // a RPC resolve o cedente pelo auth.uid(), re-valida a permissao de
   // administrador e audita na mesma transacao.
-  const { error } = await supabase.rpc('solicitar_alteracao_cadastral_cedente', {
-    p_dados_atuais: cedenteData,
-    p_dados_propostos: camposPropostos,
-    p_representantes_atuais: reps || [],
-    p_representantes_propostos: representantesPropostos || [],
-  })
+  const { error } = managedCedenteId
+    ? await supabase.rpc('solicitar_alteracao_cadastral_cedente_delegada', {
+        p_cedente_id: managedCedenteId,
+        p_dados_atuais: cedenteData,
+        p_dados_propostos: camposPropostos,
+        p_representantes_atuais: reps || [],
+        p_representantes_propostos: representantesPropostos || [],
+      })
+    : await supabase.rpc('solicitar_alteracao_cadastral_cedente', {
+        p_dados_atuais: cedenteData,
+        p_dados_propostos: camposPropostos,
+        p_representantes_atuais: reps || [],
+        p_representantes_propostos: representantesPropostos || [],
+      })
 
   if (error) return { success: false, message: `Erro ao registrar solicitacao: ${error.message}` }
 

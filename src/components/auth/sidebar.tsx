@@ -49,7 +49,7 @@ export const sacadoMenuItems: SidebarItem[] = [
 
 export const consultorMenuItems: SidebarItem[] = [
   { label: 'Dashboard', href: '/consultor/dashboard', icon: LayoutDashboard },
-  { label: 'Minha Carteira', href: '/consultor/carteira', icon: Briefcase },
+  { label: 'Cedentes', href: '/consultor/cedentes', icon: Briefcase },
   { label: 'Operacoes', href: '/consultor/operacoes', icon: CreditCard },
   { label: 'Extratos Escrow', href: '/consultor/escrow', icon: Wallet },
   { label: 'Relatorios', href: '/consultor/relatorios', icon: BarChart3 },

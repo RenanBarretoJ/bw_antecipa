@@ -20,6 +20,10 @@ import { useCamposEditadosManualmente, useCepConsulta } from '@/hooks/use-cadast
 
 const STORAGE_KEY = 'bw_antecipa_cadastro_cedente'
 
+function cadastroStorageKey(cedenteId?: string) {
+  return cedenteId ? `${STORAGE_KEY}:${cedenteId}` : STORAGE_KEY
+}
+
 type FormErrors = Record<string, string[]>
 
 interface SolicitacaoPendente {
@@ -260,8 +264,17 @@ function maskCEP(v: string) {
   return v.replace(/\D/g, '').replace(/(\d{5})(\d)/, '$1-$2').slice(0, 9)
 }
 
-function CadastroForm({ cnpjConvidado }: { cnpjConvidado: string }) {
+function CadastroForm({
+  cnpjConvidado,
+  managedCedenteId,
+  documentosPath = '/cedente/documentos',
+}: {
+  cnpjConvidado: string
+  managedCedenteId?: string
+  documentosPath?: string
+}) {
   const router = useRouter()
+  const storageKey = cadastroStorageKey(managedCedenteId)
   const [etapa, setEtapa] = useState(1)
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState<FormErrors>({})
@@ -270,7 +283,7 @@ function CadastroForm({ cnpjConvidado }: { cnpjConvidado: string }) {
 
   const [form, setForm] = useState<Partial<CedenteFormData>>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem(STORAGE_KEY)
+      const saved = localStorage.getItem(storageKey)
       if (saved) return { ...JSON.parse(saved), cnpj: cnpjConvidado }
     }
     return {
@@ -280,8 +293,8 @@ function CadastroForm({ cnpjConvidado }: { cnpjConvidado: string }) {
   })
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(form))
-  }, [form])
+    localStorage.setItem(storageKey, JSON.stringify(form))
+  }, [form, storageKey])
 
   const updateField = (field: string, value: string) => {
     marcarEditado(field)
@@ -363,10 +376,10 @@ function CadastroForm({ cnpjConvidado }: { cnpjConvidado: string }) {
     if (!validarEtapa()) return
     setLoading(true)
     setMessage('')
-    const result = await cadastrarCedente(form as CedenteFormData)
+    const result = await cadastrarCedente(form as CedenteFormData, managedCedenteId)
     if (result?.success) {
-      localStorage.removeItem(STORAGE_KEY)
-      router.push('/cedente/documentos')
+      localStorage.removeItem(storageKey)
+      router.push(documentosPath)
     } else {
       setMessage(result?.message || 'Erro ao cadastrar.')
       if (result?.errors) setErrors(result.errors)
@@ -708,7 +721,15 @@ function CadastroForm({ cnpjConvidado }: { cnpjConvidado: string }) {
 
 // ─── Formulário de alteração (pré-preenchido, chama action diferente) ───────
 
-function AlteracaoForm({ cedente, onCancelar }: { cedente: CedenteCadastrado; onCancelar: () => void }) {
+function AlteracaoForm({
+  cedente,
+  onCancelar,
+  managedCedenteId,
+}: {
+  cedente: CedenteCadastrado
+  onCancelar: () => void
+  managedCedenteId?: string
+}) {
   const [etapa, setEtapa] = useState(1)
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState<FormErrors>({})
@@ -796,7 +817,7 @@ function AlteracaoForm({ cedente, onCancelar }: { cedente: CedenteCadastrado; on
   const submeter = async () => {
     setLoading(true)
     setMessage('')
-    const result = await solicitarAlteracaoCedente(form)
+    const result = await solicitarAlteracaoCedente(form, managedCedenteId)
     if (result?.success) {
       setMessage(result.message || 'Solicitacao enviada!')
       setTimeout(() => onCancelar(), 1500)
@@ -995,7 +1016,13 @@ function AlteracaoForm({ cedente, onCancelar }: { cedente: CedenteCadastrado; on
 
 // ─── Página principal ────────────────────────────────────────────────────────
 
-export default function CadastroCedentePage() {
+export function CadastroCedenteFeature({
+  managedCedenteId,
+  documentosPath,
+}: {
+  managedCedenteId?: string
+  documentosPath?: string
+} = {}) {
   const [cedente, setCedente] = useState<CedenteCadastrado | null | 'loading'>('loading')
   const [solicitacao, setSolicitacao] = useState<SolicitacaoPendente | null>(null)
   const [modoEdicao, setModoEdicao] = useState(false)
@@ -1006,10 +1033,11 @@ export default function CadastroCedentePage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { setCedente(null); return }
 
-      const { data } = await supabase
+      let cedenteQuery = supabase
         .from('cedentes')
         .select('id, cnpj, razao_social, nome_fantasia, cnae, cep, logradouro, numero, complemento, bairro, cidade, estado, telefone_comercial, email_comercial, banco, agencia, conta, tipo_conta, status, onboarding_concluido_em, created_at')
-        .single()
+      if (managedCedenteId) cedenteQuery = cedenteQuery.eq('id', managedCedenteId)
+      const { data } = await cedenteQuery.maybeSingle()
 
       if (!data) { setCedente(null); return }
       const cedenteId = (data as unknown as { id: string }).id
@@ -1033,7 +1061,7 @@ export default function CadastroCedentePage() {
       if (sol) setSolicitacao(sol as SolicitacaoPendente)
     }
     load()
-  }, [])
+  }, [managedCedenteId])
 
   if (cedente === 'loading') {
     return (
@@ -1050,11 +1078,11 @@ export default function CadastroCedentePage() {
   }
 
   if (cedente && !cedente.onboarding_concluido_em) {
-    return <CadastroForm cnpjConvidado={cedente.cnpj} />
+    return <CadastroForm cnpjConvidado={cedente.cnpj} managedCedenteId={managedCedenteId} documentosPath={documentosPath} />
   }
 
   if (cedente && modoEdicao) {
-    return <AlteracaoForm cedente={cedente} onCancelar={() => setModoEdicao(false)} />
+    return <AlteracaoForm cedente={cedente} onCancelar={() => setModoEdicao(false)} managedCedenteId={managedCedenteId} />
   }
 
   if (cedente) {
@@ -1080,4 +1108,8 @@ export default function CadastroCedentePage() {
       </Card>
     </div>
   )
+}
+
+export default function CadastroCedentePage() {
+  return <CadastroCedenteFeature />
 }

@@ -164,7 +164,7 @@ export interface PlataformaAuditoria {
 
 export interface Cedente {
   id: string
-  user_id: string
+  user_id: string | null
   cnpj: string
   razao_social: string
   nome_fantasia: string | null
@@ -1450,7 +1450,7 @@ export interface ConsultorCedente {
   consultor_id: string
   cedente_id: string
   comissao_percentual: number
-  status: 'ativo' | 'inativo'
+  status: 'pendente' | 'ativo' | 'inativo'
   created_at: string
 }
 
@@ -2223,7 +2223,7 @@ export interface Database {
       usuario_papeis: { Row: UsuarioPapel & Record<string, unknown>; Insert: InsertShape<UsuarioPapel, 'usuario_id' | 'papel'> & Record<string, unknown>; Update: UpdateShape<UsuarioPapel> & Record<string, unknown>; Relationships: [] }
       usuario_fundos: { Row: UsuarioFundo & Record<string, unknown>; Insert: InsertShape<UsuarioFundo, 'usuario_id' | 'fundo_id'> & Record<string, unknown>; Update: UpdateShape<UsuarioFundo> & Record<string, unknown>; Relationships: [] }
       plataforma_auditoria: { Row: PlataformaAuditoria & Record<string, unknown>; Insert: InsertShape<PlataformaAuditoria, 'tipo_evento' | 'origem'> & Record<string, unknown>; Update: UpdateShape<PlataformaAuditoria> & Record<string, unknown>; Relationships: [] }
-      cedentes: { Row: Cedente & Record<string, unknown>; Insert: InsertShape<Cedente, 'user_id' | 'cnpj' | 'razao_social'> & Record<string, unknown>; Update: UpdateShape<Cedente> & Record<string, unknown>; Relationships: [] }
+      cedentes: { Row: Cedente & Record<string, unknown>; Insert: InsertShape<Cedente, 'cnpj' | 'razao_social'> & Record<string, unknown>; Update: UpdateShape<Cedente> & Record<string, unknown>; Relationships: [] }
       cedente_estabelecimentos: { Row: CedenteEstabelecimento & Record<string, unknown>; Insert: InsertShape<CedenteEstabelecimento, 'cedente_id' | 'cnpj' | 'razao_social' | 'tipo'> & Record<string, unknown>; Update: UpdateShape<CedenteEstabelecimento> & Record<string, unknown>; Relationships: [] }
       cedente_estabelecimento_contas_bancarias: { Row: CedenteEstabelecimentoContaBancaria & Record<string, unknown>; Insert: InsertShape<CedenteEstabelecimentoContaBancaria, 'estabelecimento_id' | 'banco' | 'agencia' | 'conta' | 'tipo_conta'> & Record<string, unknown>; Update: UpdateShape<CedenteEstabelecimentoContaBancaria> & Record<string, unknown>; Relationships: [] }
       cedente_estabelecimento_requisitos: { Row: CedenteEstabelecimentoRequisito & Record<string, unknown>; Insert: InsertShape<CedenteEstabelecimentoRequisito, 'estabelecimento_id' | 'documento_tipo_id'> & Record<string, unknown>; Update: UpdateShape<CedenteEstabelecimentoRequisito> & Record<string, unknown>; Relationships: [] }
@@ -2341,6 +2341,27 @@ export interface Database {
         Args: { p_cadastro: Record<string, unknown> }
         Returns: { id: string; razao_social: string; criado: boolean; idempotente: boolean }
       }
+      concluir_onboarding_cedente_delegado: {
+        Args: { p_cedente_id: string; p_cadastro: Record<string, unknown> }
+        Returns: { id: string; razao_social: string; criado: boolean; idempotente: boolean }
+      }
+      usuario_pode_gerenciar_cedente: { Args: { p_cedente_id: string }; Returns: boolean }
+      criar_cedente_consultor: {
+        Args: { p_fundo_id: string; p_cnpj: string; p_razao_social: string; p_nome_fantasia?: string | null }
+        Returns: { cedente_id: string; cedente_fundo_id: string; consultor_cedente_id: string; status: string }
+      }
+      listar_fundos_criacao_cedente_consultor: {
+        Args: Record<string, never>
+        Returns: Array<{ id: string; nome: string; cnpj: string }>
+      }
+      listar_cedentes_gerenciados_consultor: {
+        Args: { p_termo?: string | null; p_limite?: number; p_offset?: number }
+        Returns: Array<{
+          id: string; razao_social: string; nome_fantasia: string | null; cnpj: string; status: string
+          vinculo_status: string; fundo_id: string; fundo_nome: string; onboarding_concluido_em: string | null
+          documentos_pendentes: number; total_count: number
+        }>
+      }
       registrar_documento_cadastral_cedente: {
         Args: {
           p_tipo: DocumentoTipo
@@ -2380,6 +2401,16 @@ export interface Database {
       }
       solicitar_alteracao_cadastral_cedente: {
         Args: {
+          p_dados_atuais: Record<string, unknown>
+          p_dados_propostos: Record<string, unknown>
+          p_representantes_atuais?: unknown[]
+          p_representantes_propostos?: unknown[]
+        }
+        Returns: SolicitacaoAlteracaoCedente
+      }
+      solicitar_alteracao_cadastral_cedente_delegada: {
+        Args: {
+          p_cedente_id: string
           p_dados_atuais: Record<string, unknown>
           p_dados_propostos: Record<string, unknown>
           p_representantes_atuais?: unknown[]

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useCallback, useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { prepararUploadDocumentoCadastral, finalizarUploadDocumentoCadastral, reconciliarUploadDocumentoCadastral } from '@/lib/actions/cedente-documento-upload'
 import { DOCUMENTO_CADASTRAL_BUCKET, validarArquivoDocumentoCadastral } from '@/lib/documentos-cadastrais/upload'
@@ -60,7 +60,7 @@ const statusConfig: Record<string, { label: string; variant: 'secondary' | 'outl
   reprovado: { label: 'Reprovado', variant: 'destructive', icon: XCircle },
 }
 
-export default function DocumentosCedentePage() {
+export function DocumentosCedenteFeature({ managedCedenteId }: { managedCedenteId?: string } = {}) {
   const notifications = useNotifications()
   const [docs, setDocs] = useState<DocRecord[]>([])
   const [representantes, setRepresentantes] = useState<RepresentanteRecord[]>([])
@@ -78,28 +78,32 @@ export default function DocumentosCedentePage() {
     queueMicrotask(() => setMessage(''))
   }, [message, notifications])
 
-  const loadDocs = async () => {
+  const loadDocs = useCallback(async () => {
     const supabase = createClient()
     try {
-      const { data: repsData } = await supabase
+      let representantesQuery = supabase
         .from('representantes')
         .select('id, nome, principal')
         .order('principal', { ascending: false })
+      if (managedCedenteId) representantesQuery = representantesQuery.eq('cedente_id', managedCedenteId)
+      const { data: repsData } = await representantesQuery
 
       setRepresentantes((repsData || []) as RepresentanteRecord[])
 
-      const { data } = await supabase
+      let documentosQuery = supabase
         .from('documentos')
         .select('id, tipo, versao, status, nome_arquivo, motivo_reprovacao, created_at, representante_id, atualizacao_solicitada_em')
         .order('created_at', { ascending: false })
+      if (managedCedenteId) documentosQuery = documentosQuery.eq('cedente_id', managedCedenteId)
+      const { data } = await documentosQuery
 
       setDocs((data || []) as DocRecord[])
     } finally {
       setLoading(false)
     }
-  }
+  }, [managedCedenteId])
 
-  useEffect(() => { loadDocs() }, [])
+  useEffect(() => { void loadDocs() }, [loadDocs])
 
   const getLatestDocByRep = (tipo: string, representanteId: string | null): DocRecord | null => {
     return docs.find((d) => d.tipo === tipo && d.representante_id === representanteId) || null
@@ -121,7 +125,7 @@ export default function DocumentosCedentePage() {
     const reconcile = async (token: string) => {
       for (const delay of [500, 1500, 3000]) {
         await new Promise((resolve) => setTimeout(resolve, delay))
-        const state = await aguardarUploadComPrazo(reconciliarUploadDocumentoCadastral(token), 30_000, 'RECONCILE', correlationId)
+        const state = await aguardarUploadComPrazo(reconciliarUploadDocumentoCadastral(token, managedCedenteId), 30_000, 'RECONCILE', correlationId)
         if (state !== 'NOT_UPLOADED') return state
       }
       return 'NOT_UPLOADED'
@@ -129,7 +133,7 @@ export default function DocumentosCedentePage() {
     try {
       const prepared = await aguardarUploadComPrazo(
         prepararUploadDocumentoCadastral({
-          tipo, nomeArquivo: file.name, mime: file.type, tamanho: file.size, representanteId,
+          tipo, nomeArquivo: file.name, mime: file.type, tamanho: file.size, representanteId, cedenteId: managedCedenteId,
         }), 30_000, 'PREPARE', correlationId,
       )
       if (!prepared.success) { setMessage(prepared.message); return }
@@ -164,13 +168,13 @@ export default function DocumentosCedentePage() {
       setUploadStage(stage)
       let result: Awaited<ReturnType<typeof finalizarUploadDocumentoCadastral>>
       try {
-        result = await aguardarUploadComPrazo(finalizarUploadDocumentoCadastral(prepared.intent), 30_000, 'FINALIZE', correlationId)
+        result = await aguardarUploadComPrazo(finalizarUploadDocumentoCadastral(prepared.intent, managedCedenteId), 30_000, 'FINALIZE', correlationId)
       } catch (error) {
         setUploadStage('confirmando')
         const state = await reconcile(prepared.intent)
         if (state === 'FINALIZED') result = { success: true, message: 'Documento enviado com sucesso!' }
         else if (state === 'UPLOADED_NOT_FINALIZED') {
-          result = await aguardarUploadComPrazo(finalizarUploadDocumentoCadastral(prepared.intent), 30_000, 'FINALIZE', correlationId)
+          result = await aguardarUploadComPrazo(finalizarUploadDocumentoCadastral(prepared.intent, managedCedenteId), 30_000, 'FINALIZE', correlationId)
         } else throw error
       }
       if (!result.success) {
@@ -388,4 +392,8 @@ export default function DocumentosCedentePage() {
       )}
     </div>
   )
+}
+
+export default function DocumentosCedentePage() {
+  return <DocumentosCedenteFeature />
 }
