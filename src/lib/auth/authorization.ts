@@ -38,6 +38,9 @@ export type CedenteAccessScope = 'operacional' | 'administrativo'
 export type CedenteOrganizationalContext = CedenteContext & {
   cedenteAccess: { cedenteId: string; perfil: CedenteAccessProfile }
 }
+export type CedenteManagementContext = CedenteContext & {
+  cedenteAccess: { cedenteId: string; perfil: CedenteAccessProfile | 'CONSULTOR' }
+}
 type OperacaoContext = AuthContext & { operacao: Pick<Operacao, 'id' | 'cedente_id'> }
 type NotaFiscalContext = AuthContext & { notaFiscal: Pick<NotaFiscal, 'id' | 'cedente_id' | 'cnpj_destinatario'> }
 
@@ -215,6 +218,37 @@ export async function requireCedenteOrganizationalAccess(
 
   const cedente = await loadCedente(context.supabase, cedenteId)
   return { ...context, cedente, cedenteAccess: { cedenteId, perfil } }
+}
+
+/**
+ * Gate cadastral compartilhado entre o ADMIN do Cedente e o Consultor
+ * delegado. Para Consultor, o cedenteId explicito e obrigatorio e a decisao
+ * autoritativa permanece no predicate RLS/RPC do banco.
+ */
+export async function requireCedenteManagementAccess(
+  cedenteId?: string,
+  client?: AppSupabaseClient,
+): Promise<CedenteManagementContext> {
+  const context = await requireAuthenticated(client)
+
+  if (context.profile.role === 'cedente') {
+    const cedenteContext = await requireCedenteOrganizationalAccess('administrativo', context.supabase, cedenteId)
+    return cedenteContext
+  }
+
+  if (context.profile.role !== 'consultor' || !cedenteId) {
+    throw new AuthorizationError('Cedente gerenciado nao informado ou perfil sem permissao.', 'FORBIDDEN')
+  }
+
+  const { data: permitido, error } = await context.supabase.rpc('usuario_pode_gerenciar_cedente', {
+    p_cedente_id: cedenteId,
+  })
+  if (error || permitido !== true) {
+    throw new AuthorizationError('Consultor sem vinculo de gestao com o cedente informado.', 'FORBIDDEN')
+  }
+
+  const cedente = await loadCedente(context.supabase, cedenteId)
+  return { ...context, cedente, cedenteAccess: { cedenteId, perfil: 'CONSULTOR' } }
 }
 
 export async function requireOperationAccess(
