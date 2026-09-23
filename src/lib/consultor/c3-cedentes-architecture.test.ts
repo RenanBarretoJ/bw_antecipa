@@ -9,6 +9,10 @@ const c2Migration = readFileSync(
   'supabase/migrations/20260922214000_c2_consultor_criacao_operacao_cedente.sql',
   'utf8',
 )
+const c31GrantMigration = readFileSync(
+  'supabase/migrations/20260923220500_c3_1_restaurar_select_solicitacoes_alteracao.sql',
+  'utf8',
+)
 const action = readFileSync('src/lib/actions/consultor-cedentes.ts', 'utf8')
 const loader = readFileSync('src/lib/consultor/cedentes.server.ts', 'utf8')
 const form = readFileSync('src/components/consultor/novo-cedente-form.tsx', 'utf8')
@@ -92,6 +96,15 @@ describe('C3 - Consultor cadastra e gere Cedentes vinculados a Fundo', () => {
     expect(migration).toContain('private.usuario_pode_gerenciar_cedente(c.id)')
     expect(migration).toContain('v_intent.usuario_id IS DISTINCT FROM v_actor_id')
     expect(migration).toContain('v_objeto.owner_id IS DISTINCT FROM v_actor_id::text')
+  })
+
+  it('permite ao Gestor ler solicitacoes de alteracao filtradas pela RLS', () => {
+    expect(migration).toContain('CREATE POLICY solicitacoes_alteracao_cedente_manager_select')
+    expect(c31GrantMigration).toContain(
+      'GRANT SELECT ON TABLE public.solicitacoes_alteracao_cedente TO authenticated',
+    )
+    expect(c31GrantMigration).not.toContain('GRANT UPDATE')
+    expect(c31GrantMigration).not.toContain('TO anon')
   })
 
   it('nao concede RPCs C3 ao perfil anonimo', () => {
