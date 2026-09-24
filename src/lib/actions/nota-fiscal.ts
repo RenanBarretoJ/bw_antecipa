@@ -11,7 +11,6 @@ import { buckets } from '@/lib/storage'
 import { uploadDocumentoSeRequerido } from '@/lib/documentos-v2/upload'
 import { instanciarRequisitosDaNota } from '@/lib/documentos-v2/requisitos'
 import { avaliarGateDuplicatasDaNota } from '@/lib/duplicatas/gate.server'
-import { CedenteFundoError, mensagemOperacionalSemVinculo, resolverCedenteFundoAtivo } from '@/lib/fundos/cedente-fundo'
 import { decidirAcaoDuplicidadeNotaFiscal, mensagemDuplicidadeNotaFiscal } from '@/lib/notas-fiscais/upload-context'
 import { extrairCnpjDaChaveAcesso, formatarDetalhesBloqueioEmitente, validarXmlNfeParaUploadCedente } from '@/lib/notas-fiscais/emitente-autorizado'
 import { obterFundoAtivoAutorizado } from '@/lib/fundos/fundo-ativo.server'
@@ -22,10 +21,11 @@ import { avaliarElegibilidadeAprovacaoNf } from '@/lib/notas-fiscais/elegibilida
 import { revalidatePath } from 'next/cache'
 import { resolverContextoFundoGestor } from '@/lib/gestor/contexto-fundo.server'
 import { carregarResumoDocumentalDasNotas } from '@/lib/notas-fiscais/resumo-documental-gestor.server'
-import { resolverEstabelecimentoOrigem } from '@/lib/cedentes/estabelecimentos.server'
+import { EstabelecimentoOrigemError, resolverEstabelecimentoOrigem } from '@/lib/cedentes/estabelecimentos.server'
 import { executarUploadPorArquivo, type ProcessedUploadFile, type UploadBatchResult } from '@/lib/notas-fiscais/upload-batch'
 import { createUploadTelemetry, logUploadStage, type UploadTelemetry } from '@/lib/notas-fiscais/upload-observability'
 import { resolverRazaoSocialDestinatario } from '@/lib/notas-fiscais/destinatario.server'
+import { resolverContextoOperacionalNotaFiscal, validarNotaNoContextoSelecionado } from '@/lib/notas-fiscais/contexto-operacional.server'
 
 export type NfActionState = {
   success?: boolean
@@ -95,7 +95,8 @@ async function registrarEventoNotaFiscal(
 
 type CedenteUploadContext = {
   userId: string
-  cedente: { id: string; cnpj: string; razao_social: string; status: string }
+  actorRole: 'cedente' | 'consultor'
+  cedente: { id: string; cnpj: string; razao_social: string; nome_fantasia: string | null; status: string }
   cedenteFundoId: string
   fundoId: string
 }
@@ -108,75 +109,51 @@ function logUploadNf(
   logUploadStage(etapa)
 }
 
-async function getCedenteComUsuario(supabaseParam?: Awaited<ReturnType<typeof createClient>>) {
-  const supabase = supabaseParam ?? await createClient()
-  const { data: { user }, error: userError } = await supabase.auth.getUser()
-  if (userError) throw new Error(`Erro ao identificar usuario autenticado: ${userError.message}`)
-  if (!user) return null
-
-  const { data: cedente, error: cedenteError } = await supabase
-    .from('cedentes')
-    .select('id, cnpj, razao_social, status')
-    .maybeSingle()
-
-  if (cedenteError) throw new Error(`Erro ao consultar cedente do usuario: ${cedenteError.message}`)
-  if (!cedente) return null
-  return { userId: user.id, cedente: cedente as { id: string; cnpj: string; razao_social: string; status: string } }
-}
-
-async function getCedenteDoUsuario(supabaseParam?: Awaited<ReturnType<typeof createClient>>) {
-  const result = await getCedenteComUsuario(supabaseParam)
-  return result?.cedente ?? null
-}
-
 async function resolverContextoUploadCedente(
   supabase: Awaited<ReturnType<typeof createClient>>,
+  cedenteIdInformado?: string | null,
 ): Promise<CedenteUploadContext | { error: string }> {
   let partialContext: Partial<CedenteUploadContext> = {}
   try {
-    const base = await getCedenteComUsuario(supabase)
-    if (!base) return { error: 'Cadastro de cedente nao encontrado.' }
-    partialContext = { userId: base.userId, cedente: base.cedente }
-    if (base.cedente.status !== 'ativo') return { error: 'Seu cadastro precisa estar ativo para enviar NFs.' }
-
-    const resolved = await resolverCedenteFundoAtivo(base.cedente.id, supabase)
+    const auth = await requireAuthenticated(supabase)
+    const resolved = await resolverContextoOperacionalNotaFiscal(auth, cedenteIdInformado)
     partialContext = {
-      ...partialContext,
-      cedenteFundoId: resolved.cedenteFundo?.id,
-      fundoId: resolved.cedenteFundo?.fundo_id ?? resolved.fundo?.id,
-    }
-    if (resolved.contextoStatus === 'sem_vinculo_fundo' || !resolved.cedenteFundo || !resolved.fundo) {
-      return { error: mensagemOperacionalSemVinculo() }
-    }
-    if (resolved.cedenteFundo.status !== 'ativo') {
-      return { error: 'O vinculo cedente-fundo deste cedente nao esta ativo.' }
-    }
-    if (resolved.fundo.ativo !== true) {
-      return { error: 'O fundo vinculado ao cedente esta inativo.' }
+      userId: resolved.actorUserId,
+      actorRole: resolved.actorRole,
+      cedente: resolved.cedente,
+      cedenteFundoId: resolved.cedenteFundoId,
+      fundoId: resolved.fundoId,
     }
 
     return {
-      userId: base.userId,
-      cedente: base.cedente,
-      cedenteFundoId: resolved.cedenteFundo.id,
-      fundoId: resolved.fundo.id,
+      userId: resolved.actorUserId,
+      actorRole: resolved.actorRole,
+      cedente: resolved.cedente,
+      cedenteFundoId: resolved.cedenteFundoId,
+      fundoId: resolved.fundoId,
     }
   } catch (error) {
     logUploadNf('resolver_contexto_erro', { ...partialContext, erro: error })
-    if (error instanceof CedenteFundoError) {
-      if (error.code === 'MULTIPLOS_VINCULOS_ATIVOS') {
-        return { error: 'Ha mais de um vinculo ativo para este cedente; selecione o fundo antes de enviar NFs.' }
-      }
-      if (error.code === 'SEM_VINCULO_FUNDO') return { error: mensagemOperacionalSemVinculo() }
-      if (error.code === 'VINCULO_NOT_FOUND') return { error: error.message }
-      if (error.code === 'FUNDO_NOT_FOUND') return { error: 'Fundo vinculado ao cedente nao encontrado.' }
-      if (error.code === 'FUNDO_INATIVO') return { error: 'O fundo vinculado ao cedente esta inativo.' }
-    }
     return { error: error instanceof Error ? error.message : 'Nao foi possivel resolver o fundo do cedente.' }
   }
 }
 
 type ArquivoResult = ProcessedUploadFile
+
+function mensagemErroEstabelecimentoOrigem(error: EstabelecimentoOrigemError) {
+  switch (error.code) {
+    case 'OUTRO_CEDENTE':
+      return 'O CNPJ emitente não pertence ao Cedente selecionado.'
+    case 'NAO_CADASTRADO':
+      return 'O CNPJ emitente não pertence ao Cedente selecionado ou ainda não foi cadastrado.'
+    case 'NAO_APROVADO':
+      return 'O CNPJ emitente ainda não está aprovado para originar recebíveis.'
+    case 'CONTEXTO_INATIVO':
+      return 'O estabelecimento emitente não está ativo para novas originações neste fundo.'
+    case 'CNPJ_INVALIDO':
+      return 'O CNPJ emitente da Nota Fiscal é inválido.'
+  }
+}
 
 type NfExistente = {
   id: string
@@ -519,6 +496,8 @@ async function processarArquivo(
           ...(parsed as unknown as Record<string, unknown>),
           fundo_id: context.fundoId,
           cedente_fundo_id: context.cedenteFundoId,
+          actor_role: context.actorRole,
+          cedente_id: context.cedente.id,
         },
       }).catch(() => {})
       await registrarEventoNotaFiscal(supabase, nfData.id, {
@@ -565,6 +544,7 @@ async function processarArquivo(
           error: 'Não foi possível interpretar esta Nota Fiscal com segurança. Revise os dados extraídos ou informe-os manualmente.',
         }
       }
+
       if (extracted.chave_acesso) {
         const { data: duplicada, error: duplicidadeError } = await supabase
           .from('notas_fiscais')
@@ -653,6 +633,19 @@ async function processarArquivo(
         }
       }
 
+      registrarLog({
+        tipo_evento: 'NF_SALVA_RASCUNHO',
+        entidade_tipo: 'notas_fiscais',
+        entidade_id: nfData.id,
+        dados_depois: {
+          fundo_id: context.fundoId,
+          cedente_fundo_id: context.cedenteFundoId,
+          cedente_id: context.cedente.id,
+          actor_role: context.actorRole,
+          origem: isPdf ? 'upload_nf_pdf' : 'upload_nf_arquivo',
+        },
+      }).catch(() => {})
+
       await registrarEventoNotaFiscal(supabase, nfData.id, {
         tipo_evento: 'nota_fiscal_salva_como_rascunho',
         categoria: 'operacao',
@@ -668,6 +661,10 @@ async function processarArquivo(
       return { ok: true, id: nfData.id, isRascunho: true, nfNumero: extracted.numero_nf }
     }
   } catch (e) {
+    if (e instanceof EstabelecimentoOrigemError && !notaFiscalPersistidaId) {
+      logUploadNf('resolver_estabelecimento_bloqueado', { ...context, erro: { code: e.code } })
+      return { ok: false, status: 'REJECTED_INVALID', error: mensagemErroEstabelecimentoOrigem(e) }
+    }
     logUploadNf('erro_inesperado_processar_arquivo', { ...context, erro: e })
     if (notaFiscalPersistidaId) {
       try {
@@ -692,7 +689,8 @@ async function processarArquivo(
 export async function uploadNFs(formData: FormData): Promise<NfActionState> {
   await requireAuthenticated()
   const supabase = await createClient()
-  const context = await resolverContextoUploadCedente(supabase)
+  const cedenteIdInformado = String(formData.get('cedente_id') || '').trim() || null
+  const context = await resolverContextoUploadCedente(supabase, cedenteIdInformado)
 
   if ('error' in context) return { success: false, message: context.error }
 
@@ -729,7 +727,8 @@ export async function uploadNFs(formData: FormData): Promise<NfActionState> {
 export async function criarNFManual(formData: FormData): Promise<NfActionState> {
   await requireAuthenticated()
   const supabase = await createClient()
-  const context = await resolverContextoUploadCedente(supabase)
+  const cedenteIdInformado = String(formData.get('cedente_id') || '').trim() || null
+  const context = await resolverContextoUploadCedente(supabase, cedenteIdInformado)
   if ('error' in context) return { success: false, message: context.error }
   const { cedente } = context
   let estabelecimento
@@ -842,12 +841,22 @@ export async function criarNFManual(formData: FormData): Promise<NfActionState> 
     tipo_evento: 'NF_SALVA_RASCUNHO',
     entidade_tipo: 'notas_fiscais',
     entidade_id: nfData.id,
-    dados_depois: { numero_nf, valor_bruto, cnpj_destinatario, fundo_id: context.fundoId, cedente_fundo_id: context.cedenteFundoId } as Record<string, unknown>,
+    dados_depois: {
+      numero_nf,
+      valor_bruto,
+      cnpj_destinatario,
+      fundo_id: context.fundoId,
+      cedente_fundo_id: context.cedenteFundoId,
+      cedente_id: context.cedente.id,
+      actor_role: context.actorRole,
+    } as Record<string, unknown>,
   })
   await registrarEventoNotaFiscal(supabase, nfData.id, {
     tipo_evento: 'nota_fiscal_salva_como_rascunho',
     categoria: 'operacao',
-    descricao: 'Nota fiscal cadastrada manualmente pelo cedente.',
+    descricao: context.actorRole === 'consultor'
+      ? 'Nota fiscal cadastrada por Consultor autorizado.'
+      : 'Nota fiscal cadastrada manualmente pelo Cedente.',
     metadata: { status_novo: 'rascunho', valor_bruto, tipo_documento: arquivo.type === 'application/pdf' ? 'nf_danfe_pdf' : 'arquivo' },
     origem: 'upload_nf_manual',
   })
@@ -856,12 +865,27 @@ export async function criarNFManual(formData: FormData): Promise<NfActionState> 
 }
 
 // Salvar/atualizar dados de NF rascunho (preenchimento manual para PDF)
-export async function salvarDadosNF(nfId: string, data: NotaFiscalFormData): Promise<NfActionState> {
+export async function salvarDadosNF(
+  nfId: string,
+  data: NotaFiscalFormData,
+  cedenteIdInformado?: string,
+): Promise<NfActionState> {
   await requireAuthenticated()
   const supabase = await createClient()
-  const context = await resolverContextoUploadCedente(supabase)
+  const context = await resolverContextoUploadCedente(supabase, cedenteIdInformado)
   if ('error' in context) return { success: false, message: context.error }
   const { cedente } = context
+  try {
+    await validarNotaNoContextoSelecionado(supabase, nfId, {
+      actorUserId: context.userId,
+      actorRole: context.actorRole,
+      cedente: context.cedente,
+      cedenteFundoId: context.cedenteFundoId,
+      fundoId: context.fundoId,
+    })
+  } catch {
+    return { success: false, message: 'Nota fiscal fora do contexto selecionado.' }
+  }
 
   const validated = notaFiscalSchema.safeParse(data)
 
@@ -934,14 +958,10 @@ export async function salvarDadosNF(nfId: string, data: NotaFiscalFormData): Pro
 }
 
 // Submeter NF rascunho para analise. A transicao so ocorre por esta acao explicita.
-export async function submeterNF(nfId: string): Promise<NfActionState> {
-  await requireAuthenticated()
+export async function submeterNF(nfId: string, cedenteIdInformado?: string): Promise<NfActionState> {
   const supabase = await createClient()
-  const contextoUsuario = await getCedenteComUsuario(supabase)
-
-  if (!contextoUsuario) {
-    return { success: false, message: 'Cadastro de cedente nao encontrado.' }
-  }
+  const contextoUsuario = await resolverContextoUploadCedente(supabase, cedenteIdInformado)
+  if ('error' in contextoUsuario) return { success: false, message: contextoUsuario.error }
   const { cedente, userId } = contextoUsuario
 
   const { data: nf, error: nfError } = await supabase
@@ -1113,6 +1133,8 @@ export async function submeterNF(nfId: string): Promise<NfActionState> {
       submetida_por: userId,
       obrigatorios_total: avaliacao.obrigatorios.total,
       obrigatorios_concluidos: avaliacao.obrigatorios.concluidos,
+      actor_role: contextoUsuario.actorRole,
+      cedente_id: cedente.id,
     },
   })
   await registrarEventoNotaFiscal(supabase, nfId, {
@@ -1128,7 +1150,7 @@ export async function submeterNF(nfId: string): Promise<NfActionState> {
       obrigatorios_concluidos: avaliacao.obrigatorios.concluidos,
       obrigatorios_pendentes: avaliacao.obrigatorios.pendentes,
     },
-    origem: 'submissao_manual_cedente',
+    origem: contextoUsuario.actorRole === 'consultor' ? 'submissao_manual_consultor' : 'submissao_manual_cedente',
     origem_evento: 'nota_fiscal_submissao',
     origem_registro_id: nfId,
   })
@@ -1142,6 +1164,8 @@ export async function submeterNF(nfId: string): Promise<NfActionState> {
 
   revalidatePath(`/cedente/notas-fiscais/${nfId}`)
   revalidatePath('/cedente/notas-fiscais')
+  revalidatePath(`/consultor/notas-fiscais/${nfId}`)
+  revalidatePath('/consultor/notas-fiscais')
   revalidatePath('/gestor/notas-fiscais')
   return { success: true, code: 'NF_SUBMITTED', message: 'NF submetida para analise com sucesso!', data: { id: nfId } }
 }
@@ -1168,14 +1192,18 @@ function mensagemErroExclusaoRascunho(message: string) {
   return 'Nao foi possivel excluir o rascunho. Tente novamente.'
 }
 
-async function excluirRascunhosDoCedente(nfIds: string[]): Promise<NfActionState> {
+async function excluirRascunhosDoCedente(nfIds: string[], cedenteIdInformado?: string): Promise<NfActionState> {
   const ids = Array.from(new Set(nfIds.filter(Boolean)))
   if (ids.length === 0) return { success: false, message: 'Nenhuma NF selecionada.' }
 
   const context = await requireAuthenticated()
-  const { data, error } = await context.supabase.rpc('excluir_notas_fiscais_rascunho_cedente', {
-    p_nota_fiscal_ids: ids,
-  })
+  const rpc = cedenteIdInformado
+    ? context.supabase.rpc('excluir_notas_fiscais_rascunho_operador', {
+      p_nota_fiscal_ids: ids,
+      p_cedente_id: cedenteIdInformado,
+    })
+    : context.supabase.rpc('excluir_notas_fiscais_rascunho_cedente', { p_nota_fiscal_ids: ids })
+  const { data, error } = await rpc
 
   if (error) {
     console.error('[excluirRascunhosDoCedente] Falha transacional:', {
@@ -1210,6 +1238,7 @@ async function excluirRascunhosDoCedente(nfIds: string[]): Promise<NfActionState
   }
 
   revalidatePath('/cedente/notas-fiscais')
+  revalidatePath('/consultor/notas-fiscais')
   revalidatePath('/gestor/notas-fiscais')
   return {
     success: true,
@@ -1221,13 +1250,13 @@ async function excluirRascunhosDoCedente(nfIds: string[]): Promise<NfActionState
 }
 
 // Cedente: excluir rascunho
-export async function excluirRascunho(nfId: string): Promise<NfActionState> {
-  return excluirRascunhosDoCedente([nfId])
+export async function excluirRascunho(nfId: string, cedenteIdInformado?: string): Promise<NfActionState> {
+  return excluirRascunhosDoCedente([nfId], cedenteIdInformado)
 }
 
 // Cedente: excluir múltiplos rascunhos em lote
-export async function excluirRascunhos(nfIds: string[]): Promise<NfActionState> {
-  return excluirRascunhosDoCedente(nfIds)
+export async function excluirRascunhos(nfIds: string[], cedenteIdInformado?: string): Promise<NfActionState> {
+  return excluirRascunhosDoCedente(nfIds, cedenteIdInformado)
 }
 
 // Gestor: aprovar NF
@@ -1390,14 +1419,11 @@ export async function reprovarNF(nfId: string, motivo: string): Promise<NfAction
 }
 
 // Cedente: resubmeter NF que foi devolvida para ajuste
-export async function resubmeterNFAjustada(nfId: string): Promise<NfActionState> {
-  await requireAuthenticated()
+export async function resubmeterNFAjustada(nfId: string, cedenteIdInformado?: string): Promise<NfActionState> {
   const supabase = await createClient()
-  const cedente = await getCedenteDoUsuario()
-
-  if (!cedente) {
-    return { success: false, message: 'Cadastro de cedente nao encontrado.' }
-  }
+  const contexto = await resolverContextoUploadCedente(supabase, cedenteIdInformado)
+  if ('error' in contexto) return { success: false, message: contexto.error }
+  const { cedente } = contexto
 
   const { data: nf } = await supabase
     .from('notas_fiscais')
@@ -1449,7 +1475,7 @@ export async function resubmeterNFAjustada(nfId: string): Promise<NfActionState>
     entidade_tipo: 'notas_fiscais',
     entidade_id: nfId,
     dados_antes: { status: 'requer_ajuste' },
-    dados_depois: { status: 'submetida' },
+    dados_depois: { status: 'submetida', actor_role: contexto.actorRole, cedente_id: cedente.id },
   })
   await registrarEventoNotaFiscal(supabase, nfId, {
     tipo_evento: 'nota_fiscal_resubmetida',
@@ -1463,6 +1489,9 @@ export async function resubmeterNFAjustada(nfId: string): Promise<NfActionState>
     `O cedente ${cedente.razao_social} resubmeteu a NF ${nfData.numero_nf} apos correcao.`,
     'nf_submetida'
   )
+
+  revalidatePath(`/consultor/notas-fiscais/${nfId}`)
+  revalidatePath('/consultor/notas-fiscais')
 
   return { success: true, message: 'NF resubmetida para analise!' }
 }

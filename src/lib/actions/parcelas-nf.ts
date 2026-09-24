@@ -193,7 +193,8 @@ export async function listarParcelasDaNota(notaFiscalId: string): Promise<Parcel
       origem: row.origem,
     }))
     const total = itens.reduce((soma, item) => soma + item.valorNominal, 0)
-    const editavel = context.profile.role === 'cedente' && (nf as { status: string }).status === 'rascunho'
+    const editavel = ['cedente', 'consultor'].includes(context.profile.role)
+      && (nf as { status: string }).status === 'rascunho'
 
     return { success: true, message: 'Parcelas carregadas.', data: { itens, total, quantidade: itens.length, editavel } }
   } catch (error) {
@@ -223,7 +224,9 @@ export async function editarParcelasDaNota(
 ): Promise<ParcelaActionResult<{ soma: number; vencimentoAgregado: string }>> {
   try {
     const context = await requireNotaFiscalAccess(notaFiscalId)
-    if (context.profile.role !== 'cedente') throw new Error('Somente o cedente dono da NF pode editar parcelas.')
+    if (!['cedente', 'consultor'].includes(context.profile.role)) {
+      throw new Error('Somente o Cedente ou Consultor autorizado pode editar parcelas.')
+    }
 
     const payload = parcelas.map((item) => ({
       id: item.id,
@@ -348,7 +351,9 @@ export async function enviarBoletoDaParcela(formData: FormData): Promise<Parcela
   try {
     const notaFiscalId = String(formData.get('nota_fiscal_id') || '')
     const context = await requireNotaFiscalAccess(notaFiscalId)
-    if (!['cedente', 'gestor'].includes(context.profile.role)) throw new Error('Somente cedente ou gestor pode enviar o boleto.')
+    if (!['cedente', 'consultor', 'gestor'].includes(context.profile.role)) {
+      throw new Error('Somente Cedente, Consultor autorizado ou Gestor pode enviar o boleto.')
+    }
     const supabase = context.supabase
 
     const requisitoId = String(formData.get('requisito_id') || '')
