@@ -28,7 +28,7 @@ export default async function NotasFiscaisConsultorPage({ searchParams }: { sear
   if (!cedenteId) {
     return (
       <div className="mx-auto max-w-6xl space-y-4">
-        <Card>
+        <Card className="relative z-20 overflow-visible">
           <CardHeader>
             <CardTitle>Notas Fiscais por Cedente</CardTitle>
           </CardHeader>
@@ -72,7 +72,7 @@ export default async function NotasFiscaisConsultorPage({ searchParams }: { sear
   if (!resultado) {
     return (
       <div className="mx-auto max-w-6xl space-y-4">
-        <Card><CardContent className="py-4"><ConsultorCedenteSelector selecionado={null} /></CardContent></Card>
+        <Card className="relative z-20 overflow-visible"><CardContent className="py-4"><ConsultorCedenteSelector selecionado={null} /></CardContent></Card>
         <Card>
           <CardContent className="flex items-start gap-3 py-6 text-destructive">
             <AlertTriangle className="mt-0.5 size-5 shrink-0" />
@@ -92,7 +92,7 @@ export default async function NotasFiscaisConsultorPage({ searchParams }: { sear
 
   return (
     <div className="mx-auto max-w-6xl space-y-4">
-      <Card>
+      <Card className="relative z-20 overflow-visible">
         <CardContent className="py-4">
           <ConsultorCedenteSelector selecionado={selecionado} />
         </CardContent>
