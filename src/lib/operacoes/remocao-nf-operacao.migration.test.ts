@@ -6,8 +6,9 @@ const migrationPath = join(
   process.cwd(),
   'supabase/migrations/20260924173100_hotfix_remover_nf_operacao_atomica.sql',
 )
-const migration = readFileSync(migrationPath, 'utf8')
-const action = readFileSync(join(process.cwd(), 'src/lib/actions/operacao.ts'), 'utf8')
+const normalizeNewlines = (value: string) => value.replace(/\r\n/g, '\n')
+const migration = normalizeNewlines(readFileSync(migrationPath, 'utf8'))
+const action = normalizeNewlines(readFileSync(join(process.cwd(), 'src/lib/actions/operacao.ts'), 'utf8'))
 
 describe('remocao atomica de NF da operacao', () => {
   it('substitui o DELETE autenticado sujeito a RLS por RPC atomica', () => {
