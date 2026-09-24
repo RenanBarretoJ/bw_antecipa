@@ -21,7 +21,7 @@ import { avaliarElegibilidadeAprovacaoNf } from '@/lib/notas-fiscais/elegibilida
 import { revalidatePath } from 'next/cache'
 import { resolverContextoFundoGestor } from '@/lib/gestor/contexto-fundo.server'
 import { carregarResumoDocumentalDasNotas } from '@/lib/notas-fiscais/resumo-documental-gestor.server'
-import { resolverEstabelecimentoOrigem } from '@/lib/cedentes/estabelecimentos.server'
+import { EstabelecimentoOrigemError, resolverEstabelecimentoOrigem } from '@/lib/cedentes/estabelecimentos.server'
 import { executarUploadPorArquivo, type ProcessedUploadFile, type UploadBatchResult } from '@/lib/notas-fiscais/upload-batch'
 import { createUploadTelemetry, logUploadStage, type UploadTelemetry } from '@/lib/notas-fiscais/upload-observability'
 import { resolverRazaoSocialDestinatario } from '@/lib/notas-fiscais/destinatario.server'
@@ -139,6 +139,21 @@ async function resolverContextoUploadCedente(
 }
 
 type ArquivoResult = ProcessedUploadFile
+
+function mensagemErroEstabelecimentoOrigem(error: EstabelecimentoOrigemError) {
+  switch (error.code) {
+    case 'OUTRO_CEDENTE':
+      return 'O CNPJ emitente não pertence ao Cedente selecionado.'
+    case 'NAO_CADASTRADO':
+      return 'O CNPJ emitente não pertence ao Cedente selecionado ou ainda não foi cadastrado.'
+    case 'NAO_APROVADO':
+      return 'O CNPJ emitente ainda não está aprovado para originar recebíveis.'
+    case 'CONTEXTO_INATIVO':
+      return 'O estabelecimento emitente não está ativo para novas originações neste fundo.'
+    case 'CNPJ_INVALIDO':
+      return 'O CNPJ emitente da Nota Fiscal é inválido.'
+  }
+}
 
 type NfExistente = {
   id: string
@@ -646,6 +661,10 @@ async function processarArquivo(
       return { ok: true, id: nfData.id, isRascunho: true, nfNumero: extracted.numero_nf }
     }
   } catch (e) {
+    if (e instanceof EstabelecimentoOrigemError && !notaFiscalPersistidaId) {
+      logUploadNf('resolver_estabelecimento_bloqueado', { ...context, erro: { code: e.code } })
+      return { ok: false, status: 'REJECTED_INVALID', error: mensagemErroEstabelecimentoOrigem(e) }
+    }
     logUploadNf('erro_inesperado_processar_arquivo', { ...context, erro: e })
     if (notaFiscalPersistidaId) {
       try {
