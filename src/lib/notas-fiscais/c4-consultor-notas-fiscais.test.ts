@@ -18,6 +18,10 @@ const establishmentReadMigration = readFileSync(
   'supabase/migrations/20260924171344_c4_consultor_leitura_estabelecimento_origem.sql',
   'utf8',
 )
+const establishmentPolicyConsolidation = readFileSync(
+  'supabase/migrations/20260924171634_c4_consolidar_policy_estabelecimentos.sql',
+  'utf8',
+)
 
 describe('C4 - Consultor opera NFs somente no Cedente selecionado', () => {
   it('reutiliza o seletor C2 e a mesma feature de listagem/upload do Cedente', () => {
@@ -87,6 +91,28 @@ describe('C4 - Consultor opera NFs somente no Cedente selecionado', () => {
     expect(establishmentReadMigration).toContain("cf.status = 'ativo'")
     expect(establishmentReadMigration).toContain('private.consultor_tem_acesso_fundo(cf.fundo_id)')
     expect(establishmentReadMigration).not.toMatch(/TO anon/)
+  })
+
+  it('consolida a leitura de estabelecimentos em uma unica policy permissiva', () => {
+    expect(establishmentPolicyConsolidation).toContain(
+      'DROP POLICY IF EXISTS cedente_estabelecimentos_consultor_select_c4',
+    )
+    expect(establishmentPolicyConsolidation).toContain(
+      'DROP POLICY IF EXISTS cedente_estabelecimentos_select',
+    )
+    expect(establishmentPolicyConsolidation).toContain(
+      'CREATE POLICY cedente_estabelecimentos_select',
+    )
+    expect(establishmentPolicyConsolidation).toContain(
+      'private.usuario_tem_acesso_cedente(cedente_estabelecimentos.cedente_id)',
+    )
+    expect(establishmentPolicyConsolidation).toContain(
+      'private.gestor_tem_acesso_cedente(cedente_estabelecimentos.cedente_id)',
+    )
+    expect(establishmentPolicyConsolidation).toContain(
+      'private.usuario_pode_operar_cedente(cedente_estabelecimentos.cedente_id)',
+    )
+    expect(establishmentPolicyConsolidation).not.toMatch(/TO anon/)
   })
 
   it('RLS exige simultaneamente vinculo operacional, fundo autorizado e contexto ativo', () => {
