@@ -31,6 +31,7 @@ const portalShell = readFileSync('src/components/layout/portal-shell.tsx', 'utf8
 const rpcMigration = readFileSync('supabase/migrations/20260820150000_get_user_cedente_acesso_perfil.sql', 'utf8')
 const dashboardLoaders = readFileSync('src/lib/analytics/loaders.server.ts', 'utf8')
 const notasFiscaisListagem = readFileSync('src/lib/notas-fiscais/listagem.server.ts', 'utf8')
+const notasFiscaisContexto = readFileSync('src/lib/notas-fiscais/contexto-operacional.server.ts', 'utf8')
 const operacoesListagem = readFileSync('src/lib/operacoes/listagem.server.ts', 'utf8')
 const estabelecimentosListagem = readFileSync('src/lib/cedentes/estabelecimentos-listagem.server.ts', 'utf8')
 const platformAccess = readFileSync('src/lib/auth/platform-access.ts', 'utf8')
@@ -157,12 +158,11 @@ describe('P0 (correção real, achado pelo usuário ao vivo): mesmo padrão user
     expect(corpo).not.toContain(".eq('user_id', userId)")
   })
 
-  it('resolverContextoCedenteFundo (Minhas NFs) resolve via get_user_cedente_id()', () => {
-    const indiceFuncao = notasFiscaisListagem.indexOf('async function resolverContextoCedenteFundo')
-    const indiceFimFuncao = notasFiscaisListagem.indexOf('\n}', notasFiscaisListagem.indexOf('return {', indiceFuncao))
-    const corpo = notasFiscaisListagem.slice(indiceFuncao, indiceFimFuncao)
-    expect(corpo).toContain("supabase.rpc('get_user_cedente_id')")
-    expect(corpo).not.toContain(".eq('user_id', userId)")
+  it('Minhas NFs preserva o contexto delegado via o resolver operacional compartilhado', () => {
+    expect(notasFiscaisListagem).toContain('resolverContextoOperacionalNotaFiscal')
+    expect(notasFiscaisContexto).toContain('resolverCedenteSolicitanteOperacao')
+    expect(solicitanteOperacaoServer).toContain("auth.supabase.rpc('get_user_cedente_id')")
+    expect(solicitanteOperacaoServer).not.toContain(".eq('user_id', auth.user.id)")
   })
 
   it('resolverEscopo (Minhas Operações) resolve via get_user_cedente_id() para o perfil cedente', () => {

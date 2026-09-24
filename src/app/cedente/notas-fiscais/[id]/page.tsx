@@ -28,6 +28,7 @@ import { ParcelasDaNota } from '@/components/notas-fiscais/ParcelasDaNota'
 
 interface NfCompleta {
   id: string
+  cedente_id: string
   numero_nf: string
   serie: string | null
   chave_acesso: string | null
@@ -201,7 +202,15 @@ function ReadOnlyNfDetails({
   )
 }
 
-export default function NfDetalhePage() {
+export type NotaFiscalDetalheFeatureProps = {
+  basePath?: string
+  cedenteIdSelecionado?: string
+}
+
+export function NotaFiscalDetalheFeature({
+  basePath = '/cedente/notas-fiscais',
+  cedenteIdSelecionado,
+}: NotaFiscalDetalheFeatureProps) {
   const params = useParams()
   const router = useRouter()
   const notifications = useNotifications()
@@ -266,6 +275,10 @@ export default function NfDetalhePage() {
 
       if (data) {
         const nfData = data as NfCompleta
+        if (cedenteIdSelecionado && nfData.cedente_id !== cedenteIdSelecionado) {
+          setLoading(false)
+          return
+        }
         setNf(nfData)
         setForm({
           numero_nf: nfData.numero_nf || '',
@@ -308,7 +321,7 @@ export default function NfDetalhePage() {
       setLoading(false)
     }
     load()
-  }, [nfId])
+  }, [cedenteIdSelecionado, nfId])
 
   const updateForm = (field: string, value: string | number) => {
     setForm((prev) => ({ ...prev, [field]: value }))
@@ -355,7 +368,7 @@ export default function NfDetalhePage() {
       valor_pis: Number(form.valor_pis),
       valor_cofins: Number(form.valor_cofins),
       valor_ipi: Number(form.valor_ipi),
-    })
+    }, cedenteIdSelecionado)
 
     if (result?.success) {
       setMessage(result.message || 'Salvo!')
@@ -385,12 +398,12 @@ export default function NfDetalhePage() {
     setConfirmSubmitOpen(false)
 
     setSubmitting(true)
-    const result = await submeterNF(nfId)
+    const result = await submeterNF(nfId, cedenteIdSelecionado)
 
     if (result?.success) {
       setMessage(result.message || 'Submetida!')
       setMessageType('success')
-      setTimeout(() => router.push('/cedente/notas-fiscais'), 1500)
+      setTimeout(() => router.push(`${basePath}${cedenteIdSelecionado ? `?cedente=${encodeURIComponent(cedenteIdSelecionado)}` : ''}`), 1500)
     } else {
       const fieldErrors = result?.errors
         ? Object.values(result.errors).flat().join(' | ')
@@ -407,12 +420,12 @@ export default function NfDetalhePage() {
     if (!saved) return
 
     setResubmitting(true)
-    const result = await resubmeterNFAjustada(nfId)
+    const result = await resubmeterNFAjustada(nfId, cedenteIdSelecionado)
 
     if (result?.success) {
       setMessage(result.message || 'Resubmetida!')
       setMessageType('success')
-      setTimeout(() => router.push('/cedente/notas-fiscais'), 1500)
+      setTimeout(() => router.push(`${basePath}${cedenteIdSelecionado ? `?cedente=${encodeURIComponent(cedenteIdSelecionado)}` : ''}`), 1500)
     } else {
       setMessage(result?.message || 'Erro ao resubmeter.')
       setMessageType('error')
@@ -433,7 +446,7 @@ export default function NfDetalhePage() {
     return (
       <div className="max-w-4xl mx-auto text-center py-20">
         <p className="text-gray-500">Nota fiscal nao encontrada.</p>
-        <Link href="/cedente/notas-fiscais" className="text-blue-600 hover:text-blue-800 mt-2 inline-block">
+        <Link href={`${basePath}${cedenteIdSelecionado ? `?cedente=${encodeURIComponent(cedenteIdSelecionado)}` : ''}`} className="text-blue-600 hover:text-blue-800 mt-2 inline-block">
           Voltar para lista
         </Link>
       </div>
@@ -453,7 +466,7 @@ export default function NfDetalhePage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Link href="/cedente/notas-fiscais" className="p-2 hover:bg-gray-100 rounded-lg">
+          <Link href={`${basePath}${cedenteIdSelecionado ? `?cedente=${encodeURIComponent(cedenteIdSelecionado)}` : ''}`} className="p-2 hover:bg-gray-100 rounded-lg">
             <ArrowLeft size={20} />
           </Link>
           <div>
@@ -868,4 +881,8 @@ export default function NfDetalhePage() {
       )}
     </div>
   )
+}
+
+export default function NfDetalhePage() {
+  return <NotaFiscalDetalheFeature />
 }

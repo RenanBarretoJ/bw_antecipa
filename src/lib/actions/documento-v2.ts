@@ -222,7 +222,7 @@ async function carregarChecklist(notaFiscalId: string): Promise<ChecklistDocumen
 
   // Fora de uma operacao, o checklist acompanha a versao publicada atual. Dentro
   // da operacao, a versao congelada e a unica fonte de verdade permitida.
-  const instanciacao = !operation && (context.profile.role === 'cedente' || context.profile.role === 'gestor')
+  const instanciacao = !operation && ['cedente', 'consultor', 'gestor'].includes(context.profile.role)
     ? await instanciarRequisitosDaNota(notaFiscalId, supabase)
     : null
   const politicaVersaoId = operation?.politica_operacional_versao_id || instanciacao?.politica.versao.id || null
