@@ -25,7 +25,7 @@ function CabecalhoSelecaoConsultor() {
           <p className="text-muted-foreground">Selecione o Cedente para carregar somente as NFs elegiveis da carteira.</p>
         </div>
       </div>
-      <Card>
+      <Card className="relative z-20 overflow-visible">
         <CardContent className="py-4">
           <ConsultorCedenteSelector selecionado={null} />
         </CardContent>
