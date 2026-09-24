@@ -59,6 +59,9 @@ describe('C4 - Consultor opera NFs somente no Cedente selecionado', () => {
     expect(action).toContain('resolverContextoOperacionalNotaFiscal(auth, cedenteIdInformado)')
     expect(action).toContain('validarXmlNfeParaUploadCedente({')
     expect(action).toContain('resolverEstabelecimentoOrigem({')
+    expect(action).toContain('e instanceof EstabelecimentoOrigemError && !notaFiscalPersistidaId')
+    expect(action).toContain("status: 'REJECTED_INVALID', error: mensagemErroEstabelecimentoOrigem(e)")
+    expect(action).toContain('O CNPJ emitente não pertence ao Cedente selecionado.')
     expect(action).toContain("excluir_notas_fiscais_rascunho_operador")
   })
 
