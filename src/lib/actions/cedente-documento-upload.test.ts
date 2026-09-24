@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 const mocks = vi.hoisted(() => ({ requireAccess: vi.fn(), admin: vi.fn(), notify: vi.fn() }))
-vi.mock('@/lib/auth/authorization', () => ({ requireCedenteOrganizationalAccess: mocks.requireAccess }))
+vi.mock('@/lib/auth/authorization', () => ({ requireCedenteManagementAccess: mocks.requireAccess }))
 vi.mock('@/lib/supabase/server', () => ({ createAdminClient: mocks.admin }))
 vi.mock('./notificacao', () => ({ notificarGestores: mocks.notify }))
 

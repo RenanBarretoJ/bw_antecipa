@@ -1,6 +1,6 @@
 'use server'
 
-import { requireCedenteOrganizationalAccess } from '@/lib/auth/authorization'
+import { requireCedenteManagementAccess } from '@/lib/auth/authorization'
 import { DOCUMENT_TYPES, type DocumentoTipo } from '@/lib/types/domain'
 import {
   criarCaminhoDocumentoCadastral,
@@ -11,7 +11,7 @@ import { createAdminClient } from '@/lib/supabase/server'
 import type { DocumentoUploadIntentRow } from '@/types/database'
 import { notificarGestores } from './notificacao'
 
-type UploadMetadata = { tipo: string; nomeArquivo: string; mime: string; tamanho: number; representanteId?: string | null }
+type UploadMetadata = { tipo: string; nomeArquivo: string; mime: string; tamanho: number; representanteId?: string | null; cedenteId?: string }
 type UploadResponse = { success: true; message: string } | { success: false; message: string }
 type PrepareResponse =
   | { success: true; storagePath: string; uploadToken: string; intent: string }
@@ -23,7 +23,7 @@ const CLEANUP_GRACE_MS = 125 * 60 * 1000
 const INTENT_TTL_MS = 15 * 60 * 1000
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-async function carregarIntentDoContexto(intentId: string, context: Awaited<ReturnType<typeof requireCedenteOrganizationalAccess>>): Promise<DocumentoUploadIntentRow | null> {
+async function carregarIntentDoContexto(intentId: string, context: Awaited<ReturnType<typeof requireCedenteManagementAccess>>): Promise<DocumentoUploadIntentRow | null> {
   if (!UUID_PATTERN.test(intentId)) return null
   const { data: intent, error } = await context.supabase.from('documento_upload_intents')
     .select('*').eq('id', intentId).eq('usuario_id', context.user.id).eq('cedente_id', context.cedente.id).maybeSingle()
@@ -44,8 +44,8 @@ async function marcarFalhaIntent(intentId: string, code: string): Promise<void> 
   if (error) console.warn('document-upload-intent-status-failed', { code })
 }
 
-export async function reconciliarUploadDocumentoCadastral(intentId: string): Promise<EstadoUploadDocumento> {
-  const context = await requireCedenteOrganizationalAccess('administrativo')
+export async function reconciliarUploadDocumentoCadastral(intentId: string, cedenteId?: string): Promise<EstadoUploadDocumento> {
+  const context = await requireCedenteManagementAccess(cedenteId)
   const intent = await carregarIntentDoContexto(intentId, context)
   if (!intent) return 'INVALID'
   if (intent.status === 'FINALIZED') return 'FINALIZED'
@@ -64,7 +64,7 @@ export async function reconciliarUploadDocumentoCadastral(intentId: string): Pro
 }
 
 async function verificarAtualizacaoPermitida(
-  supabase: Awaited<ReturnType<typeof requireCedenteOrganizationalAccess>>['supabase'],
+  supabase: Awaited<ReturnType<typeof requireCedenteManagementAccess>>['supabase'],
   cedenteId: string,
   tipo: DocumentoTipo,
   representanteId: string | null,
@@ -83,7 +83,7 @@ async function verificarAtualizacaoPermitida(
 }
 
 export async function prepararUploadDocumentoCadastral(input: UploadMetadata): Promise<PrepareResponse> {
-  const context = await requireCedenteOrganizationalAccess('administrativo')
+  const context = await requireCedenteManagementAccess(input?.cedenteId)
   const { supabase, cedente, user } = context
   if (cedente.status === 'bloqueado') return { success: false, message: 'Cadastro de cedente bloqueado.' }
   if (!input || typeof input.tipo !== 'string' || !DOCUMENT_TYPES.includes(input.tipo as DocumentoTipo)) {
@@ -138,8 +138,8 @@ export async function prepararUploadDocumentoCadastral(input: UploadMetadata): P
   return { success: true, storagePath, uploadToken: data.token, intent: uploadId }
 }
 
-export async function finalizarUploadDocumentoCadastral(intentId: string): Promise<UploadResponse> {
-  const context = await requireCedenteOrganizationalAccess('administrativo')
+export async function finalizarUploadDocumentoCadastral(intentId: string, cedenteId?: string): Promise<UploadResponse> {
+  const context = await requireCedenteManagementAccess(cedenteId)
   const { supabase, cedente, user } = context
   const intent = await carregarIntentDoContexto(intentId, context)
   if (!intent || intent.usuario_id !== user.id || intent.cedente_id !== cedente.id || cedente.status === 'bloqueado') {
