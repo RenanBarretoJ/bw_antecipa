@@ -916,161 +916,76 @@ export async function removerNfDaOperacao(
 ): Promise<OperacaoActionState> {
   await requireGestor()
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { success: false, message: 'Nao autenticado.' }
-
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-  if (!profile || (profile as { role: string }).role !== 'gestor') {
-    return { success: false, message: 'Acesso negado.' }
-  }
   const acessoOperacao = await validarOperacaoNoFundoAtivo(supabase, operacaoId)
   if (!acessoOperacao?.success) return acessoOperacao
 
-  // Buscar operacao
-  const { data: op } = await supabase
-    .from('operacoes')
-    .select('*, cedentes(user_id, razao_social)')
-    .eq('id', operacaoId)
-    .single()
+  const { data, error } = await supabase.rpc(
+    'remover_nf_operacao_gestor_atomica' as never,
+    { p_operacao_id: operacaoId, p_nota_fiscal_id: nfId } as never,
+  )
 
-  if (!op) return { success: false, message: 'Operacao nao encontrada.' }
-  const opData = op as {
-    id: string; status: string; cedente_id: string; conta_escrow_id: string;
-    valor_bruto_total: number; taxa_desconto: number | null;
-    metodo_calculo_financeiro: string | null; calculo_data_base: string | null;
-    cedentes: { user_id: string; razao_social: string }
+  if (error || !data) {
+    console.error('Falha ao remover NF da operacao:', error)
+    return {
+      success: false,
+      message: error?.message || 'Nao foi possivel remover a NF da operacao.',
+    }
   }
 
-  // Valores aprovados e a memoria por NF sao historicos. Remover uma NF depois
-  // da aprovacao exigiria uma nova decisao operacional, nao um recalculo oculto.
-  const statusPermitidos = ['solicitada', 'em_analise']
-  if (!statusPermitidos.includes(opData.status)) {
-    return { success: false, message: `Nao e possivel remover NFs de uma operacao com status "${opData.status}".` }
+  const resultado = data as unknown as {
+    cedente_id: string
+    numero_nf: string
+    operacao_cancelada: boolean
+    quantidade_nfs: number
+    novo_valor_bruto: number
+    novo_valor_liquido: number | null
+    parcelas_liberadas: number
+    aceite_sacado_status: string | null
   }
 
-  // Buscar NF e verificar que pertence a operacao
-  const { data: vinculo } = await supabase
-    .from('operacoes_nfs')
-    .select('nota_fiscal_id')
-    .eq('operacao_id', operacaoId)
-    .eq('nota_fiscal_id', nfId)
-    .single()
-
-  if (!vinculo) return { success: false, message: 'NF nao encontrada nesta operacao.' }
-
-  const { data: nf } = await supabase
-    .from('notas_fiscais')
-    .select('id, numero_nf, status, valor_bruto')
-    .eq('id', nfId)
-    .single()
-
-  if (!nf) return { success: false, message: 'NF nao encontrada.' }
-  const nfData = nf as { id: string; numero_nf: string; status: string; valor_bruto: number }
-
-  // Remover vinculo
-  await supabase
-    .from('operacoes_nfs')
-    .delete()
-    .eq('operacao_id', operacaoId)
-    .eq('nota_fiscal_id', nfId)
-
-  // Reverter NF para aprovada e limpar aceite do sacado
-  await supabase
-    .from('notas_fiscais')
-    .update({ status: 'aprovada', aprovacao_sacado_em: null } as never)
-    .eq('id', nfId)
-
-  // Buscar NFs restantes para recalcular valor
-  const { data: restantes } = await supabase
-    .from('operacoes_nfs')
-    .select('nota_fiscal_id')
-    .eq('operacao_id', operacaoId)
-
-  if (!restantes || restantes.length === 0) {
-    // Sem NFs restantes — cancelar operacao
-    await supabase
-      .from('operacoes')
-      .update({ status: 'cancelada' } as never)
-      .eq('id', operacaoId)
-
-    await registrarLog({
-      tipo_evento: 'NF_REMOVIDA_OPERACAO',
-      entidade_tipo: 'operacoes',
-      entidade_id: operacaoId,
-      dados_depois: { nf_removida: nfData.numero_nf, operacao_cancelada: true },
-    })
-
+  if (resultado.operacao_cancelada) {
     await notificarCedente(
-      opData.cedente_id,
-      'Operacao cancelada — NF removida',
-      `A NF ${nfData.numero_nf} foi removida da operacao pelo gestor. Como era a unica NF, a operacao foi cancelada.`,
+      resultado.cedente_id,
+      'Operacao cancelada - NF removida',
+      `A NF ${resultado.numero_nf} foi removida da operacao pelo gestor. Como era a unica NF, a operacao foi cancelada.`,
       'operacao_cancelada',
     )
 
     await registrarEventoOperacao(supabase, operacaoId, {
       tipo_evento: 'nota_fiscal_removida_operacao',
       categoria: 'operacao',
-      descricao: `NF ${nfData.numero_nf} removida da operacao; operacao cancelada.`,
-      metadata: { numero_nf: nfData.numero_nf, operacao_cancelada: true, status_novo: 'cancelada' },
+      descricao: `NF ${resultado.numero_nf} removida da operacao; operacao cancelada.`,
+      metadata: { numero_nf: resultado.numero_nf, operacao_cancelada: true, status_novo: 'cancelada' },
     })
 
-    return { success: true, message: `NF ${nfData.numero_nf} removida. Operacao cancelada pois nao havia mais NFs.` }
+    revalidatePath('/gestor/operacoes')
+    revalidatePath(`/gestor/operacoes/${operacaoId}`)
+    return { success: true, message: `NF ${resultado.numero_nf} removida. Operacao cancelada pois nao havia mais NFs.` }
   }
 
-  // Recalcular apenas a previa pre-aprovacao com o dominio financeiro central.
-  // A aprovacao refara o calculo atomicamente com sua propria data-base.
-  const nfIdsRestantes = (restantes as Array<{ nota_fiscal_id: string }>).map((n) => n.nota_fiscal_id)
-  const { data: nfsRestantes } = await supabase
-    .from('notas_fiscais')
-    .select('id, valor_bruto, data_vencimento')
-    .in('id', nfIdsRestantes)
-
-  const nfsRestantesTyped = (nfsRestantes || []) as Array<{
-    id: string
-    valor_bruto: number
-    data_vencimento: string
-  }>
-  const previaAtualizada = calcularAntecipacaoEmLote({
-    notas: nfsRestantesTyped.map((item) => ({
-      id: item.id,
-      valorBruto: Number(item.valor_bruto),
-      vencimento: item.data_vencimento,
-    })),
-    taxaMensal: opData.taxa_desconto,
-    dataBase: opData.calculo_data_base || obterDataCivilOperacional(),
-    metodo: opData.metodo_calculo_financeiro,
-  })
-
-  await supabase
-    .from('operacoes')
-    .update({
-      valor_bruto_total: previaAtualizada.valorBrutoTotal,
-      valor_liquido_desembolso: previaAtualizada.valorLiquidoTotal,
-    } as never)
-    .eq('id', operacaoId)
-
-  await registrarLog({
-    tipo_evento: 'NF_REMOVIDA_OPERACAO',
-    entidade_tipo: 'operacoes',
-    entidade_id: operacaoId,
-    dados_depois: { nf_removida: nfData.numero_nf, novo_valor_bruto: previaAtualizada.valorBrutoTotal },
-  })
-
   await notificarCedente(
-    opData.cedente_id,
+    resultado.cedente_id,
     'NF removida da operacao',
-    `A NF ${nfData.numero_nf} foi removida da operacao pelo gestor. O valor bruto da operacao foi recalculado para ${formatBRL(previaAtualizada.valorBrutoTotal)}.`,
+    `A NF ${resultado.numero_nf} foi removida da operacao pelo gestor. O valor bruto da operacao foi recalculado para ${formatBRL(resultado.novo_valor_bruto)}.`,
     'nf_removida_operacao',
   )
 
   await registrarEventoOperacao(supabase, operacaoId, {
     tipo_evento: 'nota_fiscal_removida_operacao',
     categoria: 'operacao',
-    descricao: `NF ${nfData.numero_nf} removida da operacao.`,
-    metadata: { numero_nf: nfData.numero_nf, novo_valor_bruto: previaAtualizada.valorBrutoTotal },
+    descricao: `NF ${resultado.numero_nf} removida da operacao.`,
+    metadata: {
+      numero_nf: resultado.numero_nf,
+      novo_valor_bruto: resultado.novo_valor_bruto,
+      novo_valor_liquido: resultado.novo_valor_liquido,
+      parcelas_liberadas: resultado.parcelas_liberadas,
+      aceite_sacado_status: resultado.aceite_sacado_status,
+    },
   })
 
-  return { success: true, message: `NF ${nfData.numero_nf} removida. Novo valor bruto: ${formatBRL(previaAtualizada.valorBrutoTotal)}.` }
+  revalidatePath('/gestor/operacoes')
+  revalidatePath(`/gestor/operacoes/${operacaoId}`)
+  return { success: true, message: `NF ${resultado.numero_nf} removida. Novo valor bruto: ${formatBRL(resultado.novo_valor_bruto)}.` }
 }
 
 export async function salvarTestemunhasOperacao(
