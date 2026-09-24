@@ -168,7 +168,9 @@ export async function enviarDuplicataPdf(notaFiscalId: string, formData: FormDat
   let uploadedPath: string | null = null
   try {
     const { context, nota, politica } = await carregarContexto(notaFiscalId)
-    if (context.profile.role !== 'cedente') throw new Error('Apenas o cedente pode enviar a duplicata.')
+    if (!['cedente', 'consultor'].includes(context.profile.role)) {
+      throw new Error('Apenas o Cedente ou Consultor autorizado pode enviar a duplicata.')
+    }
     if (politica.versao.tipo_ativo_financeiro !== 'DUPLICATA_MERCANTIL') throw new Error('A politica vigente nao utiliza Duplicata Mercantil.')
     if (!['rascunho', 'requer_ajuste'].includes(nota.status)) throw new Error('O envio deve ocorrer antes da submissao definitiva da NF.')
 
