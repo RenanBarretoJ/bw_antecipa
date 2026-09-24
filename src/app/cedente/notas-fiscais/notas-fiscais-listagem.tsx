@@ -76,6 +76,8 @@ type Props = {
     valorMin: number | null
     valorMax: number | null
   }
+  basePath?: string
+  cedenteIdSelecionado?: string
 }
 
 const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; className: string; icon: typeof CheckCircle }> = {
@@ -114,7 +116,12 @@ function mapearNfs(resultado: ResultadoListagemNotasFiscais): NfRecord[] {
   }))
 }
 
-export default function NotasFiscaisListagem({ resultado, filtros }: Props) {
+export default function NotasFiscaisListagem({
+  resultado,
+  filtros,
+  basePath = '/cedente/notas-fiscais',
+  cedenteIdSelecionado,
+}: Props) {
   const router = useRouter()
   const notifications = useNotifications()
   const nfs = mapearNfs(resultado)
@@ -171,7 +178,7 @@ export default function NotasFiscaisListagem({ resultado, filtros }: Props) {
   const handleExcluir = async (id: string) => {
     if (!confirm('Excluir este rascunho? Esta acao nao pode ser desfeita.')) return
     setExcluindo(id)
-    const result = await excluirRascunho(id)
+    const result = await excluirRascunho(id, cedenteIdSelecionado)
     if (result?.success) {
       setSelecionados((prev) => { const next = new Set(prev); next.delete(id); return next })
       router.refresh()
@@ -186,7 +193,7 @@ export default function NotasFiscaisListagem({ resultado, filtros }: Props) {
     if (!ids.length) return
     if (!confirm(`Excluir ${ids.length} rascunho(s)? Esta acao nao pode ser desfeita.`)) return
     setExcluindoLote(true)
-    const result = await excluirRascunhos(ids)
+    const result = await excluirRascunhos(ids, cedenteIdSelecionado)
     if (result?.success) {
       setSelecionados(new Set())
       router.refresh()
@@ -239,6 +246,7 @@ export default function NotasFiscaisListagem({ resultado, filtros }: Props) {
       const units = await executarComConcorrenciaLimitada(filesToSend, async (file) => {
         const formData = new FormData()
         formData.append('arquivos', file)
+        if (cedenteIdSelecionado) formData.append('cedente_id', cedenteIdSelecionado)
 
         let actionResult: NfActionState
         try {
@@ -277,7 +285,8 @@ export default function NotasFiscaisListagem({ resultado, filtros }: Props) {
         ? units[0].actionResult.rascunhos[0]
         : undefined
       if (batch.total === 1 && batch.errorCount === 0 && singleDraftId) {
-        router.push(`/cedente/notas-fiscais/${singleDraftId}`)
+        const detalheParams = cedenteIdSelecionado ? `?cedente=${encodeURIComponent(cedenteIdSelecionado)}` : ''
+        router.push(`${basePath}/${singleDraftId}${detalheParams}`)
       } else if (batch.successCount > 0) {
         router.refresh()
       }
@@ -295,6 +304,7 @@ export default function NotasFiscaisListagem({ resultado, filtros }: Props) {
     direcao?: 'asc' | 'desc'
   } = {}) => {
     const params = new URLSearchParams()
+    if (cedenteIdSelecionado) params.set('cedente', cedenteIdSelecionado)
     const adicionar = (nome: string, valor: string) => {
       if (valor.trim()) params.set(nome, valor.trim())
     }
@@ -311,7 +321,7 @@ export default function NotasFiscaisListagem({ resultado, filtros }: Props) {
     params.set('direcao', overrides.direcao ?? ordenacao.direcao)
     params.set('limite', String(overrides.limite ?? resultado.limite))
     params.set('pagina', String(overrides.pagina ?? 1))
-    router.push(`/cedente/notas-fiscais?${params.toString()}`)
+    router.push(`${basePath}?${params.toString()}`)
   }
 
   const handleOrdenar = (campo: CampoOrdenacaoListagemNf) => {
@@ -344,7 +354,9 @@ export default function NotasFiscaisListagem({ resultado, filtros }: Props) {
   return (
     <div className="max-w-6xl mx-auto">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Minhas Notas Fiscais</h1>
+        <h1 className="text-2xl font-bold text-foreground">
+          {cedenteIdSelecionado ? 'Notas Fiscais do Cedente' : 'Minhas Notas Fiscais'}
+        </h1>
         <p className="text-muted-foreground">Envie XMLs de NF-e para leitura automatica ou PDFs para preenchimento manual.</p>
       </div>
 
@@ -793,7 +805,7 @@ export default function NotasFiscaisListagem({ resultado, filtros }: Props) {
                     <TableCell className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         <Link
-                          href={`/cedente/notas-fiscais/${nf.id}`}
+                          href={`${basePath}/${nf.id}${cedenteIdSelecionado ? `?cedente=${encodeURIComponent(cedenteIdSelecionado)}` : ''}`}
                           prefetch={false}
                           className="inline-flex items-center gap-1 text-sm text-primary hover:text-primary/80 font-medium"
                         >

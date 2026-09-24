@@ -1,8 +1,7 @@
 import 'server-only'
 
-import { cookies } from 'next/headers'
 import { requireAuthenticated, assertRole, type AppSupabaseClient } from '@/lib/auth/authorization'
-import { CEDENTE_FUNDO_ATIVO_COOKIE } from '@/lib/fundos/cedente-fundo-ativo'
+import { resolverContextoOperacionalNotaFiscal } from './contexto-operacional.server'
 import type { NfStatus, PoliticaNivelValidacao } from '@/lib/types/domain'
 import { resolverEstadoChecklistDocumental } from '@/lib/documentos-v2/checklist-state'
 import {
@@ -34,6 +33,13 @@ export type FiltrosListagemNotasFiscais = {
 }
 
 export type ResultadoListagemNotasFiscais = {
+  contexto: {
+    actorRole: 'cedente' | 'consultor'
+    cedenteId: string
+    cedenteRazaoSocial: string
+    cedenteNomeFantasia: string | null
+    cedenteCnpj: string
+  }
   itens: NotaFiscalListagem[]
   pagina: number
   limite: number
@@ -128,56 +134,6 @@ function normalizarBusca(value: string | undefined) {
     .replace(/\s+/g, ' ')
 }
 
-async function resolverContextoCedenteFundo(
-  supabase: AppSupabaseClient,
-): Promise<ContextoCedenteFundo> {
-  // get_user_cedente_id() resolve tanto o dono (cedentes.user_id) quanto um
-  // usuario convidado via cedente_acessos -- filtrar so por user_id fazia
-  // um usuario convidado nunca resolver o cedente, mesmo com o cedente
-  // ativo, quebrando esta pagina inteira.
-  const { data: cedenteId } = await supabase.rpc('get_user_cedente_id')
-  const { data: cedente, error: cedenteError } = cedenteId
-    ? await supabase.from('cedentes').select('id, status').eq('id', cedenteId).maybeSingle()
-    : { data: null, error: null }
-
-  if (cedenteError) throw new Error(`Nao foi possivel consultar o cedente autenticado: ${cedenteError.message}`)
-  if (!cedente) throw new Error('Cadastro de cedente nao encontrado.')
-  if (cedente.status !== 'ativo') throw new Error('O cadastro do cedente nao esta ativo.')
-
-  const { data: links, error: linksError } = await supabase
-    .from('cedente_fundos')
-    .select('id, cedente_id, fundo_id, status, vigente_desde')
-    .eq('cedente_id', cedente.id)
-    .eq('status', 'ativo')
-    .order('vigente_desde', { ascending: false })
-
-  if (linksError) throw new Error(`Nao foi possivel consultar o vinculo cedente-fundo: ${linksError.message}`)
-  if (!links?.length) throw new Error('O cedente nao possui vinculo ativo com um fundo.')
-
-  const selecionadoId = (await cookies()).get(CEDENTE_FUNDO_ATIVO_COOKIE)?.value
-  const link = links.length === 1
-    ? links[0]
-    : links.find((item) => item.id === selecionadoId)
-  if (!link) throw new Error('Selecione o fundo operacional antes de consultar as notas fiscais.')
-
-  const { data: fundo, error: fundoError } = await supabase
-    .from('fundos')
-    .select('id, ativo')
-    .eq('id', link.fundo_id)
-    .maybeSingle()
-
-  if (fundoError) throw new Error(`Nao foi possivel validar o fundo operacional: ${fundoError.message}`)
-  if (!fundo) throw new Error('Fundo operacional nao encontrado.')
-  if (fundo.ativo !== true) throw new Error('O fundo operacional esta inativo.')
-
-  return {
-    cedenteId: cedente.id,
-    cedenteFundoId: link.id,
-    fundoId: fundo.id,
-    fundoAtivo: fundo.ativo === true,
-  }
-}
-
 async function carregarPoliticaPublicada(
   supabase: AppSupabaseClient,
   contexto: ContextoCedenteFundo,
@@ -260,12 +216,19 @@ function requisitoVazio(
 
 export async function carregarNotasFiscaisComResumoDocumental(
   filtros: FiltrosListagemNotasFiscais,
+  options: { cedenteId?: string | null } = {},
 ): Promise<ResultadoListagemNotasFiscais> {
   const auth = await requireAuthenticated()
-  assertRole(auth.profile.role, ['cedente'])
+  assertRole(auth.profile.role, ['cedente', 'consultor'])
   if (auth.profile.status !== 'ativo') throw new Error('O perfil do usuario nao esta ativo.')
 
-  const contexto = await resolverContextoCedenteFundo(auth.supabase)
+  const contextoOperacional = await resolverContextoOperacionalNotaFiscal(auth, options.cedenteId)
+  const contexto: ContextoCedenteFundo = {
+    cedenteId: contextoOperacional.cedente.id,
+    cedenteFundoId: contextoOperacional.cedenteFundoId,
+    fundoId: contextoOperacional.fundoId,
+    fundoAtivo: true,
+  }
   const pagina = normalizarPagina(filtros.pagina)
   const limite = normalizarLimiteListagemNf(Number(filtros.limite))
   const ordenacao = normalizarCampoOrdenacaoListagemNf(String(filtros.ordenacao || ''))
@@ -512,6 +475,13 @@ export async function carregarNotasFiscaisComResumoDocumental(
   const total = count || 0
 
   return {
+    contexto: {
+      actorRole: contextoOperacional.actorRole,
+      cedenteId: contextoOperacional.cedente.id,
+      cedenteRazaoSocial: contextoOperacional.cedente.razao_social,
+      cedenteNomeFantasia: contextoOperacional.cedente.nome_fantasia,
+      cedenteCnpj: contextoOperacional.cedente.cnpj,
+    },
     itens,
     pagina,
     limite,

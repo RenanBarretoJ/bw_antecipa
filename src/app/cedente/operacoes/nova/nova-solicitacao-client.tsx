@@ -215,7 +215,7 @@ export default function NovaSolicitacaoClient({ resultado }: { resultado: Result
         </div>
       </div>
       {resultado.perfil === 'consultor' ? (
-        <Card className="mb-4">
+        <Card className="relative z-20 mb-4 overflow-visible">
           <CardContent className="py-4">
             <ConsultorCedenteSelector selecionado={resultado.cedente} />
           </CardContent>
