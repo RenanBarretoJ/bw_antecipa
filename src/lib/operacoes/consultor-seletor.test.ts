@@ -22,11 +22,15 @@ describe('seletor de Cedente do Consultor', () => {
   })
 
   it('troca o Cedente e descarta pagina e busca da selecao anterior', () => {
-    const atuais = new URLSearchParams('cedente=anterior&q=NF+123&page=4&pageSize=20&sort=valor_bruto')
+    const atuais = new URLSearchParams('cedente=anterior&q=NF+123&page=4&pagina=3&busca=ABC&status=rascunho&ordenacao=valor_bruto&direcao=asc&limite=40&valorMin=10&valorMax=20&emissaoDe=2026-01-01&emissaoAte=2026-01-31&vencimentoDe=2026-02-01&vencimentoAte=2026-02-28&pageSize=20&sort=valor_bruto')
     const resultado = parametrosAoSelecionarCedente(atuais, 'novo')
     expect(resultado.get('cedente')).toBe('novo')
-    expect(resultado.has('q')).toBe(false)
-    expect(resultado.has('page')).toBe(false)
+    for (const parametro of [
+      'q', 'page', 'pagina', 'busca', 'status', 'ordenacao', 'direcao', 'limite',
+      'valorMin', 'valorMax', 'emissaoDe', 'emissaoAte', 'vencimentoDe', 'vencimentoAte',
+    ]) {
+      expect(resultado.has(parametro)).toBe(false)
+    }
     expect(resultado.get('pageSize')).toBe('20')
     expect(resultado.get('sort')).toBe('valor_bruto')
   })

@@ -43,7 +43,7 @@ describe('resultado por arquivo do upload de NFs', () => {
     const clientSource = readFileSync('src/app/cedente/notas-fiscais/notas-fiscais-listagem.tsx', 'utf8')
 
     expect(sidebarSource).toContain('prefetch={false}')
-    expect(clientSource).toMatch(/href=\{`\/cedente\/notas-fiscais\/\$\{nf\.id\}`\}[\s\S]{0,120}prefetch=\{false\}/)
+    expect(clientSource).toMatch(/href=\{`\$\{basePath\}\/\$\{nf\.id\}[\s\S]{0,180}prefetch=\{false\}/)
   })
 
   it('enriquece o nome do destinatario antes do upload quando o PDF nao o extraiu', () => {

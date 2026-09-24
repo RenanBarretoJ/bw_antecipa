@@ -205,7 +205,9 @@ export async function uploadDocumentoDaNota(
   client: AppSupabaseClient,
 ) {
   const context = await requireNotaFiscalAccess(input.notaFiscalId, client)
-  if (!['cedente', 'gestor'].includes(context.profile.role)) throw new Error('Somente cedente ou gestor pode enviar documentos.')
+  if (!['cedente', 'consultor', 'gestor'].includes(context.profile.role)) {
+    throw new Error('Somente Cedente, Consultor autorizado ou Gestor pode enviar documentos.')
+  }
 
   await instanciarRequisitosDaNota(input.notaFiscalId, client, input.contexto)
   const { data: requirement, error: requirementError } = await client
@@ -366,7 +368,9 @@ export async function uploadDocumentoDaEntrega(
   client: AppSupabaseClient,
 ) {
   const context = await requireNotaFiscalAccess(input.notaFiscalId, client)
-  if (!['cedente', 'gestor'].includes(context.profile.role)) throw new Error('Somente cedente ou gestor pode enviar documentos.')
+  if (!['cedente', 'consultor', 'gestor'].includes(context.profile.role)) {
+    throw new Error('Somente Cedente, Consultor autorizado ou Gestor pode enviar documentos.')
+  }
 
   const { data: entrega, error: entregaError } = await client
     .from('nota_fiscal_entregas')
