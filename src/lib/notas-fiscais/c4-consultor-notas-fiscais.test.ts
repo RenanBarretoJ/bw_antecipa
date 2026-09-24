@@ -14,6 +14,10 @@ const establishmentGateMigration = readFileSync(
   'supabase/migrations/20260924170410_c4_consultor_gate_estabelecimento_origem.sql',
   'utf8',
 )
+const establishmentReadMigration = readFileSync(
+  'supabase/migrations/20260924171344_c4_consultor_leitura_estabelecimento_origem.sql',
+  'utf8',
+)
 
 describe('C4 - Consultor opera NFs somente no Cedente selecionado', () => {
   it('reutiliza o seletor C2 e a mesma feature de listagem/upload do Cedente', () => {
@@ -69,6 +73,20 @@ describe('C4 - Consultor opera NFs somente no Cedente selecionado', () => {
       'REVOKE ALL ON FUNCTION public.estabelecimento_pode_originar(uuid, uuid, uuid)',
     )
     expect(establishmentGateMigration).not.toMatch(/GRANT EXECUTE[^;]+TO anon/)
+  })
+
+  it('torna visivel somente o estabelecimento de Cedente e fundo autorizados ao Consultor', () => {
+    expect(establishmentReadMigration).toContain(
+      'CREATE POLICY cedente_estabelecimentos_consultor_select_c4',
+    )
+    expect(establishmentReadMigration).toContain("public.get_user_role()) = 'consultor'")
+    expect(establishmentReadMigration).toContain(
+      'private.usuario_pode_operar_cedente(cedente_estabelecimentos.cedente_id)',
+    )
+    expect(establishmentReadMigration).toContain('cf.cedente_id = cedente_estabelecimentos.cedente_id')
+    expect(establishmentReadMigration).toContain("cf.status = 'ativo'")
+    expect(establishmentReadMigration).toContain('private.consultor_tem_acesso_fundo(cf.fundo_id)')
+    expect(establishmentReadMigration).not.toMatch(/TO anon/)
   })
 
   it('RLS exige simultaneamente vinculo operacional, fundo autorizado e contexto ativo', () => {
