@@ -10,6 +10,10 @@ const migration = readFileSync(
   'supabase/migrations/20260924143332_c4_consultor_notas_fiscais_por_cedente.sql',
   'utf8',
 )
+const establishmentGateMigration = readFileSync(
+  'supabase/migrations/20260924170410_c4_consultor_gate_estabelecimento_origem.sql',
+  'utf8',
+)
 
 describe('C4 - Consultor opera NFs somente no Cedente selecionado', () => {
   it('reutiliza o seletor C2 e a mesma feature de listagem/upload do Cedente', () => {
@@ -48,6 +52,23 @@ describe('C4 - Consultor opera NFs somente no Cedente selecionado', () => {
     expect(action).toContain('validarXmlNfeParaUploadCedente({')
     expect(action).toContain('resolverEstabelecimentoOrigem({')
     expect(action).toContain("excluir_notas_fiscais_rascunho_operador")
+  })
+
+  it('autoriza o gate de estabelecimento do Consultor somente no contexto operacional exato', () => {
+    expect(establishmentGateMigration).toContain(
+      'CREATE OR REPLACE FUNCTION public.estabelecimento_pode_originar',
+    )
+    expect(establishmentGateMigration).toContain("public.get_user_role() = 'consultor'")
+    expect(establishmentGateMigration).toContain('private.usuario_pode_operar_cedente(p_cedente_id)')
+    expect(establishmentGateMigration).toContain('private.consultor_tem_acesso_fundo(p_fundo_id)')
+    expect(establishmentGateMigration).toContain(
+      'private.estabelecimento_pode_originar(',
+    )
+    expect(establishmentGateMigration).toContain('SECURITY INVOKER')
+    expect(establishmentGateMigration).toContain(
+      'REVOKE ALL ON FUNCTION public.estabelecimento_pode_originar(uuid, uuid, uuid)',
+    )
+    expect(establishmentGateMigration).not.toMatch(/GRANT EXECUTE[^;]+TO anon/)
   })
 
   it('RLS exige simultaneamente vinculo operacional, fundo autorizado e contexto ativo', () => {
