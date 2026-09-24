@@ -21,6 +21,10 @@ describe('C4 - Consultor opera NFs somente no Cedente selecionado', () => {
     expect(page).toContain('cedenteIdSelecionado={cedenteId}')
   })
 
+  it('permite que o dropdown do seletor ultrapasse o Card sem ser recortado', () => {
+    expect(page.match(/relative z-20 overflow-visible/g)).toHaveLength(3)
+  })
+
   it('limpa o estado cliente ao alternar o Cedente e preserva o contexto em filtros, upload e detalhe', () => {
     expect(page).toContain('key={[')
     expect(page).toContain('cedenteId,')
