@@ -13,7 +13,7 @@ const correctiveMigration = readFileSync(
 ).toLowerCase()
 
 const parcelCleanupMigration = readFileSync(
-  join(process.cwd(), 'supabase/migrations/20260925124026_corrigir_exclusao_rascunho_com_parcelas.sql'),
+  join(process.cwd(), 'supabase/migrations/20260925124946_corrigir_exclusao_rascunho_com_parcelas.sql'),
   'utf8',
 ).toLowerCase()
 
