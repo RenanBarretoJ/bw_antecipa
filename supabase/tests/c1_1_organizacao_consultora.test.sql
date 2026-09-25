@@ -73,18 +73,37 @@ BEGIN
      OR private.consultor_usuario_pode_gerenciar_cedente(v_owner, v_gama) THEN
     RAISE EXCEPTION 'can_manage nao respeitou papel ou isolamento organizacional';
   END IF;
+  PERFORM set_config('request.jwt.claim.sub', v_owner::text, true);
   IF NOT private.consultor_usuario_pode_operar_cedente(v_owner, v_alfa)
-     OR NOT private.consultor_usuario_pode_operar_cedente(v_operador, v_alfa)
-     OR private.consultor_usuario_pode_operar_cedente(v_leitor, v_alfa)
-     OR private.consultor_usuario_pode_operar_cedente(v_inativo, v_alfa)
+     OR private.consultor_usuario_pode_operar_cedente(v_operador, v_alfa)
      OR private.consultor_usuario_pode_operar_cedente(v_owner, v_beta)
-     OR private.consultor_usuario_pode_operar_cedente(v_owner, v_gama)
-     OR NOT private.consultor_usuario_pode_operar_cedente(v_carlos, v_gama) THEN
+     OR private.consultor_usuario_pode_operar_cedente(v_owner, v_gama) THEN
     RAISE EXCEPTION 'can_operate nao respeitou papel, Fundo ou isolamento organizacional';
+  END IF;
+
+  PERFORM set_config('request.jwt.claim.sub', v_operador::text, true);
+  IF NOT private.consultor_usuario_pode_operar_cedente(v_operador, v_alfa) THEN
+    RAISE EXCEPTION 'OPERADOR ativo perdeu acesso operacional';
+  END IF;
+
+  PERFORM set_config('request.jwt.claim.sub', v_leitor::text, true);
+  IF private.consultor_usuario_pode_operar_cedente(v_leitor, v_alfa) THEN
+    RAISE EXCEPTION 'LEITOR recebeu acesso operacional';
+  END IF;
+
+  PERFORM set_config('request.jwt.claim.sub', v_inativo::text, true);
+  IF private.consultor_usuario_pode_operar_cedente(v_inativo, v_alfa) THEN
+    RAISE EXCEPTION 'usuario inativo recebeu acesso operacional';
+  END IF;
+
+  PERFORM set_config('request.jwt.claim.sub', v_carlos::text, true);
+  IF NOT private.consultor_usuario_pode_operar_cedente(v_carlos, v_gama) THEN
+    RAISE EXCEPTION 'OWNER da organizacao ACME perdeu a propria carteira';
   END IF;
 
   INSERT INTO public.consultor_fundos (consultor_id, fundo_id, status)
   VALUES (v_xpto, v_health, 'ativo');
+  PERFORM set_config('request.jwt.claim.sub', v_owner::text, true);
   IF NOT private.consultor_usuario_pode_operar_cedente(v_owner, v_beta) THEN
     RAISE EXCEPTION 'adicao de Fundo nao restaurou acesso operacional';
   END IF;
@@ -94,11 +113,13 @@ BEGIN
   END IF;
 
   UPDATE public.consultores SET status = 'inativo' WHERE id = v_xpto;
+  PERFORM set_config('request.jwt.claim.sub', v_owner::text, true);
   IF private.consultor_usuario_pode_gerenciar_cedente(v_owner, v_beta)
-     OR private.consultor_usuario_pode_operar_cedente(v_operador, v_beta) THEN
+     OR private.consultor_usuario_pode_operar_cedente(v_owner, v_beta) THEN
     RAISE EXCEPTION 'organizacao inativa manteve acesso';
   END IF;
   UPDATE public.consultores SET status = 'ativo' WHERE id = v_xpto;
+  PERFORM set_config('request.jwt.claim.sub', v_operador::text, true);
   IF NOT private.consultor_usuario_pode_operar_cedente(v_operador, v_beta) THEN
     RAISE EXCEPTION 'reativacao da organizacao nao restaurou vinculos intactos';
   END IF;
