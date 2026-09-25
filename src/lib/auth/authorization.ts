@@ -258,7 +258,7 @@ export async function requireOperationAccess(
   const context = await requireAuthenticated(client)
   const { data: operacao, error } = await context.supabase
     .from('operacoes')
-    .select('id, cedente_id')
+    .select('id, cedente_id, cedente_fundo_id')
     .eq('id', operacaoId)
     .maybeSingle()
 
@@ -282,6 +282,17 @@ export async function requireOperationAccess(
       throw new AuthorizationError('OperaÃ§Ã£o nÃ£o vinculada ao sacado autenticado.', 'FORBIDDEN')
     }
 
+    return { ...context, operacao: operacao as Pick<Operacao, 'id' | 'cedente_id'> }
+  }
+
+  if (context.profile.role === 'consultor') {
+    const { data: permitido, error: permissaoError } = await context.supabase.rpc(
+      'consultor_pode_visualizar_operacao',
+      { p_operacao_id: operacaoId },
+    )
+    if (permissaoError || permitido !== true) {
+      throw new AuthorizationError('Operacao nao disponivel para este Consultor.', 'FORBIDDEN')
+    }
     return { ...context, operacao: operacao as Pick<Operacao, 'id' | 'cedente_id'> }
   }
 

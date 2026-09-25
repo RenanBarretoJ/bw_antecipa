@@ -12,7 +12,10 @@ import {
   type TotalParcelasNotaRaw,
 } from '@/lib/operacoes/cedente-detalhe'
 
-export async function carregarDetalheOperacaoCedente(operacaoId: string): Promise<OperacaoCedenteDetalhe> {
+export async function carregarDetalheOperacaoCedente(
+  operacaoId: string,
+  options: { perfil?: 'cedente' | 'consultor' } = {},
+): Promise<OperacaoCedenteDetalhe> {
   const access = await requireOperationAccess(operacaoId)
   const supabase = await createClient()
 
@@ -57,10 +60,11 @@ export async function carregarDetalheOperacaoCedente(operacaoId: string): Promis
     throw new AuthorizationError('Operação não pertence ao cedente autenticado.', 'FORBIDDEN')
   }
 
+  let fundo: { id: string; nome: string } | null = null
   if (op.cedente_fundo_id) {
     const { data: vinculo, error: vinculoError } = await supabase
       .from('cedente_fundos')
-      .select('id, cedente_id')
+      .select('id, cedente_id, fundo_id')
       .eq('id', op.cedente_fundo_id)
       .eq('cedente_id', op.cedente_id)
       .maybeSingle()
@@ -68,6 +72,15 @@ export async function carregarDetalheOperacaoCedente(operacaoId: string): Promis
     if (vinculoError || !vinculo) {
       throw new AuthorizationError('Operação não pertence ao vínculo cedente-fundo autorizado.', 'FORBIDDEN')
     }
+    const { data: fundoData, error: fundoError } = await supabase
+      .from('fundos')
+      .select('id,nome')
+      .eq('id', vinculo.fundo_id)
+      .maybeSingle()
+    if (fundoError || !fundoData) {
+      throw new AuthorizationError('Fundo da operacao nao disponivel para este usuario.', 'FORBIDDEN')
+    }
+    fundo = { id: fundoData.id, nome: fundoData.nome }
   }
 
   const { data: links } = await supabase
@@ -150,5 +163,9 @@ export async function carregarDetalheOperacaoCedente(operacaoId: string): Promis
     parcelasCedidas,
     memoriasCalculo: (memoriasResult.data || []) as MemoriaCalculoParcelaRaw[],
     totaisParcelas: (totaisParcelasResult.data || []) as TotalParcelasNotaRaw[],
+    fundo,
+    notasFiscaisBasePath: options.perfil === 'consultor'
+      ? '/consultor/notas-fiscais'
+      : '/cedente/notas-fiscais',
   })
 }

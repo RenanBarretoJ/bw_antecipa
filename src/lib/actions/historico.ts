@@ -47,7 +47,7 @@ async function prepararConsulta(entidade: EntidadeHistorico, entidadeId: string)
 
   const field = entidade === 'nota_fiscal' ? 'nota_fiscal_id' : 'operacao_id'
   const fundoAtivo = context.profile.role === 'gestor' ? await obterFundoAtivoAutorizado() : null
-  return { supabase: context.supabase, field, fundoAtivo }
+  return { supabase: context.supabase, field, fundoAtivo, role: context.profile.role }
 }
 
 export async function carregarEventosHistorico(input: {
@@ -60,7 +60,7 @@ export async function carregarEventosHistorico(input: {
 }): Promise<HistoricoPaginaResult> {
   try {
     const limit = Math.min(Math.max(input.limit ?? 20, 1), 50)
-    const { supabase, field, fundoAtivo } = await prepararConsulta(input.entidade, input.entidadeId)
+    const { supabase, field, fundoAtivo, role } = await prepararConsulta(input.entidade, input.entidadeId)
     const categorias = filtroCategorias(input.filtro ?? 'todos')
 
     let query = supabase
@@ -75,6 +75,7 @@ export async function carregarEventosHistorico(input: {
       .limit(limit + 1)
 
     if (categorias) query = query.in('categoria', categorias)
+    if (role === 'consultor') query = query.in('visibilidade', ['cedente', 'ambos'])
     const cursor = input.cursor ? parseCursor(input.cursor) : null
     if (input.cursor && !cursor) return { success: false, message: 'Cursor de historico invalido.' }
     if (cursor) query = query.or(buildDescendingCreatedAtCursorFilter(cursor))
