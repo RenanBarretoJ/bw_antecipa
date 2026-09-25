@@ -6,6 +6,7 @@ const root = process.cwd()
 const schema = readFileSync(join(root, 'supabase/migrations/20260925144545_c1_1_organizacao_consultora_schema.sql'), 'utf8')
 const authz = readFileSync(join(root, 'supabase/migrations/20260925144547_c1_1_autorizacao_organizacional.sql'), 'utf8')
 const admin = readFileSync(join(root, 'supabase/migrations/20260925144549_c1_1_admin_consultorias_convites.sql'), 'utf8')
+const rlsFix = readFileSync(join(root, 'supabase/migrations/20260925181927_c1_1_corrigir_rls_consultor_dashboard.sql'), 'utf8')
 
 describe('C1.1 organization-centric authorization architecture', () => {
   it('models organization, memberships, Funds and portfolio without per-user duplication', () => {
@@ -44,5 +45,21 @@ describe('C1.1 organization-centric authorization architecture', () => {
     for (const file of runtimeFiles) {
       expect(readFileSync(join(root, file), 'utf8')).not.toContain("from('consultor_cedente')")
     }
+  })
+
+  it('keeps the administrative helper closed while allowing C1.1 RLS evaluation', () => {
+    expect(rlsFix).toContain('CREATE OR REPLACE FUNCTION private.c1_1_usuario_e_super_admin_rls()')
+    expect(rlsFix).toContain('REVOKE ALL ON FUNCTION private.c1_1_usuario_e_super_admin_rls()')
+    expect(rlsFix).toContain('TO authenticated, service_role')
+    expect(rlsFix.match(/SELECT private\.c1_1_usuario_e_super_admin_rls\(\)/g)).toHaveLength(4)
+    expect(rlsFix).not.toContain('GRANT EXECUTE ON FUNCTION private.usuario_e_super_admin()')
+  })
+
+  it('binds the invoker dashboard helper to the authenticated user before granting execute', () => {
+    expect(rlsFix).toContain('CREATE OR REPLACE FUNCTION private.consultor_usuario_pode_operar_cedente(')
+    expect(rlsFix).toContain('p_user_id = (SELECT auth.uid())')
+    expect(rlsFix).toContain(
+      'GRANT EXECUTE ON FUNCTION private.consultor_usuario_pode_operar_cedente(uuid, uuid)',
+    )
   })
 })
