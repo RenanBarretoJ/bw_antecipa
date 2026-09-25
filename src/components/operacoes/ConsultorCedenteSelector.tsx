@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { Building2, Check, ChevronDown, Loader2, Search } from 'lucide-react'
 import {
   buscarCedentesElegiveisConsultor,
+  buscarCedentesVisiveisConsultor,
   type CedenteElegivelConsultor,
 } from '@/lib/actions/consultor-operacoes'
 import { formatCNPJ } from '@/lib/utils'
@@ -15,8 +16,9 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
-export function ConsultorCedenteSelector({ selecionado }: {
+export function ConsultorCedenteSelector({ selecionado, modoFiltro = false }: {
   selecionado: CedenteElegivelConsultor | null
+  modoFiltro?: boolean
 }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -51,7 +53,9 @@ export function ConsultorCedenteSelector({ selecionado }: {
 
     const timer = window.setTimeout(async () => {
       setCarregando(true)
-      const result = await buscarCedentesElegiveisConsultor(q)
+      const result = await (modoFiltro
+        ? buscarCedentesVisiveisConsultor(q)
+        : buscarCedentesElegiveisConsultor(q))
       if (current !== requestId.current) return
       setCarregando(false)
       if (!result.success) {
@@ -63,10 +67,25 @@ export function ConsultorCedenteSelector({ selecionado }: {
     }, 300)
 
     return () => window.clearTimeout(timer)
-  }, [aberto, termo])
+  }, [aberto, modoFiltro, termo])
 
   function selecionar(opcao: CedenteElegivelConsultor) {
-    const params = parametrosAoSelecionarCedente(new URLSearchParams(searchParams.toString()), opcao.id)
+    const params = modoFiltro
+      ? new URLSearchParams(searchParams.toString())
+      : parametrosAoSelecionarCedente(new URLSearchParams(searchParams.toString()), opcao.id)
+    if (modoFiltro) {
+      params.set('cedente', opcao.id)
+      params.delete('page')
+    }
+    setAberto(false)
+    setTermo('')
+    startTransition(() => router.replace(`${pathname}?${params.toString()}`, { scroll: false }))
+  }
+
+  function limparFiltro() {
+    const params = new URLSearchParams(searchParams.toString())
+    params.delete('cedente')
+    params.delete('page')
     setAberto(false)
     setTermo('')
     startTransition(() => router.replace(`${pathname}?${params.toString()}`, { scroll: false }))
@@ -98,7 +117,7 @@ export function ConsultorCedenteSelector({ selecionado }: {
   return (
     <div ref={containerRef} className="relative">
       <label htmlFor={triggerId} className="mb-2 block text-sm font-medium">
-        Cedente <span aria-hidden="true">*</span>
+        {modoFiltro ? 'Cedente' : <>Cedente <span aria-hidden="true">*</span></>}
       </label>
       <Button
         id={triggerId}
@@ -119,7 +138,7 @@ export function ConsultorCedenteSelector({ selecionado }: {
           <Building2 className="size-4 shrink-0 text-muted-foreground" />
           <span className="min-w-0">
             <span className="block truncate font-medium">
-              {selecionado?.nomeFantasia || selecionado?.razaoSocial || 'Selecione um Cedente'}
+              {selecionado?.nomeFantasia || selecionado?.razaoSocial || (modoFiltro ? 'Todos os Cedentes' : 'Selecione um Cedente')}
             </span>
             {selecionado ? (
               <span className="block truncate text-xs text-muted-foreground">
@@ -158,6 +177,11 @@ export function ConsultorCedenteSelector({ selecionado }: {
             />
           </div>
           <div id={listboxId} role="listbox" className="max-h-72 overflow-y-auto">
+            {modoFiltro && selecionado ? (
+              <button type="button" className="w-full rounded-md px-3 py-2 text-left text-sm hover:bg-muted" onClick={limparFiltro}>
+                Todos os Cedentes
+              </button>
+            ) : null}
             {carregando ? (
               <div className="flex items-center justify-center gap-2 p-4 text-sm text-muted-foreground">
                 <Loader2 className="size-4 animate-spin" /> Buscando Cedentes...

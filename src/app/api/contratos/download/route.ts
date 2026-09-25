@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireCedenteAccess, requireOperationAccess, AuthorizationError } from '@/lib/auth/authorization'
+import { requireAuthenticated, requireCedenteAccess, requireOperationAccess, requireOperationViewAccess, AuthorizationError } from '@/lib/auth/authorization'
 import { createAdminClient } from '@/lib/supabase/server'
 import { buckets } from '@/lib/storage'
 import type { ContratoDocumentType, ContratoEntityType } from '@/lib/types/domain'
@@ -67,7 +67,10 @@ export async function GET(req: NextRequest) {
       const field = OPERACAO_DOCUMENT_FIELDS[tipoDocumento]
       if (!field) return NextResponse.json({ error: 'Documento nao pertence a uma operacao.' }, { status: 400 })
 
-      const context = await requireOperationAccess(entidadeId)
+      const auth = await requireAuthenticated()
+      const context = auth.profile.role === 'consultor'
+        ? await requireOperationViewAccess(entidadeId, auth.supabase)
+        : await requireOperationAccess(entidadeId, auth.supabase)
       if (tipoDocumento === 'remessa') {
         const { data: remessa } = await context.supabase
           .from('remessas_cnab_operacoes')

@@ -2400,6 +2400,14 @@ export interface Database {
       usuario_pode_gerenciar_cedente: { Args: { p_cedente_id: string }; Returns: boolean }
       consultor_pode_operar_cedente: { Args: { p_cedente_id: string }; Returns: boolean }
       consultor_listar_cedente_ids_operacionais: { Args: Record<string, never>; Returns: Array<{ cedente_id: string }> }
+      consultor_pode_visualizar_cedente: { Args: { p_cedente_id: string }; Returns: boolean }
+      consultor_pode_visualizar_operacao: { Args: { p_operacao_id: string }; Returns: boolean }
+      consultor_listar_cedente_ids_visiveis: { Args: Record<string, never>; Returns: Array<{ cedente_id: string }> }
+      listar_fundos_visiveis_consultor: { Args: Record<string, never>; Returns: Array<{ id: string; nome: string }> }
+      buscar_cedentes_visiveis_consultor: {
+        Args: { p_termo?: string | null; p_limite?: number }
+        Returns: Array<{ id: string; razao_social: string; nome_fantasia: string | null; cnpj: string }>
+      }
       admin_criar_consultoria_convite_owner: { Args: { p_cnpj: string; p_razao_social: string; p_nome_fantasia: string | null; p_fundo_ids: string[]; p_usuario_id: string; p_usuario_nome: string; p_usuario_email: string; p_correlation_id: string }; Returns: Record<string, unknown> }
       admin_preparar_convite_consultor_usuario: { Args: { p_consultor_id: string; p_usuario_id: string; p_usuario_nome: string; p_usuario_email: string; p_papel: string; p_correlation_id: string }; Returns: Record<string, unknown> }
       admin_cancelar_convite_consultor: { Args: { p_consultor_id: string; p_usuario_id: string; p_remover_consultoria: boolean; p_correlation_id: string }; Returns: undefined }
