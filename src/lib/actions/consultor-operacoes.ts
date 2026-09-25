@@ -57,3 +57,44 @@ export async function buscarCedentesElegiveisConsultor(
     return { success: false, message: 'Nao foi possivel buscar os Cedentes da sua carteira.' }
   }
 }
+
+export async function buscarCedentesVisiveisConsultor(
+  termo: string,
+): Promise<BuscaCedentesConsultorResult> {
+  const parsed = buscaSchema.safeParse(termo)
+  if (!parsed.success) return { success: false, message: 'Termo de busca invalido.' }
+
+  const q = parsed.data
+
+  try {
+    const auth = await requireAuthenticated()
+    assertRole(auth.profile.role, ['consultor'])
+    if (q.length > 0 && q.length < 4) return { success: true, data: [] }
+    const { data, error } = await auth.supabase.rpc('buscar_cedentes_visiveis_consultor', {
+      p_termo: q || null,
+      p_limite: LIMITE_CEDENTES_SELETOR,
+    })
+    if (error) throw error
+
+    return {
+      success: true,
+      data: ((data || []) as Array<{
+        id: string
+        razao_social: string
+        nome_fantasia: string | null
+        cnpj: string
+      }>).map((item) => ({
+        id: item.id,
+        razaoSocial: item.razao_social,
+        nomeFantasia: item.nome_fantasia,
+        cnpj: item.cnpj,
+      })),
+    }
+  } catch (error) {
+    console.error('[buscarCedentesVisiveisConsultor]', {
+      etapa: 'busca_cedentes_visiveis_c5',
+      erro: error instanceof Error ? error.message : 'Falha nao identificada.',
+    })
+    return { success: false, message: 'Nao foi possivel buscar os Cedentes visiveis da sua carteira.' }
+  }
+}

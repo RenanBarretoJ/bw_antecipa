@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useNotifications } from '@/components/notifications/notification-provider'
 import { ExposicaoLogisticaCard } from '@/components/operacoes/ExposicaoLogisticaCard'
+import { ConsultorCedenteSelector } from '@/components/operacoes/ConsultorCedenteSelector'
 
 const statusConfig: Record<string, { label: string; className: string }> = {
   solicitada: { label: 'Solicitada', className: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
@@ -69,12 +70,21 @@ export function OperacoesPaginadas({
   const [isPending, startTransition] = useTransition()
   const [busca, setBusca] = useState(filtros.busca)
   const [filtrosAvancadosAbertos, setFiltrosAvancadosAbertos] = useState(
-    Boolean(filtros.valorMin !== null || filtros.valorMax !== null || filtros.aprovadoDe || filtros.aprovadoAte),
+    Boolean(
+      filtros.valorMin !== null
+      || filtros.valorMax !== null
+      || filtros.aprovadoDe
+      || filtros.aprovadoAte
+      || filtros.solicitadoDe
+      || filtros.solicitadoAte
+    ),
   )
   const [valorMin, setValorMin] = useState(filtros.valorMin?.toString() ?? '')
   const [valorMax, setValorMax] = useState(filtros.valorMax?.toString() ?? '')
   const [aprovadoDe, setAprovadoDe] = useState(filtros.aprovadoDe)
   const [aprovadoAte, setAprovadoAte] = useState(filtros.aprovadoAte)
+  const [solicitadoDe, setSolicitadoDe] = useState(filtros.solicitadoDe)
+  const [solicitadoAte, setSolicitadoAte] = useState(filtros.solicitadoAte)
   const cards = metricas(perfil, resultado)
   const returnTo = `${pathname}${searchParams.size ? `?${searchParams.toString()}` : ''}`
 
@@ -106,6 +116,8 @@ export function OperacoesPaginadas({
       valorMax: valorMax || null,
       aprovadoDe: aprovadoDe || null,
       aprovadoAte: aprovadoAte || null,
+      solicitadoDe: solicitadoDe || null,
+      solicitadoAte: solicitadoAte || null,
       page: 1,
     })
   }
@@ -115,11 +127,15 @@ export function OperacoesPaginadas({
     setValorMax('')
     setAprovadoDe('')
     setAprovadoAte('')
+    setSolicitadoDe('')
+    setSolicitadoAte('')
     navegar({
       valorMin: null,
       valorMax: null,
       aprovadoDe: null,
       aprovadoAte: null,
+      solicitadoDe: null,
+      solicitadoAte: null,
       page: 1,
     })
   }
@@ -133,11 +149,11 @@ export function OperacoesPaginadas({
             {perfil === 'gestor'
               ? 'Gerencie as solicitacoes de antecipacao.'
               : perfil === 'consultor'
-                ? 'Crie e acompanhe operacoes dos Cedentes ativos da sua carteira.'
+                ? 'Acompanhe as operacoes dos Cedentes ativos da sua carteira.'
                 : 'Acompanhe suas solicitacoes de antecipacao.'}
           </p>
         </div>
-        {(perfil === 'cedente' || perfil === 'consultor') && (
+        {(perfil === 'cedente' || (perfil === 'consultor' && resultado.contextoConsultor?.podeOperar)) && (
           <Link href={`/${perfil}/operacoes/nova`}><Button>Nova solicitacao</Button></Link>
         )}
       </div>
@@ -164,6 +180,26 @@ export function OperacoesPaginadas({
 
       <Card className="mb-4">
         <CardContent className="space-y-3 py-4">
+          {perfil === 'consultor' && resultado.contextoConsultor && (
+            <div className="relative z-20 grid gap-3 border-b pb-3 lg:grid-cols-2">
+              <ConsultorCedenteSelector selecionado={resultado.contextoConsultor.cedenteSelecionado} modoFiltro />
+              <div>
+                <label className="mb-2 block text-sm font-medium">Fundo</label>
+                <Select
+                  value={filtros.fundoId || 'todos'}
+                  onValueChange={(value) => navegar({ fundo: value === 'todos' ? null : value, page: 1 })}
+                >
+                  <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos os Fundos</SelectItem>
+                    {resultado.contextoConsultor.fundos.map((fundo) => (
+                      <SelectItem key={fundo.id} value={fundo.id}>{fundo.nome}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
           <div className="flex flex-col gap-3 lg:flex-row">
             <div className="relative min-w-0 flex-1">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -204,7 +240,7 @@ export function OperacoesPaginadas({
                 <SelectItem value="data_vencimento:desc">Vencimento mais distante</SelectItem>
               </SelectContent>
             </Select>
-            {perfil === 'gestor' && (
+            {perfil !== 'cedente' && (
               <Button
                 type="button"
                 variant={filtrosAvancadosAbertos ? 'secondary' : 'outline'}
@@ -254,13 +290,27 @@ export function OperacoesPaginadas({
               </Button>
             </div>
           )}
+          {perfil === 'consultor' && filtrosAvancadosAbertos && (
+            <div className="grid gap-3 border-t pt-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_auto_auto]">
+              <Input type="date" value={solicitadoDe} onChange={(event) => setSolicitadoDe(event.target.value)} aria-label="Solicitada a partir de" />
+              <Input type="date" value={solicitadoAte} onChange={(event) => setSolicitadoAte(event.target.value)} aria-label="Solicitada ate" />
+              <Button type="button" onClick={aplicarFiltrosAvancados}>Aplicar</Button>
+              <Button type="button" variant="ghost" onClick={limparFiltrosAvancados}><X size={16} />Limpar</Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
       {resultado.items.length === 0 ? (
         <Card><CardContent className="p-12 text-center">
           <Banknote size={44} className="mx-auto mb-3 text-muted-foreground/30" />
-          <p className="text-muted-foreground">Nenhuma operacao encontrada.</p>
+          <p className="text-muted-foreground">
+            {perfil === 'consultor' && resultado.contextoConsultor && !resultado.contextoConsultor.possuiCedentesVisiveis
+              ? 'Voce ainda nao possui Cedentes aprovados para acompanhamento.'
+              : perfil === 'consultor' && (filtros.busca || filtros.cedenteId || filtros.fundoId || filtros.status || filtros.solicitadoDe || filtros.solicitadoAte)
+                ? 'Nenhuma operacao corresponde aos filtros selecionados.'
+                : 'Nenhuma operacao encontrada.'}
+          </p>
         </CardContent></Card>
       ) : (
         <Card className={isPending ? 'opacity-70' : ''}>
@@ -270,13 +320,16 @@ export function OperacoesPaginadas({
                 <thead><tr className="border-b bg-muted/50 text-left text-xs uppercase text-muted-foreground">
                   <th className="px-4 py-3">ID</th>
                   <th className="px-4 py-3">Cedente</th>
+                  {perfil === 'consultor' && <th className="px-4 py-3">Fundo</th>}
                   <th className="px-4 py-3">Valor bruto</th>
                   <th className="px-4 py-3">Taxa</th>
                   <th className="px-4 py-3">Prazo</th>
                   <th className="px-4 py-3">Liquido</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Data</th>
-                  {perfil !== 'consultor' && <th className="px-4 py-3">Acoes</th>}
+                  {perfil === 'consultor' && <th className="px-4 py-3">NFs</th>}
+                  {perfil === 'consultor' && <th className="px-4 py-3">Atualizada</th>}
+                  <th className="px-4 py-3">Acoes</th>
                 </tr></thead>
                 <tbody className="divide-y">
                   {resultado.items.map((item) => {
@@ -286,16 +339,19 @@ export function OperacoesPaginadas({
                       <td className="w-[220px] max-w-[220px] px-4 py-3">
                         <ListNameCell name={item.cedenteNome} subline={formatCNPJ(item.cedenteCnpj)} />
                       </td>
+                      {perfil === 'consultor' && <td className="max-w-[180px] px-4 py-3 text-sm"><span className="block truncate" title={item.fundoNome}>{item.fundoNome}</span></td>}
                       <td className="whitespace-nowrap px-4 py-3 font-medium tabular-nums">{formatCurrency(item.valorBruto)}</td>
                       <td className="whitespace-nowrap px-4 py-3 tabular-nums">{item.taxaDesconto === null ? 'A definir' : `${item.taxaDesconto}%`}</td>
                       <td className="whitespace-nowrap px-4 py-3 tabular-nums">{item.prazoDias}d</td>
                       <td className="whitespace-nowrap px-4 py-3 font-bold text-green-700 tabular-nums dark:text-green-400">{item.valorLiquido === null ? 'Pendente' : formatCurrency(item.valorLiquido)}</td>
                       <td className="px-4 py-3"><Badge className={status.className}>{status.label}</Badge></td>
                       <td className="whitespace-nowrap px-4 py-3 text-sm text-muted-foreground">{formatDate(item.criadoEm)}</td>
-                      {perfil !== 'consultor' && <td className="whitespace-nowrap px-4 py-3">
+                      {perfil === 'consultor' && <td className="px-4 py-3 text-center tabular-nums">{item.quantidadeNfs}</td>}
+                      {perfil === 'consultor' && <td className="whitespace-nowrap px-4 py-3 text-sm text-muted-foreground">{formatDate(item.atualizadoEm)}</td>}
+                      <td className="whitespace-nowrap px-4 py-3">
                         <div className="flex items-center gap-1">
                           <Link href={`/${perfil}/operacoes/${item.id}?returnTo=${encodeURIComponent(returnTo)}`}>
-                            <Button variant="ghost" size="sm"><Eye size={14} />Ver</Button>
+                            <Button variant="ghost" size="sm"><Eye size={14} />{perfil === 'consultor' ? 'Ver detalhes' : 'Ver'}</Button>
                           </Link>
                           {perfil === 'cedente' && item.status === 'solicitada' && (
                             <Button variant="ghost" size="sm" className="text-destructive" onClick={() => cancelar(item.id)}>
@@ -303,7 +359,7 @@ export function OperacoesPaginadas({
                             </Button>
                           )}
                         </div>
-                      </td>}
+                      </td>
                     </tr>
                   })}
                 </tbody>
