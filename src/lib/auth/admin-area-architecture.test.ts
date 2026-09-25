@@ -40,8 +40,9 @@ describe('area administrativa SA0, SA1 e SA2', () => {
     expect(adminMenu).toContain("href: '/admin/usuarios'")
     expect(adminMenu).toContain("href: '/admin/integracoes-transportadoras'")
     expect(adminMenu).toContain("href: '/admin/minha-seguranca'")
+    expect(adminMenu).toContain("href: '/admin/consultorias'")
     expect(adminMenu).not.toMatch(/Auditoria global|Sistema/)
-    expect((adminMenu.match(/href:/g) || [])).toHaveLength(5)
+    expect((adminMenu.match(/href:/g) || [])).toHaveLength(6)
     expect(nonAdminMenus).not.toContain("href: '/admin/integracoes-transportadoras'")
   })
 

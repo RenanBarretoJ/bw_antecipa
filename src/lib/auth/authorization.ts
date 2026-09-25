@@ -159,19 +159,15 @@ export async function requireCedenteAccess(
   if (context.profile.role === 'gestor') return { ...context, cedente }
   let hasConsultorLink = false
   if (context.profile.role === 'consultor') {
-    const { data: consultorVinculo } = await context.supabase
-      .from('consultor_cedente')
-      .select('id')
-      .eq('consultor_id', context.user.id)
-      .eq('cedente_id', cedenteId)
-      .eq('status', 'ativo')
-      .maybeSingle()
-
-    hasConsultorLink = !!consultorVinculo
+    const { data: permitido, error } = await context.supabase.rpc('consultor_pode_operar_cedente', {
+      p_cedente_id: cedenteId,
+    })
+    if (error) throw new AuthorizationError('Nao foi possivel validar a carteira da Consultoria.', 'FORBIDDEN')
+    hasConsultorLink = permitido === true
   }
 
-  // A RPC SECURITY DEFINER resolve somente associacao ATIVA e mantem o
-  // fallback legado isolado no banco, sem checks de owner espalhados.
+  // A RPC SECURITY DEFINER resolve somente associacao organizacional ATIVA,
+  // sem checks de ownership espalhados pela aplicacao.
   const { data: cedenteIdDoUsuario } = await context.supabase.rpc('get_user_cedente_id')
 
   if (!canAccessCedente({

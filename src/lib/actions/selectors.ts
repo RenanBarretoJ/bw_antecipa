@@ -62,10 +62,7 @@ export async function buscarOpcoesEscopo(input: {
       cedenteIds = Array.from(new Set((data || []).map((item) => item.cedente_id)))
     } else if (auth.profile.role === 'consultor') {
       const { data, error } = await auth.supabase
-        .from('consultor_cedente')
-        .select('cedente_id')
-        .eq('consultor_id', auth.user.id)
-        .eq('status', 'ativo')
+        .rpc('consultor_listar_cedente_ids_operacionais')
       if (error) throw error
       cedenteIds = Array.from(new Set((data || []).map((item) => item.cedente_id)))
     } else if (auth.profile.role === 'cedente') {
