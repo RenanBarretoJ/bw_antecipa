@@ -41,16 +41,12 @@ export async function resolverCedenteSolicitanteOperacao(
       throw new AuthorizationError('Selecione um Cedente ativo da sua carteira.', 'FORBIDDEN')
     }
 
-    const { data: vinculo, error: vinculoError } = await auth.supabase
-      .from('consultor_cedente')
-      .select('cedente_id')
-      .eq('consultor_id', auth.user.id)
-      .eq('cedente_id', cedenteIdInformado)
-      .eq('status', 'ativo')
-      .maybeSingle()
+    const { data: permitido, error: vinculoError } = await auth.supabase.rpc('consultor_pode_operar_cedente', {
+      p_cedente_id: cedenteIdInformado,
+    })
     if (vinculoError) throw new Error(`Nao foi possivel validar o vinculo com o Cedente: ${vinculoError.message}`)
-    if (!vinculo) throw new AuthorizationError('O Cedente selecionado nao esta disponivel para este Consultor.', 'FORBIDDEN')
-    cedenteId = vinculo.cedente_id
+    if (permitido !== true) throw new AuthorizationError('O Cedente selecionado nao esta disponivel para esta Consultoria.', 'FORBIDDEN')
+    cedenteId = cedenteIdInformado
   }
 
   if (!cedenteId) throw new AuthorizationError('Cadastro de Cedente nao encontrado.', 'NOT_FOUND')

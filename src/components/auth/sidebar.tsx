@@ -61,6 +61,7 @@ export const consultorMenuItems: SidebarItem[] = [
 export const adminMenuItems: SidebarItem[] = [
   { label: 'Visao geral', href: '/admin', icon: Shield },
   { label: 'Fundos', href: '/admin/fundos', icon: Building2 },
+  { label: 'Consultorias', href: '/admin/consultorias', icon: Briefcase },
   { label: 'Usuarios & Acessos', href: '/admin/usuarios', icon: UserCog },
   { label: 'Integrações de transportadoras', href: '/admin/integracoes-transportadoras', icon: Truck },
   { label: 'Minha Seguranca', href: '/admin/minha-seguranca', icon: ShieldCheck },
