@@ -64,15 +64,11 @@ async function autorizarConta(
     if (vinculoError) throw new Error(`Nao foi possivel validar o fundo da conta: ${vinculoError.message}`)
     if (!vinculo) throw new AuthorizationError('Conta escrow fora do fundo ativo.', 'FORBIDDEN')
   } else if (perfil === 'consultor') {
-    const { data: vinculo, error: vinculoError } = await auth.supabase
-      .from('consultor_cedente')
-      .select('id')
-      .eq('consultor_id', auth.user.id)
-      .eq('cedente_id', row.cedente_id)
-      .limit(1)
-      .maybeSingle()
+    const { data: permitido, error: vinculoError } = await auth.supabase.rpc('consultor_pode_operar_cedente', {
+      p_cedente_id: row.cedente_id,
+    })
     if (vinculoError) throw new Error(`Nao foi possivel validar a carteira: ${vinculoError.message}`)
-    if (!vinculo) throw new AuthorizationError('Conta escrow fora da carteira do consultor.', 'FORBIDDEN')
+    if (permitido !== true) throw new AuthorizationError('Conta escrow fora da carteira da Consultoria.', 'FORBIDDEN')
   } else if (row.cedente_id !== cedenteProprioId) {
     throw new AuthorizationError('Conta escrow nao pertence ao cedente autenticado.', 'FORBIDDEN')
   }

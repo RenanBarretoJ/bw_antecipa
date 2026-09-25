@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { assinarAuthFlowCookie, getAuthFlowRedirect, isAuthFlow, isGestorInviteAllowedPath, isMfaSetupAllowedPath, isPasswordRecoveryAllowedPath, lerAuthFlowCookieAssinado } from './auth-flow'
+import { assinarAuthFlowCookie, getAuthFlowRedirect, isAuthFlow, isConsultorInviteAllowedPath, isGestorInviteAllowedPath, isMfaSetupAllowedPath, isPasswordRecoveryAllowedPath, lerAuthFlowCookieAssinado } from './auth-flow'
 
 describe('auth flow routing rules', () => {
   it('accepts only signed auth flow cookies as operational flow markers', async () => {
@@ -14,9 +14,16 @@ describe('auth flow routing rules', () => {
   it('recognizes only supported restricted auth flows', () => {
     expect(isAuthFlow('password_recovery')).toBe(true)
     expect(isAuthFlow('gestor_invite')).toBe(true)
+    expect(isAuthFlow('consultor_invite')).toBe(true)
     expect(isAuthFlow('mfa_setup_required')).toBe(true)
     expect(isAuthFlow('mfa_recovery_temporary')).toBe(true)
     expect(isAuthFlow('normal')).toBe(false)
+  })
+
+  it('restringe o convite de Consultoria ao aceite e MFA', () => {
+    expect(isConsultorInviteAllowedPath('/convite/consultor')).toBe(true)
+    expect(isConsultorInviteAllowedPath('/mfa/setup')).toBe(true)
+    expect(isConsultorInviteAllowedPath('/consultor/dashboard')).toBe(false)
   })
 
   it('allows only reset and MFA routes during password recovery', () => {
@@ -42,6 +49,7 @@ describe('auth flow routing rules', () => {
   it('redirects restricted flows to their safe destination', () => {
     expect(getAuthFlowRedirect('password_recovery')).toBe('/redefinir-senha')
     expect(getAuthFlowRedirect('gestor_invite')).toBe('/convite/gestor')
+    expect(getAuthFlowRedirect('consultor_invite')).toBe('/convite/consultor')
     expect(getAuthFlowRedirect('mfa_setup_required')).toBe('/mfa/setup')
     expect(getAuthFlowRedirect('mfa_recovery_temporary')).toBe('/mfa/setup')
   })

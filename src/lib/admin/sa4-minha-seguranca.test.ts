@@ -22,7 +22,8 @@ describe('SA4 - Minha Seguranca do Super Admin', () => {
   it('preserva a entrada de seguranca no menu Admin ampliado', () => {
     const adminMenu = menu.slice(menu.indexOf('export const adminMenuItems'))
     expect(adminMenu).toContain("href: '/admin/minha-seguranca'")
-    expect((adminMenu.match(/href:/g) || [])).toHaveLength(5)
+    expect(adminMenu).toContain("href: '/admin/consultorias'")
+    expect((adminMenu.match(/href:/g) || [])).toHaveLength(6)
   })
 
   it('reutiliza o mesmo nucleo visual e a mesma conta do Gestor', () => {

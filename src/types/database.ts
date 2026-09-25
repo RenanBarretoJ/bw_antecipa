@@ -1454,6 +1454,54 @@ export interface ConsultorCedente {
   created_at: string
 }
 
+export interface ConsultorOrganizacao {
+  id: string
+  cnpj: string
+  razao_social: string
+  nome_fantasia: string | null
+  status: 'ativo' | 'inativo'
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ConsultorUsuario {
+  id: string
+  consultor_id: string
+  user_id: string
+  papel: 'OWNER' | 'ADMIN' | 'OPERADOR' | 'LEITOR'
+  status: 'pendente' | 'ativo' | 'inativo'
+  convidado_por: string | null
+  convite_expires_at: string | null
+  ativado_em: string | null
+  desativado_em: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ConsultorFundo {
+  id: string
+  consultor_id: string
+  fundo_id: string
+  status: 'ativo' | 'inativo'
+  concedido_por: string | null
+  revogado_por: string | null
+  revogado_em: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ConsultorCedenteOrganizacional {
+  id: string
+  consultor_id: string
+  cedente_id: string
+  comissao_percentual: number
+  status: 'pendente' | 'ativo' | 'inativo'
+  vinculado_por: string | null
+  created_at: string
+  updated_at: string
+}
+
 export interface Sacado {
   id: string
   user_id: string
@@ -2296,6 +2344,10 @@ export interface Database {
       operacao_calculo_nfs: { Row: OperacaoCalculoNf & Record<string, unknown>; Insert: InsertShape<OperacaoCalculoNf, 'operacao_id' | 'nota_fiscal_id' | 'fundo_id' | 'cedente_id' | 'metodo_calculo_financeiro' | 'valor_nominal' | 'taxa_mensal' | 'data_base' | 'vencimento_contratual' | 'vencimento_calculo' | 'base_calculo' | 'dias_corridos_reais' | 'dias_aplicados' | 'expoente' | 'fator' | 'valor_presente' | 'desconto' | 'versao_motor'> & Record<string, unknown>; Update: UpdateShape<OperacaoCalculoNf> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'operacao_calculo_nfs_operacao_id_fkey'; columns: ['operacao_id']; isOneToOne: false; referencedRelation: 'operacoes'; referencedColumns: ['id'] }, { foreignKeyName: 'operacao_calculo_nfs_nota_fiscal_id_fkey'; columns: ['nota_fiscal_id']; isOneToOne: false; referencedRelation: 'notas_fiscais'; referencedColumns: ['id'] }] }
       taxas_cedente: { Row: TaxaCedente & Record<string, unknown>; Insert: InsertShape<TaxaCedente, 'cedente_id' | 'prazo_min' | 'prazo_max' | 'taxa_percentual'> & Record<string, unknown>; Update: UpdateShape<TaxaCedente> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'taxas_cedente_cedente_id_fkey'; columns: ['cedente_id']; isOneToOne: false; referencedRelation: 'cedentes'; referencedColumns: ['id'] }] }
       consultor_cedente: { Row: ConsultorCedente & Record<string, unknown>; Insert: InsertShape<ConsultorCedente, 'consultor_id' | 'cedente_id'> & Record<string, unknown>; Update: UpdateShape<ConsultorCedente> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'consultor_cedente_consultor_id_fkey'; columns: ['consultor_id']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] }, { foreignKeyName: 'consultor_cedente_cedente_id_fkey'; columns: ['cedente_id']; isOneToOne: false; referencedRelation: 'cedentes'; referencedColumns: ['id'] }] }
+      consultores: { Row: ConsultorOrganizacao & Record<string, unknown>; Insert: InsertShape<ConsultorOrganizacao, 'cnpj' | 'razao_social'> & Record<string, unknown>; Update: UpdateShape<ConsultorOrganizacao> & Record<string, unknown>; Relationships: [] }
+      consultor_usuarios: { Row: ConsultorUsuario & Record<string, unknown>; Insert: InsertShape<ConsultorUsuario, 'consultor_id' | 'user_id' | 'papel'> & Record<string, unknown>; Update: UpdateShape<ConsultorUsuario> & Record<string, unknown>; Relationships: [] }
+      consultor_fundos: { Row: ConsultorFundo & Record<string, unknown>; Insert: InsertShape<ConsultorFundo, 'consultor_id' | 'fundo_id'> & Record<string, unknown>; Update: UpdateShape<ConsultorFundo> & Record<string, unknown>; Relationships: [] }
+      consultor_cedentes: { Row: ConsultorCedenteOrganizacional & Record<string, unknown>; Insert: InsertShape<ConsultorCedenteOrganizacional, 'consultor_id' | 'cedente_id'> & Record<string, unknown>; Update: UpdateShape<ConsultorCedenteOrganizacional> & Record<string, unknown>; Relationships: [] }
       sacados: { Row: Sacado & Record<string, unknown>; Insert: InsertShape<Sacado, 'user_id' | 'cnpj' | 'razao_social'> & Record<string, unknown>; Update: UpdateShape<Sacado> & Record<string, unknown>; Relationships: [] }
       testemunhas: { Row: Testemunha & Record<string, unknown>; Insert: InsertShape<Testemunha, 'nome' | 'cpf'> & Record<string, unknown>; Update: UpdateShape<Testemunha> & Record<string, unknown>; Relationships: [] }
       solicitacoes_alteracao_cedente: { Row: SolicitacaoAlteracaoCedente & Record<string, unknown>; Insert: InsertShape<SolicitacaoAlteracaoCedente, 'cedente_id' | 'dados_atuais' | 'dados_propostos'> & Record<string, unknown>; Update: UpdateShape<SolicitacaoAlteracaoCedente> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'solicitacoes_alteracao_cedente_cedente_id_fkey'; columns: ['cedente_id']; isOneToOne: false; referencedRelation: 'cedentes'; referencedColumns: ['id'] }] }
@@ -2346,6 +2398,18 @@ export interface Database {
         Returns: { id: string; razao_social: string; criado: boolean; idempotente: boolean }
       }
       usuario_pode_gerenciar_cedente: { Args: { p_cedente_id: string }; Returns: boolean }
+      consultor_pode_operar_cedente: { Args: { p_cedente_id: string }; Returns: boolean }
+      consultor_listar_cedente_ids_operacionais: { Args: Record<string, never>; Returns: Array<{ cedente_id: string }> }
+      admin_criar_consultoria_convite_owner: { Args: { p_cnpj: string; p_razao_social: string; p_nome_fantasia: string | null; p_fundo_ids: string[]; p_usuario_id: string; p_usuario_nome: string; p_usuario_email: string; p_correlation_id: string }; Returns: Record<string, unknown> }
+      admin_preparar_convite_consultor_usuario: { Args: { p_consultor_id: string; p_usuario_id: string; p_usuario_nome: string; p_usuario_email: string; p_papel: string; p_correlation_id: string }; Returns: Record<string, unknown> }
+      admin_cancelar_convite_consultor: { Args: { p_consultor_id: string; p_usuario_id: string; p_remover_consultoria: boolean; p_correlation_id: string }; Returns: undefined }
+      consultar_convite_consultor_atual: { Args: Record<string, never>; Returns: Record<string, unknown> | null }
+      aceitar_convite_consultor: { Args: { p_correlation_id: string }; Returns: Record<string, unknown> }
+      admin_listar_consultorias: { Args: { p_busca?: string | null; p_status?: string; p_pagina?: number; p_por_pagina?: number }; Returns: Record<string, unknown> }
+      admin_obter_consultoria: { Args: { p_consultor_id: string }; Returns: Record<string, unknown> | null }
+      admin_atualizar_status_consultoria: { Args: { p_consultor_id: string; p_ativo: boolean; p_correlation_id: string }; Returns: undefined }
+      admin_atualizar_usuario_consultoria: { Args: { p_consultor_id: string; p_user_id: string; p_papel: string; p_ativo: boolean; p_correlation_id: string }; Returns: undefined }
+      admin_atualizar_fundos_consultoria: { Args: { p_consultor_id: string; p_fundo_ids: string[]; p_correlation_id: string }; Returns: undefined }
       criar_cedente_consultor: {
         Args: { p_fundo_id: string; p_cnpj: string; p_razao_social: string; p_nome_fantasia?: string | null }
         Returns: { cedente_id: string; cedente_fundo_id: string; consultor_cedente_id: string; status: string }
