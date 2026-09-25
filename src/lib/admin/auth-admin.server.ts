@@ -28,6 +28,13 @@ export type ConviteUsuarioAuthPreparado = {
   accessRole: 'gestor' | 'super_admin'
 }
 
+export type ConviteConsultorAuthPreparado = {
+  userId: string
+  email: string
+  nome: string
+  confirmUrl: string
+}
+
 export async function prepararConviteUsuarioAuth(input: {
   email: string
   nome: string
@@ -90,6 +97,63 @@ export async function enviarConviteUsuarioAuth(input: ConviteUsuarioAuthPreparad
 
   if (!result.success) {
     const error = new Error(result.errorMessage || 'Nao foi possivel enviar o convite administrativo.')
+    error.name = result.errorCode || 'SMTP_ERROR'
+    throw error
+  }
+}
+
+export async function prepararConviteConsultorAuth(input: {
+  email: string
+  nome: string
+}): Promise<ConviteConsultorAuthPreparado> {
+  const admin = createAdminClient()
+  const { data, error } = await admin.auth.admin.generateLink({
+    type: 'invite',
+    email: input.email,
+    options: {
+      data: { role: 'consultor', nome_completo: input.nome },
+      redirectTo: `${appBaseUrl()}/convite/consultor`,
+    },
+  })
+  if (error || !data.user || !data.properties?.hashed_token) {
+    throw new Error(error?.message || 'O Supabase Auth nao retornou o Consultor convidado.')
+  }
+
+  const confirmUrl = new URL('/convite/consultor', appBaseUrl())
+  confirmUrl.searchParams.set('token_hash', data.properties.hashed_token)
+  confirmUrl.searchParams.set('type', 'invite')
+
+  return {
+    userId: data.user.id,
+    email: input.email,
+    nome: input.nome,
+    confirmUrl: confirmUrl.toString(),
+  }
+}
+
+export async function enviarConviteConsultorAuth(input: ConviteConsultorAuthPreparado & {
+  consultoriaNome: string
+  papel: 'OWNER' | 'ADMIN' | 'OPERADOR' | 'LEITOR'
+}) {
+  const result = await enviarEmailOperacional({
+    to: input.email,
+    subject: `Convite para a Consultoria ${input.consultoriaNome} no BW Antecipa`,
+    text: `Voce foi convidado como ${input.papel} da Consultoria ${input.consultoriaNome}. O convite expira em 1 hora. Aceite: ${input.confirmUrl}`,
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#172033">
+        <h1 style="font-size:24px">Convite para o BW Antecipa</h1>
+        <p>Ola, <strong>${escapeHtml(input.nome)}</strong>.</p>
+        <p>Voce recebeu um convite para integrar a Consultoria <strong>${escapeHtml(input.consultoriaNome)}</strong> como <strong>${input.papel}</strong>.</p>
+        <p>O link e individual, de uso unico e expira em 1 hora. A abertura da pagina nao confirma o convite.</p>
+        <p style="margin:28px 0"><a href="${escapeHtml(input.confirmUrl)}" style="background:#125dcc;color:white;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:600">Aceitar convite</a></p>
+        <p style="font-size:12px;color:#667085">Se voce nao reconhece este convite, ignore esta mensagem.</p>
+      </div>
+    `,
+    idempotencyKey: `convite-consultor:${input.userId}`,
+    fromName: 'BETTER WITH',
+  })
+  if (!result.success) {
+    const error = new Error(result.errorMessage || 'Nao foi possivel enviar o convite da Consultoria.')
     error.name = result.errorCode || 'SMTP_ERROR'
     throw error
   }

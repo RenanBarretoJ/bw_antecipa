@@ -18,7 +18,7 @@ async function resolverEscopo(auth: Auth, perfil: Perfil) {
     const contexto = await resolverContextoFundoGestor(auth)
     return { perfil, fundoId: contexto.fundoId, consultorId: null }
   }
-  return { perfil, fundoId: null, consultorId: auth.user.id }
+  return { perfil, fundoId: null, consultorId: null }
 }
 
 async function buscarCedentesDoEscopo(
@@ -30,21 +30,28 @@ async function buscarCedentesDoEscopo(
   const digitos = q.replace(/\D/g, '')
   const condicoes = [`razao_social.ilike.%${seguro}%`]
   if (digitos) condicoes.push(`cnpj.ilike.%${digitos}%`)
-  const query = escopo.perfil === 'gestor'
-    ? auth.supabase
+  let query
+  if (escopo.perfil === 'gestor') {
+    query = auth.supabase
       .from('cedente_fundos')
       .select('cedente_id, cedentes!inner(id)')
       .eq('fundo_id', escopo.fundoId!)
       .in('status', ['ativo', 'suspenso'])
       .or(condicoes.join(','), { referencedTable: 'cedentes' })
-    : auth.supabase
-      .from('consultor_cedente')
-      .select('cedente_id, cedentes!inner(id)')
-      .eq('consultor_id', escopo.consultorId!)
-      .or(condicoes.join(','), { referencedTable: 'cedentes' })
+  } else {
+    const { data: carteira, error: carteiraError } = await auth.supabase.rpc('consultor_listar_cedente_ids_operacionais')
+    if (carteiraError) throw new Error(`Nao foi possivel resolver a carteira da Consultoria: ${carteiraError.message}`)
+    const ids = (carteira || []).map((item) => item.cedente_id)
+    if (!ids.length) return []
+    query = auth.supabase
+      .from('cedentes')
+      .select('id')
+      .in('id', ids)
+      .or(condicoes.join(','))
+  }
   const { data, error } = await query.limit(200)
   if (error) throw new Error(`Nao foi possivel aplicar a busca de cedentes: ${error.message}`)
-  return Array.from(new Set((data || []).map((row) => row.cedente_id)))
+  return Array.from(new Set((data || []).map((row) => 'cedente_id' in row ? row.cedente_id : row.id)))
 }
 
 type Row = {
@@ -90,7 +97,7 @@ export async function carregarEscrowPaginado(
     const range = buildOffsetRange({ page, pageSize: filtros.pageSize })
     const select = escopo.perfil === 'gestor'
       ? 'id, cedente_id, identificador, saldo_disponivel, saldo_bloqueado, status, created_at, cedentes!inner(razao_social, cnpj, cedente_fundos!inner(fundo_id, status))'
-      : 'id, cedente_id, identificador, saldo_disponivel, saldo_bloqueado, status, created_at, cedentes!inner(razao_social, cnpj, consultor_cedente!inner(consultor_id))'
+      : 'id, cedente_id, identificador, saldo_disponivel, saldo_bloqueado, status, created_at, cedentes!inner(razao_social, cnpj)'
     let query = auth.supabase
       .from('contas_escrow')
       .select(select, { count: 'exact' })
@@ -98,7 +105,7 @@ export async function carregarEscrowPaginado(
       ? query
         .eq('cedentes.cedente_fundos.fundo_id', escopo.fundoId!)
         .in('cedentes.cedente_fundos.status', ['ativo', 'suspenso'])
-      : query.eq('cedentes.consultor_cedente.consultor_id', escopo.consultorId!)
+      : query
     if (filtros.cedenteId) query = query.eq('cedente_id', filtros.cedenteId)
     if (filtros.q) query = query.in('cedente_id', cedentesEncontrados)
     if (filtros.status) query = query.eq('status', filtros.status)
