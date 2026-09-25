@@ -18,6 +18,7 @@ export const CAMPOS_ORDENACAO_OPERACOES = [
   'data_vencimento',
   'status',
   'aprovado_em',
+  'updated_at',
 ] as const
 
 export type CampoOrdenacaoOperacoes = (typeof CAMPOS_ORDENACAO_OPERACOES)[number]
@@ -33,6 +34,10 @@ export type FiltrosOperacoes = {
   valorMax: number | null
   aprovadoDe: string
   aprovadoAte: string
+  solicitadoDe: string
+  solicitadoAte: string
+  cedenteId: string | null
+  fundoId: string | null
 }
 
 export type OperacaoListagemItem = {
@@ -41,6 +46,9 @@ export type OperacaoListagemItem = {
   cedenteFundoId: string | null
   cedenteNome: string
   cedenteCnpj: string
+  fundoId: string | null
+  fundoNome: string
+  quantidadeNfs: number
   valorBruto: number
   taxaDesconto: number | null
   prazoDias: number
@@ -48,6 +56,7 @@ export type OperacaoListagemItem = {
   vencimento: string
   status: string
   criadoEm: string
+  atualizadoEm: string
   aprovadoEm: string | null
   aceiteSacadoExigido: boolean | null
   aceiteSacadoStatus: string | null
@@ -82,6 +91,13 @@ function numeroOpcional(value: string | undefined) {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null
 }
 
+function uuidOpcional(value: string | undefined) {
+  const normalized = value?.trim() || ''
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(normalized)
+    ? normalized
+    : null
+}
+
 export function parseFiltrosOperacoes(
   params: Record<string, string | string[] | undefined>,
 ): FiltrosOperacoes {
@@ -107,6 +123,10 @@ export function parseFiltrosOperacoes(
     valorMax: numeroOpcional(primeiroValor(params.valorMax)),
     aprovadoDe: primeiroValor(params.aprovadoDe)?.trim() || '',
     aprovadoAte: primeiroValor(params.aprovadoAte)?.trim() || '',
+    solicitadoDe: primeiroValor(params.solicitadoDe)?.trim() || '',
+    solicitadoAte: primeiroValor(params.solicitadoAte)?.trim() || '',
+    cedenteId: uuidOpcional(primeiroValor(params.cedente)),
+    fundoId: uuidOpcional(primeiroValor(params.fundo)),
   }
 }
 

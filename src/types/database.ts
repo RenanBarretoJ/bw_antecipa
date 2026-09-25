@@ -2710,6 +2710,18 @@ export interface Database {
         Args: { p_termo?: string | null; p_limite?: number }
         Returns: Array<{ id: string; razao_social: string; nome_fantasia: string | null; cnpj: string }>
       }
+      consultor_pode_visualizar_operacao: {
+        Args: { p_operacao_id: string }
+        Returns: boolean
+      }
+      consultor_pode_operar_cedente: {
+        Args: { p_cedente_id: string }
+        Returns: boolean
+      }
+      listar_fundos_operacionais_consultor: {
+        Args: Record<string, never>
+        Returns: Array<{ id: string; nome: string }>
+      }
       get_user_cedente_id: { Args: Record<string, never>; Returns: string | null }
       get_user_cedente_acesso_perfil: { Args: Record<string, never>; Returns: string | null }
       get_user_cedente_perfil_canonico: { Args: Record<string, never>; Returns: 'ADMIN' | 'OPERACIONAL' | null }
