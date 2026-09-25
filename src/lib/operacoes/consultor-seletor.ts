@@ -16,7 +16,11 @@ export function parametrosAoSelecionarCedente(
 ) {
   const params = new URLSearchParams(atuais.toString())
   params.set('cedente', cedenteId)
-  params.delete('q')
-  params.delete('page')
+  for (const chave of [
+    'q', 'page', 'pagina', 'busca', 'status', 'ordenacao', 'direcao', 'limite',
+    'valorMin', 'valorMax', 'emissaoDe', 'emissaoAte', 'vencimentoDe', 'vencimentoAte',
+  ]) {
+    params.delete(chave)
+  }
   return params
 }

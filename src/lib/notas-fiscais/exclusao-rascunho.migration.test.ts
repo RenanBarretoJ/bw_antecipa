@@ -12,6 +12,11 @@ const correctiveMigration = readFileSync(
   'utf8',
 ).toLowerCase()
 
+const parcelCleanupMigration = readFileSync(
+  join(process.cwd(), 'supabase/migrations/20260925124946_corrigir_exclusao_rascunho_com_parcelas.sql'),
+  'utf8',
+).toLowerCase()
+
 const action = readFileSync(
   join(process.cwd(), 'src/lib/actions/nota-fiscal.ts'),
   'utf8',
@@ -67,6 +72,23 @@ describe('exclusao transacional de NFs em rascunho pelo cedente', () => {
   it('preserva eventos que tambem pertencem a uma operacao', () => {
     expect(correctiveMigration).not.toContain('delete from public.eventos_dominio evento\n  where evento.nota_fiscal_id = old.id;')
     expect(correctiveMigration).toContain('evento.operacao_id is null')
+  })
+
+  it('remove parcelas filhas antes de excluir uma NF em rascunho', () => {
+    expect(parcelCleanupMigration).toContain('before delete on public.notas_fiscais')
+    expect(parcelCleanupMigration).toContain("if old.status::text = 'rascunho'")
+    expect(parcelCleanupMigration).toContain('delete from public.nota_fiscal_parcelas')
+    expect(parcelCleanupMigration).toContain('parcela.nota_fiscal_id = old.id')
+  })
+
+  it('mantem a FK restritiva e nao expoe a funcao de trigger', () => {
+    expect(parcelCleanupMigration).not.toContain('on delete cascade')
+    expect(parcelCleanupMigration).toContain('security definer')
+    expect(parcelCleanupMigration).toContain("set search_path = ''")
+    expect(parcelCleanupMigration).toContain(
+      'revoke all on function private.preparar_exclusao_parcelas_nf_rascunho()',
+    )
+    expect(parcelCleanupMigration).toContain('from public, anon, authenticated')
   })
 
   it('executa limpeza do Storage somente depois do commit SQL confirmado', () => {
