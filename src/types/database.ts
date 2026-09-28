@@ -1367,6 +1367,11 @@ export interface Operacao {
   solicitacao_idempotency_key: string | null
   valor_bruto_total: number
   taxa_desconto: number | null
+  taxa_proposta_consultor: number | null
+  taxa_proposta_por: string | null
+  taxa_proposta_consultor_id: string | null
+  taxa_proposta_em: string | null
+  calculo_proposta_memoria: Record<string, unknown> | null
   prazo_dias: number
   valor_liquido_desembolso: number | null
   metodo_calculo_financeiro: import('@/lib/operacoes/calculo').MetodoCalculoFinanceiro | null
@@ -2862,6 +2867,8 @@ export interface Database {
       analisar_documento_versao: { Args: { p_documento_versao_id: string; p_resultado: string; p_observacoes?: string | null; p_dados_estruturados?: Record<string, unknown> }; Returns: Record<string, unknown> }
       processar_aceite_sacado: { Args: { p_nota_fiscal_ids: string[]; p_acao: string; p_motivo?: string | null }; Returns: Record<string, unknown> }
       solicitar_operacao_antecipacao_atomica: { Args: { p_cedente_id: string; p_cedente_fundo_id: string; p_politica_operacional_id: string; p_politica_operacional_versao_id: string; p_politica_versao: number; p_politica_snapshot: Record<string, unknown>; p_politica_snapshot_hash: string; p_aceite_sacado_exigido: boolean; p_aceite_sacado_status: string; p_nota_fiscal_ids: string[]; p_valor_bruto_total: number; p_taxa_desconto: number | null; p_prazo_dias: number; p_valor_liquido_desembolso: number | null; p_data_vencimento: string; p_idempotency_key: string }; Returns: Record<string, unknown> }
+      solicitar_operacao_antecipacao_cedente_atomica: { Args: { p_cedente_id: string; p_cedente_fundo_id: string; p_politica_operacional_id: string; p_politica_operacional_versao_id: string; p_politica_versao: number; p_politica_snapshot: Record<string, unknown>; p_politica_snapshot_hash: string; p_aceite_sacado_exigido: boolean; p_aceite_sacado_status: string; p_nota_fiscal_ids: string[]; p_valor_bruto_total: number; p_taxa_desconto: number | null; p_prazo_dias: number; p_valor_liquido_desembolso: number | null; p_data_vencimento: string; p_idempotency_key: string; p_parcela_ids?: string[] | null }; Returns: Record<string, unknown> }
+      solicitar_operacao_antecipacao_consultor_atomica: { Args: { p_cedente_id: string; p_cedente_fundo_id: string; p_politica_operacional_id: string; p_politica_operacional_versao_id: string; p_politica_versao: number; p_politica_snapshot: Record<string, unknown>; p_politica_snapshot_hash: string; p_aceite_sacado_exigido: boolean; p_aceite_sacado_status: string; p_nota_fiscal_ids: string[]; p_taxa_proposta_consultor: number | string; p_idempotency_key: string; p_parcela_ids?: string[] | null }; Returns: Record<string, unknown> }
       simular_memoria_financeira_operacao: { Args: { p_operacao_id: string; p_taxa_desconto: number }; Returns: Record<string, unknown> }
       persistir_risco_execucao: { Args: { p_payload: Record<string, unknown> }; Returns: string }
       decidir_revisao_risco: { Args: { p_revisao_id: string; p_decisao: string; p_justificativa: string; p_correlation_id: string }; Returns: boolean }
