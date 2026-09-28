@@ -192,6 +192,16 @@ BEGIN
       '98100000000168', 'Cedente QA C2.1',
       '11222333000181', 'Sacado QA C2.1',
       750, 750, 'aprovada'
+    ),
+    (
+      '2a000000-0000-4000-8000-000000000004',
+      '23000000-0000-4000-8000-000000000001',
+      '24000000-0000-4000-8000-000000000001',
+      '22000000-0000-4000-8000-000000000001',
+      'C21-CONSULTOR-LIVRE', '1', current_date, current_date + 30,
+      '98100000000168', 'Cedente QA C2.1',
+      '11222333000181', 'Sacado QA C2.1',
+      900, 900, 'aprovada'
     );
 END;
 $setup$;
@@ -273,7 +283,7 @@ SELECT lives_ok(
   'OPERADOR cria segunda operacao para alteracao da taxa pelo Gestor'
 );
 
-SELECT throws_ok(
+SELECT lives_ok(
   $$SELECT public.solicitar_operacao_antecipacao_consultor_atomica(
     '23000000-0000-4000-8000-000000000001',
     '24000000-0000-4000-8000-000000000001',
@@ -282,11 +292,10 @@ SELECT throws_ok(
     1,
     '{"calculo_financeiro":{"metodo":"TRINTA_360","versao_motor":1}}'::jsonb,
     repeat('a', 64), false, 'dispensado',
-    ARRAY['2a000000-0000-4000-8000-000000000001']::uuid[],
+    ARRAY['2a000000-0000-4000-8000-000000000004']::uuid[],
     2.40, repeat('c', 64), NULL
   )$$,
-  'A taxa proposta nao esta configurada para o prazo da operacao',
-  'taxa nao configurada e rejeitada no backend'
+  'OPERADOR pode propor taxa livre nao cadastrada pelo Gestor'
 );
 
 SELECT set_config('request.jwt.claim.sub', '21000000-0000-4000-8000-000000000002', true);
