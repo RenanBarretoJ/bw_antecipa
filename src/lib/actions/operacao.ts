@@ -14,6 +14,7 @@ import { mensagemErroSolicitacaoOperacao } from '@/lib/operacoes/erro-solicitaca
 import { obterFundoAtivoAutorizado } from '@/lib/fundos/fundo-ativo.server'
 import { carregarContextoEventoOperacao, registrarEventoDominio } from '@/lib/eventos-dominio/registrar'
 import { calcularAntecipacaoEmLote } from '@/lib/operacoes/calculo'
+import { normalizarTaxaOperacao, parseTaxaOperacao, taxaEstaConfiguradaParaPrazo } from '@/lib/operacoes/taxa-operacao'
 import { obterDataCivilOperacional } from '@/lib/operacoes/data-operacional.server'
 import { executarGateRisco } from '@/lib/financeiro/risco/processor.server'
 import { atualizarRiscoAposCessao } from '@/lib/financeiro/risco/atualizacao-pos-cessao.server'
@@ -101,6 +102,7 @@ export async function solicitarAntecipacao(
   nfIds: string[],
   parcelaIds?: string[],
   cedenteId?: string,
+  taxaPropostaConsultorInput?: string,
 ): Promise<OperacaoActionState> {
   const auth = await requireAuthenticated()
   const supabase = auth.supabase
@@ -308,11 +310,24 @@ export async function solicitarAntecipacao(
     return [{ id: nf.id, valorBruto: Number(nf.valor_bruto), vencimento: nf.data_vencimento }]
   })
 
+  const taxaPropostaNormalizada = solicitante.perfil === 'consultor'
+    ? normalizarTaxaOperacao(taxaPropostaConsultorInput ?? '')
+    : null
+  const taxaPropostaConsultor = taxaPropostaNormalizada === null
+    ? null
+    : parseTaxaOperacao(taxaPropostaNormalizada)
+
+  if (solicitante.perfil === 'consultor' && taxaPropostaConsultor === null) {
+    return { success: false, message: 'Informe uma taxa proposta valida.' }
+  }
+
   let calculo
   try {
     calculo = calcularAntecipacaoEmLote({
       notas: itensCalculo,
-      taxas: taxasDisp,
+      ...(solicitante.perfil === 'consultor'
+        ? { taxaMensal: taxaPropostaConsultor }
+        : { taxas: taxasDisp }),
       dataBase: obterDataCivilOperacional(),
       metodo: politicaContexto.versao.metodo_calculo_financeiro,
     })
@@ -323,6 +338,14 @@ export async function solicitarAntecipacao(
   const valorLiquidoDesembolso = calculo.valorLiquidoTotal
   const taxaMedia = calculo.taxaMedia
   const prazoMedio = calculo.prazoMedio
+  const prazoReferencia = Math.max(...calculo.notas.map((item) => item.dias))
+  if (
+    solicitante.perfil === 'consultor'
+    && taxaPropostaNormalizada !== null
+    && !taxaEstaConfiguradaParaPrazo(taxasDisp, prazoReferencia, taxaPropostaNormalizada)
+  ) {
+    return { success: false, message: 'A taxa proposta nao esta configurada para o prazo da operacao.' }
+  }
   const dataVencimento = itensCalculo.reduce(
     (max, item) => item.vencimento > max ? item.vencimento : max,
     itensCalculo[0].vencimento,
@@ -334,27 +357,45 @@ export async function solicitarAntecipacao(
     cedenteFundoId: politicaContexto.cedenteFundo.id,
     politicaVersaoId: politicaContexto.versao.id,
     nfIds: [...nfIds, ...parcelaIdsUnicos],
+    taxaPropostaConsultor: taxaPropostaNormalizada,
   })
 
-  const { data: operacao, error: opError } = await supabase.rpc('solicitar_operacao_antecipacao_atomica', {
-    p_cedente_id: ced.id,
-    p_cedente_fundo_id: politicaContexto.cedenteFundo.id,
-    p_politica_operacional_id: politicaContexto.politica.id,
-    p_politica_operacional_versao_id: politicaContexto.versao.id,
-    p_politica_versao: politicaContexto.versao.versao,
-    p_politica_snapshot: politicaSnapshot.snapshot,
-    p_politica_snapshot_hash: politicaSnapshot.hash,
-    p_aceite_sacado_exigido: aceiteSacadoExigido,
-    p_aceite_sacado_status: aceiteSacadoStatus,
-    p_nota_fiscal_ids: nfIds,
-    p_valor_bruto_total: valorBrutoTotal,
-    p_taxa_desconto: taxaMedia,
-    p_prazo_dias: prazoMedio,
-    p_valor_liquido_desembolso: valorLiquidoDesembolso,
-    p_data_vencimento: dataVencimento,
-    p_idempotency_key: idempotencyKey,
-    p_parcela_ids: parcelaIdsUnicos.length ? parcelaIdsUnicos : null,
-  } as never)
+  const rpcResultado = solicitante.perfil === 'consultor'
+    ? await supabase.rpc('solicitar_operacao_antecipacao_consultor_atomica', {
+        p_cedente_id: ced.id,
+        p_cedente_fundo_id: politicaContexto.cedenteFundo.id,
+        p_politica_operacional_id: politicaContexto.politica.id,
+        p_politica_operacional_versao_id: politicaContexto.versao.id,
+        p_politica_versao: politicaContexto.versao.versao,
+        p_politica_snapshot: politicaSnapshot.snapshot,
+        p_politica_snapshot_hash: politicaSnapshot.hash,
+        p_aceite_sacado_exigido: aceiteSacadoExigido,
+        p_aceite_sacado_status: aceiteSacadoStatus,
+        p_nota_fiscal_ids: nfIds,
+        p_taxa_proposta_consultor: taxaPropostaNormalizada,
+        p_idempotency_key: idempotencyKey,
+        p_parcela_ids: parcelaIdsUnicos.length ? parcelaIdsUnicos : null,
+      } as never)
+    : await supabase.rpc('solicitar_operacao_antecipacao_cedente_atomica', {
+        p_cedente_id: ced.id,
+        p_cedente_fundo_id: politicaContexto.cedenteFundo.id,
+        p_politica_operacional_id: politicaContexto.politica.id,
+        p_politica_operacional_versao_id: politicaContexto.versao.id,
+        p_politica_versao: politicaContexto.versao.versao,
+        p_politica_snapshot: politicaSnapshot.snapshot,
+        p_politica_snapshot_hash: politicaSnapshot.hash,
+        p_aceite_sacado_exigido: aceiteSacadoExigido,
+        p_aceite_sacado_status: aceiteSacadoStatus,
+        p_nota_fiscal_ids: nfIds,
+        p_valor_bruto_total: valorBrutoTotal,
+        p_taxa_desconto: taxaMedia,
+        p_prazo_dias: prazoMedio,
+        p_valor_liquido_desembolso: valorLiquidoDesembolso,
+        p_data_vencimento: dataVencimento,
+        p_idempotency_key: idempotencyKey,
+        p_parcela_ids: parcelaIdsUnicos.length ? parcelaIdsUnicos : null,
+      } as never)
+  const { data: operacao, error: opError } = rpcResultado
 
   if (opError) {
     console.error('[solicitarAntecipacao]', {
@@ -446,7 +487,7 @@ export async function solicitarAntecipacao(
 
 export async function aprovarOperacao(
   operacaoId: string,
-  taxaDesconto: number,
+  taxaDescontoInput: string,
 ): Promise<OperacaoActionState> {
   const context = await requireGestor()
   await exigirSessaoElevada(context)
@@ -460,7 +501,8 @@ export async function aprovarOperacao(
     return { success: false, message: 'Acesso negado.' }
   }
 
-  if (taxaDesconto < 0) return { success: false, message: 'Taxa deve ser >= 0.' }
+  const taxaDesconto = parseTaxaOperacao(taxaDescontoInput)
+  if (taxaDesconto === null) return { success: false, message: 'Informe uma taxa valida.' }
   const acessoOperacao = await validarOperacaoNoFundoAtivo(supabase, operacaoId)
   if (!acessoOperacao?.success) return acessoOperacao
 
