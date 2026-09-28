@@ -28,6 +28,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { BotaoDownloadContrato } from '@/components/contratos/BotaoDownloadContrato'
 import { UploadDocumentoAssinado } from '@/components/contratos/UploadDocumentoAssinado'
 import { UploadDocumentoAssinadoOperacao } from '@/components/contratos/UploadDocumentoAssinadoOperacao'
@@ -51,6 +52,13 @@ import {
   METODOS_CALCULO_LABELS,
   resolverMetodoCalculo,
 } from '@/lib/operacoes/calculo'
+import {
+  formatarTaxaOperacaoInput,
+  normalizarTaxaOperacao,
+  parseTaxaOperacao,
+  taxaEstaConfiguradaParaPrazo,
+  taxaMantemPropostaConsultor,
+} from '@/lib/operacoes/taxa-operacao'
 
 interface Testemunha {
   id: string
@@ -65,6 +73,11 @@ interface OperacaoDetalhe {
   conta_escrow_id: string
   valor_bruto_total: number
   taxa_desconto: number | null
+  taxa_proposta_consultor: number | null
+  taxa_proposta_por: string | null
+  taxa_proposta_consultor_id: string | null
+  taxa_proposta_em: string | null
+  calculo_proposta_memoria: Record<string, unknown> | null
   prazo_dias: number
   valor_liquido_desembolso: number | null
   metodo_calculo_financeiro: string | null
@@ -400,7 +413,9 @@ export default function OperacaoDetalheGestorClient({
   }, [message, messageType, notifications])
 
   // Campos de aprovacao
-  const [taxa, setTaxa] = useState<number | null>(null)
+  const [taxaInput, setTaxaInput] = useState('')
+  const taxaNormalizada = normalizarTaxaOperacao(taxaInput)
+  const taxa = taxaNormalizada === null ? null : parseTaxaOperacao(taxaNormalizada)
   const [showReprovar, setShowReprovar] = useState(false)
   const [motivo, setMotivo] = useState('')
 
@@ -479,7 +494,7 @@ export default function OperacaoDetalheGestorClient({
         }
 
         setOp(o)
-        setTaxa(o.taxa_desconto)
+        setTaxaInput(formatarTaxaOperacaoInput(o.taxa_proposta_consultor ?? o.taxa_desconto))
         if (o.testemunha_1_id) setTest1Id(o.testemunha_1_id)
         if (o.testemunha_2_id) setTest2Id(o.testemunha_2_id)
         setTermoAssinadoUrl(o.termo_assinado_url)
@@ -639,7 +654,13 @@ export default function OperacaoDetalheGestorClient({
     ? []
     : taxasConfig.filter((item) => prazoReferencia >= item.prazo_min && prazoReferencia <= item.prazo_max),
   [prazoReferencia, taxasConfig])
-  const taxaEhAplicavel = taxa !== null && taxasAplicaveis.some((item) => item.taxa_percentual === taxa)
+  const taxaMantemProposta = taxaNormalizada !== null
+    && taxaMantemPropostaConsultor(taxaNormalizada, op?.taxa_proposta_consultor)
+  const taxaEhAplicavel = taxaMantemProposta || (
+    taxaNormalizada !== null
+    && prazoReferencia !== null
+    && taxaEstaConfiguradaParaPrazo(taxasAplicaveis, prazoReferencia, taxaNormalizada)
+  )
 
   const calculoFinanceiro = useMemo(() => {
     if (!op || taxa === null || !taxaEhAplicavel || itensCalculoFinanceiro.length === 0) return null
@@ -771,15 +792,15 @@ export default function OperacaoDetalheGestorClient({
   }, [aceiteDispensado, entregaPorNfId, notasFiscaisView, notifications, op, opId])
 
   const aplicarTaxaConfig = (t: TaxaConfig) => {
-    setTaxa(t.taxa_percentual)
+    setTaxaInput(formatarTaxaOperacaoInput(t.taxa_percentual))
   }
 
   const handleAprovar = async () => {
-    if (taxa === null || taxa < 0 || !taxaEhAplicavel) { setMessage('Selecione uma taxa configurada para o prazo atual da operacao.'); setMessageType('error'); return }
+    if (taxa === null || taxaNormalizada === null || !taxaEhAplicavel) { setMessage('Mantenha a taxa proposta pelo Consultor ou informe uma taxa configurada para o prazo atual.'); setMessageType('error'); return }
     if (valorLiquido === null || valorLiquido <= 0) { setMessage('Valor liquido invalido.'); setMessageType('error'); return }
 
     setProcessing(true)
-    const result = await aprovarOperacao(opId, taxa)
+    const result = await aprovarOperacao(opId, taxaNormalizada)
     if (result?.success) {
       setMessage(result.message || 'Aprovada!')
       setMessageType('success')
@@ -1183,25 +1204,61 @@ export default function OperacaoDetalheGestorClient({
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-0 space-y-4">
-                {taxasAplicaveis.length > 0 ? (
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground mb-2">Selecione uma taxa configurada</p>
-                    <div className="space-y-1">
-                      {taxasAplicaveis.map((t, i) => (
-                        <button
-                          key={i}
-                          onClick={() => aplicarTaxaConfig(t)}
-                          className={`w-full flex justify-between text-xs px-3 py-2 rounded-lg transition-colors ${
-                            taxa === t.taxa_percentual
-                              ? 'bg-primary/10 text-primary font-medium'
-                              : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                          }`}
-                        >
-                          <span className="tabular-nums">{t.prazo_min}-{t.prazo_max} dias</span>
-                          <span className="tabular-nums">{t.taxa_percentual}% a.m.</span>
-                        </button>
-                      ))}
-                    </div>
+                {op.taxa_proposta_consultor !== null && (
+                  <div className="rounded-lg border bg-muted/30 p-3 text-sm">
+                    <span className="block text-xs text-muted-foreground">Taxa proposta pelo Consultor</span>
+                    <strong className="tabular-nums">{op.taxa_proposta_consultor}% a.m.</strong>
+                    {op.taxa_proposta_em && (
+                      <span className="mt-1 block text-xs text-muted-foreground">
+                        Proposta em {formatDate(op.taxa_proposta_em)}
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {op.taxa_proposta_consultor !== null || taxasAplicaveis.length > 0 ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="taxa-final-operacao" className="text-xs">Taxa da operacao (% a.m.)</Label>
+                    <Input
+                      id="taxa-final-operacao"
+                      inputMode="decimal"
+                      value={taxaInput}
+                      onChange={(event) => setTaxaInput(event.target.value)}
+                      placeholder="2,50"
+                      aria-invalid={Boolean(taxaInput.trim() && !taxaEhAplicavel)}
+                    />
+                    {taxasAplicaveis.length > 0 ? (
+                      <>
+                        <p className="text-xs text-muted-foreground">Valores configurados para o prazo:</p>
+                        <div className="space-y-1">
+                          {taxasAplicaveis.map((t, i) => (
+                            <button
+                              type="button"
+                              key={i}
+                              onClick={() => aplicarTaxaConfig(t)}
+                              className={`w-full flex justify-between text-xs px-3 py-2 rounded-lg transition-colors ${
+                                taxa !== null && taxaEstaConfiguradaParaPrazo([t], prazoReferencia ?? -1, taxa)
+                                  ? 'bg-primary/10 text-primary font-medium'
+                                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                              }`}
+                            >
+                              <span className="tabular-nums">{t.prazo_min}-{t.prazo_max} dias</span>
+                              <span className="tabular-nums">{t.taxa_percentual}% a.m.</span>
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">Nao ha valores configurados para o prazo. A proposta original do Consultor pode ser mantida.</p>
+                    )}
+                    {taxaInput.trim() && !taxaEhAplicavel && (
+                      <p className="text-xs text-destructive">Mantenha a proposta do Consultor ou selecione um valor configurado para o prazo atual.</p>
+                    )}
+                    {op.taxa_proposta_consultor !== null && taxa !== null && taxa !== op.taxa_proposta_consultor && (
+                      <p className="rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+                        A taxa final foi alterada em relacao a proposta do Consultor. A proposta original sera preservada.
+                      </p>
+                    )}
                   </div>
                 ) : (
                   <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
