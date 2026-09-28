@@ -39,23 +39,26 @@ function prazoTexto(dias: number | null) {
   return `Restam ${dias} dia(s)`
 }
 
-export default async function CedenteOperacaoDetalhePage({
+export async function OperacaoDetalheFeature({
   params,
   searchParams,
+  perfil = 'cedente',
 }: {
   params: Promise<{ id: string }>
   searchParams: Promise<{ returnTo?: string | string[] }>
+  perfil?: 'cedente' | 'consultor'
 }) {
   const { id } = await params
   const rawReturnTo = (await searchParams).returnTo
   const returnToParam = Array.isArray(rawReturnTo) ? rawReturnTo[0] : rawReturnTo
-  const returnTo = returnToParam === '/cedente/operacoes' || returnToParam?.startsWith('/cedente/operacoes?')
+  const basePath = `/${perfil}/operacoes`
+  const returnTo = returnToParam === basePath || returnToParam?.startsWith(`${basePath}?`)
     ? returnToParam
-    : '/cedente/operacoes'
+    : basePath
   let detalhe
 
   try {
-    detalhe = await carregarDetalheOperacaoCedente(id)
+    detalhe = await carregarDetalheOperacaoCedente(id, { perfil })
   } catch (error) {
     if (error instanceof AuthorizationError && error.code === 'NOT_FOUND') notFound()
     if (error instanceof AuthorizationError) {
@@ -95,7 +98,7 @@ export default async function CedenteOperacaoDetalhePage({
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <Badge className={statusClasses[detalhe.status] || 'bg-muted text-muted-foreground'}>{detalhe.statusLabel}</Badge>
               <span className="text-sm text-muted-foreground">Solicitada em {formatDateTimeOrDash(detalhe.solicitadaEm)}</span>
-              {detalhe.possuiPendenciaCedente && (
+              {detalhe.possuiPendenciaCedente && perfil === 'cedente' && (
                 <Badge className="bg-warning/20 text-warning-foreground border-warning/30">
                   <AlertCircle size={12} />
                   Pendência para você
@@ -110,6 +113,8 @@ export default async function CedenteOperacaoDetalhePage({
             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Cedente</p>
             <p className="mt-1 truncate font-semibold text-foreground" title={detalhe.cedente.razaoSocial}>{detalhe.cedente.razaoSocial}</p>
             <p className="font-mono text-xs text-muted-foreground">{detalhe.cedente.cnpj ? formatCNPJ(detalhe.cedente.cnpj) : '—'}</p>
+            <p className="mt-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Fundo</p>
+            <p className="mt-1 truncate text-sm font-medium text-foreground" title={detalhe.fundo?.nome}>{detalhe.fundo?.nome || 'Fundo nao informado'}</p>
           </CardContent>
         </Card>
       </div>
@@ -121,7 +126,9 @@ export default async function CedenteOperacaoDetalhePage({
         <Card><CardContent className="pt-5"><DetailField label="Vencimento" value={formatDateOrDash(detalhe.financeiro.vencimento)} /></CardContent></Card>
       </div>
 
-      <ExposicaoLogisticaOperacaoServer operacaoId={id} variante="cedente-operacao" />
+      {perfil === 'cedente' && (
+        <ExposicaoLogisticaOperacaoServer operacaoId={id} variante="cedente-operacao" />
+      )}
 
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
@@ -196,7 +203,11 @@ export default async function CedenteOperacaoDetalhePage({
                       <TableCell className="tabular-nums">{formatDate(nf.vencimento)}</TableCell>
                       <TableCell><Badge variant="outline">{nf.statusLabel}</Badge></TableCell>
                       <TableCell className="text-right">
-                        <Link href={nf.href} className="inline-flex h-8 items-center rounded-md border border-border bg-background px-3 text-sm font-medium hover:bg-muted">Ver NF</Link>
+                        {perfil === 'cedente' ? (
+                          <Link href={nf.href} className="inline-flex h-8 items-center rounded-md border border-border bg-background px-3 text-sm font-medium hover:bg-muted">Ver NF</Link>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">Somente leitura</span>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -286,7 +297,7 @@ export default async function CedenteOperacaoDetalhePage({
 
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2"><AlertCircle size={18} /> Pendências para você</CardTitle>
+            <CardTitle className="flex items-center gap-2"><AlertCircle size={18} /> {perfil === 'consultor' ? 'Pendencias do Cedente' : 'Pendências para você'}</CardTitle>
           </CardHeader>
           <CardContent>
             {detalhe.pendenciasCedente.length === 0 ? (
@@ -304,7 +315,7 @@ export default async function CedenteOperacaoDetalhePage({
                           {pendencia.prazo ? `${formatDate(pendencia.prazo)} · ${prazoTexto(pendencia.dias)}` : 'Sem prazo definido'}
                         </p>
                       </div>
-                      {pendencia.acaoHref && <Link href={pendencia.acaoHref} className="inline-flex h-9 items-center rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/85">Resolver na NF</Link>}
+                      {perfil === 'cedente' && pendencia.acaoHref && <Link href={pendencia.acaoHref} className="inline-flex h-9 items-center rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/85">Resolver na NF</Link>}
                     </div>
                   </div>
                 ))}
@@ -334,4 +345,11 @@ export default async function CedenteOperacaoDetalhePage({
       <HistoricoTimelineCard entidade="operacao" entidadeId={id} />
     </div>
   )
+}
+
+export default async function CedenteOperacaoDetalhePage(props: {
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ returnTo?: string | string[] }>
+}) {
+  return <OperacaoDetalheFeature {...props} perfil="cedente" />
 }

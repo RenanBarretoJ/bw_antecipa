@@ -285,6 +285,37 @@ export async function requireOperationAccess(
   return { ...context, operacao: operacao as Pick<Operacao, 'id' | 'cedente_id'> }
 }
 
+/**
+ * Gate read-only do C5. Nao substitui requireOperationAccess, usado tambem
+ * por fluxos mutaveis, e por isso inclui LEITOR apenas nesta capacidade.
+ */
+export async function requireOperationViewAccess(
+  operacaoId: string,
+  client?: AppSupabaseClient,
+): Promise<OperacaoContext> {
+  const context = await requireAuthenticated(client)
+  assertRole(context.profile.role, ['consultor'])
+
+  const { data: permitido, error: permissaoError } = await context.supabase.rpc(
+    'consultor_pode_visualizar_operacao',
+    { p_operacao_id: operacaoId },
+  )
+  if (permissaoError || permitido !== true) {
+    throw new AuthorizationError('Operacao nao disponivel para este Consultor.', 'FORBIDDEN')
+  }
+
+  const { data: operacao, error } = await context.supabase
+    .from('operacoes')
+    .select('id, cedente_id')
+    .eq('id', operacaoId)
+    .maybeSingle()
+  if (error || !operacao) {
+    throw new AuthorizationError('Operacao nao encontrada.', 'NOT_FOUND')
+  }
+
+  return { ...context, operacao: operacao as Pick<Operacao, 'id' | 'cedente_id'> }
+}
+
 export async function requireNotaFiscalAccess(
   notaFiscalId: string,
   client?: AppSupabaseClient,
