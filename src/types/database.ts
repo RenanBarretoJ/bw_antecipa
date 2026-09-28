@@ -2402,6 +2402,7 @@ export interface Database {
       consultor_listar_cedente_ids_operacionais: { Args: Record<string, never>; Returns: Array<{ cedente_id: string }> }
       consultor_pode_visualizar_cedente: { Args: { p_cedente_id: string }; Returns: boolean }
       consultor_pode_visualizar_operacao: { Args: { p_operacao_id: string }; Returns: boolean }
+      consultor_pode_visualizar_nota_fiscal: { Args: { p_nota_fiscal_id: string }; Returns: boolean }
       consultor_listar_cedente_ids_visiveis: { Args: Record<string, never>; Returns: Array<{ cedente_id: string }> }
       listar_fundos_visiveis_consultor: { Args: Record<string, never>; Returns: Array<{ id: string; nome: string }> }
       buscar_cedentes_visiveis_consultor: {
@@ -2427,6 +2428,14 @@ export interface Database {
         Returns: Array<{ id: string; nome: string; cnpj: string }>
       }
       listar_cedentes_gerenciados_consultor: {
+        Args: { p_termo?: string | null; p_limite?: number; p_offset?: number }
+        Returns: Array<{
+          id: string; razao_social: string; nome_fantasia: string | null; cnpj: string; status: string
+          vinculo_status: string; fundo_id: string; fundo_nome: string; onboarding_concluido_em: string | null
+          documentos_pendentes: number; total_count: number
+        }>
+      }
+      listar_cedentes_visiveis_consultor: {
         Args: { p_termo?: string | null; p_limite?: number; p_offset?: number }
         Returns: Array<{
           id: string; razao_social: string; nome_fantasia: string | null; cnpj: string; status: string

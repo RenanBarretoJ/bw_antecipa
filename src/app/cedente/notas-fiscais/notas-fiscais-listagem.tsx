@@ -78,6 +78,7 @@ type Props = {
   }
   basePath?: string
   cedenteIdSelecionado?: string
+  somenteLeitura?: boolean
 }
 
 const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; className: string; icon: typeof CheckCircle }> = {
@@ -121,6 +122,7 @@ export default function NotasFiscaisListagem({
   filtros,
   basePath = '/cedente/notas-fiscais',
   cedenteIdSelecionado,
+  somenteLeitura = false,
 }: Props) {
   const router = useRouter()
   const notifications = useNotifications()
@@ -357,11 +359,15 @@ export default function NotasFiscaisListagem({
         <h1 className="text-2xl font-bold text-foreground">
           {cedenteIdSelecionado ? 'Notas Fiscais do Cedente' : 'Minhas Notas Fiscais'}
         </h1>
-        <p className="text-muted-foreground">Envie XMLs de NF-e para leitura automatica ou PDFs para preenchimento manual.</p>
+        <p className="text-muted-foreground">
+          {somenteLeitura
+            ? 'Consulte as Notas Fiscais visiveis na carteira.'
+            : 'Envie XMLs de NF-e para leitura automatica ou PDFs para preenchimento manual.'}
+        </p>
       </div>
 
       {/* Upload */}
-      <Card className="mb-6">
+      {!somenteLeitura ? <Card className="mb-6">
         <CardHeader>
           <CardTitle>Enviar Notas Fiscais</CardTitle>
         </CardHeader>
@@ -494,7 +500,7 @@ export default function NotasFiscaisListagem({
             </div>
           )}
         </CardContent>
-      </Card>
+      </Card> : null}
 
       {/* Filtros */}
       <Card className="mb-4">
@@ -687,7 +693,7 @@ export default function NotasFiscaisListagem({
         </Card>
       ) : (
         <Card className="overflow-hidden">
-          {selecionados.size > 0 && (
+          {!somenteLeitura && selecionados.size > 0 && (
             <div className="flex items-center justify-between px-4 py-2 bg-primary/5 border-b border-border">
               <span className="text-sm text-foreground font-medium">
                 {selecionados.size} rascunho(s) selecionado(s)
@@ -706,7 +712,7 @@ export default function NotasFiscaisListagem({
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/50 hover:bg-muted/50">
-                <TableHead className="px-4 py-3 w-8">
+                {!somenteLeitura ? <TableHead className="px-4 py-3 w-8">
                   {rascunhosVisiveis.length > 0 && (
                     <input
                       type="checkbox"
@@ -716,7 +722,7 @@ export default function NotasFiscaisListagem({
                       title="Selecionar todos os rascunhos"
                     />
                   )}
-                </TableHead>
+                </TableHead> : null}
                 {(() => {
                   const SortIcon = ({ campo }: { campo: CampoOrdenacaoListagemNf }) => {
                     if (ordenacao.campo !== campo) return <ArrowUpDown size={12} className="ml-1 text-muted-foreground/50 inline" />
@@ -757,7 +763,7 @@ export default function NotasFiscaisListagem({
                 const StatusIcon = status.icon
                 return (
                   <TableRow key={nf.id}>
-                    <TableCell className="px-4 py-3 w-8">
+                    {!somenteLeitura ? <TableCell className="px-4 py-3 w-8">
                       {nf.status === 'rascunho' && (
                         <input
                           type="checkbox"
@@ -766,7 +772,7 @@ export default function NotasFiscaisListagem({
                           className="cursor-pointer"
                         />
                       )}
-                    </TableCell>
+                    </TableCell> : null}
                     <TableCell className="px-4 py-3">
                       <span className="font-medium text-foreground">{nf.numero_nf || '—'}</span>
                     </TableCell>
@@ -790,7 +796,7 @@ export default function NotasFiscaisListagem({
                         <StatusIcon size={12} />
                         {status.label}
                       </Badge>
-                      {nf.status === 'rascunho' && (
+                      {!somenteLeitura && nf.status === 'rascunho' && (
                         <span className={`text-xs block mt-1 ${
                           nf.numero_nf || nf.valor_bruto > 0 || nf.cnpj_destinatario
                             ? 'text-blue-600'
@@ -810,9 +816,9 @@ export default function NotasFiscaisListagem({
                           className="inline-flex items-center gap-1 text-sm text-primary hover:text-primary/80 font-medium"
                         >
                           <Eye size={14} />
-                          {nf.status === 'rascunho' ? 'Preencher' : 'Ver'}
+                          {!somenteLeitura && nf.status === 'rascunho' ? 'Preencher' : 'Ver'}
                         </Link>
-                        {nf.status === 'rascunho' && (
+                        {!somenteLeitura && nf.status === 'rascunho' && (
                           <button
                             onClick={() => handleExcluir(nf.id)}
                             disabled={excluindo === nf.id}

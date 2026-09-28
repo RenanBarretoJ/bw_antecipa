@@ -79,7 +79,9 @@ describe('C3 - Consultor cadastra e gere Cedentes vinculados a Fundo', () => {
   })
 
   it('mantem carteira paginada server-side e busca por CNPJ ou nome', () => {
-    expect(loader).toContain("rpc('listar_cedentes_gerenciados_consultor'")
+    expect(loader).toContain("? 'listar_cedentes_gerenciados_consultor'")
+    expect(loader).toContain(": 'listar_cedentes_visiveis_consultor'")
+    expect(loader).toContain('context.supabase.rpc(rpc, {')
     expect(loader).toContain('p_offset: (pagina - 1) * porPagina')
     expect(migration).toContain('count(*) OVER () AS total_count')
     expect(migration).toContain('extensions.unaccent')

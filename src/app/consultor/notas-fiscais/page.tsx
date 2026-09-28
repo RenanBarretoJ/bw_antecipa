@@ -5,6 +5,7 @@ import { ConsultorCedenteSelector } from '@/components/operacoes/ConsultorCedent
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { carregarNotasFiscaisComResumoDocumental } from '@/lib/notas-fiscais/listagem.server'
 import NotasFiscaisListagem from '@/app/cedente/notas-fiscais/notas-fiscais-listagem'
+import { carregarMembershipConsultorAtiva } from '@/lib/consultor/membership.server'
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>
 
@@ -22,6 +23,8 @@ export default async function NotasFiscaisConsultorPage({ searchParams }: { sear
   await connection()
   const auth = await requireAuthenticated()
   assertRole(auth.profile.role, ['consultor'])
+  const membership = await carregarMembershipConsultorAtiva(auth)
+  const somenteLeitura = membership.papel === 'LEITOR'
   const params = await searchParams
   const cedenteId = primeiroValor(params.cedente) || null
 
@@ -33,13 +36,15 @@ export default async function NotasFiscaisConsultorPage({ searchParams }: { sear
             <CardTitle>Notas Fiscais por Cedente</CardTitle>
           </CardHeader>
           <CardContent>
-            <ConsultorCedenteSelector selecionado={null} />
+            <ConsultorCedenteSelector selecionado={null} escopo={somenteLeitura ? 'visivel' : 'operacional'} />
           </CardContent>
         </Card>
         <Card>
           <CardContent className="flex flex-col items-center gap-3 py-12 text-center text-muted-foreground">
             <FileText className="size-10" />
-            <p>Selecione um Cedente para visualizar e enviar Notas Fiscais.</p>
+            <p>{somenteLeitura
+              ? 'Selecione um Cedente para visualizar as Notas Fiscais da carteira.'
+              : 'Selecione um Cedente para visualizar e enviar Notas Fiscais.'}</p>
           </CardContent>
         </Card>
       </div>
@@ -64,7 +69,10 @@ export default async function NotasFiscaisConsultorPage({ searchParams }: { sear
   let resultado
   let erro: unknown = null
   try {
-    resultado = await carregarNotasFiscaisComResumoDocumental(filtros, { cedenteId })
+    resultado = await carregarNotasFiscaisComResumoDocumental(filtros, {
+      cedenteId,
+      somenteLeituraConsultor: somenteLeitura,
+    })
   } catch (error) {
     erro = error
   }
@@ -72,7 +80,7 @@ export default async function NotasFiscaisConsultorPage({ searchParams }: { sear
   if (!resultado) {
     return (
       <div className="mx-auto max-w-6xl space-y-4">
-        <Card className="relative z-20 overflow-visible"><CardContent className="py-4"><ConsultorCedenteSelector selecionado={null} /></CardContent></Card>
+        <Card className="relative z-20 overflow-visible"><CardContent className="py-4"><ConsultorCedenteSelector selecionado={null} escopo={somenteLeitura ? 'visivel' : 'operacional'} /></CardContent></Card>
         <Card>
           <CardContent className="flex items-start gap-3 py-6 text-destructive">
             <AlertTriangle className="mt-0.5 size-5 shrink-0" />
@@ -94,7 +102,7 @@ export default async function NotasFiscaisConsultorPage({ searchParams }: { sear
     <div className="mx-auto max-w-6xl space-y-4">
       <Card className="relative z-20 overflow-visible">
         <CardContent className="py-4">
-          <ConsultorCedenteSelector selecionado={selecionado} />
+          <ConsultorCedenteSelector selecionado={selecionado} escopo={somenteLeitura ? 'visivel' : 'operacional'} />
         </CardContent>
       </Card>
       <NotasFiscaisListagem
@@ -117,6 +125,7 @@ export default async function NotasFiscaisConsultorPage({ searchParams }: { sear
         filtros={filtros}
         basePath="/consultor/notas-fiscais"
         cedenteIdSelecionado={cedenteId}
+        somenteLeitura={somenteLeitura}
       />
     </div>
   )

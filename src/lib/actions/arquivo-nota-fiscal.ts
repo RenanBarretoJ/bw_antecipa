@@ -1,6 +1,11 @@
 'use server'
 
-import { requireNotaFiscalAccess } from '@/lib/auth/authorization'
+import {
+  requireAuthenticated,
+  requireNotaFiscalAccess,
+  requireNotaFiscalViewAccess,
+} from '@/lib/auth/authorization'
+import { carregarMembershipConsultorAtiva } from '@/lib/consultor/membership.server'
 import { buckets } from '@/lib/storage'
 import { createAdminClient } from '@/lib/supabase/server'
 
@@ -26,7 +31,13 @@ export async function obterUrlArquivoNotaFiscal(
   }
 
   try {
-    const context = await requireNotaFiscalAccess(notaFiscalId)
+    const auth = await requireAuthenticated()
+    const membership = auth.profile.role === 'consultor'
+      ? await carregarMembershipConsultorAtiva(auth)
+      : null
+    const context = membership?.papel === 'LEITOR'
+      ? await requireNotaFiscalViewAccess(notaFiscalId, auth.supabase)
+      : await requireNotaFiscalAccess(notaFiscalId, auth.supabase)
     const { data: nota, error } = await context.supabase
       .from('notas_fiscais')
       .select('id, arquivo_url')

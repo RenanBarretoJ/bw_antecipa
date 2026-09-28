@@ -345,6 +345,40 @@ export async function requireNotaFiscalAccess(
   return { ...context, notaFiscal: notaFiscal as Pick<NotaFiscal, 'id' | 'cedente_id' | 'cnpj_destinatario'> }
 }
 
+/**
+ * Gate read-only do C5 para NFs vinculadas a operacoes visiveis. Nao deve ser
+ * usado por mutations de C4, que permanecem em requireNotaFiscalAccess.
+ */
+export async function requireNotaFiscalViewAccess(
+  notaFiscalId: string,
+  client?: AppSupabaseClient,
+): Promise<NotaFiscalContext> {
+  const context = await requireAuthenticated(client)
+  assertRole(context.profile.role, ['consultor'])
+
+  const { data: permitido, error: permissaoError } = await context.supabase.rpc(
+    'consultor_pode_visualizar_nota_fiscal',
+    { p_nota_fiscal_id: notaFiscalId },
+  )
+  if (permissaoError || permitido !== true) {
+    throw new AuthorizationError('Nota fiscal nao disponivel para este Consultor.', 'FORBIDDEN')
+  }
+
+  const { data: notaFiscal, error } = await context.supabase
+    .from('notas_fiscais')
+    .select('id, cedente_id, cnpj_destinatario')
+    .eq('id', notaFiscalId)
+    .maybeSingle()
+  if (error || !notaFiscal) {
+    throw new AuthorizationError('Nota fiscal nao encontrada.', 'NOT_FOUND')
+  }
+
+  return {
+    ...context,
+    notaFiscal: notaFiscal as Pick<NotaFiscal, 'id' | 'cedente_id' | 'cnpj_destinatario'>,
+  }
+}
+
 export function isRegisteredStoragePath(path: string, registeredPaths: readonly (string | null | undefined)[]): boolean {
   return registeredPaths.some((registeredPath) => registeredPath !== null && registeredPath !== undefined && registeredPath === path)
 }

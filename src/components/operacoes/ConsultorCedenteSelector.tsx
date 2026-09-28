@@ -16,9 +16,10 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
-export function ConsultorCedenteSelector({ selecionado, modoFiltro = false }: {
+export function ConsultorCedenteSelector({ selecionado, modoFiltro = false, escopo }: {
   selecionado: CedenteElegivelConsultor | null
   modoFiltro?: boolean
+  escopo?: 'operacional' | 'visivel'
 }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -53,7 +54,8 @@ export function ConsultorCedenteSelector({ selecionado, modoFiltro = false }: {
 
     const timer = window.setTimeout(async () => {
       setCarregando(true)
-      const result = await (modoFiltro
+      const usarEscopoVisivel = escopo === 'visivel' || (escopo === undefined && modoFiltro)
+      const result = await (usarEscopoVisivel
         ? buscarCedentesVisiveisConsultor(q)
         : buscarCedentesElegiveisConsultor(q))
       if (current !== requestId.current) return
@@ -67,7 +69,7 @@ export function ConsultorCedenteSelector({ selecionado, modoFiltro = false }: {
     }, 300)
 
     return () => window.clearTimeout(timer)
-  }, [aberto, modoFiltro, termo])
+  }, [aberto, escopo, modoFiltro, termo])
 
   function selecionar(opcao: CedenteElegivelConsultor) {
     const params = modoFiltro

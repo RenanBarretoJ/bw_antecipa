@@ -205,11 +205,13 @@ function ReadOnlyNfDetails({
 export type NotaFiscalDetalheFeatureProps = {
   basePath?: string
   cedenteIdSelecionado?: string
+  somenteLeitura?: boolean
 }
 
 export function NotaFiscalDetalheFeature({
   basePath = '/cedente/notas-fiscais',
   cedenteIdSelecionado,
+  somenteLeitura = false,
 }: NotaFiscalDetalheFeatureProps) {
   const params = useParams()
   const router = useRouter()
@@ -347,7 +349,7 @@ export function NotaFiscalDetalheFeature({
 
   // Buscar razão social automaticamente quando o CNPJ destinatário estiver completo
   useEffect(() => {
-    if (!nf || (nf.status !== 'rascunho' && nf.status !== 'requer_ajuste')) return
+    if (somenteLeitura || !nf || (nf.status !== 'rascunho' && nf.status !== 'requer_ajuste')) return
     const digits = form.cnpj_destinatario.replace(/\D/g, '')
     if (digits.length === 14) {
       buscarRazaoPorCnpj(digits)
@@ -453,7 +455,7 @@ export function NotaFiscalDetalheFeature({
     )
   }
 
-  const isEditable = nf.status === 'rascunho' || nf.status === 'requer_ajuste'
+  const isEditable = !somenteLeitura && (nf.status === 'rascunho' || nf.status === 'requer_ajuste')
   // Upload de XML ja extrai os dados oficiais da NF-e -- nao ha "chute" a
   // revisar, diferente do fluxo de PDF/DANFE (OCR/extracao textual).
   const isUploadXml = (nf.arquivo_url || '').toLowerCase().endsWith('.xml')
@@ -521,9 +523,13 @@ export function NotaFiscalDetalheFeature({
         )}
       </div>
 
-      <ChecklistCedente notaFiscalId={nfId} onEligibilityChange={setSubmissionReadiness} />
+      {!somenteLeitura ? (
+        <ChecklistCedente notaFiscalId={nfId} onEligibilityChange={setSubmissionReadiness} />
+      ) : null}
 
-      <DuplicatasDaNota notaFiscalId={nfId} mode="cedente" editable={isEditable} />
+      {!somenteLeitura ? (
+        <DuplicatasDaNota notaFiscalId={nfId} mode="cedente" editable={isEditable} />
+      ) : null}
 
       {nf.status === 'requer_ajuste' && nf.motivo_ajuste && (
         <div className="mb-4 p-4 rounded-lg text-sm bg-orange-50 border border-orange-300 text-orange-800">

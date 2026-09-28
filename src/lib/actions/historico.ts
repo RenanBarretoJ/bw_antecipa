@@ -1,6 +1,7 @@
 'use server'
 
-import { requireAuthenticated, requireNotaFiscalAccess, requireOperationAccess, requireOperationViewAccess } from '@/lib/auth/authorization'
+import { requireAuthenticated, requireNotaFiscalAccess, requireNotaFiscalViewAccess, requireOperationAccess, requireOperationViewAccess } from '@/lib/auth/authorization'
+import { carregarMembershipConsultorAtiva } from '@/lib/consultor/membership.server'
 import { obterFundoAtivoAutorizado } from '@/lib/fundos/fundo-ativo.server'
 import { resumirMetadataHistorico, type HistoricoCategoria, type HistoricoEventoView } from '@/lib/eventos-dominio/formatters'
 import { encodeCursor, parseCursor } from '@/lib/pagination/cursor'
@@ -42,8 +43,13 @@ function mapEvento(row: Record<string, unknown>): HistoricoEventoView {
 
 async function prepararConsulta(entidade: EntidadeHistorico, entidadeId: string) {
   const auth = await requireAuthenticated()
+  const membership = auth.profile.role === 'consultor'
+    ? await carregarMembershipConsultorAtiva(auth)
+    : null
   const context = entidade === 'nota_fiscal'
-    ? await requireNotaFiscalAccess(entidadeId, auth.supabase)
+    ? membership?.papel === 'LEITOR'
+      ? await requireNotaFiscalViewAccess(entidadeId, auth.supabase)
+      : await requireNotaFiscalAccess(entidadeId, auth.supabase)
     : auth.profile.role === 'consultor'
       ? await requireOperationViewAccess(entidadeId, auth.supabase)
       : await requireOperationAccess(entidadeId, auth.supabase)
