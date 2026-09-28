@@ -2,7 +2,7 @@
 
 BEGIN;
 
-SELECT plan(26);
+SELECT plan(28);
 
 DO $setup$
 DECLARE
@@ -369,7 +369,8 @@ INSERT INTO public.risco_execucoes (
 SELECT
   CASE o.solicitacao_idempotency_key
     WHEN repeat('b', 64) THEN '2b000000-0000-4000-8000-000000000001'::uuid
-    ELSE '2b000000-0000-4000-8000-000000000002'::uuid
+    WHEN repeat('f', 64) THEN '2b000000-0000-4000-8000-000000000002'::uuid
+    ELSE '2b000000-0000-4000-8000-000000000003'::uuid
   END,
   '22000000-0000-4000-8000-000000000001'::uuid,
   o.id,
@@ -381,18 +382,20 @@ SELECT
   o.updated_at,
   CASE o.solicitacao_idempotency_key
     WHEN repeat('b', 64) THEN 2.50
-    ELSE 2.35
+    WHEN repeat('f', 64) THEN 2.35
+    ELSE 2.40
   END,
   false,
   'NAO_APLICAVEL',
   NULL,
   CASE o.solicitacao_idempotency_key
     WHEN repeat('b', 64) THEN repeat('1', 64)
-    ELSE repeat('2', 64)
+    WHEN repeat('f', 64) THEN repeat('2', 64)
+    ELSE repeat('3', 64)
   END,
   '21000000-0000-4000-8000-000000000004'::uuid
 FROM public.operacoes o
-WHERE o.solicitacao_idempotency_key IN (repeat('b', 64), repeat('f', 64));
+WHERE o.solicitacao_idempotency_key IN (repeat('b', 64), repeat('f', 64), repeat('c', 64));
 
 SELECT set_config('request.jwt.claim.sub', '21000000-0000-4000-8000-000000000004', true);
 
@@ -426,6 +429,21 @@ SELECT is(
      AND entidade_id = (SELECT id FROM public.operacoes WHERE solicitacao_idempotency_key = repeat('b', 64))),
   1,
   'taxa mantida gera audit atomico do Gestor'
+);
+
+SELECT lives_ok(
+  $$SELECT public.aprovar_operacao_com_risco_atomica(
+    (SELECT id FROM public.operacoes WHERE solicitacao_idempotency_key = repeat('c', 64)),
+    2.40,
+    '2b000000-0000-4000-8000-000000000003',
+    repeat('3', 64)
+  )$$,
+  'Gestor aprova mantendo taxa livre proposta pelo Consultor'
+);
+SELECT is(
+  (SELECT taxa_desconto::text FROM public.operacoes WHERE solicitacao_idempotency_key = repeat('c', 64)),
+  '2.40',
+  'taxa livre mantida e persistida como taxa final'
 );
 
 SELECT lives_ok(
@@ -472,7 +490,7 @@ SELECT throws_ok(
 SELECT is(
   (SELECT count(*)::integer FROM public.logs_auditoria
    WHERE tipo_evento IN ('TAXA_MANTIDA_GESTOR', 'TAXA_ALTERADA_GESTOR')),
-  2,
+  3,
   'ha uma unica decisao final auditada por operacao'
 );
 
