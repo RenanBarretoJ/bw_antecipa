@@ -115,9 +115,7 @@ async function resolverEscopo(
   }
 
   const { data, error } = await client
-    .from('consultor_cedente')
-    .select('cedente_id')
-    .eq('consultor_id', auth.user.id)
+    .rpc('consultor_listar_cedente_ids_operacionais')
   if (error) throw new Error(`Nao foi possivel resolver a carteira do consultor: ${error.message}`)
   return { cedenteIds: (data || []).map((item) => item.cedente_id) }
 }

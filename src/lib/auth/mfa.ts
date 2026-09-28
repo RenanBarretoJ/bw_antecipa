@@ -52,6 +52,10 @@ export const ACAO_SENSIVEL_TIPOS = [
   'reprocessar_webhook_evento_transportadora',
   'configurar_credencial_vortx_vrs',
   'testar_conexao_vortx_vrs',
+  'criar_consultoria',
+  'convidar_usuario_consultoria',
+  'atualizar_consultoria',
+  'atualizar_fundos_consultoria',
 ] as const
 
 export type AcaoSensivelTipo = typeof ACAO_SENSIVEL_TIPOS[number]
