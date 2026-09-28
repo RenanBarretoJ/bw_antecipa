@@ -1,5 +1,10 @@
 # P16 — reutilização de NF de operação cancelada
 
+Atualização de produção em 28/09/2026: migration e postflight concluídos, smoke
+pela interface pendente da disponibilidade do Cedente. O estado vigente está no
+[relatório do rollout de produção](p16-prod-rollout-controlado.md). As flags e
+pendências abaixo preservam o snapshot anterior, da etapa de homologação.
+
 ## Diagnóstico
 
 Base: `origin/main` em `83ece9c676a4f39ff130a8885847735c8b1da17d`.
