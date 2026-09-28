@@ -57,6 +57,7 @@ import {
   normalizarTaxaOperacao,
   parseTaxaOperacao,
   taxaEstaConfiguradaParaPrazo,
+  taxaMantemPropostaConsultor,
 } from '@/lib/operacoes/taxa-operacao'
 
 interface Testemunha {
@@ -653,9 +654,13 @@ export default function OperacaoDetalheGestorClient({
     ? []
     : taxasConfig.filter((item) => prazoReferencia >= item.prazo_min && prazoReferencia <= item.prazo_max),
   [prazoReferencia, taxasConfig])
-  const taxaEhAplicavel = taxaNormalizada !== null
+  const taxaMantemProposta = taxaNormalizada !== null
+    && taxaMantemPropostaConsultor(taxaNormalizada, op?.taxa_proposta_consultor)
+  const taxaEhAplicavel = taxaMantemProposta || (
+    taxaNormalizada !== null
     && prazoReferencia !== null
     && taxaEstaConfiguradaParaPrazo(taxasAplicaveis, prazoReferencia, taxaNormalizada)
+  )
 
   const calculoFinanceiro = useMemo(() => {
     if (!op || taxa === null || !taxaEhAplicavel || itensCalculoFinanceiro.length === 0) return null
@@ -791,7 +796,7 @@ export default function OperacaoDetalheGestorClient({
   }
 
   const handleAprovar = async () => {
-    if (taxa === null || taxaNormalizada === null || !taxaEhAplicavel) { setMessage('Informe uma taxa configurada para o prazo atual da operacao.'); setMessageType('error'); return }
+    if (taxa === null || taxaNormalizada === null || !taxaEhAplicavel) { setMessage('Mantenha a taxa proposta pelo Consultor ou informe uma taxa configurada para o prazo atual.'); setMessageType('error'); return }
     if (valorLiquido === null || valorLiquido <= 0) { setMessage('Valor liquido invalido.'); setMessageType('error'); return }
 
     setProcessing(true)
@@ -1211,7 +1216,7 @@ export default function OperacaoDetalheGestorClient({
                   </div>
                 )}
 
-                {taxasAplicaveis.length > 0 ? (
+                {op.taxa_proposta_consultor !== null || taxasAplicaveis.length > 0 ? (
                   <div className="space-y-2">
                     <Label htmlFor="taxa-final-operacao" className="text-xs">Taxa da operacao (% a.m.)</Label>
                     <Input
@@ -1222,26 +1227,32 @@ export default function OperacaoDetalheGestorClient({
                       placeholder="2,50"
                       aria-invalid={Boolean(taxaInput.trim() && !taxaEhAplicavel)}
                     />
-                    <p className="text-xs text-muted-foreground">Valores configurados para o prazo:</p>
-                    <div className="space-y-1">
-                      {taxasAplicaveis.map((t, i) => (
-                        <button
-                          type="button"
-                          key={i}
-                          onClick={() => aplicarTaxaConfig(t)}
-                          className={`w-full flex justify-between text-xs px-3 py-2 rounded-lg transition-colors ${
-                            taxa !== null && taxaEstaConfiguradaParaPrazo([t], prazoReferencia ?? -1, taxa)
-                              ? 'bg-primary/10 text-primary font-medium'
-                              : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                          }`}
-                        >
-                          <span className="tabular-nums">{t.prazo_min}-{t.prazo_max} dias</span>
-                          <span className="tabular-nums">{t.taxa_percentual}% a.m.</span>
-                        </button>
-                      ))}
-                    </div>
+                    {taxasAplicaveis.length > 0 ? (
+                      <>
+                        <p className="text-xs text-muted-foreground">Valores configurados para o prazo:</p>
+                        <div className="space-y-1">
+                          {taxasAplicaveis.map((t, i) => (
+                            <button
+                              type="button"
+                              key={i}
+                              onClick={() => aplicarTaxaConfig(t)}
+                              className={`w-full flex justify-between text-xs px-3 py-2 rounded-lg transition-colors ${
+                                taxa !== null && taxaEstaConfiguradaParaPrazo([t], prazoReferencia ?? -1, taxa)
+                                  ? 'bg-primary/10 text-primary font-medium'
+                                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                              }`}
+                            >
+                              <span className="tabular-nums">{t.prazo_min}-{t.prazo_max} dias</span>
+                              <span className="tabular-nums">{t.taxa_percentual}% a.m.</span>
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">Nao ha valores configurados para o prazo. A proposta original do Consultor pode ser mantida.</p>
+                    )}
                     {taxaInput.trim() && !taxaEhAplicavel && (
-                      <p className="text-xs text-destructive">A taxa deve corresponder a um valor configurado para o prazo atual.</p>
+                      <p className="text-xs text-destructive">Mantenha a proposta do Consultor ou selecione um valor configurado para o prazo atual.</p>
                     )}
                     {op.taxa_proposta_consultor !== null && taxa !== null && taxa !== op.taxa_proposta_consultor && (
                       <p className="rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">

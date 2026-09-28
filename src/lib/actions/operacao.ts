@@ -14,7 +14,7 @@ import { mensagemErroSolicitacaoOperacao } from '@/lib/operacoes/erro-solicitaca
 import { obterFundoAtivoAutorizado } from '@/lib/fundos/fundo-ativo.server'
 import { carregarContextoEventoOperacao, registrarEventoDominio } from '@/lib/eventos-dominio/registrar'
 import { calcularAntecipacaoEmLote } from '@/lib/operacoes/calculo'
-import { normalizarTaxaOperacao, parseTaxaOperacao } from '@/lib/operacoes/taxa-operacao'
+import { normalizarTaxaOperacao, parseTaxaOperacao, taxaMantemPropostaConsultor } from '@/lib/operacoes/taxa-operacao'
 import { obterDataCivilOperacional } from '@/lib/operacoes/data-operacional.server'
 import { executarGateRisco } from '@/lib/financeiro/risco/processor.server'
 import { atualizarRiscoAposCessao } from '@/lib/financeiro/risco/atualizacao-pos-cessao.server'
@@ -509,19 +509,26 @@ export async function aprovarOperacao(
   const opData = op as {
     id: string; status: string; cedente_id: string; conta_escrow_id: string;
     valor_bruto_total: number;
+    taxa_proposta_consultor: number | null;
     cedentes: { user_id: string; razao_social: string; cnpj: string }
   }
 
-  const { data: taxaConfigurada, error: taxaError } = await supabase
-    .from('taxas_cedente')
-    .select('id')
-    .eq('cedente_id', opData.cedente_id)
-    .eq('taxa_percentual', taxaDesconto)
-    .limit(1)
-    .maybeSingle()
-  if (taxaError) return { success: false, message: `Nao foi possivel validar a taxa configurada: ${taxaError.message}` }
-  if (!taxaConfigurada) {
-    return { success: false, message: 'Selecione uma taxa configurada para este cedente antes de aprovar.' }
+  const mantendoPropostaConsultor = taxaMantemPropostaConsultor(
+    taxaDesconto,
+    opData.taxa_proposta_consultor,
+  )
+  if (!mantendoPropostaConsultor) {
+    const { data: taxaConfigurada, error: taxaError } = await supabase
+      .from('taxas_cedente')
+      .select('id')
+      .eq('cedente_id', opData.cedente_id)
+      .eq('taxa_percentual', taxaDesconto)
+      .limit(1)
+      .maybeSingle()
+    if (taxaError) return { success: false, message: `Nao foi possivel validar a taxa configurada: ${taxaError.message}` }
+    if (!taxaConfigurada) {
+      return { success: false, message: 'Mantenha a proposta do Consultor ou selecione uma taxa configurada para este cedente.' }
+    }
   }
 
   if (opData.status === 'aprovada') {
