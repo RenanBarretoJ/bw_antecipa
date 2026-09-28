@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 
 const root = process.cwd()
 const migration = readFileSync(join(root, 'supabase/migrations/20260928120000_c2_1_r2_taxa_consultor_validacao_gestor.sql'), 'utf8')
+const freeRateMigration = readFileSync(join(root, 'supabase/migrations/20260928183000_c2_1_r2_taxa_consultor_livre.sql'), 'utf8')
 const action = readFileSync(join(root, 'src/lib/actions/operacao.ts'), 'utf8')
 const consultorUi = readFileSync(join(root, 'src/app/cedente/operacoes/nova/nova-solicitacao-client.tsx'), 'utf8')
 const gestorUi = readFileSync(join(root, 'src/app/gestor/operacoes/[id]/OperacaoDetalheGestorClient.tsx'), 'utf8')
@@ -41,6 +42,13 @@ describe('C2.1-R2 - arquitetura da taxa proposta e final', () => {
     expect(gestorUi).toContain('calcularAntecipacaoEmLote')
     expect(gestorUi).toContain('Taxa proposta pelo Consultor')
     expect(gestorUi).toContain('Taxa da operacao (% a.m.)')
+  })
+
+  it('permite proposta livre do Consultor sem exigir taxa pre-cadastrada', () => {
+    expect(freeRateMigration).toContain('Taxa proposta invalida')
+    expect(freeRateMigration).not.toContain('A taxa proposta nao esta configurada para o prazo da operacao')
+    expect(action).not.toContain('A taxa proposta nao esta configurada para o prazo da operacao')
+    expect(consultorUi).toContain('A proposta pode ser diferente.')
   })
 
   it('audita proposta, manutencao e alteracao dentro das RPCs atomicas', () => {

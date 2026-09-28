@@ -14,7 +14,7 @@ import { mensagemErroSolicitacaoOperacao } from '@/lib/operacoes/erro-solicitaca
 import { obterFundoAtivoAutorizado } from '@/lib/fundos/fundo-ativo.server'
 import { carregarContextoEventoOperacao, registrarEventoDominio } from '@/lib/eventos-dominio/registrar'
 import { calcularAntecipacaoEmLote } from '@/lib/operacoes/calculo'
-import { normalizarTaxaOperacao, parseTaxaOperacao, taxaEstaConfiguradaParaPrazo } from '@/lib/operacoes/taxa-operacao'
+import { normalizarTaxaOperacao, parseTaxaOperacao } from '@/lib/operacoes/taxa-operacao'
 import { obterDataCivilOperacional } from '@/lib/operacoes/data-operacional.server'
 import { executarGateRisco } from '@/lib/financeiro/risco/processor.server'
 import { atualizarRiscoAposCessao } from '@/lib/financeiro/risco/atualizacao-pos-cessao.server'
@@ -338,14 +338,6 @@ export async function solicitarAntecipacao(
   const valorLiquidoDesembolso = calculo.valorLiquidoTotal
   const taxaMedia = calculo.taxaMedia
   const prazoMedio = calculo.prazoMedio
-  const prazoReferencia = Math.max(...calculo.notas.map((item) => item.dias))
-  if (
-    solicitante.perfil === 'consultor'
-    && taxaPropostaNormalizada !== null
-    && !taxaEstaConfiguradaParaPrazo(taxasDisp, prazoReferencia, taxaPropostaNormalizada)
-  ) {
-    return { success: false, message: 'A taxa proposta nao esta configurada para o prazo da operacao.' }
-  }
   const dataVencimento = itensCalculo.reduce(
     (max, item) => item.vencimento > max ? item.vencimento : max,
     itensCalculo[0].vencimento,
