@@ -3,9 +3,24 @@ import { readFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import pg from 'pg'
 
-// Fixtures sinteticas exclusivamente no clean-room P16, sem acesso remoto.
-const connectionString = 'postgresql://postgres:postgres@127.0.0.1:56322/postgres'
-const db = new pg.Client({ connectionString })
+// O modo remoto e exclusivamente transacional, com rollback e alvo fixo.
+// Uso: --homolog-env=caminho/.env.homolog. Nunca aceita producao.
+const homologEnvPath = process.argv.find(arg=>arg.startsWith('--homolog-env='))?.slice('--homolog-env='.length)
+let connectionString = 'postgresql://postgres:postgres@127.0.0.1:56322/postgres'
+if (homologEnvPath) {
+  assert.ok(!process.argv.includes('--concurrency'), 'concorrencia com fixtures persistidas e somente local')
+  const env = {}
+  for (const line of readFileSync(homologEnvPath, 'utf8').split(/\r?\n/)) {
+    const match = line.match(/^([A-Z_0-9]+)=(.*)$/)
+    if (match) env[match[1]] = match[2].trim().replace(/^['"]|['"]$/g, '')
+  }
+  assert.equal(new URL(env.NEXT_PUBLIC_SUPABASE_URL).hostname, 'fhgkmggthxikfpogrvaa.supabase.co')
+  const url = new URL(env.SUPABASE_DB_URL)
+  assert.ok(`${url.hostname} ${url.username}`.includes('fhgkmggthxikfpogrvaa'), 'destino PostgreSQL incorreto')
+  url.password = env.SUPABASE_PASSWORD
+  connectionString = url.toString()
+}
+const db = new pg.Client({ connectionString, ...(homologEnvPath ? { ssl: { rejectUnauthorized: false } } : {}) })
 const id = (prefix, end = 1) => `${prefix}0000000-0000-4000-8000-${String(end).padStart(12, '0')}`
 const cedente = id(4), vinculo = id(5), fundo = id(3), nf = id(7)
 const owner = id(1), leitor = id(1, 3), crossOrg = id(1, 5), cedenteUser = id(1, 6)
@@ -18,11 +33,11 @@ async function actor(client, user) {
     [user, JSON.stringify({ sub: user, role: 'authenticated', aal: 'aal2' })])
 }
 async function admin(client) { await client.query('reset role') }
-async function submit(client, { user = cedenteUser, legacy = false, key = randomUUID() } = {}) {
+async function submit(client, { user = cedenteUser, legacy = false, key = randomUUID(), parcelas = null } = {}) {
   await actor(client, user)
   const args = [cedente, vinculo, policy, version, 1, JSON.stringify({ calculo_financeiro: { metodo: 'DIAS_UTEIS_252' } }), 'p16-synthetic', false, 'dispensado', [nf], 100, 1, 30, 99, '2027-01-01', key]
   const types = ['uuid','uuid','uuid','uuid','integer','jsonb','text','boolean','text','uuid[]','numeric','numeric','integer','numeric','date','text']
-  if (!legacy) { args.push(null); types.push('uuid[]') }
+  if (!legacy) { args.push(parcelas); types.push('uuid[]') }
   const sql = `select public.solicitar_operacao_antecipacao_atomica(${types.map((t,i)=>`$${i+1}::${t}`).join(',')}) as result`
   const { rows } = await client.query(sql, args)
   return rows[0].result.operacao_id
@@ -61,6 +76,10 @@ async function seed() {
 await db.connect()
 try {
   await db.query('begin')
+  if (homologEnvPath) {
+    const migration = readFileSync('supabase/migrations/20260928185439_p16_liberar_nf_de_operacao_cancelada.sql', 'utf8')
+    await db.query(migration.replace(/^BEGIN;\s*/, '').replace(/COMMIT;\s*$/, ''))
+  }
   await seed()
   const matrix = (await db.query('select s::text as status, private.operacao_status_reserva_nf(s) as reserves from unnest(enum_range(null::public.operacao_status)) s')).rows
   for (const row of matrix) assert.equal(row.reserves, !['cancelada','reprovada'].includes(row.status))
@@ -69,7 +88,7 @@ try {
   assert.equal(definitions.length, 2)
   for (const row of definitions) { assert.match(row.prosrc,/FOR UPDATE/); assert.match(row.prosrc,/private.operacao_status_reserva_nf/); }
   pass('all_overloads_use_locked_predicate')
-  for (const legacy of [false, true]) {
+  for (const legacy of homologEnvPath ? [false] : [false, true]) {
     await db.query('savepoint scenario')
     if (legacy) {
       // A sobrecarga de 17 argumentos tem DEFAULT NULL e torna a chamada SQL
@@ -122,6 +141,22 @@ try {
   await expectDenied(()=>submit(db), /Cedente sem acesso/)
   pass('cross_cedente_denied')
   await db.query('rollback to savepoint matrix')
+  await admin(db)
+  await db.query('savepoint parcels')
+  const parcela = randomUUID()
+  await db.query("insert into public.nota_fiscal_parcelas(id,nota_fiscal_id,numero_parcela,valor_nominal,data_vencimento,origem) values ($1,$2,1,100,'2027-01-01','manual')", [parcela,nf])
+  const parcelHistory = await submit(db, { parcelas: [parcela] })
+  await db.query("update public.operacoes set status='cancelada' where id=$1",[parcelHistory])
+  await db.query("update public.notas_fiscais set status='aprovada',aprovacao_sacado_em=null where id=$1",[nf])
+  await db.query('select public.liberar_parcelas_operacao_rejeitada($1)',[parcelHistory])
+  await submit(db,{user:owner,parcelas:[parcela]})
+  await admin(db)
+  assert.equal((await db.query('select count(*)::int as n from public.operacoes_nfs where nota_fiscal_id=$1',[nf])).rows[0].n,2)
+  assert.equal((await db.query('select status from public.nota_fiscal_parcelas where id=$1',[parcela])).rows[0].status,'em_operacao')
+  await db.query("update public.notas_fiscais set status='aprovada' where id=$1",[nf])
+  await expectDenied(()=>submit(db,{parcelas:[parcela]}),/parcelas nao estao disponiveis/)
+  pass('parcel_cancel_reuse_consultor_active_denied')
+  await db.query('rollback to savepoint parcels')
   await admin(db)
   await db.query('rollback')
   if (process.argv.includes('--concurrency')) {

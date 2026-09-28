@@ -67,14 +67,16 @@ e [CREATE FUNCTION](https://www.postgresql.org/docs/current/sql-createfunction.h
 - Build Webpack aprovado.
 - Banco isolado `bw-antecipa-p16-clean-room`, portas 563xx, sem tocar os
   outros stacks locais. Inicialização e reset completo até P16 aprovados.
-- `node scripts/homologacao/p16/verify-local.mjs --concurrency`: 16 checks
+- `node scripts/homologacao/p16/verify-local.mjs --concurrency`: 17 checks
   aprovados, com SQL real sob role authenticated e claims sintéticos.
   Cobre cancelamento/reuso/histórico/auditoria, oito estados, múltiplo
-  histórico, C2, LEITOR, cross-org, cross-Cedente e concorrência.
+  histórico, C2, LEITOR, cross-org, cross-Cedente, parcelas e concorrência.
 - Concorrência: segunda transação observada esperando lock; exatamente um
   sucesso, uma negação, uma reserva ativa e um log de solicitação do vencedor.
 - O teste reutiliza fixtures C1.1. O modo concorrente deixa apenas dados
   sintéticos no clean-room, removidos por reset local ao concluir.
+- Os oito testes pgTAP de `supabase/tests/c1_1_organizacao_consultora.test.sql`
+  passaram após habilitar a extensão pgTAP no banco local.
 
 Limitação legada encontrada: chamada SQL direta com 16 argumentos é ambígua
 porque a sobrecarga de 17 tem DEFAULT NULL. Para verificar o corpo legado,
@@ -93,5 +95,89 @@ Promoção pendente dos gates Preview/Homolog, CI, aplicação explícita e
 smoke produtivo. Não executar db push. Conferir hash, aplicar só P16 em
 transação com parada em erro, registrar a versão exata e comparar definições.
 
-`P16_PRODUCTION_READY = NO` até o encerramento desses gates.
-Outras frentes C2.1-R2, C5-R2, CERC e RLX Email permanecem sem alterações.
+## Preview e homologação
+
+PR: https://github.com/RenanBarretoJ/bw_antecipa/pull/65.
+CI do primeiro commit `3603dcd`: run `36469462413`, aprovado.
+Preview Vercel: deployment `7rzrHpyGdFzKGFtrVLSboUhjSk1L`, aprovado.
+Produção observada: `dpl_C4Jb3Q2GVxekaJDZAWaSZieg5jUD`, READY, anterior ao P16.
+
+O check Supabase Preview foi **cancelado**, sem criar branch P16:
+`Maximum number of concurrent branches reached. You can update this limit in Project Integrations Settings.`
+A branch temporária existente pertence ao C2.1-R2; foi preservada conforme
+o congelamento de outras frentes. Após informar o impedimento, o usuário
+determinou: **"Manter pendente por enquanto"**. Promoção suspensa nesse ponto.
+
+Homologação persistente `fhgkmggthxikfpogrvaa`: teste SQL da migration em
+transação com rollback. O comando reproduzível é
+`node scripts/homologacao/p16/verify-local.mjs --homolog-env=<arquivo-local>`.
+O alvo remoto é fixo e produção é recusada. Concorrência com fixtures
+persistentes é proibida nesse modo. Não há gravação no migration history.
+
+O ensaio final aprovou 15 checks, incluindo parcelas.
+O rollback foi conferido por consulta independente: predicado anterior
+restaurado, zero usuários QA e zero fundos QA restantes. Essas evidências
+são de SQL sob role authenticated e claims sintéticos; não equivalem a login
+real, navegação do Cedente ou smoke HTTP da aplicação.
+
+Homologação tem migrations C5-R2 adicionais, mas as definições dos três
+objetos relevantes são idênticas ao baseline produtivo. Nenhuma migration
+C5-R2 foi aplicada, removida ou promovida por este trabalho.
+
+## Status dos gates
+
+`FAIL` abaixo significa gate ainda não satisfeito quando a observação indica
+pendência; não significa que um teste inexistente tenha sido executado.
+Resultados PASS de fluxo/reutilização referem-se ao ensaio SQL descrito acima.
+
+```text
+P16_CLASSIFICATION = KNOWN_GAP_NOW_MATERIALIZED
+P16_ROOT_CAUSE_IDENTIFIED = YES
+P16_REAL_CASE_VALIDATED = YES
+P16_OTHER_ACTIVE_RESERVATION_FOUND = NO
+P16_STATUS_MATRIX_BASELINE = PASS
+P16_CANCELADA_REUSE = PASS
+P16_REPROVADA_REUSE = PASS
+P16_ACTIVE_BLOCK = PASS
+P16_MULTI_HISTORY = PASS
+P16_CONCURRENCY = PASS
+P16_CEDENTE_FLOW = PASS
+P16_C2_REGRESSION = PASS
+P16_C1_1_REGRESSION = PASS
+P16_C4_REGRESSION = PASS
+P16_P14_REGRESSION = PASS
+P16_MIGRATION_REQUIRED = YES
+P16_CLEAN_ROOM = PASS
+P16_APP_TESTS = PASS
+P16_CI = PASS
+P16_PREVIEW = FAIL
+P16_HOMOLOG = FAIL
+P16_PRODUCTION_TARGET_CONFIRMED = YES
+P16_PROD_MIGRATION = FAIL
+P16_PROD_HISTORY_POSTCHECK = FAIL
+P16_PROD_DB_EQUIVALENT_TO_HOMOLOG = FAIL
+P16_PROD_APP_DEPLOY = NOT_REQUIRED
+P16_PROD_REAL_SMOKE = NOT_EXECUTED
+P16_PROD_CANCELLED_HISTORY_PRESERVED = NOT_EXECUTED
+P16_PROD_ACTIVE_EXCLUSIVE = NOT_EXECUTED
+P16_PROD_AUDIT = NOT_EXECUTED
+P16_ROLLBACK_EXECUTED = NO
+P16_PRODUCTION_READY = NO
+C2_1_R2_CHANGED = NO
+C5_R2_CHANGED = NO
+CERC_CHANGED = NO
+RLX_EMAIL_CHANGED = NO
+```
+
+Pendências: vaga Preview Supabase; smoke autenticado Preview/Homolog;
+migration produtiva explícita e seu postflight; integração; tentativa real
+controlada do Cedente e auditoria. Nenhum merge em main, migration persistente
+remota ou pedido produtivo foi realizado pelo agente. O rollback do ensaio
+de homologação não é um rollback de release produtiva.
+
+SHA-256 do arquivo da migration validada:
+`6390f43842e82d7d980acfb6ae61e66cd551676e17c21a01a6e8ca237ce3efa1`.
+
+O CI PASS refere-se ao commit inicial identificado acima. O complemento de
+evidências e teste de parcelas foi validado por SQL local/remoto, ESLint e
+diff-check; qualquer novo CI automático deve ser conferido antes da retomada.
