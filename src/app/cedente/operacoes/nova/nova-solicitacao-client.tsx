@@ -9,6 +9,7 @@ import { simularExposicaoSelecao } from '@/lib/actions/exposicao'
 import type { NfCandidataOperacao, ResultadoNovaSolicitacao } from '@/lib/operacoes/nova-solicitacao.server'
 import { buildListUrl } from '@/lib/pagination'
 import { CalculoFinanceiroError, calcularAntecipacaoEmLote } from '@/lib/operacoes/calculo'
+import { normalizarTaxaOperacao, parseTaxaOperacao, taxaEstaConfiguradaParaPrazo } from '@/lib/operacoes/taxa-operacao'
 import { formatCNPJ, formatCurrency, formatDate } from '@/lib/utils'
 import { ListPagination } from '@/components/pagination'
 import { useNotifications } from '@/components/notifications/notification-provider'
@@ -26,6 +27,7 @@ export default function NovaSolicitacaoClient({ resultado }: { resultado: Result
   const notifications = useNotifications()
   const [isPending, startTransition] = useTransition()
   const [submitting, setSubmitting] = useState(false)
+  const [taxaPropostaInput, setTaxaPropostaInput] = useState('')
   const [selected, setSelected] = useState<Map<string, NfCandidataOperacao>>(new Map())
   const [parcelasSelecionadas, setParcelasSelecionadas] = useState<Map<string, Set<string>>>(new Map())
   const [proformaExposicao, setProformaExposicao] = useState(resultado.proformaExposicao)
@@ -172,13 +174,49 @@ export default function NovaSolicitacaoClient({ resultado }: { resultado: Result
   // pagina; mostra um aviso no resumo em vez de derrubar a tela.
   let calculo = null
   let erroCalculo: string | null = null
+  let prazoReferencia: number | null = null
+  let taxasAplicaveis = resultado.taxas
+  const taxaPropostaNormalizada = normalizarTaxaOperacao(taxaPropostaInput)
+  const taxaProposta = taxaPropostaNormalizada === null ? null : parseTaxaOperacao(taxaPropostaNormalizada)
   try {
-    calculo = calcularAntecipacaoEmLote({
+    const calculoPrazo = calcularAntecipacaoEmLote({
       notas: itensCalculo,
-      taxas: resultado.taxas,
+      taxaMensal: null,
       dataBase: resultado.dataBase,
       metodo: resultado.metodoCalculo,
     })
+    prazoReferencia = calculoPrazo.notas.length
+      ? Math.max(...calculoPrazo.notas.map((item) => item.dias))
+      : null
+    taxasAplicaveis = prazoReferencia === null
+      ? []
+      : resultado.taxas.filter((item) => prazoReferencia! >= item.prazo_min && prazoReferencia! <= item.prazo_max)
+
+    if (resultado.perfil === 'consultor') {
+      if (taxaPropostaInput.trim() && taxaProposta === null) {
+        erroCalculo = 'Informe a taxa no formato percentual mensal, por exemplo 2,50.'
+      } else if (
+        taxaPropostaNormalizada !== null
+        && prazoReferencia !== null
+        && !taxaEstaConfiguradaParaPrazo(resultado.taxas, prazoReferencia, taxaPropostaNormalizada)
+      ) {
+        erroCalculo = 'A taxa informada nao esta configurada para o prazo da selecao.'
+      } else if (taxaProposta !== null) {
+        calculo = calcularAntecipacaoEmLote({
+          notas: itensCalculo,
+          taxaMensal: taxaProposta,
+          dataBase: resultado.dataBase,
+          metodo: resultado.metodoCalculo,
+        })
+      }
+    } else {
+      calculo = calcularAntecipacaoEmLote({
+        notas: itensCalculo,
+        taxas: resultado.taxas,
+        dataBase: resultado.dataBase,
+        metodo: resultado.metodoCalculo,
+      })
+    }
   } catch (error) {
     erroCalculo = error instanceof CalculoFinanceiroError
       ? error.message
@@ -186,9 +224,12 @@ export default function NovaSolicitacaoClient({ resultado }: { resultado: Result
   }
   const valorBruto = calculo?.valorBrutoTotal ?? itensCalculo.reduce((total, item) => total + item.valorBruto, 0)
   const valorLiquido = calculo?.valorLiquidoTotal ?? null
+  const taxaPropostaValida = resultado.perfil !== 'consultor'
+    || (taxaPropostaNormalizada !== null && taxaProposta !== null && calculo !== null)
 
   const enviar = async () => {
     if (!selected.size) return notifications.error('Selecione ao menos uma NF.')
+    if (!taxaPropostaValida) return notifications.error('Informe uma taxa proposta configurada para o prazo da operacao.')
     setSubmitting(true)
     const parcelaIds = [...selected.values()].flatMap((nf) => {
       if (!nf.parcelas.length) return []
@@ -199,6 +240,7 @@ export default function NovaSolicitacaoClient({ resultado }: { resultado: Result
       [...selected.keys()],
       parcelaIds.length ? parcelaIds : undefined,
       cedenteIdAcao,
+      resultado.perfil === 'consultor' ? taxaPropostaNormalizada! : undefined,
     )
     notifications.fromActionResult(result, 'Solicitacao criada.')
     if (result?.success) router.push(operacoesPath)
@@ -340,6 +382,29 @@ export default function NovaSolicitacaoClient({ resultado }: { resultado: Result
             <CardContent className="space-y-3 text-sm">
             <div className="flex justify-between"><span className="text-muted-foreground">NFs selecionadas</span><strong>{selected.size}</strong></div>
             <div className="flex justify-between"><span className="text-muted-foreground">Valor bruto</span><strong>{formatCurrency(valorBruto)}</strong></div>
+            {resultado.perfil === 'consultor' && (
+              <div className="space-y-2 border-t pt-3">
+                <label htmlFor="taxa-proposta-consultor" className="block text-sm font-medium">
+                  Taxa proposta (% a.m.) *
+                </label>
+                <Input
+                  id="taxa-proposta-consultor"
+                  inputMode="decimal"
+                  value={taxaPropostaInput}
+                  onChange={(event) => setTaxaPropostaInput(event.target.value)}
+                  placeholder="2,50"
+                  aria-invalid={Boolean(taxaPropostaInput.trim() && !taxaPropostaValida)}
+                />
+                {prazoReferencia !== null && (
+                  <p className="text-xs text-muted-foreground">
+                    Prazo de referencia: {prazoReferencia} dias. Taxas configuradas:{' '}
+                    {taxasAplicaveis.length
+                      ? taxasAplicaveis.map((item) => `${item.taxa_percentual}%`).join(', ')
+                      : 'nenhuma para este prazo'}.
+                  </p>
+                )}
+              </div>
+            )}
             {erroCalculo ? (
               <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-destructive">
                 <p className="font-medium">Nao foi possivel estimar o valor liquido</p>
@@ -347,8 +412,14 @@ export default function NovaSolicitacaoClient({ resultado }: { resultado: Result
               </div>
             ) : valorLiquido === null ? (
               <div className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-warning-foreground">
-                <p className="font-medium">Taxa pendente de definicao</p>
-                <p className="mt-1 text-xs">A solicitacao pode ser enviada. O valor sera calculado antes da aprovacao.</p>
+                <p className="font-medium">
+                  {resultado.perfil === 'consultor' ? 'Informe a taxa proposta' : 'Taxa pendente de definicao'}
+                </p>
+                <p className="mt-1 text-xs">
+                  {resultado.perfil === 'consultor'
+                    ? 'A simulacao sera atualizada usando o motor financeiro oficial.'
+                    : 'A solicitacao pode ser enviada. O valor sera calculado antes da aprovacao.'}
+                </p>
               </div>
             ) : (
               <>
@@ -357,7 +428,7 @@ export default function NovaSolicitacaoClient({ resultado }: { resultado: Result
                 <p className="text-xs text-muted-foreground">Estimativa pela data da solicitacao. A aprovacao sera recalculada na data da decisao.</p>
               </>
             )}
-            <Button className="mt-4 w-full" disabled={!selected.size || submitting} onClick={enviar}>
+            <Button className="mt-4 w-full" disabled={!selected.size || submitting || !taxaPropostaValida} onClick={enviar}>
               {submitting ? <Loader2 className="animate-spin" /> : <Send />}
               {submitting ? 'Solicitando...' : 'Solicitar antecipacao'}
             </Button>

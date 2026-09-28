@@ -25,4 +25,25 @@ describe('idempotencia de operacoes', () => {
     expect(outroVinculo).not.toBe(original)
     expect(outraVersao).not.toBe(original)
   })
+
+  it('inclui a taxa proposta normalizada no contexto do Consultor', () => {
+    const taxaPtBr = montarIdempotencyKeySolicitacaoOperacao({
+      ...base,
+      nfIds: ['nf-1'],
+      taxaPropostaConsultor: '2,50',
+    })
+    const taxaDecimal = montarIdempotencyKeySolicitacaoOperacao({
+      ...base,
+      nfIds: ['nf-1'],
+      taxaPropostaConsultor: '2.5',
+    })
+    const outraTaxa = montarIdempotencyKeySolicitacaoOperacao({
+      ...base,
+      nfIds: ['nf-1'],
+      taxaPropostaConsultor: '2,35',
+    })
+
+    expect(taxaPtBr).toBe(taxaDecimal)
+    expect(outraTaxa).not.toBe(taxaPtBr)
+  })
 })
