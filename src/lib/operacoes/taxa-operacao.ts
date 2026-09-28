@@ -27,6 +27,18 @@ export function formatarTaxaOperacaoInput(value: string | number | null | undefi
   return normalizada?.replace('.', ',') ?? ''
 }
 
+export function taxaMantemPropostaConsultor(
+  taxaFinal: string | number,
+  taxaProposta: string | number | null | undefined,
+): boolean {
+  if (taxaProposta === null || taxaProposta === undefined) return false
+  const finalNormalizada = normalizarTaxaOperacao(taxaFinal)
+  const propostaNormalizada = normalizarTaxaOperacao(taxaProposta)
+  return finalNormalizada !== null
+    && propostaNormalizada !== null
+    && finalNormalizada === propostaNormalizada
+}
+
 export function taxaEstaConfiguradaParaPrazo(
   taxas: TaxaPrazo[],
   prazoReferencia: number,
