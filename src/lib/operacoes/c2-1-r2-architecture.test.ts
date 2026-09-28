@@ -49,6 +49,8 @@ describe('C2.1-R2 - arquitetura da taxa proposta e final', () => {
     expect(freeRateMigration).not.toContain('A taxa proposta nao esta configurada para o prazo da operacao')
     expect(action).not.toContain('A taxa proposta nao esta configurada para o prazo da operacao')
     expect(consultorUi).toContain('A proposta pode ser diferente.')
+    expect(gestorUi).toContain('taxaMantemPropostaConsultor')
+    expect(action).toContain('mantendoPropostaConsultor')
   })
 
   it('audita proposta, manutencao e alteracao dentro das RPCs atomicas', () => {

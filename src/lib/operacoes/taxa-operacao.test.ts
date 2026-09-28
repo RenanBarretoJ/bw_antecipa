@@ -4,6 +4,7 @@ import {
   normalizarTaxaOperacao,
   parseTaxaOperacao,
   taxaEstaConfiguradaParaPrazo,
+  taxaMantemPropostaConsultor,
 } from './taxa-operacao'
 
 const taxas = [
@@ -28,5 +29,11 @@ describe('taxa da operacao', () => {
     expect(taxaEstaConfiguradaParaPrazo(taxas, 30, '2,35')).toBe(true)
     expect(taxaEstaConfiguradaParaPrazo(taxas, 30, '2,40')).toBe(false)
     expect(taxaEstaConfiguradaParaPrazo(taxas, 90, '2,50')).toBe(false)
+  })
+
+  it('permite ao Gestor manter a proposta livre do Consultor', () => {
+    expect(taxaMantemPropostaConsultor('2,40', 2.4)).toBe(true)
+    expect(taxaMantemPropostaConsultor('2,35', 2.4)).toBe(false)
+    expect(taxaMantemPropostaConsultor('2,40', null)).toBe(false)
   })
 })
