@@ -184,4 +184,3 @@ COMMENT ON FUNCTION public.aprovar_operacao_atomica_financeiro_v1(uuid, numeric)
   'Aprova operacao com calculo canonico; aceita a proposta imutavel do Consultor ou taxa configurada pelo Gestor.';
 
 COMMIT;
-
