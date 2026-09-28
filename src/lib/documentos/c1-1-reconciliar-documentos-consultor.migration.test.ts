@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
 const migration = readFileSync(
-  'supabase/migrations/20260925204922_c1_1_reconciliar_documentos_consultor.sql',
+  'supabase/migrations/20260925205512_c1_1_reconciliar_documentos_consultor.sql',
   'utf8',
 )
 
