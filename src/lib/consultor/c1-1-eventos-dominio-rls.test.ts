@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 const migration = readFileSync(
   join(process.cwd(), 'supabase/migrations/20260925200959_c1_1_eventos_dominio_consultor.sql'),
   'utf8',
-)
+).replace(/\r\n/g, '\n')
 
 describe('C1.1 consultant domain-event RLS hotfix', () => {
   it('adds authenticated SELECT and INSERT policies without replacing other actor policies', () => {
