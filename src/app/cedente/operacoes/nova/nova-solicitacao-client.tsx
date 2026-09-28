@@ -9,7 +9,7 @@ import { simularExposicaoSelecao } from '@/lib/actions/exposicao'
 import type { NfCandidataOperacao, ResultadoNovaSolicitacao } from '@/lib/operacoes/nova-solicitacao.server'
 import { buildListUrl } from '@/lib/pagination'
 import { CalculoFinanceiroError, calcularAntecipacaoEmLote } from '@/lib/operacoes/calculo'
-import { normalizarTaxaOperacao, parseTaxaOperacao, taxaEstaConfiguradaParaPrazo } from '@/lib/operacoes/taxa-operacao'
+import { normalizarTaxaOperacao, parseTaxaOperacao } from '@/lib/operacoes/taxa-operacao'
 import { formatCNPJ, formatCurrency, formatDate } from '@/lib/utils'
 import { ListPagination } from '@/components/pagination'
 import { useNotifications } from '@/components/notifications/notification-provider'
@@ -195,12 +195,6 @@ export default function NovaSolicitacaoClient({ resultado }: { resultado: Result
     if (resultado.perfil === 'consultor') {
       if (taxaPropostaInput.trim() && taxaProposta === null) {
         erroCalculo = 'Informe a taxa no formato percentual mensal, por exemplo 2,50.'
-      } else if (
-        taxaPropostaNormalizada !== null
-        && prazoReferencia !== null
-        && !taxaEstaConfiguradaParaPrazo(resultado.taxas, prazoReferencia, taxaPropostaNormalizada)
-      ) {
-        erroCalculo = 'A taxa informada nao esta configurada para o prazo da selecao.'
       } else if (taxaProposta !== null) {
         calculo = calcularAntecipacaoEmLote({
           notas: itensCalculo,
@@ -229,7 +223,7 @@ export default function NovaSolicitacaoClient({ resultado }: { resultado: Result
 
   const enviar = async () => {
     if (!selected.size) return notifications.error('Selecione ao menos uma NF.')
-    if (!taxaPropostaValida) return notifications.error('Informe uma taxa proposta configurada para o prazo da operacao.')
+    if (!taxaPropostaValida) return notifications.error('Informe uma taxa proposta valida.')
     setSubmitting(true)
     const parcelaIds = [...selected.values()].flatMap((nf) => {
       if (!nf.parcelas.length) return []
@@ -397,10 +391,10 @@ export default function NovaSolicitacaoClient({ resultado }: { resultado: Result
                 />
                 {prazoReferencia !== null && (
                   <p className="text-xs text-muted-foreground">
-                    Prazo de referencia: {prazoReferencia} dias. Taxas configuradas:{' '}
+                    Prazo de referencia: {prazoReferencia} dias. Referencias cadastradas pelo Gestor:{' '}
                     {taxasAplicaveis.length
                       ? taxasAplicaveis.map((item) => `${item.taxa_percentual}%`).join(', ')
-                      : 'nenhuma para este prazo'}.
+                      : 'nenhuma para este prazo'}. A proposta pode ser diferente.
                   </p>
                 )}
               </div>
