@@ -111,6 +111,8 @@ DO $leitor$
 DECLARE
   v_eventos text[];
   v_fundos uuid[];
+  v_dashboard jsonb;
+  v_relatorio jsonb;
   v_mutacoes integer := 0;
 BEGIN
   SELECT coalesce(array_agg(tipo_evento ORDER BY tipo_evento), array[]::text[])
@@ -130,6 +132,22 @@ BEGIN
   IF NOT public.consultor_pode_visualizar_operacao('c5400000-0000-4000-8000-000000000001')
      OR public.consultor_pode_visualizar_operacao('c5400000-0000-4000-8000-000000000002') THEN
     RAISE EXCEPTION 'C5-R2: gate explicito do LEITOR incorreto';
+  END IF;
+
+  v_dashboard := public.dashboard_consultor_resumo();
+  IF (v_dashboard ->> 'cedentesTotal')::integer <> 1
+     OR (v_dashboard ->> 'opsAtivas')::integer <> 1
+     OR jsonb_array_length(v_dashboard -> 'operacoesRecentes') <> 1 THEN
+    RAISE EXCEPTION 'C5-R2: dashboard do LEITOR recebeu escopo incorreto: %', v_dashboard;
+  END IF;
+
+  v_relatorio := public.relatorio_consultor_analitico(
+    to_char(current_date, 'YYYY-MM'), NULL, NULL, NULL, NULL, NULL, 0, 10, 'volume_total', 'desc'
+  );
+  IF (v_relatorio -> 'resumo' ->> 'cedentesAtivos')::integer <> 1
+     OR (v_relatorio ->> 'total')::integer <> 1
+     OR jsonb_array_length(v_relatorio -> 'items') <> 1 THEN
+    RAISE EXCEPTION 'C5-R2: relatorio do LEITOR recebeu escopo incorreto: %', v_relatorio;
   END IF;
 
   BEGIN

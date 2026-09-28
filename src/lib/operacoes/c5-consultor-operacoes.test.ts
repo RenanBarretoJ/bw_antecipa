@@ -6,6 +6,10 @@ const migration = readFileSync(
   'supabase/migrations/20260925212843_c5_r2_organizational_operations_view.sql',
   'utf8',
 )
+const readerAnalyticsMigration = readFileSync(
+  'supabase/migrations/20260928130825_c5_r2_reader_dashboard_reports.sql',
+  'utf8',
+)
 const listagemServer = readFileSync('src/lib/operacoes/listagem.server.ts', 'utf8')
 const listagemUi = readFileSync('src/components/operacoes/OperacoesPaginadas.tsx', 'utf8')
 const detalheConsultor = readFileSync('src/app/consultor/operacoes/[id]/page.tsx', 'utf8')
@@ -74,6 +78,15 @@ describe('C5 - acompanhamento read-only de operacoes pelo Consultor', () => {
     expect(listagemServer).toContain(".from('consultor_usuarios')")
     expect(listagemServer).toContain("usuarioResult.data?.papel === 'OPERADOR'")
     expect(listagemUi).toContain("perfil === 'consultor' && resultado.contextoConsultor?.podeOperar")
+  })
+
+  it('alinha dashboard e relatorios do LEITOR ao escopo organizacional de leitura', () => {
+    expect(readerAnalyticsMigration).toContain('CREATE OR REPLACE FUNCTION public.dashboard_consultor_resumo()')
+    expect(readerAnalyticsMigration).toContain('CREATE OR REPLACE FUNCTION public.relatorio_consultor_analitico(')
+    expect(readerAnalyticsMigration.match(/private\.consultor_usuario_pode_visualizar_cedente/g)).toHaveLength(3)
+    expect(readerAnalyticsMigration).not.toContain('private.consultor_usuario_pode_operar_cedente')
+    expect(readerAnalyticsMigration).toContain('SECURITY INVOKER')
+    expect(readerAnalyticsMigration).toContain('REVOKE ALL ON FUNCTION public.dashboard_consultor_resumo() FROM PUBLIC, anon')
   })
 
   it('autoriza a leitura documental pelos tres contextos do requisito', () => {
