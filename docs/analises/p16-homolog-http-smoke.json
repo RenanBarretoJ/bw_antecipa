@@ -1,0 +1,16 @@
+{
+  "projectRef": "fhgkmggthxikfpogrvaa",
+  "run": "d06f3926-07d2-43bb-9131-300074c3209e",
+  "executedAt": "2026-09-28T19:27:54.700Z",
+  "checks": [
+    "real_auth_aal2",
+    "cancel_reuse_history_http",
+    "active_denied_http",
+    "reprovada_cancelada_multi_history_http",
+    "concurrency_one_winner_one_denied_http",
+    "exclusive_reservation_and_creation_audit",
+    "qa_cleanup"
+  ],
+  "result": "PASS",
+  "scope": "Supabase HTTP Auth AAL2 and PostgREST; no browser or Next.js Server Action execution"
+}

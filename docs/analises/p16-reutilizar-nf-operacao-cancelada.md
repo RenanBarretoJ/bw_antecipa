@@ -91,14 +91,14 @@ predicado, com `cancelada` reservante. Não desfaz operações legítimas criada
 após o hotfix nem remove vínculos históricos. Antes de qualquer rollback,
 reavaliar reservas ativas; preservar todas as operações e seus documentos.
 
-Promoção pendente dos gates Preview/Homolog, CI, aplicação explícita e
-smoke produtivo. Não executar db push. Conferir hash, aplicar só P16 em
-transação com parada em erro, registrar a versão exata e comparar definições.
+Homologação recebeu a migration explícita; promoção produtiva permanece
+pendente. Não executar db push. Conferir hash, aplicar só P16 em transação
+com parada em erro, registrar a versão exata e comparar definições.
 
 ## Preview e homologação
 
 PR: https://github.com/RenanBarretoJ/bw_antecipa/pull/65.
-CI do primeiro commit `3603dcd`: run `36469462413`, aprovado.
+CI do commit `315cf55`: run `36470210791`, aprovado (inclui os testes de parcelas).
 Preview Vercel: deployment `7rzrHpyGdFzKGFtrVLSboUhjSk1L`, aprovado.
 Produção observada: `dpl_C4Jb3Q2GVxekaJDZAWaSZieg5jUD`, READY, anterior ao P16.
 
@@ -106,15 +106,17 @@ O check Supabase Preview foi **cancelado**, sem criar branch P16:
 `Maximum number of concurrent branches reached. You can update this limit in Project Integrations Settings.`
 A branch temporária existente pertence ao C2.1-R2; foi preservada conforme
 o congelamento de outras frentes. Após informar o impedimento, o usuário
-determinou: **"Manter pendente por enquanto"**. Promoção suspensa nesse ponto.
+determinou inicialmente: **"Manter pendente por enquanto"**. Depois autorizou
+**"Seguir com o lançamento e validação em homolog"**. A retomada usa o banco
+persistente de homologação, sem criar ou excluir branches Supabase.
 
-Homologação persistente `fhgkmggthxikfpogrvaa`: teste SQL da migration em
+Ensaio inicial em `fhgkmggthxikfpogrvaa`: teste SQL da migration em
 transação com rollback. O comando reproduzível é
 `node scripts/homologacao/p16/verify-local.mjs --homolog-env=<arquivo-local>`.
 O alvo remoto é fixo e produção é recusada. Concorrência com fixtures
 persistentes é proibida nesse modo. Não há gravação no migration history.
 
-O ensaio final aprovou 15 checks, incluindo parcelas.
+O ensaio aprovou 15 checks, incluindo parcelas, também repetidos após a aplicação.
 O rollback foi conferido por consulta independente: predicado anterior
 restaurado, zero usuários QA e zero fundos QA restantes. Essas evidências
 são de SQL sob role authenticated e claims sintéticos; não equivalem a login
@@ -123,6 +125,52 @@ real, navegação do Cedente ou smoke HTTP da aplicação.
 Homologação tem migrations C5-R2 adicionais, mas as definições dos três
 objetos relevantes são idênticas ao baseline produtivo. Nenhuma migration
 C5-R2 foi aplicada, removida ou promovida por este trabalho.
+
+## Lançamento em homologação concluído
+
+Aplicada exclusivamente `20260928185439`, com hash SHA-256 previamente
+certificado e histórico na mesma transação. O script `apply-homolog.mjs`
+recusa destino diferente de homolog, versão já aplicada, alteração de hash
+ou divergência das definições-base. Não foi usado db push.
+
+Postflight: matriz de oito estados aprovada; RPCs de 16 e 17 argumentos
+inalterados; ACL do predicado inalterada; versão/nome no migration history
+confirmados por consulta independente. Evidência:
+[`p16-homolog-migration.json`](p16-homolog-migration.json).
+
+Smoke autenticado pela API, com usuário QA criado para esta execução, senha
+aleatória mantida apenas em memória, login real e TOTP/AAL2. Operações via
+PostgREST usam JWT do Cedente; service role é usado somente para o ciclo de
+vida da conta QA, e SQL administrativo somente para fixtures e inspeção.
+
+Sete verificações aprovadas:
+
+- login real e AAL2;
+- criar, cancelar, reutilizar NF e preservar os vínculos históricos;
+- negar nova criação quando há operação ativa;
+- histórico reprovado + cancelado reutilizável;
+- duas chamadas HTTP simultâneas: exatamente uma aprovada e uma negada;
+- uma reserva ativa final, NF em antecipação e um log de criação do vencedor;
+- cleanup dos dados e do usuário QA, com encerramento global da sessão.
+
+[`p16-homolog-http-smoke.json`](p16-homolog-http-smoke.json) registra os checks.
+O cancelamento reproduz as mutações da action usando a API autenticada.
+**Não executa navegador nem a Server Action do Next.js**; não comprova a
+interação visual ou o evento de cancelamento emitido pela action. A auditoria
+validada neste smoke é a de criação dentro do RPC. Reprovação anterior foi
+montada como estado sintético, sem testar o fluxo decisório do Gestor.
+
+Cleanup segue o padrão existente de
+`scripts/homologacao/central-logistica/cleanup.mjs`: fundo QA dedicado,
+UUIDs exclusivos, transação e suspensão de triggers restrita à sessão de
+limpeza. Nenhum dado preexistente foi incluído. Uma consulta independente
+verifica os resíduos por referências ao fundo/Cedente/NF/política, usuário,
+perfil e auditoria: [`p16-homolog-cleanup.json`](p16-homolog-cleanup.json).
+
+Não houve código de app alterado; deploy de app não é necessário para esta
+correção. A aplicação de homologação passa a usar a regra nova no banco.
+Produção foi consultada apenas em leitura na retomada: `cancelada` ainda
+reservante e zero registros da migration P16, conforme o escopo solicitado.
 
 ## Status dos gates
 
@@ -151,7 +199,7 @@ P16_CLEAN_ROOM = PASS
 P16_APP_TESTS = PASS
 P16_CI = PASS
 P16_PREVIEW = FAIL
-P16_HOMOLOG = FAIL
+P16_HOMOLOG = PASS
 P16_PRODUCTION_TARGET_CONFIRMED = YES
 P16_PROD_MIGRATION = FAIL
 P16_PROD_HISTORY_POSTCHECK = FAIL
@@ -169,15 +217,15 @@ CERC_CHANGED = NO
 RLX_EMAIL_CHANGED = NO
 ```
 
-Pendências: vaga Preview Supabase; smoke autenticado Preview/Homolog;
-migration produtiva explícita e seu postflight; integração; tentativa real
-controlada do Cedente e auditoria. Nenhum merge em main, migration persistente
-remota ou pedido produtivo foi realizado pelo agente. O rollback do ensaio
-de homologação não é um rollback de release produtiva.
+Pendências: Preview Supabase separado; migration produtiva explícita e seu
+postflight; integração; tentativa real controlada do Cedente e auditoria.
+Navegação e Server Action não foram exercitadas pelo smoke de API. Nenhum
+merge em main ou pedido produtivo foi realizado pelo agente. O rollback do
+ensaio inicial de homologação não é um rollback de release produtiva.
 
 SHA-256 do arquivo da migration validada:
 `6390f43842e82d7d980acfb6ae61e66cd551676e17c21a01a6e8ca237ce3efa1`.
 
-O CI PASS refere-se ao commit inicial identificado acima. O complemento de
-evidências e teste de parcelas foi validado por SQL local/remoto, ESLint e
-diff-check; qualquer novo CI automático deve ser conferido antes da retomada.
+O CI PASS refere-se ao commit `315cf55` identificado acima. Os scripts e as
+evidências de lançamento foram validados por execução real, ESLint e
+diff-check; qualquer novo CI automático deve ser conferido antes da promoção.
