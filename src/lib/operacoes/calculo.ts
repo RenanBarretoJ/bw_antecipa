@@ -9,7 +9,13 @@ export const METODOS_CALCULO_NOVAS_POLITICAS = [
 export type MetodoCalculoNovaPolitica = typeof METODOS_CALCULO_NOVAS_POLITICAS[number]
 export type MetodoCalculoFinanceiro = MetodoCalculoNovaPolitica | 'LEGADO_MENSAL_DIAS_REAIS_30'
 
-export const CALCULO_FINANCEIRO_VERSAO_MOTOR = 1
+export const CALCULO_FINANCEIRO_VERSAO_MOTOR = 2
+
+// P17: o enum persistido e mantido; v2 usa dias civis reais / 30 para 360.
+// Memorias historicas v1 sao lidas, nunca recalculadas por este motor.
+export function versaoMotorCalculo(metodo: MetodoCalculoFinanceiro): number {
+  return metodo === 'TRINTA_360' ? CALCULO_FINANCEIRO_VERSAO_MOTOR : 1
+}
 export const CALCULO_FINANCEIRO_ARREDONDAMENTO = 'ROUND_HALF_UP_2_CASAS' as const
 
 export const METODOS_CALCULO_LABELS: Record<MetodoCalculoFinanceiro, string> = {
@@ -27,10 +33,10 @@ export function criarConfiguracaoCalculoSnapshot(metodoInput?: string | null) {
     base: metodo === 'DIAS_UTEIS_252' ? 252 : metodo === 'TRINTA_360' ? 360 : metodo === 'DIAS_CORRIDOS_365' ? 365 : 30,
     periodo_taxa: 'mensal',
     divisor_mensal: metodo === 'DIAS_UTEIS_252' ? 21 : metodo === 'DIAS_CORRIDOS_365' ? null : 30,
-    unidade_contagem: metodo === 'DIAS_UTEIS_252' ? 'dias_uteis' : metodo === 'TRINTA_360' ? 'dias_financeiros' : 'dias_corridos',
+    unidade_contagem: metodo === 'DIAS_UTEIS_252' ? 'dias_uteis' : 'dias_corridos',
     calendario: metodo === 'DIAS_UTEIS_252' ? 'ANBIMA' : null,
-    convencao: metodo === 'TRINTA_360' ? 'DIA_MIN_30' : null,
-    versao_motor: CALCULO_FINANCEIRO_VERSAO_MOTOR,
+    convencao: metodo === 'TRINTA_360' ? 'DIAS_REAIS_DIV_30' : null,
+    versao_motor: versaoMotorCalculo(metodo),
     arredondamento: CALCULO_FINANCEIRO_ARREDONDAMENTO,
   } as const
 }
@@ -153,6 +159,7 @@ export function contarDiasCorridos(dataBase: string, vencimento: string): number
   return Math.round((parseDataCivil(vencimento).utc - parseDataCivil(dataBase).utc) / DIA_MS)
 }
 
+/** Convencao legada v1, apenas para comparacao historica; nao usar no pricing. */
 export function contarDiasTrinta360(dataBase: string, vencimento: string): number {
   const inicio = parseDataCivil(dataBase)
   const fim = parseDataCivil(vencimento)
@@ -215,7 +222,7 @@ export function calcularValorPresenteNota(input: {
   let vencimentoConsideradoCalculo = input.vencimento
   let dias = diasCorridosReais
   let diasUteis: number | null = null
-  let diasFinanceiros: number | null = null
+  const diasFinanceiros: number | null = null
   let base: MemoriaCalculoNota['base'] = 30
   let calendario: MemoriaCalculoNota['calendario'] = null
   let expoente = dias / 30
@@ -230,8 +237,7 @@ export function calcularValorPresenteNota(input: {
     base = 252
     calendario = 'ANBIMA'
   } else if (metodo === 'TRINTA_360') {
-    diasFinanceiros = contarDiasTrinta360(input.dataBase, input.vencimento)
-    dias = diasFinanceiros
+    // A taxa e mensal: dias civis reais / 30, sem anualizacao ACT/360.
     expoente = dias / 30
     base = 360
   } else if (metodo === 'DIAS_CORRIDOS_365') {
@@ -273,7 +279,7 @@ export function calcularValorPresenteNota(input: {
     valorPresente,
     desconto,
     arredondamento: CALCULO_FINANCEIRO_ARREDONDAMENTO,
-    versaoMotor: CALCULO_FINANCEIRO_VERSAO_MOTOR,
+    versaoMotor: versaoMotorCalculo(metodo),
   }
 }
 

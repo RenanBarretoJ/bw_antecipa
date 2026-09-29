@@ -634,9 +634,9 @@ export default function OperacaoDetalheGestorClient({
 
   const prazoReferencia = useMemo(() => {
     if (!op || itensCalculoFinanceiro.length === 0) return null
-    const dataBase = ['solicitada', 'em_analise'].includes(op.status)
-      ? dataBaseServidor
-      : op.calculo_data_base || dataBaseServidor
+    // Historico deve usar a memoria persistida, nunca a versao atual do motor.
+    if (!['solicitada', 'em_analise'].includes(op.status)) return null
+    const dataBase = dataBaseServidor
     try {
       const calculo = calcularAntecipacaoEmLote({
         notas: itensCalculoFinanceiro,
@@ -664,9 +664,8 @@ export default function OperacaoDetalheGestorClient({
 
   const calculoFinanceiro = useMemo(() => {
     if (!op || taxa === null || !taxaEhAplicavel || itensCalculoFinanceiro.length === 0) return null
-    const dataBase = ['solicitada', 'em_analise'].includes(op.status)
-      ? dataBaseServidor
-      : op.calculo_data_base || dataBaseServidor
+    if (!['solicitada', 'em_analise'].includes(op.status)) return null
+    const dataBase = dataBaseServidor
     try {
       return calcularAntecipacaoEmLote({
         notas: itensCalculoFinanceiro,
@@ -733,8 +732,11 @@ export default function OperacaoDetalheGestorClient({
 
   const totaisNfs = useMemo(() => ({
     bruto: op?.valor_bruto_total ?? notasFiscaisView.reduce((acc, nf) => acc + nf.valor_bruto, 0),
-    antecipado: op?.valor_liquido_desembolso ?? null,
-  }), [notasFiscaisView, op?.valor_bruto_total, op?.valor_liquido_desembolso])
+    // Previa editavel usa o mesmo resultado do painel de decisao; historico e persistido.
+    antecipado: op && ['solicitada', 'em_analise'].includes(op.status)
+      ? calculoFinanceiro?.valorLiquidoTotal ?? null
+      : op?.valor_liquido_desembolso ?? null,
+  }), [calculoFinanceiro, notasFiscaisView, op])
 
   const aceiteDispensado = !!op && (op.aceite_sacado_exigido === false || op.aceite_sacado_status === 'dispensado')
   const todasAceitas = aceiteDispensado || (nfs.length > 0 && nfs.every((nf) => nf.status === 'aceita'))
