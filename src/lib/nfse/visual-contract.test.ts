@@ -4,6 +4,7 @@ import { visualFixture } from './fixtures/visual'
 import { danfseFixture } from './fixtures/danfse-v2'
 import { classifyFiscalImage, extractNfseVisual } from './openai-visual.server'
 import { probeNfsePdf } from './pdf-dispatcher.server'
+import { prepareNfsePersistence } from './persistence'
 const bytes = Buffer.from('synthetic PDF')
 const envelope = (data: unknown) => Response.json({ output: [{ content: [{ type: 'output_text', text: JSON.stringify(data) }] }] })
 
@@ -34,6 +35,61 @@ describe('GUIBOR A3 visual contract', () => {
   it('does not replace absent net with gross', () => {
     const result = validateVisualNfse({ ...visualFixture(), valor_liquido_nfse: { label: null, value: null } })
     expect(result.dados.valor_liquido).toBeUndefined()
+  })
+  it.each([
+    ['valor_liquido_nfse', 'VALOR LÍQUIDO DA NFS-e', 'valor_liquido'],
+    ['valor_liquido_nfse_mais_ibscbs', 'VALOR LÍQUIDO DA NFS-e + IBS/CBS', 'valor_liquido_com_ibscbs'],
+    ['total_retencoes', 'Total das Retenções (ISSQN / Federais)', 'total_retencoes'],
+    ['desconto_incondicionado', 'Desconto Incondicionado', 'desconto_incondicionado'],
+    ['vencimento', 'DATA DE VENCIMENTO', 'data_vencimento'],
+    ['vencimento', 'VENCIMENTO', 'data_vencimento'],
+  ] as const)('keeps labeled but empty %s absent, without fabricated provenance', (field, label, output) => {
+    const input = { ...visualFixture(), [field]: { label, value: null } }
+    const result = validateVisualNfse(input)
+    expect(result.dados[output]).toBeUndefined()
+    expect(result.proveniencia[output]).toBeUndefined()
+    expect(result.confianca[output]).toBeUndefined()
+    expect(input[field]).toEqual({ label, value: null })
+    expect(result.dados.valor_bruto).toBe(112710.81)
+    expect(result.vencimento_source).toBe('MISSING')
+  })
+  it.each([
+    'numero_nfse', 'chave_acesso_nfse', 'data_emissao', 'competencia',
+    'prestador_cnpj', 'prestador_nome', 'tomador_cnpj', 'tomador_nome', 'valor_operacao_servico',
+  ] as const)('still rejects mandatory %s with label but no value', field => {
+    const input = visualFixture()
+    input[field].value = null
+    expect(() => validateVisualNfse(input)).toThrow('NFSE_VISUAL_FISCAL_CONFLICT')
+  })
+  it.each([
+    { vencimento: { label: 'COMPETÊNCIA DA NFS-e', value: null } },
+    { valor_liquido_nfse: { label: 'VALOR LÍQUIDO DA NFS-e + IBS/CBS', value: null } },
+    { desconto_incondicionado: { label: '', value: null } },
+    { total_retencoes: { label: 'OUTRO TOTAL', value: null } },
+  ])('does not ignore conflicting labels on null fields %j', override => {
+    expect(() => validateVisualNfse({ ...visualFixture(), ...override })).toThrow('NFSE_VISUAL_LABEL_CONFLICT')
+  })
+  it('does not synthesize missing net from gross, retentions or auxiliary net', () => {
+    const result = validateVisualNfse({ ...visualFixture(),
+      valor_liquido_nfse: { label: 'VALOR LÍQUIDO DA NFS-e', value: null },
+      valor_liquido_nfse_mais_ibscbs: { label: 'VALOR LÍQUIDO DA NFS-e + IBS/CBS', value: 'R$ 106.000,00' },
+    })
+    expect(result.dados.valor_liquido).toBeUndefined()
+    expect(result.dados.valor_liquido_com_ibscbs).toBe(106000)
+  })
+  it('keeps labeled missing due in review after visual provider extraction', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(envelope({ ...visualFixture(),
+      desconto_incondicionado: { label: 'DESCONTO INCONDICIONADO', value: null },
+      valor_liquido_nfse_mais_ibscbs: { label: 'VALOR LÍQUIDO DA NFS-e + IBS/CBS', value: null },
+      vencimento: { label: 'VENCIMENTO', value: null },
+    }))
+    const result = await extractNfseVisual(bytes, { env: { OPENAI_API_KEY: 'synthetic' }, fetchImpl })
+    const prepared = prepareNfsePersistence(result, '', 'a'.repeat(64), '2026-09-29')
+    expect(prepared).toEqual({ kind: 'review', review: {
+      numero: '232', bruto: 112710.81, liquido: 105779.10, emissao: '2026-09-15', strategy: 'danfse_v2_visual',
+    } })
+    expect(prepared).not.toHaveProperty('values')
+    expect(result.dados.data_vencimento).toBeUndefined()
   })
   it('does not use IBS/CBS auxiliary as net', () => {
     const result = validateVisualNfse({ ...visualFixture(), valor_liquido_nfse_mais_ibscbs: { label: 'VALOR LÍQUIDO DA NFS-e + IBS/CBS', value: 'R$ 106.000,00' } })
