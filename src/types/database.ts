@@ -385,6 +385,7 @@ export interface Fundo {
 
 export interface CedenteFundo {
   id: string
+  base_valor_antecipacao: import('@/lib/operacoes/base-antecipacao').BaseValorAntecipacao
   cedente_id: string
   fundo_id: string
   codigo_externo: string | null
@@ -1352,6 +1353,7 @@ export interface NotaFiscal {
 }
 
 export interface Operacao {
+  base_antecipacao_snapshot?: import('@/lib/operacoes/base-antecipacao').BaseAntecipacaoSnapshot | null
   id: string
   cedente_id: string
   conta_escrow_id: string | null
@@ -1493,6 +1495,7 @@ export interface ConsultorFundo {
   consultor_id: string
   fundo_id: string
   status: 'ativo' | 'inativo'
+  comissao_habilitada: boolean
   concedido_por: string | null
   revogado_por: string | null
   revogado_em: string | null
@@ -2392,6 +2395,9 @@ export interface Database {
     }
     Views: Record<string, never>
     Functions: {
+      configurar_base_antecipacao: { Args: { p_cedente_fundo_id: string; p_base: string }; Returns: undefined }
+      configurar_comissao_consultor_fundo: { Args: { p_consultor_id: string; p_fundo_id: string; p_habilitada: boolean }; Returns: undefined }
+      listar_configuracao_comissao_fundo: { Args: { p_fundo_id: string }; Returns: Array<{ consultor_id: string; fundo_id: string; nome: string; comissao_habilitada: boolean }> }
       criar_convite_novo_cedente: {
         Args: { p_fundo_id: string; p_cnpj: string; p_email: string; p_token_hash: string; p_correlation_id: string }
         Returns: { convite_id: string; fundo_id: string; fundo_nome: string; cnpj: string; email: string; expires_at: string }

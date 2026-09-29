@@ -28,6 +28,7 @@ export async function carregarDetalheOperacaoCedente(
       cedente_id,
       cedente_fundo_id,
       valor_bruto_total,
+      base_antecipacao_snapshot,
       taxa_desconto,
       prazo_dias,
       valor_liquido_desembolso,

@@ -167,7 +167,7 @@ export default function NovaSolicitacaoClient({ resultado }: { resultado: Result
         .filter((parcela) => selecionadasDaNf.has(parcela.id))
         .map((parcela) => ({ id: parcela.id, valorBruto: parcela.valorNominal, vencimento: parcela.dataVencimento }))
     }
-    return [{ id: nf.id, valorBruto: nf.valorBruto, vencimento: nf.vencimento }]
+    return nf.valorBaseAntecipacao === null ? [] : [{ id: nf.id, valorBruto: nf.valorBaseAntecipacao, vencimento: nf.vencimento }]
   })
   // O calculo pode falhar (ex.: parcela vencida) mesmo apos a filtragem do
   // servidor -- nunca deixar essa falha quebrar o render inteiro da
@@ -375,7 +375,8 @@ export default function NovaSolicitacaoClient({ resultado }: { resultado: Result
             <CardHeader><CardTitle className="flex items-center gap-2"><Calculator size={18} />Resumo da operacao</CardTitle></CardHeader>
             <CardContent className="space-y-3 text-sm">
             <div className="flex justify-between"><span className="text-muted-foreground">NFs selecionadas</span><strong>{selected.size}</strong></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">Valor bruto</span><strong>{formatCurrency(valorBruto)}</strong></div>
+            <p className="text-sm text-muted-foreground">Base da antecipação: {resultado.baseValorAntecipacao === 'LIQUIDO' ? 'Valor líquido' : 'Valor bruto'}</p>
+            <div className="flex justify-between"><span className="text-muted-foreground">Valor base</span><strong>{formatCurrency(valorBruto)}</strong></div>
             {resultado.perfil === 'consultor' && (
               <div className="space-y-2 border-t pt-3">
                 <label htmlFor="taxa-proposta-consultor" className="block text-sm font-medium">

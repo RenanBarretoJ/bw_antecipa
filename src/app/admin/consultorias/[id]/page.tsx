@@ -8,6 +8,7 @@ import { PageHeader } from '@/components/layout/page-header'
 import { listarAdminFundos } from '@/lib/admin/fundos.server'
 import { obterAdminConsultoria } from '@/lib/admin/consultorias.server'
 import { formatCNPJ } from '@/lib/utils'
+import { ComissaoConsultoriaToggle } from '@/components/fundos/ComissaoConsultoriaToggle'
 
 export default async function AdminConsultoriaDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -26,6 +27,10 @@ export default async function AdminConsultoriaDetailPage({ params }: { params: P
         <div className="mt-5 divide-y divide-border">{consultoria.usuarios.map((usuario) => <ConsultoriaUserRow key={usuario.id} consultorId={consultoria.id} usuario={usuario} />)}</div>
       </DetailSection>
       <DetailSection title="Fundos autorizados" icon={Building2}><ConsultoriaFundsForm consultoria={consultoria} fundos={fundos.itens} /></DetailSection>
+      <DetailSection title="Comissão por fundo" icon={Building2}>
+        <div className="space-y-3">{consultoria.fundos.filter((fundo) => fundo.status === 'ativo' && fundo.fundo_ativo).map((fundo) =>
+          <ComissaoConsultoriaToggle key={`${fundo.id}:${fundo.comissao_habilitada}`} consultorId={consultoria.id} fundoId={fundo.id} nome={fundo.nome} habilitada={fundo.comissao_habilitada === true} />)}</div>
+      </DetailSection>
       <DetailSection title="Cedentes da carteira" icon={Briefcase}>{consultoria.cedentes.length === 0 ? <EmptyState title="Nenhum Cedente vinculado" description="Os Cedentes criados por usuarios autorizados serao vinculados a organizacao, sem duplicacao por usuario." icon={Briefcase} /> : <div className="divide-y divide-border">{consultoria.cedentes.map((cedente) => <div key={cedente.id} className="grid items-center gap-3 py-3 sm:grid-cols-[minmax(0,1fr)_140px_140px]"><ListNameCell name={cedente.razao_social} subline={formatCNPJ(cedente.cnpj)} className="max-w-none" /><StatusBadge status={cedente.status === 'ativo' ? 'ativo' : 'pendente'} label={cedente.status} /><StatusBadge status={cedente.vinculo_status === 'ativo' ? 'ativo' : 'pendente'} label={`Vinculo ${cedente.vinculo_status}`} /></div>)}</div>}</DetailSection>
     </PageContainer>
   )

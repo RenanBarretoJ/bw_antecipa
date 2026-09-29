@@ -30,6 +30,7 @@ export type EntregaCedenteStatus =
 export type RequisitoCedenteStatus = 'pendente' | 'satisfeito' | 'vencido' | 'dispensado' | 'cancelado' | string
 
 export interface OperacaoCedenteRaw {
+  base_antecipacao_snapshot?: import('./base-antecipacao').BaseAntecipacaoSnapshot | null
   id: string
   cedente_id: string
   cedente_fundo_id: string | null
@@ -128,6 +129,7 @@ export interface ParcelaCedidaOperacaoView {
 }
 
 export interface OperacaoCedenteDetalhe {
+  baseAntecipacaoSnapshot?: import('./base-antecipacao').BaseAntecipacaoSnapshot | null
   id: string
   codigoCurto: string
   status: string
@@ -347,6 +349,7 @@ export function montarDetalheOperacaoCedente({
             : 'Acompanhamento iniciado'
 
   const detalhe = {
+    baseAntecipacaoSnapshot: operacao.base_antecipacao_snapshot ?? null,
     id: operacao.id,
     codigoCurto: operacao.id.slice(0, 8),
     status: operacao.status,

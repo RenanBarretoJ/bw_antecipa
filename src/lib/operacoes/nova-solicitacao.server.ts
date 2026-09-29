@@ -18,6 +18,7 @@ import {
 } from './nova-solicitacao'
 import { obterDataCivilOperacional } from './data-operacional.server'
 import type { MetodoCalculoNovaPolitica } from './calculo'
+import { resolverBaseAntecipacao, type BaseValorAntecipacao } from './base-antecipacao'
 import { obterPoliticaAplicavelAoCedenteFundo } from './politica'
 import { simularExposicaoSelecaoCanonica } from '@/lib/financeiro/risco/proforma-selecao.server'
 import type { ProformaExposicaoSelecao } from '@/lib/financeiro/risco/visao-operacional'
@@ -34,6 +35,7 @@ export type ParcelaCandidataOperacao = {
 }
 
 type ParcelaCandidataRow = {
+  status: string
   id: string
   nota_fiscal_id: string
   numero_parcela: number
@@ -42,6 +44,8 @@ type ParcelaCandidataRow = {
 }
 
 export type NfCandidataOperacao = NotaFiscalElegibilidadeComDados & {
+  valorBaseAntecipacao: number | null
+  valorLiquidoFiscal: number | null
   cnpjDestinatario: string
   destinatario: string
   vencimento: string
@@ -51,6 +55,7 @@ export type NfCandidataOperacao = NotaFiscalElegibilidadeComDados & {
 }
 
 export type ResultadoNovaSolicitacao = {
+  baseValorAntecipacao: BaseValorAntecipacao
   perfil: PerfilSolicitanteOperacao
   cedente: {
     id: string
@@ -77,6 +82,8 @@ type NfRow = {
   cnpj_destinatario: string
   razao_social_destinatario: string
   valor_bruto: number
+  valor_liquido: number | null
+  valor_liquido_origem: string | null
 }
 
 function mapNota(row: NfRow): NotaFiscalElegibilidadeComDados {
@@ -122,7 +129,7 @@ export async function carregarNovaSolicitacaoOperacao(
   const consultar = (inicio: number, fim: number) => {
     let query = auth.supabase
       .from('notas_fiscais')
-      .select('id, status, numero_nf, data_emissao, data_vencimento, cnpj_emitente, razao_social_emitente, cnpj_destinatario, razao_social_destinatario, valor_bruto', { count: 'exact' })
+      .select('id, status, numero_nf, data_emissao, data_vencimento, cnpj_emitente, razao_social_emitente, cnpj_destinatario, razao_social_destinatario, valor_bruto, valor_liquido, valor_liquido_origem', { count: 'exact' })
       .eq('cedente_id', cedente.id)
       .eq('cedente_fundo_id', contexto.cedenteFundo!.id)
       .eq('fundo_id', contexto.fundo!.id)
@@ -168,24 +175,21 @@ export async function carregarNovaSolicitacaoOperacao(
 
   const idsPagina = rows.map((row) => row.id)
   const parcelasPorNf = new Map<string, ParcelaCandidataOperacao[]>()
+  const nfsComParcelas = new Set<string>()
   if (idsPagina.length > 0) {
     const { data: parcelasData, error: parcelasError } = await auth.supabase
       .from('nota_fiscal_parcelas')
-      .select('id, nota_fiscal_id, numero_parcela, valor_nominal, data_vencimento')
+      .select('id, nota_fiscal_id, numero_parcela, valor_nominal, data_vencimento, status')
       .in('nota_fiscal_id', idsPagina)
-      .eq('status', 'disponivel')
-      // Mesma regra ja aplicada a NF inteira (gte data_vencimento acima):
-      // uma parcela com vencimento individual ja passado nao pode ser
-      // antecipada (nao ha valor presente a calcular para uma data no
-      // passado). Sem este filtro, uma NF cujo vencimento agregado (a
-      // ultima parcela) ainda esta no futuro passava pela elegibilidade,
-      // mas selecionar essa NF alimentava a parcela vencida no calculo,
-      // que lanca CalculoFinanceiroError sem tratamento no render do
-      // cliente e quebra a pagina inteira.
-      .gte('data_vencimento', dataBase)
+      // Lemos todas para identificar parcelamento (LIQUIDO nao o admite).
+      // O filtro abaixo exclui parcelas vencidas/indisponiveis antes de
+      // envia-las ao calculo, preservando a protecao contra prazo passado.
       .order('numero_parcela', { ascending: true })
     if (parcelasError) throw new Error(`Nao foi possivel carregar as parcelas das NFs candidatas: ${parcelasError.message}`)
     for (const parcela of (parcelasData || []) as ParcelaCandidataRow[]) {
+      // LIQUIDO denies any installment, including unavailable/expired installments.
+      nfsComParcelas.add(parcela.nota_fiscal_id)
+      if (parcela.status !== 'disponivel' || parcela.data_vencimento < dataBase) continue
       const lista = parcelasPorNf.get(parcela.nota_fiscal_id) || []
       lista.push({
         id: parcela.id,
@@ -197,23 +201,38 @@ export async function carregarNovaSolicitacaoOperacao(
     }
   }
 
-  const candidatas = rows.map((row): NfCandidataOperacao => ({
-    ...mapNota(row),
-    cnpjDestinatario: row.cnpj_destinatario,
-    destinatario: row.razao_social_destinatario,
-    vencimento: row.data_vencimento,
-    parcelas: parcelasPorNf.get(row.id) || [],
-    elegibilidade: elegibilidades.get(row.id) || {
-      elegivel: false,
-      requisitosPendentes: [],
-      requisitosRejeitados: [],
-      requisitosEmAnalise: [],
-      motivos: ['Nao foi possivel determinar a elegibilidade documental.'],
-      totalObrigatorios: 0,
-      concluidosObrigatorios: 0,
-      pendentesObrigatorios: 0,
-    },
-  }))
+  const candidatas = rows.map((row): NfCandidataOperacao => {
+    const base = resolverBaseAntecipacao(politica.cedenteFundo.base_valor_antecipacao, {
+      valorBruto: Number(row.valor_bruto),
+      valorLiquido: row.valor_liquido == null ? null : Number(row.valor_liquido),
+      origemLiquido: row.valor_liquido_origem,
+      possuiParcelas: nfsComParcelas.has(row.id),
+    })
+    const candidata: NfCandidataOperacao = {
+      ...mapNota(row),
+      valorBaseAntecipacao: base.elegivel ? base.valorBase : null,
+      valorLiquidoFiscal: row.valor_liquido == null ? null : Number(row.valor_liquido),
+      cnpjDestinatario: row.cnpj_destinatario,
+      destinatario: row.razao_social_destinatario,
+      vencimento: row.data_vencimento,
+      parcelas: parcelasPorNf.get(row.id) || [],
+      elegibilidade: elegibilidades.get(row.id) || {
+        elegivel: false,
+        requisitosPendentes: [],
+        requisitosRejeitados: [],
+        requisitosEmAnalise: [],
+        motivos: ['Nao foi possivel determinar a elegibilidade documental.'],
+        totalObrigatorios: 0,
+        concluidosObrigatorios: 0,
+        pendentesObrigatorios: 0,
+      },
+    }
+    if (!base.elegivel) candidata.elegibilidade = {
+      ...candidata.elegibilidade, elegivel: false,
+      motivos: [...candidata.elegibilidade.motivos, base.motivo],
+    }
+    return candidata
+  })
   const { data: taxas, error: taxasError } = await auth.supabase
     .from('taxas_cedente')
     .select('prazo_min, prazo_max, taxa_percentual')
@@ -233,6 +252,7 @@ export async function carregarNovaSolicitacaoOperacao(
   })
 
   return {
+    baseValorAntecipacao: politica.cedenteFundo.base_valor_antecipacao,
     perfil: solicitante.perfil,
     cedente: {
       id: cedente.id,

@@ -8,6 +8,7 @@ export function montarIdempotencyKeySolicitacaoOperacao(input: {
   politicaVersaoId: string
   nfIds: string[]
   taxaPropostaConsultor?: string | number | null
+  baseValorAntecipacao?: import('./base-antecipacao').BaseValorAntecipacao
 }) {
   const taxaProposta = input.taxaPropostaConsultor === undefined || input.taxaPropostaConsultor === null
     ? null
@@ -26,6 +27,7 @@ export function montarIdempotencyKeySolicitacaoOperacao(input: {
       input.politicaVersaoId,
       [...new Set(input.nfIds)].sort().join(','),
       ...(taxaProposta === null ? [] : [taxaProposta]),
+      ...(input.baseValorAntecipacao ? ['base-antecipacao-v1', input.baseValorAntecipacao] : []),
     ].join('|'))
     .digest('hex')
 }

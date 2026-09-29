@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { criarSnapshotPolitica, stableStringify, statusAceiteInicial, type PoliticaResolvida } from './politica'
 
 const policy = (): PoliticaResolvida => ({
-  cedenteFundo: { id: 'link-1', cedente_id: 'cedente-1', fundo_id: 'fundo-1', codigo_externo: null, status: 'ativo', vigente_desde: '2026-01-01T00:00:00Z', vigente_ate: null, observacoes: null, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+  cedenteFundo: { base_valor_antecipacao: 'BRUTO', id: 'link-1', cedente_id: 'cedente-1', fundo_id: 'fundo-1', codigo_externo: null, status: 'ativo', vigente_desde: '2026-01-01T00:00:00Z', vigente_ate: null, observacoes: null, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
   fundo: { id: 'fundo-1', nome: 'Fundo', cnpj: '123', administradora_nome: 'Adm', administradora_cnpj: '456', gestora_nome: 'Gestora', gestora_cnpj: '789', custodiante_nome: null, custodiante_cnpj: null, conta_vinculada: null, agencia: null, banco: null, administradora_endereco: null, administradora_ato_declaratorio: null, contato_nome: null, contato_email: null, ativo: true, created_at: '2026-01-01T00:00:00Z' },
   atribuicao: { id: 'assignment-1', cedente_fundo_id: 'link-1', politica_operacional_id: 'policy-1', status: 'ativa', vigente_desde: '2026-01-01T00:00:00Z', vigente_ate: null, atribuido_por: 'user-1', motivo: 'teste', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
   politica: { id: 'policy-1', fundo_id: 'fundo-1', codigo: 'POL-1', nome: 'Politica', descricao: null, status: 'ativa', padrao: true, created_by: 'user-1', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
