@@ -24,5 +24,11 @@ export async function obterAdminConsultoria(consultorId: string): Promise<AdminC
   const context = await requireSuperAdmin()
   const { data, error } = await context.supabase.rpc('admin_obter_consultoria', { p_consultor_id: consultorId })
   if (error) throw new Error('Nao foi possivel carregar a Consultoria.')
-  return data as unknown as AdminConsultoriaDetalhe | null
+  if (!data) return null
+  const consultoria = data as unknown as AdminConsultoriaDetalhe
+  const { data: flags, error: flagsError } = await context.supabase.from('consultor_fundos')
+    .select('fundo_id,comissao_habilitada').eq('consultor_id', consultorId)
+  if (flagsError) throw new Error('Não foi possível carregar a configuração por fundo.')
+  const porFundo = new Map((flags || []).map((flag) => [flag.fundo_id, flag.comissao_habilitada === true]))
+  return { ...consultoria, fundos: consultoria.fundos.map((fundo) => ({ ...fundo, comissao_habilitada: porFundo.get(fundo.id) === true })) }
 }

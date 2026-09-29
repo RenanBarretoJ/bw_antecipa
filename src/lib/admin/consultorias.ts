@@ -62,7 +62,7 @@ export type AdminConsultoriaDetalhe = {
   created_at: string
   updated_at: string
   usuarios: AdminConsultoriaUsuario[]
-  fundos: Array<{ id: string; nome: string; cnpj: string; status: 'ativo' | 'inativo'; fundo_ativo: boolean }>
+  fundos: Array<{ id: string; nome: string; cnpj: string; status: 'ativo' | 'inativo'; fundo_ativo: boolean; comissao_habilitada?: boolean }>
   cedentes: Array<{ id: string; razao_social: string; cnpj: string; status: string; vinculo_status: string }>
 }
 

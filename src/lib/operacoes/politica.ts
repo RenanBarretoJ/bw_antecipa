@@ -23,6 +23,7 @@ export interface PoliticaResolvida {
 }
 
 export interface PoliticaSnapshot {
+  base_valor_antecipacao: import('./base-antecipacao').BaseValorAntecipacao
   schema: 'bw-antecipa.politica-operacional.v1'
   cedente_fundo_id: string
   fundo_id: string
@@ -101,6 +102,7 @@ export function criarSnapshotPolitica(policy: PoliticaResolvida): { snapshot: Po
   assertNoSecretKeys(policy.versao.configuracao)
 
   const snapshot: PoliticaSnapshot = {
+    base_valor_antecipacao: policy.cedenteFundo.base_valor_antecipacao,
     schema: 'bw-antecipa.politica-operacional.v1',
     cedente_fundo_id: policy.cedenteFundo.id,
     fundo_id: policy.fundo.id,

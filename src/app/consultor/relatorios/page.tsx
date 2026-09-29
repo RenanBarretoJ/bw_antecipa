@@ -19,15 +19,16 @@ export default async function RelatoriosConsultorPage({
   const filtros = parseRelatorioFiltros(await searchParams)
   const data = await carregarRelatorioConsultor(filtros)
   const resumo = data.resumo
+  const exibirComissao = resumo.comissaoHabilitada === true
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
-      <div><h1 className="text-2xl font-bold">Relatórios e comissões</h1><p className="text-muted-foreground">Performance da carteira autenticada por período.</p></div>
+      <div><h1 className="text-2xl font-bold">{exibirComissao ? 'Relatórios e comissões' : 'Relatórios'}</h1><p className="text-muted-foreground">Performance da carteira autenticada por período.</p></div>
 
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+      <div className={`grid gap-4 ${exibirComissao ? 'grid-cols-2 md:grid-cols-4' : 'sm:grid-cols-3'}`}>
         {[
           { label: 'Volume no mês', value: formatCurrency(resumo.volumeMes), detail: `${resumo.operacoesMes} operação(ões)`, icon: BarChart3 },
-          { label: 'Comissão no mês', value: formatCurrency(resumo.comissaoMes), detail: 'estimativa da carteira', icon: DollarSign },
+          ...(exibirComissao ? [{ label: 'Comissão no mês', value: formatCurrency(resumo.comissaoMes ?? 0), detail: 'estimativa da carteira', icon: DollarSign }] : []),
           { label: 'Volume acumulado', value: formatCurrency(resumo.volumeAcumulado), detail: 'em andamento e liquidadas', icon: TrendingUp },
           { label: 'Cedentes ativos', value: String(resumo.cedentesAtivos), detail: 'na carteira', icon: Users },
         ].map((metric) => (
@@ -46,14 +47,14 @@ export default async function RelatoriosConsultorPage({
 
       <Card className="overflow-hidden py-0">
         <CardHeader className="border-b px-6 py-4">
-          <CardTitle>Comissões por cedente</CardTitle>
+          <CardTitle>{exibirComissao ? 'Comissões por cedente' : 'Operações por cedente'}</CardTitle>
           <p className="text-sm text-muted-foreground">Volume mensal da linha usa o valor líquido; o indicador superior preserva o volume bruto.</p>
         </CardHeader>
         {data.tabela.items.length === 0 ? (
           <CardContent className="py-12 text-center text-muted-foreground">Nenhum cedente na carteira.</CardContent>
         ) : (
           <Table>
-            <TableHeader><TableRow><TableHead>Cedente</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Vol. mês</TableHead><TableHead>Ops mês</TableHead><TableHead>%</TableHead><TableHead className="text-right">Comissão</TableHead><TableHead className="text-right">Vol. total</TableHead></TableRow></TableHeader>
+            <TableHeader><TableRow><TableHead>Cedente</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Vol. mês</TableHead><TableHead>Ops mês</TableHead>{exibirComissao && <><TableHead>%</TableHead><TableHead className="text-right">Comissão</TableHead></>}<TableHead className="text-right">Vol. total</TableHead></TableRow></TableHeader>
             <TableBody>
               {data.tabela.items.map((cedente) => (
                 <TableRow key={cedente.cedenteId}>
@@ -61,22 +62,22 @@ export default async function RelatoriosConsultorPage({
                   <TableCell><Badge variant={cedente.status === 'ativo' ? 'default' : 'outline'}>{cedente.status}</Badge></TableCell>
                   <TableCell className="text-right font-medium tabular-nums">{formatCurrency(cedente.volumeMes)}</TableCell>
                   <TableCell className="tabular-nums">{cedente.operacoesMes}</TableCell>
-                  <TableCell className="tabular-nums">{cedente.percentual}%</TableCell>
-                  <TableCell className="text-right font-bold text-success-foreground tabular-nums">{formatCurrency(cedente.comissaoMes)}</TableCell>
+                  {exibirComissao && <><TableCell className="tabular-nums">{cedente.percentual === undefined ? '—' : `${cedente.percentual}%`}</TableCell>
+                  <TableCell className="text-right font-bold text-success-foreground tabular-nums">{cedente.comissaoMes === undefined ? '—' : formatCurrency(cedente.comissaoMes)}</TableCell></>}
                   <TableCell className="text-right tabular-nums">{formatCurrency(cedente.volumeTotal)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
-            <TableFooter><TableRow><TableCell colSpan={5}>Totais gerais</TableCell><TableCell className="text-right">{formatCurrency(resumo.comissaoMes)}</TableCell><TableCell className="text-right">{formatCurrency(resumo.volumeAcumulado)}</TableCell></TableRow></TableFooter>
+            <TableFooter><TableRow><TableCell colSpan={exibirComissao ? 5 : 4}>Totais gerais</TableCell>{exibirComissao && <TableCell className="text-right">{formatCurrency(resumo.comissaoMes ?? 0)}</TableCell>}<TableCell className="text-right">{formatCurrency(resumo.volumeAcumulado)}</TableCell></TableRow></TableFooter>
           </Table>
         )}
         <RelatorioPagination pagination={data.tabela.pagination} />
       </Card>
 
-      <div className="rounded-xl border border-warning/40 bg-warning/15 p-4 text-sm">
+      {exibirComissao && <div className="rounded-xl border border-warning/40 bg-warning/15 p-4 text-sm">
         <p className="font-medium">Nota</p>
         <p className="text-muted-foreground">As comissões são estimadas com base nas operações em andamento e liquidadas. Os valores finais são confirmados pelo gestor.</p>
-      </div>
+      </div>}
     </div>
   )
 }

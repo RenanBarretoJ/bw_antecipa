@@ -297,12 +297,13 @@ describe('P0 (correcao): submissao divergia do checklist -- CT-e do fluxo regula
 describe('P0 (correcao real): crash ao selecionar NF com parcela vencida em nova-solicitacao', () => {
   it('nova-solicitacao.server.ts exclui parcelas com vencimento individual ja passado do carregamento (mesma regra ja aplicada a NF inteira)', () => {
     const indiceQueryParcelas = novaSolicitacaoServer.indexOf("from('nota_fiscal_parcelas')")
-    const indiceOrderParcelas = novaSolicitacaoServer.indexOf("order('numero_parcela', { ascending: true })")
-    const indiceFiltroParcelas = novaSolicitacaoServer.indexOf(".gte('data_vencimento', dataBase)", indiceQueryParcelas)
+    const indiceRegistroParcelamento = novaSolicitacaoServer.indexOf('nfsComParcelas.add(parcela.nota_fiscal_id)', indiceQueryParcelas)
+    const indiceFiltroParcelas = novaSolicitacaoServer.indexOf("if (parcela.status !== 'disponivel' || parcela.data_vencimento < dataBase) continue", indiceQueryParcelas)
+    const indiceInclusaoParcela = novaSolicitacaoServer.indexOf('lista.push({', indiceQueryParcelas)
     expect(indiceQueryParcelas).toBeGreaterThan(-1)
-    expect(indiceOrderParcelas).toBeGreaterThan(indiceQueryParcelas)
-    expect(indiceFiltroParcelas).toBeGreaterThan(indiceQueryParcelas)
-    expect(indiceFiltroParcelas).toBeLessThan(indiceOrderParcelas)
+    expect(indiceRegistroParcelamento).toBeGreaterThan(indiceQueryParcelas)
+    expect(indiceFiltroParcelas).toBeGreaterThan(indiceRegistroParcelamento)
+    expect(indiceInclusaoParcela).toBeGreaterThan(indiceFiltroParcelas)
   })
 
   it('nova-solicitacao-client.tsx nunca deixa uma falha de calculo (ex.: parcela vencida) quebrar o render inteiro', () => {
