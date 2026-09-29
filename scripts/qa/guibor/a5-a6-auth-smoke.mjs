@@ -9,13 +9,15 @@ import { medvaleSnapshot } from './review-target.mjs'
 import { importRealPdfB } from './a5-real-pdf.mjs'
 
 const homolog = process.argv.includes('--homolog')
+const a6R2 = process.argv.includes('--a6-r2')
+const reportPrefix = a6R2 ? 'GUIBOR_A6_R2' : 'GUIBOR_A5_A6'
 const ref = homolog ? 'fhgkmggthxikfpogrvaa' : 'prnudoydwiramsxjnxzn'
-if(homolog) assert.equal(JSON.parse(readFileSync('rehearsal/reports/GUIBOR_A5_A6_PREVIEW_CERTIFICATION.json','utf8')).success,true)
+if(homolog) assert.equal(JSON.parse(readFileSync(`rehearsal/reports/${reportPrefix}_PREVIEW_CERTIFICATION.json`,'utf8')).success,true)
 const base = process.argv[2]
 assert(/^https:\/\/bw-antecipa-[a-z0-9-]+\.vercel\.app$/.test(base))
 assert.equal(readFileSync('supabase/.temp/project-ref', 'utf8').trim(), ref)
 const run = randomUUID().slice(0, 8)
-const reportPath = `rehearsal/reports/GUIBOR_A5_A6_AUTH_${run}.json`
+const reportPath = `rehearsal/reports/${reportPrefix}_AUTH_${run}.json`
 const report = { target: ref, base, run, users: {}, ids: {}, checks: [], success: false, cleanup: false }
 const save = () => writeFileSync(reportPath, JSON.stringify(report, null, 2))
 const check = name => { report.checks.push(name); save(); console.log(name) }
@@ -296,5 +298,11 @@ finally {
     try {report.medvaleAfter=sql(medvaleSnapshot())[0];assert.deepEqual(report.medvaleAfter,report.medvaleBefore);report.medvalePreserved=true}
     catch {report.cleanupError='MEDVALE_PRESERVATION_CHECK_FAILED';report.cleanup=false;process.exitCode=1}
   }
-  save();console.log(JSON.stringify({report:reportPath,success:report.success,cleanup:report.cleanup,error:report.error,cleanupError:report.cleanupError}))
+  save()
+  if(a6R2 && report.success && report.cleanup) {
+    const localProof=JSON.parse(readFileSync('rehearsal/reports/GUIBOR_A6_R2_PRODUCTION_LIKE.json','utf8'))
+    assert(localProof.success)
+    writeFileSync(`rehearsal/reports/${reportPrefix}_${homolog?'HOMOLOG':'PREVIEW'}_CERTIFICATION.json`,JSON.stringify({...report,migrationHash:localProof.hash},null,2))
+  }
+  console.log(JSON.stringify({report:reportPath,success:report.success,cleanup:report.cleanup,error:report.error,cleanupError:report.cleanupError}))
 }
