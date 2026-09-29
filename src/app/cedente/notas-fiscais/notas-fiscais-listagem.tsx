@@ -253,6 +253,7 @@ export default function NotasFiscaisListagem({
         const formData = new FormData()
         formData.append('arquivos', file)
         if (nfseDueDates.get(file)) formData.append('nfse_vencimento_manual', nfseDueDates.get(file)!)
+        if (nfseReviews.get(file)?.intentId) formData.append('nfse_review_intent', nfseReviews.get(file)!.intentId!)
         if (cedenteIdSelecionado) formData.append('cedente_id', cedenteIdSelecionado)
 
         let actionResult: NfActionState

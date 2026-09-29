@@ -32,6 +32,7 @@ import { prepareNfsePersistence } from '@/lib/nfse/persistence'
 import { validateNfseExtraction } from '@/lib/nfse/danfse-v2'
 import type { NfseExtraction } from '@/lib/nfse/contracts'
 import { safeNfseVisualDiagnostic } from '@/lib/nfse/visual-diagnostics'
+import { openNfseReview, readNfseReview, claimNfseReview, settleNfseReview, trackNfseDocumentPath } from '@/lib/nfse/review-intents.server'
 
 export type NfActionState = {
   success?: boolean
@@ -338,43 +339,81 @@ function contextoDocumentoDaNota(context: CedenteUploadContext, notaFiscalId: st
 async function processarNfse(
   arquivo: File, bytes: Buffer, extraction: NfseExtraction, manualDue: string,
   context: CedenteUploadContext, supabase: AppSupabaseClient, telemetry: UploadTelemetry, fileIndex: number,
+  reviewIntent: string,
 ): Promise<ProcessedUploadFile> {
   telemetry.parsed(fileIndex, { layoutFingerprint: extraction.layout_fingerprint, parseStrategy: extraction.strategy,
     confidence: extraction.confianca.valor_bruto, extractionSource: extraction.strategy === 'danfse_v2_visual' ? 'pdf_ai_fallback' : 'pdf_text_native' })
   if (!validateNfseExtraction(extraction).ok) return { ok: false, status: 'REJECTED_AMBIGUOUS', error: 'Nao foi possivel interpretar esta NFS-e com seguranca.' }
+  // Parsing may be slow. Re-check session/MFA and live org/fund membership afterwards.
+  const fresh = await resolverContextoUploadCedente(supabase, context.cedente.id)
+  if ('error' in fresh || fresh.userId !== context.userId || fresh.fundoId !== context.fundoId
+    || fresh.cedenteFundoId !== context.cedenteFundoId) {
+    return { ok: false, status: 'REJECTED_INVALID', error: 'Seu acesso a este contexto mudou. Atualize a pagina antes de continuar.' }
+  }
   const estabelecimento = await resolverEstabelecimentoOrigem({ supabase, cedenteId: context.cedente.id,
     fundoId: context.fundoId, cnpjEmitente: extraction.dados.cnpj_emitente! })
   const { data: duplicate, error: duplicateError } = await supabase.from('notas_fiscais').select('id')
     .eq('chave_acesso', extraction.dados.chave_acesso!).limit(1).maybeSingle()
   if (duplicateError) return { ok: false, status: 'PERSISTENCE_ERROR', error: 'Nao foi possivel verificar duplicidade. Tente novamente.' }
   if (duplicate) return { ok: false, status: 'DUPLICATE', error: 'Esta Nota Fiscal ja foi cadastrada.' }
-  const prepared = prepareNfsePersistence(extraction, manualDue, createHash('sha256').update(bytes).digest('hex'), new Date().toISOString().slice(0, 10))
-  if (prepared.kind === 'review') return { ok: false, status: 'REQUIRES_REVIEW',
-    error: 'Vencimento não informado no documento. Informe uma data de vencimento válida para concluir.', review: prepared.review }
-  const path = `${context.cedente.cnpj.replace(/\D/g, '')}/nf/${randomUUID()}.pdf`
-  const { error: storageError } = await supabase.storage.from(buckets.notasFiscais).upload(path, arquivo)
-  if (storageError) return { ok: false, status: 'STORAGE_ERROR', error: 'Nao foi possivel armazenar a NFS-e.' }
-  let persistedId: string | null = null
+  const fileHash = createHash('sha256').update(bytes).digest('hex')
+  const scope = { actorId: context.userId, cedenteId: context.cedente.id, cedenteFundoId: context.cedenteFundoId, fundoId: context.fundoId }
+  let intentId = reviewIntent
   try {
+    if (intentId) await readNfseReview(intentId, scope, extraction, fileHash)
+    else intentId = await openNfseReview(scope, extraction, fileHash)
+  } catch (error) {
+    const code = error instanceof Error ? error.message : ''
+    // No keys, names, amounts, or provider payloads in diagnostic logs.
+    logUploadStage(code === 'NFSE_REVIEW_DRIFT' ? 'nfse_review_fiscal_drift' : 'nfse_review_unavailable')
+    return { ok: false, status: code === 'NFSE_REVIEW_CONFLICT' ? 'DUPLICATE' : 'REJECTED_INVALID',
+      error: code === 'NFSE_REVIEW_DRIFT' ? 'O documento ou os fatos fiscais divergiram da revisao original. Importacao bloqueada; contate o suporte.'
+        : 'Revisao indisponivel, expirada ou ja processada. Atualize a lista antes de reenviar.' }
+  }
+  // A caller cannot bypass the initial review by posting a date on its first request.
+  const prepared = prepareNfsePersistence(extraction, reviewIntent ? manualDue : '', fileHash, new Date().toISOString().slice(0, 10))
+  if (prepared.kind === 'review') return { ok: false, status: 'REQUIRES_REVIEW',
+    error: 'Vencimento não informado no documento. Informe uma data de vencimento válida para concluir.', review: { ...prepared.review, intentId } }
+  const path = `${context.cedente.cnpj.replace(/\D/g, '')}/nf/${randomUUID()}.pdf`
+  const reservedNfId = randomUUID()
+  try { await claimNfseReview(intentId, path, reservedNfId) } catch {
+    return { ok: false, status: 'DUPLICATE', error: 'Esta NFS-e ja esta sendo processada ou foi cadastrada. Atualize a lista antes de reenviar.' }
+  }
+  let persistedId: string | null = null
+  let documentPath: string | null = null
+  try {
+    const { error: storageError } = await supabase.storage.from(buckets.notasFiscais).upload(path, arquivo)
+    // Even an uncertain upload response is compensated against its tracked unique path.
+    if (storageError) throw new Error('NFSE_STORAGE_FAILED')
+    // Reserve the ID before insertion so an ambiguous network response is recoverable.
+    persistedId = reservedNfId
     const { data: nf, error } = await supabase.from('notas_fiscais').insert({
-      ...prepared.values, cedente_id: context.cedente.id, cedente_fundo_id: context.cedenteFundoId,
+      id: reservedNfId,
+      ...prepared.values,
+      fiscal_proveniencia: { ...prepared.values.fiscal_proveniencia, review_intent_id: intentId },
+      cedente_id: context.cedente.id, cedente_fundo_id: context.cedenteFundoId,
       fundo_id: context.fundoId, estabelecimento_id: estabelecimento.id, arquivo_url: path, status: 'rascunho',
       valor_icms: 0, valor_iss: 0, valor_pis: 0, valor_cofins: 0, valor_ipi: 0,
     } as never).select('id').single()
-    if (error || !nf) {
-      const cleanup = await createAdminClient().storage.from(buckets.notasFiscais).remove([path])
-      if (cleanup.error) return { ok: false, status: 'STORAGE_ERROR', error: 'A limpeza do arquivo falhou. Contate o suporte antes de reenviar.' }
-      telemetry.compensated(fileIndex)
-      return { ok: false, status: error?.code === '23505' ? 'DUPLICATE' : 'PERSISTENCE_ERROR', error: error?.code === '23505'
-        ? 'Esta Nota Fiscal ja foi cadastrada.' : 'Nao foi possivel salvar a NFS-e. Tente novamente.' }
-    }
+    if (error || !nf) throw new Error(error?.code === '23505' ? 'NFSE_DUPLICATE' : 'NFSE_INSERT_FAILED')
     persistedId = nf.id
-    await uploadDocumentoSeRequerido(nf.id, 'nf_danfe_pdf', arquivo, supabase, contextoDocumentoDaNota(context, nf.id), undefined, extraction)
+    await settleNfseReview(intentId, 'PROCESSING', nf.id)
+    const repositoryOwnsFile = await uploadDocumentoSeRequerido(nf.id, 'nf_danfe_pdf', arquivo, supabase, contextoDocumentoDaNota(context, nf.id), undefined, extraction,
+      async docPath => { documentPath = docPath; await trackNfseDocumentPath(intentId, docPath) })
+    if (repositoryOwnsFile) {
+      // The canonical repository is the sole final copy when a policy requires it.
+      const { data: detached, error: detachError } = await supabase.from('notas_fiscais')
+        .update({ arquivo_url: null }).eq('id', nf.id).select('id').single()
+      if (detachError || !detached) throw new Error('NFSE_ORIGINAL_DETACH_FAILED')
+      const { error: removeError } = await createAdminClient().storage.from(buckets.notasFiscais).remove([path])
+      if (removeError) throw new Error('NFSE_ORIGINAL_CLEANUP_FAILED')
+    }
     await registrarEventoNotaFiscal(supabase, nf.id, { tipo_evento: 'nota_fiscal_salva_como_rascunho', categoria: 'operacao',
       descricao: 'NFS-e cadastrada por upload de PDF revisado.', origem: 'upload_nfse_pdf',
-      metadata: { strategy: extraction.strategy, vencimento_source: prepared.values.vencimento_origem } })
+      metadata: { strategy: extraction.strategy, vencimento_source: prepared.values.vencimento_origem, review_intent_id: intentId } })
+    await settleNfseReview(intentId, 'COMPLETED', nf.id)
     return { ok: true, id: nf.id, isRascunho: true, nfNumero: prepared.values.numero_nf }
-  } catch {
+  } catch (failure) {
     try {
       if (persistedId) await removerNotaFiscalParcial({ notaFiscalId: persistedId, cedenteId: context.cedente.id,
         arquivoUrl: path, context, etapa: 'nfse_compensacao', strict: true, onCompensated: () => telemetry.compensated(fileIndex) })
@@ -383,10 +422,18 @@ async function processarNfse(
         if (error) throw new Error('NFSE_CLEANUP_FAILED')
         telemetry.compensated(fileIndex)
       }
+      if (documentPath) {
+        const { error } = await createAdminClient().storage.from('documentos-v2').remove([documentPath])
+        if (error) throw new Error('NFSE_DOCUMENT_CLEANUP_FAILED')
+      }
+      await settleNfseReview(intentId, 'FAILED')
     } catch {
+      // If this update also fails, PROCESSING already retains path/NF for reconciliation.
+      await settleNfseReview(intentId, 'CLEANUP_PENDING', persistedId ?? undefined).catch(() => {})
       return { ok: false, status: 'STORAGE_ERROR', error: 'Nao foi possivel concluir a limpeza da NFS-e parcial. Contate o suporte antes de reenviar.' }
     }
-    return { ok: false, status: 'PERSISTENCE_ERROR', error: 'Nao foi possivel concluir a NFS-e; a importacao parcial foi removida.' }
+    return { ok: false, status: failure instanceof Error && failure.message === 'NFSE_DUPLICATE' ? 'DUPLICATE' : 'PERSISTENCE_ERROR',
+      error: 'Nao foi possivel concluir a NFS-e; a importacao parcial foi removida. Atualize a lista antes de reenviar.' }
   }
 }
 
@@ -397,6 +444,7 @@ async function processarArquivo(
   telemetry: UploadTelemetry,
   fileIndex: number,
   manualDue = '',
+  reviewIntent = '',
 ): Promise<ArquivoResult> {
   const { cedente } = context
   const maxSize = 20 * 1024 * 1024
@@ -404,6 +452,8 @@ async function processarArquivo(
     arquivo.type === 'text/xml' || arquivo.type === 'application/xml'
   const isPdf = arquivo.type === 'application/pdf'
   const isImage = arquivo.type === 'image/jpeg' || arquivo.type === 'image/png'
+
+  if (reviewIntent && !isPdf) return { ok: false, status: 'REJECTED_INVALID', error: 'A revisao exige o mesmo PDF original.' }
 
   if (!isXml && !isPdf && !isImage) {
     return { ok: false, status: 'REJECTED_INVALID', error: 'Formato inválido. Aceitos: XML, PDF, JPG, PNG.' }
@@ -601,7 +651,8 @@ async function processarArquivo(
             diagnostic: safeNfseVisualDiagnostic(error) })
           return { ok: false, status: 'REJECTED_AMBIGUOUS', error: 'Nao foi possivel ler este documento fiscal com seguranca. Tente novamente ou contate o suporte.' }
         }
-        if (nfse) return await processarNfse(arquivo, bytes, nfse, manualDue, context, supabase, telemetry, fileIndex)
+        if (nfse) return await processarNfse(arquivo, bytes, nfse, manualDue, context, supabase, telemetry, fileIndex, reviewIntent)
+        if (reviewIntent) return { ok: false, status: 'REJECTED_INVALID', error: 'O arquivo nao corresponde a revisao de NFS-e. Importacao bloqueada.' }
       }
       let extracted: NfPdfExtracted = { campos_extraidos: [] }
       if (isPdf) {
@@ -790,7 +841,8 @@ export async function uploadNFs(formData: FormData): Promise<NfActionState> {
     arquivos,
     (arquivo, fileIndex) => {
       telemetry.start(fileIndex)
-      return processarArquivo(arquivo, context, supabase, telemetry, fileIndex, String(formData.get('nfse_vencimento_manual') || ''))
+      return processarArquivo(arquivo, context, supabase, telemetry, fileIndex,
+        String(formData.get('nfse_vencimento_manual') || ''), String(formData.get('nfse_review_intent') || ''))
     },
     (error) => logUploadNf('processar_arquivo_rejeitado', { ...context, erro: error }),
   )
