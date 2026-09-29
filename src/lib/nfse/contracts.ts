@@ -30,7 +30,7 @@ export type NfseCandidate = {
 export interface NfseExtraction {
   tipo_documento: 'NFSE' | 'UNKNOWN'
   layout_fingerprint: 'danfse_v2' | null
-  strategy: 'danfse_v2_labels' | null
+  strategy: 'danfse_v2_labels' | 'danfse_v2_visual' | null
   dados: Partial<NfseFiscalData>
   candidatos: Partial<Record<NfseField, NfseCandidate[]>>
   proveniencia: Partial<Record<NfseField, { source: string; anchor: string; line: number }>>
