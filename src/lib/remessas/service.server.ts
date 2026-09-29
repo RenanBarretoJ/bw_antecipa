@@ -9,9 +9,10 @@ import { buckets } from '@/lib/storage'
 import { agruparRemessa, hashRemessa, stableStringify, type EstrategiaAgrupamentoRemessa, type RemessaFormato } from './domain'
 import { gerarArquivoCnabLegado } from './adapters/cnab444.server'
 import { carregarLoteRemessaCanonico } from './loader.server'
-import { gerarExcelConferenciaRemessa } from './xlsx'
-import { mapearGrupoParaVrs } from './vrs/mapper'
+import { gerarExcelConferenciaRemessa, fixarDatasZip } from './xlsx'
+import { mapearGrupoParaVrs, type VrsInclusaoMapeada } from './vrs/mapper'
 import { serializarVrsInclusaoCsv } from './vrs/csv'
+import { gerarDownloadExcelVrs, VRS_LAYOUT_VERSION, XLSX_CONTENT_TYPE } from './vrs/xlsx'
 import { enviarRemessaPortalFidc } from '@/lib/portal-fidc/integracao'
 
 type AdminClient = ReturnType<typeof createAdminClient>
@@ -96,6 +97,7 @@ export async function gerarRemessaOperacional(input: { operacaoIds: string[]; us
     integracaoVersaoId: lote.integracao.versaoId,
     adapterKey: lote.integracao.adapterKey,
     operacaoIds: [...new Set(input.operacaoIds)].sort(),
+    ...(lote.integracao.adapterKey === 'vortx_vrs' ? { layout: VRS_LAYOUT_VERSION } : {}),
   }))
   const { data: existenteRaw, error: existenteError } = await admin
     .from('remessas_operacionais')
@@ -112,10 +114,12 @@ export async function gerarRemessaOperacional(input: { operacaoIds: string[]; us
   const remessaId = randomUUID()
   const arquivos: ArquivoGerado[] = []
   const uploadsNovos: string[] = []
+  const gruposVrs: VrsInclusaoMapeada[] = []
   if (lote.integracao.adapterKey === 'vortx_vrs') {
     const grupos = agruparRemessa(lote.operacoes, definition.estrategiaAgrupamento)
     for (const grupo of grupos) {
       const mapped = mapearGrupoParaVrs(grupo, lote.integracao.configuracao)
+      gruposVrs.push(mapped)
       const csv = serializarVrsInclusaoCsv(mapped)
       const nomeArquivo = `${mapped.cedenteCnpj}.csv`
       const storagePath = `operacionais/${lote.fundo.id}/${remessaId}/${nomeArquivo}`
@@ -151,8 +155,11 @@ export async function gerarRemessaOperacional(input: { operacaoIds: string[]; us
   }
   if (arquivos.length === 0) throw new Error('O adapter nao produziu arquivos de remessa.')
 
-  const excel = await gerarExcelConferenciaRemessa(lote, definition.formato, definition.estrategiaAgrupamento)
-  const excelNome = `conferencia_remessa_${remessaId.slice(0, 8)}.xlsx`
+  const excelArquivo = gruposVrs.length > 0
+    ? await gerarDownloadExcelVrs(gruposVrs)
+    : { conteudo: await gerarExcelConferenciaRemessa(lote, definition.formato, definition.estrategiaAgrupamento), nome: `conferencia_remessa_${remessaId.slice(0, 8)}.xlsx`, contentType: XLSX_CONTENT_TYPE }
+  const excel = excelArquivo.conteudo
+  const excelNome = excelArquivo.nome
   const excelPath = `operacionais/${lote.fundo.id}/${remessaId}/${excelNome}`
   try {
     for (const arquivo of arquivos.filter((item) => item.uploadNovo)) {
@@ -163,7 +170,7 @@ export async function gerarRemessaOperacional(input: { operacaoIds: string[]; us
       uploadsNovos.push(arquivo.storagePath)
     }
     const excelUpload = await admin.storage.from(buckets.remessasCnab).upload(excelPath, excel, {
-      contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', upsert: false,
+      contentType: excelArquivo.contentType, upsert: false,
     })
     if (excelUpload.error) throw new Error(`Erro ao salvar Excel de conferencia: ${excelUpload.error.message}`)
     uploadsNovos.push(excelPath)
@@ -230,6 +237,12 @@ export async function gerarRemessaOperacional(input: { operacaoIds: string[]; us
         operacao_ids: input.operacaoIds,
         quantidade_arquivos: arquivos.length,
         payload_hash: payloadHash,
+        ...(gruposVrs.length > 0 ? {
+          layout: VRS_LAYOUT_VERSION,
+          enderecos_consultados: lote.operacoes.flatMap(operacao => operacao.notas
+            .filter(nota => nota.devedor.fonteEndereco !== 'xml')
+            .map(nota => ({ nota_fiscal_id: nota.id, fonte: nota.devedor.fonteEndereco, campos: nota.devedor.camposEnderecoConsultados }))),
+        } : {}),
       },
     })
     return carregarResultadoExistente(admin, remessaId, false)
@@ -259,7 +272,7 @@ export async function baixarExcelRemessa(remessaId: string) {
   const conteudo = Buffer.from(await data.arrayBuffer())
   if (hashRemessa(conteudo) !== remessa.excel_sha256) throw new Error('Hash do Excel de conferencia diverge da trilha persistida.')
   await registrarLog({ tipo_evento: 'REMESSA_OPERACIONAL_EXCEL_BAIXADO', entidade_tipo: 'remessas_operacionais', entidade_id: remessaId, dados_depois: { fundo_id: remessa.fundo_id } })
-  return { conteudo, nomeArquivo: nomeSeguro(remessa.excel_storage_path.split('/').at(-1) ?? `conferencia_${remessaId}.xlsx`), fundoId: remessa.fundo_id }
+  return { conteudo, nomeArquivo: nomeSeguro(remessa.excel_storage_path.split('/').at(-1) ?? `conferencia_${remessaId}.xlsx`), fundoId: remessa.fundo_id, contentType: remessa.excel_storage_path.endsWith('.zip') ? 'application/zip' : XLSX_CONTENT_TYPE }
 }
 
 export async function baixarPacoteRemessa(remessaId: string) {
@@ -281,9 +294,10 @@ export async function baixarPacoteRemessa(remessaId: string) {
     if (hashRemessa(conteudo) !== arquivo.sha256) throw new Error(`Hash do arquivo ${arquivo.nome_arquivo} diverge da trilha persistida.`)
     zip.file(nomeSeguro(arquivo.nome_arquivo), conteudo)
   }
+  if (remessa.adapter_key === 'vortx_vrs') fixarDatasZip(zip)
   const conteudo = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' })
   await registrarLog({ tipo_evento: 'REMESSA_OPERACIONAL_PACOTE_BAIXADO', entidade_tipo: 'remessas_operacionais', entidade_id: remessaId, dados_depois: { fundo_id: remessa.fundo_id, quantidade_arquivos: arquivos.length } })
-  return { conteudo, nomeArquivo: `remessas_lote_${remessaId}.zip`, fundoId: remessa.fundo_id }
+  return { conteudo, nomeArquivo: `remessas_lote_${remessaId}.zip`, fundoId: remessa.fundo_id, contentType: 'application/zip' }
 }
 
 export async function carregarUltimaRemessaDaOperacao(operacaoId: string) {

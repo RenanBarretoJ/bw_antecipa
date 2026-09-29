@@ -59,9 +59,7 @@ export async function GET(req: NextRequest) {
     return new NextResponse(new Uint8Array(arquivo.conteudo), {
       status: 200,
       headers: {
-        'Content-Type': tipo === 'excel'
-          ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-          : 'application/zip',
+        'Content-Type': arquivo.contentType,
         'Content-Disposition': `attachment; filename="${arquivo.nomeArquivo}"`,
         'Cache-Control': 'private, no-store',
       },
