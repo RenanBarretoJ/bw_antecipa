@@ -1,10 +1,11 @@
-// Only the isolated GUIBOR Preview. Never links or pushes a database globally.
+// Only explicit Preview/Homolog targets. Never links or pushes a database globally.
 import assert from 'node:assert/strict'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { normalizeSql, sqlLiteral } from './history-envelope.mjs'
-const ref = 'prnudoydwiramsxjnxzn', version = '20260929174520'
+import { ref, homolog } from './review-target.mjs'
+const version = '20260929174520'
 const source = normalizeSql(readFileSync(`supabase/migrations/${version}_guibor_nfse_review_intents.sql`, 'utf8'))
 const hash = createHash('sha256').update(source).digest('hex')
 function query(sql) {
@@ -23,7 +24,7 @@ const snapshot = `select
  (select md5(coalesce(string_agg(to_jsonb(n)::text,'' order by id),'')) from public.notas_fiscais n) nf_hash,
  (select md5(coalesce(string_agg(to_jsonb(o)::text,'' order by id),'')) from public.operacoes o) op_hash`
 const before = query(snapshot)[0]
-assert.equal(before.a4_hash, 'da66fe43321b8c01d35bf6a012c5cae4668e6b33d1636376e0fc25971985040e', 'PREVIEW_A4_HISTORY_DRIFT_STOP')
+assert.equal(before.a4_hash, homolog ? '6764965cb3be144ff3604f7aa294aafc62e90270a72d2a4d7104689571e31d76' : 'da66fe43321b8c01d35bf6a012c5cae4668e6b33d1636376e0fc25971985040e', 'A4_HISTORY_DRIFT_STOP')
 if (before.history_count === 1) {
   assert.equal(before.history_hash, hash, 'R3_HISTORY_DRIFT_STOP')
   assert.equal(before.intents, 'nfse_review_intents')
@@ -41,7 +42,7 @@ if (before.history_count === 1) {
     assert.equal(after.a4_hash, before.a4_hash)
     assert.equal(after.nf_hash, before.nf_hash); assert.equal(after.op_hash, before.op_hash)
     const result = { target:ref, migration:version, hash, schema:'PASS', operationalDataUnchanged:true, productionChanged:false }
-    writeFileSync('rehearsal/reports/GUIBOR_R3_PREVIEW_MIGRATION.json', JSON.stringify(result,null,2))
+    writeFileSync(`rehearsal/reports/GUIBOR_R3_${homolog?'HOMOLOG':'PREVIEW'}_MIGRATION.json`, JSON.stringify(result,null,2))
     console.log(JSON.stringify(result))
   }
 }

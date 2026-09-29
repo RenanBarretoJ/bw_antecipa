@@ -4,13 +4,14 @@ import { spawnSync } from 'node:child_process'
 import { randomUUID, randomBytes, createHmac } from 'node:crypto'
 import { createClient } from '@supabase/supabase-js'
 import puppeteer from 'puppeteer-core'
-const ref='prnudoydwiramsxjnxzn'
+import { ref, phase, homolog, medvale, medvaleSnapshot } from './review-target.mjs'
 const base=process.argv[2]
 const label=process.argv[3]||'A'
-const phase='R3'
-assert(['A','B'].includes(label))
-const issuer=label==='A'?'51464297000187':'37034852000100'
-const pdf=label==='A'?'NF 202649 - CONSISA.pdf':'232- HOSPITAL VIDA.pdf'
+const existingCedente=homolog && label==='A'
+assert(['A','B','C'].includes(label))
+const issuer=label==='C'?cnpj():label==='A'?'51464297000187':'37034852000100'
+const pdf=label==='C'?'GUIBOR_R3_SYNTHETIC_FAULT.pdf':label==='A'?'NF 202649 - CONSISA.pdf':'232- HOSPITAL VIDA.pdf'
+const pdfPath=label==='C'?`rehearsal/tmp/${pdf}`:`C:/Users/BrenoAlvim/Downloads/NFSe Guibor/${pdf}`
 assert(base?.startsWith('https://bw-antecipa-') && base.endsWith('.vercel.app'))
 assert.equal(readFileSync('supabase/.temp/project-ref','utf8').trim(),ref)
 const run=randomUUID().slice(0,8)
@@ -46,11 +47,18 @@ function totp(secret){
  return String((digest.readUInt32BE(offset)&0x7fffffff)%1000000).padStart(6,'0')
 }
 const clients={}
-let browser
+let browser, faultInstalled=false
+const faultName=`guibor_r3_qa_fail_${run}`
 try{
- assert.equal(sql(`select count(*)::int n from public.cedentes where cnpj='${issuer}'`)[0].n,0,'QA_CNPJ_COLLISION_STOP')
+ assert.equal(sql(`select count(*)::int n from public.cedentes where cnpj='${issuer}'`)[0].n,existingCedente?1:0,'QA_CNPJ_COLLISION_STOP')
+ if(existingCedente){
+  assert.equal(sql(`select count(*)::int n from public.cedentes where id='${medvale.cedente}' and cnpj='${issuer}' and status='ativo'`)[0].n,1)
+  assert.equal(sql(`select count(*)::int n from public.notas_fiscais where cedente_id='${medvale.cedente}'`)[0].n,0,'MEDVALE_NOT_EMPTY_STOP')
+  report.preserveExisting=true;report.fixtures={...medvale};report.originalSnapshot=sql(medvaleSnapshot())[0];save()
+ }
  const map=new Map()
  for(const [n,role] of [[1,'consultor'],[2,'leitor'],[3,'cedente'],[4,'gestor']]){
+  if(existingCedente && role!=='cedente')continue
   const email=`guibor-${run}-${role}@example.invalid`
   const password=`Guibor!A1${randomBytes(24).toString('base64url')}`
   const {user}=val(await admin.auth.admin.createUser({email,password,email_confirm:true,user_metadata:{nome_completo:`QA GUIBOR ${role}`}}))
@@ -60,6 +68,13 @@ try{
    val(await client.auth.signInWithPassword({email,password}));clients[role]=client
   }
  }
+ if(existingCedente){
+  // Explicit user authorization: delegated operational access, never a legacy owner rewrite.
+  sql(`BEGIN;UPDATE public.profiles SET role='cedente',status='ativo' WHERE id='${report.users.cedente}';
+   INSERT INTO public.cedente_acessos(cedente_id,user_id,perfil,status,ativo,aceito_em)
+   VALUES('${medvale.cedente}','${report.users.cedente}','OPERACIONAL','ATIVO',true,now());COMMIT;SELECT true seeded;`)
+  assert.deepEqual(sql(medvaleSnapshot(report.users.cedente))[0],report.originalSnapshot,'MEDVALE_CONFIGURATION_CHANGED_STOP')
+ }else{
  let setup=readFileSync('supabase/tests/c2_1_r2_fluxo_taxa.test.sql','utf8').match(/DO \$setup\$[\s\S]*?\$setup\$;/)[0]
  setup=setup.replace(/  INSERT INTO auth.users[\s\S]*?(?=  INSERT INTO public.profiles)/,'')
  setup=setup.slice(0,setup.indexOf('  INSERT INTO public.notas_fiscais'))+'END;\n$setup$;'
@@ -71,6 +86,7 @@ try{
  const id=prefix=>map.get(`${prefix}000000-0000-4000-8000-000000000001`)
  report.fixtures={fund:id('22'),cedente:id('23'),link:id('24'),escrow:id('25'),policy:id('26'),version:id('27'),policyLink:id('28'),org:id('29')};save()
  sql(`BEGIN;${setup}COMMIT;SELECT true seeded;`)
+ }
  report.checks.push('QA_FIXTURES_CREATED');save()
  const client=clients.cedente
  const factor=val(await client.auth.mfa.enroll({factorType:'totp',friendlyName:`GUIBOR ${run}`}))
@@ -81,6 +97,12 @@ try{
  browser=await puppeteer.launch({executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',headless:true,args:['--no-first-run','--disable-dev-shm-usage']})
  const context=await browser.createBrowserContext();const page=await context.newPage()
  await page.setViewport({width:1600,height:1400})
+ if(label==='C'){
+  const {danfseFixture}=await import('../../../src/lib/nfse/fixtures/danfse-v2.ts')
+  const synthetic=danfseFixture().replace('11.222.333/0001-81',issuer)
+  await page.setContent('<html><meta charset="utf-8"><style>pre{font-size:8px;line-height:10px;white-space:pre-wrap}</style><pre>'+synthetic.replaceAll('&','&amp;').replaceAll('<','&lt;')+'</pre></html>')
+  await page.pdf({path:pdfPath,format:'A4',margin:{top:'10mm',bottom:'10mm',left:'10mm',right:'10mm'}})
+ }
  const session=val(await client.auth.getSession()).session
  const cookie='base64-'+Buffer.from(JSON.stringify(session)).toString('base64url')
  const chunks=cookie.match(/.{1,3180}/g);const name=`sb-${ref}-auth-token`
@@ -88,11 +110,11 @@ try{
  const response=await page.goto(`${base}/cedente/notas-fiscais`,{waitUntil:'networkidle2',timeout:60000})
  const csp=response.headers()['content-security-policy']||''
  assert(csp.includes(`${ref}.supabase.co`),'PREVIEW_TARGET_MISMATCH')
- report.checks.push('DEPLOYMENT_TARGET_ISOLATED_PREVIEW');save()
+ report.checks.push(homolog?'DEPLOYMENT_TARGET_HOMOLOG':'DEPLOYMENT_TARGET_ISOLATED_PREVIEW');save()
  await page.waitForSelector('input[type=file]',{timeout:15000})
  const before=sql(`select (select count(*) from public.notas_fiscais where cedente_id='${report.fixtures.cedente}') notes,(select count(*) from storage.objects where (bucket_id='notas-fiscais' and name like '${issuer}/nf/%') or (bucket_id='documentos-v2' and name like '${report.fixtures.cedente}/%')) objects`)[0]
  const file=await page.$('input[type=file]')
- await file.uploadFile(`C:/Users/BrenoAlvim/Downloads/NFSe Guibor/${pdf}`)
+ await file.uploadFile(pdfPath)
  await page.waitForFunction(()=>[...document.querySelectorAll('button')].some(b=>b.textContent.includes('Enviar 1 arquivo')),{timeout:10000})
  await page.evaluate(()=>[...document.querySelectorAll('button')].find(b=>b.textContent.includes('Enviar 1 arquivo')).click())
  try{await page.waitForSelector('#nfse-due-0',{timeout:90000})}catch{
@@ -103,10 +125,10 @@ try{
  const due=await page.$eval('#nfse-due-0',e=>({value:e.value,required:e.required}))
  assert.equal(due.value,'');assert.equal(due.required,true)
  const ui=await page.evaluate(()=>document.body.innerText)
- const amounts=label==='A'?['39.521,98','37.229,70']:['112.710,81','105.779,10']
+ const amounts=label!=='B'?['39.521,98','37.229,70']:['112.710,81','105.779,10']
  assert(amounts.every(v=>ui.includes(v)),`GUIBOR_${label}_FISCAL_AMOUNTS_MISMATCH`)
- assert(ui.includes(`NFS-e ${label==='A'?'49':'232'}`),'GUIBOR_NF_NUMBER_MISMATCH')
- assert(ui.includes('Vencimento nÃ£o informado no documento'))
+ assert(ui.includes(`NFS-e ${label!=='B'?'49':'232'}`),'GUIBOR_NF_NUMBER_MISMATCH')
+ assert(ui.includes('Vencimento n\u00e3o informado no documento'))
  const after=sql(`select (select count(*) from public.notas_fiscais where cedente_id='${report.fixtures.cedente}') notes,(select count(*) from storage.objects where (bucket_id='notas-fiscais' and name like '${issuer}/nf/%') or (bucket_id='documentos-v2' and name like '${report.fixtures.cedente}/%')) objects`)[0]
  assert.deepEqual(after,before,'GUIBOR_A_PREMATURE_PERSISTENCE_STOP')
  await page.screenshot({path:`rehearsal/reports/GUIBOR_${phase}_${label}_REVIEW.png`,fullPage:true})
@@ -115,9 +137,11 @@ try{
  report.before=before; report.afterReview=after; save()
  for(const width of [390,430,820,1440]){
   await page.setViewport({width,height:1000})
+  await page.waitForFunction(()=>{const r=document.querySelector('aside').getBoundingClientRect();return innerWidth<1024?r.right<=0.1:Math.abs(r.left)<0.1},{timeout:5000})
+  await page.evaluate(()=>document.querySelector('main').scrollTo(0,0))
   const bounds=await page.$eval('#nfse-due-0',e=>{const r=e.getBoundingClientRect();return {left:r.left,right:r.right,width:innerWidth}})
   assert(bounds.left>=0&&bounds.right<=bounds.width,'REVIEW_RESPONSIVE_OVERFLOW')
-  await page.screenshot({path:`rehearsal/reports/GUIBOR_R3_${label}_REVIEW_${width}.png`,fullPage:true})
+  await page.screenshot({path:`rehearsal/reports/GUIBOR_${phase}_${label}_REVIEW_${width}.png`,fullPage:true})
  }
  report.checks.push('REVIEW_RESPONSIVE_390_430_820_1440');save()
  // Missing date must never submit or persist.
@@ -131,16 +155,32 @@ try{
   e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}))
  },dueValue)
  await page.waitForFunction(value=>document.querySelector('#nfse-due-0')?.value===value,{},dueValue)
+ if(label==='C'){
+  sql(`CREATE FUNCTION private.${faultName}() RETURNS trigger LANGUAGE plpgsql SET search_path='' AS $qa$
+   BEGIN IF NEW.cedente_id='${report.fixtures.cedente}'::uuid AND NEW.numero_nf='49' THEN RAISE EXCEPTION 'GUIBOR_QA_INSERT_FAILURE' USING ERRCODE='23514'; END IF; RETURN NEW; END $qa$;
+   CREATE TRIGGER ${faultName} BEFORE INSERT ON public.notas_fiscais FOR EACH ROW EXECUTE FUNCTION private.${faultName}();SELECT true installed;`)
+  faultInstalled=true
+ }
  await page.evaluate(()=>[...document.querySelectorAll('button')].find(b=>b.textContent.includes('Enviar 1 arquivo')).click())
  await page.waitForFunction(()=>[...document.querySelectorAll('button')].some(b=>b.disabled&&/Enviando|Processando/.test(b.textContent)),{timeout:10000})
  report.checks.push('REVIEW_LOADING');save()
+ if(label==='C'){
+  await page.waitForFunction(()=>document.body.innerText.includes('a importacao parcial foi removida'),{timeout:60000})
+  const afterFault=sql(`select
+   (select count(*)::int from public.notas_fiscais where cedente_id='${report.fixtures.cedente}') notes,
+   (select count(*)::int from storage.objects where (bucket_id='notas-fiscais' and name like '${issuer}/nf/%') or (bucket_id='documentos-v2' and name like '${report.fixtures.cedente}/%')) objects,
+   (select count(*)::int from public.nfse_review_intents where cedente_id='${report.fixtures.cedente}' and state='FAILED') compensated,
+   (select count(*)::int from public.nfse_review_intents where cedente_id='${report.fixtures.cedente}' and state in ('PROCESSING','CLEANUP_PENDING')) pending`)[0]
+  assert.equal(afterFault.notes,0);assert.equal(afterFault.objects,0);assert.equal(afterFault.compensated,1);assert.equal(afterFault.pending,0)
+  report.afterCompensation=afterFault;report.checks.push('REAL_PREVIEW_INSERT_FAILURE_COMPENSATED','ZERO_ORPHAN','NO_PENDING_CLEANUP');report.success=true
+ }else{
  // Exactly one controlled server re-extraction. Never retry the visual provider on failure.
  try {
   await page.waitForFunction(()=>location.pathname.match(/notas-fiscais\/[0-9a-f-]{36}/)||/importado\(s\)/.test(document.body.innerText)&&document.body.innerText.includes('1 de 1'),{timeout:100000})
  } catch {
   const messages=await page.evaluate(()=>document.body.innerText)
-  writeFileSync(`rehearsal/reports/GUIBOR_R3_${label}_PERSIST_ERROR.txt`,messages)
-  await page.screenshot({path:`rehearsal/reports/GUIBOR_R3_${label}_PERSIST_ERROR.png`,fullPage:true})
+  writeFileSync(`rehearsal/reports/GUIBOR_${phase}_${label}_PERSIST_ERROR.txt`,messages)
+  await page.screenshot({path:`rehearsal/reports/GUIBOR_${phase}_${label}_PERSIST_ERROR.png`,fullPage:true})
   throw new Error(`GUIBOR_${label}_PERSIST_FAILED_STOP`)
  }
  const notes=val(await admin.from('notas_fiscais').select('id,numero_nf,tipo_documento_fiscal,valor_bruto,valor_liquido,valor_liquido_origem,data_vencimento,vencimento_origem,fiscal_proveniencia,arquivo_url').eq('cedente_id',report.fixtures.cedente))
@@ -169,13 +209,17 @@ try{
  const afterDuplicate=sql(`select (select count(*)::int from public.notas_fiscais where cedente_id='${report.fixtures.cedente}') notes,(select count(*)::int from storage.objects where (bucket_id='notas-fiscais' and name like '${issuer}/nf/%') or (bucket_id='documentos-v2' and name like '${report.fixtures.cedente}/%')) objects,(select count(*)::int from public.logs_auditoria where entidade_id='${note.id}' and tipo_evento='NFSE_VENCIMENTO_MANUAL') audit`)[0]
  assert.deepEqual(afterDuplicate,report.afterCreate,'DUPLICATE_CREATED_SIDE_EFFECT')
  report.afterDuplicate=afterDuplicate;report.checks.push('DUPLICATE_NO_NEW_NF_STORAGE_AUDIT')
+ if(existingCedente){
+  assert.deepEqual(sql(medvaleSnapshot(report.users.cedente))[0],report.originalSnapshot,'MEDVALE_CONFIGURATION_CHANGED_STOP')
+  report.checks.push('MEDVALE_CONFIGURATION_PRESERVED')
+ }
  report.success=true
+ }
 
 }catch(error){report.error=error.message;process.exitCode=1}
 finally{
+ if(faultInstalled)sql(`DROP TRIGGER ${faultName} ON public.notas_fiscais;DROP FUNCTION private.${faultName}();SELECT true fault_removed;`)
  if(browser)await browser.close()
  for(const client of Object.values(clients))await client.auth.signOut().catch(()=>{})
  save();console.log(JSON.stringify(report))
 }
-
-
