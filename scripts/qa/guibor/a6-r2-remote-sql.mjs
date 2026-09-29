@@ -35,7 +35,7 @@ for (const name of ['guibor_a5_base', 'guibor_a6_comissao', 'guibor_a6_r2_analyt
       .replaceAll(") VALUES (\n      '30000000-0000-4000-8000-000000000001',",
         ") VALUES (\n      'a6000000-0000-4000-8000-000000000002',\n      '30000000-0000-4000-8000-000000000001',")
   }
-  source = source.replace(/^SELECT (is|ok|throws_ok|lives_ok)\(/gm, 'INSERT INTO qa_tap SELECT $1(')
+  source = source.replace(/^SELECT (is|ok|throws_ok|lives_ok|pass)\(/gm, 'INSERT INTO qa_tap SELECT $1(')
     .replace('SELECT * FROM finish();', 'INSERT INTO qa_tap SELECT * FROM finish(); SELECT jsonb_agg(result) AS tap FROM qa_tap;')
   const file = 'rehearsal/tmp/guibor-a6-r2-remote-sql.sql'
   writeFileSync(file, source)

@@ -22,7 +22,23 @@ const noC5=JSON.parse(sql(`select jsonb_build_object('c5',to_regprocedure('priva
  'c5History',(select count(*) from supabase_migrations.schema_migrations where name like 'c5%'),
  'users',(select count(*) from auth.users),'operations',(select count(*) from public.operacoes));`))
 assert.deepEqual(noC5,{c5:null,c5Fund:null,c5History:0,users:0,operations:0})
-const report={database:db,noC5,migration,hash:createHash('sha256').update(source).digest('hex'),tests:{},success:false}
+const expectedCatalog=JSON.parse(readFileSync('rehearsal/tmp/a6-r2-production-catalog.json','utf8'))
+const actualCatalog=JSON.parse(sql(readFileSync('scripts/qa/guibor/a6-r2-catalog.sql','utf8')))
+const changedByGuibor=new Set([
+  'public.aprovar_operacao_atomica_financeiro_v1',
+  'public.dashboard_consultor_resumo','public.relatorio_consultor_analitico',
+  'public.remover_nf_operacao_gestor_atomica','public.simular_memoria_financeira_operacao',
+  'public.solicitar_operacao_antecipacao_atomica','public.solicitar_operacao_antecipacao_consultor_atomica',
+])
+// Restored PG deparser flattens nested AND groups in these two pre-existing CHECKs.
+// Definitions were re-read from production and reapplied locally, not modified by R2.
+const deparserOnly=new Set([
+  'public.comunicacoes.comunicacoes_remetente_nome_check',
+  'public.documento_upload_intents.documento_upload_intents_storage_path_check',
+])
+const mismatches=expectedCatalog.filter(o=>!actualCatalog.some(a=>a.kind===o.kind&&a.name===o.name&&a.hash===o.hash))
+assert.deepEqual(mismatches.filter(o=>!(o.kind==='function'&&changedByGuibor.has(o.name.split('(')[0]))&&!(o.kind==='constraint'&&deparserOnly.has(o.name))),[],'BASELINE_SCHEMA_DRIFT_STOP')
+const report={database:db,noC5,migration,hash:createHash('sha256').update(source).digest('hex'),catalog:{sourceObjects:expectedCatalog.length,finalObjects:actualCatalog.length,expectedChanges:mismatches},tests:{},success:false}
 for(const file of ['guibor_a5_base.test.sql','guibor_a6_comissao.test.sql','guibor_a6_r2_analytics_scope.test.sql','c1_1_organizacao_consultora.test.sql','c2_1_r2_fluxo_taxa.test.sql']) {
   const output=sql(expand(file))
   assert(!/^not ok|Looks like you failed|Looks like you planned/m.test(output),output)
@@ -49,4 +65,3 @@ report.success=true
 mkdirSync('rehearsal/reports',{recursive:true})
 writeFileSync('rehearsal/reports/GUIBOR_A6_R2_PRODUCTION_LIKE.json',JSON.stringify(report,null,2))
 console.log('PRODUCTION_LIKE_NO_C5_PASS')
-
