@@ -5,6 +5,7 @@ import { buckets } from '@/lib/storage'
 import { parseNFeXML } from '@/lib/nf-parser'
 import { integrationRuntimeEnvironment, resolverIntegracaoPorCapability } from '@/lib/integracoes/resolver.server'
 import type { RemessaContaBancariaCanonica, RemessaLoteCanonico, RemessaNotaFiscalCanonica } from './domain'
+import { criarResolvedorEnderecoSacado } from './vrs/endereco-sacado.server'
 
 type AdminClient = ReturnType<typeof createAdminClient>
 
@@ -258,6 +259,13 @@ export async function carregarLoteRemessaCanonico(
       notas,
     }
   })
+
+  if (integracao.integrationVersion.adapterKey === 'vortx_vrs') {
+    const resolverEndereco = criarResolvedorEnderecoSacado()
+    await Promise.all(operacoesCanonicas.flatMap(operacao => operacao.notas.map(async nota => {
+      nota.devedor = await resolverEndereco(nota.devedor, nota.numero)
+    })))
+  }
 
   return {
     fundo: { id: fundo.id, nome: fundo.nome, cnpj: fundo.cnpj },

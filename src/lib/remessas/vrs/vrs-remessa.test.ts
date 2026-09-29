@@ -1,4 +1,6 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import { readFileSync } from 'node:fs'
+import JSZip from 'jszip'
 import {
   agruparRemessa,
   chaveUnicaAtivo,
@@ -7,8 +9,10 @@ import {
   type RemessaOperacaoCanonica,
 } from '@/lib/remessas/domain'
 import { consolidarStatusSubremessas } from '@/lib/remessas/service.server'
+import { chaveAtivoVrs, chaveParcelaVrs } from './chaves'
 import { mapearGrupoParaVrs, VrsMappingError } from './mapper'
 import { serializarVrsInclusaoCsv } from './csv'
+import { gerarDownloadExcelVrs, gerarVrsInclusaoXlsx } from './xlsx'
 
 const config = {
   codigo_carteira: 'CART01',
@@ -57,7 +61,7 @@ function operacao(cedenteId = 'cedente-a', cnpj = '12345678000195'): RemessaOper
     },
     estabelecimento: { id: `est-${cedenteId}`, cnpj, razaoSocial: `Cedente ${cedenteId}` },
     notas: [{
-      id: `nf-${cedenteId}`,
+      id: '11111111-2222-3333-4444-555555555555',
       numero: '100',
       serie: '1',
       chaveAcesso: '35260812345678000195550010000001001000000010',
@@ -92,6 +96,60 @@ function operacao(cedenteId = 'cedente-a', cnpj = '12345678000195'): RemessaOper
 }
 
 describe('P4 - adapter Vortx VRS por Cedente', () => {
+  it('preenche as posicoes fisicas 37 e 38 sem deslocar o restante do CSV', () => {
+    const op = operacao()
+    op.notas[0].numero = '000100'
+    const mapped = mapearGrupoParaVrs(agruparRemessa([op], 'POR_CEDENTE')[0], config)
+    const ativo = serializarVrsInclusaoCsv(mapped).conteudo.toString('utf8').split('\r\n')[1].split(';')
+    expect(ativo).toHaveLength(41)
+    expect(ativo.slice(35)).toEqual(['CERC', '000100', op.notas[0].chaveAcesso, '', '', ''])
+  })
+
+  it.each([null, '', '123', 'x'.repeat(44)])('bloqueia chave de NF ausente ou invalida: %s', chave => {
+    const op = operacao()
+    op.notas[0].chaveAcesso = chave
+    expect(() => mapearGrupoParaVrs(agruparRemessa([op], 'POR_CEDENTE')[0], config)).toThrow(/44 digitos/)
+  })
+
+  it('gera as quatro abas e todos os cabecalhos na ordem do XLSX de referencia', async () => {
+    const op = operacao()
+    const mapped = mapearGrupoParaVrs(agruparRemessa([op], 'POR_CEDENTE')[0], config)
+    const zip = await JSZip.loadAsync(await gerarVrsInclusaoXlsx(mapped))
+    const golden = await JSZip.loadAsync(readFileSync('src/lib/remessas/vrs/__fixtures__/inclusao_modelo.xlsx'))
+    const workbook = await zip.file('xl/workbook.xml')!.async('text')
+    expect([...workbook.matchAll(/<sheet name="([^"]+)"/g)].map(match => match[1])).toEqual(['HEADER', 'ATIVO', 'FLUXO', 'PAGAMENTO'])
+    for (let i = 1; i <= 4; i++) {
+      const path = `xl/worksheets/sheet${i}.xml`
+      const sheet = await zip.file(path)!.async('text')
+      const reference = await golden.file(path)!.async('text')
+      const header = (value: string) => [...value.match(/<row\b[^>]*r="1"[^>]*>([\s\S]*?)<\/row>/)![1].matchAll(/<t(?:\s[^>]*)?>([^<]*)<\/t>/g)].map(match => match[1])
+      expect(header(sheet)).toEqual(header(reference))
+    }
+    const ativo = await zip.file('xl/worksheets/sheet2.xml')!.async('text')
+    expect(ativo).toContain('<c r="AJ2" t="inlineStr"><is><t>100</t>')
+    expect(ativo).toContain(`<c r="AK2" t="inlineStr"><is><t>${op.notas[0].chaveAcesso}</t>`)
+    expect(ativo).toContain('<c r="F2" t="inlineStr"><is><t>01310100</t>')
+    const fluxo = await zip.file('xl/worksheets/sheet3.xml')!.async('text')
+    expect([...fluxo.matchAll(/<row /g)]).toHaveLength(4)
+    expect(fluxo).not.toContain('parcela-1-')
+    expect(await zip.file('xl/worksheets/sheet4.xml')!.async('text')).toContain('2780,00')
+    const download = await gerarDownloadExcelVrs([mapped])
+    expect(download.nome).toBe('12345678000195.xlsx')
+    expect(download.contentType).toContain('spreadsheetml')
+  })
+
+  it('mantem um workbook por Cedente no download de lotes com varios Cedentes', async () => {
+    const groups = agruparRemessa([operacao('a', '11111111000111'), operacao('b', '22222222000122')], 'POR_CEDENTE')
+    const download = await gerarDownloadExcelVrs(groups.map(grupo => mapearGrupoParaVrs(grupo, config)))
+    expect(download.contentType).toBe('application/zip')
+    const zip = await JSZip.loadAsync(download.conteudo)
+    expect(Object.keys(zip.files)).toEqual(['11111111000111.xlsx', '22222222000122.xlsx'])
+    const first = await JSZip.loadAsync(await zip.file('11111111000111.xlsx')!.async('nodebuffer'))
+    const header = await first.file('xl/worksheets/sheet1.xml')!.async('text')
+    expect(header).toContain('11111111000111')
+    expect(header).not.toContain('22222222000122')
+  })
+
   it('cenario A: gera HEADER, um ATIVO, somente os tres FLUXOS selecionados e PAGAMENTO', () => {
     const grupo = agruparRemessa([operacao()], 'POR_CEDENTE')[0]
     const mapped = mapearGrupoParaVrs(grupo, config)
@@ -194,7 +252,7 @@ describe('P4 - adapter Vortx VRS por Cedente', () => {
     const primeira = compartilhada.notas[0]
     compartilhada.notas.push({
       ...primeira,
-      id: 'nf-filial-mesma-conta',
+      id: '22222222-2222-3333-4444-555555555555',
       numero: '101',
       emissor: {
         estabelecimentoId: 'filial-mesma-conta',
@@ -232,7 +290,7 @@ describe('P4 - adapter Vortx VRS por Cedente', () => {
     const primeira = multipla.notas[0]
     multipla.notas.push({
       ...primeira,
-      id: 'nf-filial-outra-conta',
+      id: '22222222-2222-3333-4444-555555555555',
       numero: '102',
       emissor: {
         estabelecimentoId: 'filial-outra-conta',
@@ -281,5 +339,74 @@ describe('P4 - adapter Vortx VRS por Cedente', () => {
 
     expect(() => mapearGrupoParaVrs(agruparRemessa([titularCruzado], 'POR_CEDENTE')[0], config))
       .toThrow(/REMESSA_VRS_TITULAR_CONTA_INVALIDO/)
+  })
+})
+
+
+describe('RLX VRS identidade serializada', () => {
+  const nf = '11111111-2222-3333-4444-555555555555'
+  const mapear = (op: RemessaOperacaoCanonica) => mapearGrupoParaVrs(agruparRemessa([op], 'POR_CEDENTE')[0], config)
+
+  it.each([1, '01', '001'])('normaliza o numero original %s', numero => {
+    expect(chaveAtivoVrs(nf)).toBe(nf)
+    expect(chaveParcelaVrs(nf, numero)).toBe(`${nf}_001`)
+    expect(chaveParcelaVrs(nf, 10)).toBe(`${nf}_010`)
+  })
+  it.each(['A1', '', '1.0', ' 1', '-1', 0, -1, 1.5, 1000, NaN])('bloqueia parcela invalida %s', numero => {
+    expect(() => chaveParcelaVrs(nf, numero)).toThrow(/Numero original/)
+  })
+  it('bloqueia identificador nao persistido', () => {
+    expect(() => chaveAtivoVrs('nf-inventada')).toThrow(/UUID/)
+  })
+  it.each([[1], [1, 2, 3], [2, 4]])('golden CSV e XLSX com selecao %s', async (...numeros) => {
+    const op = operacao()
+    op.notas[0].numero = '000100'
+    op.notas[0].chaveAcesso = '0'.repeat(44)
+    op.notas[0].parcelasSelecionadas = numeros.map(numero => ({ ...op.notas[0].parcelasSelecionadas[0], id: `persistido-${numero}`, numero }))
+    const mapped = mapear(op)
+    const csv = serializarVrsInclusaoCsv(mapped).conteudo
+    const rows = csv.toString('utf8').replace(/^\uFEFF/, '').trim().split('\r\n').map(row => row.split(';'))
+    expect(rows[1][1]).toBe(nf)
+    expect(rows[1][27]).toBe('000100')
+    expect(rows[1].slice(36)).toEqual(['000100', '0'.repeat(44), '', '', ''])
+    expect(rows.slice(2, -1).map(row => row.slice(1, 3))).toEqual(numeros.map(numero => [nf, `${nf}_${String(numero).padStart(3, '0')}`]))
+    const zip = await JSZip.loadAsync(await gerarVrsInclusaoXlsx(mapped))
+    for (let sheet = 1; sheet <= 4; sheet++) {
+      const tipo = ['HEADER', 'ATIVO', 'FLUXO', 'PAGAMENTO'][sheet - 1]
+      const xml = await zip.file(`xl/worksheets/sheet${sheet}.xml`)!.async('text')
+      const data = [...xml.matchAll(/<row r="[0-9]+">(.*?)<\/row>/g)].slice(1)
+        .map(row => [...row[1].matchAll(/<c [^>]*t="inlineStr"><is><t>(.*?)<\/t><\/is><\/c>/g)].map(cell => cell[1]))
+      expect(data).toEqual(rows.filter(row => row[0] === tipo).map(row => row.slice(1)))
+    }
+  })
+  it('mantem referencias distintas entre NFs e rejeita colisao', () => {
+    const op = operacao()
+    op.notas.push({ ...structuredClone(op.notas[0]), id: '22222222-2222-3333-4444-555555555555' })
+    const mapped = mapear(op)
+    expect(new Set(mapped.ativos.map(a => a.chaveUnicaAtivo)).size).toBe(2)
+    expect(new Set(mapped.fluxos.map(f => f.chaveUnicaParcela)).size).toBe(6)
+    for (const f of mapped.fluxos) expect(f.chaveUnicaAtivo).toBe(f.notaFiscalId)
+    op.notas[1].id = nf
+    expect(() => mapear(op)).toThrow(/repetida/)
+  })
+  it('rejeita numero original duplicado mesmo com IDs internos diferentes', () => {
+    const op = operacao()
+    op.notas[0].parcelasSelecionadas[1].numero = 2
+    expect(() => mapear(op)).toThrow(/FLUXO repetida/)
+  })
+  it('produz bytes identicos em regeneracoes realizadas em datas diferentes', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    try {
+      vi.setSystemTime(new Date('2026-01-01T12:00:00Z'))
+      const mapped = mapear(operacao())
+      const first = await gerarVrsInclusaoXlsx(mapped)
+      const csv = serializarVrsInclusaoCsv(mapped)
+      const secondGroup = { ...mapped, cedenteCnpj: '22222222000122' }
+      const firstZip = await gerarDownloadExcelVrs([mapped, secondGroup])
+      vi.setSystemTime(new Date('2027-12-31T23:59:58Z'))
+      expect(await gerarVrsInclusaoXlsx(mapear(operacao()))).toEqual(first)
+      expect(serializarVrsInclusaoCsv(mapear(operacao()))).toEqual(csv)
+      expect((await gerarDownloadExcelVrs([mapped, secondGroup])).conteudo).toEqual(firstZip.conteudo)
+    } finally { vi.useRealTimers() }
   })
 })
