@@ -10,7 +10,7 @@ Operação/lote
   -> integração CESSAO_ENVIO publicada do fundo
   -> definição do adapter
   -> estratégia de agrupamento
-  -> arquivo(s) + Excel de conferência
+  -> arquivo(s) + XLSX VRS por Cedente (conferência genérica apenas no CNAB)
   -> Storage + trilha genérica e idempotente
 ```
 
@@ -60,7 +60,7 @@ O documento textual numera 16 posições para `FLUXO`, mas omite o índice 10; o
 | 3 | cpf_cnpj_do_emissor | Estabelecimento da própria NF; fallback para snapshot `notas_fiscais.cnpj_emitente`; bloqueante |
 | 4 | cpf_cnpj_do_devedor | `notas_fiscais.cnpj_destinatario`; bloqueante |
 | 5 | nome_devedor | `notas_fiscais.razao_social_destinatario`; bloqueante |
-| 6–14 | endereço/contato do devedor | `NFe.infNFe.dest.enderDest` do XML original; CEP, logradouro, número, bairro, município e UF são bloqueantes; complemento, e-mail e telefone são opcionais |
+| 6–14 | endereço/contato do devedor | XML original, com complemento dos campos obrigatórios de endereço ausentes/inválidos pela consulta server-side de CNPJ; CEP, logradouro, número, bairro, município e UF continuam bloqueantes; complemento, e-mail e telefone são opcionais |
 | 15 | tipo_do_ativo | Fixo `DM` |
 | 16 | tipo_preco | `vrs_inclusao.tipo_preco`; `POSFIXADO` ou `PREFIXADO`; bloqueante |
 | 17 | metodo_de_preco | `vrs_inclusao.metodo_preco`; bloqueante |
@@ -78,7 +78,9 @@ O documento textual numera 16 posições para `FLUXO`, mas omite o índice 10; o
 | 33 | valor_liquido_credito | Soma do valor presente das parcelas selecionadas |
 | 34 | valor_total_credito | `notas_fiscais.valor_bruto` |
 | 35 | nome_registradora | `vrs_inclusao.registradora`; `B3` ou `CERC`; bloqueante |
-| 36–40 | campos customizados | Vazios; não há fonte contratualmente confirmada |
+| 36 (posição física 37) | campo_customizado1 | Número da NF, somente dígitos, preservando zeros à esquerda |
+| 37 (posição física 38) | campo_customizado2 | Chave de acesso da NF como texto; exige 44 dígitos |
+| 38–40 | campos customizados 3–5 | Vazios |
 
 ### FLUXO
 
@@ -126,13 +128,51 @@ As tabelas possuem RLS. Usuários autenticados recebem somente `SELECT`, condici
 
 ## Downloads
 
-`Baixar Excel` produz uma planilha de conferência do lote inteiro com Cedente, CNPJ, operação, NF, parcelas selecionadas, vencimentos, valores, chaves e estratégia.
+Para VRS, `Baixar Excel` produz um XLSX por Cedente nas abas `HEADER`, `ATIVO`,
+`FLUXO` e `PAGAMENTO`, com os cabeçalhos do arquivo de referência
+`inclusao_modelo.xlsx`. Cada aba contém cabeçalho na primeira linha e dados a
+partir da segunda; o tipo de registro não ocupa uma coluna. O número da NF e a
+chave ficam em `ATIVO!AJ` e `ATIVO!AK`. Chaves, CNPJs, CEPs e contas permanecem
+texto, preservando zeros e os 44 dígitos. Os valores usam o mesmo mapeamento do
+CSV, sem novo cálculo financeiro.
+
+Se houver mais de um Cedente no lote, esse download retorna um ZIP contendo um
+XLSX por Cedente, preservando um único HEADER por workbook. O MIME e a extensão
+do download acompanham o arquivo gerado. O integrador CNAB mantém o Excel de
+conferência genérico do lote.
 
 `Baixar pacote de remessas` produz um ZIP com exatamente as sub-remessas persistidas. O conteúdo é relido do Storage e validado contra SHA-256 antes da entrega; o Excel de conferência não é inserido no pacote.
 
 ## Envio automático VRS
 
 O envio Vórtx permanece deliberadamente bloqueado. A geração, persistência, Excel e ZIP estão disponíveis, mas não existe implementação de upload até que método HTTP, URL e headers sejam confirmados formalmente. Nenhum endpoint foi inferido a partir do teste mTLS. O envio Sinqia/Portal FIDC continua usando o contrato SOAP existente.
+
+## Complemento de endereço e histórico de arquivos
+
+O fallback de endereço é exclusivo da geração VRS e reutiliza
+`cadastro/cnpj.server.ts` (BrasilAPI, timeout de 8 segundos). Preserva os campos
+válidos do XML e consulta somente quando algum campo obrigatório está ausente
+ou inválido; não consulta apenas para preencher telefone, e-mail ou complemento
+opcionais. A resolução compartilha uma consulta por CNPJ dentro do lote e limita
+a quatro consultas concorrentes. Erro, timeout ou resposta ainda incompleta
+bloqueiam a geração com indicação da NF e dos campos pendentes.
+
+Não há UPDATE na NF, no sacado ou em cadastros históricos. A origem (`xml`,
+`cnpj` ou `xml_cnpj`) e os campos complementados entram no modelo usado no hash;
+o evento de geração registra IDs das NFs e campos consultados, sem copiar o
+endereço ou a resposta da API para o log.
+
+A versão `inclusao_v3_chaves_estaveis_xlsx` integra a chave de idempotência VRS. Isso
+permite gerar o novo layout sem sobrescrever remessas anteriores. A mesma
+versão e o mesmo payload reutilizam o arquivo existente; alteração de payload
+continua bloqueando reprocessamento. Downloads de remessas antigas preservam
+seus arquivos originais (inclusive o Excel genérico antigo).
+
+O XLSX de referência foi preservado como fixture sintética de teste. Seu TXT
+acompanhante possui lacunas de colunas que não existem no workbook real; o
+serializador segue o workbook real, com 5/40/14/7 colunas por aba, respectivamente.
+Exemplo somente para inspeção: [XLSX fictício](exemplos/vrs-inclusao-ficticia.xlsx)
+e [CSV fictício](exemplos/vrs-inclusao-ficticia.csv). Não são arquivos operacionais.
 
 ## Arquivos centrais
 

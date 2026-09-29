@@ -56,6 +56,8 @@ export interface RemessaNotaFiscalCanonica {
     uf: string | null
     email: string | null
     telefone: string | null
+    fonteEndereco?: 'xml' | 'cnpj' | 'xml_cnpj'
+    camposEnderecoConsultados?: string[]
   }
   parcelasSelecionadas: RemessaParcelaCanonica[]
 }
