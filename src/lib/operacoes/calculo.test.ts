@@ -68,12 +68,13 @@ describe('dominio financeiro da operacao', () => {
     expect(contarDiasTrinta360('2026-03-29', '2026-03-30')).toBe(1)
   })
 
-  it('aplica um mes financeiro completo e inclui intervalo de um dia em 30/360', () => {
+  it('usa dias reais na base 360 e nao a convencao historica 30/360', () => {
     const mes = calcularValorPresenteNota({ notaFiscalId: 'mes', valorNominal: 1000, taxaMensal: 2, dataBase: '2026-01-15', vencimento: '2026-02-15', metodo: 'TRINTA_360' })
     const dia = calcularValorPresenteNota({ notaFiscalId: 'dia', valorNominal: 1000, taxaMensal: 2, dataBase: '2026-03-29', vencimento: '2026-03-30', metodo: 'TRINTA_360' })
-    expect(mes.diasFinanceiros).toBe(30)
-    expect(mes.expoente).toBe(1)
-    expect(dia.diasFinanceiros).toBe(1)
+    expect(mes.diasFinanceiros).toBeNull()
+    expect(mes.dias).toBe(31)
+    expect(mes.expoente).toBeCloseTo(31 / 30, 12)
+    expect(dia.dias).toBe(1)
     expect(dia.expoente).toBeCloseTo(1 / 30, 12)
   })
 
