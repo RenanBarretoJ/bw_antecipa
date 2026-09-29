@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { extractDanfseV2, validateNfseExtraction } from './danfse-v2'
 import type { NfseExtraction, NfseField } from './contracts'
+import { NfseVisualFiscalError } from './visual-diagnostics'
 
 const printed = z.object({ value: z.string().max(200).nullable(), label: z.string().max(100).nullable() }).strict()
 export const visualNfseSchema = z.object({
@@ -63,8 +64,12 @@ export function validateVisualNfse(input: unknown): NfseExtraction {
   ].filter(Boolean).join('\n')
   const result = extractDanfseV2(canonical)
   const { valor_bruto: gross, valor_liquido: net } = result.dados
-  if (!validateNfseExtraction(result).ok || !result.dados.competencia
-    || (net !== undefined && (!(net > 0) || net > (gross ?? 0)))) throw new Error('NFSE_VISUAL_FISCAL_CONFLICT')
+  const gate = validateNfseExtraction(result)
+  const extraFields: string[] = [], extraReasons: string[] = []
+  if (!result.dados.competencia) { extraFields.push('competencia'); extraReasons.push('competencia_missing') }
+  if (net !== undefined && !(net > 0)) { extraFields.push('valor_liquido'); extraReasons.push('net_non_positive') }
+  if (net !== undefined && net > (gross ?? 0)) { extraFields.push('valor_liquido'); extraReasons.push('net_exceeds_gross') }
+  if (!gate.ok || extraReasons.length) throw new NfseVisualFiscalError(gate, extraFields, extraReasons)
   result.strategy = 'danfse_v2_visual'
   result.candidatos = {} // Do not describe generated canonical lines as native PDF evidence.
   for (const field of Object.keys(result.proveniencia) as NfseField[]) {

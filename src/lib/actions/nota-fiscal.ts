@@ -31,6 +31,7 @@ import { probeNfsePdf } from '@/lib/nfse/pdf-dispatcher.server'
 import { prepareNfsePersistence } from '@/lib/nfse/persistence'
 import { validateNfseExtraction } from '@/lib/nfse/danfse-v2'
 import type { NfseExtraction } from '@/lib/nfse/contracts'
+import { safeNfseVisualDiagnostic } from '@/lib/nfse/visual-diagnostics'
 
 export type NfActionState = {
   success?: boolean
@@ -596,7 +597,8 @@ async function processarArquivo(
         let nfse: NfseExtraction | null
         try { nfse = await probeNfsePdf(bytes) } catch (error) {
           console.warn('[nfse_visual]', { correlation_id: telemetry.correlationId, file_index: fileIndex,
-            error_code: error instanceof Error && /^NFSE_VISUAL_[A-Z_]+$/.test(error.message) ? error.message : 'NFSE_VISUAL_FAILED' })
+            error_code: error instanceof Error && /^NFSE_VISUAL_[A-Z_]+$/.test(error.message) ? error.message : 'NFSE_VISUAL_FAILED',
+            diagnostic: safeNfseVisualDiagnostic(error) })
           return { ok: false, status: 'REJECTED_AMBIGUOUS', error: 'Nao foi possivel ler este documento fiscal com seguranca. Tente novamente ou contate o suporte.' }
         }
         if (nfse) return await processarNfse(arquivo, bytes, nfse, manualDue, context, supabase, telemetry, fileIndex)
