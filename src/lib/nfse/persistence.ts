@@ -2,6 +2,7 @@ import { validateNfseExtraction } from './danfse-v2'
 import type { NfseExtraction } from './contracts'
 
 export type NfseReview = {
+  intentId?: string
   numero: string; bruto: number; liquido: number | null; emissao: string
   strategy: 'danfse_v2_labels' | 'danfse_v2_visual'
 }

@@ -306,7 +306,7 @@ export function NotaFiscalDetalheFeature({
         })
 
         // Gerar URL de preview do arquivo
-        if (nfData.arquivo_url) {
+        if (nfData.arquivo_url || nfData.tipo_documento_fiscal === 'NFSE') {
           const signed = await obterUrlArquivoNotaFiscal(nfData.id)
           if (signed.success && signed.url) setPreviewUrl(signed.url)
         }

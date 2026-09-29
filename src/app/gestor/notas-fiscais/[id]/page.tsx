@@ -32,6 +32,7 @@ import { DuplicatasDaNota } from '@/components/duplicatas/DuplicatasDaNota'
 import { ParcelasDaNota } from '@/components/notas-fiscais/ParcelasDaNota'
 
 interface NfCompleta {
+  tipo_documento_fiscal?: 'NFE' | 'NFSE' | null
   id: string
   numero_nf: string
   serie: string | null
@@ -132,7 +133,7 @@ export default function NfDetalheGestorPage() {
         const nfData = data as NfCompleta
         setNf(nfData)
 
-        if (nfData.arquivo_url) {
+        if (nfData.arquivo_url || nfData.tipo_documento_fiscal === 'NFSE') {
           const signed = await obterUrlArquivoNotaFiscal(nfData.id)
           if (signed.success && signed.url) setPreviewUrl(signed.url)
         }

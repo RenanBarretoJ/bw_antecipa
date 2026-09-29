@@ -20,6 +20,7 @@ export interface UploadDocumentoNotaInput {
   contexto?: ContextoDocumentoNotaFiscal
   parsedDanfe?: NfPdfExtracted
   parsedNfse?: NfseExtraction
+  trackNfseStoragePath?: (path: string) => Promise<void>
 }
 
 export interface UploadDocumentoEntregaInput {
@@ -295,6 +296,12 @@ export async function uploadDocumentoDaNota(
   })
   let uploaded = false
   try {
+    if (input.parsedNfse) {
+      // Durable receipt precedes the second upload, including uncertain HTTP responses.
+      if (!input.trackNfseStoragePath) throw new Error('NFSE_DOCUMENT_TRACKING_REQUIRED')
+      await input.trackNfseStoragePath(path)
+      uploaded = true
+    }
     await enviarObjetoDocumento(path, input.arquivo, mimeType)
     uploaded = true
     const { data: latest } = requirement.documento_id
@@ -580,9 +587,10 @@ export async function uploadDocumentoSeRequerido(
   contexto?: ContextoDocumentoNotaFiscal,
   parsedDanfe?: NfPdfExtracted,
   parsedNfse?: NfseExtraction,
+  trackNfseStoragePath?: (path: string) => Promise<void>,
 ): Promise<boolean> {
   await instanciarRequisitosDaNota(notaFiscalId, client, contexto)
-  const { data: requirement } = await client
+  const { data: requirement, error: requirementError } = await client
     .from('documento_requisito_instancias')
     .select('id')
     .eq('nota_fiscal_id', notaFiscalId)
@@ -590,7 +598,8 @@ export async function uploadDocumentoSeRequerido(
     .eq('status', 'pendente')
     .limit(1)
     .maybeSingle()
+  if (requirementError && parsedNfse) throw new Error('NFSE_DOCUMENT_REQUIREMENT_READ_FAILED')
   if (!requirement) return false
-  await uploadDocumentoDaNota({ notaFiscalId, requisitoId: requirement.id, arquivo, contexto, parsedDanfe, parsedNfse }, client)
+  await uploadDocumentoDaNota({ notaFiscalId, requisitoId: requirement.id, arquivo, contexto, parsedDanfe, parsedNfse, trackNfseStoragePath }, client)
   return true
 }

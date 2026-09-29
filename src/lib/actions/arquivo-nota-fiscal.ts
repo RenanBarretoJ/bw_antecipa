@@ -40,20 +40,34 @@ export async function obterUrlArquivoNotaFiscal(
       : await requireNotaFiscalAccess(notaFiscalId, auth.supabase)
     const { data: nota, error } = await context.supabase
       .from('notas_fiscais')
-      .select('id, arquivo_url')
+      .select('id, arquivo_url, tipo_documento_fiscal, fiscal_proveniencia')
       .eq('id', notaFiscalId)
       .maybeSingle()
 
     if (error || !nota) {
       return { success: false, message: 'Nota fiscal nao encontrada.' }
     }
-    if (!nota.arquivo_url) {
+    let bucket: string = buckets.notasFiscais
+    let path = nota.arquivo_url
+    if (!path && nota.tipo_documento_fiscal === 'NFSE') {
+      const { data: links, error: linksError } = await context.supabase.from('documento_requisito_instancias')
+        .select('documento_id').eq('nota_fiscal_id', nota.id).eq('tipo_documento_codigo_snapshot', 'nf_danfe_pdf')
+      const ids = (links ?? []).flatMap(link => link.documento_id ? [link.documento_id] : [])
+      const provenance = nota.fiscal_proveniencia as { sha256?: string } | null
+      if (!linksError && ids.length && provenance?.sha256) {
+        const { data: original } = await context.supabase.from('documento_versoes')
+          .select('bucket, path').in('documento_id', ids).eq('sha256', provenance.sha256)
+          .order('numero_versao', { ascending: true }).limit(1).maybeSingle()
+        if (original?.bucket === 'documentos-v2') { bucket = original.bucket; path = original.path }
+      }
+    }
+    if (!path) {
       return { success: false, message: 'Esta nota fiscal nao possui arquivo original.' }
     }
 
     const { data, error: signedError } = await createAdminClient().storage
-      .from(buckets.notasFiscais)
-      .createSignedUrl(nota.arquivo_url, SIGNED_URL_TTL_SECONDS)
+      .from(bucket)
+      .createSignedUrl(path, SIGNED_URL_TTL_SECONDS)
 
     if (signedError || !data?.signedUrl) {
       console.error('[storage][nota-fiscal] Falha ao assinar objeto autorizado.', {
