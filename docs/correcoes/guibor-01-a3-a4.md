@@ -69,3 +69,98 @@ a validação real será executada no deployment remoto autorizado.
 `GUIBOR_A3_A4_HOMOLOG_READY = NO` até todos os smokes, CI e cleanup passarem.
 `GUIBOR_PRODUCTION_CHANGED = NO`.
 P17, comissão, política de base, CERC, Vórtx e RLX Email não foram alterados.
+
+## STOP — pós-check de homolog em 29/09/2026
+
+A migration aditiva foi aplicada **somente** em `fhgkmggthxikfpogrvaa`, com
+guards transacionais de presença de P17 e fingerprints de dados antes/depois.
+Nenhuma alteração em notas, operações ou contagem de auditoria foi permitida
+pelo envelope. Não houve criação de usuários/NFs QA nem upload em homolog.
+
+O script novo `scripts/qa/guibor/apply-homolog.mjs` detectou hash divergente no
+campo `supabase_migrations.schema_migrations.statements[1]`. Investigação
+somente leitura confirmou a causa: `String.replace` recebeu uma string de
+substituição contendo o SQL, interpretando sequências especiais `$` na cópia
+armazenada no histórico. O texto histórico corresponde exatamente a essa
+expansão. **Não é divergência dos corpos das funções aplicadas:** ambos foram
+comparados com o arquivo local e são idênticos. As quatro constraints também
+foram comparadas por hash com Docker (`cb407fc63d660f169452df184f1258af`).
+
+- Hash fonte normalizada: `6764965cb3be144ff3604f7aa294aafc62e90270a72d2a4d7104689571e31d76`.
+- Hash cópia no histórico: `baf58d462397d739f1370c0ea13d7d348936bb52671bcf125ab52f6cb696c69a`.
+- `data_vencimento` continua NOT NULL; zero registros NFS-e no alvo.
+- Nenhuma correção automática do histórico foi feita após o STOP.
+- Push, PR, Preview e promoção de código para homolog **não executados**.
+- Tentativa de configuração branch-specific na Vercel não foi aplicada:
+  branch ainda não existe no remoto. Não foram modificadas variáveis globais.
+- Commits locais: `6604740` (A1/A2), `ecb0dc2` (A3), `b2c9490` (A4).
+
+Próxima ação depende de liberação após o STOP: corrigir o envelope usando função
+de substituição (sem expansão de `$`), restaurar **somente** o texto da nova
+entrada de histórico, condicionado ao hash atual conhecido, conferir novamente
+funções/constraints/hash e então retomar Preview e smokes reais. Não reaplicar
+DDL, não editar migration já aplicada, não executar `db push` global.
+
+Evidência detalhada ignorada no Git:
+`rehearsal/reports/GUIBOR_A3_A4_POSTFLIGHT_STOP.json`.
+As cópias Docker isoladas permanecem locais para diagnóstico; todos os registros
+de fixture dos testes foram revertidos por ROLLBACK. Cleanup remoto QA não teve
+objetos a remover.
+
+## Status obrigatório no STOP
+
+PASS abaixo identifica evidência local quando indicado; FAIL em gates remotos
+significa **não certificado/não executado**, não um resultado inventado de smoke.
+O PDF B real ainda não passou pelo novo pipeline.
+
+```text
+GUIBOR_A3_VISUAL_DIAGNOSIS_COMPLETE = YES
+GUIBOR_A3_NFSE_DOCUMENT_KIND = PASS
+GUIBOR_A3_VISUAL_CONTRACT = PASS
+GUIBOR_A3_NFE_CONTRACT_PRESERVED = PASS
+GUIBOR_A3_NFSE_KEY_VALIDATION = PASS
+GUIBOR_A3_VISUAL_FAIL_CLOSED = PASS
+GUIBOR_A3_VISUAL_PROVENANCE = PASS
+GUIBOR_A3_OBSERVABILITY_REDACTED = PASS
+GUIBOR_NFSE_TEXT_PDF = PASS
+GUIBOR_NFSE_IMAGE_PDF = FAIL
+GUIBOR_NFSE_FILE_A_REAL = PASS
+GUIBOR_NFSE_FILE_B_REAL = FAIL
+GUIBOR_A4_NET_VALUE_EXPLICIT = PASS
+GUIBOR_A4_NET_VALUE_NO_GROSS_COPY = PASS
+GUIBOR_A4_NET_VALUE_PROVENANCE = PASS
+GUIBOR_A4_LEGACY_HISTORY_PRESERVED = PASS
+GUIBOR_NFSE_DUE_DATE_SOURCE = MANUAL
+GUIBOR_A4_NO_TODAY_FALLBACK = PASS
+GUIBOR_A4_MANUAL_DUE_DATE_UI = FAIL
+GUIBOR_A4_MANUAL_DUE_DATE_REQUIRED = PASS
+GUIBOR_A4_MANUAL_DUE_DATE_AUDIT = PASS
+GUIBOR_A4_DISPATCHER_ENABLED = NO
+GUIBOR_A4_DUPLICATION = FAIL
+GUIBOR_A4_STORAGE_INTEGRITY = FAIL
+GUIBOR_A4_RLS = PASS
+GUIBOR_PARSER_REGRESSION_MK = PASS
+GUIBOR_PARSER_REGRESSION_BAHIAMED = PASS
+GUIBOR_PARSER_REGRESSION_GENERIC = PASS
+GUIBOR_PARSER_REGRESSION_XML = PASS
+GUIBOR_A3_A4_MIGRATION_REQUIRED = YES
+GUIBOR_A3_A4_FEATURE_TESTS = PASS
+GUIBOR_A3_A4_CI = FAIL
+GUIBOR_A3_A4_PREVIEW = FAIL
+GUIBOR_A3_A4_HOMOLOG = FAIL
+GUIBOR_A3_A4_HOMOLOG_CLEANUP = PASS
+GUIBOR_A3_A4_HOMOLOG_READY = NO
+GUIBOR_A3_A4_P17_CHANGED = NO
+GUIBOR_COMMISSION_CHANGED = NO
+GUIBOR_BASE_POLICY_CHANGED = NO
+GUIBOR_PRODUCTION_CHANGED = NO
+RLX_VORTX_CHANGED = NO
+CERC_CHANGED = NO
+RLX_EMAIL_CHANGED = NO
+```
+
+RLS/audit acima foram executados no Docker isolado; validação autenticada remota
+continua pendente. UI está implementada, mas o smoke visual remoto está pendente.
+Duplicação/Storage têm proteções implementadas e regressões NF-e locais PASS;
+o ciclo NFS-e real remoto ainda não foi certificado. A real refere-se somente à
+extração textual A1/A2, não à persistência/smoke homolog A4.
