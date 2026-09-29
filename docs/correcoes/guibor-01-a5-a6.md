@@ -214,6 +214,17 @@ confirmou zero usuários, cedentes, operações, notas e objetos Storage. Evidê
 separada em `GUIBOR_A5_A6_AUTH_beabb95b_CLEANUP_RECOVERY.json`; o resultado
 original malsucedido foi preservado, sem transformá-lo em sucesso.
 
+Nova execução completa `d72e57cf`: PASS, cleanup PASS, no Preview
+`bw-antecipa-lhfnbzmkg-renanbarretoj.vercel.app` (código de aplicação `6e8ce57`).
+Inclui gravação UI LIQUIDO/BRUTO e comissão ON/OFF; quatro sessões Auth/MFA,
+governança negativa, snapshots, múltiplas NFs, taxa livre e Cedente direto;
+comissão OFF/ON/OFF, LEITOR, multifundo, cinco larguras light/dark e leitura
+do snapshot nos três portais. Inspeção visual mobile OFF light e relatório
+desktop ON dark confirmou reflow e apenas R$ 900,00 de comissão do fundo ON.
+Consulta independente pós-cleanup confirmou zero usuários, operações, notas,
+cedentes e objetos Storage no Preview. O harness aguarda a UI estabilizar em
+vez de ler o corpo RSC, que pode ser descartado pelo Chrome após refresh.
+
 Não classificar gates remotos como PASS a partir da suíte local. A implementação
 e os testes locais não autorizam produção; parar somente no hold point de
 homolog quando todas as evidências remotas estiverem concluídas.

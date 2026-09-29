@@ -135,7 +135,7 @@ try {
       buttons[buttonTexts.indexOf('Salvar base')].click(),
     ])
     assert(savedResponse.ok(),'CONFIG_SAVE_HTTP_ERROR')
-    await savedResponse.text() // Wait for this action stream, not background fund/access actions.
+    await pages.gestor.waitForFunction(()=>[...document.querySelectorAll('button')].some(b=>b.textContent==='Salvar base'&&!b.disabled),{timeout:60000})
     // revalidatePath can remount the form and clear its transient success message.
     const saved=val(await admin.from('cedente_fundos').select('base_valor_antecipacao').eq('id',id('24')).single())
     assert.equal(saved.base_valor_antecipacao,requestedBase)
@@ -152,8 +152,13 @@ try {
         &&r.request().postData()===JSON.stringify([id('29'),id('22'),enabled]),{timeout:60000}),
       pages.gestor.click('[role=switch]'),
     ])
-    assert(response.ok(),'COMMISSION_SAVE_HTTP_ERROR');await response.text()
-    await pages.gestor.waitForFunction(value=>document.querySelector('[role=switch]')?.getAttribute('aria-checked')===String(value),{timeout:30000},enabled)
+    assert(response.ok(),'COMMISSION_SAVE_HTTP_ERROR')
+    // App Router refresh may evict the streamed response body from CDP.
+    // The settled DOM and persisted flag are the completion assertions.
+    await pages.gestor.waitForFunction(value=>{
+      const button=document.querySelector('[role=switch]')
+      return button?.getAttribute('aria-checked')===String(value)&&!button.disabled
+    },{timeout:60000},enabled)
     const saved=val(await admin.from('consultor_fundos').select('comissao_habilitada').eq('consultor_id',id('29')).eq('fundo_id',id('22')).single())
     assert.equal(saved.comissao_habilitada,enabled)
     check(enabled?'UI_COMMISSION_ON_SAVED':'UI_COMMISSION_OFF_SAVED')
