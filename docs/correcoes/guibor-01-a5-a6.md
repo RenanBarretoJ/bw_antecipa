@@ -4,7 +4,9 @@
 
 Implementação local em `feature/guibor-a5-a6-base-comissao`, baseada em homolog
 `af96ff4a3e20b3e6922f63fcedc1e93e511001af`. Baseline C5/P16 do Preview
-alinhada após autorização explícita; A5/A6 ainda não promovidos.
+alinhada após autorização explícita; A5/A6 aplicados somente no Preview.
+Commit de implementação `d152d30`, PR dedicado em rascunho
+[#73](https://github.com/RenanBarretoJ/bw_antecipa/pull/73), base `homolog`.
 
 `GUIBOR_A5_A6_HOMOLOG_READY = NO`
 
@@ -33,7 +35,7 @@ mantém a seleção individual de parcelas. Não há rateio líquido nem fallbac
 - Configuração da comissão no contexto do fundo e no detalhe administrativo da
   Consultoria; OFF remove as referências e recompõe a grade do Consultor.
 
-Migrations novas, ainda não promovidas:
+Migrations novas, aplicadas no Preview e homolog; smoke homolog ainda pendente:
 
 - `20260929191004_guibor_a5_base_antecipacao.sql`
 - `20260929193129_guibor_a6_comissao_por_fundo.sql`
@@ -68,7 +70,7 @@ A revisão final identificou a sobrecarga obsoleta de 16 parâmetros da antiga
 solicitação genérica, ainda concedida a authenticated e capaz de omitir o
 snapshot. A5 revoga execução direta dessa entrada, preservando o objeto e suas
 dependências. As actions atuais usam as RPCs específicas Cedente/Consultor com
-17/14 parâmetros; elas continuam certificadas. O teste 36 verifica a revogação.
+17/13 parâmetros; elas continuam certificadas. O teste 36 verifica a revogação.
 
 A6 cobre OFF→ON→OFF, auditoria, bloqueio de alteração por Consultor/LEITOR e
 Gestor de outro fundo, projeção sem comissão OFF, multifundo, leitura LEITOR
@@ -132,16 +134,53 @@ Evidência local: `rehearsal/reports/GUIBOR_A5_PREVIEW_BASELINE_ALIGNMENT.json`.
 Homolog foi apenas consultado; produção não foi modificada. O smoke SQL de RLS
 não substitui o futuro smoke de aplicação com sessão Auth real.
 
+## A5/A6 no Preview
+
+Aplicação controlada por `scripts/qa/guibor/a5-a6-migration.mjs`, sem push
+global e sem alterar dados financeiros anteriores. History contém o SQL
+completo normalizado LF e estes SHA256:
+
+- A5 `20260929191004`: `b0ee16a0179012da540956d9df4fb6f456dbf81c85015ea681ff52959148f940`.
+- A6 `20260929193129`: `99339e4385d23dd13bd97bf6b5bb864c439a3d9568125de2306058fbdb655bb3`.
+
+`a5-a6-remote-sql.mjs` executou pgTAP no Preview: A5 36 PASS, A6 17 PASS.
+Fixtures e extensão temporária foram revertidas ao final de cada transação.
+O teste SQL não substitui Auth real nem browser.
+
+O CI do PR passou. O check automático Supabase Preview falhou e não criou
+banco para a nova branch; foi reutilizado o Preview explicitamente autorizado
+`prnudoydwiramsxjnxzn`, sem excluir outra branch. Sete variáveis Vercel foram
+configuradas exclusivamente para `feature/guibor-a5-a6-base-comissao` no alvo
+Preview. Credenciais não foram impressas nem gravadas no repositório.
+
+Redeploy de `d152d30`: `bw-antecipa-azqgk00tn-renanbarretoj.vercel.app`.
+CSP de runtime confirmou o host Supabase do Preview antes de criar contas QA.
+Nenhuma variável global, de homolog ou produção foi alterada.
+
+Advisors pós-A5/A6: 17 INFO RLS sem policy e cinco WARN search_path, ambos
+preexistentes; 166 avisos de RPC SECURITY DEFINER executável por authenticated
+(164 após C5). A nova superfície tem autorização por fundo e MFA, com
+negativas verificadas em SQL e Auth real. A entrada obsoleta sem snapshot
+foi revogada. Referência do linter permanece no link acima.
+
+Smoke Auth Preview PASS (`GUIBOR_A5_A6_AUTH_ad5fb67e.json`): quatro papéis com login/MFA reais; governança,
+BRUTO/LÍQUIDO, snapshot imutável, taxa livre, Cedente direto e projeção
+multifundo verificados. A primeira coleta visual continha carregamento e
+foi descartada como certificação; o harness agora aguarda o conteúdo real.
+A segunda execução confirmou OFF/ON/OFF, LEITOR, multifundo e as cinco larguras
+em light/dark sem overflow da página. Inspeção visual de amostras mobile OFF,
+desktop ON e Gestor confirmou o conteúdo; os três portais exibiram o snapshot.
+Cleanup verificado no banco: zero usuários, operações, NFs, eventos, vínculos
+de operação, cedentes e objetos Storage. As migrations permanecem aplicadas.
+
 ## Gates ainda pendentes
 
-- Revisão final de A5/A6, commit/push e PR dedicado.
-- Aplicação exata das migrations com verificação de hash/history e advisors.
-- Smoke autenticado Preview (BRUTO/LIQUIDO, snapshots, roles, multifundo,
-  configuração de comissão e regressão ON/OFF).
-- Inspeção visual 390/430/820/1440/1920, light/dark, incluindo ausência de gaps
-  e overflow; testes de markup não certificam esses itens.
 - Homolog: somente A5/A6, smoke real em contexto QA, preservação integral de
   MEDVALE, vínculos e políticas reais, cleanup apenas QA.
+
+Dry-run homolog identificou somente A5/A6. Aplicação concluída com os dois
+hashes exatos acima; fingerprints de NFs, operações, vínculos e histórico
+anterior permaneceram iguais. Ainda não certifica a aplicação homolog.
 
 Não classificar gates remotos como PASS a partir da suíte local. A implementação
 e os testes locais não autorizam produção; parar somente no hold point de
