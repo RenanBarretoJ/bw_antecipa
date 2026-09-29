@@ -1,0 +1,237 @@
+{
+  "checkedAt": "2026-09-29T12:01:33.785Z",
+  "projectRef": "wwsndnuvnjuabpbjwlck",
+  "result": "PASS",
+  "historical": {
+    "status": "cancelada",
+    "case_operation_digest": "6a1a1ddfcd5007e14b53eff82d94b5c0",
+    "case_links_digest": "b8ef734f19c4435d20475853675837c7",
+    "case_audit_digest": "217b42aabcb8b4ec2dec7fa3ef8208e8"
+  },
+  "migration": [
+    {
+      "version": "20260928185439",
+      "sha256": "6390f43842e82d7d980acfb6ae61e66cd551676e17c21a01a6e8ca237ce3efa1"
+    }
+  ],
+  "functionsAndAclsUnchanged": true,
+  "operations": [
+    {
+      "id": "90c3df7c-89d7-47e5-9b6b-1a8a82bc2cdc",
+      "status": "solicitada",
+      "created_at": "2026-09-28T20:05:46.018Z",
+      "same_cedente": true,
+      "same_cedente_fundo": true,
+      "nfCount": 10,
+      "audit": {
+        "tipo_evento": "OPERACAO_SOLICITADA",
+        "created_at": "2026-09-28T20:05:46.018Z",
+        "actor_role": "cedente",
+        "actor_matches_cedente": true,
+        "recorded_role": "cedente",
+        "nf_ids": [
+          "03aa6e33-ff73-4416-bd7f-c21b963f9f5f",
+          "52cb4544-906a-48b5-ae3f-2f47bf4729db",
+          "55aa5827-e693-42a0-bc7f-e83b2c26b328",
+          "64b0b059-b92f-4759-bde2-903db7804d50",
+          "d44a6613-b3fc-4a4f-88f2-6fd3096613ea",
+          "e185b2b2-479d-449b-bc98-80389d3ff6c7",
+          "f5ac12d2-6715-49cd-9d45-29166039c5b2",
+          "f6252eeb-b858-42c4-8f80-2a73ffa8c059",
+          "ff0ff817-2521-4b9b-a035-2a31287b5525",
+          "ff64f872-c722-413d-b850-6302f7bb338b"
+        ]
+      }
+    },
+    {
+      "id": "9976ae7f-3cb4-4b0c-881f-ab2f2fd03da2",
+      "status": "solicitada",
+      "created_at": "2026-09-28T20:06:47.368Z",
+      "same_cedente": true,
+      "same_cedente_fundo": true,
+      "nfCount": 10,
+      "audit": {
+        "tipo_evento": "OPERACAO_SOLICITADA",
+        "created_at": "2026-09-28T20:06:47.368Z",
+        "actor_role": "cedente",
+        "actor_matches_cedente": true,
+        "recorded_role": "cedente",
+        "nf_ids": [
+          "0d597a87-af7a-46c5-ae7a-de649eda496f",
+          "23ac6c97-be93-4097-833e-3c085e0b9548",
+          "4943fabb-b760-496e-8b7b-cba413d68490",
+          "8740c1ed-2b9b-4dcc-9cec-30639317a498",
+          "9655ba9b-82cb-4f6f-b8ff-35afaf5cf9eb",
+          "c1a44a24-2b5a-4cb5-b83c-c25da4055b6a",
+          "cdd82ca0-6558-4860-88a0-69bc2da13957",
+          "d5147b2c-cda7-4b7e-9b98-4f32f099f8c5",
+          "d5e12740-5ec1-4872-a080-f811e8046437",
+          "d9ee14ce-d077-41c7-9fef-6a367551b12d"
+        ]
+      }
+    }
+  ],
+  "notes": [
+    {
+      "id": "f5ac12d2-6715-49cd-9d45-29166039c5b2",
+      "numero_nf": "279742",
+      "status": "em_antecipacao",
+      "active_operations": [
+        "90c3df7c-89d7-47e5-9b6b-1a8a82bc2cdc"
+      ]
+    },
+    {
+      "id": "ff64f872-c722-413d-b850-6302f7bb338b",
+      "numero_nf": "279749",
+      "status": "em_antecipacao",
+      "active_operations": [
+        "90c3df7c-89d7-47e5-9b6b-1a8a82bc2cdc"
+      ]
+    },
+    {
+      "id": "e185b2b2-479d-449b-bc98-80389d3ff6c7",
+      "numero_nf": "279754",
+      "status": "em_antecipacao",
+      "active_operations": [
+        "90c3df7c-89d7-47e5-9b6b-1a8a82bc2cdc"
+      ]
+    },
+    {
+      "id": "55aa5827-e693-42a0-bc7f-e83b2c26b328",
+      "numero_nf": "279760",
+      "status": "em_antecipacao",
+      "active_operations": [
+        "90c3df7c-89d7-47e5-9b6b-1a8a82bc2cdc"
+      ]
+    },
+    {
+      "id": "f6252eeb-b858-42c4-8f80-2a73ffa8c059",
+      "numero_nf": "279767",
+      "status": "em_antecipacao",
+      "active_operations": [
+        "90c3df7c-89d7-47e5-9b6b-1a8a82bc2cdc"
+      ]
+    },
+    {
+      "id": "64b0b059-b92f-4759-bde2-903db7804d50",
+      "numero_nf": "279775",
+      "status": "em_antecipacao",
+      "active_operations": [
+        "90c3df7c-89d7-47e5-9b6b-1a8a82bc2cdc"
+      ]
+    },
+    {
+      "id": "52cb4544-906a-48b5-ae3f-2f47bf4729db",
+      "numero_nf": "279785",
+      "status": "em_antecipacao",
+      "active_operations": [
+        "90c3df7c-89d7-47e5-9b6b-1a8a82bc2cdc"
+      ]
+    },
+    {
+      "id": "d44a6613-b3fc-4a4f-88f2-6fd3096613ea",
+      "numero_nf": "279790",
+      "status": "em_antecipacao",
+      "active_operations": [
+        "90c3df7c-89d7-47e5-9b6b-1a8a82bc2cdc"
+      ]
+    },
+    {
+      "id": "ff0ff817-2521-4b9b-a035-2a31287b5525",
+      "numero_nf": "279797",
+      "status": "em_antecipacao",
+      "active_operations": [
+        "90c3df7c-89d7-47e5-9b6b-1a8a82bc2cdc"
+      ]
+    },
+    {
+      "id": "c1a44a24-2b5a-4cb5-b83c-c25da4055b6a",
+      "numero_nf": "282676",
+      "status": "em_antecipacao",
+      "active_operations": [
+        "9976ae7f-3cb4-4b0c-881f-ab2f2fd03da2"
+      ]
+    },
+    {
+      "id": "23ac6c97-be93-4097-833e-3c085e0b9548",
+      "numero_nf": "282681",
+      "status": "em_antecipacao",
+      "active_operations": [
+        "9976ae7f-3cb4-4b0c-881f-ab2f2fd03da2"
+      ]
+    },
+    {
+      "id": "9655ba9b-82cb-4f6f-b8ff-35afaf5cf9eb",
+      "numero_nf": "282708",
+      "status": "em_antecipacao",
+      "active_operations": [
+        "9976ae7f-3cb4-4b0c-881f-ab2f2fd03da2"
+      ]
+    },
+    {
+      "id": "03aa6e33-ff73-4416-bd7f-c21b963f9f5f",
+      "numero_nf": "282731",
+      "status": "em_antecipacao",
+      "active_operations": [
+        "90c3df7c-89d7-47e5-9b6b-1a8a82bc2cdc"
+      ]
+    },
+    {
+      "id": "cdd82ca0-6558-4860-88a0-69bc2da13957",
+      "numero_nf": "282742",
+      "status": "em_antecipacao",
+      "active_operations": [
+        "9976ae7f-3cb4-4b0c-881f-ab2f2fd03da2"
+      ]
+    },
+    {
+      "id": "4943fabb-b760-496e-8b7b-cba413d68490",
+      "numero_nf": "282823",
+      "status": "em_antecipacao",
+      "active_operations": [
+        "9976ae7f-3cb4-4b0c-881f-ab2f2fd03da2"
+      ]
+    },
+    {
+      "id": "d5147b2c-cda7-4b7e-9b98-4f32f099f8c5",
+      "numero_nf": "282830",
+      "status": "em_antecipacao",
+      "active_operations": [
+        "9976ae7f-3cb4-4b0c-881f-ab2f2fd03da2"
+      ]
+    },
+    {
+      "id": "8740c1ed-2b9b-4dcc-9cec-30639317a498",
+      "numero_nf": "285264",
+      "status": "em_antecipacao",
+      "active_operations": [
+        "9976ae7f-3cb4-4b0c-881f-ab2f2fd03da2"
+      ]
+    },
+    {
+      "id": "d5e12740-5ec1-4872-a080-f811e8046437",
+      "numero_nf": "285273",
+      "status": "em_antecipacao",
+      "active_operations": [
+        "9976ae7f-3cb4-4b0c-881f-ab2f2fd03da2"
+      ]
+    },
+    {
+      "id": "d9ee14ce-d077-41c7-9fef-6a367551b12d",
+      "numero_nf": "285290",
+      "status": "em_antecipacao",
+      "active_operations": [
+        "9976ae7f-3cb4-4b0c-881f-ab2f2fd03da2"
+      ]
+    },
+    {
+      "id": "0d597a87-af7a-46c5-ae7a-de649eda496f",
+      "numero_nf": "285303",
+      "status": "em_antecipacao",
+      "active_operations": [
+        "9976ae7f-3cb4-4b0c-881f-ab2f2fd03da2"
+      ]
+    }
+  ],
+  "note": "Duas solicitacoes reais sequenciais de 10 NFs distintas, feitas fora da conducao do agente. Nenhuma nova tentativa foi executada nesta verificacao. Evidencia UI deve ser atribuida ao relato do usuario e aos logs, nao a observacao do agente."
+}

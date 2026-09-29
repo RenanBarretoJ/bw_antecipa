@@ -1,0 +1,69 @@
+{
+  "checkedAt": "2026-09-29T12:01:54.825Z",
+  "source": "Vercel production request logs",
+  "windows": [
+    {
+      "file": "p16-prod-smoke-first-logs.jsonl",
+      "rawCount": 9,
+      "distinctRecords": 9,
+      "first": "2026-09-28T20:05:32.084Z",
+      "last": "2026-09-28T20:05:49.845Z",
+      "statuses": {
+        "200": 9
+      },
+      "posts": [
+        {
+          "time": "2026-09-28T20:05:44.165Z",
+          "path": "/cedente/operacoes/nova",
+          "status": 200
+        }
+      ],
+      "errors": 0,
+      "domainErrorMatches": 0
+    },
+    {
+      "file": "p16-prod-smoke-second-logs.jsonl",
+      "rawCount": 13,
+      "distinctRecords": 13,
+      "first": "2026-09-28T20:06:31.000Z",
+      "last": "2026-09-28T20:06:58.836Z",
+      "statuses": {
+        "200": 13
+      },
+      "posts": [
+        {
+          "time": "2026-09-28T20:06:46.190Z",
+          "path": "/cedente/operacoes/nova",
+          "status": 200
+        }
+      ],
+      "errors": 0,
+      "domainErrorMatches": 0
+    },
+    {
+      "file": "p16-prod-real-smoke-logs.jsonl",
+      "rawCount": 1000,
+      "distinctRecords": 50,
+      "first": "2026-09-28T20:08:07.197Z",
+      "last": "2026-09-28T20:09:32.314Z",
+      "statuses": {
+        "200": 50
+      },
+      "posts": [
+        {
+          "time": "2026-09-28T20:08:35.747Z",
+          "path": "/gestor/operacoes/9976ae7f-3cb4-4b0c-881f-ab2f2fd03da2",
+          "status": 200
+        },
+        {
+          "time": "2026-09-28T20:08:33.229Z",
+          "path": "/gestor/operacoes/9976ae7f-3cb4-4b0c-881f-ab2f2fd03da2",
+          "status": 200
+        }
+      ],
+      "errors": 0,
+      "domainErrorMatches": 0
+    }
+  ],
+  "limitation": "Consulta ampla repetiu paginas: 1000 linhas correspondem a 50 IDs distintos. Usadas consultas menores nos horarios dos submits; nao e uma varredura exaustiva de todo o periodo."
+}

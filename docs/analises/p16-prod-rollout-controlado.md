@@ -2,9 +2,11 @@
 
 Em 28/09/2026, às 19:50:01 UTC (16:50:01 de Brasília), foi aplicada exclusivamente
 a migration `20260928185439_p16_liberar_nf_de_operacao_cancelada.sql` em produção.
-O postflight passou. **O encerramento permanece pendente da disponibilidade do
-Cedente para validar a interface e realizar uma única solicitação legítima.**
-Não houve criação de operação pelo agente nem uso de impersonação.
+O postflight passou. **Validação funcional concluída em 29/09/2026**, após relato
+do usuário e conferência em produção das solicitações feitas pelo Cedente.
+As 20 NFs foram reutilizadas em duas operações sequenciais de 10 NFs distintas,
+sem dupla reserva. Não houve criação de operação pelo agente nem impersonação
+pelo agente; a auditoria atribui ambas ao usuário proprietário do Cedente.
 
 ## P16_PROD_BRANCH_GRAPH_DIAGNOSIS
 
@@ -99,29 +101,57 @@ atribuir a ele atividades legítimas de outras sessões concorrentes.
 Evidências: [migration](p16-prod-migration.json),
 [postflight](p16-prod-postflight.json), [preflight](p16-prod-preflight.json).
 
-## Validação pendente e monitoramento
+## Validação real e monitoramento
 
-O usuário informou que precisa aguardar a disponibilidade do Cedente. Instrução
-já fornecida: login normal com MFA, Minhas Operações → Nova solicitação de
-antecipação, selecionar as NFs pretendidas e conferir o resumo financeiro,
-**sem enviar ainda**. Registrar números selecionados, ausência de erros e que
-NFs com operação ativa não aparecem como elegíveis.
+Em 29/09/2026, o usuário confirmou que o Cedente acessou e conseguiu utilizar as
+notas normalmente. A expressão inicial não distinguia upload de solicitação;
+a consulta ao banco e os logs confirmaram duas novas solicitações pela interface:
 
-Após UI eligibility PASS, repetir leitura de reservas das NFs selecionadas antes
-de liberar uma única criação legítima. Conferir novo ID, status, vínculos,
-exclusividade, ator Cedente da auditoria, timestamps e preservação dos hashes do
-histórico cancelado. Não executar concorrência nem criar fixtures em produção.
-Se a NF não aparecer, parar antes do submit e diagnosticar.
+| Operação | Criação UTC em 28/09/2026 | NFs | Status na conferência |
+|---|---|---:|---|
+| `90c3df7c-89d7-47e5-9b6b-1a8a82bc2cdc` | 20:05:46 | 10 | solicitada |
+| `9976ae7f-3cb4-4b0c-881f-ab2f2fd03da2` | 20:06:47 | 10 | solicitada |
+
+O [verificador somente leitura](../../scripts/homologacao/p16/verify-production-reuse.mjs)
+passou em produção: as 20 NFs originais estão `em_antecipacao`, cada uma vinculada
+a exatamente uma operação reservante; cada nova operação contém 10 NFs, sem
+sobreposição. Cedente e vínculo cedente-fundo correspondem ao caso cancelado.
+Cada criação tem exatamente um evento `OPERACAO_SOLICITADA`, com ator Cedente
+correto, conjunto exato de NFs e timestamp igual ao da operação. Os hashes da
+operação cancelada, de seus vínculos e de sua auditoria permanecem iguais aos do
+checkpoint anterior à migration. Predicado, RPCs, ACLs e hash da migration foram
+revalidados. Evidência: [p16-prod-real-reuse.json](p16-prod-real-reuse.json).
+
+Os logs registram POST `/cedente/operacoes/nova` HTTP 200 às 20:05:44 e 20:06:46
+UTC, compatíveis com as duas criações. O resultado UI é sustentado pelo relato do
+usuário, pelo tráfego da tela e pela persistência validada; não houve observação
+visual pelo agente. O conteúdo visual do resumo e a tela de MFA não foram
+capturados individualmente. Não foi solicitado repetir o fluxo.
+
+**Desvio de procedimento registrado:** o plano previa conferir a seleção antes
+de liberar um único submit. O Cedente concluiu duas solicitações sequenciais fora
+da condução do agente, antes desse retorno intermediário. A conferência foi
+retrospectiva, sem novos submits. Os lotes são distintos e os invariantes de
+histórico, autorização e exclusividade passaram; nenhuma operação legítima foi
+alterada ou removida para adequar a execução ao roteiro.
 
 Monitoramento inicial de 19:50:01 a 19:52:45 UTC: 29 registros Vercel, todos HTTP
 200, zero registros de erro, 4xx/5xx ou padrões de erro de reserva/RPC/lock/auditoria.
-A janela é curta e não contém o smoke real; não certifica a experiência do Cedente.
+A janela inicial é curta e antecede as solicitações reais.
 Evidência: [p16-prod-monitoring.json](p16-prod-monitoring.json).
+
+A conferência dos horários das duas solicitações retornou 22 registros distintos,
+todos HTTP 200, sem erros ou padrões de falha de reserva/RPC/lock/auditoria. Uma
+amostra posterior contém mais 50 IDs distintos, todos HTTP 200. A consulta ampla
+repetiu páginas (1000 linhas para 50 IDs), por isso os números foram deduplicados
+e os horários de submit consultados em janelas menores; não se afirma cobertura
+exaustiva do período. Evidência: [p16-prod-real-monitoring.json](p16-prod-real-monitoring.json).
 
 O CI do commit homologado `65ba24f` passou no run `36472748392`; os testes de app,
 lint, TypeScript e build já constam no relatório de homolog. Esta etapa alterou
 somente executores operacionais/evidências; lint desses executores e diff check
-passaram. Não houve novo deploy de produção.
+passaram. O CI das evidências de rollout `a3ee877` também passou no run
+`36475537734`. Não houve novo deploy de produção por este hotfix.
 
 ## Status do runbook
 
@@ -141,22 +171,22 @@ P16_PROD_APP_CHANGE_REQUIRED = NO
 P16_PROD_APP_TESTS = NOT_REQUIRED
 P16_PROD_CI = NOT_REQUIRED
 P16_PROD_DEPLOY = NOT_REQUIRED
-P16_PROD_UI_ELIGIBILITY = NOT_EXECUTED
-P16_PROD_REAL_SMOKE = NOT_EXECUTED
-P16_PROD_CANCELLED_HISTORY_PRESERVED = NOT_EXECUTED
-P16_PROD_ACTIVE_EXCLUSIVE = NOT_EXECUTED
-P16_PROD_AUDIT = NOT_EXECUTED
+P16_PROD_UI_ELIGIBILITY = PASS
+P16_PROD_REAL_SMOKE = PASS
+P16_PROD_CANCELLED_HISTORY_PRESERVED = PASS
+P16_PROD_ACTIVE_EXCLUSIVE = PASS
+P16_PROD_AUDIT = PASS
 P16_PROD_P14_REGRESSION = PASS
 P16_PROD_C2_REGRESSION = PASS
 P16_PROD_C1_1_REGRESSION = PASS
 P16_ROLLBACK_EXECUTED = NO
-P16_PRODUCTION_READY = NO
+P16_PRODUCTION_READY = YES
 C2_1_R2_CHANGED = NO
 C5_R2_CHANGED = NO
 CERC_CHANGED = NO
 RLX_EMAIL_CHANGED = NO
 ```
 
-As flags de histórico, exclusividade e auditoria acima referem-se ao resultado
-após a futura criação real. O histórico já foi conferido como intacto no
-postflight da migration; a criação ainda não ocorreu.
+As flags refletem a validação funcional e a conferência posterior das duas
+solicitações reais. O desvio de sequência do roteiro e os limites da observação
+visual e do monitoramento estão explicitados acima.

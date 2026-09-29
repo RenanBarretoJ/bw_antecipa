@@ -1,7 +1,7 @@
 # P16 — reutilização de NF de operação cancelada
 
-Atualização de produção em 28/09/2026: migration e postflight concluídos, smoke
-pela interface pendente da disponibilidade do Cedente. O estado vigente está no
+Atualização de produção em 29/09/2026: migration, postflight e reutilização real
+validados; 20 NFs em duas novas operações sem dupla reserva. O estado vigente está no
 [relatório do rollout de produção](p16-prod-rollout-controlado.md). As flags e
 pendências abaixo preservam o snapshot anterior, da etapa de homologação.
 
