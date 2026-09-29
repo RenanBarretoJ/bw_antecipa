@@ -182,6 +182,19 @@ Dry-run homolog identificou somente A5/A6. Aplicação concluída com os dois
 hashes exatos acima; fingerprints de NFs, operações, vínculos e histórico
 anterior permaneceram iguais. Ainda não certifica a aplicação homolog.
 
+PR #73 integrado somente em homolog (`d6eec5c`), CI completo PASS; deploy
+`bw-antecipa-hhpm0oepy-renanbarretoj.vercel.app` com alvo customizado homolog.
+Smoke adicional do formulário encontrou o seletor exibindo `BRUTO`/`LIQUIDO`
+em vez das descrições. A implementação instalada do Base UI requer `items`
+para resolver os rótulos; dois testes reais de renderização reproduziram a
+falha. Correção limitada a fornecer esse mapa de rótulos, sem alterar valores,
+RPCs, regras ou migrations. Nova certificação visual pendente.
+
+As tentativas interrompidas em homolog removeram seus fixtures QA e
+confirmaram o hash integral da configuração MEDVALE inalterado. O PDF real
+ainda não foi extraído nessas tentativas, evitando chamadas repetidas ao
+provedor visual. Timeout inicial de CLI ocorreu antes de criar QA.
+
 Não classificar gates remotos como PASS a partir da suíte local. A implementação
 e os testes locais não autorizam produção; parar somente no hold point de
 homolog quando todas as evidências remotas estiverem concluídas.
