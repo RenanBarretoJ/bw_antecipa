@@ -80,11 +80,12 @@ describe('contrato de persistencia do calculo financeiro', () => {
     expect(migration).toContain('diferenca_previa_aprovacao')
   })
 
-  it('remove a edicao livre do liquido e aceita apenas taxa configurada', () => {
+  it('remove a edicao livre do liquido e aceita proposta preservada ou taxa configurada', () => {
     expect(managerClient).not.toContain('id="valorLiquido"')
     expect(managerClient).not.toContain('onChange={(e) => setValorLiquido')
+    expect(action).toContain('taxaMantemPropostaConsultor')
     expect(action).toContain(".from('taxas_cedente')")
-    expect(action).toContain('Selecione uma taxa configurada')
+    expect(action).toContain('Mantenha a proposta do Consultor ou selecione uma taxa configurada')
   })
 
   it('congela metodo e data-base e protege o resultado aprovado', () => {
