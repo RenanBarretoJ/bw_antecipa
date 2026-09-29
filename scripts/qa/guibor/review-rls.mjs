@@ -51,17 +51,29 @@ async function write(client,r,allowed,name){
  else assert(response.error||response.data.length===0,name)
  report.checks.push(name)
 }
+async function storageRead(client,r,allowed,name){
+ const receipt=val(await admin.from('nfse_review_intents').select('storage_path,document_storage_path').eq('nf_id',r.nfId).eq('state','COMPLETED').single())
+ const path=receipt.document_storage_path||receipt.storage_path
+ assert(path,'MISSING_FINAL_STORAGE_PATH')
+ const response=await client.storage.from(receipt.document_storage_path?'documentos-v2':'notas-fiscais').download(path)
+ if(allowed){assert(!response.error,name);assert(response.data?.size>0,name)}
+ else assert(response.error&&!response.data,name)
+ report.checks.push(name)
+}
 try{
  const cedente=await login(a,'cedente'),consultor=await login(a,'consultor'),leitor=await login(a,'leitor'),gestor=await login(a,'gestor')
  await read(cedente,a.nfId,1,'CEDENTE_OWN_READ');await write(cedente,a,true,'CEDENTE_OWN_WRITE')
  await read(cedente,b.nfId,0,'CEDENTE_OTHER_READ_DENIED');await write(cedente,b,false,'CEDENTE_OTHER_WRITE_DENIED')
+ await storageRead(cedente,a,true,'CEDENTE_OWN_STORAGE_READ');await storageRead(cedente,b,false,'CEDENTE_OTHER_STORAGE_DENIED')
  for(const papel of ['OWNER','ADMIN','OPERADOR']){
   val(await admin.from('consultor_usuarios').update({papel}).eq('consultor_id',a.fixtures.org).eq('user_id',a.users.consultor))
   await read(consultor,a.nfId,1,`${papel}_OWN_READ`);await write(consultor,a,true,`${papel}_OWN_WRITE`)
   await read(consultor,b.nfId,0,`${papel}_CROSS_ORG_READ_DENIED`);await write(consultor,b,false,`${papel}_CROSS_ORG_WRITE_DENIED`)
+  await storageRead(consultor,a,true,`${papel}_OWN_STORAGE_READ`);await storageRead(consultor,b,false,`${papel}_CROSS_ORG_STORAGE_DENIED`)
  }
  await write(leitor,a,false,'LEITOR_WRITE_DENIED')
  await read(gestor,a.nfId,1,'GESTOR_OWN_FUND_READ');await read(gestor,b.nfId,0,'GESTOR_OTHER_FUND_READ_DENIED')
+ await storageRead(gestor,a,true,'GESTOR_OWN_STORAGE_READ');await storageRead(gestor,b,false,'GESTOR_OTHER_FUND_STORAGE_DENIED')
  val(await admin.from('consultor_fundos').update({status:'inativo'}).eq('consultor_id',a.fixtures.org).eq('fundo_id',a.fixtures.fund))
  await write(consultor,a,false,'CONSULTOR_REVOKED_FUND_WRITE_DENIED')
  val(await admin.from('consultor_fundos').update({status:'ativo'}).eq('consultor_id',a.fixtures.org).eq('fundo_id',a.fixtures.fund))

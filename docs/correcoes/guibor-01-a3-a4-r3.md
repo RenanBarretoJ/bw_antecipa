@@ -43,13 +43,34 @@ Migração R3 aplicada somente no Preview, uma vez, hash canônico `740cc2ac6f70
 
 Evidências locais (ignoradas pelo Git): `rehearsal/reports/GUIBOR_R3_{A,B,C,RLS,CLEANUP}.json` e capturas `GUIBOR_R3_C_REVIEW_*.png`. Cleanup final: 12 Auth users, 3 cedentes, 3 fundos, 2 NFs, 2 objetos Storage, memberships, recibos, profiles, MFA/sessões e audit estritamente QA removidos; verificações de resíduos = zero. Antes disso, a tentativa técnica A teve seu cleanup separado de 4 usuários/1 cedente/1 fundo, sem NF/Storage. Documentos reais de origem e evidências foram preservados.
 
-## Hold anterior à promoção homolog
+## Homolog certificado — hold final
 
 Pré-check somente leitura de homolog confirmou a migração A4 uma vez, hash canônico `6764965cb3be144ff3604f7aa294aafc62e90270a72d2a4d7104689571e31d76`, constraints equivalentes (`c62c506267327e76b806bf6bf3137538`) e P17 presente uma vez. Não houve reaplicação de DDL nem alteração de history em homolog nesta etapa.
 
 O CNPJ do PDF A **já existe** em homolog: MEDVALE SERVICOS EM SAUDE LTDA, cadastro ativo vinculado ao fundo GUIBOR (e outro vínculo suspenso), sem usuário primário e sem NFs. Não é fixture criada pelo harness R3. O usuário autorizou explicitamente o acesso QA temporário. A exceção é limitada a esse ID/CNPJ em homolog: um novo usuário OPERACIONAL via `cedente_acessos`, sem alteração de `cedentes.user_id`. O runner compara hashes de cadastro, fundos, vínculos, políticas/versões, escrow, estabelecimentos, taxas e acessos originais. Cleanup específico remove apenas acesso/usuário e artefatos QA; o cleanup de fixtures descartáveis exclui expressamente esse cadastro. B continua em contexto inteiramente QA, inclusive os perfis da matriz RLS.
 
-Os `FAIL` de homolog abaixo significam **não certificados/não executados**, não uma falha comprovada do produto.
+Promoção isolada no [PR #72](https://github.com/RenanBarretoJ/bw_antecipa/pull/72), exclusivamente para `homolog`, merge `c3523585372023f8d9836bf20251ea6166aeb546`. A base `189aa0f` (P17/Vórtx) foi preservada. Único conflito: teste estático de Storage; mantidas as autorizações de leitura/LEITOR já existentes em homolog, acrescentando as verificações NFS-e. Nenhuma alteração em preço, comissão, CERC, RLX Email ou integrações.
+
+Deployment certificado: `https://bw-antecipa-peuh1gjwh-renanbarretoj.vercel.app`, `dpl_CDmP9p2y99APfAojXvB3HHBfc2YL`, target Vercel `homolog`; CSP confirmou somente Supabase `fhgkmggthxikfpogrvaa`. `NFSE_UPLOAD_ENABLED=true` adicionado apenas ao ambiente customizado homolog; produção continua sem essa variável. A credencial visual existente foi preservada, sem exportação ou reconfiguração.
+
+[CI do PR PASS](https://github.com/RenanBarretoJ/bw_antecipa/actions/runs/36612951677) e [CI após merge PASS](https://github.com/RenanBarretoJ/bw_antecipa/actions/runs/36613420216): TypeScript, testes, lint e build. A integração Supabase Preview do PR foi **cancelada por limite de branches concorrentes**, não por falha de código/migração; nenhum slot foi removido, nenhuma configuração de produção alterada e nenhum novo banco foi usado. O homolog existente foi o alvo explicitamente validado.
+
+Na base integrada: Node 22.23.3, TypeScript PASS, lint sem erros (um warning preexistente em `liquidacao.ts`), suíte completa **2476 PASS / 12 skipped, 287 arquivos PASS / 3 skipped**. A primeira invocação local da suíte usou uma opção de CLI não suportada (`--minWorkers`) e não chegou a iniciar testes; a execução corrigida (`--maxWorkers=2`) passou. Reexecução focada NFSE/DANFE/XML/batch/Storage: **200 PASS / 1 skipped**. MK, BahiaMed, generic, XML, PER_FILE e fail-closed cobertos pela suíte automatizada da base integrada; não são apresentados como novos uploads NF-e autenticados remotos.
+
+Migração nova R3 aplicada uma vez em homolog, hash `740cc2ac6f70cb2341f06853496c0394229fa0f0849518f9357204e286ba4f39`. Hash A4 antigo preservado; NFs/operações existentes inalteradas pelo DDL. Sem `db push`, sem reaplicação A4, P17 preservado. Tabela de recibos com RLS ativa e SELECT/INSERT negados a anon/authenticated; buckets de NFs e documentos privados.
+
+| Smoke homolog | Antes/review | Persistência | Duplicate | Cleanup |
+|---|---|---|---|---|
+| A real / MEDVALE, textual | 0 NF / 0 objeto | 1 NF / 1 objeto / 1 audit MANUAL | mesmas contagens | 0 NF / 0 objeto QA |
+| B real, visual | 0 NF / 0 objeto | 1 NF / 1 objeto / 1 audit MANUAL | mesmas contagens | 0 NF / 0 objeto QA |
+
+A: número 49, bruto **39.521,98**, líquido **37.229,70**. B: número 232, bruto **112.710,81**, líquido **105.779,10**. Ambos com vencimento QA **13/11/2026**, origem MANUAL, líquido DOCUMENTO_EXPLICITO e reextração do original antes da persistência. Um ciclo controlado de upload/review/persistência/reenvio por documento; sem retries para obter resposta visual favorável. Campo vazio/obrigatório, validação sem data, loading e telas 390/430/820/1440 conferidos.
+
+RLS homolog: **32 verificações PASS**, com Auth/AAL2 reais. Cedente, OWNER, ADMIN e OPERADOR leem/escrevem somente seu contexto; LEITOR sem escrita; gestor só lê seu fundo; revogação do fundo bloqueia escrita; recibos não expostos. Downloads autenticados dos arquivos privados: próprio contexto permitido e outros cedentes/organizações/fundos negados. Papéis QA restaurados antes da limpeza.
+
+Cleanup homolog PASS: removidos **5 Auth users**, profiles, memberships, MFA/sessões, **2 NFs**, **2 objetos Storage**, recibos e audit estritamente QA, **1 cedente e 1 fundo inteiramente QA** (caso B). O caso A teve cleanup separado: somente novo acesso OPERACIONAL/usuário e artefatos QA. Comparação de hashes comprovou MEDVALE, fundos, vínculos ativo/suspenso, políticas/versões, escrow, estabelecimentos, taxas e acessos originais preservados. Storage global retornou de 963 para 961 objetos. Originais dos PDFs, histórico de migrações e evidências preservados.
+
+Evidências locais ignoradas pelo Git, no worktree de release: `rehearsal/reports/GUIBOR_R3_HOMOLOG_{A,B,RLS,MIGRATION,MEDVALE_CLEANUP,CLEANUP}.json` (migração: `GUIBOR_R3_HOMOLOG_MIGRATION.json`) e capturas por largura. Scripts de certificação/cleanup versionados, sem credenciais. PR #71 permanece draft; nenhum merge em `main`.
 
 ```text
 GUIBOR_REVIEW_SERVER_REEXTRACTION=PASS
@@ -77,10 +98,10 @@ GUIBOR_PARSER_REGRESSION_XML=PASS
 GUIBOR_HISTORY_FINAL_HASH_MATCH=PASS
 GUIBOR_A3_A4_CI=PASS
 GUIBOR_A3_A4_PREVIEW=PASS
-GUIBOR_A3_A4_HOMOLOG=FAIL
-GUIBOR_A3_A4_HOMOLOG_RLS=FAIL
-GUIBOR_A3_A4_HOMOLOG_CLEANUP=FAIL
-GUIBOR_A3_A4_HOMOLOG_READY=NO
+GUIBOR_A3_A4_HOMOLOG=PASS
+GUIBOR_A3_A4_HOMOLOG_RLS=PASS
+GUIBOR_A3_A4_HOMOLOG_CLEANUP=PASS
+GUIBOR_A3_A4_HOMOLOG_READY=YES
 GUIBOR_PRODUCTION_CHANGED=NO
 P17_CHANGED=NO
 RLX_VORTX_CHANGED=NO
@@ -90,6 +111,6 @@ RLX_EMAIL_CHANGED=NO
 
 Delimitação: cross-strategy/idempotência concorrente e falha da própria compensação têm prova automatizada unitária/SQL; não são apresentados como dois uploads visuais paralelos remotos. Regressões NF-e/XML são da suíte automatizada. A matriz remota e os ciclos reais acima são evidências separadas.
 
-GUIBOR_A3_A4_HOMOLOG_READY=NO
+GUIBOR_A3_A4_HOMOLOG_READY=YES
 
 GUIBOR_PRODUCTION_CHANGED=NO; P17_CHANGED=NO; RLX_VORTX_CHANGED=NO; CERC_CHANGED=NO; RLX_EMAIL_CHANGED=NO.
