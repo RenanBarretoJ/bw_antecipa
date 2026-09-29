@@ -125,16 +125,38 @@ try {
     // Exercise the component with actual mouse events, including pointer-up.
     await options[index].click()
     await pages.gestor.waitForFunction(label=>document.querySelector('#base-antecipacao')?.textContent.includes(label),{},wanted)
-    await pages.gestor.evaluate(()=>[...document.querySelectorAll('button')].find(b=>b.textContent==='Salvar base').click())
-    await pages.gestor.waitForFunction(()=>document.body.innerText.includes('Base atualizada.'),{timeout:15000})
+    const buttons=await pages.gestor.$$('button')
+    const buttonTexts=await Promise.all(buttons.map(button=>button.evaluate(e=>e.textContent)))
+    const requestedBase=wanted.includes('líquido')?'LIQUIDO':'BRUTO'
+    const [savedResponse]=await Promise.all([
+      pages.gestor.waitForResponse(r=>r.request().method()==='POST'
+        &&new URL(r.url()).pathname===`/gestor/cedentes/${id('23')}`
+        &&r.request().postData()===JSON.stringify([id('24'),requestedBase]),{timeout:60000}),
+      buttons[buttonTexts.indexOf('Salvar base')].click(),
+    ])
+    assert(savedResponse.ok(),'CONFIG_SAVE_HTTP_ERROR')
+    await savedResponse.text() // Wait for this action stream, not background fund/access actions.
+    // revalidatePath can remount the form and clear its transient success message.
+    const saved=val(await admin.from('cedente_fundos').select('base_valor_antecipacao').eq('id',id('24')).single())
+    assert.equal(saved.base_valor_antecipacao,requestedBase)
     await navigate(pages.gestor,`/gestor/cedentes/${id('23')}`)
     assert((await pages.gestor.$eval('#base-antecipacao',e=>e.textContent)).includes(wanted))
+    check(wanted.includes('líquido')?'UI_BASE_LIQUIDO_SAVED':'UI_BASE_BRUTO_SAVED')
   }
   await navigate(pages.gestor,'/gestor/configuracoes?tab=comissoes')
   assert.equal(await pages.gestor.$$eval('[role=switch]',es=>es.length),1)
   for(const enabled of [true,false]) {
-    await pages.gestor.click('[role=switch]')
-    await pages.gestor.waitForFunction(value=>document.querySelector('[role=switch]')?.getAttribute('aria-checked')===String(value),{timeout:15000},enabled)
+    await pages.gestor.waitForSelector('[role=switch]:not([disabled])',{timeout:60000})
+    const [response]=await Promise.all([
+      pages.gestor.waitForResponse(r=>r.request().method()==='POST'
+        &&r.request().postData()===JSON.stringify([id('29'),id('22'),enabled]),{timeout:60000}),
+      pages.gestor.click('[role=switch]'),
+    ])
+    assert(response.ok(),'COMMISSION_SAVE_HTTP_ERROR');await response.text()
+    await pages.gestor.waitForFunction(value=>document.querySelector('[role=switch]')?.getAttribute('aria-checked')===String(value),{timeout:30000},enabled)
+    const saved=val(await admin.from('consultor_fundos').select('comissao_habilitada').eq('consultor_id',id('29')).eq('fundo_id',id('22')).single())
+    assert.equal(saved.comissao_habilitada,enabled)
+    check(enabled?'UI_COMMISSION_ON_SAVED':'UI_COMMISSION_OFF_SAVED')
   }
   check('GESTOR_BASE_AND_COMMISSION_CONFIG_UI')
   let netNoteB=id('2a',3)
@@ -211,7 +233,15 @@ try {
   }
   check('THREE_PORTALS_SNAPSHOT_READ')
   report.success=true
-} catch(error) { report.error=error.message; process.exitCode=1 }
+} catch(error) {
+  report.error=error.message;process.exitCode=1
+  if(browser) for(const [role,context] of Object.entries(contexts)) {
+    for(const page of await context.pages()) if(page.url().startsWith(base)) {
+      writeFileSync(`rehearsal/reports/GUIBOR_A5_A6_${run}_ERROR_${role}.txt`,await page.evaluate(()=>document.body.innerText).catch(()=>''))
+      await page.screenshot({path:`rehearsal/reports/GUIBOR_A5_A6_${run}_ERROR_${role}.png`,fullPage:true}).catch(()=>{})
+    }
+  }
+}
 finally {
   if(browser) await browser.close()
   for(const client of Object.values(clients)) await client.auth.signOut({scope:'global'}).catch(()=>{})

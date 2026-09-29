@@ -4,9 +4,11 @@
 
 Implementação local em `feature/guibor-a5-a6-base-comissao`, baseada em homolog
 `af96ff4a3e20b3e6922f63fcedc1e93e511001af`. Baseline C5/P16 do Preview
-alinhada após autorização explícita; A5/A6 aplicados somente no Preview.
-Commit de implementação `d152d30`, PR dedicado em rascunho
-[#73](https://github.com/RenanBarretoJ/bw_antecipa/pull/73), base `homolog`.
+alinhada após autorização explícita; A5/A6 aplicados no Preview e homolog.
+Commit de implementação `d152d30`, PR dedicado
+[#73](https://github.com/RenanBarretoJ/bw_antecipa/pull/73) integrado somente em
+`homolog` (`d6eec5c`). Certificação final e ajuste visual no
+[#74](https://github.com/RenanBarretoJ/bw_antecipa/pull/74), base `homolog`.
 
 `GUIBOR_A5_A6_HOMOLOG_READY = NO`
 
@@ -53,7 +55,7 @@ representar os pré-requisitos; seus arquivos não foram alterados.
 | TypeScript `tsc --noEmit` | PASS |
 | ESLint | Sem erros; aviso preexistente em `liquidacao.ts` |
 | `next build --webpack` | PASS |
-| Vitest completo | 2497 PASS, 12 skipped; 289 arquivos PASS, 3 skipped |
+| Vitest completo após ajuste dos rótulos | 2499 PASS, 12 skipped; 290 arquivos PASS, 3 skipped |
 | SQL A5 | 36 PASS |
 | SQL A6 | 17 PASS |
 | SQL C2.1 | 28 PASS |
@@ -194,6 +196,23 @@ As tentativas interrompidas em homolog removeram seus fixtures QA e
 confirmaram o hash integral da configuração MEDVALE inalterado. O PDF real
 ainda não foi extraído nessas tentativas, evitando chamadas repetidas ao
 provedor visual. Timeout inicial de CLI ocorreu antes de criar QA.
+
+### Robustez do smoke de configuração
+
+O teste de gravação deve aguardar a requisição exata da ação (argumentos do
+vínculo e base), não qualquer POST da página: a tela também executa ações de
+fundo e acessos. Deve aguardar o término da resposta e conferir o banco. Na
+comissão, deve aguardar o botão sair do estado disabled antes do próximo clique.
+Esses ajustes são do harness, não de regras financeiras ou de autorização.
+
+Execução `a4a15eab` confirmou LIQUIDO e BRUTO gravados e relidos pelo formulário;
+foi interrompida no teste do toggle e seus dados QA foram removidos. Não é PASS
+do smoke completo. A tentativa anterior `beabb95b` teve timeout da CLI durante
+cleanup: recuperação transacional limitada ao manifesto removeu 4 usuários,
+2 cedentes, 2 fundos, 2 operações e 4 notas QA. Consulta posterior no Preview
+confirmou zero usuários, cedentes, operações, notas e objetos Storage. Evidência
+separada em `GUIBOR_A5_A6_AUTH_beabb95b_CLEANUP_RECOVERY.json`; o resultado
+original malsucedido foi preservado, sem transformá-lo em sucesso.
 
 Não classificar gates remotos como PASS a partir da suíte local. A implementação
 e os testes locais não autorizam produção; parar somente no hold point de
