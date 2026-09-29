@@ -1306,6 +1306,10 @@ export interface DevedorSolidario {
 }
 
 export interface NotaFiscal {
+  tipo_documento_fiscal?: 'NFE' | 'NFSE' | null
+  valor_liquido_origem?: 'DOCUMENTO_EXPLICITO' | 'LEGACY_BRUTO' | 'NAO_INFORMADO' | null
+  vencimento_origem?: 'DOCUMENT' | 'MANUAL' | null
+  fiscal_proveniencia?: Record<string, unknown> | null
   id: string
   cedente_id: string
   estabelecimento_id: string | null
