@@ -1,0 +1,82 @@
+{
+  "projectRef": "fhgkmggthxikfpogrvaa",
+  "version": "20260928185439",
+  "name": "p16_liberar_nf_de_operacao_cancelada",
+  "hash": "6390f43842e82d7d980acfb6ae61e66cd551676e17c21a01a6e8ca237ce3efa1",
+  "appliedAt": "2026-09-28T19:23:50.025Z",
+  "before": [
+    {
+      "signature": "private.operacao_status_reserva_nf(operacao_status)",
+      "pronargs": 1,
+      "md5": "90cbdcc13789bfe14907f403903a5cac",
+      "acl": "{postgres=X/postgres}"
+    },
+    {
+      "signature": "solicitar_operacao_antecipacao_atomica(uuid,uuid,uuid,uuid,integer,jsonb,text,boolean,text,uuid[],numeric,numeric,integer,numeric,date,text)",
+      "pronargs": 16,
+      "md5": "3e8de55f12866ef332af984fde40c102",
+      "acl": "{postgres=X/postgres,authenticated=X/postgres}"
+    },
+    {
+      "signature": "solicitar_operacao_antecipacao_atomica(uuid,uuid,uuid,uuid,integer,jsonb,text,boolean,text,uuid[],numeric,numeric,integer,numeric,date,text,uuid[])",
+      "pronargs": 17,
+      "md5": "bf0ba6dfc83993afd4106c46408edb05",
+      "acl": "{postgres=X/postgres,authenticated=X/postgres}"
+    }
+  ],
+  "after": [
+    {
+      "signature": "private.operacao_status_reserva_nf(operacao_status)",
+      "pronargs": 1,
+      "md5": "17abfd239b25e9a98e51b29d647c3d5d",
+      "acl": "{postgres=X/postgres}"
+    },
+    {
+      "signature": "solicitar_operacao_antecipacao_atomica(uuid,uuid,uuid,uuid,integer,jsonb,text,boolean,text,uuid[],numeric,numeric,integer,numeric,date,text)",
+      "pronargs": 16,
+      "md5": "3e8de55f12866ef332af984fde40c102",
+      "acl": "{postgres=X/postgres,authenticated=X/postgres}"
+    },
+    {
+      "signature": "solicitar_operacao_antecipacao_atomica(uuid,uuid,uuid,uuid,integer,jsonb,text,boolean,text,uuid[],numeric,numeric,integer,numeric,date,text,uuid[])",
+      "pronargs": 17,
+      "md5": "bf0ba6dfc83993afd4106c46408edb05",
+      "acl": "{postgres=X/postgres,authenticated=X/postgres}"
+    }
+  ],
+  "matrix": [
+    {
+      "status": "solicitada",
+      "reserves": true
+    },
+    {
+      "status": "em_analise",
+      "reserves": true
+    },
+    {
+      "status": "aprovada",
+      "reserves": true
+    },
+    {
+      "status": "em_andamento",
+      "reserves": true
+    },
+    {
+      "status": "liquidada",
+      "reserves": true
+    },
+    {
+      "status": "inadimplente",
+      "reserves": true
+    },
+    {
+      "status": "reprovada",
+      "reserves": false
+    },
+    {
+      "status": "cancelada",
+      "reserves": false
+    }
+  ],
+  "result": "PASS"
+}

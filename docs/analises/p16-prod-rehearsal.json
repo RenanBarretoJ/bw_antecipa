@@ -1,0 +1,91 @@
+{
+  "result": "PASS",
+  "testedAt": "2026-09-28T19:49:23.392Z",
+  "migrationSha256": "6390f43842e82d7d980acfb6ae61e66cd551676e17c21a01a6e8ca237ce3efa1",
+  "target": "local:56322/bw-antecipa-p16-clean-room",
+  "baselineVersion": "20260925205512",
+  "baselineEquivalence": [
+    {
+      "signature": "private.consultor_usuario_pode_operar_cedente(uuid,uuid)",
+      "definitionAndAcl": "MATCH"
+    },
+    {
+      "signature": "private.consultor_usuario_tem_acesso_fundo(uuid,uuid)",
+      "definitionAndAcl": "MATCH"
+    },
+    {
+      "signature": "private.operacao_status_reserva_nf(operacao_status)",
+      "definitionAndAcl": "MATCH"
+    },
+    {
+      "signature": "get_user_cedente_id()",
+      "definitionAndAcl": "MATCH"
+    },
+    {
+      "signature": "get_user_role()",
+      "definitionAndAcl": "MATCH"
+    },
+    {
+      "signature": "solicitar_operacao_antecipacao_atomica(uuid,uuid,uuid,uuid,integer,jsonb,text,boolean,text,uuid[],numeric,numeric,integer,numeric,date,text)",
+      "definitionAndAcl": "MATCH"
+    },
+    {
+      "signature": "solicitar_operacao_antecipacao_atomica(uuid,uuid,uuid,uuid,integer,jsonb,text,boolean,text,uuid[],numeric,numeric,integer,numeric,date,text,uuid[])",
+      "definitionAndAcl": "MATCH"
+    }
+  ],
+  "baselineMatrix": [
+    {
+      "status": "solicitada",
+      "reserves": true
+    },
+    {
+      "status": "em_analise",
+      "reserves": true
+    },
+    {
+      "status": "aprovada",
+      "reserves": true
+    },
+    {
+      "status": "em_andamento",
+      "reserves": true
+    },
+    {
+      "status": "liquidada",
+      "reserves": true
+    },
+    {
+      "status": "inadimplente",
+      "reserves": true
+    },
+    {
+      "status": "reprovada",
+      "reserves": false
+    },
+    {
+      "status": "cancelada",
+      "reserves": true
+    }
+  ],
+  "checks": [
+    "status_matrix",
+    "all_overloads_use_locked_predicate",
+    "cancel_reuse_history_audit_current",
+    "cancel_reuse_history_audit_legacy",
+    "rpc_solicitada",
+    "rpc_em_analise",
+    "rpc_aprovada",
+    "rpc_em_andamento",
+    "rpc_liquidada",
+    "rpc_inadimplente",
+    "rpc_reprovada",
+    "rpc_cancelada",
+    "multi_history_and_consultor_C2",
+    "C1_1_leitor_cross_org_denied",
+    "cross_cedente_denied",
+    "parcel_cancel_reuse_consultor_active_denied",
+    "concurrency_one_winner_one_denied_one_active"
+  ],
+  "scope": "SQL real e duas sessoes concorrentes; sete funcoes e ACLs iguais a producao, normalizando apenas CRLF. Sem dados reais."
+}
