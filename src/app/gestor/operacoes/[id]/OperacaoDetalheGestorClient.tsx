@@ -59,6 +59,8 @@ import {
   taxaEstaConfiguradaParaPrazo,
   taxaMantemPropostaConsultor,
 } from '@/lib/operacoes/taxa-operacao'
+import { valorBaseSnapshot, type BaseAntecipacaoSnapshot } from '@/lib/operacoes/base-antecipacao'
+import { BaseAntecipacaoResumo } from '@/components/operacoes/BaseAntecipacaoResumo'
 
 interface Testemunha {
   id: string
@@ -67,6 +69,7 @@ interface Testemunha {
 }
 
 interface OperacaoDetalhe {
+  base_antecipacao_snapshot: BaseAntecipacaoSnapshot | null
   id: string
   cedente_id: string
   cedente_fundo_id: string | null
@@ -625,12 +628,12 @@ export default function OperacaoDetalheGestorClient({
     if (cedidas?.length) {
       return cedidas.map((parcela) => ({
         id: `${nf.id}:${parcela.parcelaId}`,
-        valorBruto: parcela.valorNominal,
+        valorBruto: valorBaseSnapshot(op?.base_antecipacao_snapshot, nf.id, parcela.valorNominal, parcela.parcelaId),
         vencimento: parcela.dataVencimento,
       }))
     }
-    return [{ id: nf.id, valorBruto: nf.valor_bruto, vencimento: nf.data_vencimento }]
-  }), [nfs, parcelasCedidasPorNf])
+    return [{ id: nf.id, valorBruto: valorBaseSnapshot(op?.base_antecipacao_snapshot, nf.id, nf.valor_bruto), vencimento: nf.data_vencimento }]
+  }), [nfs, parcelasCedidasPorNf, op?.base_antecipacao_snapshot])
 
   const prazoReferencia = useMemo(() => {
     if (!op || itensCalculoFinanceiro.length === 0) return null
@@ -1197,6 +1200,7 @@ export default function OperacaoDetalheGestorClient({
         <aside className="space-y-6 xl:sticky xl:top-6 xl:self-start">
 
           {/* ETAPA 1: Definir termos (solicitada / em_analise) */}
+          <BaseAntecipacaoResumo snapshot={op.base_antecipacao_snapshot} notas={nfs} />
           {canAnalyze && (
             <Card>
               <CardHeader className="pb-3">

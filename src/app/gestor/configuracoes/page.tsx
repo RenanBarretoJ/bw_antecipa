@@ -7,12 +7,13 @@ import { PoliticasDoFundo } from '@/components/politicas/PoliticasDoFundo'
 import { TemplatesDoFundo } from '@/components/templates/TemplatesDoFundo'
 import { requireGestor } from '@/lib/auth/authorization'
 import { resolverContextoFundoGestor } from '@/lib/gestor/contexto-fundo.server'
+import { ComissoesDoFundo } from '@/components/fundos/ComissoesDoFundo'
 
 const tabClass = 'inline-flex h-9 items-center rounded-lg px-3 text-sm font-medium'
 
 export default async function ConfiguracoesGestorPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const requested = (await searchParams).tab
-  const tab = requested === 'templates' ? 'templates' : requested === 'comunicacoes' ? 'comunicacoes' : 'politicas'
+  const tab = requested === 'comissoes' ? 'comissoes' : requested === 'templates' ? 'templates' : requested === 'comunicacoes' ? 'comunicacoes' : 'politicas'
   const auth = await requireGestor()
   let fundo: Awaited<ReturnType<typeof resolverContextoFundoGestor>>
   try { fundo = await resolverContextoFundoGestor(auth) } catch { redirect('/gestor/sem-fundo') }
@@ -23,8 +24,10 @@ export default async function ConfiguracoesGestorPage({ searchParams }: { search
       <Link className={`${tabClass} ${tab === 'politicas' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`} href="/gestor/configuracoes?tab=politicas">Politicas</Link>
       <Link className={`${tabClass} ${tab === 'templates' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`} href="/gestor/configuracoes?tab=templates">Templates juridicos</Link>
       <Link className={`${tabClass} ${tab === 'comunicacoes' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`} href="/gestor/configuracoes?tab=comunicacoes">Comunicacoes</Link>
+      <Link className={`${tabClass} ${tab === 'comissoes' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`} href="/gestor/configuracoes?tab=comissoes">Comissões</Link>
     </div>
-    {tab === 'politicas' ? <PoliticasDoFundo fundoId={fundo.fundoId} showFundoInLabel={false} />
+    {tab === 'comissoes' ? <ComissoesDoFundo fundoId={fundo.fundoId} />
+      : tab === 'politicas' ? <PoliticasDoFundo fundoId={fundo.fundoId} showFundoInLabel={false} />
       : tab === 'templates' ? <TemplatesDoFundo fundoId={fundo.fundoId} showFundoSelector={false} />
         : <ComunicacoesDoFundo fundoId={fundo.fundoId} />}
   </PageContainer>

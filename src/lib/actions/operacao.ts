@@ -14,6 +14,7 @@ import { mensagemErroSolicitacaoOperacao } from '@/lib/operacoes/erro-solicitaca
 import { obterFundoAtivoAutorizado } from '@/lib/fundos/fundo-ativo.server'
 import { carregarContextoEventoOperacao, registrarEventoDominio } from '@/lib/eventos-dominio/registrar'
 import { calcularAntecipacaoEmLote } from '@/lib/operacoes/calculo'
+import { resolverBaseAntecipacao } from '@/lib/operacoes/base-antecipacao'
 import { normalizarTaxaOperacao, parseTaxaOperacao, taxaMantemPropostaConsultor } from '@/lib/operacoes/taxa-operacao'
 import { obterDataCivilOperacional } from '@/lib/operacoes/data-operacional.server'
 import { executarGateRisco } from '@/lib/financeiro/risco/processor.server'
@@ -136,7 +137,7 @@ export async function solicitarAntecipacao(
   // Buscar NFs selecionadas — devem ser aprovadas e pertencer ao cedente
   const { data: nfs } = await supabase
     .from('notas_fiscais')
-    .select('id, estabelecimento_id, valor_bruto, data_vencimento, status, numero_nf, cnpj_destinatario, razao_social_destinatario, cedente_fundo_id, fundo_id')
+    .select('id, estabelecimento_id, valor_bruto, valor_liquido, valor_liquido_origem, data_vencimento, status, numero_nf, cnpj_destinatario, razao_social_destinatario, cedente_fundo_id, fundo_id')
     .in('id', nfIds)
     .eq('cedente_id', ced.id)
     .eq('status', 'aprovada')
@@ -147,6 +148,7 @@ export async function solicitarAntecipacao(
 
   const nfsTyped = nfs as Array<{
     id: string; estabelecimento_id: string | null; valor_bruto: number; data_vencimento: string; status: string;
+    valor_liquido: number | null; valor_liquido_origem: string | null;
     numero_nf: string; cnpj_destinatario: string; razao_social_destinatario: string;
     cedente_fundo_id: string | null; fundo_id: string | null
   }>
@@ -298,6 +300,17 @@ export async function solicitarAntecipacao(
   // (o VP e somado por vencimento de cada parcela), senao a NF inteira
   // (legado). A formula/motor de calculo (calcularAntecipacaoEmLote) e a
   // mesma nos dois casos.
+  const basesPorNf = new Map<string, number>()
+  for (const nf of nfsTyped) {
+    const base = resolverBaseAntecipacao(politicaContexto.cedenteFundo.base_valor_antecipacao, {
+      valorBruto: Number(nf.valor_bruto),
+      valorLiquido: nf.valor_liquido === null ? null : Number(nf.valor_liquido),
+      origemLiquido: nf.valor_liquido_origem,
+      possuiParcelas: nfsComParcelas.has(nf.id),
+    })
+    if (!base.elegivel) return { success: false, message: `NF ${nf.numero_nf}: ${base.motivo}` }
+    basesPorNf.set(nf.id, base.valorBase)
+  }
   const itensCalculo = nfsTyped.flatMap((nf) => {
     const parcelasDaNf = parcelasPorNf.get(nf.id)
     if (parcelasDaNf && parcelasDaNf.length > 0) {
@@ -307,7 +320,7 @@ export async function solicitarAntecipacao(
         vencimento: parcela.data_vencimento,
       }))
     }
-    return [{ id: nf.id, valorBruto: Number(nf.valor_bruto), vencimento: nf.data_vencimento }]
+    return [{ id: nf.id, valorBruto: basesPorNf.get(nf.id)!, vencimento: nf.data_vencimento }]
   })
 
   const taxaPropostaNormalizada = solicitante.perfil === 'consultor'
@@ -344,6 +357,7 @@ export async function solicitarAntecipacao(
   )
 
   const idempotencyKey = montarIdempotencyKeySolicitacaoOperacao({
+    baseValorAntecipacao: politicaContexto.cedenteFundo.base_valor_antecipacao,
     userId: user.id,
     cedenteId: ced.id,
     cedenteFundoId: politicaContexto.cedenteFundo.id,
