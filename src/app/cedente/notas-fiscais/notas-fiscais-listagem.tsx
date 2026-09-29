@@ -148,6 +148,8 @@ export default function NotasFiscaisListagem({
   })
   const [dragActive, setDragActive] = useState(false)
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
+  const [nfseReviews, setNfseReviews] = useState<Map<File, import('@/lib/nfse/persistence').NfseReview>>(new Map())
+  const [nfseDueDates, setNfseDueDates] = useState<Map<File, string>>(new Map())
   const [uploadBatch, setUploadBatch] = useState<UploadBatchResult | null>(null)
   const [excluindo, setExcluindo] = useState<string | null>(null)
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set())
@@ -238,6 +240,10 @@ export default function NotasFiscaisListagem({
 
   const handleUpload = async () => {
     if (selectedFiles.length === 0 || uploading) return
+    if (selectedFiles.some(file => nfseReviews.has(file) && !nfseDueDates.get(file))) {
+      notifications.warning('Informe a data de vencimento das NFS-e em revisão.')
+      return
+    }
 
     setUploading(true)
     const filesToSend = selectedFiles
@@ -246,6 +252,7 @@ export default function NotasFiscaisListagem({
       const units = await executarComConcorrenciaLimitada(filesToSend, async (file) => {
         const formData = new FormData()
         formData.append('arquivos', file)
+        if (nfseDueDates.get(file)) formData.append('nfse_vencimento_manual', nfseDueDates.get(file)!)
         if (cedenteIdSelecionado) formData.append('cedente_id', cedenteIdSelecionado)
 
         let actionResult: NfActionState
@@ -269,10 +276,20 @@ export default function NotasFiscaisListagem({
       const batch = resumirUploadBatch(units.map((unit) => unit.result))
 
       setUploadBatch(batch)
+      setNfseReviews(previous => {
+        const next = new Map(previous)
+        units.forEach((unit, index) => {
+          if (unit.result.status === 'REQUIRES_REVIEW') next.set(filesToSend[index], unit.result.review)
+          else if (unit.result.status === 'IMPORTED') next.delete(filesToSend[index])
+        })
+        return next
+      })
       setSelectedFiles(arquivosPendentesDeRetry(filesToSend, batch))
 
       if (batch.errorCount === 0) {
         notifications.success(`${batch.successCount} de ${batch.total} arquivo(s) importado(s).`)
+      } else if (batch.results.some(item => item.status === 'REQUIRES_REVIEW')) {
+        notifications.warning('NFS-e em revisão: informe o vencimento para concluir a importação.')
       } else if (batch.successCount > 0) {
         notifications.warning('Alguns arquivos não foram importados. Revise os itens destacados.')
       } else if (batch.total === 1 && batch.results[0].status !== 'IMPORTED') {
@@ -450,6 +467,22 @@ export default function NotasFiscaisListagem({
                 ))}
               </div>
 
+              {selectedFiles.map((file, index) => {
+                const review = nfseReviews.get(file)
+                if (!review) return null
+                return <fieldset key={index} className="mt-3 rounded-lg border border-amber-300 p-4 space-y-2">
+                  <legend className="px-1 font-medium">NFS-e {review.numero} — revisão</legend>
+                  <p className="text-sm truncate">{file.name}</p>
+                  <p className="text-sm">Bruto fiscal: {formatCurrency(review.bruto)} · Líquido fiscal: {review.liquido === null ? 'Não informado' : formatCurrency(review.liquido)}</p>
+                  <p className="text-sm text-amber-700">Vencimento não informado no documento</p>
+                  <label className="block text-sm" htmlFor={`nfse-due-${index}`}>Data de vencimento *</label>
+                  <input id={`nfse-due-${index}`} type="date" required disabled={uploading}
+                    className="h-10 rounded-md border px-3" value={nfseDueDates.get(file) ?? ''}
+                    min={review.emissao}
+                    onChange={event => setNfseDueDates(previous => new Map(previous).set(file, event.target.value))} />
+                  <p className="text-xs text-muted-foreground">Nada foi gravado ainda. O preenchimento manual será auditado ao concluir.</p>
+                </fieldset>
+              })}
               <Button
                 onClick={handleUpload}
                 disabled={uploading}
