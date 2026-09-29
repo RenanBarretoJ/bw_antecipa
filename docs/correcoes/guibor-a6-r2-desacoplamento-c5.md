@@ -4,8 +4,9 @@
 
 Correcao na branch `hotfix/guibor-a6-decouple-c5`, baseada em homolog
 `9c7ede982504e453b35966e014cf5140fe43002d`. Producao permanece somente leitura.
-O ensaio sem C5 passou. Certificacao autenticada de Preview, CI e homolog ainda
-em andamento; `GUIBOR_A6_R2_HOMOLOG_READY = NO`.
+Ensaio sem C5, Preview, CI e smoke autenticado homolog concluidos com cleanup.
+`GUIBOR_A6_R2_HOMOLOG_READY = YES`. PR #76 integrado somente em homolog,
+merge `32c44993e20e0df19f8b31d0fb203b839c0944dc`.
 
 ## Diagnostico e solucao
 
@@ -69,7 +70,7 @@ Evidencia ignorada pelo Git: `rehearsal/reports/GUIBOR_A6_R2_PRODUCTION_LIKE.jso
 | Reaplicacao R2 com flag ON e demais campos preservados | PASS |
 
 Fixtures usam rollback. Banco isolado sem usuarios e operacoes ao final.
-Vitest: 2499 PASS, 12 skipped; 290 arquivos PASS, 3 skipped.
+Vitest final no CI: 2504 PASS, 12 skipped; 291 arquivos PASS, 3 skipped.
 TypeScript PASS. ESLint sem erros; um warning preexistente em liquidacao.ts.
 
 ## Preview e preservacao
@@ -85,11 +86,99 @@ O runner remoto acrescenta apenas uma operacao sintetica e associa os eventos.
 Nao altera a policy nem os resultados esperados de autorizacao. Tentativas
 intermediarias com fixture incompatível nao contam como certificacao PASS.
 
-## Pendencias de fechamento
+## Certificacao remota concluida
 
-- Smoke Auth Preview e cleanup.
-- CI/PR dedicado e promocao somente em homolog.
-- Corretiva homolog com fingerprints preservados.
-- Smoke Auth homolog, cinco larguras light/dark, A5 e cleanup QA/MEDVALE.
-- Status obrigatorio final e hold point, sem producao.
+Preview: smoke real `2778738e`, quatro sessoes Auth/TOTP AAL2, sucesso e cleanup.
+Foi usado o deploy imutavel `bw-antecipa-lhfnbzmkg-renanbarretoj.vercel.app`:
+`src`, configuracao Next e lockfile identicos aos da base homolog desta branch.
+R2 altera SQL e testes, nao o codigo visual da aplicacao. SQL remoto: A5 36,
+A6 17, novo escopo 49 e C1.1 8 PASS, com rollback. Consulta independente
+posterior confirmou zero usuarios, operacoes, notas, cedentes e Storage no Preview.
+O check de criacao automatica de branch Supabase foi skipped no HEAD final;
+nao foi usado como prova nem confundido com o CI da aplicacao.
 
+Homolog: somente R2 aplicada, mesmo SHA256 do Preview. Fingerprints integrais
+de NFs, operacoes, vinculos, flags, historico anterior, RLS e helpers C5 identicos
+antes/depois. Smoke C5 original com IDs/CNPJs sinteticos aleatorios e rollback:
+`C5_R2_RLS_SMOKE_OK`, incluindo os quatro papeis, timeline, fundos, dashboard,
+relatorio, negativa de escrita LEITOR, organizacao inativa e fundo revogado.
+
+CI do [PR #76](https://github.com/RenanBarretoJ/bw_antecipa/pull/76)
+PASS ([run 36638803825](https://github.com/RenanBarretoJ/bw_antecipa/actions/runs/36638803825)).
+CI do merge homolog PASS
+([run 36639200352](https://github.com/RenanBarretoJ/bw_antecipa/actions/runs/36639200352)).
+Deploy homolog certificado:
+https://bw-antecipa-6ukx2fxnx-renanbarretoj.vercel.app,
+`dpl_6Hc7GbzKAVrXWQ8Y4H1ibFWjMicW`. Target homolog e CSP do Supabase
+`fhgkmggthxikfpogrvaa` conferidos antes do smoke.
+
+Smoke Auth homolog `33df37a4`: PASS.
+
+- Quatro contas QA novas com Auth/MFA reais: Gestor, Cedente, OPERADOR e LEITOR.
+  OWNER/ADMIN tambem cobertos pelos testes SQL de C1.1/escopo, sem C5, e C5.
+- Gestor gravou/releu BRUTO/LIQUIDO e ON/OFF pela UI; negativas de governanca
+  e de outro fundo verificadas por RPC autenticada.
+- PDF B original importado: bruto 112710.81, liquido 105779.10,
+  DOCUMENTO_EXPLICITO, danfse_v2_visual, vencimento manual 2026-11-13.
+  Elegibilidade/aprovacao da NF foi fixture SQL QA, nao aprovacao autenticada.
+  PDF A nao foi reextraido: seus valores previamente certificados foram fixture.
+- Base BRUTO 100000; LIQUIDO multi-NF 143008.80; taxa livre 2.4%; Cedente
+  direto recalculado no servidor; snapshot anterior permaneceu imutavel.
+- Dashboard/relatorios OFF/ON/OFF, fundo ON com comissao 900 e fundo OFF
+  excluido; LEITOR preservado. Larguras 390/430/820/1440/1920 light/dark sem
+  overflow global. Inspecao visual mobile OFF dark e operacao Gestor confirmou
+  layout; snapshot lido nos tres portais.
+- Cleanup: sessoes revogadas; removidos somente 4 usuarios, 2 cedentes,
+  2 fundos, 5 operacoes, 5 notas e 1 objeto Storage QA. Fixtures recriaveis;
+  PDF original local preservado. MEDVALE manteve todos os hashes anteriores.
+- Consulta independente final: zero entidades/residuos do manifesto QA;
+  MEDVALE real presente; hash da migration R2 exato. Homolog nao esta vazio.
+
+Advisors mantem avisos preexistentes: 17 RLS sem policy, 5 search_path,
+166 RPCs publicas DEFINER executaveis e protecao de senhas vazadas desativada
+em homolog. Nao se declara linter zerado nem se ampliou o escopo para trata-los.
+Referencias: [RLS](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy),
+[search_path](https://supabase.com/docs/guides/database/database-linter?lint=0011_function_search_path_mutable),
+[RPC privilegiada](https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable),
+[protecao de senhas](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection).
+
+Evidencias locais ignoradas pelo Git em `rehearsal/reports/`:
+`GUIBOR_A6_R2_PRODUCTION_LIKE.json`, `GUIBOR_A6_R2_PREVIEW_SQL.json`,
+`GUIBOR_A6_R2_PREVIEW_CERTIFICATION.json`, `GUIBOR_A6_R2_HOMOLOG_MIGRATION.json`,
+`GUIBOR_A6_R2_HOMOLOG_C5.json`, `GUIBOR_A6_R2_HOMOLOG_CERTIFICATION.json` e
+`GUIBOR_A6_R2_INDEPENDENT_CLEANUP.json`.
+
+## Status obrigatorio e hold point
+
+```text
+GUIBOR_A6_C5_DEPENDENCY_DIAGNOSIS = COMPLETE
+GUIBOR_A6_C5_FUNCTION = private.consultor_usuario_pode_visualizar_cedente(uuid,uuid)
+GUIBOR_A6_C5_DEPENDENCY_TYPE = GENERIC
+GUIBOR_A6_NO_C5_DEPENDENCY = PASS
+GUIBOR_A6_PRODUCTION_LIKE = PASS
+GUIBOR_A6_CORRECTIVE_MIGRATION = PASS
+GUIBOR_A6_DEFAULT_OFF = PASS
+GUIBOR_A6_GOVERNANCE = PASS
+GUIBOR_A6_AUDIT = PASS
+GUIBOR_A6_OFF_ZERO_REFERENCES = PASS
+GUIBOR_A6_OFF_LAYOUT_REFLOW = PASS
+GUIBOR_A6_ON_REGRESSION = PASS
+GUIBOR_A6_MULTIFUNDO = PASS
+GUIBOR_A6_BACKEND_PROJECTION = PASS
+GUIBOR_A5_REGRESSION = PASS
+GUIBOR_C1_1_REGRESSION = PASS
+GUIBOR_A6_R2_CI = PASS
+GUIBOR_A6_R2_HOMOLOG = PASS
+GUIBOR_A6_R2_HOMOLOG_CLEANUP = PASS
+GUIBOR_A6_R2_HOMOLOG_READY = YES
+C5_R2_PRODUCTION_CHANGED = NO
+GUIBOR_PRODUCTION_CHANGED = NO
+RLX_EMAIL_CHANGED = NO
+RLX_VORTX_CHANGED = NO
+CERC_CHANGED = NO
+```
+
+Parada no hold point homolog. Consulta final somente leitura em producao:
+nenhuma das cinco versoes GUIBOR registrada, historico C5 zero, helper C5 ausente.
+Retomar GUIBOR-PROD-01 exige a cadeia equivalente explicitada acima; C5 continua
+excluido. Nenhum rollout de producao foi executado nesta etapa.
