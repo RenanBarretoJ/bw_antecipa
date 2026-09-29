@@ -1,6 +1,5 @@
+import { chaveAtivoVrs, chaveParcelaVrs } from './chaves'
 import {
-  chaveUnicaAtivo,
-  chaveUnicaParcela,
   type GrupoRemessaCanonico,
   type RemessaNotaFiscalCanonica,
 } from '@/lib/remessas/domain'
@@ -195,6 +194,8 @@ export function mapearGrupoParaVrs(
   const ativos: VrsAtivoMapeado[] = []
   const fluxos: VrsFluxoMapeado[] = []
   const destinosPagamento = new Map<string, DestinoPagamentoVrs>()
+  const chavesAtivo = new Set<string>()
+  const chavesParcela = new Set<string>()
   let valorPagamento = 0
 
   for (const operacao of grupo.operacoes) {
@@ -209,7 +210,9 @@ export function mapearGrupoParaVrs(
         bloqueios.push(`NF ${nota.numero} sem parcela selecionada em operacoes_nf_parcelas`)
         continue
       }
-      const chaveAtivo = chaveUnicaAtivo(nota.id)
+      const chaveAtivo = chaveAtivoVrs(nota.id)
+      if (chavesAtivo.has(chaveAtivo)) bloqueios.push('Chave ATIVO repetida no lote VRS')
+      chavesAtivo.add(chaveAtivo)
       const devedorCnpj = somenteDigitos(nota.devedor.cnpj)
       const cep = somenteDigitos(nota.devedor.cep)
       if (devedorCnpj.length !== 14) bloqueios.push(`NF ${nota.numero}: CNPJ do devedor invalido`)
@@ -221,6 +224,8 @@ export function mapearGrupoParaVrs(
       if (!nota.devedor.municipio) bloqueios.push(`NF ${nota.numero}: municipio do devedor ausente`)
       if (!/^[A-Za-z]{2}$/.test(nota.devedor.uf ?? '')) bloqueios.push(`NF ${nota.numero}: UF do devedor ausente ou invalida`)
       if (!dataBr(nota.dataEmissao)) bloqueios.push(`NF ${nota.numero}: data de emissao invalida`)
+      if (!/^\d{44}$/.test(nota.chaveAcesso ?? '')) bloqueios.push(`NF ${nota.numero}: chave de acesso deve possuir 44 digitos para o campo customizado 2`)
+      if (!somenteDigitos(nota.numero)) bloqueios.push('Numero da NF ausente para o campo customizado 1')
 
       const vencimentos = nota.parcelasSelecionadas.map((parcela) => parcela.vencimento).sort()
       const vencimentoAtivo = vencimentos.at(-1) ?? ''
@@ -237,12 +242,14 @@ export function mapearGrupoParaVrs(
         dataBr(nota.dataEmissao), dataBr(nota.dataEmissao), dataBr(vencimentoAtivo), dataBr(vencimentoAtivo),
         '', '', somenteDigitos(nota.numero), '', '', '', config.modalidadeOperacao,
         String(nota.quantidadeParcelasOriginal), decimalBr(valorCompra), decimalBr(nota.valorBruto), config.registradora,
-        '', '', '', '', '',
+        somenteDigitos(nota.numero), nota.chaveAcesso ?? '', '', '', '',
       ].map((value, index) => validarCampoCsv(String(value), `ATIVO[${index}] NF ${nota.numero}`, bloqueios))
       ativos.push({ chaveUnicaAtivo: chaveAtivo, operacaoId: operacao.id, notaFiscalId: nota.id, campos: camposAtivo })
 
       for (const parcela of nota.parcelasSelecionadas) {
-        const chaveParcela = chaveUnicaParcela(parcela.id)
+        const chaveParcela = chaveParcelaVrs(nota.id, parcela.numero)
+        if (chavesParcela.has(chaveParcela)) bloqueios.push('Chave FLUXO repetida no lote VRS')
+        chavesParcela.add(chaveParcela)
         const vencimento = dataBr(parcela.vencimento)
         if (!vencimento) bloqueios.push(`NF ${nota.numero} parcela ${parcela.numero}: vencimento invalido`)
         if (!(parcela.valorNominal > 0)) bloqueios.push(`NF ${nota.numero} parcela ${parcela.numero}: valor nominal invalido`)

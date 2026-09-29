@@ -5,7 +5,7 @@ import { gerarExcelConferenciaRemessa } from './xlsx'
 
 const lote: RemessaLoteCanonico = {
   fundo: { id: 'fundo-1', nome: 'Fundo Teste', cnpj: '68522785000104' },
-  integracao: { versaoId: 'versao-1', adapterKey: 'vortx_vrs', configuracao: {} },
+  integracao: { versaoId: 'versao-1', adapterKey: 'sinqia_portal_fidc', configuracao: {} },
   operacoes: [{
     id: 'operacao-1',
     fundoId: 'fundo-1',
@@ -35,7 +35,7 @@ const lote: RemessaLoteCanonico = {
 
 describe('P4 - Excel de conferencia', () => {
   it('gera um XLSX valido contendo somente as parcelas selecionadas', async () => {
-    const buffer = await gerarExcelConferenciaRemessa(lote, 'VRS_CSV', 'POR_CEDENTE')
+    const buffer = await gerarExcelConferenciaRemessa(lote, 'CNAB444', 'POR_LOTE')
     const zip = await JSZip.loadAsync(buffer)
     const sheet = await zip.file('xl/worksheets/sheet1.xml')?.async('text')
 
@@ -44,6 +44,6 @@ describe('P4 - Excel de conferencia', () => {
     expect(sheet).toContain('parcela-2')
     expect(sheet).toContain('parcela-5')
     expect(sheet).not.toContain('parcela-1')
-    expect(sheet).toContain('POR_CEDENTE')
+    expect(sheet).toContain('POR_LOTE')
   })
 })
