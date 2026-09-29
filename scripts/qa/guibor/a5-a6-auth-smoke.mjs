@@ -5,8 +5,12 @@ import { spawnSync } from 'node:child_process'
 import { randomUUID, randomBytes, createHmac } from 'node:crypto'
 import { createClient } from '@supabase/supabase-js'
 import puppeteer from 'puppeteer-core'
+import { medvaleSnapshot } from './review-target.mjs'
+import { importRealPdfB } from './a5-real-pdf.mjs'
 
-const ref = 'prnudoydwiramsxjnxzn'
+const homolog = process.argv.includes('--homolog')
+const ref = homolog ? 'fhgkmggthxikfpogrvaa' : 'prnudoydwiramsxjnxzn'
+if(homolog) assert.equal(JSON.parse(readFileSync('rehearsal/reports/GUIBOR_A5_A6_PREVIEW_CERTIFICATION.json','utf8')).success,true)
 const base = process.argv[2]
 assert(/^https:\/\/bw-antecipa-[a-z0-9-]+\.vercel\.app$/.test(base))
 assert.equal(readFileSync('supabase/.temp/project-ref', 'utf8').trim(), ref)
@@ -75,11 +79,15 @@ function args(nfs) {
 }
 const operation = async op => val(await admin.from('operacoes').select('id,valor_bruto_total,base_antecipacao_snapshot,valor_liquido_desembolso,taxa_proposta_consultor').eq('id',op).single())
 try {
-  assert.equal(sql('select count(*)::int n from auth.users')[0].n,0,'DISPOSABLE_PREVIEW_NOT_EMPTY')
+  if(!homolog) assert.equal(sql('select count(*)::int n from auth.users')[0].n,0,'DISPOSABLE_PREVIEW_NOT_EMPTY')
+  else {
+    report.medvaleBefore=sql(medvaleSnapshot())[0];save()
+    assert.equal(sql("select count(*)::int n from public.cedentes where regexp_replace(cnpj,'[^0-9]','','g')='37034852000100'")[0].n,0,'REAL_B_ISSUER_ALREADY_OWNED_STOP')
+  }
   const login = await fetch(base+'/login')
   assert(login.ok,'PREVIEW_NOT_READY')
   assert((login.headers.get('content-security-policy')||'').includes(ref+'.supabase.co'),'PREVIEW_TARGET_WRONG')
-  check('DEPLOYMENT_ISOLATED_PREVIEW')
+  check(homolog?'DEPLOYMENT_HOMOLOG':'DEPLOYMENT_ISOLATED_PREVIEW')
   for (const [n,role] of ['consultor','leitor','cedente','gestor'].entries()) {
     const email=`guibor-${run}-${role}@example.invalid`, password=`Guibor!A1${randomBytes(24).toString('base64url')}`
     const {user}=val(await admin.auth.admin.createUser({email,password,email_confirm:true,user_metadata:{nome_completo:`QA GUIBOR ${role}`}}))
@@ -90,7 +98,7 @@ try {
   setup+='\n'+a6.slice(a6.indexOf('UPDATE public.consultor_cedentes'),a6.indexOf("SELECT set_config('qa.financial_before'"))
   for (const uuid of new Set(setup.match(/[0-9a-f]{8}-0000-4000-8000-[0-9a-f]{12}/g))) report.ids[uuid] ||= randomUUID()
   for (const [from,to] of Object.entries(report.ids)) setup=setup.replaceAll(from,to)
-  for (const number of new Set(setup.match(/'\d{14}'/g))) setup=setup.replaceAll(number,`'${cnpj()}'`)
+  for (const number of new Set(setup.match(/'\d{14}'/g))) setup=setup.replaceAll(number,`'${homolog&&number==="'98100000000168'"?'37034852000100':cnpj()}'`)
   setup=setup.replaceAll('QA_C2_1',`QA_GUIBOR_${run}`).replaceAll('C2.1',`GUIBOR ${run}`).replaceAll('ESCROW-C21',`ESCROW-GUIBOR-${run}`).replaceAll('QA OFF',`QA GUIBOR ${run} OFF`).replaceAll('ESCROW-QA-OFF',`ESCROW-GUIBOR-${run}-OFF`)
   for (const role of Object.keys(report.users)) setup=setup.replaceAll(`${role==='consultor'?'operador':role}-c21@example.invalid`,credentials[role].email)
   save(); sql(`BEGIN;${setup}COMMIT;SELECT true seeded;`); seeded=true
@@ -104,6 +112,65 @@ try {
     delete credentials[role]
   }
   check('FOUR_REAL_AUTH_AAL2_ROLES')
+  browser=await puppeteer.launch({executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',headless:true,args:['--no-first-run','--disable-dev-shm-usage']})
+  const pages={}
+  for(const role of Object.keys(report.users)) pages[role]=await pageFor(role)
+  await navigate(pages.gestor,`/gestor/cedentes/${id('23')}`)
+  for(const wanted of ['Valor líquido da nota','Valor bruto da nota']) {
+    await pages.gestor.click('#base-antecipacao')
+    await pages.gestor.waitForSelector('[role=option]')
+    const options=await pages.gestor.$$('[role=option]')
+    const texts=await Promise.all(options.map(option=>option.evaluate(e=>e.textContent)))
+    const index=texts.indexOf(wanted);assert(index>=0,'POLICY_OPTION_MISSING')
+    // Exercise the component with actual mouse events, including pointer-up.
+    await options[index].click()
+    await pages.gestor.waitForFunction(label=>document.querySelector('#base-antecipacao')?.textContent.includes(label),{},wanted)
+    const buttons=await pages.gestor.$$('button')
+    const buttonTexts=await Promise.all(buttons.map(button=>button.evaluate(e=>e.textContent)))
+    const requestedBase=wanted.includes('líquido')?'LIQUIDO':'BRUTO'
+    const [savedResponse]=await Promise.all([
+      pages.gestor.waitForResponse(r=>r.request().method()==='POST'
+        &&new URL(r.url()).pathname===`/gestor/cedentes/${id('23')}`
+        &&r.request().postData()===JSON.stringify([id('24'),requestedBase]),{timeout:60000}),
+      buttons[buttonTexts.indexOf('Salvar base')].click(),
+    ])
+    assert(savedResponse.ok(),'CONFIG_SAVE_HTTP_ERROR')
+    await pages.gestor.waitForFunction(()=>[...document.querySelectorAll('button')].some(b=>b.textContent==='Salvar base'&&!b.disabled),{timeout:60000})
+    // revalidatePath can remount the form and clear its transient success message.
+    const saved=val(await admin.from('cedente_fundos').select('base_valor_antecipacao').eq('id',id('24')).single())
+    assert.equal(saved.base_valor_antecipacao,requestedBase)
+    await navigate(pages.gestor,`/gestor/cedentes/${id('23')}`)
+    assert((await pages.gestor.$eval('#base-antecipacao',e=>e.textContent)).includes(wanted))
+    check(wanted.includes('líquido')?'UI_BASE_LIQUIDO_SAVED':'UI_BASE_BRUTO_SAVED')
+  }
+  await navigate(pages.gestor,'/gestor/configuracoes?tab=comissoes')
+  assert.equal(await pages.gestor.$$eval('[role=switch]',es=>es.length),1)
+  for(const enabled of [true,false]) {
+    await pages.gestor.waitForSelector('[role=switch]:not([disabled])',{timeout:60000})
+    const [response]=await Promise.all([
+      pages.gestor.waitForResponse(r=>r.request().method()==='POST'
+        &&r.request().postData()===JSON.stringify([id('29'),id('22'),enabled]),{timeout:60000}),
+      pages.gestor.click('[role=switch]'),
+    ])
+    assert(response.ok(),'COMMISSION_SAVE_HTTP_ERROR')
+    // App Router refresh may evict the streamed response body from CDP.
+    // The settled DOM and persisted flag are the completion assertions.
+    await pages.gestor.waitForFunction(value=>{
+      const button=document.querySelector('[role=switch]')
+      return button?.getAttribute('aria-checked')===String(value)&&!button.disabled
+    },{timeout:60000},enabled)
+    const saved=val(await admin.from('consultor_fundos').select('comissao_habilitada').eq('consultor_id',id('29')).eq('fundo_id',id('22')).single())
+    assert.equal(saved.comissao_habilitada,enabled)
+    check(enabled?'UI_COMMISSION_ON_SAVED':'UI_COMMISSION_OFF_SAVED')
+  }
+  check('GESTOR_BASE_AND_COMMISSION_CONFIG_UI')
+  let netNoteB=id('2a',3)
+  if(homolog) {
+    netNoteB=await importRealPdfB({page:pages.cedente,base,admin,cedenteId:id('23'),report,save})
+    // NF approval is a fixture prerequisite, not claimed as authenticated NF approval evidence.
+    sql(`UPDATE public.notas_fiscais SET status='aprovada' WHERE id='${netNoteB}' AND cedente_id='${id('23')}' AND status='rascunho';SELECT true qa_eligibility;`)
+    check('REAL_PDF_B_IMPORT_AND_PROVENANCE_QA_ELIGIBILITY_SEE_REPORT')
+  }
   const baseArgs={p_cedente_fundo_id:id('24'),p_base:'LIQUIDO'}
   const commissionArgs={p_consultor_id:id('29'),p_fundo_id:id('22'),p_habilitada:true}
   for (const role of ['consultor','leitor','cedente']) {
@@ -119,7 +186,7 @@ try {
   assert.equal(grossBefore.base_antecipacao_snapshot.base,'BRUTO')
   await rpc('gestor','configurar_base_antecipacao',baseArgs)
   await denied('consultor','solicitar_operacao_antecipacao_consultor_atomica',{...args([id('2a',4)]),p_taxa_proposta_consultor:2.4})
-  const net=await rpc('consultor','solicitar_operacao_antecipacao_consultor_atomica',{...args([id('2a',2),id('2a',3)]),p_taxa_proposta_consultor:2.4})
+  const net=await rpc('consultor','solicitar_operacao_antecipacao_consultor_atomica',{...args([id('2a',2),netNoteB]),p_taxa_proposta_consultor:2.4})
   const netBefore=await operation(net.operacao_id)
   assert.equal(Number(netBefore.valor_bruto_total),143008.8)
   assert.equal(netBefore.base_antecipacao_snapshot.base,'LIQUIDO')
@@ -133,9 +200,6 @@ try {
   check('AUTH_BRUTO_LIQUIDO_MULTI_SNAPSHOT_FREE_RATE_CEDENTE_DIRECT')
   const dashboard=await rpc('consultor','dashboard_consultor_resumo',{})
   assert.equal(dashboard.comissaoHabilitada,false); assert(!('comissaoEstimada' in dashboard))
-  browser=await puppeteer.launch({executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',headless:true,args:['--no-first-run','--disable-dev-shm-usage']})
-  const pages={}
-  for(const role of Object.keys(report.users)) pages[role]=await pageFor(role)
   for(const enabled of [false,true,false]) {
     if(enabled || report.checks.includes('COMMISSION_ON_UI')) await rpc('gestor','configurar_comissao_consultor_fundo',{...commissionArgs,p_habilitada:enabled})
     const summary=await rpc('leitor','dashboard_consultor_resumo',{})
@@ -174,12 +238,20 @@ try {
   }
   check('THREE_PORTALS_SNAPSHOT_READ')
   report.success=true
-} catch(error) { report.error=error.message; process.exitCode=1 }
+} catch(error) {
+  report.error=error.message;process.exitCode=1
+  if(browser) for(const [role,context] of Object.entries(contexts)) {
+    for(const page of await context.pages()) if(page.url().startsWith(base)) {
+      writeFileSync(`rehearsal/reports/GUIBOR_A5_A6_${run}_ERROR_${role}.txt`,await page.evaluate(()=>document.body.innerText).catch(()=>''))
+      await page.screenshot({path:`rehearsal/reports/GUIBOR_A5_A6_${run}_ERROR_${role}.png`,fullPage:true}).catch(()=>{})
+    }
+  }
+}
 finally {
   if(browser) await browser.close()
   for(const client of Object.values(clients)) await client.auth.signOut({scope:'global'}).catch(()=>{})
   save()
-  // Only manifest-owned synthetic entities; no imported PDF/Storage is created by this harness.
+  // Only manifest-owned QA entities. The homolog PDF uses a previously unowned issuer.
   if(seeded) {
     const list=values=>values.map(v=>{assert(/^[0-9a-f-]{36}$/.test(v));return `'${v}'`}).join(',')
     const cs=list([id('23'),id('23',2)]), fs=list([id('22'),id('22',2)]), us=list(Object.values(report.users)), org=`'${id('29')}'`
@@ -188,11 +260,22 @@ finally {
       assert.equal(owners.length,2);assert(owners.every(row=>row.razao_social.includes(`GUIBOR ${run}`)))
       const ops=sql(`select id from public.operacoes where cedente_id in (${cs})`)
       assert(ops.length<=5,'UNEXPECTED_OPERATION_COUNT_STOP')
-      const opIds=list(ops.map(o=>o.id)), noteIds=list([1,2,3,4].map(n=>id('2a',n)))
-      assert.equal(sql(`select count(*)::int n from storage.objects where split_part(name,'/',1) in (${cs})`)[0].n,0,'UNEXPECTED_STORAGE_STOP')
+      const notes=sql(`select id,numero_nf,cnpj_emitente from public.notas_fiscais where cedente_id in (${cs})`)
+      const fixtureNoteIds=[1,2,3,4].map(n=>id('2a',n))
+      assert(notes.length<=5 && notes.every(n=>fixtureNoteIds.includes(n.id)||(homolog&&n.numero_nf==='232'&&n.cnpj_emitente==='37034852000100')),'UNEXPECTED_QA_NOTE_STOP')
+      const opIds=list(ops.map(o=>o.id)), noteIds=list(notes.map(n=>n.id))
+      // No repository documents are expected under our requirement-free QA policy.
+      // Stop for inspection rather than delete any unexpectedly shared document.
+      assert.equal(sql(`select count(*)::int n from public.documento_vinculos where nota_fiscal_id in (${noteIds})`)[0].n,0,'UNEXPECTED_QA_DOCUMENT_STOP')
+      assert.equal(sql(`select count(*)::int n from public.documento_requisito_instancias where nota_fiscal_id in (${noteIds}) and documento_id is not null`)[0].n,0,'UNEXPECTED_QA_DOCUMENT_STOP')
+      const objects=sql(`select bucket_id,name from storage.objects where (bucket_id='documentos-v2' and split_part(name,'/',1) in (${cs})) or (bucket_id='notas-fiscais' and split_part(name,'/',1) in (select regexp_replace(cnpj,'[^0-9]','','g') from public.cedentes where id in (${cs})))`)
+      assert(objects.length<=(homolog?1:0),'UNEXPECTED_STORAGE_STOP')
+      for(const object of objects) val(await admin.storage.from(object.bucket_id).remove([object.name]))
       const deletes=[
         ['eventos_dominio',`ator_usuario_id in (${us})`],['operacao_calculo_nfs',`operacao_id in (${opIds})`],
         ['operacoes_nf_parcelas',`operacao_id in (${opIds})`],['operacoes_nfs',`operacao_id in (${opIds})`],['operacoes',`id in (${opIds})`],
+        ['nfse_review_intents',`cedente_id in (${cs}) and actor_id in (${us})`],
+        ['documento_requisito_instancias',`nota_fiscal_id in (${noteIds}) and documento_id is null`],
         ['nota_fiscal_entregas',`nota_fiscal_id in (${noteIds})`],['notas_fiscais',`id in (${noteIds})`],
         ['consultor_cedentes',`consultor_id=${org}`],['consultor_fundos',`consultor_id=${org}`],['consultor_usuarios',`consultor_id=${org}`],['consultores',`id=${org}`],
         ['cedente_fundo_politicas',`id='${id('28')}'`],['politica_operacional_versoes',`id='${id('27')}'`],['politicas_operacionais',`id='${id('26')}'`],
@@ -202,12 +285,16 @@ finally {
         ['logs_auditoria',`usuario_id in (${us})`],['sessoes_elevadas',`user_id in (${us})`],['seguranca_eventos',`usuario_id in (${us}) or ator_usuario_id in (${us})`]
       ]
       sql(`BEGIN;SET LOCAL lock_timeout='5s';SET LOCAL session_replication_role='replica';${deletes.map(([table,where])=>`DELETE FROM public.${table} WHERE ${where};`).join('\n')}SET LOCAL session_replication_role='origin';COMMIT;SELECT true cleaned;`)
-      report.removed={operations:ops.length,notes:4,cedentes:2,funds:2}
+      report.removed={operations:ops.length,notes:notes.length,cedentes:2,funds:2,storage:objects.length}
     }catch(error) {report.cleanupError=error.message;process.exitCode=1}
   }
   if(!report.cleanupError) {
     for(const user of Object.values(report.users)) { const r=await admin.auth.admin.deleteUser(user);if(r.error){report.cleanupError='AUTH_CLEANUP_FAILED';process.exitCode=1} }
     report.cleanup=!report.cleanupError
+  }
+  if(homolog && report.medvaleBefore) {
+    try {report.medvaleAfter=sql(medvaleSnapshot())[0];assert.deepEqual(report.medvaleAfter,report.medvaleBefore);report.medvalePreserved=true}
+    catch {report.cleanupError='MEDVALE_PRESERVATION_CHECK_FAILED';report.cleanup=false;process.exitCode=1}
   }
   save();console.log(JSON.stringify({report:reportPath,success:report.success,cleanup:report.cleanup,error:report.error,cleanupError:report.cleanupError}))
 }
