@@ -39,15 +39,17 @@ export function validateVisualNfse(input: unknown): NfseExtraction {
   const candidate = parsed.data
   function line(field: PrintedField): string {
     const fact = candidate[field]
-    if (fact.value === null) {
-      if (fact.label !== null) throw new Error('NFSE_VISUAL_LABEL_WITHOUT_VALUE')
-      return ''
+    if (fact.label !== null) {
+      const label = normalize(fact.label)
+      if (label !== labels[field] && !(field === 'vencimento' && label === 'VENCIMENTO')) {
+        throw new Error('NFSE_VISUAL_LABEL_CONFLICT')
+      }
     }
+    // A printed heading without a value is not a fiscal fact. Omit both from
+    // canonical text so it cannot consume a neighbouring value or gain provenance.
+    // Mandatory facts are still enforced by the extraction gate below.
+    if (fact.value === null) return ''
     if (!fact.label || /[\r\n]/.test(fact.value) || !fact.value.trim()) throw new Error('NFSE_VISUAL_INVALID_FIELD')
-    const label = normalize(fact.label)
-    if (label !== labels[field] && !(field === 'vencimento' && label === 'VENCIMENTO')) {
-      throw new Error('NFSE_VISUAL_LABEL_CONFLICT')
-    }
     return `${labels[field]}\n${fact.value}`
   }
   const canonical = [
