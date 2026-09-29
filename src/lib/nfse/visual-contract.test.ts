@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { validateVisualNfse } from './visual-contract'
+import { validateVisualNfse, VISUAL_NFSE_JSON_SCHEMA } from './visual-contract'
 import { visualFixture } from './fixtures/visual'
 import { danfseFixture } from './fixtures/danfse-v2'
 import { classifyFiscalImage, extractNfseVisual } from './openai-visual.server'
@@ -9,6 +9,33 @@ const bytes = Buffer.from('synthetic PDF')
 const envelope = (data: unknown) => Response.json({ output: [{ content: [{ type: 'output_text', text: JSON.stringify(data) }] }] })
 
 describe('GUIBOR A3 visual contract', () => {
+  it('constrains the provider key to 50 digits or null without requesting digit repair', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(envelope(visualFixture()))
+    await extractNfseVisual(bytes, { env: { OPENAI_API_KEY: 'synthetic' }, fetchImpl })
+    const body = JSON.parse(fetchImpl.mock.calls[0][1].body)
+    expect(body.text.format.schema.properties.chave_acesso_nfse.properties.value)
+      .toEqual({ type: ['string', 'null'], pattern: '^[0-9]{50}$' })
+    const prompt = body.input[0].content.find((part: { type: string }) => part.type === 'input_text').text
+    expect(prompt).toContain('preservando cada zero consecutivo')
+    expect(prompt).toContain('Nunca adicione, remova, complete ou corrija digitos')
+    expect(prompt).toContain('chave_acesso_nfse.value=null e ambiguous=true')
+  })
+  it('preserves a synthetic long zero run exactly, without numeric conversion', () => {
+    const key = '123456789' + '0'.repeat(30) + '12345678901'
+    expect(key).toHaveLength(50)
+    const result = validateVisualNfse({ ...visualFixture(),
+      chave_acesso_nfse: { label: 'CHAVE DE ACESSO DA NFS-e', value: key },
+    })
+    expect(result.dados.chave_acesso).toBe(key)
+  })
+  it.each([44, 49, 51])('rejects %i-digit keys even if the provider ignores its schema', length => {
+    const key = ('1234567890'.repeat(6)).slice(0, length)
+    const pattern = VISUAL_NFSE_JSON_SCHEMA.properties.chave_acesso_nfse.properties.value.pattern
+    expect(new RegExp(pattern).test(key)).toBe(false)
+    expect(() => validateVisualNfse({ ...visualFixture(),
+      chave_acesso_nfse: { label: 'CHAVE DE ACESSO DA NFS-e', value: key },
+    })).toThrow('NFSE_VISUAL_FISCAL_CONFLICT')
+  })
   it('extracts explicit net, dates, no due, dedicated provenance without NF-e offsets', () => {
     const result = validateVisualNfse(visualFixture())
     expect(result.dados).toMatchObject({ numero_nf: '232', valor_bruto: 112710.81, valor_liquido: 105779.10, data_emissao: '2026-09-15', competencia: '2026-09-15', cnpj_emitente: '11222333000181' })

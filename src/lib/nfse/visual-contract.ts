@@ -88,6 +88,10 @@ export const VISUAL_NFSE_JSON_SCHEMA = {
     document_kind: { type: 'string', enum: ['nfse_danfse_v2', 'uncertain'] },
     fingerprint: { type: ['string', 'null'] }, document_count: { type: 'integer' }, ambiguous: { type: 'boolean' },
     ...Object.fromEntries(Object.keys(labels).map(key => [key, factSchema])), confidence: { type: 'number' },
+    // A long identifier is text, never a number. Null remains the abstention path.
+    chave_acesso_nfse: { ...factSchema, properties: { ...factSchema.properties,
+      value: { type: ['string', 'null'], pattern: '^[0-9]{50}$' },
+    } },
   },
   required: ['document_kind', 'fingerprint', 'document_count', 'ambiguous', ...Object.keys(labels), 'confidence'],
 }
