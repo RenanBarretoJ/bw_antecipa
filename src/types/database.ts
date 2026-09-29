@@ -1306,6 +1306,10 @@ export interface DevedorSolidario {
 }
 
 export interface NotaFiscal {
+  tipo_documento_fiscal?: 'NFE' | 'NFSE' | null
+  valor_liquido_origem?: 'DOCUMENTO_EXPLICITO' | 'LEGACY_BRUTO' | 'NAO_INFORMADO' | null
+  vencimento_origem?: 'DOCUMENT' | 'MANUAL' | null
+  fiscal_proveniencia?: Record<string, unknown> | null
   id: string
   cedente_id: string
   estabelecimento_id: string | null
@@ -2264,6 +2268,12 @@ export type DocumentoUploadIntentInsert = Pick<DocumentoUploadIntentRow,
 export interface Database {
   public: {
     Tables: {
+      nfse_review_intents: {
+        Row: import('@/lib/nfse/review-intents.server').NfseReviewIntent
+        Insert: Pick<import('@/lib/nfse/review-intents.server').NfseReviewIntent, 'actor_id' | 'cedente_id' | 'cedente_fundo_id' | 'fundo_id' | 'file_sha256' | 'fiscal_sha256' | 'identity_sha256'>
+        Update: Partial<Pick<import('@/lib/nfse/review-intents.server').NfseReviewIntent, 'state' | 'storage_path' | 'document_storage_path' | 'nf_id' | 'updated_at'>>
+        Relationships: []
+      }
       comunicacao_configuracoes: { Row: ComunicacaoConfiguracao & Record<string, unknown>; Insert: InsertShape<ComunicacaoConfiguracao, 'fundo_id' | 'criada_por'> & Record<string, unknown>; Update: UpdateShape<ComunicacaoConfiguracao> & Record<string, unknown>; Relationships: [] }
       comunicacao_configuracao_versoes: { Row: ComunicacaoConfiguracaoVersao & Record<string, unknown>; Insert: InsertShape<ComunicacaoConfiguracaoVersao, 'configuracao_id' | 'fundo_id' | 'numero_versao' | 'criada_por'> & Record<string, unknown>; Update: UpdateShape<ComunicacaoConfiguracaoVersao> & Record<string, unknown>; Relationships: [] }
       comunicacao_template_versoes: { Row: ComunicacaoTemplateVersao & Record<string, unknown>; Insert: InsertShape<ComunicacaoTemplateVersao, 'configuracao_versao_id' | 'fundo_id' | 'categoria' | 'conteudo_hash' | 'criada_por'> & Record<string, unknown>; Update: UpdateShape<ComunicacaoTemplateVersao> & Record<string, unknown>; Relationships: [] }
