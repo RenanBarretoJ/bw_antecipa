@@ -7,10 +7,11 @@ Implementação local em `feature/guibor-a5-a6-base-comissao`, baseada em homolo
 alinhada após autorização explícita; A5/A6 aplicados no Preview e homolog.
 Commit de implementação `d152d30`, PR dedicado
 [#73](https://github.com/RenanBarretoJ/bw_antecipa/pull/73) integrado somente em
-`homolog` (`d6eec5c`). Certificação final e ajuste visual no
-[#74](https://github.com/RenanBarretoJ/bw_antecipa/pull/74), base `homolog`.
+`homolog` (`d6eec5c`). Ajuste visual e harness integrados pelo
+[#74](https://github.com/RenanBarretoJ/bw_antecipa/pull/74), merge homolog
+`6a9fd98c3512d764986369da17c8149896af5fc2`. Smoke autenticado final PASS.
 
-`GUIBOR_A5_A6_HOMOLOG_READY = NO`
+`GUIBOR_A5_A6_HOMOLOG_READY = YES`
 
 `GUIBOR_PRODUCTION_CHANGED = NO`
 
@@ -37,7 +38,7 @@ mantém a seleção individual de parcelas. Não há rateio líquido nem fallbac
 - Configuração da comissão no contexto do fundo e no detalhe administrativo da
   Consultoria; OFF remove as referências e recompõe a grade do Consultor.
 
-Migrations novas, aplicadas no Preview e homolog; smoke homolog ainda pendente:
+Migrations novas, aplicadas e certificadas no Preview e homolog:
 
 - `20260929191004_guibor_a5_base_antecipacao.sql`
 - `20260929193129_guibor_a6_comissao_por_fundo.sql`
@@ -175,7 +176,7 @@ desktop ON e Gestor confirmou o conteúdo; os três portais exibiram o snapshot.
 Cleanup verificado no banco: zero usuários, operações, NFs, eventos, vínculos
 de operação, cedentes e objetos Storage. As migrations permanecem aplicadas.
 
-## Gates ainda pendentes
+## Histórico da promoção e dos gates intermediários
 
 - Homolog: somente A5/A6, smoke real em contexto QA, preservação integral de
   MEDVALE, vínculos e políticas reais, cleanup apenas QA.
@@ -225,6 +226,111 @@ Consulta independente pós-cleanup confirmou zero usuários, operações, notas,
 cedentes e objetos Storage no Preview. O harness aguarda a UI estabilizar em
 vez de ler o corpo RSC, que pode ser descartado pelo Chrome após refresh.
 
-Não classificar gates remotos como PASS a partir da suíte local. A implementação
-e os testes locais não autorizam produção; parar somente no hold point de
-homolog quando todas as evidências remotas estiverem concluídas.
+Os itens pendentes e as tentativas interrompidas acima descrevem etapas
+intermediárias. O fechamento remoto abaixo as sucede; não foram promovidos
+a PASS retroativamente nem substituídos por resultados da suíte local.
+
+## Certificação final homolog — PASS
+
+Deploy `https://bw-antecipa-r6a3ho2lw-renanbarretoj.vercel.app`, ID
+`dpl_FTRUXkPBgzdRED58Np3jw6fCthVo`, target Vercel **homolog** e Supabase
+`fhgkmggthxikfpogrvaa`, verificados antes do smoke. CI do PR #74 e CI do merge
+homolog PASS (run `36633807775`). Nenhuma promoção para main/produção.
+
+Execução real: `rehearsal/reports/GUIBOR_A5_A6_AUTH_dbcaaf97.json`:
+
+- Quatro usuários temporários autenticados com TOTP/AAL2: Gestor, Cedente,
+  Consultor OPERADOR e LEITOR. Não foi reutilizada senha de usuário real.
+- Gestor gravou e releu BRUTO/LIQUIDO pelo formulário, com rótulos corretos;
+  ativou/desativou comissão pela UI e a flag persistida foi conferida.
+- PDF B original `232- HOSPITAL VIDA.pdf` importado pelo portal Cedente:
+  bruto R$ 112.710,81, líquido R$ 105.779,10,
+  `DOCUMENTO_EXPLICITO`, strategy `danfse_v2_visual`, vencimento manual
+  `2026-11-13`. Extração e reextração do fluxo de revisão, sem loop de retries.
+  A elegibilidade/aprovação dessa NF foi preparada como fixture SQL QA:
+  **não** se afirma aprovação autenticada da NF nesse smoke.
+- Operação BRUTO R$ 100.000,00; operação LIQUIDO multi-NF R$ 143.008,80
+  (R$ 37.229,70 da fixture A + R$ 105.779,10 do PDF B real), taxa livre 2,4%.
+  A fixture A reproduz os valores fiscais previamente certificados; seu PDF
+  não foi reimportado nem houve alteração do cadastro MEDVALE.
+- Alterar BRUTO→LIQUIDO→BRUTO não modificou operações anteriores. Nova
+  operação direta Cedente BRUTO usou R$ 900,00 do servidor, rejeitando o
+  total forjado de R$ 1,00 como fonte de cálculo.
+- LIQUIDO sem origem explícita negado. Configurações por Consultor, LEITOR,
+  Cedente e Gestor de outro fundo negadas.
+- OFF→ON→OFF em dashboard/relatórios; DOM sem comissão OFF; ON R$ 900,00
+  somente do fundo habilitado, sem incluir o fundo OFF. LEITOR com leitura
+  preservada. Larguras 390/430/820/1440/1920, light/dark, sem overflow global.
+- Snapshot LIQUIDO e base R$ 143.008,80 lidos nos três portais. Inspeção de
+  capturas confirmou relatório OFF mobile dark e operação no Gestor.
+- Cleanup PASS: 4 usuários, 2 cedentes, 2 fundos, 5 operações, 5 notas e
+  1 objeto Storage temporários removidos. Fixtures podem ser recriadas e o
+  PDF original local foi preservado. Sessões revogadas antes da exclusão.
+- Hashes antes/depois dos cadastros, estabelecimentos, acessos, fundos,
+  vínculos, políticas/versões, escrow e taxas reais da MEDVALE idênticos.
+  Consulta independente final: zero usuários, cedentes, fundos, notas,
+  operações, eventos, organizações, review intents e Storage **do manifesto QA**;
+  MEDVALE real continua presente. Não se afirma que homolog inteiro está vazio.
+
+Hashes das duas migrations novamente conferidos em homolog, iguais aos
+registrados acima. Advisors homolog: avisos de RPC SECURITY DEFINER concedida
+a authenticated exigem autorização por fundo/MFA (negativas verificadas);
+17 INFO sem policy, 5 WARN search_path e aviso preexistente de proteção de
+senhas vazadas não foram corrigidos neste ticket. Não se declara linter zerado.
+
+## Status obrigatório / hold point
+
+PASS de regras e regressões usa testes locais/SQL e Auth remoto conforme a
+evidência identificada acima. As linhas HOMOLOG referem-se ao smoke remoto
+`dbcaaf97`, à migration verificada e ao cleanup independente, não apenas ao CI.
+
+```text
+GUIBOR_A5_POLICY_LOCATION = CEDENTE_FUNDO
+GUIBOR_A5_DEFAULT_GROSS = PASS
+GUIBOR_A5_GROSS = PASS
+GUIBOR_A5_NET = PASS
+GUIBOR_A5_NET_PROVENANCE_GATE = PASS
+GUIBOR_A5_NET_MISSING_FAIL_CLOSED = PASS
+GUIBOR_A5_SNAPSHOT = PASS
+GUIBOR_A5_POLICY_CHANGE_NO_HISTORY_REPRICE = PASS
+GUIBOR_A5_MULTI_NF = PASS
+GUIBOR_A5_P17_ENGINE = PASS
+GUIBOR_A5_C2_1 = PASS
+GUIBOR_A5_CEDENTE_DIRECT = PASS
+GUIBOR_A5_P14_P16 = PASS
+
+GUIBOR_A6_FLAG_LOCATION = CONSULTOR_FUNDO
+GUIBOR_A6_DEFAULT_OFF = PASS
+GUIBOR_A6_GOVERNANCE = PASS
+GUIBOR_A6_AUDIT = PASS
+GUIBOR_A6_OFF_ZERO_REFERENCES = PASS
+GUIBOR_A6_OFF_LAYOUT_REFLOW = PASS
+GUIBOR_A6_ON_REGRESSION = PASS
+GUIBOR_A6_MULTIFUNDO = PASS
+GUIBOR_A6_BACKEND_PROJECTION = PASS
+GUIBOR_A6_RESPONSIVE = PASS
+GUIBOR_A6_LIGHT_DARK = PASS
+
+GUIBOR_A5_A6_RLS = PASS
+GUIBOR_A5_A6_FEATURE_TESTS = PASS
+GUIBOR_A5_A6_CI = PASS
+GUIBOR_A5_A6_PREVIEW = PASS
+GUIBOR_A5_A6_HOMOLOG_MIGRATION = PASS
+GUIBOR_A5_A6_HOMOLOG_GROSS = PASS
+GUIBOR_A5_A6_HOMOLOG_NET = PASS
+GUIBOR_A5_A6_HOMOLOG_SNAPSHOT = PASS
+GUIBOR_A5_A6_HOMOLOG_COMMISSION_OFF = PASS
+GUIBOR_A5_A6_HOMOLOG_COMMISSION_ON = PASS
+GUIBOR_A5_A6_HOMOLOG_RLS = PASS
+GUIBOR_A5_A6_HOMOLOG_CLEANUP = PASS
+GUIBOR_A5_A6_HOMOLOG_READY = YES
+
+GUIBOR_PRODUCTION_CHANGED = NO
+P17_CHANGED = NO
+RLX_VORTX_CHANGED = NO
+CERC_CHANGED = NO
+RLX_EMAIL_CHANGED = NO
+```
+
+Parada no hold point de homolog. Produção continua proibida; nenhuma ação de
+rollout de produção está implícita nesta certificação.
