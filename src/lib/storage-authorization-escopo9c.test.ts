@@ -42,7 +42,7 @@ describe('autorizacao de Storage do Escopo 9C', () => {
     const authenticationAt = action.indexOf('requireAuthenticated()')
     const operationalAuthorizationAt = action.indexOf('requireNotaFiscalAccess(notaFiscalId, auth.supabase)')
     const readAuthorizationAt = action.indexOf('requireNotaFiscalViewAccess(notaFiscalId, auth.supabase)')
-    const pathAt = action.indexOf(".select('id, arquivo_url')")
+    const pathAt = action.indexOf(".select('id, arquivo_url, tipo_documento_fiscal, fiscal_proveniencia')")
     const adminAt = action.indexOf('createAdminClient().storage')
 
     expect(authenticationAt).toBeGreaterThan(-1)
@@ -52,6 +52,9 @@ describe('autorizacao de Storage do Escopo 9C', () => {
     expect(pathAt).toBeGreaterThan(readAuthorizationAt)
     expect(adminAt).toBeGreaterThan(pathAt)
     expect(action).toContain('nota.arquivo_url')
+    expect(action).toContain(".eq('sha256', provenance.sha256)")
+    expect(action).toContain("original?.bucket === 'documentos-v2'")
+    expect(action).toContain("context.supabase.from('documento_versoes')")
     expect(action).not.toMatch(/export async function obterUrlArquivoNotaFiscal\([^)]*path/i)
   })
 
