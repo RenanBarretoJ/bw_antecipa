@@ -47,13 +47,11 @@ describe('resultado por arquivo do upload de NFs', () => {
   })
 
   it('enriquece o nome do destinatario antes do upload quando o PDF nao o extraiu', () => {
-    const actionSource = readFileSync('src/lib/actions/nota-fiscal.ts', 'utf8')
-    const pdfBranch = actionSource.slice(actionSource.indexOf('    } else {'), actionSource.indexOf('      const today ='))
-
-    expect(pdfBranch).toContain('resolverRazaoSocialDestinatario({')
-    expect(pdfBranch).toContain('extracted.razao_social_destinatario = destinatario.razaoSocial')
-    expect(pdfBranch.indexOf('resolverRazaoSocialDestinatario({'))
-      .toBeLessThan(pdfBranch.indexOf(".from(buckets.notasFiscais).upload(filePath, arquivo)"))
+    const source = readFileSync('src/lib/fiscal-intake/service.server.ts', 'utf8')
+    expect(source).toContain('resolverRazaoSocialDestinatario({')
+    expect(source).toContain('facts.parsed.razao_social_destinatario = recipient.razaoSocial')
+    expect(source.indexOf('resolverRazaoSocialDestinatario({'))
+      .toBeLessThan(source.indexOf('await storage.upload('))
   })
 
   it('limita requisicoes concorrentes e preserva a ordem do lote', async () => {
@@ -74,12 +72,13 @@ describe('resultado por arquivo do upload de NFs', () => {
   })
 
   it('mantem gate PDF e checagem de duplicidade antes do Storage', () => {
-    const source = readFileSync('src/lib/actions/nota-fiscal.ts', 'utf8')
-    const pdfBranch = source.slice(source.indexOf('      let extracted: NfPdfExtracted'), source.indexOf('      const today = new Date()'))
-    const uploadIndex = pdfBranch.indexOf('.from(buckets.notasFiscais).upload(filePath, arquivo)')
+    const source = readFileSync('src/lib/fiscal-intake/service.server.ts', 'utf8')
+    const uploadIndex = source.indexOf('await storage.upload(')
     expect(uploadIndex).toBeGreaterThan(0)
-    expect(pdfBranch.indexOf('if (!valorTotalExtraidoValido(extracted)')).toBeLessThan(uploadIndex)
-    expect(pdfBranch.indexOf('if (extracted.chave_acesso)')).toBeLessThan(uploadIndex)
+    for (const guard of ['(dependencies.parse ?? parseFiscalFile)(input.file)', 'await repository.reserve(', "if ('status' in reservation) return reservation"]) {
+      expect(source.indexOf(guard)).toBeGreaterThan(-1)
+      expect(source.indexOf(guard)).toBeLessThan(uploadIndex)
+    }
   })
 
   it.each([

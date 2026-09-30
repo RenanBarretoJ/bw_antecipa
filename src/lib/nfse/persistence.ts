@@ -3,6 +3,7 @@ import type { NfseExtraction } from './contracts'
 
 export type NfseReview = {
   intentId?: string
+  sourceChannel?: 'EMAIL_INTAKE'
   numero: string; bruto: number; liquido: number | null; emissao: string
   strategy: 'danfse_v2_labels' | 'danfse_v2_visual'
 }
