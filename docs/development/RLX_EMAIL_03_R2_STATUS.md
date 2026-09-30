@@ -4,7 +4,63 @@ Execução iniciada em 30/09/2026, branch `feature/rlx-email-intake-graph`.
 O R2 valida o diff local e corrige somente defeitos demonstrados pelos gates.
 Produção está proibida. Homologação depende de Preview completo aprovado.
 
-## Evidência atual
+## Situação consolidada após o Preview — 30/09/2026
+
+Preview **PASS**, aplicação `b46bc97`, Supabase `bwqpyphsmokzufeuxtim`.
+Homologação ainda **não promovida**; `RLX_EMAIL_03_HOMOLOG_READY = NO`.
+O [manifesto de evidências](../homologacao/rlx-email03-preview-evidence.json)
+registra os 67 indicadores do plano e hashes dos relatórios sanitizados.
+Nos indicadores de homologação, `FAIL` significa pendente/não executado.
+
+- Código final: TypeScript, lint, build webpack e suíte completa aprovados;
+  2.555 testes PASS, 12 opt-in ignorados, zero falhas. CI `36768881485` PASS.
+- Clean-room final: 242 migrations, 27 grupos de banco, 9 checks de Storage
+  real e 33 checks do serviço/interface, com cleanup PASS.
+- Preview: seis XMLs da caixa real importados, originais conferidos por hash,
+  duplicidade entre canais bloqueada. Worker limitado; sem agendamento.
+- NFS-e por e-mail: ingestão SYSTEM, revisão pelo Consultor com login/MFA,
+  vencimento manual, persistência HUMAN e origem EMAIL_INTAKE confirmadas.
+  Reenvio durante revisão e após conclusão bloqueado, sem duplicar NF/Storage.
+- PDF de imagem: usuário confirmou a NFS-e sintética 930007 no formulário
+  hospedado. Strategy `danfse_v2_visual`, bruto 39.521,98, líquido 37.229,70,
+  vencimento 30/10/2026 e hash do original conferidos; zero texto nativo.
+- Concorrência e falhas de Storage: três disputas controladas no Preview,
+  um vencedor, compensação real, falha simulada de delete, retry e geração
+  antiga bloqueada. Esses ensaios usam bytes controlados no transporte;
+  os testes com Graph real são evidências separadas.
+- Recuperação XML: ID e original anterior preservados; bloqueio concorrente
+  observado, rollback/retry, stale commit negado e histórico inseguro recusado.
+- Roteamento ALL/ALLOWLIST, múltiplos cedentes por mensagem e resultados por
+  arquivo passaram no clean-room. A matriz será repetida em homologação.
+- Limpeza final: zero usuários/sessões/MFA, NFs, arquivos, integrações,
+  anexos, reservas, journals, revisões e cadastros QA. Removidos 35 arquivos
+  locais de QA e acesso. Auditoria das migrations, caixa real e env original
+  do usuário preservados. Migrations com hash inalterado e triggers ativos.
+
+A primeira tentativa do helper de limpeza atribuiu três cedentes a uma conta
+temporária e foi recusada pelo resolvedor de contexto único, antes de excluir
+NFs. A conta foi removida e o helper passou a conceder um acesso por vez.
+A exclusão autenticada preservou os sete recibos de e-mail antes da limpeza
+dos próprios registros QA. Quatro audits SYSTEM de ensaios anteriores foram
+identificados por seus manifestos e removidos na conferência final.
+
+Promoção preparada em `release/rlx-email03-r2-homolog`, a partir de
+`origin/homolog` `3c050f9`, com cinco commits exclusivos do e-mail.
+A3/A4 já estavam presentes. Mantidos os recursos existentes de A5/A6 e C5;
+nenhuma migration dessas features foi alterada. Conflitos resolvidos apenas
+na composição de props/imports, tipos e teste de autorização do original.
+O Consultor Leitor mantém a visualização e não consulta revisões operacionais.
+Doze migrations de e-mail ausentes no precheck; nenhuma aplicada nesta etapa.
+
+Recertificação da combinação com a base atual de homologação: TypeScript,
+303 testes focados, lint, build webpack e suíte completa PASS (2.582 testes,
+12 opt-in ignorados, zero falhas). Clean-room: 251 migrations, os mesmos
+27 grupos de banco, 9 checks de Storage e 33 checks de serviço/interface;
+cleanup PASS. Apenas o warning preexistente de `liquidacao.ts` no lint.
+Os hashes de A3/A4 em homolog coincidem com o código. O preflight registrou
+195 NFs, 23 operações e 969 objetos existentes; nenhum alterado.
+
+## Histórico das evidências locais
 
 - Windows 10.0.26200, Intel Core 7 240H, 16 processadores lógicos.
 - Node 22.23.2, npm 10.9.8, Vitest 4.1.10. Memória disponível inicial:
