@@ -33,6 +33,7 @@ export async function verifyBrowserReview({ db, human, userId, reviewFile }) {
   })
   let browser, page, ready = false, startup = '', pageStartup = ''
   const checks = []
+  let submittedPosts = 0, submissionState
   let stage = 'SERVER_START'
   // Readiness only; never write Next server output containing action arguments.
   for (const stream of [server.stdout, server.stderr]) stream.on('data', bytes => {
@@ -50,6 +51,9 @@ export async function verifyBrowserReview({ db, human, userId, reviewFile }) {
       headless: true, args: ['--no-first-run', '--disable-dev-shm-usage'] })
     const context = await browser.createBrowserContext()
     page = await context.newPage()
+    page.on('request', request => {
+      if (stage === 'SUBMIT_OFFICIAL_REVIEW' && request.method() === 'POST') submittedPosts++
+    })
     await page.setViewport({ width: 1440, height: 1000 })
     const session = (await human.auth.getSession()).data.session
     assert.ok(session)
@@ -71,7 +75,11 @@ export async function verifyBrowserReview({ db, human, userId, reviewFile }) {
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(element, value)
       element.dispatchEvent(new Event('input', { bubbles: true })); element.dispatchEvent(new Event('change', { bubbles: true }))
     }, due)
-    await page.evaluate(() => [...document.querySelectorAll('button')].find(b => b.textContent.includes('Enviar 1 arquivo')).click())
+    // Let React commit the controlled date before a real browser click.
+    await page.evaluate(() => new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done))))
+    const submit = await page.evaluateHandle(() => [...document.querySelectorAll('button')].find(b => b.textContent.includes('Enviar 1 arquivo')))
+    assert.ok(submit.asElement(), 'QA_REVIEW_SUBMIT_MISSING')
+    await submit.asElement().click()
     let completed
     for (let attempt = 0; attempt < 80; attempt++) {
       completed = (await db.query(`select v.state,v.review_actor_id,n.data_vencimento::text due,r.ingest_actor,r.actor_type
@@ -80,6 +88,7 @@ export async function verifyBrowserReview({ db, human, userId, reviewFile }) {
       if (completed?.state === 'COMPLETED') break
       await new Promise(r => setTimeout(r, 250))
     }
+    submissionState = completed?.state
     assert.equal(completed.state, 'COMPLETED'); assert.equal(completed.review_actor_id, userId)
     assert.equal(completed.due, due); assert.equal(completed.ingest_actor.type, 'SYSTEM'); assert.equal(completed.actor_type, 'HUMAN')
     const downloads = (await readFile(counter, 'utf8')).trim().split('\n').filter(Boolean).length
@@ -87,6 +96,15 @@ export async function verifyBrowserReview({ db, human, userId, reviewFile }) {
     checks.push('OFFICIAL_ACTION_SERVER_ORIGINAL_REEXTRACTION', 'OFFICIAL_FORM_SYSTEM_TO_HUMAN_PERSISTENCE')
     return checks
   } catch (error) {
+    if (stage === 'SUBMIT_OFFICIAL_REVIEW') {
+      const ui = await page.evaluate(() => ({
+        due: document.querySelector('#nfse-due-0')?.value ?? null,
+        missingDueWarning: document.body.innerText.includes('Informe a data de vencimento das NFS-e em revisão.'),
+        importFailure: document.body.innerText.includes('Não foi possível'),
+        sending: [...document.querySelectorAll('button')].some(b => b.textContent.includes('Enviando...')),
+      })).catch(() => null)
+      await writeFile(resolve(root, 'browser-submit.json'), JSON.stringify({ error: error.name, submittedPosts, submissionState, ui }))
+    }
     if (stage === 'SERVER_START') await writeFile(resolve(root, 'next-startup.log'), redactCommandOutput(startup))
     if (stage === 'AUTHENTICATED_PAGE') {
       await writeFile(resolve(root, 'next-page-startup.log'), redactCommandOutput(pageStartup).replace(/\d{14,}/g, '[QA_IDENTIFIER]'))

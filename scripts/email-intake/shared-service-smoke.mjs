@@ -13,6 +13,7 @@ import { createFiscalStorage } from '../../src/lib/fiscal-intake/storage.server.
 import { verifySharedConcurrency } from './cross-channel-smoke.mjs'
 import { verifySharedRouting } from './routing-smoke.mjs'
 import { verifyBrowserReview } from './browser-review-smoke.mjs'
+import { verifyConsultorIntake } from './consultor-smoke.mjs'
 
 let browserState
 
@@ -117,6 +118,8 @@ try {
   stage = 'SHARED_ROUTING'
   checks.push(...await verifySharedRouting({ db, admin, human, userId: user.id, dependencies,
     importFiscalFile, processAttachmentJob, sourceIntegration: integration, reviewFile, missingKeyFile }))
+  stage = 'CONSULTOR_REAL_AUTH_STORED_ACTOR'
+  checks.push(...await verifyConsultorIntake({ db, admin, human, userId: user.id, dependencies, importFiscalFile }))
   browserState = { human, userId: user.id, reviewFile }
   await writeFile(process.env.EMAIL_INTAKE_SMOKE_REPORT, JSON.stringify({ result: 'PASS', checks, scope: 'DISPOSABLE_SHARED_SERVICE_API_NOT_BROWSER_OR_GRAPH' }))
 } catch (error) {
