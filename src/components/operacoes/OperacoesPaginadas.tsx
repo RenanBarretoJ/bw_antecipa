@@ -178,7 +178,7 @@ export function OperacoesPaginadas({
         </div>
       )}
 
-      <Card className="mb-4">
+      <Card className="relative z-20 mb-4 overflow-visible">
         <CardContent className="space-y-3 py-4">
           {perfil === 'consultor' && resultado.contextoConsultor && (
             <div className="relative z-20 grid gap-3 border-b pb-3 lg:grid-cols-2">
