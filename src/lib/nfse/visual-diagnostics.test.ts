@@ -1,9 +1,23 @@
 import { describe, expect, it } from 'vitest'
-import { NfseVisualContractError, NfseVisualFiscalError, safeNfseVisualDiagnostic } from './visual-diagnostics'
+import { NfseVisualContractError, NfseVisualFiscalError, safeNfseVisualDiagnostic, serializeNfseVisualDiagnostic } from './visual-diagnostics'
+import { format } from 'node:util'
 import { validateVisualNfse } from './visual-contract'
 import { visualFixture } from './fixtures/visual'
 
 describe('safe visual fiscal diagnostics', () => {
+  it('keeps nested issue codes visible in console output without serializing raw errors', () => {
+    const error = new NfseVisualContractError([
+      { path: ['ambiguous'], code: 'invalid_value' },
+      { path: ['confidence'], code: 'too_small' },
+    ])
+    const diagnostic = serializeNfseVisualDiagnostic(error)
+    expect(JSON.parse(diagnostic!)).toEqual(safeNfseVisualDiagnostic(error))
+    const logged = format('[nfse_visual]', { diagnostic })
+    expect(logged).toContain('ambiguous')
+    expect(logged).toContain('too_small')
+    expect(logged).not.toContain('[Object]')
+    expect(serializeNfseVisualDiagnostic(new Error('secret-payload'))).toBeUndefined()
+  })
   it.each([
     [{ ambiguous: true }, 'ambiguous', 'invalid_value'],
     [{ confidence: 0.84 }, 'confidence', 'too_small'],

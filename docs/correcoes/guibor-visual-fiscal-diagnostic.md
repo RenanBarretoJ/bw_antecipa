@@ -150,3 +150,10 @@ fingerprint, tipo de campo, propriedades extras e adulteração do diagnóstico.
 68 testes focados PASS. A publicação autorizada é somente nesta Preview;
 nenhum merge em main, migration, homolog ou deploy produtivo integra o escopo.
 O fluxo visual permanece pendente até o novo diagnóstico/smoke autenticado.
+
+Na Preview `e276b2a`, o mesmo PDF (SHA-256
+`464713aa8363a307db42599a85f81058f4cce2d45f7d14c00ebd4dbe8e810ec4`)
+voltou a ser recusado. O console resumiu os dois detalhes de contrato como
+`[Object]`. A fronteira de log agora serializa somente o diagnóstico já
+sanitizado, com regressão para impedir nova perda dos paths/códigos.
+Nenhuma regra de aceitação foi flexibilizada.

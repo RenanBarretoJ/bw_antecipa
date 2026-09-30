@@ -68,3 +68,8 @@ export function safeNfseVisualDiagnostic(error: unknown) {
   if (!(error instanceof NfseVisualFiscalError)) return undefined
   return sanitize(error.diagnostic.failed_fields, error.diagnostic.reasons)
 }
+
+/** Console object inspection truncates nested issues; serialize only the sanitized diagnostic. */
+export function serializeNfseVisualDiagnostic(error: unknown): string | undefined {
+  return JSON.stringify(safeNfseVisualDiagnostic(error))
+}
