@@ -1,0 +1,181 @@
+# RLX-EMAIL-03-R2 — recertificação
+
+Execução iniciada em 30/09/2026, branch `feature/rlx-email-intake-graph`.
+O R2 valida o diff local e corrige somente defeitos demonstrados pelos gates.
+Produção está proibida. Homologação depende de Preview completo aprovado.
+
+## Evidência atual
+
+- Windows 10.0.26200, Intel Core 7 240H, 16 processadores lógicos.
+- Node 22.23.2, npm 10.9.8, Vitest 4.1.10. Memória disponível inicial:
+  6.763.384.832 bytes de 33.879.650.304 bytes totais.
+- `git diff --check` e `git diff --cached --check`: PASS.
+- `tsc --noEmit`: PASS no diff inicial do R2.
+- Testes focados: 19 arquivos, 291 testes PASS, 0 skipped, 0 falhas, 38 segundos.
+  Comando: `vitest run src/lib/fiscal-intake src/lib/email-intake src/lib/nfse
+  src/lib/storage-authorization-escopo9c.test.ts src/lib/notas-fiscais/upload-batch.test.ts
+  src/lib/notas-fiscais/c4-consultor-notas-fiscais.test.ts src/lib/pdf-nf-parser.test.ts
+  src/lib/documentos/parcelas-nf-boleto-architecture.test.ts
+  --pool=threads --maxWorkers=1 --no-file-parallelism`.
+- Evidências locais em `rehearsal/reports/email03-r2-*` e
+  `rehearsal/reports/RLX_EMAIL_03_R2_ENV.json`.
+- Lint completo: PASS em 205 segundos. Único warning preexistente:
+  `notificarGestores` sem uso em `src/lib/actions/liquidacao.ts:6`; sem diff nesse arquivo.
+- Build webpack: PASS em 336 segundos; TypeScript do build também aprovado.
+- Suíte completa: PASS em 102 segundos; 294 arquivos aprovados e 3 inteiramente
+  ignorados; 2.547 testes aprovados, 12 ignorados, zero falhas. Os arquivos
+  ignorados são os ensaios opt-in de OpenAI, cadeia real de remessa e contrato.
+- Novo ensaio opt-in `clean-room.mjs --storage-api`: upload/download HTTP,
+  compensação, falha simulada de delete, retry e upload de geração antiga.
+  Confere também os arquivos físicos do container descartável. Sintaxe e lint
+  dos arquivos de ensaio: PASS; resultados funcionais abaixo.
+
+As migrations originais A3/A4 mantêm os hashes documentados no diagnóstico.
+O hash SHA-256 inicial da migration de transporte é
+`2b24200597c59be3c4c3fbb1a0a51c860f542624d0c2833a3452a50ab79bdef2`.
+
+Os testes de unidade não certificam Storage físico, MFA real ou prontidão
+operacional. As provas locais de API estão registradas abaixo; a revisão pela
+interface oficial, CI, Preview e homologação continuam pendentes.
+
+## Ensaios de banco
+
+Primeira execução R2 (`bw_email03_1790772243653`): as 239 migrations aplicaram
+do zero, mas o ensaio de exclusão chamou a RPC de Consultor usando o ator de
+Cedente. A autorização recusou corretamente. Corrigida somente a chamada no
+harness para `excluir_notas_fiscais_rascunho_cedente`; sem mudança de permissão.
+Cleanup PASS. O relatório original foi preservado com o ID do projeto.
+
+O ensaio completo com 239 migrations passou em `bw_email03_1790772642473`:
+23 grupos de verificações de banco, 7 grupos de Storage via API e cleanup PASS.
+Isso inclui comparação do conteúdo baixado e inspeção do backend físico local,
+além de compensação, retry e upload tardio de geração antiga. A revisão por
+login/MFA real foi adicionada como prova separada; o ensaio anterior usava
+fixtures de sessão apenas nos testes SQL.
+
+## Defeito demonstrado pelo R2
+
+Ao ampliar o teste para encerrar o anexo duplicado, `email_intake_settle_attachment`
+falhou com SQLSTATE `23514`: a constraint exigia NF id até para `DUPLICATE`, mas
+o serviço retorna somente o resultado de duplicidade, sem expor uma NF que
+pode pertencer a outro fundo. A migration incremental
+`20260930130158_email_intake_duplicate_transport_receipt.sql` permite esse
+recibo terminal sem NF id e preserva a referência obrigatória para `IMPORTED`.
+O teste também tenta marcar `IMPORTED` sem referência e exige rejeição.
+As migrations anteriores permanecem intactas. Clean-room atualizado: 240 migrations.
+
+## Storage, autenticação e serviço compartilhado reais
+
+Execução `bw_email03_1790774250109`: PASS, 240 migrations, 27 grupos de
+verificações de banco, 9 de Storage via API e 11 do serviço compartilhado.
+Cleanup do projeto descartável: PASS. Relatório detalhado local preservado em
+`rehearsal/reports/RLX_EMAIL_03_CLEAN_ROOM_bw_email03_1790774250109.json`.
+
+- Upload/download com igualdade dos bytes e inspeção do backend físico local.
+- Falha de banco após upload; delete indisponível mantém cleanup durável;
+  retry remove o objeto físico. Zero órfãos nos cenários de compensação.
+- Request da geração antiga enviado após takeover é rejeitado pela API e não
+  deixa arquivo físico. Esta prova não representa todas as intercalações de
+  um stream já parcialmente recebido.
+- Usuário QA criado pela API Auth, login, TOTP, MFA/AAL2 reais; AAL1 negado.
+- Attachment controlado passa pelo worker, parser oficial e serviço comum;
+  abre revisão e conclui por usuário humano, preservando auditoria SYSTEM/HUMAN.
+- Concorrência manual/e-mail A, e-mail A/manual, e-mail A/e-mail B pelo serviço
+  real: perdedor bloqueado antes do upload, uma NF e um objeto final.
+- Recuperação XML conserva o id e o arquivo anterior; journal resolve o novo
+  XML; geração antiga, documento versionado e operação cancelada histórica
+  impedem substituição insegura.
+
+O ensaio de API não usa navegador para revisar nem Graph para obter o anexo:
+Chrome gera apenas o PDF sintético. Esses limites não devem ser confundidos
+com validação da interface oficial ou certificação dos ambientes remotos.
+
+Execução posterior `bw_email03_1790774873368`: PASS com 240 migrations,
+27 verificações de banco, 9 de Storage e 17 do serviço compartilhado; cleanup
+PASS. Acrescentou dois cedentes na mesma mensagem, ALL/ALLOWLIST/UNKNOWN,
+cross-fund, resultados independentes por arquivo e PDF sem chave negado nos
+dois canais. O ensaio anterior esperava o nome incorreto `INVALID` no estado
+persistido do transporte; a regra vigente o registra como `REJECTED`. Corrigida
+somente essa expectativa no teste, sem mudança na aplicação.
+
+O usuário confirmou que a caixa não contém NFS-e de QA sem vencimento.
+Uma consulta somente de metadados dos 20 e-mails mais recentes teve sucesso,
+sem candidato identificado como QA, download de anexos ou escrita na caixa.
+O novo ensaio de navegador usa resposta HTTP controlada de Graph exclusivamente
+no processo Next local de QA. Não altera provider, aplicação nem credenciais
+reais; Auth, MFA, formulário, actions, banco e Storage permanecem reais.
+Execução `bw_email03_1790775932715`: PASS, 240 migrations, 27 verificações de
+banco, 9 de Storage e 21 do serviço compartilhado/interface; cleanup PASS.
+O formulário oficial abriu com vencimento vazio/obrigatório; a action buscou
+o original novamente no servidor e concluiu a importação com ingest SYSTEM,
+review HUMAN e vencimento informado. Não houve bypass de Auth, MFA, domínio,
+parsers ou Storage. Os únicos dados HTTP simulados foram OAuth/download de
+Graph para a mailbox sintética local. Isto não certifica Graph real nem UI
+hospedada em Preview/homolog.
+
+Durante a preparação desse ensaio foram corrigidos apenas o carregamento ESM
+por URL de arquivo no Windows e a leitura do sinal de inicialização colorido.
+Uma navegação inicial excedeu o limite de 60 segundos; o limite foi mantido e
+a repetição completa passou. Logs de inicialização são locais e sanitizados.
+
+A pré-checagem de acesso remoto via CLI confirmou homolog
+`fhgkmggthxikfpogrvaa`. O conector MCP não localizou essa branch; nenhuma
+alteração remota foi tentada. A branch Preview `release/guibor-prod-02`
+pertence a outro escopo e será preservada.
+
+`RLX_EMAIL_03_HOMOLOG_READY = NO`.
+Este registro descreve a certificação local anterior à promoção. As próximas
+etapas autorizadas são commits/PR, CI, Preview e homolog, nessa ordem. Gates
+remotos permanecem pendentes até a evidência de cada ambiente.
+
+## Recertificação do diff final
+
+- TypeScript: PASS, 73 segundos.
+- Focados: PASS, 19 arquivos, 291 testes, zero skipped/fail, 7 segundos.
+- Lint: PASS, 39 segundos, somente o warning preexistente documentado acima.
+- Build webpack: PASS, 100 segundos, 92 páginas; TypeScript do build aprovado.
+- Full suite: PASS, 64 segundos, 294 arquivos aprovados e 3 inteiramente
+  ignorados, 2.547 testes aprovados, 12 ignorados, zero falhas.
+- Worker model: threads, maxWorkers=1, no-file-parallelism; Node 22.23.2.
+- Migrations A3/A4 e transporte: hashes novamente conferidos e preservados.
+- Revisão de escopo: sem diff em P17, Vórtx, CERC ou comissão/A5/A6; sem `.env`
+  a versionar. `git diff --check` também cobre os arquivos novos por intent-to-add.
+
+Os tempos são observações de execução, não certificação de performance.
+
+## Correção do vínculo documental e evidência final local
+
+A exigência de XML no repositório `documentos-v2` demonstrou outro defeito:
+o trigger legado `reconciliar_base_nf_apos_vinculo` chamava a reconciliação
+HUMAN durante o commit fiscal SYSTEM e recusava a transação. A migration
+incremental `20260930141139_fiscal_intake_document_reconciliation_trigger.sql`
+adia somente essa chamada redundante quando existe importação privada preparada,
+reserva ativa e journal da mesma geração/token/escopo. O commit continua chamando
+a reconciliação privada com o fence do solicitante. Não há novos grants nem
+derivação de autorização a partir do service_role.
+
+Execução `bw_email03_1790777564196`: PASS com 241 migrations, 27 verificações
+de banco, 9 de Storage e 23 do serviço/interface. O XML foi baixado pela API
+com bytes iguais ao original e vinculado ao requisito. Depois do commit, o
+mesmo trigger legado continuou recusando a mutação sem usuário humano.
+Cleanup PASS. Migrations previamente existentes mantidas sem alteração.
+
+Advisors de segurança no banco descartável: cinco warnings preexistentes de
+`search_path` em funções de logística/matching/títulos, presentes no HEAD;
+nenhum achado novo do escopo. Relatório local: `email03-r2-advisors.json`.
+
+Após encerrar o Next de QA, um arquivo gerado `.next/dev/types/validator.ts`
+ficou incompleto. Foi preservado em `rehearsal/tmp` e os tipos foram regenerados
+com `next typegen`, conforme a documentação instalada. TypeScript passou sem
+alteração de código, tsconfig ou limites de testes.
+
+Recertificação após a segunda migration corretiva: TypeScript PASS (4s),
+focados PASS (291 testes, 5s), lint PASS (29s, mesmo warning preexistente),
+build webpack PASS (43s), full suite PASS (186s: 2.547 aprovados, 12 opt-in
+ignorados, zero falhas; 294 arquivos aprovados e 3 inteiramente ignorados).
+
+Última execução, após todos os gates de código e na ordem do plano:
+`bw_email03_1790778413538`, 241 migrations, 27 verificações de banco, 9 de
+Storage e 23 de serviço/interface, todas PASS. Cleanup PASS; nenhum container
+do ensaio permaneceu em execução. O arquivo local detalhado é
+`rehearsal/reports/RLX_EMAIL_03_CLEAN_ROOM_bw_email03_1790778413538.json`.
