@@ -117,3 +117,32 @@ Preflight, grafo e delta isolado confirmados. CI da promocao, aplicacao,
 deploy, flag, postflight e monitoramento ainda pendentes nesta revisao.
 `GUIBOR_PRODUCTION_READY = NO` ate concluir todos os gates e o smoke autenticado.
 `GUIBOR_PROD_WRITE_SMOKE = NOT_EXECUTED_SAFETY`.
+
+## Preview dedicada da promocao
+
+A Preview antiga `feature/guibor-nfse-base-valor-comissao` foi removida com
+autorizacao, apos confirmar ausencia de usuarios, NFs, operacoes e objetos.
+A nova `release/guibor-prod-02` usa exclusivamente `rnrlbqulmrtzirlpopod`.
+Seu bootstrap automatico falhou antes de criar schema; a recuperacao autorizada
+restaurou somente a estrutura de producao e seu historico real, sem dados de
+clientes. Foram comparados 3.693 objetos e 2.519 itens de seguranca. As duas
+diferencas de deparser de constraints sao as mesmas do rehearsal, sem mudanca
+de predicados. Nao foi alegado replay individual das 228 migrations antigas.
+
+As quatro migrations GUIBOR foram aplicadas com hashes exatos, ensaio ROLLBACK
+e COMMIT atomico. A Preview terminou com 232 entradas, sem C5 e sem A6 original.
+154 assertions SQL e review/CAS/duplicidade passaram, com fixtures em ROLLBACK;
+usuarios, NFs, operacoes e objetos de Storage ficaram zerados.
+
+O bloco `remotes."release/guibor-prod-02"` desativa migrations e seed automaticos
+**somente nessa Preview**. A cadeia permanece sob execucao manual por allowlist;
+nenhuma migration certificada foi editada ou marcada artificialmente. Defaults
+globais e remotes de producao/homolog nao sao alterados. O endereco de Auth
+fica restrito ao alias Vercel da branch. As variaveis Vercel sao exclusivas de
+Preview + essa branch; service_role fica sensivel, nunca NEXT_PUBLIC.
+
+O teste `preview-integration.test.mjs` protege o escopo da configuracao e os
+quatro hashes. A aprovacao SQL nao substitui o check da integracao nem um novo
+smoke autenticado. Nao sobrescrever status de branch ou checks para obter PASS.
+Evidencias remotas e estado final: `rehearsal/reports/GUIBOR_PREVIEW_*` e
+`GUIBOR_PROD_02_PREVIEW_REBUILD.json` (ignorados, sem credenciais).

@@ -1126,6 +1126,14 @@
     {
       "file": "docs/correcoes/guibor-prod-02-rollout.md",
       "category": "documentation"
+    },
+    {
+      "file": "supabase/config.toml",
+      "category": "shared dependency - dedicated GUIBOR Preview integration only"
+    },
+    {
+      "file": "scripts/qa/guibor/preview-integration.test.mjs",
+      "category": "test/harness"
     }
   ]
 }
