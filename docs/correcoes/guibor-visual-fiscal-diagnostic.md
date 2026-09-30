@@ -157,3 +157,58 @@ voltou a ser recusado. O console resumiu os dois detalhes de contrato como
 `[Object]`. A fronteira de log agora serializa somente o diagnóstico já
 sanitizado, com regressão para impedir nova perda dos paths/códigos.
 Nenhuma regra de aceitação foi flexibilizada.
+
+### Diagnóstico e correção da massa visual
+
+Em `41bf028`, a recusa tornou-se observável: `ambiguous/invalid_value` e
+`confidence/too_small`. O provedor não reportou falha de credencial; o gate
+recusou a leitura incerta antes de persistir. Não foram registrados valores
+fiscais, payload do provedor, chave OpenAI ou mensagens arbitrárias.
+
+O fixture B tinha totais auxiliares herdados de A: base ISSQN, desconto e
+líquido + IBS/CBS inconsistentes com seu bruto/líquido. Foram corrigidos
+somente no fixture B, preservando os testes adversariais de A e sem mudar
+regra financeira. Isoladamente isso não resolveu a recusa.
+
+A inspeção da imagem embutida no PDF B revelou texto preto sobre fundo
+quase preto: canais RGB entre 0 e 18, média 17,63. O gerador temporário
+não fixava a cor do papel e o modo de cor do navegador. O gerador reutilizável
+`scripts/qa/guibor/synthetic-pdf.mjs` fixa `color-scheme:only light`, fundo
+branco e texto preto, e verifica os pixels antes de gerar o PDF imagem.
+Também verifica página única, ausência de texto nativo em B e não sobrescreve
+evidências existentes. Não faz login, upload, alteração remota ou retry.
+
+Na mesma aplicação `41bf028`, mantendo prompt/modelo/schema/thresholds,
+o B com contraste corrigido passou no smoke real:
+
+- Auth real + MFA/AAL2 no Preview `rnrlbqulmrtzirlpopod`;
+- leitura visual oficial, bruto 112.710,81 e líquido 105.779,10;
+- vencimento ausente e obrigatório, sem NF/Storage antes da revisão;
+- revisão responsiva em 390/430/820/1440;
+- vencimento manual, reextração server-side e persistência;
+- provenance `danfse_v2_visual`, uma auditoria manual e um arquivo final;
+- duplicidade sem nova NF, Storage ou auditoria;
+- cleanup: quatro usuários QA, uma NF/arquivo e vínculos temporários removidos.
+
+Evidências locais ignoradas pelo Git:
+
+- `GUIBOR_PROD02_CONTRACT_LOG_B.json` — rejeição do PDF original;
+- `GUIBOR_PROD02_COHERENT_FIXTURE_B.json` — rejeição mesmo após acertar totais;
+- `GUIBOR_PROD02_CONTRAST_FIXTURE_B.json` — smoke completo PASS;
+- `GUIBOR_PROD02_CONTRAST_FIXTURE_CLEANUP.json` — cleanup PASS.
+
+PDF B aprovado: SHA-256
+`ed88137ed53d30c897166f158746c28b72a952df3cff45a6f7ba403821f0efbc`,
+134.349 bytes, uma página, zero caracteres nativos. Não se substituiu o
+PDF rejeitado nem se classificou sua recusa como sucesso.
+
+Validação local do gerador em Node 22, partindo de uma página dark: A textual
+e B imagem PASS; imagem com 96,75% de pixels brancos, 0,95% pretos e zero
+transparência. Não sobrescrever arquivos: PASS. Suíte: 2.518 PASS / 12 skipped;
+123 testes NFS-e PASS; TypeScript e lint focado PASS.
+
+Este delta final contém somente gerador/fixture/teste/documentação. O runtime
+autenticado certificado continua sendo `41bf028`. O smoke A5/A6 completo e
+os demais gates do rollout continuam pendentes; este diagnóstico não declara
+`GUIBOR_PROD_02_PREVIEW_AUTH=PASS` para todo o runbook. Sem merge de PR #78,
+sem produção/homolog, sem migrations ou configuração alterada neste escopo.
