@@ -3,6 +3,7 @@ import { CedenteFundoError, assertFundoAtivo, mensagemOperacionalSemPolitica, me
 import type { CedenteFundo, Fundo } from '@/types/database'
 
 const link = (id: string, status: CedenteFundo['status'] = 'ativo'): CedenteFundo => ({
+  base_valor_antecipacao: 'BRUTO',
   id, cedente_id: 'cedente-1', fundo_id: `fundo-${id}`, codigo_externo: null, status,
   vigente_desde: '2026-01-01T00:00:00Z', vigente_ate: null, observacoes: null,
   created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z',

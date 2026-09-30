@@ -28,6 +28,8 @@ import { useNotifications } from '@/components/notifications/notification-provid
 import { useFundoAtivo } from '@/components/fundos/fundo-ativo-provider'
 import { FilePreviewContent } from '@/components/notas-fiscais/FilePreviewContent'
 import { EstabelecimentosGestor } from '@/components/cedentes/EstabelecimentosGestor'
+import { BaseAntecipacaoConfig } from '@/components/cedentes/BaseAntecipacaoConfig'
+import type { BaseValorAntecipacao } from '@/lib/operacoes/base-antecipacao'
 
 interface CedenteDetail {
   id: string; cnpj: string; razao_social: string; nome_fantasia: string | null
@@ -139,6 +141,7 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
 
   // Fundo vinculado
   const [fundos, setFundos] = useState<Fundo[]>([])
+  const [vinculoBase, setVinculoBase] = useState<{ id: string; base: BaseValorAntecipacao } | null>(null)
   const [fundoSelecionado, setFundoSelecionado] = useState<string>('')
   const [salvandoFundo, setSalvandoFundo] = useState(false)
   const [fundoMessage, setFundoMessage] = useState('')
@@ -179,6 +182,7 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
 
   const loadData = async () => {
     if (loadingFundo) return
+    setVinculoBase(null)
     if (bloqueado || !fundoAtivo?.id) {
       setCedente(null)
       setDocs([])
@@ -191,7 +195,7 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
 
     const { data: linkAtivo } = await supabase
       .from('cedente_fundos')
-      .select('id, fundo_id')
+      .select('id, fundo_id, base_valor_antecipacao')
       .eq('cedente_id', id)
       .eq('fundo_id', fundoAtivo.id)
       .maybeSingle()
@@ -212,6 +216,9 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
       .single()
     setCedente(c as CedenteDetail | null)
     if (c) setFundoSelecionado(linkAtivo.fundo_id)
+    if (c && (linkAtivo.base_valor_antecipacao === 'BRUTO' || linkAtivo.base_valor_antecipacao === 'LIQUIDO')) {
+      setVinculoBase({ id: linkAtivo.id, base: linkAtivo.base_valor_antecipacao })
+    }
 
     const fundoIds = fundosAutorizados.map((fundoAutorizado) => fundoAutorizado.id)
     const { data: fs } = fundoIds.length > 0
@@ -898,6 +905,7 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
       </Card>
 
       {/* Fundo Vinculado */}
+      {vinculoBase && <BaseAntecipacaoConfig key={vinculoBase.id} vinculoId={vinculoBase.id} baseAtual={vinculoBase.base} />}
       <Card className="mb-6">
         <CardHeader className="border-b border-border px-5 py-4">
           <CardTitle className="flex items-center gap-2.5 text-base font-semibold">

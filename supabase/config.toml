@@ -401,3 +401,19 @@ s3_secret_key = "env(S3_SECRET_KEY)"
 # declarative_schema_path = "./declarative"
 # JSON string passed through to pg-delta SQL formatting.
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":80,\"commaStyle\":\"trailing\"}"
+
+# GUIBOR release Preview uses the four-file, hash-verified manual chain.
+# Never auto-replay the archived original A6 (20260929193129), which requires C5.
+# This override is scoped to this exact Preview; global/main/homolog stay unchanged.
+[remotes."release/guibor-prod-02"]
+project_id = "rnrlbqulmrtzirlpopod"
+
+[remotes."release/guibor-prod-02".db.migrations]
+enabled = false
+
+[remotes."release/guibor-prod-02".db.seed]
+enabled = false
+
+[remotes."release/guibor-prod-02".auth]
+site_url = "https://bw-antecipa-git-release-guibor-prod-02-renanbarretoj.vercel.app"
+additional_redirect_urls = ["https://bw-antecipa-git-release-guibor-prod-02-renanbarretoj.vercel.app/**"]

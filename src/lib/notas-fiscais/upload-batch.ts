@@ -1,5 +1,8 @@
+import type { NfseReview } from '@/lib/nfse/persistence'
+
 export type UploadFileStatus =
   | 'IMPORTED'
+  | 'REQUIRES_REVIEW'
   | 'REJECTED_AMBIGUOUS'
   | 'REJECTED_INVALID'
   | 'DUPLICATE'
@@ -8,7 +11,8 @@ export type UploadFileStatus =
 
 export type UploadFileResult =
   | { fileName: string; status: 'IMPORTED'; nfId: string; nfNumero?: string }
-  | { fileName: string; status: Exclude<UploadFileStatus, 'IMPORTED'>; message: string }
+  | { fileName: string; status: 'REQUIRES_REVIEW'; message: string; review: NfseReview }
+  | { fileName: string; status: Exclude<UploadFileStatus, 'IMPORTED' | 'REQUIRES_REVIEW'>; message: string }
 
 export type UploadBatchResult = {
   total: number
@@ -19,7 +23,8 @@ export type UploadBatchResult = {
 
 export type ProcessedUploadFile =
   | { ok: true; id: string; isRascunho: boolean; nfNumero?: string }
-  | { ok: false; status: Exclude<UploadFileStatus, 'IMPORTED'>; error: string }
+  | { ok: false; status: 'REQUIRES_REVIEW'; error: string; review: NfseReview }
+  | { ok: false; status: Exclude<UploadFileStatus, 'IMPORTED' | 'REQUIRES_REVIEW'>; error: string }
 
 export const DEFAULT_UPLOAD_REQUEST_CONCURRENCY = 2
 
@@ -75,6 +80,7 @@ export async function executarUploadPorArquivo<T extends { name: string }>(
       return { fileName, status: 'PERSISTENCE_ERROR', message: 'Não foi possível concluir este arquivo. Verifique a NF antes de reenviar.' }
     }
     if (!result.value.ok) {
+      if (result.value.status === 'REQUIRES_REVIEW') return { fileName, status: 'REQUIRES_REVIEW', message: result.value.error, review: result.value.review }
       return { fileName, status: result.value.status, message: result.value.error }
     }
     ids.push(result.value.id)

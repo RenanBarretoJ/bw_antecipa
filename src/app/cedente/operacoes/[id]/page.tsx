@@ -12,6 +12,7 @@ import { BotaoDownloadArquivoOperacao } from '@/components/contratos/BotaoDownlo
 import { HistoricoTimelineCard } from '@/components/historico/HistoricoTimelineCard'
 import { AndamentoOperacaoCard } from '@/components/operacoes/AndamentoOperacaoCard'
 import { ExposicaoLogisticaOperacaoServer } from '@/components/operacoes/ExposicaoLogisticaOperacaoServer'
+import { BaseAntecipacaoResumo } from '@/components/operacoes/BaseAntecipacaoResumo'
 
 const statusClasses: Record<string, string> = {
   solicitada: 'bg-blue-100 text-blue-700 border-transparent dark:bg-blue-500/15 dark:text-blue-200',
@@ -124,6 +125,9 @@ export default async function CedenteOperacaoDetalhePage({
       <ExposicaoLogisticaOperacaoServer operacaoId={id} variante="cedente-operacao" />
 
       <div className="grid gap-6 lg:grid-cols-3">
+        {detalhe.baseAntecipacaoSnapshot && (
+          <div className="lg:col-span-3"><BaseAntecipacaoResumo snapshot={detalhe.baseAntecipacaoSnapshot} notas={detalhe.notasFiscais.map((nota) => ({ id: nota.id, numero_nf: nota.numero }))} /></div>
+        )}
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle className="flex items-center gap-2"><Banknote size={18} /> Resumo financeiro</CardTitle>

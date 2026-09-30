@@ -85,19 +85,20 @@ export type CedenteDashboardData = {
 }
 
 export type ConsultorDashboardData = {
+  comissaoHabilitada: boolean
   cedentesTotal: number
   cedentesAtivos: number
   opsAtivas: number
   volumeAtivo: number
   volumeMes: number
-  comissaoEstimada: number
+  comissaoEstimada?: number
   operacoesRecentes: OperacaoRecenteAnalytics[]
   carteiraRecente: Array<{
     cedenteId: string
     razaoSocial: string
     cnpj: string
     status: string
-    comissaoPercentual: number
+    comissaoPercentual?: number
   }>
 }
 
@@ -130,9 +131,10 @@ export type GestorRelatorioLinha = {
 }
 
 export type ConsultorRelatorioResumo = {
+  comissaoHabilitada: boolean
   volumeMes: number
   operacoesMes: number
-  comissaoMes: number
+  comissaoMes?: number
   volumeAcumulado: number
   cedentesAtivos: number
   mesesDisponiveis: string[]
@@ -143,9 +145,9 @@ export type ConsultorRelatorioLinha = {
   razaoSocial: string
   cnpj: string
   status: string
-  percentual: number
+  percentual?: number
   volumeMes: number
-  comissaoMes: number
+  comissaoMes?: number
   operacoesMes: number
   volumeTotal: number
 }

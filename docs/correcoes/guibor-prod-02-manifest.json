@@ -1,0 +1,1139 @@
+{
+  "baseline": "8a47602965f02c8d155b14fe0b67b178e962966f",
+  "source": "99ba67057f1f7e9cb1846a15be9cc7decc966712",
+  "prs": [
+    {
+      "baseRefName": "homolog",
+      "files": [
+        {
+          "path": "docs/correcoes/guibor-01-a1-a2-parser-baseline.md",
+          "additions": 225,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "docs/correcoes/guibor-01-a3-a4-r2.md",
+          "additions": 152,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "docs/correcoes/guibor-01-a3-a4-r3.md",
+          "additions": 95,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "docs/correcoes/guibor-01-a3-a4.md",
+          "additions": 166,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "docs/correcoes/guibor-visual-fiscal-diagnostic.md",
+          "additions": 130,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "docs/correcoes/guibor-visual-null-label.md",
+          "additions": 109,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "scripts/qa/guibor/apply-homolog.mjs",
+          "additions": 96,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "scripts/qa/guibor/database-smoke.mjs",
+          "additions": 76,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "scripts/qa/guibor/history-envelope.mjs",
+          "additions": 10,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "scripts/qa/guibor/history-envelope.test.mjs",
+          "additions": 25,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "scripts/qa/guibor/parser-baseline.ts",
+          "additions": 53,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "scripts/qa/guibor/review-certification.mjs",
+          "additions": 225,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "scripts/qa/guibor/review-cleanup.mjs",
+          "additions": 87,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "scripts/qa/guibor/review-medvale-cleanup.mjs",
+          "additions": 66,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "scripts/qa/guibor/review-migration.mjs",
+          "additions": 48,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "scripts/qa/guibor/review-rls.mjs",
+          "additions": 79,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "scripts/qa/guibor/review-target.mjs",
+          "additions": 31,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "scripts/qa/guibor/visual-real.ts",
+          "additions": 36,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "src/app/cedente/notas-fiscais/[id]/page.tsx",
+          "additions": 19,
+          "deletions": 12,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/app/cedente/notas-fiscais/notas-fiscais-listagem.tsx",
+          "additions": 34,
+          "deletions": 0,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/app/gestor/notas-fiscais/[id]/page.tsx",
+          "additions": 2,
+          "deletions": 1,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/lib/actions/arquivo-nota-fiscal.ts",
+          "additions": 18,
+          "deletions": 4,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/lib/actions/nota-fiscal.ts",
+          "additions": 163,
+          "deletions": 10,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/lib/documentos-v2/base-documentos.ts",
+          "additions": 14,
+          "deletions": 0,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/lib/documentos-v2/upload.ts",
+          "additions": 17,
+          "deletions": 3,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/lib/nfse/contracts.ts",
+          "additions": 46,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "src/lib/nfse/danfse-v2.test.ts",
+          "additions": 111,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "src/lib/nfse/danfse-v2.ts",
+          "additions": 167,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "src/lib/nfse/fixtures/danfse-v2.ts",
+          "additions": 65,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "src/lib/nfse/fixtures/visual.ts",
+          "additions": 15,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "src/lib/nfse/openai-visual.server.ts",
+          "additions": 80,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "src/lib/nfse/pdf-dispatcher.server.ts",
+          "additions": 37,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "src/lib/nfse/persistence.test.ts",
+          "additions": 47,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "src/lib/nfse/persistence.ts",
+          "additions": 39,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "src/lib/nfse/review-facts.ts",
+          "additions": 18,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "src/lib/nfse/review-intents.server.ts",
+          "additions": 62,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "src/lib/nfse/review-intents.test.ts",
+          "additions": 92,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "src/lib/nfse/upload-persistence.test.ts",
+          "additions": 109,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "src/lib/nfse/visual-contract.test.ts",
+          "additions": 175,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "src/lib/nfse/visual-contract.ts",
+          "additions": 97,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "src/lib/nfse/visual-diagnostics.test.ts",
+          "additions": 42,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "src/lib/nfse/visual-diagnostics.ts",
+          "additions": 36,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "src/lib/notas-fiscais/upload-batch.test.ts",
+          "additions": 1,
+          "deletions": 1,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/lib/notas-fiscais/upload-batch.ts",
+          "additions": 8,
+          "deletions": 2,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/lib/notas-fiscais/upload-observability.ts",
+          "additions": 3,
+          "deletions": 0,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/lib/storage-authorization-escopo9c.test.ts",
+          "additions": 4,
+          "deletions": 1,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/types/database.ts",
+          "additions": 10,
+          "deletions": 0,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "supabase/migrations/20260929154656_guibor_nfse_fiscal_provenance.sql",
+          "additions": 80,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "supabase/migrations/20260929174520_guibor_nfse_review_intents.sql",
+          "additions": 51,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "supabase/tests/guibor_nfse_review_intents.assert.sql",
+          "additions": 52,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "vitest.config.ts",
+          "additions": 1,
+          "deletions": 0,
+          "changeType": "MODIFIED"
+        }
+      ],
+      "headRefName": "release/guibor-a3-a4-r3-homolog",
+      "mergeCommit": {
+        "oid": "c3523585372023f8d9836bf20251ea6166aeb546"
+      },
+      "number": 72,
+      "title": "release(homolog): GUIBOR A3/A4 R3 review persistence certification"
+    },
+    {
+      "baseRefName": "homolog",
+      "files": [
+        {
+          "path": "docs/correcoes/guibor-01-a5-a6.md",
+          "additions": 187,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "scripts/qa/guibor/a5-a6-auth-smoke.mjs",
+          "additions": 213,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "scripts/qa/guibor/a5-a6-migration.mjs",
+          "additions": 69,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "scripts/qa/guibor/a5-a6-remote-sql.mjs",
+          "additions": 41,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "scripts/qa/guibor/align-a5-preview.mjs",
+          "additions": 70,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "src/app/admin/consultorias/[id]/page.tsx",
+          "additions": 5,
+          "deletions": 0,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/app/cedente/operacoes/[id]/page.tsx",
+          "additions": 4,
+          "deletions": 0,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/app/cedente/operacoes/nova/nova-solicitacao-client.tsx",
+          "additions": 3,
+          "deletions": 2,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/app/consultor/dashboard/page.tsx",
+          "additions": 4,
+          "deletions": 3,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/app/consultor/relatorios/page.tsx",
+          "additions": 11,
+          "deletions": 10,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/app/gestor/cedentes/[id]/page.tsx",
+          "additions": 9,
+          "deletions": 1,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/app/gestor/configuracoes/page.tsx",
+          "additions": 5,
+          "deletions": 2,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/app/gestor/operacoes/[id]/OperacaoDetalheGestorClient.tsx",
+          "additions": 7,
+          "deletions": 3,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/components/cedentes/BaseAntecipacaoConfig.tsx",
+          "additions": 38,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "src/components/fundos/ComissaoConsultoriaToggle.tsx",
+          "additions": 33,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "src/components/fundos/ComissoesDoFundo.tsx",
+          "additions": 17,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "src/components/operacoes/BaseAntecipacaoResumo.tsx",
+          "additions": 28,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "src/lib/actions/configuracao-financeira-fundo.ts",
+          "additions": 36,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "src/lib/actions/operacao.ts",
+          "additions": 16,
+          "deletions": 2,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/lib/admin/consultorias.server.ts",
+          "additions": 7,
+          "deletions": 1,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/lib/admin/consultorias.ts",
+          "additions": 1,
+          "deletions": 1,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/lib/analytics/comissao-visual.test.ts",
+          "additions": 64,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "src/lib/analytics/contracts.ts",
+          "additions": 7,
+          "deletions": 5,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/lib/documentos/parcelas-nf-boleto-architecture.test.ts",
+          "additions": 6,
+          "deletions": 5,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/lib/fundos/cedente-fundo.test.ts",
+          "additions": 1,
+          "deletions": 0,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/lib/operacoes/base-antecipacao.test.ts",
+          "additions": 47,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "src/lib/operacoes/base-antecipacao.ts",
+          "additions": 70,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "src/lib/operacoes/cedente-detalhe.server.ts",
+          "additions": 1,
+          "deletions": 0,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/lib/operacoes/cedente-detalhe.ts",
+          "additions": 3,
+          "deletions": 0,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/lib/operacoes/idempotencia.ts",
+          "additions": 2,
+          "deletions": 0,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/lib/operacoes/nova-solicitacao.server.ts",
+          "additions": 49,
+          "deletions": 29,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/lib/operacoes/politica.test.ts",
+          "additions": 1,
+          "deletions": 1,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/lib/operacoes/politica.ts",
+          "additions": 2,
+          "deletions": 0,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/types/database.ts",
+          "additions": 6,
+          "deletions": 0,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "supabase/migrations/20260929191004_guibor_a5_base_antecipacao.sql",
+          "additions": 1129,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "supabase/migrations/20260929193129_guibor_a6_comissao_por_fundo.sql",
+          "additions": 388,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "supabase/tests/fixtures/guibor_a5_a6.sql",
+          "additions": 201,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "supabase/tests/guibor_a5_base.test.sql",
+          "additions": 130,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "supabase/tests/guibor_a6_comissao.test.sql",
+          "additions": 56,
+          "deletions": 0,
+          "changeType": "ADDED"
+        }
+      ],
+      "headRefName": "feature/guibor-a5-a6-base-comissao",
+      "mergeCommit": {
+        "oid": "d6eec5caf85c15324ff9bd0761703fb1b6b8f6af"
+      },
+      "number": 73,
+      "title": "GUIBOR A5/A6: base fiscal congelada e comissao por fundo"
+    },
+    {
+      "baseRefName": "homolog",
+      "files": [
+        {
+          "path": "docs/correcoes/guibor-01-a5-a6.md",
+          "additions": 47,
+          "deletions": 4,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "scripts/qa/guibor/a5-a6-auth-smoke.mjs",
+          "additions": 100,
+          "deletions": 13,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "scripts/qa/guibor/a5-real-pdf.mjs",
+          "additions": 34,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "src/components/cedentes/BaseAntecipacaoConfig.test.ts",
+          "additions": 16,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "src/components/cedentes/BaseAntecipacaoConfig.tsx",
+          "additions": 8,
+          "deletions": 3,
+          "changeType": "MODIFIED"
+        }
+      ],
+      "headRefName": "feature/guibor-a5-a6-base-comissao",
+      "mergeCommit": {
+        "oid": "6a9fd98c3512d764986369da17c8149896af5fc2"
+      },
+      "number": 74,
+      "title": "GUIBOR A5/A6: rótulos da base e certificação final homolog"
+    },
+    {
+      "baseRefName": "homolog",
+      "files": [
+        {
+          "path": "docs/correcoes/guibor-01-a5-a6.md",
+          "additions": 114,
+          "deletions": 8,
+          "changeType": "MODIFIED"
+        }
+      ],
+      "headRefName": "feature/guibor-a5-a6-base-comissao",
+      "mergeCommit": {
+        "oid": "9c7ede982504e453b35966e014cf5140fe43002d"
+      },
+      "number": 75,
+      "title": "docs(GUIBOR): certificação final A5/A6 homolog"
+    },
+    {
+      "baseRefName": "homolog",
+      "files": [
+        {
+          "path": "docs/correcoes/guibor-a6-r2-desacoplamento-c5.md",
+          "additions": 95,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "scripts/qa/guibor/a5-a6-auth-smoke.mjs",
+          "additions": 11,
+          "deletions": 3,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "scripts/qa/guibor/a6-r2-catalog.sql",
+          "additions": 13,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "scripts/qa/guibor/a6-r2-migration.mjs",
+          "additions": 74,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "scripts/qa/guibor/a6-r2-production-like.mjs",
+          "additions": 67,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "scripts/qa/guibor/a6-r2-remote-sql.mjs",
+          "additions": 55,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "src/lib/analytics/guibor-a6-r2.migration.test.ts",
+          "additions": 39,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "supabase/migrations/20260929215557_guibor_a6_decouple_c5.sql",
+          "additions": 424,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "supabase/tests/guibor_a6_r2_analytics_scope.test.sql",
+          "additions": 148,
+          "deletions": 0,
+          "changeType": "ADDED"
+        }
+      ],
+      "headRefName": "hotfix/guibor-a6-decouple-c5",
+      "mergeCommit": {
+        "oid": "32c44993e20e0df19f8b31d0fb203b839c0944dc"
+      },
+      "number": 76,
+      "title": "fix(guibor): A6 independente de C5"
+    },
+    {
+      "baseRefName": "homolog",
+      "files": [
+        {
+          "path": "docs/correcoes/guibor-a6-r2-desacoplamento-c5.md",
+          "additions": 100,
+          "deletions": 11,
+          "changeType": "MODIFIED"
+        }
+      ],
+      "headRefName": "hotfix/guibor-a6-decouple-c5",
+      "mergeCommit": {
+        "oid": "99ba67057f1f7e9cb1846a15be9cc7decc966712"
+      },
+      "number": 77,
+      "title": "docs(guibor): certificacao final A6 R2 homolog"
+    }
+  ],
+  "files": [
+    {
+      "file": "docs/correcoes/guibor-01-a1-a2-parser-baseline.md",
+      "category": "documentation"
+    },
+    {
+      "file": "docs/correcoes/guibor-01-a3-a4-r2.md",
+      "category": "documentation"
+    },
+    {
+      "file": "docs/correcoes/guibor-01-a3-a4-r3.md",
+      "category": "documentation"
+    },
+    {
+      "file": "docs/correcoes/guibor-01-a3-a4.md",
+      "category": "documentation"
+    },
+    {
+      "file": "docs/correcoes/guibor-01-a5-a6.md",
+      "category": "documentation"
+    },
+    {
+      "file": "docs/correcoes/guibor-a6-r2-desacoplamento-c5.md",
+      "category": "documentation"
+    },
+    {
+      "file": "docs/correcoes/guibor-visual-fiscal-diagnostic.md",
+      "category": "documentation"
+    },
+    {
+      "file": "docs/correcoes/guibor-visual-null-label.md",
+      "category": "documentation"
+    },
+    {
+      "file": "scripts/qa/guibor/a5-a6-auth-smoke.mjs",
+      "category": "test/harness"
+    },
+    {
+      "file": "scripts/qa/guibor/a5-a6-migration.mjs",
+      "category": "test/harness"
+    },
+    {
+      "file": "scripts/qa/guibor/a5-a6-remote-sql.mjs",
+      "category": "test/harness"
+    },
+    {
+      "file": "scripts/qa/guibor/a5-real-pdf.mjs",
+      "category": "test/harness"
+    },
+    {
+      "file": "scripts/qa/guibor/a6-r2-catalog.sql",
+      "category": "test/harness"
+    },
+    {
+      "file": "scripts/qa/guibor/a6-r2-migration.mjs",
+      "category": "test/harness"
+    },
+    {
+      "file": "scripts/qa/guibor/a6-r2-production-like.mjs",
+      "category": "test/harness"
+    },
+    {
+      "file": "scripts/qa/guibor/a6-r2-remote-sql.mjs",
+      "category": "test/harness"
+    },
+    {
+      "file": "scripts/qa/guibor/align-a5-preview.mjs",
+      "category": "test/harness"
+    },
+    {
+      "file": "scripts/qa/guibor/apply-homolog.mjs",
+      "category": "test/harness"
+    },
+    {
+      "file": "scripts/qa/guibor/database-smoke.mjs",
+      "category": "test/harness"
+    },
+    {
+      "file": "scripts/qa/guibor/history-envelope.mjs",
+      "category": "test/harness"
+    },
+    {
+      "file": "scripts/qa/guibor/history-envelope.test.mjs",
+      "category": "test/harness"
+    },
+    {
+      "file": "scripts/qa/guibor/parser-baseline.ts",
+      "category": "test/harness"
+    },
+    {
+      "file": "scripts/qa/guibor/review-certification.mjs",
+      "category": "test/harness"
+    },
+    {
+      "file": "scripts/qa/guibor/review-cleanup.mjs",
+      "category": "test/harness"
+    },
+    {
+      "file": "scripts/qa/guibor/review-medvale-cleanup.mjs",
+      "category": "test/harness"
+    },
+    {
+      "file": "scripts/qa/guibor/review-migration.mjs",
+      "category": "test/harness"
+    },
+    {
+      "file": "scripts/qa/guibor/review-rls.mjs",
+      "category": "test/harness"
+    },
+    {
+      "file": "scripts/qa/guibor/review-target.mjs",
+      "category": "test/harness"
+    },
+    {
+      "file": "scripts/qa/guibor/visual-real.ts",
+      "category": "test/harness"
+    },
+    {
+      "file": "src/app/admin/consultorias/[id]/page.tsx",
+      "category": "A5/A6"
+    },
+    {
+      "file": "src/app/cedente/notas-fiscais/[id]/page.tsx",
+      "category": "A3/A4"
+    },
+    {
+      "file": "src/app/cedente/notas-fiscais/notas-fiscais-listagem.tsx",
+      "category": "A3/A4"
+    },
+    {
+      "file": "src/app/cedente/operacoes/[id]/page.tsx",
+      "category": "A5/A6"
+    },
+    {
+      "file": "src/app/cedente/operacoes/nova/nova-solicitacao-client.tsx",
+      "category": "A5/A6"
+    },
+    {
+      "file": "src/app/consultor/dashboard/page.tsx",
+      "category": "A5/A6"
+    },
+    {
+      "file": "src/app/consultor/relatorios/page.tsx",
+      "category": "A5/A6"
+    },
+    {
+      "file": "src/app/gestor/cedentes/[id]/page.tsx",
+      "category": "A5/A6"
+    },
+    {
+      "file": "src/app/gestor/configuracoes/page.tsx",
+      "category": "A5/A6"
+    },
+    {
+      "file": "src/app/gestor/notas-fiscais/[id]/page.tsx",
+      "category": "A3/A4"
+    },
+    {
+      "file": "src/app/gestor/operacoes/[id]/OperacaoDetalheGestorClient.tsx",
+      "category": "A5/A6"
+    },
+    {
+      "file": "src/components/cedentes/BaseAntecipacaoConfig.test.ts",
+      "category": "test/harness"
+    },
+    {
+      "file": "src/components/cedentes/BaseAntecipacaoConfig.tsx",
+      "category": "A5/A6"
+    },
+    {
+      "file": "src/components/fundos/ComissaoConsultoriaToggle.tsx",
+      "category": "A5/A6"
+    },
+    {
+      "file": "src/components/fundos/ComissoesDoFundo.tsx",
+      "category": "A5/A6"
+    },
+    {
+      "file": "src/components/operacoes/BaseAntecipacaoResumo.tsx",
+      "category": "A5/A6"
+    },
+    {
+      "file": "src/lib/actions/arquivo-nota-fiscal.ts",
+      "category": "A3/A4"
+    },
+    {
+      "file": "src/lib/actions/configuracao-financeira-fundo.ts",
+      "category": "A5/A6"
+    },
+    {
+      "file": "src/lib/actions/nota-fiscal.ts",
+      "category": "A3/A4"
+    },
+    {
+      "file": "src/lib/actions/operacao.ts",
+      "category": "A5/A6"
+    },
+    {
+      "file": "src/lib/admin/consultorias.server.ts",
+      "category": "A5/A6"
+    },
+    {
+      "file": "src/lib/admin/consultorias.ts",
+      "category": "A5/A6"
+    },
+    {
+      "file": "src/lib/analytics/comissao-visual.test.ts",
+      "category": "test/harness"
+    },
+    {
+      "file": "src/lib/analytics/contracts.ts",
+      "category": "A5/A6"
+    },
+    {
+      "file": "src/lib/analytics/guibor-a6-r2.migration.test.ts",
+      "category": "test/harness"
+    },
+    {
+      "file": "src/lib/documentos-v2/base-documentos.ts",
+      "category": "A3/A4"
+    },
+    {
+      "file": "src/lib/documentos-v2/upload.ts",
+      "category": "A3/A4"
+    },
+    {
+      "file": "src/lib/documentos/parcelas-nf-boleto-architecture.test.ts",
+      "category": "test/harness"
+    },
+    {
+      "file": "src/lib/fundos/cedente-fundo.test.ts",
+      "category": "test/harness"
+    },
+    {
+      "file": "src/lib/nfse/contracts.ts",
+      "category": "A3/A4"
+    },
+    {
+      "file": "src/lib/nfse/danfse-v2.test.ts",
+      "category": "test/harness"
+    },
+    {
+      "file": "src/lib/nfse/danfse-v2.ts",
+      "category": "A3/A4"
+    },
+    {
+      "file": "src/lib/nfse/fixtures/danfse-v2.ts",
+      "category": "A3/A4"
+    },
+    {
+      "file": "src/lib/nfse/fixtures/visual.ts",
+      "category": "A3/A4"
+    },
+    {
+      "file": "src/lib/nfse/openai-visual.server.ts",
+      "category": "A3/A4"
+    },
+    {
+      "file": "src/lib/nfse/pdf-dispatcher.server.ts",
+      "category": "A3/A4"
+    },
+    {
+      "file": "src/lib/nfse/persistence.test.ts",
+      "category": "test/harness"
+    },
+    {
+      "file": "src/lib/nfse/persistence.ts",
+      "category": "A3/A4"
+    },
+    {
+      "file": "src/lib/nfse/review-facts.ts",
+      "category": "A3/A4"
+    },
+    {
+      "file": "src/lib/nfse/review-intents.server.ts",
+      "category": "A3/A4"
+    },
+    {
+      "file": "src/lib/nfse/review-intents.test.ts",
+      "category": "test/harness"
+    },
+    {
+      "file": "src/lib/nfse/upload-persistence.test.ts",
+      "category": "test/harness"
+    },
+    {
+      "file": "src/lib/nfse/visual-contract.test.ts",
+      "category": "test/harness"
+    },
+    {
+      "file": "src/lib/nfse/visual-contract.ts",
+      "category": "A3/A4"
+    },
+    {
+      "file": "src/lib/nfse/visual-diagnostics.test.ts",
+      "category": "test/harness"
+    },
+    {
+      "file": "src/lib/nfse/visual-diagnostics.ts",
+      "category": "A3/A4"
+    },
+    {
+      "file": "src/lib/notas-fiscais/upload-batch.test.ts",
+      "category": "test/harness"
+    },
+    {
+      "file": "src/lib/notas-fiscais/upload-batch.ts",
+      "category": "A3/A4"
+    },
+    {
+      "file": "src/lib/notas-fiscais/upload-observability.ts",
+      "category": "A3/A4"
+    },
+    {
+      "file": "src/lib/operacoes/base-antecipacao.test.ts",
+      "category": "test/harness"
+    },
+    {
+      "file": "src/lib/operacoes/base-antecipacao.ts",
+      "category": "A5/A6"
+    },
+    {
+      "file": "src/lib/operacoes/cedente-detalhe.server.ts",
+      "category": "A5/A6"
+    },
+    {
+      "file": "src/lib/operacoes/cedente-detalhe.ts",
+      "category": "A5/A6"
+    },
+    {
+      "file": "src/lib/operacoes/idempotencia.ts",
+      "category": "A5/A6"
+    },
+    {
+      "file": "src/lib/operacoes/nova-solicitacao.server.ts",
+      "category": "A5/A6"
+    },
+    {
+      "file": "src/lib/operacoes/politica.test.ts",
+      "category": "test/harness"
+    },
+    {
+      "file": "src/lib/operacoes/politica.ts",
+      "category": "A5/A6"
+    },
+    {
+      "file": "src/lib/storage-authorization-escopo9c.test.ts",
+      "category": "test/harness"
+    },
+    {
+      "file": "src/types/database.ts",
+      "category": "A3/A4"
+    },
+    {
+      "file": "supabase/migrations/20260929154656_guibor_nfse_fiscal_provenance.sql",
+      "category": "A3/A4"
+    },
+    {
+      "file": "supabase/migrations/20260929174520_guibor_nfse_review_intents.sql",
+      "category": "A3/A4"
+    },
+    {
+      "file": "supabase/migrations/20260929191004_guibor_a5_base_antecipacao.sql",
+      "category": "A5/A6"
+    },
+    {
+      "file": "supabase/migrations/20260929193129_guibor_a6_comissao_por_fundo.sql",
+      "category": "A5/A6",
+      "execution": "ARCHIVE_ONLY_DO_NOT_APPLY"
+    },
+    {
+      "file": "supabase/migrations/20260929215557_guibor_a6_decouple_c5.sql",
+      "category": "A6-R2"
+    },
+    {
+      "file": "supabase/tests/fixtures/guibor_a5_a6.sql",
+      "category": "test/harness"
+    },
+    {
+      "file": "supabase/tests/guibor_a5_base.test.sql",
+      "category": "test/harness"
+    },
+    {
+      "file": "supabase/tests/guibor_a6_comissao.test.sql",
+      "category": "test/harness"
+    },
+    {
+      "file": "supabase/tests/guibor_a6_r2_analytics_scope.test.sql",
+      "category": "test/harness"
+    },
+    {
+      "file": "supabase/tests/guibor_nfse_review_intents.assert.sql",
+      "category": "test/harness"
+    },
+    {
+      "file": "vitest.config.ts",
+      "category": "A3/A4"
+    },
+    {
+      "file": "scripts/qa/guibor/prod-02-apply.mjs",
+      "category": "test/harness"
+    },
+    {
+      "file": "scripts/qa/guibor/prod-02-control.mjs",
+      "category": "test/harness"
+    },
+    {
+      "file": "scripts/qa/guibor/prod-02-rehearsal.mjs",
+      "category": "test/harness"
+    },
+    {
+      "file": "scripts/qa/guibor/prod-02-transaction.mjs",
+      "category": "test/harness"
+    },
+    {
+      "file": "docs/correcoes/guibor-prod-02-manifest.json",
+      "category": "documentation"
+    },
+    {
+      "file": "docs/correcoes/guibor-prod-02-rollout.md",
+      "category": "documentation"
+    },
+    {
+      "file": "supabase/config.toml",
+      "category": "shared dependency - dedicated GUIBOR Preview integration only"
+    },
+    {
+      "file": "scripts/qa/guibor/preview-integration.test.mjs",
+      "category": "test/harness"
+    }
+  ]
+}

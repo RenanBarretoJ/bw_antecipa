@@ -1,0 +1,38 @@
+// Exact four-file transaction. Invoked only after CI and explicit production authorization.
+import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { remote, run, save, ref, migrations, noC5Sql, historySql } from './prod-02-control.mjs'
+import { applicationTransaction } from './prod-02-transaction.mjs'
+assert.equal(process.argv[2],'--apply-certified-production','EXPLICIT_APPLY_REQUIRED')
+const proof=JSON.parse(readFileSync('rehearsal/reports/GUIBOR_PROD_02_REHEARSAL.json','utf8'))
+assert.equal(proof.success,true)
+assert.deepEqual(proof.migrations,migrations.map(({file,version,name,hash})=>({file,version,name,hash})))
+assert(Date.now()-Date.parse(proof.finishedAt)<24*60*60*1000,'STALE_REHEARSAL')
+const release=JSON.parse(readFileSync('rehearsal/reports/GUIBOR_PROD_02_RELEASE_GATE.json','utf8'))
+assert.equal(release.target,ref)
+assert.equal(release.supabaseAutomaticProductionDeploy,false)
+assert.equal(release.userAuthorization,'GUIBOR_PROD_02_CORRECTED_CHAIN')
+assert.equal(run('git',['rev-parse','HEAD']).trim(),release.sha,'HEAD_CHANGED')
+assert.equal(run('git',['status','--porcelain']).trim(),'','DIRTY_RELEASE')
+const ci=JSON.parse(run('gh',['run','view',String(release.ci),'--json','headSha,status,conclusion']))
+assert.equal(ci.headSha,release.sha);assert.equal(ci.status,'completed');assert.equal(ci.conclusion,'success')
+const main=JSON.parse(run('gh',['api','repos/RenanBarretoJ/bw_antecipa/commits/main','--jq','{sha:.sha}']))
+assert.equal(main.sha,release.rollbackSha,'MAIN_CHANGED_STOP')
+assert.deepEqual(remote(noC5Sql)[0].value,{helper:null,history:0,oldA6:0})
+const history=remote(historySql)
+const known=history.filter(h=>h.name?.startsWith('guibor'))
+for(const h of known) assert(migrations.some(m=>m.version===h.version&&m.hash===h.hash),'GUIBOR_HISTORY_DRIFT')
+const pending=migrations.filter(m=>!known.some(h=>h.version===m.version))
+assert.equal(pending.length,4,'EXPECTED_FRESH_GUIBOR_BASELINE')
+const at=new Date().toISOString(),started=Date.now()
+// One request, one atomic transaction; error rolls back schema and history together.
+const result=remote(applicationTransaction(pending))
+const fingerprints=result.find(r=>r.before&&r.after)
+assert(fingerprints,'MISSING_TRANSACTION_PROOF')
+assert.deepEqual(fingerprints.after,fingerprints.before)
+const applied=remote(historySql).filter(h=>h.name?.startsWith('guibor'))
+assert.equal(applied.length,4)
+for(const h of applied) assert(migrations.some(m=>m.version===h.version&&m.hash===h.hash))
+assert.deepEqual(remote(noC5Sql)[0].value,{helper:null,history:0,oldA6:0})
+save('APPLY',{target:ref,at,durationMs:Date.now()-started,applied,...fingerprints,financialDml:'ZERO',historicalMutation:'ZERO',success:true})
+console.log(JSON.stringify({target:ref,applied,financialDml:'ZERO',historicalMutation:'ZERO',success:true}))

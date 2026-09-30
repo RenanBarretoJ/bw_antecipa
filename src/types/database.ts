@@ -385,6 +385,7 @@ export interface Fundo {
 
 export interface CedenteFundo {
   id: string
+  base_valor_antecipacao: import('@/lib/operacoes/base-antecipacao').BaseValorAntecipacao
   cedente_id: string
   fundo_id: string
   codigo_externo: string | null
@@ -1306,6 +1307,10 @@ export interface DevedorSolidario {
 }
 
 export interface NotaFiscal {
+  tipo_documento_fiscal?: 'NFE' | 'NFSE' | null
+  valor_liquido_origem?: 'DOCUMENTO_EXPLICITO' | 'LEGACY_BRUTO' | 'NAO_INFORMADO' | null
+  vencimento_origem?: 'DOCUMENT' | 'MANUAL' | null
+  fiscal_proveniencia?: Record<string, unknown> | null
   id: string
   cedente_id: string
   estabelecimento_id: string | null
@@ -1348,6 +1353,7 @@ export interface NotaFiscal {
 }
 
 export interface Operacao {
+  base_antecipacao_snapshot?: import('@/lib/operacoes/base-antecipacao').BaseAntecipacaoSnapshot | null
   id: string
   cedente_id: string
   conta_escrow_id: string | null
@@ -1489,6 +1495,7 @@ export interface ConsultorFundo {
   consultor_id: string
   fundo_id: string
   status: 'ativo' | 'inativo'
+  comissao_habilitada: boolean
   concedido_por: string | null
   revogado_por: string | null
   revogado_em: string | null
@@ -2264,6 +2271,12 @@ export type DocumentoUploadIntentInsert = Pick<DocumentoUploadIntentRow,
 export interface Database {
   public: {
     Tables: {
+      nfse_review_intents: {
+        Row: import('@/lib/nfse/review-intents.server').NfseReviewIntent
+        Insert: Pick<import('@/lib/nfse/review-intents.server').NfseReviewIntent, 'actor_id' | 'cedente_id' | 'cedente_fundo_id' | 'fundo_id' | 'file_sha256' | 'fiscal_sha256' | 'identity_sha256'>
+        Update: Partial<Pick<import('@/lib/nfse/review-intents.server').NfseReviewIntent, 'state' | 'storage_path' | 'document_storage_path' | 'nf_id' | 'updated_at'>>
+        Relationships: []
+      }
       comunicacao_configuracoes: { Row: ComunicacaoConfiguracao & Record<string, unknown>; Insert: InsertShape<ComunicacaoConfiguracao, 'fundo_id' | 'criada_por'> & Record<string, unknown>; Update: UpdateShape<ComunicacaoConfiguracao> & Record<string, unknown>; Relationships: [] }
       comunicacao_configuracao_versoes: { Row: ComunicacaoConfiguracaoVersao & Record<string, unknown>; Insert: InsertShape<ComunicacaoConfiguracaoVersao, 'configuracao_id' | 'fundo_id' | 'numero_versao' | 'criada_por'> & Record<string, unknown>; Update: UpdateShape<ComunicacaoConfiguracaoVersao> & Record<string, unknown>; Relationships: [] }
       comunicacao_template_versoes: { Row: ComunicacaoTemplateVersao & Record<string, unknown>; Insert: InsertShape<ComunicacaoTemplateVersao, 'configuracao_versao_id' | 'fundo_id' | 'categoria' | 'conteudo_hash' | 'criada_por'> & Record<string, unknown>; Update: UpdateShape<ComunicacaoTemplateVersao> & Record<string, unknown>; Relationships: [] }
@@ -2382,6 +2395,9 @@ export interface Database {
     }
     Views: Record<string, never>
     Functions: {
+      configurar_base_antecipacao: { Args: { p_cedente_fundo_id: string; p_base: string }; Returns: undefined }
+      configurar_comissao_consultor_fundo: { Args: { p_consultor_id: string; p_fundo_id: string; p_habilitada: boolean }; Returns: undefined }
+      listar_configuracao_comissao_fundo: { Args: { p_fundo_id: string }; Returns: Array<{ consultor_id: string; fundo_id: string; nome: string; comissao_habilitada: boolean }> }
       criar_convite_novo_cedente: {
         Args: { p_fundo_id: string; p_cnpj: string; p_email: string; p_token_hash: string; p_correlation_id: string }
         Returns: { convite_id: string; fundo_id: string; fundo_nome: string; cnpj: string; email: string; expires_at: string }
