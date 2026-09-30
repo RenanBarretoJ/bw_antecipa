@@ -1,0 +1,225 @@
+{
+  "checkedAt": "2026-09-30T22:03:11.253Z",
+  "applicationCommit": "0799fb4fb2c2f024daaedc0b61c1f16545b13106",
+  "mergeCommit": "27d33c8a00bb07a916615bdd3af168a496560380",
+  "pr": "https://github.com/RenanBarretoJ/bw_antecipa/pull/80",
+  "environment": "homolog",
+  "supabaseRef": "fhgkmggthxikfpogrvaa",
+  "deployment": "dpl_54ziwDie6SoyLafCsbFLqaifbRG2",
+  "statuses": {
+    "RLX_EMAIL_03_R2_ENV_STABLE": "PASS",
+    "RLX_EMAIL_03_R2_TYPESCRIPT": "PASS",
+    "RLX_EMAIL_03_R2_LINT": "PASS",
+    "RLX_EMAIL_03_R2_BUILD": "PASS",
+    "RLX_EMAIL_03_R2_FULL_SUITE": "PASS",
+    "RLX_EMAIL_03_R2_CLEAN_ROOM": "PASS",
+    "RLX_EMAIL_03_SHARED_FISCAL_SERVICE": "PASS",
+    "RLX_EMAIL_03_MANUAL_USES_SHARED_SERVICE": "PASS",
+    "RLX_EMAIL_03_EMAIL_USES_SHARED_SERVICE": "PASS",
+    "RLX_EMAIL_03_NO_PARALLEL_PARSER": "PASS",
+    "RLX_EMAIL_03_TECHNICAL_ACTOR": "PASS",
+    "RLX_EMAIL_03_NO_FAKE_USER": "PASS",
+    "RLX_EMAIL_03_SERVICE_ROLE_NOT_AUTHZ": "PASS",
+    "RLX_EMAIL_03_DOMAIN_GUARDS": "PASS",
+    "RLX_EMAIL_03_FISCAL_IDENTITY_RESERVATION": "PASS",
+    "RLX_EMAIL_03_CROSS_CHANNEL_FENCING": "PASS",
+    "RLX_EMAIL_03_FENCING_TOKEN": "PASS",
+    "RLX_EMAIL_03_LEASE_RECOVERY": "PASS",
+    "RLX_EMAIL_03_DUPLICATE_BEFORE_STORAGE": "PASS",
+    "RLX_EMAIL_03_STORAGE_API_REAL": "PASS",
+    "RLX_EMAIL_03_STORAGE_COMPENSATION": "PASS",
+    "RLX_EMAIL_03_CLEANUP_PENDING": "PASS",
+    "RLX_EMAIL_03_CLEANUP_WORKER": "PASS",
+    "RLX_EMAIL_03_DELAYED_UPLOAD_FENCING": "PASS",
+    "RLX_EMAIL_03_REVIEW_SHARED": "PASS",
+    "RLX_EMAIL_03_REVIEW_SYSTEM_TO_HUMAN_AUDIT": "PASS",
+    "RLX_EMAIL_03_REVIEW_DUPLICATION": "PASS",
+    "RLX_EMAIL_03_REVIEW_ORIGINAL_RESOLUTION": "PASS",
+    "RLX_EMAIL_03_XML_RECOVERY": "PASS",
+    "RLX_EMAIL_03_XML_RECOVERY_CONCURRENCY": "PASS",
+    "RLX_EMAIL_03_DRAFT_DELETE_HISTORY": "PASS",
+    "RLX_EMAIL_03_ROUTING_ALL": "PASS",
+    "RLX_EMAIL_03_ROUTING_ALLOWLIST": "PASS",
+    "RLX_EMAIL_03_UNKNOWN_CEDENTE": "PASS",
+    "RLX_EMAIL_03_MULTI_CEDENTE_MESSAGE": "PASS",
+    "RLX_EMAIL_03_PER_FILE": "PASS",
+    "RLX_EMAIL_03_SOURCE_CHANNEL": "PASS",
+    "RLX_EMAIL_03_EVENT_ACTOR": "PASS",
+    "RLX_EMAIL_03_AUDIT": "PASS",
+    "RLX_EMAIL_03_REDACTION": "PASS",
+    "RLX_EMAIL_03_MANUAL_UPLOAD_REGRESSION": "PASS",
+    "RLX_EMAIL_03_NFSE_REGRESSION": "PASS",
+    "RLX_EMAIL_03_XML_REGRESSION": "PASS",
+    "RLX_EMAIL_03_P14_P16_REGRESSION": "PASS",
+    "RLX_EMAIL_03_COMMIT": "PASS",
+    "RLX_EMAIL_03_CI": "PASS",
+    "RLX_EMAIL_03_PREVIEW": "PASS",
+    "RLX_EMAIL_03_PREVIEW_STORAGE": "PASS",
+    "RLX_EMAIL_03_PREVIEW_AUTH_REVIEW": "PASS",
+    "RLX_EMAIL_03_PREVIEW_CROSS_CHANNEL": "PASS",
+    "RLX_EMAIL_03_PREVIEW_XML": "PASS",
+    "RLX_EMAIL_03_PREVIEW_NFSE": "PASS",
+    "RLX_EMAIL_03_PREVIEW_CLEANUP": "PASS",
+    "RLX_EMAIL_03_HOMOLOG_MIGRATIONS": "PASS",
+    "RLX_EMAIL_03_HOMOLOG_PIPELINE": "PASS",
+    "RLX_EMAIL_03_HOMOLOG_REVIEW": "PASS",
+    "RLX_EMAIL_03_HOMOLOG_CROSS_CHANNEL": "PASS",
+    "RLX_EMAIL_03_HOMOLOG_ROUTING": "PASS",
+    "RLX_EMAIL_03_HOMOLOG_STORAGE": "PASS",
+    "RLX_EMAIL_03_HOMOLOG_CLEANUP": "PASS",
+    "RLX_EMAIL_03_HOMOLOG_READY": "YES",
+    "RLX_EMAIL_04_STARTED": "NO",
+    "RLX_EMAIL_PRODUCTION_CHANGED": "NO",
+    "GUIBOR_A5_A6_CHANGED": "NO",
+    "P17_CHANGED": "NO",
+    "RLX_VORTX_CHANGED": "NO",
+    "CERC_CHANGED": "NO"
+  },
+  "validation": {
+    "local": {
+      "focusedTests": 303,
+      "fullSuiteTests": 2582,
+      "skippedOptIn": 12,
+      "failures": 0,
+      "cleanRoomMigrations": 251,
+      "databaseGroups": 27,
+      "storageChecks": 9,
+      "sharedBrowserChecks": 33
+    },
+    "ci": [
+      36782269621,
+      36782683762
+    ],
+    "migrationsApplied": [
+      {
+        "version": "20260929204430",
+        "sha256": "2b24200597c59be3c4c3fbb1a0a51c860f542624d0c2833a3452a50ab79bdef2"
+      },
+      {
+        "version": "20260929214436",
+        "sha256": "2fae7bf9af311428276beb275359945825b10604b7cd6e26e5a6e37e37504090"
+      },
+      {
+        "version": "20260929220304",
+        "sha256": "54195ec1e6f9d604fd107f277c7a77320bc2bed49fc205087792397cf55b4f0b"
+      },
+      {
+        "version": "20260929221000",
+        "sha256": "5adf3895533d3b024d8ff6afa96de9764d725133b8021e60f28c41d826ca36c9"
+      },
+      {
+        "version": "20260929221920",
+        "sha256": "f9675c45926c5c54c42bf22af0832321d201fe5b6734593dc216dd37d75fbb85"
+      },
+      {
+        "version": "20260929222556",
+        "sha256": "b9f8ee25e655ea032d25c709be54180bdf57cd42bf22a8744e7ae3a32b8db114"
+      },
+      {
+        "version": "20260929224000",
+        "sha256": "2613dc292e8f3617f9a21be61083956befbf174e26004c78eb41de3cf050da53"
+      },
+      {
+        "version": "20260929224500",
+        "sha256": "c5d336f01c5191c314649ef54bc45e4219ca31445ae52437ffc40b0d9fc83d65"
+      },
+      {
+        "version": "20260929225000",
+        "sha256": "f0ce6ee1f6994540da8a1d13da15bb727ded4470f7f879ee3e9918f03e00a9c3"
+      },
+      {
+        "version": "20260930130158",
+        "sha256": "7fb16e8deb266dd3beb441f8c7a5a99132603ac4211d541478e1de0dab71b233"
+      },
+      {
+        "version": "20260930141139",
+        "sha256": "b2094660fad0c0af857c1aa96ee957a456c17f73b1adcd0b5a7f220fe76af140"
+      },
+      {
+        "version": "20260930183215",
+        "sha256": "4dd6dd9e26d0d0f91a080ce20f567c5277e3a22a974e46e2ae33473607d12da5"
+      }
+    ],
+    "smokeChecks": [
+      "REAL_QA_AUTH_MFA",
+      "ALL_TWO_CEDENTES_ONE_MESSAGE_AND_CROSS_CHANNEL_ONE_NF",
+      "ALLOWLIST_ALLOWED_DENIED_UNKNOWN_CROSS_FUND",
+      "LIVE_GRAPH_WORKER_SYSTEM_REVIEW_PENDING_DUPLICATE_DENIED",
+      "HOSTED_HOMOLOG_UI_MFA_REAL_GRAPH_REVIEW_AND_POST_DUPLICATE",
+      "FOUR_NOTES_FOUR_CANONICAL_ORIGINALS_REAL_STORAGE"
+    ],
+    "review": {
+      "number": "930006",
+      "ingest": "SYSTEM",
+      "review": "HUMAN",
+      "source": "EMAIL_INTAKE",
+      "due": "2026-10-30",
+      "originalBytesMatch": true
+    },
+    "cleanup": {
+      "result": "PASS",
+      "leftovers": {
+        "users": 0,
+        "sessions": 0,
+        "mfa": 0,
+        "notes": 0,
+        "reservations": 0,
+        "integrations": 0
+      },
+      "existingDataUnchanged": true
+    },
+    "storageBefore": 969,
+    "storageAfter": 969,
+    "storageMetadataUnchanged": true,
+    "existingNotes": 195,
+    "existingOperations": 23,
+    "preexistingReviewIntentsPreserved": 5
+  },
+  "notes": [
+    "Preview certification is recorded independently in rlx-email03-preview-evidence.json. Its homolog indicators represent that earlier checkpoint.",
+    "The PR80 Supabase automatic Preview check was cancelled due to concurrent branch capacity, not a test assertion failure. The previously certified Preview was preserved. GitHub full CI and the Vercel deployment passed. No check status was rewritten or admin bypass used.",
+    "Homolog routing used controlled XML transport with real hosted Auth/MFA/database/Storage. NFS-e review used the exact previously user-sent Graph QA attachment and the official hosted browser form.",
+    "The first read-only postflight incorrectly expected the whole preexisting review table to be empty. The assertion was scoped to QA and checked remaining rows predate rollout. No existing review was removed.",
+    "Temporary QA users, sessions, MFA, notes, intake, reservations, journals, reviews, objects and registrations were removed. Existing operational records, Storage metadata, protected functions, triggers and migrations were checked.",
+    "Three temporary Graph env bindings were removed from homolog after cleanup. Existing immutable deployments are not credential rotation; no active integration remains. Original local credential file and mailbox were preserved.",
+    "No scheduler, webhook activation, performance certification, Email04 or production changes. A5/A6 and C5 already present in homolog were preserved."
+  ],
+  "evidence": [
+    {
+      "file": "email03-homolog-gates.json",
+      "sha256": "224d05001be36c3577b73c0a93ac9c8bff1165c643721433a34a8b16582eed3f"
+    },
+    {
+      "file": "RLX_EMAIL_03_CLEAN_ROOM.json",
+      "sha256": "b4e1e267cd955fcd6054fccf81db98d3ea0b1a46ebfa3349326eac700fc05d53"
+    },
+    {
+      "file": "email03-homolog-ci.json",
+      "sha256": "0086891258f1efcf72e02bd47f37ccdf878511517ce3537412a73fec049d0eff"
+    },
+    {
+      "file": "email03-homolog-merge-ci.json",
+      "sha256": "48d15b8a498435b6480c2c34750122606621d60f6dbe6a423a67f0d44a08fe50"
+    },
+    {
+      "file": "email03-homolog-migrations-applied.json",
+      "sha256": "3e211907fd5ba00ccfac1fc4db7dec5179af7aab0574e67c3e837b02e53e29d1"
+    },
+    {
+      "file": "email03-homolog-deployment.json",
+      "sha256": "c6b4a07f8f604c25f0c2674c3c61ea009b8bc3e94bee74593ecee7a9017e4168"
+    },
+    {
+      "file": "email03-homolog-smoke-73982f3a.json",
+      "sha256": "1afcd948c39c4f5ec8f616dcf041098c183fd6d7971ac4962473981ab0add710"
+    },
+    {
+      "file": "email03-homolog-postflight.json",
+      "sha256": "7fc735684a3d762d8c9d1825fed93b403c0b455b25d494104d8a9523549fcb06"
+    },
+    {
+      "file": "email03-homolog-env-remove.json",
+      "sha256": "bd3eff4cca2f870f40967c6c765dd8dbc4a5e2332a81e24676c348267ec05441"
+    }
+  ]
+}
