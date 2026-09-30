@@ -1014,22 +1014,22 @@ export default function OperacaoDetalheGestorClient({
   return (
     <div className="mx-auto max-w-7xl space-y-6 pb-10">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Link href={returnTo}>
+      <div className="flex min-w-0 items-start justify-between">
+        <div className="flex min-w-0 w-full items-start gap-3">
+          <Link href={returnTo} className="shrink-0">
             <Button variant="ghost" size="icon">
               <ArrowLeft size={20} />
             </Button>
           </Link>
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Operacao #{op.id.substring(0, 8)}</h1>
-            <div className="flex items-center gap-2 mt-1">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-2xl font-bold text-foreground wrap-anywhere">Operacao #{op.id.substring(0, 8)}</h1>
+            <div className="mt-1 flex min-w-0 flex-wrap items-center gap-2">
               <Badge variant={status.variant} className={status.className}>
                 <StatusIcon size={12} />
                 {status.label}
               </Badge>
-              <span className="text-sm text-muted-foreground">| {op.cedentes.razao_social} ({formatCNPJ(op.cedentes.cnpj)})</span>
-              <Badge variant="outline" className="ml-2">
+              <span className="min-w-0 max-w-full text-sm text-muted-foreground wrap-anywhere">| {op.cedentes.razao_social} ({formatCNPJ(op.cedentes.cnpj)})</span>
+              <Badge variant="outline" className="h-auto max-w-full whitespace-normal text-left wrap-anywhere">
                 {op.aceite_sacado_exigido === false || op.aceite_sacado_status === 'dispensado'
                   ? 'Aceite do sacado: dispensado pela política'
                   : `Aceite do sacado: ${op.aceite_sacado_status || 'pendente'}`}
