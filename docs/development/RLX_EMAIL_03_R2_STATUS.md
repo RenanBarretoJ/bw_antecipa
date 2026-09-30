@@ -179,3 +179,35 @@ ignorados, zero falhas; 294 arquivos aprovados e 3 inteiramente ignorados).
 Storage e 23 de serviço/interface, todas PASS. Cleanup PASS; nenhum container
 do ensaio permaneceu em execução. O arquivo local detalhado é
 `rehearsal/reports/RLX_EMAIL_03_CLEAN_ROOM_bw_email03_1790778413538.json`.
+
+## Regressão demonstrada no smoke do Consultor no Preview
+
+Em 30/09, a importação manual da NF QA 930005 pelo Consultor falhou antes do
+Storage. A reserva foi liberada, sem NF, journal de arquivo ou objeto adicional.
+A revalidação `fiscal_validate_stored_actor` chamava o predicado de RLS
+`consultor_usuario_pode_operar_cedente`, que exige `p_user_id = auth.uid()`.
+Durante o staging de infraestrutura, `auth.uid()` é nulo. A reprodução somente
+leitura confirmou vínculo de fundo e MFA válidos, seguida de `FISCAL_SCOPE_DENIED`.
+
+A migration incremental `20260930183215_fiscal_intake_consultor_stored_actor`
+reutiliza os predicados canônicos de organização e fundo, e exige o vínculo ativo
+com o cedente para o ator persistido. Mantém a verificação da sessão/MFA, o
+predicado de RLS com identidade vinculada à sessão e os grants restritos.
+O ensaio descartável passa a cobrir importação real pelos papéis Owner, Admin e
+Operador, download do original, duplicidade e revogação de autorização após a
+reserva. A reaplicação do smoke no Preview permanece pendente nesta etapa.
+
+Recertificação da correção: TypeScript, 291 testes focados, lint, build webpack
+e suíte completa aprovados (2.547 testes, 12 opt-in ignorados, zero falhas).
+O lint local apontou o warning já conhecido em `liquidacao.ts` e um warning no
+helper de provisionamento QA ignorado pelo Git; nenhum nos arquivos alterados.
+Advisors: os mesmos cinco warnings preexistentes, nenhum novo.
+
+O ensaio `bw_email03_1790794693964` aplicou 242 migrations e aprovou 27 grupos
+de banco, 9 de Storage e 33 de serviço/interface, incluindo os dez novos checks
+do Consultor. Cleanup PASS. Duas tentativas anteriores foram preservadas:
+timeout ao abrir a página e revisão não concluída na automação. O harness passou
+a aguardar a atualização React da data antes do clique real do navegador e a
+registrar diagnóstico sanitizado da submissão. Nenhum timeout foi ampliado e
+nenhuma validação foi removida. A prova continua usando Graph HTTP controlado
+somente no processo local; não certifica a integração Graph hospedada.
