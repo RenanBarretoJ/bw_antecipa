@@ -4,7 +4,47 @@ Execução iniciada em 30/09/2026, branch `feature/rlx-email-intake-graph`.
 O R2 valida o diff local e corrige somente defeitos demonstrados pelos gates.
 Produção está proibida. Homologação depende de Preview completo aprovado.
 
-## Situação consolidada após o Preview — 30/09/2026
+## Conclusão em homologação — 30/09/2026
+
+**RLX_EMAIL_03_HOMOLOG_READY = YES.** Escopo encerrado no ponto autorizado.
+O [manifesto final](../homologacao/rlx-email03-homolog-evidence.json) contém
+os 67 indicadores, commits, migrations e hashes das evidências sanitizadas.
+As seções seguintes preservam os checkpoints anteriores.
+
+- PR [#80](https://github.com/RenanBarretoJ/bw_antecipa/pull/80) integrado em
+  homolog, merge `27d33c8`, aplicação `0799fb4`. CI do PR `36782269621`
+  e CI do merge `36782683762` aprovados. Deploy de aplicação
+  `dpl_54ziwDie6SoyLafCsbFLqaifbRG2` READY, domínio e CSP de homolog verificados.
+- Aplicadas somente as 12 migrations ausentes, em transação única; histórico
+  A3/A4 e dados existentes preservados. Total: 251 migrations. Sem db push global.
+- Smoke autenticado: usuários QA reais, MFA/AAL2, ALL com dois cedentes na mesma
+  mensagem, ALLOWLIST permitido/negado, cedente desconhecido e fundo incorreto.
+  XMLs controlados usaram worker e serviço compartilhado contra banco/Storage reais.
+- NFS-e 930006 do e-mail de QA enviado pelo usuário: Graph real, ingestão SYSTEM,
+  revisão pela interface hospedada do Consultor, vencimento 30/10/2026, bruto
+  R$ 39.521,98 e líquido R$ 37.229,70. Conclusão HUMAN, origem EMAIL_INTAKE.
+  Duplicidade manual bloqueada antes/depois da revisão; original conferido por hash.
+- Quatro NFs e quatro objetos QA criados e removidos. Zero resíduos de usuários,
+  sessões, MFA, intake, reservas, journals, revisões ou cadastros deste smoke.
+  Permanecem 195 NFs, 23 operações e 969 objetos anteriores; dados existentes e
+  metadata do Storage comparados. Cinco revisões anteriores preservadas.
+- Credenciais temporárias de Graph removidas da configuração de homolog após
+  cleanup. Deploys históricos são imutáveis; isso não representa rotação do segredo.
+  Nenhuma integração ativa permanece, e a caixa real não recebeu escrita.
+- Postflight inicial somente leitura esperava incorretamente zero revisões globais.
+  Corrigida a conferência para o manifesto QA e a data anterior ao rollout;
+  nenhuma revisão existente foi apagada. Todos os gates finais passaram.
+
+O check automático de criação de outro Preview Supabase no PR #80 foi cancelado
+por limite de branches. O Preview previamente certificado foi preservado; CI
+completo e Vercel passaram, sem alteração artificial de checks ou bypass admin.
+Esse limite de provisionamento está registrado separadamente da certificação real.
+
+Sem alteração de produção, sem ativação de scheduler, sem certificação de
+performance e sem iniciar RLX-EMAIL-04. Recursos existentes de A5/A6, C5, P17,
+Vórtx e CERC preservados. O smoke final passou em 52,89 s; não é benchmark.
+
+## Checkpoint histórico após o Preview — 30/09/2026
 
 Preview **PASS**, aplicação `b46bc97`, Supabase `bwqpyphsmokzufeuxtim`.
 Homologação ainda **não promovida**; `RLX_EMAIL_03_HOMOLOG_READY = NO`.
