@@ -211,3 +211,48 @@ a aguardar a atualização React da data antes do clique real do navegador e a
 registrar diagnóstico sanitizado da submissão. Nenhum timeout foi ampliado e
 nenhuma validação foi removida. A prova continua usando Graph HTTP controlado
 somente no processo local; não certifica a integração Graph hospedada.
+
+## Compatibilidade observada na caixa real do Graph
+
+O smoke autenticado do Consultor foi concluído no Preview, incluindo duplicidade,
+abertura do original, exclusão de rascunho, cleanup pela API e reimportação com
+nova geração. Cedente e Gestor também confirmaram os cenários de consulta e
+abertura de originais. Isso não conclui os gates remotos de e-mail e concorrência.
+
+A leitura autorizada da caixa real identificou dois defeitos de transporte:
+
+- `attachment.size` era maior que os bytes retornados por `/$value` (por exemplo,
+  12.307 contra 11.885 bytes em um XML fiscal válido). Exigir igualdade rejeitava
+  o arquivo antes do parser. O tamanho declarado passa a ser um limite superior;
+  o limite físico de 20 MiB, MIME/extensão, assinatura e validação fiscal continuam
+  obrigatórios. O arquivo persistido usa o tamanho real e o hash dos bytes.
+- O Graph retornou continuação com `mailFolders('inbox')` para uma consulta a
+  `mailFolders/inbox`. A validação agora compara segmentos de recurso e identidade
+  nos dois formatos, preservando a URL opaca original. Origem HTTPS, caixa, pasta,
+  tipo de recurso e identificadores continuam restritos; barras codificadas dentro
+  de IDs não viram separadores de caminho.
+
+Os testes cobrem metadados maiores que o conteúdo, arquivo vazio, limite físico,
+continuação realista em duas páginas e rejeição de outra caixa/pasta/recurso ou
+seletor inválido antes da autenticação. Não há migration nem novo provider.
+Evidências sanitizadas: `email03-live-compatibility.json` (reprodução) e
+`email03-live-compatibility-fixed.json` (leitura real corrigida), em
+`rehearsal/reports`. XMLs e identificadores externos ficam no diretório local
+protegido de QA, fora do Git.
+
+O cadastro solicitado é exclusivo do Preview: um emitente extraído do XML,
+vínculo canônico ao fundo QA, acesso pela consultoria QA e integração ALLOWLIST
+para esse cedente. Não foram criados usuários técnicos. A descoberta inicial
+limitada a XML localizou 24 anexos em 27 mensagens; o primeiro processamento
+parou em `RETRYABLE_ERROR` pela incompatibilidade de tamanho, sem importação.
+Reteste do worker depende da recertificação desta correção. O agendamento
+contínuo permanece desativado; homologação e produção não foram alteradas.
+
+Recertificação local dessa correção: TypeScript PASS; 299 testes focados PASS;
+lint e build webpack PASS; suíte completa com 2.555 aprovados, 12 opt-in
+ignorados e zero falhas. Nenhum warning nos arquivos alterados. Um warning no
+novo helper local de QA foi corrigido e o lint direcionado foi reexecutado.
+Ensaio `bw_email03_1790797893591`: 242 migrations, 27 grupos de banco, 9 de
+Storage e 33 de serviço/interface aprovados, incluindo Auth/MFA e revisão pelo
+formulário oficial. Cleanup do ambiente descartável PASS. Relatório detalhado:
+`rehearsal/reports/email03-live-graph-fix-gates.json`.
