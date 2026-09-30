@@ -1,18 +1,14 @@
 'use server'
 
 import { createAdminClient, createClient } from '@/lib/supabase/server'
+import { importManualFiscalFile } from '@/lib/fiscal-intake/manual.server'
 import { requireAuthenticated, requireGestor as requireGestorBase, type AppSupabaseClient, type AuthContext } from '@/lib/auth/authorization'
 import { exigirSessaoElevada } from '@/lib/auth/mfa'
 import { notaFiscalSchema, type NotaFiscalFormData } from '@/lib/validations/nf'
-import { extractDanfeFromPdf, validarDanfeParaPersistencia, valorTotalExtraidoValido, type NfPdfExtracted } from '@/lib/pdf-nf-parser'
 import { registrarLog } from './auditoria'
 import { notificarGestores, notificarCedente } from './notificacao'
-import { buckets } from '@/lib/storage'
-import { uploadDocumentoSeRequerido } from '@/lib/documentos-v2/upload'
 import { instanciarRequisitosDaNota } from '@/lib/documentos-v2/requisitos'
 import { avaliarGateDuplicatasDaNota } from '@/lib/duplicatas/gate.server'
-import { decidirAcaoDuplicidadeNotaFiscal, mensagemDuplicidadeNotaFiscal } from '@/lib/notas-fiscais/upload-context'
-import { extrairCnpjDaChaveAcesso, formatarDetalhesBloqueioEmitente, validarXmlNfeParaUploadCedente } from '@/lib/notas-fiscais/emitente-autorizado'
 import { obterFundoAtivoAutorizado } from '@/lib/fundos/fundo-ativo.server'
 import { carregarContextoEventoNota, registrarEventoDominio } from '@/lib/eventos-dominio/registrar'
 import { listarChecklistDaNota } from '@/lib/actions/documento-v2'
@@ -21,10 +17,9 @@ import { avaliarElegibilidadeAprovacaoNf } from '@/lib/notas-fiscais/elegibilida
 import { revalidatePath } from 'next/cache'
 import { resolverContextoFundoGestor } from '@/lib/gestor/contexto-fundo.server'
 import { carregarResumoDocumentalDasNotas } from '@/lib/notas-fiscais/resumo-documental-gestor.server'
-import { EstabelecimentoOrigemError, resolverEstabelecimentoOrigem } from '@/lib/cedentes/estabelecimentos.server'
-import { executarUploadPorArquivo, type ProcessedUploadFile, type UploadBatchResult } from '@/lib/notas-fiscais/upload-batch'
-import { createUploadTelemetry, logUploadStage, type UploadTelemetry } from '@/lib/notas-fiscais/upload-observability'
-import { resolverRazaoSocialDestinatario } from '@/lib/notas-fiscais/destinatario.server'
+import { resolverEstabelecimentoOrigem } from '@/lib/cedentes/estabelecimentos.server'
+import { executarUploadPorArquivo, type UploadBatchResult } from '@/lib/notas-fiscais/upload-batch'
+import { createUploadTelemetry, logUploadStage } from '@/lib/notas-fiscais/upload-observability'
 import { resolverContextoOperacionalNotaFiscal, validarNotaNoContextoSelecionado } from '@/lib/notas-fiscais/contexto-operacional.server'
 
 export type NfActionState = {
@@ -138,553 +133,6 @@ async function resolverContextoUploadCedente(
   }
 }
 
-type ArquivoResult = ProcessedUploadFile
-
-function mensagemErroEstabelecimentoOrigem(error: EstabelecimentoOrigemError) {
-  switch (error.code) {
-    case 'OUTRO_CEDENTE':
-      return 'O CNPJ emitente não pertence ao Cedente selecionado.'
-    case 'NAO_CADASTRADO':
-      return 'O CNPJ emitente não pertence ao Cedente selecionado ou ainda não foi cadastrado.'
-    case 'NAO_APROVADO':
-      return 'O CNPJ emitente ainda não está aprovado para originar recebíveis.'
-    case 'CONTEXTO_INATIVO':
-      return 'O estabelecimento emitente não está ativo para novas originações neste fundo.'
-    case 'CNPJ_INVALIDO':
-      return 'O CNPJ emitente da Nota Fiscal é inválido.'
-  }
-}
-
-type NfExistente = {
-  id: string
-  cedente_id: string
-  cedente_fundo_id: string | null
-  fundo_id: string | null
-  arquivo_url: string | null
-  status: string
-}
-
-async function notaFiscalPossuiDocumentoXml(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  notaFiscalId: string,
-): Promise<boolean> {
-  const { data: requisitos, error } = await supabase
-    .from('documento_requisito_instancias')
-    .select('documento_id, status')
-    .eq('nota_fiscal_id', notaFiscalId)
-    .eq('tipo_documento_codigo_snapshot', 'nf_xml')
-    .not('documento_id', 'is', null)
-
-  if (error) throw new Error(`Erro ao verificar documento XML existente: ${error.message}`)
-  const documentoIds = (requisitos || [])
-    .map((row) => (row as { documento_id: string | null }).documento_id)
-    .filter(Boolean) as string[]
-  if (documentoIds.length === 0) return false
-
-  const { data: versoes, error: versionError } = await supabase
-    .from('documento_versoes')
-    .select('id')
-    .in('documento_id', documentoIds)
-    .in('status', ['enviado', 'aprovado', 'rejeitado', 'substituido'])
-    .limit(1)
-
-  if (versionError) throw new Error(`Erro ao verificar versao do XML existente: ${versionError.message}`)
-  return !!versoes?.length
-}
-
-async function removerNotaFiscalParcial(
-  input: {
-    notaFiscalId: string
-    cedenteId: string
-    arquivoUrl?: string | null
-    etapa: string
-    context: CedenteUploadContext
-    onCompensated?: () => void
-  },
-) {
-  const admin = createAdminClient()
-  const { data: requisitos } = await admin
-    .from('documento_requisito_instancias')
-    .select('documento_id')
-    .eq('nota_fiscal_id', input.notaFiscalId)
-
-  const documentoIds = Array.from(new Set(
-    (requisitos || [])
-      .map((row) => (row as { documento_id: string | null }).documento_id)
-      .filter(Boolean) as string[],
-  ))
-
-  if (documentoIds.length > 0) {
-    const { data: versoes } = await admin
-      .from('documento_versoes')
-      .select('bucket, path')
-      .in('documento_id', documentoIds)
-
-    const pathsPorBucket = new Map<string, string[]>()
-    for (const version of versoes || []) {
-      const row = version as { bucket?: string | null; path?: string | null }
-      if (!row.bucket || !row.path) continue
-      pathsPorBucket.set(row.bucket, [...(pathsPorBucket.get(row.bucket) || []), row.path])
-    }
-
-    for (const [bucket, paths] of pathsPorBucket.entries()) {
-      const { error: documentStorageError } = await admin.storage.from(bucket).remove(paths)
-      if (documentStorageError) {
-        logUploadNf(`${input.etapa}_documento_storage_compensacao_erro`, {
-          ...input.context,
-          erro: documentStorageError,
-          notaFiscalId: input.notaFiscalId,
-        })
-      }
-    }
-
-    await admin.from('documento_requisito_instancias').delete().eq('nota_fiscal_id', input.notaFiscalId)
-    await admin.from('documento_vinculos').delete().eq('nota_fiscal_id', input.notaFiscalId)
-    await admin.from('documento_versoes').delete().in('documento_id', documentoIds)
-    await admin.from('documentos_repositorio').delete().in('id', documentoIds)
-  } else {
-    await admin.from('documento_requisito_instancias').delete().eq('nota_fiscal_id', input.notaFiscalId)
-  }
-
-  if (input.arquivoUrl) {
-    const { error: storageError } = await admin.storage.from(buckets.notasFiscais).remove([input.arquivoUrl])
-    if (storageError) logUploadNf(`${input.etapa}_storage_compensacao_erro`, { ...input.context, erro: storageError, notaFiscalId: input.notaFiscalId })
-  }
-
-  // Parcelas sao registradas antes do documento XML (para o fan-out do
-  // requisito de boleto ja encontra-las na primeira instanciacao); por isso
-  // uma falha depois desse ponto pode precisar limpar parcelas ja
-  // persistidas. nota_fiscal_parcelas.nota_fiscal_id e ON DELETE RESTRICT,
-  // entao precisa ser removida antes da NF (a instancia documental que
-  // referencia parcela_id ja foi removida acima).
-  await admin.from('nota_fiscal_parcelas').delete().eq('nota_fiscal_id', input.notaFiscalId)
-
-  const { error: deleteError } = await admin
-    .from('notas_fiscais')
-    .delete()
-    .eq('id', input.notaFiscalId)
-    .eq('cedente_id', input.cedenteId)
-
-  if (deleteError) {
-    logUploadNf(`${input.etapa}_nf_compensacao_erro`, { ...input.context, erro: deleteError, notaFiscalId: input.notaFiscalId })
-    throw new Error(`Nao foi possivel remover NF parcial: ${deleteError.message}`)
-  }
-  input.onCompensated?.()
-}
-
-async function recuperarDuplicidadeIncompleta(
-  context: CedenteUploadContext,
-  chaveAcesso: string,
-  supabase: Awaited<ReturnType<typeof createClient>>,
-): Promise<ArquivoResult | null> {
-  const { data, error } = await supabase
-    .from('notas_fiscais')
-    .select('id, cedente_id, cedente_fundo_id, fundo_id, arquivo_url, status')
-    .eq('chave_acesso', chaveAcesso)
-    .limit(1)
-    .maybeSingle()
-
-  if (error) throw new Error(`Erro ao verificar duplicidade da NF: ${error.message}`)
-  if (!data) return null
-
-  const existente = data as NfExistente
-  const possuiXml = await notaFiscalPossuiDocumentoXml(supabase, existente.id)
-  const acao = decidirAcaoDuplicidadeNotaFiscal({ existeNota: true, possuiXmlDocumentalValido: possuiXml })
-  if (acao === 'conflito_xml_existente') {
-    return { ok: false, status: 'DUPLICATE', error: mensagemDuplicidadeNotaFiscal(acao) }
-  }
-
-  logUploadNf('duplicidade_incompleta_recuperacao', { ...context, chaveAcesso, notaFiscalId: existente.id })
-  await removerNotaFiscalParcial({
-    notaFiscalId: existente.id,
-    cedenteId: existente.cedente_id,
-    arquivoUrl: existente.arquivo_url,
-    etapa: 'duplicidade_incompleta',
-    context,
-  })
-  return null
-}
-
-function contextoDocumentoDaNota(context: CedenteUploadContext, notaFiscalId: string) {
-  return {
-    fundoId: context.fundoId,
-    cedenteId: context.cedente.id,
-    cedenteFundoId: context.cedenteFundoId,
-    entidadeTipo: 'nota_fiscal' as const,
-    entidadeId: notaFiscalId,
-  }
-}
-
-async function processarArquivo(
-  arquivo: File,
-  context: CedenteUploadContext,
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  telemetry: UploadTelemetry,
-  fileIndex: number,
-): Promise<ArquivoResult> {
-  const { cedente } = context
-  const maxSize = 20 * 1024 * 1024
-  const isXml = arquivo.name.toLowerCase().endsWith('.xml') ||
-    arquivo.type === 'text/xml' || arquivo.type === 'application/xml'
-  const isPdf = arquivo.type === 'application/pdf'
-  const isImage = arquivo.type === 'image/jpeg' || arquivo.type === 'image/png'
-
-  if (!isXml && !isPdf && !isImage) {
-    return { ok: false, status: 'REJECTED_INVALID', error: 'Formato inválido. Aceitos: XML, PDF, JPG, PNG.' }
-  }
-  if (arquivo.size > maxSize) {
-    return { ok: false, status: 'REJECTED_INVALID', error: 'Arquivo muito grande (máximo 20 MB).' }
-  }
-
-  const cnpjLimpo = cedente.cnpj.replace(/\D/g, '')
-  const timestamp = Date.now()
-  const cleanName = arquivo.name.replace(/[^a-zA-Z0-9._-]/g, '_')
-  const filePath = `${cnpjLimpo}/nf/${timestamp}_${cleanName}`
-  let notaFiscalPersistidaId: string | null = null
-
-  try {
-    if (isXml) {
-      const xmlContent = await arquivo.text()
-      const preValidacao = validarXmlNfeParaUploadCedente({
-        xmlContent,
-        cnpjCedente: cedente.cnpj,
-        permitirEstabelecimentoDoCedente: true,
-      })
-
-      if (!preValidacao.ok) {
-        const detalhes = formatarDetalhesBloqueioEmitente({
-          cnpjCedente: preValidacao.cnpjCedente,
-          cnpjEmitente: preValidacao.cnpjEmitente,
-        })
-        logUploadNf('validar_emitente_xml_bloqueado', { ...context, chaveAcesso: null, erro: preValidacao.message })
-        return { ok: false, status: 'REJECTED_INVALID', error: `${preValidacao.message}${detalhes}` }
-      }
-
-      const parsed = preValidacao.parsed
-      telemetry.parsed(fileIndex, { parseStrategy: 'xml' })
-      const estabelecimento = await resolverEstabelecimentoOrigem({
-        supabase,
-        cedenteId: cedente.id,
-        fundoId: context.fundoId,
-        cnpjEmitente: parsed.cnpj_emitente,
-      })
-
-      if (parsed.chave_acesso) {
-        const duplicidade = await recuperarDuplicidadeIncompleta(context, parsed.chave_acesso, supabase)
-        if (duplicidade) return duplicidade
-      }
-
-      const { error: uploadError } = await supabase.storage
-        .from(buckets.notasFiscais).upload(filePath, arquivo)
-      if (uploadError) {
-        logUploadNf('upload_xml_storage_erro', { ...context, chaveAcesso: parsed.chave_acesso, erro: { code: uploadError.name } })
-        return { ok: false, status: 'STORAGE_ERROR', error: 'Não foi possível armazenar o XML. Tente novamente.' }
-      }
-
-      const { data: nf, error: dbError } = await supabase
-        .from('notas_fiscais')
-        .insert({
-          cedente_id: cedente.id,
-          cedente_fundo_id: context.cedenteFundoId,
-          fundo_id: context.fundoId,
-          estabelecimento_id: estabelecimento.id,
-          numero_nf: parsed.numero_nf,
-          serie: parsed.serie || null,
-          chave_acesso: parsed.chave_acesso || null,
-          data_emissao: parsed.data_emissao,
-          data_vencimento: parsed.data_vencimento || parsed.data_emissao,
-          cnpj_emitente: parsed.cnpj_emitente,
-          razao_social_emitente: parsed.razao_social_emitente,
-          cnpj_destinatario: parsed.cnpj_destinatario,
-          razao_social_destinatario: parsed.razao_social_destinatario,
-          valor_bruto: parsed.valor_bruto,
-          valor_liquido: parsed.valor_liquido,
-          valor_icms: parsed.valor_icms,
-          valor_iss: parsed.valor_iss,
-          valor_pis: parsed.valor_pis,
-          valor_cofins: parsed.valor_cofins,
-          valor_ipi: parsed.valor_ipi,
-          descricao_itens: parsed.descricao_itens || null,
-          quantidade_total: parsed.itensEstruturados.length > 0 ? parsed.quantidadeTotal : null,
-          unidade_quantidade: parsed.itensEstruturados[0]?.unidade || null,
-          itens_estruturados: parsed.itensEstruturados.length > 0 ? parsed.itensEstruturados : null,
-          condicao_pagamento: parsed.condicao_pagamento || null,
-          arquivo_url: filePath,
-           status: 'rascunho',
-        } as never)
-        .select('id').single()
-
-      if (dbError) {
-        const { error: cleanupError } = await createAdminClient().storage.from(buckets.notasFiscais).remove([filePath])
-        if (!cleanupError) telemetry.compensated(fileIndex)
-        if (cleanupError) logUploadNf('insert_nf_xml_storage_compensacao_erro', { ...context, chaveAcesso: parsed.chave_acesso, erro: { code: cleanupError.name } })
-        logUploadNf('insert_nf_erro', { ...context, chaveAcesso: parsed.chave_acesso, erro: dbError })
-        return { ok: false, status: dbError.code === '23505' ? 'DUPLICATE' : 'PERSISTENCE_ERROR', error: cleanupError
-          ? 'A NF não foi salva, mas a limpeza do arquivo falhou. Contate o suporte antes de reenviar.'
-          : dbError.code === '23505' ? 'Esta Nota Fiscal já foi cadastrada.'
-          : 'Não foi possível salvar a Nota Fiscal. Tente novamente.' }
-      }
-
-      const nfData = nf as { id: string }
-      notaFiscalPersistidaId = nfData.id
-
-      // Registrar as parcelas ANTES de instanciar os requisitos documentais
-      // (feito abaixo, dentro de uploadDocumentoSeRequerido -> instanciarRequisitosDaNota):
-      // o fan-out do requisito de boleto (cardinalidade por_parcela) so
-      // encontra parcelas se elas ja existirem em nota_fiscal_parcelas no
-      // momento da primeira instanciacao. Instanciar antes de registrar as
-      // parcelas deixava o boleto ausente ate a proxima leitura do checklist
-      // reconciliar (documento-v2.ts), e nunca reconciliava para leitores
-      // agregados que nao chamam instanciarRequisitosDaNota (ex.: resumo
-      // documental do gestor usado na aprovacao da NF).
-      if (parsed.parcelas.length > 0) {
-        const { error: parcelasError } = await supabase.rpc('registrar_parcelas_nota_fiscal', {
-          p_nota_fiscal_id: nfData.id,
-          p_parcelas: parsed.parcelas,
-        })
-        if (parcelasError) {
-          logUploadNf('registrar_parcelas_erro', { ...context, chaveAcesso: parsed.chave_acesso, erro: parcelasError, notaFiscalId: nfData.id })
-          try {
-            await removerNotaFiscalParcial({
-              notaFiscalId: nfData.id,
-              cedenteId: cedente.id,
-              arquivoUrl: filePath,
-              etapa: 'registrar_parcelas',
-              context,
-              onCompensated: () => telemetry.compensated(fileIndex),
-            })
-          } catch (cleanupError) {
-            logUploadNf('registrar_parcelas_compensacao_erro', { ...context, erro: cleanupError, notaFiscalId: nfData.id })
-            return {
-              ok: false,
-              status: 'PERSISTENCE_ERROR',
-              error: 'Não foi possível concluir o XML e a limpeza automática falhou. Verifique a NF antes de reenviar.',
-            }
-          }
-          return { ok: false, status: 'REJECTED_INVALID', error: 'As parcelas do XML não correspondem ao valor total da Nota Fiscal.' }
-        }
-      }
-
-      try {
-        await uploadDocumentoSeRequerido(nfData.id, 'nf_xml', arquivo, supabase, contextoDocumentoDaNota(context, nfData.id))
-      } catch (error) {
-        logUploadNf('registrar_xml_documental_erro', { ...context, chaveAcesso: parsed.chave_acesso, erro: error, notaFiscalId: nfData.id })
-        try {
-          await removerNotaFiscalParcial({
-            notaFiscalId: nfData.id,
-            cedenteId: cedente.id,
-            arquivoUrl: filePath,
-            etapa: 'registrar_xml_documental',
-            context,
-            onCompensated: () => telemetry.compensated(fileIndex),
-          })
-        } catch (cleanupError) {
-          logUploadNf('registrar_xml_documental_compensacao_erro', { ...context, erro: cleanupError, notaFiscalId: nfData.id })
-          return {
-            ok: false,
-            status: 'PERSISTENCE_ERROR',
-            error: 'Não foi possível concluir o XML e a limpeza automática falhou. Verifique a NF antes de reenviar.',
-          }
-        }
-        return { ok: false, status: 'PERSISTENCE_ERROR', error: 'Não foi possível registrar o XML no repositório documental.' }
-      }
-      registrarLog({
-        tipo_evento: 'NF_SALVA_RASCUNHO',
-        entidade_tipo: 'notas_fiscais',
-        entidade_id: nfData.id,
-        dados_depois: {
-          ...(parsed as unknown as Record<string, unknown>),
-          fundo_id: context.fundoId,
-          cedente_fundo_id: context.cedenteFundoId,
-          actor_role: context.actorRole,
-          cedente_id: context.cedente.id,
-        },
-      }).catch(() => {})
-      await registrarEventoNotaFiscal(supabase, nfData.id, {
-        tipo_evento: 'nota_fiscal_salva_como_rascunho',
-        categoria: 'operacao',
-        descricao: 'Nota fiscal cadastrada por upload de XML.',
-        metadata: {
-          status_novo: 'rascunho',
-          valor_bruto: parsed.valor_bruto,
-          tipo_documento: 'nf_xml',
-        },
-        origem: 'upload_nf_xml',
-      })
-
-      return { ok: true, id: nfData.id, isRascunho: true, nfNumero: parsed.numero_nf }
-
-    } else {
-      let extracted: NfPdfExtracted = { campos_extraidos: [] }
-      if (isPdf) {
-        extracted = await extractDanfeFromPdf(Buffer.from(await arquivo.arrayBuffer()))
-        telemetry.parsed(fileIndex, {
-          layoutFingerprint: extracted.layout_fingerprint,
-          parseStrategy: extracted.strategies?.[0],
-          confidence: extracted.confianca?.valor_bruto,
-          extractionSource: extracted.extraction_source,
-          nativeTextLengthBucket: extracted.native_text_length_bucket,
-          fallbackTriggerReason: extracted.fallback_trigger_reason,
-          fallbackStatus: extracted.fallback_status,
-          fallbackDurationMs: extracted.fallback_duration_ms,
-          aiExtractionConfidence: extracted.ai_extraction_confidence,
-        })
-      }
-
-      // A chave validada prevalece. Sem chave, o PDF so segue se o emitente
-      // contextual tiver confianca suficiente e pertencer ao Cedente autorizado.
-      const cnpjEmitenteOficial = extracted.chave_acesso
-        ? extrairCnpjDaChaveAcesso(extracted.chave_acesso)
-        : extracted.cnpj_emitente ?? cnpjLimpo
-      const gateDanfe = isPdf ? validarDanfeParaPersistencia(extracted) : null
-      if (!valorTotalExtraidoValido(extracted) || gateDanfe?.ok === false) {
-        return {
-          ok: false,
-          status: 'REJECTED_AMBIGUOUS',
-          error: 'Não foi possível interpretar esta Nota Fiscal com segurança. Revise os dados extraídos ou informe-os manualmente.',
-        }
-      }
-
-      if (extracted.chave_acesso) {
-        const { data: duplicada, error: duplicidadeError } = await supabase
-          .from('notas_fiscais')
-          .select('id')
-          .eq('chave_acesso', extracted.chave_acesso)
-          .limit(1)
-          .maybeSingle()
-        if (duplicidadeError) throw new Error(`Erro ao verificar duplicidade do PDF: ${duplicidadeError.message}`)
-        if (duplicada) return { ok: false, status: 'DUPLICATE', error: 'Esta Nota Fiscal já foi cadastrada.' }
-      }
-      const valorBruto = extracted.valor_bruto
-      const estabelecimento = await resolverEstabelecimentoOrigem({
-        supabase,
-        cedenteId: cedente.id,
-        fundoId: context.fundoId,
-        cnpjEmitente: cnpjEmitenteOficial,
-      })
-      const destinatario = await resolverRazaoSocialDestinatario({
-        cnpj: extracted.cnpj_destinatario,
-        razaoSocial: extracted.razao_social_destinatario,
-      })
-      extracted.razao_social_destinatario = destinatario.razaoSocial
-
-      const { error: uploadError } = await supabase.storage
-        .from(buckets.notasFiscais).upload(filePath, arquivo)
-      if (uploadError) {
-        logUploadNf('upload_pdf_storage_erro', { ...context, erro: { code: uploadError.name } })
-        return { ok: false, status: 'STORAGE_ERROR', error: 'Não foi possível armazenar o arquivo. Tente novamente.' }
-      }
-
-      const today = new Date().toISOString().split('T')[0]
-
-      const { data: nf, error: dbError } = await supabase
-        .from('notas_fiscais')
-        .insert({
-          cedente_id: cedente.id,
-          cedente_fundo_id: context.cedenteFundoId,
-          fundo_id: context.fundoId,
-          estabelecimento_id: estabelecimento.id,
-          numero_nf: extracted.numero_nf ?? '',
-          serie: extracted.serie ?? null,
-          chave_acesso: extracted.chave_acesso ?? null,
-          data_emissao: extracted.data_emissao ?? today,
-          data_vencimento: extracted.data_vencimento ?? today,
-          cnpj_emitente: estabelecimento.cnpj,
-          razao_social_emitente: estabelecimento.razaoSocial,
-          cnpj_destinatario: extracted.cnpj_destinatario ?? '',
-          razao_social_destinatario: extracted.razao_social_destinatario ?? '',
-          valor_bruto: valorBruto,
-          valor_liquido: valorBruto,
-          valor_icms: 0, valor_iss: 0, valor_pis: 0, valor_cofins: 0, valor_ipi: 0,
-          condicao_pagamento: extracted.condicao_pagamento ?? null,
-          descricao_itens: extracted.descricao_itens ?? null,
-          arquivo_url: filePath,
-          status: 'rascunho',
-        } as never)
-        .select('id').single()
-
-      if (dbError) {
-        const { error: cleanupError } = await createAdminClient().storage.from(buckets.notasFiscais).remove([filePath])
-        if (!cleanupError) telemetry.compensated(fileIndex)
-        if (cleanupError) logUploadNf('insert_nf_rascunho_storage_compensacao_erro', { ...context, chaveAcesso: null, erro: { code: cleanupError.name } })
-        logUploadNf('insert_nf_rascunho_erro', { ...context, chaveAcesso: null, erro: { code: dbError.code } })
-        return { ok: false, status: dbError.code === '23505' ? 'DUPLICATE' : 'PERSISTENCE_ERROR', error: cleanupError
-          ? 'A NF não foi salva, mas a limpeza do arquivo falhou. Contate o suporte antes de reenviar.'
-          : dbError.code === '23505' ? 'Esta Nota Fiscal já foi cadastrada.'
-          : 'Não foi possível salvar a Nota Fiscal. Revise o arquivo ou tente novamente.' }
-      }
-
-      const nfData = nf as { id: string }
-      notaFiscalPersistidaId = nfData.id
-      if (isPdf) {
-        try {
-          await uploadDocumentoSeRequerido(nfData.id, 'nf_danfe_pdf', arquivo, supabase, contextoDocumentoDaNota(context, nfData.id), extracted)
-        } catch (error) {
-          logUploadNf('registrar_danfe_documental_erro', { ...context, chaveAcesso: extracted.chave_acesso ?? null, erro: error, notaFiscalId: nfData.id })
-          await removerNotaFiscalParcial({
-            notaFiscalId: nfData.id,
-            cedenteId: cedente.id,
-            arquivoUrl: filePath,
-            etapa: 'registrar_danfe_documental',
-            context,
-            onCompensated: () => telemetry.compensated(fileIndex),
-          })
-          return { ok: false, status: 'PERSISTENCE_ERROR', error: 'Não foi possível registrar o DANFE no repositório documental.' }
-        }
-      }
-
-      registrarLog({
-        tipo_evento: 'NF_SALVA_RASCUNHO',
-        entidade_tipo: 'notas_fiscais',
-        entidade_id: nfData.id,
-        dados_depois: {
-          fundo_id: context.fundoId,
-          cedente_fundo_id: context.cedenteFundoId,
-          cedente_id: context.cedente.id,
-          actor_role: context.actorRole,
-          origem: isPdf ? 'upload_nf_pdf' : 'upload_nf_arquivo',
-        },
-      }).catch(() => {})
-
-      await registrarEventoNotaFiscal(supabase, nfData.id, {
-        tipo_evento: 'nota_fiscal_salva_como_rascunho',
-        categoria: 'operacao',
-        descricao: isPdf ? 'Nota fiscal cadastrada por upload de PDF.' : 'Nota fiscal cadastrada por upload.',
-        metadata: {
-          status_novo: 'rascunho',
-          valor_bruto: valorBruto,
-          tipo_documento: isPdf ? 'nf_danfe_pdf' : 'arquivo',
-        },
-        origem: isPdf ? 'upload_nf_pdf' : 'upload_nf_arquivo',
-      })
-
-      return { ok: true, id: nfData.id, isRascunho: true, nfNumero: extracted.numero_nf }
-    }
-  } catch (e) {
-    if (e instanceof EstabelecimentoOrigemError && !notaFiscalPersistidaId) {
-      logUploadNf('resolver_estabelecimento_bloqueado', { ...context, erro: { code: e.code } })
-      return { ok: false, status: 'REJECTED_INVALID', error: mensagemErroEstabelecimentoOrigem(e) }
-    }
-    logUploadNf('erro_inesperado_processar_arquivo', { ...context, erro: e })
-    if (notaFiscalPersistidaId) {
-      try {
-        await removerNotaFiscalParcial({
-          notaFiscalId: notaFiscalPersistidaId,
-          cedenteId: cedente.id,
-          arquivoUrl: filePath,
-          etapa: 'erro_inesperado_processar_arquivo',
-          context,
-          onCompensated: () => telemetry.compensated(fileIndex),
-        })
-      } catch (cleanupError) {
-        logUploadNf('erro_inesperado_processar_arquivo_compensacao_erro', { ...context, erro: cleanupError, notaFiscalId: notaFiscalPersistidaId })
-        return { ok: false, status: 'PERSISTENCE_ERROR', error: 'Não foi possível concluir nem limpar a NF parcial. Verifique suas NFs ou contate o suporte antes de reenviar.' }
-      }
-    }
-    return { ok: false, status: 'PERSISTENCE_ERROR', error: 'Não foi possível concluir este arquivo. Verifique a NF antes de reenviar.' }
-  }
-}
-
 // Upload multiplo de arquivos de NF (XML ou PDF) — processa em paralelo
 export async function uploadNFs(formData: FormData): Promise<NfActionState> {
   await requireAuthenticated()
@@ -702,7 +150,9 @@ export async function uploadNFs(formData: FormData): Promise<NfActionState> {
     arquivos,
     (arquivo, fileIndex) => {
       telemetry.start(fileIndex)
-      return processarArquivo(arquivo, context, supabase, telemetry, fileIndex)
+      return importManualFiscalFile({ file: arquivo, userId: context.userId, cedenteId: context.cedente.id,
+        cedenteFundoId: context.cedenteFundoId, fundoId: context.fundoId, client: supabase, telemetry, fileIndex,
+        manualDue: String(formData.get('nfse_vencimento_manual') || ''), reviewIntent: String(formData.get('nfse_review_intent') || '') })
     },
     (error) => logUploadNf('processar_arquivo_rejeitado', { ...context, erro: error }),
   )
@@ -725,143 +175,14 @@ export async function uploadNFs(formData: FormData): Promise<NfActionState> {
 
 // Criar NF a partir de PDF/imagem com dados preenchidos manualmente pelo cedente
 export async function criarNFManual(formData: FormData): Promise<NfActionState> {
-  await requireAuthenticated()
-  const supabase = await createClient()
-  const cedenteIdInformado = String(formData.get('cedente_id') || '').trim() || null
-  const context = await resolverContextoUploadCedente(supabase, cedenteIdInformado)
-  if ('error' in context) return { success: false, message: context.error }
-  const { cedente } = context
-  let estabelecimento
-  try {
-    estabelecimento = await resolverEstabelecimentoOrigem({
-      supabase,
-      cedenteId: cedente.id,
-      fundoId: context.fundoId,
-      cnpjEmitente: cedente.cnpj,
-    })
-  } catch (error) {
-    return { success: false, message: error instanceof Error ? error.message : 'CNPJ emitente nao autorizado.' }
-  }
-
-  const arquivo = formData.get('arquivo') as File | null
-  if (!arquivo) {
-    return { success: false, message: 'Arquivo nao encontrado.' }
-  }
-
-  const maxSize = 20 * 1024 * 1024
-  if (arquivo.size > maxSize) {
-    return { success: false, message: `${arquivo.name}: arquivo muito grande (max 20MB).` }
-  }
-
-  const numero_nf = (formData.get('numero_nf') as string || '').trim()
-  const data_emissao = formData.get('data_emissao') as string
-  const data_vencimento = formData.get('data_vencimento') as string
-  const cnpj_destinatario = (formData.get('cnpj_destinatario') as string || '').replace(/\D/g, '')
-  const razao_social_destinatario = (formData.get('razao_social_destinatario') as string || '').trim()
-  const valor_bruto = parseFloat(formData.get('valor_bruto') as string) || 0
-  const descricao_itens = (formData.get('descricao_itens') as string || '').trim()
-  const condicao_pagamento = (formData.get('condicao_pagamento') as string || '').trim()
-
-  if (!numero_nf) return { success: false, message: 'Numero da NF e obrigatorio.' }
-  if (!data_emissao) return { success: false, message: 'Data de emissao e obrigatoria.' }
-  if (!data_vencimento) return { success: false, message: 'Data de vencimento e obrigatoria.' }
-  if (!cnpj_destinatario || cnpj_destinatario.length < 14) return { success: false, message: 'CNPJ do destinatario invalido.' }
-  if (!razao_social_destinatario) return { success: false, message: 'Razao social do destinatario e obrigatoria.' }
-  if (valor_bruto <= 0) return { success: false, message: 'Valor bruto deve ser maior que zero.' }
-
-  const cnpjLimpo = cedente.cnpj.replace(/\D/g, '')
-  const timestamp = Date.now()
-  const cleanName = arquivo.name.replace(/[^a-zA-Z0-9._-]/g, '_')
-  const filePath = `${cnpjLimpo}/nf/${timestamp}_${cleanName}`
-
-  const { error: uploadError } = await supabase.storage
-    .from(buckets.notasFiscais)
-    .upload(filePath, arquivo)
-
-  if (uploadError) {
-    return { success: false, message: `Erro no upload: ${uploadError.message}` }
-  }
-
-  const { data: nf, error: dbError } = await supabase
-    .from('notas_fiscais')
-    .insert({
-      cedente_id: cedente.id,
-      cedente_fundo_id: context.cedenteFundoId,
-      fundo_id: context.fundoId,
-      estabelecimento_id: estabelecimento.id,
-      numero_nf,
-      serie: null,
-      chave_acesso: null,
-      data_emissao,
-      data_vencimento,
-      cnpj_emitente: estabelecimento.cnpj,
-      razao_social_emitente: estabelecimento.razaoSocial,
-      cnpj_destinatario,
-      razao_social_destinatario,
-      valor_bruto,
-      valor_liquido: valor_bruto,
-      valor_icms: 0,
-      valor_iss: 0,
-      valor_pis: 0,
-      valor_cofins: 0,
-      valor_ipi: 0,
-      descricao_itens: descricao_itens || null,
-      condicao_pagamento: condicao_pagamento || null,
-      arquivo_url: filePath,
-           status: 'rascunho',
-    } as never)
-    .select('id')
-    .single()
-
-  if (dbError) {
-    await supabase.storage.from(buckets.notasFiscais).remove([filePath])
-    logUploadNf('insert_nf_manual_erro', { ...context, erro: dbError })
-    return { success: false, message: `Erro ao salvar: ${dbError.message}` }
-  }
-
-  const nfData = nf as { id: string }
-
-  if (arquivo.type === 'application/pdf') {
-    try {
-      await uploadDocumentoSeRequerido(nfData.id, 'nf_danfe_pdf', arquivo, supabase, contextoDocumentoDaNota(context, nfData.id))
-    } catch (error) {
-      logUploadNf('registrar_danfe_manual_documental_erro', { ...context, erro: error, notaFiscalId: nfData.id })
-      await removerNotaFiscalParcial({
-        notaFiscalId: nfData.id,
-        cedenteId: cedente.id,
-        arquivoUrl: filePath,
-        etapa: 'registrar_danfe_manual_documental',
-        context,
-      })
-      return { success: false, message: `Nao foi possivel registrar o DANFE no repositorio documental: ${error instanceof Error ? error.message : 'erro desconhecido'}` }
-    }
-  }
-
-  await registrarLog({
-    tipo_evento: 'NF_SALVA_RASCUNHO',
-    entidade_tipo: 'notas_fiscais',
-    entidade_id: nfData.id,
-    dados_depois: {
-      numero_nf,
-      valor_bruto,
-      cnpj_destinatario,
-      fundo_id: context.fundoId,
-      cedente_fundo_id: context.cedenteFundoId,
-      cedente_id: context.cedente.id,
-      actor_role: context.actorRole,
-    } as Record<string, unknown>,
-  })
-  await registrarEventoNotaFiscal(supabase, nfData.id, {
-    tipo_evento: 'nota_fiscal_salva_como_rascunho',
-    categoria: 'operacao',
-    descricao: context.actorRole === 'consultor'
-      ? 'Nota fiscal cadastrada por Consultor autorizado.'
-      : 'Nota fiscal cadastrada manualmente pelo Cedente.',
-    metadata: { status_novo: 'rascunho', valor_bruto, tipo_documento: arquivo.type === 'application/pdf' ? 'nf_danfe_pdf' : 'arquivo' },
-    origem: 'upload_nf_manual',
-  })
-
-  return { success: true, message: 'Nota fiscal salva como rascunho!', ids: [nfData.id], rascunhos: [nfData.id] }
+  // Legacy entry point follows the same canonical-key rule and import service.
+  const arquivo = formData.get('arquivo')
+  if (!(arquivo instanceof File)) return { success: false, message: 'Arquivo não encontrado.' }
+  const upload = new FormData()
+  upload.append('arquivos', arquivo)
+  const cedenteId = formData.get('cedente_id')
+  if (typeof cedenteId === 'string') upload.append('cedente_id', cedenteId)
+  return uploadNFs(upload)
 }
 
 // Salvar/atualizar dados de NF rascunho (preenchimento manual para PDF)
@@ -896,6 +217,15 @@ export async function salvarDadosNF(
     }
   }
 
+  const { data: fiscalAtual, error: fiscalError } = await supabase.from('notas_fiscais')
+    .select('tipo_documento_fiscal, valor_liquido, valor_bruto, numero_nf, chave_acesso, data_emissao, cnpj_emitente, cnpj_destinatario')
+    .eq('id', nfId).eq('cedente_id', cedente.id).maybeSingle()
+  if (fiscalError || !fiscalAtual) return { success: false, message: 'Nao foi possivel verificar os dados fiscais.' }
+  if (fiscalAtual.tipo_documento_fiscal === 'NFSE') {
+    const fields = ['numero_nf', 'chave_acesso', 'data_emissao', 'cnpj_emitente', 'cnpj_destinatario', 'valor_bruto'] as const
+    if (fields.some(field => validated.data[field] !== fiscalAtual[field])) return { success: false,
+      message: 'Os fatos fiscais da NFS-e importada nao podem ser alterados. Revise o documento original.' }
+  }
   const cnpjEmitenteLimpo = validated.data.cnpj_emitente.replace(/\D/g, '')
   let estabelecimento
   try {
@@ -937,7 +267,7 @@ export async function salvarDadosNF(
       cnpj_destinatario: validated.data.cnpj_destinatario.replace(/\D/g, ''),
       razao_social_destinatario: validated.data.razao_social_destinatario,
       valor_bruto: validated.data.valor_bruto,
-      valor_liquido: validated.data.valor_bruto,
+      valor_liquido: fiscalAtual.tipo_documento_fiscal === 'NFSE' ? fiscalAtual.valor_liquido : validated.data.valor_bruto,
       valor_icms: validated.data.valor_icms,
       valor_iss: validated.data.valor_iss,
       valor_pis: validated.data.valor_pis,
@@ -950,6 +280,10 @@ export async function salvarDadosNF(
     .eq('cedente_id', cedente.id)
 
   if (error) {
+    if (fiscalAtual.tipo_documento_fiscal === 'NFSE') {
+      console.error('[salvarDadosNF]', { error_code: 'NFSE_REVIEW_SAVE_FAILED' })
+      return { success: false, message: 'Nao foi possivel salvar a revisao da NFS-e.' }
+    }
     console.error('[salvarDadosNF]', error.message)
     return { success: false, message: `Erro ao salvar: ${error.message}` }
   }

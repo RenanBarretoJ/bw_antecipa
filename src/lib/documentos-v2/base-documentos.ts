@@ -1,8 +1,11 @@
 import { extractDanfeFromPdf, type NfPdfExtracted } from '@/lib/pdf-nf-parser'
 import type { NfParsedData } from '@/lib/nf-parser'
+import type { NfseExtraction } from '@/lib/nfse/contracts'
+import { validateNfseExtraction } from '@/lib/nfse/danfse-v2'
 import { formatarDetalhesBloqueioEmitente, validarXmlNfeParaUploadCedente } from '@/lib/notas-fiscais/emitente-autorizado'
 
 export interface NotaFiscalBaseReferencia {
+  tipoDocumentoFiscal?: 'NFE' | 'NFSE' | null
   chaveAcesso: string | null
   numero: string | null
   serie: string | null
@@ -127,7 +130,18 @@ export async function validarDocumentoBaseDaNota(input: {
   arquivo: File
   referencia: NotaFiscalBaseReferencia
   parsedDanfe?: NfPdfExtracted
+  parsedNfse?: NfseExtraction
 }): Promise<DocumentoBaseValidado | null> {
+  if (input.referencia.tipoDocumentoFiscal === 'NFSE') {
+    if (input.codigo !== 'nf_danfe_pdf') throw new Error('NFS-e requer documento-base PDF correspondente.')
+    const parsed = input.parsedNfse ?? await (await import('@/lib/nfse/pdf-dispatcher.server')).probeNfsePdf(Buffer.from(await input.arquivo.arrayBuffer()))
+    if (!parsed || !validateNfseExtraction(parsed).ok) throw new Error('NFS-e nao reconhecida com seguranca.')
+    const dados = parsed.dados
+    if (somenteDigitos(dados.cnpj_emitente) !== somenteDigitos(input.referencia.cnpjEmitente)) throw new Error('Emitente da NFS-e divergente.')
+    validarCorrespondenciaComNf({ referencia: input.referencia, chaveAcesso: dados.chave_acesso,
+      numero: dados.numero_nf, cnpjDestinatario: dados.cnpj_destinatario })
+    return { codigo: 'nf_danfe_pdf', chaveAcesso: dados.chave_acesso!, numero: dados.numero_nf!, serie: null, camposExtraidos: Object.keys(dados) }
+  }
   if (input.codigo === 'nf_xml') return validarXmlBase({ xml: await input.arquivo.text(), referencia: input.referencia })
   if (input.codigo === 'nf_danfe_pdf') {
     // No upload inicial, reutiliza a leitura do MESMO arquivo feita antes do

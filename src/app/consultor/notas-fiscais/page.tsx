@@ -5,6 +5,7 @@ import { ConsultorCedenteSelector } from '@/components/operacoes/ConsultorCedent
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { carregarNotasFiscaisComResumoDocumental } from '@/lib/notas-fiscais/listagem.server'
 import NotasFiscaisListagem from '@/app/cedente/notas-fiscais/notas-fiscais-listagem'
+import { temRevisaoEmailPendente } from '@/lib/actions/fiscal-email-review'
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>
 
@@ -89,6 +90,7 @@ export default async function NotasFiscaisConsultorPage({ searchParams }: { sear
     nomeFantasia: resultado.contexto.cedenteNomeFantasia,
     cnpj: resultado.contexto.cedenteCnpj,
   }
+  const emailReviewAvailable = await temRevisaoEmailPendente(cedenteId)
 
   return (
     <div className="mx-auto max-w-6xl space-y-4">
@@ -117,6 +119,7 @@ export default async function NotasFiscaisConsultorPage({ searchParams }: { sear
         filtros={filtros}
         basePath="/consultor/notas-fiscais"
         cedenteIdSelecionado={cedenteId}
+        emailReviewAvailable={emailReviewAvailable}
       />
     </div>
   )

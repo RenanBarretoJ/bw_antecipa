@@ -11,6 +11,7 @@ import { obterFundoAtivoAutorizado } from '@/lib/fundos/fundo-ativo.server'
 import { carregarContextoEventoNota, registrarEventoDominio } from '@/lib/eventos-dominio/registrar'
 import { validarDocumentoBaseDaNota } from './base-documentos'
 import type { NfPdfExtracted } from '@/lib/pdf-nf-parser'
+import type { NfseExtraction } from '@/lib/nfse/contracts'
 
 export interface UploadDocumentoNotaInput {
   notaFiscalId: string
@@ -18,6 +19,8 @@ export interface UploadDocumentoNotaInput {
   arquivo: File
   contexto?: ContextoDocumentoNotaFiscal
   parsedDanfe?: NfPdfExtracted
+  parsedNfse?: NfseExtraction
+  trackNfseStoragePath?: (path: string) => Promise<void>
 }
 
 export interface UploadDocumentoEntregaInput {
@@ -252,7 +255,7 @@ export async function uploadDocumentoDaNota(
   if (codigoSnapshot === 'nf_xml' || codigoSnapshot === 'nf_danfe_pdf') {
     const { data: notaFiscalBase, error: notaFiscalBaseError } = await client
       .from('notas_fiscais')
-      .select('chave_acesso, numero_nf, serie, cnpj_emitente, cnpj_destinatario')
+      .select('chave_acesso, numero_nf, serie, cnpj_emitente, cnpj_destinatario, tipo_documento_fiscal')
       .eq('id', input.notaFiscalId)
       .maybeSingle()
     if (notaFiscalBaseError) throw new Error(`Erro ao consultar a NF para validar o documento-base: ${notaFiscalBaseError.message}`)
@@ -262,7 +265,9 @@ export async function uploadDocumentoDaNota(
       codigo: codigoSnapshot,
       arquivo: input.arquivo,
       parsedDanfe: input.parsedDanfe,
+      parsedNfse: input.parsedNfse,
       referencia: {
+        tipoDocumentoFiscal: notaFiscalBase.tipo_documento_fiscal,
         chaveAcesso: notaFiscalBase.chave_acesso,
         numero: notaFiscalBase.numero_nf,
         serie: notaFiscalBase.serie,
@@ -291,6 +296,12 @@ export async function uploadDocumentoDaNota(
   })
   let uploaded = false
   try {
+    if (input.parsedNfse) {
+      // Durable receipt precedes the second upload, including uncertain HTTP responses.
+      if (!input.trackNfseStoragePath) throw new Error('NFSE_DOCUMENT_TRACKING_REQUIRED')
+      await input.trackNfseStoragePath(path)
+      uploaded = true
+    }
     await enviarObjetoDocumento(path, input.arquivo, mimeType)
     uploaded = true
     const { data: latest } = requirement.documento_id
@@ -575,9 +586,11 @@ export async function uploadDocumentoSeRequerido(
   client: AppSupabaseClient,
   contexto?: ContextoDocumentoNotaFiscal,
   parsedDanfe?: NfPdfExtracted,
+  parsedNfse?: NfseExtraction,
+  trackNfseStoragePath?: (path: string) => Promise<void>,
 ): Promise<boolean> {
   await instanciarRequisitosDaNota(notaFiscalId, client, contexto)
-  const { data: requirement } = await client
+  const { data: requirement, error: requirementError } = await client
     .from('documento_requisito_instancias')
     .select('id')
     .eq('nota_fiscal_id', notaFiscalId)
@@ -585,7 +598,8 @@ export async function uploadDocumentoSeRequerido(
     .eq('status', 'pendente')
     .limit(1)
     .maybeSingle()
+  if (requirementError && parsedNfse) throw new Error('NFSE_DOCUMENT_REQUIREMENT_READ_FAILED')
   if (!requirement) return false
-  await uploadDocumentoDaNota({ notaFiscalId, requisitoId: requirement.id, arquivo, contexto, parsedDanfe }, client)
+  await uploadDocumentoDaNota({ notaFiscalId, requisitoId: requirement.id, arquivo, contexto, parsedDanfe, parsedNfse, trackNfseStoragePath }, client)
   return true
 }

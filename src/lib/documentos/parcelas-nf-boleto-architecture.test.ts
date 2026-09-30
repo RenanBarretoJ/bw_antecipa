@@ -6,6 +6,7 @@ const migracaoBoleto = readFileSync('supabase/migrations/20260819220000_fase1_bo
 const parser = readFileSync('src/lib/nf-parser.ts', 'utf8')
 const documentoV2 = readFileSync('src/lib/actions/documento-v2.ts', 'utf8')
 const notaFiscalAction = readFileSync('src/lib/actions/nota-fiscal.ts', 'utf8')
+const fiscalCommit = readFileSync('supabase/migrations/20260929221000_fiscal_intake_atomic_commit.sql', 'utf8')
 const parcelasNfAction = readFileSync('src/lib/actions/parcelas-nf.ts', 'utf8')
 const checklistCedente = readFileSync('src/components/documentos-v2/ChecklistCedente.tsx', 'utf8')
 const paginaCedenteNf = readFileSync('src/app/cedente/notas-fiscais/[id]/page.tsx', 'utf8')
@@ -49,14 +50,16 @@ describe('Fase 1 (Parcelas de NF): modelo canonico + parser + tolerancia', () =>
   })
 
   it('NF sem <dup> nao aciona registrar_parcelas_nota_fiscal (comportamento legado preservado)', () => {
-    expect(notaFiscalAction).toContain('if (parsed.parcelas.length > 0) {')
-    expect(notaFiscalAction).toContain("supabase.rpc('registrar_parcelas_nota_fiscal'")
+    expect(fiscalCommit).toContain('IF jsonb_array_length(s.parcelas)>0 THEN')
+    expect(fiscalCommit).toContain('PERFORM private.fiscal_registrar_parcelas_nota_fiscal(')
   })
 
-  it('falha na validacao de parcelas aborta e limpa a NF parcial (nao aceita XML com parcelas inconsistentes)', () => {
-    const bloco = notaFiscalAction.slice(notaFiscalAction.indexOf('if (parsed.parcelas.length > 0) {'), notaFiscalAction.indexOf('return { ok: true, id: nfData.id, isRascunho: true }'))
-    expect(bloco).toContain('removerNotaFiscalParcial')
-    expect(bloco).toContain('return { ok: false')
+  it('falha na validacao de parcelas propaga e reverte toda a transacao fiscal', () => {
+    const bloco = fiscalCommit.slice(fiscalCommit.indexOf('CREATE FUNCTION public.fiscal_intake_commit('), fiscalCommit.indexOf('CREATE FUNCTION public.fiscal_intake_abort('))
+    expect(bloco).toContain('INSERT INTO public.notas_fiscais(')
+    expect(bloco).toContain('PERFORM private.fiscal_registrar_parcelas_nota_fiscal(')
+    expect(bloco).not.toContain('EXCEPTION WHEN')
+    expect(bloco.indexOf('private.fiscal_registrar_parcelas_nota_fiscal(')).toBeLessThan(bloco.indexOf("SET state='COMPLETED'"))
   })
 })
 
@@ -119,29 +122,22 @@ describe('P0 (correcao): Boleto dentro do card "Documentos pre-cessao", sem card
 })
 
 describe('P0 (correcao): requisitos documentais nao carregam -- ordem de criacao da NF', () => {
-  const blocoUploadXml = notaFiscalAction.slice(
-    notaFiscalAction.indexOf("const nfData = nf as { id: string }"),
-    notaFiscalAction.indexOf('} else {', notaFiscalAction.indexOf("const nfData = nf as { id: string }")),
-  )
+  const blocoUploadXml = fiscalCommit.slice(fiscalCommit.indexOf('CREATE FUNCTION public.fiscal_intake_commit('))
 
   it('registrar_parcelas_nota_fiscal e chamado ANTES de uploadDocumentoSeRequerido (para o fan-out de boleto por_parcela ja encontrar as parcelas na 1a instanciacao)', () => {
-    const indiceParcelas = blocoUploadXml.indexOf("supabase.rpc('registrar_parcelas_nota_fiscal'")
-    const indiceUploadXml = blocoUploadXml.indexOf('uploadDocumentoSeRequerido(')
+    const indiceParcelas = blocoUploadXml.indexOf('private.fiscal_registrar_parcelas_nota_fiscal(')
+    const indiceUploadXml = blocoUploadXml.indexOf('private.fiscal_instanciar_requisitos_nota(')
     expect(indiceParcelas).toBeGreaterThan(-1)
     expect(indiceUploadXml).toBeGreaterThan(-1)
     expect(indiceParcelas).toBeLessThan(indiceUploadXml)
   })
 
-  it('removerNotaFiscalParcial remove nota_fiscal_parcelas antes de remover a NF (nota_fiscal_parcelas.nota_fiscal_id e ON DELETE RESTRICT)', () => {
-    const funcao = notaFiscalAction.slice(
-      notaFiscalAction.indexOf('async function removerNotaFiscalParcial'),
-      notaFiscalAction.indexOf('async function recuperarDuplicidadeIncompleta'),
-    )
-    const indiceDeleteParcelas = funcao.indexOf("from('nota_fiscal_parcelas').delete()")
-    const indiceDeleteNf = funcao.indexOf("from('notas_fiscais')")
-    expect(indiceDeleteParcelas).toBeGreaterThan(-1)
-    expect(indiceDeleteNf).toBeGreaterThan(-1)
-    expect(indiceDeleteParcelas).toBeLessThan(indiceDeleteNf)
+  it('entrada legada usa o mesmo commit atomico sem exclusao compensatoria de NF e parcelas', () => {
+    const funcao = notaFiscalAction.slice(notaFiscalAction.indexOf('export async function criarNFManual('), notaFiscalAction.indexOf('// Salvar/atualizar dados de NF rascunho'))
+    expect(funcao).toContain('return uploadNFs(upload)')
+    expect(funcao).not.toContain(".from('notas_fiscais')")
+    expect(notaFiscalAction).not.toContain('async function removerNotaFiscalParcial')
+    expect(fiscalCommit).toContain('PERFORM private.fiscal_registrar_parcelas_nota_fiscal(')
   })
 })
 
