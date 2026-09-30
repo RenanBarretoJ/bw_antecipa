@@ -3,6 +3,7 @@
 import { requireNotaFiscalAccess } from '@/lib/auth/authorization'
 import { buckets } from '@/lib/storage'
 import { createAdminClient } from '@/lib/supabase/server'
+import { z } from 'zod'
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const SIGNED_URL_TTL_SECONDS = 10 * 60
@@ -29,7 +30,7 @@ export async function obterUrlArquivoNotaFiscal(
     const context = await requireNotaFiscalAccess(notaFiscalId)
     const { data: nota, error } = await context.supabase
       .from('notas_fiscais')
-      .select('id, arquivo_url, tipo_documento_fiscal, fiscal_proveniencia')
+      .select('id, arquivo_url, tipo_documento_fiscal, fiscal_proveniencia, fiscal_reservation_id')
       .eq('id', notaFiscalId)
       .maybeSingle()
 
@@ -38,9 +39,16 @@ export async function obterUrlArquivoNotaFiscal(
     }
     let bucket: string = buckets.notasFiscais
     let path = nota.arquivo_url
-    if (!path && nota.tipo_documento_fiscal === 'NFSE') {
+    if (nota.fiscal_reservation_id) {
+      const original = await createAdminClient().rpc('fiscal_intake_get_original', { p_nf_id: nota.id })
+      const parsed = z.object({ bucket: z.enum(['notas-fiscais', 'documentos-v2']), path: z.string().min(1) }).safeParse(original.data)
+      if (original.error || !parsed.success) return { success: false, message: 'Não foi possível abrir o arquivo original.' }
+      bucket = parsed.data.bucket
+      path = parsed.data.path
+    }
+    if (!path) {
       const { data: links, error: linksError } = await context.supabase.from('documento_requisito_instancias')
-        .select('documento_id').eq('nota_fiscal_id', nota.id).eq('tipo_documento_codigo_snapshot', 'nf_danfe_pdf')
+        .select('documento_id').eq('nota_fiscal_id', nota.id).in('tipo_documento_codigo_snapshot', ['nf_xml', 'nf_danfe_pdf'])
       const ids = (links ?? []).flatMap(link => link.documento_id ? [link.documento_id] : [])
       const provenance = nota.fiscal_proveniencia as { sha256?: string } | null
       if (!linksError && ids.length && provenance?.sha256) {

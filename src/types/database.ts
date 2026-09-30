@@ -2392,6 +2392,23 @@ export interface Database {
     }
     Views: Record<string, never>
     Functions: {
+      email_intake_claim_attachment: { Args: { p_queue: string }; Returns: Array<{ id: string; token: string; attempt: number }> }
+      email_intake_get_attachment_claim: { Args: { p_id: string; p_token: string }; Returns: unknown }
+      email_intake_settle_attachment: { Args: { p_id: string; p_token: string; p_outcome: string; p_retry_after_ms?: number }; Returns: undefined }
+      fiscal_intake_reserve: { Args: { p_actor: Record<string, unknown>; p_fundo_id: string; p_cedente_fundo_id: string; p_estabelecimento_id: string; p_document_type: string; p_fiscal_key: string; p_file_sha256: string; p_recover_xml?: boolean }; Returns: unknown }
+      fiscal_intake_resolve_scope: { Args: { p_actor: Record<string, unknown>; p_fundo_id: string; p_issuer_cnpj: string; p_cedente_fundo_id: string | null }; Returns: unknown }
+      fiscal_intake_stage: { Args: { p_id: string; p_token: string; p_generation: number; p_values: Record<string, unknown>; p_parcelas: Array<{ numero_parcela: number; valor_nominal: number; data_vencimento: string }>; p_file_name: string; p_mime_type: string; p_size_bytes: number; p_document_code: string }; Returns: undefined }
+      fiscal_intake_prepare_storage: { Args: { p_id: string; p_token: string; p_generation: number }; Returns: unknown }
+      fiscal_intake_get_original: { Args: { p_nf_id: string }; Returns: unknown }
+      fiscal_intake_commit: { Args: { p_id: string; p_token: string; p_generation: number; p_storage_intent_id: string }; Returns: unknown }
+      fiscal_intake_abort: { Args: { p_id: string; p_token: string; p_generation: number }; Returns: unknown }
+      fiscal_intake_open_review: { Args: { p_id: string; p_token: string; p_generation: number; p_fiscal_sha256: string }; Returns: string }
+      fiscal_intake_resume_review: { Args: { p_review_id: string; p_fundo_id: string; p_cedente_fundo_id: string; p_file_sha256: string; p_fiscal_sha256: string; p_fiscal_key: string }; Returns: unknown }
+      fiscal_intake_claim_cleanup: { Args: { p_reservation_id?: string }; Returns: unknown }
+      fiscal_intake_reconcile_expired: { Args: { p_limit?: number }; Returns: number }
+      fiscal_intake_read_email_review: { Args: { p_fundo_id: string; p_cedente_fundo_id: string; p_review_id?: string | null }; Returns: unknown }
+      fiscal_intake_get_review_source: { Args: { p_review_id: string; p_fundo_id: string; p_cedente_fundo_id: string }; Returns: unknown }
+      fiscal_intake_settle_cleanup: { Args: { p_id: string; p_token: string; p_deleted: boolean }; Returns: undefined }
       criar_convite_novo_cedente: {
         Args: { p_fundo_id: string; p_cnpj: string; p_email: string; p_token_hash: string; p_correlation_id: string }
         Returns: { convite_id: string; fundo_id: string; fundo_nome: string; cnpj: string; email: string; expires_at: string }

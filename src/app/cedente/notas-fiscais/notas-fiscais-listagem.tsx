@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { uploadNFs, excluirRascunho, excluirRascunhos, type NfActionState } from '@/lib/actions/nota-fiscal'
+import { abrirProximaRevisaoEmail, concluirRevisaoEmail } from '@/lib/actions/fiscal-email-review'
 import { formatCurrency, formatCNPJ, formatDate } from '@/lib/utils'
 import {
   LIMITES_LISTAGEM_NF,
@@ -78,6 +79,7 @@ type Props = {
   }
   basePath?: string
   cedenteIdSelecionado?: string
+  emailReviewAvailable?: boolean
 }
 
 const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; className: string; icon: typeof CheckCircle }> = {
@@ -121,11 +123,13 @@ export default function NotasFiscaisListagem({
   filtros,
   basePath = '/cedente/notas-fiscais',
   cedenteIdSelecionado,
+  emailReviewAvailable = false,
 }: Props) {
   const router = useRouter()
   const notifications = useNotifications()
   const nfs = mapearNfs(resultado)
   const [uploading, setUploading] = useState(false)
+  const [openingEmailReview, setOpeningEmailReview] = useState(false)
   const [filtroStatus, setFiltroStatus] = useState<string>(filtros.status)
   const [busca, setBusca] = useState(filtros.busca)
   const [valorMin, setValorMin] = useState(filtros.valorMin?.toString() || '')
@@ -215,7 +219,7 @@ export default function NotasFiscaisListagem({
 
   const addFiles = useCallback((files: File[]) => {
     if (uploading) return
-    const validExtensions = ['.xml', '.pdf', '.jpg', '.jpeg', '.png']
+    const validExtensions = ['.xml', '.pdf']
     const validFiles = files.filter((f) => {
       const ext = '.' + f.name.split('.').pop()?.toLowerCase()
       return validExtensions.includes(ext)
@@ -238,6 +242,26 @@ export default function NotasFiscaisListagem({
     setSelectedFiles((prev) => prev.filter((_, i) => i !== index))
   }
 
+  const openEmailReview = async () => {
+    if (uploading || openingEmailReview) return
+    setOpeningEmailReview(true)
+    try {
+      const result = await abrirProximaRevisaoEmail(cedenteIdSelecionado)
+      if (result.status === 'ERROR') { notifications.error(result.message); return }
+      if (result.status === 'EMPTY') { notifications.success('Não há NFS-e recebida por e-mail aguardando vencimento.'); return }
+      if ([...nfseReviews.values()].some(review => review.intentId === result.review.intentId)) return
+      // Display-only item. Submission retrieves the original on the server.
+      const file = new File([], result.fileName, { type: 'application/pdf' })
+      setNfseReviews(previous => new Map(previous).set(file, result.review))
+      setSelectedFiles(previous => [...previous, file])
+      setUploadBatch(null)
+    } catch {
+      notifications.error('Não foi possível abrir a revisão. Tente novamente.')
+    } finally {
+      setOpeningEmailReview(false)
+    }
+  }
+
   const handleUpload = async () => {
     if (selectedFiles.length === 0 || uploading) return
     if (selectedFiles.some(file => nfseReviews.has(file) && !nfseDueDates.get(file))) {
@@ -258,7 +282,10 @@ export default function NotasFiscaisListagem({
 
         let actionResult: NfActionState
         try {
-          actionResult = await uploadNFs(formData)
+          const review = nfseReviews.get(file)
+          actionResult = review?.sourceChannel === 'EMAIL_INTAKE' && review.intentId
+            ? await concluirRevisaoEmail({ reviewId: review.intentId, manualDue: nfseDueDates.get(file) ?? '', cedenteId: cedenteIdSelecionado })
+            : await uploadNFs(formData)
         } catch {
           actionResult = undefined
         }
@@ -375,13 +402,17 @@ export default function NotasFiscaisListagem({
         <h1 className="text-2xl font-bold text-foreground">
           {cedenteIdSelecionado ? 'Notas Fiscais do Cedente' : 'Minhas Notas Fiscais'}
         </h1>
-        <p className="text-muted-foreground">Envie XMLs de NF-e para leitura automatica ou PDFs para preenchimento manual.</p>
+        <p className="text-muted-foreground">Envie o XML ou PDF da nota fiscal com a chave fiscal para leitura automática.</p>
       </div>
 
       {/* Upload */}
       <Card className="mb-6">
         <CardHeader>
           <CardTitle>Enviar Notas Fiscais</CardTitle>
+          {emailReviewAvailable && <Button variant="outline" size="sm" onClick={openEmailReview} disabled={uploading || openingEmailReview}>
+            {openingEmailReview ? <Loader2 className="animate-spin" /> : <FileText />}
+            Revisar NFS-e recebida por e-mail
+          </Button>}
         </CardHeader>
         <CardContent>
           <div
@@ -399,7 +430,7 @@ export default function NotasFiscaisListagem({
               type="file"
               multiple
               disabled={uploading}
-              accept=".xml,.pdf,.jpg,.jpeg,.png"
+              accept=".xml,.pdf"
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
               onChange={(e) => {
                 if (e.target.files) addFiles(Array.from(e.target.files))
@@ -411,7 +442,7 @@ export default function NotasFiscaisListagem({
               {dragActive ? 'Solte os arquivos aqui' : 'Arraste e solte seus arquivos aqui'}
             </p>
             <p className="text-sm text-muted-foreground mt-1">
-              ou clique para selecionar — XML (leitura automatica), PDF (extracao automatica), JPG/PNG (preenchimento manual)
+              ou clique para selecionar — XML ou PDF com chave fiscal
             </p>
             <p className="text-xs text-muted-foreground/70 mt-2">Maximo 20MB por arquivo. Multiplos arquivos permitidos.</p>
           </div>
@@ -439,7 +470,7 @@ export default function NotasFiscaisListagem({
                       <FileText size={16} className={getFileIcon(file.name)} />
                       <span className="text-sm text-foreground truncate">{file.name}</span>
                       <span className="text-xs text-muted-foreground shrink-0">
-                        ({(file.size / 1024 / 1024).toFixed(1)} MB)
+                        {nfseReviews.get(file)?.sourceChannel === 'EMAIL_INTAKE' ? 'Recebida por e-mail' : `(${(file.size / 1024 / 1024).toFixed(1)} MB)`}
                       </span>
                       {file.name.endsWith('.xml') ? (
                         <Badge className="bg-green-100 text-green-700 border-green-200 text-xs px-1.5 py-0.5">
@@ -481,7 +512,7 @@ export default function NotasFiscaisListagem({
                     className="h-10 rounded-md border px-3" value={nfseDueDates.get(file) ?? ''}
                     min={review.emissao}
                     onChange={event => setNfseDueDates(previous => new Map(previous).set(file, event.target.value))} />
-                  <p className="text-xs text-muted-foreground">Nada foi gravado ainda. O preenchimento manual será auditado ao concluir.</p>
+                  <p className="text-xs text-muted-foreground">A nota fiscal ainda não foi criada. O preenchimento manual será auditado ao concluir.</p>
                 </fieldset>
               })}
               <Button

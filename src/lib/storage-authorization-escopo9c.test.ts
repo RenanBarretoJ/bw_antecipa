@@ -40,7 +40,7 @@ describe('autorizacao de Storage do Escopo 9C', () => {
 
   it('valida o ator e resolve o path registrado antes de usar service role', () => {
     const authorizationAt = action.indexOf('requireNotaFiscalAccess(notaFiscalId)')
-    const pathAt = action.indexOf(".select('id, arquivo_url, tipo_documento_fiscal, fiscal_proveniencia')")
+    const pathAt = action.indexOf(".select('id, arquivo_url, tipo_documento_fiscal, fiscal_proveniencia, fiscal_reservation_id')")
     const adminAt = action.indexOf('createAdminClient().storage')
 
     expect(authorizationAt).toBeGreaterThan(-1)
