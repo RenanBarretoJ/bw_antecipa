@@ -128,3 +128,25 @@ Pendentes do R2 maior: preencher vencimento e certificar reextração/persistên
 audit reais, duplicidade, integridade Storage, matriz RLS remota e promoção/smokes
 em homolog. Não executados nem declarados PASS nesta correção pequena. Nenhuma
 migration, variável, segredo, flag ou política financeira foi alterada.
+
+## GUIBOR-PROD-02-R2 — contrato visual (30/09/2026)
+
+O smoke na Preview `release/guibor-prod-02`, SHA `608e942`, passou no PDF
+textual (review, vencimento manual, persistência, auditoria e duplicidade),
+mas recusou o PDF imagem sintético com `NFSE_VISUAL_INVALID_CONTRACT`.
+O arquivo foi validado: uma página, 105.676 bytes e zero caracteres nativos.
+Houve uma submissão, sem loop de retry, sem NF ou Storage criado nesse caso.
+Cleanup PASS; 123 tabelas públicas vazias, Auth/MFA/sessões e Storage em zero.
+
+A causa específica ainda não consta da telemetria anterior. Não se atribui
+a falha a credencial, dígito, fingerprint ou confiança sem evidência. O delta
+adiciona `NfseVisualContractError`: somente paths e códigos enumerados de
+validação, deduplicados e filtrados novamente na fronteira de log. Não retém
+mensagens Zod, valores, nomes de campos desconhecidos, payload nem `cause`.
+As regras locais, o schema enviado, prompt, modelo e persistência não mudam.
+
+Sete novos casos cobrem ambiguidade, baixa confiança, múltiplos documentos,
+fingerprint, tipo de campo, propriedades extras e adulteração do diagnóstico.
+68 testes focados PASS. A publicação autorizada é somente nesta Preview;
+nenhum merge em main, migration, homolog ou deploy produtivo integra o escopo.
+O fluxo visual permanece pendente até o novo diagnóstico/smoke autenticado.

@@ -1,5 +1,36 @@
 import type { NfseExtractionGate } from './contracts'
 
+const contractFacts = ['numero_nfse', 'chave_acesso_nfse', 'data_emissao', 'competencia', 'prestador_cnpj', 'prestador_nome',
+  'tomador_cnpj', 'tomador_nome', 'valor_operacao_servico', 'valor_liquido_nfse',
+  'valor_liquido_nfse_mais_ibscbs', 'total_retencoes', 'desconto_incondicionado', 'vencimento'] as const
+const contractPaths = new Set(['document', 'document_kind', 'fingerprint', 'document_count', 'ambiguous', 'confidence',
+  ...contractFacts, ...contractFacts.flatMap(field => [`${field}.value`, `${field}.label`])])
+const contractCodes = new Set(['invalid_type', 'invalid_value', 'too_small', 'too_big',
+  'unrecognized_keys', 'invalid_format', 'invalid_contract'])
+type ContractIssue = { field: string; code: string }
+
+function sanitizeContract(issues: readonly ContractIssue[]) {
+  const unique = new Map<string, ContractIssue>()
+  for (const issue of issues) {
+    const field = contractPaths.has(issue.field) ? issue.field : 'document'
+    const code = contractCodes.has(issue.code) ? issue.code : 'invalid_contract'
+    unique.set(`${field}:${code}`, { field, code })
+  }
+  return [...unique.values()]
+}
+
+/** Keep only known paths/codes, never Zod messages, received values, unknown keys or the input. */
+export class NfseVisualContractError extends Error {
+  readonly diagnostic: { contract_issues: ContractIssue[] }
+  constructor(issues: readonly { path: readonly PropertyKey[]; code: string }[]) {
+    super('NFSE_VISUAL_INVALID_CONTRACT')
+    this.diagnostic = { contract_issues: sanitizeContract(issues.map(issue => ({
+      field: issue.path.every(part => typeof part === 'string') ? issue.path.join('.') : 'document',
+      code: issue.code,
+    }))) }
+  }
+}
+
 // Closed vocabulary: never retain model output, fiscal values or parser payloads.
 const fields = ['numero_nf', 'chave_acesso', 'cnpj_emitente', 'razao_social_emitente',
   'cnpj_destinatario', 'razao_social_destinatario', 'endereco_destinatario', 'competencia',
@@ -31,6 +62,9 @@ export class NfseVisualFiscalError extends Error {
 
 /** Explicit log boundary; ignore arbitrary properties and re-sanitize even typed errors. */
 export function safeNfseVisualDiagnostic(error: unknown) {
+  if (error instanceof NfseVisualContractError) return {
+    failed_fields: [], reasons: [], contract_issues: sanitizeContract(error.diagnostic.contract_issues),
+  }
   if (!(error instanceof NfseVisualFiscalError)) return undefined
   return sanitize(error.diagnostic.failed_fields, error.diagnostic.reasons)
 }
