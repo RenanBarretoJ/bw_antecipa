@@ -53,7 +53,9 @@ export function attachmentDisposition(attachment: EmailAttachment): 'DOWNLOAD' |
 export function validateAttachmentBytes(attachment: EmailAttachment, bytes: Uint8Array): 'PDF' | 'XML' {
   if (attachmentDisposition(attachment) !== 'DOWNLOAD') throw new IntakeError('UNSUPPORTED_FILE')
   if (bytes.length > MAX_ATTACHMENT_BYTES) throw new IntakeError('FILE_TOO_LARGE')
-  if (bytes.length !== attachment.size) throw new IntakeError('INVALID_RESPONSE', true)
+  // Graph's attachment size can include overhead absent from /$value. It is
+  // an upper bound, not the raw file length; streamed bytes retain their own cap.
+  if (bytes.length > attachment.size) throw new IntakeError('INVALID_RESPONSE', true)
   const prefix = new TextDecoder('utf-8', { fatal: false }).decode(bytes.subarray(0, 4096)).replace(/^\uFEFF/, '').trimStart()
   if (attachment.name.toLowerCase().endsWith('.pdf') && prefix.startsWith('%PDF-')) return 'PDF'
   if (attachment.name.toLowerCase().endsWith('.xml')

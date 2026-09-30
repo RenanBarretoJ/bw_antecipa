@@ -38,6 +38,30 @@ describe('Graph transport', () => {
     await expect(adapter.syncMessages('https://graph.microsoft.com/v1.0/users/other/mailFolders/inbox/messages/delta', '2026-09-29T00:00:00Z')).rejects.toThrow('INVALID_CURSOR')
     expect(fetcher).not.toHaveBeenCalled()
   })
+  it('follows Graph OData folder selectors without rewriting opaque cursors', async () => {
+    const cursor = "https://graph.microsoft.com/v1.0/users/qa@example.test/mailFolders('inbox')/messages/delta?$skiptoken=opaque%2Bvalue"
+    const final = "https://graph.microsoft.com/v1.0/users('qa%40example.test')/mailFolders('inbox')/messages/delta?$deltatoken=opaque"
+    const { adapter, fetcher } = setup([
+      Response.json({ value: [], '@odata.nextLink': cursor }),
+      Response.json({ value: [], '@odata.deltaLink': final }),
+    ])
+    const first = await adapter.syncMessages(null, '2026-09-29T00:00:00Z')
+    expect(first).toMatchObject({ complete: false, continuation: cursor })
+    const last = await adapter.syncMessages(first.continuation, '2026-09-29T00:00:00Z')
+    expect(last).toMatchObject({ complete: true, continuation: final })
+    expect(String(fetcher.mock.calls[2][0])).toBe(cursor)
+  })
+  it.each([
+    "users('other@example.test')/mailFolders('inbox')/messages/delta",
+    "users('qa@example.test')/mailFolders('archive')/messages/delta",
+    "users('qa@example.test')/mailFolders('inbox')/messages",
+    "users('qa@example.test%2FmailFolders%2Finbox')/messages/delta",
+    "users/qa%40example.test/mailFolders('%ZZ')/messages/delta",
+  ])('rejects a different or malformed selector path %s before auth', async suffix => {
+    const { adapter, fetcher } = setup([])
+    await expect(adapter.syncMessages(`https://graph.microsoft.com/v1.0/${suffix}`, '2026-09-29T00:00:00Z')).rejects.toThrow('INVALID_CURSOR')
+    expect(fetcher).not.toHaveBeenCalled()
+  })
   it('returns durable retry metadata without raw provider error', async () => {
     const { adapter } = setup([new Response('secret body mailbox pii', { status: 429, headers: { 'Retry-After': '120' } })])
     await expect(adapter.testConnection()).rejects.toMatchObject({ code: 'THROTTLED', retryable: true, retryAfterMs: 120000, message: 'THROTTLED' })

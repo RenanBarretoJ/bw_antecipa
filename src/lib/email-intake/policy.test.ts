@@ -36,10 +36,21 @@ describe('attachment safety', () => {
     expect(() => attachmentDisposition({ ...file, kind: 'UNSUPPORTED' })).toThrow('UNSUPPORTED_FILE')
     expect(() => attachmentDisposition({ ...file, size: MAX_ATTACHMENT_BYTES + 1 })).toThrow('FILE_TOO_LARGE')
   })
-  it('checks magic bytes and declared size', () => {
+  it('checks magic bytes and the declared size upper bound', () => {
     expect(validateAttachmentBytes(file, new TextEncoder().encode('%PDF-1.7'))).toBe('PDF')
     expect(() => validateAttachmentBytes(file, new TextEncoder().encode('MZ123456'))).toThrow('UNSUPPORTED_FILE')
     expect(() => validateAttachmentBytes(file, new Uint8Array(9))).toThrow('INVALID_RESPONSE')
+  })
+  it('accepts Graph metadata overhead without changing the downloaded XML', () => {
+    const bytes = new TextEncoder().encode('<nfeProc><NFe/></nfeProc>')
+    expect(validateAttachmentBytes({ ...file, name: 'nf.xml', contentType: 'application/octet-stream',
+      size: bytes.length + 422 }, bytes)).toBe('XML')
+    expect(validateAttachmentBytes({ ...file, size: 430 }, new TextEncoder().encode('%PDF-1.7'))).toBe('PDF')
+  })
+  it('still rejects empty content and enforces the physical byte cap', () => {
+    expect(() => validateAttachmentBytes(file, new Uint8Array())).toThrow('UNSUPPORTED_FILE')
+    expect(() => validateAttachmentBytes({ ...file, size: MAX_ATTACHMENT_BYTES },
+      new Uint8Array(MAX_ATTACHMENT_BYTES + 1))).toThrow('FILE_TOO_LARGE')
   })
   it('rejects XML entity declarations and accepts fiscal XML containers', () => {
     for (const xml of ['<nfeProc><NFe/></nfeProc>', '<?xml version="1.0"?><NFe/>']) {

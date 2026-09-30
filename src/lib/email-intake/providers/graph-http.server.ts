@@ -35,12 +35,31 @@ export async function readBoundedBody(response: Response, limit: number): Promis
   return bytes
 }
 
+/** Compare resource identities across slash and OData key-selector notation.
+ * Keep decoded identifiers as separate array entries: an encoded slash inside
+ * an ID must never become a new resource segment. Returned URLs stay opaque. */
+function graphPathSegments(path: string): string[] {
+  try {
+    return path.split('/').flatMap(raw => {
+      const segment = decodeURIComponent(raw)
+      const selector = /^(users|mailFolders|messages|attachments)\('((?:[^']|'')+)'\)$/.exec(segment)
+      return selector ? [selector[1], selector[2].replaceAll("''", "'")] : [segment]
+    })
+  } catch { throw new IntakeError('INVALID_CURSOR') }
+}
+
 export function validateGraphUrl(raw: string, expectedPath?: string): URL {
   let url: URL
   try { url = new URL(raw, GRAPH_ORIGIN) } catch { throw new IntakeError('INVALID_CURSOR') }
   if (url.origin !== GRAPH_ORIGIN || url.username || url.password || url.hash
-    || !url.pathname.startsWith('/v1.0/') || (expectedPath && url.pathname !== expectedPath)) {
+    || !url.pathname.startsWith('/v1.0/')) {
     throw new IntakeError('INVALID_CURSOR')
+  }
+  if (expectedPath) {
+    const actual = graphPathSegments(url.pathname), expected = graphPathSegments(expectedPath)
+    if (actual.length !== expected.length || actual.some((segment, index) => segment !== expected[index])) {
+      throw new IntakeError('INVALID_CURSOR')
+    }
   }
   return url
 }
