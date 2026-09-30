@@ -12,6 +12,7 @@ export default defineConfig({
     environment: 'node',
     include: [
       'src/**/*.test.ts',
+      'scripts/qa/guibor/**/*.test.mjs',
       'scripts/perf9d/**/*.test.mjs',
       'scripts/perf9e/**/*.test.mjs',
       'scripts/homologacao/financeiro/readiness/**/*.test.mjs',
