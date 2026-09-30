@@ -3,8 +3,9 @@ import { spawnSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 
 // This runner can address ONLY the explicitly created local rehearsal database.
-const container = 'supabase_db_fhgkmggthxikfpogrvaa'
-const db = 'guibor_a3_a4_roles_20260929'
+const prod02 = process.argv.includes('--prod02')
+const container = prod02 ? 'supabase_db_bw-antecipa-prod-rehearsal' : 'supabase_db_fhgkmggthxikfpogrvaa'
+const db = prod02 ? 'guibor_prod02_certified_20260930' : 'guibor_a3_a4_roles_20260929'
 function docker(args, input) {
   const result = spawnSync('docker', args, { input, encoding: 'utf8', windowsHide: true, maxBuffer: 8_000_000 })
   if (result.status !== 0) throw new Error(result.stderr || result.stdout || 'DOCKER_TEST_FAILED')
@@ -12,6 +13,7 @@ function docker(args, input) {
 }
 const migration = readFileSync('supabase/migrations/20260929154656_guibor_nfse_fiscal_provenance.sql', 'utf8')
 if (process.argv.includes('--prepare')) {
+  if (prod02) throw new Error('PROD02_USE_DEDICATED_REHEARSAL_PREPARATION')
   const existing = docker(['exec', container, 'psql', '-U', 'supabase_admin', '-d', 'postgres', '-Atc', `select 1 from pg_database where datname='${db}'`]).trim()
   if (existing) throw new Error('ISOLATED_DATABASE_ALREADY_EXISTS')
   docker(['exec', container, 'pg_dump', '-U', 'supabase_admin', '-d', 'postgres', '-Fc', '--exclude-table-data=vault.secrets', '-f', '/tmp/guibor_verified_baseline.dump'])
