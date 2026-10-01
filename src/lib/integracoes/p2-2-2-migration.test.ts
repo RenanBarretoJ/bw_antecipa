@@ -25,9 +25,10 @@ describe('P2.2.2 - Sinqia financeiro e Envios Operacionais', () => {
     expect(page).toContain('>Envios Operacionais</Link>')
   })
 
-  it('so exibe a configuracao CNAB dentro de uma integracao de cessao resolvida', () => {
+  it('exibe CNAB pelo formato cadastrado, sem exigir ativacao previa', () => {
     expect(operationalDeliveries).toContain("capability: 'CESSAO_ENVIO'")
-    expect(operationalDeliveries).toContain("integration && method === 'CNAB'")
+    expect(operationalDeliveries).toContain('podeParametrizarCnab(state.integracoes, ambiente, integration?.adapterKey || null)')
+    expect(operationalDeliveries).toContain('{showCnab && <FundoCnabTecnico')
     expect(operationalDeliveries).not.toContain('BAIXA_ENVIO')
   })
 

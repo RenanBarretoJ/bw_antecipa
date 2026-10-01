@@ -1,6 +1,8 @@
 'use server'
 
-import { createHash, randomUUID } from 'node:crypto'
+import { randomUUID } from 'node:crypto'
+import { calcularHashConfiguracaoCnab } from '@/lib/cnab/domain'
+import { normalizarConfiguracaoCnabInput } from '@/lib/cnab/resolver-configuracao'
 import { revalidatePath } from 'next/cache'
 import { requireSuperAdmin } from '@/lib/auth/admin-authorization'
 import { AuthorizationError } from '@/lib/auth/authorization'
@@ -435,7 +437,7 @@ export async function salvarCnabRascunhoAdmin(input: unknown): Promise<AdminTech
     const parsed = adminCnabRascunhoSchema.safeParse(input)
     if (!parsed.success) return respostaErro('Revise os parametros CNAB.', correlationId)
     const context = await requireSuperAdmin()
-    const conteudoHash = createHash('sha256').update(JSON.stringify({
+    const cnab = normalizarConfiguracaoCnabInput({
       layout: parsed.data.layout,
       versaoLayout: parsed.data.versaoLayout,
       codigoBanco: parsed.data.codigoBanco,
@@ -452,7 +454,8 @@ export async function salvarCnabRascunhoAdmin(input: unknown): Promise<AdminTech
       especieTitulo: parsed.data.especieTitulo,
       tipoRecebivel: parsed.data.tipoRecebivel,
       configuracao: parsed.data.configuracao,
-    })).digest('hex')
+    })
+    const conteudoHash = calcularHashConfiguracaoCnab(cnab)
     const { data, error } = await context.supabase.rpc('admin_salvar_cnab_rascunho', {
       p_fundo_id: parsed.data.fundoId,
       p_configuracao_id: parsed.data.configuracaoId || null,
@@ -460,22 +463,22 @@ export async function salvarCnabRascunhoAdmin(input: unknown): Promise<AdminTech
       p_codigo: parsed.data.codigo,
       p_nome: parsed.data.nome,
       p_descricao: parsed.data.descricao || null,
-      p_layout: parsed.data.layout,
-      p_versao_layout: parsed.data.versaoLayout,
-      p_codigo_banco: parsed.data.codigoBanco,
-      p_banco: parsed.data.banco,
-      p_agencia: parsed.data.agencia,
-      p_conta: parsed.data.conta,
-      p_digito_conta: parsed.data.digitoConta,
-      p_carteira: parsed.data.carteira,
-      p_convenio: parsed.data.convenio,
-      p_codigo_originador: parsed.data.codigoOriginador,
-      p_codigo_empresa: parsed.data.codigoEmpresa,
-      p_tipo_inscricao: parsed.data.tipoInscricao,
-      p_numero_inscricao: parsed.data.numeroInscricao,
-      p_especie_titulo: parsed.data.especieTitulo,
-      p_tipo_recebivel: parsed.data.tipoRecebivel,
-      p_configuracao: parsed.data.configuracao,
+      p_layout: cnab.layout,
+      p_versao_layout: cnab.versaoLayout,
+      p_codigo_banco: cnab.codigoBanco,
+      p_banco: cnab.banco,
+      p_agencia: cnab.agencia,
+      p_conta: cnab.conta,
+      p_digito_conta: cnab.digitoConta,
+      p_carteira: cnab.carteira,
+      p_convenio: cnab.convenio,
+      p_codigo_originador: cnab.codigoOriginador,
+      p_codigo_empresa: cnab.codigoEmpresa,
+      p_tipo_inscricao: cnab.tipoInscricao,
+      p_numero_inscricao: cnab.numeroInscricao,
+      p_especie_titulo: cnab.especieTitulo,
+      p_tipo_recebivel: cnab.tipoRecebivel,
+      p_configuracao: { ...cnab.configuracao },
       p_conteudo_hash: conteudoHash,
       p_updated_at_esperado: parsed.data.updatedAtEsperado || null,
       p_correlation_id: correlationId,

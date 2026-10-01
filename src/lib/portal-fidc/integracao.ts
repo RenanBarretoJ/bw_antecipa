@@ -1,4 +1,5 @@
 import JSZip from 'jszip'
+import { validarOriginadorRemessa } from './originador-remessa'
 import { createHash } from 'crypto'
 import { createAdminClient } from '@/lib/supabase/server'
 import { buckets } from '@/lib/storage'
@@ -69,7 +70,7 @@ type RemessaPortalFidc = {
   sha256: string
   retorno_resumido: string | null
   fundo: { cnpj: string } | null
-  configuracao: { codigo_originador: string; tipo_recebivel: string } | null
+  configuracao: { codigo_originador: string; tipo_recebivel: string; status: string } | null
 }
 
 export function sha256Hex(value: string | Buffer) {
@@ -366,7 +367,7 @@ function extrairIdArquivoSoap(xmlContent: string) {
 async function carregarRemessaPorOperacao(admin: AdminClient, operacaoId: string) {
   const { data: link, error } = await admin
     .from('remessas_cnab_operacoes')
-    .select('remessa:remessas_cnab(id, fundo_id, configuracao_cnab_id, configuracao_cnab_versao_id, integracao_fundo_versao_id, status, bucket, storage_path, nome_arquivo, sha256, retorno_resumido, fundo:fundos(cnpj), configuracao:configuracao_cnab_versoes(codigo_originador, tipo_recebivel))')
+    .select('remessa:remessas_cnab(id, fundo_id, configuracao_cnab_id, configuracao_cnab_versao_id, integracao_fundo_versao_id, status, bucket, storage_path, nome_arquivo, sha256, retorno_resumido, fundo:fundos(cnpj), configuracao:configuracao_cnab_versoes(codigo_originador, tipo_recebivel, status))')
     .eq('operacao_id', operacaoId)
     .order('created_at', { ascending: false })
     .limit(1)
@@ -388,12 +389,7 @@ async function baixarArquivoRemessa(admin: AdminClient, remessa: RemessaPortalFi
 }
 
 function validarCodigoOriginador(remessa: RemessaPortalFidc, integracao: PortalFidcVersaoResolvida) {
-  const codigoCnab = remessa.configuracao?.codigo_originador
-  const codigoIntegracao = integracao.codigoOriginador
-  if (!codigoCnab || !codigoIntegracao || codigoCnab !== codigoIntegracao) {
-    const detalhe = `CNAB=${codigoCnab || 'nao configurado'} PortalFIDC=${codigoIntegracao || 'nao configurado'}`
-    throw Object.assign(new Error(`O codigo originador da configuracao CNAB diverge do codigo originador configurado no Portal FIDC para este fundo. ${detalhe}`), { categoria: 'codigo_originador_divergente' })
-  }
+  validarOriginadorRemessa(remessa.configuracao, integracao.codigoOriginador)
 }
 
 async function enviarSoapPortalFidc(input: {

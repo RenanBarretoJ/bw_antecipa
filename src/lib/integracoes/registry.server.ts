@@ -53,10 +53,9 @@ const adapters: readonly IntegrationAdapterDefinition[] = [
     },
     requiresCredential: true,
     requiresEndpoint: true,
-    validatePublication({ capabilities, clientIdentifier, originatorCode, config }) {
+    validatePublication({ capabilities, clientIdentifier, config }) {
       if (capabilities.includes('CESSAO_ENVIO')) {
         if (!clientIdentifier.trim()) return 'Informe o identificador do cliente antes de publicar o envio de cessao.'
-        if (!originatorCode?.trim()) return 'Publique a configuracao CNAB antes de publicar o envio de cessao.'
       }
       if (capabilities.some((item) => item === 'ESTOQUE' || item === 'AQUISICOES' || item === 'LIQUIDACOES')) {
         const reports = config.relatorios_financeiros
