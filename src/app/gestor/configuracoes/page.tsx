@@ -21,6 +21,7 @@ export default async function ConfiguracoesGestorPage({ searchParams }: { search
   return <PageContainer className="space-y-5">
     <PageHeader eyebrow="Fundo ativo" title="Configuracoes operacionais" description={`${fundo.fundoNome}. Dados estruturais, CNAB, integracoes e credenciais sao administrados pela plataforma.`} />
     <div className="flex flex-wrap gap-2 border-b border-border pb-2">
+      <Link className={`${tabClass} hover:bg-muted`} href="/gestor/integracoes-email">Integração de e-mail</Link>
       <Link className={`${tabClass} ${tab === 'politicas' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`} href="/gestor/configuracoes?tab=politicas">Politicas</Link>
       <Link className={`${tabClass} ${tab === 'templates' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`} href="/gestor/configuracoes?tab=templates">Templates juridicos</Link>
       <Link className={`${tabClass} ${tab === 'comunicacoes' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`} href="/gestor/configuracoes?tab=comunicacoes">Comunicacoes</Link>

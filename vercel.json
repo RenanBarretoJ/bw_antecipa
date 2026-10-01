@@ -1,4 +1,9 @@
 {
+  "git": {
+    "deploymentEnabled": {
+      "validation/rlx-email04-linux": false
+    }
+  },
   "crons": [
     {
       "path": "/api/cron/financeiro",

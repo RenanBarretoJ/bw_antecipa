@@ -2394,7 +2394,7 @@ export interface Database {
       risco_revisoes: { Row: RiscoRevisao & Record<string, unknown>; Insert: Partial<RiscoRevisao> & Pick<RiscoRevisao, 'risco_execucao_id' | 'fundo_id' | 'operacao_id' | 'assinatura_inputs'> & Record<string, unknown>; Update: Partial<RiscoRevisao> & Record<string, unknown>; Relationships: [] }
     }
     Views: Record<string, never>
-    Functions: {
+    Functions: import('@/lib/email-intake/automation/database').EmailAutomationFunctions & {
       configurar_base_antecipacao: { Args: { p_cedente_fundo_id: string; p_base: string }; Returns: undefined }
       configurar_comissao_consultor_fundo: { Args: { p_consultor_id: string; p_fundo_id: string; p_habilitada: boolean }; Returns: undefined }
       listar_configuracao_comissao_fundo: { Args: { p_fundo_id: string }; Returns: Array<{ consultor_id: string; fundo_id: string; nome: string; comissao_habilitada: boolean }> }

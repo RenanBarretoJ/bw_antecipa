@@ -7,6 +7,8 @@ import { createClient } from '@supabase/supabase-js'
 import { configureDisposableToml, sanitizedLocalEnvironment, redactCommandOutput, fileSha256 } from '../perf9e/clean-room-lib.mjs'
 import { verifyFiscalFencing } from './fencing-db.mjs'
 import { verifyStorageApi } from './storage-api.mjs'
+import { verifyEmailAutomation } from './automation-db.mjs'
+import { verifyEmailTemporalAdmission } from './temporal-db.mjs'
 
 // Reuse platform bootstrap from the supported CLI. No schema stubs or remote links.
 const projectId = `bw_email03_${Date.now()}`
@@ -14,7 +16,10 @@ const root = resolve('rehearsal/tmp', projectId)
 const cli = resolve('node_modules/supabase/dist/supabase.js')
 const environment = sanitizedLocalEnvironment()
 const storageApi = process.argv.includes('--storage-api')
+const automation = process.argv.includes('--automation')
 for (const key of Object.keys(environment)) if (/EMAIL_INTAKE|SECRET|PASSWORD|TOKEN|CREDENTIAL/i.test(key)) delete environment[key]
+// Explicit executable path makes the same official browser smoke portable to Linux CI.
+if (process.env.EMAIL_INTAKE_QA_CHROME) environment.EMAIL_INTAKE_QA_CHROME = process.env.EMAIL_INTAKE_QA_CHROME
 const source = resolve('supabase/migrations')
 const files = (await readdir(source)).filter(name => name.endsWith('.sql')).sort()
 const evidence = { projectId, startedAt: new Date().toISOString(), productionChanged: false,
@@ -89,6 +94,8 @@ try {
         }
       }
       evidence.fencingChecks = await verifyFiscalFencing(client, connection, `${setup.slice(0, beforeNf)}END;\n$setup$;`, storageFixtures)
+      if (automation) evidence.automationChecks = await verifyEmailAutomation(client, connection)
+      if (automation) evidence.temporalChecks = await verifyEmailTemporalAdmission(client, connection)
       if (storageApi) {
         const physicalObjects = reservationId => new Promise((done, reject) => {
           assert.match(reservationId, /^[0-9a-f-]{36}$/)

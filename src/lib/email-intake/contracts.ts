@@ -27,10 +27,14 @@ export type SubscriptionInput = {
   notificationUrl: string
   lifecycleNotificationUrl: string
   clientState: string
+  /** Verified tenant mailbox object ID path; never supplied by a browser. */
+  resource?: string
 }
 export interface EmailProviderAdapter {
   testConnection(): Promise<void>
   createOrRenewSubscription(input: SubscriptionInput): Promise<Subscription>
+  findSubscription?(input: SubscriptionInput): Promise<Subscription | null>
+  deleteSubscription?(externalId: string): Promise<void>
   syncMessages(cursor: string | null, startAt: string): Promise<DiscoveryPage>
   reconcileMessages(cursor: string | null, since: string): Promise<DiscoveryPage>
   getMessage(externalId: string): Promise<EmailMessage>

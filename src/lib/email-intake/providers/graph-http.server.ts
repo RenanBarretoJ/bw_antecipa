@@ -127,6 +127,17 @@ export class GraphHttpClient {
     const response = await this.send(url, { ...init, headers })
     if (!response.ok) {
       if (response.status === 401) this.token = null
+      if (url.pathname.endsWith('/delta') && [400, 404].includes(response.status)) {
+        // Outlook can expire a delta cache with a 40x code rather than 410.
+        // Inspect only the bounded machine code; never propagate the error body.
+        let code = ''
+        try {
+          const payload: unknown = JSON.parse(new TextDecoder().decode(await readBoundedBody(response, 64 * 1024)))
+          const parsed = z.object({ error: z.object({ code: z.string() }) }).safeParse(payload)
+          code = parsed.success ? parsed.data.error.code.toLowerCase() : ''
+        } catch { code = '' }
+        if (['syncstatenotfound', 'errorinvalidsyncstatedata', 'resyncrequired'].includes(code)) throw new IntakeError('CURSOR_EXPIRED')
+      }
       await response.body?.cancel()
       throw httpError(response, this.now())
     }
