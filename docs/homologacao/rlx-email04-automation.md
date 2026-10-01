@@ -28,6 +28,37 @@ a incluir Gestor com MFA, auditoria/cooldown manual, bloqueio entre fundos,
 MFA revogado e Super Admin. Docker local está desligado; a certificação de
 banco/Storage será executada na branch de validação Linux, sem deploy Vercel.
 
+### Resultado da primeira CI em 01/10/2026
+
+Commit publicado: `a0f500a8872bb91f939d905de124c589baf41672`, branch remota
+`validation/rlx-email04-linux`. Execução:
+https://github.com/RenanBarretoJ/bw_antecipa/actions/runs/36859658646
+
+TypeScript, suíte de testes, lint e build passaram localmente e na CI. As 253
+migrations foram aplicadas no ambiente descartável. Passaram 16 verificações
+de automação, 27 de fencing e 9 de Storage físico. A limpeza final passou.
+
+O clean-room completo falhou em `SHARED_SYSTEM_INGEST`: a fila entregou um ID
+de anexo diferente daquele criado pelo smoke. O fixture novo do 04 deixava sua
+integração habilitada após concluir, permitindo consumir seu anexo sintético
+na etapa seguinte. Correção preparada localmente em `automation-db.mjs`:
+desabilitar também a integração ao sair e usar dedupe keys distintas para
+RENEW/RECREATE. Essa correção ainda não foi publicada nem certificada.
+
+`RLX_EMAIL_04_CI = FAIL`, `RLX_EMAIL_04_CLEAN_ROOM = FAIL` e
+`RLX_EMAIL_04_HOMOLOG_READY = NO`. Execução interrompida no gate conforme o
+item 49 do plano (parar se clean-room ou CI falhar). Não houve promoção para
+Preview/homolog, alteração remota no Supabase ou criação de assinatura Graph.
+Evidência baixada para `rehearsal/reports/email04-ci-a0f500a/` (ignorado pelo Git).
+
+### Retomada autorizada em 01/10/2026
+
+O usuário autorizou seguir com os recursos disponíveis. Esta revisão inclui
+a correção de isolamento da fixture e a distinção entre replays de RENEW e
+RECREATE no teste. A nova CI deve certificar o clean-room completo antes de
+qualquer promoção. O Object ID da mailbox continua pendente; nenhum teste
+real dependente dele será substituído por identificador inventado.
+
 Falta ainda o Object ID da mailbox de QA no Entra. A leitura de Inbox foi
 autorizada pelo Graph, mas a consulta ao cadastro do usuário retornou 403.
 Obter o identificador com o administrador, sem ampliar permissões da aplicação.

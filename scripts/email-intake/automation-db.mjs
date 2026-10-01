@@ -10,7 +10,7 @@ export async function verifyEmailAutomation(db, connection) {
     values($1,$2,'EMAIL04 disposable','OUTLOOK_GRAPH','qa@example.invalid',true,now()-interval '7 days',now(),repeat('a',64),'EMAIL_INTAKE_QA_TEST',$3)`,[id,fund,user])
   await db.query(`insert into private.email_automation(integration_id,enabled,tenant_id,mailbox_object_id,subscription_resource) values($1,true,$2,$3,$4)`,[id,tenant,mailbox,`users/${mailbox}/mailFolders/inbox/messages`])
   const rpc=async(sql,values=[],client=db)=>(await client.query('select public.'+sql+' r',values)).rows[0].r
-  const signal=kind=>rpc('email_automation_signal($1)',[JSON.stringify([{integrationId:id,kind,dedupeKey:(kind==='DELTA'?'a':'b').repeat(64)}])])
+  const signal=kind=>rpc('email_automation_signal($1)',[JSON.stringify([{integrationId:id,kind,dedupeKey:({DELTA:'a',RENEW:'b',RECREATE:'c'}[kind]).repeat(64)}])])
   const claim=kind=>rpc('email_automation_claim($1)',[kind])
   const fail=(job,code='PROVIDER_UNAVAILABLE',retry=true,reset=false,ms=1000)=>rpc('email_automation_fail($1,$2,$3,$4,$5,$6)',[id,job.token,code,ms,retry,reset])
   const due=()=>db.query("update private.email_sync_state set next_run_at=now()-interval '1 second' where integration_id=$1",[id])
@@ -93,5 +93,10 @@ export async function verifyEmailAutomation(db, connection) {
     finally{await db.query("update public.profiles set role='gestor' where id=$1",[gestor])}
     checks.push('GESTOR_MFA_MANUAL_SYNC_AUDIT_COOLDOWN','CROSS_FUND_DENIED','REVOKED_MFA_DENIED','SUPER_ADMIN_SCOPED_ACCESS')
     return checks
-  }finally{for(const c of clients)await c.end();await db.query('update private.email_automation set enabled=false where integration_id=$1',[id])}
+  }finally{
+    for(const c of clients)await c.end()
+    await db.query('update private.email_automation set enabled=false where integration_id=$1',[id])
+    // The following 03 smoke consumes the same local attachment queue.
+    await db.query('update private.email_integrations set enabled=false where id=$1',[id])
+  }
 }
