@@ -29,12 +29,33 @@ vi.mock('@/lib/portal-fidc/credenciais', async (importOriginal) => ({
 import { integrationProviderRegistry } from '@/lib/integracoes/registry.server'
 import { getPortalFidcEncryptionKey, criptografarPortalFidcValor, PortalFidcKeyringError } from '@/lib/portal-fidc/credenciais'
 import { autorizarEConsumirAcaoSensivel } from '@/lib/auth/sensitive-action'
-import { publicarIntegracaoAdmin, salvarIntegracaoRascunhoAdmin } from './configuracoes-tecnicas-actions'
+import { publicarIntegracaoAdmin, salvarIntegracaoRascunhoAdmin, salvarCnabRascunhoAdmin } from './configuracoes-tecnicas-actions'
+import { calcularHashConfiguracaoCnab } from '@/lib/cnab/domain'
+import { normalizarConfiguracaoCnabInput } from '@/lib/cnab/resolver-configuracao'
 
 // UUID real aceito pelo PostgreSQL, mas sem nibble RFC de versao/variante.
 const fundoId = 'e84fdd30-39ed-de86-292e-0d8d9d92d759'
 const integrationId = '22222222-2222-4222-8222-222222222222'
 const versionId = '33333333-3333-4333-8333-333333333333'
+
+describe('persistencia CNAB compativel com geracao', () => {
+  it('salva conteudo normalizado com o mesmo hash usado pelo resolver da remessa', async () => {
+    vi.clearAllMocks()
+    rpc.mockResolvedValue({ data: { id: versionId }, error: null })
+    const cnab = {
+      layout: 'cnab444' as const, versaoLayout: '1', codigoBanco: '001', banco: 'banco qa', agencia: '0001', conta: '00002', digitoConta: 'x',
+      carteira: '001', convenio: '00003', codigoOriginador: '00004', codigoEmpresa: '00005', tipoInscricao: '02', numeroInscricao: '98.000.000/0001-68',
+      especieTitulo: '01', tipoRecebivel: '01', configuracao: { literalRemessa: 'remessa' },
+    }
+    const result = await salvarCnabRascunhoAdmin({ ...cnab, fundoId, codigo: 'qa_cnab', nome: 'QA CNAB' })
+    const normalized = normalizarConfiguracaoCnabInput(cnab)
+    expect(result.success).toBe(true)
+    expect(rpc).toHaveBeenCalledWith('admin_salvar_cnab_rascunho', expect.objectContaining({
+      p_conteudo_hash: calcularHashConfiguracaoCnab(normalized), p_banco: 'BANCO QA', p_numero_inscricao: '98000000000168',
+      p_digito_conta: 'X', p_codigo_originador: '00004', p_configuracao: normalized.configuracao,
+    }))
+  })
+})
 
 const base = {
   fundoId,

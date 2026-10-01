@@ -5,6 +5,14 @@ vi.mock('server-only', () => ({}))
 import { createIntegrationProviderRegistry, integrationProviderRegistry, resolverDefinicaoRemessaOperacional } from './registry.server'
 
 describe('integrationProviderRegistry', () => {
+  it('ativa Sinqia antes do CNAB, mantendo identificador e validacao financeira', () => {
+    const adapter = integrationProviderRegistry.get('sinqia_portal_fidc')!
+    const input = { capabilities: ['CESSAO_ENVIO'] as const, clientIdentifier: 'QA', originatorCode: null, config: {} }
+    expect(adapter.validatePublication(input)).toBeNull()
+    expect(adapter.validatePublication({ ...input, clientIdentifier: '' })).toMatch(/identificador/)
+    expect(adapter.validatePublication({ ...input, capabilities: ['ESTOQUE'] })).toMatch(/cnpj_fundo/)
+    expect(adapter.validatePublication({ ...input, capabilities: ['ESTOQUE'], config: { relatorios_financeiros: { cnpj_fundo: '98000000000168' } } })).toBeNull()
+  })
   it('registra os adapters Sinqia e Vortx VRS somente para capacidades com handler comprovado', () => {
     expect(integrationProviderRegistry.list().map(({ key, supports }) => ({ key, supports }))).toEqual([
       { key: 'sinqia_portal_fidc', supports: ['CESSAO_ENVIO', 'ESTOQUE', 'AQUISICOES', 'LIQUIDACOES'] },
