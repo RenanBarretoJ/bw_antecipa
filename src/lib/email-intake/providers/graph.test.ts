@@ -13,6 +13,16 @@ function setup(responses: Response[]) {
 }
 
 describe('Graph transport', () => {
+  it('retains page progress when a row needs per-message timestamp rejection', async () => {
+    const { adapter } = setup([Response.json({ value: [
+      { id: 'missing', hasAttachments: true }, { id: 'invalid', receivedDateTime: 'bad', hasAttachments: true },
+      { id: 'null', receivedDateTime: null, hasAttachments: true }, { id: 'removed', '@removed': { reason: 'deleted' } },
+    ], '@odata.nextLink': `https://graph.microsoft.com${path}?$skiptoken=next` })])
+    expect(await adapter.syncMessages(null, '2026-10-01T00:00:00Z')).toMatchObject({ complete: false, messages: [
+      { externalId: 'missing', receivedAt: '' }, { externalId: 'invalid', receivedAt: 'bad' },
+      { externalId: 'null', receivedAt: '' }, { externalId: 'removed', removed: true },
+    ] })
+  })
   it('uses app credentials and immutable IDs without fetching message bodies', async () => {
     const { adapter, fetcher } = setup([Response.json({ value: [], '@odata.deltaLink': `https://graph.microsoft.com${path}?$deltatoken=opaque` })])
     const page = await adapter.syncMessages(null, '2026-09-29T00:00:00Z')

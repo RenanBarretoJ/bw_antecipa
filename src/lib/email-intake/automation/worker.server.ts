@@ -15,9 +15,10 @@ async function sync(job: AutomationJob, repository: AutomationRepository, adapte
   if (!job.discoveryToken || job.revision === undefined) throw new IntakeError('LEASE_LOST')
   const cursor = job.cursorCiphertext && job.cursorKeyVersion ? revealValue({ ciphertext: job.cursorCiphertext,
     keyVersion: job.cursorKeyVersion }, { integrationId: job.integrationId, fundoId: job.fundoId, purpose: 'CURSOR' }) : null
-  return discoverPage({ adapter, startAt: job.startAt, mode: job.kind === 'DELTA' ? 'DELTA' : 'RECONCILIATION',
+  return discoverPage({ adapter, startAt: job.admissionStartAt, querySince: job.startAt, mode: job.kind === 'DELTA' ? 'DELTA' : 'RECONCILIATION',
     lease: { integrationId: job.integrationId, token: job.discoveryToken, revision: job.revision, cursor },
-    repository: { async commitPage(lease, messages, page) {
+    repository: { findKnownMessages: (_lease, ids) => repository.findKnownMessages(job, ids),
+      async commitPage(lease, messages, page) {
       return { ...lease, revision: await repository.commitPage(job, messages, page), cursor: page.continuation || null }
     } } })
 }
@@ -57,7 +58,12 @@ export async function runOperationalJob(kind: JobKind, dependencies: {
   try {
     const adapter = (dependencies.provider ?? createEmailProvider)(job)
     if (kind === 'SUBSCRIPTION') await subscribe(job, repository, adapter, (dependencies.endpoint ?? notificationEndpoint)())
-    else await sync(job, repository, adapter)
+    else {
+      const page = await sync(job, repository, adapter)
+      // Only aggregate counters: never log mailbox, message IDs, names or cursor values.
+      console.info('email_discovery_page', { kind, complete: page.complete, ...page.metrics })
+      return { status: page.complete ? 'SYNC_COMPLETED' as const : 'PAGE_COMMITTED' as const, ...page.metrics }
+    }
     return { status: 'COMPLETED' as const }
   } catch (error) {
     const safe = error instanceof IntakeError ? error : new IntakeError('CONFIGURATION')

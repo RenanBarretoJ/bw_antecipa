@@ -8,6 +8,7 @@ import { configureDisposableToml, sanitizedLocalEnvironment, redactCommandOutput
 import { verifyFiscalFencing } from './fencing-db.mjs'
 import { verifyStorageApi } from './storage-api.mjs'
 import { verifyEmailAutomation } from './automation-db.mjs'
+import { verifyEmailTemporalAdmission } from './temporal-db.mjs'
 
 // Reuse platform bootstrap from the supported CLI. No schema stubs or remote links.
 const projectId = `bw_email03_${Date.now()}`
@@ -94,6 +95,7 @@ try {
       }
       evidence.fencingChecks = await verifyFiscalFencing(client, connection, `${setup.slice(0, beforeNf)}END;\n$setup$;`, storageFixtures)
       if (automation) evidence.automationChecks = await verifyEmailAutomation(client, connection)
+      if (automation) evidence.temporalChecks = await verifyEmailTemporalAdmission(client, connection)
       if (storageApi) {
         const physicalObjects = reservationId => new Promise((done, reject) => {
           assert.match(reservationId, /^[0-9a-f-]{36}$/)

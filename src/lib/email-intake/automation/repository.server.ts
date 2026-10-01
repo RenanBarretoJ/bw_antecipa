@@ -17,6 +17,12 @@ function checked<T>(response: { data: T; error: { code?: string } | null }): T {
 
 export function createAutomationRepository(client = createAdminClient()) {
   return {
+    async findKnownMessages(job: AutomationJob, externalIds: string[]) {
+      if (!job.discoveryToken || job.revision === undefined) throw new IntakeError('LEASE_LOST')
+      return z.array(z.object({ externalId: z.string(), receivedAt: z.string() })).parse(checked(
+        await client.rpc('email_intake_known_messages', { p_id: job.integrationId, p_mode: job.kind,
+          p_token: job.discoveryToken, p_revision: job.revision, p_external_ids: externalIds })))
+    },
     async claim(kind: JobKind) {
       const data = checked(await client.rpc('email_automation_claim', { p_kind: kind }))
       return data ? automationJobSchema.parse(data) : null

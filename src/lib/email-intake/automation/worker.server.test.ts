@@ -11,11 +11,11 @@ function job(patch: Partial<AutomationJob> = {}): AutomationJob {
     provider: 'OUTLOOK_GRAPH', mailbox: 'qa@example.invalid', folderId: 'inbox', credentialEnvRef: 'EMAIL_INTAKE_QA_TEST',
     credentialCiphertext: null, credentialKeyVersion: null, resource: `users/${id}/mailFolders/inbox/messages`,
     subscriptionId: null, subscriptionStatus: 'MISSING', subscriptionExpiresAt: null, clientStateCiphertext: null,
-    clientStateKeyVersion: null, attempt: 1, startAt: '2026-09-23T00:00:00Z', discoveryToken: id,
+    clientStateKeyVersion: null, attempt: 1, startAt: '2026-09-23T00:00:00Z', admissionStartAt: '2026-09-23T00:00:00Z', discoveryToken: id,
     revision: 0, cursorCiphertext: null, cursorKeyVersion: null, ...patch }
 }
 function setup(state = job()) {
-  const repository: AutomationRepository = { claim: vi.fn().mockResolvedValue(state), commitPage: vi.fn().mockResolvedValue(1),
+  const repository: AutomationRepository = { findKnownMessages: vi.fn().mockResolvedValue([]), claim: vi.fn().mockResolvedValue(state), commitPage: vi.fn().mockResolvedValue(1),
     fail: vi.fn().mockResolvedValue(undefined), prepareSubscription: vi.fn().mockResolvedValue(undefined),
     completeSubscription: vi.fn().mockResolvedValue(undefined), healthSnapshots: vi.fn().mockResolvedValue([]), applyHealth: vi.fn().mockResolvedValue(undefined) }
   const adapter: EmailProviderAdapter = { testConnection: vi.fn(), createOrRenewSubscription: vi.fn().mockResolvedValue({ externalId: 'sub', expiresAt: '2026-10-06T00:00:00Z' }),
@@ -25,6 +25,12 @@ function setup(state = job()) {
   return { repository, adapter, dependencies: { repository, provider: () => adapter, endpoint: () => 'https://qa.example.test/api/email-intake/graph' } }
 }
 describe('operational orchestration preserves durable transport', () => {
+  it('distinguishes a committed page from a completed sync cycle', async () => {
+    const s = setup()
+    vi.mocked(s.adapter.syncMessages).mockResolvedValueOnce({ messages: [], continuation: 'next', complete: false })
+    expect(await runOperationalJob('DELTA', s.dependencies)).toMatchObject({ status: 'PAGE_COMMITTED' })
+    expect(await runOperationalJob('DELTA', s.dependencies)).toMatchObject({ status: 'SYNC_COMPLETED' })
+  })
   it('idle lock does not contact Graph', async () => {
     const s = setup(); vi.mocked(s.repository.claim).mockResolvedValue(null)
     expect(await runOperationalJob('DELTA', s.dependencies)).toEqual({ status: 'IDLE' })

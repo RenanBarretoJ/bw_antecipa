@@ -2,6 +2,7 @@ type Json = string | number | boolean | null | Json[] | { [key: string]: Json | 
 
 /** RPC contract for the incremental 04 schema; private tables stay off the browser API. */
 export type EmailAutomationFunctions = {
+  email_intake_known_messages: { Args: { p_id: string; p_mode: string; p_token: string; p_revision: number; p_external_ids: string[] }; Returns: Json }
   email_automation_webhook_limit: { Args: { p_key_hash: string }; Returns: boolean }
   email_automation_webhook_bindings: { Args: { p_subscription_ids: string[] }; Returns: Json }
   email_automation_signal: { Args: { p_signals: Json }; Returns: undefined }

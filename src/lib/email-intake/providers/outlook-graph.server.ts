@@ -7,7 +7,9 @@ import { GraphHttpClient, readBoundedBody, validateGraphUrl } from './graph-http
 
 const id = z.string().min(1).max(2048)
 const messageSchema = z.object({
-  id, receivedDateTime: z.iso.datetime({ offset: true }).optional(),
+  // Invalid/missing timestamps are rejected per message by the shared admission gate,
+  // allowing a valid page checkpoint to advance without repeatedly fetching poison rows.
+  id, receivedDateTime: z.string().nullable().optional(),
   hasAttachments: z.boolean().optional(), '@removed': z.object({ reason: z.string() }).optional(),
 })
 const pageSchema = z.object({ value: z.array(messageSchema).max(1000),
@@ -20,7 +22,7 @@ const attachmentPageSchema = z.object({
 const subscriptionSchema = z.object({ id, expirationDateTime: z.iso.datetime({ offset: true }) })
 
 function message(row: z.infer<typeof messageSchema>): EmailMessage {
-  if (!row['@removed'] && (!row.receivedDateTime || row.hasAttachments === undefined)) {
+  if (!row['@removed'] && row.hasAttachments === undefined) {
     throw new IntakeError('INVALID_RESPONSE')
   }
   return { externalId: row.id, receivedAt: row.receivedDateTime ?? '',
