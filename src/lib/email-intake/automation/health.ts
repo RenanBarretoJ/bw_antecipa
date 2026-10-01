@@ -17,6 +17,7 @@ export const healthSnapshotSchema = z.object({
   lastReconciliationResult: z.object({ scanned: z.number(), missing: z.number(), recovered: z.number(), duplicates: z.number(), errors: z.number() }),
   lastErrorCode: z.string().nullable(), subscriptionError: z.string().nullable(),
   consecutiveFailures: z.number(), throttledCount: z.number(), blockedModes: z.array(z.string()),
+  lifecyclePending: z.boolean().default(false),
 })
 export type HealthSnapshot = z.infer<typeof healthSnapshotSchema>
 export type HealthAssessment = { status: 'HEALTHY' | 'DEGRADED' | 'ERROR' | 'DISABLED'; alerts: AlertCode[] }
@@ -37,5 +38,5 @@ export function assessEmailHealth(s: HealthSnapshot, now = Date.now()): HealthAs
   if (s.lastReconciliationResult.missing > 0) alerts.push('RECONCILIATION_GAP')
   if (s.consecutiveFailures >= 3 || s.failedCount > 0 || s.blockedModes.length > 0) alerts.push('REPEATED_RETRY')
   return { status: authFailure || s.blockedModes.length > 0 || (expired && stale(s.lastDeltaSuccess ?? s.createdAt))
-    ? 'ERROR' : alerts.length ? 'DEGRADED' : 'HEALTHY', alerts }
+    ? 'ERROR' : alerts.length || s.lifecyclePending ? 'DEGRADED' : 'HEALTHY', alerts }
 }

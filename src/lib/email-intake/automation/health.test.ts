@@ -10,7 +10,7 @@ function snapshot(patch: Partial<HealthSnapshot> = {}): HealthSnapshot {
     requiresReviewCount: 0, oldestPendingAt: null, stuckCount: 0, subscriptionStatus: 'ACTIVE',
     subscriptionExpiresAt: new Date(now + 6 * 86400_000).toISOString(), lastReconciliationAt: null,
     lastReconciliationResult: { scanned: 0, missing: 0, recovered: 0, duplicates: 0, errors: 0 },
-    lastErrorCode: null, subscriptionError: null, consecutiveFailures: 0, throttledCount: 0, blockedModes: [], ...patch }
+    lastErrorCode: null, subscriptionError: null, consecutiveFailures: 0, throttledCount: 0, blockedModes: [], lifecyclePending: false, ...patch }
 }
 afterEach(() => vi.useRealTimers())
 describe('operational health clock', () => {
@@ -32,6 +32,11 @@ describe('operational health clock', () => {
   it('disabled integrations cannot raise stale alerts', () => {
     expect(assessEmailHealth(snapshot({ enabled: false, subscriptionExpiresAt: null, lastErrorCode: 'AUTHENTICATION' }), now))
       .toEqual({ status: 'DISABLED', alerts: [] })
+  })
+  it('keeps lifecycle recovery degraded until its successful job, without inventing an alert', () => {
+    expect(assessEmailHealth(snapshot({ lifecyclePending: true }), now)).toEqual({ status: 'DEGRADED', alerts: [] })
+    expect(assessEmailHealth(snapshot({ lifecyclePending: false }), now)).toEqual({ status: 'HEALTHY', alerts: [] })
+    expect(assessEmailHealth(snapshot({ lifecyclePending: true, enabled: false }), now)).toEqual({ status: 'DISABLED', alerts: [] })
   })
   it.each([
     [{ oldestPendingAt: new Date(now - HEALTH_STALE_MS - 1).toISOString() }, 'BACKLOG'],

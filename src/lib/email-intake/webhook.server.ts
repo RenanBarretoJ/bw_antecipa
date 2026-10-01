@@ -21,7 +21,8 @@ export interface WebhookRepository {
   acceptRequest?(): Promise<boolean>
   findBindings(subscriptionIds: string[]): Promise<Map<string, NotificationBinding>>
   /** Durable, coalescing wake-up. Returns only after commit. Must not run a parser. */
-  enqueue(input: { integrationId: string; dedupeKey: string; kind: 'DELTA' | 'RENEW' | 'RECREATE' }[]): Promise<void>
+  enqueue(input: { integrationId: string; dedupeKey: string; kind: 'DELTA' | 'RENEW' | 'RECREATE';
+    lifecycleEvent?: 'missed' | 'subscriptionRemoved' | 'reauthorizationRequired' }[]): Promise<void>
 }
 
 function equal(left: string, right: string): boolean {
@@ -108,7 +109,8 @@ export async function handleGraphWebhook(request: Request, repository: WebhookRe
         notification.subscriptionExpirationDateTime ?? '',
         notification.lifecycleEvent && !notification.id && !notification.subscriptionExpirationDateTime
           ? Math.floor(Date.now() / 300_000) : 0])).digest('hex')
-      jobs.push({ integrationId: binding.integrationId, dedupeKey, kind })
+      jobs.push({ integrationId: binding.integrationId, dedupeKey, kind,
+        ...(notification.lifecycleEvent ? { lifecycleEvent: notification.lifecycleEvent } : {}) })
     }
     if (jobs.length) await repository.enqueue(jobs)
     // Same acknowledgement for valid/invalid bindings prevents credential probing.

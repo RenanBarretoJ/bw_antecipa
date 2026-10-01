@@ -40,7 +40,12 @@ describe('Graph notifications', () => {
   it.each([['missed', 'DELTA'], ['subscriptionRemoved', 'RECREATE'], ['reauthorizationRequired', 'RENEW']])('queues %s lifecycle recovery', async (event, kind) => {
     const repo = repository()
     await handleGraphWebhook(request([{ subscriptionId: 'sub', tenantId, clientState: state, lifecycleEvent: event }]), repo)
-    expect(repo.enqueue).toHaveBeenCalledWith([expect.objectContaining({ kind })])
+    expect(repo.enqueue).toHaveBeenCalledWith([expect.objectContaining({ kind, lifecycleEvent: event })])
+  })
+  it.each(['missed', 'subscriptionRemoved', 'reauthorizationRequired'])('never schedules %s with mismatched clientState', async lifecycleEvent => {
+    const repo = repository()
+    await handleGraphWebhook(request([{ subscriptionId: 'sub', tenantId, clientState: 'wrong', lifecycleEvent }]), repo)
+    expect(repo.enqueue).not.toHaveBeenCalled()
   })
   it('rejects oversized and malformed input without database access', async () => {
     const repo = repository()

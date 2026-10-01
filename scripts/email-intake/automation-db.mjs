@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import {randomUUID} from 'node:crypto'
 import {Client} from 'pg'
+import {verifySubscriptionRecovery} from './subscription-recovery-db.mjs'
 
 export async function verifyEmailAutomation(db, connection) {
   assert.equal(connection.host,'127.0.0.1');assert.equal(connection.port,57842)
@@ -17,7 +18,7 @@ export async function verifyEmailAutomation(db, connection) {
   const message={externalId:'synthetic-message',receivedAt:new Date().toISOString(),hasAttachments:true,attachments:[{externalId:'synthetic-attachment',name:'qa.xml',contentType:'application/xml',size:123,inline:false,kind:'FILE'}]}
   const commit=(job,complete,messages=[message])=>rpc('email_automation_commit_page($1,$2,$3,$4,$5,$6,$7,$8,$9)',[id,job.token,job.kind,job.discoveryToken,job.revision,JSON.stringify(messages),complete&&job.kind==='RECONCILIATION'?null:'opaque-protected-cursor',complete&&job.kind==='RECONCILIATION'?null:'qa-version',complete])
   try{
-    for(let i=0;i<2;i++){const c=new Client(connection);await c.connect();await c.query('set role service_role');clients.push(c)}
+    for(let i=0;i<3;i++){const c=new Client(connection);await c.connect();await c.query('set role service_role');clients.push(c)}
     const races=await Promise.all(clients.map(c=>rpc('email_automation_claim($1)',['DELTA'],c)))
     assert.equal(races.filter(Boolean).length,1);const winner=races.find(Boolean)
     assert.equal(await claim('RECONCILIATION'),null);assert.equal(await claim('SUBSCRIPTION'),null)
@@ -92,6 +93,7 @@ export async function verifyEmailAutomation(db, connection) {
     try{assert.deepEqual(await rpc('email_automation_operator_health($1)',[otherFund],clients[0]),[])}
     finally{await db.query("update public.profiles set role='gestor' where id=$1",[gestor])}
     checks.push('GESTOR_MFA_MANUAL_SYNC_AUDIT_COOLDOWN','CROSS_FUND_DENIED','REVOKED_MFA_DENIED','SUPER_ADMIN_SCOPED_ACCESS')
+    checks.push(...await verifySubscriptionRecovery(db,id,rpc))
     return checks
   }finally{
     for(const c of clients)await c.end()
