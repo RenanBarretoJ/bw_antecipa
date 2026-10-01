@@ -96,6 +96,8 @@ export async function cadastrarCredencialAdmin(input: unknown): Promise<AdminTec
     const { data, error } = await context.supabase.rpc('admin_cadastrar_credencial_integracao', {
       p_fundo_id: parsed.data.fundoId,
       p_integracao_fundo_id: parsed.data.integracaoFundoId,
+      p_provider_key: parsed.data.providerKey || null,
+      p_capabilities: parsed.data.capabilities,
       p_ambiente: parsed.data.ambiente,
       p_nome: parsed.data.nome,
       p_usuario_criptografado: usuario.ciphertext,
@@ -167,6 +169,9 @@ export async function salvarIntegracaoRascunhoAdmin(input: unknown): Promise<Adm
     const parsed = adminIntegracaoRascunhoSchema.safeParse(input)
     if (!parsed.success) {
       const issue = parsed.error.issues[0]
+      if (issue?.path[0] === 'updatedAtEsperado') {
+        return respostaErro('Nao foi possivel validar a versao do rascunho. Recarregue a pagina e tente novamente.', correlationId)
+      }
       const validationMessages: Record<string, string> = {
         FUNDO_ID_INVALIDO: 'O fundo informado e invalido.',
         INTEGRACAO_ID_INVALIDO: 'A integracao selecionada e invalida.',

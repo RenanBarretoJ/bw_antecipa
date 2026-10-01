@@ -124,6 +124,7 @@ describe('SA3 - configuracoes tecnicas por fundo', () => {
 
     const credencial = {
       id: crypto.randomUUID(), integracao_fundo_id: crypto.randomUUID(), ambiente: 'homologacao' as const,
+      fundo_id: crypto.randomUUID(), provider_key: 'SINQIA', credential_type: 'usuario_senha', capabilities: ['CESSAO_ENVIO'],
       nome: 'Portal HML', status: 'ativa' as const, chave_versao: 'v1', criada_em: '', ativada_em: '',
       revogada_em: null, substituida_por: null, ultimo_uso_em: null, usuario_mascarado: 'us**io',
       created_at: '', updated_at: '',
