@@ -2705,6 +2705,29 @@ export interface Database {
         Args: { p_fundo_id: string; p_credencial_id: string; p_motivo: string; p_correlation_id?: string | null }
         Returns: Record<string, unknown>
       }
+      admin_salvar_integracao_com_credencial: {
+        Args: {
+          p_fundo_id: string
+          p_integracao_fundo_id: string | null
+          p_versao_id: string | null
+          p_provider_key: string
+          p_system_name: string
+          p_adapter_key: string | null
+          p_capabilities: string[]
+          p_ambiente: string
+          p_endpoint_base: string
+          p_identificador_cliente: string
+          p_configuracao_nao_sensivel: Record<string, unknown>
+          p_updated_at_esperado: string | null
+          p_nome: string
+          p_usuario_criptografado: string
+          p_senha_criptografada: string
+          p_chave_versao: string
+          p_usuario_mascarado: string
+          p_correlation_id?: string | null
+        }
+        Returns: Record<string, unknown>
+      }
       admin_salvar_integracao_rascunho: {
         Args: {
           p_fundo_id: string

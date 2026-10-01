@@ -62,10 +62,12 @@ export function VortxCredentialSection({
   fundoId,
   vortxConfig,
   onChanged,
+  ambiente: ambienteSelecionado,
 }: {
   fundoId: string
   vortxConfig: VortxConfiguracaoStatus[]
   onChanged: () => void
+  ambiente?: VortxAmbiente
 }) {
   const notifications = useNotifications()
   const [pending, startTransition] = useTransition()
@@ -116,7 +118,7 @@ export function VortxCredentialSection({
   }
 
   return <div className="space-y-3">
-    {AMBIENTES.map((ambiente) => {
+    {(ambienteSelecionado ? [ambienteSelecionado] : AMBIENTES).map((ambiente) => {
       const config = configuracaoDoAmbiente(ambiente)
       const resultado = resultados[ambiente]
       const estado = resultado?.status === 'sucesso' ? 'Conexão validada' : resultado?.status === 'erro' ? 'Erro no último teste' : config ? 'Configurado' : 'Não configurado'

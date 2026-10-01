@@ -216,6 +216,12 @@ export const adminIntegracaoRascunhoSchema = z.object({
   configuracaoNaoSensivel: jsonObject.default({}),
   // Preserve microssegundos e offset do PostgreSQL para a comparacao atomica.
   updatedAtEsperado: z.iso.datetime({ offset: true }).nullable().optional(),
+  novaCredencial: z.object({
+    nome: z.string().trim().min(2).max(120),
+    usuario: z.string().trim().min(1).max(300),
+    senha: z.string().min(1).max(1000),
+    mfaCode,
+  }).strict().optional(),
 })
 
 export const adminCnabRascunhoSchema = z.object({
@@ -270,7 +276,7 @@ export function obterPendenciaPublicacaoIntegracao(
   if (requirements.requiresCredential) {
     if (!versao.credencial_integracao_id) return 'Selecione uma credencial ativa antes de publicar.'
     const credencial = credenciais.find((item) => item.id === versao.credencial_integracao_id)
-    if (!credencial || credencial.status !== 'ativa' || credencial.ambiente !== versao.ambiente) {
+    if (!credencial || !['ativa', 'rascunho'].includes(credencial.status) || credencial.ambiente !== versao.ambiente || credencial.revogada_em) {
       return 'Selecione uma credencial ativa compativel com o ambiente antes de publicar.'
     }
   }

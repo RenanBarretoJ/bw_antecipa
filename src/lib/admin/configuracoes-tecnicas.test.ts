@@ -164,7 +164,7 @@ describe('SA3 - configuracoes tecnicas por fundo', () => {
     const sa3Sources = `${loader}\n${actions}`
 
     expect(loader).toContain("context.supabase.rpc('admin_obter_configuracoes_tecnicas_fundo'")
-    expect(actions.match(/context\.supabase\.rpc\(/g)).toHaveLength(14)
+    expect(actions.match(/context\.supabase\.rpc\(/g)).toHaveLength(15)
     expect(sa3Sources).not.toMatch(/const\s+\w+\s*=\s*context\.supabase\.rpc/)
     expect(sa3Sources).not.toMatch(/(?:supabase|client)\.rpc\s+as/)
     expect(sa3Sources).not.toContain('callAdminRpc')
@@ -179,6 +179,7 @@ describe('SA3 - configuracoes tecnicas por fundo', () => {
       'admin_ativar_credencial_integracao',
       'admin_revogar_credencial_integracao',
       'admin_salvar_integracao_rascunho',
+      'admin_salvar_integracao_com_credencial',
       'admin_publicar_integracao_versao',
       'admin_desativar_integracao_versao',
       'admin_salvar_cnab_rascunho',
@@ -210,20 +211,23 @@ describe('SA3 - configuracoes tecnicas por fundo', () => {
 
   it('limpa o formulario write-only depois de cadastrar credencial', () => {
     const ui = source('src/components/admin/fundo-integracoes-tecnicas.tsx')
-    expect(ui).toContain('credentialFormRef.current?.reset()')
+    expect(ui).toContain("defaultVersion?.updated_at || 'inicial'")
+    const fields = source('src/components/admin/integration-inline-credential-fields.tsx')
+    expect(fields).toContain('name="senha" type="password"')
+    expect(fields).not.toContain('localStorage')
     expect(ui).not.toMatch(/value=\{[^}]*senha/i)
   })
 
   it('expoe somente as transicoes canonicas do ciclo de vida da credencial', () => {
-    const ui = source('src/components/admin/fundo-integracoes-tecnicas.tsx')
+    const ui = source('src/components/admin/integration-draft-form.tsx')
     expect(obterAcoesCredencial('rascunho')).toEqual(['ativar'])
     expect(obterAcoesCredencial('ativa')).toEqual(['rotacionar', 'revogar'])
     expect(obterAcoesCredencial('substituida')).toEqual([])
     expect(obterAcoesCredencial('revogada')).toEqual([])
-    expect(ui).toContain('obterAcoesCredencial(credential.status)')
+    expect(ui).toContain("credential.status === 'ativa'")
     expect(ui).not.toContain("credential.status === 'pendente'")
-    expect(ui).toContain("integrationCredentials.filter((item) => item.status === 'ativa')")
-    expect(ui).toContain("pendingLabel={confirmation.kind === 'activate' ? 'Ativando...' : undefined}")
+    expect(ui).toContain('sera ativada ao publicar')
+    expect(ui).not.toContain('>Ativar</Button>')
   })
 
   it('mantem ativacao atomica, auditada e sem exclusao da credencial anterior', () => {
@@ -243,15 +247,16 @@ describe('SA3 - configuracoes tecnicas por fundo', () => {
     expect(actions).toContain("return sucesso('Credencial ativada com sucesso.'")
   })
 
-  it('mantem TOTP nas acoes efetivas e remove do salvamento de rascunhos', () => {
+  it('mantem TOTP no cadastro inline, publicacao e teste, mas nao no rascunho sem segredo', () => {
     const actions = source('src/app/admin/fundos/configuracoes-tecnicas-actions.ts')
-    const integrationUi = source('src/components/admin/fundo-integracoes-tecnicas.tsx')
+    const integrationUi = source('src/components/admin/integration-inline-credential-fields.tsx')
     const cnabUi = source('src/components/admin/fundo-cnab-tecnico.tsx')
     const migration = source('supabase/migrations/20260813150432_corrigir_semantica_rascunhos_sa3.sql')
 
     const integrationDraftAction = actions.slice(actions.indexOf('export async function salvarIntegracaoRascunhoAdmin'), actions.indexOf('async function validarIntegracaoParaPublicacao'))
     const cnabDraftAction = actions.slice(actions.indexOf('export async function salvarCnabRascunhoAdmin'), actions.indexOf('async function executarAcaoVersaoCnab'))
-    expect(integrationDraftAction).not.toContain('autorizarEConsumirAcaoSensivel')
+    expect(integrationDraftAction).toContain('if (novaCredencial)')
+    expect(integrationDraftAction).toContain("autorizarEConsumirAcaoSensivel(context, 'cadastrar_credencial_integracao', novaCredencial.mfaCode)")
     expect(cnabDraftAction).not.toContain('autorizarEConsumirAcaoSensivel')
     expect(actions).toContain("acao === 'publicar' ? 'publicar_integracao' : 'desativar_integracao'")
     expect(actions).toContain("autorizarEConsumirAcaoSensivel(context, 'testar_integracao'")
@@ -284,7 +289,7 @@ describe('SA3 - configuracoes tecnicas por fundo', () => {
   })
 
   it('mantem os campos editaveis da integracao controlados apos refresh', () => {
-    const ui = source('src/components/admin/fundo-integracoes-tecnicas.tsx')
+    const ui = source('src/components/admin/integration-draft-form.tsx')
 
     expect(ui).toContain('value={endpoint}')
     expect(ui).toContain('value={clientId}')
@@ -297,7 +302,8 @@ describe('SA3 - configuracoes tecnicas por fundo', () => {
     const integracoes = source('src/components/admin/fundo-integracoes-tecnicas.tsx')
     const cnab = source('src/components/admin/fundo-cnab-tecnico.tsx')
 
-    expect(integracoes.match(/<Button type="submit"/g)).toHaveLength(2)
+    const draft = source('src/components/admin/integration-draft-form.tsx')
+    expect(draft.match(/<Button type="submit"/g)).toHaveLength(1)
     expect(cnab.match(/<Button type="submit"/g)).toHaveLength(1)
     expect(integracoes).toContain('executarMutacaoTecnica')
     expect(cnab).toContain('executarMutacaoTecnica')
