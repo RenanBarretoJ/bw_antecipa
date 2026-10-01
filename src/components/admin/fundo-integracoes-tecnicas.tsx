@@ -29,6 +29,7 @@ import {
   type AdminIntegracaoVersao,
 } from '@/lib/admin/configuracoes-tecnicas'
 import { executarMutacaoTecnica } from '@/lib/admin/executar-mutacao-tecnica'
+import { credencialCompativel } from '@/lib/admin/credencial-compativel'
 import type { VortxConfiguracaoStatus } from '@/lib/admin/vortx-vrs'
 import {
   adapterSubmissionFields,
@@ -54,16 +55,20 @@ function IntegrationDraftForm({
   integration,
   defaultVersion,
   fundCnpj,
+  fundId,
   activeCredentials,
   pending,
   onSubmit,
+  onCreateCredential,
 }: {
   integration?: AdminIntegracao
   defaultVersion?: AdminIntegracaoVersao
   fundCnpj: string
+  fundId: string
   activeCredentials: AdminCredencialIntegracao[]
   pending: boolean
   onSubmit: (formData: FormData) => void
+  onCreateCredential: () => void
 }) {
   const [environment, setEnvironment] = useState<'homologacao' | 'producao'>(defaultVersion?.ambiente || 'homologacao')
   const [credentialId, setCredentialId] = useState(defaultVersion?.credencial_integracao_id || '')
@@ -79,7 +84,10 @@ function IntegrationDraftForm({
   const catalogo = obterAdapterCatalogo(adapterKey)
   const locked = Boolean(integration?.versoes.some((item) => item.status !== 'rascunho'))
   const adapterFields = adapterSubmissionFields(locked)
-  const compatibleCredentials = activeCredentials.filter((item) => item.ambiente === environment)
+  const compatibleCredentials = activeCredentials.filter((item) => credencialCompativel(item, {
+    fundoId: fundId, integrationId: integration?.id || null, providerKey,
+    environment, adapterKey, capabilities,
+  }))
   const usesFinancialReports = possuiCapabilityFinanceira(capabilities)
   const normalizedFundCnpj = fundCnpj.replace(/\D/g, '')
   const capabilitiesDisponiveis = capabilitiesDisponiveisParaAdapter(adapterKey)
@@ -118,6 +126,7 @@ function IntegrationDraftForm({
     <fieldset className="space-y-2 md:col-span-2"><legend className="text-sm font-medium">Capabilities</legend><div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">{INTEGRATION_CAPABILITIES.map((capability) => { const disabled = !capabilitiesDisponiveis.includes(capability); return <label key={capability} className={`flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm ${disabled ? 'opacity-50' : ''}`}><input type="checkbox" name="capabilities" value={capability} checked={capabilities.includes(capability)} disabled={disabled} onChange={() => toggleCapability(capability)} />{INTEGRATION_CAPABILITY_LABELS[capability]}</label> })}</div></fieldset>
     <label className="space-y-1"><Label>Ambiente</Label><select name="ambiente" value={environment} onChange={(event) => changeEnvironment(event.target.value as 'homologacao' | 'producao')} className="h-10 w-full rounded-lg border border-input bg-background px-3"><option value="homologacao">Homologacao</option><option value="producao">Producao</option></select></label>
     {catalogo?.credentialKind !== 'vortx_mtls' && <label className="space-y-1"><Label>Credencial ativa</Label><select name="credencialIntegracaoId" value={compatibleCredentials.some((item) => item.id === credentialId) ? credentialId : ''} onChange={(event) => setCredentialId(event.target.value)} className="h-10 w-full rounded-lg border border-input bg-background px-3"><option value="">Nenhuma por enquanto</option>{compatibleCredentials.map((item) => <option key={item.id} value={item.id}>{item.nome}</option>)}</select></label>}
+    {catalogo?.credentialKind !== 'vortx_mtls' && compatibleCredentials.length === 0 && <div className="space-y-2 md:col-span-2"><p className="text-sm text-muted-foreground">Nenhuma credencial compativel cadastrada. Cadastre e ative uma credencial para este provider e ambiente.</p><Button type="button" variant="outline" onClick={onCreateCredential}>Criar credencial</Button></div>}
     {catalogo?.credentialKind === 'vortx_mtls' && <input type="hidden" name="credencialIntegracaoId" value="" />}
     {(!catalogo || catalogo.showsGenericEndpoint) && <label className="space-y-1 md:col-span-2"><Label>Endpoint</Label><Input name="endpointBase" type="url" placeholder="Pode ser informado antes da publicacao" value={endpoint} onChange={(event) => setEndpoint(event.target.value)} /></label>}
     {catalogo && !catalogo.showsGenericEndpoint && <>
@@ -149,6 +158,7 @@ export function FundoIntegracoesTecnicas({ state, execPage, vortxConfig }: { sta
   const [confirmation, setConfirmation] = useState<Confirmation>(null)
   const [reason, setReason] = useState('')
   const [rotationId, setRotationId] = useState<string | null>(null)
+  const [credentialFormOpen, setCredentialFormOpen] = useState(false)
   const [createFormGeneration, setCreateFormGeneration] = useState(0)
   const [editor, setEditor] = useState<IntegrationEditorState>(() => initialIntegrationEditorState(state.integracoes[0]?.id))
   const credentialFormRef = useRef<HTMLFormElement>(null)
@@ -158,8 +168,9 @@ export function FundoIntegracoesTecnicas({ state, execPage, vortxConfig }: { sta
   const versions = integration?.versoes || []
   const draft = versions.find((item) => item.status === 'rascunho')
   const published = versions.find((item) => item.status === 'publicada')
-  const integrationCredentials = state.credenciais.filter((item) => item.integracao_fundo_id === integration?.id)
+  const integrationCredentials = state.credenciais
   const activeCredentials = integrationCredentials.filter((item) => item.status === 'ativa')
+  const rotationCredential = state.credenciais.find((item) => item.id === rotationId)
   const defaultVersion = draft || published
   const confirmContent = useMemo(() => ({
     activate: ['Ativar credencial', 'A credencial passara a poder ser utilizada por versoes tecnicas deste ambiente.', 'Ativar credencial'],
@@ -200,12 +211,13 @@ export function FundoIntegracoesTecnicas({ state, execPage, vortxConfig }: { sta
   }
 
   function createCredential(formData: FormData) {
-    if (!integration) { notifications.warning('Salve a integracao antes de cadastrar credenciais.'); return }
     startTransition(async () => {
       const result = await executarMutacaoTecnica(() => cadastrarCredencialAdmin({
         fundoId: state.fundo.id,
-        integracaoFundoId: integration.id,
-        ambiente: formData.get('ambiente'),
+        integracaoFundoId: rotationCredential?.integracao_fundo_id || null,
+        providerKey: rotationCredential?.provider_key || formData.get('providerKey'),
+        capabilities: rotationCredential?.capabilities || formData.getAll('credentialCapabilities'),
+        ambiente: rotationCredential?.ambiente || formData.get('ambiente'),
         nome: formData.get('nome'),
         usuario: formData.get('usuario'),
         senha: formData.get('senha'),
@@ -216,9 +228,16 @@ export function FundoIntegracoesTecnicas({ state, execPage, vortxConfig }: { sta
       if (result.success) {
         credentialFormRef.current?.reset()
         setRotationId(null)
+        setCredentialFormOpen(false)
         router.refresh()
       }
     })
+  }
+
+  function beginCreateCredential() {
+    setRotationId(null)
+    setCredentialFormOpen(true)
+    requestAnimationFrame(() => credentialFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }))
   }
 
   function saveDraft(formData: FormData) {
@@ -280,32 +299,33 @@ export function FundoIntegracoesTecnicas({ state, execPage, vortxConfig }: { sta
     </Card>
 
     <Card>
-      <CardHeader><CardTitle className="flex items-center gap-2"><KeyRound className="size-5" />Credenciais</CardTitle><CardDescription>Somente metadados mascarados sao exibidos. Segredos nunca retornam ao navegador.</CardDescription></CardHeader>
+      <CardHeader><div className="flex flex-wrap items-center justify-between gap-3"><CardTitle className="flex items-center gap-2"><KeyRound className="size-5" />Credenciais do fundo</CardTitle>{defaultVersion?.adapter_key !== 'vortx_vrs' && <Button type="button" variant="outline" onClick={beginCreateCredential}><Plus />Nova credencial</Button>}</div><CardDescription>Cadastre a credencial antes ou depois da integracao. Somente metadados mascarados sao exibidos.</CardDescription></CardHeader>
       <CardContent className="space-y-4">
-        {!integration ? <EmptyState title={editor.mode === 'create' ? 'Salve a integracao primeiro' : 'Nenhuma integracao selecionada'} description={editor.mode === 'create' ? 'Depois do primeiro salvamento, as credenciais serao liberadas para esta integracao.' : 'Selecione uma integracao existente ou inicie uma nova configuracao.'} icon={KeyRound} />
-        : defaultVersion?.adapter_key === 'vortx_vrs' ? <VortxCredentialSection fundoId={state.fundo.id} vortxConfig={vortxConfig} onChanged={() => router.refresh()} />
+        {defaultVersion?.adapter_key === 'vortx_vrs' ? <VortxCredentialSection fundoId={state.fundo.id} vortxConfig={vortxConfig} onChanged={() => router.refresh()} />
         : <>
-          {integrationCredentials.length === 0 ? <EmptyState title="Nenhuma credencial" description="Cadastre uma credencial por ambiente para esta integracao." icon={KeyRound} /> : <div className="divide-y divide-border rounded-xl border border-border px-4">
+          {integrationCredentials.length === 0 ? <EmptyState title="Nenhuma credencial cadastrada." description="Cadastre uma credencial para este fundo, provider e ambiente." icon={KeyRound} /> : <div className="divide-y divide-border rounded-xl border border-border px-4">
             {integrationCredentials.map((credential) => {
               const foiRotacionada = integrationCredentials.some((item) => item.substituida_por === credential.id)
               const actions = obterAcoesCredencial(credential.status)
               return <div key={credential.id} className="flex flex-wrap items-center gap-3 py-3">
-              <div className="min-w-0 flex-1"><p className="truncate font-semibold">{credential.nome}</p><p className="text-xs text-muted-foreground">{integration.system_name} · {credential.ambiente} · {credential.usuario_mascarado || 'usuario protegido'}</p><p className="text-xs text-muted-foreground">Criada em {date(credential.criada_em)} · ultima rotacao {foiRotacionada ? date(credential.ativada_em) : 'nao realizada'} · ultimo uso {date(credential.ultimo_uso_em)}</p></div>
+              <div className="min-w-0 flex-1"><p className="truncate font-semibold">{credential.nome}</p><p className="text-xs text-muted-foreground">{credential.provider_key} · {credential.ambiente} · {credential.usuario_mascarado || 'usuario protegido'}</p><p className="text-xs text-muted-foreground">Criada em {date(credential.criada_em)} · ultima rotacao {foiRotacionada ? date(credential.ativada_em) : 'nao realizada'} · ultimo uso {date(credential.ultimo_uso_em)}</p></div>
               <StatusBadge status={credential.status === 'ativa' ? 'ativo' : credential.status === 'revogada' ? 'reprovada' : credential.status === 'substituida' ? 'desativada' : 'pendente'} label={credential.status} />
+              <p className="w-full text-xs text-muted-foreground">Ultimo teste: consulte as execucoes da integracao; nao ha resultado individual registrado para esta credencial.</p>
               {actions.includes('ativar') && <Button type="button" size="sm" variant="outline" onClick={() => setConfirmation({ kind: 'activate', id: credential.id })}>Ativar</Button>}
-              {actions.includes('rotacionar') && <Button type="button" size="sm" variant="outline" onClick={() => setRotationId(credential.id)}>Rotacionar</Button>}
+              {actions.includes('rotacionar') && credential.integracao_fundo_id && <Button type="button" size="sm" variant="outline" onClick={() => { setRotationId(credential.id); setCredentialFormOpen(true) }}>Rotacionar</Button>}
               {actions.includes('revogar') && <Button type="button" size="sm" variant="destructive" onClick={() => setConfirmation({ kind: 'revoke', id: credential.id })}>Revogar</Button>}
             </div>})}
           </div>}
-          <form ref={credentialFormRef} action={createCredential} className="grid gap-3 rounded-xl border border-border bg-muted/20 p-4 md:grid-cols-2">
+          {credentialFormOpen && <form key={rotationId || 'nova'} ref={credentialFormRef} action={createCredential} className="grid gap-3 rounded-xl border border-border bg-muted/20 p-4 md:grid-cols-2">
             <div className="md:col-span-2"><p className="font-semibold">{rotationId ? 'Rotacionar credencial' : 'Nova credencial'}</p>{rotationId && <p className="text-xs text-muted-foreground">A credencial anterior sera substituida somente apos a ativacao da nova.</p>}</div>
-            <label className="space-y-1"><Label>Ambiente</Label><select name="ambiente" defaultValue="homologacao" className="h-10 w-full rounded-lg border border-input bg-background px-3"><option value="homologacao">Homologacao</option><option value="producao">Producao</option></select></label>
-            <label className="space-y-1"><Label>Nome</Label><Input name="nome" required maxLength={120} /></label>
+            <p className="text-sm text-muted-foreground md:col-span-2">Depois de cadastrar, ative com TOTP para disponibilizar no seletor. O teste de conexao utiliza o endpoint e o adapter da integracao vinculada.</p>
+            <label className="space-y-1"><Label>Provider</Label><Input name="providerKey" defaultValue={rotationCredential?.provider_key || integration?.provider_key || 'SINQIA'} readOnly={Boolean(rotationCredential)} required pattern="[A-Za-z][A-Za-z0-9_]{1,63}" maxLength={64} /><span className="block text-xs text-muted-foreground">Tipo: usuario e senha. Certificados Vortx continuam na secao propria.</span></label><label className="space-y-1"><Label>Ambiente</Label><select name="ambiente" disabled={Boolean(rotationCredential)} defaultValue={rotationCredential?.ambiente || 'homologacao'} className="h-10 w-full rounded-lg border border-input bg-background px-3"><option value="homologacao">Homologacao</option><option value="producao">Producao</option></select></label>
+            <fieldset className="space-y-2 md:col-span-2"><legend className="text-sm font-medium">Capabilities da credencial</legend><div className="grid gap-2 sm:grid-cols-2">{INTEGRATION_CAPABILITIES.map((capability) => <label key={capability} className="flex items-center gap-2 text-sm"><input type="checkbox" name="credentialCapabilities" value={capability} defaultChecked={rotationCredential ? rotationCredential.capabilities.includes(capability) : true} disabled={Boolean(rotationCredential)} />{INTEGRATION_CAPABILITY_LABELS[capability]}</label>)}</div></fieldset><label className="space-y-1"><Label>Nome</Label><Input name="nome" required maxLength={120} /></label>
             <label className="space-y-1"><Label>Usuario</Label><Input name="usuario" required autoComplete="off" /></label>
             <label className="space-y-1"><Label>Senha</Label><Input name="senha" type="password" required autoComplete="new-password" /></label>
             <label className="space-y-1"><Label>Codigo TOTP</Label><Input name="mfaCode" required inputMode="numeric" pattern="[0-9]{6}" maxLength={6} autoComplete="one-time-code" /></label>
-            <div className="flex items-end gap-2"><Button type="submit" disabled={pending}>{pending && <Loader2 className="animate-spin" />}{rotationId ? 'Cadastrar rotacao' : 'Cadastrar credencial'}</Button>{rotationId && <Button type="button" variant="outline" onClick={() => setRotationId(null)}>Cancelar</Button>}</div>
-          </form>
+            <div className="flex items-end gap-2"><Button type="submit" disabled={pending}>{pending && <Loader2 className="animate-spin" />}{rotationId ? 'Cadastrar rotacao' : 'Cadastrar credencial'}</Button><Button type="button" variant="outline" onClick={() => { setRotationId(null); setCredentialFormOpen(false) }}>Cancelar</Button></div>
+          </form>}
         </>}
       </CardContent>
     </Card>
@@ -316,7 +336,7 @@ export function FundoIntegracoesTecnicas({ state, execPage, vortxConfig }: { sta
         <CardContent className="space-y-4">
           {editor.mode === 'none'
             ? <EmptyState title="Nenhuma integracao selecionada" description="Selecione uma integracao acima ou clique em Nova integracao para iniciar um rascunho." icon={PlugZap} />
-            : <IntegrationDraftForm key={`${editor.mode}:${editor.mode === 'create' ? createFormGeneration : 0}:${integration?.id || 'novo'}:${defaultVersion?.id || 'novo'}:${defaultVersion?.updated_at || 'inicial'}`} integration={integration} defaultVersion={defaultVersion} fundCnpj={state.fundo.cnpj} activeCredentials={activeCredentials} pending={pending} onSubmit={saveDraft} />}
+            : <IntegrationDraftForm key={`${editor.mode}:${editor.mode === 'create' ? createFormGeneration : 0}:${integration?.id || 'novo'}:${defaultVersion?.id || 'novo'}:${defaultVersion?.updated_at || 'inicial'}`} integration={integration} defaultVersion={defaultVersion} fundCnpj={state.fundo.cnpj} fundId={state.fundo.id} onCreateCredential={beginCreateCredential} activeCredentials={activeCredentials} pending={pending} onSubmit={saveDraft} />}
           <div className="divide-y divide-border rounded-xl border border-border px-4">
             {versions.map((version) => { const testeGenericoIndisponivel = !version.adapter_key || version.adapter_key === 'vortx_vrs'; return <div key={version.id} className="flex flex-wrap items-center gap-3 py-3"><div className="min-w-0 flex-1"><p className="font-semibold">Versao {version.versao} · {version.ambiente}</p><p className="truncate text-xs text-muted-foreground" title={version.endpoint_base}>{version.endpoint_base || 'Endpoint nao informado'} · {version.capabilities.map((capability) => INTEGRATION_CAPABILITY_LABELS[capability]).join(', ') || 'sem capabilities'}</p></div><StatusBadge status={version.status === 'publicada' ? 'ativo' : version.status === 'rascunho' ? 'pendente' : 'desativada'} label={version.status} /><Button type="button" size="sm" variant="outline" disabled={testeGenericoIndisponivel} title={!version.adapter_key ? 'Teste indisponivel: adapter nao implementado' : version.adapter_key === 'vortx_vrs' ? 'Use Testar conexao na secao Credenciais' : undefined} onClick={() => setConfirmation({ kind: 'test', id: version.id })}>Testar</Button>{version.status === 'rascunho' && <Button type="button" size="sm" disabled={!version.adapter_key} onClick={() => setConfirmation({ kind: 'publish', id: version.id })}>Publicar</Button>}{version.status === 'publicada' && <Button type="button" size="sm" variant="destructive" onClick={() => setConfirmation({ kind: 'disable', id: version.id })}>Desativar</Button>}</div> })}
           </div>
