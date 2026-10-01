@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 const migration = readFileSync(resolve(process.cwd(), 'supabase/migrations/20260814123000_p2_2_2_sinqia_financeiro_envios.sql'), 'utf8')
 const page = readFileSync(resolve(process.cwd(), 'src/app/admin/fundos/[id]/page.tsx'), 'utf8')
 const operationalDeliveries = readFileSync(resolve(process.cwd(), 'src/components/admin/fundo-envios-operacionais.tsx'), 'utf8')
-const integrationEditor = readFileSync(resolve(process.cwd(), 'src/components/admin/fundo-integracoes-tecnicas.tsx'), 'utf8')
+const integrationEditor = readFileSync(resolve(process.cwd(), 'src/components/admin/integration-draft-form.tsx'), 'utf8')
 
 describe('P2.2.2 - Sinqia financeiro e Envios Operacionais', () => {
   it('habilita no espelho SQL somente as quatro capacidades comprovadas', () => {

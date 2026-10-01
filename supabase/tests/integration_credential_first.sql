@@ -56,10 +56,8 @@ BEGIN
    RAISE EXCEPTION 'FAIL: testou sem credencial';
  EXCEPTION WHEN check_violation THEN NULL; END;
  other_c := (public.admin_cadastrar_credencial_integracao(f,(d->>'integracao_id')::uuid,'homologacao','QA legado','v1:QA:QA:QA','v1:QA:QA:QA','qa','q*')->>'id')::uuid;
- BEGIN
-   PERFORM public.admin_salvar_integracao_rascunho(f,(d->>'integracao_id')::uuid,(d->>'id')::uuid,'SINQIA','QA legado','sinqia_portal_fidc',ARRAY['ESTOQUE'],'homologacao','https://example.invalid','',other_c);
-   RAISE EXCEPTION 'FAIL: vinculou rascunho';
- EXCEPTION WHEN check_violation THEN NULL; END;
+ -- Inline credentials now support a pending reference in drafts only.
+ d := public.admin_salvar_integracao_rascunho(f,(d->>'integracao_id')::uuid,(d->>'id')::uuid,'SINQIA','QA legado','sinqia_portal_fidc',ARRAY['ESTOQUE'],'homologacao','https://example.invalid','',other_c);
  PERFORM public.admin_ativar_credencial_integracao(f,other_c);
  linked := public.admin_salvar_integracao_rascunho(f,(d->>'integracao_id')::uuid,(d->>'id')::uuid,'SINQIA','QA legado','sinqia_portal_fidc',ARRAY['ESTOQUE'],'homologacao','https://example.invalid','',other_c,'{}',(d->>'updated_at')::timestamptz);
  BEGIN

@@ -9,6 +9,7 @@ export type ContextoCredencial = {
   environment: 'homologacao' | 'producao'
   adapterKey: string | null
   capabilities: readonly IntegrationCapability[]
+  permitirRascunho?: boolean
 }
 
 // Pode existir sem integracao; o primeiro vinculo continua exclusivo.
@@ -19,7 +20,7 @@ export function credencialCompativel(credential: AdminCredencialIntegracao, cont
     && credential.provider_key === context.providerKey.trim().toUpperCase()
     && credential.ambiente === context.environment
     && credential.credential_type === kind
-    && credential.status === 'ativa'
+    && (credential.status === 'ativa' || (context.permitirRascunho === true && credential.status === 'rascunho'))
     && credential.revogada_em === null
     && context.capabilities.every((capability) => credential.capabilities.includes(capability))
 }
