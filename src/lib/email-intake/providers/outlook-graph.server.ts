@@ -63,10 +63,44 @@ export class OutlookGraphAdapter implements EmailProviderAdapter {
     const result = await this.http.json('/v1.0/subscriptions', subscriptionSchema, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ changeType: 'created', notificationUrl: input.notificationUrl,
-        lifecycleNotificationUrl: input.lifecycleNotificationUrl, resource: this.folderPath.replace('/v1.0/', ''),
+        lifecycleNotificationUrl: input.lifecycleNotificationUrl, resource: this.subscriptionResource(input),
         expirationDateTime: expiresAt, clientState: input.clientState, includeResourceData: false }),
     })
     return { externalId: result.id, expiresAt: result.expirationDateTime }
+  }
+
+  private subscriptionResource(input: SubscriptionInput): string {
+    if (!input.resource) return this.folderPath.replace('/v1.0/', '')
+    const match = /^users\/([a-f0-9-]{36})\/mailFolders\/([^/]+)\/messages$/i.exec(input.resource)
+    if (!match || !z.uuid().safeParse(match[1]).success) throw new IntakeError('CONFIGURATION')
+    return input.resource
+  }
+
+  /** Adopt only our exact subscription after a create succeeded remotely but persistence failed. */
+  async findSubscription(input: SubscriptionInput) {
+    const schema = z.object({ value: z.array(subscriptionSchema.extend({
+      resource: z.string(), notificationUrl: z.string(), lifecycleNotificationUrl: z.string().optional(), clientState: z.string().nullable().optional(),
+    })), '@odata.nextLink': z.string().optional() })
+    let next: string | undefined = '/v1.0/subscriptions'
+    const matches = []
+    const seen = new Set<string>()
+    while (next) {
+      if (seen.has(next) || seen.size >= 20) throw new IntakeError('INVALID_RESPONSE')
+      seen.add(next)
+      const page: z.infer<typeof schema> = await this.http.json(next, schema)
+      matches.push(...page.value.filter(s => s.resource === this.subscriptionResource(input)
+        && s.notificationUrl === input.notificationUrl && s.lifecycleNotificationUrl === input.lifecycleNotificationUrl
+        && s.clientState === input.clientState && Date.parse(s.expirationDateTime) > this.now()))
+      next = page['@odata.nextLink']
+      if (next) validateGraphUrl(next, '/v1.0/subscriptions')
+    }
+    if (matches.length > 1) throw new IntakeError('CONFIGURATION')
+    return matches[0] ? { externalId: matches[0].id, expiresAt: matches[0].expirationDateTime } : null
+  }
+
+  async deleteSubscription(externalId: string): Promise<void> {
+    const response = await this.http.request(`/v1.0/subscriptions/${encodeURIComponent(this.normalizeExternalIdentity(externalId))}`, { method: 'DELETE' })
+    await response.body?.cancel()
   }
 
   async syncMessages(cursor: string | null, startAt: string): Promise<DiscoveryPage> {
