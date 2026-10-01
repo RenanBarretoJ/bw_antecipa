@@ -56,7 +56,7 @@ try{
    await db.query('revoke all on function private.email04_dispatch(text) from public,anon,authenticated,service_role')
    for(const [task,schedule] of Object.entries(tasks))await db.query('select cron.schedule($1,$2,$3)',[prefix+'-'+task,schedule,`select private.email04_dispatch('${task}')`])
   }else{
-   for(const task of Object.keys(tasks)){const found=(await db.query('select jobid from cron.job where jobname=$1',[prefix+'-'+task])).rows;for(const row of found)await db.query('select cron.unschedule($1)',[row.jobid])}
+   for(const task of Object.keys(tasks)){const found=(await db.query('select jobid from cron.job where jobname=$1',[prefix+'-'+task])).rows;for(const row of found)await db.query('select cron.unschedule($1::bigint)',[row.jobid])}
    await db.query('drop function if exists private.email04_dispatch(text)')
    await db.query('delete from vault.secrets where name=any($1::text[])',[Object.values(secretNames)])
   }
