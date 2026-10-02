@@ -157,6 +157,9 @@ export function extractDanfseV2(text: string): NfseExtraction {
 export function validateNfseExtraction(result: NfseExtraction): NfseExtractionGate {
   const required: NfseField[] = ['numero_nf', 'chave_acesso', 'cnpj_emitente', 'razao_social_emitente',
     'cnpj_destinatario', 'razao_social_destinatario', 'data_emissao', 'valor_bruto']
+  if (result.strategy === 'nfse_municipal_visual' && result.layout_fingerprint === 'nfse_municipal') {
+    required.splice(required.indexOf('chave_acesso'), 1, 'codigo_verificacao', 'orgao_emissor')
+  }
   const failedFields = required.filter(field => result.dados[field] === undefined
     || (result.confianca[field] ?? 0) < MIN_CRITICAL_CONFIDENCE)
   if (!(Number(result.dados.valor_bruto) > 0) && !failedFields.includes('valor_bruto')) failedFields.push('valor_bruto')

@@ -342,7 +342,7 @@ async function processarNfse(
   reviewIntent: string,
 ): Promise<ProcessedUploadFile> {
   telemetry.parsed(fileIndex, { layoutFingerprint: extraction.layout_fingerprint, parseStrategy: extraction.strategy,
-    confidence: extraction.confianca.valor_bruto, extractionSource: extraction.strategy === 'danfse_v2_visual' ? 'pdf_ai_fallback' : 'pdf_text_native' })
+    confidence: extraction.confianca.valor_bruto, extractionSource: extraction.strategy === 'danfse_v2_labels' ? 'pdf_text_native' : 'pdf_ai_fallback' })
   if (!validateNfseExtraction(extraction).ok) return { ok: false, status: 'REJECTED_AMBIGUOUS', error: 'Nao foi possivel interpretar esta NFS-e com seguranca.' }
   // Parsing may be slow. Re-check session/MFA and live org/fund membership afterwards.
   const fresh = await resolverContextoUploadCedente(supabase, context.cedente.id)
@@ -352,8 +352,12 @@ async function processarNfse(
   }
   const estabelecimento = await resolverEstabelecimentoOrigem({ supabase, cedenteId: context.cedente.id,
     fundoId: context.fundoId, cnpjEmitente: extraction.dados.cnpj_emitente! })
-  const { data: duplicate, error: duplicateError } = await supabase.from('notas_fiscais').select('id')
-    .eq('chave_acesso', extraction.dados.chave_acesso!).limit(1).maybeSingle()
+  const duplicateQuery = supabase.from('notas_fiscais').select('id')
+  const { data: duplicate, error: duplicateError } = await (extraction.strategy === 'nfse_municipal_visual'
+    ? duplicateQuery.eq('tipo_documento_fiscal', 'NFSE').eq('cnpj_emitente', extraction.dados.cnpj_emitente!)
+      .eq('numero_nf', extraction.dados.numero_nf!).eq('fiscal_proveniencia->>orgao_emissor', extraction.dados.orgao_emissor!)
+      .eq('fiscal_proveniencia->>strategy', 'nfse_municipal_visual')
+    : duplicateQuery.eq('chave_acesso', extraction.dados.chave_acesso!)).limit(1).maybeSingle()
   if (duplicateError) return { ok: false, status: 'PERSISTENCE_ERROR', error: 'Nao foi possivel verificar duplicidade. Tente novamente.' }
   if (duplicate) return { ok: false, status: 'DUPLICATE', error: 'Esta Nota Fiscal ja foi cadastrada.' }
   const fileHash = createHash('sha256').update(bytes).digest('hex')

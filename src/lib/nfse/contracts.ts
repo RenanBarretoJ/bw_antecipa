@@ -2,6 +2,8 @@
 export interface NfseFiscalData {
   numero_nf: string
   chave_acesso: string
+  codigo_verificacao: string
+  orgao_emissor: string
   cnpj_emitente: string
   razao_social_emitente: string
   cnpj_destinatario: string
@@ -29,8 +31,8 @@ export type NfseCandidate = {
 
 export interface NfseExtraction {
   tipo_documento: 'NFSE' | 'UNKNOWN'
-  layout_fingerprint: 'danfse_v2' | null
-  strategy: 'danfse_v2_labels' | 'danfse_v2_visual' | null
+  layout_fingerprint: 'danfse_v2' | 'nfse_municipal' | null
+  strategy: 'danfse_v2_labels' | 'danfse_v2_visual' | 'nfse_municipal_visual' | null
   dados: Partial<NfseFiscalData>
   candidatos: Partial<Record<NfseField, NfseCandidate[]>>
   proveniencia: Partial<Record<NfseField, { source: string; anchor: string; line: number }>>
