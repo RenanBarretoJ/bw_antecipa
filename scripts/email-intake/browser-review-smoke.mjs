@@ -6,6 +6,7 @@ import { pathToFileURL } from 'node:url'
 import { stripVTControlCharacters } from 'node:util'
 import puppeteer from 'puppeteer-core'
 import { redactCommandOutput } from '../perf9e/clean-room-lib.mjs'
+import { prepareEmailBrowserRuntime } from './browser-runtime.mjs'
 
 export async function verifyBrowserReview({ db, human, userId, reviewFile }) {
   assert.equal(process.env.NEXT_PUBLIC_SUPABASE_URL, 'http://127.0.0.1:57841')
@@ -24,9 +25,10 @@ export async function verifyBrowserReview({ db, human, userId, reviewFile }) {
     url: `https://graph.microsoft.com/v1.0/users/qa%40example.invalid/messages/${receipt.message_id}/attachments/${receipt.attachment_id}/$value`,
     bytes: Buffer.from(await reviewFile.arrayBuffer()).toString('base64'), counter,
   }))
+  await prepareEmailBrowserRuntime(process.env, root)
   const server = spawn(process.execPath, ['--import', pathToFileURL(resolve('scripts/email-intake/graph-fixture-preload.mjs')).href,
-    'node_modules/next/dist/bin/next', 'dev', '--webpack', '--hostname', '127.0.0.1', '--port', '57849'], {
-    windowsHide: true, env: { ...process.env, NODE_ENV: 'development', EMAIL_INTAKE_GRAPH_FIXTURE: fixturePath,
+    'node_modules/next/dist/bin/next', 'start', '--hostname', '127.0.0.1', '--port', '57849'], {
+    windowsHide: true, env: { ...process.env, NODE_ENV: 'production', EMAIL_INTAKE_GRAPH_FIXTURE: fixturePath,
       EMAIL_INTAKE_QA_SYNTHETIC_TENANT_ID: '11111111-1111-4111-8111-111111111111',
       EMAIL_INTAKE_QA_SYNTHETIC_CLIENT_ID: '22222222-2222-4222-8222-222222222222',
       EMAIL_INTAKE_QA_SYNTHETIC_CLIENT_SECRET: 'DISPOSABLE_QA_NOT_A_CREDENTIAL' },
@@ -41,7 +43,8 @@ export async function verifyBrowserReview({ db, human, userId, reviewFile }) {
     if (stage === 'AUTHENTICATED_PAGE') pageStartup += bytes.toString()
   })
   try {
-    for (let attempt = 0; attempt < 100 && !ready; attempt++) {
+    // Cold Next startup on Windows can exceed 10 seconds before its first output.
+    for (let attempt = 0; attempt < 600 && !ready; attempt++) {
       if (server.exitCode !== null) throw new Error('QA_NEXT_SERVER_EXITED')
       await new Promise(r => setTimeout(r, 100))
     }

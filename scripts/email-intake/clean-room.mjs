@@ -9,6 +9,9 @@ import { verifyFiscalFencing } from './fencing-db.mjs'
 import { verifyStorageApi } from './storage-api.mjs'
 import { verifyEmailAutomation } from './automation-db.mjs'
 import { verifyEmailTemporalAdmission } from './temporal-db.mjs'
+import { verifyEmailOperators } from './operators-db.mjs'
+import { verifyEmailOperatorBrowser } from './operator-browser.mjs'
+import { prepareEmailBrowserRuntime } from './browser-runtime.mjs'
 
 // Reuse platform bootstrap from the supported CLI. No schema stubs or remote links.
 const projectId = `bw_email03_${Date.now()}`
@@ -17,6 +20,8 @@ const cli = resolve('node_modules/supabase/dist/supabase.js')
 const environment = sanitizedLocalEnvironment()
 const storageApi = process.argv.includes('--storage-api')
 const automation = process.argv.includes('--automation')
+const operatorsOnly = process.argv.includes('--operators-only')
+const operators = operatorsOnly || process.argv.includes('--operators')
 for (const key of Object.keys(environment)) if (/EMAIL_INTAKE|SECRET|PASSWORD|TOKEN|CREDENTIAL/i.test(key)) delete environment[key]
 // Explicit executable path makes the same official browser smoke portable to Linux CI.
 if (process.env.EMAIL_INTAKE_QA_CHROME) environment.EMAIL_INTAKE_QA_CHROME = process.env.EMAIL_INTAKE_QA_CHROME
@@ -43,6 +48,9 @@ function run(args) {
     child.on('error', reject)
     child.on('exit', code => done({ code, output }))
   })
+}
+async function checkpoint(phase) {
+  await writeFile(resolve(root, 'clean-room-checkpoint.json'), JSON.stringify({ ...evidence, phase, result: 'IN_PROGRESS' }, null, 2))
 }
 try {
   console.log(JSON.stringify({ stage: 'START_ISOLATED_LOCAL', projectId, migrationCount: files.length }))
@@ -93,9 +101,11 @@ try {
           },
         }
       }
-      evidence.fencingChecks = await verifyFiscalFencing(client, connection, `${setup.slice(0, beforeNf)}END;\n$setup$;`, storageFixtures)
+      if (operatorsOnly) await client.query(`${setup.slice(0, beforeNf)}END;\n$setup$;`)
+      else evidence.fencingChecks = await verifyFiscalFencing(client, connection, `${setup.slice(0, beforeNf)}END;\n$setup$;`, storageFixtures)
       if (automation) evidence.automationChecks = await verifyEmailAutomation(client, connection)
       if (automation) evidence.temporalChecks = await verifyEmailTemporalAdmission(client, connection)
+      if (operators) evidence.operatorChecks = await verifyEmailOperators(client, connection)
       if (storageApi) {
         const physicalObjects = reservationId => new Promise((done, reject) => {
           assert.match(reservationId, /^[0-9a-f-]{36}$/)
@@ -114,12 +124,15 @@ try {
             }}walk(root);process.stdout.write(String(count));`)
         })
         evidence.storageApiChecks = await verifyStorageApi({ db: client, url: local.API_URL, serviceKey: local.SERVICE_ROLE_KEY, physicalObjects })
+        await checkpoint('SQL_STORAGE_COMPLETE')
         const sharedReport = resolve(root, 'shared-result.json')
+        const browserEnvironment = { ...environment, NEXT_PUBLIC_SUPABASE_URL: local.API_URL,
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: local.ANON_KEY, SUPABASE_SERVICE_ROLE_KEY: local.SERVICE_ROLE_KEY,
+          NFSE_UPLOAD_ENABLED: 'true', OPENAI_API_KEY: '', EMAIL_INTAKE_DISPOSABLE_SMOKE: 'true', EMAIL_INTAKE_SMOKE_REPORT: sharedReport }
+        await prepareEmailBrowserRuntime(browserEnvironment, root)
         const shared = await new Promise((done, reject) => {
           const child = spawn(process.execPath, ['node_modules/vitest/vitest.mjs', 'run', '--config', 'scripts/email-intake/vitest.shared.config.mjs', '--pool=threads', '--maxWorkers=1', '--no-file-parallelism'], {
-            windowsHide: true, env: { ...environment, NEXT_PUBLIC_SUPABASE_URL: local.API_URL,
-              NEXT_PUBLIC_SUPABASE_ANON_KEY: local.ANON_KEY, SUPABASE_SERVICE_ROLE_KEY: local.SERVICE_ROLE_KEY,
-              NFSE_UPLOAD_ENABLED: 'true', OPENAI_API_KEY: '', EMAIL_INTAKE_DISPOSABLE_SMOKE: 'true', EMAIL_INTAKE_SMOKE_REPORT: sharedReport },
+            windowsHide: true, env: browserEnvironment,
           })
           let output = ''
           for (const stream of [child.stdout, child.stderr]) stream.on('data', bytes => { output += bytes.toString() })
@@ -132,6 +145,9 @@ try {
         assert.equal(shared.code, 0, `SHARED_SERVICE_SMOKE:${sharedResult.stage ?? sharedResult.result}:${sharedResult.message ?? ''}`)
         assert.equal(sharedResult.result, 'PASS', 'Shared service report is required for certification')
         assert.ok(evidence.sharedServiceChecks.includes('OFFICIAL_FORM_SYSTEM_TO_HUMAN_PERSISTENCE'), 'Official browser review proof missing')
+        await checkpoint('OFFICIAL_REVIEW_COMPLETE')
+        if (operators) evidence.operatorBrowserChecks = await verifyEmailOperatorBrowser({ db: client, url: local.API_URL,
+          serviceKey: local.SERVICE_ROLE_KEY, anonKey: local.ANON_KEY, environment, root })
       }
       evidence.result = 'PASS'
     } finally { await client.end() }
@@ -140,8 +156,11 @@ try {
   evidence.result = 'FAIL'
   evidence.failure = redactCommandOutput(error instanceof Error ? error.message : 'LOCAL_CLEAN_ROOM_FAILED')
 } finally {
-  const stop = await run(['stop', '--project-id', projectId, '--no-backup'])
-  evidence.cleanup = stop.code === 0 ? 'PASS' : 'FAIL'
+  if (process.argv.includes('--keep-local-on-failure') && evidence.result === 'FAIL') evidence.cleanup = 'KEPT_FOR_LOCAL_DIAGNOSIS'
+  else {
+    const stop = await run(['stop', '--project-id', projectId, '--no-backup'])
+    evidence.cleanup = stop.code === 0 ? 'PASS' : 'FAIL'
+  }
   await writeFile(`rehearsal/reports/RLX_EMAIL_03_CLEAN_ROOM_${projectId}.json`, JSON.stringify(evidence, null, 2) + '\n', 'utf8')
   await writeFile('rehearsal/reports/RLX_EMAIL_03_CLEAN_ROOM.json', JSON.stringify(evidence, null, 2) + '\n', 'utf8')
   console.log(JSON.stringify({ result: evidence.result, cleanup: evidence.cleanup, migrationsApplied: evidence.migrationsApplied,
