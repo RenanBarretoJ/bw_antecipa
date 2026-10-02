@@ -456,6 +456,7 @@ export default function OperacaoDetalheGestorClient({
   useEffect(() => {
     const load = async () => {
       if (loadingFundo) return
+      setLoading(true)
       if (bloqueado || !fundoAtivo?.id) {
         setOp(null)
         setNfs([])
@@ -623,7 +624,9 @@ export default function OperacaoDetalheGestorClient({
     return resolverMetodoCalculo(op?.metodo_calculo_financeiro ?? snapshot?.calculo_financeiro?.metodo)
   }, [op?.metodo_calculo_financeiro, op?.politica_snapshot])
 
-  const itensCalculoFinanceiro = useMemo(() => nfs.flatMap((nf) => {
+  // NFs arrive before their ceded parcels. Never resolve the frozen base from
+  // that partial state, even though the loading skeleton is rendered below.
+  const itensCalculoFinanceiro = useMemo(() => loading ? [] : nfs.flatMap((nf) => {
     const cedidas = parcelasCedidasPorNf.get(nf.id)
     if (cedidas?.length) {
       return cedidas.map((parcela) => ({
@@ -633,7 +636,7 @@ export default function OperacaoDetalheGestorClient({
       }))
     }
     return [{ id: nf.id, valorBruto: valorBaseSnapshot(op?.base_antecipacao_snapshot, nf.id, nf.valor_bruto), vencimento: nf.data_vencimento }]
-  }), [nfs, parcelasCedidasPorNf, op?.base_antecipacao_snapshot])
+  }), [loading, nfs, parcelasCedidasPorNf, op?.base_antecipacao_snapshot])
 
   const prazoReferencia = useMemo(() => {
     if (!op || itensCalculoFinanceiro.length === 0) return null
