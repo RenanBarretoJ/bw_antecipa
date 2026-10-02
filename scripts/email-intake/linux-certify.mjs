@@ -8,7 +8,7 @@ await mkdir('rehearsal/reports', { recursive: true })
 const environment = { ...process.env, NEXT_TELEMETRY_DISABLED: '1', NEXT_PUBLIC_SUPABASE_URL: 'https://example.supabase.co',
   NEXT_PUBLIC_SUPABASE_ANON_KEY: 'ci-placeholder-anon-key', SUPABASE_SERVICE_ROLE_KEY: 'ci-placeholder-service-role-key' }
 const gates = [
-  ['diagnostic-tests', ['--test', 'scripts/email-intake/browser-diagnostics.test.mjs', 'scripts/email-intake/browser-redaction.test.mjs', 'scripts/email-intake/disposable-resources.test.mjs', 'scripts/email-intake/runner-evidence.test.mjs']],
+  ['diagnostic-tests', ['--test', 'scripts/email-intake/browser-diagnostics.test.mjs', 'scripts/email-intake/browser-redaction.test.mjs', 'scripts/email-intake/browser-protocol.test.mjs', 'scripts/email-intake/browser-drain.test.mjs', 'scripts/email-intake/disposable-resources.test.mjs', 'scripts/email-intake/runner-evidence.test.mjs']],
   ['response-probe', ['scripts/email-intake/redaction-probe.mjs']],
   ['typescript', ['node_modules/typescript/bin/tsc', '--noEmit']],
   ['full-suite', ['node_modules/vitest/vitest.mjs', 'run', '--pool=threads', '--maxWorkers=1', '--no-file-parallelism']],

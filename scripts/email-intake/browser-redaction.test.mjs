@@ -61,7 +61,9 @@ async function fixture(run) {
   try {
     const cdp = new EventEmitter(), page = new EventEmitter()
     let unavailable = false
-    cdp.send = async method => {
+    const calls = []
+    cdp.send = async (method, parameters) => {
+      calls.push({ method, parameters })
       if (method === 'Fetch.getResponseBody') { if (unavailable) throw Error('Protocol: No resource with given identifier found SENSITIVE_SENTINEL'); return { body: '{"safe":true}', base64Encoded: false } }
       return {}
     }
@@ -71,10 +73,10 @@ async function fixture(run) {
     const response = (id, path = '/admin/integracoes-email') => {
       const request = { method: 'GET', url: `https://qa.invalid${path}?token=SENSITIVE_SENTINEL`, headers: { RSC: '1' } }
       cdp.emit('Network.requestWillBeSent', { requestId: id, request, type: 'Fetch' })
-      cdp.emit('Fetch.requestPaused', { requestId: id, networkId: id, request, resourceType: 'Fetch', responseStatusCode: 200,
+      cdp.emit('Fetch.requestPaused', { requestId: `fetch-${id}`, networkId: id, request, resourceType: 'Fetch', responseStatusCode: 200,
         responseHeaders: [{ name: 'content-type', value: 'text/x-component' }] })
     }
-    await run({ cdp, response, inspection, file, unavailable: () => { unavailable = true } })
+    await run({ cdp, response, inspection, file, calls, unavailable: () => { unavailable = true } })
   } finally {
     assert.ok(resolve(root).startsWith(resolve(tmpdir()) + sep + 'email05-redaction-'))
     await rm(root, { recursive: true, force: true })
@@ -83,7 +85,7 @@ async function fixture(run) {
 
 test('a relevant unavailable body fails and persists only an error class', () => fixture(async ({ response, inspection, file, unavailable }) => {
   unavailable(); response('1'); await inspection.flush()
-  await assert.rejects(inspection.assertClean(), /MUST_INSPECT_COVERAGE_FAILED/)
+  await assert.rejects(inspection.assertClean(), /REDACTION_DRAIN_FAILED/)
   const raw = await readFile(file, 'utf8'), report = JSON.parse(raw)
   assert.equal(report.rows[0].bodyInspectionErrorClass, 'BODY_UNAVAILABLE_PROTOCOL')
   assert.equal(raw.includes('SENSITIVE_SENTINEL'), false)
@@ -98,5 +100,17 @@ test('cancelled action before inspection fails; cancellation after inspection ha
   assert.equal(JSON.parse(await readFile(file, 'utf8')).aborted[0].classification, 'CANCELLED_AFTER_INSPECTION')
   cdp.emit('Network.requestWillBeSent', { requestId: '2', request: { url: 'https://qa.invalid/admin/integracoes-email', method: 'POST', headers: {} }, type: 'Fetch' })
   cdp.emit('Network.loadingFailed', { requestId: '2', errorText: 'net::ERR_ABORTED' })
-  await assert.rejects(inspection.assertClean(), /UNINSPECTED_OR_UNEXPECTED_ABORT/)
+  await assert.rejects(inspection.assertClean(), /REDACTION_DRAIN_FAILED/)
+}))
+
+test('response body uses its Fetch ID and is inspected before continuation', () => fixture(async ({ response, inspection, calls, file }) => {
+  response('network-distinct'); await inspection.assertClean()
+  const body = calls.findIndex(call => call.method === 'Fetch.getResponseBody')
+  const continued = calls.findIndex(call => call.method === 'Fetch.continueRequest')
+  assert.ok(body >= 0 && continued > body)
+  assert.equal(calls[body].parameters.requestId, 'fetch-network-distinct')
+  assert.equal(calls[continued].parameters.requestId, 'fetch-network-distinct')
+  const timeline = JSON.parse(await readFile(file, 'utf8')).protocol.timeline
+  assert.ok(timeline.findIndex(row => row.event === 'BODY_INSPECTED') < timeline.findIndex(row => row.event === 'Fetch.continueRequest'))
+  assert.ok(timeline.filter(row => row.event === 'Fetch.getResponseBody').every(row => row.networkId !== row.fetchId))
 }))

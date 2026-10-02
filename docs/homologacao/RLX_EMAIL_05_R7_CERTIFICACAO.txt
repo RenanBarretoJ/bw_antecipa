@@ -1,0 +1,88 @@
+RLX-EMAIL-05-R7 — CHECKPOINT LOCAL ANTES DE COMMIT/CI/PREVIEW
+Data: 2026-10-02
+Branch: feature/rlx-email05-operations
+Base: b7e5b5fe21d2749e47fe852fe0825a3673cdd42b
+PR #87 permanece DRAFT.
+
+R5 historical root cause = NOT_PROVABLE_FROM_AVAILABLE_TRACE.
+R7 mitigates and certifies the proven navigation/cancellation race class.
+A segunda afirmação está comprovada nos testes locais abaixo; certificação
+remota ainda depende de novo SHA, ambas as CIs e novo Preview.
+
+MUDANÇA
+O harness aguardava leituras de corpo em alguns checkpoints, mas reload,
+goto e fechamento podiam acontecer antes de concluir as inspeções pendentes.
+Agora awaitDrain verifica o registro de requisições e as tarefas em voo.
+beforeNavigation serializa ações, drena, revalida e só então libera a ação.
+Há limite próprio de 20 segundos, sem alterar timeouts globais. Fechamento
+por falha tenta drain de 2 segundos, registra falha e força cleanup.
+Também são protegidos cliques que podem trocar rota/fechar modal e alterações
+de viewport que podem substituir requisições de prefetch.
+
+O registro preserva requisições descobertas, inclusive antes da resposta;
+acompanha classificação, pausa, leitura, inspeção, continuação e conclusão.
+Cancelamento anterior à inspeção, segredo encontrado, corpo indisponível ou
+erro de continuação permanecem falhas. UNKNOWN e RSC não foram reclassificados.
+Mantida a instrumentação R6 com IDs locais correlacionáveis e classes fechadas.
+Nenhum body, cookie, header, query, token ou erro bruto é persistido.
+
+ARQUIVOS
+scripts/email-intake/browser-drain.mjs e browser-drain.test.mjs: barreira.
+scripts/email-intake/browser-protocol.mjs e browser-protocol.test.mjs: trace R6.
+scripts/email-intake/browser-redaction.mjs e browser-redaction.test.mjs: registro
+e integração da barreira sem relaxamento do classificador.
+scripts/email-intake/operator-browser.mjs: ações protegidas.
+scripts/email-intake/redaction-probe.mjs: matriz real com browser e stress.
+scripts/email-intake/linux-{runner,certify}.mjs e workflow email05-certification:
+inclusão dos novos testes focados nos gates existentes.
+Nenhuma alteração de aplicação, domínio, schema, RPC, RLS ou dependências.
+
+FOCUSED
+21 testes do harness: PASS.
+Matriz normal/chunked/delayed/navegação/reload/close: PASS.
+20 iterações determinísticas com 0/50/200/600/1000 ms: PASS.
+Total positivo: 68 MUST, 68 interceptadas, 68 inspecionadas, 0 pendentes,
+0 falhas, cobertura 100%.
+Controle negativo externo: cancelamento causa falha fechada, como exigido.
+Controle negativo sem barreira: cancelamento seguido de navegação perde um
+corpo obrigatório e reprova; a mesma ação protegida passa.
+O primeiro ensaio usando somente goto não reproduziu a perda; a versão final
+usa XHR.abort explícito no controle para tornar o cancelamento determinístico.
+Não confundir PASS de detecção negativa com aprovação de um corpo perdido.
+
+FULL LINUX DO ZERO
+Runner: bw_email05_runner_1790970795226
+Stack: bw_email03_1790971215497
+TypeScript, lint, build: PASS.
+Suíte: 2693 PASS, 12 skips preexistentes.
+260 migrations do zero; 27 fencing, 9 Storage, 22 automação, 12 temporal,
+19 configuração/autorização SQL e 33 serviço compartilhado: PASS.
+Browser inclui credenciais, wizard, integração primeiro, credencial primeiro,
+Inbox, detalhes, revisão, paginação, filtros combinados/inválidos e estados vazios.
+106 screenshots; 52 scans de acessibilidade; 0 violações.
+Redaction: 123 MUST, 123 interceptadas, 123 inspecionadas, 0 pendentes,
+0 falhas, 0 aborts, 0 matches de segredo; cobertura 100%.
+Chrome Linux 154.0.8037.97; Chrome Windows 154.0.8037.59;
+Puppeteer 25.8.0; CDP 1.3. Nenhuma troca de versão para obter aprovação.
+
+CLEANUP E EVIDÊNCIA
+Cleanup automático e segunda execução PASS. Zero containers temporários,
+volumes exclusivos e networks exclusivas remanescentes. Recursos anteriores
+preservados. Diretório descartável removido após archive e validação dos hashes.
+129 artefatos persistidos, sem faltantes.
+rehearsal/reports/bw_email05_runner_1790970795226/evidence/archive-summary.json
+rehearsal/reports/email05-r7-source-snapshot.json confirma os 11 arquivos de
+código/workflow idênticos ao snapshot usado no runner (normalização LF).
+rehearsal/reports/email05-r7-focused-summary.json separa positivos e negativos.
+
+PRÓXIMOS GATES (NÃO CERTIFICADOS POR ESTE CHECKPOINT)
+Commit/push -> CI padrão e Linux no mesmo SHA -> novo Preview -> precheck
+inkyqlmusvorcmibmrhp/CSP/runtime -> 5/5 runs remotos -> todos os gates de UI,
+Graph, routing, health, alerts, Inbox/review, RLS, MFA -> cleanup duplo.
+Status final deve ser registrado separadamente com SHA e URLs de evidência;
+este documento registra exclusivamente a validação anterior ao commit.
+PDF 950501 continua suspenso até redaction remota PASS.
+RLX_EMAIL_05_R7_PREVIEW_READY = NO (gates remotos pendentes)
+RLX_EMAIL_05_HOMOLOG_READY = NO
+RLX_EMAIL_HOMOLOG_CHANGED = NO
+RLX_EMAIL_PRODUCTION_CHANGED = NO

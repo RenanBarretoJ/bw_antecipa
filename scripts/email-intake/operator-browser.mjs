@@ -81,11 +81,13 @@ export async function verifyEmailOperatorBrowser({ db, url, serviceKey, anonKey,
     let consoleErrors = 0
     page.on('pageerror', () => { consoleErrors++ })
     const base = `http://127.0.0.1:57849/admin/integracoes-email?fundo=${fund}`
+    const goto = (...args) => redaction.beforeNavigation(() => page.goto(...args))
+    const reload = (...args) => redaction.beforeNavigation(() => page.reload(...args))
     const click = async label => {
       await redaction.assertHealthy()
       await page.waitForFunction(text => [...document.querySelectorAll('button,a')].some(e => e.textContent.trim() === text), { timeout: 30000 }, label)
       const handle = await page.evaluateHandle(text => [...document.querySelectorAll('button,a')].find(e => e.textContent.trim() === text), label)
-      assert.ok(handle.asElement(), `MISSING_CONTROL:${label}`); await handle.asElement().click(); await handle.dispose()
+      assert.ok(handle.asElement(), `MISSING_CONTROL:${label}`); await redaction.beforeNavigation(() => handle.asElement().click()); await handle.dispose()
     }
     const fill = async (label, text) => {
       await page.evaluate((name, value) => {
@@ -106,7 +108,7 @@ export async function verifyEmailOperatorBrowser({ db, url, serviceKey, anonKey,
       await page.waitForFunction(() => document.readyState === 'complete' && document.documentElement && document.body, { timeout: 30000 })
       if (!await page.evaluate(() => Boolean(window.axe))) await page.addScriptTag({ path: resolve('node_modules/axe-core/axe.min.js') })
       for (const theme of ['light', 'dark']) for (const width of widths) {
-        await page.setViewport({ width, height: 1000 }); await page.evaluate(value => { document.documentElement.classList.toggle('dark', value === 'dark') }, theme)
+        await redaction.beforeNavigation(() => page.setViewport({ width, height: 1000 })); await page.evaluate(value => { document.documentElement.classList.toggle('dark', value === 'dark') }, theme)
         // Allow the existing responsive sidebar transition to finish before measuring or capturing.
         await new Promise(r => setTimeout(r, 350))
         const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1)
@@ -123,7 +125,7 @@ export async function verifyEmailOperatorBrowser({ db, url, serviceKey, anonKey,
       }
     }
     stage = 'LIST'
-    await page.goto(base, { waitUntil: 'networkidle2', timeout: 90000 })
+    await goto(base, { waitUntil: 'networkidle2', timeout: 90000 })
     assert.ok(new URL(page.url()).pathname === '/admin/integracoes-email', 'AUTH_REDIRECT')
     assert.ok(await page.$('nav[aria-label="Fundos"] a'), 'SUPER_ADMIN_FUND_NAVIGATION')
     await screenshot('integrations')
@@ -142,7 +144,7 @@ export async function verifyEmailOperatorBrowser({ db, url, serviceKey, anonKey,
     const integration = new URL(page.url()).searchParams.get('integration')
     assert.ok(integration)
     await waitEmailScreen(page, diagnostics, 'detail', 'EMAIL05 Browser draft')
-    await page.reload({ waitUntil: 'networkidle2' })
+    await reload({ waitUntil: 'networkidle2' })
     assert.ok((await page.content()).includes('EMAIL05 Browser draft'))
     const persisted = (await db.query('select credential_id,enabled from private.email_integrations where id=$1', [integration])).rows[0]
     assert.equal(persisted.credential_id, null); assert.equal(persisted.enabled, false)
@@ -164,12 +166,12 @@ export async function verifyEmailOperatorBrowser({ db, url, serviceKey, anonKey,
     await page.evaluate(() => [...document.querySelectorAll('label')].find(e => e.textContent.includes('Conferi as alterações')).querySelector('input').click())
     await fill('Código MFA para salvar', await freshCode()); await click('Salvar rascunho')
     await page.waitForFunction(() => !new URL(location.href).searchParams.has('edit'), { timeout: 45000 })
-    await page.reload({ waitUntil: 'networkidle2' })
+    await reload({ waitUntil: 'networkidle2' })
     const saved = (await db.query('select credential_id from private.email_integrations where id=$1', [integration])).rows[0]
     assert.ok(saved.credential_id)
     checks.push('OFFICIAL_INLINE_CREDENTIAL_ENCRYPTED', 'AUTO_SELECT_AND_PERSIST', 'OFFICIAL_ALLOWLIST')
     stage = 'CREDENTIAL_FIRST'
-    await page.goto(base, { waitUntil: 'networkidle2' })
+    await goto(base, { waitUntil: 'networkidle2' })
     await click('Nova credencial de e-mail'); await page.waitForSelector('[role="dialog"]')
     await fill('Nome da credencial', 'EMAIL05 Credential first'); await fill('Identificador da organização', randomUUID()); await fill('Identificador da aplicação', randomUUID()); await fill('Segredo da aplicação', secret)
     await fill('Código de confirmação MFA', await freshCode()); await click('Salvar credencial')
@@ -183,17 +185,17 @@ export async function verifyEmailOperatorBrowser({ db, url, serviceKey, anonKey,
     await page.waitForFunction(() => new URL(location.href).searchParams.has('integration'), { timeout: 45000 })
     const credentialFirstIntegration = new URL(page.url()).searchParams.get('integration')
     await waitEmailScreen(page, diagnostics, 'detail', 'EMAIL05 Credential-first integration')
-    await page.reload({ waitUntil: 'networkidle2' })
+    await reload({ waitUntil: 'networkidle2' })
     assert.equal((await db.query('select credential_id from private.email_integrations where id=$1', [credentialFirstIntegration])).rows[0].credential_id, standalone.id)
     checks.push('OFFICIAL_CREDENTIAL_FIRST_RELOAD_LINK_PERSISTS')
     stage = 'INBOX_AND_REVIEW'
     await diagnostics.phase('INBOX:NAVIGATION')
-    await page.goto(`${base}&tab=inbox&filterIntegration=${credentialFirstIntegration}`, { waitUntil: 'domcontentloaded' })
+    await goto(`${base}&tab=inbox&filterIntegration=${credentialFirstIntegration}`, { waitUntil: 'domcontentloaded' })
     await screenshot('inbox-empty', [390, 1440])
     assert.ok((await page.content()).includes('Nenhuma mensagem encontrada nestes filtros.'))
-    await page.goto(`${base}&tab=inbox`, { waitUntil: 'domcontentloaded' }); await screenshot('inbox')
+    await goto(`${base}&tab=inbox`, { waitUntil: 'domcontentloaded' }); await screenshot('inbox')
     const fixtureIntegration = (await db.query("select id from private.email_integrations where name='EMAIL05 configuration QA'")).rows[0].id
-    await page.goto(`${base}&tab=inbox&filterIntegration=${fixtureIntegration}`, { waitUntil: 'domcontentloaded' })
+    await goto(`${base}&tab=inbox&filterIntegration=${fixtureIntegration}`, { waitUntil: 'domcontentloaded' })
     await waitEmailScreen(page, diagnostics, 'inbox')
     const rowCount = () => page.$$eval('section[aria-label="Importações por e-mail"] article', rows => rows.length)
     assert.equal(await rowCount(), 25)
@@ -213,19 +215,19 @@ export async function verifyEmailOperatorBrowser({ db, url, serviceKey, anonKey,
     await page.waitForFunction(() => new URL(location.href).searchParams.get('errorCode') === 'UNKNOWN_CEDENTE', { timeout: 15000 })
     await waitEmailScreen(page, diagnostics, 'inbox')
     assert.equal(await rowCount(), 0, 'SERVER_FILTER_INTERSECTION')
-    await page.goto(`${base}&tab=inbox&page=invalid`, { waitUntil: 'domcontentloaded' })
+    await goto(`${base}&tab=inbox&page=invalid`, { waitUntil: 'domcontentloaded' })
     await page.waitForFunction(() => [...document.querySelectorAll('[role="alert"]')].some(el => el.textContent.includes('Há filtros inválidos.')), { timeout: 15000 })
     await screenshot('inbox-invalid-filter', [390, 1440])
     checks.push('INBOX_SERVER_PAGINATION_BROWSER', 'INBOX_STATUS_AND_FORM_FILTERS', 'INBOX_INVALID_FILTER_TERMINAL')
     const message = (await db.query("select m.id from private.email_intake_messages m join private.email_integrations i on i.id=m.integration_id where i.name='EMAIL05 configuration QA' limit 1")).rows[0]
     assert.ok(message)
     await diagnostics.phase('MESSAGE:NAVIGATION')
-    await page.goto(`${base}&tab=inbox&message=${message.id}`, { waitUntil: 'domcontentloaded' }); await screenshot('message')
+    await goto(`${base}&tab=inbox&message=${message.id}`, { waitUntil: 'domcontentloaded' }); await screenshot('message')
     await diagnostics.phase('REVIEW:NAVIGATION')
-    await page.goto(`${base}&tab=review&filterIntegration=${credentialFirstIntegration}`, { waitUntil: 'domcontentloaded' })
+    await goto(`${base}&tab=review&filterIntegration=${credentialFirstIntegration}`, { waitUntil: 'domcontentloaded' })
     await screenshot('review-empty', [390, 1440])
     assert.ok((await page.content()).includes('Não há documentos aguardando revisão nestes filtros.'))
-    await page.goto(`${base}&tab=review`, { waitUntil: 'domcontentloaded' }); await screenshot('review')
+    await goto(`${base}&tab=review`, { waitUntil: 'domcontentloaded' }); await screenshot('review')
     await page.keyboard.press('Tab')
     assert.ok(await page.evaluate(() => document.activeElement !== document.body), 'KEYBOARD_FOCUS')
     const redactionSummary = await redaction.assertClean()
@@ -250,7 +252,10 @@ export async function verifyEmailOperatorBrowser({ db, url, serviceKey, anonKey,
       await writeFile(resolve(root, 'email05-log-redaction.json'), JSON.stringify({ matchedSecretClasses: [...serverLogMatches] }))
     }
     finally {
-      try { if (browser) await browser.close() }
+      try {
+        try { await redaction?.awaitDrain({ timeoutMs: 2000 }) }
+        finally { await redaction?.save(); if (browser) await browser.close() }
+      }
       finally {
         if (server?.exitCode === null && server.pid) {
           if (process.platform === 'win32') spawnSync('taskkill', ['/PID', String(server.pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' })

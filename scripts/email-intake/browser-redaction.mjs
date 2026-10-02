@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
 import { writeFile } from 'node:fs/promises'
 import { diagnosticPath } from './browser-diagnostics.mjs'
+import { createProtocolTrace } from './browser-protocol.mjs'
+import { createRedactionBarrier, terminalInspectionState } from './browser-drain.mjs'
 
 function sensitivePath(pathname) {
   return /^\/(?:api(?:\/|$)|rest\/v1(?:\/|$)|auth\/v1(?:\/|$)|(?:admin|gestor)\/integracoes-email(?:\/|$))/.test(pathname)
@@ -67,12 +69,23 @@ export function secretClasses(body, known = []) {
 export async function inspectEmailResponses(page, { file, knownSecrets = [], phase = () => 'BROWSER' }) {
   const cdp = await page.createCDPSession(), rows = [], aborted = [], pending = new Set(), requests = new Map(), byNetwork = new Map(), passive = new Map(), recordedPassive = new Set()
   const consoleMatches = [], failures = []
+  const protocol = await createProtocolTrace(cdp)
+  const registry = []
+  const transition = (entry, state) => {
+    if (!entry || (terminalInspectionState(entry.state) && entry.state !== 'COMPLETED')) return
+    entry.state = state
+    protocol.record('INSPECTION_STATE', null, null, { registryId: entry.id, state })
+  }
   let serial = 0
   const safeMeta = request => ({ method: request.method, pathname: diagnosticPath(request.url) })
   cdp.on('Network.requestWillBeSent', event => {
     if (!/^https?:/.test(event.request.url)) return
+    protocol.record('Network.requestWillBeSent', event.requestId, null, { ...safeMeta(event.request), resourceType: event.type })
     const headers = event.request.headers
-    requests.set(event.requestId, { ...safeMeta(event.request), sensitive: sensitivePath(new URL(event.request.url).pathname),
+    const entry = { id: registry.length + 1, ...safeMeta(event.request), state: 'DISCOVERED',
+      required: sensitivePath(new URL(event.request.url).pathname) || ['Document', 'Fetch', 'XHR'].includes(event.type) }
+    registry.push(entry)
+    requests.set(event.requestId, { entry, ...safeMeta(event.request), sensitive: sensitivePath(new URL(event.request.url).pathname),
       initiatorClass: ['parser', 'script', 'preload', 'preflight', 'SignedExchange', 'other'].includes(event.initiator?.type) ? event.initiator.type : 'unknown',
       lifecycle: 'REQUESTED',
       intent: headers['Next-Router-Prefetch'] === '1' || headers['next-router-prefetch'] === '1' ? 'RSC_PREFETCH'
@@ -82,10 +95,13 @@ export async function inspectEmailResponses(page, { file, knownSecrets = [], pha
   cdp.on('Network.responseReceived', event => {
     const request = requests.get(event.requestId)
     if (!request) return
+    protocol.record('Network.responseReceived', event.requestId, null, { status: event.response.status, resourceType: event.type })
     const contentType = (event.response.mimeType ?? '').toLowerCase()
     request.lifecycle = 'RESPONSE_RECEIVED'
     const classification = classifyResponse({ pathname: new URL(event.response.url).pathname, method: request.method,
       status: event.response.status, contentType, resourceType: event.type })
+    request.entry.required = classification === 'MUST_INSPECT_SECRET_SURFACE'
+    if (request.entry.state === 'DISCOVERED') transition(request.entry, 'CLASSIFIED')
     passive.set(event.requestId, { method: request.method, pathname: request.pathname, status: event.response.status, contentType,
       resourceType: event.type, phase: request.phase, classification, size: null, matchedSecretClasses: [], bodyInspectionErrorClass: null,
       initiatorClass: request.initiatorClass, lifecycle: request.lifecycle, intercepted: false })
@@ -93,8 +109,13 @@ export async function inspectEmailResponses(page, { file, knownSecrets = [], pha
   const lifecycle = (id, state) => {
     for (const row of [requests.get(id), passive.get(id), byNetwork.get(id)]) if (row) row.lifecycle = state
   }
-  cdp.on('Network.loadingFinished', event => lifecycle(event.requestId, 'COMPLETED'))
+  cdp.on('Network.loadingFinished', event => {
+    protocol.record('Network.loadingFinished', event.requestId); lifecycle(event.requestId, 'COMPLETED')
+    const request = requests.get(event.requestId)
+    if (request && !byNetwork.has(event.requestId)) transition(request.entry, 'COMPLETED')
+  })
   cdp.on('Network.loadingFailed', event => {
+    protocol.record('Network.loadingFailed', event.requestId, null, { errorClass: /ERR_ABORTED/.test(event.errorText) ? 'ERR_ABORTED' : 'NETWORK_FAILURE' })
     lifecycle(event.requestId, 'FAILED_OR_CANCELLED')
     const request = requests.get(event.requestId)
     if (!request) return
@@ -103,6 +124,7 @@ export async function inspectEmailResponses(page, { file, knownSecrets = [], pha
     const safeTransient = !request.sensitive && request.method === 'GET' && request.intent === 'RSC_PREFETCH'
       && ['/', '/login'].includes(request.pathname) && !passive.has(event.requestId)
     const safeStatic = !request.sensitive && request.method === 'GET' && passive.get(event.requestId)?.classification === 'STATIC_ASSET'
+    transition(request.entry, afterInspection || safeTransient || safeStatic ? 'COMPLETED' : 'CANCELLED_BEFORE_INSPECTION')
     aborted.push({ method: request.method, pathname: request.pathname, intent: request.intent, phase: request.phase,
       classification: afterInspection ? 'CANCELLED_AFTER_INSPECTION' : safeTransient ? 'NON_SECRET_PREFETCH_CANCELLED' : safeStatic ? 'CANCELLED_STATIC_ASSET' : 'UNINSPECTED_ABORT',
       errorClass: /ERR_ABORTED/.test(event.errorText) ? 'ERR_ABORTED' : 'NETWORK_FAILURE' })
@@ -116,25 +138,41 @@ export async function inspectEmailResponses(page, { file, knownSecrets = [], pha
       size: null, inspectionResult: 'PENDING', matchedSecretClasses: [], bodyInspectionErrorClass: null,
       initiatorClass: requests.get(event.networkId)?.initiatorClass ?? 'unknown', lifecycle: 'RESPONSE_PAUSED', intercepted: true }
     rows.push(row)
+    let entry = requests.get(event.networkId)?.entry
+    if (!entry) { entry = { id: registry.length + 1, ...safeMeta(event.request), state: 'DISCOVERED' }; registry.push(entry) }
+    entry.required = classification === 'MUST_INSPECT_SECRET_SURFACE'
+    row.registryId = entry.id
+    transition(entry, 'CLASSIFIED'); transition(entry, 'INTERCEPTED'); transition(entry, 'RESPONSE_PAUSED')
+    protocol.record('Fetch.requestPaused', event.networkId, event.requestId, { pathname: row.pathname, classification, status, resourceType: event.resourceType, contentType })
     if (event.networkId) byNetwork.set(event.networkId, row)
     try {
       // Redirect targets can leak credentials even without a response body.
       row.matchedSecretClasses = secretClasses(headers.location ?? '', knownSecrets)
       if (classification === 'NO_BODY_EXPECTED' || classification === 'REDIRECT') row.inspectionResult = 'NO_BODY_EXPECTED'
       else {
-        const response = await cdp.send('Fetch.getResponseBody', { requestId: event.requestId }, { timeout: 15000 })
+        transition(entry, 'BODY_READING')
+        const response = await protocol.command('Fetch.getResponseBody', { requestId: event.requestId }, { networkId: event.networkId, lifecycle: row.lifecycle }, { timeout: 15000 })
         const body = response.base64Encoded ? Buffer.from(response.body, 'base64').toString('utf8') : response.body
         row.size = Buffer.byteLength(body)
         row.matchedSecretClasses.push(...secretClasses(body, knownSecrets))
         row.inspectionResult = classification === 'UNKNOWN' ? 'UNKNOWN_SURFACE' : 'PASS'
+        transition(entry, 'BODY_INSPECTED')
+        protocol.record('BODY_INSPECTED', event.networkId, event.requestId, { inspectionResult: row.inspectionResult })
       }
-      if (row.matchedSecretClasses.length) row.inspectionResult = 'SECRET_PATTERN_MATCH'
+      if (row.matchedSecretClasses.length) { row.inspectionResult = 'SECRET_PATTERN_MATCH'; transition(entry, 'SECRET_MATCH') }
     } catch (error) {
       row.bodyInspectionErrorClass = inspectionError(error)
       row.inspectionResult = ['STATIC_ASSET', 'MAY_INSPECT'].includes(classification) ? 'NON_SECRET_BODY_UNAVAILABLE' : 'FAIL'
+      transition(entry, 'BODY_UNAVAILABLE')
     } finally {
-      try { await cdp.send('Fetch.continueRequest', { requestId: event.requestId }) }
-      catch (error) { failures.push({ kind: 'CONTINUE_RESPONSE_FAILED', errorClass: inspectionError(error), pathname: row.pathname }) }
+      try {
+        transition(entry, 'CONTINUING')
+        await protocol.command('Fetch.continueRequest', { requestId: event.requestId }, { networkId: event.networkId, lifecycle: row.lifecycle })
+        transition(entry, 'COMPLETED')
+      } catch (error) {
+        transition(entry, 'CONTINUE_FAILED')
+        failures.push({ kind: 'CONTINUE_RESPONSE_FAILED', errorClass: inspectionError(error), pathname: row.pathname })
+      }
     }
   }
   cdp.on('Fetch.requestPaused', event => {
@@ -163,6 +201,8 @@ export async function inspectEmailResponses(page, { file, knownSecrets = [], pha
     const must = rows.filter(row => row.classification === 'MUST_INSPECT_SECRET_SURFACE')
     const inspected = must.filter(row => row.inspectionResult === 'PASS').length
     return { mustInspect: must.length, intercepted: must.filter(row => row.intercepted).length, inspected, uninspected: must.length - inspected,
+      pending: registry.filter(entry => entry.required && !terminalInspectionState(entry.state)).length,
+      failed: registry.filter(entry => entry.required && terminalInspectionState(entry.state) && entry.state !== 'COMPLETED').length,
       total: rows.length, aborted: aborted.length, consoleMatches: consoleMatches.length }
   }
   const save = async () => {
@@ -172,7 +212,7 @@ export async function inspectEmailResponses(page, { file, knownSecrets = [], pha
       rows.push({ id: ++serial, ...row, inspectionResult: safe ? 'NON_SECRET_STATIC' : 'UNINSPECTED_SURFACE' })
       recordedPassive.add(id)
     }
-    await writeFile(file, JSON.stringify({ summary: summary(), rows, aborted, consoleMatches, failures }, null, 2))
+    await writeFile(file, JSON.stringify({ summary: summary(), rows, registry, aborted, consoleMatches, failures, protocol: { versions: protocol.versions, timeline: protocol.timeline } }, null, 2))
   }
   const assertHealthy = async () => {
       await flush(); await save()
@@ -185,8 +225,18 @@ export async function inspectEmailResponses(page, { file, knownSecrets = [], pha
       assert.equal(consoleMatches.length, 0, 'CONSOLE_SECRET_PATTERN_MATCH')
       return counts
   }
-  return { flush, save, assertHealthy,
+  const snapshot = () => ({ ...summary(), tasks: pending.size, states: registry.filter(entry => entry.required && entry.state !== 'COMPLETED').map(({ pathname, state }) => ({ pathname, state })) })
+  const barrier = createRedactionBarrier({
+    snapshot,
+    validate: assertHealthy, save,
+    record: (event, metadata) => {
+      protocol.record(event, null, null, metadata)
+      if (event === 'REDACTION_DRAIN_TIMEOUT') failures.push({ kind: event })
+    },
+  })
+  return { flush, save, assertHealthy, snapshot, ...barrier,
     async assertClean() {
+      await barrier.awaitDrain()
       const counts = await assertHealthy()
       assert.ok(counts.mustInspect > 0, 'NO_SECRET_SURFACE_OBSERVED')
       assert.deepEqual(secretClasses(await page.content(), knownSecrets), [], 'HTML_SECRET_PATTERN_MATCH')
