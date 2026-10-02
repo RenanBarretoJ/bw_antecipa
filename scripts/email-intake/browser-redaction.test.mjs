@@ -114,3 +114,46 @@ test('response body uses its Fetch ID and is inspected before continuation', () 
   assert.ok(timeline.findIndex(row => row.event === 'BODY_INSPECTED') < timeline.findIndex(row => row.event === 'Fetch.continueRequest'))
   assert.ok(timeline.filter(row => row.event === 'Fetch.getResponseBody').every(row => row.networkId !== row.fetchId))
 }))
+
+for (const [method, status] of [['HEAD', 200], ['GET', 204], ['GET', 304]]) {
+  test(`${method} ${status}: cancellation after response/header terminal is certified without body access`, () => fixture(async ({ cdp, response, inspection, file, calls }) => {
+    response('baseline'); await inspection.flush()
+    const request = { method, url: 'https://qa.invalid/api/terminal', headers: {} }
+    cdp.emit('Network.requestWillBeSent', { requestId: 'terminal', request, type: 'Fetch' })
+    cdp.emit('Fetch.requestPaused', { requestId: 'fetch-terminal', networkId: 'terminal', request, resourceType: 'Fetch', responseStatusCode: status,
+      responseHeaders: [{ name: 'content-type', value: 'application/json' }] })
+    await inspection.flush()
+    assert.ok(inspection.snapshot().pending > 0, 'FETCH_HEADERS_ALONE_NOT_TERMINAL')
+    cdp.emit('Network.responseReceived', { requestId: 'terminal', type: 'Fetch', response: { url: request.url, status, mimeType: 'application/json', headers: { 'content-type': 'application/json' } } })
+    cdp.emit('Network.loadingFailed', { requestId: 'terminal', errorText: 'net::ERR_ABORTED' })
+    await inspection.assertClean()
+    const result = JSON.parse(await readFile(file, 'utf8'))
+    assert.equal(result.aborted[0].classification, 'CANCELLED_AFTER_TERMINAL_NO_BODY')
+    assert.equal(result.summary.noBodyTerminal, 1)
+    assert.equal(result.summary.unexpectedCancels, 0)
+    assert.ok(!calls.some(c => c.method === 'Fetch.getResponseBody' && c.parameters.requestId === 'fetch-terminal'))
+  }))
+}
+
+test('HEAD headers paused before Network response cannot justify an abort', () => fixture(async ({ cdp, response, inspection }) => {
+  response('baseline'); await inspection.flush()
+  const request = { method: 'HEAD', url: 'https://qa.invalid/api/terminal', headers: {} }
+  cdp.emit('Network.requestWillBeSent', { requestId: 'early', request, type: 'Fetch' })
+  cdp.emit('Fetch.requestPaused', { requestId: 'fetch-early', networkId: 'early', request, resourceType: 'Fetch', responseStatusCode: 200, responseHeaders: [] })
+  await inspection.flush()
+  cdp.emit('Network.loadingFailed', { requestId: 'early', errorText: 'net::ERR_ABORTED' })
+  await assert.rejects(inspection.assertClean(), /REDACTION_DRAIN_FAILED/)
+}))
+
+test('HEAD secret in either header event fails and persists no values', () => fixture(async ({ cdp, response, inspection, file }) => {
+  response('baseline'); await inspection.flush()
+  const request = { method: 'HEAD', url: 'https://qa.invalid/api/terminal', headers: {} }
+  cdp.emit('Network.requestWillBeSent', { requestId: 'secret', request, type: 'Fetch' })
+  cdp.emit('Fetch.requestPaused', { requestId: 'fetch-secret', networkId: 'secret', request, resourceType: 'Fetch', responseStatusCode: 200,
+    responseHeaders: [{ name: 'x-client-secret', value: 'PRIVATE_HEADER_SENTINEL' }] })
+  await inspection.flush()
+  cdp.emit('Network.responseReceived', { requestId: 'secret', type: 'Fetch', response: { url: request.url, status: 200, mimeType: 'application/json', headers: {} } })
+  cdp.emit('Network.loadingFailed', { requestId: 'secret', errorText: 'net::ERR_ABORTED' })
+  await assert.rejects(inspection.assertClean(), /REDACTION_DRAIN_FAILED/)
+  assert.equal((await readFile(file, 'utf8')).includes('PRIVATE_HEADER_SENTINEL'), false)
+}))

@@ -3,6 +3,7 @@ import { writeFile } from 'node:fs/promises'
 import { diagnosticPath } from './browser-diagnostics.mjs'
 import { createProtocolTrace } from './browser-protocol.mjs'
 import { createRedactionBarrier, terminalInspectionState } from './browser-drain.mjs'
+import { bodylessResponse, inspectResponseHeaders, noBodyRequest, receiveNoBodyResponse, cancelNoBodyResponse } from './browser-no-body.mjs'
 
 function sensitivePath(pathname) {
   return /^\/(?:api(?:\/|$)|rest\/v1(?:\/|$)|auth\/v1(?:\/|$)|(?:admin|gestor)\/integracoes-email(?:\/|$))/.test(pathname)
@@ -20,7 +21,7 @@ function staticResponse(pathname, method, contentType, resourceType) {
 }
 
 export function classifyResponse({ pathname, method, status, contentType = '', resourceType }) {
-  if (method === 'HEAD' || [204, 205].includes(status)) return 'NO_BODY_EXPECTED'
+  if (bodylessResponse(method, status)) return 'NO_BODY_EXPECTED'
   if ([301, 302, 303, 307, 308].includes(status)) return 'REDIRECT'
   // Route names embedded in Next bundles are not application endpoints. Require all asset evidence.
   if (staticResponse(pathname, method, contentType, resourceType)) return 'STATIC_ASSET'
@@ -83,6 +84,7 @@ export async function inspectEmailResponses(page, { file, knownSecrets = [], pha
     protocol.record('Network.requestWillBeSent', event.requestId, null, { ...safeMeta(event.request), resourceType: event.type })
     const headers = event.request.headers
     const entry = { id: registry.length + 1, ...safeMeta(event.request), state: 'DISCOVERED',
+      noBody: noBodyRequest(event.request.method),
       required: sensitivePath(new URL(event.request.url).pathname) || ['Document', 'Fetch', 'XHR'].includes(event.type) }
     registry.push(entry)
     requests.set(event.requestId, { entry, ...safeMeta(event.request), sensitive: sensitivePath(new URL(event.request.url).pathname),
@@ -100,11 +102,22 @@ export async function inspectEmailResponses(page, { file, knownSecrets = [], pha
     request.lifecycle = 'RESPONSE_RECEIVED'
     const classification = classifyResponse({ pathname: new URL(event.response.url).pathname, method: request.method,
       status: event.response.status, contentType, resourceType: event.type })
-    request.entry.required = classification === 'MUST_INSPECT_SECRET_SURFACE'
+    request.entry.required = ['MUST_INSPECT_SECRET_SURFACE', 'NO_BODY_EXPECTED'].includes(classification)
+    receiveNoBodyResponse(request.entry.noBody, event.response, text => secretClasses(text, knownSecrets))
+    if (classification === 'NO_BODY_EXPECTED') {
+      const evidence = request.entry.noBody
+      protocol.record('HEADERS_INSPECTED', event.requestId, null, { ...evidence })
+      transition(request.entry, evidence.sensitiveHeaderMatch ? 'SECRET_MATCH'
+        : evidence.terminalState === 'NO_BODY_TERMINAL' ? 'NO_BODY_TERMINAL' : 'HEADERS_FAILED')
+      if (evidence.terminalState === 'NO_BODY_TERMINAL') protocol.record('NO_BODY_TERMINAL', event.requestId, null)
+      const row = byNetwork.get(event.requestId)
+      if (row) row.noBody = evidence
+    }
     if (request.entry.state === 'DISCOVERED') transition(request.entry, 'CLASSIFIED')
     passive.set(event.requestId, { method: request.method, pathname: request.pathname, status: event.response.status, contentType,
       resourceType: event.type, phase: request.phase, classification, size: null, matchedSecretClasses: [], bodyInspectionErrorClass: null,
-      initiatorClass: request.initiatorClass, lifecycle: request.lifecycle, intercepted: false })
+      initiatorClass: request.initiatorClass, lifecycle: request.lifecycle, intercepted: false,
+      ...(classification === 'NO_BODY_EXPECTED' ? { noBody: request.entry.noBody } : {}) })
   })
   const lifecycle = (id, state) => {
     for (const row of [requests.get(id), passive.get(id), byNetwork.get(id)]) if (row) row.lifecycle = state
@@ -121,12 +134,12 @@ export async function inspectEmailResponses(page, { file, knownSecrets = [], pha
     if (!request) return
     const inspection = byNetwork.get(event.requestId)
     const afterInspection = inspection?.inspectionResult === 'PASS'
-    const safeTransient = !request.sensitive && request.method === 'GET' && request.intent === 'RSC_PREFETCH'
-      && ['/', '/login'].includes(request.pathname) && !passive.has(event.requestId)
-    const safeStatic = !request.sensitive && request.method === 'GET' && passive.get(event.requestId)?.classification === 'STATIC_ASSET'
-    transition(request.entry, afterInspection || safeTransient || safeStatic ? 'COMPLETED' : 'CANCELLED_BEFORE_INSPECTION')
+    const noBodyCancellation = cancelNoBodyResponse(request.entry.noBody)
+    const afterNoBody = noBodyCancellation === 'CANCELLED_AFTER_TERMINAL_NO_BODY'
+    transition(request.entry, afterInspection ? 'COMPLETED' : afterNoBody ? 'NO_BODY_TERMINAL' : 'CANCELLED_BEFORE_INSPECTION')
     aborted.push({ method: request.method, pathname: request.pathname, intent: request.intent, phase: request.phase,
-      classification: afterInspection ? 'CANCELLED_AFTER_INSPECTION' : safeTransient ? 'NON_SECRET_PREFETCH_CANCELLED' : safeStatic ? 'CANCELLED_STATIC_ASSET' : 'UNINSPECTED_ABORT',
+      ...request.entry.noBody,
+      classification: afterInspection ? 'CANCELLED_AFTER_INSPECTION' : noBodyCancellation,
       errorClass: /ERR_ABORTED/.test(event.errorText) ? 'ERR_ABORTED' : 'NETWORK_FAILURE' })
   })
   const inspect = async event => {
@@ -139,8 +152,8 @@ export async function inspectEmailResponses(page, { file, knownSecrets = [], pha
       initiatorClass: requests.get(event.networkId)?.initiatorClass ?? 'unknown', lifecycle: 'RESPONSE_PAUSED', intercepted: true }
     rows.push(row)
     let entry = requests.get(event.networkId)?.entry
-    if (!entry) { entry = { id: registry.length + 1, ...safeMeta(event.request), state: 'DISCOVERED' }; registry.push(entry) }
-    entry.required = classification === 'MUST_INSPECT_SECRET_SURFACE'
+    if (!entry) { entry = { id: registry.length + 1, ...safeMeta(event.request), state: 'DISCOVERED', noBody: noBodyRequest(event.request.method) }; registry.push(entry) }
+    entry.required = ['MUST_INSPECT_SECRET_SURFACE', 'NO_BODY_EXPECTED'].includes(classification)
     row.registryId = entry.id
     transition(entry, 'CLASSIFIED'); transition(entry, 'INTERCEPTED'); transition(entry, 'RESPONSE_PAUSED')
     protocol.record('Fetch.requestPaused', event.networkId, event.requestId, { pathname: row.pathname, classification, status, resourceType: event.resourceType, contentType })
@@ -148,7 +161,13 @@ export async function inspectEmailResponses(page, { file, knownSecrets = [], pha
     try {
       // Redirect targets can leak credentials even without a response body.
       row.matchedSecretClasses = secretClasses(headers.location ?? '', knownSecrets)
-      if (classification === 'NO_BODY_EXPECTED' || classification === 'REDIRECT') row.inspectionResult = 'NO_BODY_EXPECTED'
+      if (classification === 'NO_BODY_EXPECTED') {
+        row.headerInspection = inspectResponseHeaders(event.responseHeaders, text => secretClasses(text, knownSecrets))
+        row.matchedSecretClasses.push(...row.headerInspection.matchedSecretClasses)
+        row.inspectionResult = row.headerInspection.headersInspected ? 'NO_BODY_EXPECTED' : 'FAIL'
+        transition(entry, row.headerInspection.headersInspected ? 'HEADERS_INSPECTED' : 'HEADERS_FAILED')
+        row.noBody = entry.noBody
+      } else if (classification === 'REDIRECT') row.inspectionResult = 'NO_BODY_EXPECTED'
       else {
         transition(entry, 'BODY_READING')
         const response = await protocol.command('Fetch.getResponseBody', { requestId: event.requestId }, { networkId: event.networkId, lifecycle: row.lifecycle }, { timeout: 15000 })
@@ -157,6 +176,8 @@ export async function inspectEmailResponses(page, { file, knownSecrets = [], pha
         row.matchedSecretClasses.push(...secretClasses(body, knownSecrets))
         row.inspectionResult = classification === 'UNKNOWN' ? 'UNKNOWN_SURFACE' : 'PASS'
         transition(entry, 'BODY_INSPECTED')
+        entry.noBody.inspectionTime = performance.now()
+        entry.noBody.terminalState = 'BODY_INSPECTED'
         protocol.record('BODY_INSPECTED', event.networkId, event.requestId, { inspectionResult: row.inspectionResult })
       }
       if (row.matchedSecretClasses.length) { row.inspectionResult = 'SECRET_PATTERN_MATCH'; transition(entry, 'SECRET_MATCH') }
@@ -168,7 +189,7 @@ export async function inspectEmailResponses(page, { file, knownSecrets = [], pha
       try {
         transition(entry, 'CONTINUING')
         await protocol.command('Fetch.continueRequest', { requestId: event.requestId }, { networkId: event.networkId, lifecycle: row.lifecycle })
-        transition(entry, 'COMPLETED')
+        if (classification !== 'NO_BODY_EXPECTED') transition(entry, 'COMPLETED')
       } catch (error) {
         transition(entry, 'CONTINUE_FAILED')
         failures.push({ kind: 'CONTINUE_RESPONSE_FAILED', errorClass: inspectionError(error), pathname: row.pathname })
@@ -202,14 +223,19 @@ export async function inspectEmailResponses(page, { file, knownSecrets = [], pha
     const inspected = must.filter(row => row.inspectionResult === 'PASS').length
     return { mustInspect: must.length, intercepted: must.filter(row => row.intercepted).length, inspected, uninspected: must.length - inspected,
       pending: registry.filter(entry => entry.required && !terminalInspectionState(entry.state)).length,
-      failed: registry.filter(entry => entry.required && terminalInspectionState(entry.state) && entry.state !== 'COMPLETED').length,
+      failed: registry.filter(entry => entry.required && terminalInspectionState(entry.state) && !['COMPLETED', 'NO_BODY_TERMINAL'].includes(entry.state)).length,
+      noBody: registry.filter(entry => entry.noBody?.classification === 'NO_BODY_EXPECTED').length,
+      noBodyTerminal: registry.filter(entry => entry.state === 'NO_BODY_TERMINAL').length,
+      unexpectedCancels: aborted.filter(row => !['CANCELLED_AFTER_INSPECTION', 'CANCELLED_AFTER_TERMINAL_NO_BODY'].includes(row.classification) || row.errorClass !== 'ERR_ABORTED').length,
       total: rows.length, aborted: aborted.length, consoleMatches: consoleMatches.length }
   }
   const save = async () => {
     for (const [id, row] of passive) {
       if (byNetwork.has(id) || recordedPassive.has(id)) continue
-      const safe = ['STATIC_ASSET', 'MAY_INSPECT', 'NO_BODY_EXPECTED'].includes(row.classification)
-      rows.push({ id: ++serial, ...row, inspectionResult: safe ? 'NON_SECRET_STATIC' : 'UNINSPECTED_SURFACE' })
+      const safe = ['STATIC_ASSET', 'MAY_INSPECT'].includes(row.classification)
+      rows.push({ id: ++serial, ...row, inspectionResult: row.classification === 'NO_BODY_EXPECTED'
+        ? row.noBody?.terminalState === 'NO_BODY_TERMINAL' ? 'NO_BODY_EXPECTED' : 'UNINSPECTED_SURFACE'
+        : safe ? 'NON_SECRET_STATIC' : 'UNINSPECTED_SURFACE' })
       recordedPassive.add(id)
     }
     await writeFile(file, JSON.stringify({ summary: summary(), rows, registry, aborted, consoleMatches, failures, protocol: { versions: protocol.versions, timeline: protocol.timeline } }, null, 2))
@@ -220,12 +246,13 @@ export async function inspectEmailResponses(page, { file, knownSecrets = [], pha
       assert.equal(counts.inspected, counts.mustInspect, 'MUST_INSPECT_COVERAGE_FAILED')
       assert.equal(counts.intercepted, counts.mustInspect, 'MUST_INSPECT_INTERCEPT_COVERAGE_FAILED')
       assert.equal(rows.filter(row => ['FAIL', 'PENDING', 'UNKNOWN_SURFACE', 'UNINSPECTED_SURFACE', 'SECRET_PATTERN_MATCH'].includes(row.inspectionResult)).length, 0, 'RESPONSE_REDACTION_FAILED')
-      assert.equal(aborted.filter(row => row.classification === 'UNINSPECTED_ABORT' || row.errorClass !== 'ERR_ABORTED').length, 0, 'UNINSPECTED_OR_UNEXPECTED_ABORT')
+      assert.equal(counts.unexpectedCancels, 0, 'UNINSPECTED_OR_UNEXPECTED_ABORT')
+      assert.equal(counts.noBody, counts.noBodyTerminal, 'NO_BODY_TERMINAL_REQUIRED')
       assert.equal(failures.length, 0, 'RESPONSE_INSPECTION_PROTOCOL_FAILED')
       assert.equal(consoleMatches.length, 0, 'CONSOLE_SECRET_PATTERN_MATCH')
       return counts
   }
-  const snapshot = () => ({ ...summary(), tasks: pending.size, states: registry.filter(entry => entry.required && entry.state !== 'COMPLETED').map(({ pathname, state }) => ({ pathname, state })) })
+  const snapshot = () => ({ ...summary(), tasks: pending.size, states: registry.filter(entry => entry.required && !['COMPLETED', 'NO_BODY_TERMINAL'].includes(entry.state)).map(({ pathname, state }) => ({ pathname, state })) })
   const barrier = createRedactionBarrier({
     snapshot,
     validate: assertHealthy, save,

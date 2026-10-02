@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 
-const terminal = new Set(['COMPLETED', 'BODY_UNAVAILABLE', 'SECRET_MATCH', 'CANCELLED_BEFORE_INSPECTION', 'CONTINUE_FAILED', 'PROTOCOL_FAILURE'])
+const terminal = new Set(['COMPLETED', 'NO_BODY_TERMINAL', 'BODY_UNAVAILABLE', 'SECRET_MATCH', 'HEADERS_FAILED', 'CANCELLED_BEFORE_INSPECTION', 'CONTINUE_FAILED', 'PROTOCOL_FAILURE'])
 export const terminalInspectionState = state => terminal.has(state)
 
 /** Serializes harness actions; the application is never paused or modified. */

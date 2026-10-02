@@ -1,0 +1,91 @@
+RLX EMAIL 05 R8 — HEAD, headers e estado terminal sem corpo
+
+Este documento descreve o diff do harness. Os relatórios locais e remotos por
+SHA são a fonte dos resultados de execução. Não representa promoção de ambiente.
+Base R7: 98232a4c1bd6b7cbae2a61599add6c34a919c9cb. PR #87 permanece DRAFT.
+Homolog e produção estão fora deste roteiro.
+
+Diagnóstico observado
+
+Antes de mudar o comportamento remoto, a tela /cedente/notas-fiscais foi aberta
+no Preview R7 com o inspetor estrito anterior e um observador independente.
+A HEAD real em /rest/[redacted]/[redacted] recebeu HTTP 200, teve seus headers
+inspecionados em memória e atingiu NO_BODY_TERMINAL antes de ERR_ABORTED.
+O observador não dispensou nem mudou a reprovação do R7.
+Evidência: rehearsal/reports/email05-r8-head-shadow/shadow.json.
+Os fixtures de Auth/MFA/fundo/cedente foram removidos, com cleanup duplo PASS.
+
+O diagnóstico comprova a ordem do protocolo, não o motivo pelo qual a requisição
+foi cancelada. A causa histórica exata do R5 continua não comprovada pelo trace.
+
+Mudança de arquitetura do teste
+
+- browser-no-body.mjs centraliza a semântica bodyless e a inspeção dos headers.
+- browser-redaction.mjs mantém a inspeção dos corpos pelo Fetch ID. HEAD,
+  204, 205 e 304 só atingem NO_BODY_TERMINAL depois de Network.responseReceived
+  e inspeção bem-sucedida dos headers. Um 1xx é informativo, não terminal final.
+- Headers na pausa Fetch também são inspecionados antes da continuação, inclusive
+  Location e cookies; valores nunca são persistidos. Apenas classes, flags e tempos.
+- Cancelamento antes da resposta, antes dos headers ou durante body obrigatório
+  permanece FAIL. Evidência posterior não corrige retroativamente um cancelamento.
+- O gate aceita apenas CANCELLED_AFTER_INSPECTION e
+  CANCELLED_AFTER_TERMINAL_NO_BODY, ambos com ERR_ABORTED. As antigas exceções de
+  cancelamento estático/prefetch sem inspeção foram removidas.
+- A barreira considera headers ainda pendentes; não altera timeouts globais,
+  RSC, autorização, banco, regras fiscais, domínio ou UI do produto.
+
+Política explícita de Set-Cookie
+
+Cookies Supabase de sessão reconhecidos por sb-<ref>-auth-token[.<chunk>] são
+contados separadamente. Os campos access_token/refresh_token desses cookies
+legítimos não são classificados automaticamente como vazamento de integração.
+Valores continuam inspecionados em memória contra segredos conhecidos, chaves
+privadas, service-role e demais classes de integração. Valores base64 completos
+e percent-encoded desses cookies também são inspecionados decodificados.
+Não há persistência de nomes arbitrários, valores ou trechos correspondentes.
+
+Testes
+
+Testes puros e eventos CDP controlados cobrem semântica, estado, ordem, erro de
+inspeção, segredo em headers, cookies legítimos, integração indevida e parâmetros
+sensíveis em URLs. O probe real cobre HEAD normal, cancelamento após terminal,
+cancelamento antes dos headers, GET/RSC durante body, 204, 304 e header secreto.
+Vinte iterações determinísticas alternam HEAD normal, HEAD cancelado depois,
+GET e RSC normais. Os controles negativos precisam reprovar a inspeção para
+aprovar o próprio teste. A regressão R7 de navegação/reload/close é preservada.
+
+A primeira tentativa de controle com XMLHttpRequest completava a HEAD antes do
+abort e não produzia Network.loadingFailed. O artefato foi preservado, e o probe
+passou a usar fetch + AbortController, comprovando o cancelamento real posterior.
+Não foi sintetizado um loadingFailed no probe de navegador.
+
+Linux/CI/Preview
+
+Os dois probes e a nova suíte estão no runner Linux e na CI. O arquivo de
+evidência R8 tem allowlist explícita no arquivador e é obrigatório no runner full.
+Recertificação do zero, cleanup duplo, arquivo com SHA256 e revisão do diff são
+obrigatórios antes de commit/push. Depois: CI padrão + Linux no mesmo SHA,
+novo Preview, precheck, RLS/MFA e fluxo oficial 950501.
+
+O e-mail original 950501 deve ser reutilizado; nenhum reenvio ou novo PDF.
+Conferir revisão humana, auditoria SYSTEM → HUMAN, reconciliação da mesma
+identidade após importar, ausência de nova NF/review/Storage, saúde/alertas,
+desativação e ALL_ACTIVE_CEDENTES. O vencimento ausente depende da definição QA.
+Limpar todos os fixtures e recursos exclusivos, preservando a mensagem na mailbox.
+Somente todos os gates aprovados permitem PREVIEW_READY = YES; parar nesse ponto.
+
+Checkpoint local anterior ao commit: runner bw_email05_runner_1790977389387 PASS.
+TypeScript, lint, build, 2693 testes (12 skips existentes) e cleanroom passaram.
+Browser Linux: 127/127 MUST, zero pendências, falhas, cancelamentos inesperados
+ou segredos; 106 screenshots e 52 scans de acessibilidade sem violações.
+Probe bodyless Linux: 28 casos, incluindo 20 iterações determinísticas, PASS.
+Cleanup duplo e arquivo com hashes PASS; nenhum container Docker restante.
+Esses resultados não substituem os dois CIs e o fluxo real no novo Preview.
+
+Referências consultadas
+
+https://www.rfc-editor.org/rfc/rfc9110.html#name-head
+https://www.rfc-editor.org/rfc/rfc9110.html#name-content-semantics
+https://chromedevtools.github.io/devtools-protocol/tot/Network/#event-responseReceived
+https://chromedevtools.github.io/devtools-protocol/tot/Fetch/#event-requestPaused
+node_modules/next/dist/docs/01-app/02-guides/prefetching.md
