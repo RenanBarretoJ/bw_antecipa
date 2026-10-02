@@ -31,8 +31,8 @@ export function EmailCredentialDialog({ fundoId, environment, open, onClose, onC
       }}>
         <p className="text-sm">Outlook · {environment === 'homologacao' ? 'Homologação' : 'Produção'} · Cofre de credenciais técnicas</p>
         <label className="block space-y-1">Nome da credencial<Input name="name" required minLength={2} maxLength={120} autoComplete="off" /></label>
-        <label className="block space-y-1">Identificador da organização (Tenant ID)<Input name="tenantId" required autoComplete="off" pattern="[a-fA-F0-9-]{36}" /></label>
-        <label className="block space-y-1">Identificador da aplicação (Client ID)<Input name="clientId" required autoComplete="off" pattern="[a-fA-F0-9-]{36}" /></label>
+        <label className="block space-y-1">Identificador da organização (Tenant ID)<Input name="tenantId" required autoComplete="off" pattern={'[a-fA-F0-9\\-]{36}'} /></label>
+        <label className="block space-y-1">Identificador da aplicação (Client ID)<Input name="clientId" required autoComplete="off" pattern={'[a-fA-F0-9\\-]{36}'} /></label>
         <label className="block space-y-1">Segredo da aplicação<Input name="clientSecret" type="password" required maxLength={8192} autoComplete="new-password" /></label>
         <p className="text-sm text-muted-foreground">O segredo será criptografado no cofre existente e não será exibido novamente.</p>
         <label className="block space-y-1">Código de confirmação MFA<Input name="mfaCode" required inputMode="numeric" pattern="[0-9]{6}" maxLength={6} autoComplete="one-time-code" /></label>

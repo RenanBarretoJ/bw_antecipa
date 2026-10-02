@@ -29,12 +29,19 @@ jobs:
       - name: Browser executable
         run: echo "EMAIL_INTAKE_QA_CHROME=$(command -v google-chrome)" >> "$GITHUB_ENV"
       - run: git diff --check HEAD^
+      - name: Browser diagnostic redaction
+        run: node --test scripts/email-intake/browser-diagnostics.test.mjs scripts/email-intake/browser-redaction.test.mjs scripts/email-intake/disposable-resources.test.mjs scripts/email-intake/runner-evidence.test.mjs
+      - name: Browser response boundary inspection
+        run: node scripts/email-intake/redaction-probe.mjs
       - run: npx tsc --noEmit
       - run: npm test -- --run --pool=threads --maxWorkers=1 --no-file-parallelism
       - run: npm run lint
       - run: npx next build --webpack
       - name: Disposable schema, Auth, RLS, MFA, UI and fiscal regression
         run: node scripts/email-intake/clean-room.mjs --storage-api --automation --operators
+      - name: Disposable resource cleanup and postflight
+        if: always()
+        run: node scripts/email-intake/cleanup-manifests.mjs
       - name: Sanitized certification evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -43,6 +50,12 @@ jobs:
           path: |
             rehearsal/reports/RLX_EMAIL_03_CLEAN_ROOM*.json
             rehearsal/tmp/bw_email03_*/email05-ui.json
+            rehearsal/tmp/bw_email03_*/email05-network.json
+            rehearsal/tmp/bw_email03_*/email05-redaction.json
+            rehearsal/tmp/bw_email03_*/email05-log-redaction.json
+            rehearsal/tmp/bw_email03_*/email-browser-build-attempts.jsonl
+            rehearsal/reports/bw_email03_*-resources.json
+            rehearsal/reports/email05-r3-redaction-probe.json
             rehearsal/tmp/bw_email03_*/email-browser-build.log
             rehearsal/tmp/bw_email03_*/email05-screenshots/*.png
           if-no-files-found: ignore

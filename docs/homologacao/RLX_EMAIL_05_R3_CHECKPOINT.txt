@@ -1,0 +1,138 @@
+RLX-EMAIL-05-R3 — CHECKPOINT BLOQUEADO
+Data: 2026-10-02
+Branch: feature/rlx-email05-operations
+HEAD base inalterado: 5283499e5fef612e64a1835eb0876b9668402113
+PR #87 permanece draft. Alteracoes locais sem commit/push/deploy.
+
+DECISAO
+Execucao interrompida pelo item 40 do plano: response MUST_INSPECT nao
+inspecionada. Nenhum FAIL foi convertido em WARN/PASS. Nao houve certificacao
+Linux completa do diff final, nem CI/deploy/QA remoto desta revisao.
+
+ULTIMO DIAGNOSTICO
+Runner: bw_email05_runner_1790955121360
+Supabase local: bw_email03_1790955208200
+Comando: node scripts/email-intake/linux-runner.mjs --browser
+Resultado: FAIL em INTEGRATION_FIRST_DRAFT, MUST_INSPECT_COVERAGE_FAILED.
+Respostas obrigatorias: 26; inspecionadas: 25; total registrado: 81.
+Abortadas: 0; matches de console: 0; nenhum secret pattern nas inspecionadas.
+Nao equivale a prova de ausencia de segredos nas respostas nao inspecionadas.
+
+A resposta pendente foi GET 200 application/javascript, resourceType Script,
+path sanitizado /[redacted]/static/chunks/app/admin/integracoes-email/[redacted].
+O classificador testa /integracoes-email em qualquer segmento antes de testar
+/_next/static/. Assim, classifica um chunk do Next como superficie obrigatoria,
+mas os patterns de interceptacao nao capturam esse Script estatico. O auditor
+passivo registra UNINSPECTED_SURFACE e reprova corretamente a cobertura.
+Esta e a causa identificada para o FAIL atual, nao prova da causa exata do R2.
+
+A resposta original do R2 nao tinha metadata suficiente para identificacao.
+Ela nao foi reproduzida na rodada baseline R3. A nova inspecao CDP em memoria
+antes de entregar o response evita leitura tardia, mas ainda nao e certificada.
+Nao houve nova tentativa/correcao de codigo apos este stop; somente verificacao
+de evidencias, Docker, diff e registro deste checkpoint.
+
+TRABALHO LOCAL REALIZADO
+- Classificacao, inspecao e resultado sanitizado em browser-redaction.mjs.
+- Testes de cobertura, falha de body, cancelamento e secret patterns.
+- Probe real do Chrome com resposta consumida/cancelada: PASS (3/3 obrigatorias).
+- Manifesto de recursos, CLI nativo explicito, finally/sinais e cleanup duplo.
+- Runner Linux descartavel com source em volume Linux e arquivo de evidencias.
+- Script de certificacao completa e cleanup always no workflow.
+- Cache do build baseado nos bytes dos arquivos, em vez do texto de git diff.
+- Preservados readiness semantico e networkidle diagnostico do R2.
+- Nenhuma nova migration, RPC, regra de dominio ou mudanca de transporte Graph.
+
+CLEANUP: CAUSA E EVIDENCIA
+Docker CLI Linux 20.10.24 nao oferece volume prune --all. O wrapper Supabase
+2.111.0 decide usar essa opcao com base na versao do servidor Docker (29.7.2),
+causando falha antes da chamada HTTP de prune de volumes. Probe controlado
+reproduziu wrapper FAIL; CLI Go nativo PASS duas vezes. Nenhum prune global.
+O harness agora invoca explicitamente o CLI Go do pacote instalado, mantendo
+versao, projeto descartavel, manifesto e verificacao de propriedade.
+
+Ultima execucao: cleanup Supabase PASS/idempotente PASS; runner PASS duas vezes.
+Postflight atual: zero containers; nenhum volume/network dos dois IDs acima.
+Volumes e networks anteriores foram preservados. Imagem de build permanece
+como cache, sem container ativo.
+
+Limite de evidencia encontrado na revisao: runner-evidence.mjs usa bw_email\d_
+na allowlist, que nao inclui bw_email03_. O manifesto filho nao foi arquivado
+antes de excluir o diretorio temporario. O relatorio clean-room conserva PASS
+de cleanup/idempotencia; runner-manifest.json conserva as duas execucoes e o
+inventario do runner. Corrigir a allowlist e testar preservacao na retomada.
+
+TESTES EXECUTADOS E LIMITES
+- 8 testes unitarios focados passaram antes do ultimo diagnostico.
+- ESLint focado passou antes das ultimas pequenas alteracoes; nao e gate final.
+- Ultimo clean-room aplicou 260 migrations e passou 27 checks de fencing,
+  9 de Storage, 33 de shared service/review, 22 de automacao, 12 temporais,
+  19 de operadores. A suite browser depois falhou no gate descrito acima.
+- Build cache: mesmo sourceHash/publicConfigHash nas tres preparacoes; as duas
+  reutilizacoes confirmaram matchingBuildId=true. Sem aumento de timeout.
+- Baseline R3 anterior (runner 1790953455165): UI PASS, 106 screenshots,
+  52 scans de acessibilidade e zero violations; paginacao, filtros combinados
+  e filtro invalido executados. Esse PASS usava leitor anterior e nao certifica
+  o diff final nem a nova logica de redaction.
+- Ultima rodada: 10 screenshots, 4 scans, zero violations nos casos executados;
+  Inbox/Review/paginacao nao alcancados nessa rodada.
+- git diff --check: PASS.
+- TypeScript/full suite/lint/build/full browser como certificacao final: nao
+  executados em conjunto. CI novo e todos os gates Preview nao executados.
+
+EVIDENCIAS LOCAIS (rehearsal ignorado pelo Git)
+rehearsal/reports/email05-r3-browser-inspected-2.log
+rehearsal/reports/bw_email05_runner_1790955121360/runner-manifest.json
+rehearsal/reports/bw_email05_runner_1790955121360/evidence/reports/RLX_EMAIL_03_CLEAN_ROOM.json
+rehearsal/reports/bw_email05_runner_1790955121360/evidence/tmp/bw_email03_1790955208200/email05-redaction.json
+rehearsal/reports/bw_email05_runner_1790955121360/evidence/tmp/bw_email03_1790955208200/email05-ui.json
+rehearsal/reports/email05-r3-cleanup-api-probe-2.log
+rehearsal/reports/bw_email05_runner_1790953455165/evidence/tmp/bw_email03_1790953563937/email05-ui.json
+
+STATUS OBRIGATORIO
+FAIL abaixo significa gate ainda nao aprovado; motivo indicado, sem atribuir
+falha observada a etapas nao executadas. PASS parcial nao libera promocao.
+RLX_EMAIL_05_R3_RESPONSE_INSPECTION_ROOT_CAUSE = classificacao indevida de chunk estatico na rodada atual; causa exata da resposta original R2 nao comprovada
+RLX_EMAIL_05_R3_ABORTED_CLASSIFICATION = FAIL (certificacao final pendente; zero abortadas na ultima rodada)
+RLX_EMAIL_05_R3_MUST_INSPECT_COVERAGE = FAIL (25/26)
+RLX_EMAIL_05_R3_REDACTION = FAIL (cobertura incompleta)
+RLX_EMAIL_05_R3_CLEANUP_ROOT_CAUSE = wrapper usa volume prune --all nao suportado pelo Docker CLI Linux instalado
+RLX_EMAIL_05_R3_AUTOMATIC_CLEANUP = PASS (rodadas diagnosticas)
+RLX_EMAIL_05_R3_CLEANUP_IDEMPOTENT = PASS (rodadas diagnosticas)
+DOCKER_TEST_ENV_CLEANUP = PASS
+RLX_EMAIL_05_R3_PAGINATION = PASS (baseline executado; recertificacao final pendente)
+RLX_EMAIL_05_R3_COMBINED_FILTERS = PASS (baseline executado; recertificacao final pendente)
+RLX_EMAIL_05_R3_INVALID_FILTER = PASS (baseline executado; recertificacao final pendente)
+RLX_EMAIL_05_R3_INBOX_BROWSER = FAIL (gate final nao alcancado)
+RLX_EMAIL_05_R3_REVIEW_BROWSER = FAIL (gate final nao alcancado)
+RLX_EMAIL_05_R3_ACCESSIBILITY = FAIL (cobertura final incompleta)
+RLX_EMAIL_05_LINUX_CERTIFICATION = FAIL (certificacao completa nao executada)
+RLX_EMAIL_05_R3_HEAD = 5283499e5fef612e64a1835eb0876b9668402113 (base; diff R3 nao commitado)
+RLX_EMAIL_05_CI = FAIL (nao executado no diff R3)
+RLX_EMAIL_05_PREVIEW_DEPLOY_NEW = FAIL (nao executado)
+RLX_EMAIL_05_PREVIEW_TARGET = FAIL (nao validado nesta revisao)
+RLX_EMAIL_05_PREVIEW_SUPABASE_REF = inkyqlmusvorcmibmrhp (esperado; precheck pendente)
+RLX_EMAIL_05_PREVIEW_CSP = FAIL (precheck pendente)
+RLX_EMAIL_05_PREVIEW_UI = FAIL (nao executado)
+RLX_EMAIL_05_PREVIEW_CREDENTIALS = FAIL (nao executado)
+RLX_EMAIL_05_PREVIEW_ROUTING = FAIL (nao executado)
+RLX_EMAIL_05_PREVIEW_HEALTH = FAIL (nao executado)
+RLX_EMAIL_05_PREVIEW_ALERTS = FAIL (nao executado)
+RLX_EMAIL_05_PREVIEW_INBOX = FAIL (nao executado)
+RLX_EMAIL_05_PREVIEW_REVIEW = FAIL (nao executado)
+RLX_EMAIL_05_PREVIEW_RLS = FAIL (nao executado)
+RLX_EMAIL_05_PREVIEW_MFA = FAIL (nao executado)
+RLX_EMAIL_05_PREVIEW_REDACTION = FAIL (nao executado)
+RLX_EMAIL_05_PREVIEW_CLEANUP = FAIL (ciclo remoto nao executado; nenhum QA criado)
+RLX_EMAIL_03_04_REGRESSION = PASS (checks locais citados; nao substitui full final)
+RLX_EMAIL_05_R3_PREVIEW_READY = NO
+RLX_EMAIL_05_HOMOLOG_READY = NO
+RLX_EMAIL_HOMOLOG_CHANGED = NO
+RLX_EMAIL_PRODUCTION_CHANGED = NO
+
+RETOMADA NECESSARIA
+Corrigir a classificacao por namespace comprovado e a allowlist de evidencias,
+com testes que mantenham APIs desconhecidas obrigatorias. Reexecutar diagnostico
+e depois full Linux no diff final. Somente full PASS autoriza commit/push ja
+previstos no plano; depois ambos CIs PASS, novo Preview, precheck e QA remoto.
+Sem promocao homolog neste ticket.

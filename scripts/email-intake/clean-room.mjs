@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
+import { once } from 'node:events'
 import { cp, mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { Client } from 'pg'
@@ -12,11 +13,12 @@ import { verifyEmailTemporalAdmission } from './temporal-db.mjs'
 import { verifyEmailOperators } from './operators-db.mjs'
 import { verifyEmailOperatorBrowser } from './operator-browser.mjs'
 import { prepareEmailBrowserRuntime } from './browser-runtime.mjs'
+import { disposableResources, nativeSupabaseCli } from './disposable-resources.mjs'
 
 // Reuse platform bootstrap from the supported CLI. No schema stubs or remote links.
 const projectId = `bw_email03_${Date.now()}`
 const root = resolve('rehearsal/tmp', projectId)
-const cli = resolve('node_modules/supabase/dist/supabase.js')
+const cli = await nativeSupabaseCli()
 const environment = sanitizedLocalEnvironment()
 const storageApi = process.argv.includes('--storage-api')
 const automation = process.argv.includes('--automation')
@@ -40,23 +42,43 @@ await writeFile(resolve(root, 'supabase/config.toml'), config, 'utf8')
 assert.equal(/project_id = "([^\"]+)"/.exec(config)?.[1], projectId)
 assert.ok(root.startsWith(resolve('rehearsal/tmp') + '\\') || root.startsWith(resolve('rehearsal/tmp') + '/'))
 
+let activeCli
 function run(args) {
   return new Promise((done, reject) => {
-    const child = spawn(process.execPath, [cli, ...args, '--workdir', root], { env: environment, windowsHide: true })
+    const child = spawn(cli, [...args, '--workdir', root], { env: environment, windowsHide: true })
+    activeCli = child
     let output = ''
     for (const stream of [child.stdout, child.stderr]) stream.on('data', bytes => { output += bytes.toString() })
     child.on('error', reject)
-    child.on('exit', code => done({ code, output }))
+    child.on('exit', code => { activeCli = null; done({ code, output }) })
   })
 }
+const owned = await disposableResources({ projectId, file: `rehearsal/reports/${projectId}-resources.json`, tempDirs: [root] })
+let cleanupPromise
+const cleanup = () => cleanupPromise ??= (async () => {
+  const stop = async () => {
+    const result = await run(['stop', '--project-id', projectId, '--no-backup'])
+    assert.equal(result.code, 0, 'NATIVE_CLI_STOP_FAILED')
+  }
+  await owned.cleanup(stop)
+  await owned.cleanup(stop)
+})()
+const interrupted = async () => {
+  const child = activeCli
+  if (child?.exitCode === null) { const exited = once(child, 'exit'); child.kill('SIGTERM'); await exited }
+  try { await cleanup() } finally { process.exit(130) }
+}
+process.once('SIGINT', interrupted); process.once('SIGTERM', interrupted)
 async function checkpoint(phase) {
   await writeFile(resolve(root, 'clean-room-checkpoint.json'), JSON.stringify({ ...evidence, phase, result: 'IN_PROGRESS' }, null, 2))
 }
 try {
   console.log(JSON.stringify({ stage: 'START_ISOLATED_LOCAL', projectId, migrationCount: files.length }))
-  const excluded = storageApi ? 'realtime,imgproxy,mailpit,postgres-meta,studio,edge-runtime,logflare,vector,supavisor'
+  // The operator portal includes the notification bell; its real WebSocket needs Realtime.
+  const excluded = storageApi ? `${operators ? '' : 'realtime,'}imgproxy,mailpit,postgres-meta,studio,edge-runtime,logflare,vector,supavisor`
     : 'gotrue,realtime,storage-api,imgproxy,kong,mailpit,postgrest,postgres-meta,studio,edge-runtime,logflare,vector,supavisor'
   const start = await run(['start', '--exclude', excluded])
+  await owned.capture()
   if (start.code !== 0) {
     evidence.result = 'FAIL'
     evidence.failure = redactCommandOutput(start.output).slice(-4000)
@@ -156,11 +178,9 @@ try {
   evidence.result = 'FAIL'
   evidence.failure = redactCommandOutput(error instanceof Error ? error.message : 'LOCAL_CLEAN_ROOM_FAILED')
 } finally {
-  if (process.argv.includes('--keep-local-on-failure') && evidence.result === 'FAIL') evidence.cleanup = 'KEPT_FOR_LOCAL_DIAGNOSIS'
-  else {
-    const stop = await run(['stop', '--project-id', projectId, '--no-backup'])
-    evidence.cleanup = stop.code === 0 ? 'PASS' : 'FAIL'
-  }
+  try { await cleanup(); evidence.cleanup = 'PASS'; evidence.cleanupIdempotent = 'PASS' }
+  catch { evidence.cleanup = 'FAIL' }
+  process.off('SIGINT', interrupted); process.off('SIGTERM', interrupted)
   await writeFile(`rehearsal/reports/RLX_EMAIL_03_CLEAN_ROOM_${projectId}.json`, JSON.stringify(evidence, null, 2) + '\n', 'utf8')
   await writeFile('rehearsal/reports/RLX_EMAIL_03_CLEAN_ROOM.json', JSON.stringify(evidence, null, 2) + '\n', 'utf8')
   console.log(JSON.stringify({ result: evidence.result, cleanup: evidence.cleanup, migrationsApplied: evidence.migrationsApplied,

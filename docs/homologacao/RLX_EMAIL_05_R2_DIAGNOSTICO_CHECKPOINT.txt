@@ -1,0 +1,146 @@
+RLX-EMAIL-05-R2 — DIAGNÓSTICO LINUX / CHECKPOINT BLOQUEADO
+Data: 02/10/2026
+Branch: feature/rlx-email05-operations
+HEAD base: 5283499e5fef612e64a1835eb0876b9668402113
+PR: https://github.com/RenanBarretoJ/bw_antecipa/pull/87 (rascunho)
+
+RESULTADO E PARADA
+
+R2 incompleto. Alterações locais, sem commit/push nesta etapa. Não houve novo
+deploy, login remoto, provisionamento QA remoto, Graph remoto ou promoção.
+O item 36 do plano determina "PARAR se: [...] cleanup falhar". A limpeza
+automática local falhou e foi recuperada explicitamente pelo CLI nativo;
+isso não transforma a execução original em PASS nem libera o Preview.
+
+DIAGNÓSTICO CONFIRMADO E LIMITES
+
+O timeout foi reproduzido em Linux antes da Inbox, no detalhe da integração.
+A instrumentação Puppeteer e CDP registrou quatro GETs de
+/admin/integracoes-email pendentes por aproximadamente 61 segundos, iniciados
+na navegação anterior. Um tinha status 200; três ainda não tinham status.
+Nos replays foi identificado tráfego RSC de prefetch/navegação e cancelamentos
+ERR_ABORTED. Não foi identificado polling contínuo de Inbox/Health no código.
+Não classificar como incompatibilidade com polling deliberado.
+
+Também foi reproduzida espera sem término na leitura de corpos de respostas
+canceladas, ao final do harness. A inspeção original era iniciada em response,
+antes de requestfinished. Esse é um problema distinto do timeout de rede.
+
+Outros erros observados: WebSocket Realtime com handshake 503 porque o serviço
+estava excluído do ambiente QA; patterns HTML de UUID rejeitados pelo Chrome.
+O banco não apresentava queries aguardando locks na amostra coletada.
+
+A causa imediata do networkidle foi comprovada (GETs pendentes). A origem exata
+do ciclo de vida dessas requisições e a resolução definitiva da corrida NÃO
+estão certificadas. Um replay sem falha não basta para fechar a causa raiz.
+
+ALTERAÇÕES LOCAIS
+
+- browser-diagnostics.mjs: metadados sanitizados de rede Puppeteer/CDP,
+  console.error, pageerror, rejeições, fases e detecção de requests paradas.
+  Sem headers, cookies, querystrings, corpos ou mensagens brutas de erro.
+- browser-readiness.mjs: shell, heading, container, filtros habilitados,
+  resultado preenchido/vazio e etapas específicas com limite de 15 segundos.
+- operator-browser.mjs: prontidão do detalhe antes do reload; etapas Inbox,
+  mensagem e Review explícitas; estados vazios; inspeção apenas de respostas
+  concluídas e falha explícita se não for possível inspecionar alguma delas.
+  waitForNetworkIdle continua com 60 segundos. Não houve aumento do timeout.
+- clean-room.mjs: Realtime incluído quando o portal do operador é testado.
+- configuration-wizard.tsx e credential-dialog.tsx: escape do hífen nos
+  patterns HTML de Object ID, Tenant ID e Client ID.
+- workflow Linux: teste de redaction e publicação do diagnóstico sanitizado.
+- browser-diagnostics.test.mjs: dois testes de descarte de dados sensíveis.
+
+Não há migration nova, mudança de domínio, RPC, Graph transport, parser,
+fencing, Storage ou fluxo oficial de revisão neste diff.
+
+ÚLTIMA EXECUÇÃO LINUX LOCAL
+
+Projeto descartável: bw_email03_1790951005153
+Node 22.23.3 / Chrome 154.0.8037.97 / runtime Next de produção.
+Clone isolado do HEAD base com as correções locais descritas acima.
+
+PASS no escopo executado:
+- build deployável;
+- 260 migrations do zero;
+- 27 checks fencing, 9 Storage, 22 automação e 12 temporais;
+- 19 checks SQL de configuração/autorização;
+- 33 checks de serviço fiscal/revisão, incluindo navegador oficial;
+- renderização de Inbox, detalhe e Review, inclusive estados vazios;
+- 98 capturas e 44 análises de acessibilidade, zero violações;
+- zero console.error, pageerror, rejeições não tratadas e HTTP >=400;
+- zero requests pendentes ao término, tanto Puppeteer quanto CDP;
+- dois testes unitários de proteção dos artefatos e git diff --check.
+
+FAIL:
+EMAIL05_BROWSER:INBOX_AND_REVIEW:COMPLETED_RESPONSE_REDACTION_FAILED (1 != 0).
+Uma resposta concluída não pôde ter seu corpo inspecionado. A classificação
+exata dessa falha ainda precisa ser instrumentada sem persistir conteúdo.
+Não foi observado vazamento, mas a ausência de vazamento NÃO foi certificada.
+Houve 64 cancelamentos ERR_ABORTED durante as navegações, preservados no log.
+
+Cleanup automático: FAIL no wrapper Linux do Supabase CLI sobre Docker Desktop.
+Recuperação: PASS pelo CLI Go nativo, restrito ao project ID descartável.
+Runner Linux removido; seus dois volumes node-modules/next removidos.
+Postflight: zero containers Docker; zero volumes dos quatro projetos de
+diagnóstico R2 e do runner. Volumes preexistentes de outros trabalhos preservados.
+
+Após iniciar essa execução foram acrescentadas as verificações de paginação,
+combinação de filtros e filtro inválido ao harness original. Sintaxe verificada,
+mas esses casos adicionais NÃO foram executados no navegador nesta rodada.
+TypeScript/full suite/lint/CI do diff final NÃO foram repetidos após a parada.
+Não atribuir ao diff final os resultados anteriores do commit base.
+
+EVIDÊNCIAS LOCAIS IGNORADAS PELO GIT
+
+rehearsal/reports/email05-r2-native-baseline.json
+rehearsal/reports/email05-r2-classified-complete.json
+rehearsal/reports/email05-r2-linux-fixed.log
+rehearsal/reports/email05-r2-fixed/email05-network.json
+rehearsal/reports/email05-r2-fixed/email05-ui.json
+rehearsal/reports/email05-r2-fixed/RLX_EMAIL_03_CLEAN_ROOM_bw_email03_1790951005153.json
+rehearsal/tmp/email05-r2-linux-src/rehearsal/tmp/bw_email03_1790951005153/email05-screenshots/
+
+STATUS OBRIGATÓRIO
+
+FAIL abaixo também significa gate não liberado; os itens remotos não foram
+executados nesta etapa. Não representa falha observada de funcionalidade remota.
+
+RLX_EMAIL_05_R2_ROOT_CAUSE = PARCIAL; ciclo de vida RSC e leitura de resposta ainda pendentes
+RLX_EMAIL_05_R2_NETWORKIDLE_CAUSE = quatro GETs pendentes da navegação anterior, sem polling comprovado
+RLX_EMAIL_05_R2_PENDING_REQUESTS_INSTRUMENTED = PASS
+RLX_EMAIL_05_R2_READINESS_SEMANTIC = PASS (execução local descrita)
+RLX_EMAIL_05_R2_NO_TIMEOUT_WEAKENING = PASS
+RLX_EMAIL_05_R2_INBOX_BROWSER = FAIL (renderização PASS; gate de redaction FAIL)
+RLX_EMAIL_05_R2_REVIEW_BROWSER = FAIL (renderização PASS; gate de redaction FAIL)
+RLX_EMAIL_05_R2_ACCESSIBILITY = PASS (44 scans locais; não certifica diff final)
+RLX_EMAIL_05_LINUX_CERTIFICATION = FAIL
+RLX_EMAIL_05_R2_HEAD = SEM NOVO COMMIT; base 5283499e5fef612e64a1835eb0876b9668402113 + diff local
+RLX_EMAIL_05_PREVIEW_DEPLOY_NEW = FAIL (não executado)
+RLX_EMAIL_05_PREVIEW_TARGET = FAIL (novo deploy não validado)
+RLX_EMAIL_05_PREVIEW_SUPABASE_REF = inkyqlmusvorcmibmrhp (alvo esperado)
+RLX_EMAIL_05_PREVIEW_CSP = FAIL (deploy antigo reprovado; novo não executado)
+RLX_EMAIL_05_PREVIEW_UI = FAIL (não executado)
+RLX_EMAIL_05_PREVIEW_CREDENTIALS = FAIL (não executado)
+RLX_EMAIL_05_PREVIEW_ROUTING = FAIL (não executado)
+RLX_EMAIL_05_PREVIEW_HEALTH = FAIL (não executado)
+RLX_EMAIL_05_PREVIEW_ALERTS = FAIL (não executado)
+RLX_EMAIL_05_PREVIEW_INBOX = FAIL (não executado)
+RLX_EMAIL_05_PREVIEW_REVIEW = FAIL (não executado)
+RLX_EMAIL_05_PREVIEW_RLS = FAIL (não executado)
+RLX_EMAIL_05_PREVIEW_MFA = FAIL (não executado)
+RLX_EMAIL_05_PREVIEW_REDACTION = FAIL (não executado)
+RLX_EMAIL_05_PREVIEW_CLEANUP = FAIL (não executado; sem QA remoto criado)
+RLX_EMAIL_03_04_REGRESSION = PASS (escopo local SQL/Storage/serviço descrito)
+RLX_EMAIL_05_CI = FAIL (Linux do HEAD base reprovado; diff final não enviado)
+RLX_EMAIL_05_HOMOLOG_READY = NO
+RLX_EMAIL_PRODUCTION_CHANGED = NO
+RLX_EMAIL_HOMOLOG_CHANGED = NO
+
+RETOMADA NECESSÁRIA
+
+Diagnosticar a resposta não inspecionável e a falha de cleanup Linux. Manter
+os gates atuais; provar término da navegação e inspeção de dados sem ignorar
+falhas. Executar os casos adicionais, full certification no novo HEAD e,
+somente depois de CI Linux PASS, novo deploy e preflight CSP/ref/anon/runtime
+antes de qualquer autenticação remota. Homolog e produção seguem proibidas.
