@@ -82,6 +82,23 @@ Probe bodyless Linux: 28 casos, incluindo 20 iterações determinísticas, PASS.
 Cleanup duplo e arquivo com hashes PASS; nenhum container Docker restante.
 Esses resultados não substituem os dois CIs e o fluxo real no novo Preview.
 
+Retomada após CI do SHA 454cdf5
+
+O CI Linux registrou Fetch.requestPaused antes de Network.requestWillBeSent para
+a mesma identidade CDP. O corpo foi inspecionado, mas a chegada tardia do evento
+Network criou outro registro e deixou uma pendência, causando timeout da barreira.
+O trace original foi preservado; o gate não foi relaxado nem o CI repetido sem diff.
+A retomada foi autorizada pelo usuário após o checkpoint bloqueado.
+
+registerRequest agora registra a identidade desde o primeiro evento Fetch ou
+Network. O primeiro Network tardio enriquece o registro sem substituir estados,
+evidências ou falhas; um novo evento de request de um hop subsequente conserva
+seu próprio ciclo. Não se faz correlação por URL nem por posição de eventos.
+Testes determinísticos cobrem Network durante/depois da inspeção e depois da
+resposta, HEAD com cancelamento anterior/posterior ao terminal e body indisponível.
+Os seis novos casos passaram, junto aos 25 testes de redaction/bodyless/barreira/CDP.
+Esta alteração exige nova certificação Linux, dois CIs e novo Preview por SHA.
+
 Referências consultadas
 
 https://www.rfc-editor.org/rfc/rfc9110.html#name-head

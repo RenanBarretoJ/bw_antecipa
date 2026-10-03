@@ -79,20 +79,30 @@ export async function inspectEmailResponses(page, { file, knownSecrets = [], pha
   }
   let serial = 0
   const safeMeta = request => ({ method: request.method, pathname: diagnosticPath(request.url) })
+  const registerRequest = (networkId, request, resourceType) => {
+    const entry = { id: registry.length + 1, ...safeMeta(request), state: 'DISCOVERED',
+      noBody: noBodyRequest(request.method),
+      required: sensitivePath(new URL(request.url).pathname) || ['Document', 'Fetch', 'XHR'].includes(resourceType) }
+    registry.push(entry)
+    const record = { entry, ...safeMeta(request), sensitive: sensitivePath(new URL(request.url).pathname),
+      initiatorClass: 'unknown', lifecycle: 'REQUESTED', intent: 'RESOURCE', phase: phase(), resourceType,
+      networkRequestSeen: false }
+    if (networkId) requests.set(networkId, record)
+    return record
+  }
   cdp.on('Network.requestWillBeSent', event => {
     if (!/^https?:/.test(event.request.url)) return
     protocol.record('Network.requestWillBeSent', event.requestId, null, { ...safeMeta(event.request), resourceType: event.type })
     const headers = event.request.headers
-    const entry = { id: registry.length + 1, ...safeMeta(event.request), state: 'DISCOVERED',
-      noBody: noBodyRequest(event.request.method),
-      required: sensitivePath(new URL(event.request.url).pathname) || ['Document', 'Fetch', 'XHR'].includes(event.type) }
-    registry.push(entry)
-    requests.set(event.requestId, { entry, ...safeMeta(event.request), sensitive: sensitivePath(new URL(event.request.url).pathname),
+    // Fetch may precede this event. Enrich its existing record without resetting evidence.
+    // A subsequent request event (redirect hop) still starts a separate lifecycle.
+    const existing = requests.get(event.requestId)
+    const request = existing && !existing.networkRequestSeen ? existing : registerRequest(event.requestId, event.request, event.type)
+    Object.assign(request, { networkRequestSeen: true,
       initiatorClass: ['parser', 'script', 'preload', 'preflight', 'SignedExchange', 'other'].includes(event.initiator?.type) ? event.initiator.type : 'unknown',
-      lifecycle: 'REQUESTED',
       intent: headers['Next-Router-Prefetch'] === '1' || headers['next-router-prefetch'] === '1' ? 'RSC_PREFETCH'
         : headers.RSC === '1' || headers.rsc === '1' ? 'RSC_NAVIGATION' : event.request.method === 'POST' ? 'ACTION' : event.type === 'Document' ? 'DOCUMENT' : 'RESOURCE',
-      phase: phase(), resourceType: event.type })
+      resourceType: event.type })
   })
   cdp.on('Network.responseReceived', event => {
     const request = requests.get(event.requestId)
@@ -151,8 +161,7 @@ export async function inspectEmailResponses(page, { file, knownSecrets = [], pha
       size: null, inspectionResult: 'PENDING', matchedSecretClasses: [], bodyInspectionErrorClass: null,
       initiatorClass: requests.get(event.networkId)?.initiatorClass ?? 'unknown', lifecycle: 'RESPONSE_PAUSED', intercepted: true }
     rows.push(row)
-    let entry = requests.get(event.networkId)?.entry
-    if (!entry) { entry = { id: registry.length + 1, ...safeMeta(event.request), state: 'DISCOVERED', noBody: noBodyRequest(event.request.method) }; registry.push(entry) }
+    const entry = (requests.get(event.networkId) ?? registerRequest(event.networkId, event.request, event.resourceType)).entry
     entry.required = ['MUST_INSPECT_SECRET_SURFACE', 'NO_BODY_EXPECTED'].includes(classification)
     row.registryId = entry.id
     transition(entry, 'CLASSIFIED'); transition(entry, 'INTERCEPTED'); transition(entry, 'RESPONSE_PAUSED')

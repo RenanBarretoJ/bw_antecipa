@@ -157,3 +157,57 @@ test('HEAD secret in either header event fails and persists no values', () => fi
   await assert.rejects(inspection.assertClean(), /REDACTION_DRAIN_FAILED/)
   assert.equal((await readFile(file, 'utf8')).includes('PRIVATE_HEADER_SENTINEL'), false)
 }))
+
+for (const timing of ['during-inspection', 'after-inspection', 'after-response']) {
+  test(`Fetch before Network request: ${timing} preserves a single inspected record`, () => fixture(async ({ cdp, inspection, file }) => {
+    const request = { method: 'GET', url: 'https://qa.invalid/api/stream', headers: { RSC: '1' } }
+    const sent = () => cdp.emit('Network.requestWillBeSent', { requestId: 'late', request, type: 'XHR' })
+    const received = () => cdp.emit('Network.responseReceived', { requestId: 'late', type: 'XHR', response: { url: request.url, status: 200, mimeType: 'text/x-component', headers: {} } })
+    cdp.emit('Fetch.requestPaused', { requestId: 'fetch-late', networkId: 'late', request, resourceType: 'XHR', responseStatusCode: 200,
+      responseHeaders: [{ name: 'content-type', value: 'text/x-component' }] })
+    if (timing === 'during-inspection') sent()
+    await inspection.flush()
+    if (timing === 'after-inspection') sent()
+    received()
+    if (timing === 'after-response') sent()
+    cdp.emit('Network.loadingFinished', { requestId: 'late' })
+    await inspection.assertClean()
+    const report = JSON.parse(await readFile(file, 'utf8'))
+    assert.equal(report.registry.length, 1)
+    assert.equal(report.registry[0].state, 'COMPLETED')
+    assert.equal(report.registry[0].noBody.responseReceived, true)
+    assert.equal(report.rows[0].registryId, report.registry[0].id)
+    assert.equal(report.summary.pending, 0)
+    assert.equal(report.summary.mustInspect, 1)
+  }))
+}
+
+for (const terminal of [false, true]) {
+  test(`Fetch-first HEAD cancellation requires response terminal: ${terminal}`, () => fixture(async ({ cdp, response, inspection, file }) => {
+    response('baseline'); await inspection.flush()
+    const request = { method: 'HEAD', url: 'https://qa.invalid/api/terminal', headers: {} }
+    cdp.emit('Fetch.requestPaused', { requestId: 'fetch-late', networkId: 'late', request, resourceType: 'Fetch', responseStatusCode: 200, responseHeaders: [] })
+    await inspection.flush()
+    if (terminal) cdp.emit('Network.responseReceived', { requestId: 'late', type: 'Fetch', response: { url: request.url, status: 200, mimeType: 'application/json', headers: {} } })
+    cdp.emit('Network.loadingFailed', { requestId: 'late', errorText: 'net::ERR_ABORTED' })
+    cdp.emit('Network.requestWillBeSent', { requestId: 'late', request, type: 'Fetch' })
+    if (terminal) await inspection.assertClean()
+    else await assert.rejects(inspection.assertClean(), /REDACTION_DRAIN_FAILED/)
+    const report = JSON.parse(await readFile(file, 'utf8'))
+    assert.equal(report.registry.length, 2)
+    assert.equal(report.aborted[0].classification, terminal ? 'CANCELLED_AFTER_TERMINAL_NO_BODY' : 'UNINSPECTED_ABORT')
+  }))
+}
+
+test('Fetch-first body failure remains failed after the late Network event', () => fixture(async ({ cdp, inspection, unavailable, file }) => {
+  unavailable()
+  const request = { method: 'GET', url: 'https://qa.invalid/api/stream', headers: {} }
+  cdp.emit('Fetch.requestPaused', { requestId: 'fetch-late', networkId: 'late', request, resourceType: 'XHR', responseStatusCode: 200,
+    responseHeaders: [{ name: 'content-type', value: 'text/x-component' }] })
+  await inspection.flush()
+  cdp.emit('Network.requestWillBeSent', { requestId: 'late', request, type: 'XHR' })
+  await assert.rejects(inspection.assertClean(), /REDACTION_DRAIN_FAILED/)
+  const report = JSON.parse(await readFile(file, 'utf8'))
+  assert.equal(report.registry.length, 1)
+  assert.equal(report.registry[0].state, 'BODY_UNAVAILABLE')
+}))
