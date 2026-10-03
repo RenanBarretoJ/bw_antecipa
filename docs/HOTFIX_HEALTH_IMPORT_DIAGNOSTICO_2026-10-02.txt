@@ -1,5 +1,50 @@
 HOTFIX HEALTH - checkpoint de execucao (NAO certificado para producao)
 
+CHECKPOINT R2 - 2026-10-02 - DANFE HOPE (validado localmente, publicacao autorizada)
+Usuario confirmou smoke Barueri PASS: revisao exigiu vencimento e importou apos
+preenchimento. DANFE Hope permanece FAIL: rejeicao generica de interpretacao.
+Nao confundir este smoke manual com a certificacao integral da frente fiscal.
+
+Logs da Preview dpl_39Unw2CDdWmSAoDQG22Wjjdwjewc confirmam, na tentativa
+26321af6-612f-4b5f-9d10-47d0e60928d9, native_text_length_bucket=empty,
+fallback_trigger_reason=NO_TEXT_LAYER e fallback_status=failed. Tempo total
+ate o evento PARSED: 9086ms. A falha ocorre no caminho DANFE, antes do gate
+de persistencia; nao e a mesma rejeicao da classificacao NFS-e.
+O log anterior NAO preservava o codigo do erro do fallback. Portanto ainda nao
+ha evidencia suficiente para atribuir a falha real a chave fiscal, timeout,
+resposta truncada, contrato ou indisponibilidade do provedor.
+
+Ajuste local R2:
+- Vocabulario fechado de codigos de falha; sem mensagens livres, dados fiscais,
+  tokens, body do provedor, valores de campos ou PDFs nos logs/repo.
+- Preserva codigo e duracao do fallback na telemetria por correlation_id.
+- Rejeita explicitamente respostas incompletas/recusadas, mesmo com JSON parcial
+  aparentemente valido. Retry continua limitado a duas chamadas/timeout total.
+- Limite de saida 900 -> 2400 tokens, alinhado ao extrator visual NFS-e.
+  Correcao preventiva: tokens de raciocinio tambem consomem esse limite.
+  NAO e causa raiz comprovada da tentativa real.
+- Prompt explicita paginas vazias e canhotos da mesma nota; nao autoriza inferir
+  dados nem reparar chave. Modelo e gates fiscais deterministas preservados.
+- Sem migration, alteracao de MFA/RLS, escrita de NFs ou mudanca no extrator
+  municipal Barueri. Sem reenviar o PDF real nem recriar a NF ja importada.
+
+Referencias consultadas via skill OpenAI Docs:
+https://developers.openai.com/api/docs/guides/reasoning
+https://developers.openai.com/api/docs/guides/file-inputs
+
+Validacao R2: 209 testes direcionados PASS, 1 live skipped; TypeScript PASS;
+ESLint dos arquivos alterados PASS; build webpack PASS com URL local e chaves
+ficticias somente para build. Primeira suite completa concorrente com build:
+timeout de 5s em parcelas-nf.test.ts (boleto invalido), fora dos arquivos
+alterados. Reexecucao completa sem build concorrente, --maxWorkers=4:
+299 arquivos PASS, 2624 testes PASS, 12 skipped. Nao alterado timeout do teste.
+Usuario autorizou commit/push SOMENTE hotfix/health-fiscal-import/Preview.
+Pendente: concluir publicacao em Preview e nova tentativa autenticada Hope.
+Chave OpenAI sensivel permanece somente no ambiente remoto; nao foi extraida.
+Nao declarar Hope corrigida antes da repeticao e verificacao dos dados.
+
+HISTORICO ANTERIOR (checkpoints abaixo mantidos para rastreabilidade)
+
 Base: main d9133b4d2549937402c78aec7db28af62ddff43b
 Branch local: hotfix/health-fiscal-import
 Data: 2026-10-02

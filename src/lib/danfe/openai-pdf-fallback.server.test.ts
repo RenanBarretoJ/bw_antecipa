@@ -41,9 +41,10 @@ describe('fallback OpenAI para DANFE PDF', () => {
   it('envia PDF em alta resolucao, sem armazenamento, e aceita somente JSON estruturado', async () => {
     const fetchImpl = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body)) as Record<string, unknown>
-      expect(body).toMatchObject({ model: 'gpt-5.4-2026-03-05', store: false, max_output_tokens: 900 })
+      expect(body).toMatchObject({ model: 'gpt-5.4-2026-03-05', store: false, max_output_tokens: 2400 })
       expect(JSON.stringify(body)).toContain('"detail":"high"')
       expect(JSON.stringify(body)).toContain('"strict":true')
+      expect(JSON.stringify(body)).toContain('pagina vazia, verso vazio e canhoto repetido')
       return new Response(JSON.stringify({
         output: [{ content: [{ type: 'output_text', text: JSON.stringify(candidate) }] }],
       }), { status: 200, headers: { 'Content-Type': 'application/json' } })
@@ -121,5 +122,48 @@ describe('fallback OpenAI para DANFE PDF', () => {
     const parsed = extractDanfeFromText(result.text)
     expect(parsed.numero_nf).toBe('154806')
     expect(validarDanfeParaPersistencia(parsed)).toEqual({ ok: true })
+  })
+
+  it('repete uma vez resposta truncada e aceita apenas a resposta completa validada', async () => {
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce(Response.json({ status: 'incomplete', incomplete_details: { reason: 'max_output_tokens' }, output: [] }))
+      .mockResolvedValueOnce(Response.json({ status: 'completed', output_text: JSON.stringify(candidate) }))
+    const result = await extractDanfeWithOpenAi(Buffer.from('%PDF'), 'NO_TEXT_LAYER', {
+      env: { OPENAI_API_KEY: 'sk-test' }, fetchImpl,
+    })
+    expect(fetchImpl).toHaveBeenCalledTimes(2)
+    expect(validarDanfeParaPersistencia(extractDanfeFromText(result.text))).toEqual({ ok: true })
+  })
+
+  it.each([
+    ['incomplete', 'max_output_tokens', 'OPENAI_NF_OUTPUT_LIMIT', 2],
+    ['incomplete', 'content_filter', 'OPENAI_NF_RESPONSE_INCOMPLETE', 1],
+    ['failed', null, 'OPENAI_NF_RESPONSE_INCOMPLETE', 1],
+  ])('nao aceita JSON parcial com status %s e motivo %s', async (status, reason, code, attempts) => {
+    const fetchImpl = vi.fn(async () => Response.json({
+      status, incomplete_details: { reason }, output_text: JSON.stringify(candidate),
+    }))
+    await expect(extractDanfeWithOpenAi(Buffer.from('%PDF'), 'NO_TEXT_LAYER', {
+      env: { OPENAI_API_KEY: 'sk-test' }, fetchImpl,
+    })).rejects.toThrow(String(code))
+    expect(fetchImpl).toHaveBeenCalledTimes(Number(attempts))
+  })
+
+  it('nao registra nem repete recusa do provedor', async () => {
+    const fetchImpl = vi.fn(async () => Response.json({ status: 'completed', output: [{ content: [
+      { type: 'refusal', refusal: 'dado sensivel do provedor' },
+    ] }] }))
+    await expect(extractDanfeWithOpenAi(Buffer.from('%PDF'), 'NO_TEXT_LAYER', {
+      env: { OPENAI_API_KEY: 'sk-test' }, fetchImpl,
+    })).rejects.toThrow('OPENAI_NF_RESPONSE_REFUSED')
+    expect(fetchImpl).toHaveBeenCalledOnce()
+  })
+
+  it('distingue requisicao invalida sem expor body do provedor', async () => {
+    const fetchImpl = vi.fn(async () => new Response('segredo e documento', { status: 400 }))
+    await expect(extractDanfeWithOpenAi(Buffer.from('%PDF'), 'NO_TEXT_LAYER', {
+      env: { OPENAI_API_KEY: 'sk-test' }, fetchImpl,
+    })).rejects.toThrow('OPENAI_NF_REQUEST_INVALID')
+    expect(fetchImpl).toHaveBeenCalledOnce()
   })
 })

@@ -669,6 +669,7 @@ async function processarArquivo(
           nativeTextLengthBucket: extracted.native_text_length_bucket,
           fallbackTriggerReason: extracted.fallback_trigger_reason,
           fallbackStatus: extracted.fallback_status,
+          fallbackFailureCode: extracted.fallback_failure_code,
           fallbackDurationMs: extracted.fallback_duration_ms,
           aiExtractionConfidence: extracted.ai_extraction_confidence,
         })
