@@ -1,0 +1,113 @@
+RLX-EMAIL-05 — CHECKPOINT DO CI / PARADA DO ROLLOUT
+Data: 02/10/2026
+Commit: 5283499e5fef612e64a1835eb0876b9668402113
+PR rascunho: https://github.com/RenanBarretoJ/bw_antecipa/pull/87
+
+RESULTADO
+
+Promoção interrompida pelo item 77 do plano: "PARAR se: [...] CI falhar".
+Nenhuma integração remota ativada. Homolog e produção não alterados nesta etapa.
+Não há certificação operacional do Preview nem autorização técnica de promoção.
+
+EVIDÊNCIA DO CI
+
+CI padrão: PASS.
+https://github.com/RenanBarretoJ/bw_antecipa/actions/runs/37011241007
+
+Certificação Linux: FAIL.
+https://github.com/RenanBarretoJ/bw_antecipa/actions/runs/37011233854
+Falha: EMAIL05_BROWSER:INBOX_AND_REVIEW:Timed out after waiting 60000ms.
+O timeout corresponde à espera page.waitForNetworkIdle no início da captura
+da inbox. A página aparece renderizada na evidência failure.png. Isso não prova
+a causa raiz: requisições pendentes/atividade contínua precisam ser instrumentadas
+antes de classificar como falha do harness ou da aplicação. Não aumentar timeout
+nem enfraquecer a verificação apenas para obter PASS.
+
+Concluído no Linux antes da falha:
+- TypeScript, full suite, lint e build: PASS.
+- 260 migrations aplicadas do zero.
+- 27 checks de fencing, 9 de Storage, 22 de automação, 12 temporais.
+- 19 checks SQL de configuração/autorização e 33 do serviço/revisão fiscal.
+- 8 checks de navegador, incluindo Auth/MFA, erro preservando formulário,
+  credencial inline, allowlist, credential-first e reload dos vínculos.
+- 60 capturas; 24 análises de acessibilidade, sem violações até a interrupção.
+- Cleanup do ambiente descartável Linux: PASS.
+Inbox, detalhe e fila de revisão NÃO concluíram a certificação visual Linux.
+
+Evidências baixadas (ignoradas pelo Git):
+rehearsal/reports/email05-linux-failure.log
+rehearsal/reports/email05-linux-ci/reports/RLX_EMAIL_03_CLEAN_ROOM.json
+rehearsal/reports/email05-linux-ci/tmp/bw_email03_1790946804271/email05-ui.json
+rehearsal/reports/email05-linux-ci/tmp/bw_email03_1790946804271/email05-screenshots/failure.png
+
+Os resultados locais anteriores continuam PASS no seu próprio escopo, conforme
+RLX_EMAIL_05_VALIDACAO_LOCAL.txt. Não substituem o gate Linux reprovado.
+
+PREVIEW / ALVOS
+
+Supabase: inkyqlmusvorcmibmrhp, branch feature/rlx-email05-operations.
+Histórico das 260 migrations comparado integralmente com os arquivos: PASS.
+Sem cópia de dados: zero usuários, notas, operações e objetos Storage.
+Postflight após interrupção: zero integrações e credenciais também.
+
+O deploy automático dpl_EWezRwnsdtmhsAueAwaYzKHLAo1K estava READY, mas a CSP
+da página de login apontava para wwsndnuvnjuabpbjwlck. Somente GET /login foi
+feito; nenhum login, operação ou escrita em produção. Não usar esse deploy
+para QA: o indicador verde da Vercel não certifica o alvo da aplicação.
+
+Variáveis específicas da branch foram configuradas no target Preview:
+URL/anon/service do novo Supabase, guard de ambiente/ref, flags NFSE/automação,
+segredo de job próprio, keyring AES-GCM próprio e ambiente das credenciais.
+Essas variáveis só terão efeito em um novo deploy, que NÃO foi executado após
+a falha do CI. Origem do webhook também permanece pendente de configuração.
+Nenhum segredo foi incluído neste relatório, código ou PR.
+
+Homolog permanece no commit da884c3ba6e5aceab81db36e469dcbdc812376d2.
+Não houve merge nem execução dos smokes remotos desta etapa.
+
+RETOMADA TÉCNICA
+
+1. Instrumentar a espera do navegador: requisições pendentes com caminhos
+   sanitizados e subetapas, sem headers, cookies, queries sensíveis ou corpos.
+2. Reproduzir em Linux e determinar a causa; corrigir o escopo identificado.
+3. Executar certificação completa em novo commit e exigir CI PASS.
+4. Criar novo deploy Preview e confirmar CSP/ref efetivos antes de autenticar.
+5. Provisionar QA sintético, validar UI/Graph real e os gates 49–64, limpar QA.
+6. Somente após Preview completo PASS, promover o delta e validar homolog.
+
+MATRIZ DO GATE ATUAL
+
+FAIL abaixo significa gate ainda não aprovado; não implica defeito demonstrado
+em cada função. Os gates Preview/Homolog não executados estão bloqueados pelo CI.
+PASS técnico local não certifica o fluxo remoto ponta a ponta.
+
+RLX_EMAIL_05_TYPESCRIPT = PASS
+RLX_EMAIL_05_BUILD = PASS
+RLX_EMAIL_05_FULL_SUITE = PASS
+RLX_EMAIL_05_CLEAN_ROOM = FAIL (Linux; local anterior PASS)
+RLX_EMAIL_05_CI = FAIL
+
+RLX_EMAIL_05_PREVIEW_UI = FAIL (não executado)
+RLX_EMAIL_05_PREVIEW_CREDENTIALS = FAIL (não executado)
+RLX_EMAIL_05_PREVIEW_ROUTING = FAIL (não executado)
+RLX_EMAIL_05_PREVIEW_HEALTH = FAIL (não executado)
+RLX_EMAIL_05_PREVIEW_ALERTS = FAIL (não executado)
+RLX_EMAIL_05_PREVIEW_INBOX = FAIL (não executado)
+RLX_EMAIL_05_PREVIEW_REVIEW = FAIL (não executado)
+RLX_EMAIL_05_PREVIEW_RLS = FAIL (não executado)
+RLX_EMAIL_05_PREVIEW_MFA = FAIL (não executado)
+RLX_EMAIL_05_PREVIEW_REDACTION = FAIL (não executado)
+RLX_EMAIL_05_PREVIEW_CLEANUP = PASS (QA remoto não criado; contagens zero)
+
+RLX_EMAIL_05_HOMOLOG_UI = FAIL (não executado)
+RLX_EMAIL_05_HOMOLOG_CONFIG = FAIL (não executado)
+RLX_EMAIL_05_HOMOLOG_ROUTING = FAIL (não executado)
+RLX_EMAIL_05_HOMOLOG_INBOX = FAIL (não executado)
+RLX_EMAIL_05_HOMOLOG_REVIEW = FAIL (não executado)
+RLX_EMAIL_05_HOMOLOG_HEALTH = FAIL (não executado)
+RLX_EMAIL_05_HOMOLOG_RESPONSIVE = FAIL (não executado)
+RLX_EMAIL_05_HOMOLOG_CLEANUP = FAIL (etapa não iniciada)
+
+RLX_EMAIL_03_04_REGRESSION = PASS (checks locais e Linux; remoto não executado)
+RLX_EMAIL_05_HOMOLOG_READY = NO
+RLX_EMAIL_PRODUCTION_CHANGED = NO

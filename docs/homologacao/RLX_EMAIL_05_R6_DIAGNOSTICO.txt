@@ -1,0 +1,181 @@
+RLX-EMAIL-05-R6 — CHECKPOINT BLOQUEADO
+Data: 2026-10-02
+
+RESULTADO
+Diagnóstico executado; recertificação NÃO concluída.
+O item 29 do roteiro exige parada se BODY_UNAVAILABLE_PROTOCOL continuar sem
+causa comprovada. As tentativas remotas instrumentadas não reproduziram a
+falha R5. Nenhum resultado parcial substitui a recertificação integral.
+
+Ambiente observado:
+branch: feature/rlx-email05-operations
+HEAD: b7e5b5fe21d2749e47fe852fe0825a3673cdd42b
+PR: https://github.com/RenanBarretoJ/bw_antecipa/pull/87 — DRAFT
+Preview: https://bw-antecipa-gfc991ho4-renanbarretoj.vercel.app
+deployment: dpl_FMKxRz5bwWGhomTzyWCgWbJBN5DU
+Supabase: inkyqlmusvorcmibmrhp
+Instrumentação R6 local, ainda sem commit, utilizada contra aplicação R5.
+Nenhuma alteração em homolog ou produção. Nenhum novo deployment.
+
+IMPLEMENTAÇÃO LOCAL
+scripts/email-intake/browser-protocol.mjs:
+- classes fechadas de erro, sem mensagem bruta;
+- IDs locais correlacionáveis; nunca IDs reais, headers, cookies, query ou body;
+- Browser.getVersion e versão instalada do Puppeteer;
+- início, conclusão e erro dos comandos, com tempo relativo.
+scripts/email-intake/browser-redaction.mjs:
+- timeline de Network.requestWillBeSent, responseReceived, loadingFinished,
+  loadingFailed e Fetch.requestPaused;
+- instrumentação de Fetch.getResponseBody, BODY_INSPECTED e continueRequest;
+- classificação, regras de aprovação e timeout existentes preservados.
+Dois arquivos de testes verificam classes sanitizadas, correlação dos IDs,
+ausência de payload persistido e ordem body -> inspeção -> continuação.
+Não houve mudança de domínio, aplicação, banco, RPC, autorização ou RLS.
+
+API E ORDEM VERIFICADAS
+O harness usa Fetch.getResponseBody com Fetch.requestPaused.requestId.
+Network.getResponseBody não é usado. Network.requestId não substitui Fetch ID.
+As pré-condições foram conferidas no protocolo instalado:
+node_modules/devtools-protocol/json/browser_protocol.json.
+Fetch.getResponseBody requer pausa no estágio Response e não deve concorrer
+com uma operação que afete a requisição antes de receber o corpo.
+Fetch.takeResponseBodyAsStream não permite continuar a resposta original sem
+reconstruí-la; não foi adotado sem necessidade comprovada.
+Nos casos aprovados: pausa -> getResponseBody -> inspeção em memória ->
+Fetch.continueRequest -> browser recebe resposta completa.
+Fetch.continueResponse e fulfillRequest não são comandos do fluxo atual.
+
+EVIDÊNCIA LOCAL — PROBE REAL COM CHROME
+Pequeno: PASS, 2/2 MUST_INSPECT.
+Chunked 50 ms: PASS, 2/2.
+Chunks atrasados 600 ms: PASS, 2/2.
+Cancelamento após entrega já inspecionada: PASS, 2/2.
+Cancelamento intencional antes de completar o corpo: gate FAIL, 1/2.
+No caso negativo, XHR.abort em 100 ms enquanto o servidor terminaria em 600 ms:
+- Fetch.getResponseBody aguarda 15 s e retorna COMMAND_TIMEOUT;
+- Fetch.continueRequest retorna INVALID_INTERCEPTION_ID;
+- resposta não inspecionada continua bloqueando aprovação.
+Isso prova um mecanismo local, NÃO a causa da falha remota histórica.
+O classificador antigo inspectionError pode chamar timeout de protocolo
+porque a mensagem do Puppeteer contém protocolTimeout. A timeline nova
+preserva COMMAND_TIMEOUT separadamente. O rótulo R5 isolado é insuficiente
+para concluir timeout, prefetch, cancelamento ou culpa da aplicação.
+
+EVIDÊNCIA REMOTA — SOMENTE DIAGNÓSTICOS DE CONFIGURAÇÃO
+1. Sem screenshots, integração primeiro: 15/15 corpos inspecionados;
+   FAIL de readiness NETWORK_IDLE com três requests sem response após 60 s.
+   Nenhum erro de comando CDP. Não é reprodução da falha R5.
+2. Credential-first mínimo: PASS 37/37; vínculo persistido após reload.
+3. Credencial inline, salvar, reload, credential-first: PASS 52/52.
+4. Configuração com sequência original de viewports/temas: PASS 63/63;
+   60 screenshots, 24 scans de acessibilidade, zero violações.
+Nas tentativas 2-4: zero erros CDP e zero padrões de segredo detectados.
+Não foi repetido o roteiro completo nem executada a integração Graph real.
+
+LIMITAÇÃO DOS ADAPTADORES
+Os adaptadores interrompem operator-browser antes de Inbox/review/comandos.
+Alguns rótulos genéricos de checks herdados no JSON original não comprovam
+essas etapas removidas. Há scope-limitations.json junto a cada tentativa.
+Tentativas 1-3 não executaram screenshots ou scans de acessibilidade.
+Não usar rótulos herdados como evidência de gates ausentes.
+
+R5 HISTÓRICO, SEM NOVA ATRIBUIÇÃO CAUSAL
+R5 permanece 43/44, 97,73%, com um corpo não inspecionado.
+Metadata mostra um Fetch pendente iniciado aproximadamente 1,3 s antes de
+um reload Document e duração final de aproximadamente 15,7 s. É compatível
+com uma corrida, mas não comprova que ela causou o erro sem trace R5.
+O ERR_ABORTED separado de R5 foi CANCELLED_AFTER_INSPECTION; não confundir
+com o corpo que falhou. Não afirmar ausência de segredo no corpo perdido.
+
+VERSÕES
+Chrome Windows/local e harness do Preview: 154.0.8037.59.
+Puppeteer: 25.8.0. CDP: 1.3.
+Imagem Linux local existente: Google Chrome 154.0.8037.97.
+Versão Chrome histórica da CI R5: NOT_RECORDED.
+Sem comparação causal entre versões; nenhum browser foi trocado para PASS.
+
+LOGS REMOTOS
+Acesso seguro a metadata de requests Vercel confirmado: janela limitada
+com 200 registros, todos status 200/info, sem padrões de segredo detectados.
+Nenhuma entrada de stdout associada retornou (logCount zero).
+Cobertura de stdout da aplicação: NOT_AVAILABLE; não certificada.
+
+VALIDAÇÕES E ARQUIVOS
+9 testes focados PASS:
+node --test scripts/email-intake/browser-protocol.test.mjs scripts/email-intake/browser-redaction.test.mjs
+git diff --check: PASS.
+Full Linux, TypeScript, lint, build, suite completa, CI, novo commit/push,
+novo Preview e gates remotos integrais: NÃO EXECUTADOS para este diff R6,
+pois o gate de causa/lifecycle não foi fechado.
+Linux/CI aprovados de R5 não certificam a instrumentação R6 não commitada.
+
+Evidências locais ignoradas pelo Git, preservadas com 99 hashes verificados:
+rehearsal/reports/email05-r6-evidence/archive-summary.json
+rehearsal/reports/email05-r6-preview-{diagnostic,minimal,navigation,viewport}/
+rehearsal/reports/email05-r6-stream-diagnostic/
+rehearsal/reports/email05-r6-final-postflight.json
+rehearsal/reports/email05-r6-runtime-logs.json
+rehearsal/reports/email05-r6-linux-browser-version.json
+Runner local reproduzível: rehearsal/tmp/email05-r6-rsc-stream-diagnostic.mjs
+
+CLEANUP
+Todas as quatro tentativas: limpeza automática PASS + segunda execução PASS.
+Postflight independente: zero usuários, sessões, MFA, perfis, fundos,
+cedentes, vínculos, credenciais, integrações, mensagens, anexos, alertas,
+eventos de integração, sync state, jobs/wakeups, receipts, NFs, reviews,
+operações e Storage; zero auditoria/segurança/sessões elevadas dos atores QA.
+260 migrations coincidem com os arquivos existentes; nenhuma aplicada no R6.
+Docker: zero containers. Somente consulta de versão com --rm --network none;
+nenhum volume/network criado pelo R6. Recursos preexistentes preservados.
+
+STATUS OBRIGATÓRIO
+FAIL abaixo significa gate não certificado, inclusive quando não executado;
+não significa defeito comprovado em funcionalidades não exercitadas.
+Contadores abaixo referem-se exclusivamente à última tentativa parcial.
+
+RLX_EMAIL_05_R6_PROTOCOL_ROOT_CAUSE = NÃO COMPROVADA PARA R5
+RLX_EMAIL_05_R6_FETCH_REQUEST_ID_VALID = PASS
+RLX_EMAIL_05_R6_NETWORK_ID_VALID = N/A (não utilizado para body)
+RLX_EMAIL_05_R6_BODY_API_SELECTED = Fetch.getResponseBody
+RLX_EMAIL_05_R6_RESPONSE_PAUSED_ORDER = PASS (casos concluídos)
+RLX_EMAIL_05_R6_CONTINUE_RESPONSE = FAIL (cancelamento pré-inspeção)
+RLX_EMAIL_05_R6_RSC_PROBE = PASS (casos concluídos)
+RLX_EMAIL_05_R6_RSC_STREAM = FAIL (cancelamento pré-inspeção)
+RLX_EMAIL_05_R6_RSC_BODY_INSPECTION = FAIL (certificação integral pendente)
+RLX_EMAIL_05_R6_MUST_INSPECT_COUNT = 63
+RLX_EMAIL_05_R6_INTERCEPTED_COUNT = 63
+RLX_EMAIL_05_R6_INSPECTED_COUNT = 63
+RLX_EMAIL_05_R6_UNINSPECTED_COUNT = 0
+RLX_EMAIL_05_R6_MUST_INSPECT_COVERAGE = 100% (diagnóstico parcial apenas)
+RLX_EMAIL_05_R6_HEAD = b7e5b5fe21d2749e47fe852fe0825a3673cdd42b
+RLX_EMAIL_05_LINUX_CERTIFICATION = FAIL (R6 não executado)
+RLX_EMAIL_05_CI = FAIL (R6 não executado)
+RLX_EMAIL_05_PREVIEW_DEPLOY_NEW = FAIL (não executado)
+RLX_EMAIL_05_PREVIEW_TARGET = PASS
+RLX_EMAIL_05_PREVIEW_SUPABASE_REF = inkyqlmusvorcmibmrhp
+RLX_EMAIL_05_PREVIEW_CSP = PASS
+RLX_EMAIL_05_PREVIEW_UI = FAIL (parcial)
+RLX_EMAIL_05_PREVIEW_CREDENTIALS = FAIL (diagnóstico aprovado; certificação pendente)
+RLX_EMAIL_05_PREVIEW_ROUTING = FAIL (parcial)
+RLX_EMAIL_05_PREVIEW_HEALTH = FAIL (não executado)
+RLX_EMAIL_05_PREVIEW_ALERTS = FAIL (não executado)
+RLX_EMAIL_05_PREVIEW_INBOX = FAIL (não executado)
+RLX_EMAIL_05_PREVIEW_REVIEW = FAIL (não executado)
+RLX_EMAIL_05_PREVIEW_RLS = FAIL (não executado)
+RLX_EMAIL_05_PREVIEW_MFA = FAIL (parcial)
+RLX_EMAIL_05_PREVIEW_REDACTION = FAIL (integral pendente)
+RLX_EMAIL_05_PREVIEW_CLEANUP = PASS
+RLX_EMAIL_05_REMOTE_RUNTIME_LOGS = NOT_AVAILABLE (stdout; metadata disponível)
+DOCKER_TEST_ENV_CLEANUP = PASS
+RLX_EMAIL_03_04_REGRESSION = FAIL (R6 não executado)
+RLX_EMAIL_05_R6_PREVIEW_READY = NO
+RLX_EMAIL_05_HOMOLOG_READY = NO
+RLX_EMAIL_HOMOLOG_CHANGED = NO
+RLX_EMAIL_PRODUCTION_CHANGED = NO
+
+PENDÊNCIA
+Reproduzir a falha remota com trace causal ou comprovar uma estratégia de
+inspeção que resolva o lifecycle afetado sem perder corpos obrigatórios.
+Depois cumprir focused -> full Linux -> commit/push -> ambas CIs -> novo
+Preview -> precheck -> credential-first -> gates integrais -> cleanup.
+PDF 950501 segue suspenso. PR continua DRAFT. Nenhuma promoção autorizada.

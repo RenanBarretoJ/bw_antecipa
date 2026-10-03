@@ -19,12 +19,16 @@ vi.mock('@/lib/auth/admin-authorization', () => ({ requireSuperAdmin }))
 vi.mock('@/lib/auth/sensitive-action', () => ({ autorizarEConsumirAcaoSensivel: vi.fn() }))
 vi.mock('@/lib/admin/endpoint-seguro.server', () => ({ validarEndpointTecnicoSeguro: vi.fn() }))
 vi.mock('@/lib/integracoes/registry.server', () => ({ integrationProviderRegistry: { get: vi.fn() } }))
-vi.mock('@/lib/portal-fidc/credenciais', () => ({
+vi.mock('@/lib/portal-fidc/credenciais', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/lib/portal-fidc/credenciais')>(),
+  getPortalFidcEncryptionKey: vi.fn(),
   criptografarPortalFidcValor: vi.fn(),
   descriptografarPortalFidcValor: vi.fn(),
 }))
 
 import { integrationProviderRegistry } from '@/lib/integracoes/registry.server'
+import { getPortalFidcEncryptionKey, criptografarPortalFidcValor, PortalFidcKeyringError } from '@/lib/portal-fidc/credenciais'
+import { autorizarEConsumirAcaoSensivel } from '@/lib/auth/sensitive-action'
 import { publicarIntegracaoAdmin, salvarIntegracaoRascunhoAdmin } from './configuracoes-tecnicas-actions'
 
 // UUID real aceito pelo PostgreSQL, mas sem nibble RFC de versao/variante.
@@ -96,6 +100,50 @@ describe('salvar rascunho de integracao tecnica', () => {
     }))
   })
 
+  it('salva autenticacao cifrada e rascunho em uma unica RPC com MFA', async () => {
+    vi.mocked(criptografarPortalFidcValor).mockReturnValue({ ciphertext: 'v1:QA:QA:QA', chaveVersao: 'qa' })
+    rpc.mockResolvedValue({ data: { id: versionId, integracao_id: integrationId }, error: null })
+    const result = await salvarIntegracaoRascunhoAdmin({
+      ...base, providerKey: 'SINQIA', systemName: 'Portal FIDC', adapterKey: 'sinqia_portal_fidc',
+      capabilities: ['CESSAO_ENVIO'],
+      novaCredencial: { nome: 'QA', usuario: 'usuario-qa', senha: 'senha-qa-local', mfaCode: '123456' },
+    })
+    expect(result.success).toBe(true)
+    expect(autorizarEConsumirAcaoSensivel).toHaveBeenCalledWith(expect.anything(), 'cadastrar_credencial_integracao', '123456')
+    expect(rpc).toHaveBeenCalledTimes(1)
+    expect(rpc).toHaveBeenCalledWith('admin_salvar_integracao_com_credencial', expect.objectContaining({
+      p_usuario_criptografado: 'v1:QA:QA:QA', p_senha_criptografada: 'v1:QA:QA:QA', p_capabilities: ['CESSAO_ENVIO'],
+    }))
+    expect(JSON.stringify(rpc.mock.calls)).not.toContain('senha-qa-local')
+    expect(JSON.stringify(result)).not.toContain('v1:QA')
+  })
+
+  it('falha de keyring nao consome TOTP nem persiste rascunho ou credencial', async () => {
+    vi.mocked(getPortalFidcEncryptionKey).mockImplementationOnce(() => { throw new PortalFidcKeyringError() })
+    const result = await salvarIntegracaoRascunhoAdmin({
+      ...base, providerKey: 'SINQIA', systemName: 'Portal FIDC', adapterKey: 'sinqia_portal_fidc',
+      novaCredencial: { nome: 'QA', usuario: 'qa', senha: 'qa-local', mfaCode: '123456' },
+    })
+    expect(result.success).toBe(false)
+    expect(result.message).toContain('Chave de criptografia')
+    expect(rpc).not.toHaveBeenCalled()
+    expect(autorizarEConsumirAcaoSensivel).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    { providerKey: 'OUTRO', adapterKey: 'sinqia_portal_fidc', capabilities: [] },
+    { providerKey: 'SINQIA', adapterKey: 'sinqia_portal_fidc', capabilities: ['CARTEIRA'] },
+    { providerKey: 'VORTX', systemName: 'Vórtx VRS 2.0', adapterKey: 'vortx_vrs', capabilities: [] },
+    { providerKey: 'CUSTOM', adapterKey: null, capabilities: [] },
+  ])('rejeita contrato de autenticacao adulterado: %j', async (override) => {
+    const result = await salvarIntegracaoRascunhoAdmin({
+      ...base, systemName: 'Portal FIDC', ...override,
+      novaCredencial: { nome: 'QA', usuario: 'qa', senha: 'qa-local', mfaCode: '123456' },
+    })
+    expect(result.success).toBe(false)
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
   it('permite CREATE sem endpoint, adapter, credencial ou capability', async () => {
     const result = await salvarIntegracaoRascunhoAdmin({ ...base, systemName: 'TESTE QA' })
 
@@ -150,6 +198,8 @@ describe('salvar rascunho de integracao tecnica', () => {
       ...base,
       integracaoFundoId: integrationId,
       adapterKey: 'vortx_vrs',
+      providerKey: 'VORTX',
+      systemName: 'Vórtx VRS 2.0',
       capabilities: ['CESSAO_ENVIO'],
     })
 
@@ -197,6 +247,8 @@ describe('salvar rascunho de integracao tecnica', () => {
       ...base,
       integracaoFundoId: integrationId,
       adapterKey: 'sinqia_portal_fidc',
+      providerKey: 'SINQIA',
+      systemName: 'Portal FIDC',
     })
 
     expect(result).toMatchObject({ success: false, message: 'O adapter de uma integracao publicada nao pode ser alterado em uma nova versao.' })
@@ -239,6 +291,8 @@ describe('salvar rascunho de integracao tecnica', () => {
     const result = await salvarIntegracaoRascunhoAdmin({
       ...base,
       adapterKey: 'sinqia_portal_fidc',
+      providerKey: 'SINQIA',
+      systemName: 'Portal FIDC',
       capabilities: ['ESTOQUE', 'AQUISICOES', 'LIQUIDACOES'],
       configuracaoNaoSensivel: {
         relatorios_financeiros: { intervalo_polling_ms: 5000 },
@@ -263,6 +317,8 @@ describe('salvar rascunho de integracao tecnica', () => {
     const result = await salvarIntegracaoRascunhoAdmin({
       ...base,
       adapterKey: 'sinqia_portal_fidc',
+      providerKey: 'SINQIA',
+      systemName: 'Portal FIDC',
       capabilities: ['CESSAO_ENVIO'],
     })
 
