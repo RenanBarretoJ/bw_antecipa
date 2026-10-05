@@ -168,7 +168,7 @@ export function NotasFiscaisSacadoListagem({
                     && ['em_andamento', 'inadimplente'].includes(item.operacao?.status || ''),
                   )
                   return <TableRow key={item.id} className={vencido ? 'bg-red-50/50 dark:bg-red-950/10' : undefined}>
-                    <TableCell className="px-4 py-3 font-medium">{item.numero}</TableCell>
+                    <TableCell className="px-4 py-3 font-medium">{item.numero}{item.sacado && <p className="mt-1 text-xs font-normal text-muted-foreground">{item.sacado.nome}<br />{formatCNPJ(item.sacado.cnpj)}</p>}</TableCell>
                     <TableCell className="w-[220px] max-w-[220px] px-4 py-3">
                       <ListNameCell name={item.cedente.nome} subline={formatCNPJ(item.cedente.cnpj)} />
                     </TableCell>

@@ -1,0 +1,77 @@
+SELECT no_plan();
+SELECT is((SELECT count(*)::int FROM public.sacado_acessos),1,'Backfill creates one link only');
+SELECT is((SELECT cnpj FROM public.sacados WHERE id='32000000-0000-4000-8000-000000000001'),'11.344.038/0021-41','Legacy company preserved');
+SELECT is((SELECT count(*)::int FROM public.sacados WHERE regexp_replace(cnpj,'\D','','g')='11344038002060'),0,'Backfill never infers 0020');
+SELECT ok(NOT has_table_privilege('authenticated','public.sacado_acessos','UPDATE'),'No direct membership update');
+UPDATE public.notas_fiscais SET fundo_id='22000000-0000-4000-8000-000000000002',cedente_fundo_id='24000000-0000-4000-8000-000000000002' WHERE id='2a000000-0000-4000-8000-000000000004';
+SELECT set_config('request.jwt.claims','{"sub":"31000000-0000-4000-8000-000000000001","role":"authenticated"}',true);
+SELECT set_config('request.jwt.claim.sub',current_setting('request.jwt.claims')::jsonb->>'sub',true);
+SET LOCAL ROLE authenticated;
+SELECT is((SELECT count(*)::int FROM public.get_user_sacado_context()),1,'Legacy single-CNPJ context');
+SELECT is((SELECT count(*)::int FROM public.notas_fiscais),1,'Only exact linked CNPJ and fund');
+SELECT is((SELECT count(*)::int FROM public.sacados),1,'Company RLS own only');
+SELECT is((public.carregar_indicadores_nfs_sacado()->>'total')::int,1,'Indicators obey fund scope');
+SELECT throws_ok($$SELECT public.processar_aceite_sacado(ARRAY['2a000000-0000-4000-8000-000000000001'::uuid,'2a000000-0000-4000-8000-000000000002'::uuid],'aceitar')$$,'42501','Esta NF nao esta autorizada para este usuario e Fundo.','Mixed unauthorized batch rejected');
+RESET ROLE;
+SELECT is((SELECT status::text FROM public.notas_fiscais WHERE id='2a000000-0000-4000-8000-000000000001'),'em_antecipacao','Atomic batch leaves first invoice unchanged');
+SELECT is((SELECT count(*)::int FROM public.logs_auditoria WHERE origem='rpc_sacado'),0,'Atomic batch leaves no audit mutations');
+INSERT INTO public.sacados(id,cnpj,razao_social) VALUES('32000000-0000-4000-8000-000000000002','11344038002060','Empresa QA 0020');
+INSERT INTO public.sacado_acessos(user_id,sacado_id,fundo_id) VALUES
+ ('31000000-0000-4000-8000-000000000001','32000000-0000-4000-8000-000000000002','22000000-0000-4000-8000-000000000001'),
+ ('31000000-0000-4000-8000-000000000002','32000000-0000-4000-8000-000000000001','22000000-0000-4000-8000-000000000001');
+SET LOCAL ROLE authenticated;
+SELECT is((SELECT count(*)::int FROM public.get_user_sacado_context()),2,'Multi-CNPJ set');
+SELECT is((SELECT count(*)::int FROM public.notas_fiscais),2,'Third same-root and cross-fund denied');
+SELECT lives_ok($$SELECT public.carregar_dashboard_sacado()$$,'Dashboard multi-CNPJ');
+SELECT is((public.carregar_indicadores_nfs_sacado('11344038002060')->>'total')::int,1,'Filter narrows to 0020');
+SELECT lives_ok($$SELECT public.processar_aceite_sacado(ARRAY['2a000000-0000-4000-8000-000000000001'::uuid],'aceitar')$$,'First authorized acceptance');
+RESET ROLE;
+SELECT is((SELECT aceite_sacado_status FROM public.operacoes WHERE id='33000000-0000-4000-8000-000000000001'),'pendente','Partial acceptance preserves pending operation');
+SET LOCAL ROLE authenticated;
+SELECT lives_ok($$SELECT public.processar_aceite_sacado(ARRAY['2a000000-0000-4000-8000-000000000002'::uuid],'aceitar')$$,'Second company acceptance');
+RESET ROLE;
+SELECT is((SELECT aceite_sacado_status FROM public.operacoes WHERE id='33000000-0000-4000-8000-000000000001'),'aceito','Operation accepted only after all invoices');
+SELECT is((SELECT count(*)::int FROM public.logs_auditoria WHERE origem='rpc_sacado' AND dados_depois ?& ARRAY['user_id','sacado_id','sacado_cnpj','fundo_id','nota_fiscal_id','operacao_id','acao','timestamp']),2,'Complete acceptance audit');
+UPDATE public.sacado_acessos SET status='revogado',revoked_at=now(),revoked_by='21000000-0000-4000-8000-000000000004' WHERE user_id='31000000-0000-4000-8000-000000000001' AND sacado_id='32000000-0000-4000-8000-000000000001';
+SET LOCAL ROLE authenticated;
+SELECT is((SELECT count(*)::int FROM public.notas_fiscais),1,'Revoked A loses only that company');
+SELECT set_config('request.jwt.claims','{"sub":"31000000-0000-4000-8000-000000000002","role":"authenticated"}',true);
+SELECT set_config('request.jwt.claim.sub',current_setting('request.jwt.claims')::jsonb->>'sub',true);
+SELECT is((SELECT count(*)::int FROM public.notas_fiscais),1,'B keeps access to same company');
+SELECT set_config('request.jwt.claims','{"sub":"21000000-0000-4000-8000-000000000003","role":"authenticated"}',true);
+SELECT set_config('request.jwt.claim.sub',current_setting('request.jwt.claims')::jsonb->>'sub',true);
+SELECT is((SELECT count(*)::int FROM public.sacado_acessos),0,'Cedente cannot read memberships');
+SELECT set_config('request.jwt.claims','{"sub":"21000000-0000-4000-8000-000000000001","role":"authenticated"}',true);
+SELECT set_config('request.jwt.claim.sub',current_setting('request.jwt.claims')::jsonb->>'sub',true);
+SELECT is((SELECT count(*)::int FROM public.sacado_acessos),0,'Consultor cannot read memberships');
+SELECT set_config('request.jwt.claims','{"sub":"21000000-0000-4000-8000-000000000004","role":"authenticated"}',true);
+SELECT set_config('request.jwt.claim.sub',current_setting('request.jwt.claims')::jsonb->>'sub',true);
+SELECT throws_ok($$SELECT public.gerenciar_sacado_acesso('31000000-0000-4000-8000-000000000002','22000000-0000-4000-8000-000000000001','11344038002060','Empresa QA','adicionar',repeat('a',64))$$,'42501','Confirme um novo codigo MFA para esta acao.','MFA missing is denied');
+SELECT throws_ok($$SELECT public.listar_gestao_sacados('22000000-0000-4000-8000-000000000002')$$,'42501','Fundo nao autorizado.','Gestor cross-fund denied');
+RESET ROLE;
+-- Local SQL model of a verified Auth session. Remote smoke uses real Auth APIs.
+INSERT INTO auth.mfa_factors(id,user_id,factor_type,status,created_at,updated_at)
+VALUES('34000000-0000-4000-8000-000000000001','21000000-0000-4000-8000-000000000004','totp','verified',now(),now());
+INSERT INTO auth.sessions(id,user_id,factor_id,aal,created_at,updated_at)
+VALUES('35000000-0000-4000-8000-000000000001','21000000-0000-4000-8000-000000000004','34000000-0000-4000-8000-000000000001','aal2',now(),now());
+INSERT INTO public.sessoes_elevadas(user_id,session_id,metodo,factor_id,elevada_em,expira_em)
+VALUES('21000000-0000-4000-8000-000000000004','35000000-0000-4000-8000-000000000001','totp','34000000-0000-4000-8000-000000000001',now(),now()+interval '24 hours');
+SELECT set_config('request.jwt.claims',jsonb_build_object('sub','21000000-0000-4000-8000-000000000004','role','authenticated','aal','aal2','session_id','35000000-0000-4000-8000-000000000001','amr',jsonb_build_array(jsonb_build_object('method','totp','timestamp',extract(epoch from clock_timestamp()))))::text,true);
+SET LOCAL ROLE authenticated;
+SELECT lives_ok($$SELECT public.criar_autorizacao_acao_sensivel('gerenciar_acesso_sacado',repeat('a',64))$$,'MFA authorization created');
+SELECT lives_ok($$SELECT public.gerenciar_sacado_acesso('31000000-0000-4000-8000-000000000002','22000000-0000-4000-8000-000000000001','11344038002060','Empresa QA','adicionar',repeat('a',64))$$,'Authorized add existing company');
+SELECT throws_ok($$SELECT public.gerenciar_sacado_acesso('31000000-0000-4000-8000-000000000002','22000000-0000-4000-8000-000000000001','11344038002060','Empresa QA','revogar',repeat('a',64))$$,'42501','Autorizacao MFA expirada ou ja utilizada.','Nonce cannot be reused');
+SELECT lives_ok($$SELECT public.criar_autorizacao_acao_sensivel('gerenciar_acesso_sacado',repeat('b',64))$$,'Second authorization');
+SELECT lives_ok($$SELECT public.gerenciar_sacado_acesso('31000000-0000-4000-8000-000000000002','22000000-0000-4000-8000-000000000001','11344038002060','Empresa QA','revogar',repeat('b',64))$$,'Revoke with fresh authorization');
+SELECT lives_ok($$SELECT public.criar_autorizacao_acao_sensivel('gerenciar_acesso_sacado',repeat('c',64))$$,'Third authorization');
+SELECT lives_ok($$SELECT public.gerenciar_sacado_acesso('31000000-0000-4000-8000-000000000002','22000000-0000-4000-8000-000000000001','11344038002060','Empresa QA','ativar',repeat('c',64))$$,'Reactivate same link');
+SELECT lives_ok($$SELECT public.criar_autorizacao_acao_sensivel('gerenciar_acesso_sacado',repeat('d',64))$$,'Fourth authorization');
+SELECT lives_ok($$SELECT public.gerenciar_sacado_acesso('31000000-0000-4000-8000-000000000002','22000000-0000-4000-8000-000000000001','11344038002060','Empresa QA','desativar',repeat('d',64))$$,'Deactivate same link');
+RESET ROLE;
+SELECT is((SELECT count(*)::int FROM public.sacados WHERE regexp_replace(cnpj,'\D','','g')='11344038002060'),1,'Company is not duplicated');
+SELECT is((SELECT count(*)::int FROM public.plataforma_auditoria WHERE tipo_evento IN ('SACADO_ACCESS_CREATED','SACADO_ACCESS_REVOKED','SACADO_ACCESS_ENABLED','SACADO_ACCESS_DISABLED')),4,'All administrative transitions audited');
+SELECT set_config('request.jwt.claims',jsonb_build_object('sub','21000000-0000-4000-8000-000000000004','role','authenticated','aal','aal2','session_id','35000000-0000-4000-8000-000000000001','amr',jsonb_build_array(jsonb_build_object('method','totp','timestamp',extract(epoch from clock_timestamp())-121)))::text,true);
+SET LOCAL ROLE authenticated;
+SELECT throws_ok($$SELECT public.gerenciar_sacado_acesso('31000000-0000-4000-8000-000000000002','22000000-0000-4000-8000-000000000001','11344038002060','Empresa QA','ativar',repeat('e',64))$$,'42501','Confirme um novo codigo MFA para esta acao.','Old AAL2 is insufficient for sensitive action');
+RESET ROLE;
+SELECT * FROM finish();

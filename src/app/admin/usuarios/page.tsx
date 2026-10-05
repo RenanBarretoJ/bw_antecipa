@@ -27,6 +27,7 @@ export default async function AdminUsuariosPage({ searchParams }: { searchParams
 
   return (
     <PageContainer className="space-y-5">
+      <Link href="/admin/usuarios/sacados" className={outlineLink}>Gerenciar acessos de Sacados</Link>
       <PageHeader eyebrow="Estrutura global" title="Usuarios & Acessos" description="Administre Gestores, Super Admins e vinculos explicitos por fundo." action={<Link href="/admin/usuarios/novo" className={primaryLink}><Plus className="size-4" />Novo usuario</Link>} />
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <MetricCard label="Usuarios" value={resumo.total} />

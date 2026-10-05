@@ -263,7 +263,7 @@ export function AprovacoesSacadoListagem({
                     return <Fragment key={id}>
                       <tr className={selecionadas.has(id) ? 'bg-primary/5' : 'hover:bg-muted/30'}>
                         <td className="px-4 py-3"><button onClick={() => toggleItem(id)} aria-label={`Selecionar NF ${item.numero}`}>{selecionadas.has(id) ? <CheckSquare size={16} className="text-primary" /> : <Square size={16} />}</button></td>
-                        <td className="px-4 py-3"><p className="font-medium">{item.numero}</p><Badge className="mt-1 bg-purple-100 text-purple-700">Cessao ativa</Badge></td>
+                        <td className="px-4 py-3"><p className="font-medium">{item.numero}</p>{item.sacado && <p className="text-xs text-muted-foreground">{item.sacado.nome}<br />{formatCNPJ(item.sacado.cnpj)}</p>}<Badge className="mt-1 bg-purple-100 text-purple-700">Cessao ativa</Badge></td>
                         <td className="w-[220px] max-w-[220px] px-4 py-3"><ListNameCell name={item.cedente.nome} subline={formatCNPJ(item.cedente.cnpj)} /></td>
                         <td className="whitespace-nowrap px-4 py-3 text-right font-bold tabular-nums">{formatCurrency(item.valor)}</td>
                         <td className="whitespace-nowrap px-4 py-3">{item.vencimentoEm ? formatDate(item.vencimentoEm) : '—'}</td>

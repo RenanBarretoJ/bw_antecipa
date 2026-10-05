@@ -40,5 +40,10 @@ test('manual preview target is pinned and no migration is implicitly authorized'
   assert.equal(manifest.gitBranch, 'hotfix/sacado-multi-cnpj')
   assert.deepEqual(manifest.excludedVersions, ['20260929193129'])
   assert.equal(manifest.historicalDivergence, 'KNOWN_AND_PRESERVED')
-  assert.deepEqual(manifest.migrations, [])
+  assert.equal(manifest.migrations.length, 1)
+  const migration = manifest.migrations[0]
+  assert.equal(migration.version, '20261005154435')
+  assert.equal(migration.name, 'sacado_multi_cnpj_acessos')
+  assert.equal(migration.file, `supabase/migrations/${migration.version}_${migration.name}.sql`)
+  assert.equal(createHash('sha256').update(readFileSync(migration.file, 'utf8').replaceAll('\r\n', '\n')).digest('hex'), migration.sha256)
 })

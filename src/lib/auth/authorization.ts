@@ -1,3 +1,4 @@
+import { possuiAcessoSacado } from '@/lib/sacado/acessos'
 import type { User } from '@supabase/supabase-js'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
@@ -137,17 +138,6 @@ async function loadCedente(client: AppSupabaseClient, cedenteId: string): Promis
   return data as Cedente
 }
 
-async function getSacadoCnpjDoUsuario(client: AppSupabaseClient, userId: string): Promise<string | null> {
-  const { data } = await client
-    .from('sacados')
-    .select('cnpj')
-    .eq('user_id', userId)
-    .maybeSingle()
-
-  const cnpj = String((data as { cnpj?: string } | null)?.cnpj ?? '').replace(/\D/g, '')
-  return cnpj.length === 14 ? cnpj : null
-}
-
 /** Resolve acesso ao Cedente pela associacao canonica ativa. */
 export async function requireCedenteAccess(
   cedenteId: string,
@@ -263,18 +253,15 @@ export async function requireOperationAccess(
   }
 
   if (context.profile.role === 'sacado') {
-    const sacadoCnpj = await getSacadoCnpjDoUsuario(context.supabase, context.user.id)
-    if (!sacadoCnpj) throw new AuthorizationError('Sacado nÃ£o encontrado.', 'FORBIDDEN')
-
-    const { data: vinculo } = await context.supabase
+    // The link policy validates exact CNPJ and the operation's canonical fund.
+    const { data: vinculo, error: vinculoError } = await context.supabase
       .from('operacoes_nfs')
-      .select('nota_fiscal_id, notas_fiscais!inner(cnpj_destinatario)')
+      .select('nota_fiscal_id')
       .eq('operacao_id', operacaoId)
-      .eq('notas_fiscais.cnpj_destinatario', sacadoCnpj)
       .limit(1)
       .maybeSingle()
 
-    if (!vinculo) {
+    if (vinculoError || !vinculo) {
       throw new AuthorizationError('OperaÃ§Ã£o nÃ£o vinculada ao sacado autenticado.', 'FORBIDDEN')
     }
 
@@ -292,7 +279,7 @@ export async function requireNotaFiscalAccess(
   const context = await requireAuthenticated(client)
   const { data: notaFiscal, error } = await context.supabase
     .from('notas_fiscais')
-    .select('id, cedente_id, cnpj_destinatario')
+    .select('id, cedente_id, cnpj_destinatario, fundo_id')
     .eq('id', notaFiscalId)
     .maybeSingle()
 
@@ -301,9 +288,8 @@ export async function requireNotaFiscalAccess(
   }
 
   if (context.profile.role === 'sacado') {
-    const sacadoCnpj = await getSacadoCnpjDoUsuario(context.supabase, context.user.id)
-    const nfCnpj = String((notaFiscal as { cnpj_destinatario?: string }).cnpj_destinatario ?? '').replace(/\D/g, '')
-    if (!sacadoCnpj || nfCnpj !== sacadoCnpj) {
+    const { data: acessos, error: acessosError } = await context.supabase.rpc('get_user_sacado_context')
+    if (acessosError || !possuiAcessoSacado(acessos ?? [], notaFiscal.cnpj_destinatario, notaFiscal.fundo_id)) {
       throw new AuthorizationError('Nota fiscal nÃ£o vinculada ao sacado autenticado.', 'FORBIDDEN')
     }
 

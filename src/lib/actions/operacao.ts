@@ -628,29 +628,16 @@ export async function aprovarOperacao(
 
   // Calcular e salvar taxa_desagio e valor_antecipado por NF com prazo individual
   if (nfsTyped.length > 0) {
-    // Notificar sacados (fila historica preservada nesta fase).
-    const sacadosCnpjs = [...new Set(nfsTyped.map((n) => n.cnpj_destinatario))]
-    for (const cnpj of sacadosCnpjs) {
-      const { data: sacado } = await supabase
-        .from('sacados')
-        .select('user_id')
-        .eq('cnpj', cnpj)
-        .single()
-
-      if (sacado) {
-        const sacadoData = sacado as { user_id: string }
-        const nfsDeSacado = nfsTyped
-          .filter((n) => n.cnpj_destinatario === cnpj)
-          .map((n) => n.numero_nf)
-          .join(', ')
-
-        await criarNotificacao({
-          usuario_id: sacadoData.user_id,
-          titulo: 'Notificacao de cessao de credito',
-          mensagem: `As NFs ${nfsDeSacado} emitidas contra voce foram cedidas ao cedente ${opData.cedentes.razao_social}. O pagamento no vencimento devera ser realizado na conta escrow indicada.`,
-          tipo: 'cessao_credito',
-        })
-      }
+    const { data: destinatarios, error: destinatariosError } = await supabase.rpc('destinatarios_sacado_operacao', { p_operacao_id: operacaoId })
+    if (destinatariosError) console.error('[operacao/notificar-sacados]', { code: destinatariosError.code })
+    for (const destinatario of destinatarios ?? []) {
+      const numeros = nfsTyped.filter(n => n.cnpj_destinatario.replace(/\\D/g, '') === destinatario.cnpj).map(n => n.numero_nf).join(', ')
+      await criarNotificacao({
+        usuario_id: destinatario.user_id,
+        titulo: 'Notificacao de cessao de credito',
+        mensagem: `As NFs ${numeros} emitidas contra voce foram cedidas ao cedente ${opData.cedentes.razao_social}. O pagamento no vencimento devera ser realizado na conta escrow indicada.`,
+        tipo: 'cessao_credito',
+      })
     }
   }
 
