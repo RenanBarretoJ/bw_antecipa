@@ -1,7 +1,7 @@
 import { test } from 'vitest'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { spawnSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 
 const config = readFileSync('supabase/config.toml', 'utf8')
 const manifest = JSON.parse(readFileSync('scripts/qa/sacado/preview-manifest.json', 'utf8'))
@@ -14,12 +14,13 @@ function sections(text) {
   return result
 }
 test('only the exact SACADO remote configuration is added', () => {
-  const previous = spawnSync('git', ['show', `${manifest.baseSha}:supabase/config.toml`], { encoding: 'utf8', windowsHide: true })
-  assert.equal(previous.status, 0)
-  const original = sections(previous.stdout)
   const current = sections(config)
-  for (const [name, value] of original) assert.equal(current.get(name), value, `OTHER_CONFIG_CHANGED:${name}`)
-  assert.deepEqual([...current.keys()].filter(name => !original.has(name)), [
+  // Pin the normalized preexisting sections from main 18374bf. CI uses a shallow
+  // checkout, so do not depend on an un-fetched historical Git object.
+  const original = [...current].filter(([name]) => !name.startsWith('remotes."hotfix/sacado-multi-cnpj"'))
+  assert.equal(createHash('sha256').update(JSON.stringify(original)).digest('hex'),
+    'f433e29fd55575110ee29586a7a76feeb42e462dae42fd62a2763bd40eeb0e40', 'OTHER_CONFIG_CHANGED')
+  assert.deepEqual([...current.keys()].filter(name => name.startsWith('remotes."hotfix/sacado-multi-cnpj"')), [
     'remotes."hotfix/sacado-multi-cnpj"',
     'remotes."hotfix/sacado-multi-cnpj".db.migrations',
     'remotes."hotfix/sacado-multi-cnpj".db.seed',
