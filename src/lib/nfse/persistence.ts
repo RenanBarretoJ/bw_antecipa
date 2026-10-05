@@ -1,5 +1,6 @@
 import { validateNfseExtraction } from './danfse-v2'
 import type { NfseExtraction } from './contracts'
+import { calculateFiscalNet } from './liquido-fiscal'
 
 export type NfseReview = {
   intentId?: string
@@ -17,6 +18,13 @@ export function validManualDue(value: string, issued: string, today: string): bo
 export function prepareNfsePersistence(extraction: NfseExtraction, manualDue: string, sha256: string, today: string) {
   if (!validateNfseExtraction(extraction).ok) throw new Error('NFSE_EXTRACTION_REJECTED')
   const d = extraction.dados
+  if (extraction.calculo_liquido) {
+    const verified = calculateFiscalNet(d.valor_bruto!, extraction.calculo_liquido.componentes)
+    const supplied = extraction.calculo_liquido
+    if (supplied.versao !== 1 || supplied.formula !== verified.formula || supplied.completo !== true
+      || supplied.bruto !== verified.bruto || supplied.total_retencoes !== verified.total_retencoes
+      || supplied.liquido !== verified.liquido || verified.liquido !== d.valor_liquido) throw new Error('NFSE_NET_CALCULATION_INVALID')
+  }
   if (d.valor_liquido !== undefined && (!(d.valor_liquido > 0) || d.valor_liquido > d.valor_bruto!)) throw new Error('NFSE_NET_INVALID')
   const review: NfseReview = { numero: d.numero_nf!, bruto: d.valor_bruto!, liquido: d.valor_liquido ?? null,
     emissao: d.data_emissao!, strategy: extraction.strategy! }
@@ -29,12 +37,14 @@ export function prepareNfsePersistence(extraction: NfseExtraction, manualDue: st
     cnpj_destinatario: d.cnpj_destinatario!, razao_social_destinatario: d.razao_social_destinatario!,
     valor_bruto: d.valor_bruto!, valor_liquido: d.valor_liquido ?? null,
     tipo_documento_fiscal: 'NFSE' as const,
-    valor_liquido_origem: d.valor_liquido === undefined ? 'NAO_INFORMADO' as const : 'DOCUMENTO_EXPLICITO' as const,
+    valor_liquido_origem: extraction.calculo_liquido ? 'CALCULADO_RETENCOES' as const
+      : d.valor_liquido === undefined ? 'NAO_INFORMADO' as const : 'DOCUMENTO_EXPLICITO' as const,
     vencimento_origem: d.data_vencimento ? 'DOCUMENT' as const : 'MANUAL' as const,
     fiscal_proveniencia: { strategy: extraction.strategy, source: extraction.strategy === 'danfse_v2_labels' ? 'PDF_TEXT_NATIVE' : 'PDF_VISUAL_FALLBACK',
       ...(extraction.strategy === 'nfse_municipal_visual' ? { orgao_emissor: d.orgao_emissor, codigo_verificacao: d.codigo_verificacao } : {}),
       competencia: d.competencia ?? null, sha256, vencimento_documento: d.data_vencimento ?? null,
       total_retencoes: d.total_retencoes ?? null, desconto_incondicionado: d.desconto_incondicionado ?? null,
-      valor_liquido_com_ibscbs: d.valor_liquido_com_ibscbs ?? null, campos: extraction.proveniencia },
+      valor_liquido_com_ibscbs: d.valor_liquido_com_ibscbs ?? null, campos: extraction.proveniencia,
+      ...(extraction.calculo_liquido ? { calculo_liquido: extraction.calculo_liquido } : {}) },
   } }
 }

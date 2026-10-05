@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { parseDanfeMoney } from '../danfe/money'
 import { validarCNPJ } from '../validations/cedente'
 import type { NfseExtraction, NfseField } from './contracts'
+import { calculateFiscalNet, retentionCodes } from './liquido-fiscal'
 
 const printed = z.object({ value: z.string().max(200).nullable(), label: z.string().max(200).nullable() }).strict()
 const fields = {
@@ -14,6 +15,10 @@ const schema = z.object({
   document_kind: z.literal('nfse_municipal'), document_count: z.literal(1), ambiguous: z.literal(false),
   titulo: z.string().min(8).max(200), orgao_emissor: z.string().min(8).max(200),
   confidence: z.number().min(0.85).max(1), ...fields,
+  // Optional locally for old pending reviews; mandatory in new provider responses.
+  retencoes: z.object({ completo: z.boolean(), itens: z.array(z.object({
+    codigo: z.enum(retentionCodes), valor: z.string().max(40), rotulo: z.string().min(1).max(200),
+  }).strict()).max(6) }).strict().optional(),
 }).strict()
 
 export const normalizeMunicipalAuthority = (value: string) => value.normalize('NFD')
@@ -40,7 +45,7 @@ function date(raw: string): string | undefined {
   return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === iso ? iso : undefined
 }
 
-/** Municipal verification codes are not national access keys. No generated key or net value. */
+/** Municipal verification codes are not national access keys. Calculation is local and evidenced. */
 export function validateMunicipalVisual(input: unknown): NfseExtraction {
   const parsed = schema.safeParse(input)
   if (!parsed.success) throw new Error('NFSE_VISUAL_MUNICIPAL_CONTRACT_INVALID')
@@ -87,6 +92,31 @@ export function validateMunicipalVisual(input: unknown): NfseExtraction {
   const { valor_liquido: net, valor_bruto: gross, data_emissao: issued, data_vencimento: due } = result.dados
   if (net !== undefined && net > gross!) throw new Error('NFSE_VISUAL_FISCAL_CONFLICT')
   if (due && due < issued!) throw new Error('NFSE_VISUAL_FISCAL_CONFLICT')
+  // Explicit net wins. Never overwrite it with arithmetic or infer an absent retention.
+  if (net === undefined && candidate.retencoes?.completo && candidate.retencoes.itens.length) {
+    const acceptedLabels = {
+      IRRF: /^(IRRF|IR RETIDO|IRRF RETIDO|IMPOSTO DE RENDA RETIDO NA FONTE)$/,
+      PIS: /^(PIS|PIS\/PASEP|PIS RETIDO|PIS\/PASEP RETIDO)$/,
+      COFINS: /^(COFINS|COFINS RETIDO|COFINS RETIDA)$/,
+      CSLL: /^(CSLL|CSLL RETIDO|CSLL RETIDA)$/,
+      INSS: /^(INSS RETIDO|RETENCAO INSS)$/,
+      ISS_RETIDO: /^(ISS RETIDO|ISSQN RETIDO|VALOR DO ISS RETIDO)$/,
+      TOTAL_RETENCOES: /^(TOTAL DAS RETENCOES|TOTAL DAS RETENCOES \(ISSQN \/ FEDERAIS\))$/,
+    }
+    try {
+      const components = candidate.retencoes.itens.map(item => {
+        const amount = parseDanfeMoney(item.valor)
+        if (!amount.ok || !acceptedLabels[item.codigo].test(normalizeMunicipalAuthority(item.rotulo))) {
+          throw new Error('NFSE_RETENTIONS_INVALID')
+        }
+        return { codigo: item.codigo, valor: amount.value, rotulo: item.rotulo }
+      })
+      result.calculo_liquido = calculateFiscalNet(gross!, components)
+      result.dados.valor_liquido = result.calculo_liquido.liquido
+      result.proveniencia.valor_liquido = { source: 'CALCULO_RETENCOES', anchor: 'BRUTO_MENOS_RETENCOES', line: 0 }
+      result.confianca.valor_liquido = Math.min(candidate.confidence, 0.96)
+    } catch { throw new Error('NFSE_VISUAL_RETENTIONS_INVALID') }
+  }
   if (due) result.vencimento_source = 'DOCUMENT'
   return result
 }
@@ -100,5 +130,11 @@ export const MUNICIPAL_NFSE_JSON_SCHEMA = {
     document_count: { type: 'integer' }, ambiguous: { type: 'boolean' },
     titulo: { type: 'string' }, orgao_emissor: { type: 'string' }, confidence: { type: 'number' },
     ...Object.fromEntries(Object.keys(fields).map(field => [field, printedJson])),
-  }, required: ['document_kind', 'document_count', 'ambiguous', 'titulo', 'orgao_emissor', 'confidence', ...Object.keys(fields)],
+    retencoes: { type: 'object', additionalProperties: false, properties: {
+      completo: { type: 'boolean' }, itens: { type: 'array', maxItems: 6, items: {
+        type: 'object', additionalProperties: false, properties: { codigo: { type: 'string', enum: retentionCodes },
+          valor: { type: 'string' }, rotulo: { type: 'string' } }, required: ['codigo', 'valor', 'rotulo'],
+      } },
+    }, required: ['completo', 'itens'] },
+  }, required: ['document_kind', 'document_count', 'ambiguous', 'titulo', 'orgao_emissor', 'confidence', ...Object.keys(fields), 'retencoes'],
 }

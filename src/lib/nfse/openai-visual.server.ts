@@ -76,6 +76,12 @@ export async function extractMunicipalNfseVisual(buffer: Buffer, options: Visual
     + 'Datas DD/MM/YYYY, valores monetarios brasileiros, CNPJs completos sem reparar digitos. '
     + 'Bruto e VALOR TOTAL DA NOTA/SERVICOS; liquido somente sob rotulo explicito VALOR LIQUIDO. '
     + 'Nao calcule liquido a partir de impostos/retencoes nem copie o bruto para o liquido. '
+    + 'Em retencoes, transcreva os valores monetarios e rotulos de todas as retencoes que reduzem o pagamento; o sistema fara o calculo. '
+    + 'Pode usar IRRF, PIS/PASEP, COFINS e CSLL do quadro de retencoes federais. ISS/ISSQN e INSS somente quando explicitamente RETIDO. '
+    + 'Nunca inclua aliquotas, base de calculo, tributos aproximados, ISS devido nao retido, juros ou taxas de antecipacao. '
+    + 'Nao duplique total e componentes: use os componentes OU TOTAL_RETENCOES. '
+    + 'completo=true somente se todo o quadro de retencoes estiver legivel, sem duvida sobre incidencia/retencao, '
+    + 'sem outros descontos/abatimentos e sem itens ausentes. Senao completo=false; nao invente zeros nem valores. '
     + 'Vencimento somente sob rotulo VENCIMENTO/DATA DE VENCIMENTO; nunca emissao, competencia ou data atual. '
     + 'Mais de um documento, campos conflitantes ou ilegibilidade: ambiguous=true. confidence e a confianca do campo critico menos confiavel.', options))
 }
