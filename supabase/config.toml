@@ -417,3 +417,16 @@ enabled = false
 [remotes."release/guibor-prod-02".auth]
 site_url = "https://bw-antecipa-git-release-guibor-prod-02-renanbarretoj.vercel.app"
 additional_redirect_urls = ["https://bw-antecipa-git-release-guibor-prod-02-renanbarretoj.vercel.app/**"]
+
+# HEALTH Preview was certified from a production schema snapshot, not a replay
+# of the divergent historical chain. Manual allowlist: scripts/qa/health/migration-manifest.json.
+# Preserve history; never replay or mark the intentionally excluded original A6.
+# This exception applies ONLY to the existing HEALTH Preview, not main/homolog.
+[remotes."hotfix/health-fiscal-import"]
+project_id = "mkfslrspxzplghjeixjq"
+
+[remotes."hotfix/health-fiscal-import".db.migrations]
+enabled = false
+
+[remotes."hotfix/health-fiscal-import".db.seed]
+enabled = false

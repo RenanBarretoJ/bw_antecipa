@@ -4,13 +4,13 @@ import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
 import pg from 'pg'
+import { loadHealthMigration } from './migration-manifest.mjs'
 
 const ref = 'mkfslrspxzplghjeixjq'
 const parent = 'wwsndnuvnjuabpbjwlck'
 const branch = 'b5227cca-3494-46f9-b3a7-2f0ddee7650d'
 assert(process.argv.slice(2).every(a => a === '--apply'), 'UNSUPPORTED_ARGUMENT')
-const file = '20261002205122_health_nfse_municipal_identity.sql'
-const source = readFileSync(`supabase/migrations/${file}`, 'utf8').replaceAll('\r\n','\n')
+const { file, source } = loadHealthMigration()
 const hash = createHash('sha256').update(source).digest('hex')
 const body = source.replace(/^begin;\s*$/mi,'').replace(/^commit;\s*$/mi,'')
 assert(!/^\s*(begin|commit);/mi.test(body), 'TRANSACTION_ENVELOPE_STOP')

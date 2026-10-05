@@ -5,14 +5,14 @@ import { resolve } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import pg from 'pg'
+import { loadHealthMigration } from './migration-manifest.mjs'
 
 assert.equal(process.argv.length, 2, 'NO_ARGUMENTS_ALLOWED')
 const project = 'health-import-prod-20261005'
 const linked = resolve('../bw_antecipa_guibor_prod_02')
 assert.equal(readFileSync(resolve(linked, 'supabase/.temp/project-ref'), 'utf8').trim(), 'wwsndnuvnjuabpbjwlck')
 const cli = resolve('node_modules/supabase/dist/supabase.js')
-const file = '20261002205122_health_nfse_municipal_identity.sql'
-const migration = readFileSync(`supabase/migrations/${file}`, 'utf8').replaceAll('\r\n', '\n')
+const { file, source: migration } = loadHealthMigration()
 const body = migration.replace(/^begin;\s*$/mi, '').replace(/^commit;\s*$/mi, '')
 const hash = s => createHash('sha256').update(s).digest('hex')
 const catalog = readFileSync('scripts/qa/health/schema-catalog.sql', 'utf8')

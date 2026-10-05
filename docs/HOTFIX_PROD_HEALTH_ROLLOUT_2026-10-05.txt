@@ -1,5 +1,97 @@
 HEALTH IMPORT - ROLLOUT ISOLADO - CHECKPOINT 2026-10-05
 
+ESTRATEGIA MANUAL EXPLICITA - AUTORIZADA PELO USUARIO
+Usuario determinou preservar a divergencia historica e impedir replay automatico
+somente na Preview HEALTH. Nao reconciliar history, executar A6 original ou
+marcar versoes ficticiamente como aplicadas. Nao alterar homolog ou producao.
+Configuracao: remotes."hotfix/health-fiscal-import", project mkfslrspxzplghjeixjq,
+db.migrations.enabled=false e db.seed.enabled=false. Defaults globais e todos
+os remotes preexistentes preservados, inclusive Auth. Excecao nao global.
+Manifesto: scripts/qa/health/migration-manifest.json. Unica entrada permitida:
+20261002205122_health_nfse_municipal_identity.sql, versao 20261002205122,
+nome health_nfse_municipal_identity,
+SHA256 53a0f6533c745381ccad139ff734960d7ca99fbd67cb1d979385fc6773dc5d65.
+Validacao de nome/versao/hash executada antes de acessar banco nos runners.
+Migration ja aplicada anteriormente na Preview: somente verificada, sem replay.
+Verifier read-only valida history exato e ausencia de A6 original; captura
+fingerprints de 127 tabelas, catalogo e history para comparar apos config deploy.
+Baseline confirmado: 237 entradas history, duas NFs e dois objetos Storage.
+Nenhuma alteracao de migration history ou dados operacionais nesta etapa.
+
+Validacoes locais nesta etapa: 2640 testes PASS, 12 skipped; 300 arquivos PASS,
+3 skipped. Os 8 testes novos HEALTH agora integram explicitamente o Vitest/CI.
+Rehearsal Docker repetido com manifesto fixado: clean-room 36 assercoes e
+upgrade 36 assercoes PASS; rollback completo e catalogo sem diferencas.
+O clean-room usa baseline vazio do schema produtivo, nao replay da cadeia antiga.
+Migration SQL nao foi editada. CI remoto e postflight dependem da publicacao.
+
+GATES (configuracao local; confirmar integracao/CI remotos apos push)
+HEALTH_PREVIEW_MIGRATION_MODE = MANUAL_EXPLICIT_LIST
+HEALTH_PREVIEW_AUTO_MIGRATION_REPLAY = DISABLED (config; publicacao pendente)
+GUIBOR_A6_ORIGINAL_APPLIED = NO
+GUIBOR_A6_ORIGINAL_HISTORY_FAKED = NO
+HEALTH_PREVIEW_MIGRATION_HASH_CHECK = PASS
+HEALTH_PREVIEW_EXPLICIT_MIGRATION_LIST = PASS
+HEALTH_PREVIEW_SQL_REHEARSAL = PASS
+HEALTH_PREVIEW_APP_CI = PENDING
+HEALTH_PREVIEW_HISTORICAL_DIVERGENCE = KNOWN_AND_PRESERVED
+HEALTH_HOMOLOG_CHANGED = NO
+HEALTH_PRODUCTION_CHANGED = NO
+
+Os checkpoints anteriores abaixo sao historicos; nao sobrescrever divergencias.
+
+INVESTIGACAO DE RECONCILIACAO AUTORIZADA - SEM ESCRITA REMOTA
+Usuario autorizou tratar divergencia somente na Preview HEALTH, preservando NFs.
+Inventario READ ONLY: 237 registros remotos e 237 arquivos locais, com sete
+versoes exclusivas em cada lado. Igualdade de contagens nao prova equivalencia.
+Quatro nomes coincidem com timestamps diferentes; comparacao MD5 do SQL normalizado
+por CRLF/trim entre producao e repo confirma igualdade exata apenas em P7.4.1.
+Os demais exigiriam revisao semantica, nao renomear por similaridade de nome.
+Tres locais adicionais: 002_schema_base, 20260922182301_p14 e
+20260929193129_guibor_a6_comissao_por_fundo. A A6 original foi explicitamente
+excluida do manifesto produtivo anterior (docs/correcoes/guibor-prod-02-rollout.md),
+substituida pela 20260929215557_guibor_a6_decouple_c5. Nao executar nem marcar
+artificialmente a A6 original como aplicada para forcar paridade do historico.
+Tres remotos sem arquivo direto: bootstrap administrativo, P16 e snapshot da
+Preview. Nao copiar bootstrap/DML de producao para repo ou executar na Preview.
+
+Alternativa existente no projeto: remotes de Preview especificos com migrations
+e seed automaticos desativados; validacao e aplicacao manual por allowlist/hash.
+Isso preserva o historico verdadeiro, mas muda o gate automatico. Requer decisao
+explicita do usuario; NAO implementado sob a autorizacao de reconciliar historia.
+Supabase/Postgres orientaram verificacao de equivalencia antes de repair.
+Fonte oficial: https://supabase.com/docs/guides/deployment/branching/configuration
+Nenhuma linha de migration history, NF ou objeto Storage foi alterada nesta etapa.
+CI de app no a76ebd6 PASS; Supabase Preview permanece FAIL por divergencia historica.
+
+POSTFLIGHT DA RETOMADA - BLOQUEADO ANTES DE PRODUCAO
+Novo HEAD a76ebd67a71099f93f51ddb9a060c1fe590faa6a inclui apenas runner e evidencias;
+codigo de runtime igual ao a66c16c aprovado pelo usuario.
+Check Supabase agora encontra a Preview existente, mas terminou FAILURE:
+Remote migration versions not found in local migrations directory.
+Consulta READ ONLY identificou sete versoes ausentes dos filenames locais:
+20260829173938 p5_2_neutralizar_resets_homolog_producao
+20260909024514 p5_7_bootstrap_primeiro_super_admin_producao
+20260915192524 p7_4_1_rls_importacoes_financeiras_gestor
+20260916144655 corrigir_overlay_exposicao_parcelas
+20260916153942 corrigir_aceite_sacado_vinculo_nf_cancelada
+20260928185439 p16_liberar_nf_de_operacao_cancelada
+20261002220000 health_preview_schema_snapshot
+Nao foram alterados registros de migration history. Nao adicionar migrations
+dessas outras frentes ao rollout fiscal nem marcar check como sucesso manual.
+Preview preservada: 237 entradas no historico, 2 NFs e 2 objetos Storage;
+migration municipal aplicada anteriormente permanece presente.
+Rehearsal Docker: 36 assercoes clean-room e 36 upgrade PASS.
+SHA256 da migration: 53a0f6533c745381ccad139ff734960d7ca99fbd67cb1d979385fc6773dc5d65.
+Cleanup executado exclusivamente no project-id health-import-prod-20261005:
+containers, volumes e rede removidos; consultas por label retornam zero recursos.
+DOCKER_TEST_ENV_CLEANUP = PASS
+Producao reconferida: dpl_D38joJT98E3vjLzYvFBDFzhZvrXE / d9133b4 inalterados.
+Sem merge, sem migration remota, sem escrita financeira ou operacional.
+HEALTH_IMPORT_HOTFIX_READY = NO (check Supabase FAIL; gates prod nao executados).
+Proximo passo exige escopo explicito para reconciliar historia SOMENTE Preview;
+preservar notas importadas e nao contornar a stop rule de CI.
+
 RETOMADA AUTORIZADA - VINCULO PREVIEW E DOCKER
 Usuario aprovou corrigir o vinculo da Preview existente e iniciou Docker.
 branches update alterou SOMENTE git_branch de b5227cca-3494-46f9-b3a7-2f0ddee7650d
