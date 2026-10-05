@@ -167,12 +167,14 @@ export function AprovacoesSacadoListagem({
                 <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   placeholder="Buscar por NF, cedente ou CNPJ..."
+                  aria-label="Buscar cessoes por NF, cedente ou CNPJ"
                   value={busca}
                   onChange={(event) => setBusca(event.target.value)}
                   className="h-10 pl-9"
                 />
               </div>
               <select
+                aria-label="Filtrar por cedente"
                 value={filtros.cedenteId || ''}
                 onChange={(event) => navegar({ cedente: event.target.value || null, page: 1 })}
                 className="min-w-[210px] rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
@@ -243,7 +245,7 @@ export function AprovacoesSacadoListagem({
           )}
 
           <Card className={isPending ? 'overflow-hidden opacity-70' : 'overflow-hidden'}>
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Cessoes para aprovacao, tabela com rolagem horizontal">
               <table className="min-w-[900px] w-full text-sm">
                 <thead><tr className="border-b bg-muted/50">
                   <th className="w-10 px-4 py-3"><button onClick={toggleTodas} aria-label="Selecionar todas da pagina">{todasSelecionadas ? <CheckSquare size={16} className="text-primary" /> : <Square size={16} />}</button></th>
@@ -275,7 +277,7 @@ export function AprovacoesSacadoListagem({
                       </tr>
                       {isContestando && <tr className="bg-red-50 dark:bg-red-950/10"><td colSpan={6} className="px-4 py-3">
                         <div className="mb-2 flex items-center gap-2 text-sm font-medium text-red-800 dark:text-red-300"><AlertTriangle size={15} />Contestar NF {item.numero}</div>
-                        <textarea value={motivo} onChange={(event) => setMotivo(event.target.value)} rows={2} className="mb-2 w-full rounded-lg border bg-background px-3 py-2 text-sm" placeholder="Descreva o motivo da contestacao (obrigatorio)..." />
+                        <textarea aria-label="Motivo da contestacao" value={motivo} onChange={(event) => setMotivo(event.target.value)} rows={2} className="mb-2 w-full rounded-lg border bg-background px-3 py-2 text-sm" placeholder="Descreva o motivo da contestacao (obrigatorio)..." />
                         <div className="flex gap-2"><Button variant="outline" size="sm" onClick={() => { setContestando(null); setMotivo('') }}>Cancelar</Button><Button variant="destructive" size="sm" disabled={isProcessing} onClick={() => contestar(id)}>Confirmar Contestacao</Button></div>
                       </td></tr>}
                     </Fragment>

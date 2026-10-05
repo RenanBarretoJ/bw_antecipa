@@ -15,7 +15,7 @@ export async function GestaoSacadosPage({ params, basePath }: { params: Record<s
       <label className="text-sm">Fundo<select name="fundo" defaultValue={result.fundo.id} className="block min-h-10 w-full rounded-lg border border-input bg-background px-3">{result.fundos.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}</select></label>
       <label className="text-sm">Nome ou e-mail<input name="busca" defaultValue={result.busca} className="block min-h-10 w-full rounded-lg border border-input bg-background px-3" /></label>
       <p className="text-sm text-muted-foreground">Para vincular um usuario ainda sem acesso neste Fundo, busque seu e-mail completo.</p>
-      <button className="min-h-10 rounded-lg bg-primary px-4 text-primary-foreground" type="submit">Buscar</button>
+      <button className="min-h-10 rounded-lg bg-primary px-4 text-primary-foreground dark:bg-blue-700" type="submit">Buscar</button>
     </form>
     {selected ? <>
       <Link className="text-primary underline" href={href(null)}>Voltar aos usuarios</Link>

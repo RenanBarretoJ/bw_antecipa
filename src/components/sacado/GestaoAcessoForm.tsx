@@ -45,7 +45,7 @@ export function GestaoAcessoForm({ usuario, fundo, acesso }: { usuario: string; 
     </select></div> : <input type="hidden" name="acao" value="adicionar" />}
     <label className="flex items-start gap-2 text-sm"><input type="checkbox" name="confirmacao" required className="mt-1" />Confirmo a alteracao somente para este usuario, empresa e Fundo. Revogar ou desativar impede novos acessos; o historico e os outros usuarios permanecem.</label>
     <div><label htmlFor={`${id}-mfa`} className="text-sm">Codigo do autenticador</label><Input id={`${id}-mfa`} name="mfa" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} required className="max-w-60" /></div>
-    <Button type="submit" disabled={pending || consultando}>{pending ? 'Confirmando...' : 'Confirmar e salvar'}</Button>
-    {state.message && <p role={state.success ? 'status' : 'alert'} className={state.success ? 'text-sm text-success' : 'text-sm text-destructive'}>{state.message}</p>}
+    <Button type="submit" className="dark:bg-blue-700" disabled={pending || consultando}>{pending ? 'Confirmando...' : 'Confirmar e salvar'}</Button>
+    {state.message && <p role={state.success ? 'status' : 'alert'} className={state.success ? 'text-sm text-success-foreground' : 'text-sm text-destructive'}>{state.message}</p>}
   </form>
 }

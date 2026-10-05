@@ -262,7 +262,7 @@ export async function requireOperationAccess(
       .maybeSingle()
 
     if (vinculoError || !vinculo) {
-      throw new AuthorizationError('OperaÃ§Ã£o nÃ£o vinculada ao sacado autenticado.', 'FORBIDDEN')
+      throw new AuthorizationError('Operacao nao vinculada ao sacado autenticado.', 'FORBIDDEN')
     }
 
     return { ...context, operacao: operacao as Pick<Operacao, 'id' | 'cedente_id'> }
@@ -290,7 +290,7 @@ export async function requireNotaFiscalAccess(
   if (context.profile.role === 'sacado') {
     const { data: acessos, error: acessosError } = await context.supabase.rpc('get_user_sacado_context')
     if (acessosError || !possuiAcessoSacado(acessos ?? [], notaFiscal.cnpj_destinatario, notaFiscal.fundo_id)) {
-      throw new AuthorizationError('Nota fiscal nÃ£o vinculada ao sacado autenticado.', 'FORBIDDEN')
+      throw new AuthorizationError('Nota fiscal nao vinculada ao sacado autenticado.', 'FORBIDDEN')
     }
 
     return { ...context, notaFiscal: notaFiscal as Pick<NotaFiscal, 'id' | 'cedente_id' | 'cnpj_destinatario'> }

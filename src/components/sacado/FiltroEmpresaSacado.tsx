@@ -11,7 +11,7 @@ export async function FiltroEmpresaSacado({ cnpj = '' }: { cnpj?: string }) {
         {empresas.map(e => <option key={e.cnpj} value={e.cnpj}>{e.razao_social} — {formatCNPJ(e.cnpj)}</option>)}
       </select>
     </label>
-    <button type="submit" className="min-h-10 rounded-lg bg-primary px-4 text-sm text-primary-foreground">Filtrar empresa</button>
+    <button type="submit" className="min-h-10 rounded-lg bg-primary px-4 text-sm text-primary-foreground dark:bg-blue-700">Filtrar empresa</button>
     {empresas.length === 0 && <p role="status" className="w-full text-sm text-muted-foreground">Nenhuma empresa autorizada. Solicite ao Gestor a revisao dos seus acessos.</p>}
   </form>
 }

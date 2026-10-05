@@ -15,6 +15,7 @@ assert.equal(createHash('sha256').update(schema).digest('hex'), checkpoint.sha25
 const sql = readFileSync('supabase/migrations/20261005154435_sacado_multi_cnpj_acessos.sql','utf8').replace(/^BEGIN;$/m,'').replace(/^COMMIT;$/m,'')
 const db = new pg.Client({host:'127.0.0.1',port:57322,user:'postgres',password:'postgres',database:'postgres',ssl:false})
 const report = {at:new Date().toISOString(), success:false, mode:process.argv[2] || '--compile', migrationSha256:createHash('sha256').update(readFileSync('supabase/migrations/20261005154435_sacado_multi_cnpj_acessos.sql','utf8').replaceAll('\r\n','\n')).digest('hex'), checks:[]}
+assert(['--compile','--test','--ambiguous'].includes(report.mode))
 const ident = s => '"'+s.replaceAll('"','""')+'"'
 try {
   await db.connect()
@@ -32,19 +33,26 @@ try {
     await db.query('COMMIT')
   } else assert.equal(count,125,'Unexpected local baseline')
   await db.query("BEGIN; SET LOCAL search_path=public,extensions; CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;")
-  if(report.mode === '--test') {
+  if(report.mode !== '--compile') {
     await db.query(readFileSync('supabase/tests/fixtures/guibor_a5_a6.sql','utf8'))
     await db.query(readFileSync('supabase/tests/fixtures/sacado_multi.sql','utf8'))
   }
+  if(report.mode === '--ambiguous') await db.query("update public.notas_fiscais set fundo_id='22000000-0000-4000-8000-000000000002',cedente_fundo_id='24000000-0000-4000-8000-000000000002' where id='2a000000-0000-4000-8000-000000000004'")
   const financialHash = async () => (await db.query(`select md5(concat_ws('|',
     (select string_agg(to_jsonb(n)::text,'' order by id) from public.notas_fiscais n),
     (select string_agg(to_jsonb(o)::text,'' order by id) from public.operacoes o),
     (select string_agg(to_jsonb(l)::text,'' order by operacao_id,nota_fiscal_id) from public.operacoes_nfs l))) hash`)).rows[0].hash
   const before = await financialHash()
-  await db.query(sql)
+  if(report.mode === '--ambiguous') {
+    await db.query('SAVEPOINT ambiguous_backfill')
+    await assert.rejects(db.query(sql),/SACADO_BACKFILL_FUND_REVIEW_REQUIRED/)
+    await db.query('ROLLBACK TO SAVEPOINT ambiguous_backfill')
+    assert.equal((await db.query("select to_regclass('public.sacado_acessos') v")).rows[0].v,null)
+    report.checks.push('ambiguous_backfill_rejected_atomically')
+  } else await db.query(sql)
   assert.equal(await financialHash(), before, 'MIGRATION_CHANGED_FINANCIAL_DATA')
   report.checks.push('financial_rows_unchanged')
-  report.checks.push('migration_compiles')
+  if(report.mode !== '--ambiguous') report.checks.push('migration_compiles')
   if(report.mode === '--test') {
     const result = await db.query(readFileSync('supabase/tests/sacado_multi.assert.sql','utf8'))
     report.tap = (Array.isArray(result)?result:[result]).flatMap(r=>r.rows).flatMap(r=>Object.values(r)).filter(v=>typeof v==='string')
@@ -60,6 +68,6 @@ try {
 } finally {
   await db.end()
   writeFileSync('rehearsal/reports/SACADO_R2_LOCAL.json',JSON.stringify(report,null,2))
-  writeFileSync(`rehearsal/reports/SACADO_R2_LOCAL_${report.mode === '--test' ? 'TEST' : 'COMPILE'}.json`,JSON.stringify(report,null,2))
+  writeFileSync(`rehearsal/reports/SACADO_R2_LOCAL_${report.mode.slice(2).toUpperCase()}.json`,JSON.stringify(report,null,2))
   console.log(JSON.stringify(report))
 }

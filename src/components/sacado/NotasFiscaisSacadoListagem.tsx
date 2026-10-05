@@ -103,13 +103,14 @@ export function NotasFiscaisSacadoListagem({
               onChange={(event) => setBusca(event.target.value)}
               className="h-10 pl-9"
               placeholder="Buscar por numero, cedente ou CNPJ..."
+              aria-label="Buscar notas por numero, cedente ou CNPJ"
             />
           </div>
           <Select
             value={filtros.status || 'todos'}
             onValueChange={(value) => navegar({ status: value === 'todos' ? null : value, page: 1 })}
           >
-            <SelectTrigger className="h-10 w-[210px]"><SelectValue /></SelectTrigger>
+            <SelectTrigger aria-label="Status das notas" className="h-10 w-[210px]"><SelectValue>{filtros.status ? statusConfig[filtros.status]?.label : 'Todos os status'}</SelectValue></SelectTrigger>
             <SelectContent>
               <SelectItem value="todos">Todos os status</SelectItem>
               {Object.entries(statusConfig).map(([value, config]) => (
@@ -125,7 +126,7 @@ export function NotasFiscaisSacadoListagem({
               navegar({ sort, direction, page: 1 })
             }}
           >
-            <SelectTrigger className="h-10 w-[220px]"><SelectValue /></SelectTrigger>
+            <SelectTrigger aria-label="Ordenar notas" className="h-10 w-[220px]"><SelectValue>{({ 'created_at:desc': 'Mais recentes', 'data_vencimento:asc': 'Vencimento mais proximo', 'valor_bruto:desc': 'Maior valor', 'numero_nf:asc': 'Numero da NF' } as Record<string, string>)[`${filtros.sort}:${filtros.direction}`] ?? 'Ordenar notas'}</SelectValue></SelectTrigger>
             <SelectContent>
               <SelectItem value="created_at:desc">Mais recentes</SelectItem>
               <SelectItem value="data_vencimento:asc">Vencimento mais proximo</SelectItem>
@@ -149,7 +150,7 @@ export function NotasFiscaisSacadoListagem({
       ) : (
         <Card className={isPending ? 'overflow-hidden opacity-70' : 'overflow-hidden'}>
           <div className="overflow-x-auto">
-            <Table className="min-w-[920px]">
+            <Table className="min-w-[920px]" containerProps={{ tabIndex: 0, role: 'region', 'aria-label': 'Notas fiscais recebidas, tabela com rolagem horizontal' }}>
               <TableHeader><TableRow>
                 <TableHead className="px-4 py-3 text-xs uppercase">NF</TableHead>
                 <TableHead className="px-4 py-3 text-xs uppercase">Cedente (Emitente)</TableHead>
