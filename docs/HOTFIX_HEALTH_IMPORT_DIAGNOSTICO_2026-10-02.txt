@@ -1,5 +1,40 @@
 HOTFIX HEALTH - checkpoint de execucao (NAO certificado para producao)
 
+CHECKPOINT R3 - 2026-10-05 - LEITURA DA CHAVE DANFE (publicacao Preview autorizada)
+Nova tentativa na Preview R2 confirmada no deployment
+dpl_FkYBjtHodsZTe5cvWkT9xPyA2fhf, correlation
+69674bcb-cafc-412d-8230-dc83d998e7f5. Os eventos completos estao em logs[]
+do resultado de vercel logs --request-id; message de topo mostra so STARTED.
+Falha exata: OPENAI_NF_ACCESS_KEY_INVALID, NO_TEXT_LAYER, fallback 8481ms,
+total 12774ms, 0 importados, 1 rejeitado, 0 erros Storage/persistencia.
+Nao foi timeout nem limite de tokens nesta tentativa.
+
+Conferencia local da chave IMPRESSA na renderizacao existente: 44 digitos,
+checksum modulo 11 valido. Assim, a representacao obtida pelo leitor visual
+nao forneceu chave valida, embora a chave impressa passe no verificador.
+Nao ha payload bruto do provedor nos logs; o digito exato lido incorretamente
+nao e conhecido. Perda de zeros e uma hipotese, nao um fato extraido do log.
+Nenhuma chave real ou PDF foi adicionada ao repositorio.
+
+Correcao R3: contrato estruturado inclui chave_acesso_blocos, null ou 11 strings
+de 4 digitos; prompt pede leitura sequencial dos blocos impressos antes da
+concatenacao, sem conversao numerica, preenchimento ou reconstrucao por campos.
+O servidor so junta blocos completos validados pelo schema, aplica o mesmo
+checksum e rejeita mais de uma chave valida distinta. Leitura direta continua
+disponivel para DANFE sem agrupamento impresso. Modelo, timeout e limites de
+tentativas preservados. Nenhuma alteracao em NFS-e municipal, banco, RLS/MFA.
+Testes sinteticos cobrem zeros consecutivos, ausencia/excesso de blocos,
+blocos curtos, letras, valores numericos, DV invalido e chaves conflitantes.
+Referencia OpenAI Docs para formato estruturado:
+https://developers.openai.com/api/docs/guides/structured-outputs
+179 testes direcionados PASS; TypeScript e lint direcionado PASS.
+Suite completa: 2632 testes PASS, 12 skipped; 299 arquivos PASS, 3 skipped.
+Build Next.js --webpack PASS; git diff --check PASS.
+Usuario autorizou commit/push somente em hotfix/health-fiscal-import para
+novo smoke na Preview HEALTH. Sem merge nem deploy em producao/homolog.
+Estes gates locais nao substituem CI nem certificam a importacao real.
+Smoke real de Hope permanece FAIL ate nova importacao autenticada.
+
 CHECKPOINT R2 - 2026-10-02 - DANFE HOPE (validado localmente, publicacao autorizada)
 Usuario confirmou smoke Barueri PASS: revisao exigiu vencimento e importou apos
 preenchimento. DANFE Hope permanece FAIL: rejeicao generica de interpretacao.

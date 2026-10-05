@@ -11,6 +11,7 @@ const candidate = {
   document_type: 'nfe_danfe' as const,
   numero_nf: '154806',
   serie: '2',
+  chave_acesso_blocos: null,
   chave_acesso: ACCESS_KEY,
   chaves_acesso_candidatas: [ACCESS_KEY],
   cnpj_emitente: '12.345.678/0001-95',
@@ -45,6 +46,8 @@ describe('fallback OpenAI para DANFE PDF', () => {
       expect(JSON.stringify(body)).toContain('"detail":"high"')
       expect(JSON.stringify(body)).toContain('"strict":true')
       expect(JSON.stringify(body)).toContain('pagina vazia, verso vazio e canhoto repetido')
+      expect(JSON.stringify(body)).toContain('"chave_acesso_blocos"')
+      expect(JSON.stringify(body)).toContain('"minItems":11')
       return new Response(JSON.stringify({
         output: [{ content: [{ type: 'output_text', text: JSON.stringify(candidate) }] }],
       }), { status: 200, headers: { 'Content-Type': 'application/json' } })
@@ -164,6 +167,68 @@ describe('fallback OpenAI para DANFE PDF', () => {
     await expect(extractDanfeWithOpenAi(Buffer.from('%PDF'), 'NO_TEXT_LAYER', {
       env: { OPENAI_API_KEY: 'sk-test' }, fetchImpl,
     })).rejects.toThrow('OPENAI_NF_REQUEST_INVALID')
+    expect(fetchImpl).toHaveBeenCalledOnce()
+  })
+
+  it('preserva zeros dos blocos impressos quando a leitura concatenada perdeu um digito', async () => {
+    // Synthetic key with consecutive zeros; no real customer document in this fixture.
+    const body = '2926091234567800019555001000000042100000000'
+    let sum = 0, weight = 2
+    for (let i = 42; i >= 0; i--) { sum += Number(body[i]) * weight; weight = weight === 9 ? 2 : weight + 1 }
+    const rest = sum % 11
+    const key = body + (rest < 2 ? 0 : 11 - rest)
+    expect(key).toHaveLength(44)
+    const grouped = { ...candidate, numero_nf: '42', serie: '1',
+      chave_acesso_blocos: key.match(/.{4}/g), chave_acesso: key.replace('0000', '000'), chaves_acesso_candidatas: [] }
+    const fetchImpl = vi.fn(async () => Response.json({ status: 'completed', output_text: JSON.stringify(grouped) }))
+    const result = await extractDanfeWithOpenAi(Buffer.from('%PDF'), 'NO_TEXT_LAYER', {
+      env: { OPENAI_API_KEY: 'sk-test' }, fetchImpl,
+    })
+    const parsed = extractDanfeFromText(result.text)
+    expect(parsed.chave_acesso).toBe(key)
+    expect(parsed.numero_nf).toBe('42')
+    expect(validarDanfeParaPersistencia(parsed)).toEqual({ ok: true })
+  })
+
+  it.each([
+    Array(10).fill('0000'),
+    Array(12).fill('0000'),
+    [...Array(10).fill('0000'), '000'],
+    [...Array(10).fill('0000'), '00O0'],
+    [...Array(10).fill('0000'), 0],
+  ])('nao completa nem normaliza blocos invalidos (%j)', async (...blocks) => {
+    const fetchImpl = vi.fn(async () => Response.json({ status: 'completed', output_text: JSON.stringify({
+      ...candidate, chave_acesso_blocos: blocks, chave_acesso: null, chaves_acesso_candidatas: [],
+    }) }))
+    await expect(extractDanfeWithOpenAi(Buffer.from('%PDF'), 'NO_TEXT_LAYER', {
+      env: { OPENAI_API_KEY: 'sk-test' }, fetchImpl,
+    })).rejects.toThrow('OPENAI_NF_INVALID_RESPONSE')
+    expect(fetchImpl).toHaveBeenCalledTimes(2)
+  })
+
+  it('nao recalcula digito verificador de blocos completos invalidos', async () => {
+    const invalid = ACCESS_KEY.slice(0, -1) + '1'
+    const fetchImpl = vi.fn(async () => Response.json({ status: 'completed', output_text: JSON.stringify({
+      ...candidate, chave_acesso_blocos: invalid.match(/.{4}/g), chave_acesso: invalid, chaves_acesso_candidatas: [],
+    }) }))
+    await expect(extractDanfeWithOpenAi(Buffer.from('%PDF'), 'NO_TEXT_LAYER', {
+      env: { OPENAI_API_KEY: 'sk-test' }, fetchImpl,
+    })).rejects.toThrow('OPENAI_NF_ACCESS_KEY_INVALID')
+  })
+
+  it('rejeita chave em blocos e chave direta validas mas conflitantes', async () => {
+    // Same synthetic body, different emission type and recalculated DV only in test data.
+    const body = ACCESS_KEY.slice(0, 34) + '2' + ACCESS_KEY.slice(35, 43)
+    let sum = 0, weight = 2
+    for (let i = 42; i >= 0; i--) { sum += Number(body[i]) * weight; weight = weight === 9 ? 2 : weight + 1 }
+    const rest = sum % 11
+    const otherKey = body + (rest < 2 ? 0 : 11 - rest)
+    const fetchImpl = vi.fn(async () => Response.json({ status: 'completed', output_text: JSON.stringify({
+      ...candidate, chave_acesso_blocos: otherKey.match(/.{4}/g),
+    }) }))
+    await expect(extractDanfeWithOpenAi(Buffer.from('%PDF'), 'NO_TEXT_LAYER', {
+      env: { OPENAI_API_KEY: 'sk-test' }, fetchImpl,
+    })).rejects.toThrow('OPENAI_NF_MULTIPLE_ACCESS_KEYS')
     expect(fetchImpl).toHaveBeenCalledOnce()
   })
 })
