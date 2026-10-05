@@ -17,7 +17,7 @@ test('evidence allowlist accepts only explicit harness IDs and file names', () =
   }
   assert.equal(evidenceReportName('RLX_EMAIL_03_CLEAN_ROOM.secret.json'), false)
   assert.equal(evidenceReportName('.env.local'), false)
-  for (const name of ['email05-r3-redaction-probe.json', 'email05-redaction.json', 'email05-ui.json', 'RLX_EMAIL_03_CLEAN_ROOM.json', 'runner-manifest.json', 'archive-summary.json']) {
+  for (const name of ['email05-r10-finalization-probe.json', 'email05-r10-finalization-case-19.json', 'email05-r3-redaction-probe.json', 'email05-redaction.json', 'email05-ui.json', 'RLX_EMAIL_03_CLEAN_ROOM.json', 'runner-manifest.json', 'archive-summary.json']) {
     assert.equal(evidenceReportName(name), true, name)
   }
   assert.equal(evidenceCategory('runner-manifest.json'), 'RUNNER_MANIFEST')
@@ -25,7 +25,7 @@ test('evidence allowlist accepts only explicit harness IDs and file names', () =
   assert.equal(evidenceCategory('email05-r3-redaction-probe.json'), 'REPORT_JSON')
   assert.equal(evidenceCategory('email05-r3-build.log'), 'LOG')
   assert.equal(evidenceCategory('screen-390.png'), 'SCREENSHOT')
-  for (const name of ['email05-r3-redaction-probe.exe', 'spoof-email05-r3-redaction-probe.json', '/tmp/email05-ui.json']) assert.equal(evidenceCategory(name), 'UNKNOWN')
+  for (const name of ['email05-r10-finalization-case-20.json', 'email05-r10-finalization-secret.json', 'email05-r3-redaction-probe.exe', 'spoof-email05-r3-redaction-probe.json', '/tmp/email05-ui.json']) assert.equal(evidenceCategory(name), 'UNKNOWN')
 })
 
 async function fixture(run) {

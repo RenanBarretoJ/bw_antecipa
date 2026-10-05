@@ -60,14 +60,16 @@ try {
     await run(['npm', 'ci', '--no-audit', '--no-fund'])
     if (interrupted) throw Error('LINUX_RUNNER_INTERRUPTED')
     if (mode === '--diagnostic') {
-      await run(['node', '--test', 'scripts/email-intake/browser-diagnostics.test.mjs', 'scripts/email-intake/browser-redaction.test.mjs', 'scripts/email-intake/browser-protocol.test.mjs', 'scripts/email-intake/browser-drain.test.mjs', 'scripts/email-intake/browser-no-body.test.mjs', 'scripts/email-intake/browser-signed-url.test.mjs', 'scripts/email-intake/fiscal-signed-url-policy.test.mjs', 'scripts/email-intake/disposable-resources.test.mjs', 'scripts/email-intake/runner-evidence.test.mjs'])
+      await run(['node', '--test', 'scripts/email-intake/browser-diagnostics.test.mjs', 'scripts/email-intake/browser-redaction.test.mjs', 'scripts/email-intake/browser-protocol.test.mjs', 'scripts/email-intake/browser-drain.test.mjs', 'scripts/email-intake/browser-finalization.test.mjs', 'scripts/email-intake/browser-no-body.test.mjs', 'scripts/email-intake/browser-signed-url.test.mjs', 'scripts/email-intake/fiscal-signed-url-policy.test.mjs', 'scripts/email-intake/disposable-resources.test.mjs', 'scripts/email-intake/runner-evidence.test.mjs'])
       requiredArtifacts.add('reports/email05-r3-redaction-probe.json')
       await run(['node', 'scripts/email-intake/redaction-probe.mjs'])
       requiredArtifacts.add('reports/email05-r8-no-body-probe.json')
       await run(['node', 'scripts/email-intake/no-body-probe.mjs'])
+      requiredArtifacts.add('reports/email05-r10-finalization-probe.json')
+      await run(['node', 'scripts/email-intake/finalization-probe.mjs'])
     }
     const script = ['--probe', '--diagnostic'].includes(mode) ? 'cleanup-probe.mjs' : mode === '--full' ? 'linux-certify.mjs' : 'clean-room.mjs'
-    if (mode === '--full') { requiredArtifacts.add('reports/email05-r3-linux.json'); requiredArtifacts.add('reports/email05-r8-no-body-probe.json') }
+    if (mode === '--full') { requiredArtifacts.add('reports/email05-r10-finalization-probe.json'); requiredArtifacts.add('reports/email05-r3-linux.json'); requiredArtifacts.add('reports/email05-r8-no-body-probe.json') }
     if (mode === '--browser') requiredArtifacts.add('reports/RLX_EMAIL_03_CLEAN_ROOM.json')
     await run(['node', `scripts/email-intake/${script}`, ...(mode === '--browser' ? ['--storage-api', '--automation', '--operators'] : [])])
   }

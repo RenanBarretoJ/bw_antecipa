@@ -11,6 +11,7 @@ export function evidenceCategory(value) {
   if (/[\\/]/.test(value)) return 'UNKNOWN'
   if (value === 'runner-manifest.json') return 'RUNNER_MANIFEST'
   if (value === 'archive-summary.json') return 'REPORT_JSON'
+  if (/^email05-r10-finalization-(?:probe|case-(?:[0-9]|1[0-9]))\.json$/.test(value)) return 'REPORT_JSON'
   if (value === 'email05-r8-no-body-probe.json') return 'REPORT_JSON'
   if (/^(?:email05-(?:network|ui|redaction|body-failures|log-redaction)|email-browser-build|clean-room-checkpoint|shared-result)\.json$/.test(value)) return 'REPORT_JSON'
   if (/^(?:RLX_EMAIL_03_CLEAN_ROOM(?:_bw_email03_\d+)?|email05-r[345]-[a-z-]+)\.json$/.test(value)) return 'REPORT_JSON'

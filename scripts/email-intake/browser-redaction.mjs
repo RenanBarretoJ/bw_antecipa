@@ -5,6 +5,8 @@ import { createProtocolTrace } from './browser-protocol.mjs'
 import { createRedactionBarrier, terminalInspectionState } from './browser-drain.mjs'
 import { bodylessResponse, inspectResponseHeaders, noBodyRequest, receiveNoBodyResponse, cancelNoBodyResponse } from './browser-no-body.mjs'
 import { inspectSignedResponse } from './browser-signed-url.mjs'
+import { createSemanticRegistry, boundedInspection } from './browser-semantic.mjs'
+import { createInspectionFinalizer } from './browser-finalization.mjs'
 
 function sensitivePath(pathname) {
   return /^\/(?:api(?:\/|$)|rest\/v1(?:\/|$)|auth\/v1(?:\/|$)|(?:admin|gestor)\/integracoes-email(?:\/|$))/.test(pathname)
@@ -72,6 +74,7 @@ export async function inspectEmailResponses(page, { file, knownSecrets = [], pha
   const cdp = await page.createCDPSession(), rows = [], aborted = [], pending = new Set(), requests = new Map(), byNetwork = new Map(), passive = new Map(), recordedPassive = new Set()
   const consoleMatches = [], failures = []
   const protocol = await createProtocolTrace(cdp)
+  const semantic = createSemanticRegistry((event, metadata) => protocol.record(event, null, null, metadata))
   const registry = []
   const transition = (entry, state) => {
     if (!entry || (terminalInspectionState(entry.state) && entry.state !== 'COMPLETED')) return
@@ -183,8 +186,10 @@ export async function inspectEmailResponses(page, { file, knownSecrets = [], pha
         const response = await protocol.command('Fetch.getResponseBody', { requestId: event.requestId }, { networkId: event.networkId, lifecycle: row.lifecycle }, { timeout: 15000 })
         const body = response.base64Encoded ? Buffer.from(response.body, 'base64').toString('utf8') : response.body
         row.size = Buffer.byteLength(body)
-        const inspected = await inspectSignedResponse(body, { method: row.method, status, contentType, url: event.request.url,
-          actionId: event.request.headers?.['Next-Action'] ?? event.request.headers?.['next-action'] }, signedUrlPolicy, text => secretClasses(text, knownSecrets))
+        row.bodyInspected = true; entry.bodyInspected = true
+        protocol.record('BODY_RECEIVED', event.networkId, event.requestId)
+        const inspected = await semantic.inspect(entry.id, () => inspectSignedResponse(body, { method: row.method, status, contentType, url: event.request.url,
+          actionId: event.request.headers?.['Next-Action'] ?? event.request.headers?.['next-action'] }, signedUrlPolicy, text => secretClasses(text, knownSecrets)))
         row.matchedSecretClasses.push(...inspected.matchedSecretClasses)
         if (inspected.signedUrls.length) row.signedUrls = inspected.signedUrls
         row.inspectionResult = classification === 'UNKNOWN' ? 'UNKNOWN_SURFACE' : 'PASS'
@@ -230,11 +235,19 @@ export async function inspectEmailResponses(page, { file, knownSecrets = [], pha
     ...['Document', 'Fetch', 'XHR'].map(resourceType => ({ urlPattern: 'http*', resourceType, requestStage: 'Response' })),
     ...['*/api/*', '*/rest/v1/*', '*/auth/v1/*', '*/admin/integracoes-email*', '*/gestor/integracoes-email*'].map(urlPattern => ({ urlPattern, requestStage: 'Response' })),
   ] })
-  const flush = async () => { while (pending.size) await Promise.all([...pending]) }
+  const flush = async () => {
+    while (pending.size) {
+      await semantic.awaitDrain({ assertSuccessful: false })
+      await boundedInspection(Promise.all([...pending]), 20000, 'REDACTION_DRAIN_TIMEOUT')
+    }
+  }
   const summary = () => {
     const must = rows.filter(row => row.classification === 'MUST_INSPECT_SECRET_SURFACE')
     const inspected = must.filter(row => row.inspectionResult === 'PASS').length
     return { mustInspect: must.length, intercepted: must.filter(row => row.intercepted).length, inspected, uninspected: must.length - inspected,
+      networkMustInspect: must.length, networkInspected: must.filter(row => row.bodyInspected).length,
+      networkPending: registry.filter(entry => entry.required && !entry.bodyInspected && !terminalInspectionState(entry.state)).length,
+      ...semantic.snapshot(),
       pending: registry.filter(entry => entry.required && !terminalInspectionState(entry.state)).length,
       failed: registry.filter(entry => entry.required && terminalInspectionState(entry.state) && !['COMPLETED', 'NO_BODY_TERMINAL'].includes(entry.state)).length,
       noBody: registry.filter(entry => entry.noBody?.classification === 'NO_BODY_EXPECTED').length,
@@ -251,11 +264,12 @@ export async function inspectEmailResponses(page, { file, knownSecrets = [], pha
         : safe ? 'NON_SECRET_STATIC' : 'UNINSPECTED_SURFACE' })
       recordedPassive.add(id)
     }
-    await writeFile(file, JSON.stringify({ summary: summary(), rows, registry, aborted, consoleMatches, failures, protocol: { versions: protocol.versions, timeline: protocol.timeline } }, null, 2))
+    await writeFile(file, JSON.stringify({ summary: summary(), rows, registry, semanticRegistry: semantic.rows, aborted, consoleMatches, failures, protocol: { versions: protocol.versions, timeline: protocol.timeline } }, null, 2))
   }
   const assertHealthy = async () => {
       await flush(); await save()
       const counts = summary()
+      assert.equal(counts.semanticPending + counts.semanticFailed, 0, 'SEMANTIC_NOT_CLEAN')
       assert.equal(counts.inspected, counts.mustInspect, 'MUST_INSPECT_COVERAGE_FAILED')
       assert.equal(counts.intercepted, counts.mustInspect, 'MUST_INSPECT_INTERCEPT_COVERAGE_FAILED')
       assert.equal(rows.filter(row => ['FAIL', 'PENDING', 'UNKNOWN_SURFACE', 'UNINSPECTED_SURFACE', 'SECRET_PATTERN_MATCH'].includes(row.inspectionResult)).length, 0, 'RESPONSE_REDACTION_FAILED')
@@ -271,16 +285,23 @@ export async function inspectEmailResponses(page, { file, knownSecrets = [], pha
     validate: assertHealthy, save,
     record: (event, metadata) => {
       protocol.record(event, null, null, metadata)
-      if (event === 'REDACTION_DRAIN_TIMEOUT') failures.push({ kind: event })
+      if (event.endsWith('DRAIN_TIMEOUT')) failures.push({ kind: event })
     },
   })
-  return { flush, save, assertHealthy, snapshot, ...barrier,
-    async assertClean() {
+  const assertClean = async () => {
+    try {
+      await semantic.awaitDrain()
       await barrier.awaitDrain()
       const counts = await assertHealthy()
       assert.ok(counts.mustInspect > 0, 'NO_SECRET_SURFACE_OBSERVED')
       assert.deepEqual(secretClasses(await page.content(), knownSecrets), [], 'HTML_SECRET_PATTERN_MATCH')
       return counts
-    },
+    } catch (error) { await save(); throw error }
   }
+  const finalization = createInspectionFinalizer({ semantic, networkDrain: barrier.awaitDrain, assertClean, snapshot, save,
+    record: (event, metadata) => {
+      protocol.record(event, null, null, metadata)
+      if (event.endsWith('_TIMEOUT') || event === 'FINALIZATION_FAILED') failures.push({ kind: event })
+    } })
+  return { flush, save, assertHealthy, snapshot, ...barrier, assertClean, ...finalization }
 }

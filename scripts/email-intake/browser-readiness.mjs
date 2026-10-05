@@ -1,4 +1,17 @@
 /** Readiness of the rendered task, including a terminal empty result. Each stage fails separately. */
+export async function waitFiscalDetail(page, noteId) {
+  await page.waitForFunction(id => location.pathname === `/cedente/notas-fiscais/${id}`
+    && [...document.querySelectorAll('button')].some(button => button.textContent.trim() === 'Visualizar' && !button.disabled),
+  { timeout: 20000 }, noteId)
+}
+
+export async function waitEmailDestination(page, diagnostics) {
+  const params = new URL(page.url()).searchParams
+  const screen = params.has('message') ? 'message' : params.has('integration') && !params.has('edit') ? 'detail'
+    : ['inbox', 'review'].includes(params.get('tab')) ? params.get('tab') : 'integrations'
+  await waitEmailScreen(page, diagnostics, screen)
+}
+
 export async function waitEmailScreen(page, diagnostics, screen, expectedHeading = null) {
   const step = async (name, run) => { await diagnostics.phase(`${screen}:${name}`); await run() }
   await step('SHELL', () => page.waitForSelector('main nav[aria-label="Operação de e-mail"]', { visible: true, timeout: 15000 }))

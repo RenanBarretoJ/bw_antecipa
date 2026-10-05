@@ -27,11 +27,11 @@ export function createRedactionBarrier({ snapshot, validate, record, save }) {
             }
           }
         } else idleSince = null
-        if (performance.now() - started >= timeoutMs) throw Error('REDACTION_DRAIN_TIMEOUT')
+        if (performance.now() - started >= timeoutMs) throw Error(state.semanticPending > 0 ? 'SEMANTIC_DRAIN_TIMEOUT' : 'REDACTION_DRAIN_TIMEOUT')
         await new Promise(resolve => setTimeout(resolve, 10))
       }
     } catch (error) {
-      record(error.message === 'REDACTION_DRAIN_TIMEOUT' ? 'REDACTION_DRAIN_TIMEOUT' : 'REDACTION_DRAIN_FAILED', snapshot())
+      record(['REDACTION_DRAIN_TIMEOUT', 'SEMANTIC_DRAIN_TIMEOUT'].includes(error.message) ? error.message : 'REDACTION_DRAIN_FAILED', snapshot())
       await save()
       throw error
     }

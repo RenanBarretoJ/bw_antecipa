@@ -8,7 +8,7 @@ import { createClient } from '@supabase/supabase-js'
 import puppeteer from 'puppeteer-core'
 import { prepareEmailBrowserRuntime } from './browser-runtime.mjs'
 import { diagnosticPath, instrumentEmailBrowser } from './browser-diagnostics.mjs'
-import { waitEmailScreen } from './browser-readiness.mjs'
+import { waitEmailScreen, waitEmailDestination } from './browser-readiness.mjs'
 import { inspectEmailResponses, secretClasses } from './browser-redaction.mjs'
 
 function totp(secret) {
@@ -75,6 +75,7 @@ export async function verifyEmailOperatorBrowser({ db, url, serviceKey, anonKey,
     page = await context.newPage()
     diagnostics = await instrumentEmailBrowser(page, resolve(root, 'email05-network.json'))
     redaction = await inspectEmailResponses(page, { file: resolve(root, 'email05-redaction.json'), phase: () => stage, knownSecrets })
+    redaction.expectReadiness(() => waitEmailDestination(page, diagnostics))
     const session = (await human.auth.getSession()).data.session
     const cookie = 'base64-' + Buffer.from(JSON.stringify(session)).toString('base64url'), chunks = cookie.match(/.{1,3180}/g)
     await context.setCookie(...chunks.map((entry, i) => ({ name: chunks.length === 1 ? 'sb-127-auth-token' : `sb-127-auth-token.${i}`, value: entry, domain: '127.0.0.1', path: '/', secure: false, httpOnly: false, sameSite: 'Lax' })))
@@ -230,7 +231,7 @@ export async function verifyEmailOperatorBrowser({ db, url, serviceKey, anonKey,
     await goto(`${base}&tab=review`, { waitUntil: 'domcontentloaded' }); await screenshot('review')
     await page.keyboard.press('Tab')
     assert.ok(await page.evaluate(() => document.activeElement !== document.body), 'KEYBOARD_FOCUS')
-    const redactionSummary = await redaction.assertClean()
+    const redactionSummary = await redaction.settleAndAssertClean()
     assert.equal(serverLogMatches.size, 0, 'SERVER_LOG_SECRET_PATTERN_MATCH')
     await diagnostics.assertClean()
     assert.equal(consoleErrors, 0)
@@ -253,8 +254,8 @@ export async function verifyEmailOperatorBrowser({ db, url, serviceKey, anonKey,
     }
     finally {
       try {
-        try { await redaction?.awaitDrain({ timeoutMs: 2000 }) }
-        finally { await redaction?.save(); if (browser) await browser.close() }
+        if (redaction) await redaction.closeAfterDrain(() => browser?.close())
+        else if (browser) await browser.close()
       }
       finally {
         if (server?.exitCode === null && server.pid) {
