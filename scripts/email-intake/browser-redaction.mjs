@@ -4,6 +4,7 @@ import { diagnosticPath } from './browser-diagnostics.mjs'
 import { createProtocolTrace } from './browser-protocol.mjs'
 import { createRedactionBarrier, terminalInspectionState } from './browser-drain.mjs'
 import { bodylessResponse, inspectResponseHeaders, noBodyRequest, receiveNoBodyResponse, cancelNoBodyResponse } from './browser-no-body.mjs'
+import { inspectSignedResponse } from './browser-signed-url.mjs'
 
 function sensitivePath(pathname) {
   return /^\/(?:api(?:\/|$)|rest\/v1(?:\/|$)|auth\/v1(?:\/|$)|(?:admin|gestor)\/integracoes-email(?:\/|$))/.test(pathname)
@@ -67,7 +68,7 @@ export function secretClasses(body, known = []) {
 /** Pause at the HTTP response boundary, inspect in memory, then deliver unchanged to the app.
  * This closes the CDP/navigation eviction race without replaying actions or skipping RSC bodies.
  */
-export async function inspectEmailResponses(page, { file, knownSecrets = [], phase = () => 'BROWSER' }) {
+export async function inspectEmailResponses(page, { file, knownSecrets = [], phase = () => 'BROWSER', signedUrlPolicy }) {
   const cdp = await page.createCDPSession(), rows = [], aborted = [], pending = new Set(), requests = new Map(), byNetwork = new Map(), passive = new Map(), recordedPassive = new Set()
   const consoleMatches = [], failures = []
   const protocol = await createProtocolTrace(cdp)
@@ -182,7 +183,10 @@ export async function inspectEmailResponses(page, { file, knownSecrets = [], pha
         const response = await protocol.command('Fetch.getResponseBody', { requestId: event.requestId }, { networkId: event.networkId, lifecycle: row.lifecycle }, { timeout: 15000 })
         const body = response.base64Encoded ? Buffer.from(response.body, 'base64').toString('utf8') : response.body
         row.size = Buffer.byteLength(body)
-        row.matchedSecretClasses.push(...secretClasses(body, knownSecrets))
+        const inspected = await inspectSignedResponse(body, { method: row.method, status, contentType, url: event.request.url,
+          actionId: event.request.headers?.['Next-Action'] ?? event.request.headers?.['next-action'] }, signedUrlPolicy, text => secretClasses(text, knownSecrets))
+        row.matchedSecretClasses.push(...inspected.matchedSecretClasses)
+        if (inspected.signedUrls.length) row.signedUrls = inspected.signedUrls
         row.inspectionResult = classification === 'UNKNOWN' ? 'UNKNOWN_SURFACE' : 'PASS'
         transition(entry, 'BODY_INSPECTED')
         entry.noBody.inspectionTime = performance.now()
