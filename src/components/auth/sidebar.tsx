@@ -11,6 +11,7 @@ export { PortalSidebar as Sidebar }
 
 export const gestorMenuItems: SidebarItem[] = [
   { label: 'Dashboard', href: '/gestor/dashboard', icon: LayoutDashboard },
+  { label: 'Sacados', href: '/gestor/sacados', icon: Building2 },
   { label: 'Cedentes', href: '/gestor/cedentes', icon: Users },
   { label: 'Onboarding', href: '/gestor/onboarding-cedentes', icon: UserPlus },
   { label: 'Documentos', href: '/gestor/documentos', icon: FileText },

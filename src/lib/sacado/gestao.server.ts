@@ -1,6 +1,7 @@
 import 'server-only'
 import { z } from 'zod'
 import { requireRole } from '@/lib/auth/authorization'
+import { resolverContextoFundoGestor } from '@/lib/gestor/contexto-fundo.server'
 
 export const usuarioSacadoSchema = z.object({
   id: z.string().uuid(), nome_completo: z.string(), email: z.string(), status: z.string(), cnpjs_ativos: z.number(),
@@ -16,7 +17,10 @@ export async function carregarGestaoSacados(params: Record<string, string | stri
   const { data, error } = await auth.supabase.from('fundos').select('id, nome').eq('ativo', true).order('nome')
   if (error) throw new Error('Nao foi possivel consultar os Fundos autorizados.')
   const fundos = data ?? []
-  const fundo = fundos.find(f => f.id === params.fundo) ?? (params.fundo ? null : fundos[0])
+  const fundoInicial = !params.fundo && auth.profile.role === 'gestor'
+    ? (await resolverContextoFundoGestor(auth)).fundoId
+    : null
+  const fundo = fundos.find(f => f.id === (params.fundo || fundoInicial)) ?? (params.fundo || fundoInicial ? null : fundos[0])
   if (!fundo) throw new Error('Selecione um Fundo autorizado.')
   const busca = typeof params.busca === 'string' ? params.busca.trim().slice(0, 150) : ''
   const pagina = Math.max(1, Math.min(10000, Number(params.pagina) || 1))
