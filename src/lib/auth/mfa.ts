@@ -13,6 +13,7 @@ export const MFA_TOTP_CODE_PATTERN = /^\d{6}$/
 export const MFA_SESSION_EXPIRED_MESSAGE = 'Sua sessão de segurança de 24 horas expirou. Entre novamente para continuar.'
 
 export const ACAO_SENSIVEL_TIPOS = [
+  'gerenciar_acesso_sacado',
   'alterar_senha',
   'alterar_email',
   'regenerar_recovery_codes',

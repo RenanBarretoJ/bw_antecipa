@@ -1519,7 +1519,7 @@ export interface ConsultorCedenteOrganizacional {
 
 export interface Sacado {
   id: string
-  user_id: string
+  user_id: string | null
   cnpj: string
   razao_social: string
   email: string | null
@@ -2398,6 +2398,11 @@ export interface Database {
     }
     Views: Record<string, never>
     Functions: {
+      destinatarios_sacado_operacao: { Args: { p_operacao_id: string }; Returns: { user_id: string; cnpj: string }[] }
+      consultar_empresa_sacado: { Args: { p_fundo_id: string; p_cnpj: string }; Returns: { cnpj: string; razao_social: string } | null }
+      get_user_sacado_context: { Args: Record<string, never>; Returns: import('@/lib/sacado/acessos').SacadoAcesso[] }
+      listar_gestao_sacados: { Args: { p_fundo_id: string; p_busca?: string; p_pagina?: number; p_user_id?: string | null }; Returns: Record<string, unknown> }
+      gerenciar_sacado_acesso: { Args: { p_user_id: string; p_fundo_id: string; p_cnpj: string; p_razao_social: string; p_acao: string; p_nonce_hash: string }; Returns: string }
       configurar_base_antecipacao: { Args: { p_cedente_fundo_id: string; p_base: string }; Returns: undefined }
       configurar_comissao_consultor_fundo: { Args: { p_consultor_id: string; p_fundo_id: string; p_habilitada: boolean }; Returns: undefined }
       listar_configuracao_comissao_fundo: { Args: { p_fundo_id: string }; Returns: Array<{ consultor_id: string; fundo_id: string; nome: string; comissao_habilitada: boolean }> }
@@ -2828,8 +2833,8 @@ export interface Database {
       get_user_cedente_perfil_canonico: { Args: Record<string, never>; Returns: 'ADMIN' | 'OPERACIONAL' | null }
       get_user_sacado_cnpj: { Args: Record<string, never>; Returns: string | null }
       get_user_operacao_ids: { Args: Record<string, never>; Returns: string[] }
-      carregar_dashboard_sacado: { Args: Record<string, never>; Returns: Record<string, unknown> }
-      carregar_indicadores_nfs_sacado: { Args: Record<string, never>; Returns: Record<string, unknown> }
+      carregar_dashboard_sacado: { Args: { p_cnpj?: string | null }; Returns: Record<string, unknown> }
+      carregar_indicadores_nfs_sacado: { Args: { p_cnpj?: string | null }; Returns: Record<string, unknown> }
       listar_cedentes_aprovacao_sacado: {
         Args: Record<string, never>
         Returns: Array<{ id: string; nome: string; cnpj: string }>

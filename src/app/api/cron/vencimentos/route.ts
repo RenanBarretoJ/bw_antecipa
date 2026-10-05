@@ -233,39 +233,13 @@ async function notificarSacadosVinculados(
   tipo: string
 ) {
   try {
-    const { data: opNfs } = await supabase
-      .from('operacoes_nfs')
-      .select('nota_fiscal_id')
-      .eq('operacao_id', operacaoId)
-
-    if (!opNfs) return
-
-    const nfIds = (opNfs as Array<{ nota_fiscal_id: string }>).map((n) => n.nota_fiscal_id)
-    const { data: nfs } = await supabase
-      .from('notas_fiscais')
-      .select('cnpj_destinatario')
-      .in('id', nfIds)
-
-    if (!nfs) return
-
-    const cnpjs = [...new Set((nfs as Array<{ cnpj_destinatario: string }>).map((n) => n.cnpj_destinatario))]
-
-    for (const cnpj of cnpjs) {
-      const { data: sacado } = await supabase
-        .from('sacados')
-        .select('user_id')
-        .eq('cnpj', cnpj)
-        .single()
-
-      if (sacado) {
-        const { error } = await supabase.from('notificacoes').insert({
-          usuario_id: (sacado as { user_id: string }).user_id,
-          titulo, mensagem, tipo,
-        } as never)
-        if (error) {
-          console.error(`[cron/notificarSacados] Erro para CNPJ ${cnpj}:`, error.message)
-        }
-      }
+    const { data: destinatarios, error: consultaError } = await supabase.rpc('destinatarios_sacado_operacao', { p_operacao_id: operacaoId })
+    if (consultaError) throw new Error('Nao foi possivel consultar destinatarios autorizados.')
+    for (const destinatario of destinatarios ?? []) {
+      const { error } = await supabase.from('notificacoes').insert({
+        usuario_id: destinatario.user_id, titulo, mensagem, tipo,
+      })
+      if (error) console.error('[cron/notificarSacados] Falha ao notificar', { code: error.code })
     }
   } catch (err) {
     console.error('[cron/notificarSacados] Erro inesperado:', err)

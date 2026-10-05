@@ -430,3 +430,19 @@ enabled = false
 
 [remotes."hotfix/health-fiscal-import".db.seed]
 enabled = false
+
+# SACADO: separately authorized isolated Preview, manual hash-verified SQL only.
+# Do not replay the divergent historical chain or mark original A6 as applied.
+# This does not change main, homolog, RLX or global migration/seed behavior.
+[remotes."hotfix/sacado-multi-cnpj"]
+project_id = "yynlrtonrqxoatmuclrt"
+
+[remotes."hotfix/sacado-multi-cnpj".db.migrations]
+enabled = false
+
+[remotes."hotfix/sacado-multi-cnpj".db.seed]
+enabled = false
+
+[remotes."hotfix/sacado-multi-cnpj".auth]
+site_url = "https://bw-antecipa-git-hotfix-sacado-multi-cnpj-renanbarretoj.vercel.app"
+additional_redirect_urls = ["https://bw-antecipa-git-hotfix-sacado-multi-cnpj-renanbarretoj.vercel.app/**"]

@@ -1,4 +1,5 @@
 import { connection } from 'next/server'
+import { FiltroEmpresaSacado } from '@/components/sacado/FiltroEmpresaSacado'
 import { AprovacoesSacadoListagem } from '@/components/sacado/AprovacoesSacadoListagem'
 import { parseFiltrosAprovacoesSacado } from '@/lib/sacado/portal-listagens'
 import { carregarAprovacoesSacado } from '@/lib/sacado/portal-loaders.server'
@@ -13,5 +14,5 @@ export default async function AprovacaoCessaoPage({
   await connection()
   const filtros = parseFiltrosAprovacoesSacado(await searchParams)
   const resultado = await carregarAprovacoesSacado(filtros)
-  return <AprovacoesSacadoListagem filtros={filtros} resultado={resultado} />
+  return <><FiltroEmpresaSacado cnpj={filtros.cnpj} /><AprovacoesSacadoListagem filtros={filtros} resultado={resultado} /></>
 }

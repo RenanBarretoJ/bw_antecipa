@@ -1,4 +1,5 @@
 import { connection } from 'next/server'
+import { FiltroEmpresaSacado } from '@/components/sacado/FiltroEmpresaSacado'
 import { PagamentosSacadoListagem } from '@/components/sacado/PagamentosSacadoListagem'
 import { parseFiltrosPagamentosSacado } from '@/lib/sacado/portal-listagens'
 import { carregarPagamentosSacado } from '@/lib/sacado/portal-loaders.server'
@@ -15,9 +16,9 @@ export default async function HistoricoPagamentosPage({
   const resultado = await carregarPagamentosSacado(filtros)
 
   return (
-    <PagamentosSacadoListagem
+    <><FiltroEmpresaSacado cnpj={filtros.cnpj} /><PagamentosSacadoListagem
       filtros={filtros}
       resultado={resultado}
-    />
+    /></>
   )
 }

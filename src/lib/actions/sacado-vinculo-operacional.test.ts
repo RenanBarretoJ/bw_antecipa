@@ -41,7 +41,7 @@ const active = (id: string): Operation => ({
 
 function prepararCenario(nfIds: string[], links: Link[], operations: Operation[]) {
   const dataByTable: Record<string, unknown[]> = {
-    notas_fiscais: nfIds.map((id) => ({ id, status: 'em_antecipacao', cnpj_destinatario: '11222333000181' })),
+    notas_fiscais: nfIds.map((id) => ({ id, status: 'em_antecipacao', cnpj_destinatario: '11222333000181', fundo_id: 'fundo-qa' })),
     operacoes_nfs: links,
     operacoes: operations,
   }
@@ -62,7 +62,7 @@ function prepararCenario(nfIds: string[], links: Link[], operations: Operation[]
     },
     rpc: mocks.rpc,
   }
-  mocks.resolverContextoSacado.mockResolvedValue({ auth: { supabase }, cnpj: '11222333000181' })
+  mocks.resolverContextoSacado.mockResolvedValue({ auth: { supabase }, acessos: [{ user_id: 'qa', sacado_id: 'empresa-qa', cnpj: '11222333000181', razao_social: 'QA', fundo_id: 'fundo-qa', status: 'ativo' }] })
 }
 
 describe('aceite do sacado com operação cancelada no histórico', () => {

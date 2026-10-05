@@ -66,3 +66,4 @@ src/lib/logistica/__fixtures__/reais
 /rehearsal/**/*.key
 /rehearsal/supabase/.temp/
 /rehearsal/supabase/.branches/
+/rehearsal/sacado-r2/

@@ -22,6 +22,7 @@ export async function autorizarEConsumirAcaoSensivel(
   context: AuthContext,
   actionType: AcaoSensivelTipo,
   codigoInformado: string,
+  options: { consumoTransacional?: boolean } = {},
 ) {
   const estado = await requireSessaoMfaValida(context)
   const code = sanitizarCodigoTotp(codigoInformado)
@@ -74,6 +75,12 @@ export async function autorizarEConsumirAcaoSensivel(
   if (createError) {
     console.error('[mfa/sensitive][create-authorization]', { actionType, sessionId: estado.sessaoId, code: createError.code })
     throw new Error('Não foi possível confirmar esta ação sensível.')
+  }
+
+  // SACADO consumes this exact nonce inside the same transaction as the mutation.
+  if (options.consumoTransacional) {
+    await registrarTentativaRateLimit({ escopo: 'mfa_sensitive', identifier, sucesso: true })
+    return { sessionId: estado.sessaoId, actionType, nonceHash }
   }
 
   const { data: consumed, error: consumeError } = await context.supabase.rpc('consumir_autorizacao_acao_sensivel', {
