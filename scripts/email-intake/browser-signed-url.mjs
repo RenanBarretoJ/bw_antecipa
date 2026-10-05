@@ -14,8 +14,10 @@ export async function verifyStorageSignature(url) {
 export async function validateSignedStorageUrl(raw, surface, policy, detect, now = Date.now()) {
   const evidence = { classification: 'UNEXPECTED_SIGNED_URL', scheme: null, host: null,
     pathTemplate: '/storage/v1/object/sign/<bucket>/<authorized-object>', provider: 'SUPABASE_STORAGE',
-    bucket: null, expiryPresent: false, ttlSeconds: null, queryParamNames: [], authorization: 'FAIL', sourceField }
+    bucket: null, expiryPresent: false, ttlSeconds: null, queryParamNames: [], authorization: 'FAIL', sourceField,
+    valueType: 'URL', lengthClass: typeof raw !== 'string' ? 'INVALID' : raw.length <= 512 ? 'LE_512' : raw.length <= 2048 ? 'LE_2048' : 'GT_2048' }
   let stage = 'CONTEXT'
+  const requireToken = (valid, rule) => { if (!valid) { evidence.detectorRule = rule; throw Error() } }
   try {
     if (!policy || surface.method !== 'POST' || surface.status !== 200 || surface.contentType !== 'text/x-component'
       || new URL(surface.url).origin !== policy.appOrigin) throw Error()
@@ -35,11 +37,31 @@ export async function validateSignedStorageUrl(raw, surface, policy, detect, now
     if (names.length !== 1 || names[0] !== 'token') throw Error()
     stage = 'TOKEN'
     const token = url.searchParams.get('token'), parts = token.split('.')
-    if (parts.length !== 3 || parts.some(part => !/^[A-Za-z0-9_-]+$/.test(part))) throw Error()
-    const header = JSON.parse(Buffer.from(parts[0], 'base64url')), claims = JSON.parse(Buffer.from(parts[1], 'base64url'))
-    if (!exactKeys(header, ['alg', 'kid']) || header.alg !== 'HS512' || !/^[A-Za-z0-9_-]{1,128}$/.test(header.kid ?? '')
-      || !exactKeys(claims, ['url', 'scope', 'iat', 'exp']) || claims.scope !== 'download' || claims.url !== object
-      || detect(JSON.stringify(header)).length || detect(JSON.stringify(claims)).length || detect(raw).some(kind => kind !== 'SIGNED_URL')) throw Error()
+    requireToken(parts.length === 3 && parts.every(part => /^[A-Za-z0-9_-]+$/.test(part)), 'signed_url_jwt_segments')
+    let header, claims
+    try { header = JSON.parse(Buffer.from(parts[0], 'base64url')); claims = JSON.parse(Buffer.from(parts[1], 'base64url')) }
+    catch { requireToken(false, 'signed_url_jwt_json') }
+    evidence.tokenShape = {
+      algorithm: ['HS256', 'HS384', 'HS512'].includes(header?.alg) ? header.alg : 'OTHER',
+      keyIdPresent: typeof header?.kid === 'string',
+      headerKeysAllowed: exactKeys(header, ['alg', 'kid']),
+      claimKeysAllowed: exactKeys(claims, ['url', 'scope', 'iat', 'exp']),
+      scope: claims?.scope === 'download' ? 'DOWNLOAD' : claims?.scope === undefined ? 'ABSENT' : 'OTHER',
+      objectMatches: claims?.url === object,
+    }
+    evidence.expiryPresent = Number.isInteger(claims?.exp)
+    if (Number.isInteger(claims?.iat) && evidence.expiryPresent) evidence.ttlSeconds = claims.exp - claims.iat
+    requireToken(exactKeys(header, ['alg', 'kid']), 'signed_url_header_keys')
+    // Both formats were observed on the issuing Storage. Algorithm alone never
+    // authorizes a URL: the exact object, expiry, actor and signature are checked below.
+    requireToken(['HS256', 'HS512'].includes(header.alg), 'signed_url_header_algorithm')
+    requireToken(/^[A-Za-z0-9_-]{1,128}$/.test(header.kid ?? ''), 'signed_url_header_key_id')
+    requireToken(exactKeys(claims, ['url', 'scope', 'iat', 'exp']), 'signed_url_claim_keys')
+    requireToken(claims.scope === 'download', 'signed_url_download_scope')
+    requireToken(claims.url === object, 'signed_url_object_binding')
+    requireToken(!detect(JSON.stringify(header)).length, 'signed_url_header_secret')
+    requireToken(!detect(JSON.stringify(claims)).length, 'signed_url_claim_secret')
+    requireToken(!detect(raw).some(kind => !['SIGNED_URL', 'QUERY_TOKEN', 'JWT'].includes(kind)), 'signed_url_embedded_secret')
     stage = 'EXPIRY'
     evidence.expiryPresent = Number.isInteger(claims.exp)
     if (!Number.isInteger(claims.iat) || !evidence.expiryPresent) throw Error()
@@ -75,7 +97,9 @@ export async function inspectSignedResponse(body, surface, policy, detect) {
     }
   }
   const remaining = detect(lines.join('\n'))
-  const matches = new Set([...initial.filter(kind => kind !== 'SIGNED_URL'), ...remaining])
+  // Rescan the complete response after replacing only fully authorized URLs.
+  // A JWT or token parameter anywhere else remains a failure.
+  const matches = new Set(remaining)
   if (remaining.includes('SIGNED_URL')) matches.add('UNEXPECTED_SIGNED_URL')
   return { matchedSecretClasses: [...matches].sort(), signedUrls: evidence }
 }

@@ -28,6 +28,46 @@ test('response without signed URL needs no policy and retains secret detection',
   assert.deepEqual((await inspectSignedResponse('{"client_secret":"synthetic"}', surface, policy(), secretClasses)).matchedSecretClasses, ['CLIENT_SECRET'])
 })
 
+test('homolog HS256 download token requires every authorization and signature gate', async () => {
+  const url = signed({ header: { alg: 'HS256' } })
+  const result = await inspectSignedResponse(frame(url), surface, policy(), secretClasses)
+  assert.deepEqual(result.matchedSecretClasses, [])
+  assert.equal(result.signedUrls[0].tokenShape.algorithm, 'HS256')
+  assert.equal(result.signedUrls[0].authorization, 'PASS')
+  assert.equal(result.signedUrls[0].expiryPresent, true)
+  for (const override of [{ verifySignature: async () => false }, { authorize: async () => ({ authorized: false }) }]) {
+    assert.ok((await inspectSignedResponse(frame(url), surface, { ...policy(), ...override }, secretClasses)).matchedSecretClasses.length)
+  }
+})
+
+test('token diagnostics identify the precise predicate without persisting values', async () => {
+  for (const [header, claims, rule] of [
+    [{ alg: 'HS384' }, {}, 'signed_url_header_algorithm'],
+    [{ kid: undefined }, {}, 'signed_url_header_key_id'],
+    [{ typ: 'DO_NOT_RECORD' }, {}, 'signed_url_header_keys'],
+    [{}, { role: 'service_role' }, 'signed_url_claim_keys'],
+    [{}, { scope: 'upload' }, 'signed_url_download_scope'],
+    [{}, { url: 'DO_NOT_RECORD' }, 'signed_url_object_binding'],
+  ]) {
+    const result = await validateSignedStorageUrl(signed({ header, claims }), surface, policy(), secretClasses)
+    assert.equal(result.failureClass, 'TOKEN')
+    assert.equal(result.detectorRule, rule)
+    assert.ok(!JSON.stringify(result).includes('DO_NOT_RECORD'))
+  }
+})
+
+test('ordinary URLs pass; unknown query tokens and standalone JWTs always fail', async () => {
+  assert.deepEqual((await inspectSignedResponse(frame('https://example.invalid/help'), surface, policy(), secretClasses)).matchedSecretClasses, [])
+  const session = encode({ alg: 'HS256' }) + '.' + encode({ sub: 'synthetic', role: 'authenticated' }) + '.syntheticSignature'
+  const service = encode({ alg: 'HS256' }) + '.' + encode({ role: 'service_role' }) + '.syntheticSignature'
+  for (const body of ['https://external.invalid/file?token=opaque', 'token=unknownOpaqueValue', session, service,
+    '{"access_token":"graph-token"}', 'Bearer graphTokenSynthetic', '{"refresh_token":"refresh"}']) {
+    for (const prefix of ['', frame(signed({ header: { alg: 'HS256' } }))]) {
+      assert.ok((await inspectSignedResponse(prefix + body, surface, policy(), secretClasses)).matchedSecretClasses.length)
+    }
+  }
+})
+
 for (const [name, url, overrides] of [
   ['foreign host', () => signed({ host: 'https://foreign.invalid' })],
   ['HTTP', () => signed({ host: origin.replace('https:', 'http:') })],

@@ -60,6 +60,8 @@ export function secretClasses(body, known = []) {
     ['JOB_SECRET', /["'](?:scheduler_secret|job_secret|EMAIL_INTAKE_JOB_SECRET)["']\s*[:=]\s*["'][^"']+/],
     ['SERVER_ENV_SECRET', /["'](?:SUPABASE_SERVICE_ROLE_KEY|PORTAL_FIDC_CREDENTIAL_KEYS_JSON|MICROSOFT_GRAPH_CLIENT_SECRET|OPENAI_API_KEY)["']\s*[:=]\s*["'][^"']+/],
     ['SIGNED_URL', /\/storage\/v1\/object\/sign\/|[?&](?:X-Amz-Signature|X-Goog-Signature)=/i],
+    ['QUERY_TOKEN', /(?:^|[?&\s"'<>])token=[^\s"'<>]+/i],
+    ['JWT', /\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/],
   ]
   for (const [kind, pattern] of rules) if (pattern.test(text)) found.add(kind)
   for (const token of text.match(/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g) ?? []) {
