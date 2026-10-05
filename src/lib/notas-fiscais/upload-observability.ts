@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto'
 import type { UploadBatchResult, UploadFileStatus } from './upload-batch'
+import { safeDanfeFallbackFailureCode, type DanfeFallbackFailureCode } from '@/lib/danfe/fallback-diagnostics'
 
 type FileEvent =
   | 'NF_UPLOAD_FILE_STARTED'
@@ -26,6 +27,7 @@ type SafeEvent = {
   native_text_length_bucket?: 'empty' | 'short' | 'medium' | 'long'
   fallback_trigger_reason?: 'NO_TEXT_LAYER' | 'TEXT_INSUFFICIENT' | 'MISSING_CORE_ANCHORS' | 'NATIVE_EXTRACTION_FAILED'
   fallback_status?: 'success' | 'failed'
+  fallback_failure_code?: DanfeFallbackFailureCode
   fallback_duration_ms?: number
   ai_extraction_confidence_bucket?: 'high' | 'medium' | 'low' | 'unknown'
   error_code?: string
@@ -72,6 +74,7 @@ export function createUploadTelemetry(batchSize: number, sink: Sink = defaultSin
     | 'native_text_length_bucket'
     | 'fallback_trigger_reason'
     | 'fallback_status'
+    | 'fallback_failure_code'
     | 'fallback_duration_ms'
     | 'ai_extraction_confidence_bucket'
   >>()
@@ -103,6 +106,7 @@ export function createUploadTelemetry(batchSize: number, sink: Sink = defaultSin
       nativeTextLengthBucket?: SafeEvent['native_text_length_bucket']
       fallbackTriggerReason?: SafeEvent['fallback_trigger_reason']
       fallbackStatus?: SafeEvent['fallback_status']
+      fallbackFailureCode?: unknown
       fallbackDurationMs?: unknown
       aiExtractionConfidence?: unknown
     }) {
@@ -118,6 +122,8 @@ export function createUploadTelemetry(batchSize: number, sink: Sink = defaultSin
         native_text_length_bucket: details.nativeTextLengthBucket,
         fallback_trigger_reason: details.fallbackTriggerReason,
         fallback_status: details.fallbackStatus,
+        fallback_failure_code: details.fallbackStatus === 'failed'
+          ? safeDanfeFallbackFailureCode(details.fallbackFailureCode) : undefined,
         fallback_duration_ms: typeof details.fallbackDurationMs === 'number' && Number.isFinite(details.fallbackDurationMs)
           ? Math.max(0, Math.round(details.fallbackDurationMs))
           : undefined,

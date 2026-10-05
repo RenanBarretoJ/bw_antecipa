@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { extractDanfseV2 } from './danfse-v2'
 import { danfseFixture } from './fixtures/danfse-v2'
+import { municipalFixture } from './fixtures/municipal'
+import { validateMunicipalVisual } from './municipal-visual-contract'
 import { uploadNFs } from '@/lib/actions/nota-fiscal'
 const m = vi.hoisted(() => ({
   insertError: false, cleanupError: false, duplicate: false,
@@ -65,6 +67,19 @@ function request(review=true){
   return data
 }
 describe('real upload action NFS-e storage saga', () => {
+  it('municipal review has no NF or Storage write and later persists the same verified facts', async () => {
+    m.probe.mockResolvedValue(validateMunicipalVisual(municipalFixture()))
+    expect((await uploadNFs(request(false)))?.uploadBatch?.results[0]?.status).toBe('REQUIRES_REVIEW')
+    expect(m.upload).not.toHaveBeenCalled();expect(m.inserts).toHaveLength(0)
+    expect((await uploadNFs(request()))?.success).toBe(true)
+    expect(m.inserts[0]).toMatchObject({numero_nf:'1234',chave_acesso:null,valor_liquido:null,
+      fiscal_proveniencia:{orgao_emissor:'PREFEITURA MUNICIPAL DE CIDADE QA',codigo_verificacao:'QA.1234.5678-X'}})
+  })
+  it('municipal duplicate is rejected before any Storage or reservation', async () => {
+    m.probe.mockResolvedValue(validateMunicipalVisual(municipalFixture()));m.duplicate=true
+    expect((await uploadNFs(request()))?.uploadBatch?.results[0]?.status).toBe('DUPLICATE')
+    expect(m.upload).not.toHaveBeenCalled();expect(m.claim).not.toHaveBeenCalled()
+  })
   it('reextracts, ignores client fiscal fields, and keeps authenticated persistence', async () => {
     expect((await uploadNFs(request()))?.success).toBe(true)
     expect(m.probe).toHaveBeenCalledOnce()

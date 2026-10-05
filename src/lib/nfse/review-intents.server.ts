@@ -1,7 +1,7 @@
 import 'server-only'
 import { createAdminClient } from '@/lib/supabase/server'
 import type { NfseExtraction } from './contracts'
-import { fiscalFingerprint, sha256 } from './review-facts'
+import { fiscalFingerprint, nfseIdentity, sha256 } from './review-facts'
 
 export type ReviewScope = { actorId: string; cedenteId: string; cedenteFundoId: string; fundoId: string }
 export type NfseReviewIntent = {
@@ -20,7 +20,7 @@ export async function openNfseReview(scope: ReviewScope, extraction: NfseExtract
   const { data, error } = await createAdminClient().from('nfse_review_intents').insert({
     actor_id: scope.actorId, cedente_id: scope.cedenteId, cedente_fundo_id: scope.cedenteFundoId,
     fundo_id: scope.fundoId, file_sha256: fileHash, fiscal_sha256: fiscalFingerprint(extraction),
-    identity_sha256: sha256(extraction.dados.chave_acesso!),
+    identity_sha256: sha256(nfseIdentity(extraction)),
   }).select('id').single()
   if (error || !data) throw new Error('NFSE_REVIEW_CREATE_FAILED')
   return data.id
@@ -33,7 +33,7 @@ export async function readNfseReview(id: string, scope: ReviewScope, extraction:
     .eq('cedente_fundo_id', scope.cedenteFundoId).eq('fundo_id', scope.fundoId).maybeSingle()
   if (error || !data) throw new Error('NFSE_REVIEW_INVALID')
   if (data.file_sha256 !== fileHash || data.fiscal_sha256 !== fiscalFingerprint(extraction)
-    || data.identity_sha256 !== sha256(extraction.dados.chave_acesso!)) throw new Error('NFSE_REVIEW_DRIFT')
+    || data.identity_sha256 !== sha256(nfseIdentity(extraction))) throw new Error('NFSE_REVIEW_DRIFT')
   if (data.state !== 'REVIEW') throw new Error('NFSE_REVIEW_CONFLICT')
   if (Date.parse(data.expires_at) <= Date.now()) throw new Error('NFSE_REVIEW_EXPIRED')
   return data

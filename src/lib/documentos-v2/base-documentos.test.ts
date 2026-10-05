@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { validarDocumentoBaseDaNota, validarDocumentoBaseDaNotaComDadosDanfe, validarDocumentoBaseDaNotaComDadosXml } from './base-documentos'
+import { validateMunicipalVisual } from '@/lib/nfse/municipal-visual-contract'
+import { municipalFixture } from '@/lib/nfse/fixtures/municipal'
 
 const referencia = {
   chaveAcesso: '41260500262371000575550010000131911836000001',
@@ -10,6 +12,20 @@ const referencia = {
 }
 
 describe('documentos-base da NF', () => {
+  it('matches municipal PDF by issuer, recipient, number, authority and verification code', async () => {
+    const parsedNfse = validateMunicipalVisual(municipalFixture())
+    const fiscalProveniencia = {strategy: 'nfse_municipal_visual', orgao_emissor: parsedNfse.dados.orgao_emissor,
+      codigo_verificacao: parsedNfse.dados.codigo_verificacao}
+    const input = { codigo: 'nf_danfe_pdf', arquivo: new File(['qa'], 'qa.pdf'), parsedNfse,
+      referencia: {tipoDocumentoFiscal: 'NFSE' as const, chaveAcesso:null, numero:'1234', serie:null,
+        cnpjEmitente:parsedNfse.dados.cnpj_emitente!, cnpjDestinatario:parsedNfse.dados.cnpj_destinatario!, fiscalProveniencia}}
+    expect((await validarDocumentoBaseDaNota(input))?.chaveAcesso).toBeNull()
+    for (const field of ['orgao_emissor','codigo_verificacao','strategy']) {
+      await expect(validarDocumentoBaseDaNota({...input, referencia:{...input.referencia,
+        fiscalProveniencia:{...fiscalProveniencia,[field]:'OTHER'}}})).rejects.toThrow('Identidade municipal')
+    }
+    await expect(validarDocumentoBaseDaNota({...input, referencia:{...input.referencia,chaveAcesso:'1'.repeat(50)}})).rejects.toThrow('Identidade municipal')
+  })
   it('aceita XML da mesma NF e do mesmo emitente', () => {
     const xml = `<nfeProc><NFe><infNFe Id="NFe${referencia.chaveAcesso}"><ide><nNF>${referencia.numero}</nNF><serie>${referencia.serie}</serie><dhEmi>2026-05-18T10:00:00-03:00</dhEmi></ide><emit><CNPJ>00262371000575</CNPJ><xNome>FORMAPLAN</xNome></emit><dest><CNPJ>40439661000132</CNPJ><xNome>SPE PAUPINA</xNome></dest><total><ICMSTot><vNF>5974.00</vNF></ICMSTot></total></infNFe></NFe></nfeProc>`
     expect(validarDocumentoBaseDaNotaComDadosXml({ xml, referencia }).codigo).toBe('nf_xml')

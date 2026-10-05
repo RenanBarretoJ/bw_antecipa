@@ -94,4 +94,14 @@ describe('upload NF observability', () => {
       spy.mockRestore()
     }
   })
+
+  it('registra o codigo do fallback rejeitado sem aceitar codigos arbitrarios', () => {
+    const events: Record<string, unknown>[] = []
+    const telemetry = createUploadTelemetry(2, (event) => events.push(event))
+    telemetry.parsed(0, { fallbackStatus: 'failed', fallbackFailureCode: 'OPENAI_NF_OUTPUT_LIMIT', fallbackDurationMs: 500 })
+    telemetry.parsed(1, { fallbackStatus: 'failed', fallbackFailureCode: sensitive.join(' ') })
+    expect(events[0]).toMatchObject({ fallback_failure_code: 'OPENAI_NF_OUTPUT_LIMIT', fallback_duration_ms: 500 })
+    expect(events[1]).toMatchObject({ fallback_failure_code: 'OPENAI_NF_REQUEST_FAILED' })
+    for (const secret of sensitive) expect(JSON.stringify(events)).not.toContain(secret)
+  })
 })

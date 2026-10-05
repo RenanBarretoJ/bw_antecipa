@@ -255,7 +255,7 @@ export async function uploadDocumentoDaNota(
   if (codigoSnapshot === 'nf_xml' || codigoSnapshot === 'nf_danfe_pdf') {
     const { data: notaFiscalBase, error: notaFiscalBaseError } = await client
       .from('notas_fiscais')
-      .select('chave_acesso, numero_nf, serie, cnpj_emitente, cnpj_destinatario, tipo_documento_fiscal')
+      .select('chave_acesso, numero_nf, serie, cnpj_emitente, cnpj_destinatario, tipo_documento_fiscal, fiscal_proveniencia')
       .eq('id', input.notaFiscalId)
       .maybeSingle()
     if (notaFiscalBaseError) throw new Error(`Erro ao consultar a NF para validar o documento-base: ${notaFiscalBaseError.message}`)
@@ -268,6 +268,7 @@ export async function uploadDocumentoDaNota(
       parsedNfse: input.parsedNfse,
       referencia: {
         tipoDocumentoFiscal: notaFiscalBase.tipo_documento_fiscal,
+        fiscalProveniencia: notaFiscalBase.fiscal_proveniencia,
         chaveAcesso: notaFiscalBase.chave_acesso,
         numero: notaFiscalBase.numero_nf,
         serie: notaFiscalBase.serie,

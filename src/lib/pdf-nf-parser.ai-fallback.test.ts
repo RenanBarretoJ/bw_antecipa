@@ -123,4 +123,24 @@ describe('fallback OpenAI do parser PDF', () => {
     expect(source).not.toContain('extractVisual')
     expect(source).toContain('openai-pdf-fallback.server')
   })
+
+  it.each(['OPENAI_NF_OUTPUT_LIMIT', 'OPENAI_NF_ACCESS_KEY_INVALID', 'OPENAI_NF_TIMEOUT'])('preserva codigo seguro %s e duracao da falha', async (code) => {
+    const result = await extractDanfeFromPdf(Buffer.from('pdf'), {
+      extractNative: async () => ({ text: '' }),
+      extractAi: async () => { throw new Error(code) },
+    })
+    expect(result.fallback_failure_code).toBe(code)
+    expect(result.fallback_duration_ms).toBeGreaterThanOrEqual(0)
+    expect(result.campos_extraidos).toEqual([])
+    expect(validarDanfeParaPersistencia(result).ok).toBe(false)
+  })
+
+  it('descarta ate erros em maiusculas que nao pertencem ao vocabulario fechado', async () => {
+    const result = await extractDanfeFromPdf(Buffer.from('pdf'), {
+      extractNative: async () => ({ text: '' }),
+      extractAi: async () => { throw new Error('OPENAI_NF_SECRET_TOKEN_123456') },
+    })
+    expect(result.fallback_failure_code).toBe('OPENAI_NF_REQUEST_FAILED')
+    expect(JSON.stringify(result)).not.toContain('SECRET_TOKEN')
+  })
 })
