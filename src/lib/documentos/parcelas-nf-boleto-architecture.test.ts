@@ -509,7 +509,8 @@ describe('P0/UI: "Parcelas da Nota Fiscal" reposicionada logo abaixo de "Valores
     expect(indiceLabelEditavel).toBeGreaterThan(-1)
     expect(indiceCondicionalEditavel).toBeGreaterThan(-1)
     expect(indiceLabelEditavel - indiceCondicionalEditavel).toBeLessThan(200)
-    expect(paginaCedenteNf).toContain("{!temParcelas && <LabelValue label=\"Vencimento\" value={formatDate(nf.data_vencimento)} />}")
+    expect(paginaCedenteNf).toContain("{!temParcelas && nf.tipo_documento_fiscal !== 'NFSE' && <LabelValue label=\"Vencimento\" value={formatDate(nf.data_vencimento)} />}")
+    expect(paginaCedenteNf).toContain('{!temParcelas && <LabelValue label="Vencimento registrado"')
   })
 
   it('Gestor: "Data Vencimento" some do card "Dados da NF" quando a NF tem parcelas', () => {

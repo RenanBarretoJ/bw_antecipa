@@ -446,3 +446,14 @@ enabled = false
 [remotes."hotfix/sacado-multi-cnpj".auth]
 site_url = "https://bw-antecipa-git-hotfix-sacado-multi-cnpj-renanbarretoj.vercel.app"
 additional_redirect_urls = ["https://bw-antecipa-git-hotfix-sacado-multi-cnpj-renanbarretoj.vercel.app/**"]
+
+# NFSE submit: authorized schema-only baseline, no historical replay or history repair.
+# Only this isolated Preview is affected; main, homolog and RLX remain unchanged.
+[remotes."hotfix/nfse-submit-frozen-facts"]
+project_id = "ettpaprrmpjsfkcystob"
+
+[remotes."hotfix/nfse-submit-frozen-facts".db.migrations]
+enabled = false
+
+[remotes."hotfix/nfse-submit-frozen-facts".db.seed]
+enabled = false

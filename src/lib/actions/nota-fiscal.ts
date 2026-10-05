@@ -3,7 +3,7 @@
 import { createAdminClient, createClient } from '@/lib/supabase/server'
 import { requireAuthenticated, requireGestor as requireGestorBase, type AppSupabaseClient, type AuthContext } from '@/lib/auth/authorization'
 import { exigirSessaoElevada } from '@/lib/auth/mfa'
-import { notaFiscalSchema, type NotaFiscalFormData } from '@/lib/validations/nf'
+import { notaFiscalSchema, submeterNfSchema, type NotaFiscalFormData, type SubmeterNfInput } from '@/lib/validations/nf'
 import { extractDanfeFromPdf, validarDanfeParaPersistencia, valorTotalExtraidoValido, type NfPdfExtracted } from '@/lib/pdf-nf-parser'
 import { registrarLog } from './auditoria'
 import { notificarGestores, notificarCedente } from './notificacao'
@@ -1032,6 +1032,20 @@ export async function salvarDadosNF(
     return { success: false, message: 'Nota fiscal fora do contexto selecionado.' }
   }
 
+  const { data: fiscalAtual, error: fiscalError } = await supabase.from('notas_fiscais')
+    .select('tipo_documento_fiscal, status')
+    .eq('id', nfId).eq('cedente_id', cedente.id).maybeSingle()
+  if (fiscalError || !fiscalAtual) return { success: false, message: 'Nao foi possivel verificar os dados fiscais.' }
+  // Imported NFSE facts are authoritative in the database. Even an unchanged
+  // fiscal payload must not use the legacy manual-edit endpoint.
+  if (fiscalAtual.tipo_documento_fiscal === 'NFSE') return {
+    success: false, code: 'NFSE_FISCAL_IMMUTABLE',
+    message: 'Os fatos fiscais da NFS-e importada nao podem ser alterados. Revise o documento original.',
+  }
+  if (!['rascunho', 'requer_ajuste'].includes(fiscalAtual.status)) return {
+    success: false, message: 'Esta NF nao permite edicao dos dados.',
+  }
+
   const validated = notaFiscalSchema.safeParse(data)
 
   if (!validated.success) {
@@ -1041,15 +1055,6 @@ export async function salvarDadosNF(
     }
   }
 
-  const { data: fiscalAtual, error: fiscalError } = await supabase.from('notas_fiscais')
-    .select('tipo_documento_fiscal, valor_liquido, valor_bruto, numero_nf, chave_acesso, data_emissao, cnpj_emitente, cnpj_destinatario')
-    .eq('id', nfId).eq('cedente_id', cedente.id).maybeSingle()
-  if (fiscalError || !fiscalAtual) return { success: false, message: 'Nao foi possivel verificar os dados fiscais.' }
-  if (fiscalAtual.tipo_documento_fiscal === 'NFSE') {
-    const fields = ['numero_nf', 'chave_acesso', 'data_emissao', 'cnpj_emitente', 'cnpj_destinatario', 'valor_bruto'] as const
-    if (fields.some(field => validated.data[field] !== fiscalAtual[field])) return { success: false,
-      message: 'Os fatos fiscais da NFS-e importada nao podem ser alterados. Revise o documento original.' }
-  }
   const cnpjEmitenteLimpo = validated.data.cnpj_emitente.replace(/\D/g, '')
   let estabelecimento
   try {
@@ -1091,7 +1096,7 @@ export async function salvarDadosNF(
       cnpj_destinatario: validated.data.cnpj_destinatario.replace(/\D/g, ''),
       razao_social_destinatario: validated.data.razao_social_destinatario,
       valor_bruto: validated.data.valor_bruto,
-      valor_liquido: fiscalAtual.tipo_documento_fiscal === 'NFSE' ? fiscalAtual.valor_liquido : validated.data.valor_bruto,
+      valor_liquido: validated.data.valor_bruto,
       valor_icms: validated.data.valor_icms,
       valor_iss: validated.data.valor_iss,
       valor_pis: validated.data.valor_pis,
@@ -1102,12 +1107,9 @@ export async function salvarDadosNF(
     } as never)
     .eq('id', nfId)
     .eq('cedente_id', cedente.id)
+    .eq('status', fiscalAtual.status)
 
   if (error) {
-    if (fiscalAtual.tipo_documento_fiscal === 'NFSE') {
-      console.error('[salvarDadosNF]', { error_code: 'NFSE_REVIEW_SAVE_FAILED' })
-      return { success: false, message: 'Nao foi possivel salvar a revisao da NFS-e.' }
-    }
     console.error('[salvarDadosNF]', error.message)
     return { success: false, message: `Erro ao salvar: ${error.message}` }
   }
@@ -1116,7 +1118,14 @@ export async function salvarDadosNF(
 }
 
 // Submeter NF rascunho para analise. A transicao so ocorre por esta acao explicita.
-export async function submeterNF(nfId: string, cedenteIdInformado?: string): Promise<NfActionState> {
+export async function submeterNF(input: SubmeterNfInput): Promise<NfActionState> {
+  await requireAuthenticated()
+  const parsed = submeterNfSchema.safeParse(input)
+  if (!parsed.success) return {
+    success: false, code: 'NF_SUBMISSAO_PAYLOAD_INVALIDO',
+    message: 'A submissao aceita apenas a identificacao da nota e do contexto. Atualize a pagina e tente novamente.',
+  }
+  const { nfId, cedenteIdInformado } = parsed.data
   const supabase = await createClient()
   const contextoUsuario = await resolverContextoUploadCedente(supabase, cedenteIdInformado)
   if ('error' in contextoUsuario) return { success: false, message: contextoUsuario.error }
@@ -1127,6 +1136,8 @@ export async function submeterNF(nfId: string, cedenteIdInformado?: string): Pro
     .select('*')
     .eq('id', nfId)
     .eq('cedente_id', cedente.id)
+    .eq('cedente_fundo_id', contextoUsuario.cedenteFundoId)
+    .eq('fundo_id', contextoUsuario.fundoId)
     .maybeSingle()
 
   if (nfError) return { success: false, message: `Nao foi possivel carregar a NF para submissao: ${nfError.message}` }
@@ -1265,6 +1276,8 @@ export async function submeterNF(nfId: string, cedenteIdInformado?: string): Pro
     .update({ status: 'submetida', submetida_em: submetidaEm, submetida_por: userId } as never)
     .eq('id', nfId)
     .eq('cedente_id', cedente.id)
+    .eq('cedente_fundo_id', contextoUsuario.cedenteFundoId)
+    .eq('fundo_id', contextoUsuario.fundoId)
     .eq('status', 'rascunho')
     .select('id, status, submetida_em, submetida_por')
     .maybeSingle()

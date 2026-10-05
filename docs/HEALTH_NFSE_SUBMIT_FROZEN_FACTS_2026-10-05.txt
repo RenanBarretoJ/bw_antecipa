@@ -1,0 +1,66 @@
+HEALTH / NFS-e submission — implementation checkpoint (2026-10-05)
+
+Scope: hotfix/nfse-submit-frozen-facts, based on main f8eb6b6.
+No new migration. No fiscal-data, production, homolog or unrelated-feature writes.
+
+Diagnosis (read-only production; synthetic reproduction before source changes)
+- UI handleSubmitRequest called handleSave before submeterNF.
+- salvarDadosNF parsed notaFiscalSchema and compared fiscal values strictly.
+- The divergent field in that guard was chave_acesso: NULL_TO_EMPTY.
+- serie also changed NULL_TO_EMPTY, but was not in the old guard.
+- valor_liquido was null in storage, zero in initial legacy form state, then
+  overwritten with gross in the save payload. It did NOT trigger this error.
+- No captured real browser payload was retained. The diff was reconstructed
+  from production field shapes and the actual UI initializer/schema.
+- Production NF remained in draft; created_at=updated_at, no submission metadata.
+- Associated review intent COMPLETED; zero installments; only original manual
+  due audit and draft domain event. Filtered edge logs contained no POST/PATCH.
+
+HEALTH_NFSE_SUBMIT_GUARD_FILE = src/lib/actions/nota-fiscal.ts
+HEALTH_NFSE_SUBMIT_GUARD_FUNCTION = salvarDadosNF
+HEALTH_NFSE_SUBMIT_PAYLOAD_SCHEMA = submeterNfSchema (src/lib/validations/nf.ts)
+HEALTH_NFSE_SUBMIT_MUTATION = submeterNF / UPDATE status, submetida_em, submetida_por
+HEALTH_NFSE_SUBMIT_ROOT_CAUSE = pre-submit fiscal round trip; NULL chave_acesso compared to empty string
+HEALTH_NFSE_SUBMIT_DIVERGENT_FIELDS = chave_acesso:NULL_TO_EMPTY; serie:NULL_TO_EMPTY; valor_liquido:OTHER(null to gross at save)
+HEALTH_NFSE_SUBMIT_NULL_ZERO_BUG = NO (not the rejection cause; legacy form coercion also removed)
+HEALTH_NFSE_SUBMIT_CLIENT_ROUNDTRIP = YES (old NFSE path; removed)
+
+Correction
+- NFSE uses the existing read-only display, not a fiscal form or hidden inputs.
+- Separate persisted operational due date, unchanged on submit.
+- Fiscal net remains null and displays "Não informado".
+- No CNPJ registry auto-fill for imported NFSE names.
+- Strict submission object permits only nfId and optional cedente context ID.
+- Auth and operational scope revalidated; NF read/update scoped by cedente,
+  cedente-fundo and fundo; existing requirements/duplicate/status gates retained.
+- Legacy save action refuses all fiscal payloads for NFSE; no silent stripping.
+- NFE manual/PDF review retains save-before-submit.
+
+Local evidence
+- 53 focused tests PASS, including real server action with mocked infrastructure.
+- Full suite: 2730 PASS / 12 skipped; 308 test files PASS / 3 skipped.
+- TypeScript and production webpack build PASS.
+- Lint: zero errors, one pre-existing liquidacao.ts unused-import warning.
+- Browser component harness: desktop/mobile NFSE minimal submit and NFE legacy
+  save+minimal submit PASS. This is NOT authenticated operational evidence.
+- SQL clean-room: exact current production schema restored locally; catalog/RLS/
+  grants parity PASS (only two exact known pg_dump AND-parenthesis equivalents).
+- Authenticated SQL role: status transition only, immutable fields preserved,
+  null-to-zero/gross tampering denied by DB, no duplicate manual-due audit,
+  second draft transition affects no rows; rollback leaves 126 empty tables.
+
+Preview exception explicitly authorized by user
+- Ref ettpaprrmpjsfkcystob; branch 8d126d13-396d-47f0-bfc4-12d8a3eba8e6.
+- Initial state MIGRATIONS_FAILED, zero application tables/history.
+- Restored schema ONLY; no source data or source history copied.
+- Schema SHA256 bed3965b0470c2f348aae263dcc3f7b1e60d43254426b030d0319ab148709eeb.
+- Production history unchanged: 238 rows, fingerprint 1798ac775c91790e0acf7679f397250d.
+- Original A6 20260929193129 remains intentionally absent, never replayed/faked.
+- Auto migrations/seed disabled ONLY for this exact Preview in config.toml.
+- Historical divergence is KNOWN_AND_PRESERVED, not reconciled.
+- No migration allowlist entries: this hotfix contains no migration.
+
+Pending at checkpoint: CI, authenticated Preview smoke, production deployment,
+real NF2229 submission by user/cedente, production regression/postflight,
+cleanup of this task's isolated Preview, QA credentials, Docker resources.
+Do not equate local test success with production acceptance.
