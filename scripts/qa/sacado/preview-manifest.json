@@ -1,0 +1,12 @@
+{
+  "mode": "MANUAL_EXPLICIT_LIST",
+  "projectRef": "yynlrtonrqxoatmuclrt",
+  "branchId": "c31a3f44-0c5a-413d-8a39-b5d2eeda010e",
+  "parentProjectRef": "wwsndnuvnjuabpbjwlck",
+  "gitBranch": "hotfix/sacado-multi-cnpj",
+  "baseSha": "18374bf1fd30c69fbd618d743cab51f1958551cb",
+  "excludedVersions": ["20260929193129"],
+  "historicalDivergence": "KNOWN_AND_PRESERVED",
+  "migrations": [],
+  "note": "Empty allowlist: no SACADO migration is certified yet. Never infer historical replay from this manifest."
+}
