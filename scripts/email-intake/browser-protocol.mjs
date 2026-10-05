@@ -42,5 +42,5 @@ export async function createProtocolTrace(cdp) {
       throw error
     }
   }
-  return { versions, timeline, record, command }
+  return { versions, timeline, record, command, localId: id }
 }

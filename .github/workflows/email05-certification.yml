@@ -30,7 +30,7 @@ jobs:
         run: echo "EMAIL_INTAKE_QA_CHROME=$(command -v google-chrome)" >> "$GITHUB_ENV"
       - run: git diff --check HEAD^
       - name: Browser diagnostic redaction
-        run: node --test scripts/email-intake/browser-diagnostics.test.mjs scripts/email-intake/browser-redaction.test.mjs scripts/email-intake/browser-protocol.test.mjs scripts/email-intake/browser-drain.test.mjs scripts/email-intake/browser-finalization.test.mjs scripts/email-intake/browser-no-body.test.mjs scripts/email-intake/browser-signed-url.test.mjs scripts/email-intake/fiscal-signed-url-policy.test.mjs scripts/email-intake/disposable-resources.test.mjs scripts/email-intake/runner-evidence.test.mjs
+        run: node --test scripts/email-intake/browser-diagnostics.test.mjs scripts/email-intake/browser-redaction.test.mjs scripts/email-intake/browser-protocol.test.mjs scripts/email-intake/browser-drain.test.mjs scripts/email-intake/browser-navigation.test.mjs scripts/email-intake/browser-finalization.test.mjs scripts/email-intake/browser-no-body.test.mjs scripts/email-intake/browser-signed-url.test.mjs scripts/email-intake/fiscal-signed-url-policy.test.mjs scripts/email-intake/disposable-resources.test.mjs scripts/email-intake/runner-evidence.test.mjs
       - name: Browser response boundary inspection
         run: node scripts/email-intake/redaction-probe.mjs
       - name: Bodyless response headers and cancellation
@@ -56,6 +56,8 @@ jobs:
             rehearsal/tmp/bw_email03_*/email05-ui.json
             rehearsal/tmp/bw_email03_*/email05-network.json
             rehearsal/tmp/bw_email03_*/email05-redaction.json
+            rehearsal/tmp/bw_email03_*/email05-fund-switch.json
+            rehearsal/tmp/bw_email03_*/email05-fund-switch-redaction.json
             rehearsal/tmp/bw_email03_*/email05-log-redaction.json
             rehearsal/tmp/bw_email03_*/email-browser-build-attempts.jsonl
             rehearsal/reports/bw_email03_*-resources.json

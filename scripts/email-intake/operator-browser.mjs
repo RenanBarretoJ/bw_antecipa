@@ -10,6 +10,7 @@ import { prepareEmailBrowserRuntime } from './browser-runtime.mjs'
 import { diagnosticPath, instrumentEmailBrowser } from './browser-diagnostics.mjs'
 import { waitEmailScreen, waitEmailDestination } from './browser-readiness.mjs'
 import { inspectEmailResponses, secretClasses } from './browser-redaction.mjs'
+import { verifyFundSwitchBrowser } from './fund-switch-browser.mjs'
 
 function totp(secret) {
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'
@@ -231,6 +232,8 @@ export async function verifyEmailOperatorBrowser({ db, url, serviceKey, anonKey,
     await goto(`${base}&tab=review`, { waitUntil: 'domcontentloaded' }); await screenshot('review')
     await page.keyboard.press('Tab')
     assert.ok(await page.evaluate(() => document.activeElement !== document.body), 'KEYBOARD_FOCUS')
+    await redaction.awaitDrain()
+    checks.push(...await verifyFundSwitchBrowser({ db, browser, url, serviceKey, anonKey, root }))
     const redactionSummary = await redaction.settleAndAssertClean()
     assert.equal(serverLogMatches.size, 0, 'SERVER_LOG_SECRET_PATTERN_MATCH')
     await diagnostics.assertClean()

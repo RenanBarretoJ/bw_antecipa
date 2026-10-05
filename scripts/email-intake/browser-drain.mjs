@@ -14,6 +14,7 @@ export function createRedactionBarrier({ snapshot, validate, record, save }) {
     try {
       while (true) {
         const state = snapshot()
+        if (state.staleDiscovered > 0) throw Error('STALE_DISCOVERED_REQUEST')
         if (state.failed > 0) throw Error('REDACTION_DRAIN_FAILED')
         if (state.pending === 0 && state.tasks === 0) {
           idleSince ??= performance.now()
@@ -31,7 +32,7 @@ export function createRedactionBarrier({ snapshot, validate, record, save }) {
         await new Promise(resolve => setTimeout(resolve, 10))
       }
     } catch (error) {
-      record(['REDACTION_DRAIN_TIMEOUT', 'SEMANTIC_DRAIN_TIMEOUT'].includes(error.message) ? error.message : 'REDACTION_DRAIN_FAILED', snapshot())
+      record(['REDACTION_DRAIN_TIMEOUT', 'SEMANTIC_DRAIN_TIMEOUT', 'STALE_DISCOVERED_REQUEST'].includes(error.message) ? error.message : 'REDACTION_DRAIN_FAILED', snapshot())
       await save()
       throw error
     }

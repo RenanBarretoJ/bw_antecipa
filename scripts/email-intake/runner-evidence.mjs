@@ -13,7 +13,7 @@ export function evidenceCategory(value) {
   if (value === 'archive-summary.json') return 'REPORT_JSON'
   if (/^email05-r10-finalization-(?:probe|case-(?:[0-9]|1[0-9]))\.json$/.test(value)) return 'REPORT_JSON'
   if (value === 'email05-r8-no-body-probe.json') return 'REPORT_JSON'
-  if (/^(?:email05-(?:network|ui|redaction|body-failures|log-redaction)|email-browser-build|clean-room-checkpoint|shared-result)\.json$/.test(value)) return 'REPORT_JSON'
+  if (/^(?:email05-(?:network|ui|redaction|body-failures|log-redaction|fund-switch|fund-switch-redaction)|email-browser-build|clean-room-checkpoint|shared-result)\.json$/.test(value)) return 'REPORT_JSON'
   if (/^(?:RLX_EMAIL_03_CLEAN_ROOM(?:_bw_email03_\d+)?|email05-r[345]-[a-z-]+)\.json$/.test(value)) return 'REPORT_JSON'
   if (/^(?:RLX_EMAIL_03_SHARED_bw_email03_\d+|email05-r[345]-[a-z-]+|email-browser-build)\.log$/.test(value) || value === 'email-browser-build-attempts.jsonl') return 'LOG'
   const resource = /^(.*)-(?:resources|manifest|probe)\.json$/.exec(value)
@@ -77,7 +77,7 @@ export async function archiveRunnerEvidence(root, destination, { requiredArtifac
   }
   for (const name of reportNames) if (evidenceReportName(name)) await copy(resolve(reports, name), resolve(destination, 'reports', name))
   const tmp = resolve(root, 'rehearsal/tmp')
-  const diagnosticPattern = /^(?:email05-(?:network|ui|redaction|body-failures|log-redaction)\.json|email-browser-build\.(?:json|log)|email-browser-build-attempts\.jsonl|clean-room-checkpoint\.json|shared-result\.json)$/
+  const diagnosticPattern = /^(?:email05-(?:network|ui|redaction|body-failures|log-redaction|fund-switch|fund-switch-redaction)\.json|email-browser-build\.(?:json|log)|email-browser-build-attempts\.jsonl|clean-room-checkpoint\.json|shared-result\.json)$/
   for (const project of await readdir(tmp).catch(() => [])) {
     if (!/^bw_email03_\d+$/.test(project)) continue
     assert.ok((await lstat(resolve(tmp, project))).isDirectory(), 'EVIDENCE_PROJECT_MUST_BE_DIRECTORY')
@@ -85,7 +85,7 @@ export async function archiveRunnerEvidence(root, destination, { requiredArtifac
     required.add(`reports/${project}-resources.json`)
     if (requireOperatorArtifacts) {
       required.add('reports/RLX_EMAIL_03_CLEAN_ROOM.json')
-      for (const file of ['email05-ui.json', 'email05-redaction.json', 'email05-network.json', 'email05-log-redaction.json']) required.add(`tmp/${project}/${file}`)
+      for (const file of ['email05-ui.json', 'email05-redaction.json', 'email05-network.json', 'email05-log-redaction.json', 'email05-fund-switch.json', 'email05-fund-switch-redaction.json']) required.add(`tmp/${project}/${file}`)
     }
     for (const name of await readdir(resolve(tmp, project))) {
       if (diagnosticPattern.test(name)) await copy(resolve(tmp, project, name), resolve(destination, 'tmp', project, name))

@@ -7,6 +7,7 @@ import { bodylessResponse, inspectResponseHeaders, noBodyRequest, receiveNoBodyR
 import { inspectSignedResponse } from './browser-signed-url.mjs'
 import { createSemanticRegistry, boundedInspection } from './browser-semantic.mjs'
 import { createInspectionFinalizer } from './browser-finalization.mjs'
+import { navigationMetadata, staleDiscovered } from './browser-navigation.mjs'
 
 function sensitivePath(pathname) {
   return /^\/(?:api(?:\/|$)|rest\/v1(?:\/|$)|auth\/v1(?:\/|$)|(?:admin|gestor)\/integracoes-email(?:\/|$))/.test(pathname)
@@ -76,6 +77,7 @@ export async function inspectEmailResponses(page, { file, knownSecrets = [], pha
   const protocol = await createProtocolTrace(cdp)
   const semantic = createSemanticRegistry((event, metadata) => protocol.record(event, null, null, metadata))
   const registry = []
+  const started = performance.now()
   const transition = (entry, state) => {
     if (!entry || (terminalInspectionState(entry.state) && entry.state !== 'COMPLETED')) return
     entry.state = state
@@ -85,6 +87,7 @@ export async function inspectEmailResponses(page, { file, knownSecrets = [], pha
   const safeMeta = request => ({ method: request.method, pathname: diagnosticPath(request.url) })
   const registerRequest = (networkId, request, resourceType) => {
     const entry = { id: registry.length + 1, ...safeMeta(request), state: 'DISCOVERED',
+      discoveredAtMs: Math.round(performance.now() - started),
       noBody: noBodyRequest(request.method),
       required: sensitivePath(new URL(request.url).pathname) || ['Document', 'Fetch', 'XHR'].includes(resourceType) }
     registry.push(entry)
@@ -96,17 +99,20 @@ export async function inspectEmailResponses(page, { file, knownSecrets = [], pha
   }
   cdp.on('Network.requestWillBeSent', event => {
     if (!/^https?:/.test(event.request.url)) return
-    protocol.record('Network.requestWillBeSent', event.requestId, null, { ...safeMeta(event.request), resourceType: event.type })
     const headers = event.request.headers
     // Fetch may precede this event. Enrich its existing record without resetting evidence.
     // A subsequent request event (redirect hop) still starts a separate lifecycle.
     const existing = requests.get(event.requestId)
+    const navigation = navigationMetadata(event, protocol.localId, existing?.redirectCount ?? 0)
     const request = existing && !existing.networkRequestSeen ? existing : registerRequest(event.requestId, event.request, event.type)
     Object.assign(request, { networkRequestSeen: true,
       initiatorClass: ['parser', 'script', 'preload', 'preflight', 'SignedExchange', 'other'].includes(event.initiator?.type) ? event.initiator.type : 'unknown',
       intent: headers['Next-Router-Prefetch'] === '1' || headers['next-router-prefetch'] === '1' ? 'RSC_PREFETCH'
         : headers.RSC === '1' || headers.rsc === '1' ? 'RSC_NAVIGATION' : event.request.method === 'POST' ? 'ACTION' : event.type === 'Document' ? 'DOCUMENT' : 'RESOURCE',
       resourceType: event.type })
+    Object.assign(request, navigation)
+    Object.assign(request.entry, navigation)
+    protocol.record('Network.requestWillBeSent', event.requestId, null, { ...safeMeta(event.request), resourceType: event.type, ...navigation })
   })
   cdp.on('Network.responseReceived', event => {
     const request = requests.get(event.requestId)
@@ -156,6 +162,13 @@ export async function inspectEmailResponses(page, { file, knownSecrets = [], pha
       classification: afterInspection ? 'CANCELLED_AFTER_INSPECTION' : noBodyCancellation,
       errorClass: /ERR_ABORTED/.test(event.errorText) ? 'ERR_ABORTED' : 'NETWORK_FAILURE' })
   })
+  cdp.on('Page.frameRequestedNavigation', event => protocol.record('Page.frameRequestedNavigation', null, null, {
+    frame: protocol.localId('frame', event.frameId), pathname: diagnosticPath(event.url),
+    reason: ['reload', 'scriptInitiated', 'anchorClick', 'formSubmissionGet', 'formSubmissionPost'].includes(event.reason) ? event.reason : 'other',
+  }))
+  cdp.on('Page.frameNavigated', event => protocol.record('Page.frameNavigated', null, null, {
+    frame: protocol.localId('frame', event.frame.id), navigation: protocol.localId('navigation', event.frame.loaderId), pathname: diagnosticPath(event.frame.url),
+  }))
   const inspect = async event => {
     const headers = Object.fromEntries((event.responseHeaders ?? []).map(header => [header.name.toLowerCase(), header.value]))
     const contentType = (headers['content-type'] ?? '').split(';')[0].toLowerCase()
@@ -229,6 +242,7 @@ export async function inspectEmailResponses(page, { file, knownSecrets = [], pha
     pending.add(task); void task.finally(() => pending.delete(task))
   })
   await cdp.send('Network.enable', { maxTotalBufferSize: 64 * 1024 * 1024, maxResourceBufferSize: 16 * 1024 * 1024, enableDurableMessages: true })
+  await cdp.send('Page.enable')
   // Intercept data/document responses. Chrome's favicon loader is independent of page navigation;
   // pausing it can retain an obsolete icon request across reloads. Static metadata is still audited.
   await cdp.send('Fetch.enable', { patterns: [
@@ -247,6 +261,7 @@ export async function inspectEmailResponses(page, { file, knownSecrets = [], pha
     return { mustInspect: must.length, intercepted: must.filter(row => row.intercepted).length, inspected, uninspected: must.length - inspected,
       networkMustInspect: must.length, networkInspected: must.filter(row => row.bodyInspected).length,
       networkPending: registry.filter(entry => entry.required && !entry.bodyInspected && !terminalInspectionState(entry.state)).length,
+      staleDiscovered: registry.filter(entry => staleDiscovered(entry, performance.now() - started)).length,
       ...semantic.snapshot(),
       pending: registry.filter(entry => entry.required && !terminalInspectionState(entry.state)).length,
       failed: registry.filter(entry => entry.required && terminalInspectionState(entry.state) && !['COMPLETED', 'NO_BODY_TERMINAL'].includes(entry.state)).length,

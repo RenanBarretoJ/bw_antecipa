@@ -45,6 +45,8 @@ test('child manifest, cleanup, UI and redaction survive removal of the disposabl
     ['reports/RLX_EMAIL_03_CLEAN_ROOM.json', '{"cleanup":"PASS"}'],
     [`tmp/${id}/email05-redaction.json`, '{"summary":{"mustInspect":1},"rows":[]}'],
     [`tmp/${id}/email05-ui.json`, '{"result":"PASS"}'],
+    [`tmp/${id}/email05-fund-switch.json`, '{"result":"PASS"}'],
+    [`tmp/${id}/email05-fund-switch-redaction.json`, '{"summary":{"mustInspect":1},"rows":[]}'],
     ['reports/email05-r3-redaction-probe.json', '{"summary":{"mustInspect":3},"rows":[]}'],
     ['reports/runner-manifest.json', '{"cleanupRuns":[{"result":"PASS"}]}'],
   ]
