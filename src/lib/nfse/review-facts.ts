@@ -24,8 +24,15 @@ export function fiscalFingerprint(extraction: NfseExtraction): string {
   // Preserve fingerprints of open national reviews from before this extension.
   const fields = extraction.strategy === 'nfse_municipal_visual'
     ? [...materialFields, 'orgao_emissor', 'codigo_verificacao'] as (keyof NfseFiscalData)[] : materialFields
-  return sha256(JSON.stringify(fields.map(field => {
+  const facts = fields.map(field => {
     const value = extraction.dados[field]
     return [field, typeof value === 'string' ? value.normalize('NFC').trim().replace(/\s+/g, ' ') : value ?? null]
-  })))
+  })
+  if (extraction.calculo_liquido) {
+    // Stable across JSONB key ordering, while preserving old review fingerprints.
+    const calc = extraction.calculo_liquido
+    facts.push(['calculo_liquido', JSON.stringify([calc.versao, calc.formula, calc.completo, calc.bruto,
+      calc.total_retencoes, calc.liquido, calc.componentes.map(c => [c.codigo, c.valor, c.rotulo])])])
+  }
+  return sha256(JSON.stringify(facts))
 }

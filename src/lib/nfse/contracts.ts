@@ -30,6 +30,7 @@ export type NfseCandidate = {
 }
 
 export interface NfseExtraction {
+  calculo_liquido?: import('./liquido-fiscal').NetCalculation
   tipo_documento: 'NFSE' | 'UNKNOWN'
   layout_fingerprint: 'danfse_v2' | 'nfse_municipal' | null
   strategy: 'danfse_v2_labels' | 'danfse_v2_visual' | 'nfse_municipal_visual' | null

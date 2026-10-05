@@ -1,0 +1,44 @@
+NFS-e: liquido fiscal calculado e correcao controlada
+
+Escopo autorizado: priorizar liquido explicitamente impresso; na ausencia, calcular
+bruto menos retencoes documentadas. Correcao pontual de liquido ausente/vencimento,
+sem reimportar documento, mudar status ou reescrever operacoes/snapshots.
+
+Origem nova: CALCULADO_RETENCOES. Memoria em fiscal_proveniencia.calculo_liquido.
+O leitor visual transcreve componentes; a aritmetica e feita localmente em centavos.
+Nao somar total e componentes; ISS/INSS sem indicacao de retencao nao sao descontados.
+Evidencia incompleta permanece sem liquido, sem fallback para bruto.
+O fallback inicial cobre o contrato municipal visual. DANFSe nacional permanece
+no contrato existente; nao reinterpretar layouts ou descontos adicionais.
+
+Migration: 20261005204958_nfse_calculated_net_audited_correction.sql
+SHA256: 424d3c2f422d181afa7ac161cf4f4d7d6b67198c6034e5eeefdafe676359c91b
+- Preserva constraint nacional/municipal instalada e adiciona validacao da memoria.
+- Renomeia guard/auditoria NFS-e para nomes globais, preservando OIDs/ACLs/historico.
+- private.corrigir_nfse_liquido_ausente e manutencao restrita a sessao postgres,
+  SECURITY INVOKER, sem grants para public/anon/authenticated/service_role.
+- Exige hash da linha e documento; lock da NF; rascunho/requer_ajuste; liquido
+  ausente; sem operacao, parcelas, calculo de operacao ou duplicatas vinculadas.
+- Alteracao limitada a liquido/origem, vencimento/origem e memoria acrescentada;
+  preserva campos de origem, arquivo, identidade, fundo, bruto e status.
+- Registra auditoria e evento com correlation_id e ator sistema/suporte autorizado;
+  nao personifica o cedente nem forja sessao MFA.
+- Nenhum trigger ou RLS desativado; nenhum backfill automatico.
+- A6 original e migration history anteriores permanecem intocados.
+
+Evidencias antes de publicar:
+- TypeScript PASS; build PASS; lint sem erros (1 warning preexistente liquidacao.ts).
+- Suite completa 2768 PASS / 12 skipped; 19 novos testes de liquido.
+- SQL local sobre schema-only de producao PASS, incluindo guard/submit anterior.
+- SQL na Preview isolada existente PASS, com rollback de schema/dados conferido.
+- Colisoes iniciais de fixtures QA resolvidas por identificadores sinteticos isolados;
+  nenhuma alteracao dessas tentativas foi mantida na Preview.
+
+Comandos:
+  node scripts/qa/health/nfse-net-sql.mjs
+  node scripts/qa/health/nfse-net-sql.mjs --preview-rollback
+  Node 22: vitest run --maxWorkers=4; tsc --noEmit; eslint .; next build --webpack
+
+Publicacao e intervencao real dependem dos checkpoints posteriores do PR/deploy.
+Este arquivo registra evidencias tecnicas, nao comprova smoke autenticado em producao.
+Nao incluir PDF real, credenciais, URLs assinadas ou dump de cliente no repositorio.
