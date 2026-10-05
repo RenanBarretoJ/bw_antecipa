@@ -29,6 +29,8 @@ import { ParcelasDaNota } from '@/components/notas-fiscais/ParcelasDaNota'
 interface NfCompleta {
   tipo_documento_fiscal?: 'NFE' | 'NFSE' | null
   valor_liquido_origem?: string | null
+  vencimento_origem?: string | null
+  fiscal_proveniencia?: { codigo_verificacao?: string | null; orgao_emissor?: string | null } | null
   id: string
   cedente_id: string
   numero_nf: string
@@ -111,17 +113,34 @@ function ReadOnlyNfDetails({
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
       <div className="space-y-4 lg:col-span-2">
         <section className="rounded-xl border bg-card p-4">
-          <h2 className="mb-3 font-semibold text-foreground">Dados da Nota Fiscal</h2>
+          <h2 className="mb-3 font-semibold text-foreground">{nf.tipo_documento_fiscal === 'NFSE' ? 'Dados fiscais importados do documento' : 'Dados da Nota Fiscal'}</h2>
           <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-5">
             <LabelValue label="Número" value={nf.numero_nf} />
             <LabelValue label="Série" value={nf.serie} />
             <LabelValue label="Emissão" value={formatDate(nf.data_emissao)} />
-            {!temParcelas && <LabelValue label="Vencimento" value={formatDate(nf.data_vencimento)} />}
+            {!temParcelas && nf.tipo_documento_fiscal !== 'NFSE' && <LabelValue label="Vencimento" value={formatDate(nf.data_vencimento)} />}
             <div className="col-span-2 md:col-span-1">
               <LabelValue label="Chave" value={nf.chave_acesso} mono />
             </div>
           </div>
+          {nf.tipo_documento_fiscal === 'NFSE' && (
+            <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+              <LabelValue label="Código de verificação" value={nf.fiscal_proveniencia?.codigo_verificacao} />
+              <LabelValue label="Órgão emissor" value={nf.fiscal_proveniencia?.orgao_emissor} />
+            </div>
+          )}
         </section>
+
+        {nf.tipo_documento_fiscal === 'NFSE' && (
+          <section className="rounded-xl border bg-card p-4">
+            <h2 className="mb-3 font-semibold text-foreground">Dados operacionais</h2>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              {!temParcelas && <LabelValue label="Vencimento registrado" value={formatDate(nf.data_vencimento)} />}
+              <LabelValue label="Origem do vencimento" value={nf.vencimento_origem === 'MANUAL' ? 'Informado manualmente na importação' : nf.vencimento_origem === 'DOCUMENT' ? 'Documento fiscal' : 'Não informada'} />
+            </div>
+            <p className="mt-3 text-sm text-muted-foreground">A submissão preserva o vencimento já registrado e os dados fiscais do documento.</p>
+          </section>
+        )}
 
         <section className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div className="rounded-xl border bg-card p-4">
@@ -256,7 +275,7 @@ export function NotaFiscalDetalheFeature({
     cnpj_destinatario: '',
     razao_social_destinatario: '',
     valor_bruto: 0,
-    valor_liquido: 0,
+    valor_liquido: null as number | null,
     valor_icms: 0,
     valor_iss: 0,
     valor_pis: 0,
@@ -293,7 +312,7 @@ export function NotaFiscalDetalheFeature({
           cnpj_destinatario: nfData.cnpj_destinatario || '',
           razao_social_destinatario: nfData.razao_social_destinatario || '',
           valor_bruto: nfData.valor_bruto || 0,
-          valor_liquido: nfData.valor_liquido || 0,
+          valor_liquido: nfData.valor_liquido,
           valor_icms: nfData.valor_icms || 0,
           valor_iss: nfData.valor_iss || 0,
           valor_pis: nfData.valor_pis || 0,
@@ -349,7 +368,7 @@ export function NotaFiscalDetalheFeature({
 
   // Buscar razão social automaticamente quando o CNPJ destinatário estiver completo
   useEffect(() => {
-    if (!nf || (nf.status !== 'rascunho' && nf.status !== 'requer_ajuste')) return
+    if (!nf || nf.tipo_documento_fiscal === 'NFSE' || (nf.status !== 'rascunho' && nf.status !== 'requer_ajuste')) return
     const digits = form.cnpj_destinatario.replace(/\D/g, '')
     if (digits.length === 14) {
       buscarRazaoPorCnpj(digits)
@@ -358,6 +377,7 @@ export function NotaFiscalDetalheFeature({
   }, [form.cnpj_destinatario])
 
   const handleSave = async (): Promise<boolean> => {
+    if (nf?.tipo_documento_fiscal === 'NFSE') return false
     setSaving(true)
     setMessage('')
 
@@ -390,8 +410,10 @@ export function NotaFiscalDetalheFeature({
   }
 
   const handleSubmitRequest = async () => {
-    const saved = await handleSave()
-    if (!saved) return
+    if (nf?.tipo_documento_fiscal !== 'NFSE') {
+      const saved = await handleSave()
+      if (!saved) return
+    }
 
     setConfirmSubmitOpen(true)
   }
@@ -400,7 +422,7 @@ export function NotaFiscalDetalheFeature({
     setConfirmSubmitOpen(false)
 
     setSubmitting(true)
-    const result = await submeterNF(nfId, cedenteIdSelecionado)
+    const result = await submeterNF({ nfId, cedenteIdInformado: cedenteIdSelecionado })
 
     if (result?.success) {
       setMessage(result.message || 'Submetida!')
@@ -418,8 +440,10 @@ export function NotaFiscalDetalheFeature({
   }
 
   const handleResubmeter = async () => {
-    const saved = await handleSave()
-    if (!saved) return
+    if (nf?.tipo_documento_fiscal !== 'NFSE') {
+      const saved = await handleSave()
+      if (!saved) return
+    }
 
     setResubmitting(true)
     const result = await resubmeterNFAjustada(nfId, cedenteIdSelecionado)
@@ -491,14 +515,14 @@ export function NotaFiscalDetalheFeature({
 
         {isEditable && (
           <div className="flex gap-2">
-            <button
+            {nf.tipo_documento_fiscal !== 'NFSE' && <button
               onClick={handleSave}
               disabled={saving}
               className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50"
             >
               <Save size={16} />
               {saving ? 'Salvando...' : 'Salvar'}
-            </button>
+            </button>}
             {nf.status === 'requer_ajuste' ? (
               <button
                 onClick={handleResubmeter}
@@ -535,20 +559,20 @@ export function NotaFiscalDetalheFeature({
           </p>
           <p>{nf.motivo_ajuste}</p>
           <p className="mt-2 text-xs text-orange-600">
-            Corrija os dados abaixo e clique em &quot;Resubmeter apos ajuste&quot;.
+            {nf.tipo_documento_fiscal === 'NFSE' ? 'Revise os requisitos documentais e clique em "Resubmeter apos ajuste". Os fatos fiscais importados permanecem imutáveis.' : 'Corrija os dados abaixo e clique em "Resubmeter apos ajuste".'}
           </p>
         </div>
       )}
 
       {isEditable && nf.status === 'rascunho' && !isUploadXml && (nf.numero_nf || nf.valor_bruto > 0 || nf.cnpj_destinatario) && (
         <div className="mb-4 p-3 rounded-lg text-sm bg-blue-50 border border-blue-200 text-blue-800">
-          Alguns campos foram pré-preenchidos automaticamente a partir do PDF. Verifique os dados antes de submeter.
+          {nf.tipo_documento_fiscal === 'NFSE' ? 'Os dados fiscais importados são somente leitura. Confira o documento e submeta a nota sem reenviar o arquivo.' : 'Alguns campos foram pré-preenchidos automaticamente a partir do PDF. Verifique os dados antes de submeter.'}
         </div>
       )}
 
       {(() => {
         const parcelasSection = <ParcelasDaNota notaFiscalId={nfId} mode="cedente" onTemParcelas={setTemParcelas} />
-        return isEditable ? (
+        return isEditable && nf.tipo_documento_fiscal !== 'NFSE' ? (
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {/* Formulario — 2 colunas */}
         <div className="space-y-4 lg:col-span-2">
@@ -562,7 +586,7 @@ export function NotaFiscalDetalheFeature({
                   type="text"
                   value={form.numero_nf}
                   onChange={(e) => updateForm('numero_nf', e.target.value)}
-                  disabled={!isEditable || nf.tipo_documento_fiscal === 'NFSE'}
+                  disabled={!isEditable}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm disabled:bg-gray-50 disabled:text-gray-500"
                 />
               </div>
@@ -582,8 +606,8 @@ export function NotaFiscalDetalheFeature({
                   type="text"
                   value={form.chave_acesso}
                   onChange={(e) => updateForm('chave_acesso', e.target.value)}
-                  disabled={!isEditable || nf.tipo_documento_fiscal === 'NFSE'}
-                  maxLength={nf.tipo_documento_fiscal === 'NFSE' ? 50 : 44}
+                  disabled={!isEditable}
+                  maxLength={44}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm disabled:bg-gray-50 disabled:text-gray-500"
                 />
               </div>
@@ -595,7 +619,7 @@ export function NotaFiscalDetalheFeature({
                   type="date"
                   value={form.data_emissao}
                   onChange={(e) => updateForm('data_emissao', e.target.value)}
-                  disabled={!isEditable || nf.tipo_documento_fiscal === 'NFSE'}
+                  disabled={!isEditable}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm disabled:bg-gray-50 disabled:text-gray-500"
                 />
               </div>
@@ -649,7 +673,7 @@ export function NotaFiscalDetalheFeature({
                   type="text"
                   value={form.cnpj_destinatario}
                   onChange={(e) => updateForm('cnpj_destinatario', e.target.value)}
-                  disabled={!isEditable || nf.tipo_documento_fiscal === 'NFSE'}
+                  disabled={!isEditable}
                   placeholder="00.000.000/0001-00"
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm disabled:bg-gray-50 disabled:text-gray-500"
                 />
@@ -682,7 +706,7 @@ export function NotaFiscalDetalheFeature({
                   step="0.01"
                   value={form.valor_bruto}
                   onChange={(e) => updateForm('valor_bruto', parseFloat(e.target.value) || 0)}
-                  disabled={!isEditable || nf.tipo_documento_fiscal === 'NFSE'}
+                  disabled={!isEditable}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm disabled:bg-gray-50 disabled:text-gray-500"
                 />
               </div>
@@ -746,14 +770,12 @@ export function NotaFiscalDetalheFeature({
                 <input
                   type="number"
                   step="0.01"
-                  value={nf.tipo_documento_fiscal === 'NFSE' ? (nf.valor_liquido ?? '') : form.valor_bruto}
+                  value={form.valor_bruto}
                   placeholder="Não informado"
                   disabled
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm disabled:bg-gray-50 disabled:text-gray-500"
                 />
-                <p className="text-xs text-gray-500 mt-1">{nf.tipo_documento_fiscal === 'NFSE'
-                  ? 'Líquido fiscal do documento, separado do valor bruto. Ausência não é preenchida por cálculo.'
-                  : 'Igual ao valor bruto. Impostos sao registrados, mas nao deduzidos.'}</p>
+                <p className="text-xs text-gray-500 mt-1">Igual ao valor bruto. Impostos sao registrados, mas nao deduzidos.</p>
               </div>
             </div>
           </div>
@@ -807,9 +829,7 @@ export function NotaFiscalDetalheFeature({
               </div>
               <div className="border-t pt-2 flex justify-between">
                 <span className="font-medium text-gray-900">Valor Liquido</span>
-                <span className="font-bold text-green-700">{nf.tipo_documento_fiscal === 'NFSE'
-                  ? nf.valor_liquido === null ? 'Não informado' : formatCurrency(nf.valor_liquido)
-                  : formatCurrency(form.valor_bruto)}</span>
+                <span className="font-bold text-green-700">{formatCurrency(form.valor_bruto)}</span>
               </div>
             </div>
           </div>
