@@ -6,7 +6,7 @@ import { connect, ref, base } from './preview-runtime.mjs'
 import { d, state, id, val, login, nextCode, pageFor, navigate } from './auth-runtime.mjs'
 
 const mode=process.argv[2]
-assert(['--add','--access-actions','--portal','--visual'].includes(mode))
+assert(['--add','--access-actions','--portal','--visual','--confirm-final','--login-ui'].includes(mode))
 const file='rehearsal/reports/SACADO_R2_BROWSER.json'
 const report=existsSync(file)?JSON.parse(readFileSync(file,'utf8')):{ref,base,checks:[],screens:[]}
 const save=()=>writeFileSync(file,JSON.stringify(report,null,2))
@@ -54,6 +54,26 @@ async function manage(page,name,cnpj,acao,razao='Empresa QA 0020') {
   assert.equal(row[0].status,{adicionar:'ativo',ativar:'ativo',desativar:'inativo',revogar:'revogado',atualizar_empresa:'ativo'}[acao])
 }
 try {
+  if(mode==='--login-ui') {
+    const context=await browser.createBrowserContext(),page=await context.newPage(),actor=state.actors.sacadoA
+    await page.goto(base+'/login',{waitUntil:'networkidle2'})
+    await page.type('input[name="email"]',actor.email);await page.type('input[name="password"]',actor.password)
+    await page.click('button[type="submit"]')
+    await page.waitForFunction(()=>location.pathname==='/mfa/desafio',{timeout:45000})
+    await page.waitForSelector('input[name="code"]',{visible:true})
+    await page.type('input[name="code"]',await nextCode('sacadoA'))
+    await page.click('form:has(input[name="code"]) button[type="submit"]')
+    await page.waitForFunction(()=>location.pathname==='/sacado/dashboard',{timeout:45000})
+    assert.equal(new URL(page.url()).origin,base)
+    await page.waitForSelector('select[name="cnpj"]')
+    check('BROWSER_PASSWORD_LOGIN_MFA_REDIRECT')
+  }
+  if(mode==='--confirm-final') {
+    const gestor=await login('gestor'),page=await pageFor(browser,gestor)
+    await manage(page,'sacadoA','11344038002060','atualizar_empresa','Empresa QA 0020 validada')
+    assert.equal((await db.query("select razao_social from public.sacados where cnpj='11344038002060'")).rows[0].razao_social,'Empresa QA 0020 validada')
+    check('FINAL_DEPLOY_UI_MFA_MUTATION')
+  }
   if(mode==='--add') {
     const gestor=await login('gestor'), page=await pageFor(browser,gestor)
     for(const [name,label] of [['sacadoA','UI_ADD_0020_MFA'],['sacadoB','UI_SECOND_USER_SAME_CNPJ_MFA']]) {
@@ -98,6 +118,7 @@ try {
     const gestor=await login('gestor'),g=await pageFor(browser,gestor)
     const sacado=await login('sacadoA'),s=await pageFor(browser,sacado)
     await openUser(g,'sacadoA');await navigate(s,'/sacado/notas-fiscais')
+    await g.$$eval('details',es=>es.forEach(e=>{e.open=true}))
     for(const [name,page] of [['gestao',g],['portal',s]]) {
       await page.addScriptTag({content:readFileSync('node_modules/axe-core/axe.min.js','utf8')})
       for(const width of [390,430,820,1440,1920]) for(const theme of ['light','dark']) {
@@ -113,12 +134,27 @@ try {
         const path=`rehearsal/reports/sacado-r2-browser/${name}-${width}-${theme}.png`
         await page.screenshot({path,fullPage:true})
         report.screens.push({name,width,theme,path,...metrics,accessibility});save()
+        if(name==='portal') {
+          await page.click('[aria-label="Status das notas"]')
+          await page.waitForFunction(()=>document.querySelector('[aria-label="Status das notas"]')?.getAttribute('aria-expanded')==='true')
+          await page.waitForSelector('[data-slot="select-content"][data-open]',{visible:true})
+          await new Promise(r=>setTimeout(r,500))
+          assert(await page.$eval('[data-slot="select-content"]',el=>{
+            const r=el.getBoundingClientRect(),top=document.elementFromPoint(r.x+r.width/2,r.y+Math.min(30,r.height/2))
+            return r.x>=0 && r.right<=innerWidth+1 && r.y>=0 && r.bottom<=innerHeight+1 && el.contains(top)
+          }),'DROPDOWN_CLIPPING_OR_STACKING')
+          await page.screenshot({path:`rehearsal/reports/sacado-r2-browser/dropdown-${width}-${theme}.png`})
+          await page.keyboard.press('ArrowDown');await page.keyboard.press('Escape')
+          await page.waitForFunction(()=>document.querySelector('[aria-label="Status das notas"]')?.getAttribute('aria-expanded')==='false')
+        }
       }
+      await page.focus(name==='gestao'?'select[name="fundo"]':'select[name="cnpj"]')
       await page.keyboard.press('Tab')
-      assert(await page.evaluate(()=>document.activeElement!==document.body),'KEYBOARD_FOCUS')
+      assert(await page.evaluate(()=>document.activeElement!==document.body && document.activeElement?.getClientRects().length>0),'KEYBOARD_FOCUS')
     }
     assert(!report.screens.some(s=>s.accessibility.length || s.unlabeled.length),'WCAG_VIOLATIONS_SEE_REPORT')
-    check('RESPONSIVE_5_WIDTHS_LIGHT_DARK');check('KEYBOARD_AND_INPUT_LABELS')
+    check('RESPONSIVE_5_WIDTHS_LIGHT_DARK');check('KEYBOARD_AND_INPUT_LABELS');check('DROPDOWN_ABOVE_CARDS_KEYBOARD_ESCAPE')
   }
+  delete report.lastFailure;save()
 } catch(e) { report.lastFailure={mode,message:e.message};save();throw e }
 finally { await browser.close();await db.end() }

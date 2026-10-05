@@ -1,0 +1,163 @@
+SACADO R2 - PREVIEW AUTHENTICATED CERTIFICATION
+Date: 2026-10-05
+Stop point: SACADO_PREVIEW_READY. Production and homolog remain FORBIDDEN.
+
+SCOPE AND SOURCE
+Branch: hotfix/sacado-multi-cnpj
+PR: #89 DRAFT - https://github.com/RenanBarretoJ/bw_antecipa/pull/89
+Base: 18374bf1fd30c69fbd618d743cab51f1958551cb
+SACADO_R2_HEAD = e55b55d5ffdbc263ba89eae19fd295b5dd937167
+This is the application implementation SHA certified below. Subsequent
+documentation/QA-only commits do not change the deployed application code.
+Preview: https://bw-antecipa-git-hotfix-sacado-multi-cnpj-renanbarretoj.vercel.app
+Supabase: yynlrtonrqxoatmuclrt
+Application deployment: dpl_FiUCkF7hUZq5TB32KozQtrftSjAC (Preview, Ready)
+CI: https://github.com/RenanBarretoJ/bw_antecipa/actions/runs/37342862014
+
+MIGRATION
+20261005154435_sacado_multi_cnpj_acessos.sql
+SHA256 (normalized LF):
+a1ed6af47e99fa4cc1c9a4edd7ac35666fe8d5416e4252283fa337d6c08c0128
+Applied manually, atomically, only to the explicit SACADO Preview allowlist.
+Financial-row hashes before/after application matched. No Storage mutation.
+Exactly one new, genuinely executed migration is recorded in history.
+Original A6 20260929193129 was neither executed nor recorded.
+Known historical divergence is preserved, NOT repaired or reconciled.
+Automatic migrations and seed remain disabled for this Preview only.
+No global migration policy changes.
+
+IMPLEMENTATION
+- sacados represents the company/full CNPJ. Nullable legacy user_id preserved.
+- sacado_acessos represents user + company + fund, with status and audit.
+- Exact normalized full CNPJ + active fund membership; never CNPJ root.
+- Set-based context drives dashboard, indicators, lists, RLS and storage.
+- Batch validation completes before mutation; all invoices must be accepted
+  before the operation is marked accepted.
+- Administrative management at /gestor/configuracoes/sacados and
+  /admin/usuarios/sacados: paginated search, detail, company lookup/create,
+  grant/revoke/activate/deactivate/update, explicit confirmation and fresh MFA.
+- Sensitive authorization nonce consumed within the mutation transaction.
+- Notification recipients for acceptance/contest and maturity lookup use
+  active memberships; no reliance on the old company-owner user_id.
+- Optional Table container attributes enable keyboard scrolling on the
+  Sacado NF list without changing other table instances.
+
+QA DATA AND ACTUAL PROOF
+All actors/data are synthetic and exist ONLY in the SACADO Preview.
+6 real Auth accounts, 2 companies, 3 memberships, 8 NFs, 6 operations.
+0 Storage objects. No production personal/financial rows copied.
+Passwords and MFA seeds are encrypted with Windows DPAPI outside the repo.
+No credentials, TOTP codes or tokens included in this report/screenshots.
+
+1. Legacy fixture: backfill created exactly one 0021-41 + HEALTH QA link.
+   0020-60 remained absent until the new UI was used with real MFA.
+2. Gestor created 0020-60 through the UI, then linked Sacado B to the same
+   company through UI + MFA. Company not duplicated; reload persisted.
+3. Revoking/deactivating A removed only A's access. B remained authorized.
+   Reactivation and company-name update also passed through UI + MFA.
+4. A/B dashboards, NF lists, approvals, payments and CNPJ filters opened.
+   Totals: A=300 across two active QA NFs; B=200; A's 0020 filter=200.
+   Indicators: A=6 authorized NFs, B=3. No double count.
+5. Browser approved the two-CNPJ batch and contested separate eligible
+   invoices for both CNPJs. Four complete acceptance/contest audit records.
+6. All six administrative event types observed in plataforma_auditoria.
+7. Real JWT negatives: same-root third CNPJ, cross-fund invoice, unlinked
+   company, Gestor outside fund, anonymous, Cedente/Consultor membership
+   management, direct membership writes, AAL1 and missing nonce denied.
+8. Initial mixed unauthorized batch left every NF unchanged. Local SQL also
+   proves operation remains pending after only the first invoice is accepted.
+9. Actual browser password login -> MFA challenge -> Sacado dashboard stayed
+   on the SACADO Preview origin. CSP points to yynlrtonrqxoatmuclrt.
+
+QUALITY AND LIMITS
+TypeScript: PASS. Build: PASS. Full suite: 2645 passed, 12 skipped.
+302 test files passed, 3 skipped. Skipped tests are not counted as passed.
+Lint: zero errors; preexisting unused notificarGestores warning in
+src/lib/actions/liquidacao.ts remains outside scope.
+SQL: 38 pgTAP assertions passed. Empty baseline compile and upgrade passed.
+Ambiguous legacy fund fixture aborted atomically, preserving financial rows.
+Responsive/a11y: management forms and NF portal, 390/430/820/1440/1920,
+light/dark, 20 baseline captures; axe WCAG A/AA/2.1 checks had zero findings
+on these views. Keyboard/focus and dropdown stacking were also exercised.
+This is not a claim of a manual screen-reader audit of the whole application.
+CI and Vercel checks passed for the application implementation SHA above.
+
+Supabase security advisors still report baseline warnings: 17 deny-by-default
+RLS tables without policies, 5 mutable search_path functions, 161 exposed
+SECURITY DEFINER RPCs, leaked-password protection disabled. The existing
+processar_aceite_sacado RPC remains intentionally callable by authenticated
+users, with actor/fund/CNPJ/status checks and atomic tests. New management
+RPCs use invoker wrappers and private checked definer functions.
+No claim that the inherited schema has zero security advisories.
+Remediation references:
+https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy
+https://supabase.com/docs/guides/database/database-linter?lint=0011_function_search_path_mutable
+https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection
+
+DOCKER CLEANUP
+Only project sacado-r2-20261005 was stopped with --no-backup.
+Its temporary Auth/DB containers, DB volume and network were removed.
+Verified zero containers/volumes/networks with that project label.
+No global prune. Local synthetic DB discarded; reports/schema cache retained.
+The remote paid Preview and encrypted QA accounts remain for review.
+
+EVIDENCE (LOCAL, GIT-IGNORED)
+rehearsal/reports/SACADO_R2_PREVIEW_MIGRATION.json
+rehearsal/reports/SACADO_R2_LOCAL_COMPILE.json
+rehearsal/reports/SACADO_R2_LOCAL_TEST.json
+rehearsal/reports/SACADO_R2_LOCAL_AMBIGUOUS.json
+rehearsal/reports/SACADO_R2_AUTH_PREFLIGHT.json
+rehearsal/reports/SACADO_R2_BROWSER.json
+rehearsal/reports/SACADO_R2_WORKFLOW.json
+rehearsal/reports/SACADO_R2_FINAL_VERIFY.json
+rehearsal/reports/sacado-r2-browser/
+QA setup/apply scripts are one-shot and reject nonempty targets/history.
+Do not rerun the initial empty/legacy preflight against the completed QA state.
+
+GATES
+SACADO_ARCHITECTURE = JUNCTION_TABLE
+SACADO_SCHEMA = PASS
+SACADO_MIGRATION = PASS
+SACADO_BACKFILL = PASS
+SACADO_LEGACY_USER_ID_PRESERVED = YES
+SACADO_MULTI_CNPJ = PASS
+SACADO_MULTI_USER_SAME_CNPJ = PASS
+SACADO_FUND_SCOPE = PASS
+SACADO_CNPJ_ROOT_AUTO_AUTH = NO
+SACADO_RLS = PASS
+SACADO_MFA = PASS
+SACADO_AUDIT = PASS
+SACADO_DASHBOARD_MULTI_CNPJ = PASS
+SACADO_INDICATORS_MULTI_CNPJ = PASS
+SACADO_APPROVAL_MULTI_CNPJ = PASS
+SACADO_CONTEST_MULTI_CNPJ = PASS
+SACADO_BATCH_ATOMICITY = PASS
+SACADO_FRONT_LIST = PASS
+SACADO_FRONT_DETAIL = PASS
+SACADO_FRONT_ADD_CNPJ = PASS
+SACADO_FRONT_REVOKE = PASS
+SACADO_FRONT_RELOAD_PERSISTENCE = PASS
+SACADO_FRONT_UX = PASS
+SACADO_FRONT_ACCESSIBILITY = PASS
+SACADO_LEGACY_SINGLE_CNPJ_REGRESSION = PASS
+SACADO_CLEAN_ROOM = PASS
+SACADO_UPGRADE_REHEARSAL = PASS
+SACADO_TYPESCRIPT = PASS
+SACADO_BUILD = PASS
+SACADO_FULL_SUITE = PASS
+SACADO_CI = PASS
+SACADO_PREVIEW_MIGRATION_MODE = MANUAL_EXPLICIT_LIST
+SACADO_PREVIEW_A6_ORIGINAL_APPLIED = NO
+SACADO_PREVIEW_HISTORY_FAKED = NO
+SACADO_PREVIEW_TARGET = PASS
+SACADO_PREVIEW_AUTH_SMOKE = PASS
+SACADO_PREVIEW_READY = YES
+DOCKER_TEST_ENV_CLEANUP = PASS
+SACADO_PRODUCTION_CHANGED = NO
+SACADO_HOMOLOG_CHANGED = NO
+RLX_EMAIL_CHANGED = NO
+HEALTH_PARSER_CHANGED = NO
+
+STOP: no merge, production deployment, homolog cherry-pick or real-user grant.
+Any later production rollout needs a separate reviewed authorization/runbook.
