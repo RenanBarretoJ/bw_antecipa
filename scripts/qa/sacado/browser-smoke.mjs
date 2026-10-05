@@ -18,10 +18,10 @@ async function clickText(page,text) {
   assert(clicked,`BUTTON_NOT_FOUND_${text}`)
 }
 async function openUser(page,name) {
-  const url=`/gestor/configuracoes/sacados?fundo=${id('22')}&busca=${encodeURIComponent(state.actors[name].email)}`
-  const text=await navigate(page,url);assert(text.includes('1 usuario(s) encontrado(s)'),'USER_SEARCH_FAILED')
+  const url=`/gestor/sacados?fundo=${id('22')}&busca=${encodeURIComponent(state.actors[name].email)}`
+  const text=await navigate(page,url);assert(text.includes('1 encontrado(s)'),'USER_SEARCH_FAILED')
   await Promise.all([page.waitForNavigation({waitUntil:'networkidle2'}),clickText(page,'Abrir acessos')])
-  assert((await page.evaluate(()=>document.body.innerText)).includes('Este usuario pode aprovar documentos destas empresas:'))
+  assert((await page.evaluate(()=>document.body.innerText)).includes('Empresas vinculadas'))
 }
 async function formFor(page,cnpj,add) {
   const handle=await page.evaluateHandle(({cnpj,add})=>[...document.querySelectorAll('form')].find(f=>{
@@ -39,8 +39,10 @@ async function manage(page,name,cnpj,acao,razao='Empresa QA 0020') {
     await (await form.$('[name="razao"]')).click()
     await page.waitForFunction(()=>[...document.querySelectorAll('[role="status"]')].some(e=>/Empresa encontrada|Empresa ainda nao/.test(e.textContent)),{timeout:30000})
   } else await (await form.$('[name="acao"]')).select(acao)
-  const field=await form.$('[name="razao"]')
-  await field.focus();await page.keyboard.down('Control');await page.keyboard.press('KeyA');await page.keyboard.up('Control');await page.keyboard.press('Backspace');await field.type(razao)
+  if(acao==='adicionar'||acao==='atualizar_empresa'){
+    const field=await form.$('[name="razao"]')
+    await field.focus();await page.keyboard.down('Control');await page.keyboard.press('KeyA');await page.keyboard.up('Control');await page.keyboard.press('Backspace');await field.type(razao)
+  }
   await (await form.$('[name="confirmacao"]')).click()
   const code=await nextCode('gestor')
   await (await form.$('[name="mfa"]')).type(code)

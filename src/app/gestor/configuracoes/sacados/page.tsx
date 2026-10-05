@@ -1,5 +1,10 @@
-import { GestaoSacadosPage } from '@/components/sacado/GestaoSacadosPage'
+import { redirect } from 'next/navigation'
 
 export default async function Page({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
-  return <GestaoSacadosPage params={await searchParams} basePath="/gestor/configuracoes/sacados" />
+  const query = new URLSearchParams()
+  for (const [key, value] of Object.entries(await searchParams)) {
+    if (typeof value === 'string') query.set(key, value)
+    else if (Array.isArray(value)) value.forEach(item => query.append(key, item))
+  }
+  redirect(`/gestor/sacados${query.size ? `?${query}` : ''}`)
 }

@@ -40,6 +40,7 @@ export async function gerenciarAcessoSacado(_state: SacadoGestaoState, form: For
       ? 'Acesso negado ou confirmacao MFA expirada. Confira o Fundo e confirme novamente.'
       : error.code === '22023' ? 'Confira os dados. Se o vinculo ja existe, utilize Ativar.'
         : 'Nao foi possivel salvar o acesso. Nenhuma alteracao foi confirmada.' }
+    revalidatePath('/gestor/sacados')
     revalidatePath('/gestor/configuracoes/sacados')
     revalidatePath('/admin/usuarios/sacados')
     revalidatePath('/sacado', 'layout')
