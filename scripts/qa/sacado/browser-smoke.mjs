@@ -18,10 +18,12 @@ async function clickText(page,text) {
   assert(clicked,`BUTTON_NOT_FOUND_${text}`)
 }
 async function openUser(page,name) {
-  const url=`/gestor/sacados?fundo=${id('22')}&busca=${encodeURIComponent(state.actors[name].email)}`
+  const url=`/gestor/sacados?busca=${encodeURIComponent(state.actors[name].email)}`
   const text=await navigate(page,url);assert(text.includes('1 encontrado(s)'),'USER_SEARCH_FAILED')
   await Promise.all([page.waitForNavigation({waitUntil:'networkidle2'}),clickText(page,'Abrir acessos')])
   assert((await page.evaluate(()=>document.body.innerText)).includes('Empresas vinculadas'))
+  assert.equal(await page.$('#sacado-fundo'),null,'DUPLICATE_FUND_SELECTOR')
+  assert.equal(await page.$eval('aside input[name="fundo"]',e=>e.value),id('22'),'QA_ACTIVE_FUND_MISMATCH')
 }
 async function formFor(page,cnpj,add) {
   const handle=await page.evaluateHandle(({cnpj,add})=>[...document.querySelectorAll('form')].find(f=>{
@@ -150,7 +152,7 @@ try {
           await page.waitForFunction(()=>document.querySelector('[aria-label="Status das notas"]')?.getAttribute('aria-expanded')==='false')
         }
       }
-      await page.focus(name==='gestao'?'select[name="fundo"]':'select[name="cnpj"]')
+      await page.focus(name==='gestao'?'input[name="busca"]':'select[name="cnpj"]')
       await page.keyboard.press('Tab')
       assert(await page.evaluate(()=>document.activeElement!==document.body && document.activeElement?.getClientRects().length>0),'KEYBOARD_FOCUS')
     }

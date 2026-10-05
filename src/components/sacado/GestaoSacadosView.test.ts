@@ -9,7 +9,7 @@ import type { carregarGestaoSacados } from '@/lib/sacado/gestao.server'
 vi.mock('@/lib/actions/sacado-acessos', () => ({ gerenciarAcessoSacado: vi.fn(), consultarEmpresaSacado: vi.fn() }))
 const result: Awaited<ReturnType<typeof carregarGestaoSacados>> = {
   fundo: { id: 'fundo-qa', nome: 'Fundo QA' }, fundos: [{ id: 'fundo-qa', nome: 'Fundo QA' }],
-  busca: '', pagina: 1, userId: null, pode_editar: true, total: 1,
+  busca: '', pagina: 1, userId: null, pode_editar: true, podeSelecionarFundo: false, total: 1,
   usuarios: [{ id: 'user-qa', nome_completo: 'Usuário QA', email: 'qa@example.invalid', status: 'ativo', cnpjs_ativos: 1 }],
   acessos: [{ id: 'vinculo-qa', user_id: 'user-qa', cnpj: '11344038002141', razao_social: 'Empresa sintética QA', status: 'ativo', created_at: '2026-10-05T12:00:00Z', updated_at: '2026-10-05T12:00:00Z' }],
 }
@@ -20,7 +20,7 @@ describe('Gestão de sacados: apresentação e navegação', () => {
     const html = render()
     expect(html).toContain('Usuários sacados')
     expect(html).toContain('qa@example.invalid')
-    expect(html).toContain('href="/gestor/sacados?fundo=fundo-qa')
+    expect(html).toContain('href="/gestor/sacados?busca=')
     expect(html).toContain('usuario=user-qa')
     expect(html).not.toContain('/configuracoes/sacados')
   })
@@ -40,7 +40,7 @@ describe('Gestão de sacados: apresentação e navegação', () => {
   })
   it('diferencia lista vazia de usuário sem empresas e preserva filtro ao limpar', () => {
     expect(render({ usuarios: [], total: 0, busca: 'qa' })).toContain('Nenhum sacado encontrado')
-    expect(render({ usuarios: [], total: 0, busca: 'qa' })).toContain('href="/gestor/sacados?fundo=fundo-qa"')
+    expect(render({ usuarios: [], total: 0, busca: 'qa' })).toContain('href="/gestor/sacados"')
     expect(render({ userId: 'user-qa', acessos: [] })).toContain('Nenhuma empresa vinculada')
   })
   it('preserva fundo, busca e página na navegação', () => {
@@ -49,11 +49,29 @@ describe('Gestão de sacados: apresentação e navegação', () => {
     expect(html).toContain('busca=teste+nome&amp;pagina=1')
     expect(html).toContain('busca=teste+nome&amp;pagina=3')
     expect(html).toContain('busca=teste+nome&amp;pagina=2&amp;usuario=user-qa')
+    expect(html).not.toContain('fundo=')
+  })
+  it('exibe fundo ativo sem seletor duplicado no gestor', () => {
+    const html = render()
+    expect(html).toContain('Fundo ativo:')
+    expect(html).toContain('use o seletor no cabeçalho')
+    expect(html).not.toContain('id="sacado-fundo"')
+    expect(html).not.toContain('name="fundo"')
+  })
+  it('preserva seletor e links de fundo na administração', () => {
+    const html = renderToStaticMarkup(createElement(GestaoSacadosView, {
+      result: { ...result, podeSelecionarFundo: true }, basePath: '/admin/usuarios/sacados',
+    }))
+    expect(html).toContain('id="sacado-fundo"')
+    expect(html).toContain('href="/admin/usuarios/sacados?fundo=fundo-qa')
+    expect(html).not.toContain('use o seletor no cabeçalho')
+    expect(render({ podeSelecionarFundo: true, usuarios: [], total: 0, busca: 'qa' })).toContain('href="/gestor/sacados?fundo=fundo-qa"')
   })
   it('mantém confirmação obrigatória, MFA e os identificadores de escopo', () => {
     const html = renderToStaticMarkup(createElement(GestaoAcessoForm, { usuario: 'user-qa', fundo: 'fundo-qa' }))
     expect(html).toContain('name="usuario" value="user-qa"')
     expect(html).toContain('name="fundo" value="fundo-qa"')
+    expect(html).toContain('name="contexto" value="gestor"')
     expect(html).toMatch(/<input(?=[^>]*name="confirmacao")(?=[^>]*required)[^>]*>/)
     expect(html).toContain('pattern="[0-9]{6}"')
     expect(html).toContain('name="mfa"')

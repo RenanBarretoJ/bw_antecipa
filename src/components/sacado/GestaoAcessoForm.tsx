@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import type { AcessoGestaoSacado } from '@/lib/sacado/gestao.server'
 import { cn, formatCNPJ } from '@/lib/utils'
 
-export function GestaoAcessoForm({ usuario, fundo, acesso }: { usuario: string; fundo: string; acesso?: AcessoGestaoSacado }) {
+export function GestaoAcessoForm({ usuario, fundo, acesso, contexto = 'gestor' }: { usuario: string; fundo: string; acesso?: AcessoGestaoSacado; contexto?: 'gestor' | 'admin' }) {
   const id = useId()
   const [razao, setRazao] = useState(acesso?.razao_social ?? '')
   const [consulta, setConsulta] = useState('')
@@ -20,6 +20,7 @@ export function GestaoAcessoForm({ usuario, fundo, acesso }: { usuario: string; 
   return <form action={action} aria-label={acesso ? `Alterar acesso ${formatCNPJ(acesso.cnpj)}` : 'Adicionar empresa / CNPJ'} className={cn('space-y-5 rounded-xl bg-card', !acesso && 'border border-border p-5')}>
     <input type="hidden" name="usuario" value={usuario} />
     <input type="hidden" name="fundo" value={fundo} />
+    <input type="hidden" name="contexto" value={contexto} />
     <div className="flex items-start gap-3"><Building2 aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-primary" /><div><h3 className="font-semibold">{acesso ? 'Alterar acesso' : 'Adicionar empresa / CNPJ'}</h3><p className="mt-1 text-xs leading-relaxed text-muted-foreground">{acesso ? 'Escolha a alteração e confirme com seu autenticador.' : 'Vincule um CNPJ completo ao usuário e fundo selecionados.'}</p></div></div>
     {acesso ? <div className="space-y-2"><label htmlFor={`${id}-acao`} className="block text-sm font-medium">O que deseja fazer?</label><select id={`${id}-acao`} name="acao" value={acao} onChange={event => setAcao(event.target.value)} className="block h-10 w-full rounded-lg border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
       {acesso.status !== 'ativo' && <option value="ativar">Ativar acesso</option>}
@@ -35,7 +36,7 @@ export function GestaoAcessoForm({ usuario, fundo, acesso }: { usuario: string; 
         setConsultando(true)
         setConsulta('Consultando empresa...')
         try {
-          const result = await consultarEmpresaSacado(fundo, cnpj)
+          const result = await consultarEmpresaSacado(fundo, cnpj, contexto)
           if (sequencia !== consultaAtual.current) return
           if (!result.success) { setConsulta(result.message); return }
           if (result.empresa) setRazao(result.empresa.razao_social)

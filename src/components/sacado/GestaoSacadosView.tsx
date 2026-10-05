@@ -20,7 +20,10 @@ function StatusAcesso({ status }: { status: string }) {
 }
 
 export function GestaoSacadosView({ result, basePath }: { result: GestaoSacadosResult; basePath: string }) {
-  const href = (usuario: string | null, pagina = result.pagina) => `${basePath}?${new URLSearchParams({ fundo: result.fundo.id, busca: result.busca, pagina: String(pagina), ...(usuario ? { usuario } : {}) })}`
+  const filtroFundo: Record<string, string> = result.podeSelecionarFundo ? { fundo: result.fundo.id } : {}
+  const contexto = result.podeSelecionarFundo ? 'admin' : 'gestor'
+  const href = (usuario: string | null, pagina = result.pagina) => `${basePath}?${new URLSearchParams({ ...filtroFundo, busca: result.busca, pagina: String(pagina), ...(usuario ? { usuario } : {}) })}`
+  const limparBuscaHref = result.podeSelecionarFundo ? `${basePath}?${new URLSearchParams(filtroFundo)}` : basePath
   const selected = result.usuarios.find(u => u.id === result.userId)
   const paginas = Math.max(1, Math.ceil(result.total / 20))
   const ativos = result.acessos.filter(a => a.status === 'ativo').length
@@ -29,12 +32,13 @@ export function GestaoSacadosView({ result, basePath }: { result: GestaoSacadosR
   return <PageContainer className="space-y-6">
     <PageHeader eyebrow="Gestão de acessos" title="Sacados" description="Acompanhe os usuários e gerencie os CNPJs autorizados em cada fundo." />
     <form method="get" action={basePath} className="space-y-4 rounded-xl border border-border bg-card p-4 sm:p-5">
-      <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end">
-        <div className="min-w-0 space-y-2"><label htmlFor="sacado-fundo" className="text-sm font-medium">Fundo consultado</label>
+      {!result.podeSelecionarFundo && <p className="flex items-start gap-2 text-sm text-muted-foreground"><Building2 aria-hidden="true" className="mt-0.5 size-4 shrink-0" /><span className="min-w-0 break-words">Fundo ativo: <span className="font-medium text-foreground">{result.fundo.nome}</span>. Para trocar, use o seletor no cabeçalho.</span></p>}
+      <div className={cn('grid gap-4 md:items-end', result.podeSelecionarFundo ? 'md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]' : 'md:grid-cols-[minmax(0,1fr)_auto]')}>
+        {result.podeSelecionarFundo && <div className="min-w-0 space-y-2"><label htmlFor="sacado-fundo" className="text-sm font-medium">Fundo consultado</label>
           <select id="sacado-fundo" name="fundo" defaultValue={result.fundo.id} className="block h-10 w-full min-w-0 truncate rounded-lg border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
             {result.fundos.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
           </select>
-        </div>
+        </div>}
         <div className="min-w-0 space-y-2"><label htmlFor="sacado-busca" className="text-sm font-medium">Nome ou e-mail</label>
           <div className="relative"><Search aria-hidden="true" className="absolute top-3 left-3 size-4 text-muted-foreground" />
             <Input id="sacado-busca" type="search" name="busca" defaultValue={result.busca} placeholder="Buscar usuário sacado" className="h-10 w-full pl-9" />
@@ -65,16 +69,16 @@ export function GestaoSacadosView({ result, basePath }: { result: GestaoSacadosR
             <p className="mt-3 text-xs leading-relaxed text-muted-foreground">Criado em {formatDate(a.created_at)} · Atualizado em {formatDate(a.updated_at)}</p>
             {result.pode_editar && <details className="group mt-4 border-t border-border pt-3">
               <summary className="flex cursor-pointer list-none items-center justify-between rounded-md py-1 text-sm font-medium text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">Gerenciar acesso<span className="sr-only"> ao CNPJ {formatCNPJ(a.cnpj)}</span><ChevronDown aria-hidden="true" className="size-4 transition-transform group-open:rotate-180" /></summary>
-              <div className="mt-3"><GestaoAcessoForm key={`${a.id}:${a.status}:${a.updated_at}`} usuario={selected.id} fundo={result.fundo.id} acesso={a} /></div>
+              <div className="mt-3"><GestaoAcessoForm key={`${contexto}:${result.fundo.id}:${a.id}:${a.status}:${a.updated_at}`} usuario={selected.id} fundo={result.fundo.id} acesso={a} contexto={contexto} /></div>
             </details>}
           </article>)}
           <p className="flex items-start gap-2 text-xs leading-relaxed text-muted-foreground"><ShieldCheck aria-hidden="true" className="size-4 shrink-0" />Somente vínculos ativos autorizam acesso. Desativar ou revogar preserva o histórico.</p>
         </section>
-        {result.pode_editar && <aside className="min-w-0" aria-label="Adicionar empresa"><GestaoAcessoForm key={`${selected.id}:${result.fundo.id}`} usuario={selected.id} fundo={result.fundo.id} /></aside>}
+        {result.pode_editar && <aside className="min-w-0" aria-label="Adicionar empresa"><GestaoAcessoForm key={`${contexto}:${selected.id}:${result.fundo.id}`} usuario={selected.id} fundo={result.fundo.id} contexto={contexto} /></aside>}
       </div>
     </> : <section className="overflow-hidden rounded-xl border border-border bg-card" aria-label="Usuários sacados">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border p-5"><h2 className="font-semibold">Usuários sacados</h2><span className="rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground">{result.total} encontrado(s)</span></div>
-      {result.usuarios.length === 0 ? <div className="px-5 py-12 text-center"><Search aria-hidden="true" className="mx-auto mb-3 size-8 text-muted-foreground" /><h3 className="font-medium">Nenhum sacado encontrado</h3><p className="mt-2 text-sm text-muted-foreground">Confira o fundo selecionado ou busque pelo e-mail completo.</p>{result.busca && <Link className={cn(outlineLink, 'mt-4')} href={`${basePath}?${new URLSearchParams({ fundo: result.fundo.id })}`}>Limpar busca</Link>}</div> : <>
+      {result.usuarios.length === 0 ? <div className="px-5 py-12 text-center"><Search aria-hidden="true" className="mx-auto mb-3 size-8 text-muted-foreground" /><h3 className="font-medium">Nenhum sacado encontrado</h3><p className="mt-2 text-sm text-muted-foreground">Confira o fundo selecionado ou busque pelo e-mail completo.</p>{result.busca && <Link className={cn(outlineLink, 'mt-4')} href={limparBuscaHref}>Limpar busca</Link>}</div> : <>
         <div aria-hidden="true" className="hidden grid-cols-[minmax(0,1fr)_140px_100px_150px] gap-4 bg-muted/40 px-5 py-3 text-xs font-medium text-muted-foreground lg:grid"><span>Usuário</span><span>CNPJs ativos</span><span>Status</span><span className="text-right">Acompanhamento</span></div>
         <div className="divide-y divide-border">{result.usuarios.map(u => <article key={u.id} className="grid gap-3 px-5 py-4 transition-colors hover:bg-muted/30 lg:grid-cols-[minmax(0,1fr)_140px_100px_150px] lg:items-center lg:gap-4">
           <div className="min-w-0"><h3 className="break-words text-sm font-semibold">{u.nome_completo}</h3><p className="mt-1 break-all text-sm text-muted-foreground">{u.email}</p></div>

@@ -11,9 +11,9 @@ import puppeteer from 'puppeteer-core'
 const require=createRequire(import.meta.url)
 const {build}=createRequire(require.resolve('tsx/package.json'))('esbuild')
 
-const output=resolve('rehearsal/reports/sacado-ux')
+const output=resolve('rehearsal/reports/sacado-ux-fundo-ativo')
 mkdirSync(output,{recursive:true})
-const fixture={fundo:{id:'qa',nome:'FUNDO SINTÉTICO QA DE INVESTIMENTO EM DIREITOS CREDITÓRIOS RESPONSABILIDADE LIMITADA'},fundos:[],busca:'',pagina:1,userId:null,pode_editar:true,total:3,
+const fixture={fundo:{id:'qa',nome:'FUNDO SINTÉTICO QA DE INVESTIMENTO EM DIREITOS CREDITÓRIOS RESPONSABILIDADE LIMITADA'},fundos:[],podeSelecionarFundo:false,busca:'',pagina:1,userId:null,pode_editar:true,total:3,
  usuarios:[{id:'qa-user',nome_completo:'Usuário de demonstração QA',email:'usuario.sintetico@example.invalid',status:'ativo',cnpjs_ativos:2},{id:'qa-other',nome_completo:'Segundo usuário QA',email:'outro@example.invalid',status:'inativo',cnpjs_ativos:0},{id:'qa-third',nome_completo:'Terceiro usuário QA',email:'terceiro@example.invalid',status:'ativo',cnpjs_ativos:0}],
  acessos:['ativo','inativo','revogado','ativo'].map((status,i)=>({id:`qa-${i}`,user_id:'qa-user',cnpj:['11344038002141','11344038002060','11344038001765','11344038000106'][i],razao_social:'EMPRESA SINTÉTICA QA COM RAZÃO SOCIAL EXTENSA PARA VALIDAÇÃO DE LAYOUT',status,created_at:'2026-10-05T12:00:00Z',updated_at:'2026-10-05T12:00:00Z'}))}
 fixture.fundos=[fixture.fundo]
@@ -38,6 +38,8 @@ try{
  for(const mode of ['list','detail','empty','readonly'])for(const width of [1440,390]){
   await page.setViewport({width,height:1000});await page.goto(`${base}/?mode=${mode}`,{waitUntil:'networkidle0'})
   await page.waitForSelector('h1')
+  assert.equal(await page.$('#sacado-fundo'),null,'DUPLICATE_FUND_SELECTOR')
+  assert.equal(await page.$$eval('a',links=>links.some(a=>new URL(a.href).searchParams.has('fundo'))),false,'STALE_FUND_IN_LINK')
   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'HORIZONTAL_OVERFLOW')
   if(mode==='readonly')assert.equal(await page.$('[name="mfa"]'),null)
   await page.screenshot({path:resolve(output,`${mode}-${width}.png`),fullPage:true});checks.push(`${mode}-${width}`)
