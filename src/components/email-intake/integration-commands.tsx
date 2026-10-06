@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import { CheckCircle2, PlugZap, Power } from 'lucide-react'
 import { alterarAtivacaoEmail, testarIntegracaoEmail } from '@/app/actions/email-operations'
 import { activationMissing, type EmailIntegration } from '@/lib/email-intake/operations/contracts'
 import { Button } from '@/components/ui/button'
@@ -14,13 +15,14 @@ export function EmailIntegrationCommands({ fundoId, row }: { fundoId: string; ro
   const missing = activationMissing(row)
   function choose(next: typeof action) { setAction(next); setConfirmed(false); setMessage('') }
   return <section className="space-y-4 border-t pt-4" aria-label="Ações da integração">
-    {!row.enabled && <div className="rounded border p-3 text-sm"><h3 className="font-medium">Antes de ativar</h3>
+    <div><h3 className="font-semibold">Conexão e leitura automática</h3><p className="mt-1 text-sm text-muted-foreground">Teste o acesso à caixa antes de iniciar a importação dos documentos.</p></div>
+    {!row.enabled && <div className="rounded-xl border bg-muted/20 p-4 text-sm"><h4 className="flex items-center gap-2 font-medium"><CheckCircle2 className="size-4 text-primary" aria-hidden="true" />Antes de ativar</h4>
       {missing.length ? <ul className="mt-2 list-disc space-y-1 pl-5">{missing.map(item => <li key={item}>{item}</li>)}</ul>
         : <p className="mt-2">✓ Credencial selecionada · ✓ Caixa acessível · ✓ Cedentes configurados · ✓ Data inicial definida · ✓ Teste aprovado</p>}</div>}
     <div className="flex flex-wrap items-start gap-3">
-      <Button variant="outline" disabled={!row.credentialId || !row.mailbox || !row.mailboxObjectId || pending} onClick={() => choose('test')}>Testar conexão</Button>
+      <Button className="min-h-11 px-4" variant="outline" disabled={!row.credentialId || !row.mailbox || !row.mailboxObjectId || pending} onClick={() => choose('test')}><PlugZap aria-hidden="true" />Testar conexão</Button>
       <EmailSyncButton integrationId={row.id} disabled={!row.enabled || Boolean(row.health?.blockedModes.length)} />
-      <Button variant={row.enabled ? 'outline' : 'default'} disabled={pending || (!row.enabled && missing.length > 0)} onClick={() => choose(row.enabled ? 'disable' : 'enable')}>{row.enabled ? 'Desativar integração' : 'Ativar integração'}</Button>
+      <Button className="min-h-11 px-4" variant={row.enabled ? 'outline' : 'default'} disabled={pending || (!row.enabled && missing.length > 0)} onClick={() => choose(row.enabled ? 'disable' : 'enable')}><Power aria-hidden="true" />{row.enabled ? 'Desativar integração' : 'Ativar integração'}</Button>
     </div>
     {action && <form className="space-y-3 rounded-lg border bg-muted/30 p-4" onSubmit={event => {
       event.preventDefault()

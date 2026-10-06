@@ -8,7 +8,7 @@ export function EmailSyncButton({ integrationId, disabled }: { integrationId: st
   const [pending, startTransition] = useTransition()
   const [message, setMessage] = useState('')
   return <div className="space-y-2">
-    <Button disabled={disabled || pending} onClick={() => startTransition(async () => {
+    <Button className="min-h-11 px-4" variant="outline" disabled={disabled || pending} onClick={() => startTransition(async () => {
       const result = await sinalizarSincronizacaoEmail(integrationId)
       setMessage(result.status === 'ERROR' ? result.message : result.status === 'QUEUED'
         ? 'Sincronização solicitada. O processamento ocorrerá em segundo plano.' : 'Já existe uma sincronização solicitada.')

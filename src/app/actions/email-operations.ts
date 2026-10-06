@@ -2,6 +2,7 @@
 
 import { z } from 'zod'
 import { revalidatePath } from 'next/cache'
+import { requireSuperAdmin } from '@/lib/auth/admin-authorization'
 import { autorizarEConsumirAcaoSensivel } from '@/lib/auth/sensitive-action'
 import { criptografarPortalFidcValor } from '@/lib/portal-fidc/credenciais'
 import { createAdminClient } from '@/lib/supabase/server'
@@ -83,7 +84,7 @@ export async function criarCredencialEmail(input: unknown): Promise<OperatorResu
   if (!parsed.success) return { ok: false, message: 'Confira os identificadores da aplicação, o segredo e o código MFA.' }
   try {
     const context = await requireEmailOperator()
-    if (context.profile.role !== 'super_admin') return { ok: false, message: 'Peça ao administrador técnico para cadastrar a credencial deste fundo. Você pode salvar a integração como rascunho.' }
+    await requireSuperAdmin(context.supabase)
     const values = parsed.data
     await autorizarEConsumirAcaoSensivel(context, 'cadastrar_credencial_integracao', values.mfaCode)
     const identity = criptografarPortalFidcValor(JSON.stringify({ tenantId: values.tenantId, clientId: values.clientId }))

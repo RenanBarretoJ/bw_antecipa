@@ -2,6 +2,7 @@
 
 import { useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import { ArrowLeft, ArrowRight, Mail, ShieldCheck, Save } from 'lucide-react'
 import { salvarIntegracaoEmail } from '@/app/actions/email-operations'
 import { emailConfigurationSchema, type EmailConfiguration, type EmailDashboard, type EmailIntegration } from '@/lib/email-intake/operations/contracts'
 import { emailDateLabel } from '@/lib/email-intake/operations/presentation'
@@ -11,6 +12,7 @@ import { EmailCredentialDialog } from './credential-dialog'
 import { EmailCedentePicker } from './cedente-picker'
 
 const steps = ['Identificação', 'Conta de e-mail', 'Credencial', 'Cedentes', 'Data inicial', 'Revisão']
+const stepDescriptions = ['Nome e ambiente', 'Caixa que receberá as notas', 'Acesso seguro ao Outlook', 'Quem pode receber documentos', 'A partir de quando ler', 'Conferência antes de salvar']
 export const emailSelectClass = 'h-10 w-full min-w-0 rounded-lg border border-input bg-background px-3 text-sm focus-visible:outline-2 focus-visible:outline-ring'
 
 export function EmailConfigurationWizard({ fundoId, basePath, dashboard, initial }: {
@@ -58,13 +60,16 @@ export function EmailConfigurationWizard({ fundoId, basePath, dashboard, initial
       router.refresh()
     })
   }
-  return <section className="space-y-5 rounded-xl border bg-card p-4 sm:p-6">
-    <nav aria-label="Etapas do cadastro"><ol className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-3 lg:grid-cols-6">{steps.map((label, index) => <li key={label}>
-      <button type="button" onClick={() => navigate(index, Date.now())} aria-current={index === step ? 'step' : undefined} className={`w-full rounded-lg border px-3 py-2 text-left ${index === step ? 'border-primary bg-primary/10 font-semibold' : ''}`}>{index + 1}. {label}</button>
-    </li>)}</ol></nav>
-    <h2 ref={heading} tabIndex={-1} className="text-lg font-semibold outline-none">{step + 1}. {steps[step]}</h2>
-    {message && <p role="alert" className="rounded border border-destructive/50 p-3 text-sm text-destructive">{message}</p>}
-    <form onSubmit={e => { e.preventDefault(); if (step < 5) navigate(step + 1, Date.now()); else save() }} className="space-y-4">
+  return <section className="overflow-hidden rounded-xl border bg-card shadow-sm">
+    <header className="flex items-start gap-3 border-b px-5 py-5 sm:px-7"><span className="rounded-lg bg-primary/10 p-2.5 text-primary"><Mail className="size-5" aria-hidden="true" /></span><div><h2 className="text-xl font-semibold tracking-tight">{initial ? 'Editar integração de e-mail' : 'Configure sua caixa de e-mail'}</h2><p className="mt-1 text-sm text-muted-foreground">Preencha por etapas. A leitura automática só será liberada depois do teste e da ativação.</p></div></header>
+    <div className="grid lg:grid-cols-[250px_minmax(0,1fr)]">
+    <nav className="border-b bg-muted/20 p-4 lg:border-r lg:border-b-0 lg:p-5" aria-label="Etapas do cadastro"><p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Etapa {step + 1} de {steps.length}</p><ol className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-1">{steps.map((label, index) => <li key={label}>
+      <button type="button" onClick={() => navigate(index, Date.now())} aria-label={`${index + 1}. ${label}`} aria-describedby={`email-step-${index}-help`} aria-current={index === step ? 'step' : undefined} className={`flex min-h-14 w-full items-center gap-3 rounded-lg border p-3 text-left text-sm transition-colors focus-visible:outline-2 focus-visible:outline-ring ${index === step ? 'border-primary/30 bg-card text-primary shadow-sm dark:text-blue-300' : 'border-transparent text-muted-foreground hover:bg-muted'}`}><span aria-hidden="true" className={`flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${index === step ? 'bg-primary text-primary-foreground' : 'border bg-background'}`}>{index + 1}. </span><span className="font-medium">{label}</span></button><p id={`email-step-${index}-help`} className="mt-1 hidden pl-13 text-xs text-muted-foreground lg:block">{stepDescriptions[index]}</p>
+    </li>)}</ol><div className="mt-6 hidden rounded-lg border bg-card p-4 text-xs leading-relaxed text-muted-foreground lg:block"><ShieldCheck className="mb-2 size-5 text-primary" aria-hidden="true" /><p className="font-medium text-foreground">Acesso protegido</p><p className="mt-1">O fundo selecionado será mantido. A credencial fica criptografada e o salvamento exige confirmação MFA.</p></div></nav>
+    <div className="min-w-0 space-y-5 p-5 sm:p-7">
+    <div><p className="mb-1 text-xs font-medium text-muted-foreground">{stepDescriptions[step]}</p><h3 ref={heading} tabIndex={-1} className="text-xl font-semibold outline-none">{step + 1}. {steps[step]}</h3></div>
+    {message && <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">{message}</p>}
+    <form onSubmit={e => { e.preventDefault(); if (step < 5) navigate(step + 1, Date.now()); else save() }} className="space-y-5 [&_label]:text-sm [&_label]:font-medium [&_input]:min-h-11 [&_select]:min-h-11">
       {step === 0 && <>
         <p className="text-sm text-muted-foreground">Dê um nome que ajude sua equipe a identificar esta caixa. O fundo selecionado será preservado.</p>
         <label className="block space-y-1">Nome da integração<Input value={value.name} onChange={e => update('name', e.target.value)} required minLength={2} maxLength={120} aria-invalid={invalidField === 'name'} placeholder="Ex.: Notas fiscais — contas a receber" />{invalidField === 'name' && <span className="text-sm text-destructive">Use de 2 a 120 caracteres.</span>}</label>
@@ -103,13 +108,14 @@ export function EmailConfigurationWizard({ fundoId, basePath, dashboard, initial
         <dl className="grid gap-3 text-sm sm:grid-cols-2"><div><dt className="text-muted-foreground">Nome</dt><dd>{value.name || 'Ainda não informado'}</dd></div><div><dt className="text-muted-foreground">Caixa</dt><dd className="break-all">{value.mailbox || 'Ainda não informada'}</dd></div><div><dt className="text-muted-foreground">Credencial</dt><dd>{credentials.find(c => c.id === value.credentialId)?.name ?? 'Selecionar depois'}</dd></div><div><dt className="text-muted-foreground">Cedentes</dt><dd>{value.routingMode === 'ALLOWLIST' ? `${value.cedenteIds.length} selecionado(s)` : 'Todos os ativos do fundo'}</dd></div></dl>
         <p className="text-sm">O rascunho ficará desativado. Depois de salvar, teste a conexão para liberar a ativação.</p>
       </>}
-      <div className="space-y-3 border-t pt-4"><label className="block max-w-xs space-y-1">Código MFA para salvar<Input value={code} onChange={e => setCode(e.target.value)} inputMode="numeric" maxLength={6} pattern="[0-9]{6}" autoComplete="one-time-code" /></label>
+      <div className="space-y-4 border-t pt-5"><div className="rounded-lg bg-muted/30 p-4"><div className="mb-3 flex items-center gap-2 text-sm font-medium"><ShieldCheck className="size-4 text-primary" aria-hidden="true" />Confirmação para salvar</div><label className="block max-w-xs space-y-2">Código MFA para salvar<Input value={code} onChange={e => setCode(e.target.value)} inputMode="numeric" maxLength={6} pattern="[0-9]{6}" autoComplete="one-time-code" placeholder="6 dígitos do autenticador" /></label><p className="mt-2 text-xs text-muted-foreground">Informe o código quando estiver pronto para salvar. Você pode continuar preenchendo as etapas.</p></div>
         {initial && <label className="flex items-start gap-2"><input type="checkbox" checked={confirmed} onChange={e => setConfirmed(e.target.checked)} className="mt-1" /><span className="text-sm">Conferi as alterações de credencial, cedentes e data inicial. O próximo processamento usará esta configuração após a ativação.</span></label>}
-        <div className="flex flex-wrap gap-2"><Button type="button" variant="outline" disabled={step === 0} onClick={() => navigate(step - 1)}>Voltar</Button>
-          {step < 5 && <Button type="submit">Continuar</Button>}
-          <Button type={step === 5 ? 'submit' : 'button'} variant={step === 5 ? 'default' : 'outline'} disabled={pending || !value.name.trim() || code.length !== 6} onClick={step === 5 ? undefined : save}>{pending ? 'Salvando…' : 'Salvar rascunho'}</Button></div>
+        <div className="flex flex-wrap gap-2"><Button className="min-h-11 px-4" type="button" variant="outline" disabled={step === 0} onClick={() => navigate(step - 1)}><ArrowLeft aria-hidden="true" />Voltar</Button>
+          {step < 5 && <Button className="min-h-11 px-4" type="submit">Continuar<ArrowRight aria-hidden="true" /></Button>}
+          <Button className="min-h-11 px-4 sm:ml-auto" type={step === 5 ? 'submit' : 'button'} variant={step === 5 ? 'default' : 'outline'} disabled={pending || !value.name.trim() || code.length !== 6} onClick={step === 5 ? undefined : save}><Save aria-hidden="true" />{pending ? 'Salvando…' : 'Salvar rascunho'}</Button></div>
       </div>
     </form>
+    </div></div>
     {credentialOpen && <EmailCredentialDialog open fundoId={fundoId} environment={value.environment} onClose={() => setCredentialOpen(false)} onCreated={(id, name) => { setCredentials(old => [...old, { id, name, provider: 'OUTLOOK_GRAPH', environment: value.environment, status: 'ativa', lastTestAt: null }]); update('credentialId', id) }} />}
   </section>
 }

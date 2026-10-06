@@ -10,7 +10,7 @@ export default async function EmailIntegrationHealthPage({ searchParams }: { sea
   const auth = await requireGestor(), fundo = await resolverContextoFundoGestor(auth)
   const params = await searchParams
   return <PageContainer className="space-y-5">
-    <PageHeader title="Integrações de e-mail" description={`Configuração, importações e pendências · ${fundo.fundoNome}`} />
+    <PageHeader title="Integrações de e-mail" eyebrow="Recebimento automático" description={`Conecte uma caixa do Outlook e acompanhe os documentos fiscais recebidos · ${fundo.fundoNome}`} />
     <Suspense fallback={<p role="status" className="animate-pulse rounded-lg border p-6">Carregando a operação de e-mail…</p>}>
       <EmailOperationsPage fundoId={fundo.fundoId} basePath="/gestor/integracoes-email" params={params} />
     </Suspense>
