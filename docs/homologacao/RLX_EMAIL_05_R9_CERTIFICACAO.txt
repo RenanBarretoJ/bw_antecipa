@@ -1,0 +1,60 @@
+RLX-EMAIL-05-R9 — contrato de URL temporária no harness
+
+Escopo: classificador e evidências de testes. Sem alteração de aplicação,
+migration, RLS, TTL ou regra de autorização. PR #87 permanece DRAFT.
+Homologação e produção continuam proibidas neste roteiro.
+
+Diagnóstico
+O detalhe da NF chama obterUrlArquivoNotaFiscal. A action valida identidade e
+acesso à NF, resolve o objeto canônico no servidor e usa createSignedUrl por
+600 segundos. A resposta RSC contém {success:true,url}. O detector anterior
+reprovava qualquer URL assinada, inclusive esse resultado autorizado.
+
+Contrato verificado em memória
+- POST 200 text/x-component na origem exata do Preview;
+- frame RSC JSON canônico com somente success=true e url;
+- HTTPS, origem exata do Storage, sem credenciais de URL, fragmento ou redirect;
+- endpoint /storage/v1/object/sign, bucket permitido e objeto exato;
+- query única token; JWT de download no formato observado HS512/kid;
+- claims limitadas a url/scope/iat/exp, objeto coincidente e TTL até 600s;
+- expiração futura e emissão não futura além da tolerância de relógio;
+- ator real autenticado, leitura por RLS e mesmo fundo/cedente do objeto;
+- segundo ator real de outro fundo sem leitura, sem emissão pelo Storage e
+  com negativa explícita da mesma Server Action de leitura;
+- assinatura verificada pelo Storage emissor com GET parcial, sem redirect.
+
+O adaptador fiscal resolve o original pela RPC fiscal_intake_get_original.
+Documentos fora desse contrato permanecem reprovados; não há fallback por
+nome, CNPJ, número de NF ou substring. Nenhuma regra de produto é relaxada.
+Formatos de assinatura futuros/desconhecidos exigem nova evidência.
+
+Links assinados são bearer capabilities: quem recebe o link pode usá-lo até
+expirar. O teste entre fundos comprova que o ator não autorizado não consegue
+obter/emitar o link. Não afirma que o link já divulgado seja vinculado à sessão.
+
+Persistência
+O body, URL, assinatura, JWT, cookies, IDs de action e caminhos reais ficam
+somente em memória. A evidência registra classificação, esquema, host oficial,
+template do caminho, bucket lógico, presença de expiração, TTL, nomes dos
+parâmetros, autorização e campo de origem. Origens inesperadas são mascaradas.
+Credenciais reais continuam sendo falhas, inclusive junto de um link válido.
+
+Arquivos
+scripts/email-intake/browser-signed-url.mjs e testes: contrato estrutural.
+scripts/email-intake/fiscal-signed-url-policy.mjs e testes: prova de escopo.
+scripts/email-intake/browser-redaction.mjs: integração sem alterar barreiras.
+linux-certify, linux-runner e workflow: testes incluídos na certificação Linux.
+
+Sequência obrigatória
+Focused real PASS -> full Linux PASS -> commit/push -> duas CIs no mesmo SHA
+-> novo Preview -> mesma mensagem 950501 -> idempotência -> health/alerts
+-> disable/MFA -> routing ALL/MFA -> cobertura e cleanup duplo.
+O resultado operacional final é produzido em rehearsal/reports, sem secrets.
+Este documento descreve o contrato; não substitui evidência de execução.
+
+Referências verificadas
+src/lib/actions/arquivo-nota-fiscal.ts
+supabase/migrations/20260929221000_fiscal_intake_atomic_commit.sql
+https://supabase.com/docs/reference/javascript/storage-from-createsignedurl
+https://github.com/supabase/storage/blob/master/src/internal/auth/jwt.ts
+https://github.com/supabase/storage/blob/master/src/storage/object.ts

@@ -1,0 +1,122 @@
+RLX-EMAIL-05-R4 — CHECKPOINT BLOQUEADO
+Data: 2026-10-02
+Branch: feature/rlx-email05-operations
+HEAD base: 5283499e5fef612e64a1835eb0876b9668402113
+PR #87: draft, sem atualizacao remota nesta etapa.
+
+DECISAO
+Parada pelo item 31 do R4: MUST_INSPECT coverage < 100% no diagnostico curto.
+Sem nova tentativa ou alteracao funcional apos a parada. Somente leitura de
+evidencias, postflight Docker, diff check e este registro.
+Nao executados: full Linux, commit, push, CI, deploy, autenticacao/QA remoto.
+Homologacao e producao inalteradas.
+
+ALTERACOES LOCAIS R4
+browser-redaction.mjs:
+- Reconhece /_next/static/ antes das rotas de aplicacao, exigindo metodo,
+  resourceType e MIME compativeis. Rejeita traversal/encoding ambiguo.
+- Rotas sensiveis por namespace ancorado; sem substring integracoes-email.
+- APIs/REST/Auth/actions continuam obrigatorias. JSON desconhecido e UNKNOWN.
+- Cancelamento estatico exige metadata comprovada; prefetch publico restrito.
+browser-redaction.test.mjs:
+- Casos explicitos do chunk Next, HTML/RSC, API, JSON desconhecido,
+  CSS/font/image, MIME/resourceType incompatível e namespace falso.
+runner-evidence.mjs e runner-evidence.test.mjs:
+- IDs explicitos bw_email03_, bw_email05_runner_, bw_email05_cleanup_.
+- Copia verificada por bytes, inventario de hashes, exigencia do manifesto filho.
+- Teste de preservacao apos excluir a origem e rejeicao de paths arbitrarios.
+linux-runner.mjs:
+- Modo --diagnostic: testes focados, probe Chrome, probe cleanup.
+- Diretorio fonte so e removido quando arquivamento retorna sucesso.
+linux-certify.mjs e workflow:
+- Incluem os testes de evidencias nos gates.
+Sem migrations/RPCs/regras de dominio novas.
+
+EXECUCAO
+node --test scripts/email-intake/browser-diagnostics.test.mjs scripts/email-intake/browser-redaction.test.mjs scripts/email-intake/disposable-resources.test.mjs scripts/email-intake/runner-evidence.test.mjs
+Windows: 13/13 PASS.
+ESLint focado nos seis arquivos do harness R4: PASS.
+git diff --check: PASS.
+
+node scripts/email-intake/linux-runner.mjs --diagnostic
+Runner: bw_email05_runner_1790959740153
+Linux Node: 22.23.3
+Testes focados: 13/13 PASS.
+Probe Chrome: FAIL, MUST_INSPECT_COVERAGE_FAILED, 2 inspecionadas de 3 (66,67%).
+O probe de cleanup Supabase, posterior ao Chrome, nao foi alcancado.
+O finally do runner executou cleanup automaticamente duas vezes: PASS/PASS.
+Postflight: zero containers; zero volumes/networks do project ID desta execucao.
+Volume exclusivo e diretorio temporario removidos; recursos preexistentes
+preservados. Imagem de build compartilhada permanece como cache sem container.
+
+LIMITACAO DE EVIDENCIA — FALHA NA IMPLEMENTACAO R4
+A nova funcao evidenceReportName tenta primeiro o sufixo -probe.json como
+manifesto de projeto. Para email05-r3-redaction-probe.json, retorna false antes
+de avaliar a regra de relatorios. Portanto o JSON do probe NAO foi arquivado.
+archive-summary.json registra copied=[]; o indicador evidencePreserved=true
+do runner nao prova completude e nao deve ser aceito como gate PASS.
+O log com a assercao 2 !== 3 e o manifesto do runner foram preservados.
+Nao havia manifesto Supabase filho, pois esse diagnostico nao chegou a cria-lo.
+O teste sintetico de preservacao de manifesto filho PASS nao prova full real.
+
+CAUSA DO NOVO FAIL
+Confirmado: o probe encontrou 3 superficies obrigatorias, mas inspecionou 2.
+A resposta especifica nao pode ser afirmada sem o JSON perdido.
+Hipotese baseada no codigo: o servidor do probe responde text/html para
+qualquer rota fora de /api/stream, inclusive favicon. Chrome pode requisitar
+favicon como Other, fora dos patterns de interceptacao. Isso produziria uma
+resposta dinamica nao inspecionada. Nao declarar essa hipotese como comprovada.
+Na retomada, preservar primeiro todas as evidencias esperadas e observar o
+request real antes de alterar a fixture ou os patterns. Nao isentar resposta
+dinamica por extensao de imagem.
+
+CAUSAS HISTORICAS SEPARADAS
+R2: causa exata da resposta original nao comprovada.
+R3: classificador marcou chunk estatico do Next como superficie sensivel.
+R4: os testes desse caso passaram; probe Linux reprovou por cobertura incompleta.
+
+EVIDENCIAS
+rehearsal/reports/email05-r4-diagnostic.log
+rehearsal/reports/bw_email05_runner_1790959740153/runner-manifest.json
+rehearsal/reports/bw_email05_runner_1790959740153/evidence/archive-summary.json
+
+STATUS OBRIGATORIO
+FAIL com motivo 'nao executado' significa gate nao aprovado, nao falha observada.
+RLX_EMAIL_05_R4_CLASSIFIER_STATIC_NAMESPACE = PASS (testes focados)
+RLX_EMAIL_05_R4_UNKNOWN_DYNAMIC_FAIL_CLOSED = PASS (testes focados)
+RLX_EMAIL_05_R4_CLASSIFIER_TESTS = PASS (Windows e Linux)
+RLX_EMAIL_05_R4_MUST_INSPECT_COVERAGE = 66.67%
+RLX_EMAIL_05_R4_REDACTION = FAIL (probe Chrome)
+RLX_EMAIL_05_R4_ABORTED_CLASSIFICATION = FAIL (certificacao pendente)
+RLX_EMAIL_05_R4_EVIDENCE_ALLOWLIST = FAIL (JSON do probe excluido indevidamente)
+RLX_EMAIL_05_R4_CHILD_MANIFEST_PRESERVED = FAIL (somente fixture passou; full nao executado)
+RLX_EMAIL_05_R4_AUTOMATIC_CLEANUP = PASS (runner)
+RLX_EMAIL_05_R4_CLEANUP_IDEMPOTENT = PASS (runner duas vezes)
+DOCKER_TEST_ENV_CLEANUP = PASS
+RLX_EMAIL_05_R4_PAGINATION = FAIL (nao executado)
+RLX_EMAIL_05_R4_COMBINED_FILTERS = FAIL (nao executado)
+RLX_EMAIL_05_R4_INVALID_FILTER = FAIL (nao executado)
+RLX_EMAIL_05_R4_ACCESSIBILITY = FAIL (nao executado)
+RLX_EMAIL_05_LINUX_CERTIFICATION = FAIL (nao executado)
+RLX_EMAIL_05_R4_HEAD = 5283499e5fef612e64a1835eb0876b9668402113 (base; diff nao commitado)
+RLX_EMAIL_05_CI = FAIL (nao executado no diff atual)
+RLX_EMAIL_05_PREVIEW_DEPLOY_NEW = FAIL (nao executado)
+RLX_EMAIL_05_PREVIEW_TARGET = FAIL (nao executado)
+RLX_EMAIL_05_PREVIEW_SUPABASE_REF = inkyqlmusvorcmibmrhp (esperado; nao revalidado nesta etapa)
+RLX_EMAIL_05_PREVIEW_CSP = FAIL (nao executado)
+RLX_EMAIL_05_PREVIEW_UI = FAIL (nao executado)
+RLX_EMAIL_05_PREVIEW_CREDENTIALS = FAIL (nao executado)
+RLX_EMAIL_05_PREVIEW_ROUTING = FAIL (nao executado)
+RLX_EMAIL_05_PREVIEW_HEALTH = FAIL (nao executado)
+RLX_EMAIL_05_PREVIEW_ALERTS = FAIL (nao executado)
+RLX_EMAIL_05_PREVIEW_INBOX = FAIL (nao executado)
+RLX_EMAIL_05_PREVIEW_REVIEW = FAIL (nao executado)
+RLX_EMAIL_05_PREVIEW_RLS = FAIL (nao executado)
+RLX_EMAIL_05_PREVIEW_MFA = FAIL (nao executado)
+RLX_EMAIL_05_PREVIEW_REDACTION = FAIL (nao executado)
+RLX_EMAIL_05_PREVIEW_CLEANUP = FAIL (ciclo remoto nao executado; nenhum QA criado)
+RLX_EMAIL_03_04_REGRESSION = FAIL (nao executado no diff R4)
+RLX_EMAIL_05_R4_PREVIEW_READY = NO
+RLX_EMAIL_05_HOMOLOG_READY = NO
+RLX_EMAIL_HOMOLOG_CHANGED = NO
+RLX_EMAIL_PRODUCTION_CHANGED = NO

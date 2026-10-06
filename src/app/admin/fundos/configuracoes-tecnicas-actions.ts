@@ -18,10 +18,13 @@ import {
 } from '@/lib/admin/configuracoes-tecnicas'
 import { validarEndpointTecnicoSeguro } from '@/lib/admin/endpoint-seguro.server'
 import { integrationProviderRegistry } from '@/lib/integracoes/registry.server'
+import { obterAdapterCatalogo } from '@/lib/integracoes/adapter-catalog'
 import { prepararConfiguracaoFinanceiraDoFundo, possuiCapabilityFinanceira } from '@/lib/integracoes/configuracao-financeira'
 import {
   criptografarPortalFidcValor,
   descriptografarPortalFidcValor,
+  PortalFidcKeyringError,
+  getPortalFidcEncryptionKey,
 } from '@/lib/portal-fidc/credenciais'
 
 type RpcError = { code?: string; message?: string }
@@ -52,6 +55,7 @@ function respostaErro(message: string, correlationId?: string): AdminTechnicalAc
 }
 
 function mapearErro(error: unknown, correlationId: string): AdminTechnicalActionResult {
+  if (error instanceof PortalFidcKeyringError) return respostaErro(error.message, correlationId)
   if (error instanceof AuthorizationError) return respostaErro(error.message, correlationId)
   const value = error as RpcError
   const message = error instanceof Error ? error.message : value?.message
@@ -87,6 +91,7 @@ export async function cadastrarCredencialAdmin(input: unknown): Promise<AdminTec
     if (!parsed.success) return respostaErro('Revise os dados da credencial.', correlationId)
     const context = await requireSuperAdmin()
     const actionType = parsed.data.credencialAnteriorId ? 'rotacionar_credencial_integracao' : 'cadastrar_credencial_integracao'
+    getPortalFidcEncryptionKey()
     await autorizarEConsumirAcaoSensivel(context, actionType, parsed.data.mfaCode)
 
     const usuario = criptografarPortalFidcValor(parsed.data.usuario)
@@ -96,6 +101,8 @@ export async function cadastrarCredencialAdmin(input: unknown): Promise<AdminTec
     const { data, error } = await context.supabase.rpc('admin_cadastrar_credencial_integracao', {
       p_fundo_id: parsed.data.fundoId,
       p_integracao_fundo_id: parsed.data.integracaoFundoId,
+      p_provider_key: parsed.data.providerKey || null,
+      p_capabilities: parsed.data.capabilities,
       p_ambiente: parsed.data.ambiente,
       p_nome: parsed.data.nome,
       p_usuario_criptografado: usuario.ciphertext,
@@ -167,6 +174,9 @@ export async function salvarIntegracaoRascunhoAdmin(input: unknown): Promise<Adm
     const parsed = adminIntegracaoRascunhoSchema.safeParse(input)
     if (!parsed.success) {
       const issue = parsed.error.issues[0]
+      if (issue?.path[0] === 'updatedAtEsperado') {
+        return respostaErro('Nao foi possivel validar a versao do rascunho. Recarregue a pagina e tente novamente.', correlationId)
+      }
       const validationMessages: Record<string, string> = {
         FUNDO_ID_INVALIDO: 'O fundo informado e invalido.',
         INTEGRACAO_ID_INVALIDO: 'A integracao selecionada e invalida.',
@@ -176,6 +186,16 @@ export async function salvarIntegracaoRascunhoAdmin(input: unknown): Promise<Adm
     }
     const creating = parsed.data.integracaoFundoId == null
     const context = await requireSuperAdmin()
+    const catalogo = obterAdapterCatalogo(parsed.data.adapterKey)
+    if (catalogo && (parsed.data.providerKey !== catalogo.providerKey
+      || (creating && parsed.data.systemName !== catalogo.systemName)
+      || parsed.data.capabilities.some((capability) => !catalogo.capabilities.includes(capability)))) {
+      return respostaErro('O provedor e as funcionalidades devem corresponder ao sistema selecionado.', correlationId)
+    }
+    const novaCredencial = parsed.data.novaCredencial
+    if (novaCredencial && catalogo?.credentialKind !== 'usuario_senha') {
+      return respostaErro('Este sistema nao utiliza autenticacao por usuario e senha.', correlationId)
+    }
     if (parsed.data.integracaoFundoId) {
       const { data: configData, error: configError } = await context.supabase.rpc('admin_obter_configuracoes_tecnicas_fundo', {
         p_fundo_id: parsed.data.fundoId,
@@ -205,7 +225,7 @@ export async function salvarIntegracaoRascunhoAdmin(input: unknown): Promise<Adm
         cnpjFundo: fundo.cnpj,
       })
     }
-    const { data, error } = await context.supabase.rpc('admin_salvar_integracao_rascunho', {
+    const draftParams = {
       p_fundo_id: parsed.data.fundoId,
       p_integracao_fundo_id: parsed.data.integracaoFundoId || null,
       p_versao_id: parsed.data.versaoId || null,
@@ -220,7 +240,29 @@ export async function salvarIntegracaoRascunhoAdmin(input: unknown): Promise<Adm
       p_configuracao_nao_sensivel: configuracaoNaoSensivel,
       p_updated_at_esperado: parsed.data.updatedAtEsperado || null,
       p_correlation_id: correlationId,
-    })
+    }
+    let response
+    if (novaCredencial) {
+      // Falhar antes de consumir o TOTP ou persistir qualquer parte do formulario.
+      getPortalFidcEncryptionKey()
+      await autorizarEConsumirAcaoSensivel(context, 'cadastrar_credencial_integracao', novaCredencial.mfaCode)
+      const usuario = criptografarPortalFidcValor(novaCredencial.usuario)
+      const senha = criptografarPortalFidcValor(novaCredencial.senha)
+      if (usuario.chaveVersao !== senha.chaveVersao) throw new PortalFidcKeyringError()
+      const { p_credencial_integracao_id: ignoredCredentialId, ...params } = draftParams
+      void ignoredCredentialId
+      response = await context.supabase.rpc('admin_salvar_integracao_com_credencial', {
+        ...params,
+        p_nome: novaCredencial.nome,
+        p_usuario_criptografado: usuario.ciphertext,
+        p_senha_criptografada: senha.ciphertext,
+        p_chave_versao: usuario.chaveVersao,
+        p_usuario_mascarado: mascararIdentificador(novaCredencial.usuario),
+      })
+    } else {
+      response = await context.supabase.rpc('admin_salvar_integracao_rascunho', draftParams)
+    }
+    const { data, error } = response
     if (error) return mapearErro(error, correlationId)
     const resultId = rpcString(data, 'id')
     atualizarTela(parsed.data.fundoId)

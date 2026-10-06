@@ -1134,7 +1134,10 @@ export interface IntegracaoFundoVersaoCapacidade {
 export interface CredencialIntegracao {
   id: string
   fundo_id: string
-  integracao_fundo_id: string
+  integracao_fundo_id: string | null
+  provider_key: string
+  credential_type: 'usuario_senha'
+  capabilities: string[]
   ambiente: IntegracaoAmbiente
   nome: string
   usuario_criptografado: string
@@ -2326,7 +2329,7 @@ export interface Database {
       integracoes_fundo: { Row: IntegracaoFundo & Record<string, unknown>; Insert: InsertShape<IntegracaoFundo, 'fundo_id' | 'provedor' | 'nome' | 'created_by'> & Record<string, unknown>; Update: UpdateShape<IntegracaoFundo> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'integracoes_fundo_fundo_id_fkey'; columns: ['fundo_id']; isOneToOne: false; referencedRelation: 'fundos'; referencedColumns: ['id'] }, { foreignKeyName: 'integracoes_fundo_created_by_fkey'; columns: ['created_by']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] }] }
       integracao_fundo_versoes: { Row: IntegracaoFundoVersao & Record<string, unknown>; Insert: InsertShape<IntegracaoFundoVersao, 'integracao_fundo_id' | 'versao' | 'ambiente' | 'identificador_cliente' | 'endpoint_base' | 'credential_ref' | 'vigente_desde'> & Record<string, unknown>; Update: UpdateShape<IntegracaoFundoVersao> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'integracao_fundo_versoes_integracao_fundo_id_fkey'; columns: ['integracao_fundo_id']; isOneToOne: false; referencedRelation: 'integracoes_fundo'; referencedColumns: ['id'] }, { foreignKeyName: 'integracao_fundo_versoes_publicada_por_fkey'; columns: ['publicada_por']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] }] }
       integracao_fundo_versao_capacidades: { Row: IntegracaoFundoVersaoCapacidade & Record<string, unknown>; Insert: InsertShape<IntegracaoFundoVersaoCapacidade, 'integracao_fundo_versao_id' | 'fundo_id' | 'ambiente' | 'capability'> & Record<string, unknown>; Update: UpdateShape<IntegracaoFundoVersaoCapacidade> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'integracao_fundo_versao_capacidades_integracao_fundo_versao_id_fkey'; columns: ['integracao_fundo_versao_id']; isOneToOne: false; referencedRelation: 'integracao_fundo_versoes'; referencedColumns: ['id'] }, { foreignKeyName: 'integracao_fundo_versao_capacidades_fundo_id_fkey'; columns: ['fundo_id']; isOneToOne: false; referencedRelation: 'fundos'; referencedColumns: ['id'] }] }
-      credenciais_integracao: { Row: CredencialIntegracao & Record<string, unknown>; Insert: InsertShape<CredencialIntegracao, 'fundo_id' | 'integracao_fundo_id' | 'ambiente' | 'nome' | 'usuario_criptografado' | 'senha_criptografada' | 'chave_versao' | 'criada_por'> & Record<string, unknown>; Update: UpdateShape<CredencialIntegracao> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'credenciais_integracao_fundo_id_fkey'; columns: ['fundo_id']; isOneToOne: false; referencedRelation: 'fundos'; referencedColumns: ['id'] }, { foreignKeyName: 'credenciais_integracao_integracao_fundo_id_fkey'; columns: ['integracao_fundo_id']; isOneToOne: false; referencedRelation: 'integracoes_fundo'; referencedColumns: ['id'] }, { foreignKeyName: 'credenciais_integracao_criada_por_fkey'; columns: ['criada_por']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] }, { foreignKeyName: 'credenciais_integracao_substituida_por_fkey'; columns: ['substituida_por']; isOneToOne: false; referencedRelation: 'credenciais_integracao'; referencedColumns: ['id'] }] }
+      credenciais_integracao: { Row: CredencialIntegracao & Record<string, unknown>; Insert: InsertShape<CredencialIntegracao, 'fundo_id' | 'provider_key' | 'ambiente' | 'nome' | 'usuario_criptografado' | 'senha_criptografada' | 'chave_versao' | 'criada_por'> & Record<string, unknown>; Update: UpdateShape<CredencialIntegracao> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'credenciais_integracao_fundo_id_fkey'; columns: ['fundo_id']; isOneToOne: false; referencedRelation: 'fundos'; referencedColumns: ['id'] }, { foreignKeyName: 'credenciais_integracao_integracao_fundo_id_fkey'; columns: ['integracao_fundo_id']; isOneToOne: false; referencedRelation: 'integracoes_fundo'; referencedColumns: ['id'] }, { foreignKeyName: 'credenciais_integracao_criada_por_fkey'; columns: ['criada_por']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] }, { foreignKeyName: 'credenciais_integracao_substituida_por_fkey'; columns: ['substituida_por']; isOneToOne: false; referencedRelation: 'credenciais_integracao'; referencedColumns: ['id'] }] }
       integracao_execucoes: { Row: IntegracaoExecucao & Record<string, unknown>; Insert: InsertShape<IntegracaoExecucao, 'fundo_id' | 'integracao_fundo_versao_id' | 'tipo_execucao' | 'ambiente'> & Record<string, unknown>; Update: UpdateShape<IntegracaoExecucao> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'integracao_execucoes_fundo_id_fkey'; columns: ['fundo_id']; isOneToOne: false; referencedRelation: 'fundos'; referencedColumns: ['id'] }, { foreignKeyName: 'integracao_execucoes_integracao_fundo_versao_id_fkey'; columns: ['integracao_fundo_versao_id']; isOneToOne: false; referencedRelation: 'integracao_fundo_versoes'; referencedColumns: ['id'] }, { foreignKeyName: 'integracao_execucoes_remessa_cnab_id_fkey'; columns: ['remessa_cnab_id']; isOneToOne: false; referencedRelation: 'remessas_cnab'; referencedColumns: ['id'] }, { foreignKeyName: 'integracao_execucoes_operacao_id_fkey'; columns: ['operacao_id']; isOneToOne: false; referencedRelation: 'operacoes'; referencedColumns: ['id'] }] }
       retornos_integracao: { Row: RetornoIntegracao & Record<string, unknown>; Insert: InsertShape<RetornoIntegracao, 'fundo_id' | 'integracao_execucao_id' | 'tipo_retorno' | 'storage_path' | 'tamanho_bytes' | 'sha256'> & Record<string, unknown>; Update: UpdateShape<RetornoIntegracao> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'retornos_integracao_fundo_id_fkey'; columns: ['fundo_id']; isOneToOne: false; referencedRelation: 'fundos'; referencedColumns: ['id'] }, { foreignKeyName: 'retornos_integracao_integracao_execucao_id_fkey'; columns: ['integracao_execucao_id']; isOneToOne: false; referencedRelation: 'integracao_execucoes'; referencedColumns: ['id'] }, { foreignKeyName: 'retornos_integracao_remessa_cnab_id_fkey'; columns: ['remessa_cnab_id']; isOneToOne: false; referencedRelation: 'remessas_cnab'; referencedColumns: ['id'] }] }
       sequencias_remessa: { Row: SequenciaRemessa & Record<string, unknown>; Insert: InsertShape<SequenciaRemessa, 'configuracao_cnab_id' | 'data_referencia'> & Record<string, unknown>; Update: Partial<SequenciaRemessa> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'sequencias_remessa_configuracao_cnab_id_fkey'; columns: ['configuracao_cnab_id']; isOneToOne: false; referencedRelation: 'configuracoes_cnab'; referencedColumns: ['id'] }] }
@@ -2394,7 +2397,7 @@ export interface Database {
       risco_revisoes: { Row: RiscoRevisao & Record<string, unknown>; Insert: Partial<RiscoRevisao> & Pick<RiscoRevisao, 'risco_execucao_id' | 'fundo_id' | 'operacao_id' | 'assinatura_inputs'> & Record<string, unknown>; Update: Partial<RiscoRevisao> & Record<string, unknown>; Relationships: [] }
     }
     Views: Record<string, never>
-    Functions: import('@/lib/email-intake/automation/database').EmailAutomationFunctions & {
+    Functions: import('@/lib/email-intake/automation/database').EmailAutomationFunctions & import('@/lib/email-intake/operations/database').EmailOperatorFunctions & {
       configurar_base_antecipacao: { Args: { p_cedente_fundo_id: string; p_base: string }; Returns: undefined }
       configurar_comissao_consultor_fundo: { Args: { p_consultor_id: string; p_fundo_id: string; p_habilitada: boolean }; Returns: undefined }
       listar_configuracao_comissao_fundo: { Args: { p_fundo_id: string }; Returns: Array<{ consultor_id: string; fundo_id: string; nome: string; comissao_habilitada: boolean }> }
@@ -2714,7 +2717,9 @@ export interface Database {
       admin_cadastrar_credencial_integracao: {
         Args: {
           p_fundo_id: string
-          p_integracao_fundo_id: string
+          p_integracao_fundo_id: string | null
+          p_provider_key?: string | null
+          p_capabilities?: string[]
           p_ambiente: string
           p_nome: string
           p_usuario_criptografado: string
@@ -2732,6 +2737,29 @@ export interface Database {
       }
       admin_revogar_credencial_integracao: {
         Args: { p_fundo_id: string; p_credencial_id: string; p_motivo: string; p_correlation_id?: string | null }
+        Returns: Record<string, unknown>
+      }
+      admin_salvar_integracao_com_credencial: {
+        Args: {
+          p_fundo_id: string
+          p_integracao_fundo_id: string | null
+          p_versao_id: string | null
+          p_provider_key: string
+          p_system_name: string
+          p_adapter_key: string | null
+          p_capabilities: string[]
+          p_ambiente: string
+          p_endpoint_base: string
+          p_identificador_cliente: string
+          p_configuracao_nao_sensivel: Record<string, unknown>
+          p_updated_at_esperado: string | null
+          p_nome: string
+          p_usuario_criptografado: string
+          p_senha_criptografada: string
+          p_chave_versao: string
+          p_usuario_mascarado: string
+          p_correlation_id?: string | null
+        }
         Returns: Record<string, unknown>
       }
       admin_salvar_integracao_rascunho: {

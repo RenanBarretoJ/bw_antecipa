@@ -5,6 +5,7 @@ import {
   descriptografarPortalFidcValor,
   diagnosticarKeyringPortalFidc,
   getPortalFidcActiveKeyVersion,
+  PortalFidcKeyringError,
 } from '@/lib/portal-fidc/credenciais'
 
 const ENV_KEYS = [
@@ -26,6 +27,13 @@ afterEach(() => {
 })
 
 describe('Portal FIDC encrypted credentials', () => {
+  it.each(['{segredo-que-nao-pode-vazar', 'null', '[]', '"chave-privada"'])('sanitiza keyring JSON invalido', (json) => {
+    process.env.PORTAL_FIDC_CREDENTIAL_KEYS_JSON = json
+    expect(() => criptografarPortalFidcValor('qa')).toThrow(PortalFidcKeyringError)
+    try { criptografarPortalFidcValor('qa') } catch (error) {
+      expect(String(error)).not.toContain(json)
+    }
+  })
   it('criptografa e descriptografa somente server-side com chave versionada', () => {
     configurarChave('k2026')
 

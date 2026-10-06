@@ -1,0 +1,36 @@
+RLX-EMAIL-05-R10 — finalização de navegação e inspeção semântica
+
+Escopo: apenas o lifecycle do harness. O contrato de signed URL do R9,
+MUST_INSPECT, cancelamentos, aplicação, banco e Storage não foram alterados.
+
+Causa observada no R9: a revisão exibia sucesso antes de a navegação para
+o detalhe terminar. O finally iniciava um drain de 2 segundos enquanto a
+validação semântica da resposta do detalhe ainda estava em andamento.
+
+Correção:
+- readiness explícita do destino, independente do toast de sucesso;
+- registro separado de recebimento de body e conclusão semântica;
+- settleAndAssertClean aguarda readiness, semântica e registro terminal;
+- closeAfterDrain usa a mesma ordem e salva falhas antes do descarte forçado;
+- inspeção pendente nunca é convertida em sucesso por timeout;
+- SEMANTIC_DRAIN_TIMEOUT identifica trabalho semântico que não conclui.
+
+A readiness do detalhe fiscal exige a rota da NF e o botão Visualizar
+habilitado, disponível após a resposta que fornece o arquivo original.
+O timeout é somente um limite de falha; não há sleep de estabilização novo.
+
+Certificação exigida:
+1. Testes de late semantic, navigation/close race, timeout negativo e ausência
+   de readiness; 20 execuções determinísticas e 20 execuções no Chromium.
+2. Full Linux com TypeScript, suite, lint, build, Auth/RLS/MFA, Storage,
+   Inbox/Review, redaction, acessibilidade, responsividade e cleanup duplo.
+3. Commit/push somente após Linux PASS; PR #87 permanece DRAFT.
+4. Ambos os CIs no mesmo SHA e um novo Preview com target/CSP verificados.
+5. Reconstrução da QA com a mensagem/PDF original 950501, revisão com
+   vencimento já autorizado em 30/11/2026, reconciliação idempotente,
+   health/alerts, disable e routing ALL via UI/MFA, seguido de cleanup duplo.
+
+Os resultados operacionais sanitizados ficam em rehearsal/reports e devem
+ser consultados antes de declarar PREVIEW_READY. Testes sintéticos não
+substituem autorização, assinatura ou isolamento reais no Preview.
+Homolog e produção continuam proibidas neste escopo.

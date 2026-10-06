@@ -51,11 +51,12 @@ export function CedenteFundoAtivoSelector() {
   if (links.length <= 1) return null
 
   function handleChange(value: string) {
-    setSelected(value)
     startTransition(async () => {
       const result = await selecionarCedenteFundoAtivo(value)
       notifications.notify({ type: result.success ? 'success' : 'error', message: result.message, dedupeKey: `cedente-fundo:${result.message}` })
-      if (result.success) window.location.reload()
+      // The cookie mutation already refreshes the Server Component tree. A hard
+      // reload races that refresh and the prefetches invalidated by the action.
+      if (result.success) setSelected(value)
     })
   }
 

@@ -1,0 +1,112 @@
+RLX-EMAIL-05-R5 — CERTIFICACAO LOCAL LINUX APROVADA
+Data: 2026-10-02
+Branch: feature/rlx-email05-operations
+Base: 5283499e5fef612e64a1835eb0876b9668402113
+Este registro antecede commit/CI/Preview; nao declara aprovacao remota.
+
+CAUSA COMPROVADA
+Reproducao sem alterar classificador/fixture (runner 1790961153519):
+GET /favicon.ico, 200, text/html, Other, initiator other, COMPLETED,
+MUST_INSPECT_SECRET_SURFACE, intercepted=false, UNINSPECTED_SURFACE.
+As outras duas respostas foram inspecionadas. O servidor sintetico retornava
+HTML generico para a requisicao do icone. O JSON foi preservado e seu hash
+verificado apos excluir a origem; a hipotese do R4 passou a ter evidencia real.
+R2 continua com causa exata original nao comprovada. R3 era a classificacao
+indevida do chunk estatico. Nao confundir as tres ocorrencias.
+
+CORRECAO
+Apenas a fixture do probe passou a responder 204 para /favicon.ico, pois nao
+possui icone. HTML dinamico continua MUST_INSPECT, mesmo nessa rota.
+O classificador R4 nao foi relaxado durante a reproducao/correcao R5.
+Novos metadados sanitizados: initiator, lifecycle, intercepted e contadores.
+Sem headers, cookies, querystrings, bodies ou segredos nos relatorios.
+
+EVIDENCIAS E CLEANUP
+Categorias explicitas de artefatos eliminam o short-circuit do sufixo -probe.
+Arquivamento exige requiredArtifacts, copiedArtifacts, missingArtifacts e
+hashVerifiedArtifacts; ausencia/corrupcao reprova o gate. A origem so e
+excluida depois da verificacao; hashes/estrutura sao revalidados apos delete.
+Manifesto filho e relatorios de UI/redaction obrigatorios no full run.
+CLI Go nativo, manifesto por projeto, cleanup duplo e postflight preservados.
+Imagem bw-email05-r3-linux-qa permanece como cache compartilhado, sem container
+ativo. Nenhum prune global nem exclusao de recursos preexistentes.
+
+VALIDACAO DESTA REVISAO
+Diagnostico curto corrigido: runner bw_email05_runner_1790961349572.
+- 15 testes focados PASS.
+- Probe: 2 MUST_INSPECT = 2 interceptadas = 2 inspecionadas; 0 nao inspecionadas.
+- 0 secret matches, 0 cancelamentos, evidencia real/hash PASS.
+- Probe de cleanup nativo PASS duas vezes; runner cleanup PASS duas vezes.
+- Wrapper antigo permanece diagnosticado como FAIL; nao e o mecanismo usado.
+
+Full Linux do zero: runner bw_email05_runner_1790961488462.
+Supabase filho: bw_email03_1790961736691.
+Comando: node scripts/email-intake/linux-runner.mjs --full
+Node Linux: 22.23.3.
+- 15 testes focados e probe Chrome PASS.
+- TypeScript PASS; lint PASS; build webpack PASS.
+- Suite geral: 310 arquivos/2693 testes PASS, 3 arquivos/12 testes skipped
+  conforme configuracao existente; nao tratar skipped como teste executado.
+- 260 migrations, 27 fencing, 9 Storage, 22 automacao, 12 temporais,
+  19 operadores/config/auth, 33 shared service/review: PASS.
+- UI: 106 screenshots; 52 scans de acessibilidade; 0 violations.
+- Larguras 390/430/820/1440/1920, light/dark; sem overflow.
+- Inbox, detalhe, review, estados vazios, paginacao, filtros combinados e
+  filtro invalido executados novamente nesta revisao: PASS.
+- MUST_INSPECT 118 = interceptadas 118 = inspecionadas 118; nao inspecionadas 0.
+- 477 responses registradas; 0 secret matches; 0 falhas de protocolo.
+- 2 ERR_ABORTED de RSC prefetch /admin/integracoes-email, ambos
+  CANCELLED_AFTER_INSPECTION. Nenhum MUST_INSPECT perdido.
+- Cleanup Supabase/runner automatico e idempotente PASS; zero recursos do run.
+- 129 artefatos copiados/verificados; 18 obrigatorios; missingArtifacts=[];
+  manifesto filho preservado; evidencia real reaberta apos remover a origem.
+- git diff --check PASS.
+
+EVIDENCIA LOCAL SANITIZADA (rehearsal ignorado pelo Git)
+rehearsal/reports/email05-r5-reproduction.log
+rehearsal/reports/bw_email05_runner_1790961153519/evidence/reports/email05-r3-redaction-probe.json
+rehearsal/reports/email05-r5-diagnostic.log
+rehearsal/reports/bw_email05_runner_1790961349572/evidence/archive-summary.json
+rehearsal/reports/email05-r5-full-linux.log
+rehearsal/reports/bw_email05_runner_1790961488462/evidence/archive-summary.json
+rehearsal/reports/bw_email05_runner_1790961488462/evidence/reports/email05-r3-linux.json
+rehearsal/reports/bw_email05_runner_1790961488462/evidence/reports/bw_email03_1790961736691-resources.json
+rehearsal/reports/bw_email05_runner_1790961488462/evidence/tmp/bw_email03_1790961736691/email05-redaction.json
+rehearsal/reports/bw_email05_runner_1790961488462/evidence/tmp/bw_email03_1790961736691/email05-ui.json
+
+STATUS LOCAL
+RLX_EMAIL_05_R5_EVIDENCE_CLASSIFIER = PASS
+RLX_EMAIL_05_R5_REQUIRED_ARTIFACTS = PASS
+RLX_EMAIL_05_R5_EVIDENCE_REAL_PERSISTENCE = PASS
+RLX_EMAIL_05_R5_ARCHIVE_HASH_VERIFIED = PASS
+RLX_EMAIL_05_R5_THIRD_RESPONSE_IDENTIFIED = PASS
+RLX_EMAIL_05_R5_THIRD_RESPONSE_PATH = /favicon.ico
+RLX_EMAIL_05_R5_THIRD_RESPONSE_TYPE = Other
+RLX_EMAIL_05_R5_THIRD_RESPONSE_MIME = text/html
+RLX_EMAIL_05_R5_THIRD_RESPONSE_CLASSIFICATION = MUST_INSPECT_SECRET_SURFACE
+RLX_EMAIL_05_R5_THIRD_RESPONSE_INTERCEPTED = NO (reproducao anterior a correcao)
+RLX_EMAIL_05_R5_THIRD_RESPONSE_CAUSE = fixture retornava HTML ao loader de icone
+RLX_EMAIL_05_R5_MUST_INSPECT_COUNT = 118
+RLX_EMAIL_05_R5_INTERCEPTED_COUNT = 118
+RLX_EMAIL_05_R5_INSPECTED_COUNT = 118
+RLX_EMAIL_05_R5_UNINSPECTED_COUNT = 0
+RLX_EMAIL_05_R5_MUST_INSPECT_COVERAGE = 100%
+RLX_EMAIL_05_R5_REDACTION = PASS
+RLX_EMAIL_05_R5_AUTOMATIC_CLEANUP = PASS
+RLX_EMAIL_05_R5_CLEANUP_IDEMPOTENT = PASS
+DOCKER_TEST_ENV_CLEANUP = PASS
+RLX_EMAIL_05_R5_PAGINATION = PASS
+RLX_EMAIL_05_R5_COMBINED_FILTERS = PASS
+RLX_EMAIL_05_R5_INVALID_FILTER = PASS
+RLX_EMAIL_05_R5_ACCESSIBILITY = PASS
+RLX_EMAIL_05_LINUX_CERTIFICATION = PASS
+RLX_EMAIL_03_04_REGRESSION = PASS
+RLX_EMAIL_05_R5_PREVIEW_READY = NO (CI e Preview pendentes neste registro)
+RLX_EMAIL_05_HOMOLOG_READY = NO
+RLX_EMAIL_HOMOLOG_CHANGED = NO
+RLX_EMAIL_PRODUCTION_CHANGED = NO
+
+PROXIMA FASE AUTORIZADA
+Commit/push, PR #87 draft, CI padrao + Linux. Somente ambos PASS liberam novo
+deploy Preview. Validar GET /login, CSP/ref/runtime antes de autenticar/criar QA.
+Depois executar gates remotos e cleanup. Sem promocao homolog neste ticket.
