@@ -78,8 +78,9 @@ describe('total financeiro do DANFE', () => {
   it('bloqueia total inválido antes de Storage e INSERT no ramo PDF', () => {
     const parser = readFileSync('src/lib/fiscal-intake/parse.server.ts', 'utf8')
     const service = readFileSync('src/lib/fiscal-intake/service.server.ts', 'utf8')
-    expect(parser).toContain("if (!validarDanfeParaPersistencia(danfe).ok) throw new FiscalIntakeError('AMBIGUOUS')")
-    const parseIndex = service.indexOf('(dependencies.parse ?? parseFiscalFile)(input.file)')
+    expect(parser).toContain('validarDanfeParaPersistencia(danfe).ok')
+    expect(service).toContain("facts.kind === 'DANFE' && !validarDanfeParaPersistencia(facts.parsed).ok")
+    const parseIndex = service.indexOf('(dependencies.parse ?? parseFiscalFile)(input.file,')
     expect(parseIndex).toBeGreaterThan(-1)
     expect(parseIndex).toBeLessThan(service.indexOf('await storage.upload('))
     expect(parseIndex).toBeLessThan(service.indexOf('await repository.commit('))

@@ -1,12 +1,12 @@
 import 'server-only'
 import { extrairChaveAcessoNfeDoXml, validarXmlNfeParaUploadCedente } from '@/lib/notas-fiscais/emitente-autorizado'
-import { extractDanfeFromPdf, validarDanfeParaPersistencia } from '@/lib/pdf-nf-parser'
+import { extractDanfeFromPdf, validarDanfeParaPersistencia, validarDanfeParaVinculo } from '@/lib/pdf-nf-parser'
 import { probeNfsePdf } from '@/lib/nfse/pdf-dispatcher.server'
 import { validateNfseExtraction } from '@/lib/nfse/danfse-v2'
 import { FiscalIntakeError, type FiscalFacts } from './contracts'
 
 /** Shared dispatch only: all fiscal extraction stays in the official parsers. */
-export async function parseFiscalFile(file: File): Promise<FiscalFacts> {
+export async function parseFiscalFile(file: File, options?: { companion: boolean }): Promise<FiscalFacts> {
   if (file.size <= 0 || file.size > 20 * 1024 * 1024) throw new FiscalIntakeError('INVALID')
   const extension = file.name.split('.').pop()?.toLowerCase()
   if (extension === 'xml') {
@@ -35,6 +35,6 @@ export async function parseFiscalFile(file: File): Promise<FiscalFacts> {
   }
   const danfe = await extractDanfeFromPdf(bytes)
   if (!danfe.chave_acesso || !/^\d{44}$/.test(danfe.chave_acesso)) throw new FiscalIntakeError('MISSING_IDENTITY')
-  if (!validarDanfeParaPersistencia(danfe).ok) throw new FiscalIntakeError('AMBIGUOUS')
+  if (!(options?.companion ? validarDanfeParaVinculo(danfe) : validarDanfeParaPersistencia(danfe).ok)) throw new FiscalIntakeError('AMBIGUOUS')
   return { kind: 'DANFE', documentType: 'NFE', key: danfe.chave_acesso, issuerCnpj: danfe.chave_acesso.slice(6, 20), parsed: danfe }
 }

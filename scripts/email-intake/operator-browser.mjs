@@ -11,6 +11,7 @@ import { diagnosticPath, instrumentEmailBrowser } from './browser-diagnostics.mj
 import { waitEmailScreen, waitEmailDestination } from './browser-readiness.mjs'
 import { inspectEmailResponses, secretClasses } from './browser-redaction.mjs'
 import { verifyFundSwitchBrowser } from './fund-switch-browser.mjs'
+import { inspectInboxRows, verifyInboxKeyboard } from './inbox-browser.mjs'
 
 function totp(secret) {
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'
@@ -121,7 +122,8 @@ export async function verifyEmailOperatorBrowser({ db, url, serviceKey, anonKey,
         await new Promise(r => setTimeout(r, 350))
         const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1)
         assert.equal(overflow, false, `OVERFLOW:${name}:${width}:${theme}`)
-        if (width === 390 || width === 1440) {
+        if (screen === 'inbox') await inspectInboxRows(page, width)
+        if (screen === 'inbox' || width === 390 || width === 1440) {
           await diagnostics.phase(`${name}:ACCESSIBILITY:${width}:${theme}`)
           const violations = await page.evaluate(async () => (await window.axe.run(document.querySelector('[role="dialog"]') ?? document.querySelector('main') ?? document.body,
             { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa'] } })).violations.map(v => ({ id: v.id, impact: v.impact, targets: v.nodes.map(n => n.target) })))
@@ -202,14 +204,17 @@ export async function verifyEmailOperatorBrowser({ db, url, serviceKey, anonKey,
     await screenshot('inbox-empty', [390, 1440])
     assert.ok((await page.content()).includes('Nenhuma mensagem encontrada nestes filtros.'))
     await goto(`${base}&tab=inbox`, { waitUntil: 'domcontentloaded' }); await screenshot('inbox')
+    checks.push(...await verifyInboxKeyboard({ page, navigate: fn => redaction.beforeNavigation(fn),
+      waitMessage: () => waitEmailScreen(page, diagnostics, 'message') }))
+    await waitEmailScreen(page, diagnostics, 'inbox')
     const fixtureIntegration = (await db.query("select id from private.email_integrations where name='EMAIL05 configuration QA'")).rows[0].id
     await goto(`${base}&tab=inbox&filterIntegration=${fixtureIntegration}`, { waitUntil: 'domcontentloaded' })
     await waitEmailScreen(page, diagnostics, 'inbox')
-    const rowCount = () => page.$$eval('section[aria-label="Importações por e-mail"] article', rows => rows.length)
+    const rowCount = () => page.$$eval('section[aria-label="Importações por e-mail"] ul[aria-label="Mensagens recebidas"] > li', rows => rows.length)
     assert.equal(await rowCount(), 25)
     await click('Próxima')
     await page.waitForFunction(() => new URL(location.href).searchParams.get('page') === '2'
-      && document.querySelectorAll('section[aria-label="Importações por e-mail"] article').length === 2, { timeout: 15000 })
+      && document.querySelectorAll('section[aria-label="Importações por e-mail"] ul[aria-label="Mensagens recebidas"] > li').length === 2, { timeout: 15000 })
     await waitEmailScreen(page, diagnostics, 'inbox')
     await screenshot('inbox-page-two', [390, 1440])
     await click('Duplicados')

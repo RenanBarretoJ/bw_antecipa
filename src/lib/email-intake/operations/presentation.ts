@@ -6,6 +6,8 @@ const attachmentStates: Record<string, OperatorFeedback> = {
   PENDING: { label: 'Aguardando', description: 'O documento aguarda processamento automático.', tone: 'neutral' },
   PROCESSING: { label: 'Processando', description: 'A importação está em andamento. Aguarde a conclusão.', tone: 'neutral' },
   IMPORTED: { label: 'Importado', description: 'Documento fiscal importado.', tone: 'success' },
+  COMPANION_LINKED: { label: 'Documento complementar vinculado', description: 'Documento anexado à nota existente. Nenhuma nova nota foi criada.', tone: 'success' },
+  WAITING_CANONICAL_XML: { label: 'Aguardando XML', description: 'O XML deste e-mail será processado antes do DANFE.', tone: 'neutral' },
   DUPLICATE: { label: 'Duplicado', description: 'Documento fiscal já existente. Nenhuma nova nota foi criada.', tone: 'neutral' },
   REQUIRES_REVIEW: { label: 'Em revisão', description: 'Vencimento não encontrado no documento. O responsável deve concluir a revisão.', tone: 'attention' },
   RETRY: { label: 'Nova tentativa agendada', description: 'A importação será tentada novamente no horário indicado.', tone: 'attention' },
@@ -15,7 +17,7 @@ const attachmentStates: Record<string, OperatorFeedback> = {
   REJECTED_INVALID: { label: 'Documento inválido', description: 'Envie um documento fiscal legível com a chave fiscal.', tone: 'error' },
   REJECTED_UNSUPPORTED: { label: 'Formato não aceito', description: 'Envie o documento fiscal em XML ou PDF.', tone: 'attention' },
   REJECTED_UNKNOWN_CEDENTE: { label: 'Cedente não identificado', description: 'Confira se o emitente do documento está cadastrado e ativo neste fundo.', tone: 'attention' },
-  AMBIGUOUS: { label: 'Cedente ambíguo', description: 'Há mais de um vínculo elegível. Confira o cadastro antes de reenviar.', tone: 'attention' },
+  AMBIGUOUS: { label: 'Documento requer conferência', description: 'Não foi possível confirmar a identidade, o vínculo ou a consistência fiscal do documento.', tone: 'attention' },
   FAILED: { label: 'Falha na importação', description: 'Confira o motivo e solicite ajuda ao administrador se a falha persistir.', tone: 'error' },
   CLEANUP_PENDING: { label: 'Finalizando limpeza', description: 'Aguarde a conclusão da limpeza automática antes de reenviar.', tone: 'attention' },
   IGNORED: { label: 'Desconsiderado', description: 'Este anexo não participa da importação fiscal.', tone: 'neutral' },
@@ -31,12 +33,24 @@ const rejectionReasons: Record<string, OperatorFeedback> = {
 }
 
 export function attachmentFeedback(status: string, errorCode: string | null): OperatorFeedback {
+  if (status === 'RETRY' && errorCode === 'WAITING_CANONICAL_XML') return attachmentStates.WAITING_CANONICAL_XML
   // A historical error must not override a successful or currently processing result.
   if (['QUARANTINED', 'REJECTED', 'FAILED'].includes(status) && errorCode && Object.hasOwn(rejectionReasons, errorCode)) {
     return rejectionReasons[errorCode]
   }
   if (Object.hasOwn(attachmentStates, status)) return attachmentStates[status]
   return { label: 'Estado não reconhecido', description: 'Atualize a página. Se continuar, solicite ajuda ao administrador.', tone: 'attention' }
+}
+
+export function inboxRowFeedback(row: { review: number; errors: number; pending: number; imported: number; companions: number; duplicates: number }): OperatorFeedback {
+  if (row.review) return attachmentStates.REQUIRES_REVIEW
+  if (row.errors) return { label: 'Requer atenção', description: 'Abra a mensagem para conferir os documentos.', tone: 'attention' }
+  if (row.pending) return attachmentStates.PROCESSING
+  if (row.imported && row.companions) return { label: 'Importado + DANFE', description: 'Importado e DANFE vinculado à mesma nota fiscal.', tone: 'success' }
+  if (row.companions) return attachmentStates.COMPANION_LINKED
+  if (row.imported) return attachmentStates.IMPORTED
+  if (row.duplicates) return attachmentStates.DUPLICATE
+  return { label: 'Recebido', description: 'Mensagem recebida pela integração.', tone: 'neutral' }
 }
 
 const knownErrors: Record<string, string> = {

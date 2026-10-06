@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { attachmentFeedback, emailDateLabel, emailErrorMessage } from './presentation'
+import { attachmentFeedback, emailDateLabel, emailErrorMessage, inboxRowFeedback } from './presentation'
 
 describe('Email Intake operator feedback', () => {
+  it('distinguishes linked companions, waiting XML and pending attention without inventing fiscal imports', () => {
+    expect(attachmentFeedback('COMPANION_LINKED', 'AMBIGUOUS').tone).toBe('success')
+    expect(attachmentFeedback('RETRY', 'WAITING_CANONICAL_XML').label).toBe('Aguardando XML')
+    const row={review:0,errors:0,pending:0,imported:1,companions:1,duplicates:0}
+    expect(inboxRowFeedback(row).label).toBe('Importado + DANFE')
+    expect(inboxRowFeedback({...row,errors:1}).tone).toBe('attention')
+    expect(inboxRowFeedback({...row,imported:0}).label).toBe('Documento complementar vinculado')
+  })
   it('does not expose unknown provider payloads as operator errors', () => {
     const raw = 'Bearer qa-sensitive-token; https://provider.invalid?secret=private'
     expect(emailErrorMessage(raw)).not.toContain(raw)
