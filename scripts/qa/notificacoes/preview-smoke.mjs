@@ -7,13 +7,14 @@ import { spawnSync } from 'node:child_process'
 import { createClient } from '@supabase/supabase-js'
 import puppeteer from 'puppeteer-core'
 import { details,connect,empty,ref,base } from './preview-runtime.mjs'
+import {keyboardCycle,keyboardOpen,keyboardClose,rememberFocus,unchangedFocus} from './focus-keyboard.mjs'
 assert.equal(process.argv.length,2)
 const require=createRequire(import.meta.url),d=details(),db=await connect(d)
 const admin=createClient(d.SUPABASE_URL,d.SUPABASE_SERVICE_ROLE_KEY,{auth:{persistSession:false,autoRefreshToken:false}})
 const run=randomUUID(),map=new Map(),actors={},clients=[],owned=new Set(),checks=[],screens=[]
 const out='rehearsal/reports/notificacoes-preview';mkdirSync(out,{recursive:true})
 const sha=spawnSync('git',['rev-parse','HEAD'],{encoding:'utf8',windowsHide:true}).stdout.trim()
-const report={target:ref,sha,run,success:false,checks,screens,cleanup:false}
+const report={target:ref,sha,run,success:false,checks,screens,cleanup:false,cleanupRuns:[]}
 const old=(p,n=1)=>`${p}000000-0000-4000-8000-${String(n).padStart(12,'0')}`
 function id(p,n=1){const key=old(p,n);if(!map.has(key))map.set(key,randomUUID());const v=map.get(key);owned.add(v);return v}
 const A=id('22'),B=id('22',2),C=id('22',3),CF=id('24'),CFB=id('24',2),NF=id('2a'),NFB=id('2a',5),OP=id('2c'),E=id('2d')
@@ -82,12 +83,19 @@ async function cleanup(){
     for(const t of snapshots)for(const r of t.rows)await db.query(`DELETE FROM ${t.name} t WHERE ctid=$1::tid AND to_jsonb(t)=$2::jsonb`,[r.tid,JSON.stringify(r.row)])
     await db.query("SET LOCAL session_replication_role='origin'; COMMIT")
   }catch(e){await db.query('ROLLBACK');throw e}
-  for(const a of Object.values(actors))val(await admin.auth.admin.deleteUser(a.id))
+  for(const a of users)val(await admin.auth.admin.deleteUser(a.id))
   await empty(db)
-  await empty(db)
-  report.cleanup=true
+  const counts={}
+  for(const table of ['auth.users','auth.sessions','auth.mfa_factors','storage.objects']){
+    counts[table]=Number((await db.query(`SELECT count(*) FROM ${table}`)).rows[0].count)
+    assert.equal(counts[table],0,'QA_AUTH_OR_STORAGE_REMAINING')
+  }
+  report.cleanupRuns.push(counts)
+  report.cleanup=report.cleanupRuns.length===2
 }
 try{
+  const historyBefore=(await db.query('SELECT version,name,statements FROM supabase_migrations.schema_migrations ORDER BY version')).rows
+  report.historyBefore=historyBefore.map(r=>({version:r.version,name:r.name}))
   await empty(db);log('seed');await seed();log('auth')
   for(const name of ['gestor','cedente','sacado','consultor'])actors[name].client=await login(actors[name])
   checks.push('4 real Auth sessions and MFA valid')
@@ -113,9 +121,10 @@ try{
     const cookie=(name,value)=>({name,value,domain,path:'/',secure:true,sameSite:'Lax'})
     await context.setCookie(...chunks.map((v,i)=>cookie(`sb-${ref}-auth-token${chunks.length===1?'':'.'+i}`,v)),cookie('bw_fundo_ativo_id',A),cookie('bw_cedente_fundo_ativo_id',CF),cookie('bw_notificacoes_fundo_id',A))
     const page=await context.newPage();await page.setViewport({width:1440,height:1000})
-    const r=await page.goto(base+`/${role}/notificacoes`,{waitUntil:'networkidle2',timeout:60000})
+    const r=await page.goto(base+`/${role}/notificacoes`,{waitUntil:'domcontentloaded',timeout:60000})
     assert(r.status()<400,'PREVIEW_HTTP_ERROR');assert.equal(new URL(page.url()).pathname,`/${role}/notificacoes`,'AUTH_REDIRECT')
     assert((r.headers()['content-security-policy']||'').includes(ref+'.supabase.co'),'WRONG_DEPLOYMENT_DB')
+    assert(!/wwsndnuvnjuabpbjwlck|fhgkmggthxikfpogrvaa/.test(r.headers()['content-security-policy']||''),'FORBIDDEN_HOST_IN_CSP')
     await page.waitForFunction(()=>document.body.innerText.includes('2 não lidas neste contexto'),{timeout:30000})
     let text=await page.evaluate(()=>document.body.innerText);assert(text.includes('A1')&&text.includes('A2')&&!text.includes('B1'))
     const aNotice=val(await c.rpc('listar_notificacoes',{p_scope:'FUNDO',p_fundo_id:A}))[0]
@@ -126,13 +135,18 @@ try{
     assert(good.headers.get('location').includes(A),'HREF_LOST_FUND')
     const bad=await fetch(`${base}/notificacoes/abrir/${bNotice.id}?scope=FUNDO&fundo=${B}`,{headers:{cookie:cookies},redirect:'manual'})
     assert.equal(bad.status,403,'CANONICAL_CONTEXT_HREF_BYPASSED')
-    const detail=await context.newPage();const dr=await detail.goto(good.headers.get('location'),{waitUntil:'networkidle2'});assert.equal(dr.status(),200)
+    const detail=await context.newPage();const dr=await detail.goto(good.headers.get('location'),{waitUntil:'domcontentloaded'});assert.equal(dr.status(),200)
     assert(!(await detail.evaluate(()=>document.body.innerText)).includes('Acesso não permitido'),'ORIGIN_ENTITY_DENIED');await detail.close()
     checks.push(role+':server href rechecks canonical fund and opens own origin')
+    await page.bringToFront()
+    await keyboardCycle(page,{negative:true})
+    await keyboardOpen(page);await rememberFocus(page)
     await notify('nota_fiscal',NFB,role,'B-realtime')
     await notify('nota_fiscal',NF,role,'A-realtime')
     await page.waitForFunction(()=>document.body.innerText.includes('A-realtime'),{timeout:20000})
     assert(!(await page.evaluate(()=>document.body.innerText)).includes('B-realtime'))
+    await unchangedFocus(page)
+    await keyboardClose(page)
     await page.evaluate(()=>[...document.querySelectorAll('button')].find(b=>b.textContent==='Marcar todas como lidas').click())
     await page.waitForFunction(()=>document.body.innerText.includes('0 não lidas neste contexto'),{timeout:15000})
     assert.equal(val(await c.rpc('contar_notificacoes',{p_scope:'FUNDO',p_fundo_id:B}))[0].nao_lidas,2)
@@ -140,12 +154,14 @@ try{
       await page.click('[aria-controls="fundo-ativo-dropdown"]')
       await page.evaluate(()=>[...document.querySelectorAll('#fundo-ativo-dropdown button')].find(b=>b.textContent.includes('QA Notificacoes B')).click())
       await page.waitForFunction(()=>location.pathname==='/gestor/dashboard',{timeout:30000})
-      await page.goto(base+'/gestor/notificacoes',{waitUntil:'networkidle2'})
+      await page.goto(base+'/gestor/notificacoes',{waitUntil:'domcontentloaded'})
     }else if(role==='cedente')await page.select('select[aria-label="Fundo operacional do cedente"]',CFB)
     else await page.select('select[aria-label="Fundo das notificações"]',B)
     await page.waitForFunction(()=>document.body.innerText.includes('B-realtime'),{timeout:30000})
     text=await page.evaluate(()=>document.body.innerText);assert(!text.includes('A-realtime')&&text.includes('B1'))
     checks.push(role+':live UI badge/list/mark-all/realtime/switch')
+    await keyboardCycle(page)
+    checks.push(role+':keyboard A/B, realtime focus, trigger stability and negative escape')
     await page.screenshot({path:`${out}/${role}-B.png`,fullPage:true})
     if(role==='consultor'){
       for(let i=0;i<23;i++)await notify('nota_fiscal',NFB,role,'Pagina-'+i)
@@ -153,7 +169,7 @@ try{
       await notify('nota_fiscal',NFB,role,'Logistica QA','logistica','cte_enviado')
       await notify('nota_fiscal',NFB,role,'Integracao QA','integracao','integracao_alerta')
       await notify('nota_fiscal',NFB,role,'Alerta QA','alerta','alerta_prazo')
-      await page.reload({waitUntil:'networkidle2'})
+      await page.reload({waitUntil:'domcontentloaded'})
       await page.waitForFunction(()=>document.querySelectorAll('[aria-label="Lista de notificações"]>li').length===20,{timeout:20000})
       await page.evaluate(()=>[...document.querySelectorAll('button')].find(b=>b.textContent==='Carregar mais').click())
       await page.waitForFunction(()=>document.querySelectorAll('[aria-label="Lista de notificações"]>li').length===29,{timeout:15000})
@@ -162,46 +178,73 @@ try{
         await page.waitForFunction((f,t)=>document.querySelector('nav[aria-label="Filtros de notificações"] a[aria-current="page"]')?.getAttribute('href').includes('filtro='+f)&&document.querySelector('[aria-label="Lista de notificações"]')?.getAttribute('aria-busy')==='false'&&document.querySelector('[aria-label="Lista de notificações"]')?.textContent.includes(t),{timeout:20000},filter,title)
         assert(!(await page.$eval('[aria-label="Lista de notificações"]',e=>e.textContent)).includes('Pagina-'))
       }
-      await page.goto(base+'/consultor/notificacoes?filtro=nao_lidas',{waitUntil:'networkidle2'})
+      await page.goto(base+'/consultor/notificacoes?filtro=nao_lidas',{waitUntil:'domcontentloaded'})
       await page.waitForSelector('[aria-label="Lista de notificações"] li button')
-      await page.click('[aria-label="Lista de notificações"] li button')
+      await page.focus('[aria-label="Lista de notificações"] li button');await page.keyboard.press('Enter')
       await page.waitForFunction(()=>document.body.innerText.includes('28 não lidas neste contexto'),{timeout:15000})
-      await page.goto(base+'/consultor/notificacoes?filtro=lidas',{waitUntil:'networkidle2'})
+      assert(await page.evaluate(()=>Boolean(document.activeElement?.closest('[data-notificacao-id]'))),'MARK_UNREAD_FOCUS_LOST')
+      await page.goto(base+'/consultor/notificacoes?filtro=lidas',{waitUntil:'domcontentloaded'})
       await page.waitForFunction(()=>document.querySelectorAll('[aria-label="Lista de notificações"]>li').length===1,{timeout:15000})
       checks.push('live filters/keyset pagination/mark one/read filter')
-      await page.goto(base+'/consultor/notificacoes',{waitUntil:'networkidle2'})
+      await page.goto(base+'/consultor/notificacoes',{waitUntil:'domcontentloaded'})
       await page.waitForSelector('button[aria-label^="Notificações,"]')
-      await page.click('button[aria-label^="Notificações,"]')
-      await page.waitForSelector('[role="dialog"]')
+      await page.waitForFunction(()=>document.querySelector('[aria-label="Lista de notificações"]')?.getAttribute('aria-busy')==='false')
       for(const width of [390,430,820,1440,1920])for(const theme of ['light','dark']){
         await page.setViewport({width,height:1000});await page.evaluate(t=>document.documentElement.classList.toggle('dark',t==='dark'),theme)
+        const focus=await keyboardCycle(page,{negative:true})
+        writeFileSync(`${out}/${width}-${theme}-focus.json`,JSON.stringify(focus,null,2))
+        await keyboardOpen(page)
         await page.evaluate(async()=>{await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));await Promise.all(document.getAnimations().map(a=>a.finished.catch(()=>{})))})
         await page.addScriptTag({content:readFileSync(require.resolve('axe-core/axe.min.js'),'utf8')})
         const violations=await page.evaluate(async()=>{const r=await axe.run({include:[['[aria-labelledby="notificacoes-title"]'],['[role="dialog"]']]},{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21a','wcag21aa']}});return r.violations.map(v=>({id:v.id,targets:v.nodes.map(n=>n.target)}))})
-        screens.push({width,theme,violations});assert.deepEqual(violations,[])
+        screens.push({width,theme,violations,keyboard:true,semantics:focus.semantics,negativeEscape:true});assert.deepEqual(violations,[])
         assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'HORIZONTAL_OVERFLOW')
         const bounds=await page.$eval('[role="dialog"]',e=>{const r=e.getBoundingClientRect();return{left:r.left,right:r.right,bottom:r.bottom}})
         assert(bounds.left>=0&&bounds.right<=width&&bounds.bottom<=1000,'POPOVER_OUTSIDE_VIEWPORT')
         await page.screenshot({path:`${out}/${width}-${theme}.png`,fullPage:true})
-        await page.keyboard.press('Escape');await page.waitForFunction(()=>!document.querySelector('[role="dialog"]'))
-        assert((await page.evaluate(()=>document.activeElement?.getAttribute('aria-label')))?.startsWith('Notificações,'),'FOCUS_NOT_RESTORED')
-        await page.keyboard.press('Enter');await page.waitForSelector('[role="dialog"]')
-        await page.keyboard.press('Tab');assert(await page.evaluate(()=>Boolean(document.activeElement?.closest('[role="dialog"]'))),'FOCUS_ESCAPED')
+        await keyboardClose(page)
       }
     }
     await context.close()
   }
   log('real-producers')
-  await db.query("UPDATE public.notas_fiscais SET status='em_antecipacao' WHERE id=$1",[NF])
-  val(await actors.sacado.client.rpc('processar_aceite_sacado',{p_nota_fiscal_ids:[NF],p_acao:'aceitar',p_motivo:null}))
+  for(const action of ['aceitar','contestar']) {
+    // Synthetic QA operation only; reset its acceptance between independent cases.
+    await db.query("UPDATE public.operacoes SET status='solicitada',aceite_sacado_status='pendente' WHERE id=$1",[OP])
+    await db.query("UPDATE public.notas_fiscais SET status='em_antecipacao' WHERE id=$1",[NF])
+    val(await actors.sacado.client.rpc('processar_aceite_sacado',{p_nota_fiscal_ids:[NF],p_acao:action,p_motivo:action==='contestar'?'Contestacao sintetica QA':null}))
+    const rows=(await db.query('SELECT usuario_id,fundo_id,scope_type FROM public.notificacoes WHERE dedupe_key LIKE $1',[`fund:${A}:operacao:${OP}:nf:${NF}:${action}:%`])).rows
+    assert.equal(rows.length,2)
+    assert.deepEqual(rows.map(r=>r.usuario_id).sort(),[actors.cedente.id,actors.gestor.id].sort())
+    assert(rows.every(r=>r.fundo_id===A&&r.scope_type==='FUNDO'))
+    checks.push('real Sacado '+action+' producer: exact recipients, no cross-fund')
+  }
   await db.query('SELECT public.processar_prazos_entrega(current_date)')
   const events=(await db.query("SELECT tipo,fundo_id,scope_type FROM public.notificacoes WHERE tipo IN ('cessao_aceita','cte_vencido','canhoto_vencido','cte_prazo_proximo','canhoto_prazo_proximo')")).rows
   assert(events.length>=2&&events.every(e=>e.fundo_id===A&&e.scope_type==='FUNDO'))
-  checks.push('real Sacado acceptance and delivery deadline producer; no cross-fund')
+  checks.push('real delivery deadline producer; no cross-fund')
+  // Representative producer boundaries used by shared document/cadastro flows.
+  // No real uploads, external provider requests or outbound emails are sent.
+  for(const type of ['documento_enviado','alteracao_cadastral']) {
+    const args={p_cedente_id:id('23'),p_titulo:'QA '+type,p_mensagem:'Evento QA '+run,p_tipo:type,p_evento_key:run+':'+type}
+    assert.equal(val(await admin.rpc('notificar_gestores_cadastro_cedente',args)),3)
+    assert.equal(val(await admin.rpc('notificar_gestores_cadastro_cedente',args)),0)
+    const rows=(await db.query('SELECT usuario_id,fundo_id,scope_type FROM public.notificacoes WHERE tipo=$1',[type])).rows
+    assert.deepEqual(rows.map(r=>r.usuario_id+':'+r.fundo_id).sort(),[actors.gestor.id+':'+A,actors.gestor.id+':'+B,actors.gestorB.id+':'+B].sort())
+    assert(rows.every(r=>r.scope_type==='FUNDO'))
+    checks.push(type+':real producer RPC, shared A/B explicit rows, C denied, retry deduped')
+  }
+  await notify('operacao',OP,'gestor','QA technical event','technical','integracao_alerta')
+  assert.equal((await notify('operacao',OP,'gestor','QA technical event','technical','integracao_alerta')).length,0)
+  const technical=(await db.query("SELECT usuario_id,fundo_id,scope_type FROM public.notificacoes WHERE titulo='QA technical event'")).rows
+  assert.equal(technical.length,1);assert.equal(technical[0].usuario_id,actors.gestor.id);assert.equal(technical[0].fundo_id,A)
+  checks.push('technical operation-scoped producer RPC: A only, dedupe')
+  assert.deepEqual((await db.query('SELECT version,name,statements FROM supabase_migrations.schema_migrations ORDER BY version')).rows,historyBefore,'MIGRATION_HISTORY_CHANGED')
+  checks.push('migration history unchanged; original A6 absent')
   report.success=true
 }catch(e){report.error=String(e.message).slice(0,350);console.log(JSON.stringify({phase:'failure',error:report.error,checks}));process.exitCode=1}
 finally{
-  try{log('cleanup');await cleanup()}catch(e){report.cleanupError=String(e.message).slice(0,250);process.exitCode=1}
+  try{log('cleanup');await cleanup();await cleanup()}catch(e){report.cleanupError=String(e.message).slice(0,250);process.exitCode=1}
   await db.end();writeFileSync(out+'/result.json',JSON.stringify(report,null,2)+'\n')
   console.log(JSON.stringify(report))
 }

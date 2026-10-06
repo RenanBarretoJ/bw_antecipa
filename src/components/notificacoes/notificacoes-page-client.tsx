@@ -10,10 +10,12 @@ import { Card, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import { NotificacoesContextControl, useNotificacoesContexto } from './notificacoes-context'
 import { useNotificacoes } from './use-notificacoes'
+import { useNotificacaoItemFocus } from './use-notificacao-item-focus'
 
 export function NotificacoesPageClient({ initialFilter, basePath }: { initialFilter: NotificacaoFiltro; basePath: string }) {
   const { escopo, loading: contextoLoading } = useNotificacoesContexto()
   const { page, loading, more, busy, error, mark, loadMore, retry } = useNotificacoes(initialFilter, 20)
+  const { rootRef, onFocusCapture } = useNotificacaoItemFocus(page.items.map((item) => item.id))
   const counts = page.contadores ?? { total: 0, naoLidas: 0 }
   return <section className="mx-auto w-full max-w-4xl space-y-5 px-4 pb-8 sm:px-6" aria-labelledby="notificacoes-title">
     <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
@@ -40,8 +42,9 @@ export function NotificacoesPageClient({ initialFilter, basePath }: { initialFil
       <p className="font-semibold">{escopo?.scope === 'GLOBAL' ? 'Nenhum aviso geral de segurança.' : 'Nenhuma notificação para este Fundo.'}</p>
       <p className="text-sm text-muted-foreground">Os avisos respeitam o contexto selecionado e seus acessos atuais.</p>
     </CardContent></Card>}
+    <div ref={rootRef} onFocusCapture={onFocusCapture} tabIndex={-1} aria-label="Notificações do contexto atual" className="rounded-lg focus-visible:outline-2 focus-visible:outline-primary">
     <ul className="space-y-3" aria-label="Lista de notificações" aria-busy={loading || contextoLoading}>
-      {page.items.map((item) => <li key={item.id}><Card className={cn(!item.lida && 'border-primary/30 bg-primary/[0.03]')}>
+      {page.items.map((item) => <li key={item.id} data-notificacao-id={item.id}><Card className={cn(!item.lida && 'border-primary/30 bg-primary/[0.03]')}>
         <CardContent className="space-y-3 py-4">
           <div className="flex flex-col justify-between gap-2 sm:flex-row">
             <h2 className="min-w-0 break-words text-sm font-semibold">{item.titulo}{!item.lida && <span className="ml-2 rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-800 dark:bg-blue-900 dark:text-blue-200">Não lida</span>}</h2>
@@ -50,11 +53,12 @@ export function NotificacoesPageClient({ initialFilter, basePath }: { initialFil
           <p className="break-words text-sm leading-relaxed text-muted-foreground">{item.mensagem}</p>
           <div className="flex flex-wrap justify-end gap-2">
             {item.href && <Button render={<Link href={item.href} prefetch={false} />} nativeButton={false} variant="outline" size="sm" className="text-blue-700 dark:text-blue-200">Abrir detalhe<span className="sr-only">: {item.titulo}</span></Button>}
-            {!item.lida && <Button variant="ghost" size="sm" disabled={busy || loading} onClick={() => void mark(item.id)}><Check className="mr-1 size-4" aria-hidden="true" />Marcar como lida<span className="sr-only">: {item.titulo}</span></Button>}
+            {!item.lida && <Button variant="ghost" size="sm" aria-disabled={busy || loading} onClick={() => { if (!busy && !loading) void mark(item.id) }}><Check className="mr-1 size-4" aria-hidden="true" />Marcar como lida<span className="sr-only">: {item.titulo}</span></Button>}
           </div>
         </CardContent>
       </Card></li>)}
     </ul>
+    </div>
     <LoadMoreButton hasMore={Boolean(page.nextCursor)} loading={more || loading} onLoadMore={loadMore} error={null} />
   </section>
 }

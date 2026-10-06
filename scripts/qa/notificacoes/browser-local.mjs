@@ -8,6 +8,8 @@ import { createServer } from 'node:http'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import puppeteer from 'puppeteer-core'
+import {probeLegacySequence,controlledOpeningProbe} from './focus-probe.mjs'
+import {keyboardCycle,keyboardOpen,keyboardClose,rememberFocus,unchangedFocus} from './focus-keyboard.mjs'
 const require=createRequire(import.meta.url)
 const {build}=createRequire(require.resolve('tsx/package.json'))('esbuild')
 const output=resolve('rehearsal/reports/notificacoes-browser-local')
@@ -49,14 +51,36 @@ try{
   const badge=async n=>page.waitForFunction(n=>document.querySelector('[data-testid="notificacao-badge"]')?.textContent===(n>9?'9+':String(n)),{},n)
   const items=()=>page.$$eval('ul[aria-label="Lista de notificações"] h2',nodes=>nodes.map(n=>n.childNodes[0].textContent))
   const ready=()=>page.waitForFunction(()=>document.querySelector('ul[aria-label="Lista de notificações"]')?.getAttribute('aria-busy')==='false')
+  if(process.argv.includes('--focus-probe')) {
+    await page.setViewport({width:390,height:1000})
+    await page.goto(`${base}/?role=consultor`,{waitUntil:'domcontentloaded'});await badge(2);await ready()
+    await page.evaluate(()=>document.documentElement.classList.add('dark'))
+    const report = await probeLegacySequence(page)
+    writeFileSync(resolve(output,'focus-probe.json'),JSON.stringify(report,null,2))
+    console.log(JSON.stringify({rounds:report.rounds,failures:report.failures}))
+    const controlled=await controlledOpeningProbe(page)
+    writeFileSync(resolve(output,'focus-controlled.json'),JSON.stringify(controlled,null,2))
+    console.log(JSON.stringify({controlled:controlled.results.map(r=>({premature:r.premature.active,settled:r.settled.active}))}))
+    await page.focus('main li button');await page.keyboard.press('Enter');await ready()
+    await page.waitForFunction(()=>document.querySelector('main [role="status"]')?.textContent.startsWith('1 não lidas'))
+    console.log(JSON.stringify({markAllView:await page.evaluate(()=>({tag:document.activeElement.tagName,text:document.activeElement.textContent.slice(0,80)}))}))
+    await page.click('nav a[href*="nao_lidas"]');await ready()
+    await page.focus('main li button');await page.keyboard.press('Enter')
+    await page.waitForFunction(()=>document.querySelector('main [role="status"]')?.textContent.startsWith('0 não lidas'))
+    console.log(JSON.stringify({markUnreadView:await page.evaluate(()=>({tag:document.activeElement.tagName,text:document.activeElement.textContent.slice(0,80)}))}))
+  } else {
   for(const role of ['gestor','cedente','sacado','consultor']){
-    await page.goto(`${base}/?role=${role}`,{waitUntil:'networkidle0'});await badge(2);await ready()
+    await page.goto(`${base}/?role=${role}`,{waitUntil:'domcontentloaded'});await badge(2);await ready()
+    await keyboardCycle(page,{negative:true})
     assert.deepEqual(await items(),['A1','A2'])
     const select=['gestor','cedente'].includes(role)?'[aria-label="Fundo operacional QA"]':'main [aria-label="Fundo das notificações"]'
     assert.equal((await page.$$('[aria-label="Fundo das notificações"]')).length,['gestor','cedente'].includes(role)?0:1)
-    await page.evaluate(()=>window.qa.emit('B2','B'));await ready();assert.deepEqual(await items(),['A1','A2']);await badge(2)
-    await page.evaluate(()=>window.qa.emit('A3','A'));await badge(3);assert((await items()).includes('A3'))
+    await keyboardOpen(page);await rememberFocus(page)
+    await page.evaluate(()=>window.qa.emit('B2','B'));await ready();assert.deepEqual(await items(),['A1','A2']);await badge(2);await unchangedFocus(page)
+    await page.evaluate(()=>window.qa.emit('A3','A'));await badge(3);assert((await items()).includes('A3'));await unchangedFocus(page)
+    await keyboardClose(page)
     await page.select(select,'B');await badge(2);await ready();assert.deepEqual(await items(),['B2','B1'])
+    await keyboardCycle(page)
     await page.select(select,'A');await badge(3);await ready()
     await page.click('main button:has(svg.lucide-check-check)')
     await page.waitForFunction(()=>document.querySelector('main [role="status"]')?.textContent.startsWith('0 não lidas'))
@@ -68,7 +92,31 @@ try{
     await new Promise(r=>setTimeout(r,600));assert.deepEqual(await items(),['B2','B1'])
     checks.push(`${role}:A-B-badge-realtime-markall-stale-response`)
   }
-  await page.goto(`${base}/?role=gestor`,{waitUntil:'networkidle0'});await ready()
+  await page.goto(`${base}/?role=gestor`,{waitUntil:'domcontentloaded'});await ready()
+  await page.focus('main li button');await page.keyboard.press('Enter')
+  await page.waitForFunction(()=>document.querySelector('main [role="status"]')?.textContent.startsWith('1 não lidas'))
+  assert.equal(await page.evaluate(()=>document.activeElement?.closest('[data-notificacao-id]')?.dataset.notificacaoId),'A1','MARK_LOST_ROW_FOCUS')
+  await page.click('nav a[href*="nao_lidas"]');await ready()
+  await page.focus('main li button');await page.keyboard.press('Enter')
+  await page.waitForFunction(()=>document.querySelector('main [role="status"]')?.textContent.startsWith('0 não lidas'))
+  assert.equal(await page.evaluate(()=>document.activeElement?.getAttribute('aria-label')),'Notificações do contexto atual','EMPTY_LIST_FOCUS_LOST')
+  checks.push('mark-read-focus-all-and-empty-unread')
+  await page.goto(`${base}/?role=gestor`,{waitUntil:'domcontentloaded'});await ready()
+  await page.click('nav a[href*="nao_lidas"]');await ready()
+  await page.focus('main li button');await page.keyboard.press('Enter')
+  await page.waitForFunction(()=>document.querySelector('main [role="status"]')?.textContent.startsWith('1 não lidas'))
+  assert.equal(await page.evaluate(()=>document.activeElement?.closest('[data-notificacao-id]')?.dataset.notificacaoId),'A2','NEXT_UNREAD_FOCUS_LOST')
+  await page.evaluate(()=>window.qa.markFail=true)
+  await page.focus('main li button');await page.keyboard.press('Enter');await page.waitForSelector('main [role="alert"]')
+  assert.equal(await page.evaluate(()=>document.activeElement?.closest('[data-notificacao-id]')?.dataset.notificacaoId),'A2','FAILED_MARK_STOLE_FOCUS')
+  await page.evaluate(()=>window.qa.markFail=false)
+  await keyboardOpen(page)
+  await page.focus('[role="dialog"] article button');await page.keyboard.press('Enter')
+  await page.waitForFunction(()=>!document.querySelector('[role="dialog"] article button'))
+  assert.equal(await page.evaluate(()=>document.activeElement?.closest('[data-notificacao-id]')?.dataset.notificacaoId),'A2','BELL_MARK_FOCUS_LOST')
+  await keyboardClose(page)
+  checks.push('mark-read-next-unread-error-and-bell-focus')
+  await page.goto(`${base}/?role=gestor`,{waitUntil:'domcontentloaded'});await ready()
   await page.click('nav[aria-label="Filtros de notificações"] a[href*="documentos"]');await ready()
   await page.waitForFunction(()=>document.querySelectorAll('ul[aria-label="Lista de notificações"] li').length===1)
   assert.deepEqual(await items(),['A1'])
@@ -87,9 +135,11 @@ try{
   await page.evaluate(()=>{window.qa.fail=false});await page.click('main [role="alert"] button');await ready();await badge(27)
   checks.push('transport-error-fail-closed-and-retry')
   for(const width of [390,430,820,1440,1920])for(const theme of ['light','dark']){
-    await page.setViewport({width,height:1000});await page.goto(`${base}/?role=gestor`,{waitUntil:'networkidle0'});await ready()
+    await page.setViewport({width,height:1000});await page.goto(`${base}/?role=gestor`,{waitUntil:'domcontentloaded'});await ready()
     await page.evaluate(t=>document.documentElement.classList.toggle('dark',t==='dark'),theme)
-    await page.click('button[aria-label^="Notificações,"]');await page.waitForSelector('[role="dialog"]')
+    const focus=await keyboardCycle(page,{negative:true})
+    writeFileSync(resolve(output,`${width}-${theme}-focus.json`),JSON.stringify(focus,null,2))
+    await keyboardOpen(page)
     // Theme/popup transitions must finish before measuring contrast, not midway
     // between the light and dark token values.
     await page.evaluate(async()=>{await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));await Promise.all(document.getAnimations().map(a=>a.finished.catch(()=>{})))})
@@ -101,13 +151,11 @@ try{
     if(violations.length) console.log(JSON.stringify({width,theme,violations}))
     axe.push({width,theme,violations});assert.deepEqual(violations,[])
     await page.screenshot({path:resolve(output,`${width}-${theme}.png`),fullPage:true})
-    await page.keyboard.press('Escape');await page.waitForFunction(()=>!document.querySelector('[role="dialog"]'))
-    assert((await page.evaluate(()=>document.activeElement?.getAttribute('aria-label')))?.startsWith('Notificações,'),'focus not restored')
-    await page.keyboard.press('Enter');await page.waitForSelector('[role="dialog"]')
-    await page.keyboard.press('Tab');assert(await page.evaluate(()=>Boolean(document.activeElement?.closest('[role="dialog"]'))),'focus escaped')
+    await keyboardClose(page)
     checks.push(`${width}-${theme}:responsive-keyboard-focus-axe`)
   }
   assert.deepEqual(errors,[])
   const report={localOnly:true,authenticatedSmoke:false,success:true,checks,axe,errors}
   writeFileSync(resolve(output,'result.json'),JSON.stringify(report,null,2));console.log(JSON.stringify(report))
+  }
 }finally{await browser.close();await new Promise(r=>server.close(r))}
