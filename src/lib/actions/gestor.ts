@@ -10,7 +10,7 @@ import {
 } from '@/lib/auth/authorization'
 import { exigirSessaoElevada } from '@/lib/auth/mfa'
 import { registrarLog } from './auditoria'
-import { notificarCedente } from './notificacao'
+import { notificarCedenteCadastro } from './notificacao'
 import { suspenderCedenteFundo, vincularCedenteFundo } from '@/lib/fundos/cedente-fundo'
 import { resolverContextoFundoGestor } from '@/lib/gestor/contexto-fundo.server'
 import { buckets } from '@/lib/storage'
@@ -103,13 +103,14 @@ export async function analisarDocumento(
   })
 
   const statusLabel = decisao === 'aprovado' ? 'aprovado' : 'reprovado'
-  await notificarCedente(
+  await notificarCedenteCadastro(
     doc.cedente_id,
     `Documento ${statusLabel}`,
     decisao === 'aprovado'
       ? `Seu documento "${doc.tipo}" foi aprovado.`
       : `Seu documento "${doc.tipo}" foi reprovado. Motivo: ${motivo}`,
     `documento_${statusLabel}`,
+    `documento:${documentoId}:${decisao}`,
   )
 
   revalidatePath('/gestor/documentos')
@@ -241,11 +242,12 @@ export async function aprovarCedente(cedenteId: string): Promise<GestorActionSta
     dados_depois: { status: 'ativo', conta_escrow: identificador },
   })
 
-  await notificarCedente(
+  await notificarCedenteCadastro(
     cedenteId,
     'Cadastro aprovado!',
     `Seu cadastro foi aprovado. Sua conta escrow foi criada: ${identificador}. Voce ja pode solicitar antecipacoes.`,
     'cadastro_aprovado',
+    `cedente:${cedenteId}:aprovado`,
   )
 
   return { success: true, message: `Cedente aprovado. Conta escrow ${identificador} criada.` }
@@ -292,11 +294,12 @@ export async function reprovarCedente(cedenteId: string, motivo: string): Promis
     dados_depois: { status: 'reprovado', motivo },
   })
 
-  await notificarCedente(
+  await notificarCedenteCadastro(
     cedenteId,
     'Cadastro reprovado',
     `Seu cadastro foi reprovado. Motivo: ${motivo}`,
     'cadastro_reprovado',
+    `cedente:${cedenteId}:reprovado`,
   )
 
   return { success: true, message: 'Cedente reprovado.' }
@@ -461,11 +464,12 @@ export async function aprovarAlteracaoCedente(solicitacaoId: string): Promise<Ge
     dados_depois: s.dados_propostos,
   })
 
-  await notificarCedente(
+  await notificarCedenteCadastro(
     s.cedente_id,
     'Alteracao cadastral aprovada',
     'Sua solicitacao de alteracao de dados cadastrais foi aprovada.',
     'alteracao_cadastral_aprovada',
+    `solicitacao:${solicitacaoId}:aprovada`,
   )
 
   return { success: true, message: 'Alteracao cadastral aprovada e aplicada.' }
@@ -505,11 +509,12 @@ export async function reprovarAlteracaoCedente(solicitacaoId: string, motivo: st
     dados_depois: { motivo },
   })
 
-  await notificarCedente(
+  await notificarCedenteCadastro(
     s.cedente_id,
     'Alteracao cadastral reprovada',
     `Sua solicitacao de alteracao cadastral foi reprovada. Motivo: ${motivo}`,
     'alteracao_cadastral_reprovada',
+    `solicitacao:${solicitacaoId}:reprovada`,
   )
 
   return { success: true, message: 'Solicitacao reprovada.' }
@@ -543,11 +548,12 @@ export async function solicitarAtualizacaoDocumento(documentoId: string): Promis
 
   const tipoLabel = tipoLabelsDoc[doc.tipo] || doc.tipo
 
-  await notificarCedente(
+  await notificarCedenteCadastro(
     doc.cedente_id,
     'Atualizacao de documento solicitada',
     `O gestor solicitou a atualizacao do documento "${tipoLabel}". Por favor, envie uma versao atualizada em Documentos.`,
     'documento_atualizacao_solicitada',
+    `documento:${documentoId}:atualizacao`,
   )
 
   await registrarLog({

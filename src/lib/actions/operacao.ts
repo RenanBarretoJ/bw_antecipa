@@ -426,21 +426,28 @@ export async function solicitarAntecipacao(
   if (opData.idempotentReplay) {
     // Retry idempotente: a operacao ja existe; nao reenfileira notificacoes nem logs complementares.
   } else if (aceiteSacadoExigido) {
-    await notificarGestores('Nova solicitacao de antecipacao', mensagemSolicitacao, 'operacao_solicitada', `operacao:${opData.id}:solicitada`)
+    await notificarGestores(
+    { entidadeTipo: 'operacao', entidadeId: opData.id },
+    'Nova solicitacao de antecipacao',
+    mensagemSolicitacao,
+    'operacao_solicitada',
+    `operacao:${opData.id}:solicitada`,
+  )
   } else {
     await notificarGestores(
-      'Nova operação disponível para análise',
-      `${mensagemSolicitacao} O aceite do sacado foi dispensado pela política registrada no snapshot.`,
-      'operacao_disponivel_analise',
-      `operacao:${opData.id}:encaminhada_gestor`,
-    )
+    { entidadeTipo: 'operacao', entidadeId: opData.id },
+    'Nova operação disponível para análise',
+    `${mensagemSolicitacao} O aceite do sacado foi dispensado pela política registrada no snapshot.`,
+    'operacao_disponivel_analise',
+    `operacao:${opData.id}:encaminhada_gestor`,
+  )
     await notificarCedente(
-      ced.id,
-      'Operação solicitada e encaminhada à gestora',
-      `A operação foi criada e encaminhada para análise da gestora. O aceite do sacado foi dispensado pela política da operação.`,
-      'operacao_encaminhada_gestor',
-      `operacao:${opData.id}:encaminhada_cedente`,
-    )
+    { entidadeTipo: 'operacao', entidadeId: opData.id },
+    'Operação solicitada e encaminhada à gestora',
+    `A operação foi criada e encaminhada para análise da gestora. O aceite do sacado foi dispensado pela política da operação.`,
+    'operacao_encaminhada_gestor',
+    `operacao:${opData.id}:encaminhada_cedente`,
+  )
     await registrarLog({
       tipo_evento: 'ACEITE_SACADO_DISPENSADO',
       entidade_tipo: 'operacoes',
@@ -632,12 +639,17 @@ export async function aprovarOperacao(
     if (destinatariosError) console.error('[operacao/notificar-sacados]', { code: destinatariosError.code })
     for (const destinatario of destinatarios ?? []) {
       const numeros = nfsTyped.filter(n => n.cnpj_destinatario.replace(/\\D/g, '') === destinatario.cnpj).map(n => n.numero_nf).join(', ')
-      await criarNotificacao({
+      await criarNotificacao(
+    {
         usuario_id: destinatario.user_id,
+        contexto: { entidadeTipo: 'operacao', entidadeId: operacaoId },
+        destino: 'sacado',
+        dedupe_key: `operacao:${operacaoId}:cessao:${destinatario.cnpj}`,
         titulo: 'Notificacao de cessao de credito',
         mensagem: `As NFs ${numeros} emitidas contra voce foram cedidas ao cedente ${opData.cedentes.razao_social}. O pagamento no vencimento devera ser realizado na conta escrow indicada.`,
         tipo: 'cessao_credito',
-      })
+      },
+  )
     }
   }
 
@@ -725,10 +737,11 @@ export async function desembolsarOperacao(operacaoId: string): Promise<OperacaoA
   revalidatePath('/gestor/operacoes/[id]', 'page')
 
   await notificarCedente(
-    opData.cedente_id,
+    { entidadeTipo: 'operacao', entidadeId: operacaoId },
     'Desembolso realizado!',
     `O desembolso da sua operacao foi confirmado. Valor: ${formatBRL(opData.valor_liquido_desembolso)} (taxa: ${opData.taxa_desconto}% a.m., prazo medio: ${opData.prazo_dias} dias). Confira seu extrato.`,
     'operacao_desembolsada',
+    `operacao:${operacaoId}:desembolsada`,
   )
 
   await registrarLog({
@@ -807,10 +820,11 @@ export async function reprovarOperacao(operacaoId: string, motivo: string): Prom
   await liberarParcelasDaOperacao(supabase, operacaoId)
 
   await notificarCedente(
-    opData.cedente_id,
+    { entidadeTipo: 'operacao', entidadeId: operacaoId },
     'Operacao reprovada',
     `Sua solicitacao de antecipacao foi reprovada. Motivo: ${motivo}. As NFs estao disponiveis para nova solicitacao.`,
     'operacao_reprovada',
+    `operacao:${operacaoId}:reprovada`,
   )
 
   await registrarLog({
@@ -987,11 +1001,12 @@ export async function removerNfDaOperacao(
 
   if (resultado.operacao_cancelada) {
     await notificarCedente(
-      resultado.cedente_id,
-      'Operacao cancelada - NF removida',
-      `A NF ${resultado.numero_nf} foi removida da operacao pelo gestor. Como era a unica NF, a operacao foi cancelada.`,
-      'operacao_cancelada',
-    )
+    { entidadeTipo: 'operacao', entidadeId: operacaoId },
+    'Operacao cancelada - NF removida',
+    `A NF ${resultado.numero_nf} foi removida da operacao pelo gestor. Como era a unica NF, a operacao foi cancelada.`,
+    'operacao_cancelada',
+    `operacao:${operacaoId}:nf:${nfId}:removida`,
+  )
 
     await registrarEventoOperacao(supabase, operacaoId, {
       tipo_evento: 'nota_fiscal_removida_operacao',
@@ -1006,10 +1021,11 @@ export async function removerNfDaOperacao(
   }
 
   await notificarCedente(
-    resultado.cedente_id,
+    { entidadeTipo: 'operacao', entidadeId: operacaoId },
     'NF removida da operacao',
     `A NF ${resultado.numero_nf} foi removida da operacao pelo gestor. O valor bruto da operacao foi recalculado para ${formatBRL(resultado.novo_valor_bruto)}.`,
     'nf_removida_operacao',
+    `operacao:${operacaoId}:nf:${nfId}:removida`,
   )
 
   await registrarEventoOperacao(supabase, operacaoId, {

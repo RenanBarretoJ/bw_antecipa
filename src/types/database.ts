@@ -1681,6 +1681,10 @@ export interface MfaResetSolicitacao {
 
 export interface Notificacao {
   id: string
+  fundo_id: string | null
+  cedente_id: string | null
+  cedente_fundo_id: string | null
+  scope_type: 'FUNDO' | 'GLOBAL' | 'LEGACY_UNSCOPED'
   usuario_id: string
   titulo: string
   mensagem: string
@@ -2896,6 +2900,16 @@ export interface Database {
         }
         Returns: Record<string, unknown>
       }
+      listar_fundos_notificacoes: { Args: Record<string, never>; Returns: Array<{ id: string; nome: string }> }
+      listar_notificacoes: { Args: { p_scope: string; p_fundo_id: string | null; p_limit?: number; p_cursor_em?: string | null; p_cursor_id?: string | null; p_somente_nao_lidas?: boolean }; Returns: Notificacao[] }
+      listar_notificacoes_filtradas: { Args: { p_scope: string; p_fundo_id: string | null; p_filtro?: string; p_limit?: number; p_cursor_em?: string | null; p_cursor_id?: string | null }; Returns: Notificacao[] }
+      contar_notificacoes: { Args: { p_scope: string; p_fundo_id: string | null }; Returns: Array<{ total: number; nao_lidas: number }> }
+      marcar_notificacoes_lidas: { Args: { p_scope: string; p_fundo_id: string | null; p_id?: string | null }; Returns: number }
+      obter_destino_notificacao: { Args: { p_id: string; p_scope: string; p_fundo_id: string | null }; Returns: Array<{ entidade_tipo: string; entidade_id: string | null; cedente_id: string | null; fundo_id: string | null }> }
+      notificar_gestores_cadastro_cedente: { Args: { p_cedente_id: string; p_titulo: string; p_mensagem: string; p_tipo: string; p_evento_key: string }; Returns: number }
+      notificar_entidade: { Args: { p_entidade_tipo: string; p_entidade_id: string; p_destino: string; p_titulo: string; p_mensagem: string; p_tipo: string; p_dedupe_key: string; p_usuario_id?: string | null; p_somente_admin?: boolean }; Returns: Array<{ usuario_id: string; notificacao_id: string }> }
+      notificar_cedente_cadastro: { Args: { p_cedente_id: string; p_titulo: string; p_mensagem: string; p_tipo: string; p_dedupe_key: string; p_somente_admin?: boolean }; Returns: Array<{ usuario_id: string; notificacao_id: string }> }
+      notificar_seguranca_global: { Args: { p_usuario_id: string; p_titulo: string; p_mensagem: string; p_tipo: string; p_dedupe_key: string }; Returns: string | null }
       instanciar_requisitos_nota: { Args: { p_nota_fiscal_id: string; p_politica_operacional_id: string; p_politica_versao_id: string }; Returns: Record<string, unknown> }
       listar_documentos_atuais_cedente: { Args: { p_cedente_id: string }; Returns: Array<{ id: string; tipo: string; versao: number; status: string; nome_arquivo: string | null; url_arquivo: string | null; motivo_reprovacao: string | null; created_at: string; representante_id: string | null; analisado_em: string | null; atualizacao_solicitada_em: string | null }> }
       obter_politica_aplicavel_cedente_fundo: { Args: { p_cedente_fundo_id: string; p_data_referencia?: string }; Returns: Record<string, unknown> }

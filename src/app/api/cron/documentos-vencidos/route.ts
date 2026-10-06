@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { VALIDADE_DIAS } from '@/lib/documentos'
 import { registrarLog } from '@/lib/actions/auditoria'
+import { notificarGestoresCadastro } from '@/lib/notificacoes/cadastro.server'
 
 // Cron job: verificar documentos aprovados vencidos ou a vencer em 30 dias
 // Executado diariamente as 08:30 UTC via Vercel Cron (vercel.json)
@@ -115,24 +116,28 @@ export async function GET(request: Request) {
     }
 
     // Notificar gestores — docs vencidos (um alerta por cedente)
-    for (const [, info] of Object.entries(vencidosPorCedente)) {
-      await notificarGestoresCron(
-        supabaseAdmin,
-        `ALERTA: Documentos vencidos — ${info.razao_social}`,
-        `O cedente ${info.razao_social} possui ${info.tipos.length} documento(s) vencido(s): ${info.tipos.join(', ')}. Acesse o cadastro e solicite a atualizacao.`,
-        'documento_vencido'
-      )
-      resultados.cedentes_alertados++
+    for (const [cedenteId, info] of Object.entries(vencidosPorCedente)) {
+      const aviso = await notificarGestoresCadastro({
+        cedenteId,
+        titulo: `ALERTA: Documentos vencidos — ${info.razao_social}`,
+        mensagem: `O cedente ${info.razao_social} possui ${info.tipos.length} documento(s) vencido(s): ${info.tipos.join(', ')}. Acesse o cadastro e solicite a atualizacao.`,
+        tipo: 'documento_vencido',
+        eventoKey: `cron:documentos:${hoje.toISOString().slice(0, 10)}`,
+      })
+      if (!aviso.success) resultados.erros++
+      else if (aviso.criadas > 0) resultados.cedentes_alertados++
     }
 
     // Notificar gestores — docs a vencer em 30 dias
-    for (const [, info] of Object.entries(aVencer30PorCedente)) {
-      await notificarGestoresCron(
-        supabaseAdmin,
-        `Documentos a vencer — ${info.razao_social}`,
-        `O cedente ${info.razao_social} possui ${info.tipos.length} documento(s) a vencer nos proximos 30 dias: ${info.tipos.join(', ')}.`,
-        'documento_a_vencer'
-      )
+    for (const [cedenteId, info] of Object.entries(aVencer30PorCedente)) {
+      const aviso = await notificarGestoresCadastro({
+        cedenteId,
+        titulo: `Documentos a vencer — ${info.razao_social}`,
+        mensagem: `O cedente ${info.razao_social} possui ${info.tipos.length} documento(s) a vencer nos proximos 30 dias: ${info.tipos.join(', ')}.`,
+        tipo: 'documento_a_vencer',
+        eventoKey: `cron:documentos:${hoje.toISOString().slice(0, 10)}`,
+      })
+      if (!aviso.success) resultados.erros++
     }
 
     console.log('[cron/documentos-vencidos] Resultado:', resultados)
@@ -145,22 +150,5 @@ export async function GET(request: Request) {
   } catch (err) {
     console.error('[cron/documentos-vencidos] Erro geral:', err)
     return Response.json({ error: 'Erro interno no processamento.' }, { status: 500 })
-  }
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function notificarGestoresCron(supabase: any, titulo: string, mensagem: string, tipo: string) {
-  try {
-    const { data: gestores } = await supabase.from('profiles').select('id').eq('role', 'gestor')
-    if (!gestores || gestores.length === 0) return
-
-    const notificacoes = (gestores as Array<{ id: string }>).map((g) => ({
-      usuario_id: g.id, titulo, mensagem, tipo,
-    }))
-
-    const { error } = await supabase.from('notificacoes').insert(notificacoes as never[])
-    if (error) console.error('[cron/documentos-vencidos/notificarGestores] Erro:', error.message)
-  } catch (err) {
-    console.error('[cron/documentos-vencidos/notificarGestores] Erro inesperado:', err)
   }
 }

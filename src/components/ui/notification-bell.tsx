@@ -1,173 +1,47 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { Bell } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
-import {
-  carregarSinoNotificacoes,
-  marcarNotificacaoComoLida,
-  recontarNotificacoesNaoLidas,
-} from '@/lib/actions/notificacoes-listagem'
-import {
-  compactarNotificacao,
-  deduplicarNotificacoes,
-  type NotificacaoListagemItem,
-} from '@/lib/notificacoes/contracts'
-
-function timeAgo(dateStr: string) {
-  const diff = Date.now() - new Date(dateStr).getTime()
-  const mins = Math.floor(diff / 60_000)
-  if (mins < 1) return 'agora'
-  if (mins < 60) return `${mins}min`
-  const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours}h`
-  return `${Math.floor(hours / 24)}d`
-}
+import Link from 'next/link'
+import { useState } from 'react'
+import { Bell, X } from 'lucide-react'
+import { Popover } from '@base-ui/react/popover'
+import { NotificacoesContextControl, useNotificacoesContexto } from '@/components/notificacoes/notificacoes-context'
+import { useNotificacoes } from '@/components/notificacoes/use-notificacoes'
 
 export function NotificationBell({ userId }: { userId: string }) {
-  const router = useRouter()
-  const [items, setItems] = useState<NotificacaoListagemItem[]>([])
-  const [unreadCount, setUnreadCount] = useState(0)
   const [open, setOpen] = useState(false)
-  const [supabase] = useState(() => createClient())
-  const dropdownRef = useRef<HTMLDivElement>(null)
-  const realtimeIdsRef = useRef(new Set<string>())
-
-  useEffect(() => {
-    let active = true
-    void carregarSinoNotificacoes().then((page) => {
-      if (!active || page.userId !== userId) return
-      page.items.forEach((item) => realtimeIdsRef.current.add(item.id))
-      setItems((current) => deduplicarNotificacoes([...current, ...page.items]).slice(0, 10))
-      setUnreadCount(page.contadores?.naoLidas ?? 0)
-    }).catch(() => {})
-
-    const channel = supabase
-      .channel(`notificacoes-bell-${userId}`)
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'notificacoes',
-        filter: `usuario_id=eq.${userId}`,
-      }, (payload) => {
-        const newRow = payload.new as Record<string, unknown>
-        const oldRow = payload.old as Record<string, unknown>
-
-        if (payload.eventType === 'INSERT') {
-          if (newRow.usuario_id !== userId) return
-          const item = compactarNotificacao(newRow)
-          if (!item || realtimeIdsRef.current.has(item.id)) return
-          realtimeIdsRef.current.add(item.id)
-          setItems((current) => deduplicarNotificacoes([item, ...current]).slice(0, 10))
-          if (!item.lida) setUnreadCount((current) => current + 1)
-          return
-        }
-
-        if (payload.eventType === 'UPDATE') {
-          if (newRow.usuario_id !== userId) return
-          const item = compactarNotificacao(newRow)
-          if (!item) return
-          setItems((current) => current.map((entry) => entry.id === item.id ? item : entry))
-          if (typeof oldRow.lida === 'boolean' && oldRow.lida !== item.lida) {
-            setUnreadCount((current) => Math.max(0, current + (item.lida ? -1 : 1)))
-          }
-          return
-        }
-
-        const deletedId = typeof oldRow.id === 'string' ? oldRow.id : null
-        if (!deletedId) return
-        realtimeIdsRef.current.delete(deletedId)
-        setItems((current) => current.filter((item) => item.id !== deletedId))
-        if (oldRow.lida === false) setUnreadCount((current) => Math.max(0, current - 1))
-      })
-      .subscribe()
-
-    return () => {
-      active = false
-      void supabase.removeChannel(channel)
-    }
-  }, [supabase, userId])
-
-  useEffect(() => {
-    const handler = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) setOpen(false)
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [])
-
-  async function markAsRead(item: NotificacaoListagemItem) {
-    if (item.lida) return
-    setItems((current) => current.map((entry) => entry.id === item.id ? { ...entry, lida: true } : entry))
-    setUnreadCount((current) => Math.max(0, current - 1))
-    const result = await marcarNotificacaoComoLida(item.id)
-    if (!result.success) {
-      setItems((current) => current.map((entry) => entry.id === item.id ? { ...entry, lida: false } : entry))
-      try {
-        const counts = await recontarNotificacoesNaoLidas()
-        setUnreadCount(counts.naoLidas)
-      } catch {
-        // A próxima navegação ou evento realtime reconcilia o contador.
-      }
-    } else if (result.contadores) {
-      setUnreadCount(result.contadores.naoLidas)
-    }
-  }
-
-  return (
-    <div className="relative" ref={dropdownRef}>
-      <button
-        type="button"
-        onClick={() => setOpen((current) => !current)}
-        className="relative rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-        aria-label="Notificações"
-        aria-expanded={open}
-      >
-        <Bell className="size-5" />
-        {unreadCount > 0 && (
-          <span className="absolute -right-0.5 -top-0.5 flex size-5 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
-            {unreadCount > 9 ? '9+' : unreadCount}
-          </span>
-        )}
-      </button>
-
-      {open && (
-        <div className="absolute right-0 top-full z-50 mt-2 w-80 overflow-hidden rounded-xl border border-border bg-popover shadow-xl">
-          <div className="border-b border-border px-4 py-3">
-            <p className="text-sm font-semibold text-popover-foreground">Notificações</p>
+  const { contexto, loading: contextoLoading } = useNotificacoesContexto()
+  const { page, loading, busy, error, mark, retry } = useNotificacoes('todas', 10)
+  const unread = contexto?.userId === userId ? page.contadores?.naoLidas ?? 0 : 0
+  return <Popover.Root open={open} onOpenChange={setOpen} modal="trap-focus">
+    <Popover.Trigger aria-label={`Notificações, ${unread} não lidas no contexto atual`} className="relative rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary">
+      <Bell className="size-5" aria-hidden="true" />
+      {unread > 0 && <span data-testid="notificacao-badge" className="absolute -right-0.5 -top-0.5 flex size-5 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">{unread > 9 ? '9+' : unread}</span>}
+    </Popover.Trigger>
+    <Popover.Portal><Popover.Positioner side="bottom" align="end" sideOffset={8} collisionPadding={12} className="z-50">
+      <Popover.Popup className="w-[min(24rem,calc(100vw-1.5rem))] max-h-[min(38rem,var(--available-height))] overflow-y-auto rounded-xl border border-border bg-popover text-popover-foreground shadow-xl outline-none">
+        <div className="space-y-3 border-b border-border p-4">
+          <div className="flex items-center justify-between gap-2">
+            <Popover.Title className="text-sm font-semibold">Notificações</Popover.Title>
+            <Popover.Close aria-label="Fechar notificações" className="rounded-md p-1 hover:bg-muted"><X className="size-4" aria-hidden="true" /></Popover.Close>
           </div>
-          <div className="max-h-80 overflow-y-auto">
-            {items.length === 0 ? (
-              <p className="py-6 text-center text-sm text-muted-foreground">Nenhuma notificação.</p>
-            ) : items.map((item) => (
-              <button
-                type="button"
-                key={item.id}
-                onClick={async () => {
-                  await markAsRead(item)
-                  if (item.href) {
-                    setOpen(false)
-                    router.push(item.href)
-                  }
-                }}
-                className={`w-full border-b border-border px-4 py-3 text-left transition-colors hover:bg-muted ${!item.lida ? 'bg-primary/5' : ''}`}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <p className={`text-sm ${!item.lida ? 'font-semibold text-foreground' : 'text-muted-foreground'}`}>{item.titulo}</p>
-                    <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{item.mensagem}</p>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-1.5">
-                    <span className="text-[10px] text-muted-foreground">{timeAgo(item.createdAt)}</span>
-                    {!item.lida && <span className="size-2 rounded-full bg-primary" />}
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
+          <NotificacoesContextControl compacto />
         </div>
-      )}
-    </div>
-  )
+        <div className="p-2" aria-busy={loading || contextoLoading}>
+          {(loading || contextoLoading) && <p role="status" className="p-3 text-sm text-muted-foreground">Atualizando…</p>}
+          {error && <p role="alert" className="p-3 text-sm text-destructive">{error} <button type="button" className="underline" onClick={retry}>Tentar novamente</button></p>}
+          {!loading && !contextoLoading && !error && page.items.length === 0 && <p className="p-4 text-center text-sm text-muted-foreground">Nenhuma notificação neste contexto.</p>}
+          {page.items.map((item) => <article key={item.id} className={`space-y-2 rounded-lg border-b border-border p-3 ${!item.lida ? 'bg-primary/5' : ''}`}>
+            <h3 className="break-words text-sm font-semibold">{item.titulo}</h3>
+            <p className="break-words text-xs text-muted-foreground">{item.mensagem}</p>
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+              <time dateTime={item.createdAt} className="text-muted-foreground">{new Date(item.createdAt).toLocaleDateString('pt-BR')}</time>
+              {!item.lida && <button type="button" className="rounded p-1 text-blue-700 underline disabled:opacity-50 dark:text-blue-300" disabled={busy || loading} onClick={() => void mark(item.id)}>Marcar como lida<span className="sr-only">: {item.titulo}</span></button>}
+              {item.href && <Link href={item.href} prefetch={false} onClick={() => setOpen(false)} className="rounded p-1 text-blue-700 underline dark:text-blue-300">Abrir detalhe<span className="sr-only">: {item.titulo}</span></Link>}
+            </div>
+          </article>)}
+        </div>
+        {contexto && contexto.role !== 'super_admin' && <Link href={`/${contexto.role}/notificacoes`} onClick={() => setOpen(false)} className="block border-t border-border p-3 text-center text-sm font-medium text-blue-700 hover:bg-muted dark:text-blue-300">Ver todas as notificações</Link>}
+      </Popover.Popup>
+    </Popover.Positioner></Popover.Portal>
+  </Popover.Root>
 }

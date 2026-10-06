@@ -11,6 +11,12 @@ const nfseSections = new Map([
   [`${nfseRemote}.db.migrations`, 'enabled = false'],
   [`${nfseRemote}.db.seed`, 'enabled = false'],
 ])
+const notificacoesRemote = 'remotes."feature/notificacoes-fund-scope"'
+const notificacoesSections = new Map([
+  [notificacoesRemote, 'project_id = "twmxvhddqbderjzgmcjo"'],
+  [`${notificacoesRemote}.db.migrations`, 'enabled = false'],
+  [`${notificacoesRemote}.db.seed`, 'enabled = false'],
+])
 function sections(text) {
   const result = new Map()
   for (const part of text.replaceAll('\r\n', '\n').split(/^\[/m).slice(1)) {
@@ -25,10 +31,12 @@ function assertPreviewScope(current) {
   // its exact section names from the unchanged historical baseline hash.
   assert.deepEqual([...current].filter(([name]) => name.startsWith(nfseRemote)),
     [...nfseSections], 'NFSE_PREVIEW_CONFIG_CHANGED')
+  assert.deepEqual([...current].filter(([name]) => name.startsWith(notificacoesRemote)),
+    [...notificacoesSections], 'NOTIFICACOES_PREVIEW_CONFIG_CHANGED')
   // Pin the normalized preexisting sections from main 18374bf. CI uses a shallow
   // checkout, so do not depend on an un-fetched historical Git object.
   const original = [...current].filter(([name]) =>
-    !name.startsWith('remotes."hotfix/sacado-multi-cnpj"') && !nfseSections.has(name))
+    !name.startsWith('remotes."hotfix/sacado-multi-cnpj"') && !nfseSections.has(name) && !notificacoesSections.has(name))
   assert.equal(createHash('sha256').update(JSON.stringify(original)).digest('hex'),
     'f433e29fd55575110ee29586a7a76feeb42e462dae42fd62a2763bd40eeb0e40', 'OTHER_CONFIG_CHANGED')
   assert.deepEqual([...current.keys()].filter(name => name.startsWith('remotes."hotfix/sacado-multi-cnpj"')), [
@@ -45,7 +53,7 @@ function assertPreviewScope(current) {
   assert.match(current.get('remotes."hotfix/sacado-multi-cnpj".auth'), /^site_url = "https:\/\/bw-antecipa-git-hotfix-sacado-multi-cnpj-renanbarretoj.vercel.app"$/m)
 }
 
-test('only the exact authorized SACADO and NFSE remote configurations are added', () => {
+test('only the exact authorized SACADO, NFSE and NOTIFICACOES remote configurations are added', () => {
   assertPreviewScope(sections(config))
 })
 
@@ -57,6 +65,13 @@ test.each([
   ['NFSE automatic seed', `${nfseRemote}.db.seed`, 'enabled = true'],
   ['NFSE extra setting', nfseRemote, 'project_id = "ettpaprrmpjsfkcystob"\nextra = true'],
   ['NFSE extra section', `${nfseRemote}.auth`, 'enabled = false'],
+  ['notifications production target', notificacoesRemote, 'project_id = "wwsndnuvnjuabpbjwlck"'],
+  ['notifications homolog target', notificacoesRemote, 'project_id = "fhgkmggthxikfpogrvaa"'],
+  ['notifications RLX target', notificacoesRemote, 'project_id = "inkyqlmusvorcmibmrhp"'],
+  ['notifications migrations', `${notificacoesRemote}.db.migrations`, 'enabled = true'],
+  ['notifications seed', `${notificacoesRemote}.db.seed`, 'enabled = true'],
+  ['notifications extra section', `${notificacoesRemote}.auth`, 'enabled = false'],
+  ['similar notifications remote', 'remotes."feature/notificacoes-fund-scope-extra"', 'project_id = "twmxvhddqbderjzgmcjo"'],
   ['similar remote name', 'remotes."hotfix/nfse-submit-frozen-facts-extra"', 'project_id = "ettpaprrmpjsfkcystob"'],
   ['unknown remote', 'remotes."unapproved"', 'project_id = "unapproved"'],
   ['global migrations', 'db.migrations', 'enabled = false\nschema_paths = []'],
@@ -75,6 +90,12 @@ test.each([...nfseSections.keys()])('rejects missing authorized section %s', sec
   const changed = sections(config)
   assert(changed.delete(section))
   assert.throws(() => assertPreviewScope(changed), /NFSE_PREVIEW_CONFIG_CHANGED/)
+})
+
+test.each([...notificacoesSections.keys()])('rejects missing notifications section %s', section => {
+  const changed = sections(config)
+  assert(changed.delete(section))
+  assert.throws(() => assertPreviewScope(changed), /NOTIFICACOES_PREVIEW_CONFIG_CHANGED/)
 })
 
 test('rejects duplicate sections instead of hiding an earlier override', () => {

@@ -1,166 +1,94 @@
-'use server'
+import 'server-only'
 
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/server'
 import { enviarEmail, emailTemplates } from '@/lib/email'
 
-interface NotificacaoInput {
-  usuario_id: string
-  titulo: string
-  mensagem: string
-  tipo: string
-  dedupe_key?: string
-  entidade_tipo?: string
-  entidade_id?: string
-  href?: string
+export type ContextoNotificacao = {
+  entidadeTipo: 'nota_fiscal' | 'operacao' | 'cedente_fundo' | 'entrega' | 'evento_dominio'
+  entidadeId: string
 }
-
+type DestinoNotificacao = 'gestor' | 'cedente' | 'sacado' | 'consultor'
 export type NotificacaoCedenteEscopo = 'operacional' | 'administrativo'
+export type ResultadoNotificacao = { success: true; criadas: number } | { success: false }
+type Criada = { usuario_id: string; notificacao_id: string }
 
-async function listarDestinatariosAtivosCedente(
-  cedenteId: string,
-  escopo: NotificacaoCedenteEscopo,
-): Promise<string[]> {
-  const admin = createAdminClient()
-  const [{ data: cedente, error: cedenteError }, { data: acessos, error: acessosError }] = await Promise.all([
-    admin.from('cedentes').select('user_id').eq('id', cedenteId).maybeSingle(),
-    admin
-      .from('cedente_acessos')
-      .select('user_id, perfil, status')
-      .eq('cedente_id', cedenteId),
-  ])
-
-  if (cedenteError || !cedente) throw new Error('Cedente nao encontrado para notificacao.')
-  if (acessosError) throw new Error(`Nao foi possivel resolver os acessos do cedente: ${acessosError.message}`)
-
-  const todasAssociacoes = (acessos || []) as Array<{
-    user_id: string
-    perfil: 'ADMIN' | 'OPERACIONAL'
-    status: 'CONVIDADO' | 'ATIVO' | 'REVOGADO'
-  }>
-  const candidatos = todasAssociacoes
-    .filter((acesso) => acesso.status === 'ATIVO')
-    .filter((acesso) => escopo === 'operacional' || acesso.perfil === 'ADMIN')
-    .map((acesso) => acesso.user_id)
-
-  // Compatibilidade: owner somente quando o Cedente ainda nao possui nenhuma
-  // associacao canonica. REVOGADO/CONVIDADO nunca reativam o fallback.
-  if (todasAssociacoes.length === 0) {
-    candidatos.push((cedente as { user_id: string }).user_id)
-  }
-
-  const unicos = [...new Set(candidatos)]
-  if (!unicos.length) return []
-  const { data: profiles, error: profilesError } = await admin
-    .from('profiles')
-    .select('id')
-    .in('id', unicos)
-    .eq('status', 'ativo')
-  if (profilesError) throw new Error(`Nao foi possivel validar os destinatarios: ${profilesError.message}`)
-  return ((profiles || []) as Array<{ id: string }>).map((profile) => profile.id)
-}
-
-export async function criarNotificacao({ usuario_id, titulo, mensagem, tipo, dedupe_key, entidade_tipo, entidade_id, href }: NotificacaoInput) {
-  try {
-    const supabase = await createClient()
-    const { error } = await supabase
-      .from('notificacoes')
-      .insert({ usuario_id, titulo, mensagem, tipo, dedupe_key, entidade_tipo, entidade_id, href } as never)
-
-    if (error) {
-      console.error('[criarNotificacao] Falha ao inserir:', error.message, { usuario_id, tipo })
-    }
-
-    // Tentar enviar email (nao bloqueia se falhar)
-    tentarEnviarEmail(usuario_id, tipo, titulo, mensagem).catch(() => {})
-  } catch (err) {
-    console.error('[criarNotificacao] Erro inesperado:', err)
-  }
-}
-
-// Envia notificacao somente a associacoes canonicas ATIVAS. O owner legado e
-// fallback exclusivo de Cedentes ainda sem qualquer associacao.
-export async function notificarCedente(
-  cedenteId: string,
+/** Internal backend boundary, never a callable Server Action. SQL derives fund,
+ * canonical link and recipients from the persisted entity, not the UI cookie. */
+export async function notificarEntidade(
+  contexto: ContextoNotificacao,
+  destino: DestinoNotificacao,
   titulo: string,
   mensagem: string,
   tipo: string,
-  dedupeKey?: string,
-  escopo: NotificacaoCedenteEscopo = 'operacional',
-) {
+  dedupeKey: string,
+  options: { usuarioId?: string; somenteAdmin?: boolean; enviarEmail?: boolean } = {},
+): Promise<ResultadoNotificacao> {
   try {
-    const admin = createAdminClient()
-    const userIds = await listarDestinatariosAtivosCedente(cedenteId, escopo)
-    if (!userIds.length) return
-
-    const notificacoesLote = userIds.map((uid) => ({
-      usuario_id: uid,
-      titulo,
-      mensagem,
-      tipo,
-      ...(dedupeKey ? { dedupe_key: `${dedupeKey}:${uid}` } : {}),
-    }))
-
-    const { error: notificacoesError } = dedupeKey
-      ? await admin
-          .from('notificacoes')
-          .upsert(notificacoesLote as never[], {
-            onConflict: 'usuario_id,dedupe_key',
-            ignoreDuplicates: true,
-          })
-      : await admin
-          .from('notificacoes')
-          .insert(notificacoesLote as never[])
-
-    if (notificacoesError) {
-      console.error('[notificarCedente] Falha ao inserir notificacoes:', notificacoesError.message, {
-        cedenteId,
-        tipo,
-        count: notificacoesLote.length,
-      })
+    const { data, error } = await createAdminClient().rpc('notificar_entidade', {
+      p_entidade_tipo: contexto.entidadeTipo, p_entidade_id: contexto.entidadeId,
+      p_destino: destino, p_titulo: titulo, p_mensagem: mensagem, p_tipo: tipo,
+      p_dedupe_key: dedupeKey, p_usuario_id: options.usuarioId ?? null,
+      p_somente_admin: options.somenteAdmin ?? false,
+    })
+    if (error || !Array.isArray(data)) {
+      console.error('[notificacoes/entidade] Falha no aviso.', { code: error?.code ?? 'INVALID_RESPONSE', tipo })
+      return { success: false }
     }
-
-    await Promise.allSettled(userIds.map((userId) => tentarEnviarEmail(userId, tipo, titulo, mensagem)))
-  } catch (err) {
-    console.error('[notificarCedente] Erro inesperado:', err)
+    if (options.enviarEmail) await enviarEmailsNovos(data, tipo, titulo, mensagem)
+    return { success: true, criadas: data.length }
+  } catch {
+    console.error('[notificacoes/entidade] Falha de infraestrutura.', { tipo })
+    return { success: false }
   }
 }
 
-export async function notificarGestores(titulo: string, mensagem: string, tipo: string, dedupeKey?: string) {
+export async function criarNotificacao(input: {
+  usuario_id: string; contexto: ContextoNotificacao; destino: DestinoNotificacao
+  titulo: string; mensagem: string; tipo: string; dedupe_key: string
+}) {
+  return notificarEntidade(input.contexto, input.destino, input.titulo, input.mensagem, input.tipo,
+    input.dedupe_key, { usuarioId: input.usuario_id, enviarEmail: true })
+}
+
+export async function notificarCedente(
+  contexto: ContextoNotificacao, titulo: string, mensagem: string, tipo: string,
+  dedupeKey: string, escopo: NotificacaoCedenteEscopo = 'operacional',
+) {
+  return notificarEntidade(contexto, 'cedente', titulo, mensagem, tipo, dedupeKey,
+    { somenteAdmin: escopo === 'administrativo', enviarEmail: true })
+}
+
+export async function notificarGestores(
+  contexto: ContextoNotificacao, titulo: string, mensagem: string, tipo: string, dedupeKey: string,
+) {
+  return notificarEntidade(contexto, 'gestor', titulo, mensagem, tipo, dedupeKey)
+}
+
+export async function notificarCedenteCadastro(
+  cedenteId: string, titulo: string, mensagem: string, tipo: string, dedupeKey: string,
+  escopo: NotificacaoCedenteEscopo = 'operacional',
+): Promise<ResultadoNotificacao> {
   try {
-    const supabase = createAdminClient()
-    const { data: gestores, error: queryError } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('role', 'gestor')
-
-    if (queryError) {
-      console.error('[notificarGestores] Erro ao buscar gestores:', queryError.message)
-      return
+    const { data, error } = await createAdminClient().rpc('notificar_cedente_cadastro', {
+      p_cedente_id: cedenteId, p_titulo: titulo, p_mensagem: mensagem, p_tipo: tipo,
+      p_dedupe_key: dedupeKey, p_somente_admin: escopo === 'administrativo',
+    })
+    if (error || !Array.isArray(data)) {
+      console.error('[notificacoes/cadastro-cedente] Falha no aviso.', { code: error?.code ?? 'INVALID_RESPONSE', tipo })
+      return { success: false }
     }
-
-    if (!gestores || gestores.length === 0) {
-      console.warn('[notificarGestores] Nenhum gestor encontrado para notificar')
-      return
-    }
-
-    const notificacoes = gestores.map((g) => ({
-      usuario_id: (g as { id: string }).id,
-      titulo,
-      mensagem,
-      tipo,
-      dedupe_key: dedupeKey ? `${dedupeKey}:${(g as { id: string }).id}` : undefined,
-    }))
-
-    const { error: insertError } = await supabase
-      .from('notificacoes')
-      .insert(notificacoes as never[])
-
-    if (insertError) {
-      console.error('[notificarGestores] Falha ao inserir notificacoes:', insertError.message, { tipo, count: notificacoes.length })
-    }
-  } catch (err) {
-    console.error('[notificarGestores] Erro inesperado:', err)
+    await enviarEmailsNovos(data, tipo, titulo, mensagem)
+    return { success: true, criadas: data.length }
+  } catch {
+    console.error('[notificacoes/cadastro-cedente] Falha de infraestrutura.', { tipo })
+    return { success: false }
   }
+}
+
+async function enviarEmailsNovos(criadas: Criada[], tipo: string, titulo: string, mensagem: string) {
+  // One email per newly notified user, even when a shared event affects two funds.
+  const users = [...new Set(criadas.map(row => row.usuario_id))]
+  await Promise.allSettled(users.map(user => tentarEnviarEmail(user, tipo, titulo, mensagem)))
 }
 
 // Envia email transacional baseado no tipo de notificacao.
@@ -224,7 +152,7 @@ async function tentarEnviarEmail(usuarioId: string, tipo: string, titulo: string
     if (emailData) {
       await enviarEmail({ to: email, ...emailData })
     }
-  } catch (err) {
-    console.error('[tentarEnviarEmail] Erro:', err)
+  } catch {
+    console.error('[notificacoes/email] Falha no envio transacional.', { tipo })
   }
 }

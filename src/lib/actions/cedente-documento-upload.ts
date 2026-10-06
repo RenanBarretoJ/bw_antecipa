@@ -9,7 +9,7 @@ import {
 } from '@/lib/documentos-cadastrais/upload'
 import { createAdminClient } from '@/lib/supabase/server'
 import type { DocumentoUploadIntentRow } from '@/types/database'
-import { notificarGestores } from './notificacao'
+import { notificarGestoresCadastro } from '@/lib/notificacoes/cadastro.server'
 
 type UploadMetadata = { tipo: string; nomeArquivo: string; mime: string; tamanho: number; representanteId?: string | null; cedenteId?: string }
 type UploadResponse = { success: true; message: string } | { success: false; message: string }
@@ -170,9 +170,13 @@ export async function finalizarUploadDocumentoCadastral(intentId: string, cedent
   // Audit is committed by the RPC with the version. Notification is best effort.
   if (data[0].novo_registro) {
     try {
-      await notificarGestores('Novo documento enviado',
-        `O cedente CNPJ ${cedente.cnpj} enviou o documento "${intent.tipo_documento}" (v${data[0].versao}).`,
-        'documento_enviado')
+      await notificarGestoresCadastro({
+        cedenteId: cedente.id,
+        titulo: 'Novo documento enviado',
+        mensagem: `O cedente CNPJ ${cedente.cnpj} enviou o documento "${intent.tipo_documento}" (v${data[0].versao}).`,
+        tipo: 'documento_enviado',
+        eventoKey: `documento:${data[0].documento_id}:versao:${data[0].versao}`,
+      })
     } catch { console.warn('document-upload-notification-failed', { intentId: intent.id }) }
   }
   return { success: true, message: 'Documento enviado com sucesso!' }

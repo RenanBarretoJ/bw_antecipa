@@ -1,107 +1,42 @@
 import 'server-only'
-
-import type { UserRole } from '@/types/database'
-import { requireAuthenticated, requireRole, type AuthContext } from '@/lib/auth/authorization'
-import { createAdminClient } from '@/lib/supabase/server'
+import { requireAuthenticated, type AuthContext } from '@/lib/auth/authorization'
 import { encodeCursor, parseCursor } from '@/lib/pagination/cursor'
-import { buildDescendingCreatedAtCursorFilter } from '@/lib/pagination/keyset'
-import {
-  compactarNotificacao,
-  type NotificacaoContadores,
-  type NotificacaoFiltro,
-  type NotificacaoPagina,
-} from './contracts'
+import { compactarNotificacao, parseNotificacaoFiltro, type NotificacaoContadores, type NotificacaoEscopo, type NotificacaoFiltro, type NotificacaoPagina } from './contracts'
+import { validarContextoNotificacoes } from './contexto.server'
 
-const SELECT_FIELDS = 'id, titulo, mensagem, tipo, lida, entidade_tipo, entidade_id, href, created_at'
-
-type SupabaseQueryError = {
-  code?: string
-  hint?: string | null
-}
-
-function registrarErroNotificacoes(operacao: string, error: SupabaseQueryError | null | undefined) {
-  console.error('[notificacoes] Falha na consulta server-side.', {
-    operacao,
-    code: error?.code || 'UNKNOWN',
-    hasHint: Boolean(error?.hint),
-  })
-}
-
-export async function contarNotificacoesDoContext(context: AuthContext): Promise<NotificacaoContadores> {
-  const notificationsClient = createAdminClient()
-  const [totalResult, unreadResult] = await Promise.all([
-    notificationsClient
-      .from('notificacoes')
-      .select('id', { count: 'exact', head: true })
-      .eq('usuario_id', context.user.id),
-    notificationsClient
-      .from('notificacoes')
-      .select('id', { count: 'exact', head: true })
-      .eq('usuario_id', context.user.id)
-      .eq('lida', false),
-  ])
-  if (totalResult.error || unreadResult.error) {
-    registrarErroNotificacoes('count', totalResult.error || unreadResult.error)
-    throw new Error('Nao foi possivel contar as notificacoes.')
-  }
-  return { total: totalResult.count ?? 0, naoLidas: unreadResult.count ?? 0 }
-}
-
-export async function contarNotificacoesUsuario(): Promise<NotificacaoContadores> {
-  return contarNotificacoesDoContext(await requireAuthenticated())
+export async function contarNotificacoesDoContext(context: AuthContext, escopo: NotificacaoEscopo): Promise<NotificacaoContadores> {
+  const { data, error } = await context.supabase.rpc('contar_notificacoes', { p_scope: escopo.scope, p_fundo_id: escopo.fundoId })
+  if (error) throw new Error('Não foi possível contar as notificações.')
+  return { total: Number(data?.[0]?.total ?? 0), naoLidas: Number(data?.[0]?.nao_lidas ?? 0) }
 }
 
 export async function carregarNotificacoesUsuario(input: {
+  escopo: NotificacaoEscopo
   cursor?: string | null
   limit?: number
   filtro?: NotificacaoFiltro
-  roleEsperada?: UserRole
-  incluirContadores?: boolean
 }): Promise<NotificacaoPagina & { userId: string }> {
-  const context = input.roleEsperada
-    ? await requireRole(input.roleEsperada)
-    : await requireAuthenticated()
-  const limit = Math.min(Math.max(input.limit ?? 20, 1), 40)
+  const context = await requireAuthenticated()
+  await validarContextoNotificacoes(context, input.escopo)
+  const limit = Math.min(Math.max(Number.isFinite(input.limit) ? Math.trunc(input.limit!) : 20, 1), 39)
   const cursor = input.cursor ? parseCursor(input.cursor) : null
-  if (input.cursor && !cursor) {
-    console.warn('[notificacoes] Cursor invalido ignorado; primeira pagina sera carregada.')
-  }
-
-  const notificationsClient = createAdminClient()
-  let query = notificationsClient
-    .from('notificacoes')
-    .select(SELECT_FIELDS)
-    .eq('usuario_id', context.user.id)
-    .order('created_at', { ascending: false })
-    .order('id', { ascending: false })
-    .limit(limit + 1)
-
-  if (input.filtro === 'nao_lidas') query = query.eq('lida', false)
-  if (input.filtro === 'lidas') query = query.eq('lida', true)
-  if (cursor) query = query.or(buildDescendingCreatedAtCursorFilter(cursor))
-
-  const [listResult, contadores] = await Promise.all([
-    query,
-    input.incluirContadores === false ? Promise.resolve(undefined) : contarNotificacoesDoContext(context),
+  if (input.cursor && !cursor) throw new Error('Cursor de notificações inválido.')
+  const [list, contadores] = await Promise.all([
+    context.supabase.rpc('listar_notificacoes_filtradas', {
+      p_scope: input.escopo.scope, p_fundo_id: input.escopo.fundoId,
+      p_filtro: parseNotificacaoFiltro(input.filtro), p_limit: limit + 1,
+      p_cursor_em: cursor?.createdAt ?? null, p_cursor_id: cursor?.id ?? null,
+    }),
+    contarNotificacoesDoContext(context, input.escopo),
   ])
-  if (listResult.error) {
-    registrarErroNotificacoes('list', listResult.error)
-    throw new Error('Nao foi possivel carregar as notificacoes.')
-  }
-
-  const rows = (listResult.data ?? []) as unknown[]
-  const pageRows = rows.slice(0, limit)
-  const items = pageRows.map(compactarNotificacao).filter((item) => item !== null)
-  const last = pageRows.at(-1) as Record<string, unknown> | undefined
-  const hasMore = rows.length > limit
-
+  if (list.error) throw new Error('Não foi possível carregar as notificações.')
+  const rows = (list.data ?? []).slice(0, limit)
+  const last = rows.at(-1)
+  const hasMore = (list.data?.length ?? 0) > limit
   return {
     userId: context.user.id,
-    items,
-    hasMore,
-    nextCursor: hasMore && last
-      ? encodeCursor({ createdAt: String(last.created_at), id: String(last.id) })
-      : null,
-    contadores,
+    items: rows.map(compactarNotificacao).filter((item) => item !== null),
+    contadores, hasMore,
+    nextCursor: hasMore && last ? encodeCursor({ createdAt: last.created_at, id: last.id }) : null,
   }
 }

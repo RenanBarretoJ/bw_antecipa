@@ -211,9 +211,11 @@ export async function confirmarPagamento(
   }
 
   await notificarGestores(
+    { entidadeTipo: 'operacao', entidadeId: operacaoId },
     'Sacado informou pagamento',
     `O sacado ${contexto.auth.profile.nome_completo} informou que realizou o pagamento da operacao #${operacaoId.substring(0, 8)}.${comprovante ? ' Comprovante informado.' : ''}`,
     'pagamento_informado',
+    `operacao:${operacaoId}:pagamento:${contexto.auth.user.id}`,
   )
 
   await registrarLog({

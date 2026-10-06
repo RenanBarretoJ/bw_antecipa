@@ -1,0 +1,329 @@
+NOTIFICACOES-R1 — checkpoint de diagnostico, NAO certificacao final
+Data: 2026-10-05
+Branch local: feature/notificacoes-fund-scope
+Base main: 7dd1d3a39b98859aa5f9f5bfe7d34385dc66045c
+Producao e homolog: nenhuma consulta SQL, migration ou deploy deste trabalho.
+
+1. EVIDENCIA E LIMITES
+
+Codigo pesquisado: src, supabase/migrations e scripts existentes na main.
+Catalogo usado para diagnostico: snapshot SOMENTE SCHEMA local preexistente,
+SHA256 bed3965b0470c2f348aae263dcc3f7b1e60d43254426b030d0319ab148709eeb.
+Nao e uma nova consulta ao catalogo de producao. As assinaturas e ACLs precisam
+ser reconferidas na baseline isolada antes de escrever a migration.
+O snapshot antecede a migration de liquido fiscal de 05/10; nao deve ser tratado
+como baseline completa da main atual sem o manifesto explicito de upgrade.
+
+Ferramenta reexecutavel, sem rede ou credenciais:
+node scripts/qa/notificacoes/inventory.mjs <arquivo-local-somente-schema.sql>
+Saida ignorada pelo Git: rehearsal/reports/NOTIFICACOES_R1_INVENTORY.json.
+O scanner usa AST TypeScript para chamadas e preserva sobrecargas no SQL.
+Scanner nao substitui revisao semantica dos produtores nem catalogo instalado.
+
+Resultado preliminar: 38 funcoes produtoras/helpers na aplicacao, 48 pontos
+de chamada (12 writes diretos e 36 delegados), 11 assinaturas SQL produtoras
+incluindo helpers; 15 migrations historicas contem INSERTs de notificacoes.
+Ha 6 broadcasts SQL globais de gestor no snapshot e 3 helpers globais de
+gestor na aplicacao (notificacao.ts e os dois crons). Nao somar chamadas a
+helpers como se fossem broadcasts independentes.
+
+2. CAUSA RAIZ CONFIRMADA NO CODIGO
+
+- src/lib/notificacoes/listagem.server.ts: usa createAdminClient e filtra
+  somente usuario_id na lista e em ambas as contagens; sem fundo selecionado.
+- src/lib/actions/notificacoes-listagem.ts: mark-one e mark-all usam admin;
+  mark-all atualiza todas as nao lidas do usuario independentemente de Fundo.
+- notification-bell.tsx e notificacoes-page-client.tsx: Realtime por usuario;
+  payloads nao possuem escopo validado; nao ha reset por troca de Fundo.
+- src/lib/actions/notificacao.ts: notificarGestores busca profiles role=gestor
+  globalmente. notificarCedente respeita associacoes ativas, mas nao recebe
+  Fundo. criarNotificacao nao exige contexto de negocio.
+- RLS no snapshot: SELECT/UPDATE apenas own-user; nenhum contexto de Fundo.
+
+3. MATRIZ INICIAL DE PRODUTORES (FIX PROPOSTO, AINDA NAO IMPLEMENTADO)
+
+PRODUTOR | EVENTO | DESTINATARIOS ATUAIS | FUNDO DISPONIVEL | RISCO | FIX
+private.notificar_cedente_ativos | diversos | acessos ativos/owner legado | nao no contrato | mistura visual | exigir contexto e validar vinculo
+private.vincular_comprovante_webhook_entrega | comprovante | gestores globais | via entrega/operacao | alto | helper gestores do Fundo + entidade
+public.comunicar_postergacao_upload_canhoto | postergacao | usuario_fundos | v_nf.fundo_id | falta escopo no registro | persistir contexto ja resolvido
+public.desembolsar_operacao_com_logistica | cessao | helper cedente | via operacao/vinculo | mistura visual | passar vinculo ao helper
+public.processar_aceite_sacado | aceite/contestacao | cedente + gestores do Fundo | v_nf.fundo_id | falta escopo no registro | centralizar sem alterar acesso SACADO
+public.processar_prazos_entrega | CT-e/canhoto D-N | helper cedente | via entrega/operacao | mistura visual | carregar contexto e passar ao helper
+public.registrar_canhoto_documento (3 sobrecargas) | canhoto | gestores globais | via entrega/operacao | alto | corrigir todas as sobrecargas sem alterar regras documentais
+public.registrar_cte_documento (2 sobrecargas) | CT-e | gestores globais | variavel fundo | alto | helper fund-scoped, preservar logistica
+app/actions/mfa.ts | reset MFA | usuario alvo | nao aplicavel | global legitimo | scope_type GLOBAL explicito
+app/actions/password.ts | senha alterada | usuario alvo | nao aplicavel | global legitimo | scope_type GLOBAL explicito
+cron/vencimentos GET/helpers | D-5/D-1/inadimplencia | cedente/sacado e gestores globais | via operacao | alto | contexto da operacao + recipients e dedupe por Fundo
+cron/documentos-vencidos GET/helper | vencidos/a vencer | gestores globais | documento e vinculos devem ser revisados | alto | nao inferir Fundo pelo texto; fail-closed sem contexto
+actions/cedente.ts | cadastro/upload/alteracao | gestores globais | cadastro pode preceder vinculo | alto | resolver evidencia de onboarding/vinculo; nao classificar como GLOBAL
+actions/cedente-documento-upload.ts | documento cadastral | gestores globais | rever vinculo cadastral | alto | contexto comprovado; nenhuma heuristica
+actions/gestor.ts | aprovar/reprovar cadastro/documento/alteracao | cedente ativo | contexto gestor/vinculo precisa ser validado | mistura | fornecer contexto autoritativo
+actions/estabelecimento.ts | checklist/documento | cedente ativo | rever escopo cadastral | mistura | contexto comprovado
+actions/nota-fiscal.ts | submeter/analisar/ajustar/lote | cedente + gestores globais | NF | alto | contexto por NF, inclusive lotes com diferentes Fundos
+actions/operacao.ts | solicitar/aprovar/desembolsar/reprovar/remover NF | cedente/sacado/gestores globais | operacao/vinculo | alto | contexto por operacao; sem alterar calculo/snapshot
+actions/liquidacao.ts | liquidacao/inadimplencia | cedente ativo | operacao | mistura | contexto por operacao
+actions/parcelas-nf.ts | analise boleto | cedente ativo | NF da parcela | mistura | contexto por NF
+actions/sacado.ts confirmarPagamento | pagamento informado | gestores globais | NF/operacao ja validada | alto | apenas roteamento de notificacao por Fundo
+
+Integracoes/risco: pesquisa em src/lib/financeiro e src/lib/integracoes nao
+encontrou produtor direto da tabela. Confirmar funcoes instaladas, jobs e Edge
+Functions na baseline; nao declarar inventario final completo com base so em rg.
+Nao reescrever RLX Email, SACADO multi-CNPJ, HEALTH parser, CERC ou P17.
+
+4. CONTEXTO E PLANO
+
+- Gestor ja tem FundoAtivoProvider, cookie bw_fundo_ativo_id e validacao server.
+- Cedente tem cookie de cedente_fundo_id e seletor; atualmente troca com
+  window.location.reload e o seletor inicializa pelo primeiro vinculo.
+- Sacado usa conjunto autorizado de empresa/Fundo, mas header nao possui
+  seletor de Fundo. Consultor possui filtro de lista, nao contexto global no
+  header. Nao assumir que todos os perfis ja tem o mesmo seletor.
+- Super Admin nao deve receber todos os destinatarios por ser admin: manter
+  own-user; GLOBAL explicito, sem inserir seletor gestor na area administrativa.
+
+Proposta: fonte central de escopo tipada; FUNDO com fundo_id obrigatorio,
+GLOBAL em area explicita e com acao separada, LEGACY_UNSCOPED preservado fora
+do badge de Fundo. Nunca deduzir Fundo por texto/href/dedupe_key.
+RLS own-user + autorizacao atual; RPC/query contextual e mutacao read-only de
+metadados lida. Nao usar service_role na superficie de leitura do usuario.
+Produtores centrais com contexto e destinatarios validados. Backfill apenas
+entidades deterministicas; ambiguos permanecem legados. Fazer EXPLAIN antes
+de definir indices finais. Testar troca A/B e respostas obsoletas concorrentes.
+
+5. PREVIEW E BLOQUEIO
+
+Organizacao e custo confirmados pelo usuario: US$0.01344/h.
+Preview criada: feature/notificacoes-fund-scope
+branch_id: 64676d52-3b99-433e-bd90-9d2e2a04f0cb
+project_ref: twmxvhddqbderjzgmcjo
+Status API: MIGRATIONS_FAILED, infraestrutura ACTIVE_HEALTHY.
+Consulta somente leitura nesta Preview confirmou:
+  zero tabelas public/private; zero migrations; zero auth.users;
+  zero storage.objects; A6 original nao aplicada.
+Causa especifica da falha de provisionamento ainda nao comprovada por logs.
+Nao restaurar schema nem reconciliar history sem autorizacao especifica.
+Plano de reparo a autorizar: somente schema em alvo vazio, hash e manifesto
+conferidos, migrations por lista explicita, sem dados reais, sem replay A6,
+sem history falso, sem alterar producao/homolog/RLX.
+
+A pedido expresso posterior, a Preview NFSE encerrada foi excluida:
+8d126d13-396d-47f0-bfc4-12d8a3eba8e6 / ettpaprrmpjsfkcystob.
+API delete retornou success e listagem posterior confirmou ausencia.
+Arquivos e branch Git NFSE preservados. Dados QA remotos nao preservados.
+
+6. VALIDACAO E STATUS
+
+Scanner: 3 testes node:test PASS (Node24 do ambiente; NAO gate da aplicacao).
+Dependencias instaladas pelo lockfile; aplicacao exige Node22. npm advertiu
+postinstall bloqueados para msw/esbuild/unrs-resolver. Conferir runtime Node22
+e ferramentas antes dos testes completos; nao afrouxar politica global npm.
+Nenhuma migration nova criada/aplicada; nenhum codigo runtime alterado.
+Sem commit, push, PR, deploy ou recurso Docker criado nesta etapa.
+Gates ainda nao executados nao sao PASS nem uma falha comprovada de produto.
+
+NOTIF_TABLE_HAS_FUNDO_ID_BEFORE = NO (snapshot local)
+NOTIF_TABLE_HAS_FUNDO_ID_AFTER = NO
+NOTIF_PRODUCERS_TOTAL_DISCOVERED = 49 (38 funcoes TS + 11 assinaturas SQL)
+NOTIF_PRODUCERS_FIXED = 0
+NOTIF_PRODUCERS_PENDING = 49 (inventario semantico ainda em andamento)
+NOTIF_GLOBAL_GESTOR_INSERTS_FOUND = 9 (6 SQL + 3 helpers TS)
+NOTIF_GLOBAL_GESTOR_INSERTS_REMAINING = 9
+NOTIF_CI = NOT_RUN
+DOCKER_TEST_ENV_CLEANUP = NOT_APPLICABLE_NO_RESOURCES_CREATED
+NOTIFICACOES_PREVIEW_READY = NO
+NOTIFICACOES_PRODUCTION_CHANGED = NO
+HOMOLOG_CHANGED = NO
+RLX_EMAIL_CHANGED = NO
+SACADO_CHANGED = NO
+HEALTH_PARSER_CHANGED = NO
+
+7. REPARO AUTORIZADO E CONCLUIDO (05/10/2026)
+
+Esta secao atualiza o checkpoint anterior; nao declara a funcionalidade R1 pronta.
+Usuario autorizou reparar somente a Preview com copia de schema conferida por
+hash, sem dados reais, sem A6 original e sem history ficticio.
+
+Nova captura somente leitura da referencia atual: 2026-10-05T21:29:25.179Z.
+Nenhum dado de negocio foi consultado ou copiado. Foram lidos DDL/catalogo,
+ACLs, policies, triggers, extensoes, publicacao Realtime, configuracoes de
+buckets e fingerprint do historico de migrations. Metadados de origem foram
+conferidos antes/depois e permaneceram iguais.
+SHA256 schema: 23ab8782a97872210730a4fe85ab5ceb6682694ca8572d6c9f41f7f04c58c589
+SHA256 metadata: a35fccc79017f786c58109933897a94706b37093dc752903aec2b04377afe08a
+Manifesto sem segredos: scripts/qa/notificacoes/baseline-manifest.json.
+Dump/metadata completos permanecem em rehearsal/tmp ignorado pelo Git.
+
+Ensaio local isolado: 127.0.0.1:59422, projeto notificacoes-r1-20261005.
+Restauracao somente schema; comparacao de 4.588 objetos, 126 tabelas vazias.
+Teste SQL nfse_submit_frozen.assert.sql com fixture sintetica: PASS; ROLLBACK.
+Comparacao apos rollback: PASS. Nenhuma fixture persistiu.
+Duas normalizacoes de parenteses conhecidas do PG17 foram conferidas por
+definicao exata (comunicacoes_remetente_nome_check e
+documento_upload_intents_storage_path_check); nenhuma outra diferenca aceita.
+
+Preview: mesma restauracao transacional, mesma hash, mesmas comparacoes PASS.
+Inclui 12 policies Storage, 1 trigger Auth, 7 buckets PRIVADOS vazios e
+publicacao de public.notificacoes no supabase_realtime. Nenhum arquivo,
+usuario, Fundo, Cedente ou notificacao real copiado.
+Consulta independente via MCP confirmou 126 tabelas, zero usuarios/objetos/
+notificacoes, zero migrations e ausencia da A6 no historico.
+Migration list executada = []; o schema atual ja contem os hotfixes aprovados.
+
+Historico continua vazio por decisao explicita. A divergencia historica nao
+foi reconciliada. Status administrativo da branch continua MIGRATIONS_FAILED
+do provisionamento original; infraestrutura ACTIVE_HEALTHY. NAO houve override
+artificial para MIGRATIONS_PASSED/FUNCTIONS_DEPLOYED.
+Branch nao esta associada a git_branch na API. Override local de migrations
+e seed desabilitados foi adicionado APENAS para este remote em config.toml;
+ainda nao foi publicado. Nao associar/push da integracao sem verificar este
+controle e a lista explicita. Defaults globais/main/homolog/RLX intactos.
+
+Advisors: 183 apontamentos de banco presentes tambem na referencia; zero
+apontamentos novos no clone. Nenhuma correcao de seguranca fora de escopo.
+  17 INFO RLS sem policy (tabelas privadas):
+  https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy
+  5 WARN search_path mutavel:
+  https://supabase.com/docs/guides/database/database-linter?lint=0011_function_search_path_mutable
+  161 WARN funcoes SECURITY DEFINER executaveis por authenticated:
+  https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+A referencia apresentou mais 1 warning de protecao de senha vazada que nao
+apareceu na Preview. Isso NAO comprova equivalencia das configuracoes Auth.
+Auth real/MFA/browser continuam pendentes para a certificacao funcional R1.
+
+Cleanup: somente container, volume e rede notificacoes-r1-20261005 removidos
+via stop --project-id ... --no-backup. Listagens por label confirmaram zero
+recursos remanescentes desse ensaio. O container nfse-submit preexistente
+na maquina foi preservado; a autorizacao de exclusao anterior era da Preview
+Supabase NFSE, nao dos recursos Docker de outro trabalho.
+
+PREVIEW_SCHEMA_REPAIR = PASS
+PREVIEW_SCHEMA_HASH_CHECK = PASS
+PREVIEW_CATALOG_PARITY = PASS
+PREVIEW_EMPTY_BUSINESS_DATA = PASS
+PREVIEW_SQL_BASELINE_REHEARSAL = PASS
+PREVIEW_MIGRATION_HISTORY_FAKED = NO
+GUIBOR_A6_ORIGINAL_EXECUTED = NO
+PREVIEW_HISTORICAL_DIVERGENCE = KNOWN_AND_PRESERVED
+DOCKER_TEST_ENV_CLEANUP = PASS
+NOTIFICACOES_PREVIEW_READY = NO (implementacao e matriz de testes pendentes)
+NOTIFICACOES_PRODUCTION_CHANGED = NO
+HOMOLOG_CHANGED = NO
+RLX_EMAIL_CHANGED = NO
+SACADO_CHANGED = NO
+HEALTH_PARSER_CHANGED = NO
+COMMIT_PUSH_DEPLOY = NOT_PERFORMED
+
+8. IMPLEMENTACAO INCREMENTAL: FUNDACAO SQL LOCAL (2026-10-05)
+
+Esta etapa implementa a base de persistencia/autorizacao. NAO representa a
+conclusao do roteiro R1 e NAO pode ser promovida isoladamente: os produtores
+legados ainda nao enviam scope_type e seriam recusados pelo novo guard.
+Seguindo a regra do repositorio de entregar um escopo pequeno e testado por
+vez, a adaptacao dos produtores e a UI ficam na proxima etapa, antes de
+qualquer aplicacao remota ou certificacao NOTIFICACOES_PREVIEW_READY.
+
+Migration criada via CLI:
+  supabase/migrations/20261005213812_notificacoes_fund_scope.sql
+  SHA256: 6a82c232659985cd9be4e73d80c26f6ec8a431d84c505b18856982008b578010
+  NAO APLICADA REMOTAMENTE. Lista explicita remota continua vazia.
+
+Implementado:
+- scope_type sem default para novas linhas: FUNDO, GLOBAL, LEGACY_UNSCOPED;
+- fundo_id, cedente_fundo_id e cedente_id com FKs e checks;
+- backfill deterministico por NF, operacao, entrega, vinculo ou evento de
+  dominio explicitamente identificado; texto/href/dedupe nao sao usados;
+- historico ambiguo preservado, sem acesso na listagem normal ou contadores;
+- guard de consistencia e imutabilidade (somente lida pode mudar);
+- tipos GLOBAL limitados a seguranca de senha, MFA e institucional;
+- RLS own-user + status ativo + autorizacao canonica de Fundo, incluindo
+  LEITOR da Consultoria; SuperAdmin continua restrito as proprias mensagens;
+- privilegios authenticated limitados a SELECT e UPDATE(lida);
+- helpers privados criar_notificacao_fundo, notificar_gestores_fundo e
+  notificar_cedente_fundo, sem EXECUTE publico/service_role;
+- destinatarios gestores exigem usuario_fundos ativo e papel gestor;
+- cedente delegado ativo, ADMIN opcional, fallback owner apenas sem qualquer
+  associacao canonica; REVOGADO nao reativa fallback;
+- RPCs SECURITY INVOKER listar_notificacoes, contar_notificacoes e
+  marcar_notificacoes_lidas, com Fundo/escopo explicitos e validacao de ator;
+- superficie para listar somente os Fundos autorizados do proprio ator;
+- dedupe novo centralizado por Fundo + chave de evento + usuario.
+
+Privilegios elevados estao nas funcoes privadas de lookup/producao porque
+precisam ler memberships sem recursao RLS. Callers publicos nao podem sondar
+usuarios arbitrarios nem chamar produtores. Interfaces de leitura/marcacao
+usam RLS, nao service_role. A listagem de Fundos resolve apenas auth.uid().
+
+Performance / skills Supabase e Postgres:
+O primeiro EXPLAIN com RLS mostrou lookup por linha custando ~6009ms para
+20.000 linhas sinteticas. A RLS passou a usar um conjunto nao correlacionado
+de Fundos autorizados; o ensaio passou a ~4.961ms sem o indice novo e
+~1.072ms com indice. Ultima repeticao: 4.866ms -> 0.930ms.
+Foi incluido somente idx_notificacoes_fundo_contexto
+(usuario_id,fundo_id,created_at DESC,id DESC) WHERE scope_type='FUNDO'.
+O plano final usa esse indice e elimina scan completo/sort para a primeira
+pagina. Nao foi criado indice especulativo adicional para unread.
+Esses tempos sao locais/sinteticos e NAO representam latencia em producao.
+
+Verificacao executada com Node 22.23.1:
+- scripts/qa/notificacoes/database.test.mjs: 157 verificacoes PASS.
+  Banco com schema-base/restauracao conferida por hash, notificacoes vazias;
+  upgrade com historico sintetico e 5 fontes canonicas + 1 ambigua;
+  matriz Gestor/Cedente/Sacado/Consultor/LEITOR/SuperAdmin, A/B/negativo C;
+  contadores, cursor com microssegundos, mark-one/mark-all, GLOBAL separado;
+  revogacao, usuario inativo, mutacao de contexto, grants, anon, dedupe;
+  producers NOVOS de gestor/cedente e destinatarios fora do Fundo.
+  DDL e dados sao revertidos em cada cenario. Nao houve Auth HTTP real.
+- node --test scripts/qa/notificacoes/inventory.test.mjs: 3 PASS.
+- vitest run src/lib/notificacoes: 6 PASS (regressao da implementacao anterior).
+- tsc --noEmit: PASS.
+- vitest run: 2.778 PASS / 12 SKIPPED, 309 arquivos PASS / 3 SKIPPED.
+- ESLint dos scripts alterados: PASS.
+- git diff --check: PASS (somente avisos de normalizacao CRLF do Git).
+- Full lint/build/browser/axe/CI remoto: NOT_RUN nesta etapa de base SQL.
+
+A primeira suite geral apontou 2 falhas no guard historico de config.toml
+por causa da nova Preview autorizada. O teste
+scripts/qa/sacado/preview-scope.test.mjs foi atualizado SOMENTE para permitir
+as 3 secoes exatas do remote notificacoes, projeto twmxvhddqbderjzgmcjo,
+migrations/seed false. O hash das demais secoes nao foi alterado. Foram
+adicionados negativos para troca por producao/homolog/RLX, replay/seed,
+secoes extras, nome parecido e secoes ausentes. Suite geral repetida PASS.
+Nenhuma regra de negocio SACADO foi alterada.
+
+repair-preview.mjs --local agora usa a baseline capturada/conferida por hash
+sem sequer consultar producao. Modos remotos/capture mantem as verificacoes
+de origem anteriores. Nenhum comando remoto foi executado nesta etapa.
+
+Gates desta entrega (LOCAL nao significa certificacao da aplicacao):
+NOTIF_SCHEMA_FOUNDATION_LOCAL = PASS
+NOTIF_RLS_SQL_LOCAL = PASS
+NOTIF_LIST_COUNT_MARK_RPC_LOCAL = PASS
+NOTIF_NEW_PRIVATE_PRODUCERS_SQL_LOCAL = PASS
+NOTIF_BACKFILL_LOCAL = PASS
+NOTIF_INDEX_EXPLAIN_LOCAL = PASS
+NOTIF_EXISTING_PRODUCERS_ADAPTED = 0/49
+NOTIF_APP_LIST_BADGE_REALTIME_HREF_INTEGRATION = PENDING
+NOTIF_AUTH_REAL = NOT_RUN
+NOTIF_RESPONSIVE = NOT_RUN
+NOTIF_ACCESSIBILITY = NOT_RUN
+NOTIF_CI = NOT_RUN
+NOTIFICACOES_PREVIEW_READY = NO
+NOTIFICACOES_PRODUCTION_CHANGED = NO
+HOMOLOG_CHANGED = NO
+NOTIFICACOES_PREVIEW_CHANGED_THIS_STEP = NO
+DOCKER_TEST_ENV_CLEANUP = PASS (container/volume/rede notificacoes-r1-20261005 removidos; labels vazias confirmadas; nfse-submit preexistente preservado)
+RLX_EMAIL_CHANGED = NO
+SACADO_BUSINESS_CHANGED = NO
+HEALTH_PARSER_CHANGED = NO
+COMMIT_PUSH_DEPLOY = NOT_PERFORMED
+
+Proxima etapa obrigatoria antes de publicar:
+1. Adaptar todos os produtores originais (38 funcoes TS + 11 assinaturas SQL),
+   fornecendo contexto canonico e removendo broadcasts globais de gestores.
+2. Integrar as leituras/actions existentes usando sessao/RLS; remover admin
+   client das leituras comuns. Categorias, cursor ligado ao Fundo e href
+   server-side com entidade/contexto ainda precisam ser integrados.
+3. Conectar sino/listagem/realtime ao seletor canonico; ressetar estado ao
+   trocar Fundo e descartar respostas stale, sem hard reload concorrente.
+4. QA real na Preview, hashes/lista explicita, CI/build/lint completos,
+   navegador/responsivo/acessibilidade; somente entao avaliar READY.

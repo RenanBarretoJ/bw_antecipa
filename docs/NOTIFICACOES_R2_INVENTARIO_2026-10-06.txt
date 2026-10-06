@@ -1,0 +1,280 @@
+NOTIFICACOES R2 - INVENTARIO E CHECKPOINT HISTORICO
+ATENCAO: o fechamento R2-CONT ao final substitui os status do checkpoint inicial.
+Data: 2026-10-06
+Branch: feature/notificacoes-fund-scope
+HEAD/base main: 7dd1d3a39b98859aa5f9f5bfe7d34385dc66045c
+
+EVIDENCIA
+Inventario AST: scripts/qa/notificacoes/inventory.mjs
+Catalogo efetivo: snapshot local schema-only, sem consultar producao nesta etapa.
+SHA256 schema: 23ab8782a97872210730a4fe85ab5ceb6682694ca8572d6c9f41f7f04c58c589
+Detalhes de assinatura/linha/hash: rehearsal/reports/NOTIFICACOES_R1_INVENTORY.json
+SQL R1 reexecutado em Docker local em 2026-10-06: 157 verificacoes PASS.
+Reparo local: 126 tabelas vazias, 4588 objetos, zero diferencas de catalogo.
+Historico nao falsificado; A6 original nao executada.
+Performance local (20.000 linhas): 7,903ms sem indice novo; 1,744ms com indice.
+Esses resultados NAO certificam os produtores R2 nem a Preview autenticada.
+
+LEGENDA
+G: gestores atualmente selecionados globalmente por profiles.role.
+C: usuarios ativos do Cedente; fallback owner apenas sem associacao canonica.
+S: destinatarios de Sacado obtidos da RPC da operacao.
+F: gestores com usuario_fundos ativo do Fundo do evento.
+COMPARTILHADO: cadastro/documento tem cedente_id mas nao um unico Fundo de origem.
+ACAO ENTIDADE: resolver Fundo/vinculo pela entidade, validar destinatario, dedupe por
+Fundo/evento/usuario e gerar destino autorizado. Nunca usar o cookie para substituir
+o Fundo persistido de NF/operacao/entrega.
+ACAO COMPARTILHADO: opcao 1 confirmada em 2026-10-06: avisos separados por cada
+vinculo ativo. Nao converter estes eventos para GLOBAL.
+
+TABELA DE PRODUTORES DA APLICACAO (38 FUNCOES / 48 CHAMADAS)
+Produtor | Evento | Arquivo/funcao | Destinatarios atuais | Fundo disponivel | Scope esperado | Risco cross-fund | Acao
+A01 | Reset MFA | src/app/actions/mfa.ts:notificarUsuarioResetMfa | Usuario afetado | N/A | GLOBAL | Baixo, falta scope | GLOBAL explicito, tipo permitido, sem entidade operacional
+A02 | Senha alterada | src/app/actions/password.ts:notificarSenhaAlterada | Usuario afetado | N/A | GLOBAL | Baixo, falta scope | GLOBAL explicito, tipo permitido, sem entidade operacional
+A03 | Documento vencido/a vencer | src/app/api/cron/documentos-vencidos/route.ts:GET | G via helper | COMPARTILHADO | FUNDO | Alto | COMPARTILHADO; preservar cedente_id no agrupamento
+A04 | Helper do cron documental | src/app/api/cron/documentos-vencidos/route.ts:notificarGestoresCron | G | Nao na assinatura | FUNDO | Alto | Remover broadcast; helper central com contexto obrigatorio
+A05 | D-5/D-1/inadimplencia | src/app/api/cron/vencimentos/route.ts:GET | C/G/S | Operacao -> cedente_fundos | FUNDO | Alto | ENTIDADE; preservar transicoes e auditoria do cron
+A06 | Helper gestor vencimento | src/app/api/cron/vencimentos/route.ts:notificarGestoresCron | G | Nao na assinatura | FUNDO | Alto | Remover broadcast; contexto da operacao
+A07 | Aviso vencimento ao Sacado | src/app/api/cron/vencimentos/route.ts:notificarSacadosVinculados | S | Operacao -> cedente_fundos | FUNDO | Alto, linha sem contexto | ENTIDADE; validar CNPJ completo e acesso ativo
+A08 | Documento cadastral enviado | src/lib/actions/cedente-documento-upload.ts:finalizarUploadDocumentoCadastral | G | COMPARTILHADO | FUNDO | Alto | COMPARTILHADO; preservar versionamento/upload
+A09 | Onboarding concluido | src/lib/actions/cedente.ts:cadastrarCedente | G | Vinculos do cadastro convidado | FUNDO | Alto | COMPARTILHADO; nao inventar Fundo se nenhum vinculo
+A10 | Documento enviado | src/lib/actions/cedente.ts:uploadDocumento | G | COMPARTILHADO | FUNDO | Alto | COMPARTILHADO
+A11 | Alteracao cadastral solicitada | src/lib/actions/cedente.ts:solicitarAlteracaoCedente | G | COMPARTILHADO | FUNDO | Alto | COMPARTILHADO
+A12 | Pendencia documental de estabelecimento | src/lib/actions/estabelecimento.ts:configurarRequisitoEstabelecimento | C | Estabelecimento -> Cedente, contexto Gestor | FUNDO | Alto, linha sem contexto | Validar vinculo e contexto da decisao
+A13 | Documento estabelecimento analisado | src/lib/actions/estabelecimento.ts:analisarDocumentoEstabelecimento | C | Estabelecimento -> Cedente, contexto Gestor | FUNDO | Alto, linha sem contexto | Validar vinculo e contexto da decisao
+A14 | Documento aprovado/reprovado | src/lib/actions/gestor.ts:analisarDocumento | C | Documento -> Cedente, contexto Gestor | FUNDO | Alto, linha sem contexto | Validar vinculo e contexto da decisao
+A15 | Cadastro aprovado | src/lib/actions/gestor.ts:aprovarCedente | C | Cedente e contexto Gestor | FUNDO | Alto, linha sem contexto | Validar vinculo; nao alterar escrow/aprovacao
+A16 | Cadastro reprovado | src/lib/actions/gestor.ts:reprovarCedente | C | Cedente e contexto Gestor | FUNDO | Alto, linha sem contexto | Validar vinculo e contexto da decisao
+A17 | Alteracao cadastral aprovada | src/lib/actions/gestor.ts:aprovarAlteracaoCedente | C | Solicitacao -> Cedente, contexto Gestor | FUNDO | Alto, linha sem contexto | Validar vinculo e contexto da decisao
+A18 | Alteracao cadastral reprovada | src/lib/actions/gestor.ts:reprovarAlteracaoCedente | C | Solicitacao -> Cedente, contexto Gestor | FUNDO | Alto, linha sem contexto | Validar vinculo e contexto da decisao
+A19 | Atualizacao documental solicitada | src/lib/actions/gestor.ts:solicitarAtualizacaoDocumento | C | Documento -> Cedente, contexto Gestor | FUNDO | Alto, linha sem contexto | Validar vinculo e contexto da decisao
+A20 | Operacao liquidada | src/lib/actions/liquidacao.ts:liquidarOperacao | C | Operacao -> cedente_fundos | FUNDO | Alto, linha sem contexto | ENTIDADE
+A21 | Operacao inadimplente | src/lib/actions/liquidacao.ts:marcarInadimplente | C | Operacao -> cedente_fundos | FUNDO | Alto, linha sem contexto | ENTIDADE
+A22 | NF submetida | src/lib/actions/nota-fiscal.ts:submeterNF | G | NF.fundo_id / cedente_fundo_id | FUNDO | Alto | ENTIDADE
+A23 | NF aprovada | src/lib/actions/nota-fiscal.ts:aprovarNF | C | NF.fundo_id / cedente_fundo_id | FUNDO | Alto, linha sem contexto | ENTIDADE
+A24 | NF reprovada | src/lib/actions/nota-fiscal.ts:reprovarNF | C | NF.fundo_id / cedente_fundo_id | FUNDO | Alto, linha sem contexto | ENTIDADE
+A25 | NF resubmetida | src/lib/actions/nota-fiscal.ts:resubmeterNFAjustada | G | NF.fundo_id / cedente_fundo_id | FUNDO | Alto | ENTIDADE
+A26 | Ajuste de NF solicitado | src/lib/actions/nota-fiscal.ts:solicitarAjusteNF | C | NF.fundo_id / cedente_fundo_id | FUNDO | Alto, linha sem contexto | ENTIDADE
+A27 | NFs aprovadas em lote | src/lib/actions/nota-fiscal.ts:aprovarNFsLote | C, agrupado por cedente | Cada NF | FUNDO | Alto, agrupamento pode misturar | Agrupar por Fundo E vinculo; ENTIDADE
+A28 | NFs reprovadas em lote | src/lib/actions/nota-fiscal.ts:reprovarNFsLote | C, agrupado por cedente | Cada NF | FUNDO | Alto, agrupamento pode misturar | Agrupar por Fundo E vinculo; ENTIDADE
+A29 | Helper individual | src/lib/actions/notificacao.ts:criarNotificacao | Usuario informado | Nao obrigatorio | FUNDO | Alto | Tornar interno server-only; contexto e destinatario validados
+A30 | Helper Cedente | src/lib/actions/notificacao.ts:notificarCedente | C | Apenas cedente_id | FUNDO | Alto | Exigir vinculo; validar ativo/vigencia; email somente apos insercao nova
+A31 | Helper Gestores | src/lib/actions/notificacao.ts:notificarGestores | G | Nao na assinatura | FUNDO | Alto | Exigir Fundo; usuario_fundos ativo + perfil/papel ativo
+A32 | Antecipacao solicitada/encaminhada | src/lib/actions/operacao.ts:solicitarAntecipacao | G e C | Operacao criada -> cedente_fundos | FUNDO | Alto | ENTIDADE; preservar retry idempotente
+A33 | Cessao de credito | src/lib/actions/operacao.ts:aprovarOperacao | S | Operacao -> cedente_fundos | FUNDO | Alto, linha sem contexto | ENTIDADE; CNPJ completo por NF autorizada
+A34 | Desembolso | src/lib/actions/operacao.ts:desembolsarOperacao | C | Operacao -> cedente_fundos | FUNDO | Alto, linha sem contexto | ENTIDADE
+A35 | Operacao reprovada | src/lib/actions/operacao.ts:reprovarOperacao | C | Operacao -> cedente_fundos | FUNDO | Alto, linha sem contexto | ENTIDADE
+A36 | Remocao NF/cancelamento | src/lib/actions/operacao.ts:removerNfDaOperacao | C | Operacao original -> cedente_fundos | FUNDO | Alto, linha sem contexto | ENTIDADE da operacao; nao inferir por NF reutilizada
+A37 | Boleto de parcela analisado | src/lib/actions/parcelas-nf.ts:analisarBoletoDaParcela | C | Parcela -> NF | FUNDO | Alto, linha sem contexto | ENTIDADE via NF
+A38 | Pagamento confirmado | src/lib/actions/sacado.ts:confirmarPagamento | G | NF/operacao | FUNDO | Alto | ENTIDADE; preservar regra Sacado
+
+TABELA DE PRODUTORES SQL (11 ASSINATURAS)
+Produtor | Evento | Arquivo/funcao | Destinatarios atuais | Fundo disponivel | Scope esperado | Risco cross-fund | Acao
+S01 | Helper Cedente | private.notificar_cedente_ativos(uuid,text,text,text,text,bool) | C | Nao na assinatura | FUNDO | Alto | Migrar TODOS chamadores para helper com vinculo; nao adivinhar Fundo
+S02 | Comprovante automatico | private.vincular_comprovante_webhook_entrega | G | Entrega -> operacao -> cedente_fundos | FUNDO | Alto | ENTIDADE; preservar recebimento separado da aprovacao
+S03 | Postergacao canhoto | public.comunicar_postergacao_upload_canhoto | F | NF.fundo_id | FUNDO | Linha sem contexto; alias entidade divergente | ENTIDADE; normalizar entidade notas_fiscais para nota_fiscal
+S04 | Cessao efetivada | public.desembolsar_operacao_com_logistica | C | Operacao -> cedente_fundos | FUNDO | Alto, linha sem contexto | ENTIDADE; preservar snapshots/prazos
+S05 | Aceite/contestacao | public.processar_aceite_sacado | C e F | NF.fundo_id / operacao | FUNDO | Linha sem contexto | ENTIDADE; preservar ACL multi-CNPJ e aceite
+S06 | Prazo CT-e/canhoto | public.processar_prazos_entrega | C | Entrega -> operacao -> cedente_fundos | FUNDO | Alto, linha sem contexto | ENTIDADE; incluir vinculo no SELECT do loop
+S07 | Canhoto enviado | public.registrar_canhoto_documento (13 argumentos) | G | Entrega -> operacao -> cedente_fundos | FUNDO | Alto | ENTIDADE; preservar overload legado
+S08 | Canhoto enviado | public.registrar_canhoto_documento (14 argumentos) | G | Entrega -> operacao -> cedente_fundos | FUNDO | Alto | ENTIDADE; preservar remessa
+S09 | Canhoto enviado | public.registrar_canhoto_documento (15 argumentos) | G | Entrega -> operacao -> cedente_fundos | FUNDO | Alto | ENTIDADE; preservar requisito
+S10 | CT-e enviado | public.registrar_cte_documento (18 argumentos) | G | Fundo validado das NFs vinculadas | FUNDO | Alto | ENTIDADE; validar vinculo e destino do CT-e
+S11 | CT-e enviado | public.registrar_cte_documento (21 argumentos) | G | Fundo validado das NFs vinculadas | FUNDO | Alto | ENTIDADE; preservar tomador e remessas
+
+SUPERFICIES COMPLEMENTARES
+- Transportadora: S02 e S07-S11; nao alterar parser/webhook de negocio.
+- Workers/cron: A03-A07 e S06.
+- Edge Functions: diretorio supabase/functions ausente neste checkout; nao afirmar
+  que funcoes remotas inexistem com base apenas nisso.
+- Email Intake/CNAB/custodiante/reconciliation/health: nenhum writer de notificacoes
+  encontrado no codigo local dessas integracoes. Nao criar eventos novos por inferencia.
+- Consultor: nenhum broadcast dedicado encontrado. Helper individual deve validar
+  tanto Fundo quanto Cedente autorizado antes de aceitar destinatario Consultor.
+- Scripts perf9a: writers de fixture/homolog historicos, nao produtores runtime;
+  NAO executar neste R2. Precisarao de fixtures explicitas em eventual reuso futuro.
+- Triggers/RPCs: inventario do catalogo efetivo inclui corpos SQL; uma verificacao
+  adicional de chamadores/dinamicos e do catalogo da Preview segue pendente.
+- R1 adiciona 3 helpers centrais; nao sao os 49 produtores preexistentes. Sua
+  disponibilidade/157 testes nao significam que seus chamadores estao adaptados.
+
+RISCOS DE UI CONFIRMADOS NO CODIGO
+- listagem.server.ts e actions/notificacoes-listagem.ts usam admin sem Fundo.
+- NotificationBell e NotificacoesPageClient subscribem por usuario, mas nao filtram
+  fundo_id/scope_type, nem invalidam respostas por contexto.
+- CedenteFundoAtivoSelector usa reload e inicialmente escolhe rows[0] no cliente;
+  resolver canonico exige selecao explicita quando ha multiplos vinculos.
+- DELETE realtime pode nao carregar Fundo: nao inferir contexto pelo payload parcial.
+- GLOBAL deve ter secao Geral explicita e acao mark-all separada.
+
+DECISAO CONFIRMADA / IMPLEMENTACAO LOCAL PARCIAL
+O cadastro/documento e compartilhado por Cedente. O convite precede o onboarding;
+concluir_onboarding_cedente valida o cadastro convidado e nao aceita fundo_id.
+Nao existe Fundo unico gravado nos eventos cadastrais atuais. O usuario confirmou
+a opcao 1: gestores de todos os vinculos ativos, com linhas separadas por Fundo.
+Implementada localmente em A03/A04/A08/A09/A10/A11. A04 (helper global do cron)
+foi removido. Novo helper interno server-only e RPC restrita ao backend substituem
+o envio global. Nao sao Server Actions acessiveis ao cliente.
+Migration incremental: 20261006114841_notificacoes_shared_cedente_producers.sql.
+O namespace private recebe USAGE para service_role, sem CREATE ou EXECUTE amplo.
+Os grants de todas as funcoes preexistentes permanecem intactos; R1 continua
+negando execucao direta de seus produtores ao service_role. O wrapper publico e
+SECURITY INVOKER, e anon/authenticated nao podem executar o novo produtor.
+Cadastro sem vinculo ativo nao gera aviso nem fallback global.
+Dedupe inclui Cedente/evento, Fundo e destinatario; documento usa ID e versao
+persistidos em ambos os caminhos de upload, nao dados escolhidos no browser.
+O comportamento best-effort apos persistencia do evento de negocio e preservado.
+Falhas sao registradas sem payload sensivel; este escopo nao adiciona outbox/retry.
+Cron contabiliza falha de notificacao e nao afirma entrega quando nenhuma foi criada.
+
+TESTES LOCAIS DA REGRA COMPARTILHADA
+- 25 verificacoes pgTAP x 2 cenarios (fresh/upgrade): PASS, 50 no total.
+- Matriz: gestor A+B recebe uma por contexto; gestor somente B recebe B;
+  gestor C sem vinculo do Cedente, perfil inativo e membership suspensa excluidos.
+- Vinculos expirados/futuros/suspensos e Fundo inativo excluidos.
+- Repeticao do evento nao duplica; nova versao documental gera novo evento.
+- Evento operacional de NF rejeitado pelo produtor cadastral.
+- Nenhuma linha historica alterada pelo R2; todas as fixtures/DDL em ROLLBACK.
+- 157 verificacoes R1 repetidas COM migration R2: PASS.
+- 4 testes do inventario: PASS; scanner acompanha novo helper/RPC.
+- Testes focados iniciais: 12 PASS; cron: 3 PASS.
+- Suite completa final: 2785 PASS / 12 skips preexistentes; 311 arquivos PASS / 3 skips.
+- TypeScript: PASS. Build webpack: PASS (env sintetico, Supabase localhost; nao Auth real).
+- Lint completo: zero erros; 1 warning preexistente de import nao utilizado em liquidacao.ts.
+- diff --check: PASS.
+- Advisors SQL security antes/depois da aplicacao LOCAL das duas migrations:
+  mesmos 5 WARN preexistentes de search_path; zero findings novos.
+- Nenhuma migration foi aplicada remotamente. A aplicacao local final foi usada
+  somente para advisors, em container temporario identificado por label exata.
+
+STATUS DESTE CHECKPOINT
+NOTIF_R2_HEAD = 7dd1d3a39b98859aa5f9f5bfe7d34385dc66045c
+NOTIF_PRODUCERS_TOTAL = 49 (runtime preexistente, por funcao/assinatura)
+NOTIF_PRODUCERS_ADAPTED_LOCALLY = 6
+NOTIF_PRODUCERS_FIXED = NOT_CERTIFIED_PREVIEW
+NOTIF_PRODUCERS_PENDING_ADAPTATION = 43
+NOTIF_GLOBAL_GESTOR_INSERTS_FOUND = 9 (6 SQL + 3 helpers TypeScript)
+NOTIF_GLOBAL_GESTOR_INSERTS_REMAINING = 8
+NOTIF_R1_REGRESSION_SQL = PASS (157)
+NOTIF_PRODUCERS_INVENTORIED = PARTIAL (catalogo remoto/dinamicos pendentes)
+NOTIF_TYPESCRIPT = PASS
+NOTIF_BUILD = PASS
+NOTIF_FULL_SUITE = PASS
+NOTIF_LINT = PASS_WITH_PREEXISTING_WARNING
+NOTIF_SHARED_CADASTRO_SQL = PASS
+NOTIF_SHARED_CADASTRO_CLEAN_ROOM = PASS
+NOTIF_SHARED_CADASTRO_UPGRADE = PASS
+NOTIF_LIST_BY_FUND = PENDING_IMPLEMENTATION
+NOTIF_BADGE_BY_FUND = PENDING_IMPLEMENTATION
+NOTIF_MARK_READ_BY_FUND = PENDING_APP_INTEGRATION
+NOTIF_MARK_ALL_BY_FUND = PENDING_APP_INTEGRATION
+NOTIF_REALTIME_BY_FUND = PENDING_IMPLEMENTATION
+NOTIF_HREF_FUND_GUARD = PENDING_IMPLEMENTATION
+NOTIF_UI = NOT_RUN_R2
+NOTIF_RESPONSIVE = NOT_RUN_R2
+NOTIF_ACCESSIBILITY = NOT_RUN_R2
+NOTIF_CI = NOT_RUN_R2
+NOTIF_PREVIEW_AUTH = NOT_RUN_R2
+NOTIF_PREVIEW_PRODUCERS = NOT_RUN_R2
+NOTIF_PREVIEW_UI = NOT_RUN_R2
+DOCKER_TEST_ENV_CLEANUP = PASS
+Container, volume e rede de notificacoes-r1-20261005 removidos; consultas por
+label retornaram zero recursos. supabase_db_nfse-submit-20261005 preservado.
+Os dados locais removidos eram somente schema/QA descartaveis e podem ser
+recriados pelo rehearsal; nenhum dado real foi copiado nem removido.
+NOTIFICACOES_PREVIEW_READY = NO
+NOTIFICACOES_PRODUCTION_CHANGED = NO
+NOTIFICACOES_HOMOLOG_CHANGED = NO
+RLX_EMAIL_CHANGED = NO
+SACADO_CHANGED = NO
+HEALTH_PARSER_CHANGED = NO
+Sem commit, push ou deploy R2.
+
+FECHAMENTO LOCAL R2-CONT - 2026-10-06 (ANTES DE PUBLICAR)
+NOTIF_PRODUCERS_TOTAL = 49
+NOTIF_PRODUCERS_FIXED_BEFORE = 6
+NOTIF_PRODUCERS_PENDING_BEFORE = 43
+NOTIF_GLOBAL_BROADCASTS_BEFORE = 8
+NOTIF_PRODUCERS_ADAPTED_LOCALLY = 49
+NOTIF_PRODUCERS_PENDING_ADAPTATION = 0
+NOTIF_GLOBAL_GESTOR_INSERTS_REMAINING = 0
+
+Mapa de fechamento dos IDs acima (G descrevia a baseline, nao o codigo novo):
+A01/A02: RPC service-only notificar_seguranca_global; usuario afetado; GLOBAL;
+dedupe por evento/usuario; tipos MFA/senha em allowlist; destino seguranca.
+A03/A04/A08-A11: notificarGestoresCadastro; A04 removido. Cadastro compartilhado
+resolve todos os cedente_fundos ativos; uma linha por Fundo/gestor autorizado.
+A05-A07: operacao persistida; destinatarios C/F/S resolvidos no servidor;
+helper global A06 removido; A07 agora delega ao resolvedor exato de Sacado.
+A12-A19: notificarCedenteCadastro; documento/cadastro compartilhado; allowlist
+de eventos cadastrais; vinculos canonicos ativos, sem Fundo global de fallback.
+A20/A21: operacao -> vinculo -> Fundo; destinatario Cedente autorizado.
+A22-A26: nota_fiscal -> Fundo/vinculo; Gestor/Cedente conforme decisao.
+A27/A28: lote particionado por Fundo+vinculo+Cedente; entidade NF representativa
+validada; chave SHA256 dos pares id:updated_at ordenados evita colisao/retry.
+A29-A31: helpers internos server-only delegam public.notificar_entidade;
+tipo+ID de entidade obrigatorios; nenhum cliente escolhe Fundo/destinatario livre.
+A32-A36: operacao persistida, inclusive cancelamento/remocao de NF; destinatarios
+conforme evento; aprovacao usa CNPJ completo das NFs para resolver Sacado.
+A37: parcela resolve sua NF persistida; dedupe inclui parcela/decisao/versao.
+A38: NF paga resolve seu Fundo; somente Gestores autorizados.
+S01: helper ambiguo bloqueado; zero chamadores runtime remanescentes.
+S02: entrega; Gestores do Fundo da operacao; dedupe documento/entrega.
+S03: nota_fiscal; alias normalizado; chave postergacao/gestor.
+S04: operacao; Cedente autorizado; chave cessao efetivada/operacao.
+S05: nota_fiscal; Cedente/Gestor do Fundo; decisao e NF compoem evento.
+S06: entrega; Cedente do vinculo; evento prazo/data/entrega.
+S07-S09: entrega; Gestores do Fundo; documento/entrega compoem evento.
+S10/S11: cedente_fundo validado a partir das NFs do CT-e; Gestores desse Fundo;
+chave documento CT-e. Sobrecargas mantidas, sem alterar regras de logistica.
+
+Regra comum FUNDO: private.notificacao_contexto_entidade resolve fundo_id,
+cedente_id e cedente_fundo_id; private.notificacao_destinatarios_entidade exige
+perfil/vinculo ativo. Dedupe final inclui Fundo e usuario. Nenhum fallback GLOBAL.
+href armazenado canonico + /notificacoes/abrir/[id] revalida sessao, contexto,
+entidade e destinatario na abertura. Sacado usa detalhe exato somente leitura;
+Consultor usa rota existente com filtro UUID, sem acoplar migration C5.
+Consultor exige organizacao, membership, Fundo e Cedente ativos. Sacado usa
+CNPJ completo e sacado_acessos no mesmo Fundo; nunca raiz de CNPJ.
+Emails somente para inserts novos. Sem outbox nova; best-effort preexistente.
+
+Catalogo local efetivo: somente criar_notificacao_fundo e notificar_seguranca_global
+fazem INSERT direto; zero broadcasts por profiles.role. Aplicacao sem writer cru.
+11 assinaturas SQL substituidas com guard de corpo original; drift interrompe.
+Helpers centrais novos nao aumentam artificialmente os 49 produtores originais.
+
+UI: sino/listagem usam RPC de sessao, nao admin. GLOBAL separado. Filtros antes
+da paginacao, cursor composto microsegundos+UUID. Gestor/Cedente usam seletor
+canonico existente; Sacado/Consultor selecionam apenas Fundos autorizados.
+Troca limpa imediatamente estado e invalida respostas antigas. Realtime own-user
+reconsulta apenas contexto atual; payload B nao entra em A. Polling 30s/focus
+e fallback; cleanup de canal/intervalo. Mark-all aplica somente contexto atual.
+
+GATES LOCAIS ATUAIS
+Suite: 2829 PASS, 12 skips preexistentes; 316 arquivos PASS, 3 skips.
+TypeScript PASS; lint zero erros/warnings; build webpack PASS (95 paginas).
+SQL R1: 157 PASS; cadastro: 50 PASS; produtores+UI: 222 PASS (fresh/upgrade).
+Todos os cenarios SQL em ROLLBACK, sem alterar historico original.
+Browser componentes reais/transporte mockado: 16 cenarios PASS; 4 perfis;
+10 combinacoes 390/430/820/1440/1920 claro/escuro; teclado/foco/Escape;
+Axe WCAG A/AA zero violacoes. Nao equivale a Preview Auth real.
+EXPLAIN local 20k linhas: badge 17.500ms; lista 2.412ms; cursor 2.485ms;
+mark-all (13334 linhas) 1075.459ms. Lista/cursor usam indice composto.
+Advisors: zero findings novos; 5 WARN search_path identicos a baseline.
+SQL lint: erro preexistente aprovar_alteracao_cadastral_cedente_gestor
+(cedente_id ambiguo, linha 70), identico antes/depois, fora deste escopo.
+Inventario AST: 4 PASS. git diff --check PASS.
+
+Lista explicita, nome/versao/hash em scripts/qa/notificacoes/preview-runtime.mjs:
+20261005213812_notificacoes_fund_scope.sql
+20261006114841_notificacoes_shared_cedente_producers.sql
+20261006124134_notificacoes_entity_producers.sql
+20261006130657_notificacoes_scoped_ui.sql
+Preview twmxvhddqbderjzgmcjo conferida vazia (126 tabelas, 0 auth/history).
+DOCKER_TEST_ENV_CLEANUP = PASS. Zero containers/volumes/redes com label propria;
+container NFSE 266e9af8f823 preservado. Apenas QA/schema descartavel removido,
+recriavel pelos scripts; nenhum dado real removido.
+Proxima etapa: CI mesmo SHA, aplicar apenas lista acima, Auth/UI real e cleanup.
+NOTIFICACOES_PREVIEW_READY = NO (certificacao remota ainda pendente)
+NOTIFICACOES_PRODUCTION_CHANGED = NO
+NOTIFICACOES_HOMOLOG_CHANGED = NO

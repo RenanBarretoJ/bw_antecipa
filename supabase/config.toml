@@ -457,3 +457,15 @@ enabled = false
 
 [remotes."hotfix/nfse-submit-frozen-facts".db.seed]
 enabled = false
+
+# NOTIFICACOES-R1: authorized schema-only baseline; explicit hash-checked SQL only.
+# This override is isolated to this Preview. Main, homolog and RLX are unchanged.
+# Historical divergence is preserved; never replay or fake original A6 history.
+[remotes."feature/notificacoes-fund-scope"]
+project_id = "twmxvhddqbderjzgmcjo"
+
+[remotes."feature/notificacoes-fund-scope".db.migrations]
+enabled = false
+
+[remotes."feature/notificacoes-fund-scope".db.seed]
+enabled = false

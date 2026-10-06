@@ -6,7 +6,7 @@ import { exigirSessaoElevada } from '@/lib/auth/mfa'
 import { DOCUMENTO_V2_BUCKET, mimeArquivo, sha256Arquivo, validarArquivoContraTipo } from '@/lib/documentos-v2/tipos'
 import { enviarObjetoDocumento, gerarCaminhoDocumentoEstabelecimento, gerarUrlDocumento, removerObjetoDocumento } from '@/lib/documentos-v2/storage'
 import { buckets } from '@/lib/storage'
-import { notificarCedente } from './notificacao'
+import { notificarCedenteCadastro } from './notificacao'
 import { carregarEstabelecimentosPaginados } from '@/lib/cedentes/estabelecimentos-listagem.server'
 import type { FiltrosEstabelecimentos, ResultadoEstabelecimentos } from '@/lib/cedentes/estabelecimentos-listagem'
 import type { CedenteEstabelecimento, CedenteEstabelecimentoContaBancaria, CedenteEstabelecimentoRequisito, EstabelecimentoRequisitoStatus } from '@/types/database'
@@ -275,12 +275,13 @@ export async function configurarRequisitoEstabelecimento(formData: FormData): Pr
     const resultado = data as { requisito: CedenteEstabelecimentoRequisito; pendencia_pos_aprovacao: boolean; cedente_id: string }
     if (resultado.pendencia_pos_aprovacao) {
       const { data: tipo } = await context.supabase.from('documento_tipos').select('nome').eq('id', documentoTipoId).maybeSingle()
-      await notificarCedente(
-        resultado.cedente_id,
-        'Nova pendencia documental',
-        `Um novo documento obrigatorio ("${(tipo as { nome: string } | null)?.nome || 'documento'}") foi adicionado ao checklist de um estabelecimento ja aprovado. Envie o documento para manter o cadastro completo.`,
-        'estabelecimento_pendencia_pos_aprovacao',
-      )
+      await notificarCedenteCadastro(
+    resultado.cedente_id,
+    'Nova pendencia documental',
+    `Um novo documento obrigatorio ("${(tipo as { nome: string } | null)?.nome || 'documento'}") foi adicionado ao checklist de um estabelecimento ja aprovado. Envie o documento para manter o cadastro completo.`,
+    'estabelecimento_pendencia_pos_aprovacao',
+    `requisito:${resultado.requisito.id}:pendencia`,
+  )
     }
     revalidatePath('/gestor/cedentes')
     return { success: true, message: 'Checklist do estabelecimento atualizado.', data: resultado.requisito }
@@ -355,14 +356,15 @@ export async function analisarDocumentoEstabelecimento(formData: FormData): Prom
     if (error) throw new Error(`Nao foi possivel analisar o documento: ${error.message}`)
     const info = data as { cedente_id: string; estabelecimento_id: string }
     const labelResultado = resultado === 'aprovado' ? 'aprovado' : resultado === 'rejeitado' ? 'reprovado' : 'com ajuste solicitado'
-    await notificarCedente(
-      info.cedente_id,
-      `Documento de estabelecimento ${labelResultado}`,
-      resultado === 'aprovado'
+    await notificarCedenteCadastro(
+    info.cedente_id,
+    `Documento de estabelecimento ${labelResultado}`,
+    resultado === 'aprovado'
         ? 'Um documento do seu estabelecimento foi aprovado.'
         : `Um documento do seu estabelecimento foi ${labelResultado}. Motivo: ${observacoes}`,
-      `documento_estabelecimento_${resultado}`,
-    )
+    `documento_estabelecimento_${resultado}`,
+    `documento-versao:${String(formData.get('documento_versao_id'))}:${resultado}`,
+  )
     revalidatePath('/gestor/cedentes')
     revalidatePath('/cedente/estabelecimentos')
     return { success: true, message: 'Documento analisado com sucesso.' }
