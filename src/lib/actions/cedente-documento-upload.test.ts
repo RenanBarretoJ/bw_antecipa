@@ -5,7 +5,7 @@ import { join } from 'node:path'
 const mocks = vi.hoisted(() => ({ requireAccess: vi.fn(), admin: vi.fn(), notify: vi.fn() }))
 vi.mock('@/lib/auth/authorization', () => ({ requireCedenteManagementAccess: mocks.requireAccess }))
 vi.mock('@/lib/supabase/server', () => ({ createAdminClient: mocks.admin }))
-vi.mock('./notificacao', () => ({ notificarGestores: mocks.notify }))
+vi.mock('@/lib/notificacoes/cadastro.server', () => ({ notificarGestoresCadastro: mocks.notify }))
 
 import { prepararUploadDocumentoCadastral, finalizarUploadDocumentoCadastral, reconciliarUploadDocumentoCadastral } from './cedente-documento-upload'
 
@@ -76,6 +76,9 @@ describe('P9.3 durable upload intents', () => {
     const mock = fixture()
     expect((await finalizarUploadDocumentoCadastral(id)).success).toBe(true)
     expect(mock.rpc).toHaveBeenCalledWith('finalizar_documento_upload_intent', { p_intent_id: id })
+    expect(mocks.notify).toHaveBeenCalledWith(expect.objectContaining({
+      cedenteId, tipo: 'documento_enviado', eventoKey: 'documento:doc-2:versao:2',
+    }))
     expect(mock.bucket.remove).not.toHaveBeenCalled()
   })
 

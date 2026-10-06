@@ -7,6 +7,7 @@ import { notaFiscalSchema, submeterNfSchema, type NotaFiscalFormData, type Subme
 import { extractDanfeFromPdf, validarDanfeParaPersistencia, valorTotalExtraidoValido, type NfPdfExtracted } from '@/lib/pdf-nf-parser'
 import { registrarLog } from './auditoria'
 import { notificarGestores, notificarCedente } from './notificacao'
+import { agruparAvisosNotas } from '@/lib/notificacoes/lote'
 import { buckets } from '@/lib/storage'
 import { uploadDocumentoSeRequerido } from '@/lib/documentos-v2/upload'
 import { instanciarRequisitosDaNota } from '@/lib/documentos-v2/requisitos'
@@ -1327,10 +1328,11 @@ export async function submeterNF(input: SubmeterNfInput): Promise<NfActionState>
   })
 
   await notificarGestores(
+    { entidadeTipo: 'nota_fiscal', entidadeId: nfId },
     'NF submetida para analise',
     `O cedente ${cedente.razao_social} submeteu a NF ${nfData.numero_nf || nfId} para analise.`,
     'nf_submetida',
-    `nf:${nfId}:submetida`
+    `nf:${nfId}:submetida`,
   )
 
   revalidatePath(`/cedente/notas-fiscais/${nfId}`)
@@ -1439,7 +1441,7 @@ export async function aprovarNF(nfId: string): Promise<NfActionState> {
 
   const { data: nfAntes } = await supabase
     .from('notas_fiscais')
-    .select('status, numero_nf, cedente_id')
+    .select('status, numero_nf, cedente_id, updated_at')
     .eq('id', nfId)
     .single()
 
@@ -1447,7 +1449,7 @@ export async function aprovarNF(nfId: string): Promise<NfActionState> {
     return { success: false, message: 'NF nao encontrada.' }
   }
 
-  const nfData = nfAntes as { status: string; numero_nf: string; cedente_id: string }
+  const nfData = nfAntes as { status: string; numero_nf: string; cedente_id: string; updated_at: string }
   // carregarResumoDocumentalDasNotas so LE documento_requisito_instancias --
   // nunca reconcilia. Sem isto, aprovar uma NF cujo checklist nunca foi
   // aberto poderia nao contar requisitos por_parcela (ex.: boleto) ainda
@@ -1506,10 +1508,11 @@ export async function aprovarNF(nfId: string): Promise<NfActionState> {
   }
 
   await notificarCedente(
-    nfData.cedente_id,
+    { entidadeTipo: 'nota_fiscal', entidadeId: nfId },
     'NF aprovada',
     `Sua NF ${nfData.numero_nf} foi aprovada e esta disponivel para antecipacao.`,
     'nf_aprovada',
+    `nf:${nfId}:${nfData.updated_at}:aprovada`,
   )
 
   await registrarLog({
@@ -1544,7 +1547,7 @@ export async function reprovarNF(nfId: string, motivo: string): Promise<NfAction
 
   const { data: nfAntes } = await supabase
     .from('notas_fiscais')
-    .select('status, numero_nf, cedente_id')
+    .select('status, numero_nf, cedente_id, updated_at')
     .eq('id', nfId)
     .single()
 
@@ -1552,7 +1555,7 @@ export async function reprovarNF(nfId: string, motivo: string): Promise<NfAction
     return { success: false, message: 'NF nao encontrada.' }
   }
 
-  const nfData = nfAntes as { status: string; numero_nf: string; cedente_id: string }
+  const nfData = nfAntes as { status: string; numero_nf: string; cedente_id: string; updated_at: string }
 
   const { error } = await supabase
     .from('notas_fiscais')
@@ -1564,10 +1567,11 @@ export async function reprovarNF(nfId: string, motivo: string): Promise<NfAction
   }
 
   await notificarCedente(
-    nfData.cedente_id,
+    { entidadeTipo: 'nota_fiscal', entidadeId: nfId },
     'NF reprovada',
     `Sua NF ${nfData.numero_nf} foi reprovada. Motivo: ${motivo}`,
     'nf_reprovada',
+    `nf:${nfId}:${nfData.updated_at}:reprovada`,
   )
 
   await registrarLog({
@@ -1598,7 +1602,7 @@ export async function resubmeterNFAjustada(nfId: string, cedenteIdInformado?: st
 
   const { data: nf } = await supabase
     .from('notas_fiscais')
-    .select('id, numero_nf, status, cedente_id, cedente_fundo_id, fundo_id, data_emissao, data_vencimento, cnpj_emitente, cnpj_destinatario, valor_bruto')
+    .select('id, updated_at, numero_nf, status, cedente_id, cedente_fundo_id, fundo_id, data_emissao, data_vencimento, cnpj_emitente, cnpj_destinatario, valor_bruto')
     .eq('id', nfId)
     .eq('cedente_id', cedente.id)
     .eq('status', 'requer_ajuste')
@@ -1610,6 +1614,7 @@ export async function resubmeterNFAjustada(nfId: string, cedenteIdInformado?: st
 
   const nfData = nf as {
     id: string
+    updated_at: string
     numero_nf: string
     status: string
     cedente_id: string
@@ -1656,9 +1661,11 @@ export async function resubmeterNFAjustada(nfId: string, cedenteIdInformado?: st
   })
 
   await notificarGestores(
+    { entidadeTipo: 'nota_fiscal', entidadeId: nfId },
     'NF resubmetida apos ajuste',
     `O cedente ${cedente.razao_social} resubmeteu a NF ${nfData.numero_nf} apos correcao.`,
-    'nf_submetida'
+    'nf_submetida',
+    `nf:${nfId}:${nfData.updated_at}:resubmetida`,
   )
 
   revalidatePath(`/consultor/notas-fiscais/${nfId}`)
@@ -1681,7 +1688,7 @@ export async function solicitarAjusteNF(nfId: string, motivo: string): Promise<N
 
   const { data: nfAntes } = await supabase
     .from('notas_fiscais')
-    .select('status, numero_nf, cedente_id')
+    .select('status, numero_nf, cedente_id, updated_at')
     .eq('id', nfId)
     .single()
 
@@ -1689,7 +1696,7 @@ export async function solicitarAjusteNF(nfId: string, motivo: string): Promise<N
     return { success: false, message: 'NF nao encontrada.' }
   }
 
-  const nfData = nfAntes as { status: string; numero_nf: string; cedente_id: string }
+  const nfData = nfAntes as { status: string; numero_nf: string; cedente_id: string; updated_at: string }
 
   const { error } = await supabase
     .from('notas_fiscais')
@@ -1701,10 +1708,11 @@ export async function solicitarAjusteNF(nfId: string, motivo: string): Promise<N
   }
 
   await notificarCedente(
-    nfData.cedente_id,
+    { entidadeTipo: 'nota_fiscal', entidadeId: nfId },
     'Ajuste solicitado na NF',
     `Sua NF ${nfData.numero_nf} requer ajuste. Motivo: ${motivo.trim()}`,
     'nf_ajuste_solicitado',
+    `nf:${nfId}:${nfData.updated_at}:ajuste`,
   )
 
   await registrarLog({
@@ -1735,12 +1743,13 @@ export async function aprovarNFsLote(ids: string[]): Promise<NfActionState> {
   const fundo = await resolverContextoFundoGestor(context)
   const { data: nfsData, error: nfsError } = await supabase
     .from('notas_fiscais')
-    .select('id, numero_nf, cedente_id, cedente_fundo_id, status, fundo_id, data_emissao, data_vencimento, cnpj_emitente, cnpj_destinatario, valor_bruto')
+    .select('id, numero_nf, cedente_id, cedente_fundo_id, status, fundo_id, data_emissao, data_vencimento, cnpj_emitente, cnpj_destinatario, valor_bruto, updated_at')
     .in('id', idsUnicos)
 
   if (nfsError) return { success: false, message: `Erro ao validar as NFs: ${nfsError.message}` }
   const nfs = (nfsData || []) as Array<{
     id: string
+    updated_at: string
     numero_nf: string
     cedente_id: string
     cedente_fundo_id: string | null
@@ -1895,23 +1904,15 @@ export async function aprovarNFsLote(ids: string[]): Promise<NfActionState> {
 
   if (error) return { success: false, message: `Erro ao aprovar: ${error.message}` }
 
-  // Agrupar por cedente para enviar uma notificacao por cedente
-  const porCedente = new Map<string, string[]>()
-  for (const nf of nfs) {
-    const nums = porCedente.get(nf.cedente_id) || []
-    nums.push(nf.numero_nf)
-    porCedente.set(nf.cedente_id, nums)
-  }
-  await Promise.allSettled(
-    [...porCedente.entries()].map(([cedenteId, numeros]) =>
-      notificarCedente(
-        cedenteId,
-        'NFs aprovadas',
-        `As NFs ${numeros.join(', ')} foram aprovadas e estao disponiveis para antecipacao.`,
-        'nf_aprovada',
-      )
-    )
-  )
+  await Promise.allSettled(agruparAvisosNotas(nfs).map(grupo =>
+    notificarCedente(
+      { entidadeTipo: 'cedente_fundo', entidadeId: grupo.vinculoId },
+      'NFs aprovadas',
+      `As NFs ${grupo.notas.map(nota => nota.numero_nf).join(', ')} foram aprovadas e estao disponiveis para antecipacao.`,
+      'nf_aprovada',
+      `lote:nf_aprovada:${createHash('sha256').update(grupo.notas.map(nota => `${nota.id}:${nota.updated_at}`).sort().join('|')).digest('hex')}`,
+    ),
+  ))
 
   await registrarLog({
     tipo_evento: 'NFS_APROVADAS_LOTE',
@@ -1946,7 +1947,7 @@ export async function reprovarNFsLote(ids: string[], motivo: string): Promise<Nf
 
   const { data: elegíveis } = await supabase
     .from('notas_fiscais')
-    .select('id, numero_nf, cedente_id')
+    .select('id, numero_nf, cedente_id, fundo_id, cedente_fundo_id, updated_at')
     .in('id', idsUnicos)
     .in('status', ['submetida', 'em_analise'])
 
@@ -1954,7 +1955,7 @@ export async function reprovarNFsLote(ids: string[], motivo: string): Promise<Nf
     return { success: false, message: 'Nenhuma NF elegivel para reprovacao.' }
   }
 
-  const nfs = elegíveis as { id: string; numero_nf: string; cedente_id: string }[]
+  const nfs = elegíveis as { id: string; numero_nf: string; cedente_id: string; fundo_id: string | null; cedente_fundo_id: string | null; updated_at: string }[]
   const idsReprovados = nfs.map((n) => n.id)
 
   const { error } = await supabase
@@ -1964,22 +1965,15 @@ export async function reprovarNFsLote(ids: string[], motivo: string): Promise<Nf
 
   if (error) return { success: false, message: `Erro ao reprovar: ${error.message}` }
 
-  const porCedente = new Map<string, string[]>()
-  for (const nf of nfs) {
-    const nums = porCedente.get(nf.cedente_id) || []
-    nums.push(nf.numero_nf)
-    porCedente.set(nf.cedente_id, nums)
-  }
-  await Promise.allSettled(
-    [...porCedente.entries()].map(([cedenteId, numeros]) =>
-      notificarCedente(
-        cedenteId,
-        'NFs reprovadas',
-        `As NFs ${numeros.join(', ')} foram reprovadas. Motivo: ${motivo}`,
-        'nf_reprovada',
-      )
-    )
-  )
+  await Promise.allSettled(agruparAvisosNotas(nfs).map(grupo =>
+    notificarCedente(
+      { entidadeTipo: 'cedente_fundo', entidadeId: grupo.vinculoId },
+      'NFs reprovadas',
+      `As NFs ${grupo.notas.map(nota => nota.numero_nf).join(', ')} foram reprovadas. Motivo: ${motivo}`,
+      'nf_reprovada',
+      `lote:nf_reprovada:${createHash('sha256').update(grupo.notas.map(nota => `${nota.id}:${nota.updated_at}`).sort().join('|')).digest('hex')}`,
+    ),
+  ))
 
   await registrarLog({
     tipo_evento: 'NFS_REPROVADAS_LOTE',

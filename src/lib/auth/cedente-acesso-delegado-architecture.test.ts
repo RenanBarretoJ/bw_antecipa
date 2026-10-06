@@ -238,7 +238,9 @@ describe('P0 (correção real, achado pelo usuário ao vivo): mesmo padrão user
   })
 
   it('CedenteFundoAtivoSelector (troca de fundo no header) resolve via get_user_cedente_id()', () => {
-    expect(cedenteFundoAtivoSelector).toContain("supabase.rpc('get_user_cedente_id')")
+    expect(cedenteFundoAtivoSelector).toContain('carregarSeletorCedenteFundoAtivo()')
+    expect(cedenteFundoAtivoActions).toContain("auth.supabase.rpc('get_user_cedente_id')")
+    expect(cedenteFundoAtivoActions).toContain('resolverCedenteFundoAtivo(cedenteId, auth.supabase)')
     expect(cedenteFundoAtivoSelector).not.toContain(".eq('user_id', userId)")
   })
 

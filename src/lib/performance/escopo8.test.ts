@@ -56,7 +56,7 @@ describe('performance scope 8 security closeout', () => {
     expect(migration).not.toMatch(/GRANT (?:ALL|SELECT)[\s\S]*?TO anon;/)
   })
 
-  it('persists cedente notifications in one batch instead of one insert per user', () => {
+  it('persists cedente notifications through one scoped RPC instead of one API insert per user', () => {
     const action = source('src/lib/actions/notificacao.ts')
     const notificarCedente = action.slice(
       action.indexOf('export async function notificarCedente'),
@@ -64,8 +64,8 @@ describe('performance scope 8 security closeout', () => {
     )
 
     expect(notificarCedente).not.toContain('userIds.map(async')
-    expect(notificarCedente).toContain('const notificacoesLote = userIds.map')
-    expect(notificarCedente).toContain('.insert(notificacoesLote as never[])')
-    expect(notificarCedente).toContain('.upsert(notificacoesLote as never[]')
+    expect(notificarCedente).toContain("notificarEntidade(contexto, 'cedente'")
+    expect(action).toContain(".rpc('notificar_entidade'")
+    expect(action).not.toContain(".from('notificacoes')")
   })
 })

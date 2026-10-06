@@ -427,17 +427,24 @@ export async function analisarBoletoDaParcela(formData: FormData): Promise<Parce
     })
     if (error) throw new Error(`Nao foi possivel analisar o boleto: ${error.message}`)
 
-    const { data: nf } = await context.supabase.from('notas_fiscais').select('cedente_id').eq('id', notaFiscalId).maybeSingle()
-    if (nf) {
+    // Notification context comes from the analyzed document, not a browser NF id.
+    const { data: versao } = await context.supabase.from('documento_versoes')
+      .select('documento_id').eq('id', documentoVersaoId).maybeSingle()
+    const { data: vinculo } = versao
+      ? await context.supabase.from('documento_vinculos').select('nota_fiscal_id')
+        .eq('documento_id', versao.documento_id).not('nota_fiscal_id', 'is', null).maybeSingle()
+      : { data: null }
+    if (vinculo?.nota_fiscal_id) {
       const labelResultado = resultado === 'aprovado' ? 'aprovado' : resultado === 'rejeitado' ? 'reprovado' : 'com ajuste solicitado'
       await notificarCedente(
-        (nf as { cedente_id: string }).cedente_id,
-        `Boleto de parcela ${labelResultado}`,
-        resultado === 'aprovado'
+    { entidadeTipo: 'nota_fiscal', entidadeId: vinculo.nota_fiscal_id },
+    `Boleto de parcela ${labelResultado}`,
+    resultado === 'aprovado'
           ? 'O boleto de uma parcela da sua NF foi aprovado.'
           : `O boleto de uma parcela da sua NF foi ${labelResultado}. Motivo: ${observacoes}`,
-        `boleto_parcela_${resultado}`,
-      )
+    `boleto_parcela_${resultado}`,
+    `boleto:${documentoVersaoId}:${resultado}`,
+  )
     }
 
     revalidatePath(`/gestor/notas-fiscais/${notaFiscalId}`)

@@ -136,13 +136,15 @@ async function notificarSenhaAlterada(input: {
 
   await Promise.allSettled([
     enviarEmail({ to: input.email, subject: template.subject, html: template.html }),
-    createAdminClient().from('notificacoes').insert({
-      usuario_id: input.userId,
-      titulo: 'Senha alterada',
-      mensagem: 'Sua senha de acesso foi alterada. Se nao foi voce, contate imediatamente a equipe Better With.',
-      tipo: 'seguranca_senha_alterada',
-      dedupe_key: `senha-alterada:${input.userId}:${now.toISOString().slice(0, 16)}`,
-    } as never),
+    createAdminClient().rpc('notificar_seguranca_global', {
+      p_usuario_id: input.userId,
+      p_titulo: 'Senha alterada',
+      p_mensagem: 'Sua senha de acesso foi alterada. Se nao foi voce, contate imediatamente a equipe Better With.',
+      p_tipo: 'seguranca_senha_alterada',
+      p_dedupe_key: `senha-alterada:${input.userId}:${now.toISOString().slice(0, 16)}`,
+    }).then(({ error }) => {
+      if (error) console.error('[senha/notificacao] Falha no aviso.', { code: error.code })
+    }),
   ])
 }
 

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { carregarContextoFundoAtivo, selecionarFundoAtivo } from '@/lib/actions/fundo-ativo'
 import type { FundoAtivoAutorizado, FundoAutorizado } from '@/lib/fundos/fundo-ativo'
 import { useNotifications } from '@/components/notifications/notification-provider'
+import { iniciarTrocaContextoNotificacoes, concluirTrocaContextoNotificacoes } from '@/lib/notificacoes/events'
 
 type FundoAtivoContextValue = {
   loading: boolean
@@ -53,16 +54,21 @@ export function FundoAtivoProvider({ enabled, children }: { enabled: boolean; ch
   }, [recarregar])
 
   const trocarFundo = useCallback(async (fundoId: string) => {
-    const result = await selecionarFundoAtivo(fundoId)
-    if (!result.success || !result.data) {
-      notifications.error(result.message || 'Não foi possível alterar o fundo ativo.')
-      return false
+    iniciarTrocaContextoNotificacoes()
+    try {
+      const result = await selecionarFundoAtivo(fundoId)
+      if (!result.success || !result.data) {
+        notifications.error(result.message || 'Não foi possível alterar o fundo ativo.')
+        return false
+      }
+      notifications.success(result.message || `Fundo alterado para ${result.data.fundo.nome}.`)
+      await recarregar()
+      router.push('/gestor/dashboard')
+      router.refresh()
+      return true
+    } finally {
+      concluirTrocaContextoNotificacoes()
     }
-    notifications.success(result.message || `Fundo alterado para ${result.data.fundo.nome}.`)
-    await recarregar()
-    router.push('/gestor/dashboard')
-    router.refresh()
-    return true
   }, [notifications, recarregar, router])
 
   const fundoAtivo = useMemo(() => fundos.find((fundo) => fundo.id === contexto?.fundoId) || null, [fundos, contexto?.fundoId])

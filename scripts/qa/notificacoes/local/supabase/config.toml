@@ -1,0 +1,34 @@
+project_id = "notificacoes-r1-20261005"
+[api]
+enabled = true
+port = 59421
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+[db]
+port = 59422
+shadow_port = 59420
+major_version = 17
+health_timeout = "2m"
+[db.migrations]
+enabled = false
+[db.seed]
+enabled = false
+[db.pooler]
+enabled = false
+[studio]
+enabled = false
+[realtime]
+enabled = false
+[storage]
+enabled = true
+[auth]
+enabled = true
+site_url = "http://127.0.0.1:3001"
+enable_signup = false
+[auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true
+[analytics]
+enabled = false
+[edge_runtime]
+enabled = false
