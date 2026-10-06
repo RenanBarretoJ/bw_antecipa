@@ -278,3 +278,53 @@ Proxima etapa: CI mesmo SHA, aplicar apenas lista acima, Auth/UI real e cleanup.
 NOTIFICACOES_PREVIEW_READY = NO (certificacao remota ainda pendente)
 NOTIFICACOES_PRODUCTION_CHANGED = NO
 NOTIFICACOES_HOMOLOG_CHANGED = NO
+
+CERTIFICACAO REMOTA R2-CONT - 2026-10-06
+Aplicacao: 7f3471b5bf743ba6177b40a957dfd02b0c6bab6e; PR rascunho #95.
+CI Linux PASS: https://github.com/RenanBarretoJ/bw_antecipa/actions/runs/37474305130
+Preview: https://bw-antecipa-git-feature-notificacoes-fund-scope-renanbarretoj.vercel.app
+As quatro migrations acima foram realmente executadas e registradas com seus
+nomes/versoes/hashes exatos. Historico anterior vazio preservado; A6 ausente.
+Zero broadcasts e zero chamadores do helper ambiguo no catalogo remoto.
+Edge Functions da Preview: lista vazia; nao ha produtor remoto adicional ali.
+
+Smoke real completo PASS: run 191d727a-5973-4e9e-9d23-89c519f4aa6f.
+4 perfis Auth+MFA real; A+B autorizado, C negado; dedupe; usuario somente B
+nao recebe A; badges; lista; mark-all A preserva B; realtime B ignorado em A;
+troca canonica dos quatro perfis; href A abre origem e B retorna 403 em A;
+filtros/paginacao/mark-one/lidas; 10 combinacoes responsivas claro/escuro;
+popup dentro do viewport, teclado/foco/Escape, Axe A/AA zero no modulo e sino.
+Produtores de negocio executados: aceite real do Sacado e cron prazo de entrega.
+Demais familias: contratos de resolucao/dedupe e testes unitarios/SQL por evento;
+nao foram feitas operacoes reais nem disparos de email para usuarios reais.
+Cleanup duplo PASS: somente linhas ligadas transitivamente aos UUIDs QA;
+sessoes revogadas, usuarios Auth apagados, tabelas da aplicacao/storage vazias.
+Os fixtures sao sinteticos e recriaveis; credenciais ficaram somente em memoria.
+
+Intercorrencias do harness (nao mascaradas como defeitos da aplicacao):
+- fixture CRLF tentava repetir INSERT auth; normalizacao e guard adicionados;
+- NF de aceite estava aprovada, nao em_antecipacao; precondicao QA corrigida;
+- teste de filtro observava lista antes da navegacao RSC; aguarda aria-current
+  e aria-busy=false antes de conferir. Todas as rodadas tiveram cleanup.
+
+Advisor remoto: 5 search_path WARN preexistentes, 17 INFO RLS sem policies em
+superficies backend, e alerta generico para funcoes SECURITY DEFINER autenticadas.
+A nova obter_destino_notificacao e intencional: auth.uid ativo, own-user,
+scope/Fundo explicitamente autorizado, entidade canonica e destinatario atual;
+anon/PUBLIC sem EXECUTE, search_path vazio; negativos SQL e Auth reais PASS.
+Referencia: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+Tres INFO de FK sem indice isolado (Fundo/Cedente/vinculo): consultas quentes
+usam indice composto usuario/Fundo; EXPLAIN certificado. R1 preservado.
+SQL lint preexistente de cadastro continua conhecido, sem nova regressao.
+
+Integracao Supabase inicialmente cancelou check por limite de branches, pois a
+Preview existente nao tinha git_branch associado. Corrigida apenas a associacao
+dessa Preview; nenhum limite global/branch alheia alterado. Nenhum status de
+migration foi falsificado. Divergencia historica conhecida permanece preservada.
+
+Commit seguinte contem somente harness/evidencia; codigo da aplicacao e hashes
+SQL permanecem iguais. postflight.mjs exige CI, deploy e smoke no HEAD final,
+dupla limpeza e zero Docker proprio antes de gerar o status final verificavel:
+rehearsal/reports/NOTIFICACOES_R2_CONT_FINAL.json.
+O status historico NO acima nao representa o resultado desse postflight.
+STOP: nao mergear #95 e nao fazer rollout em producao nesta solicitacao.

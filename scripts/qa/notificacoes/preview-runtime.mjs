@@ -39,10 +39,11 @@ export async function connect(d){
 }
 export async function empty(db){
   const tables=(await db.query("SELECT schemaname,tablename FROM pg_tables WHERE schemaname IN ('public','private') ORDER BY 1,2")).rows
-  for(const t of tables){
+  const counts=(await db.query(tables.map((t,i)=>{
     const name='"'+t.schemaname.replaceAll('"','""')+'"."'+t.tablename.replaceAll('"','""')+'"'
-    assert.equal(Number((await db.query(`SELECT count(*) FROM ${name}`)).rows[0].count),0,'APPLICATION_DATA_PRESENT:'+t.tablename)
-  }
+    return `SELECT ${i} AS position,count(*) AS count FROM ${name}`
+  }).join(' UNION ALL '))).rows
+  for(const r of counts)assert.equal(Number(r.count),0,'APPLICATION_DATA_PRESENT:'+tables[r.position].tablename)
   for(const t of ['auth.users','storage.objects'])assert.equal(Number((await db.query(`SELECT count(*) FROM ${t}`)).rows[0].count),0,'QA_DATA_PRESENT')
   return tables.length
 }
