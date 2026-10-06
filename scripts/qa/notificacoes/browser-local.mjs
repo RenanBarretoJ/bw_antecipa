@@ -10,6 +10,7 @@ import tailwind from '@tailwindcss/postcss'
 import puppeteer from 'puppeteer-core'
 import {probeLegacySequence,controlledOpeningProbe} from './focus-probe.mjs'
 import {keyboardCycle,keyboardOpen,keyboardClose,rememberFocus,unchangedFocus} from './focus-keyboard.mjs'
+import {clickMarkAllReady,readMarkState} from './mark-read-diagnostics.mjs'
 const require=createRequire(import.meta.url)
 const {build}=createRequire(require.resolve('tsx/package.json'))('esbuild')
 const output=resolve('rehearsal/reports/notificacoes-browser-local')
@@ -21,7 +22,7 @@ const mocks={
     const sleep=ms=>new Promise(r=>setTimeout(r,ms));
     export async function carregarContextoNotificacoes(){await sleep(20);return {userId:'qa-user',role:window.qa.role,fundos:[{id:'A',nome:'Fundo A — carteira de teste'},{id:'B',nome:'Fundo B — carteira de teste'}],fundoId:window.qa.fund,seletorProprio:['sacado','consultor'].includes(window.qa.role)}}
     export async function selecionarFundoNotificacoes(id){await sleep(70);if(!['A','B'].includes(id))throw Error('denied');window.qa.fund=id;return carregarContextoNotificacoes()}
-    export async function carregarPaginaNotificacoes({escopo,filtro,limit,cursor}){window.qa.requests.push({escopo,filtro});if(window.qa.fail)throw Error('offline');const all=window.qa.rows.filter(r=>r.scope===escopo.scope&&r.fundoId===escopo.fundoId);const rows=all.filter(r=>notificacaoMatchesFilter(r,filtro));const start=Number(cursor)||0;const page={userId:'qa-user',items:structuredClone(rows.slice(start,start+limit)),contadores:{total:all.length,naoLidas:all.filter(r=>!r.lida).length},hasMore:rows.length>start+limit,nextCursor:rows.length>start+limit?String(start+limit):null};await sleep(escopo.fundoId==='A'?(window.qa.delayA||15):15);return page}
+    export async function carregarPaginaNotificacoes({escopo,filtro,limit,cursor}){window.qa.requests.push({escopo,filtro});if(window.qa.fail)throw Error('offline');const all=window.qa.rows.filter(r=>r.scope===escopo.scope&&r.fundoId===escopo.fundoId);const rows=all.filter(r=>notificacaoMatchesFilter(r,filtro));const start=Number(cursor)||0;const page={userId:'qa-user',items:structuredClone(rows.slice(start,start+limit)),contadores:{total:all.length,naoLidas:all.filter(r=>!r.lida).length},hasMore:rows.length>start+limit,nextCursor:rows.length>start+limit?String(start+limit):null};if(limit===20&&window.qa.holdList)await new Promise(r=>window.qa.listWaiters.push(r));await sleep(escopo.fundoId==='A'?(window.qa.delayA||15):15);return page}
     export async function marcarNotificacoesLidas(escopo,id){window.qa.marks.push({escopo,id});await sleep(20);if(window.qa.markFail)throw Error('denied');window.qa.rows.forEach(r=>{if(r.scope===escopo.scope&&r.fundoId===escopo.fundoId&&(!id||r.id===id))r.lida=true});return {total:0,naoLidas:0}}
   `,
 }
@@ -69,6 +70,28 @@ try{
     await page.waitForFunction(()=>document.querySelector('main [role="status"]')?.textContent.startsWith('0 não lidas'))
     console.log(JSON.stringify({markUnreadView:await page.evaluate(()=>({tag:document.activeElement.tagName,text:document.activeElement.textContent.slice(0,80)}))}))
   } else {
+  const markProof=[]
+  for(let round=0;round<3;round++){
+    await page.goto(`${base}/?role=cedente`,{waitUntil:'domcontentloaded'});await badge(2);await ready()
+    await keyboardOpen(page)
+    await page.evaluate(()=>{window.qa.holdList=true;window.qa.listWaiters=[];window.qa.emit('A-realtime','A')})
+    await page.waitForFunction(()=>document.querySelector('[role="dialog"]')?.textContent.includes('A-realtime'))
+    await page.waitForFunction(()=>window.qa.listWaiters.length>0)
+    await keyboardClose(page)
+    const before=await readMarkState(page)
+    assert.equal(before.listBusy,'true');assert.equal(before.button.disabled,true)
+    await page.evaluate(()=>[...document.querySelectorAll('button')].find(b=>b.textContent==='Marcar todas como lidas').click())
+    assert.equal(await page.evaluate(()=>window.qa.marks.length),0,'LEGACY_DISABLED_CLICK_MUST_NOT_SUBMIT')
+    // Release the held response explicitly, without a timing sleep or app change.
+    await page.evaluate(()=>{window.qa.holdList=false;window.qa.listWaiters.splice(0).forEach(r=>r())})
+    await clickMarkAllReady(page,'A-realtime')
+    await page.waitForFunction(()=>document.querySelector('main [role="status"]')?.textContent.startsWith('0 não lidas'))
+    assert.equal(await page.evaluate(()=>window.qa.marks.length),1)
+    assert.equal(await page.evaluate(()=>window.qa.rows.filter(r=>r.fundoId==='B'&&!r.lida).length),1)
+    markProof.push({round,before,legacyMutations:0,readyMutations:1,after:await readMarkState(page),otherFundUnchanged:true})
+  }
+  writeFileSync(resolve(output,'mark-read-controlled.json'),JSON.stringify({success:true,results:markProof},null,2))
+  checks.push('mark-all-readiness:3-controlled-disabled-noop-and-enabled-success')
   for(const role of ['gestor','cedente','sacado','consultor']){
     await page.goto(`${base}/?role=${role}`,{waitUntil:'domcontentloaded'});await badge(2);await ready()
     await keyboardCycle(page,{negative:true})

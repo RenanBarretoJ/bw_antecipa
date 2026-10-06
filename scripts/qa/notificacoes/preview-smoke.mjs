@@ -8,13 +8,15 @@ import { createClient } from '@supabase/supabase-js'
 import puppeteer from 'puppeteer-core'
 import { details,connect,empty,ref,base } from './preview-runtime.mjs'
 import {keyboardCycle,keyboardOpen,keyboardClose,rememberFocus,unchangedFocus} from './focus-keyboard.mjs'
-assert.equal(process.argv.length,2)
+import {observeActions,readMarkState,clickMarkAllReady} from './mark-read-diagnostics.mjs'
+const diagnostic=process.argv[2]==='--diagnose-mark-all'
+assert(process.argv.length===2||(process.argv.length===3&&diagnostic))
 const require=createRequire(import.meta.url),d=details(),db=await connect(d)
 const admin=createClient(d.SUPABASE_URL,d.SUPABASE_SERVICE_ROLE_KEY,{auth:{persistSession:false,autoRefreshToken:false}})
 const run=randomUUID(),map=new Map(),actors={},clients=[],owned=new Set(),checks=[],screens=[]
 const out='rehearsal/reports/notificacoes-preview';mkdirSync(out,{recursive:true})
 const sha=spawnSync('git',['rev-parse','HEAD'],{encoding:'utf8',windowsHide:true}).stdout.trim()
-const report={target:ref,sha,run,success:false,checks,screens,cleanup:false,cleanupRuns:[]}
+const report={target:ref,sha,run,diagnostic,success:false,checks,screens,cleanup:false,cleanupRuns:[],markDiagnostics:[]}
 const old=(p,n=1)=>`${p}000000-0000-4000-8000-${String(n).padStart(12,'0')}`
 function id(p,n=1){const key=old(p,n);if(!map.has(key))map.set(key,randomUUID());const v=map.get(key);owned.add(v);return v}
 const A=id('22'),B=id('22',2),C=id('22',3),CF=id('24'),CFB=id('24',2),NF=id('2a'),NFB=id('2a',5),OP=id('2c'),E=id('2d')
@@ -115,7 +117,7 @@ try{
   assert.equal(Number((await db.query('SELECT count(*) FROM public.notificacoes WHERE usuario_id=$1 AND fundo_id=$2',[actors.gestorB.id,A])).rows[0].count),0)
   log('browser')
   browser=await puppeteer.launch({executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',headless:true})
-  for(const role of ['gestor','cedente','sacado','consultor']){
+  for(const role of diagnostic?['cedente']:['gestor','cedente','sacado','consultor']){
     const context=await browser.createBrowserContext(),c=actors[role].client,session=val(await c.auth.getSession()).session
     const chunks=('base64-'+Buffer.from(JSON.stringify(session)).toString('base64url')).match(/.{1,3180}/g),domain=new URL(base).hostname
     const cookie=(name,value)=>({name,value,domain,path:'/',secure:true,sameSite:'Lax'})
@@ -147,8 +149,19 @@ try{
     assert(!(await page.evaluate(()=>document.body.innerText)).includes('B-realtime'))
     await unchangedFocus(page)
     await keyboardClose(page)
-    await page.evaluate(()=>[...document.querySelectorAll('button')].find(b=>b.textContent==='Marcar todas como lidas').click())
-    await page.waitForFunction(()=>document.body.innerText.includes('0 não lidas neste contexto'),{timeout:15000})
+    const observer=observeActions(page)
+    const markDiagnostic={role,before:await readMarkState(page),actions:observer.events}
+    report.markDiagnostics.push(markDiagnostic)
+    try {
+      await clickMarkAllReady(page,'A-realtime')
+      markDiagnostic.afterClick=await readMarkState(page)
+      await page.waitForFunction(()=>document.querySelector('[aria-labelledby="notificacoes-title"] [role="status"]')?.textContent.startsWith('0 não lidas neste contexto'),{timeout:15000})
+    } finally {
+      observer.stop()
+      markDiagnostic.final=await readMarkState(page)
+      markDiagnostic.persisted=val(await c.rpc('contar_notificacoes',{p_scope:'FUNDO',p_fundo_id:A}))[0]
+      console.log(JSON.stringify({phase:'mark-all-diagnostic',...markDiagnostic}))
+    }
     assert.equal(val(await c.rpc('contar_notificacoes',{p_scope:'FUNDO',p_fundo_id:B}))[0].nao_lidas,2)
     if(role==='gestor'){
       await page.click('[aria-controls="fundo-ativo-dropdown"]')
@@ -246,5 +259,6 @@ try{
 finally{
   try{log('cleanup');await cleanup();await cleanup()}catch(e){report.cleanupError=String(e.message).slice(0,250);process.exitCode=1}
   await db.end();writeFileSync(out+'/result.json',JSON.stringify(report,null,2)+'\n')
+  writeFileSync(out+'/result-'+run+'.json',JSON.stringify(report,null,2)+'\n')
   console.log(JSON.stringify(report))
 }

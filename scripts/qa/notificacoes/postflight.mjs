@@ -17,6 +17,9 @@ assert.equal(run('git',['diff','5500b5bed85f683baedb827f0d41f8704c77a77d',sha,'-
 const controlled=JSON.parse(readFileSync('rehearsal/reports/notificacoes-browser-local/focus-controlled.json','utf8'))
 assert.equal(controlled.results.length,3)
 assert(controlled.results.every(r=>!r.premature.inside&&r.premature.active.guard&&r.settled.inside),'ROOT_CAUSE_NOT_PROVEN')
+const markProof=JSON.parse(readFileSync('rehearsal/reports/notificacoes-browser-local/mark-read-controlled.json','utf8'))
+assert(markProof.success&&markProof.results.length===3)
+assert(markProof.results.every(r=>r.before.button.disabled&&r.before.listBusy==='true'&&r.legacyMutations===0&&r.readyMutations===1&&r.otherFundUnchanged),'MARK_READ_READINESS_NOT_PROVEN')
 const ci=JSON.parse(run(gh,['run','list','--commit',sha,'--workflow','ci.yml','--json','headSha,status,conclusion,url']))
 assert(ci.some(c=>c.headSha===sha&&c.status==='completed'&&c.conclusion==='success'),'CI_SAME_SHA_REQUIRED')
 const deployment=JSON.parse(run(process.execPath,[vc,'inspect',new URL(base).hostname,'--scope','renanbarretoj','--json']))
@@ -24,7 +27,9 @@ assert.equal(deployment.target,'preview');assert.equal(deployment.readyState,'RE
 const status=JSON.parse(run(gh,['api',`repos/RenanBarretoJ/bw_antecipa/commits/${sha}/status`]))
 assert(status.statuses.some(s=>s.context==='Vercel'&&s.state==='success'&&'dpl_'+s.target_url.split('/').pop()===deployment.id),'PREVIEW_SHA_MISMATCH')
 const smoke=JSON.parse(readFileSync('rehearsal/reports/notificacoes-preview/result.json','utf8'))
-assert(smoke.success&&smoke.cleanup&&smoke.cleanupRuns.length===2&&smoke.sha===sha&&smoke.screens.length===10)
+assert(!smoke.diagnostic&&smoke.success&&smoke.cleanup&&smoke.cleanupRuns.length===2&&smoke.sha===sha&&smoke.screens.length===10)
+assert.deepEqual(smoke.markDiagnostics.map(m=>m.role),['gestor','cedente','sacado','consultor'])
+assert(smoke.markDiagnostics.every(m=>m.persisted.nao_lidas===0&&m.actions.filter(a=>a.event==='request'&&a.kind==='mark').length===1&&m.actions.some(a=>a.event==='response'&&a.kind==='mark'&&a.status===200)),'MARK_ALL_REAL_REQUEST_REQUIRED')
 assert(smoke.screens.every(s=>s.violations.length===0&&s.keyboard&&s.negativeEscape&&s.semantics.badgeHidden))
 for(const family of ['aceitar','contestar','delivery deadline','documento_enviado','alteracao_cadastral','technical operation-scoped'])assert(smoke.checks.some(c=>c.includes(family)),'PRODUCER_SMOKE_MISSING:'+family)
 for(const role of ['gestor','cedente','sacado','consultor'])assert(smoke.checks.includes(role+':keyboard A/B, realtime focus, trigger stability and negative escape'))
@@ -48,6 +53,7 @@ try{
   const report={NOTIF_R3_HEAD:sha,applicationHash:local.applicationHash,target:ref,url:base,deployment:deployment.id,ci,
     NOTIF_R3_ROOT_CAUSE:'H: harness sent Tab during Base UI OPENING before RAF initial focus; stable trigger, native guards transiently focused. Independent I: mark-read removed focused action/row and left body focused.',
     NOTIF_R3_FIX:'Semantic closed/open readiness in tests; shared removal-focus recovery in notification UI, no trap replacement; badge aria-hidden. Body/root negative still rejected.',
+    NOTIF_R3_MARK_ALL_READINESS:'PASS: controlled delayed-main-list race reproduced 3/3; old disabled native click sent zero mutations; enabled real click sent one, other fund unchanged. Original remote timeout lacked request telemetry; exact historical cause cannot be asserted retroactively.',
     NOTIF_R3_FOCUS_ESCAPED_REPRODUCED:'YES',...Object.fromEntries(focusGates.map(n=>['NOTIF_R3_'+n,'PASS'])),
     NOTIF_PRODUCERS_TOTAL:49,NOTIF_PRODUCERS_FIXED:49,NOTIF_PRODUCERS_PENDING:0,NOTIF_GLOBAL_GESTOR_INSERTS_FOUND:8,NOTIF_GLOBAL_GESTOR_INSERTS_REMAINING:0,
     gates:Object.fromEntries(gateNames.map(n=>['NOTIF_'+n,'PASS'])),DOCKER_TEST_ENV_CLEANUP:'PASS',NOTIFICACOES_PREVIEW_READY:'YES',

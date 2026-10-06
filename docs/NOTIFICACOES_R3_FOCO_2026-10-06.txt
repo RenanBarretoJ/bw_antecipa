@@ -71,3 +71,27 @@ O primeiro resultado nao foi tratado como PASS nem usado para liberar push.
 Historico divergente conhecido preservado; A6 original nao aplicada nem marcada.
 Lint SQL preexistente em aprovar_alteracao_cadastral_cedente_gestor e fora do R3.
 Sem merge para main nem deploy producao/homolog neste roteiro.
+
+RETOMADA: TIMEOUT DE MARK-ALL DO CEDENTE
+- Rodada final 913fa3b9 no SHA db61f48 parou no Cedente aguardando zero nao lidas.
+  Nao havia telemetria do clique/request; nao e possivel afirmar retroativamente
+  a causa exata daquele timeout. O resultado permaneceu STOP, nao PASS.
+- Diagnostico instrumentado 3617ff49 no mesmo app passou: request enviado,
+  HTTP 200, zero pendencias confirmado por RPC autenticada. Houve atualizacoes
+  sequenciais da lista; esse diagnostico parcial nao certifica a Preview.
+- Falha real comprovada no harness: esperar A-realtime no body podia satisfazer
+  pelo sino enquanto a lista principal ainda carregava. HTMLElement.click() em
+  Marcar todas desabilitado era no-op, sem request; o teste aguardava um efeito
+  de uma mutacao que nao havia enviado.
+- Prova controlada 3/3: somente resposta limit=20 retida por Promise explicita,
+  sino limit=10 livre; mesmo clique antigo = zero mutacoes. Liberar resposta,
+  aguardar lista pronta e clicar com ponteiro real = uma mutacao, zero pendencias
+  no Fundo A e Fundo B intacto. Sem alterar app, timeout ou inserir sleep.
+- Correcao somente QA: aguardar titulo na lista principal, aria-busy=false e
+  ausencia de alerta; Locator aguarda botao visivel/habilitado/estavel e clica.
+  Timeout de conclusao continua 15s. Nada de networkidle ou bypass de disabled.
+- Instrumentacao registra estados sinteticos e classe/status das chamadas,
+  nunca payload, cookies, tokens ou credenciais. Observadores removidos antes
+  da troca de Fundo; resultado preservado por run id.
+- Postflight rejeita modo diagnostico, matriz parcial e mark-all sem exatamente
+  um request real e confirmacao RPC de zero pendencias em cada um dos 4 perfis.
