@@ -92,6 +92,10 @@ export async function verifyEmailOperatorBrowser({ db, url, serviceKey, anonKey,
       assert.ok(handle.asElement(), `MISSING_CONTROL:${label}`); await redaction.beforeNavigation(() => handle.asElement().click()); await handle.dispose()
     }
     const fill = async (label, text) => {
+      // The fund search remains visible while the wizard route is loading.
+      // Wait for the intended labeled field, rather than any placeholder input.
+      await page.waitForFunction(name => [...document.querySelectorAll('label')]
+        .some(e => e.textContent.trim().startsWith(name) && e.querySelector('input')), { timeout: 30000 }, label)
       await page.evaluate((name, value) => {
         const parent = [...document.querySelectorAll('label')].find(e => e.textContent.trim().startsWith(name))
         const input = parent?.querySelector('input')
@@ -101,6 +105,8 @@ export async function verifyEmailOperatorBrowser({ db, url, serviceKey, anonKey,
       }, label, text)
       await page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))))
     }
+    const inputValue = label => page.evaluate(name => [...document.querySelectorAll('label')]
+      .find(e => e.textContent.trim().startsWith(name))?.querySelector('input')?.value, label)
     const screenshot = async (name, widths = [390, 430, 820, 1440, 1920]) => {
       const screen = name.replace('-empty', '')
       if (['inbox', 'review', 'message', 'detail'].includes(screen)) await waitEmailScreen(page, diagnostics, screen)
@@ -132,14 +138,14 @@ export async function verifyEmailOperatorBrowser({ db, url, serviceKey, anonKey,
     assert.ok(await page.$('nav[aria-label="Fundos"] a'), 'SUPER_ADMIN_FUND_NAVIGATION')
     await screenshot('integrations')
     stage = 'INTEGRATION_FIRST_DRAFT'
-    await click('Criar integração'); await page.waitForSelector('input[placeholder]')
+    await click('Criar integração')
     await fill('Nome da integração', 'EMAIL05 Browser draft')
     await click('2. Conta de e-mail'); await fill('Endereço de e-mail', 'qa-browser@example.invalid')
     await click('1. Identificação')
-    assert.equal(await page.$eval('input[placeholder]', e => e.value), 'EMAIL05 Browser draft')
+    assert.equal(await inputValue('Nome da integração'), 'EMAIL05 Browser draft')
     await fill('Código MFA para salvar', '000000'); await click('Salvar rascunho')
     await page.waitForSelector('[role="alert"]', { timeout: 30000 })
-    assert.equal(await page.$eval('input[placeholder]', e => e.value), 'EMAIL05 Browser draft')
+    assert.equal(await inputValue('Nome da integração'), 'EMAIL05 Browser draft')
     checks.push('WIZARD_BACK_PRESERVES_FIELDS', 'FAILED_MFA_PRESERVES_FORM')
     await fill('Código MFA para salvar', await freshCode()); await click('Salvar rascunho')
     await page.waitForFunction(() => new URL(location.href).searchParams.has('integration'), { timeout: 45000 })
@@ -180,7 +186,7 @@ export async function verifyEmailOperatorBrowser({ db, url, serviceKey, anonKey,
     await page.waitForFunction(() => document.body.innerText.includes('Credencial salva. Crie uma integração'), { timeout: 45000 })
     const standalone = (await db.query('select id from public.credenciais_integracao where fundo_id=$1 and criada_por=$2 and nome=$3', [fund, user.id, 'EMAIL05 Credential first'])).rows[0]
     assert.ok(standalone)
-    await click('Criar integração'); await page.waitForSelector('input[placeholder]')
+    await click('Criar integração')
     await fill('Nome da integração', 'EMAIL05 Credential-first integration'); await click('3. Credencial')
     await page.select('select', standalone.id)
     await fill('Código MFA para salvar', await freshCode()); await click('Salvar rascunho')
