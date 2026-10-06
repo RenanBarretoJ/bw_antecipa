@@ -45,6 +45,7 @@ export const inboxSchema = z.object({
     id: z.uuid(), received_at: z.string(), subject_preview: z.string().nullable(), sender_masked: z.string().nullable(),
     discovery_source: z.string(), integration_name: z.string(), provider: z.string(), integration_id: z.uuid(),
     attachment_count: z.number(), imported: z.number(), duplicates: z.number(), review: z.number(), errors: z.number(), pending: z.number(),
+    companions: z.number().default(0), attachment_types: z.array(z.enum(['XML', 'DANFE', 'PDF', 'OUTRO'])).default([]),
   })),
 })
 export type EmailInbox = z.infer<typeof inboxSchema>

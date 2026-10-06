@@ -10,6 +10,8 @@ import { EmailCredentialEntry } from './credential-entry'
 import { EmailIntegrationCommands } from './integration-commands'
 import { EmailOperationalHealth, emailConfigLabels, emailHealthLabel } from './operational-health'
 import { EmailMessagePanel, EmailOperationsInbox } from './operations-inbox'
+import { Suspense } from 'react'
+import { EmailInboxRowsLoading } from './inbox-rows'
 import { EmailStatusBadge } from './email-status-badge'
 
 const linkClass = buttonVariants({ variant: 'outline', className: 'min-h-10 px-4' })
@@ -29,7 +31,7 @@ export async function EmailOperationsPage({ fundoId, basePath, params }: { fundo
     ].map(({ key, label, icon: Icon }) => <Link key={key} className={buttonVariants({ variant: tab === key ? 'outline' : 'ghost', className: `h-auto min-h-11 flex-1 gap-2 px-4 py-2.5 sm:flex-none ${tab === key ? 'bg-card text-primary shadow-sm dark:text-blue-300' : 'text-muted-foreground'}` })} aria-current={tab === key ? 'page' : undefined} href={`${root}&tab=${key}`}><Icon className="size-4" aria-hidden="true" />{label}</Link>)}</nav>
     {creating || (editing && row && !row.enabled) ? <><Link className={buttonVariants({ variant: 'ghost', className: 'min-h-10' })} href={root}><ArrowLeft aria-hidden="true" />Voltar às integrações</Link><EmailConfigurationWizard key={row?.id || 'new'} fundoId={fundoId} basePath={basePath} dashboard={dashboard} initial={creating ? undefined : row} /></>
       : tab === 'inbox' || tab === 'review' ? message && z.uuid().safeParse(message).success ? <EmailMessagePanel fundoId={fundoId} basePath={basePath} params={current} messageId={message} />
-        : <EmailOperationsInbox fundoId={fundoId} basePath={basePath} params={current} dashboard={dashboard} />
+        : <Suspense fallback={<EmailInboxRowsLoading />}><EmailOperationsInbox fundoId={fundoId} basePath={basePath} params={current} dashboard={dashboard} /></Suspense>
       : integration ? row ? <article className="space-y-5 rounded-xl border bg-card p-4 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3"><Link className={linkClass} href={root}>Voltar às integrações</Link>{!row.enabled && <Link className={linkClass} href={emailHref(basePath, current, { edit: '1' })}>Editar configuração</Link>}</div>
         <header className="flex items-start gap-4"><div className="rounded-xl bg-primary/10 p-3 text-primary"><Mail className="size-6" aria-hidden="true" /></div><div className="min-w-0"><h2 className="text-2xl font-semibold tracking-tight break-words">{row.name}</h2><p className="mt-1 text-sm text-muted-foreground break-all">{row.mailbox || 'Caixa ainda não definida'} · Microsoft Outlook</p><div className="mt-3"><EmailStatusBadge tone={row.configStatus === 'ACTIVE' ? 'success' : row.configStatus === 'ERROR' ? 'error' : 'neutral'}>{emailConfigLabels[row.configStatus]}</EmailStatusBadge></div></div></header>

@@ -56,7 +56,7 @@ export async function processNextEmailAttachment(queue: 'TEXT' | 'VISUAL' = 'TEX
     result = { status: error instanceof IntakeError && ['UNSUPPORTED_FILE', 'FILE_TOO_LARGE'].includes(error.code)
       ? 'INVALID' : error instanceof IntakeError && !error.retryable ? 'FAILED' : 'RETRYABLE_ERROR' }
   }
-  if (result.status !== 'IMPORTED' && result.status !== 'REQUIRES_REVIEW') {
+  if (!['IMPORTED', 'REQUIRES_REVIEW', 'COMPANION_LINKED'].includes(result.status)) {
     const { error } = await client.rpc('email_intake_settle_attachment', { p_id: claim.id, p_token: claim.token,
       p_outcome: result.status, p_retry_after_ms: Math.ceil(retryDelayMs(claim.attempt, retryAfter)) })
     if (error) return { status: 'LEASE_LOST' as const }

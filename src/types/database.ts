@@ -2405,6 +2405,9 @@ export interface Database {
       email_intake_get_attachment_claim: { Args: { p_id: string; p_token: string }; Returns: unknown }
       email_intake_settle_attachment: { Args: { p_id: string; p_token: string; p_outcome: string; p_retry_after_ms?: number }; Returns: undefined }
       fiscal_intake_reserve: { Args: { p_actor: Record<string, unknown>; p_fundo_id: string; p_cedente_fundo_id: string; p_estabelecimento_id: string; p_document_type: string; p_fiscal_key: string; p_file_sha256: string; p_recover_xml?: boolean }; Returns: unknown }
+      fiscal_intake_prepare_companion: { Args: { p_actor: Record<string, unknown>; p_fundo_id: string; p_cedente_fundo_id: string; p_estabelecimento_id: string; p_fiscal_key: string; p_file_sha256: string; p_document_code: string; p_facts: object; p_file_name: string; p_size_bytes: number }; Returns: unknown }
+      fiscal_intake_commit_companion: { Args: { p_id: string; p_token: string; p_generation: number }; Returns: unknown }
+      fiscal_intake_abort_companion: { Args: { p_id: string; p_token: string; p_generation: number }; Returns: unknown }
       fiscal_intake_resolve_scope: { Args: { p_actor: Record<string, unknown>; p_fundo_id: string; p_issuer_cnpj: string; p_cedente_fundo_id: string | null }; Returns: unknown }
       fiscal_intake_stage: { Args: { p_id: string; p_token: string; p_generation: number; p_values: Record<string, unknown>; p_parcelas: Array<{ numero_parcela: number; valor_nominal: number; data_vencimento: string }>; p_file_name: string; p_mime_type: string; p_size_bytes: number; p_document_code: string }; Returns: undefined }
       fiscal_intake_prepare_storage: { Args: { p_id: string; p_token: string; p_generation: number }; Returns: unknown }

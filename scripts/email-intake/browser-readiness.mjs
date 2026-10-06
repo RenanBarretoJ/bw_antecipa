@@ -29,7 +29,7 @@ export async function waitEmailScreen(page, diagnostics, screen, expectedHeading
     }, { timeout: 15000 }, label))
     await step('TERMINAL_RESULT', () => page.waitForFunction(name => {
       const section = document.querySelector(`section[aria-label="${name}"]`)
-      return section && (section.querySelector('article') || [...section.querySelectorAll('p')].some(p =>
+      return section && (section.querySelector('ul[aria-label="Mensagens recebidas"] > li') || [...section.querySelectorAll('p')].some(p =>
         ['Nenhuma mensagem encontrada nestes filtros.', 'Não há documentos aguardando revisão nestes filtros.'].includes(p.textContent.trim())))
     }, { timeout: 15000 }, label))
   } else if (screen === 'detail') {

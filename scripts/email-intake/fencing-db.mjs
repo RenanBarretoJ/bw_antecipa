@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { Client } from 'pg'
 import { verifyFiscalLifecycle } from './lifecycle-db.mjs'
 import { verifyFiscalRecovery } from './recovery-db.mjs'
+import { verifyNfeCompanions } from './companion-db.mjs'
 
 // Only called by clean-room.mjs against its disposable loopback database.
 export async function verifyFiscalFencing(admin, connection, parentSetup, storageFixtures) {
@@ -177,6 +178,7 @@ export async function verifyFiscalFencing(admin, connection, parentSetup, storag
     checks.push('ATOMIC_HUMAN_AND_SYSTEM_NF_PARCELS_AUDIT', 'SERVER_ONLY_FISCAL_FACTS', 'DRAFT_DELETE_DURABLE_CLEANUP')
     checks.push(...await verifyFiscalLifecycle({ admin, clients, fundId, linkId, establishment, actors, messages, userId }))
     checks.push(...await verifyFiscalRecovery({ admin, clients, fundId, linkId, establishment, actors, messages, cedenteId, storageFixtures }))
+    checks.push(...await verifyNfeCompanions({ admin, clients, connection, fundId, linkId, establishment, actors, storageFixtures }))
     return checks
   } finally {
     for (const client of clients) { await client.query('rollback').catch(() => {}); await client.end() }

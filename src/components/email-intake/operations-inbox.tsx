@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ArrowLeft, ArrowRight, Inbox, ListFilter, Paperclip, Search } from 'lucide-react'
+import { ArrowLeft, Inbox, ListFilter, Paperclip, Search } from 'lucide-react'
 import { buttonVariants } from '@/components/ui/button-variants'
 import { carregarInboxEmail, carregarMensagemEmail } from '@/app/actions/email-operations'
 import { emailHref, parseEmailInboxFilter, firstEmailParam, type EmailSearchParams } from '@/lib/email-intake/operations/navigation'
@@ -9,6 +9,7 @@ import { EmailReviewGuidance } from './review-guidance'
 import { EmailMetadataButton } from './metadata-button'
 import { EmailCedenteFilter } from './cedente-filter'
 import { EmailStatusBadge } from './email-status-badge'
+import { EmailInboxEmpty, EmailInboxRows } from './inbox-rows'
 
 const selectClass = 'h-11 w-full min-w-0 rounded-lg border border-input bg-background px-3 text-sm focus-visible:outline-2 focus-visible:outline-ring'
 const linkClass = buttonVariants({ variant: 'outline', className: 'min-h-10 px-4' })
@@ -39,14 +40,7 @@ export async function EmailOperationsInbox({ fundoId, basePath, params, dashboar
     {!review && <nav className="flex flex-wrap gap-2" aria-label="Filtrar por resultado">{[['ALL', 'Todos'], ['REVIEW', 'Revisão'], ['ERROR', 'Erros'], ['IMPORTED', 'Importados'], ['DUPLICATE', 'Duplicados']].map(([status, label]) => <Link className={`${linkClass} ${parsed.data.status === status ? 'border-primary bg-primary/10' : ''}`} key={status} aria-current={parsed.data.status === status ? 'page' : undefined} href={emailHref(basePath, params, { status, page: null })}>{label}</Link>)}</nav>}
     <p className="flex items-center gap-2 text-sm text-muted-foreground"><Inbox className="size-4" aria-hidden="true" />{result.total} mensagem(ns) · Página {result.page}</p>
     <EmailMetadataButton fundoId={fundoId} ids={result.rows.filter(row => row.subject_preview === null).map(row => row.id)} />
-    {!result.rows.length && <div className="rounded-xl border border-dashed bg-card px-6 py-12 text-center"><Inbox className="mx-auto mb-4 size-8 text-muted-foreground" aria-hidden="true" /><p className="font-medium">{review ? 'Não há documentos aguardando revisão nestes filtros.' : 'Nenhuma mensagem encontrada nestes filtros.'}</p><p className="mt-2 text-sm text-muted-foreground">{review ? 'Acompanhe a inbox para conferir novas importações.' : 'Confira os filtros, a ativação da integração e sua data inicial de leitura.'}</p></div>}
-    <div className="grid gap-4 lg:grid-cols-2">{result.rows.map(row => <article className="min-w-0 space-y-4 rounded-xl border bg-card p-5 shadow-sm" key={row.id}>
-      <div className="flex flex-wrap items-start justify-between gap-3"><h3 className="min-w-0 flex-1 font-semibold break-words">{row.subject_preview || 'Assunto ainda não consultado'}</h3><EmailStatusBadge tone={row.review ? 'attention' : row.errors ? 'error' : row.pending ? 'neutral' : row.imported ? 'success' : 'neutral'}>{row.review ? 'Em revisão' : row.errors ? 'Requer atenção' : row.pending ? 'Em processamento' : row.imported ? 'Importado' : row.duplicates ? 'Duplicado' : 'Recebido'}</EmailStatusBadge></div>
-      <p className="text-sm text-muted-foreground">{emailDateLabel(row.received_at)} · {row.integration_name} · Outlook</p>
-      <p className="text-sm break-all">{row.sender_masked || 'Remetente ainda não consultado'}</p>
-      <dl className="grid grid-cols-2 gap-3 rounded-lg bg-muted/30 p-4 text-sm sm:grid-cols-3">{[['Anexos', row.attachment_count], ['Importados', row.imported], ['Duplicados', row.duplicates], ['Em revisão', row.review], ['Requerem atenção', row.errors], ['Aguardando', row.pending]].map(([label, count]) => <div key={label}><dt className="text-xs text-muted-foreground">{label}</dt><dd className="mt-1 text-lg font-semibold tabular-nums">{count}</dd></div>)}</dl>
-      <Link className={linkClass} href={emailHref(basePath, params, { message: row.id, attachmentPage: null })}>Abrir mensagem{row.review ? ' e pendências' : ''}<ArrowRight aria-hidden="true" /></Link>
-    </article>)}</div>
+    {!result.rows.length ? <EmailInboxEmpty review={review} /> : <EmailInboxRows rows={result.rows} basePath={basePath} params={params} />}
     <nav className="flex flex-wrap gap-3" aria-label="Páginas da inbox">{result.page > 1 && <Link className={linkClass} href={emailHref(basePath, params, { page: String(result.page - 1) })}>Anterior</Link>}{result.page * result.pageSize < result.total && <Link className={linkClass} href={emailHref(basePath, params, { page: String(result.page + 1) })}>Próxima</Link>}</nav>
   </section>
 }

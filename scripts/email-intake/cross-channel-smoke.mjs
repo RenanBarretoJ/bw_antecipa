@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
+import { nfeFixtureKey } from './nfe-fixture-key.mjs'
 
 // Controlled XML fixtures exercise the official parser passed by the caller.
 // This module never parses XML or provides an alternative fiscal identity.
@@ -32,7 +33,7 @@ export async function verifySharedConcurrency({ db, admin, human, userId, depend
   let sequence = 700
   for (const [winner, loser] of [['MANUAL', 'EMAIL_A'], ['EMAIL_A', 'MANUAL'], ['EMAIL_A', 'EMAIL_B']]) {
     const number = ++sequence
-    const key = ['35', '2609', '98100000000168', '55', '001', String(number).padStart(9, '0'), '1', '12345678', '9'].join('')
+    const key = nfeFixtureKey({ issuer: '98100000000168', number, issued: dates.issued })
     const xml = `<?xml version="1.0" encoding="UTF-8"?><nfeProc><NFe><infNFe Id="NFe${key}">
       <ide><serie>1</serie><nNF>${number}</nNF><dhEmi>${dates.issued}T10:00:00-03:00</dhEmi></ide>
       <emit><CNPJ>98100000000168</CNPJ><xNome>CEDENTE QA SEM VALOR FISCAL</xNome></emit>

@@ -37,11 +37,21 @@ describe('shared fiscal import orchestration', () => {
   })
   it('uses the exact same orchestration for a technical actor without inventing a user', async () => {
     const d = setup()
+    const repository = { ...d.repository, companion: vi.fn().mockResolvedValue({ kind: 'CREATE_NF' }) }
+    d.parse.mockResolvedValue({ ...facts, parsed: { ...facts.parsed, cnpj_emitente: '11222333000181', data_emissao: '2026-09-29',
+      origem_valor_bruto: 'valor_total_nota', confianca: { numero_nf: 0.99, cnpj_emitente: 0.99, data_emissao: 0.99, valor_bruto: 0.99 } } })
     d.input.actor = { type: 'SYSTEM', source: 'EMAIL_INTAKE', integrationId: 'integration', messageId: 'message', attachmentId: 'attachment', attachmentToken: 'lease' }
-    expect(await importFiscalFile(d.input, d)).toEqual({ status: 'IMPORTED', nfId: 'nf', numero: '42' })
+    expect(await importFiscalFile(d.input, { ...d, repository })).toEqual({ status: 'IMPORTED', nfId: 'nf', numero: '42' })
     expect(d.repository.reserve.mock.calls[0][0].actor).toEqual(d.input.actor)
     expect(d.repository.planStorage.mock.invocationCallOrder[0]).toBeLessThan(d.storage.upload.mock.invocationCallOrder[0])
     expect(d.storage.upload.mock.invocationCallOrder[0]).toBeLessThan(d.repository.commit.mock.invocationCallOrder[0])
+  })
+  it('requires the document identity gate for system NFE instead of falling back to fiscal creation', async () => {
+    const d = setup()
+    d.input.actor = { type: 'SYSTEM', source: 'EMAIL_INTAKE', integrationId: 'integration', messageId: 'message', attachmentId: 'attachment', attachmentToken: 'lease' }
+    expect(await importFiscalFile(d.input, d)).toEqual({ status: 'RETRYABLE_ERROR' })
+    expect(d.repository.reserve).not.toHaveBeenCalled()
+    expect(d.storage.upload).not.toHaveBeenCalled()
   })
   it('rejects missing identity before reservation in both channels', async () => {
     const d = setup(); d.parse.mockRejectedValue(new FiscalIntakeError('MISSING_IDENTITY'))
