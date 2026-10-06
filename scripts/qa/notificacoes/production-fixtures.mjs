@@ -4,6 +4,7 @@ import {readFileSync,writeFileSync} from 'node:fs'
 import {randomUUID,randomBytes,createHmac} from 'node:crypto'
 import {createClient} from '@supabase/supabase-js'
 import {fingerprints,ident} from './production-runtime.mjs'
+import {captureWebhooks,normalizeWebhooks} from './concurrent-webhooks.mjs'
 export const val=r=>{assert(!r.error,r.error?.code??'QA_REQUEST_FAILED');return r.data}
 function totp(secret){const bits=[...secret].map(c=>'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'.indexOf(c).toString(2).padStart(5,'0')).join('');const ctr=Buffer.alloc(8);ctr.writeBigUInt64BE(BigInt(Math.floor(Date.now()/30000)));const h=createHmac('sha1',Buffer.from(bits.match(/.{8}/g).map(b=>parseInt(b,2)))).update(ctr).digest();return String((h.readUInt32BE(h[19]&15)&0x7fffffff)%1000000).padStart(6,'0')}
 function cnpj(){let s='98'+[...randomBytes(10)].map(x=>x%10).join('');for(const weights of [[5,4,3,2,9,8,7,6,5,4,3,2],[6,5,4,3,2,9,8,7,6,5,4,3,2]]){const r=[...s].reduce((n,d,i)=>n+Number(d)*weights[i],0)%11;s+=r<2?0:11-r}return s}
@@ -12,12 +13,13 @@ export async function fixtureSession(db,d,output,{recover=false}={}){
   if(previous)assert.equal(previous.ref,new URL(d.SUPABASE_URL).hostname.split('.')[0])
   const run=previous?.run??randomUUID(),owned=new Set(previous?.owned??[]),map=new Map(),actors={},clients=[]
   if(previous)for(const a of previous.users)actors[a.id]=a
-  const before=previous?.before??await fingerprints(db)
+  let before=previous?.before,concurrency=previous?.concurrency
+  if(!previous){await db.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');try{concurrency=await captureWebhooks(db);before=await fingerprints(db);await db.query('COMMIT')}catch(e){await db.query('ROLLBACK');throw e}}
   const admin=createClient(d.SUPABASE_URL,d.SUPABASE_SERVICE_ROLE_KEY,{auth:{persistSession:false,autoRefreshToken:false}})
   const old=(p,n=1)=>`${p}000000-0000-4000-8000-${String(n).padStart(12,'0')}`
   const id=(p,n=1)=>{const k=old(p,n);if(!map.has(k))map.set(k,randomUUID());owned.add(map.get(k));return map.get(k)}
   const A=id('22'),B=id('22',2),C=id('22',3),CF=id('24'),CFB=id('24',2),NF=id('2a'),NFB=id('2a',5),OP=id('2c'),E=id('2d')
-  const manifest=previous??{run,ref:new URL(d.SUPABASE_URL).hostname.split('.')[0],before,owned:[],users:[],cleanup:[]}
+  const manifest=previous??{run,ref:new URL(d.SUPABASE_URL).hostname.split('.')[0],before,concurrency,owned:[],users:[],cleanup:[]}
   function save(){manifest.owned=[...owned];manifest.users=Object.values(actors).map(a=>({id:a.id,email:a.email}));writeFileSync(output+'/qa-manifest.json',JSON.stringify(manifest,null,2))}
   async function seed(){
     assert(!recover,'RECOVERY_IS_CLEANUP_ONLY')
@@ -83,13 +85,13 @@ export async function fixtureSession(db,d,output,{recover=false}={}){
     const nonQa=(await db.query(before.map(t=>{const [s,n]=t.name.split('.'),meta=tables.find(x=>x.table_schema===s&&x.table_name===n);const where=meta?.uuids?.length?'NOT ('+meta.uuids.map(c=>`coalesce(${ident(c)}=ANY($1::uuid[]),false)`).join(' OR ')+')':'true'
       return `SELECT '${t.name}' name,count(*)::int count,md5(coalesce(string_agg(to_jsonb(t)::text,'' ORDER BY to_jsonb(t)::text),'')) hash FROM ${ident(s)}.${ident(n)} t WHERE ${where}`
     }).join(' UNION ALL '),[[...owned]])).rows.sort((a,b)=>a.name.localeCompare(b.name))
-    assert.deepEqual(nonQa,before,'PREEXISTING_DATA_DRIFT_BEFORE_QA_CLEANUP')
+    assert.deepEqual(await normalizeWebhooks(db,nonQa,concurrency),before,'PREEXISTING_DATA_DRIFT_BEFORE_QA_CLEANUP')
     await db.query('BEGIN')
     try{
       await db.query("SET LOCAL session_replication_role='replica'")
       for(const t of snapshots){const result=await db.query(`DELETE FROM ${t.name} t USING jsonb_to_recordset($1::jsonb) AS q(tid text,row jsonb) WHERE t.ctid=q.tid::tid AND to_jsonb(t)=q.row`,[JSON.stringify(t.rows)]);assert.equal(result.rowCount,t.rows.length,'QA_ROW_CHANGED')}
       await db.query("SET LOCAL session_replication_role='origin'")
-      assert.deepEqual(await fingerprints(db),before,'QA_CLEANUP_INTEGRITY_FAILED')
+      assert.deepEqual(await fingerprints(db,{concurrency}),before,'QA_CLEANUP_INTEGRITY_FAILED')
       await db.query('COMMIT')
     }catch(e){await db.query('ROLLBACK');throw e}
     for(const a of Object.values(actors)){const exists=(await db.query('SELECT email FROM auth.users WHERE id=$1',[a.id])).rows[0];if(exists){assert.equal(exists.email,a.email.toLowerCase());val(await admin.auth.admin.deleteUser(a.id))}}

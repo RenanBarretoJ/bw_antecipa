@@ -102,3 +102,33 @@ NOTIFICACOES_PROD_READY = NO
 Proximos gates: confirmar atividade, renovar baseline, CI do commit QA-only,
 aplicar quatro migrations, merge PR95/deploy, smoke prod, cleanup/postflight.
 Sem homolog/RLX neste roteiro, inclusive depois de READY.
+
+RETOMADA - INGESTAO LOGISTICA CONCORRENTE
+Usuario confirmou atividade legitima e informou que o Fundo dos webhooks nao
+tem NFs. Verificacao read-only: 55 eventos da ultima hora NAO_IDENTIFICADO,
+zero vinculos com NF, zero NFs no Fundo. Nao foi suspensa nenhuma integracao.
+Duas tentativas anteriores pararam antes da primeira DDL, sem commit.
+
+Controle R4 ajustado apenas em QA (concurrent-webhooks.mjs):
+- ancora atomica com IDs de eventos/Storage preexistentes e Fundos observados
+  sem notas; nenhuma linha antiga e removida da comparacao;
+- novos eventos so sao separados se NAO_IDENTIFICADO, no Fundo da ancora,
+  ainda sem nenhuma NF no Fundo, sem NF/CTe/canhoto/tipo de vinculo;
+- Storage separado apenas por JOIN exato bucket/path com aquele evento novo,
+  no prefixo canonico de evidencia bruta com integracao_id e evento_id;
+- todos os demais hashes/counts continuam obrigatorios, inclusive fiscal;
+- novos eventos e arquivos reais sao preservados e reportados separadamente,
+  nunca entram no conjunto de IDs QA para exclusao;
+- testes SQL Docker: 12 cenarios (13 checks contando suite) PASS, incluindo
+  negativos de update/delete, NF, arquivo fiscal, outro Fundo e evento vinculado.
+- reexecutado aplicador em Docker: quatro migrations/catalogos PASS.
+
+O smoke usa ativacao real por teclado para mark-one, lista pronta, exatamente
+uma requisicao de mutacao observada e contadores conferidos por RPC. Uma rodada
+anterior aguardou 1 nao lida, mas permaneceu em 2 apos o clique por ponteiro;
+esse resultado nao e PASS, nao prova bug no app nem tem causa retroativa
+confirmada. Evidencia preservada em smoke-preview-webhook-guard-attempt1.json.
+Nenhuma alteracao no source funcional certificado.
+
+Fechamento do rollout, quando efetivamente executado:
+rehearsal/reports/NOTIFICACOES_R4/FINAL.json (nao inferir READY deste documento).

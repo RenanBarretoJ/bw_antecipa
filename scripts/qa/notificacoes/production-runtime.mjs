@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs'
 import {resolve} from 'node:path'
 import {spawnSync} from 'node:child_process'
 import pg from 'pg'
+import {normalizeWebhooks} from './concurrent-webhooks.mjs'
 export const productionRef='wwsndnuvnjuabpbjwlck'
 export const productionBase='https://bw-antecipa.better-with.tech'
 export const certified='c93f88196614c41299b03175851cc2be3feda030'
@@ -35,11 +36,11 @@ export function productionKeys(){
   for(const name of ['SUPABASE_ANON_KEY','SUPABASE_SERVICE_ROLE_KEY'])assert.equal(JSON.parse(Buffer.from(result[name].split('.')[1],'base64url')).ref,productionRef,'WRONG_KEY_TARGET')
   return result
 }
-export async function fingerprints(db,{legacyNotifications=false}={}){
+export async function fingerprints(db,{legacyNotifications=false,concurrency=null}={}){
   const tables=(await db.query("SELECT schemaname,tablename FROM pg_tables WHERE schemaname IN ('public','private') UNION ALL SELECT 'storage','objects' ORDER BY 1,2")).rows
   const query=tables.map(t=>{
     const expr=legacyNotifications&&t.tablename==='notificacoes'?"to_jsonb(t)-ARRAY['fundo_id','cedente_fundo_id','cedente_id','scope_type']":'to_jsonb(t)'
     return `SELECT '${t.schemaname}.${t.tablename}' AS name,count(*)::int AS count,md5(coalesce(string_agg((${expr})::text,'' ORDER BY (${expr})::text),'')) AS hash FROM ${ident(t.schemaname)}.${ident(t.tablename)} t`
   }).join(' UNION ALL ')
-  return (await db.query(query)).rows.sort((a,b)=>a.name.localeCompare(b.name))
+  return normalizeWebhooks(db,(await db.query(query)).rows.sort((a,b)=>a.name.localeCompare(b.name)),concurrency)
 }

@@ -7,7 +7,7 @@ import * as preview from './preview-runtime.mjs'
 import {productionRef,productionBase,connectProduction,productionKeys,assertSource,out,command,fingerprints} from './production-runtime.mjs'
 import {fixtureSession,val} from './production-fixtures.mjs'
 import {keyboardCycle,keyboardOpen,keyboardClose,rememberFocus,unchangedFocus} from './focus-keyboard.mjs'
-import {clickMarkAllReady,readMarkState} from './mark-read-diagnostics.mjs'
+import {clickMarkAllReady,readMarkState,observeActions} from './mark-read-diagnostics.mjs'
 const mode=process.argv[2];assert(['--preview-rehearsal','--production'].includes(mode)&&process.argv.length===3)
 assertSource()
 const prod=mode==='--production',ref=prod?productionRef:preview.ref,base=prod?productionBase:preview.base
@@ -61,8 +61,12 @@ try{
     const detail=await context.newPage();assert.equal((await detail.goto(good.headers.get('location'),{waitUntil:'domcontentloaded'})).status(),200);await detail.close();await page.bringToFront()
     const bad=await fetch(`${base}/notificacoes/abrir/${b.id}?scope=FUNDO&fundo=${B}`,{headers:{cookie:cookies},redirect:'manual'});assert.equal(bad.status,403)
     await keyboardCycle(page,{negative:true})
-    await page.locator(`[aria-labelledby="notificacoes-title"] [data-notificacao-id="${a.id}"] button`).filter(e=>e.textContent.startsWith('Marcar como lida')).click()
-    await waitUnread(page,1);assert.equal(await count(c,B),1)
+    const oneRead=observeActions(page);report.markOneActions??=[];report.markOneActions.push({role,events:oneRead.events})
+    const markSelector=`[aria-labelledby="notificacoes-title"] [data-notificacao-id="${a.id}"] button:has(svg.lucide-check)`
+    await page.waitForFunction(selector=>{const b=document.querySelector(selector);return b&&!b.disabled&&b.checkVisibility()&&document.querySelector('[aria-label="Lista de notificações"]')?.getAttribute('aria-busy')==='false'},{timeout:15000},markSelector)
+    await page.focus(markSelector);await page.keyboard.press('Enter')
+    await waitUnread(page,1);assert.equal(await count(c,A),1);assert.equal(await count(c,B),1)
+    assert.equal(oneRead.events.filter(e=>e.event==='request'&&e.kind==='mark').length,1);oneRead.stop()
     await clickMarkAllReady(page,'A2');await waitUnread(page,0);assert.equal(await count(c,B),1)
     await keyboardOpen(page);await rememberFocus(page)
     await qa.notify('nota_fiscal',NFB,role,'B-realtime');await qa.notify('nota_fiscal',NF,role,'A-realtime')
@@ -112,6 +116,6 @@ try{
 }catch(e){report.error={code:e.code??'ASSERTION',message:String(e.message).split('\n')[0].slice(0,200)};process.exitCode=1}
 finally{
   await browser?.close();log('cleanup')
-  try{await qa.cleanup();await qa.cleanup();report.cleanup=qa.manifest.cleanup;assert.deepEqual(await fingerprints(db),qa.manifest.before)}catch(e){report.cleanupError={code:e.code??'ASSERTION',message:String(e.message).split('\n')[0].slice(0,200)};report.success=false;process.exitCode=1}
+  try{await qa.cleanup();await qa.cleanup();report.cleanup=qa.manifest.cleanup;assert.deepEqual(await fingerprints(db,{concurrency:qa.manifest.concurrency}),qa.manifest.before)}catch(e){report.cleanupError={code:e.code??'ASSERTION',message:String(e.message).split('\n')[0].slice(0,200)};report.success=false;process.exitCode=1}
   await db.end();writeFileSync(out+(prod?'/smoke-production.json':'/smoke-preview.json'),JSON.stringify(report,null,2));console.log(JSON.stringify(report))
 }

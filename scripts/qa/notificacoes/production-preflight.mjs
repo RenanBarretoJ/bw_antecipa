@@ -4,6 +4,7 @@ import {readFileSync,writeFileSync,mkdirSync} from 'node:fs'
 import {resolve} from 'node:path'
 import {spawnSync} from 'node:child_process'
 import {createHash} from 'node:crypto'
+import {webhookAnchorSql} from './concurrent-webhooks.mjs'
 
 assert.equal(process.argv.length,2)
 const ref='wwsndnuvnjuabpbjwlck', certified='c93f88196614c41299b03175851cc2be3feda030'
@@ -29,7 +30,7 @@ const catalog=readFileSync('scripts/qa/health/schema-catalog.sql','utf8')
 const history="SELECT version,name,md5(array_to_string(statements,E'\\n')) AS hash FROM supabase_migrations.schema_migrations ORDER BY version"
 const report={at:new Date().toISOString(),ref,certified,migrations,readOnly:true,success:false}
 try{
-  report.baseline=read(`SELECT jsonb_build_object('fingerprints',(SELECT jsonb_agg(x ORDER BY name) FROM (${hashes}) x),'history',(SELECT jsonb_agg(x) FROM (${history}) x),'catalog',(${catalog}),'version',version(),
+  report.baseline=read(`SELECT jsonb_build_object('fingerprints',(SELECT jsonb_agg(x ORDER BY name) FROM (${hashes}) x),'concurrency',(${webhookAnchorSql}),'history',(SELECT jsonb_agg(x) FROM (${history}) x),'catalog',(${catalog}),'version',version(),
     'notificationColumns',(SELECT jsonb_agg(column_name ORDER BY ordinal_position) FROM information_schema.columns WHERE table_schema='public' AND table_name='notificacoes'),
     'notificationsPerUser',(SELECT jsonb_agg(x) FROM (SELECT md5(usuario_id::text) AS user_hash,count(*)::int AS total,count(*) FILTER(WHERE NOT lida)::int AS unread FROM public.notificacoes GROUP BY usuario_id ORDER BY usuario_id) x),
     'notificationEntityTypes',(SELECT jsonb_agg(x) FROM (SELECT entidade_tipo,count(*)::int total FROM public.notificacoes GROUP BY entidade_tipo) x),

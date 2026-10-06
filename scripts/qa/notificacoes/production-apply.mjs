@@ -30,9 +30,11 @@ const catalogSql=readFileSync('scripts/qa/health/schema-catalog.sql','utf8')
 const historySql="SELECT version,name,md5(array_to_string(statements,E'\\n')) hash FROM supabase_migrations.schema_migrations ORDER BY version"
 const sorted=rows=>[...rows].sort((a,b)=>a.name.localeCompare(b.name))
 const key=x=>x.kind+':'+x.name
+const concurrency=local?null:preflight.baseline.concurrency
+if(!local)assert(concurrency,'CONCURRENT_WEBHOOK_ANCHOR_REQUIRED')
 try{
   await db.query("BEGIN ISOLATION LEVEL REPEATABLE READ; SET LOCAL search_path=''; SET LOCAL statement_timeout='60s'; SET LOCAL lock_timeout='5s'")
-  const before=await fingerprints(db),history=(await db.query(historySql)).rows
+  const before=await fingerprints(db,{concurrency}),history=(await db.query(historySql)).rows
   let prior=(await db.query(catalogSql)).rows[0].objects
   assert(!history.some(h=>h.version==='20260929193129'||list.some(m=>m.version===h.version)),'UNEXPECTED_HISTORY')
   if(!local){assert.deepEqual(before,sorted(preflight.baseline.fingerprints),'DATA_DRIFT_STOP');assert.deepEqual(history,preflight.baseline.history,'HISTORY_DRIFT_STOP');assert.deepEqual(prior,preflight.baseline.catalog,'SCHEMA_DRIFT_STOP')}
@@ -58,8 +60,8 @@ try{
     await db.query('INSERT INTO supabase_migrations.schema_migrations(version,name,statements) VALUES($1,$2,$3)',[m.version,m.name,[m.source]])
     report.steps.push({file:m.file,version:m.version,name:m.name,sha256:m.sha256,catalogChanges:changes.length,pass:true});prior=actual
   }
-  assert.deepEqual(await fingerprints(db,{legacyNotifications:true}),before,'PREEXISTING_ROWS_CHANGED')
-  const after=await fingerprints(db),notifications=after.find(x=>x.name==='public.notificacoes')
+  assert.deepEqual(await fingerprints(db,{legacyNotifications:true,concurrency}),before,'PREEXISTING_ROWS_CHANGED')
+  const after=await fingerprints(db,{concurrency}),notifications=after.find(x=>x.name==='public.notificacoes')
   assert.equal(notifications.hash,report.expectedBackfill.hash,'BACKFILL_CONTENT_MISMATCH')
   assert.equal(notifications.count,report.expectedBackfill.count)
   const afterHistory=(await db.query(historySql)).rows
@@ -68,10 +70,10 @@ try{
   for(const m of list)assert.deepEqual((await db.query('SELECT name,statements FROM supabase_migrations.schema_migrations WHERE version=$1',[m.version])).rows,[{name:m.name,statements:[m.source]}])
   const writers=(await db.query("SELECT n.nspname||'.'||p.proname name FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname IN ('public','private') AND p.prokind='f' AND p.prosrc ~* 'INSERT\\s+INTO\\s+public.notificacoes' ORDER BY 1")).rows
   assert.deepEqual(writers.map(x=>x.name),['private.criar_notificacao_fundo','private.notificar_seguranca_global'])
-  report.rawWriters=writers;report.history=afterHistory;report.catalog=prior;report.fingerprints=after
+  report.rawWriters=writers;report.history=afterHistory;report.catalog=prior;report.fingerprints=after;report.concurrency=concurrency
   await db.query('COMMIT');report.committed=true
   // A fresh snapshot detects concurrent activity; never silently rebaseline it.
-  assert.deepEqual(await fingerprints(db),after,'CONCURRENT_ACTIVITY_AFTER_APPLY_STOP')
+  assert.deepEqual(await fingerprints(db,{concurrency}),after,'CONCURRENT_ACTIVITY_AFTER_APPLY_STOP')
   report.success=true
 }catch(e){await db.query('ROLLBACK').catch(()=>{});report.error={code:e.code??'ASSERTION',message:e.message.split('\n')[0].slice(0,250)};process.exitCode=1}
 finally{await db.end();writeFileSync(out+(local?'/apply-local.json':'/apply-production.json'),JSON.stringify(report,null,2));console.log(JSON.stringify({success:report.success,committed:report.committed,target:report.ref,steps:report.steps,backfill:report.expectedBackfill,error:report.error}))}
