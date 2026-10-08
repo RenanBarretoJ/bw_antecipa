@@ -1,7 +1,7 @@
 name: Reconciliation Linux and SQL certification
 on:
   push:
-    branches: [reconcile/main-homolog-2026-10-06]
+    branches: [reconcile/main-homolog-2026-10-06, release/homolog-reconciliation-2026-10-08, homolog]
   pull_request:
     types: [opened, synchronize, reopened]
   workflow_dispatch:
@@ -12,7 +12,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   linux:
-    if: github.ref == 'refs/heads/reconcile/main-homolog-2026-10-06' || github.head_ref == 'reconcile/main-homolog-2026-10-06'
+    if: github.ref == 'refs/heads/reconcile/main-homolog-2026-10-06' || github.head_ref == 'reconcile/main-homolog-2026-10-06' || github.ref == 'refs/heads/release/homolog-reconciliation-2026-10-08' || github.head_ref == 'release/homolog-reconciliation-2026-10-08' || github.ref == 'refs/heads/homolog' || github.head_ref == 'homolog'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
@@ -55,7 +55,7 @@ jobs:
           if-no-files-found: error
           retention-days: 7
   sql:
-    if: github.ref == 'refs/heads/reconcile/main-homolog-2026-10-06' || github.head_ref == 'reconcile/main-homolog-2026-10-06'
+    if: github.ref == 'refs/heads/reconcile/main-homolog-2026-10-06' || github.head_ref == 'reconcile/main-homolog-2026-10-06' || github.ref == 'refs/heads/release/homolog-reconciliation-2026-10-08' || github.head_ref == 'release/homolog-reconciliation-2026-10-08' || github.ref == 'refs/heads/homolog' || github.head_ref == 'homolog'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:

@@ -1,21 +1,25 @@
 import assert from 'node:assert/strict'
 
 export const branch = 'reconcile/main-homolog-2026-10-06'
-export const branchCondition = `github.head_ref == '${branch}' || github.ref == 'refs/heads/${branch}'`
-const jobCondition = `github.ref == 'refs/heads/${branch}' || github.head_ref == '${branch}'`
-const inverseCondition = `github.head_ref != '${branch}' && github.ref != 'refs/heads/${branch}'`
+export const releaseBranch = 'release/homolog-reconciliation-2026-10-08'
+export const certificationBranches = [branch, releaseBranch, 'homolog']
+export const branchCondition = certificationBranches.map(b => `github.head_ref == '${b}' || github.ref == 'refs/heads/${b}'`).join(' || ')
+const jobCondition = certificationBranches.map(b => `github.ref == 'refs/heads/${b}' || github.head_ref == '${b}'`).join(' || ')
+const inverseCondition = certificationBranches.map(b => `github.head_ref != '${b}' && github.ref != 'refs/heads/${b}'`).join(' && ')
 
 // File-level proof only. Supabase Git integration still needs independent live evidence.
 export function assertPublicationConfig({ vercel, certification, standard }) {
   assert.equal(vercel.git.deploymentEnabled[branch], false, 'VERCEL_BRANCH_NOT_BLOCKED')
+  assert.equal(vercel.git.deploymentEnabled[releaseBranch], false, 'VERCEL_RELEASE_NOT_BLOCKED')
   assert.equal(vercel.git.deploymentEnabled['validation/rlx-email04-linux'], false)
-  assert.deepEqual(Object.keys(vercel.git.deploymentEnabled).sort(), [branch, 'validation/rlx-email04-linux'].sort(), 'UNEXPECTED_BRANCH_POLICY_CHANGE')
+  assert.deepEqual(Object.keys(vercel.git.deploymentEnabled).sort(), [branch, releaseBranch, 'validation/rlx-email04-linux'].sort(), 'UNEXPECTED_BRANCH_POLICY_CHANGE')
   assert.deepEqual(certification.permissions, { contents: 'read' })
-  assert.deepEqual(certification.on.push.branches, [branch])
+  assert.deepEqual(certification.on.push.branches, certificationBranches, 'CERTIFICATION_BRANCH_ALLOWLIST')
+  assert.deepEqual(standard.on.push.branches, ['homolog', 'main', 'master', releaseBranch], 'STANDARD_BRANCH_ALLOWLIST')
   assert.equal(certification.concurrency['cancel-in-progress'], false)
   assert.deepEqual(Object.keys(certification.jobs).sort(), ['linux', 'sql'])
   for (const job of Object.values(certification.jobs)) {
-    assert.equal(job.if, jobCondition)
+    assert.equal(job.if, jobCondition, 'CERTIFICATION_JOB_ALLOWLIST')
     assert.equal(job.steps.find(s => s.uses === 'actions/checkout@v4').with['persist-credentials'], false)
     assert(!JSON.stringify(job).includes('secrets.'), 'REMOTE_SECRET_IN_CERTIFICATION')
     assert(!JSON.stringify(job).match(/supabase\s+(?:db\s+push|link|functions\s+deploy)|vercel\s+(?:deploy|--prod)/), 'DEPLOY_COMMAND_IN_CERTIFICATION')
@@ -42,9 +46,9 @@ export function assertPublicationConfig({ vercel, certification, standard }) {
   assert(paths.includes('rehearsal/reports/R1_19_CI_*_PREFLIGHT.json'))
   assert(paths.includes('rehearsal/reports/R1_18_CI_SQL.json'))
   const standardSteps = standard.jobs.validate.steps
-  assert.equal(standardSteps.find(s => s.name === 'Build').if, inverseCondition)
+  assert.equal(standardSteps.find(s => s.name === 'Build').if, inverseCondition, 'STANDARD_SECRET_ISOLATION')
   const isolated = standardSteps.find(s => s.name === 'Reconciliation build (isolated placeholders)')
-  assert.equal(isolated.if, branchCondition)
+  assert.equal(isolated.if, branchCondition, 'STANDARD_PLACEHOLDER_ALLOWLIST')
   assert.deepEqual(isolated.env, {
     NEXT_PUBLIC_SUPABASE_URL: 'https://example.supabase.co',
     NEXT_PUBLIC_SUPABASE_ANON_KEY: 'ci-placeholder-anon-key',
@@ -52,5 +56,5 @@ export function assertPublicationConfig({ vercel, certification, standard }) {
     PORTAL_FIDC_CREDENTIALS_JSON: '{}',
   })
   for (const s of standardSteps.filter(s => s.name !== 'Build')) assert(!JSON.stringify(s).includes('secrets.'), 'REAL_SECRET_AVAILABLE_TO_RECONCILIATION')
-  return { result: 'PASS', branch, vercelBranchBlocked: true, remoteSecretsExcluded: true, supabaseGitIntegration: 'REQUIRES_EXTERNAL_EVIDENCE' }
+  return { result: 'PASS', branch, certificationBranches, releaseBranch, vercelBranchBlocked: true, vercelReleaseBlocked: true, remoteSecretsExcluded: true, supabaseGitIntegration: 'REQUIRES_EXTERNAL_EVIDENCE' }
 }
