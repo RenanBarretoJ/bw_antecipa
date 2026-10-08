@@ -1,0 +1,56 @@
+{
+  "ticket": "R2.2_EXPLICIT_SACADO_MAPPING",
+  "date": "2026-10-08",
+  "scope": "LOCAL_DOCKER_ONLY",
+  "remoteMutations": 0,
+  "deployments": 0,
+  "rolloutAuthorized": false,
+  "baselineRelease": "0a514f1b0fe87fa31c2e4408f985afc69a6c656b",
+  "bootstrap": {
+    "version": "20261008183349",
+    "sha256": "aa26df7501ae112efd0ded2580ae0db879a9cb47d62b183259ebe51de519f6f5",
+    "historicalFileEdited": false,
+    "originalFalselyMarkedApplied": false
+  },
+  "homologSchemaRehearsal": {
+    "result": "PASS",
+    "report": "rehearsal/reports/R2_2_HOMOLOG_MAPPING_1791485211491.json",
+    "reportSha256": "b00216f6b377799fc53071e501b0f275973a329b250368d28dbe0f790f9b3312",
+    "appliedMigrations": 19,
+    "target": "EXACT_PREVIOUSLY_CERTIFIED_HOMOLOG_CATALOG",
+    "catalogObjects": 5195,
+    "preservedTables": 141,
+    "principalInvoices": 100,
+    "adversarialInvoices": 10,
+    "negativeControls": 9,
+    "authenticatedRlsActors": 8,
+    "schedulersPreserved": 6,
+    "schedulersExecuted": 0,
+    "cleanup": "PASS"
+  },
+  "canonicalRehearsal": {
+    "result": "PASS",
+    "report": "rehearsal/reports/R2_2_MAPPING_REHEARSAL_1791485314347.json",
+    "reportSha256": "ce7210c9daddb616872b2437ba9edf970bd109405b17f2040e2135f60bc67c62",
+    "freshStacks": 2,
+    "canonicalEntries": 264,
+    "forwardEntries": 8,
+    "catalogObjects": 5194,
+    "catalogSha256": "6e29f929c1e3cf74f3650280ee9465567e4ae205e8afaeae6c5128dd4ac105a3",
+    "catalogComparison": "EXACT_BASELINE_VS_CANDIDATE",
+    "preservedTables": 140,
+    "negativeControls": 9,
+    "authenticatedRlsActors": 8,
+    "cleanup": "PASS"
+  },
+  "quality": {
+    "typescript": "PASS",
+    "changedFilesLint": "PASS",
+    "orchestrationUnitTests": 69,
+    "orchestrationUnitTestsResult": "PASS",
+    "fullApplicationCi": "PENDING",
+    "linuxBuildCi": "PENDING",
+    "fullSqlCi": "PENDING"
+  },
+  "nextGate": "New CI artifact for this exact commit, followed by explicit approval of revised homolog rollout; no authority to apply remotely is inferred."
+}

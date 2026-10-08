@@ -1,0 +1,241 @@
+{
+  "version": 1,
+  "status": "PENDING_RECERTIFICATION_NOT_AUTHORIZED_FOR_REMOTE_APPLY",
+  "scope": "HOMOLOG_EXPLICIT_ONLY",
+  "targetProjectRef": "fhgkmggthxikfpogrvaa",
+  "forbiddenProjectRef": "wwsndnuvnjuabpbjwlck",
+  "baseline": {
+    "schemaSha256": "189846c1cecff0457770c1bf449fe11a65d80b3c78f38cbb91e90278bde41481",
+    "metadataSha256": "86ae3a0745a119803dddcfd5a41cdfa7f44146e2453a72405d9dd0dd3c683d86",
+    "historyRows": 261
+  },
+  "remoteApplicationAuthorized": false,
+  "automaticReplayAllowed": false,
+  "originalBootstrap": {
+    "version": "20261005154435",
+    "sha256": "a1ed6af47e99fa4cc1c9a4edd7ac35666fe8d5416e4252283fa337d6c08c0128",
+    "action": "SUPERSEDED_ONLY_IN_THIS_PLAN_DO_NOT_APPLY_OR_FAKE_HISTORY"
+  },
+  "entries": [
+    {
+      "version": "20261001182744",
+      "path": "supabase/migrations/20261001182744_integration_activation_before_cnab.sql",
+      "sha256": "a460c3fa66f627eca13fcd0b80841183472eae318159fe83331e5573511ce163",
+      "source_kind": "GIT_BLOB",
+      "source_commit": "2e8146ebe7582c5bdc10ddee1f8862d806607ee2",
+      "source_ref": "R1_BASE_MAIN",
+      "blob_oid": "bcf7064914fe8205a526160f300ce694d07a460d",
+      "sourceType": "GIT_BLOB",
+      "order": 1,
+      "dependsOn": []
+    },
+    {
+      "version": "20261002205122",
+      "path": "supabase/migrations/20261002205122_health_nfse_municipal_identity.sql",
+      "sha256": "53a0f6533c745381ccad139ff734960d7ca99fbd67cb1d979385fc6773dc5d65",
+      "source_kind": "GIT_BLOB",
+      "source_commit": "2e8146ebe7582c5bdc10ddee1f8862d806607ee2",
+      "source_ref": "R1_BASE_MAIN",
+      "blob_oid": "0ac4c48da226e5598cf3d186e792cea8705de86a",
+      "sourceType": "GIT_BLOB",
+      "order": 2,
+      "dependsOn": [
+        "20261001182744"
+      ]
+    },
+    {
+      "version": "20261008183349",
+      "path": "supabase/migrations/20261008183349_r2_2_sacado_explicit_mapping_bootstrap.sql",
+      "sha256": "aa26df7501ae112efd0ded2580ae0db879a9cb47d62b183259ebe51de519f6f5",
+      "source_kind": "R22_EXPLICIT_MAPPING_EXACT_LF",
+      "dependsOn": [
+        "20261002205122"
+      ],
+      "order": 3
+    },
+    {
+      "version": "20261005173648",
+      "path": "supabase/migrations/20261005173648_sacado_rls_non_sacado_short_circuit.sql",
+      "sha256": "1006e35b48f871c4f14a72f7a3f2045b1f40c13f4bb80d7efeda0e26be8df3ac",
+      "source_kind": "APPROVED_DB_ONLY_EXACT",
+      "authorization": "User explicitly approved exact recovered artifact for local R1.5 on 2026-10-07",
+      "sourceType": "DB_ONLY_RECOVERED_ARTIFACT",
+      "order": 4,
+      "dependsOn": [
+        "20261008183349"
+      ]
+    },
+    {
+      "version": "20261005204958",
+      "path": "supabase/migrations/20261005204958_nfse_calculated_net_audited_correction.sql",
+      "sha256": "424d3c2f422d181afa7ac161cf4f4d7d6b67198c6034e5eeefdafe676359c91b",
+      "source_kind": "GIT_BLOB",
+      "source_commit": "2e8146ebe7582c5bdc10ddee1f8862d806607ee2",
+      "source_ref": "R1_BASE_MAIN",
+      "blob_oid": "6a51bfb3c5b90d53b70e4c047cf279fc1266ddb9",
+      "sourceType": "GIT_BLOB",
+      "order": 5,
+      "dependsOn": [
+        "20261005173648"
+      ]
+    },
+    {
+      "version": "20261005213812",
+      "path": "supabase/migrations/20261005213812_notificacoes_fund_scope.sql",
+      "sha256": "6a82c232659985cd9be4e73d80c26f6ec8a431d84c505b18856982008b578010",
+      "source_kind": "GIT_BLOB",
+      "source_commit": "2e8146ebe7582c5bdc10ddee1f8862d806607ee2",
+      "source_ref": "R1_BASE_MAIN",
+      "blob_oid": "823eba4775280fe720ee342ecea252af8deddd20",
+      "sourceType": "GIT_BLOB",
+      "order": 6,
+      "dependsOn": [
+        "20261005204958"
+      ]
+    },
+    {
+      "version": "20261006114841",
+      "path": "supabase/migrations/20261006114841_notificacoes_shared_cedente_producers.sql",
+      "sha256": "e8a259a8c5a1df6d14ece3c887ee12b008c8cbcc4a1c510f1634ef7016931748",
+      "source_kind": "GIT_BLOB",
+      "source_commit": "2e8146ebe7582c5bdc10ddee1f8862d806607ee2",
+      "source_ref": "R1_BASE_MAIN",
+      "blob_oid": "50ac1c27b20575bfcb6a9c2299252837d822da5e",
+      "sourceType": "GIT_BLOB",
+      "order": 7,
+      "dependsOn": [
+        "20261005213812"
+      ]
+    },
+    {
+      "version": "20261006124134",
+      "path": "supabase/migrations/20261006124134_notificacoes_entity_producers.sql",
+      "sha256": "c0fda0f0893b7a8cd51d48a713ffdfd832f46f951a3f2ac8c32bcd5974ddf8f0",
+      "source_kind": "GIT_BLOB",
+      "source_commit": "2e8146ebe7582c5bdc10ddee1f8862d806607ee2",
+      "source_ref": "R1_BASE_MAIN",
+      "blob_oid": "fd2cc8eecab63d5b2ec1308b1a7865789a20e82e",
+      "sourceType": "GIT_BLOB",
+      "order": 8,
+      "dependsOn": [
+        "20261006114841"
+      ]
+    },
+    {
+      "version": "20261006130657",
+      "path": "supabase/migrations/20261006130657_notificacoes_scoped_ui.sql",
+      "sha256": "6acafc295bfcf998bdae0058cd3f59c0822a4d78ac5ed7928c487893f1e71ea0",
+      "source_kind": "GIT_BLOB",
+      "source_commit": "2e8146ebe7582c5bdc10ddee1f8862d806607ee2",
+      "source_ref": "R1_BASE_MAIN",
+      "blob_oid": "4e15e4273058c87235db292e0d264ad6eadfd93c",
+      "sourceType": "GIT_BLOB",
+      "order": 9,
+      "dependsOn": [
+        "20261006124134"
+      ]
+    },
+    {
+      "version": "20261006201914",
+      "path": "supabase/migrations/20261006201914_fiscal_intake_nfse_municipal_identity_compat.sql",
+      "sha256": "74ba5ff87d70ffd16a1aac4ac0be8d3c4c032454c1d0bec360567ee18f27cc0b",
+      "source_kind": "NEW_FORWARD_EXACT_LF",
+      "sourceType": "NEW_FORWARD_EXACT_LF",
+      "order": 10,
+      "dependsOn": [
+        "20261006130657"
+      ]
+    },
+    {
+      "version": "20261006210815",
+      "path": "supabase/migrations/20261006210815_c5_reader_a6_compat.sql",
+      "sha256": "8f8ed3284e670ee4b559cccffcd0b323818c659a4f76e26547e40d48392ec7ef",
+      "source_kind": "NEW_FORWARD_EXACT_LF",
+      "sourceType": "NEW_FORWARD_EXACT_LF",
+      "order": 11,
+      "dependsOn": [
+        "20261006201914"
+      ]
+    },
+    {
+      "version": "20261007210618",
+      "path": "supabase/migrations/20261007210618_r1_16_acl_convergence.sql",
+      "sha256": "5b34edf903b5eb37bbae779e83d0e345940976d7143e50bf5fca9ffa269f71c4",
+      "sourceType": "NEW_R1_16_FORWARD",
+      "order": 12,
+      "dependsOn": [
+        "20261006210815"
+      ]
+    },
+    {
+      "version": "20261007210621",
+      "path": "supabase/migrations/20261007210621_r1_16_escrow_timestamps.sql",
+      "sha256": "3f85cbba7d6cb392934f75ef03d2984369d335ce00c2051fe9f57c8e9ee966f5",
+      "sourceType": "NEW_R1_16_FORWARD",
+      "order": 13,
+      "dependsOn": [
+        "20261007210618"
+      ]
+    },
+    {
+      "version": "20261007210624",
+      "path": "supabase/migrations/20261007210624_r1_16_taxas_constraints.sql",
+      "sha256": "3e9f7165e2bd0093ed3b575a1ee05a637b102ffb0e5aa231114ad12f161b5939",
+      "sourceType": "NEW_R1_16_FORWARD",
+      "order": 14,
+      "dependsOn": [
+        "20261007210621"
+      ]
+    },
+    {
+      "version": "20261007210626",
+      "path": "supabase/migrations/20261007210626_r1_16_administrative_origin.sql",
+      "sha256": "1d3b6df8863bf23856d45f00c802d76903fb51bc979a15c6e1e2cee6029ec950",
+      "sourceType": "NEW_R1_16_FORWARD",
+      "order": 15,
+      "dependsOn": [
+        "20261007210624"
+      ]
+    },
+    {
+      "version": "20261007210628",
+      "path": "supabase/migrations/20261007210628_r1_16_duplicata_text_compat.sql",
+      "sha256": "28372dc211f8dff28474645724f546e3f5ea6496fa933abb848c255173292477",
+      "sourceType": "NEW_R1_16_FORWARD",
+      "order": 16,
+      "dependsOn": [
+        "20261007210626"
+      ]
+    },
+    {
+      "version": "20261007210631",
+      "path": "supabase/migrations/20261007210631_r1_16_legacy_rls_cleanup.sql",
+      "sha256": "5f742d1d08700f5ee4cfc58d25ebfb621bda1f4c77f2caeac8cae5c0119498ca",
+      "sourceType": "NEW_R1_16_FORWARD",
+      "order": 17,
+      "dependsOn": [
+        "20261007210628"
+      ]
+    },
+    {
+      "version": "20261007210634",
+      "path": "supabase/migrations/20261007210634_r1_16_taxas_index.sql",
+      "sha256": "55761727235fd078340a5ff011ad9fdc7d4b88c861d6db78331a0e87510b5162",
+      "sourceType": "NEW_R1_16_FORWARD",
+      "order": 18,
+      "dependsOn": [
+        "20261007210631"
+      ]
+    },
+    {
+      "version": "20261007213327",
+      "path": "supabase/migrations/20261007213327_r1_16_duplicata_authorization_fail_closed.sql",
+      "sha256": "49f2ee6142cfdd040e62a4d45e8e05897d3169392252a880baf3091a1b800430",
+      "sourceType": "NEW_R1_16_AUTH_FORWARD",
+      "order": 19,
+      "dependsOn": [
+        "20261007210634"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+# R2.2 exact-byte artifacts only. Historical migration representation is unchanged.
+supabase/migrations/20261008183349_r2_2_sacado_explicit_mapping_bootstrap.sql text eol=lf
+scripts/qa/reconciliation/ci/r2-2-* text eol=lf
+scripts/qa/reconciliation/r2-2-*.mjs text eol=lf

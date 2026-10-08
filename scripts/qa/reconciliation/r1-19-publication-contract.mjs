@@ -2,7 +2,8 @@ import assert from 'node:assert/strict'
 
 export const branch = 'reconcile/main-homolog-2026-10-06'
 export const releaseBranch = 'release/homolog-reconciliation-2026-10-08'
-export const certificationBranches = [branch, releaseBranch, 'homolog']
+export const mappingBranch = 'validation/r2-2-sacado-mapping'
+export const certificationBranches = [branch, releaseBranch, 'homolog', mappingBranch]
 export const branchCondition = certificationBranches.map(b => `github.head_ref == '${b}' || github.ref == 'refs/heads/${b}'`).join(' || ')
 const jobCondition = certificationBranches.map(b => `github.ref == 'refs/heads/${b}' || github.head_ref == '${b}'`).join(' || ')
 const inverseCondition = certificationBranches.map(b => `github.head_ref != '${b}' && github.ref != 'refs/heads/${b}'`).join(' && ')
@@ -12,10 +13,11 @@ export function assertPublicationConfig({ vercel, certification, standard }) {
   assert.equal(vercel.git.deploymentEnabled[branch], false, 'VERCEL_BRANCH_NOT_BLOCKED')
   assert.equal(vercel.git.deploymentEnabled[releaseBranch], false, 'VERCEL_RELEASE_NOT_BLOCKED')
   assert.equal(vercel.git.deploymentEnabled['validation/rlx-email04-linux'], false)
-  assert.deepEqual(Object.keys(vercel.git.deploymentEnabled).sort(), [branch, releaseBranch, 'validation/rlx-email04-linux'].sort(), 'UNEXPECTED_BRANCH_POLICY_CHANGE')
+  assert.equal(vercel.git.deploymentEnabled[mappingBranch], false, 'VERCEL_MAPPING_NOT_BLOCKED')
+  assert.deepEqual(Object.keys(vercel.git.deploymentEnabled).sort(), [branch, releaseBranch, 'validation/rlx-email04-linux', mappingBranch].sort(), 'UNEXPECTED_BRANCH_POLICY_CHANGE')
   assert.deepEqual(certification.permissions, { contents: 'read' })
   assert.deepEqual(certification.on.push.branches, certificationBranches, 'CERTIFICATION_BRANCH_ALLOWLIST')
-  assert.deepEqual(standard.on.push.branches, ['homolog', 'main', 'master', releaseBranch], 'STANDARD_BRANCH_ALLOWLIST')
+  assert.deepEqual(standard.on.push.branches, ['homolog', 'main', 'master', releaseBranch, mappingBranch], 'STANDARD_BRANCH_ALLOWLIST')
   assert.equal(certification.concurrency['cancel-in-progress'], false)
   assert.deepEqual(Object.keys(certification.jobs).sort(), ['linux', 'sql'])
   for (const job of Object.values(certification.jobs)) {

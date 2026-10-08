@@ -1,0 +1,81 @@
+{
+  "version": 1,
+  "approvalDate": "2026-10-08",
+  "scope": "HOMOLOG_QA_RLX_GOLDEN_V2",
+  "mainFund": "ca8b721e-333c-4051-a87b-9359e51449c4",
+  "adversarialFund": "0d81663a-e91d-8e2d-5e26-710ebb177e12",
+  "actors": [
+    {
+      "id": "22075bf0-6a23-4c22-ba53-c4fef62c2530",
+      "sacado": "f22655bc-bbf9-c422-1965-3beb900488af",
+      "cnpj": "84830000000109",
+      "email": "debtor-1@qa-rlx-v2.invalid",
+      "name": "QA RLX V2 SACADO 01",
+      "mainNotes": 12,
+      "adversarialNotes": 1
+    },
+    {
+      "id": "2e2e1f3e-f796-49ba-a299-6e132fbee53a",
+      "sacado": "ae47c386-c5ad-9a4c-68c4-5d3b48a3005f",
+      "cnpj": "84830000000290",
+      "email": "debtor-2@qa-rlx-v2.invalid",
+      "name": "QA RLX V2 SACADO 02",
+      "mainNotes": 13,
+      "adversarialNotes": 1
+    },
+    {
+      "id": "bfc4d7cb-34ff-418a-a384-c729d08a2273",
+      "sacado": "7884daf3-59f7-8144-9bed-52eb78748c31",
+      "cnpj": "84830000000370",
+      "email": "debtor-3@qa-rlx-v2.invalid",
+      "name": "QA RLX V2 SACADO 03",
+      "mainNotes": 11,
+      "adversarialNotes": 2
+    },
+    {
+      "id": "693edfb7-dcd0-4eaa-ba69-8cd87030e002",
+      "sacado": "b3111239-90d6-32ea-fe4e-7d125ada8251",
+      "cnpj": "84830000000451",
+      "email": "debtor-4@qa-rlx-v2.invalid",
+      "name": "QA RLX V2 SACADO 04",
+      "mainNotes": 13,
+      "adversarialNotes": 1
+    },
+    {
+      "id": "9cc1805d-ff45-4933-b334-1ca4dcd24e9c",
+      "sacado": "715b082f-a9a5-52a9-852f-fb581f86a138",
+      "cnpj": "84830000000532",
+      "email": "debtor-5@qa-rlx-v2.invalid",
+      "name": "QA RLX V2 SACADO 05",
+      "mainNotes": 13,
+      "adversarialNotes": 1
+    },
+    {
+      "id": "6da810b7-5a86-4c7a-a06e-8fa58f29d5f1",
+      "sacado": "2e4c910f-9fd9-67c9-71e6-56eaa7de7b50",
+      "cnpj": "84830000000613",
+      "email": "debtor-6@qa-rlx-v2.invalid",
+      "name": "QA RLX V2 SACADO 06",
+      "mainNotes": 12,
+      "adversarialNotes": 1
+    },
+    {
+      "id": "a1818893-1678-4e8e-9500-a12ff7718b62",
+      "sacado": "e9980186-6827-4cf7-87e7-5cfb667ec60f",
+      "cnpj": "84830000000702",
+      "email": "debtor-7@qa-rlx-v2.invalid",
+      "name": "QA RLX V2 SACADO 07",
+      "mainNotes": 13,
+      "adversarialNotes": 1
+    },
+    {
+      "id": "64328459-0221-47ac-bf87-311c19ca19d2",
+      "sacado": "088a1e83-e2da-aa9e-9e3d-36282ff3a82a",
+      "cnpj": "84830000000885",
+      "email": "debtor-8@qa-rlx-v2.invalid",
+      "name": "QA RLX V2 SACADO 08",
+      "mainNotes": 13,
+      "adversarialNotes": 2
+    }
+  ]
+}

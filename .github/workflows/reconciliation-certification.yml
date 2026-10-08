@@ -1,7 +1,7 @@
 name: Reconciliation Linux and SQL certification
 on:
   push:
-    branches: [reconcile/main-homolog-2026-10-06, release/homolog-reconciliation-2026-10-08, homolog]
+    branches: [reconcile/main-homolog-2026-10-06, release/homolog-reconciliation-2026-10-08, homolog, validation/r2-2-sacado-mapping]
   pull_request:
     types: [opened, synchronize, reopened]
   workflow_dispatch:
@@ -12,7 +12,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   linux:
-    if: github.ref == 'refs/heads/reconcile/main-homolog-2026-10-06' || github.head_ref == 'reconcile/main-homolog-2026-10-06' || github.ref == 'refs/heads/release/homolog-reconciliation-2026-10-08' || github.head_ref == 'release/homolog-reconciliation-2026-10-08' || github.ref == 'refs/heads/homolog' || github.head_ref == 'homolog'
+    if: github.ref == 'refs/heads/reconcile/main-homolog-2026-10-06' || github.head_ref == 'reconcile/main-homolog-2026-10-06' || github.ref == 'refs/heads/release/homolog-reconciliation-2026-10-08' || github.head_ref == 'release/homolog-reconciliation-2026-10-08' || github.ref == 'refs/heads/homolog' || github.head_ref == 'homolog' || github.ref == 'refs/heads/validation/r2-2-sacado-mapping' || github.head_ref == 'validation/r2-2-sacado-mapping'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
@@ -31,7 +31,7 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Orchestration and publication safety unit tests
-        run: node --test scripts/qa/reconciliation/r1-19-*.test.mjs
+        run: node --test scripts/qa/reconciliation/r1-19-*.test.mjs scripts/qa/reconciliation/r2-2-*.test.mjs
       - name: Chrome infrastructure readiness
         run: |
           export CHROME_PATH="$(command -v google-chrome)"
@@ -55,7 +55,7 @@ jobs:
           if-no-files-found: error
           retention-days: 7
   sql:
-    if: github.ref == 'refs/heads/reconcile/main-homolog-2026-10-06' || github.head_ref == 'reconcile/main-homolog-2026-10-06' || github.ref == 'refs/heads/release/homolog-reconciliation-2026-10-08' || github.head_ref == 'release/homolog-reconciliation-2026-10-08' || github.ref == 'refs/heads/homolog' || github.head_ref == 'homolog'
+    if: github.ref == 'refs/heads/reconcile/main-homolog-2026-10-06' || github.head_ref == 'reconcile/main-homolog-2026-10-06' || github.ref == 'refs/heads/release/homolog-reconciliation-2026-10-08' || github.head_ref == 'release/homolog-reconciliation-2026-10-08' || github.ref == 'refs/heads/homolog' || github.head_ref == 'homolog' || github.ref == 'refs/heads/validation/r2-2-sacado-mapping' || github.head_ref == 'validation/r2-2-sacado-mapping'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -70,6 +70,9 @@ jobs:
       - run: npm ci
       - name: Pinned migration sources, canonical SQL, ACL and real RLS
         run: node scripts/qa/reconciliation/r1-18-ci.mjs --local-only
+      - name: R2.2 explicit mapping clean-room and RLS
+        if: github.ref == 'refs/heads/validation/r2-2-sacado-mapping' || github.head_ref == 'validation/r2-2-sacado-mapping'
+        run: node scripts/qa/reconciliation/r2-2-rehearsal.mjs --local-only
       - name: Cleanup only manifest-owned resources
         if: always()
         run: node scripts/qa/reconciliation/r1-19-ci-cleanup.mjs --local-only
@@ -80,6 +83,7 @@ jobs:
           name: reconciliation-sql-evidence
           path: |
             rehearsal/reports/R1_18_CI_SQL.json
+            rehearsal/reports/R2_2_MAPPING_REHEARSAL_*.json
             rehearsal/reports/R1_19_CLEANUP_LIFECYCLE.json
             rehearsal/reports/R1_19_CI_*_PREFLIGHT.json
             rehearsal/reports/bw_email03_r110pa_*-resources.json
