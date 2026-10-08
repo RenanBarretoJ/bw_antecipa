@@ -45,6 +45,7 @@ test('Validation publication blocks Vercel and uses only local SQL with cleanup'
  const b='validation/r2-2-sacado-mapping',v=JSON.parse(await read('vercel.json'))
  assert.equal(v.git.deploymentEnabled[b],false)
  const w=yaml.load(await read('.github/workflows/reconciliation-certification.yml'))
+ for(const job of Object.values(w.jobs))assert.equal(job.steps.find(s=>s.uses==='actions/checkout@v4').with['fetch-depth'],0,'PINNED_GIT_SOURCE_HISTORY_REQUIRED')
  const step=w.jobs.sql.steps.find(s=>s.name==='R2.2 explicit mapping clean-room and RLS')
  assert.equal(step.run,'node scripts/qa/reconciliation/r2-2-rehearsal.mjs --local-only')
  assert.equal(step.if,`github.ref == 'refs/heads/${b}' || github.head_ref == '${b}'`)
