@@ -71,12 +71,16 @@ jobs:
       - run: npm ci
       - name: Pinned migration sources, canonical SQL, ACL and real RLS
         run: node scripts/qa/reconciliation/r1-18-ci.mjs --local-only
-      - name: R2.2 explicit mapping clean-room and RLS
-        if: github.ref == 'refs/heads/validation/r2-2-sacado-mapping' || github.head_ref == 'validation/r2-2-sacado-mapping'
-        run: node scripts/qa/reconciliation/r2-2-rehearsal.mjs --local-only
       - name: Cleanup only manifest-owned resources
         if: always()
         run: node scripts/qa/reconciliation/r1-19-ci-cleanup.mjs --local-only
+      - name: R2.2 explicit mapping clean-room and RLS
+        id: r22mapping
+        if: success() && (github.ref == 'refs/heads/validation/r2-2-sacado-mapping' || github.head_ref == 'validation/r2-2-sacado-mapping')
+        run: node scripts/qa/reconciliation/r2-2-rehearsal.mjs --local-only
+      - name: Cleanup only R2.2 independent run resources
+        if: always() && steps.r22mapping.outcome != 'skipped'
+        run: node scripts/qa/reconciliation/r2-2-ci-cleanup.mjs --local-only
       - name: Synthetic SQL evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -85,6 +89,7 @@ jobs:
           path: |
             rehearsal/reports/R1_18_CI_SQL.json
             rehearsal/reports/R2_2_MAPPING_REHEARSAL_*.json
+            rehearsal/reports/R2_2_CLEANUP_LIFECYCLE.json
             rehearsal/reports/R1_19_CLEANUP_LIFECYCLE.json
             rehearsal/reports/R1_19_CI_*_PREFLIGHT.json
             rehearsal/reports/bw_email03_r110pa_*-resources.json

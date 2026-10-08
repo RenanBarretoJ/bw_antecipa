@@ -27,7 +27,7 @@ export async function freshMappingStack(records, atOriginal){
   for(const version of plan.applyOrder){const entry=plan.entries.find(e=>e.version===version),source=await readMigrationSource(entry);assert.equal(hash(Buffer.from(source.sql,'utf8')),entry.sha256);sources.push({entry,source})}
   await mkdir(resolve(root,'supabase/migrations'),{recursive:true})
   await writeFile(resolve(root,'supabase/config.toml'),configureDisposableToml(await read('supabase/config.toml'),spec))
-  const owned=await disposableResources({projectId,file:`rehearsal/reports/${projectId}-resources.json`,tempDirs:[root]})
+  const owned=await disposableResources({projectId,file:`rehearsal/reports/${projectId}-resources.json`,tempDirs:[root],runnerId:'R2_2_EXPLICIT_MAPPING'})
   await recordPortOwnership(owned,preflight,`rehearsal/reports/${projectId}-resources.json`)
   const env=sanitizedLocalEnvironment()
   for(const key of Object.keys(env))if(/SUPABASE|DATABASE|POSTGRES|EMAIL_INTAKE|SECRET|PASSWORD|TOKEN|CREDENTIAL|OPENAI/i.test(key))delete env[key]
