@@ -1,13 +1,11 @@
 'use client'
 
 import { useEffect, useState, useTransition } from 'react'
-import { useRouter } from 'next/navigation'
 import { carregarSeletorCedenteFundoAtivo, selecionarCedenteFundoAtivo } from '@/lib/actions/cedente-fundo-ativo'
 import { useNotifications } from '@/components/notifications/notification-provider'
 import { iniciarTrocaContextoNotificacoes, concluirTrocaContextoNotificacoes } from '@/lib/notificacoes/events'
 
 export function CedenteFundoAtivoSelector() {
-  const router = useRouter()
   const notifications = useNotifications()
   const [links, setLinks] = useState<Array<{ id: string; nome: string }>>([])
   const [selected, setSelected] = useState('')
@@ -28,7 +26,7 @@ export function CedenteFundoAtivoSelector() {
       try {
         const result = await selecionarCedenteFundoAtivo(value)
         notifications.notify({ type: result.success ? 'success' : 'error', message: result.message, dedupeKey: `cedente-fundo:${result.message}` })
-        if (result.success) { setSelected(value); router.refresh() }
+        if (result.success) setSelected(value)
       } catch {
         notifications.error('Não foi possível alterar o Fundo operacional.')
       } finally {

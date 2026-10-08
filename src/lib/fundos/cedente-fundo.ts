@@ -75,7 +75,7 @@ export function selecionarVinculoAtivo(links: CedenteFundo[]): CedenteFundo | nu
   return links[0] || null
 }
 
-async function obterCedenteFundoAtivoSelecionado(): Promise<string | null> {
+export async function obterCedenteFundoAtivoSelecionado(): Promise<string | null> {
   try {
     const cookieStore = await cookies()
     return cookieStore.get(CEDENTE_FUNDO_ATIVO_COOKIE)?.value || null

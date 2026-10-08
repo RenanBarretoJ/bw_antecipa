@@ -1,0 +1,50 @@
+RLX-EMAIL-05-R14 — classificação de assinatura temporária em homologação
+
+Escopo: harness de inspeção e recertificação. Sem alteração de aplicação,
+domínio fiscal, migrations, RLS, MFA ou integração Graph. Produção proibida.
+
+Causa reproduzida em 05/10/2026
+
+A resposta real POST text/x-component da tela de detalhe fiscal foi rejeitada
+na regra signed_url_header_algorithm. O validador exigia HS512. O Storage de
+homologação emitiu HS256, com kid, scope download, objeto correspondente e
+iat/exp separados por 600 segundos. Nenhum valor do token foi persistido.
+
+Instrumentação: source field, regra exata, classe, tipo de valor, tamanho por
+faixa, host esperado, template de path, nomes de parâmetros, presença de
+expiração, TTL e formato estrutural por enums/booleans. Não registra headers,
+claims completos, kid, assinatura, query values, cookies ou URL completa.
+
+Correção
+
+Aceitar somente HS256 e HS512 no formato estrito de download já exigido.
+Continuam obrigatórios: HTTPS, origem exata do Storage, bucket permitido,
+objeto exato, parâmetro token único, claims permitidas, scope download,
+expiração, TTL positivo <=600s, autenticação, autorização, isolamento entre
+fundos e verificação da assinatura pelo Storage emissor sem credenciais,
+redirecionamentos ou download integral. Algoritmo não concede autorização.
+
+Também detectar JWT avulso e token de query opaco. A exceção só substitui o
+campo action.result.url após todas as provas; o restante da resposta é
+inspecionado novamente. Credenciais ao lado de uma URL válida continuam FAIL.
+
+Evidência focada
+
+44 testes passaram, cobrindo assinatura homolog, algoritmo não aceito,
+campos inesperados, segredo, sessão, service role, Graph, host externo,
+expiração ausente, TTL excessivo, outro fundo e assinatura inválida.
+
+A reprodução oficial da tela com PDF de QA passou: 27/27 inspeções de rede e
+semânticas, zero pending/stale/falhas. O ator independente do outro fundo não
+conseguiu ler a NF, emitir URL pelo Storage ou obter URL pela Server Action.
+O probe utiliza somente dados descartáveis e o caminho legado arquivo_url
+da fixture; a prova fiscal canônica continua no smoke com a mensagem 950501.
+Cleanup duplo e baseline dos 32 conjuntos preservados.
+
+Referências primárias consultadas
+https://supabase.com/docs/reference/javascript/storage-from-createsignedurl
+https://github.com/supabase/storage/blob/master/src/internal/auth/jwt.ts
+
+Resultados completos de Linux/CI/deploy/smoke devem ser consultados nos
+artefatos rehearsal/reports/email05-r14-*. O teste focado não substitui esses
+gates. PR #87 permanece Draft até a validação final de homologação.

@@ -1,7 +1,10 @@
 import 'server-only'
 
 import { AuthorizationError, type AppSupabaseClient, type AuthContext } from '@/lib/auth/authorization'
-import { resolverCedenteFundoAtivo } from '@/lib/fundos/cedente-fundo'
+import {
+  obterCedenteFundoAtivoSelecionado,
+  resolverCedenteFundoAtivo,
+} from '@/lib/fundos/cedente-fundo'
 import { resolverCedenteSolicitanteOperacao } from '@/lib/operacoes/solicitante.server'
 
 export type ContextoOperacionalNotaFiscal = {
@@ -39,6 +42,74 @@ export async function resolverContextoOperacionalNotaFiscal(
     cedente: solicitante.cedente,
     cedenteFundoId: contextoFundo.cedenteFundo.id,
     fundoId: contextoFundo.fundo.id,
+  }
+}
+
+/**
+ * Resolve o mesmo contexto Cedente/Fundo para superficies estritamente de
+ * leitura do C5. O predicado organizacional inclui LEITOR, mas as mutations
+ * continuam usando resolverContextoOperacionalNotaFiscal.
+ */
+export async function resolverContextoLeituraNotaFiscal(
+  auth: AuthContext,
+  cedenteIdInformado?: string | null,
+): Promise<ContextoOperacionalNotaFiscal> {
+  if (auth.profile.role !== 'consultor' || !cedenteIdInformado) {
+    throw new AuthorizationError('Cedente visivel nao informado ou perfil sem permissao.', 'FORBIDDEN')
+  }
+
+  const { data: permitido, error: permissaoError } = await auth.supabase.rpc(
+    'consultor_pode_visualizar_cedente',
+    { p_cedente_id: cedenteIdInformado },
+  )
+  if (permissaoError || permitido !== true) {
+    throw new AuthorizationError('Cedente nao disponivel para este Consultor.', 'FORBIDDEN')
+  }
+
+  const { data: cedente, error: cedenteError } = await auth.supabase
+    .from('cedentes')
+    .select('id, cnpj, razao_social, nome_fantasia, status')
+    .eq('id', cedenteIdInformado)
+    .eq('status', 'ativo')
+    .maybeSingle()
+  if (cedenteError || !cedente) {
+    throw new AuthorizationError('Cedente nao encontrado.', 'NOT_FOUND')
+  }
+
+  const { data: links, error: linksError } = await auth.supabase
+    .from('cedente_fundos')
+    .select('id, fundo_id, vigente_desde')
+    .eq('cedente_id', cedente.id)
+    .eq('status', 'ativo')
+    .order('vigente_desde', { ascending: false })
+  if (linksError || !links?.length) {
+    throw new AuthorizationError('O Cedente nao possui fundo visivel ativo.', 'FORBIDDEN')
+  }
+
+  const selecionadoId = links.length > 1 ? await obterCedenteFundoAtivoSelecionado() : null
+  const link = selecionadoId
+    ? links.find((item) => item.id === selecionadoId)
+    : links.length === 1 ? links[0] : null
+  if (!link) {
+    throw new AuthorizationError('Selecione explicitamente o fundo para consultar este Cedente.', 'FORBIDDEN')
+  }
+
+  const { data: fundo, error: fundoError } = await auth.supabase
+    .from('fundos')
+    .select('id, ativo')
+    .eq('id', link.fundo_id)
+    .eq('ativo', true)
+    .maybeSingle()
+  if (fundoError || !fundo) {
+    throw new AuthorizationError('O fundo visivel nao esta ativo.', 'FORBIDDEN')
+  }
+
+  return {
+    actorUserId: auth.user.id,
+    actorRole: 'consultor',
+    cedente,
+    cedenteFundoId: link.id,
+    fundoId: fundo.id,
   }
 }
 

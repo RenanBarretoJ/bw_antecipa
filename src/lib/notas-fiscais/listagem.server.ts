@@ -1,7 +1,10 @@
 import 'server-only'
 
 import { requireAuthenticated, assertRole, type AppSupabaseClient } from '@/lib/auth/authorization'
-import { resolverContextoOperacionalNotaFiscal } from './contexto-operacional.server'
+import {
+  resolverContextoLeituraNotaFiscal,
+  resolverContextoOperacionalNotaFiscal,
+} from './contexto-operacional.server'
 import type { NfStatus, PoliticaNivelValidacao } from '@/lib/types/domain'
 import { resolverEstadoChecklistDocumental } from '@/lib/documentos-v2/checklist-state'
 import {
@@ -216,13 +219,15 @@ function requisitoVazio(
 
 export async function carregarNotasFiscaisComResumoDocumental(
   filtros: FiltrosListagemNotasFiscais,
-  options: { cedenteId?: string | null } = {},
+  options: { cedenteId?: string | null; somenteLeituraConsultor?: boolean } = {},
 ): Promise<ResultadoListagemNotasFiscais> {
   const auth = await requireAuthenticated()
   assertRole(auth.profile.role, ['cedente', 'consultor'])
   if (auth.profile.status !== 'ativo') throw new Error('O perfil do usuario nao esta ativo.')
 
-  const contextoOperacional = await resolverContextoOperacionalNotaFiscal(auth, options.cedenteId)
+  const contextoOperacional = options.somenteLeituraConsultor
+    ? await resolverContextoLeituraNotaFiscal(auth, options.cedenteId)
+    : await resolverContextoOperacionalNotaFiscal(auth, options.cedenteId)
   const contexto: ContextoCedenteFundo = {
     cedenteId: contextoOperacional.cedente.id,
     cedenteFundoId: contextoOperacional.cedenteFundoId,

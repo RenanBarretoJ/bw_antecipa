@@ -1,0 +1,81 @@
+name: Reconciliation Linux and SQL certification
+on:
+  push:
+    branches: [reconcile/main-homolog-2026-10-06]
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: reconciliation-certification-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  linux:
+    if: github.ref == 'refs/heads/reconcile/main-homolog-2026-10-06' || github.head_ref == 'reconcile/main-homolog-2026-10-06'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
+      SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key
+      PORTAL_FIDC_CREDENTIALS_JSON: '{}'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Orchestration and publication safety unit tests
+        run: node --test scripts/qa/reconciliation/r1-19-*.test.mjs
+      - name: Real PDF runtime
+        run: |
+          export CHROME_PATH="$(command -v google-chrome)"
+          test -n "$CHROME_PATH"
+          npx vitest run src/lib/pdf/gerarContrato.runtime.test.ts --pool=threads --maxWorkers=1 --no-file-parallelism
+      - run: npx tsc --noEmit --incremental false
+      - run: npm test -- --pool=threads --maxWorkers=1 --no-file-parallelism
+      - run: npx eslint .
+      - run: npx next build --webpack
+  sql:
+    if: github.ref == 'refs/heads/reconcile/main-homolog-2026-10-06' || github.head_ref == 'reconcile/main-homolog-2026-10-06'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Pinned migration sources, canonical SQL, ACL and real RLS
+        run: node scripts/qa/reconciliation/r1-18-ci.mjs --local-only
+      - name: Cleanup only manifest-owned resources
+        if: always()
+        run: node scripts/qa/reconciliation/r1-19-ci-cleanup.mjs --local-only
+      - name: Synthetic SQL evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reconciliation-sql-evidence
+          path: |
+            rehearsal/reports/R1_18_CI_SQL.json
+            rehearsal/reports/R1_19_CLEANUP_LIFECYCLE.json
+            rehearsal/reports/R1_19_CI_*_PREFLIGHT.json
+            rehearsal/reports/bw_email03_r110pa_*-resources.json
+            rehearsal/reports/bw_email03_r110pa_*-suite.json
+            rehearsal/reports/bw_email03_r110cred_*-resources.json
+            rehearsal/reports/bw_email03_r110cred_*-suite.json
+            rehearsal/reports/bw_email03_r110inl_*-resources.json
+            rehearsal/reports/bw_email03_r110inl_*-suite.json
+            rehearsal/reports/bw_email03_r110cnab_*-resources.json
+            rehearsal/reports/bw_email03_r110cnab_*-suite.json
+          if-no-files-found: error
+          retention-days: 7

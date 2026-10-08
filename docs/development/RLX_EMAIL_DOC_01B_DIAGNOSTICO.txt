@@ -1,0 +1,65 @@
+RLX-EMAIL-DOC-01B — diagnóstico e desenho prospectivo
+Data: 2026-10-06
+Ambiente autorizado: homolog. Produção proibida.
+
+RLX_EMAIL_DOC_CURRENT_AMBIGUOUS_CAUSE
+Leitura autorizada de um único anexo real, sem reprocessamento: o parser
+oficial encontrou chave válida e exatamente uma NF existente. O gate de
+criação fiscal falhou por emissão ausente e confiança insuficiente no bruto.
+Número, série, emitente, destinatário e bruto extraídos coincidiram com a NF.
+A rejeição ocorreu antes da reserva. O caminho antigo não tratava companion:
+uma identidade já concluída retornava DUPLICATE na reserva fiscal.
+
+RLX_EMAIL_DOC_EXISTING_NF_LOOKUP
+public.notas_fiscais.chave_acesso, identidade fiscal única. O novo caminho
+confirma também a reserva concluída, a integração original, fundo, cedente,
+cedente_fundo e estabelecimento. Não usa assunto ou nome para pareamento.
+Nome/MIME identifica apenas o formato de siblings que devem aguardar XML.
+
+RLX_EMAIL_DOC_REPOSITORY_PATH
+documentos-v2 -> private.fiscal_registrar_documento_upload ->
+documentos_repositorio / documento_versoes / documento_vinculos.
+O mesmo caminho oficial passa a reter evidência base opcional de NF-e.
+
+RLX_EMAIL_DOC_REQUIREMENT_RECONCILER
+private.fiscal_reconciliar_documentos_base_nf. Reutiliza a instância e seus
+snapshots; DANFE com validação manual continua pendente para o Gestor.
+Não cria requisito retroativo nem modifica política publicada.
+
+RLX_EMAIL_DOC_MINIMAL_CHANGE_PLAN
+Separar o gate de identidade DANFE do gate de criação de nova NF. A chave
+confiável permite complementar a NF; fatos insuficientes continuam impedindo
+criação por DANFE isolado. Nunca atualizar fatos, parcelas ou provenance da NF.
+Preservar o serviço compartilhado e os parsers oficiais. Inbox vira lista
+semântica de links compactos; filtros, paginação e detalhe permanecem.
+
+MIGRATION JUSTIFICADA
+20261006170514_email_nfe_document_companion.sql é incremental. Adiciona
+classificação/hash ao anexo e claims documentais privados, independentes da
+reserva canônica. Isso permite fencing e compensação de Storage para uma NF
+já concluída sem reabrir sua reserva nem conferir permissão de editar fatos.
+Reutiliza o journal de Storage, o lock de identidade e a rotina de limpeza.
+WAITING_CANONICAL_XML usa RETRY durável sem esgotar tentativas por espera.
+As definições oficiais evoluídas ficam na migration nova, sem editar histórico.
+
+AUTORIZAÇÃO E LIMITES
+RPCs companion somente service_role, com ator SYSTEM validado por claim real
+da fila, contexto e integração ativa. Sem grants diretos à tabela privada.
+Upload manual, MFA/RLS, revisão NFS-e, Graph, delta e scheduler preservados.
+Nenhum backfill automático. PR #95 e Sacado fora do escopo.
+
+EVIDÊNCIA
+Diagnóstico sanitizado: rehearsal/reports/email-doc01b-diagnosis.json.
+Testes de orquestração: src/lib/fiscal-intake/companion.test.ts.
+Matriz SQL/Storage/concorrência: scripts/email-intake/companion-db.mjs.
+Matriz visual/teclado: scripts/email-intake/inbox-browser.mjs e harness oficial.
+Resultados finais dependem da certificação e do smoke real em homolog.
+
+REGRESSÃO IDENTIFICADA NA CERTIFICAÇÃO
+O leitor nativo falhou transitoriamente com bad XRef entry na NFS-e sintética;
+o fallback visual não tem credencial no clean-room. A rotina limitada a três
+leituras já existente no DANFE foi centralizada em pdf/native-text.server.ts
+e reutilizada pela NFS-e, preservando o timeout total e os gates fiscais.
+O cenário real Auth/MFA/DB/Storage passou após esse ajuste, sem reconhecimento
+visual nem alteração da política de vencimento. Fixtures de concorrência e
+roteamento agora geram DV NF-e válido, em vez de usar DV literal de teste.

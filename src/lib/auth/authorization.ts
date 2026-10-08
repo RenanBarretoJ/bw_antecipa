@@ -272,6 +272,37 @@ export async function requireOperationAccess(
   return { ...context, operacao: operacao as Pick<Operacao, 'id' | 'cedente_id'> }
 }
 
+/**
+ * Gate read-only do C5. Nao substitui requireOperationAccess, usado tambem
+ * por fluxos mutaveis, e por isso inclui LEITOR apenas nesta capacidade.
+ */
+export async function requireOperationViewAccess(
+  operacaoId: string,
+  client?: AppSupabaseClient,
+): Promise<OperacaoContext> {
+  const context = await requireAuthenticated(client)
+  assertRole(context.profile.role, ['consultor'])
+
+  const { data: permitido, error: permissaoError } = await context.supabase.rpc(
+    'consultor_pode_visualizar_operacao',
+    { p_operacao_id: operacaoId },
+  )
+  if (permissaoError || permitido !== true) {
+    throw new AuthorizationError('Operacao nao disponivel para este Consultor.', 'FORBIDDEN')
+  }
+
+  const { data: operacao, error } = await context.supabase
+    .from('operacoes')
+    .select('id, cedente_id')
+    .eq('id', operacaoId)
+    .maybeSingle()
+  if (error || !operacao) {
+    throw new AuthorizationError('Operacao nao encontrada.', 'NOT_FOUND')
+  }
+
+  return { ...context, operacao: operacao as Pick<Operacao, 'id' | 'cedente_id'> }
+}
+
 export async function requireNotaFiscalAccess(
   notaFiscalId: string,
   client?: AppSupabaseClient,
@@ -298,6 +329,40 @@ export async function requireNotaFiscalAccess(
 
   await requireCedenteAccess(notaFiscal.cedente_id, context.supabase)
   return { ...context, notaFiscal: notaFiscal as Pick<NotaFiscal, 'id' | 'cedente_id' | 'cnpj_destinatario'> }
+}
+
+/**
+ * Gate read-only do C5 para NFs vinculadas a operacoes visiveis. Nao deve ser
+ * usado por mutations de C4, que permanecem em requireNotaFiscalAccess.
+ */
+export async function requireNotaFiscalViewAccess(
+  notaFiscalId: string,
+  client?: AppSupabaseClient,
+): Promise<NotaFiscalContext> {
+  const context = await requireAuthenticated(client)
+  assertRole(context.profile.role, ['consultor'])
+
+  const { data: permitido, error: permissaoError } = await context.supabase.rpc(
+    'consultor_pode_visualizar_nota_fiscal',
+    { p_nota_fiscal_id: notaFiscalId },
+  )
+  if (permissaoError || permitido !== true) {
+    throw new AuthorizationError('Nota fiscal nao disponivel para este Consultor.', 'FORBIDDEN')
+  }
+
+  const { data: notaFiscal, error } = await context.supabase
+    .from('notas_fiscais')
+    .select('id, cedente_id, cnpj_destinatario')
+    .eq('id', notaFiscalId)
+    .maybeSingle()
+  if (error || !notaFiscal) {
+    throw new AuthorizationError('Nota fiscal nao encontrada.', 'NOT_FOUND')
+  }
+
+  return {
+    ...context,
+    notaFiscal: notaFiscal as Pick<NotaFiscal, 'id' | 'cedente_id' | 'cnpj_destinatario'>,
+  }
 }
 
 export function isRegisteredStoragePath(path: string, registeredPaths: readonly (string | null | undefined)[]): boolean {

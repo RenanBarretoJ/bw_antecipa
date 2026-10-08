@@ -3,21 +3,40 @@ import { extractDanfseV2 } from './danfse-v2'
 import { danfseFixture } from './fixtures/danfse-v2'
 import { municipalFixture } from './fixtures/municipal'
 import { validateMunicipalVisual } from './municipal-visual-contract'
+import { FiscalIntakeError } from '@/lib/fiscal-intake/contracts'
+import type { PreparedFiscal } from '@/lib/fiscal-intake/contracts'
 import { uploadNFs } from '@/lib/actions/nota-fiscal'
 const m = vi.hoisted(() => ({
   insertError: false, cleanupError: false, duplicate: false,
-  inserts: [] as Record<string, unknown>[], states: [] as string[],
+  inserts: [] as Record<string, unknown>[], states: [] as string[], prepared: null as PreparedFiscal | null,
   upload: vi.fn(), remove: vi.fn(), probe: vi.fn(), read: vi.fn(), claim: vi.fn(),
   auth: vi.fn(), scope: vi.fn(), document: vi.fn(), event: vi.fn(),
 }))
 vi.mock('@/lib/auth/authorization', () => ({ AuthorizationError: class extends Error {}, requireAuthenticated: (...args: unknown[]) => m.auth(...args), requireGestor: vi.fn() }))
 vi.mock('@/lib/notas-fiscais/contexto-operacional.server', () => ({ resolverContextoOperacionalNotaFiscal: (...args: unknown[]) => m.scope(...args), validarNotaNoContextoSelecionado: vi.fn() }))
 vi.mock('@/lib/nfse/pdf-dispatcher.server', () => ({ probeNfsePdf: (...args: unknown[]) => m.probe(...args) }))
-vi.mock('@/lib/nfse/review-intents.server', () => ({
-  openNfseReview: async () => 'receipt', readNfseReview: (...args: unknown[]) => m.read(...args),
-  claimNfseReview: (...args: unknown[]) => m.claim(...args), trackNfseDocumentPath: vi.fn(),
-  settleNfseReview: async (_id: string, state: string) => { m.states.push(state) },
-}))
+vi.mock('@/lib/fiscal-intake/repository.server', () => ({ createFiscalImportRepository: () => ({
+  resolveScope: async () => ({ fundoId:'fund',cedenteId:'cedente',cedenteFundoId:'link',estabelecimentoId:'establishment',cnpj:'11222333000181',razaoSocial:'QA' }),
+  reserve: async () => m.duplicate ? {status:'DUPLICATE'} : {id:'reservation',token:'owner',generation:1},
+  resumeReview: async () => {
+    if (m.duplicate) return {status:'DUPLICATE'}
+    try { await m.read() } catch { throw new FiscalIntakeError('DENIED') }
+    await m.claim();return {id:'reservation',token:'owner',generation:1}
+  },
+  openReview: async () => 'receipt',
+  planStorage: async (_claim:unknown,_file:unknown,_facts:unknown,prepared:PreparedFiscal) => {
+    m.prepared=prepared;return {id:'intent',bucket:'notas-fiscais',path:'reservation/1/qa.pdf'}
+  },
+  commit: async () => {
+    m.inserts.push({...m.prepared!.values})
+    if(m.insertError) throw new FiscalIntakeError('INFRASTRUCTURE')
+    m.states.push('COMPLETED');return {nfId:'nf',numero:'49'}
+  },
+  fail: async () => {
+    const removed=await m.remove()
+    const state=removed.error?'CLEANUP_PENDING':'FAILED';m.states.push(state);return {status:state}
+  },
+}) }))
 vi.mock('@/lib/cedentes/estabelecimentos.server', () => ({
   resolverEstabelecimentoOrigem: async () => ({ id: 'establishment' }), EstabelecimentoOrigemError: class extends Error {},
 }))
@@ -49,7 +68,7 @@ vi.mock('@/lib/supabase/server', () => {
   return { createClient: async () => client, createAdminClient: () => client }
 })
 beforeEach(() => {
-  vi.clearAllMocks();m.insertError=false;m.cleanupError=false;m.duplicate=false;m.inserts=[];m.states=[]
+  vi.clearAllMocks();m.prepared=null;m.insertError=false;m.cleanupError=false;m.duplicate=false;m.inserts=[];m.states=[]
   vi.stubEnv('NFSE_UPLOAD_ENABLED','true')
   m.auth.mockResolvedValue({ user:{id:'actor'},profile:{role:'cedente'} })
   m.scope.mockResolvedValue({ actorUserId:'actor',actorRole:'cedente',cedente:{id:'cedente',cnpj:'11222333000181'},cedenteFundoId:'link',fundoId:'fund' })
@@ -60,7 +79,7 @@ beforeEach(() => {
 })
 afterEach(() => vi.unstubAllEnvs())
 function request(review=true){
-  const data=new FormData();data.append('arquivos',new File(['original-pdf'],'test.pdf',{type:'application/pdf'}))
+  const data=new FormData();data.append('arquivos',new File(['%PDF-original-pdf'],'test.pdf',{type:'application/pdf'}))
   data.append('nfse_vencimento_manual','2099-11-09')
   if(review)data.append('nfse_review_intent','receipt')
   data.append('valor_bruto','1');data.append('valor_liquido','1');data.append('numero_nf','CLIENT_FORGED')
@@ -85,7 +104,7 @@ describe('real upload action NFS-e storage saga', () => {
     expect(m.probe).toHaveBeenCalledOnce()
     expect(m.inserts[0]).toMatchObject({numero_nf:'49',valor_bruto:39521.98,valor_liquido:37229.70,vencimento_origem:'MANUAL'})
     expect(m.auth).toHaveBeenCalledTimes(3)
-    expect(m.states).toEqual(['PROCESSING','COMPLETED'])
+    expect(m.states).toEqual(['COMPLETED'])
   })
   it('cannot bypass first review with a date', async () => {
     expect((await uploadNFs(request(false)))?.uploadBatch?.results[0]?.status).toBe('REQUIRES_REVIEW')

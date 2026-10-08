@@ -8,6 +8,9 @@ function operacao(overrides: Partial<OperacaoListagemItem> = {}): OperacaoListag
     cedenteFundoId: crypto.randomUUID(),
     cedenteNome: 'Cedente',
     cedenteCnpj: '00111222000133',
+    fundoId: crypto.randomUUID(),
+    fundoNome: 'Fundo QA',
+    quantidadeNfs: 2,
     valorBruto: 1000,
     taxaDesconto: 2,
     prazoDias: 30,
@@ -15,6 +18,7 @@ function operacao(overrides: Partial<OperacaoListagemItem> = {}): OperacaoListag
     vencimento: '2026-08-30',
     status: 'solicitada',
     criadoEm: '2026-07-29T10:00:00Z',
+    atualizadoEm: '2026-07-29T11:00:00Z',
     aprovadoEm: null,
     aceiteSacadoExigido: true,
     aceiteSacadoStatus: 'pendente',
@@ -38,6 +42,8 @@ describe('listagem de operacoes', () => {
     expect(filtros.ordenacao).toBe('created_at')
     expect(filtros.direcao).toBe('desc')
     expect(filtros.busca).toBe('Cedente Exemplo')
+    expect(filtros.cedenteId).toBeNull()
+    expect(filtros.fundoId).toBeNull()
   })
 
   it('calcula somente metricas da pagina recebida', () => {

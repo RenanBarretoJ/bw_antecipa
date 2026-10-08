@@ -1,0 +1,53 @@
+RLX-EMAIL-05-R12 — troca de fundo e ciclo RSC
+
+Causa reproduzida no SHA anterior (2e399015): a Server Action atualiza o
+cookie HttpOnly e invalida /cedente. O Next atualiza a árvore RSC e invalida
+prefetches; o callback do seletor também executava window.location.reload().
+Essa navegação concorrente substituía o documento enquanto prefetches do
+loader anterior eram iniciados. O problema também ocorreu sem interceptação
+Fetch: não depende da leitura de bodies pelo harness.
+
+Na reprodução nativa, as duas GET /cedente/notificacoes n48/n49 ocorreram
+em 12355 ms, após Page.frameRequestedNavigation(reason=reload) em 12055 ms.
+Ambas pertenciam ao frame local f2/loader l3 anterior, initiator script,
+redirectCount=0, e permaneceram DISCOVERED. Classe das duas: PREFETCH,
+comprovada pelo marcador Next-Router-Prefetch=1 consumido em memória. No
+classificador definitivo, PREFETCH exige também RSC=1, confirmado no teste
+do app corrigido. A classificação não depende do nome da rota.
+Valores de headers, cookies, queries, bodies e IDs reais não são persistidos.
+Reprodução: rehearsal/reports/email05-r12-switch-native/trace.json.
+
+Correção de aplicação: remover somente o reload redundante e atualizar a
+seleção visual após sucesso da action. Autorização, cookie, RLS e revalidation
+continuam no servidor. Não houve migration nem mudança de domínio fiscal.
+
+Harness: metadata local de navegação, readiness de seleção/cookie/rota/heading,
+detecção limitada de DISCOVERED antigo e teste real A→B com duas notas de QA.
+O teste exige a nota de B e ausência da nota de A. Navegação duplicada e
+requisição obrigatória travada continuam falhando. Prefetch continua sujeito
+à inspeção integral e não é descartado do registro para obter PASS.
+
+Antes do full Linux: 32 testes focados passaram; a execução local do app
+corrigido com Auth/MFA reais, cookie, duas notas e inspeção completa terminou
+sem pendências. Cleanup duplo e comparação dos 32 conjuntos preexistentes
+passaram. Evidência: email05-r12-switch-fixed-local, em rehearsal/reports.
+
+Entrega condicionada ao full Linux, ambos os CIs no mesmo SHA e novo deploy
+exclusivamente em homolog, seguido do smoke completo com a mensagem original
+950501, revisão SYSTEM→HUMAN, duplicate, health/alerts, signed URL, disable,
+routing, redaction, acessibilidade e cleanup. Os resultados operacionais
+ficam em rehearsal/reports/email05-r12-status.json. Este diagnóstico não
+substitui esses gates. PR #87 permanece Draft; produção proibida.
+
+Checkpoint desta execução: TypeScript, 2.693 testes (12 ignorados), lint,
+build, regressão integrada e browser passaram. A troca A→B terminou com
+37/37 respostas e inspeções semânticas completas, zero pendências e zero
+reloads. A certificação Linux global ficou FAIL no cleanup/postflight:
+PREEXISTING_CONTAINERS_REMOVED. Dois containers de sacado-r2-20261005 foram
+removidos durante o postflight e posteriormente reapareceram. Os eventos
+Docker não identificam o processo iniciador; nenhuma atribuição é feita.
+Os recursos exclusivos do R12 foram removidos e as evidências arquivadas.
+Aplicada a parada obrigatória do item 27 do roteiro: sem commit/push, novo
+CI ou deploy. Homolog permanece no SHA anterior; dados preexistentes
+preservados. É necessária nova certificação completa com inventário Docker
+estável antes da promoção. RLX_EMAIL_05_HOMOLOG_READY = NO.

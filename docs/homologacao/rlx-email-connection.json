@@ -1,0 +1,19 @@
+{
+  "result": "PASS",
+  "checkedAt": "2026-09-29T21:22:42.037Z",
+  "stages": [
+    {
+      "stage": "AUTH",
+      "status": 200
+    },
+    {
+      "stage": "MAILBOX",
+      "status": 200
+    }
+  ],
+  "durationMs": 414,
+  "mailboxScope": "USER_CONFIRMED_NOT_INDEPENDENTLY_VERIFIED",
+  "attachmentsDownloaded": 0,
+  "subscriptionsCreated": 0,
+  "databaseWrites": 0
+}

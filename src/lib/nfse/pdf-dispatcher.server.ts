@@ -2,10 +2,8 @@ import 'server-only'
 import { extractDanfseV2, isDanfseV2, validateNfseExtraction } from './danfse-v2'
 import { classifyFiscalImage, extractNfseVisual, extractMunicipalNfseVisual } from './openai-visual.server'
 import type { NfseExtraction } from './contracts'
+import { readNativePdfText } from '../pdf/native-text.server'
 
-// Same external native reader as NF-e. This module never decodes NF-e or NFSe keys.
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const pdfParse = require('pdf-parse') as (buffer: Buffer) => Promise<{ text: string }>
 type Dependencies = {
   native?: (buffer: Buffer) => Promise<{ text: string }>
   classify?: typeof classifyFiscalImage
@@ -19,7 +17,7 @@ export async function probeNfsePdf(buffer: Buffer, deps: Dependencies = {}): Pro
   let timer: ReturnType<typeof setTimeout> | undefined
   try {
     text = (await Promise.race([
-      (deps.native ?? pdfParse)(buffer),
+      readNativePdfText(buffer, deps.native),
       new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error('NFSE_NATIVE_TIMEOUT')), 20_000) }),
     ])).text
   } catch { /* typed visual classification below */ } finally { clearTimeout(timer) }

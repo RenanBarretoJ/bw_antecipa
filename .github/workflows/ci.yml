@@ -37,9 +37,20 @@ jobs:
         run: npm run lint
 
       - name: Build
+        if: github.head_ref != 'reconcile/main-homolog-2026-10-06' && github.ref != 'refs/heads/reconcile/main-homolog-2026-10-06'
         run: npm run build
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'https://example.supabase.co' }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'ci-placeholder-anon-key' }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || 'ci-placeholder-service-role-key' }}
           PORTAL_FIDC_CREDENTIALS_JSON: ${{ secrets.PORTAL_FIDC_CREDENTIALS_JSON || '{}' }}
+
+      # This certification branch must never receive real service credentials.
+      - name: Reconciliation build (isolated placeholders)
+        if: github.head_ref == 'reconcile/main-homolog-2026-10-06' || github.ref == 'refs/heads/reconcile/main-homolog-2026-10-06'
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key
+          PORTAL_FIDC_CREDENTIALS_JSON: '{}'

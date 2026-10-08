@@ -1,0 +1,67 @@
+RLX-EMAIL-05 — validação local
+Data: 02/10/2026
+Branch: feature/rlx-email05-operations
+Base: da884c3 (homolog), dependências isoladas #83 e #84.
+
+RESULTADO
+
+TypeScript: PASS.
+Lint completo: PASS, 8 avisos preexistentes fora do delta.
+Lint dos arquivos modificados após a rodada completa: PASS.
+Full suite: 2.693 PASS / 12 SKIP (310 arquivos PASS / 3 SKIP).
+Testes específicos após os ajustes finais: 23 PASS.
+Build Next --webpack: PASS.
+git diff --check: PASS.
+
+Clean-room: PASS; cleanup: PASS.
+Projeto descartável: bw_email03_1790946144122.
+260 migrations aplicadas do zero.
+Fencing: 27 checks; Storage API/físico: 9; automação: 22; temporal: 12.
+Operador SQL: 19; serviço fiscal e revisão oficial: 33; navegador: 13.
+Todos os testes usam dados sintéticos; nenhum dado de produção foi copiado.
+Graph no ensaio local: HTTP controlado. Graph real continua pendente no Preview.
+
+EVIDÊNCIAS LOCAIS (ignoradas pelo Git)
+
+rehearsal/reports/RLX_EMAIL_03_CLEAN_ROOM_bw_email03_1790946144122.json
+rehearsal/tmp/bw_email03_1790946144122/email-browser-build.log
+rehearsal/tmp/bw_email03_1790946144122/shared-result.json
+rehearsal/tmp/bw_email03_1790946144122/email05-ui.json
+rehearsal/tmp/bw_email03_1790946144122/email05-screenshots/
+rehearsal/reports/email05-full-suite.log
+rehearsal/reports/email05-targeted.log
+rehearsal/reports/email05-lint.log
+rehearsal/reports/email05-lint-focused.log
+rehearsal/reports/email05-tsc.log
+
+UX VERIFICADA LOCALMENTE
+
+90 capturas: integrações, detalhe, saúde, diálogo de credencial, seleção de
+credencial, allowlist, inbox, mensagem e revisão. Larguras 390/430/820/1440/1920,
+light/dark, sem overflow horizontal.
+36 análises automatizadas WCAG A/AA (incluindo WCAG 2.1 AA), sem violações.
+Foco por teclado verificado. Modal e campos associados a labels.
+Integração primeiro e credencial primeiro: criação pela UI e persistência após
+reload. Criação inline retorna e seleciona a credencial no wizard.
+Erro MFA preserva os valores; voltar entre etapas preserva os valores.
+Resposta/HTML inspecionados: nenhum segredo do cofre ou Graph.
+Console: nenhum erro no navegador.
+
+Fricções corrigidas: listagem do Super Admin passou a usar a RPC oficial;
+fundo selecionado explícito; contraste no escuro e nos avisos da inbox;
+data inicial calculada visível; período invertido rejeitado antes da consulta;
+campo avançado inválido aberto para correção; contagem de falhas de metadados.
+O harness usa a versão compilada para evitar remounts/timeouts de Next dev.
+
+LIMITES E PRÓXIMOS GATES
+
+CI, Preview, Graph real, teste operacional com usuário e homologação pendentes.
+Os resultados locais não certificam esses ambientes.
+Revisão concluída somente por Cedente/Consultor autorizado; Gestor acompanha
+e compartilha o acesso ao fluxo oficial. Não foi criada revisão alternativa.
+Sem ACK de alerta novo, IMAP, PERF ou alterações em produção.
+Advisors: nenhum apontamento nas funções/view novas; 5 avisos de search_path
+em funções legadas de logística/títulos, preservadas fora deste escopo.
+
+RLX_EMAIL_05_HOMOLOG_READY = NO
+RLX_EMAIL_PRODUCTION_CHANGED = NO
