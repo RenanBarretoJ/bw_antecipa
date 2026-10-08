@@ -6,8 +6,8 @@ SELECT no_plan();
 SELECT is((SELECT base_valor_antecipacao FROM public.cedente_fundos WHERE id='24000000-0000-4000-8000-000000000001'),'BRUTO','default por vinculo e BRUTO');
 SELECT is(private.resolver_valor_base_antecipacao('BRUTO',100000,90000,'DOCUMENTO_EXPLICITO',false),100000::numeric,'BRUTO fiscal');
 SELECT is(private.resolver_valor_base_antecipacao('LIQUIDO',100000,90000,'DOCUMENTO_EXPLICITO',false),90000::numeric,'LIQUIDO fiscal');
-SELECT throws_ok($$SELECT private.resolver_valor_base_antecipacao('LIQUIDO',100000,90000,'LEGACY_BRUTO',false)$$,'P0001','Antecipacao pelo liquido exige valor positivo explicitamente informado no documento','provenance legada negada');
-SELECT throws_ok($$SELECT private.resolver_valor_base_antecipacao('LIQUIDO',100000,NULL,NULL,false)$$,'P0001','Antecipacao pelo liquido exige valor positivo explicitamente informado no documento','liquido ausente negado');
+SELECT throws_ok($$SELECT private.resolver_valor_base_antecipacao('LIQUIDO',100000,90000,'LEGACY_BRUTO',false)$$,'P0001','Antecipacao pelo liquido exige valor fiscal explicito ou calculado com retencoes comprovadas','provenance legada negada');
+SELECT throws_ok($$SELECT private.resolver_valor_base_antecipacao('LIQUIDO',100000,NULL,NULL,false)$$,'P0001','Antecipacao pelo liquido exige valor fiscal explicito ou calculado com retencoes comprovadas','liquido ausente negado');
 SELECT throws_ok($$SELECT private.resolver_valor_base_antecipacao('LIQUIDO',100000,90000,'DOCUMENTO_EXPLICITO',true)$$,'P0001','Antecipacao pelo valor liquido indisponivel para notas parceladas','LIQUIDO parcelado negado');
 
 SELECT set_config('request.jwt.claim.sub','21000000-0000-4000-8000-000000000001',true);

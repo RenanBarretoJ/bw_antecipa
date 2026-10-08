@@ -72,7 +72,7 @@ describe('Evolucao de Estabelecimentos: pendencia pos-aprovacao nao rebaixa stat
 
   it('action notifica o Cedente reaproveitando o motor existente quando ha pendencia pos-aprovacao', () => {
     expect(acoesEstabelecimento).toContain('resultado.pendencia_pos_aprovacao')
-    expect(acoesEstabelecimento).toContain("notificarCedente(")
+    expect(acoesEstabelecimento).toContain("notificarCedenteCadastro(")
     expect(acoesEstabelecimento).toContain("'estabelecimento_pendencia_pos_aprovacao'")
   })
 })

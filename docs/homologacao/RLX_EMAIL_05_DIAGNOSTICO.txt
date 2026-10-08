@@ -1,0 +1,131 @@
+RLX-EMAIL-05 — diagnóstico e execução local
+Data: 02/10/2026
+Branch: feature/rlx-email05-operations
+Base certificada: da884c3ba6e5aceab81db36e469dcbdc812376d2 (homolog, PR #82)
+Produção: proibida. Nenhum ambiente remoto alterado nesta etapa.
+
+REQUISITOS E FONTES EXISTENTES
+
+1. Saúde e sincronização
+   src/app/actions/email-automation.ts já exige Gestor/Super Admin e MFA.
+   email_automation_operator_health e email_automation_manual_sync validam
+   o fundo no banco. Sincronização manual apenas sinaliza wake-up.
+   Reutilizar essas primitives e o health engine, sem copiar suas regras.
+
+2. Credenciais
+   A base homolog ainda exige integracao_fundo_id no cadastro genérico.
+   As correções de credencial anterior à integração (#83, ea06afa6) e de
+   formulário inline (#84, e977e4b5) estão na main, ausentes em homolog.
+   O plano exige reutilizar esse fluxo corrigido e proíbe reconciliação
+   geral main/homolog. Após a instrução de executar, foi adotada e comunicada
+   a opção recomendada: incorporar somente essas duas dependências.
+   Cherry-picks locais: 52165e1 (#83) e aa5bbf8 (#84), sem conflitos.
+   #85 e demais diferenças de main não estão incluídos.
+   Mesmo após essas dependências, a credencial OAuth Graph precisa ser
+   representada no cofre existente; não criar segundo cofre nem duplicar
+   secrets em configurações de cada mailbox. Preservar a rotação/revogação.
+   Cadastro oficial atual é restrito ao Super Admin; não ampliar papéis
+   implicitamente. Gestor só pode usar credenciais elegíveis do seu fundo.
+
+3. Revisão fiscal
+   fiscal-email-review.ts usa resolverContextoOperacionalNotaFiscal,
+   limitado a Cedente/Consultor autorizado. A RPC fiscal_intake_read_email_review
+   também chama fiscal_validate_actor. O Gestor não pode concluir esse fluxo.
+   Adotada a preservação dessa autorização: acompanhamento pelo Gestor,
+   com orientação/link para o responsável concluir no fluxo oficial.
+   Não criar formulário paralelo, impersonação ou bypass de RLS.
+
+4. Inbox e privacidade
+   private.email_intake_messages guarda identificadores e timestamps,
+   mas não remetente/assunto; o contrato de descoberta também não os carrega.
+   Não inventar esses campos. Projetar leitura de metadados sanitizados
+   usando infraestrutura certificada e autorização por fundo, sem anexos/body
+   no primeiro render, N+1 ou exposição de identificadores Graph.
+   Metadata ausente em histórico deve ter tratamento explícito.
+   private.email_intake_attachments mantém estado bruto e last_error_code;
+   apresentação deve distinguir desconhecido, fora da allowlist e ambíguo.
+
+PLANO DE IMPLEMENTAÇÃO
+
+A. Resolver dependências e preservar fronteiras de autorização.
+B. Contratos tipados e RPCs mínimas: configuração, leitura paginada,
+   detalhes, alertas e fila de revisão. Não expor tabelas privadas.
+C. Wizard com rascunho persistente e credencial inline, reutilizando cofre.
+   Config status separado de health; teste não importa nem cria subscription.
+   Mudanças sensíveis exigem MFA, confirmação e auditoria.
+D. Inbox, detalhes e revisão oficial, filtros server-side e páginas de 25/50.
+E. Testes de domínio/apresentação, banco/RLS/MFA, regressões 03/04,
+   full suite, TypeScript, lint, build, clean-room e responsivo/light-dark.
+F. Preview isolado e smoke autenticado real; cleanup antes de homolog.
+G. Homolog apenas após Preview PASS; smoke, cleanup, relatório técnico e UX.
+   Parar em RLX_EMAIL_05_HOMOLOG_READY = YES. Produção e PERF fora do escopo.
+
+IMPLEMENTAÇÃO LOCAL
+
+- Base e branch verificadas; workspace original com alterações de outros
+  trabalhos preservado. Branch EMAIL-05 criada no worktree isolado.
+- Padrões de engenharia e guia Next.js Server Actions lidos.
+- Cofre existente ampliado para OAuth do Outlook, com vínculo reutilizável
+  por fundo/ambiente, sem copiar secrets na configuração da caixa.
+- RPCs privadas por trás de autorização autenticada: rascunho, teste,
+  ativação/desativação, inbox paginada, detalhe e metadados sanitizados.
+- Cadastro exige MFA recente e possui chave de idempotência; edição usa
+  revisão otimista. Revogar a credencial interrompe novos processamentos.
+- Wizard de seis etapas, criação inline de credencial, retomada de rascunho,
+  filtros em URL, inbox 25/50 e detalhe com anexos paginados de 25.
+- Saúde usa o estado persistido e as métricas existentes. Aguardando primeira
+  avaliação é apresentado explicitamente, sem inferir saúde positiva.
+- Assunto/remetente são consultados sob demanda, somente para a página
+  autorizada, em lotes de até 20 no Graph. Sem body/anexos, sem alterar Delta.
+  Referências oficiais consultadas: https://learn.microsoft.com/en-us/graph/json-batching
+  e https://learn.microsoft.com/en-us/graph/api/mailfolder-get?view=graph-rest-1.0
+- Migrações novas: 20261001204501, 20261001204818, 20261001211146.
+  As duas migrations de dependência #83/#84 também precisam ser promovidas.
+- Testes SQL reais em base descartável: configuração, MFA, isolamento,
+  credenciais, paginação e metadados. Cenários negativos usam papéis reais
+  do PostgreSQL; o smoke do navegador usa Auth/MFA reais.
+- Suíte inicial completa: 2.688 PASS / 12 SKIP. Build PASS. Testes novos de
+  operações: 21 PASS. TypeScript/lint PASS nas execuções registradas.
+  Gates finais devem usar a revisão final; não transferir PASS entre diffs.
+- O primeiro clean-room sem Storage foi inadequado à regra de limpeza atual;
+  o ensaio com Storage certificou as regressões SQL/transport/fiscal.
+  O timeout de inicialização do navegador foi ajustado de 10 para 60 segundos,
+  sem alterar autenticação nem o fluxo fiscal. Validação visual ainda em curso.
+- Nenhum push, deploy, aplicação de migration remota ou ativação remota até
+  este checkpoint. Produção não foi alterada.
+
+PENDENTE
+
+Gates locais concluídos; detalhes em RLX_EMAIL_05_VALIDACAO_LOCAL.txt.
+Criar PR/Preview isolado, certificar os gates, limpar somente QA e promover
+para homolog somente após Preview PASS. Concluir smoke/cleanup de homolog.
+RLX_EMAIL_05_HOMOLOG_READY = NO
+RLX_EMAIL_PRODUCTION_CHANGED = NO
+
+RETOMADA E EVIDÊNCIAS DE 02/10
+
+- Supabase consultado: somente main e homolog persistente; Preview disponível.
+  origin/homolog continua em da884c3. Nenhuma promoção remota realizada.
+- Docker Desktop foi iniciado novamente. Bases descartáveis de diagnóstico
+  bw_email03_1790891376441 e bw_email03_1790944124204 foram removidas via
+  supabase stop --no-backup; outros projetos locais foram preservados.
+- Full suite final: 2.693 PASS / 12 SKIP, em 313 arquivos (310 PASS / 3 SKIP).
+  Novos testes de operações: 23 PASS. TypeScript PASS.
+- Ensaio compilado do operador PASS: Auth/AAL2 real, preservação de formulário
+  após MFA inválido, criação de rascunho, retomada, credencial inline,
+  seleção automática, persistência e allowlist. 80 capturas responsivas
+  sem overflow nas cinco larguras/temas, sem erros no navegador ou segredo
+  nas respostas inspecionadas. Evidência local: email05-replay.log e
+  bw_email03_1790891376441/email05-ui.json (ensaios locais, sem Graph real).
+- Dois ensaios do Next dev apresentaram timeout antes da página autenticada,
+  e um perdeu a etapa do wizard. O mesmo fluxo compilado passou. O harness
+  agora usa um build compartilhado por execução descartável e next start;
+  preserva os mesmos formulários, Auth/MFA, Server Actions e asserts fiscais.
+  Esse ajuste não altera o backend, o parser, a revisão ou o transporte Graph.
+- Rodada completa final bw_email03_1790946144122: PASS, cleanup PASS.
+  260 migrations; 27 checks de fencing; 9 de Storage; 22 de automação;
+  12 temporais; 19 SQL do operador; 33 do serviço/revisão fiscal;
+  13 de navegador; 90 capturas; 36 verificações WCAG sem violações.
+  Corrigidos contraste da ação primária no tema escuro e badge de erro no
+  tema claro. Nenhum token global do design system foi alterado.
+  Validação de intervalo invertido incluída; os 23 testes específicos passaram.

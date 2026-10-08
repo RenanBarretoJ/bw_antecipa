@@ -1,0 +1,102 @@
+[
+  {
+    "path": "supabase/migrations/20260929154656_guibor_nfse_fiscal_provenance.sql",
+    "sha256": "7316dde05cb15aed21b0986acefc52b6697828bea11540341a3ebe9517b8cc35",
+    "version": "20260929154656"
+  },
+  {
+    "path": "supabase/migrations/20260929174520_guibor_nfse_review_intents.sql",
+    "sha256": "1bad4a89106a0ba9a80a338feaebaf799451fcc61ed1e234502eb57d98d307ad",
+    "version": "20260929174520"
+  },
+  {
+    "path": "supabase/migrations/20260929191004_guibor_a5_base_antecipacao.sql",
+    "sha256": "53de3dc0cf8504830183364ba335ec4a6b5eaae622795b28fdbff9816d494c81",
+    "version": "20260929191004"
+  },
+  {
+    "path": "supabase/migrations/20260925212843_c5_r2_organizational_operations_view.sql",
+    "sha256": "9cf7fade5ac7b8ab771e69fccb4e502780f1bdd45e9d48eba938c5b3a46fea32",
+    "version": "20260925212843"
+  },
+  {
+    "path": "supabase/migrations/20260928130825_c5_r2_reader_dashboard_reports.sql",
+    "sha256": "7ce7ccab8de8c07a3d4b7da831e73b5dcf2ede45756bf3e3c2b76046cfdfd7d2",
+    "version": "20260928130825"
+  },
+  {
+    "path": "supabase/migrations/20260928143646_c5_r2_reader_portfolio_surfaces.sql",
+    "sha256": "6eadbdde6be3ff8bf311a9365014058b2a31d26058e34c83f9864414d821f53d",
+    "version": "20260928143646"
+  },
+  {
+    "path": "supabase/migrations/20260929193129_guibor_a6_comissao_por_fundo.sql",
+    "sha256": "d4bcbba64901f61147465e56f7a9f358cc0268df2f7201b1ffa9a9773a2211d4",
+    "version": "20260929193129"
+  },
+  {
+    "path": "supabase/migrations/20260929215557_guibor_a6_decouple_c5.sql",
+    "sha256": "9e6b6df6a6c4dbe292234e44b8fbe6843cc40bb4386dcc4b3727a5413abdd514",
+    "version": "20260929215557"
+  },
+  {
+    "path": "supabase/migrations/20261001144007_integration_credential_first.sql",
+    "sha256": "f106ad7993a9279b94dcda94270c8b970f8b98d5c750f6772e79c2c70397e464",
+    "version": "20261001144007"
+  },
+  {
+    "path": "supabase/migrations/20261001171631_integration_inline_credentials.sql",
+    "sha256": "9a1165b6ebabaed35a46ca2daa521eb641ba14d4db10eb4bae68aab944ca1c67",
+    "version": "20261001171631"
+  },
+  {
+    "path": "supabase/migrations/20261001182744_integration_activation_before_cnab.sql",
+    "sha256": "fa2cce11218235de0bd8312c6b1167a0f6758881ef6c466e7f417e927a9be7f0",
+    "version": "20261001182744"
+  },
+  {
+    "path": "supabase/migrations/20261002205122_health_nfse_municipal_identity.sql",
+    "sha256": "f6b3f0441bd5d6cc70032a6c3da274b72362227f1d0266ee6de230b9ccc81ddf",
+    "version": "20261002205122"
+  },
+  {
+    "path": "supabase/migrations/20261005154435_sacado_multi_cnpj_acessos.sql",
+    "sha256": "228b05d1f03de3258b90dce980c0b02a5a070e087ac9ec4d9c66b215d9af5134",
+    "version": "20261005154435"
+  },
+  {
+    "path": "supabase/migrations/20261005173648_sacado_rls_non_sacado_short_circuit.sql",
+    "sha256": "1006e35b48f871c4f14a72f7a3f2045b1f40c13f4bb80d7efeda0e26be8df3ac",
+    "version": "20261005173648"
+  },
+  {
+    "path": "supabase/migrations/20261005204958_nfse_calculated_net_audited_correction.sql",
+    "sha256": "a839ba348a0a3e0a2e7bfe1f9c6083974f3f275dc6836c439bd92cc4119b9ebc",
+    "version": "20261005204958"
+  },
+  {
+    "path": "supabase/migrations/20261005213812_notificacoes_fund_scope.sql",
+    "sha256": "80424a88121506cce84eedb067ae0f46b4234febceece304758bbcdb1f315a6b",
+    "version": "20261005213812"
+  },
+  {
+    "path": "supabase/migrations/20261006114841_notificacoes_shared_cedente_producers.sql",
+    "sha256": "602dac8b97dd7ce27c9a6a9e021d07d64877d7ff963af926660756b49c094ea4",
+    "version": "20261006114841"
+  },
+  {
+    "path": "supabase/migrations/20261006124134_notificacoes_entity_producers.sql",
+    "sha256": "56fe8ab6d4b7817256f0f6438b40a8f876cd1faa4229f958f1ef174a5a630c82",
+    "version": "20261006124134"
+  },
+  {
+    "path": "supabase/migrations/20261006130657_notificacoes_scoped_ui.sql",
+    "sha256": "73ca6c49edfb62f502efdbc08c609f7bfaa96639932bb59d026767b46b73752b",
+    "version": "20261006130657"
+  },
+  {
+    "path": "supabase/migrations/20261006210815_c5_reader_a6_compat.sql",
+    "sha256": "8f8ed3284e670ee4b559cccffcd0b323818c659a4f76e26547e40d48392ec7ef",
+    "version": "20261006210815"
+  }
+]

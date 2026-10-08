@@ -1,0 +1,86 @@
+[
+  {
+    "sha256": "b77584404c6eca49b91dc238d5c5bf026c88cb6d7313b3691c09ed9694138d2f",
+    "path": "supabase/migrations/20260929204430_email_intake_durable_transport.sql"
+  },
+  {
+    "sha256": "743c23a1d6c56a1a97963138e36549be950e029b225560133674aa4bb67c2992",
+    "path": "supabase/migrations/20260929214436_fiscal_intake_identity_fencing.sql"
+  },
+  {
+    "sha256": "5da795559871b95dd06adb0ed88b7a715669a63e5cad4ad628fc0e79e210160e",
+    "path": "supabase/migrations/20260929220304_fiscal_intake_shared_persistence.sql"
+  },
+  {
+    "sha256": "896f13e715f0810f8226cee70bcc1465753b3c2d074d39622cbf6126def94bf0",
+    "path": "supabase/migrations/20260929221000_fiscal_intake_atomic_commit.sql"
+  },
+  {
+    "sha256": "67652fdee9f0cc6a0462f9bf760c42004b0929db47ede961b10a14316fe2e5a0",
+    "path": "supabase/migrations/20260929221920_fiscal_intake_shared_review.sql"
+  },
+  {
+    "sha256": "c0c7aae9a0f54ec86140618a052df2ef98b6fd2927991b828ec6de8951f58190",
+    "path": "supabase/migrations/20260929222556_email_intake_attachment_worker.sql"
+  },
+  {
+    "sha256": "c1cbb9b892b0fe9c12a5dfd218f0c4bf44e0be2874288f9a01c0824ac04468f4",
+    "path": "supabase/migrations/20260929224000_fiscal_intake_review_access.sql"
+  },
+  {
+    "sha256": "6a55d3b0f34131772036568599e18f74000a3ff872c1e7194a55706c46109220",
+    "path": "supabase/migrations/20260929224500_fiscal_intake_expiry_reconciliation.sql"
+  },
+  {
+    "sha256": "66ca10812f6111f43d1026a31e5b1d8d61bc3f214b696e7b8fb5399b1bfcc640",
+    "path": "supabase/migrations/20260929225000_email_intake_deleted_draft_history.sql"
+  },
+  {
+    "sha256": "b0fb6127f7aefb37da0704d0238f4fc8236d5f54a80b2ed9044730fef66c529a",
+    "path": "supabase/migrations/20260930130158_email_intake_duplicate_transport_receipt.sql"
+  },
+  {
+    "sha256": "af026294cf928a4242e1bc3bb452cda472f35091687be34abae09a1af5f191a2",
+    "path": "supabase/migrations/20260930141139_fiscal_intake_document_reconciliation_trigger.sql"
+  },
+  {
+    "sha256": "94edc354c5a1ffa42b637ee9ec486d2b893614d360b1b2457e576c53fd99ad4e",
+    "path": "supabase/migrations/20260930183215_fiscal_intake_consultor_stored_actor.sql"
+  },
+  {
+    "sha256": "1beefbc2f2badb8ea05611ddfec2d1b01c777f45f582db3cd10c9f14981dfeb6",
+    "path": "supabase/migrations/20260930221750_email_intake_operational_automation.sql"
+  },
+  {
+    "sha256": "afb38ea410fa2d74fd6521465f81ccf4a2a166b89601440be973f83cf6e0d9a4",
+    "path": "supabase/migrations/20260930222608_email_intake_health_and_operator_access.sql"
+  },
+  {
+    "sha256": "3ab431932117f94130a8598fa67e2dde8517b0ae4ac6b2936c03c95db8a4a3cd",
+    "path": "supabase/migrations/20261001170100_email_intake_temporal_admission.sql"
+  },
+  {
+    "sha256": "e0faec86d731b487dc953c06d94e594aaa30eaf2241e984f7cc0616f59d86f32",
+    "path": "supabase/migrations/20261001180242_email_automation_subscription_recovery.sql"
+  },
+  {
+    "sha256": "6c9b11300377b90c2398297bddfd7f9ae64ded19b9012e827bc38649fd9d422a",
+    "path": "supabase/migrations/20261001204501_email_intake_operator_configuration.sql"
+  },
+  {
+    "sha256": "035747e96f25eaee8462b8572f03ed694e63380e72793c86bf5b8968a301f684",
+    "path": "supabase/migrations/20261001204818_email_intake_operator_read_models.sql"
+  },
+  {
+    "sha256": "5e37e2aad7df5dff1802667e819bb86bc6867675fd6ce32c2979bc1be8e58a36",
+    "path": "supabase/migrations/20261001211146_email_intake_operator_metadata.sql"
+  },
+  {
+    "sha256": "7ab60a31198c644d5ec6a8c32820c4166bf3f0b5c181cf5a7003fe1da838bc61",
+    "path": "supabase/migrations/20261006170514_email_nfe_document_companion.sql"
+  },
+  {
+    "sha256": "74ba5ff87d70ffd16a1aac4ac0be8d3c4c032454c1d0bec360567ee18f27cc0b",
+    "path": "supabase/migrations/20261006201914_fiscal_intake_nfse_municipal_identity_compat.sql"
+  }
+]

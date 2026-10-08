@@ -21,11 +21,12 @@ export type FiscalClaim = { id: string; token: string; generation: number }
 export type FiscalStorageIntent = { id: string; bucket: 'notas-fiscais' | 'documentos-v2'; path: string }
 export type FiscalImportResult =
   | { status: 'IMPORTED'; nfId: string; numero: string }
+  | { status: 'COMPANION_LINKED'; nfId: string; numero: string }
   | { status: 'REQUIRES_REVIEW'; review: NfseReview }
   | { status: 'DUPLICATE' | 'IN_PROGRESS' | 'UNKNOWN_CEDENTE' | 'ROUTING_DENIED' | 'AMBIGUOUS'
-      | 'INVALID' | 'MISSING_IDENTITY' | 'RETRYABLE_ERROR' | 'FAILED' | 'CLEANUP_PENDING' }
+      | 'INVALID' | 'MISSING_IDENTITY' | 'RETRYABLE_ERROR' | 'FAILED' | 'CLEANUP_PENDING' | 'WAITING_CANONICAL_XML' }
 export type FiscalValues = {
-  numero_nf: string; chave_acesso: string; data_emissao: string; data_vencimento: string
+  numero_nf: string; chave_acesso: string | null; data_emissao: string; data_vencimento: string
   cnpj_emitente: string; razao_social_emitente: string; cnpj_destinatario: string; razao_social_destinatario: string
   valor_bruto: number; valor_liquido: number | null
   valor_icms: number; valor_iss: number; valor_pis: number; valor_cofins: number; valor_ipi: number

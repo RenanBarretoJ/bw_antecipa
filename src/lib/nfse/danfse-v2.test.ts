@@ -3,6 +3,16 @@ import { extractDanfseV2, isDanfseV2, validateNfseExtraction } from './danfse-v2
 import { danfseFixture, SYNTHETIC_KEY } from './fixtures/danfse-v2'
 
 describe('DANFSe v2 - fatos fiscais separados', () => {
+  it('mantém a massa B para smoke visual sem totais auxiliares herdados de A', () => {
+    const text = danfseFixture('B')
+    const { dados } = extractDanfseV2(text)
+    expect(text).toContain('BC ISSQN\nR$ 112.710,81')
+    expect(dados.desconto_incondicionado).toBe(0)
+    expect(dados.valor_liquido_com_ibscbs).toBe(105925.92)
+    expect(Math.round(dados.valor_bruto! * 100) - Math.round(dados.total_retencoes! * 100))
+      .toBe(Math.round(dados.valor_liquido! * 100))
+    expect(Math.round(dados.valor_liquido_com_ibscbs! * 100) - Math.round(dados.valor_liquido! * 100)).toBe(14682)
+  })
   it.each([
     ['A', '49', 39521.98, 37229.70, '2026-09-14', '2026-09-09'],
     ['B', '232', 112710.81, 105779.10, '2026-09-15', '2026-09-15'],

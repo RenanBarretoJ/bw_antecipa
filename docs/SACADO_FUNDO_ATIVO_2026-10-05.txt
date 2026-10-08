@@ -1,0 +1,49 @@
+SACADOS - FUNDO ATIVO UNICO NO PORTAL GESTOR
+Data: 2026-10-05
+
+Escopo
+- Remover o seletor de fundo duplicado da gestao de Sacados do Gestor.
+- Usar resolverContextoFundoGestor no servidor, mesmo com fundo na URL antiga.
+- Nao transportar fundo em links de busca/paginacao/detalhe do Gestor.
+- Conferir fundo de formularios e consultas antes de MFA/RPC; formulario antigo
+  e recusado se o contexto tiver mudado, sem redirecionar sua gravacao.
+- Manter selecao administrativa com requireSuperAdmin, inclusive multi-papel.
+- Contexto admin vindo do cliente nunca dispensa autorizacao administrativa.
+- Manter RPCs, RLS, nonce transacional, MFA e revalidacao existentes.
+
+Arquivos principais
+- src/lib/sacado/gestao.server.ts: contexto de leitura por portal.
+- src/lib/actions/sacado-acessos.ts: guarda de fundo e autorizacao administrativa.
+- src/components/sacado/GestaoSacadosPage.tsx: portal definido no servidor.
+- src/components/sacado/GestaoSacadosView.tsx: indicador somente leitura e links.
+- src/components/sacado/GestaoAcessoForm.tsx: contexto de envio/consulta.
+- Testes das actions, carregamento e apresentacao; scripts QA ajustados.
+
+Persistencia
+- Nenhuma migration, alteracao de schema, RPC ou politica RLS.
+- Nenhuma nova alteracao de dados remotos neste escopo de interface.
+- Reparo de vinculos do Mauro foi concluido separadamente, antes deste ajuste.
+- Arquivos preexistentes do hotfix de timeout e rollout R3 nao fazem parte dele.
+
+Validacao direcionada
+- 32 testes passaram em 4 arquivos (gestao, actions, view, redirect).
+- Harness visual local: 8 cenarios desktop/mobile e 1 fluxo de formulario mockado.
+- Sem overflow horizontal, seletor duplicado, fundo em links ou erros de navegador.
+- Evidencias: rehearsal/reports/sacado-ux-fundo-ativo/.
+- Harness nao equivale a smoke autenticado nem executa mutacoes remotas.
+- Script de smoke autenticado foi atualizado, mas nao foi executado neste escopo.
+
+Validacao final
+- npm test -- --run --maxWorkers=2: 2677 testes passaram, 12 ignorados;
+  306 arquivos passaram, 3 ignorados.
+- npx next build --webpack: PASS, incluindo TypeScript e 95 paginas.
+- npm run lint: zero erros; dois avisos preexistentes em liquidacao.ts e no
+  script local nao versionado prod-app-verify.mjs, fora deste ajuste.
+- git diff --check: PASS.
+- node --check scripts/qa/sacado/browser-smoke.mjs: PASS.
+
+Entrega
+- Alteracoes locais, ainda sem commit, push ou deploy.
+- Smoke apos publicacao: trocar fundo pelo cabecalho, listar e abrir Sacados,
+  conferir fundo do formulario, verificar URL antiga e formulario de aba antiga.
+- Nao recriar vinculos reais durante o smoke somente leitura.

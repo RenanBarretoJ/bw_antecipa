@@ -17,6 +17,12 @@ const scopeSchema = z.union([
 const storageSchema = z.object({ id: uuid, bucket: z.enum(['notas-fiscais', 'documentos-v2']), path: z.string().min(1) })
 const importedSchema = z.object({ nfId: uuid, numero: z.string() })
 const recoverySchema = z.object({ status: z.enum(['IMPORTED', 'FAILED', 'CLEANUP_PENDING']), nfId: uuid.optional(), numero: z.string().optional() })
+const companionResultSchema = z.union([
+  z.object({ status: z.literal('CREATE_NF') }),
+  z.object({ status: z.literal('DOCUMENT'), claim: claimSchema, intent: storageSchema }),
+  z.object({ status: z.literal('COMPANION_LINKED'), nfId: uuid, numero: z.string() }),
+  z.object({ status: z.enum(['WAITING_CANONICAL_XML', 'AMBIGUOUS', 'IN_PROGRESS', 'CLEANUP_PENDING', 'DUPLICATE']) }),
+])
 const fence = (claim: FiscalClaim) => ({ p_id: claim.id, p_token: claim.token, p_generation: claim.generation })
 function check(error: { code?: string } | null) {
   if (!error) return
@@ -28,6 +34,30 @@ function check(error: { code?: string } | null) {
 
 export function createFiscalImportRepository(client: AppSupabaseClient): FiscalImportRepository {
   return {
+    async companion(input, scope, facts, sha256) {
+      const { data, error } = await client.rpc('fiscal_intake_prepare_companion', {
+        p_actor: input.actor, p_fundo_id: scope.fundoId, p_cedente_fundo_id: scope.cedenteFundoId,
+        p_estabelecimento_id: scope.estabelecimentoId, p_fiscal_key: facts.key, p_file_sha256: sha256,
+        p_document_code: facts.kind === 'XML' ? 'nf_xml' : 'nf_danfe_pdf', p_facts: facts.parsed,
+        p_file_name: input.file.name.slice(0, 255), p_size_bytes: input.file.size,
+      })
+      check(error)
+      const result = companionResultSchema.parse(data)
+      if (result.status === 'CREATE_NF') return { kind: 'CREATE_NF' }
+      if (result.status === 'DOCUMENT') return { kind: 'DOCUMENT', claim: result.claim, intent: result.intent }
+      return result
+    },
+    async commitCompanion(claim) {
+      const { data, error } = await client.rpc('fiscal_intake_commit_companion', fence(claim))
+      check(error)
+      return z.object({ status: z.literal('COMPANION_LINKED'), nfId: uuid, numero: z.string() }).parse(data)
+    },
+    async failCompanion(claim) {
+      const { data, error } = await client.rpc('fiscal_intake_abort_companion', fence(claim))
+      check(error)
+      return z.union([z.object({status:z.literal('COMPANION_LINKED'),nfId:uuid,numero:z.string()}),
+        z.object({status:z.enum(['CLEANUP_PENDING','FAILED'])})]).parse(data)
+    },
     async resolveScope(input, facts) {
       const { data, error } = await client.rpc('fiscal_intake_resolve_scope', { p_actor: input.actor, p_fundo_id: input.fundoId,
         p_issuer_cnpj: facts.issuerCnpj, p_cedente_fundo_id: input.cedenteFundoId ?? null })

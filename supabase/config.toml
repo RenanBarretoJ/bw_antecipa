@@ -401,3 +401,71 @@ s3_secret_key = "env(S3_SECRET_KEY)"
 # declarative_schema_path = "./declarative"
 # JSON string passed through to pg-delta SQL formatting.
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":80,\"commaStyle\":\"trailing\"}"
+
+# GUIBOR release Preview uses the four-file, hash-verified manual chain.
+# Never auto-replay the archived original A6 (20260929193129), which requires C5.
+# This override is scoped to this exact Preview; global/main/homolog stay unchanged.
+[remotes."release/guibor-prod-02"]
+project_id = "rnrlbqulmrtzirlpopod"
+
+[remotes."release/guibor-prod-02".db.migrations]
+enabled = false
+
+[remotes."release/guibor-prod-02".db.seed]
+enabled = false
+
+[remotes."release/guibor-prod-02".auth]
+site_url = "https://bw-antecipa-git-release-guibor-prod-02-renanbarretoj.vercel.app"
+additional_redirect_urls = ["https://bw-antecipa-git-release-guibor-prod-02-renanbarretoj.vercel.app/**"]
+
+# HEALTH Preview was certified from a production schema snapshot, not a replay
+# of the divergent historical chain. Manual allowlist: scripts/qa/health/migration-manifest.json.
+# Preserve history; never replay or mark the intentionally excluded original A6.
+# This exception applies ONLY to the existing HEALTH Preview, not main/homolog.
+[remotes."hotfix/health-fiscal-import"]
+project_id = "mkfslrspxzplghjeixjq"
+
+[remotes."hotfix/health-fiscal-import".db.migrations]
+enabled = false
+
+[remotes."hotfix/health-fiscal-import".db.seed]
+enabled = false
+
+# SACADO: separately authorized isolated Preview, manual hash-verified SQL only.
+# Do not replay the divergent historical chain or mark original A6 as applied.
+# This does not change main, homolog, RLX or global migration/seed behavior.
+[remotes."hotfix/sacado-multi-cnpj"]
+project_id = "yynlrtonrqxoatmuclrt"
+
+[remotes."hotfix/sacado-multi-cnpj".db.migrations]
+enabled = false
+
+[remotes."hotfix/sacado-multi-cnpj".db.seed]
+enabled = false
+
+[remotes."hotfix/sacado-multi-cnpj".auth]
+site_url = "https://bw-antecipa-git-hotfix-sacado-multi-cnpj-renanbarretoj.vercel.app"
+additional_redirect_urls = ["https://bw-antecipa-git-hotfix-sacado-multi-cnpj-renanbarretoj.vercel.app/**"]
+
+# NFSE submit: authorized schema-only baseline, no historical replay or history repair.
+# Only this isolated Preview is affected; main, homolog and RLX remain unchanged.
+[remotes."hotfix/nfse-submit-frozen-facts"]
+project_id = "ettpaprrmpjsfkcystob"
+
+[remotes."hotfix/nfse-submit-frozen-facts".db.migrations]
+enabled = false
+
+[remotes."hotfix/nfse-submit-frozen-facts".db.seed]
+enabled = false
+
+# NOTIFICACOES-R1: authorized schema-only baseline; explicit hash-checked SQL only.
+# This override is isolated to this Preview. Main, homolog and RLX are unchanged.
+# Historical divergence is preserved; never replay or fake original A6 history.
+[remotes."feature/notificacoes-fund-scope"]
+project_id = "twmxvhddqbderjzgmcjo"
+
+[remotes."feature/notificacoes-fund-scope".db.migrations]
+enabled = false
+
+[remotes."feature/notificacoes-fund-scope".db.seed]
+enabled = false

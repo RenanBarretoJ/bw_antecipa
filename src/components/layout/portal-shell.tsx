@@ -10,6 +10,7 @@ import { PortalHeader, type PortalAreaLink } from './portal-header'
 import { PortalSidebar, type PortalSidebarItem } from './portal-sidebar'
 import { FundoAtivoProvider } from '@/components/fundos/fundo-ativo-provider'
 import { MfaSessionProvider } from '@/components/auth/mfa-session-provider'
+import { NotificacoesProvider } from '@/components/notificacoes/notificacoes-context'
 
 export function PortalShell({ children, requiredRole, menuItems }: { children: ReactNode; requiredRole: UserRole; menuItems: PortalSidebarItem[] }) {
   const [profile, setProfile] = useState<Profile | null>(null)
@@ -61,5 +62,6 @@ export function PortalShell({ children, requiredRole, menuItems }: { children: R
     return () => { mounted = false }
   }, [requiredRole, router])
   if (loading) return <div className="flex min-h-screen items-center justify-center bg-background"><div className="flex flex-col items-center gap-3 text-center"><Loader2 size={28} className="animate-spin text-primary" /><p className="text-sm text-muted-foreground">Carregando portal...</p></div></div>
-  return <MfaSessionProvider><FundoAtivoProvider enabled={requiredRole === 'gestor'}><div className="flex h-dvh min-h-0 overflow-hidden bg-background"><PortalSidebar items={menuItems} role={requiredRole} open={sidebarOpen} onClose={() => setSidebarOpen(false)} /><div className="flex min-w-0 flex-1 flex-col"><PortalHeader profile={profile} areaLink={areaLink} onToggleSidebar={() => setSidebarOpen(true)} /><main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden pt-5 sm:pt-6 lg:pt-8">{children}</main></div></div></FundoAtivoProvider></MfaSessionProvider>
+  if (!profile) return null
+  return <MfaSessionProvider><FundoAtivoProvider enabled={requiredRole === 'gestor'}><NotificacoesProvider key={profile.id} userId={profile.id}><div className="flex h-dvh min-h-0 overflow-hidden bg-background"><PortalSidebar items={menuItems} role={requiredRole} open={sidebarOpen} onClose={() => setSidebarOpen(false)} /><div className="flex min-w-0 flex-1 flex-col"><PortalHeader profile={profile} areaLink={areaLink} onToggleSidebar={() => setSidebarOpen(true)} /><main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden pt-5 sm:pt-6 lg:pt-8">{children}</main></div></div></NotificacoesProvider></FundoAtivoProvider></MfaSessionProvider>
 }

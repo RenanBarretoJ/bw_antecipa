@@ -81,19 +81,17 @@ function validarMotivoResetMfa(motivo: string) {
 }
 
 async function notificarUsuarioResetMfa(userId: string, titulo: string, mensagem: string, dedupeKey: string) {
-  const { error } = await createAdminClient().from('notificacoes').insert({
-    usuario_id: userId,
-    titulo,
-    mensagem,
-    tipo: 'mfa_reset_administrativo',
-    dedupe_key: dedupeKey,
-  } as never)
+  const { error } = await createAdminClient().rpc('notificar_seguranca_global', {
+    p_usuario_id: userId,
+    p_titulo: titulo,
+    p_mensagem: mensagem,
+    p_tipo: 'mfa_reset_administrativo',
+    p_dedupe_key: dedupeKey,
+  })
 
   if (error) {
     console.warn('[mfa/reset-admin][notificacao]', {
-      userId,
-      dedupeKey,
-      message: error.message,
+      code: error.code,
     })
   }
 }

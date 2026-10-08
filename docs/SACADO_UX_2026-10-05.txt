@@ -1,0 +1,46 @@
+Sacados - navigation and presentation - 2026-10-05
+
+Local branch: feature/sacados-navigation-ux. No commit, push, deployment or
+remote data mutation in this step. Previous untracked rollout/hotfix files
+were preserved and must not be bundled into an unrelated UI commit.
+
+Scope:
+- Gestor sidebar: Sacados directly after Dashboard.
+- New route /gestor/sacados; remove Sacados tab from Configuracoes.
+- Old /gestor/configuracoes/sacados redirects, preserving query parameters.
+- Revalidate the new route after mutations, retaining old/admin/portal paths.
+- Default fund now uses the existing authorized Gestor fund-context resolver.
+  Explicit authorized fund filters remain supported and are labeled Fundo consultado.
+  The administrative default remains unchanged.
+- Shared presentation separates data loading from the renderable view.
+- Search, status badges, empty states, pagination, compact company cards,
+  separate new-company form and explicit security confirmation.
+- Forms still call the same server actions/RPCs and require confirmation + MFA.
+  Read-only viewers have no mutation forms. Company name is editable only for
+  the explicit name-update action. Updated memberships remount their form to
+  avoid a stale action selection or retaining the previous authenticator code.
+- Admin Sacado access screen reuses the improved presentation at its old URL.
+
+Validation:
+- 14 new tests: view/form contracts, navigation, redirect and authorized fund default.
+- Full suite: 2659 passed, 12 skipped (305 files passed, 3 skipped).
+  Initial parallel run hit an unrelated 5-second PDF parser test timeout;
+  full repeat with --maxWorkers=2 passed without changing test timeouts.
+- TypeScript and Next webpack production build passed, including /gestor/sacados.
+- Lint: zero errors; two existing unused-variable warnings in
+  scripts/qa/sacado/prod-app-verify.mjs and src/lib/actions/liquidacao.ts.
+- git diff --check passed.
+- Local browser harness: 8 list/detail/empty/read-only desktop/mobile checks,
+  action selection and required form fields, mocked successful submission,
+  no browser exceptions and no horizontal overflow; dark-mobile screenshot.
+  These use synthetic data, mocked actions and a local font fallback, not real login.
+
+Artifacts: rehearsal/reports/sacado-ux/ (local ignored screenshots and result.json).
+Reproduce: node scripts/qa/sacado/ux-visual.mjs.
+Existing authenticated browser-smoke script updated for the new labels/route,
+but not run against any remote environment in this step.
+
+Pending: authorize scoped commit/push and deployment, then authenticated smoke
+with the real portal layout, fund selector and fresh MFA. No new SQL migration
+is required by this UI change. The prior production emergency migration remains
+an independent pending Git-history item; do not edit or replay it.

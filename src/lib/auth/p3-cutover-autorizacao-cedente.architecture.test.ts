@@ -18,6 +18,7 @@ const cedenteActions = readFileSync('src/lib/actions/cedente.ts', 'utf8')
 const estabelecimentoActions = readFileSync('src/lib/actions/estabelecimento.ts', 'utf8')
 const escrow = readFileSync('src/lib/escrow/movimentos.server.ts', 'utf8')
 const notificacoes = readFileSync('src/lib/actions/notificacao.ts', 'utf8')
+const scopedNotifications = readFileSync('supabase/migrations/20261006124134_notificacoes_entity_producers.sql', 'utf8')
 const gestorActions = readFileSync('src/lib/actions/gestor.ts', 'utf8')
 
 describe('P3: cutover de autorizacao ADMIN x OPERACIONAL', () => {
@@ -57,10 +58,11 @@ describe('P3: cutover de autorizacao ADMIN x OPERACIONAL', () => {
   })
 
   it('notificacoes excluem CONVIDADO/REVOGADO e nao duplicam owner canonico', () => {
-    expect(notificacoes).toContain("acesso.status === 'ATIVO'")
-    expect(notificacoes).toContain("escopo === 'operacional' || acesso.perfil === 'ADMIN'")
-    expect(notificacoes).toContain('if (todasAssociacoes.length === 0)')
-    expect(notificacoes).toContain('new Set(candidatos)')
+    expect(notificacoes).toContain(".rpc('notificar_entidade'")
+    expect(scopedNotifications).toContain("ca.status='ATIVO'")
+    expect(scopedNotifications).toContain("NOT p_somente_admin OR ca.perfil='ADMIN'")
+    expect(scopedNotifications).toContain('NOT EXISTS (SELECT 1 FROM public.cedente_acessos ca WHERE ca.cedente_id=c.id)')
+    expect(scopedNotifications).toContain('SELECT DISTINCT c.usuario_id')
     expect(notificationsMigration).toContain('private.notificar_cedente_ativos')
     expect(notificationsMigration).toContain("ca.status = 'ATIVO'")
     expect(notificationsMigration).toContain('NOT EXISTS (')

@@ -1,7 +1,9 @@
 {
   "git": {
     "deploymentEnabled": {
-      "validation/rlx-email04-linux": false
+      "validation/rlx-email04-linux": false,
+      "reconcile/main-homolog-2026-10-06": false,
+      "release/homolog-reconciliation-2026-10-08": false
     }
   },
   "crons": [

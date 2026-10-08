@@ -49,7 +49,11 @@ export type AdminIntegracao = {
 
 export type AdminCredencialIntegracao = {
   id: string
-  integracao_fundo_id: string
+  integracao_fundo_id: string | null
+  fundo_id: string
+  provider_key: string
+  credential_type: 'usuario_senha' | 'oauth_client_credentials'
+  capabilities: (IntegrationCapability | 'EMAIL_INTAKE')[]
   ambiente: 'homologacao' | 'producao'
   nome: string
   status: AdminCredencialStatus
@@ -184,13 +188,17 @@ const credencialOpcional = z.preprocess(
 
 export const adminCredencialSchema = z.object({
   fundoId: uuid,
-  integracaoFundoId: uuid,
+  integracaoFundoId: uuid.nullable(),
+  providerKey: z.string().trim().toUpperCase().regex(/^[A-Z][A-Z0-9_]{1,63}$/).optional(),
+  capabilities: z.array(z.enum(INTEGRATION_CAPABILITIES)).default([...INTEGRATION_CAPABILITIES]),
   ambiente,
   nome: z.string().trim().min(2).max(120),
   usuario: z.string().trim().min(1).max(300),
   senha: z.string().min(1).max(1000),
   credencialAnteriorId: uuid.nullable().optional(),
   mfaCode,
+}).refine((value) => value.integracaoFundoId !== null || Boolean(value.providerKey), {
+  path: ['providerKey'], message: 'Informe o provider da credencial.',
 })
 
 export const adminIntegracaoRascunhoSchema = z.object({
@@ -206,7 +214,14 @@ export const adminIntegracaoRascunhoSchema = z.object({
   identificadorCliente: z.string().trim().max(200).default(''),
   credencialIntegracaoId: credencialOpcional,
   configuracaoNaoSensivel: jsonObject.default({}),
-  updatedAtEsperado: z.iso.datetime().nullable().optional(),
+  // Preserve microssegundos e offset do PostgreSQL para a comparacao atomica.
+  updatedAtEsperado: z.iso.datetime({ offset: true }).nullable().optional(),
+  novaCredencial: z.object({
+    nome: z.string().trim().min(2).max(120),
+    usuario: z.string().trim().min(1).max(300),
+    senha: z.string().min(1).max(1000),
+    mfaCode,
+  }).strict().optional(),
 })
 
 export const adminCnabRascunhoSchema = z.object({
@@ -261,7 +276,7 @@ export function obterPendenciaPublicacaoIntegracao(
   if (requirements.requiresCredential) {
     if (!versao.credencial_integracao_id) return 'Selecione uma credencial ativa antes de publicar.'
     const credencial = credenciais.find((item) => item.id === versao.credencial_integracao_id)
-    if (!credencial || credencial.status !== 'ativa' || credencial.ambiente !== versao.ambiente) {
+    if (!credencial || !['ativa', 'rascunho'].includes(credencial.status) || credencial.ambiente !== versao.ambiente || credencial.revogada_em) {
       return 'Selecione uma credencial ativa compativel com o ambiente antes de publicar.'
     }
   }

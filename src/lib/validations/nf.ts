@@ -1,5 +1,14 @@
 import { z } from 'zod'
 
+// Submission is a status transition, never a fiscal-data edit. Reject unknown
+// fields explicitly so a crafted request cannot silently discard tampering.
+export const submeterNfSchema = z.object({
+  nfId: z.uuid(),
+  cedenteIdInformado: z.uuid().optional(),
+}).strict()
+
+export type SubmeterNfInput = z.infer<typeof submeterNfSchema>
+
 export const notaFiscalSchema = z.object({
   numero_nf: z.string().min(1, { message: 'Numero da NF e obrigatorio.' }),
   serie: z.string().optional().default(''),

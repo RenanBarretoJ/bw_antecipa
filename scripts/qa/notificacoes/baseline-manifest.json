@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "branch": "feature/notificacoes-fund-scope",
+  "previewRef": "twmxvhddqbderjzgmcjo",
+  "branchId": "64676d52-3b99-433e-bd90-9d2e2a04f0cb",
+  "baseCommit": "7dd1d3a39b98859aa5f9f5bfe7d34385dc66045c",
+  "capturedAt": "2026-10-05T21:29:25.179Z",
+  "schemaSha256": "23ab8782a97872210730a4fe85ab5ceb6682694ca8572d6c9f41f7f04c58c589",
+  "metadataSha256": "a35fccc79017f786c58109933897a94706b37093dc752903aec2b04377afe08a",
+  "migrationMode": "MANUAL_EXPLICIT_LIST",
+  "explicitMigrationList": [],
+  "historyPreservedEmpty": true,
+  "originalA6Executed": false,
+  "source": "SCHEMA_ONLY_NO_BUSINESS_DATA",
+  "catalogObjects": 4588,
+  "emptyAppTables": 126
+}

@@ -11,6 +11,7 @@ export interface NotaFiscalBaseReferencia {
   serie: string | null
   cnpjEmitente: string | null
   cnpjDestinatario: string | null
+  fiscalProveniencia?: unknown
 }
 
 export interface DocumentoBaseValidado {
@@ -137,10 +138,20 @@ export async function validarDocumentoBaseDaNota(input: {
     const parsed = input.parsedNfse ?? await (await import('@/lib/nfse/pdf-dispatcher.server')).probeNfsePdf(Buffer.from(await input.arquivo.arrayBuffer()))
     if (!parsed || !validateNfseExtraction(parsed).ok) throw new Error('NFS-e nao reconhecida com seguranca.')
     const dados = parsed.dados
+    const provenance = input.referencia.fiscalProveniencia
+    const municipalReference = provenance !== null && typeof provenance === 'object' && 'strategy' in provenance
+      && provenance.strategy === 'nfse_municipal_visual'
+    if (parsed.strategy === 'nfse_municipal_visual' || municipalReference) {
+      if (!municipalReference || parsed.strategy !== 'nfse_municipal_visual' || input.referencia.chaveAcesso
+        || !('orgao_emissor' in provenance) || provenance.orgao_emissor !== dados.orgao_emissor
+        || !('codigo_verificacao' in provenance) || provenance.codigo_verificacao !== dados.codigo_verificacao) {
+        throw new Error('Identidade municipal da NFS-e divergente.')
+      }
+    }
     if (somenteDigitos(dados.cnpj_emitente) !== somenteDigitos(input.referencia.cnpjEmitente)) throw new Error('Emitente da NFS-e divergente.')
     validarCorrespondenciaComNf({ referencia: input.referencia, chaveAcesso: dados.chave_acesso,
       numero: dados.numero_nf, cnpjDestinatario: dados.cnpj_destinatario })
-    return { codigo: 'nf_danfe_pdf', chaveAcesso: dados.chave_acesso!, numero: dados.numero_nf!, serie: null, camposExtraidos: Object.keys(dados) }
+    return { codigo: 'nf_danfe_pdf', chaveAcesso: dados.chave_acesso ?? null, numero: dados.numero_nf!, serie: null, camposExtraidos: Object.keys(dados) }
   }
   if (input.codigo === 'nf_xml') return validarXmlBase({ xml: await input.arquivo.text(), referencia: input.referencia })
   if (input.codigo === 'nf_danfe_pdf') {

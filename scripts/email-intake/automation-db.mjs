@@ -2,16 +2,18 @@ import assert from 'node:assert/strict'
 import {randomUUID} from 'node:crypto'
 import {Client} from 'pg'
 import {verifySubscriptionRecovery} from './subscription-recovery-db.mjs'
+import {assertR110OwnedConnection} from '../qa/reconciliation/r1-10-stack-guard.mjs'
 
 export async function verifyEmailAutomation(db, connection) {
-  assert.equal(connection.host,'127.0.0.1');assert.equal(connection.port,57842)
+  if(connection.application_name?.startsWith('r110_'))await assertR110OwnedConnection(connection,'automation')
+  else {assert.equal(connection.host,'127.0.0.1');assert(connection.port===57842||(connection.port===57942&&/^(?:r18_automation_\d+|r19_automation_\d+_[0-9a-f]{8})$/.test(connection.database)),'OWNED_LOCAL_AUTOMATION_DATABASE_REQUIRED')}
   const id=randomUUID(),fund='22000000-0000-4000-8000-000000000001',user='21000000-0000-4000-8000-000000000003'
   const tenant=randomUUID(),mailbox=randomUUID(),checks=[],clients=[]
   await db.query(`insert into private.email_integrations(id,fundo_id,name,provider,mailbox_address,enabled,start_at,scope_verified_at,scope_evidence_hash,credential_env_ref,created_by)
     values($1,$2,'EMAIL04 disposable','OUTLOOK_GRAPH','qa@example.invalid',true,now()-interval '7 days',now(),repeat('a',64),'EMAIL_INTAKE_QA_TEST',$3)`,[id,fund,user])
   await db.query(`insert into private.email_automation(integration_id,enabled,tenant_id,mailbox_object_id,subscription_resource) values($1,true,$2,$3,$4)`,[id,tenant,mailbox,`users/${mailbox}/mailFolders/inbox/messages`])
   const rpc=async(sql,values=[],client=db)=>(await client.query('select public.'+sql+' r',values)).rows[0].r
-  const signal=kind=>rpc('email_automation_signal($1)',[JSON.stringify([{integrationId:id,kind,dedupeKey:({DELTA:'a',RENEW:'b',RECREATE:'c'}[kind]).repeat(64)}])])
+  const signal=kind=>rpc('email_automation_signal($1)',[JSON.stringify([{integrationId:id,kind,dedupeKey:(kind==='DELTA'?'a':'b').repeat(64)}])])
   const claim=kind=>rpc('email_automation_claim($1)',[kind])
   const fail=(job,code='PROVIDER_UNAVAILABLE',retry=true,reset=false,ms=1000)=>rpc('email_automation_fail($1,$2,$3,$4,$5,$6)',[id,job.token,code,ms,retry,reset])
   const due=()=>db.query("update private.email_sync_state set next_run_at=now()-interval '1 second' where integration_id=$1",[id])
@@ -95,10 +97,5 @@ export async function verifyEmailAutomation(db, connection) {
     checks.push('GESTOR_MFA_MANUAL_SYNC_AUDIT_COOLDOWN','CROSS_FUND_DENIED','REVOKED_MFA_DENIED','SUPER_ADMIN_SCOPED_ACCESS')
     checks.push(...await verifySubscriptionRecovery(db,id,rpc))
     return checks
-  }finally{
-    for(const c of clients)await c.end()
-    await db.query('update private.email_automation set enabled=false where integration_id=$1',[id])
-    // The following 03 smoke consumes the same local attachment queue.
-    await db.query('update private.email_integrations set enabled=false where id=$1',[id])
-  }
+  }finally{for(const c of clients)await c.end();await db.query('update private.email_automation set enabled=false where integration_id=$1',[id])}
 }

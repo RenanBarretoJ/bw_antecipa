@@ -3,7 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { requireGestor } from '@/lib/auth/authorization'
 import { registrarLog } from './auditoria'
-import { notificarCedente, notificarGestores } from './notificacao'
+import { notificarCedente } from './notificacao'
 
 export type LiquidacaoState = {
   success?: boolean
@@ -90,10 +90,11 @@ export async function liquidarOperacao(operacaoId: string): Promise<LiquidacaoSt
 
   // Notificar cedente
   await notificarCedente(
-    opData.cedente_id,
+    { entidadeTipo: 'operacao', entidadeId: operacaoId },
     'Operacao liquidada!',
     `A operacao #${operacaoId.substring(0, 8)} foi liquidada. O sacado efetuou o pagamento.`,
     'operacao_liquidada',
+    `operacao:${operacaoId}:liquidada`,
   )
 
   await registrarLog({
@@ -129,10 +130,11 @@ export async function marcarInadimplente(operacaoId: string): Promise<Liquidacao
     .eq('id', operacaoId)
 
   await notificarCedente(
-    opData.cedente_id,
+    { entidadeTipo: 'operacao', entidadeId: operacaoId },
     'ALERTA: Operacao inadimplente',
     `A operacao #${operacaoId.substring(0, 8)} foi marcada como inadimplente. O sacado nao efetuou o pagamento no vencimento.`,
     'operacao_inadimplente',
+    `operacao:${operacaoId}:inadimplente`,
   )
 
   await registrarLog({

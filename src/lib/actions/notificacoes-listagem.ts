@@ -1,64 +1,40 @@
 'use server'
 
-import { revalidatePath } from 'next/cache'
+import { cookies } from 'next/headers'
 import { requireAuthenticated } from '@/lib/auth/authorization'
-import { createAdminClient } from '@/lib/supabase/server'
-import {
-  carregarNotificacoesUsuario,
-  contarNotificacoesDoContext,
-  contarNotificacoesUsuario,
-} from '@/lib/notificacoes/listagem.server'
-import type { NotificacaoFiltro } from '@/lib/notificacoes/contracts'
+import { carregarNotificacoesUsuario, contarNotificacoesDoContext } from '@/lib/notificacoes/listagem.server'
+import { NOTIFICACOES_FUNDO_COOKIE, resolverContextoNotificacoes, validarContextoNotificacoes } from '@/lib/notificacoes/contexto.server'
+import type { NotificacaoEscopo, NotificacaoFiltro } from '@/lib/notificacoes/contracts'
 
-export async function carregarMaisNotificacoes(input: {
-  cursor: string
-  filtro: NotificacaoFiltro
-  limit?: number
-}) {
-  return carregarNotificacoesUsuario({
-    cursor: input.cursor,
-    filtro: input.filtro,
-    limit: input.limit ?? 20,
-    incluirContadores: false,
-  })
+export async function carregarContextoNotificacoes() {
+  return resolverContextoNotificacoes(await requireAuthenticated())
 }
 
-export async function carregarSinoNotificacoes() {
-  return carregarNotificacoesUsuario({ limit: 10, filtro: 'todas', incluirContadores: true })
-}
-
-export async function recontarNotificacoesNaoLidas() {
-  return contarNotificacoesUsuario()
-}
-
-export async function marcarNotificacaoComoLida(notificacaoId: string) {
-  const context = await requireAuthenticated()
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(notificacaoId)) {
-    return { success: false, message: 'Notificacao invalida.' }
+export async function selecionarFundoNotificacoes(fundoId: string) {
+  const contexto = await carregarContextoNotificacoes()
+  if (!contexto.seletorProprio || !contexto.fundos.some((fundo) => fundo.id === fundoId)) {
+    throw new Error('Fundo não autorizado para este seletor.')
   }
-
-  const { data, error } = await createAdminClient()
-    .from('notificacoes')
-    .update({ lida: true } as never)
-    .eq('id', notificacaoId)
-    .eq('usuario_id', context.user.id)
-    .select('id')
-    .maybeSingle()
-
-  if (error || !data) return { success: false, message: 'Nao foi possivel marcar a notificacao como lida.' }
-  revalidatePath(`/${context.profile.role}/notificacoes`)
-  return { success: true, contadores: await contarNotificacoesDoContext(context) }
+  const cookieStore = await cookies()
+  cookieStore.set(NOTIFICACOES_FUNDO_COOKIE, fundoId, {
+    path: '/', httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', maxAge: 60 * 60 * 24 * 30,
+  })
+  return carregarContextoNotificacoes()
 }
 
-export async function marcarTodasNotificacoesComoLidas() {
-  const context = await requireAuthenticated()
-  const { error } = await createAdminClient()
-    .from('notificacoes')
-    .update({ lida: true } as never)
-    .eq('usuario_id', context.user.id)
-    .eq('lida', false)
+export async function carregarPaginaNotificacoes(input: { escopo: NotificacaoEscopo; cursor?: string | null; filtro: NotificacaoFiltro; limit?: number }) {
+  return carregarNotificacoesUsuario(input)
+}
 
-  if (error) return { success: false, message: 'Nao foi possivel marcar todas as notificacoes como lidas.' }
-  revalidatePath(`/${context.profile.role}/notificacoes`)
-  return { success: true, contadores: await contarNotificacoesDoContext(context) }
+export async function marcarNotificacoesLidas(escopo: NotificacaoEscopo, notificacaoId: string | null) {
+  const auth = await requireAuthenticated()
+  await validarContextoNotificacoes(auth, escopo)
+  if (notificacaoId !== null && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(notificacaoId)) {
+    throw new Error('Notificação inválida.')
+  }
+  const { error } = await auth.supabase.rpc('marcar_notificacoes_lidas', {
+    p_scope: escopo.scope, p_fundo_id: escopo.fundoId, p_id: notificacaoId,
+  })
+  if (error) throw new Error('Não foi possível marcar as notificações neste contexto.')
+  return contarNotificacoesDoContext(auth, escopo)
 }

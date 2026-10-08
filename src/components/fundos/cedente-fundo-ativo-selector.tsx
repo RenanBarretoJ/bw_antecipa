@@ -1,76 +1,41 @@
 'use client'
 
-import { useEffect, useMemo, useState, useTransition } from 'react'
-import { createClient } from '@/lib/supabase/client'
-import { selecionarCedenteFundoAtivo } from '@/lib/actions/cedente-fundo-ativo'
+import { useEffect, useState, useTransition } from 'react'
+import { carregarSeletorCedenteFundoAtivo, selecionarCedenteFundoAtivo } from '@/lib/actions/cedente-fundo-ativo'
 import { useNotifications } from '@/components/notifications/notification-provider'
-
-type LinkRow = {
-  id: string
-  fundo_id: string
-  fundos: { id: string; nome: string; cnpj: string; ativo: boolean | null } | { id: string; nome: string; cnpj: string; ativo: boolean | null }[] | null
-}
-
-function extractFundo(row: LinkRow) {
-  return Array.isArray(row.fundos) ? row.fundos[0] : row.fundos
-}
+import { iniciarTrocaContextoNotificacoes, concluirTrocaContextoNotificacoes } from '@/lib/notificacoes/events'
 
 export function CedenteFundoAtivoSelector() {
-  const supabase = useMemo(() => createClient(), [])
   const notifications = useNotifications()
-  const [links, setLinks] = useState<LinkRow[]>([])
+  const [links, setLinks] = useState<Array<{ id: string; nome: string }>>([])
   const [selected, setSelected] = useState('')
   const [isPending, startTransition] = useTransition()
-
+  const [error, setError] = useState(false)
   useEffect(() => {
-    async function load() {
-      const { data: userData } = await supabase.auth.getUser()
-      const userId = userData.user?.id
-      if (!userId) return
-
-      // get_user_cedente_id() resolve tanto o dono (cedentes.user_id) quanto
-      // um usuario convidado via cedente_acessos.
-      const { data: cedenteId } = await supabase.rpc('get_user_cedente_id')
-      if (!cedenteId) return
-
-      const { data } = await supabase
-        .from('cedente_fundos')
-        .select('id, fundo_id, fundos(id, nome, cnpj, ativo)')
-        .eq('cedente_id', cedenteId)
-        .eq('status', 'ativo')
-        .order('vigente_desde', { ascending: false })
-
-      const rows = ((data || []) as unknown as LinkRow[]).filter((row) => extractFundo(row)?.ativo === true)
-      setLinks(rows)
-      setSelected((current) => current || rows[0]?.id || '')
-    }
-
-    void load()
-  }, [supabase])
-
-  if (links.length <= 1) return null
-
+    let active = true
+    void carregarSeletorCedenteFundoAtivo().then((result) => {
+      if (active) { setLinks(result.links); setSelected(result.selected) }
+    }).catch(() => { if (active) setError(true) })
+    return () => { active = false }
+  }, [])
+  if (error) return <span role="alert" className="text-xs text-destructive">Fundo indisponível. Recarregue a página.</span>
+  if (!links.length) return null
   function handleChange(value: string) {
-    setSelected(value)
+    iniciarTrocaContextoNotificacoes()
     startTransition(async () => {
-      const result = await selecionarCedenteFundoAtivo(value)
-      notifications.notify({ type: result.success ? 'success' : 'error', message: result.message, dedupeKey: `cedente-fundo:${result.message}` })
-      if (result.success) window.location.reload()
+      try {
+        const result = await selecionarCedenteFundoAtivo(value)
+        notifications.notify({ type: result.success ? 'success' : 'error', message: result.message, dedupeKey: `cedente-fundo:${result.message}` })
+        if (result.success) setSelected(value)
+      } catch {
+        notifications.error('Não foi possível alterar o Fundo operacional.')
+      } finally {
+        concluirTrocaContextoNotificacoes()
+      }
     })
   }
-
-  return (
-    <select
-      aria-label="Fundo operacional do cedente"
-      className="h-8 max-w-56 rounded-lg border border-input bg-background px-2 text-sm"
-      disabled={isPending}
-      value={selected}
-      onChange={(event) => handleChange(event.target.value)}
-    >
-      {links.map((link) => {
-        const fundo = extractFundo(link)
-        return <option key={link.id} value={link.id}>{fundo?.nome || link.fundo_id}</option>
-      })}
-    </select>
-  )
+  return <select aria-label="Fundo operacional do cedente" className="h-8 max-w-56 rounded-lg border border-input bg-background px-2 text-sm" disabled={isPending} value={selected} onChange={(event) => handleChange(event.target.value)}>
+    {!selected && <option value="">Selecione o Fundo operacional</option>}
+    {links.map((link) => <option key={link.id} value={link.id}>{link.nome}</option>)}
+  </select>
 }

@@ -33,13 +33,12 @@ function normalizarCnpj(cnpj: string | null | undefined): string {
  */
 export async function carregarPortalSacado(): Promise<SacadoPortalResult> {
   try {
-    const { auth, cnpj } = await resolverContextoSacado()
+    const { auth } = await resolverContextoSacado()
     const supabase = auth.supabase
 
     const { data: nfsRaw, error: nfsError } = await supabase
       .from('notas_fiscais')
       .select('id, numero_nf, cnpj_emitente, razao_social_emitente, valor_bruto, data_emissao, data_vencimento, status, cedente_id, arquivo_url')
-      .eq('cnpj_destinatario', cnpj)
       .order('data_vencimento', { ascending: true })
 
     if (nfsError) throw new Error(`Erro ao consultar NFs do sacado: ${nfsError.message}`)

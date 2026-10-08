@@ -1,0 +1,282 @@
+{
+  "scope": "C5_A6_ONLY_NOT_FULL_R1_MANIFESTS",
+  "productionChanged": false,
+  "homologChanged": false,
+  "PROD_TO_RECONCILED_UPGRADE": [
+    {
+      "path": "supabase/migrations/20260925212843_c5_r2_organizational_operations_view.sql",
+      "sha256": "9cf7fade5ac7b8ab771e69fccb4e502780f1bdd45e9d48eba938c5b3a46fea32",
+      "version": "20260925212843",
+      "featureSet": "C5",
+      "classification": "SUPERSEDED_BY_FORWARD_COMPAT",
+      "preconditions": [
+        "Local isolated baseline matches the selected path",
+        "SHA256 verified before execution"
+      ],
+      "postconditions": [
+        "A6 R2 analytics wrappers and ACL preserved at target",
+        "No fabricated migration history"
+      ]
+    },
+    {
+      "path": "supabase/migrations/20260928130825_c5_r2_reader_dashboard_reports.sql",
+      "sha256": "7ce7ccab8de8c07a3d4b7da831e73b5dcf2ede45756bf3e3c2b76046cfdfd7d2",
+      "version": "20260928130825",
+      "featureSet": "C5",
+      "classification": "SUPERSEDED_BY_FORWARD_COMPAT",
+      "preconditions": [
+        "Local isolated baseline matches the selected path",
+        "SHA256 verified before execution"
+      ],
+      "postconditions": [
+        "A6 R2 analytics wrappers and ACL preserved at target",
+        "No fabricated migration history"
+      ]
+    },
+    {
+      "path": "supabase/migrations/20260928143646_c5_r2_reader_portfolio_surfaces.sql",
+      "sha256": "6eadbdde6be3ff8bf311a9365014058b2a31d26058e34c83f9864414d821f53d",
+      "version": "20260928143646",
+      "featureSet": "C5",
+      "classification": "SUPERSEDED_BY_FORWARD_COMPAT",
+      "preconditions": [
+        "Local isolated baseline matches the selected path",
+        "SHA256 verified before execution"
+      ],
+      "postconditions": [
+        "A6 R2 analytics wrappers and ACL preserved at target",
+        "No fabricated migration history"
+      ]
+    },
+    {
+      "path": "supabase/migrations/20260929193129_guibor_a6_comissao_por_fundo.sql",
+      "sha256": "d4bcbba64901f61147465e56f7a9f358cc0268df2f7201b1ffa9a9773a2211d4",
+      "version": "20260929193129",
+      "featureSet": "C5_A6_COMPAT",
+      "classification": "INTENTIONAL_EXCEPTION_DO_NOT_APPLY",
+      "preconditions": [
+        "Local isolated baseline matches the selected path",
+        "SHA256 verified before execution"
+      ],
+      "postconditions": [
+        "A6 R2 analytics wrappers and ACL preserved at target",
+        "No fabricated migration history"
+      ]
+    },
+    {
+      "path": "supabase/migrations/20260929215557_guibor_a6_decouple_c5.sql",
+      "sha256": "9e6b6df6a6c4dbe292234e44b8fbe6843cc40bb4386dcc4b3727a5413abdd514",
+      "version": "20260929215557",
+      "featureSet": "C5_A6_COMPAT",
+      "classification": "ALREADY_APPLIED",
+      "preconditions": [
+        "Local isolated baseline matches the selected path",
+        "SHA256 verified before execution"
+      ],
+      "postconditions": [
+        "A6 R2 analytics wrappers and ACL preserved at target",
+        "No fabricated migration history"
+      ]
+    },
+    {
+      "path": "supabase/migrations/20261006210815_c5_reader_a6_compat.sql",
+      "sha256": "8f8ed3284e670ee4b559cccffcd0b323818c659a4f76e26547e40d48392ec7ef",
+      "version": "20261006210815",
+      "featureSet": "C5_A6_COMPAT",
+      "classification": "APPLY_REQUIRED",
+      "preconditions": [
+        "Local isolated baseline matches the selected path",
+        "SHA256 verified before execution"
+      ],
+      "postconditions": [
+        "A6 R2 analytics wrappers and ACL preserved at target",
+        "No fabricated migration history"
+      ]
+    }
+  ],
+  "HOMOLOG_TO_RECONCILED_UPGRADE": [
+    {
+      "path": "supabase/migrations/20260925212843_c5_r2_organizational_operations_view.sql",
+      "sha256": "9cf7fade5ac7b8ab771e69fccb4e502780f1bdd45e9d48eba938c5b3a46fea32",
+      "version": "20260925212843",
+      "featureSet": "C5",
+      "classification": "ALREADY_APPLIED",
+      "preconditions": [
+        "Local isolated baseline matches the selected path",
+        "SHA256 verified before execution"
+      ],
+      "postconditions": [
+        "A6 R2 analytics wrappers and ACL preserved at target",
+        "No fabricated migration history"
+      ]
+    },
+    {
+      "path": "supabase/migrations/20260928130825_c5_r2_reader_dashboard_reports.sql",
+      "sha256": "7ce7ccab8de8c07a3d4b7da831e73b5dcf2ede45756bf3e3c2b76046cfdfd7d2",
+      "version": "20260928130825",
+      "featureSet": "C5",
+      "classification": "ALREADY_APPLIED",
+      "preconditions": [
+        "Local isolated baseline matches the selected path",
+        "SHA256 verified before execution"
+      ],
+      "postconditions": [
+        "A6 R2 analytics wrappers and ACL preserved at target",
+        "No fabricated migration history"
+      ]
+    },
+    {
+      "path": "supabase/migrations/20260928143646_c5_r2_reader_portfolio_surfaces.sql",
+      "sha256": "6eadbdde6be3ff8bf311a9365014058b2a31d26058e34c83f9864414d821f53d",
+      "version": "20260928143646",
+      "featureSet": "C5",
+      "classification": "ALREADY_APPLIED",
+      "preconditions": [
+        "Local isolated baseline matches the selected path",
+        "SHA256 verified before execution"
+      ],
+      "postconditions": [
+        "A6 R2 analytics wrappers and ACL preserved at target",
+        "No fabricated migration history"
+      ]
+    },
+    {
+      "path": "supabase/migrations/20260929193129_guibor_a6_comissao_por_fundo.sql",
+      "sha256": "d4bcbba64901f61147465e56f7a9f358cc0268df2f7201b1ffa9a9773a2211d4",
+      "version": "20260929193129",
+      "featureSet": "C5_A6_COMPAT",
+      "classification": "ALREADY_APPLIED_HISTORICAL_HOMOLOG_ONLY",
+      "preconditions": [
+        "Local isolated baseline matches the selected path",
+        "SHA256 verified before execution"
+      ],
+      "postconditions": [
+        "A6 R2 analytics wrappers and ACL preserved at target",
+        "No fabricated migration history"
+      ]
+    },
+    {
+      "path": "supabase/migrations/20260929215557_guibor_a6_decouple_c5.sql",
+      "sha256": "9e6b6df6a6c4dbe292234e44b8fbe6843cc40bb4386dcc4b3727a5413abdd514",
+      "version": "20260929215557",
+      "featureSet": "C5_A6_COMPAT",
+      "classification": "ALREADY_APPLIED",
+      "preconditions": [
+        "Local isolated baseline matches the selected path",
+        "SHA256 verified before execution"
+      ],
+      "postconditions": [
+        "A6 R2 analytics wrappers and ACL preserved at target",
+        "No fabricated migration history"
+      ]
+    },
+    {
+      "path": "supabase/migrations/20261006210815_c5_reader_a6_compat.sql",
+      "sha256": "8f8ed3284e670ee4b559cccffcd0b323818c659a4f76e26547e40d48392ec7ef",
+      "version": "20261006210815",
+      "featureSet": "C5_A6_COMPAT",
+      "classification": "APPLY_REQUIRED",
+      "preconditions": [
+        "Local isolated baseline matches the selected path",
+        "SHA256 verified before execution"
+      ],
+      "postconditions": [
+        "A6 R2 analytics wrappers and ACL preserved at target",
+        "No fabricated migration history"
+      ]
+    }
+  ],
+  "CLEAN_ROOM_CANONICAL": [
+    {
+      "path": "supabase/migrations/20260925212843_c5_r2_organizational_operations_view.sql",
+      "sha256": "9cf7fade5ac7b8ab771e69fccb4e502780f1bdd45e9d48eba938c5b3a46fea32",
+      "version": "20260925212843",
+      "featureSet": "C5",
+      "classification": "APPLY_REQUIRED",
+      "preconditions": [
+        "Local isolated baseline matches the selected path",
+        "SHA256 verified before execution"
+      ],
+      "postconditions": [
+        "A6 R2 analytics wrappers and ACL preserved at target",
+        "No fabricated migration history"
+      ]
+    },
+    {
+      "path": "supabase/migrations/20260928130825_c5_r2_reader_dashboard_reports.sql",
+      "sha256": "7ce7ccab8de8c07a3d4b7da831e73b5dcf2ede45756bf3e3c2b76046cfdfd7d2",
+      "version": "20260928130825",
+      "featureSet": "C5",
+      "classification": "APPLY_REQUIRED",
+      "preconditions": [
+        "Local isolated baseline matches the selected path",
+        "SHA256 verified before execution"
+      ],
+      "postconditions": [
+        "A6 R2 analytics wrappers and ACL preserved at target",
+        "No fabricated migration history"
+      ]
+    },
+    {
+      "path": "supabase/migrations/20260928143646_c5_r2_reader_portfolio_surfaces.sql",
+      "sha256": "6eadbdde6be3ff8bf311a9365014058b2a31d26058e34c83f9864414d821f53d",
+      "version": "20260928143646",
+      "featureSet": "C5",
+      "classification": "APPLY_REQUIRED",
+      "preconditions": [
+        "Local isolated baseline matches the selected path",
+        "SHA256 verified before execution"
+      ],
+      "postconditions": [
+        "A6 R2 analytics wrappers and ACL preserved at target",
+        "No fabricated migration history"
+      ]
+    },
+    {
+      "path": "supabase/migrations/20260929193129_guibor_a6_comissao_por_fundo.sql",
+      "sha256": "d4bcbba64901f61147465e56f7a9f358cc0268df2f7201b1ffa9a9773a2211d4",
+      "version": "20260929193129",
+      "featureSet": "C5_A6_COMPAT",
+      "classification": "APPLY_REQUIRED",
+      "preconditions": [
+        "Local isolated baseline matches the selected path",
+        "SHA256 verified before execution"
+      ],
+      "postconditions": [
+        "A6 R2 analytics wrappers and ACL preserved at target",
+        "No fabricated migration history"
+      ]
+    },
+    {
+      "path": "supabase/migrations/20260929215557_guibor_a6_decouple_c5.sql",
+      "sha256": "9e6b6df6a6c4dbe292234e44b8fbe6843cc40bb4386dcc4b3727a5413abdd514",
+      "version": "20260929215557",
+      "featureSet": "C5_A6_COMPAT",
+      "classification": "APPLY_REQUIRED",
+      "preconditions": [
+        "Local isolated baseline matches the selected path",
+        "SHA256 verified before execution"
+      ],
+      "postconditions": [
+        "A6 R2 analytics wrappers and ACL preserved at target",
+        "No fabricated migration history"
+      ]
+    },
+    {
+      "path": "supabase/migrations/20261006210815_c5_reader_a6_compat.sql",
+      "sha256": "8f8ed3284e670ee4b559cccffcd0b323818c659a4f76e26547e40d48392ec7ef",
+      "version": "20261006210815",
+      "featureSet": "C5_A6_COMPAT",
+      "classification": "APPLY_REQUIRED",
+      "preconditions": [
+        "Local isolated baseline matches the selected path",
+        "SHA256 verified before execution"
+      ],
+      "postconditions": [
+        "A6 R2 analytics wrappers and ACL preserved at target",
+        "No fabricated migration history"
+      ]
+    }
+  ],
+  "note": "Only entries APPLY_REQUIRED execute. Original A6 is local historical clean-room only; never production upgrade."
+}

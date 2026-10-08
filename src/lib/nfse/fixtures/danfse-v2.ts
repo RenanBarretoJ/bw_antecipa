@@ -3,8 +3,8 @@ export const SYNTHETIC_KEY = '1234567890'.repeat(5)
 
 export function danfseFixture(variant: 'A' | 'B' = 'A'): string {
   const values = variant === 'A'
-    ? { number: '49', date: '14/09/2026', period: '09/09/2026', gross: '39.521,98', net: '37.229,70', deductions: '2.292,28' }
-    : { number: '232', date: '15/09/2026', period: '15/09/2026', gross: '112.710,81', net: '105.779,10', deductions: '6.931,71' }
+    ? { number: '49', date: '14/09/2026', period: '09/09/2026', gross: '39.521,98', net: '37.229,70', deductions: '2.292,28', issBase: '900.000,00', discount: '395,22', netPlusIbsCbs: '37.376,52' }
+    : { number: '232', date: '15/09/2026', period: '15/09/2026', gross: '112.710,81', net: '105.779,10', deductions: '6.931,71', issBase: '112.710,81', discount: '0,00', netPlusIbsCbs: '105.925,92' }
   return `DANFSe v2.0
 Documento Auxiliar da NFS-e
 CHAVE DE ACESSO DA NFS-e
@@ -45,12 +45,12 @@ Descrição do Serviço
 Serviços sintéticos para QA
 TRIBUTAÇÃO MUNICIPAL (ISSQN)
 BC ISSQN
-R$ 900.000,00
+R$ ${values.issBase}
 VALOR TOTAL DA NFS-e
 VALOR DA OPERAÇÃO / SERVIÇO
 R$ ${values.gross}
 Desconto Incondicionado
-R$ 395,22
+R$ ${values.discount}
 Total das Retenções (ISSQN / Federais)
 R$ ${values.deductions}
 VALOR LÍQUIDO DA NFS-e
@@ -58,7 +58,7 @@ R$ ${values.net}
 Total do IBS/CBS
 R$ 146,82
 VALOR LÍQUIDO DA NFS-e + IBS/CBS
-R$ 37.376,52
+R$ ${values.netPlusIbsCbs}
 INFORMAÇÕES COMPLEMENTARES
 NFS-e Subst.: ${'9876543210'.repeat(5)}
 SEM VALOR FISCAL`

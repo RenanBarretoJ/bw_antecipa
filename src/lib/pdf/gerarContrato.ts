@@ -3,6 +3,7 @@ import puppeteer from 'puppeteer-core'
 import fs from 'fs'
 import path from 'path'
 import { createHash, randomUUID } from 'crypto'
+import { createPdfTelemetry, type PdfTelemetry } from './pdf-telemetry'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { buckets } from '@/lib/storage'
 import type { Database } from '@/types/database'
@@ -213,17 +214,19 @@ async function resolverFundoOperacao(supabase: AdminSupabaseClient, op: Record<s
   return resolverFundoCedente(supabase, ced)
 }
 
-export async function htmlParaPdf(html: string): Promise<Buffer> {
+export async function htmlParaPdf(html: string, telemetry: PdfTelemetry = createPdfTelemetry('pdf')): Promise<Buffer> {
   const chromePath = process.env.CHROME_PATH
   const isLocal = process.env.NODE_ENV === 'development' || Boolean(chromePath)
 
-  const executablePath = isLocal
+  const executablePath = await telemetry.observe('RESOLVE_CHROMIUM', async () => isLocal
     ? chromePath || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
     : process.env.CHROMIUM_BINARY_URL
       ? await chromium.executablePath(process.env.CHROMIUM_BINARY_URL)
-      : await chromium.executablePath()
+      : await chromium.executablePath())
 
-  const browser = isLocal
+  await telemetry.captureExecutable(executablePath)
+
+  const browser = await telemetry.observe('LAUNCH', async () => isLocal
     ? await puppeteer.launch({
         executablePath,
         headless: true,
@@ -233,20 +236,26 @@ export async function htmlParaPdf(html: string): Promise<Buffer> {
         defaultViewport: { width: 1280, height: 720 },
         executablePath,
         headless: true,
-      })
+      }))
 
   try {
     const page = await browser.newPage()
+    telemetry.emit('PDF_PAGE_CREATED')
     await page.setContent(html, { waitUntil: 'load' })
+    telemetry.emit('PDF_CONTENT_SET')
     await page.waitForNetworkIdle({ idleTime: 500, timeout: 30_000 })
     const pdfBuffer = await page.pdf({
       format: 'A4',
       printBackground: true,
       preferCSSPageSize: true,
     })
+    telemetry.emit('PDF_RENDER_SUCCESS')
     return Buffer.from(pdfBuffer)
+  } catch (error) {
+    telemetry.failure('PDF_RENDER_ERROR', error)
+    throw error
   } finally {
-    await browser.close()
+    await telemetry.observe('BROWSER_CLOSE', () => browser.close())
   }
 }
 
@@ -284,6 +293,7 @@ async function salvarPdfStorage(
 export async function gerarContratoCessao(
   cedenteId: string,
   geradoPor: string | null = null,
+  telemetry: PdfTelemetry = createPdfTelemetry('contrato_mae'),
 ): Promise<{ url: string; path: string }> {
   const { createClient } = await import('@supabase/supabase-js')
   const supabase = createClient<Database>(
@@ -389,7 +399,7 @@ export async function gerarContratoCessao(
     nomeTemplateLocal: templateNome,
     dados,
   })
-  const pdfBuffer = await htmlParaPdf(html)
+  const pdfBuffer = await htmlParaPdf(html, telemetry)
   const documentoGeradoId = randomUUID()
   const caminho = templateResolvido
     ? gerarPathVersionadoDocumento({
@@ -400,30 +410,32 @@ export async function gerarContratoCessao(
         versao: templateResolvido.versao.versao,
       })
     : `cedentes/${cedenteId}/contrato-cessao.pdf`
-  const url = await salvarPdfStorage(pdfBuffer, caminho)
+  const url = await telemetry.observe('UPLOAD', () => salvarPdfStorage(pdfBuffer, caminho))
 
-  if (templateResolvido) {
-    await registrarDocumentoGerado({
-      supabase,
-      documentoGeradoId,
-      operacaoId: null,
-      cedenteId,
-      fundoId,
-      template: templateResolvido.template,
-      versao: templateResolvido.versao,
-      tipoDocumento: 'contrato_mae',
-      bucket: buckets.contratos,
-      storagePath: caminho,
-      sha256: sha256Buffer(pdfBuffer),
-      geradoPor,
-    })
-  }
+  await telemetry.observe('REGISTER', async () => {
+    if (templateResolvido) {
+      await registrarDocumentoGerado({
+        supabase,
+        documentoGeradoId,
+        operacaoId: null,
+        cedenteId,
+        fundoId,
+        template: templateResolvido.template,
+        versao: templateResolvido.versao,
+        tipoDocumento: 'contrato_mae',
+        bucket: buckets.contratos,
+        storagePath: caminho,
+        sha256: sha256Buffer(pdfBuffer),
+        geradoPor,
+      })
+    }
 
-  // Atualizar URL no banco
-  await supabase
-    .from('cedentes')
-    .update({ contrato_url: caminho, contrato_gerado_em: new Date().toISOString() } as never)
-    .eq('id', cedenteId)
+    // Atualizar URL no banco
+    await supabase
+      .from('cedentes')
+      .update({ contrato_url: caminho, contrato_gerado_em: new Date().toISOString() } as never)
+      .eq('id', cedenteId)
+  })
 
   return { url, path: caminho }
 }
@@ -434,7 +446,9 @@ export async function gerarContratoCessao(
 export async function gerarTermoCessao(
   operacaoId: string,
   geradoPor: string | null = null,
+  telemetry: PdfTelemetry = createPdfTelemetry('termo_cessao'),
 ): Promise<{ url: string; path: string }> {
+  telemetry.setOperationId(operacaoId)
   const { createClient } = await import('@supabase/supabase-js')
   const supabase = createClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -573,7 +587,7 @@ export async function gerarTermoCessao(
     nomeTemplateLocal: 'termo-cessao.html',
     dados,
   })
-  const pdfBuffer = await htmlParaPdf(html)
+  const pdfBuffer = await htmlParaPdf(html, telemetry)
   const documentoGeradoId = randomUUID()
   const caminho = templateResolvido
     ? gerarPathVersionadoDocumento({
@@ -584,35 +598,37 @@ export async function gerarTermoCessao(
         versao: templateResolvido.versao.versao,
       })
     : `operacoes/${operacaoId}/termo-cessao.pdf`
-  const url = await salvarPdfStorage(pdfBuffer, caminho)
+  const url = await telemetry.observe('UPLOAD', () => salvarPdfStorage(pdfBuffer, caminho))
 
-  if (templateResolvido) {
-    await registrarDocumentoGerado({
-      supabase,
-      documentoGeradoId,
-      operacaoId,
-      cedenteId: op.cedente_id as string,
-      fundoId,
-      template: templateResolvido.template,
-      versao: templateResolvido.versao,
-      tipoDocumento: 'termo_cessao',
-      bucket: buckets.contratos,
-      storagePath: caminho,
-      sha256: sha256Buffer(pdfBuffer),
-      geradoPor,
-    })
-  }
+  await telemetry.observe('REGISTER', async () => {
+    if (templateResolvido) {
+      await registrarDocumentoGerado({
+        supabase,
+        documentoGeradoId,
+        operacaoId,
+        cedenteId: op.cedente_id as string,
+        fundoId,
+        template: templateResolvido.template,
+        versao: templateResolvido.versao,
+        tipoDocumento: 'termo_cessao',
+        bucket: buckets.contratos,
+        storagePath: caminho,
+        sha256: sha256Buffer(pdfBuffer),
+        geradoPor,
+      })
+    }
 
-  // Atualizar URL no banco
-  await supabase
-    .from('operacoes')
-    .update({
-      termo_url: caminho,
-      termo_gerado_em: new Date().toISOString(),
-      preco_aquisicao: precoAquisicaoTotal,
-      taxa_desagio: taxaDesagio,
-    } as never)
-    .eq('id', operacaoId)
+    // Atualizar URL no banco
+    await supabase
+      .from('operacoes')
+      .update({
+        termo_url: caminho,
+        termo_gerado_em: new Date().toISOString(),
+        preco_aquisicao: precoAquisicaoTotal,
+        taxa_desagio: taxaDesagio,
+      } as never)
+      .eq('id', operacaoId)
+  })
 
   return { url, path: caminho }
 }
@@ -623,7 +639,9 @@ export async function gerarTermoCessao(
 export async function gerarNotificacaoCessao(
   operacaoId: string,
   geradoPor: string | null = null,
+  telemetry: PdfTelemetry = createPdfTelemetry('notificacao_sacado'),
 ): Promise<{ url: string; path: string }> {
+  telemetry.setOperationId(operacaoId)
   const { createClient } = await import('@supabase/supabase-js')
   const supabase = createClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -675,7 +693,7 @@ export async function gerarNotificacaoCessao(
     nomeTemplateLocal: 'notificacao-cessao-ao-sacado.html',
     dados,
   })
-  const pdfBuffer = await htmlParaPdf(html)
+  const pdfBuffer = await htmlParaPdf(html, telemetry)
   const documentoGeradoId = randomUUID()
   const caminho = templateResolvido
     ? gerarPathVersionadoDocumento({
@@ -686,32 +704,34 @@ export async function gerarNotificacaoCessao(
         versao: templateResolvido.versao.versao,
       })
     : `operacoes/${operacaoId}/notificacao-cessao.pdf`
-  const url = await salvarPdfStorage(pdfBuffer, caminho)
+  const url = await telemetry.observe('UPLOAD', () => salvarPdfStorage(pdfBuffer, caminho))
 
-  if (templateResolvido) {
-    await registrarDocumentoGerado({
-      supabase,
-      documentoGeradoId,
-      operacaoId,
-      cedenteId: op.cedente_id,
-      fundoId,
-      template: templateResolvido.template,
-      versao: templateResolvido.versao,
-      tipoDocumento: 'notificacao_sacado',
-      bucket: buckets.contratos,
-      storagePath: caminho,
-      sha256: sha256Buffer(pdfBuffer),
-      geradoPor,
-    })
-  }
+  await telemetry.observe('REGISTER', async () => {
+    if (templateResolvido) {
+      await registrarDocumentoGerado({
+        supabase,
+        documentoGeradoId,
+        operacaoId,
+        cedenteId: op.cedente_id,
+        fundoId,
+        template: templateResolvido.template,
+        versao: templateResolvido.versao,
+        tipoDocumento: 'notificacao_sacado',
+        bucket: buckets.contratos,
+        storagePath: caminho,
+        sha256: sha256Buffer(pdfBuffer),
+        geradoPor,
+      })
+    }
 
-  await supabase
-    .from('operacoes')
-    .update({
-      notificacao_url: caminho,
-      notificacao_gerado_em: new Date().toISOString(),
-    } as never)
-    .eq('id', operacaoId)
+    await supabase
+      .from('operacoes')
+      .update({
+        notificacao_url: caminho,
+        notificacao_gerado_em: new Date().toISOString(),
+      } as never)
+      .eq('id', operacaoId)
+  })
 
   return { url, path: caminho }
 }
@@ -722,7 +742,9 @@ export async function gerarNotificacaoCessao(
 export async function gerarTermoQuitacao(
   operacaoId: string,
   geradoPor: string | null = null,
+  telemetry: PdfTelemetry = createPdfTelemetry('termo_quitacao'),
 ): Promise<{ url: string; path: string }> {
+  telemetry.setOperationId(operacaoId)
   const { createClient } = await import('@supabase/supabase-js')
   const supabase = createClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -834,7 +856,7 @@ export async function gerarTermoQuitacao(
     nomeTemplateLocal: 'termo_quitacao.html',
     dados,
   })
-  const pdfBuffer = await htmlParaPdf(html)
+  const pdfBuffer = await htmlParaPdf(html, telemetry)
   const documentoGeradoId = randomUUID()
   const caminho = templateResolvido
     ? gerarPathVersionadoDocumento({
@@ -845,32 +867,34 @@ export async function gerarTermoQuitacao(
         versao: templateResolvido.versao.versao,
       })
     : `operacoes/${operacaoId}/termo-quitacao.pdf`
-  const url = await salvarPdfStorage(pdfBuffer, caminho)
+  const url = await telemetry.observe('UPLOAD', () => salvarPdfStorage(pdfBuffer, caminho))
 
-  if (templateResolvido) {
-    await registrarDocumentoGerado({
-      supabase,
-      documentoGeradoId,
-      operacaoId,
-      cedenteId: op.cedente_id as string,
-      fundoId,
-      template: templateResolvido.template,
-      versao: templateResolvido.versao,
-      tipoDocumento: 'termo_quitacao',
-      bucket: buckets.contratos,
-      storagePath: caminho,
-      sha256: sha256Buffer(pdfBuffer),
-      geradoPor,
-    })
-  }
+  await telemetry.observe('REGISTER', async () => {
+    if (templateResolvido) {
+      await registrarDocumentoGerado({
+        supabase,
+        documentoGeradoId,
+        operacaoId,
+        cedenteId: op.cedente_id as string,
+        fundoId,
+        template: templateResolvido.template,
+        versao: templateResolvido.versao,
+        tipoDocumento: 'termo_quitacao',
+        bucket: buckets.contratos,
+        storagePath: caminho,
+        sha256: sha256Buffer(pdfBuffer),
+        geradoPor,
+      })
+    }
 
-  await supabase
-    .from('operacoes')
-    .update({
-      quitacao_url: caminho,
-      quitacao_gerado_em: new Date().toISOString(),
-    } as never)
-    .eq('id', operacaoId)
+    await supabase
+      .from('operacoes')
+      .update({
+        quitacao_url: caminho,
+        quitacao_gerado_em: new Date().toISOString(),
+      } as never)
+      .eq('id', operacaoId)
+  })
 
   return { url, path: caminho }
 }

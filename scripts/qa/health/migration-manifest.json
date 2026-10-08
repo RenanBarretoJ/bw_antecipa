@@ -1,0 +1,15 @@
+{
+  "mode": "MANUAL_EXPLICIT_LIST",
+  "projectRef": "mkfslrspxzplghjeixjq",
+  "gitBranch": "hotfix/health-fiscal-import",
+  "historicalDivergence": "KNOWN_AND_PRESERVED",
+  "migrations": [
+    {
+      "file": "20261002205122_health_nfse_municipal_identity.sql",
+      "version": "20261002205122",
+      "name": "health_nfse_municipal_identity",
+      "sha256": "53a0f6533c745381ccad139ff734960d7ca99fbd67cb1d979385fc6773dc5d65"
+    }
+  ],
+  "excludedVersions": ["20260929193129"]
+}

@@ -1,0 +1,97 @@
+NOTIFICACOES-R3 — foco do sino e recertificacao da Preview
+
+Escopo: feature/notificacoes-fund-scope, PR #95, Supabase twmxvhddqbderjzgmcjo.
+Producao e homolog proibidas. Nenhuma migration, RLS, regra de destinatario,
+produtor, dedupe, href ou regra de negocio alterada pelo R3.
+
+CAUSA COMPROVADA
+H (harness durante OPENING), nao trigger remount nem tema:
+- Reproducao natural local 390/dark, app no HEAD 5500b5b: uma falha em 40 ciclos.
+- Escape restaurou o trigger original; Enter montou o portal.
+- O harness enviou Tab quando o popup ainda tinha data-starting-style e o
+  activeElement era o trigger, antes do foco inicial agendado por animation frame.
+- A verificacao imediata capturou SPAN de focus-guard nativo fora do dialog.
+- O foco entrou naturalmente no dialog ao concluir o frame, sem correcao do app.
+- FloatingFocusManager chama enqueueFocus; enqueueFocus usa requestAnimationFrame
+  na versao instalada da Base UI. A presenca do dialog no DOM nao e readiness.
+- Reproducao controlada segura no harness: segurar a fila RAF em OPENING, enviar
+  Tab, observar guard, liberar RAF. Tres de tres casos reproduziram o problema
+  e estabilizaram dentro do popup. Nenhum sleep ou timeout aumentado.
+
+I (defeito adicional real de foco em mark-read):
+- Em Todas, a acao focada era removida ao marcar lida; activeElement virava BODY.
+- Em Nao lidas, a linha focada era removida; activeElement tambem virava BODY.
+- Ambos reproduzidos antes da correcao; independencia do problema do harness.
+
+CONTRATO E CORRECAO
+- Abrir por Enter: foco inicial nativo em Fechar notificacoes.
+- Escape: dialog ausente, aria-expanded=false, foco no mesmo trigger.
+- Harness espera dialog visivel, sem starting/ending-style, expanded=true e foco
+  dentro antes de navegar. Para limites Tab, espera apenas a saida dos guards
+  nativos; BODY/root/inert/hidden continuam falhando na mesma assercao.
+- Sem trap manual, preventDefault, alteracao de biblioteca ou lifecycle do app.
+- useNotificacaoItemFocus: se controle focado for removido e o foco cair no BODY,
+  recuperar no detalhe do mesmo item, proximo item (ou anterior no fim), ou
+  container identificado e focavel quando a lista esvazia. Nao roubar foco de
+  quem ja navegou para outro controle durante o request.
+- Acoes de leitura usam aria-disabled com guarda de handler durante requests,
+  preservando foco ao carregar. Autorizacao e concorrencia no hook inalteradas.
+- Badge e decorativo para tecnologia assistiva: aria-hidden, pois o nome do
+  trigger ja informa o numero de nao lidas.
+
+EVIDENCIAS E REPRODUCAO
+- node scripts/qa/notificacoes/browser-local.mjs --focus-probe
+  Diagnostico natural + tres reproducao controladas. Pode nao falhar na corrida
+  natural de toda rodada; o controle da fila prova deterministicamente a causa.
+- node scripts/qa/notificacoes/browser-local.mjs
+  Componentes reais, fronteiras de transporte simuladas, zero trafego remoto.
+  Quatro perfis, troca A/B, realtime sem roubo de foco, leitura/falha/vazio,
+  10 matrizes, Escape/Enter/Tab/Shift+Tab, estabilidade do trigger, negativo BODY,
+  acessibilidade semantica, Axe A/AA e limites de viewport/foco/scroll.
+- node scripts/qa/notificacoes/r3-local-gates.mjs
+  Node22, logs individuais, fingerprint de codigo; testes focados, TS, lint,
+  full suite, build, SQL fresh/upgrade em Docker proprio e browser.
+- node scripts/qa/notificacoes/preview-smoke.mjs
+  Target fixo; QA sintetico via Auth/MFA real, quatro perfis, isolamento/RLS/href,
+  filtros/paginacao/leitura/realtime, foco por perfil e 10 matrizes no SHA final.
+  Aceite/contestacao reais via RPC e cron de prazo real. Documento/cadastro/evento
+  tecnico exercitam as fronteiras RPC dos produtores reais com entidades QA;
+  nao simulam um upload integral nem fazem chamadas ao provedor ou enviam email.
+  Cleanup realmente executado duas vezes, incluindo Auth/sessions/MFA/Storage.
+- node scripts/qa/notificacoes/postflight.mjs
+  Recusa SHA/CI/deploy divergentes, evidencia local invalidada, matriz parcial,
+  limpeza incompleta, recursos Docker proprios ou migration history divergente.
+  Somente apos todas as verificacoes grava NOTIFICACOES_R3_FINAL.json READY=YES.
+
+Limitacoes: Axe e atributos nao equivalem a auditoria manual com leitor de tela.
+Na primeira suite completa local houve timeout de 5000ms no teste preexistente
+parcelas-nf.test.ts (PDF invalido). Nenhum parser/teste/timeout foi alterado:
+12/12 passaram isoladamente (513ms totais) e a repeticao integral passou.
+O primeiro resultado nao foi tratado como PASS nem usado para liberar push.
+Historico divergente conhecido preservado; A6 original nao aplicada nem marcada.
+Lint SQL preexistente em aprovar_alteracao_cadastral_cedente_gestor e fora do R3.
+Sem merge para main nem deploy producao/homolog neste roteiro.
+
+RETOMADA: TIMEOUT DE MARK-ALL DO CEDENTE
+- Rodada final 913fa3b9 no SHA db61f48 parou no Cedente aguardando zero nao lidas.
+  Nao havia telemetria do clique/request; nao e possivel afirmar retroativamente
+  a causa exata daquele timeout. O resultado permaneceu STOP, nao PASS.
+- Diagnostico instrumentado 3617ff49 no mesmo app passou: request enviado,
+  HTTP 200, zero pendencias confirmado por RPC autenticada. Houve atualizacoes
+  sequenciais da lista; esse diagnostico parcial nao certifica a Preview.
+- Falha real comprovada no harness: esperar A-realtime no body podia satisfazer
+  pelo sino enquanto a lista principal ainda carregava. HTMLElement.click() em
+  Marcar todas desabilitado era no-op, sem request; o teste aguardava um efeito
+  de uma mutacao que nao havia enviado.
+- Prova controlada 3/3: somente resposta limit=20 retida por Promise explicita,
+  sino limit=10 livre; mesmo clique antigo = zero mutacoes. Liberar resposta,
+  aguardar lista pronta e clicar com ponteiro real = uma mutacao, zero pendencias
+  no Fundo A e Fundo B intacto. Sem alterar app, timeout ou inserir sleep.
+- Correcao somente QA: aguardar titulo na lista principal, aria-busy=false e
+  ausencia de alerta; Locator aguarda botao visivel/habilitado/estavel e clica.
+  Timeout de conclusao continua 15s. Nada de networkidle ou bypass de disabled.
+- Instrumentacao registra estados sinteticos e classe/status das chamadas,
+  nunca payload, cookies, tokens ou credenciais. Observadores removidos antes
+  da troca de Fundo; resultado preservado por run id.
+- Postflight rejeita modo diagnostico, matriz parcial e mark-all sem exatamente
+  um request real e confirmacao RPC de zero pendencias em cada um dos 4 perfis.
