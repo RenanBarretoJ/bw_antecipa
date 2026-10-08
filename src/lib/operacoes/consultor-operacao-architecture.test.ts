@@ -20,6 +20,7 @@ const requester = readFileSync('src/lib/operacoes/solicitante.server.ts', 'utf8'
 const selector = readFileSync('src/components/operacoes/ConsultorCedenteSelector.tsx', 'utf8')
 const consultantPage = readFileSync('src/app/consultor/operacoes/nova/page.tsx', 'utf8')
 const operationEditor = readFileSync('src/app/cedente/operacoes/nova/nova-solicitacao-client.tsx', 'utf8')
+const operationList = readFileSync('src/components/operacoes/OperacoesPaginadas.tsx', 'utf8')
 const cedentePage = readFileSync('src/app/cedente/operacoes/nova/page.tsx', 'utf8')
 
 describe('C2 - Consultor cria operacao por Cedente', () => {
@@ -55,6 +56,7 @@ describe('C2 - Consultor cria operacao por Cedente', () => {
   it('mantem o seletor acima do conteudo sem recortar o dropdown', () => {
     expect(consultantPage).toContain('className="relative z-20 overflow-visible"')
     expect(operationEditor).toContain('className="relative z-20 mb-4 overflow-visible"')
+    expect(operationList).toMatch(/<Card className="relative z-20 mb-4 overflow-visible">\s*<CardContent[^>]*>\s*\{perfil === 'consultor'/)
   })
 
   it('bloqueia manipulacao cross-tenant e mantem o ator real na RPC atomica', () => {

@@ -1,6 +1,12 @@
 'use server'
 
-import { requireGestor, requireNotaFiscalAccess } from '@/lib/auth/authorization'
+import {
+  requireAuthenticated,
+  requireGestor,
+  requireNotaFiscalAccess,
+  requireNotaFiscalViewAccess,
+} from '@/lib/auth/authorization'
+import { carregarMembershipConsultorAtiva } from '@/lib/consultor/membership.server'
 import { exigirSessaoElevada } from '@/lib/auth/mfa'
 import { DOCUMENTO_V2_BUCKET, mimeArquivo, sha256Arquivo, validarArquivoContraTipo } from '@/lib/documentos-v2/tipos'
 import { enviarObjetoDocumento, gerarCaminhoDocumento, removerObjetoDocumento } from '@/lib/documentos-v2/storage'
@@ -169,7 +175,14 @@ export interface ParcelasDaNotaResumo {
  */
 export async function listarParcelasDaNota(notaFiscalId: string): Promise<ParcelaActionResult<ParcelasDaNotaResumo>> {
   try {
-    const context = await requireNotaFiscalAccess(notaFiscalId)
+    const auth = await requireAuthenticated()
+    const membership = auth.profile.role === 'consultor'
+      ? await carregarMembershipConsultorAtiva(auth)
+      : null
+    const somenteLeitura = membership?.papel === 'LEITOR'
+    const context = somenteLeitura
+      ? await requireNotaFiscalViewAccess(notaFiscalId, auth.supabase)
+      : await requireNotaFiscalAccess(notaFiscalId, auth.supabase)
     const supabase = context.supabase
 
     const { data: nf, error: nfError } = await supabase.from('notas_fiscais').select('status').eq('id', notaFiscalId).maybeSingle()
@@ -193,7 +206,8 @@ export async function listarParcelasDaNota(notaFiscalId: string): Promise<Parcel
       origem: row.origem,
     }))
     const total = itens.reduce((soma, item) => soma + item.valorNominal, 0)
-    const editavel = ['cedente', 'consultor'].includes(context.profile.role)
+    const editavel = !somenteLeitura
+      && ['cedente', 'consultor'].includes(context.profile.role)
       && (nf as { status: string }).status === 'rascunho'
 
     return { success: true, message: 'Parcelas carregadas.', data: { itens, total, quantidade: itens.length, editavel } }

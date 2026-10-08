@@ -132,7 +132,7 @@ export interface UsuarioPapel {
   usuario_id: string
   papel: UserRole
   ativo: boolean
-  origem: 'perfil_primario' | 'bootstrap_homolog' | 'administracao'
+  origem: 'perfil_primario' | 'bootstrap_homolog' | 'bootstrap_producao' | 'administracao'
   atribuido_por: string | null
   atribuido_em: string
   revogado_em: string | null
@@ -2401,7 +2401,7 @@ export interface Database {
       risco_revisoes: { Row: RiscoRevisao & Record<string, unknown>; Insert: Partial<RiscoRevisao> & Pick<RiscoRevisao, 'risco_execucao_id' | 'fundo_id' | 'operacao_id' | 'assinatura_inputs'> & Record<string, unknown>; Update: Partial<RiscoRevisao> & Record<string, unknown>; Relationships: [] }
     }
     Views: Record<string, never>
-    Functions: {
+    Functions: import('@/lib/email-intake/automation/database').EmailAutomationFunctions & import('@/lib/email-intake/operations/database').EmailOperatorFunctions & {
       destinatarios_sacado_operacao: { Args: { p_operacao_id: string }; Returns: { user_id: string; cnpj: string }[] }
       consultar_empresa_sacado: { Args: { p_fundo_id: string; p_cnpj: string }; Returns: { cnpj: string; razao_social: string } | null }
       get_user_sacado_context: { Args: Record<string, never>; Returns: import('@/lib/sacado/acessos').SacadoAcesso[] }
@@ -2410,6 +2410,26 @@ export interface Database {
       configurar_base_antecipacao: { Args: { p_cedente_fundo_id: string; p_base: string }; Returns: undefined }
       configurar_comissao_consultor_fundo: { Args: { p_consultor_id: string; p_fundo_id: string; p_habilitada: boolean }; Returns: undefined }
       listar_configuracao_comissao_fundo: { Args: { p_fundo_id: string }; Returns: Array<{ consultor_id: string; fundo_id: string; nome: string; comissao_habilitada: boolean }> }
+      email_intake_claim_attachment: { Args: { p_queue: string }; Returns: Array<{ id: string; token: string; attempt: number }> }
+      email_intake_get_attachment_claim: { Args: { p_id: string; p_token: string }; Returns: unknown }
+      email_intake_settle_attachment: { Args: { p_id: string; p_token: string; p_outcome: string; p_retry_after_ms?: number }; Returns: undefined }
+      fiscal_intake_reserve: { Args: { p_actor: Record<string, unknown>; p_fundo_id: string; p_cedente_fundo_id: string; p_estabelecimento_id: string; p_document_type: string; p_fiscal_key: string; p_file_sha256: string; p_recover_xml?: boolean }; Returns: unknown }
+      fiscal_intake_prepare_companion: { Args: { p_actor: Record<string, unknown>; p_fundo_id: string; p_cedente_fundo_id: string; p_estabelecimento_id: string; p_fiscal_key: string; p_file_sha256: string; p_document_code: string; p_facts: object; p_file_name: string; p_size_bytes: number }; Returns: unknown }
+      fiscal_intake_commit_companion: { Args: { p_id: string; p_token: string; p_generation: number }; Returns: unknown }
+      fiscal_intake_abort_companion: { Args: { p_id: string; p_token: string; p_generation: number }; Returns: unknown }
+      fiscal_intake_resolve_scope: { Args: { p_actor: Record<string, unknown>; p_fundo_id: string; p_issuer_cnpj: string; p_cedente_fundo_id: string | null }; Returns: unknown }
+      fiscal_intake_stage: { Args: { p_id: string; p_token: string; p_generation: number; p_values: Record<string, unknown>; p_parcelas: Array<{ numero_parcela: number; valor_nominal: number; data_vencimento: string }>; p_file_name: string; p_mime_type: string; p_size_bytes: number; p_document_code: string }; Returns: undefined }
+      fiscal_intake_prepare_storage: { Args: { p_id: string; p_token: string; p_generation: number }; Returns: unknown }
+      fiscal_intake_get_original: { Args: { p_nf_id: string }; Returns: unknown }
+      fiscal_intake_commit: { Args: { p_id: string; p_token: string; p_generation: number; p_storage_intent_id: string }; Returns: unknown }
+      fiscal_intake_abort: { Args: { p_id: string; p_token: string; p_generation: number }; Returns: unknown }
+      fiscal_intake_open_review: { Args: { p_id: string; p_token: string; p_generation: number; p_fiscal_sha256: string }; Returns: string }
+      fiscal_intake_resume_review: { Args: { p_review_id: string; p_fundo_id: string; p_cedente_fundo_id: string; p_file_sha256: string; p_fiscal_sha256: string; p_fiscal_key: string }; Returns: unknown }
+      fiscal_intake_claim_cleanup: { Args: { p_reservation_id?: string }; Returns: unknown }
+      fiscal_intake_reconcile_expired: { Args: { p_limit?: number }; Returns: number }
+      fiscal_intake_read_email_review: { Args: { p_fundo_id: string; p_cedente_fundo_id: string; p_review_id?: string | null }; Returns: unknown }
+      fiscal_intake_get_review_source: { Args: { p_review_id: string; p_fundo_id: string; p_cedente_fundo_id: string }; Returns: unknown }
+      fiscal_intake_settle_cleanup: { Args: { p_id: string; p_token: string; p_deleted: boolean }; Returns: undefined }
       criar_convite_novo_cedente: {
         Args: { p_fundo_id: string; p_cnpj: string; p_email: string; p_token_hash: string; p_correlation_id: string }
         Returns: { convite_id: string; fundo_id: string; fundo_nome: string; cnpj: string; email: string; expires_at: string }
@@ -2433,6 +2453,15 @@ export interface Database {
       usuario_pode_gerenciar_cedente: { Args: { p_cedente_id: string }; Returns: boolean }
       consultor_pode_operar_cedente: { Args: { p_cedente_id: string }; Returns: boolean }
       consultor_listar_cedente_ids_operacionais: { Args: Record<string, never>; Returns: Array<{ cedente_id: string }> }
+      consultor_pode_visualizar_cedente: { Args: { p_cedente_id: string }; Returns: boolean }
+      consultor_pode_visualizar_operacao: { Args: { p_operacao_id: string }; Returns: boolean }
+      consultor_pode_visualizar_nota_fiscal: { Args: { p_nota_fiscal_id: string }; Returns: boolean }
+      consultor_listar_cedente_ids_visiveis: { Args: Record<string, never>; Returns: Array<{ cedente_id: string }> }
+      listar_fundos_visiveis_consultor: { Args: Record<string, never>; Returns: Array<{ id: string; nome: string }> }
+      buscar_cedentes_visiveis_consultor: {
+        Args: { p_termo?: string | null; p_limite?: number }
+        Returns: Array<{ id: string; razao_social: string; nome_fantasia: string | null; cnpj: string }>
+      }
       admin_criar_consultoria_convite_owner: { Args: { p_cnpj: string; p_razao_social: string; p_nome_fantasia: string | null; p_fundo_ids: string[]; p_usuario_id: string; p_usuario_nome: string; p_usuario_email: string; p_correlation_id: string }; Returns: Record<string, unknown> }
       admin_preparar_convite_consultor_usuario: { Args: { p_consultor_id: string; p_usuario_id: string; p_usuario_nome: string; p_usuario_email: string; p_papel: string; p_correlation_id: string }; Returns: Record<string, unknown> }
       admin_cancelar_convite_consultor: { Args: { p_consultor_id: string; p_usuario_id: string; p_remover_consultoria: boolean; p_correlation_id: string }; Returns: undefined }
@@ -2452,6 +2481,14 @@ export interface Database {
         Returns: Array<{ id: string; nome: string; cnpj: string }>
       }
       listar_cedentes_gerenciados_consultor: {
+        Args: { p_termo?: string | null; p_limite?: number; p_offset?: number }
+        Returns: Array<{
+          id: string; razao_social: string; nome_fantasia: string | null; cnpj: string; status: string
+          vinculo_status: string; fundo_id: string; fundo_nome: string; onboarding_concluido_em: string | null
+          documentos_pendentes: number; total_count: number
+        }>
+      }
+      listar_cedentes_visiveis_consultor: {
         Args: { p_termo?: string | null; p_limite?: number; p_offset?: number }
         Returns: Array<{
           id: string; razao_social: string; nome_fantasia: string | null; cnpj: string; status: string

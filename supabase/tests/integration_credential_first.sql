@@ -1,13 +1,70 @@
 -- Somente banco LOCAL de rehearsal. Fixtures sinteticas e rollback integral.
 \set ON_ERROR_STOP on
 DO $$ BEGIN
- IF current_database() NOT LIKE 'integration_credential_%' THEN RAISE EXCEPTION 'Somente rehearsal local dedicado'; END IF;
+ IF current_database() NOT LIKE 'integration_credential_%' AND NOT (current_database() ~ '^r19_integrations_[0-9]+_[0-9a-f]{8}$' AND current_setting('application_name')='r19_local_sql') AND NOT (current_database()='postgres' AND current_setting('application_name') ~ '^r110_cred_[0-9]{13}$') THEN RAISE EXCEPTION 'Somente rehearsal local dedicado'; END IF;
 END $$;
 BEGIN;
 INSERT INTO auth.users(id,email,raw_user_meta_data) VALUES
  ('ac000000-0000-4000-8000-000000000001','credential-qa@example.invalid','{"nome_completo":"QA"}');
-INSERT INTO public.profiles(id,nome_completo,email) VALUES
- ('ac000000-0000-4000-8000-000000000001','QA','credential-qa@example.invalid');
+-- Auth canonical initial state: cedente/ativo, QA, matching id/email, no security overrides.
+-- Reuse the automatic profile unchanged. Test privilege is assigned below through
+-- usuario_papeis (super_admin); no profile INSERT/DELETE/UPDATE or trigger bypass.
+CREATE FUNCTION pg_temp.assert_integration_auth_profile(actual jsonb, expected jsonb)
+RETURNS void LANGUAGE plpgsql SECURITY INVOKER AS $fixture_guard$
+BEGIN
+ IF jsonb_typeof(actual) IS DISTINCT FROM 'array' THEN
+   RAISE EXCEPTION 'QA_AUTH_PROFILE_CARDINALITY' USING ERRCODE='23514';
+ END IF;
+ IF jsonb_array_length(actual) <> 1 THEN
+   RAISE EXCEPTION 'QA_AUTH_PROFILE_CARDINALITY' USING ERRCODE='23514';
+ END IF;
+ IF ((actual->0) - 'created_at' - 'updated_at') IS DISTINCT FROM expected
+    OR actual->0->>'created_at' IS NULL OR actual->0->>'updated_at' IS NULL THEN
+   RAISE EXCEPTION 'QA_AUTH_PROFILE_CANONICAL_DRIFT' USING ERRCODE='23514';
+ END IF;
+END;
+$fixture_guard$;
+DO $fixture$
+DECLARE
+ actual jsonb; candidate jsonb; field text; rejected boolean;
+ expected jsonb := jsonb_build_object(
+   'id','ac000000-0000-4000-8000-000000000001','email','credential-qa@example.invalid',
+   'nome_completo','QA','role','cedente','status','ativo','telefone',NULL,
+   'mfa_obrigatorio_override',NULL,'mfa_ativado_em',NULL,
+   'ultima_autenticacao_forte_em',NULL,'mfa_reset_em',NULL,
+   'sessoes_revogadas_em',NULL,'senha_alterada_em',NULL);
+BEGIN
+ -- Read immediately after auth.users; count is checked before any scenario changes.
+ SELECT coalesce(jsonb_agg(to_jsonb(p)), '[]'::jsonb) INTO actual
+ FROM public.profiles p WHERE p.id='ac000000-0000-4000-8000-000000000001';
+ PERFORM pg_temp.assert_integration_auth_profile(actual,expected);
+ RAISE NOTICE 'PASS fixture automatic Auth profile exactly one and canonical attributes';
+ -- Negative controls use copies of the actual row, never mutate the real profile.
+ -- The very same validator must reject drift in every critical attribute.
+ FOR field IN SELECT jsonb_object_keys(expected) LOOP
+   candidate := jsonb_set(actual,ARRAY['0',field],to_jsonb('UNEXPECTED'::text));
+   rejected := false;
+   BEGIN
+     PERFORM pg_temp.assert_integration_auth_profile(candidate,expected);
+   EXCEPTION WHEN check_violation THEN
+     IF SQLERRM <> 'QA_AUTH_PROFILE_CANONICAL_DRIFT' THEN RAISE; END IF;
+     rejected := true;
+   END;
+   IF NOT rejected THEN RAISE EXCEPTION 'FAIL fixture accepted drift: %',field; END IF;
+ END LOOP;
+ FOREACH candidate IN ARRAY ARRAY['[]'::jsonb,actual || actual] LOOP
+   rejected := false;
+   BEGIN
+     PERFORM pg_temp.assert_integration_auth_profile(candidate,expected);
+   EXCEPTION WHEN check_violation THEN
+     IF SQLERRM <> 'QA_AUTH_PROFILE_CARDINALITY' THEN RAISE; END IF;
+     rejected := true;
+   END;
+   IF NOT rejected THEN RAISE EXCEPTION 'FAIL fixture accepted invalid profile count'; END IF;
+ END LOOP;
+ RAISE NOTICE 'PASS fixture negative controls reject critical drift and missing/duplicate profiles';
+END;
+$fixture$;
 INSERT INTO public.usuario_papeis(usuario_id,papel,ativo,origem)
  VALUES ('ac000000-0000-4000-8000-000000000001','super_admin',true,'administracao');
 INSERT INTO public.fundos(id,nome,cnpj,administradora_nome,administradora_cnpj,gestora_nome,gestora_cnpj)
