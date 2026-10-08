@@ -21,6 +21,13 @@ export function assertPublicationConfig({ vercel, certification, standard }) {
     assert(!JSON.stringify(job).match(/supabase\s+(?:db\s+push|link|functions\s+deploy)|vercel\s+(?:deploy|--prod)/), 'DEPLOY_COMMAND_IN_CERTIFICATION')
   }
   const sql = certification.jobs.sql.steps
+  const linuxSteps = certification.jobs.linux.steps
+  const readinessIndex = linuxSteps.findIndex(s => s.name === 'Chrome infrastructure readiness')
+  const pdfIndex = linuxSteps.findIndex(s => s.name === 'Real PDF runtime')
+  assert(readinessIndex >= 0 && pdfIndex > readinessIndex, 'CHROME_READINESS_ORDER')
+  assert(linuxSteps[readinessIndex].run.includes('r1-19-chrome-readiness.mjs --ci-only'), 'CHROME_READINESS_REQUIRED')
+  assert(!/testTimeout|retry|continue-on-error|no-sandbox/.test(linuxSteps[pdfIndex].run), 'PDF_GATE_RELAXED')
+  assert.equal(linuxSteps[pdfIndex]['continue-on-error'], undefined, 'PDF_GATE_RELAXED')
   assert(sql.some(s => s.run === 'node scripts/qa/reconciliation/r1-18-ci.mjs --local-only'))
   const cleanup = sql.find(s => s.name === 'Cleanup only manifest-owned resources')
   assert.equal(cleanup.if, 'always()')

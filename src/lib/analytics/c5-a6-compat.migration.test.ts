@@ -1,11 +1,12 @@
 import { readFileSync } from 'node:fs'
-import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
+import { assertCheckoutIdentity } from '../../../scripts/qa/reconciliation/r1-19-checkout-integrity'
 
 const file = 'supabase/migrations/20261006210815_c5_reader_a6_compat.sql'
 const source = readFileSync(file, 'utf8')
 const sql = source.replace(/--[^\n]*/g, '')
 const manifest = JSON.parse(readFileSync('scripts/qa/reconciliation/r1-3-path-manifests.json', 'utf8'))
+const canonical = JSON.parse(readFileSync('scripts/qa/reconciliation/ci/contracts.json', 'utf8')).canonical.entries as (Entry & { source_kind: string })[]
 type Entry = {path: string; version: string; sha256: string; classification: string}
 
 describe('C5/A6 forward compatibility', () => {
@@ -51,10 +52,12 @@ describe('C5/A6 forward compatibility', () => {
       '20260925212843','20260928130825','20260928143646','20260929193129','20260929215557','20261006210815',
     ])
   })
-  it('all explicit path entries retain their exact file hashes', () => {
+  it('all explicit path entries retain canonical hashes and exact legacy representation hashes', () => {
     for (const key of ['PROD_TO_RECONCILED_UPGRADE','HOMOLOG_TO_RECONCILED_UPGRADE','CLEAN_ROOM_CANONICAL']) {
       for (const entry of manifest[key] as Entry[]) {
-        expect(createHash('sha256').update(readFileSync(entry.path)).digest('hex')).toBe(entry.sha256)
+        const sources = canonical.filter(source => source.path === entry.path && source.version === entry.version)
+        expect(sources).toHaveLength(1)
+        assertCheckoutIdentity(readFileSync(entry.path), entry, sources[0])
       }
     }
   })

@@ -32,6 +32,11 @@ jobs:
       - run: npm ci
       - name: Orchestration and publication safety unit tests
         run: node --test scripts/qa/reconciliation/r1-19-*.test.mjs
+      - name: Chrome infrastructure readiness
+        run: |
+          export CHROME_PATH="$(command -v google-chrome)"
+          test -n "$CHROME_PATH"
+          node scripts/qa/reconciliation/r1-19-chrome-readiness.mjs --ci-only
       - name: Real PDF runtime
         run: |
           export CHROME_PATH="$(command -v google-chrome)"
@@ -41,6 +46,14 @@ jobs:
       - run: npm test -- --pool=threads --maxWorkers=1 --no-file-parallelism
       - run: npx eslint .
       - run: npx next build --webpack
+      - name: Chrome readiness evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reconciliation-chrome-readiness
+          path: rehearsal/reports/R1_19_CHROME_READINESS.json
+          if-no-files-found: error
+          retention-days: 7
   sql:
     if: github.ref == 'refs/heads/reconcile/main-homolog-2026-10-06' || github.head_ref == 'reconcile/main-homolog-2026-10-06'
     runs-on: ubuntu-latest

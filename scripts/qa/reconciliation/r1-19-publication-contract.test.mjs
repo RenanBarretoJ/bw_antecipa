@@ -44,3 +44,12 @@ test('Reject real credentials in standard CI outside the excluded build step', (
   const f = structuredClone(files); f.standard.jobs.validate.steps.push({ run: 'npm test', env: { TOKEN: '${{ secrets.TOKEN }}' } })
   assert.throws(() => assertPublicationConfig(f), /REAL_SECRET_AVAILABLE_TO_RECONCILIATION/)
 })
+
+test('Reject removed Chrome preparation or relaxed PDF gate', () => {
+  const f = structuredClone(files)
+  f.certification.jobs.linux.steps = f.certification.jobs.linux.steps.filter(s => s.name !== 'Chrome infrastructure readiness')
+  assert.throws(() => assertPublicationConfig(f), /CHROME_READINESS_ORDER/)
+  const g = structuredClone(files)
+  g.certification.jobs.linux.steps.find(s => s.name === 'Real PDF runtime')['continue-on-error'] = true
+  assert.throws(() => assertPublicationConfig(g), /PDF_GATE_RELAXED/)
+})
