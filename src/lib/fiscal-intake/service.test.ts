@@ -3,6 +3,7 @@ import { importFiscalFile, type FiscalImportRepository, type FiscalImportInput }
 import { FiscalIntakeError, type FiscalFacts } from './contracts'
 import { extractDanfseV2 } from '@/lib/nfse/danfse-v2'
 import { danfseFixture } from '@/lib/nfse/fixtures/danfse-v2'
+import { NfseExtractionStageError } from '@/lib/nfse/extraction-failure'
 
 const facts: FiscalFacts = { kind: 'DANFE', documentType: 'NFE', key: '1'.repeat(44), issuerCnpj: '11222333000181',
   parsed: { campos_extraidos: [], numero_nf: '42', valor_bruto: 100, chave_acesso: '1'.repeat(44) } }
@@ -23,6 +24,15 @@ function setup() {
 }
 
 describe('shared fiscal import orchestration', () => {
+  it.each(['HUMAN', 'SYSTEM'] as const)('preserves %s extraction-failure outcome and never reserves', async actor => {
+    const d = setup()
+    if (actor === 'SYSTEM') d.input.actor = { type: 'SYSTEM', source: 'EMAIL_INTAKE', integrationId: 'i', messageId: 'm', attachmentId: 'a', attachmentToken: 't' }
+    d.parse.mockRejectedValue(new NfseExtractionStageError('nfse_classification', new Error('NFSE_VISUAL_TIMEOUT'), 30000))
+    expect(await importFiscalFile(d.input, d)).toEqual({ status: 'RETRYABLE_ERROR' })
+    expect(d.repository.resolveScope).not.toHaveBeenCalled()
+    expect(d.repository.reserve).not.toHaveBeenCalled()
+    expect(d.storage.upload).not.toHaveBeenCalled()
+  })
   it.each(['DUPLICATE', 'IN_PROGRESS', 'CLEANUP_PENDING'] as const)('does not touch Storage for %s', async status => {
     const d = setup(); d.repository.reserve.mockResolvedValue({ status })
     expect(await importFiscalFile(d.input, d)).toEqual({ status })

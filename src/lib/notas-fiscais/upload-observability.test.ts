@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createUploadTelemetry, logUploadStage } from './upload-observability'
 import { resumirUploadBatch, type UploadFileResult } from './upload-batch'
+import { NfseExtractionStageError } from '@/lib/nfse/extraction-failure'
 
 const sensitive = [
   '35260907312248000137550010000017411000017419',
@@ -16,6 +17,29 @@ const sensitive = [
 ]
 
 describe('upload NF observability', () => {
+  it('correlates extraction stage/code/duration separately from persistence without leaking raw errors', () => {
+    const events: Record<string, unknown>[] = []
+    const telemetry = createUploadTelemetry(3, event => events.push(event))
+    for (let i = 0; i < 3; i++) telemetry.start(i)
+    const error = new NfseExtractionStageError('nfse_classification', new Error('NFSE_VISUAL_TIMEOUT'), 30001)
+    Object.assign(error, { headers: sensitive, response: sensitive, cause: sensitive, stack: sensitive.join(' ') })
+    telemetry.extractionFailed(0, error)
+    telemetry.extractionFailed(1, new Error(sensitive.join(' ')))
+    telemetry.complete(resumirUploadBatch([
+      { fileName: 'private.pdf', status: 'EXTRACTION_ERROR', message: sensitive.join(' ') },
+      { fileName: 'private-2.pdf', status: 'EXTRACTION_ERROR', message: sensitive.join(' ') },
+      { fileName: 'ok.xml', status: 'IMPORTED', nfId: 'private-id' },
+    ]))
+    expect(events.find(event => event.event === 'NF_UPLOAD_FILE_EXTRACTION_ERROR' && event.file_index === 0)).toMatchObject({
+      correlation_id: telemetry.correlationId, stage: 'nfse_classification', error_code: 'NFSE_VISUAL_TIMEOUT',
+      stage_duration_ms: 30001, error_class: 'extraction', retryable: true,
+    })
+    expect(events.find(event => event.event === 'NF_UPLOAD_FILE_EXTRACTION_ERROR' && event.file_index === 1)).toMatchObject({
+      stage: 'fiscal_parse', error_code: 'FISCAL_EXTRACTION_UNEXPECTED', retryable: false,
+    })
+    expect(events.at(-1)).toMatchObject({ imported_count: 1, extraction_error_count: 2, persistence_error_count: 0 })
+    for (const secret of [...sensitive, 'private.pdf', 'private-id']) expect(JSON.stringify(events)).not.toContain(secret)
+  })
   it('emits success for MK, BAHIAMED and generic DANFE with one batch correlation', () => {
     const events: Record<string, unknown>[] = []
     const telemetry = createUploadTelemetry(3, (event) => events.push(event))

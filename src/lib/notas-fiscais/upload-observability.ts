@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto'
 import type { UploadBatchResult, UploadFileStatus } from './upload-batch'
 import { safeDanfeFallbackFailureCode, type DanfeFallbackFailureCode } from '@/lib/danfe/fallback-diagnostics'
+import { safeExtractionFailure, type SafeExtractionFailure } from '@/lib/nfse/extraction-failure'
 
 type FileEvent =
   | 'NF_UPLOAD_FILE_STARTED'
@@ -12,6 +13,7 @@ type FileEvent =
   | 'NF_UPLOAD_FILE_DUPLICATE'
   | 'NF_UPLOAD_FILE_STORAGE_ERROR'
   | 'NF_UPLOAD_FILE_PERSISTENCE_ERROR'
+  | 'NF_UPLOAD_FILE_EXTRACTION_ERROR'
   | 'NF_UPLOAD_FILE_COMPENSATED'
 
 type SafeEvent = {
@@ -31,7 +33,8 @@ type SafeEvent = {
   fallback_duration_ms?: number
   ai_extraction_confidence_bucket?: 'high' | 'medium' | 'low' | 'unknown'
   error_code?: string
-  error_class?: 'validation' | 'duplicate' | 'storage' | 'persistence' | 'unknown'
+  error_class?: 'validation' | 'duplicate' | 'storage' | 'persistence' | 'extraction' | 'unknown'
+  stage_duration_ms?: number
   stage?: string
   retryable?: boolean
   duration_ms?: number
@@ -40,6 +43,7 @@ type SafeEvent = {
   duplicate_count?: number
   storage_error_count?: number
   persistence_error_count?: number
+  extraction_error_count?: number
   compensated_count?: number
 }
 
@@ -79,6 +83,7 @@ export function createUploadTelemetry(batchSize: number, sink: Sink = defaultSin
     | 'ai_extraction_confidence_bucket'
   >>()
   const compensated = new Set<number>()
+  const extractionFailures = new Map<number, SafeExtractionFailure>()
 
   function emit(fileIndex: number, event: FileEvent, extra: Partial<SafeEvent> = {}) {
     sink({
@@ -137,6 +142,9 @@ export function createUploadTelemetry(batchSize: number, sink: Sink = defaultSin
       compensated.add(fileIndex)
       emit(fileIndex, 'NF_UPLOAD_FILE_COMPENSATED')
     },
+    extractionFailed(fileIndex: number, error: unknown) {
+      extractionFailures.set(fileIndex, safeExtractionFailure(error))
+    },
     complete(batch: UploadBatchResult) {
       const events: Record<UploadFileStatus, FileEvent> = {
         REQUIRES_REVIEW: 'NF_UPLOAD_FILE_REQUIRES_REVIEW',
@@ -146,6 +154,7 @@ export function createUploadTelemetry(batchSize: number, sink: Sink = defaultSin
         DUPLICATE: 'NF_UPLOAD_FILE_DUPLICATE',
         STORAGE_ERROR: 'NF_UPLOAD_FILE_STORAGE_ERROR',
         PERSISTENCE_ERROR: 'NF_UPLOAD_FILE_PERSISTENCE_ERROR',
+        EXTRACTION_ERROR: 'NF_UPLOAD_FILE_EXTRACTION_ERROR',
       }
       const classes: Record<Exclude<UploadFileStatus, 'IMPORTED'>, NonNullable<SafeEvent['error_class']>> = {
         REQUIRES_REVIEW: 'validation',
@@ -154,6 +163,7 @@ export function createUploadTelemetry(batchSize: number, sink: Sink = defaultSin
         DUPLICATE: 'duplicate',
         STORAGE_ERROR: 'storage',
         PERSISTENCE_ERROR: 'persistence',
+        EXTRACTION_ERROR: 'extraction',
       }
       batch.results.forEach((result, index) => emit(index, events[result.status], {
         status: result.status,
@@ -162,6 +172,7 @@ export function createUploadTelemetry(batchSize: number, sink: Sink = defaultSin
           error_class: classes[result.status],
           stage: 'file_result',
           retryable: result.status === 'STORAGE_ERROR' || result.status === 'PERSISTENCE_ERROR',
+          ...(result.status === 'EXTRACTION_ERROR' ? extractionFailures.get(index) : undefined),
         } : {}),
       }))
       sink({
@@ -173,6 +184,7 @@ export function createUploadTelemetry(batchSize: number, sink: Sink = defaultSin
         duplicate_count: batch.results.filter((result) => result.status === 'DUPLICATE').length,
         storage_error_count: batch.results.filter((result) => result.status === 'STORAGE_ERROR').length,
         persistence_error_count: batch.results.filter((result) => result.status === 'PERSISTENCE_ERROR').length,
+        extraction_error_count: batch.results.filter((result) => result.status === 'EXTRACTION_ERROR').length,
         compensated_count: compensated.size,
         duration_ms: Math.max(0, Date.now() - startedAt),
       })

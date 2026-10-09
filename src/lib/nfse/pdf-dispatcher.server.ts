@@ -3,6 +3,7 @@ import { extractDanfseV2, isDanfseV2, validateNfseExtraction } from './danfse-v2
 import { classifyFiscalImage, extractNfseVisual, extractMunicipalNfseVisual } from './openai-visual.server'
 import type { NfseExtraction } from './contracts'
 import { readNativePdfText } from '../pdf/native-text.server'
+import { runNfseVisualStage } from './extraction-failure'
 
 type Dependencies = {
   native?: (buffer: Buffer) => Promise<{ text: string }>
@@ -29,9 +30,17 @@ export async function probeNfsePdf(buffer: Buffer, deps: Dependencies = {}): Pro
   const plausiblyNfse = /DANFSE|NFS-E|NOTA FISCAL.*SERVI[CÇ]OS/i.test(text)
   if (text.trim().length >= 50 && !plausiblyNfse) return null
   if (text.length > 1_000_000) throw new Error('NFSE_VISUAL_SIZE_INVALID')
-  const kind = await (deps.classify ?? classifyFiscalImage)(buffer)
+  const kind = await runNfseVisualStage('nfse_classification', async () => {
+    const classified = await (deps.classify ?? classifyFiscalImage)(buffer)
+    if ((classified === 'nfe_danfe' && plausiblyNfse)
+      || (classified === 'nfse_municipal' && isDanfseV2(text))) {
+      throw new Error('NFSE_VISUAL_CLASSIFICATION_AMBIGUOUS')
+    }
+    return classified
+  })
   if (kind === 'nfe_danfe' && !plausiblyNfse) return null
-  if (kind === 'nfse_municipal' && !isDanfseV2(text)) return (deps.municipal ?? extractMunicipalNfseVisual)(buffer)
+  if (kind === 'nfse_municipal' && !isDanfseV2(text)) return runNfseVisualStage('nfse_municipal_extraction',
+    () => (deps.municipal ?? extractMunicipalNfseVisual)(buffer))
   if (kind !== 'nfse_danfse_v2') throw new Error('NFSE_VISUAL_CLASSIFICATION_AMBIGUOUS')
-  return (deps.visual ?? extractNfseVisual)(buffer)
+  return runNfseVisualStage('nfse_national_extraction', () => (deps.visual ?? extractNfseVisual)(buffer))
 }

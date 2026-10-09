@@ -8,18 +8,28 @@ import { importFiscalFile } from './service.server'
 import { parseFiscalFile } from './parse.server'
 import { createFiscalImportRepository } from './repository.server'
 import { createFiscalStorage } from './storage.server'
+import { extractionFailureMessage, safeExtractionFailure, type SafeExtractionFailure } from '@/lib/nfse/extraction-failure'
 
 export async function importManualFiscalFile(input: {
   file: File; userId: string; cedenteId: string; cedenteFundoId: string; fundoId: string
   client: AppSupabaseClient; telemetry: UploadTelemetry; fileIndex: number; reviewIntent?: string; manualDue?: string
 }): Promise<ProcessedUploadFile> {
+  let extractionFailure: SafeExtractionFailure | undefined
   const result = await importFiscalFile({ actor: { type: 'HUMAN', userId: input.userId }, fundoId: input.fundoId,
     cedenteFundoId: input.cedenteFundoId, file: input.file,
     review: input.reviewIntent ? { intentId: input.reviewIntent, manualDue: input.manualDue ?? '' } : undefined,
   }, {
     repository: createFiscalImportRepository(input.client), storage: createFiscalStorage(),
     parse: async file => {
-      const facts = await parseFiscalFile(file)
+      const facts = await parseFiscalFile(file).catch((error: unknown) => {
+        // Fiscal/access rejections retain their existing classification. Only
+        // extraction exceptions are reported here, before any reservation/write.
+        if (!(error instanceof FiscalIntakeError)) {
+          extractionFailure = safeExtractionFailure(error)
+          input.telemetry.extractionFailed(input.fileIndex, error)
+        }
+        throw error
+      })
       // Preserve A3/A4's fresh session/MFA/context check after potentially slow AI.
       const auth = await requireAuthenticated(input.client).catch(() => { throw new FiscalIntakeError('DENIED') })
       const fresh = await resolverContextoOperacionalNotaFiscal(auth, input.cedenteId).catch(() => { throw new FiscalIntakeError('DENIED') })
@@ -35,6 +45,9 @@ export async function importManualFiscalFile(input: {
       return facts
     },
   })
+  if (result.status === 'RETRYABLE_ERROR' && extractionFailure) return {
+    ok: false, status: 'EXTRACTION_ERROR', error: extractionFailureMessage(extractionFailure),
+  }
   if (result.status === 'IMPORTED') return { ok: true, id: result.nfId, isRascunho: true, nfNumero: result.numero }
   if (result.status === 'REQUIRES_REVIEW') return { ok: false, status: 'REQUIRES_REVIEW', review: result.review,
     error: 'Vencimento não informado no documento. Informe uma data de vencimento válida para concluir.' }
