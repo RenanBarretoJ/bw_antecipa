@@ -10,8 +10,39 @@ const ambiguityFixMigration = readFileSync(
 const sensitiveAction = readFileSync(join(process.cwd(), 'src/lib/auth/sensitive-action.ts'), 'utf8')
 const provider = readFileSync(join(process.cwd(), 'src/components/auth/mfa-session-provider.tsx'), 'utf8')
 const mfaActions = readFileSync(join(process.cwd(), 'src/app/actions/mfa.ts'), 'utf8')
+const consumeSessionFix = readFileSync(
+  join(process.cwd(), 'supabase/migrations/20261009123943_r2_3_revalidar_sessao_consumo_autorizacao.sql'),
+  'utf8',
+)
 
 describe('MFA session architecture', () => {
+  it('revalidates the canonical session after acquiring the authorization lock', () => {
+    const authorizationLock = consumeSessionFix.indexOf('for update;')
+    const validation = consumeSessionFix.indexOf('from public.obter_sessao_mfa_atual() estado')
+    const consumption = consumeSessionFix.indexOf('set consumida_em = clock_timestamp()')
+    expect(authorizationLock).toBeGreaterThan(0)
+    expect(validation).toBeGreaterThan(authorizationLock)
+    expect(consumption).toBeGreaterThan(validation)
+    expect(consumeSessionFix).toContain("estado.status = 'valid' and estado.session_id = v_session_id")
+  })
+
+  it('serializes Auth deletion and MFA revocation without changing the grant surface', () => {
+    expect(consumeSessionFix).toMatch(/from auth\.sessions s[\s\S]*?for share;/)
+    expect(consumeSessionFix).toMatch(/from public\.sessoes_elevadas e[\s\S]*?for share;/)
+    expect(consumeSessionFix).not.toMatch(/^\s*(grant|revoke|drop|alter table)\b/im)
+    expect(consumeSessionFix).toContain('R2_3_MFA_PREREQUISITE_MISSING')
+    expect(consumeSessionFix).toContain('returns boolean')
+  })
+
+  it('retains user, session, action, nonce, expiry and one-use checks on consumption', () => {
+    const update = consumeSessionFix.slice(consumeSessionFix.indexOf('update public.autorizacoes_acoes_sensiveis a'))
+    for (const predicate of [
+      'a.user_id = v_user_id', 'a.session_id = v_session_id', 'a.action_type = p_action_type',
+      'a.nonce_hash = p_nonce_hash', 'a.consumida_em is null', 'a.revogada_em is null',
+      'clock_timestamp() < a.expira_em',
+    ]) expect(update).toContain(predicate)
+  })
+
   it('binds elevation to the exact Supabase session and invalidates legacy rows', () => {
     expect(migration).toContain('delete from public.sessoes_elevadas')
     expect(migration).toContain('primary key (user_id, session_id)')

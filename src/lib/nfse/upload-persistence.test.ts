@@ -1,13 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { extractDanfseV2 } from './danfse-v2'
 import { danfseFixture } from './fixtures/danfse-v2'
+import { municipalFixture } from './fixtures/municipal'
+import { validateMunicipalVisual } from './municipal-visual-contract'
+import { NfseExtractionStageError } from './extraction-failure'
 import { FiscalIntakeError } from '@/lib/fiscal-intake/contracts'
 import type { PreparedFiscal } from '@/lib/fiscal-intake/contracts'
 import { uploadNFs } from '@/lib/actions/nota-fiscal'
 const m = vi.hoisted(() => ({
   insertError: false, cleanupError: false, duplicate: false,
   inserts: [] as Record<string, unknown>[], states: [] as string[], prepared: null as PreparedFiscal | null,
-  upload: vi.fn(), remove: vi.fn(), probe: vi.fn(), read: vi.fn(), claim: vi.fn(),
+  upload: vi.fn(), remove: vi.fn(), probe: vi.fn(), read: vi.fn(), claim: vi.fn(), extractionFailed: vi.fn(),
   auth: vi.fn(), scope: vi.fn(), document: vi.fn(), event: vi.fn(),
 }))
 vi.mock('@/lib/auth/authorization', () => ({ AuthorizationError: class extends Error {}, requireAuthenticated: (...args: unknown[]) => m.auth(...args), requireGestor: vi.fn() }))
@@ -41,7 +44,7 @@ vi.mock('@/lib/cedentes/estabelecimentos.server', () => ({
 vi.mock('@/lib/documentos-v2/upload', () => ({ uploadDocumentoSeRequerido: (...args: unknown[]) => m.document(...args) }))
 vi.mock('@/lib/eventos-dominio/registrar', () => ({ carregarContextoEventoNota: async () => ({}), registrarEventoDominio: (...args: unknown[]) => m.event(...args) }))
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
-vi.mock('@/lib/notas-fiscais/upload-observability', () => ({ logUploadStage: vi.fn(), createUploadTelemetry: () => ({ correlationId:'qa', start:vi.fn(), parsed:vi.fn(), compensated:vi.fn(), complete:vi.fn() }) }))
+vi.mock('@/lib/notas-fiscais/upload-observability', () => ({ logUploadStage: vi.fn(), createUploadTelemetry: () => ({ correlationId:'qa', start:vi.fn(), parsed:vi.fn(), compensated:vi.fn(), complete:vi.fn(), extractionFailed: m.extractionFailed }) }))
 vi.mock('@/lib/supabase/server', () => {
   const client = {
     storage: { from: () => ({ upload: (...args: unknown[]) => m.upload(...args), remove: (...args: unknown[]) => m.remove(...args) }) },
@@ -84,6 +87,35 @@ function request(review=true){
   return data
 }
 describe('real upload action NFS-e storage saga', () => {
+  it.each([
+    ['NFSE_VISUAL_TIMEOUT', 'tempo limite'],
+    ['NFSE_VISUAL_NOT_CONFIGURED', 'configuração'],
+    ['NFSE_VISUAL_INVALID_RESPONSE', 'resposta inválida'],
+    ['NFSE_VISUAL_FISCAL_CONFLICT', 'com segurança'],
+    ['private response Bearer secret', 'concluir a leitura'],
+  ])('reports extraction %s separately from persistence without writes', async (code, message) => {
+    const error = new NfseExtractionStageError('nfse_municipal_extraction', new Error(code), 30000)
+    m.probe.mockRejectedValue(error)
+    const result = (await uploadNFs(request(false)))?.uploadBatch?.results[0]
+    expect(result).toMatchObject({ status: 'EXTRACTION_ERROR', message: expect.stringContaining(message) })
+    expect(JSON.stringify(result)).not.toContain('Bearer secret')
+    expect(m.extractionFailed).toHaveBeenCalledWith(0, error)
+    expect(m.upload).not.toHaveBeenCalled(); expect(m.inserts).toHaveLength(0)
+    expect(m.claim).not.toHaveBeenCalled(); expect(m.remove).not.toHaveBeenCalled()
+  })
+  it('municipal review has no NF or Storage write and later persists the same verified facts', async () => {
+    m.probe.mockResolvedValue(validateMunicipalVisual(municipalFixture()))
+    expect((await uploadNFs(request(false)))?.uploadBatch?.results[0]?.status).toBe('REQUIRES_REVIEW')
+    expect(m.upload).not.toHaveBeenCalled();expect(m.inserts).toHaveLength(0)
+    expect((await uploadNFs(request()))?.success).toBe(true)
+    expect(m.inserts[0]).toMatchObject({numero_nf:'1234',chave_acesso:null,valor_liquido:null,
+      fiscal_proveniencia:{orgao_emissor:'PREFEITURA MUNICIPAL DE CIDADE QA',codigo_verificacao:'QA.1234.5678-X'}})
+  })
+  it('municipal duplicate is rejected before any Storage or reservation', async () => {
+    m.probe.mockResolvedValue(validateMunicipalVisual(municipalFixture()));m.duplicate=true
+    expect((await uploadNFs(request()))?.uploadBatch?.results[0]?.status).toBe('DUPLICATE')
+    expect(m.upload).not.toHaveBeenCalled();expect(m.claim).not.toHaveBeenCalled()
+  })
   it('reextracts, ignores client fiscal fields, and keeps authenticated persistence', async () => {
     expect((await uploadNFs(request()))?.success).toBe(true)
     expect(m.probe).toHaveBeenCalledOnce()
@@ -109,6 +141,7 @@ describe('real upload action NFS-e storage saga', () => {
     m.scope.mockResolvedValueOnce({ actorUserId:'actor',actorRole:'cedente',cedente:{id:'cedente',cnpj:'11222333000181'},cedenteFundoId:'link',fundoId:'fund' }).mockRejectedValueOnce(new Error('revoked'))
     expect((await uploadNFs(request()))?.uploadBatch?.results[0]?.status).toBe('REJECTED_INVALID')
     expect(m.upload).not.toHaveBeenCalled()
+    expect(m.extractionFailed).not.toHaveBeenCalled()
   })
   it('compensates an insert failure and releases only after cleanup', async () => {
     m.insertError=true

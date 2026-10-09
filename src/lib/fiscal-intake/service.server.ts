@@ -2,6 +2,7 @@ import 'server-only'
 import { createHash } from 'node:crypto'
 import { fiscalFingerprint } from '@/lib/nfse/review-facts'
 import { resolverRazaoSocialDestinatario } from '@/lib/notas-fiscais/destinatario.server'
+import { validarDanfeParaPersistencia } from '@/lib/pdf-nf-parser'
 import { prepareFiscalPersistence } from './prepare'
 import { parseFiscalFile } from './parse.server'
 import { FiscalIntakeError, type DomainActor, type FiscalClaim, type FiscalFacts, type FiscalImportResult,
@@ -13,6 +14,11 @@ export type FiscalImportInput = {
 }
 type Unavailable = { status: 'DUPLICATE' | 'IN_PROGRESS' | 'CLEANUP_PENDING' }
 export interface FiscalImportRepository {
+  companion?(input: FiscalImportInput, scope: FiscalScope, facts: FiscalFacts, sha256: string): Promise<
+    { kind: 'CREATE_NF' } | { kind: 'DOCUMENT'; claim: FiscalClaim; intent: FiscalStorageIntent }
+    | FiscalImportResult>
+  commitCompanion?(claim: FiscalClaim): Promise<{ status: 'COMPANION_LINKED'; nfId: string; numero: string }>
+  failCompanion?(claim: FiscalClaim): Promise<FiscalImportResult>
   resolveScope(input: FiscalImportInput, facts: FiscalFacts): Promise<FiscalScope | { status: 'UNKNOWN_CEDENTE' | 'ROUTING_DENIED' | 'AMBIGUOUS' }>
   reserve(input: FiscalImportInput, scope: FiscalScope, facts: FiscalFacts, sha256: string): Promise<FiscalClaim | Unavailable>
   resumeReview(input: FiscalImportInput, scope: FiscalScope, facts: FiscalFacts, sha256: string, fingerprint: string): Promise<FiscalClaim | Unavailable>
@@ -33,11 +39,25 @@ export async function importFiscalFile(input: FiscalImportInput, dependencies: {
 }): Promise<FiscalImportResult> {
   const { repository, storage } = dependencies
   let claim: FiscalClaim | undefined
+  let companionClaim: FiscalClaim | undefined
   try {
-    const facts = await (dependencies.parse ?? parseFiscalFile)(input.file)
+    const systemNfe = input.actor.type === 'SYSTEM' && !input.review
+    const facts = await (dependencies.parse ?? parseFiscalFile)(input.file, { companion: systemNfe })
     const scope = await repository.resolveScope(input, facts)
     if ('status' in scope) return scope
     const sha256 = createHash('sha256').update(Buffer.from(await input.file.arrayBuffer())).digest('hex')
+    if (systemNfe && facts.documentType === 'NFE') {
+      if (!repository.companion) throw new FiscalIntakeError('INFRASTRUCTURE')
+      const document = await repository.companion(input, scope, facts, sha256)
+      if ('status' in document) return document
+      if (document.kind === 'DOCUMENT') {
+        companionClaim = document.claim
+        if (!repository.commitCompanion || !repository.failCompanion) throw new FiscalIntakeError('INFRASTRUCTURE')
+        await storage.upload(document.intent, input.file)
+        return await repository.commitCompanion(companionClaim)
+      }
+      if (facts.kind === 'DANFE' && !validarDanfeParaPersistencia(facts.parsed).ok) return { status: 'AMBIGUOUS' }
+    }
     if (input.review && (facts.kind !== 'NFSE' || input.actor.type !== 'HUMAN')) return { status: 'INVALID' }
     const reservation = input.review && facts.kind === 'NFSE'
       ? await repository.resumeReview(input, scope, facts, sha256, fiscalFingerprint(facts.parsed))
@@ -63,6 +83,10 @@ export async function importFiscalFile(input: FiscalImportInput, dependencies: {
     const result = await repository.commit(claim, intent, prepared, input.file)
     return { status: 'IMPORTED', ...result }
   } catch (error) {
+    if (companionClaim && repository.failCompanion) {
+      try { return await repository.failCompanion(companionClaim) }
+      catch { return { status: 'CLEANUP_PENDING' } }
+    }
     if (claim) {
       try {
         const resolution = await repository.fail(claim)

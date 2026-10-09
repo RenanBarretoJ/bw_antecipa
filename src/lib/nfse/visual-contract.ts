@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { extractDanfseV2, validateNfseExtraction } from './danfse-v2'
 import type { NfseExtraction, NfseField } from './contracts'
-import { NfseVisualFiscalError } from './visual-diagnostics'
+import { NfseVisualContractError, NfseVisualFiscalError } from './visual-diagnostics'
 
 const printed = z.object({ value: z.string().max(200).nullable(), label: z.string().max(100).nullable() }).strict()
 export const visualNfseSchema = z.object({
@@ -36,7 +36,7 @@ const normalize = (value: string) => value.normalize('NFD').replace(/[\u0300-\u0
 /** No NF-e offsets or calculated fiscal values. Only a bounded, single-document label contract. */
 export function validateVisualNfse(input: unknown): NfseExtraction {
   const parsed = visualNfseSchema.safeParse(input)
-  if (!parsed.success) throw new Error('NFSE_VISUAL_INVALID_CONTRACT')
+  if (!parsed.success) throw new NfseVisualContractError(parsed.error.issues)
   const candidate = parsed.data
   function line(field: PrintedField): string {
     const fact = candidate[field]

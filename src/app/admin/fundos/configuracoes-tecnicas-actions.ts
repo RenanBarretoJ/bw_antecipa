@@ -1,6 +1,8 @@
 'use server'
 
-import { createHash, randomUUID } from 'node:crypto'
+import { randomUUID } from 'node:crypto'
+import { calcularHashConfiguracaoCnab } from '@/lib/cnab/domain'
+import { normalizarConfiguracaoCnabInput } from '@/lib/cnab/resolver-configuracao'
 import { revalidatePath } from 'next/cache'
 import { requireSuperAdmin } from '@/lib/auth/admin-authorization'
 import { AuthorizationError } from '@/lib/auth/authorization'
@@ -18,10 +20,13 @@ import {
 } from '@/lib/admin/configuracoes-tecnicas'
 import { validarEndpointTecnicoSeguro } from '@/lib/admin/endpoint-seguro.server'
 import { integrationProviderRegistry } from '@/lib/integracoes/registry.server'
+import { obterAdapterCatalogo } from '@/lib/integracoes/adapter-catalog'
 import { prepararConfiguracaoFinanceiraDoFundo, possuiCapabilityFinanceira } from '@/lib/integracoes/configuracao-financeira'
 import {
   criptografarPortalFidcValor,
   descriptografarPortalFidcValor,
+  PortalFidcKeyringError,
+  getPortalFidcEncryptionKey,
 } from '@/lib/portal-fidc/credenciais'
 
 type RpcError = { code?: string; message?: string }
@@ -52,6 +57,7 @@ function respostaErro(message: string, correlationId?: string): AdminTechnicalAc
 }
 
 function mapearErro(error: unknown, correlationId: string): AdminTechnicalActionResult {
+  if (error instanceof PortalFidcKeyringError) return respostaErro(error.message, correlationId)
   if (error instanceof AuthorizationError) return respostaErro(error.message, correlationId)
   const value = error as RpcError
   const message = error instanceof Error ? error.message : value?.message
@@ -87,6 +93,7 @@ export async function cadastrarCredencialAdmin(input: unknown): Promise<AdminTec
     if (!parsed.success) return respostaErro('Revise os dados da credencial.', correlationId)
     const context = await requireSuperAdmin()
     const actionType = parsed.data.credencialAnteriorId ? 'rotacionar_credencial_integracao' : 'cadastrar_credencial_integracao'
+    getPortalFidcEncryptionKey()
     await autorizarEConsumirAcaoSensivel(context, actionType, parsed.data.mfaCode)
 
     const usuario = criptografarPortalFidcValor(parsed.data.usuario)
@@ -96,6 +103,8 @@ export async function cadastrarCredencialAdmin(input: unknown): Promise<AdminTec
     const { data, error } = await context.supabase.rpc('admin_cadastrar_credencial_integracao', {
       p_fundo_id: parsed.data.fundoId,
       p_integracao_fundo_id: parsed.data.integracaoFundoId,
+      p_provider_key: parsed.data.providerKey || null,
+      p_capabilities: parsed.data.capabilities,
       p_ambiente: parsed.data.ambiente,
       p_nome: parsed.data.nome,
       p_usuario_criptografado: usuario.ciphertext,
@@ -167,6 +176,9 @@ export async function salvarIntegracaoRascunhoAdmin(input: unknown): Promise<Adm
     const parsed = adminIntegracaoRascunhoSchema.safeParse(input)
     if (!parsed.success) {
       const issue = parsed.error.issues[0]
+      if (issue?.path[0] === 'updatedAtEsperado') {
+        return respostaErro('Nao foi possivel validar a versao do rascunho. Recarregue a pagina e tente novamente.', correlationId)
+      }
       const validationMessages: Record<string, string> = {
         FUNDO_ID_INVALIDO: 'O fundo informado e invalido.',
         INTEGRACAO_ID_INVALIDO: 'A integracao selecionada e invalida.',
@@ -176,6 +188,16 @@ export async function salvarIntegracaoRascunhoAdmin(input: unknown): Promise<Adm
     }
     const creating = parsed.data.integracaoFundoId == null
     const context = await requireSuperAdmin()
+    const catalogo = obterAdapterCatalogo(parsed.data.adapterKey)
+    if (catalogo && (parsed.data.providerKey !== catalogo.providerKey
+      || (creating && parsed.data.systemName !== catalogo.systemName)
+      || parsed.data.capabilities.some((capability) => !catalogo.capabilities.includes(capability)))) {
+      return respostaErro('O provedor e as funcionalidades devem corresponder ao sistema selecionado.', correlationId)
+    }
+    const novaCredencial = parsed.data.novaCredencial
+    if (novaCredencial && catalogo?.credentialKind !== 'usuario_senha') {
+      return respostaErro('Este sistema nao utiliza autenticacao por usuario e senha.', correlationId)
+    }
     if (parsed.data.integracaoFundoId) {
       const { data: configData, error: configError } = await context.supabase.rpc('admin_obter_configuracoes_tecnicas_fundo', {
         p_fundo_id: parsed.data.fundoId,
@@ -205,7 +227,7 @@ export async function salvarIntegracaoRascunhoAdmin(input: unknown): Promise<Adm
         cnpjFundo: fundo.cnpj,
       })
     }
-    const { data, error } = await context.supabase.rpc('admin_salvar_integracao_rascunho', {
+    const draftParams = {
       p_fundo_id: parsed.data.fundoId,
       p_integracao_fundo_id: parsed.data.integracaoFundoId || null,
       p_versao_id: parsed.data.versaoId || null,
@@ -220,7 +242,29 @@ export async function salvarIntegracaoRascunhoAdmin(input: unknown): Promise<Adm
       p_configuracao_nao_sensivel: configuracaoNaoSensivel,
       p_updated_at_esperado: parsed.data.updatedAtEsperado || null,
       p_correlation_id: correlationId,
-    })
+    }
+    let response
+    if (novaCredencial) {
+      // Falhar antes de consumir o TOTP ou persistir qualquer parte do formulario.
+      getPortalFidcEncryptionKey()
+      await autorizarEConsumirAcaoSensivel(context, 'cadastrar_credencial_integracao', novaCredencial.mfaCode)
+      const usuario = criptografarPortalFidcValor(novaCredencial.usuario)
+      const senha = criptografarPortalFidcValor(novaCredencial.senha)
+      if (usuario.chaveVersao !== senha.chaveVersao) throw new PortalFidcKeyringError()
+      const { p_credencial_integracao_id: ignoredCredentialId, ...params } = draftParams
+      void ignoredCredentialId
+      response = await context.supabase.rpc('admin_salvar_integracao_com_credencial', {
+        ...params,
+        p_nome: novaCredencial.nome,
+        p_usuario_criptografado: usuario.ciphertext,
+        p_senha_criptografada: senha.ciphertext,
+        p_chave_versao: usuario.chaveVersao,
+        p_usuario_mascarado: mascararIdentificador(novaCredencial.usuario),
+      })
+    } else {
+      response = await context.supabase.rpc('admin_salvar_integracao_rascunho', draftParams)
+    }
+    const { data, error } = response
     if (error) return mapearErro(error, correlationId)
     const resultId = rpcString(data, 'id')
     atualizarTela(parsed.data.fundoId)
@@ -393,7 +437,7 @@ export async function salvarCnabRascunhoAdmin(input: unknown): Promise<AdminTech
     const parsed = adminCnabRascunhoSchema.safeParse(input)
     if (!parsed.success) return respostaErro('Revise os parametros CNAB.', correlationId)
     const context = await requireSuperAdmin()
-    const conteudoHash = createHash('sha256').update(JSON.stringify({
+    const cnab = normalizarConfiguracaoCnabInput({
       layout: parsed.data.layout,
       versaoLayout: parsed.data.versaoLayout,
       codigoBanco: parsed.data.codigoBanco,
@@ -410,7 +454,8 @@ export async function salvarCnabRascunhoAdmin(input: unknown): Promise<AdminTech
       especieTitulo: parsed.data.especieTitulo,
       tipoRecebivel: parsed.data.tipoRecebivel,
       configuracao: parsed.data.configuracao,
-    })).digest('hex')
+    })
+    const conteudoHash = calcularHashConfiguracaoCnab(cnab)
     const { data, error } = await context.supabase.rpc('admin_salvar_cnab_rascunho', {
       p_fundo_id: parsed.data.fundoId,
       p_configuracao_id: parsed.data.configuracaoId || null,
@@ -418,22 +463,22 @@ export async function salvarCnabRascunhoAdmin(input: unknown): Promise<AdminTech
       p_codigo: parsed.data.codigo,
       p_nome: parsed.data.nome,
       p_descricao: parsed.data.descricao || null,
-      p_layout: parsed.data.layout,
-      p_versao_layout: parsed.data.versaoLayout,
-      p_codigo_banco: parsed.data.codigoBanco,
-      p_banco: parsed.data.banco,
-      p_agencia: parsed.data.agencia,
-      p_conta: parsed.data.conta,
-      p_digito_conta: parsed.data.digitoConta,
-      p_carteira: parsed.data.carteira,
-      p_convenio: parsed.data.convenio,
-      p_codigo_originador: parsed.data.codigoOriginador,
-      p_codigo_empresa: parsed.data.codigoEmpresa,
-      p_tipo_inscricao: parsed.data.tipoInscricao,
-      p_numero_inscricao: parsed.data.numeroInscricao,
-      p_especie_titulo: parsed.data.especieTitulo,
-      p_tipo_recebivel: parsed.data.tipoRecebivel,
-      p_configuracao: parsed.data.configuracao,
+      p_layout: cnab.layout,
+      p_versao_layout: cnab.versaoLayout,
+      p_codigo_banco: cnab.codigoBanco,
+      p_banco: cnab.banco,
+      p_agencia: cnab.agencia,
+      p_conta: cnab.conta,
+      p_digito_conta: cnab.digitoConta,
+      p_carteira: cnab.carteira,
+      p_convenio: cnab.convenio,
+      p_codigo_originador: cnab.codigoOriginador,
+      p_codigo_empresa: cnab.codigoEmpresa,
+      p_tipo_inscricao: cnab.tipoInscricao,
+      p_numero_inscricao: cnab.numeroInscricao,
+      p_especie_titulo: cnab.especieTitulo,
+      p_tipo_recebivel: cnab.tipoRecebivel,
+      p_configuracao: { ...cnab.configuracao },
       p_conteudo_hash: conteudoHash,
       p_updated_at_esperado: parsed.data.updatedAtEsperado || null,
       p_correlation_id: correlationId,

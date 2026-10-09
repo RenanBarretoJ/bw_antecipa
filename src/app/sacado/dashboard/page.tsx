@@ -12,6 +12,7 @@ import {
   Wallet,
 } from 'lucide-react'
 import { carregarDashboardSacado } from '@/lib/sacado/portal-loaders.server'
+import { FiltroEmpresaSacado } from '@/components/sacado/FiltroEmpresaSacado'
 import { formatCNPJ, formatCurrency, formatDate, parseLocalDate } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -38,9 +39,10 @@ function corVencimento(data: string, hoje: string) {
   return 'border-success/50 bg-success/15'
 }
 
-export default async function SacadoDashboard() {
+export default async function SacadoDashboard({ searchParams }: { searchParams: Promise<{ cnpj?: string }> }) {
   await connection()
-  const dashboard = await carregarDashboardSacado()
+  const { cnpj } = await searchParams
+  const dashboard = await carregarDashboardSacado(cnpj)
   const hoje = new Date().toISOString().slice(0, 10)
   const { indicadores } = dashboard
   const vencimentosPorData = Array.from(
@@ -63,6 +65,7 @@ export default async function SacadoDashboard() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
+      <FiltroEmpresaSacado cnpj={cnpj} />
       <div>
         <h1 className="text-2xl font-bold text-foreground">Dashboard do Sacado</h1>
         <p className="text-sm text-muted-foreground">Acompanhe seus pagamentos e vencimentos</p>

@@ -132,7 +132,7 @@ export interface UsuarioPapel {
   usuario_id: string
   papel: UserRole
   ativo: boolean
-  origem: 'perfil_primario' | 'bootstrap_homolog' | 'administracao'
+  origem: 'perfil_primario' | 'bootstrap_homolog' | 'bootstrap_producao' | 'administracao'
   atribuido_por: string | null
   atribuido_em: string
   revogado_em: string | null
@@ -1134,7 +1134,10 @@ export interface IntegracaoFundoVersaoCapacidade {
 export interface CredencialIntegracao {
   id: string
   fundo_id: string
-  integracao_fundo_id: string
+  integracao_fundo_id: string | null
+  provider_key: string
+  credential_type: 'usuario_senha'
+  capabilities: string[]
   ambiente: IntegracaoAmbiente
   nome: string
   usuario_criptografado: string
@@ -1308,7 +1311,7 @@ export interface DevedorSolidario {
 
 export interface NotaFiscal {
   tipo_documento_fiscal?: 'NFE' | 'NFSE' | null
-  valor_liquido_origem?: 'DOCUMENTO_EXPLICITO' | 'LEGACY_BRUTO' | 'NAO_INFORMADO' | null
+  valor_liquido_origem?: 'DOCUMENTO_EXPLICITO' | 'CALCULADO_RETENCOES' | 'LEGACY_BRUTO' | 'NAO_INFORMADO' | null
   vencimento_origem?: 'DOCUMENT' | 'MANUAL' | null
   fiscal_proveniencia?: Record<string, unknown> | null
   id: string
@@ -1516,7 +1519,7 @@ export interface ConsultorCedenteOrganizacional {
 
 export interface Sacado {
   id: string
-  user_id: string
+  user_id: string | null
   cnpj: string
   razao_social: string
   email: string | null
@@ -1678,6 +1681,10 @@ export interface MfaResetSolicitacao {
 
 export interface Notificacao {
   id: string
+  fundo_id: string | null
+  cedente_id: string | null
+  cedente_fundo_id: string | null
+  scope_type: 'FUNDO' | 'GLOBAL' | 'LEGACY_UNSCOPED'
   usuario_id: string
   titulo: string
   mensagem: string
@@ -2326,7 +2333,7 @@ export interface Database {
       integracoes_fundo: { Row: IntegracaoFundo & Record<string, unknown>; Insert: InsertShape<IntegracaoFundo, 'fundo_id' | 'provedor' | 'nome' | 'created_by'> & Record<string, unknown>; Update: UpdateShape<IntegracaoFundo> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'integracoes_fundo_fundo_id_fkey'; columns: ['fundo_id']; isOneToOne: false; referencedRelation: 'fundos'; referencedColumns: ['id'] }, { foreignKeyName: 'integracoes_fundo_created_by_fkey'; columns: ['created_by']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] }] }
       integracao_fundo_versoes: { Row: IntegracaoFundoVersao & Record<string, unknown>; Insert: InsertShape<IntegracaoFundoVersao, 'integracao_fundo_id' | 'versao' | 'ambiente' | 'identificador_cliente' | 'endpoint_base' | 'credential_ref' | 'vigente_desde'> & Record<string, unknown>; Update: UpdateShape<IntegracaoFundoVersao> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'integracao_fundo_versoes_integracao_fundo_id_fkey'; columns: ['integracao_fundo_id']; isOneToOne: false; referencedRelation: 'integracoes_fundo'; referencedColumns: ['id'] }, { foreignKeyName: 'integracao_fundo_versoes_publicada_por_fkey'; columns: ['publicada_por']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] }] }
       integracao_fundo_versao_capacidades: { Row: IntegracaoFundoVersaoCapacidade & Record<string, unknown>; Insert: InsertShape<IntegracaoFundoVersaoCapacidade, 'integracao_fundo_versao_id' | 'fundo_id' | 'ambiente' | 'capability'> & Record<string, unknown>; Update: UpdateShape<IntegracaoFundoVersaoCapacidade> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'integracao_fundo_versao_capacidades_integracao_fundo_versao_id_fkey'; columns: ['integracao_fundo_versao_id']; isOneToOne: false; referencedRelation: 'integracao_fundo_versoes'; referencedColumns: ['id'] }, { foreignKeyName: 'integracao_fundo_versao_capacidades_fundo_id_fkey'; columns: ['fundo_id']; isOneToOne: false; referencedRelation: 'fundos'; referencedColumns: ['id'] }] }
-      credenciais_integracao: { Row: CredencialIntegracao & Record<string, unknown>; Insert: InsertShape<CredencialIntegracao, 'fundo_id' | 'integracao_fundo_id' | 'ambiente' | 'nome' | 'usuario_criptografado' | 'senha_criptografada' | 'chave_versao' | 'criada_por'> & Record<string, unknown>; Update: UpdateShape<CredencialIntegracao> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'credenciais_integracao_fundo_id_fkey'; columns: ['fundo_id']; isOneToOne: false; referencedRelation: 'fundos'; referencedColumns: ['id'] }, { foreignKeyName: 'credenciais_integracao_integracao_fundo_id_fkey'; columns: ['integracao_fundo_id']; isOneToOne: false; referencedRelation: 'integracoes_fundo'; referencedColumns: ['id'] }, { foreignKeyName: 'credenciais_integracao_criada_por_fkey'; columns: ['criada_por']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] }, { foreignKeyName: 'credenciais_integracao_substituida_por_fkey'; columns: ['substituida_por']; isOneToOne: false; referencedRelation: 'credenciais_integracao'; referencedColumns: ['id'] }] }
+      credenciais_integracao: { Row: CredencialIntegracao & Record<string, unknown>; Insert: InsertShape<CredencialIntegracao, 'fundo_id' | 'provider_key' | 'ambiente' | 'nome' | 'usuario_criptografado' | 'senha_criptografada' | 'chave_versao' | 'criada_por'> & Record<string, unknown>; Update: UpdateShape<CredencialIntegracao> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'credenciais_integracao_fundo_id_fkey'; columns: ['fundo_id']; isOneToOne: false; referencedRelation: 'fundos'; referencedColumns: ['id'] }, { foreignKeyName: 'credenciais_integracao_integracao_fundo_id_fkey'; columns: ['integracao_fundo_id']; isOneToOne: false; referencedRelation: 'integracoes_fundo'; referencedColumns: ['id'] }, { foreignKeyName: 'credenciais_integracao_criada_por_fkey'; columns: ['criada_por']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] }, { foreignKeyName: 'credenciais_integracao_substituida_por_fkey'; columns: ['substituida_por']; isOneToOne: false; referencedRelation: 'credenciais_integracao'; referencedColumns: ['id'] }] }
       integracao_execucoes: { Row: IntegracaoExecucao & Record<string, unknown>; Insert: InsertShape<IntegracaoExecucao, 'fundo_id' | 'integracao_fundo_versao_id' | 'tipo_execucao' | 'ambiente'> & Record<string, unknown>; Update: UpdateShape<IntegracaoExecucao> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'integracao_execucoes_fundo_id_fkey'; columns: ['fundo_id']; isOneToOne: false; referencedRelation: 'fundos'; referencedColumns: ['id'] }, { foreignKeyName: 'integracao_execucoes_integracao_fundo_versao_id_fkey'; columns: ['integracao_fundo_versao_id']; isOneToOne: false; referencedRelation: 'integracao_fundo_versoes'; referencedColumns: ['id'] }, { foreignKeyName: 'integracao_execucoes_remessa_cnab_id_fkey'; columns: ['remessa_cnab_id']; isOneToOne: false; referencedRelation: 'remessas_cnab'; referencedColumns: ['id'] }, { foreignKeyName: 'integracao_execucoes_operacao_id_fkey'; columns: ['operacao_id']; isOneToOne: false; referencedRelation: 'operacoes'; referencedColumns: ['id'] }] }
       retornos_integracao: { Row: RetornoIntegracao & Record<string, unknown>; Insert: InsertShape<RetornoIntegracao, 'fundo_id' | 'integracao_execucao_id' | 'tipo_retorno' | 'storage_path' | 'tamanho_bytes' | 'sha256'> & Record<string, unknown>; Update: UpdateShape<RetornoIntegracao> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'retornos_integracao_fundo_id_fkey'; columns: ['fundo_id']; isOneToOne: false; referencedRelation: 'fundos'; referencedColumns: ['id'] }, { foreignKeyName: 'retornos_integracao_integracao_execucao_id_fkey'; columns: ['integracao_execucao_id']; isOneToOne: false; referencedRelation: 'integracao_execucoes'; referencedColumns: ['id'] }, { foreignKeyName: 'retornos_integracao_remessa_cnab_id_fkey'; columns: ['remessa_cnab_id']; isOneToOne: false; referencedRelation: 'remessas_cnab'; referencedColumns: ['id'] }] }
       sequencias_remessa: { Row: SequenciaRemessa & Record<string, unknown>; Insert: InsertShape<SequenciaRemessa, 'configuracao_cnab_id' | 'data_referencia'> & Record<string, unknown>; Update: Partial<SequenciaRemessa> & Record<string, unknown>; Relationships: [{ foreignKeyName: 'sequencias_remessa_configuracao_cnab_id_fkey'; columns: ['configuracao_cnab_id']; isOneToOne: false; referencedRelation: 'configuracoes_cnab'; referencedColumns: ['id'] }] }
@@ -2394,7 +2401,12 @@ export interface Database {
       risco_revisoes: { Row: RiscoRevisao & Record<string, unknown>; Insert: Partial<RiscoRevisao> & Pick<RiscoRevisao, 'risco_execucao_id' | 'fundo_id' | 'operacao_id' | 'assinatura_inputs'> & Record<string, unknown>; Update: Partial<RiscoRevisao> & Record<string, unknown>; Relationships: [] }
     }
     Views: Record<string, never>
-    Functions: import('@/lib/email-intake/automation/database').EmailAutomationFunctions & {
+    Functions: import('@/lib/email-intake/automation/database').EmailAutomationFunctions & import('@/lib/email-intake/operations/database').EmailOperatorFunctions & {
+      destinatarios_sacado_operacao: { Args: { p_operacao_id: string }; Returns: { user_id: string; cnpj: string }[] }
+      consultar_empresa_sacado: { Args: { p_fundo_id: string; p_cnpj: string }; Returns: { cnpj: string; razao_social: string } | null }
+      get_user_sacado_context: { Args: Record<string, never>; Returns: import('@/lib/sacado/acessos').SacadoAcesso[] }
+      listar_gestao_sacados: { Args: { p_fundo_id: string; p_busca?: string; p_pagina?: number; p_user_id?: string | null }; Returns: Record<string, unknown> }
+      gerenciar_sacado_acesso: { Args: { p_user_id: string; p_fundo_id: string; p_cnpj: string; p_razao_social: string; p_acao: string; p_nonce_hash: string }; Returns: string }
       configurar_base_antecipacao: { Args: { p_cedente_fundo_id: string; p_base: string }; Returns: undefined }
       configurar_comissao_consultor_fundo: { Args: { p_consultor_id: string; p_fundo_id: string; p_habilitada: boolean }; Returns: undefined }
       listar_configuracao_comissao_fundo: { Args: { p_fundo_id: string }; Returns: Array<{ consultor_id: string; fundo_id: string; nome: string; comissao_habilitada: boolean }> }
@@ -2402,6 +2414,9 @@ export interface Database {
       email_intake_get_attachment_claim: { Args: { p_id: string; p_token: string }; Returns: unknown }
       email_intake_settle_attachment: { Args: { p_id: string; p_token: string; p_outcome: string; p_retry_after_ms?: number }; Returns: undefined }
       fiscal_intake_reserve: { Args: { p_actor: Record<string, unknown>; p_fundo_id: string; p_cedente_fundo_id: string; p_estabelecimento_id: string; p_document_type: string; p_fiscal_key: string; p_file_sha256: string; p_recover_xml?: boolean }; Returns: unknown }
+      fiscal_intake_prepare_companion: { Args: { p_actor: Record<string, unknown>; p_fundo_id: string; p_cedente_fundo_id: string; p_estabelecimento_id: string; p_fiscal_key: string; p_file_sha256: string; p_document_code: string; p_facts: object; p_file_name: string; p_size_bytes: number }; Returns: unknown }
+      fiscal_intake_commit_companion: { Args: { p_id: string; p_token: string; p_generation: number }; Returns: unknown }
+      fiscal_intake_abort_companion: { Args: { p_id: string; p_token: string; p_generation: number }; Returns: unknown }
       fiscal_intake_resolve_scope: { Args: { p_actor: Record<string, unknown>; p_fundo_id: string; p_issuer_cnpj: string; p_cedente_fundo_id: string | null }; Returns: unknown }
       fiscal_intake_stage: { Args: { p_id: string; p_token: string; p_generation: number; p_values: Record<string, unknown>; p_parcelas: Array<{ numero_parcela: number; valor_nominal: number; data_vencimento: string }>; p_file_name: string; p_mime_type: string; p_size_bytes: number; p_document_code: string }; Returns: undefined }
       fiscal_intake_prepare_storage: { Args: { p_id: string; p_token: string; p_generation: number }; Returns: unknown }
@@ -2714,7 +2729,9 @@ export interface Database {
       admin_cadastrar_credencial_integracao: {
         Args: {
           p_fundo_id: string
-          p_integracao_fundo_id: string
+          p_integracao_fundo_id: string | null
+          p_provider_key?: string | null
+          p_capabilities?: string[]
           p_ambiente: string
           p_nome: string
           p_usuario_criptografado: string
@@ -2732,6 +2749,29 @@ export interface Database {
       }
       admin_revogar_credencial_integracao: {
         Args: { p_fundo_id: string; p_credencial_id: string; p_motivo: string; p_correlation_id?: string | null }
+        Returns: Record<string, unknown>
+      }
+      admin_salvar_integracao_com_credencial: {
+        Args: {
+          p_fundo_id: string
+          p_integracao_fundo_id: string | null
+          p_versao_id: string | null
+          p_provider_key: string
+          p_system_name: string
+          p_adapter_key: string | null
+          p_capabilities: string[]
+          p_ambiente: string
+          p_endpoint_base: string
+          p_identificador_cliente: string
+          p_configuracao_nao_sensivel: Record<string, unknown>
+          p_updated_at_esperado: string | null
+          p_nome: string
+          p_usuario_criptografado: string
+          p_senha_criptografada: string
+          p_chave_versao: string
+          p_usuario_mascarado: string
+          p_correlation_id?: string | null
+        }
         Returns: Record<string, unknown>
       }
       admin_salvar_integracao_rascunho: {
@@ -2834,8 +2874,8 @@ export interface Database {
       get_user_cedente_perfil_canonico: { Args: Record<string, never>; Returns: 'ADMIN' | 'OPERACIONAL' | null }
       get_user_sacado_cnpj: { Args: Record<string, never>; Returns: string | null }
       get_user_operacao_ids: { Args: Record<string, never>; Returns: string[] }
-      carregar_dashboard_sacado: { Args: Record<string, never>; Returns: Record<string, unknown> }
-      carregar_indicadores_nfs_sacado: { Args: Record<string, never>; Returns: Record<string, unknown> }
+      carregar_dashboard_sacado: { Args: { p_cnpj?: string | null }; Returns: Record<string, unknown> }
+      carregar_indicadores_nfs_sacado: { Args: { p_cnpj?: string | null }; Returns: Record<string, unknown> }
       listar_cedentes_aprovacao_sacado: {
         Args: Record<string, never>
         Returns: Array<{ id: string; nome: string; cnpj: string }>
@@ -2897,6 +2937,16 @@ export interface Database {
         }
         Returns: Record<string, unknown>
       }
+      listar_fundos_notificacoes: { Args: Record<string, never>; Returns: Array<{ id: string; nome: string }> }
+      listar_notificacoes: { Args: { p_scope: string; p_fundo_id: string | null; p_limit?: number; p_cursor_em?: string | null; p_cursor_id?: string | null; p_somente_nao_lidas?: boolean }; Returns: Notificacao[] }
+      listar_notificacoes_filtradas: { Args: { p_scope: string; p_fundo_id: string | null; p_filtro?: string; p_limit?: number; p_cursor_em?: string | null; p_cursor_id?: string | null }; Returns: Notificacao[] }
+      contar_notificacoes: { Args: { p_scope: string; p_fundo_id: string | null }; Returns: Array<{ total: number; nao_lidas: number }> }
+      marcar_notificacoes_lidas: { Args: { p_scope: string; p_fundo_id: string | null; p_id?: string | null }; Returns: number }
+      obter_destino_notificacao: { Args: { p_id: string; p_scope: string; p_fundo_id: string | null }; Returns: Array<{ entidade_tipo: string; entidade_id: string | null; cedente_id: string | null; fundo_id: string | null }> }
+      notificar_gestores_cadastro_cedente: { Args: { p_cedente_id: string; p_titulo: string; p_mensagem: string; p_tipo: string; p_evento_key: string }; Returns: number }
+      notificar_entidade: { Args: { p_entidade_tipo: string; p_entidade_id: string; p_destino: string; p_titulo: string; p_mensagem: string; p_tipo: string; p_dedupe_key: string; p_usuario_id?: string | null; p_somente_admin?: boolean }; Returns: Array<{ usuario_id: string; notificacao_id: string }> }
+      notificar_cedente_cadastro: { Args: { p_cedente_id: string; p_titulo: string; p_mensagem: string; p_tipo: string; p_dedupe_key: string; p_somente_admin?: boolean }; Returns: Array<{ usuario_id: string; notificacao_id: string }> }
+      notificar_seguranca_global: { Args: { p_usuario_id: string; p_titulo: string; p_mensagem: string; p_tipo: string; p_dedupe_key: string }; Returns: string | null }
       instanciar_requisitos_nota: { Args: { p_nota_fiscal_id: string; p_politica_operacional_id: string; p_politica_versao_id: string }; Returns: Record<string, unknown> }
       listar_documentos_atuais_cedente: { Args: { p_cedente_id: string }; Returns: Array<{ id: string; tipo: string; versao: number; status: string; nome_arquivo: string | null; url_arquivo: string | null; motivo_reprovacao: string | null; created_at: string; representante_id: string | null; analisado_em: string | null; atualizacao_solicitada_em: string | null }> }
       obter_politica_aplicavel_cedente_fundo: { Args: { p_cedente_fundo_id: string; p_data_referencia?: string }; Returns: Record<string, unknown> }

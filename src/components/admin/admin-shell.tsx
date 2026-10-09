@@ -5,6 +5,7 @@ import { MfaSessionProvider } from '@/components/auth/mfa-session-provider'
 import { adminMenuItems } from '@/components/auth/sidebar'
 import { PortalHeader, type PortalAreaLink, type PortalHeaderProfile } from '@/components/layout/portal-header'
 import { PortalSidebar } from '@/components/layout/portal-sidebar'
+import { NotificacoesProvider } from '@/components/notificacoes/notificacoes-context'
 
 export function AdminShell({
   children,
@@ -22,6 +23,7 @@ export function AdminShell({
 
   return (
     <MfaSessionProvider>
+      <NotificacoesProvider key={profile.id} userId={profile.id}>
       <div className="flex h-dvh min-h-0 overflow-hidden bg-background">
         <PortalSidebar items={adminMenuItems} role="super_admin" open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
         <div className="flex min-w-0 flex-1 flex-col">
@@ -29,6 +31,7 @@ export function AdminShell({
           <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden pt-5 sm:pt-6 lg:pt-8">{children}</main>
         </div>
       </div>
+      </NotificacoesProvider>
     </MfaSessionProvider>
   )
 }

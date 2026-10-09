@@ -1,0 +1,384 @@
+HOTFIX HEALTH - checkpoint de execucao (NAO certificado para producao)
+
+CHECKPOINT R3 - 2026-10-05 - LEITURA DA CHAVE DANFE (publicacao Preview autorizada)
+Nova tentativa na Preview R2 confirmada no deployment
+dpl_FkYBjtHodsZTe5cvWkT9xPyA2fhf, correlation
+69674bcb-cafc-412d-8230-dc83d998e7f5. Os eventos completos estao em logs[]
+do resultado de vercel logs --request-id; message de topo mostra so STARTED.
+Falha exata: OPENAI_NF_ACCESS_KEY_INVALID, NO_TEXT_LAYER, fallback 8481ms,
+total 12774ms, 0 importados, 1 rejeitado, 0 erros Storage/persistencia.
+Nao foi timeout nem limite de tokens nesta tentativa.
+
+Conferencia local da chave IMPRESSA na renderizacao existente: 44 digitos,
+checksum modulo 11 valido. Assim, a representacao obtida pelo leitor visual
+nao forneceu chave valida, embora a chave impressa passe no verificador.
+Nao ha payload bruto do provedor nos logs; o digito exato lido incorretamente
+nao e conhecido. Perda de zeros e uma hipotese, nao um fato extraido do log.
+Nenhuma chave real ou PDF foi adicionada ao repositorio.
+
+Correcao R3: contrato estruturado inclui chave_acesso_blocos, null ou 11 strings
+de 4 digitos; prompt pede leitura sequencial dos blocos impressos antes da
+concatenacao, sem conversao numerica, preenchimento ou reconstrucao por campos.
+O servidor so junta blocos completos validados pelo schema, aplica o mesmo
+checksum e rejeita mais de uma chave valida distinta. Leitura direta continua
+disponivel para DANFE sem agrupamento impresso. Modelo, timeout e limites de
+tentativas preservados. Nenhuma alteracao em NFS-e municipal, banco, RLS/MFA.
+Testes sinteticos cobrem zeros consecutivos, ausencia/excesso de blocos,
+blocos curtos, letras, valores numericos, DV invalido e chaves conflitantes.
+Referencia OpenAI Docs para formato estruturado:
+https://developers.openai.com/api/docs/guides/structured-outputs
+179 testes direcionados PASS; TypeScript e lint direcionado PASS.
+Suite completa: 2632 testes PASS, 12 skipped; 299 arquivos PASS, 3 skipped.
+Build Next.js --webpack PASS; git diff --check PASS.
+Usuario autorizou commit/push somente em hotfix/health-fiscal-import para
+novo smoke na Preview HEALTH. Sem merge nem deploy em producao/homolog.
+Estes gates locais nao substituem CI nem certificam a importacao real.
+Smoke real de Hope permanece FAIL ate nova importacao autenticada.
+
+CHECKPOINT R2 - 2026-10-02 - DANFE HOPE (validado localmente, publicacao autorizada)
+Usuario confirmou smoke Barueri PASS: revisao exigiu vencimento e importou apos
+preenchimento. DANFE Hope permanece FAIL: rejeicao generica de interpretacao.
+Nao confundir este smoke manual com a certificacao integral da frente fiscal.
+
+Logs da Preview dpl_39Unw2CDdWmSAoDQG22Wjjdwjewc confirmam, na tentativa
+26321af6-612f-4b5f-9d10-47d0e60928d9, native_text_length_bucket=empty,
+fallback_trigger_reason=NO_TEXT_LAYER e fallback_status=failed. Tempo total
+ate o evento PARSED: 9086ms. A falha ocorre no caminho DANFE, antes do gate
+de persistencia; nao e a mesma rejeicao da classificacao NFS-e.
+O log anterior NAO preservava o codigo do erro do fallback. Portanto ainda nao
+ha evidencia suficiente para atribuir a falha real a chave fiscal, timeout,
+resposta truncada, contrato ou indisponibilidade do provedor.
+
+Ajuste local R2:
+- Vocabulario fechado de codigos de falha; sem mensagens livres, dados fiscais,
+  tokens, body do provedor, valores de campos ou PDFs nos logs/repo.
+- Preserva codigo e duracao do fallback na telemetria por correlation_id.
+- Rejeita explicitamente respostas incompletas/recusadas, mesmo com JSON parcial
+  aparentemente valido. Retry continua limitado a duas chamadas/timeout total.
+- Limite de saida 900 -> 2400 tokens, alinhado ao extrator visual NFS-e.
+  Correcao preventiva: tokens de raciocinio tambem consomem esse limite.
+  NAO e causa raiz comprovada da tentativa real.
+- Prompt explicita paginas vazias e canhotos da mesma nota; nao autoriza inferir
+  dados nem reparar chave. Modelo e gates fiscais deterministas preservados.
+- Sem migration, alteracao de MFA/RLS, escrita de NFs ou mudanca no extrator
+  municipal Barueri. Sem reenviar o PDF real nem recriar a NF ja importada.
+
+Referencias consultadas via skill OpenAI Docs:
+https://developers.openai.com/api/docs/guides/reasoning
+https://developers.openai.com/api/docs/guides/file-inputs
+
+Validacao R2: 209 testes direcionados PASS, 1 live skipped; TypeScript PASS;
+ESLint dos arquivos alterados PASS; build webpack PASS com URL local e chaves
+ficticias somente para build. Primeira suite completa concorrente com build:
+timeout de 5s em parcelas-nf.test.ts (boleto invalido), fora dos arquivos
+alterados. Reexecucao completa sem build concorrente, --maxWorkers=4:
+299 arquivos PASS, 2624 testes PASS, 12 skipped. Nao alterado timeout do teste.
+Usuario autorizou commit/push SOMENTE hotfix/health-fiscal-import/Preview.
+Pendente: concluir publicacao em Preview e nova tentativa autenticada Hope.
+Chave OpenAI sensivel permanece somente no ambiente remoto; nao foi extraida.
+Nao declarar Hope corrigida antes da repeticao e verificacao dos dados.
+
+HISTORICO ANTERIOR (checkpoints abaixo mantidos para rastreabilidade)
+
+Base: main d9133b4d2549937402c78aec7db28af62ddff43b
+Branch local: hotfix/health-fiscal-import
+Data: 2026-10-02
+
+Este arquivo e um historico cronologico. Os checkpoints ao final atualizam os
+estados iniciais; NAO interpretar o primeiro checkpoint como estado corrente.
+
+ESCOPO E LIMITES
+Primeira frente: importacao fiscal. Multi-CNPJ e gestao de Sacado constituem
+uma segunda alteracao independente, ainda NAO implementada. Nenhuma mudanca
+de autorizacao, RLS, aprovacao, financeiro ou historico foi aplicada.
+Sem commit, push, deploy, migrations remotas ou escrita operacional em producao.
+
+DIAGNOSTICO COM EVIDENCIA
+1. Os dois PDFs reais fornecidos foram lidos localmente com pdf-parse:
+   A (NF ESPECIALIDADES.pdf): 1 pagina, zero caracteres de texto util.
+   B (Danfe_NF000057249.pdf): 2 paginas, zero caracteres de texto util.
+   Renderizacao e inspecao visual: A e NFS-e municipal, legivel, com codigo
+   de autenticidade e sem vencimento ou chave nacional. B e DANFE legivel;
+   segunda pagina vazia. Nenhum PDF real foi adicionado ao Git.
+2. O classificador anterior so aceitava nfse_danfse_v2 e nfe_danfe. Sua
+   instrucao mandava classificar outro layout como uncertain. A validacao,
+   identidade da revisao e constraint exigiam chave nacional de 50 digitos.
+   Portanto o formato municipal nao era suportado em nenhum desses estagios.
+3. Logs disponiveis de producao mostram quatro rejeicoes na classificacao,
+   NFSE_VISUAL_CLASSIFICATION_AMBIGUOUS, em requisicoes individuais. Nao ha
+   identificador de arquivo nesses logs que permita atribui-los ao lote de 67.
+4. Usuario informou que o lote e antigo e nao tem os 67 arquivos, so exemplo.
+   Inventario/reconciliacao do lote permanece INCONCLUSIVO. Nao foi feito replay.
+   Nao se concluiu ausencia de orfaos do lote. Os cedentes de referencia nao
+   tinham intents NFS-e no momento da consulta; isso nao prova o historico
+   completo do lote. Ha NFs existentes para um dos cedentes, sem correlacao
+   comprovada com os 67; nao classifica-las como falhas nem reimporta-las.
+5. O upload usa resultados por arquivo (Promise.allSettled), nao transacao
+   unica do lote. Erros de autenticacao anteriores a esse processamento sao
+   outra classe de falha. Classificacao fiscal nao consulta usuario Sacado.
+6. Sacado: contexto usa maybeSingle por user_id; funcoes SQL usam CNPJ escalar.
+   Proposta para segunda frente: junction N:N user/sacado/fundo/status, mantendo
+   user_id legado e backfill explicito dos vinculos atuais. Sem acesso por raiz.
+
+IMPLEMENTACAO LOCAL DA PRIMEIRA FRENTE
+- Estrategia nfse_municipal_visual separada da DANFSe v2 certificada.
+- Rotulos, CNPJ, datas, valores e orgao impressos validados; sem inferir liquido.
+- Codigo de autenticidade municipal nao vira chave nacional artificial.
+- Identidade: CNPJ completo do prestador + orgao emissor normalizado + numero.
+  Codigo de verificacao compoe os fatos imutaveis mas nao a chave de unicidade,
+  para nao permitir segunda NF com o mesmo numero e um codigo alterado.
+- Revisao sem vencimento continua sem NF e sem objeto Storage. Revisao assinada
+  por hash dos fatos/arquivo, contexto fresco, fencing e compensacao preservados.
+- Hash das revisoes nacionais preexistentes preservado byte a byte no formato.
+- Documento-base municipal compara tambem orgao emissor e codigo de verificacao.
+- Migration NOVA 20261002205122_health_nfse_municipal_identity.sql, ainda NAO
+  executada: estende constraint sem relaxar ramo nacional, indice unico parcial,
+  sem backfill ou alteracao de grant/policy/trigger/RPC.
+- Classificacao orientada a contar documentos distintos, nao paginas em branco.
+  DANFE continua usando o extrator existente. Caso real B ainda nao certificado.
+
+VALIDACAO LOCAL
+Suite direcionada: 306 PASS, 1 skip (teste live sem segredo local).
+Suite completa: 299 arquivos PASS, 3 arquivos skipped;
+2613 testes PASS, 12 skipped. Skips nao sao prova operacional.
+TypeScript --noEmit: PASS.
+ESLint nos arquivos alterados: PASS.
+git diff --check: PASS.
+Build next build --webpack: PASS, com URL local e chave ficticia somente de build.
+Nenhum segredo nem conexao operacional real foram necessarios ao build.
+SQL real / clean-room / rehearsal da migration: NAO EXECUTADOS.
+Leitura dos PDFs pelo provedor e smoke autenticado: NAO EXECUTADOS.
+
+As skills Supabase/Postgres orientaram a migration incremental, constraints e
+isolamento sem bypass de RLS. OpenAI Docs confirmou o contrato existente de PDF
+na Responses API e Structured Outputs; modelo/provedor foram preservados.
+Referencias: https://developers.openai.com/api/docs/guides/file-inputs
+https://developers.openai.com/api/docs/guides/structured-outputs
+
+Artefatos locais: renderizacoes dos PDFs e dependencia de leitura temporaria em
+C:\Users\BrenoAlvim\AppData\Local\Temp\health-pdf-qa-698e6404503a4978b3d59d56e9b8edc1.
+A tentativa de remover somente essa pasta foi bloqueada pela politica de execucao;
+nenhum arquivo foi removido. Originais em Downloads preservados. Nenhum Docker criado.
+
+PREVIEW - STOP RULE ORIGINAL (antes do reparo autorizado abaixo)
+Criacao autorizada pelo usuario com custo informado US$0.01344/h.
+Branch Supabase: hotfix/health-fiscal-import
+Project ref: mkfslrspxzplghjeixjq
+Resultado do provisionamento: MIGRATIONS_FAILED.
+Postgres: function get_user_role() does not exist (2026-10-02T20:55:21Z).
+Historico inicial remoto inicia em 003_storage_buckets_env; depende de funcao
+definida no esquema-base 002_schema_base.sql, ausente do replay historico.
+Preview sem public.notas_fiscais e sem migrations registradas; migration nova
+deste hotfix NAO foi aplicada. Necessario reparar/bootstrapar SOMENTE Preview
+apos autorizacao explicita. Nao alterar o historico de producao para esse fim.
+Preview RLX e homolog preservadas. Sem copia de dados reais para a nova Preview.
+OPENAI_API_KEY: metadado confirmado como secret global de Preview na Vercel;
+nao e necessario fornecer/extrair/copiar a chave. Valor nao foi solicitado.
+
+STATUS DOS GATES
+FAIL abaixo significa gate nao certificado; nao significa regressao observada.
+
+HEALTH_IMPORT_ROOT_CAUSE = formato municipal sem estrategia/identidade; lote antigo inconclusivo
+HEALTH_IMPORT_BATCH_ALL_OR_NOTHING = NO (processamento por arquivo)
+HEALTH_IMPORT_IMAGE_ONLY_SUPPORT = FAIL (real nao certificado)
+HEALTH_IMPORT_NF_ESPECIALIDADES = REQUIRES_REVIEW (contrato local; real pendente)
+HEALTH_IMPORT_DANFE_57249 = FAIL (real nao certificado)
+HEALTH_IMPORT_MULTIPAGE = FAIL (real nao certificado)
+HEALTH_IMPORT_OLD_LAYOUT_REGRESSION = PASS (suite local; smoke pendente)
+HEALTH_IMPORT_DUPLICATE = FAIL (unidade PASS; SQL/Preview pendentes)
+HEALTH_IMPORT_STORAGE = FAIL (unidade PASS; Preview pendente)
+HEALTH_IMPORT_AND_SACADO_COUPLING = INDEPENDENT
+SACADO_CURRENT_ONE_CNPJ_SEMANTICS = CONFIRMED
+SACADO_ARCHITECTURE_SELECTED = junction N:N explicita por Fundo (proposta nao implementada)
+SACADO_MIGRATION = FAIL (nao executada)
+SACADO_BACKFILL = FAIL (nao executado)
+SACADO_MULTI_CNPJ = FAIL (nao implementado)
+SACADO_MULTI_USER_SAME_CNPJ = NOT_IMPLEMENTED
+SACADO_FUND_SCOPE = FAIL (segunda frente nao certificada)
+SACADO_RLS = FAIL (segunda frente nao certificada)
+SACADO_MFA = FAIL (segunda frente nao certificada)
+SACADO_AUDIT = FAIL (segunda frente nao certificada)
+SACADO_DASHBOARD_MULTI_CNPJ = FAIL (nao implementado)
+SACADO_INDICATORS_MULTI_CNPJ = FAIL (nao implementado)
+SACADO_APPROVAL_MULTI_CNPJ = FAIL (nao implementado)
+SACADO_CONTEST_MULTI_CNPJ = FAIL (nao implementado)
+SACADO_FRONT_LIST = FAIL (nao implementado)
+SACADO_FRONT_ADD_CNPJ = FAIL (nao implementado)
+SACADO_FRONT_REVOKE_CNPJ = FAIL (nao implementado)
+SACADO_FRONT_RELOAD_PERSISTENCE = FAIL (nao implementado)
+SACADO_FRONT_UX = FAIL (nao implementado)
+SACADO_FRONT_ACCESSIBILITY = FAIL (nao implementado)
+HEALTH_PREVIEW_READY = NO
+HEALTH_PROD_DEPLOY = NOT_EXECUTED
+HEALTH_PROD_SMOKE = NOT_EXECUTED
+DOCKER_TEST_ENV_CLEANUP = PASS (nenhum recurso Docker criado)
+RLX_EMAIL_CHANGED = NO
+CERC_CHANGED = NO
+GUIBOR_CHANGED = NO (regra/contrato nacional preservado; pipeline compartilhado estendido)
+P17_CHANGED = NO
+
+PENDENCIAS PARA RETOMAR
+1. Reparo do banco isolado autorizado e concluido conforme checkpoint abaixo;
+   indicador historico do provisionamento Supabase ainda MIGRATIONS_FAILED.
+2. SQL real, upgrade e clean-room; revisar diff e matriz completa de seguranca.
+3. Configurar credenciais Supabase da branch somente no ambiente Vercel desta
+   branch; nao herdar URL de homolog/prod. Publicar Preview depois dos gates.
+4. Certificar PDFs reais, lote misto, duplicate, review manual e Storage.
+5. Entregar primeira frente para validacao; implementar segunda frente em diff
+   isolado; somente depois certificar rollout e smoke conforme roteiro.
+
+CHECKPOINT - REPARO AUTORIZADO DA BASE PREVIEW (2026-10-02)
+Usuario: "sim, seguir com reparo".
+Destino exclusivo: mkfslrspxzplghjeixjq / hotfix/health-fiscal-import.
+Origem somente leitura: wwsndnuvnjuabpbjwlck, esquema public/private atual.
+
+Diagnostico confirmado:
+- Preview tinha zero tabelas public/private, usuarios Auth, objetos Storage e
+  entradas no historico. Falha ocorria antes da migration nova do parser.
+- Historico de producao tem 235 entradas, sem a base 002; difere da cadeia
+  local em versoes/arquivos. Nao foi executado db push nem replay cego.
+
+Metodo:
+- Exportacao pg_dump somente esquema, sem dados; dump em rehearsal/tmp ignorado.
+- Script scripts/qa/health/repair-preview-baseline.mjs trava origem/destino,
+  exige Preview vazia e executa restauracao transacional com rollback em falha.
+- Preserva funcoes, tipos, constraints, indices, triggers, RLS, grants e donos.
+- Recria policies Storage, trigger Auth e configuracao de sete buckets privados;
+  nao copia arquivos, usuarios, registros de negocio ou credenciais.
+- Duas tentativas foram revertidas integralmente durante verificacao de ACL.
+  A Preview nova tinha grants padrao adicionais; foram removidos SOMENTE no
+  destino antes de restaurar os grants da origem.
+- Catalogo compara ACL efetiva (NULL equivale ao default nativo do Postgres).
+  Duas constraints possuem apenas parentizacao AND normalizada pelo Postgres;
+  excecao exige os dois textos exatos, nao apenas o nome da constraint.
+- 235 versoes representadas pelo snapshot foram registradas explicitamente como
+  tal, com hashes das origens; NAO se afirma replay de SQL historico. SQL antigo
+  que pode conter dados reais nao foi copiado para o historico da Preview.
+- Registro adicional 20261002220000_health_preview_schema_snapshot documenta
+  origem, destino, SHA256 e ausencia de dados. Nao e migration de producao.
+
+Resultado confirmado apos commit da transacao:
+HEALTH_PREVIEW_DATABASE_BASELINE = PASS
+SCHEMA_CATALOG_ITEMS = 4545
+SCHEMA_FUNCTIONAL_SECURITY_DIFFERENCES = 0
+SCHEMA_EQUIVALENT_AND_PARENTHESES = 2
+EMPTY_APPLICATION_TABLES = 125
+AUTH_USERS = 0
+STORAGE_OBJECTS = 0
+PRIVATE_BUCKETS = 7
+PREVIEW_HISTORY_ROWS = 236
+PRODUCTION_HISTORY_UNCHANGED = PASS (hash antes/depois identico)
+PRODUCTION_WRITES = NONE
+HOMOLOG_WRITES = NONE
+RLX_PREVIEW_WRITES = NONE
+HOTFIX_MIGRATION_APPLIED = NO
+COMMIT_PUSH_DEPLOY = NOT_EXECUTED
+
+Evidencia detalhada (ignorada pelo Git):
+rehearsal/reports/HEALTH_PREVIEW_BASELINE_REPAIR.json
+Verificacoes locais: node --check do script e git diff --check PASS.
+
+As skills Supabase/Postgres orientaram isolamento, transacao, catalogo de RLS/ACL
+e verificacao pos-restauracao. Nenhuma migration antiga foi editada.
+
+Ressalva de plataforma:
+- Projeto ACTIVE_HEALTHY, SQL e pos-validacao funcionando.
+- branches update --status MIGRATIONS_PASSED retornou sucesso, mas a resposta
+  e listagem ainda exibem MIGRATIONS_FAILED, referente ao bootstrap original.
+- Nao mascarar isso como CI/Preview PASS. Nao executar reset/rebase que possa
+  repetir a falha historica. Futuro provisionamento limpo ainda depende da
+  resolucao do baseline historico; este reparo nao altera a origem/producao.
+- Preview nao esta ligada ao frontend Vercel nem certificada com PDFs reais.
+
+Docker:
+- pg_dump usou container efemero, encerrado/removido automaticamente.
+- Zero containers restantes. Volumes/networks preexistentes preservados.
+- Volume anonimo existente datado 2026-09-16 foi preservado, sem prune global.
+DOCKER_TEST_ENV_CLEANUP = PASS
+
+Proximo escopo, apos validacao deste reparo:
+rehearsal SQL/upgrade da migration fiscal, publicacao isolada da Preview e
+certificacao dos PDFs reais; manter producao sem alteracoes.
+
+CHECKPOINT - SQL FISCAL NA PREVIEW (2026-10-02, apos nova autorizacao)
+Destino exclusivo mantido: mkfslrspxzplghjeixjq.
+Migration 20261002205122_health_nfse_municipal_identity.sql aplicada apenas aqui.
+Nenhuma migration antiga editada. Nao houve commit, push ou deploy frontend.
+
+Ensaios:
+- 36 assercoes pgTAP PASS: persistencia municipal autenticada, chave nacional
+  ausente, liquido nulo/explicito, duplicidade mesmo alterando codigo verificador,
+  vencimento ausente/invalido, identidade canonica, proveniencia incompleta,
+  imutabilidade, auditoria, nacional textual/visual, RLS e outro cedente negado.
+- Bloqueio de outro cedente ocorre no trigger de contexto, que nao encontra o
+  vinculo sob RLS; expectativa ajustada ao erro de dominio real (P0001), sem
+  mudar a regra nem relaxar a negativa.
+- Upgrade com quatro NFs legadas e uma NFS-e nacional preexistente: fingerprint
+  dos registros identico antes/depois; nenhuma reescrita de fatos.
+- Regressao do receipt: claim unico, identidade ativa exclusiva, cleanup pendente
+  bloqueia retry e estado COMPLETED exige NF; PASS.
+- Ensaio inteiro revertido: esquema e contagens identicos ao inicio.
+- Aplicacao final em transacao separada sem fixtures; historico gravado com SQL
+  exato e SHA256 conferido apos commit.
+- Diff de catalogo limitado a nfse_fatos_check e nfse_municipal_identity_unique.
+  Policies, grants, RLS, RPCs, triggers, funcoes e demais objetos inalterados.
+
+Postflight:
+HEALTH_FISCAL_PREVIEW_SQL = PASS
+HEALTH_FISCAL_PREVIEW_MIGRATION = PASS
+HEALTH_FISCAL_PREVIEW_HISTORY_EXACT = PASS
+HEALTH_FISCAL_PREVIEW_SECURITY_CATALOG_UNCHANGED = PASS
+HEALTH_FISCAL_PREVIEW_ROLLBACK = PASS
+AUTH_USERS = 0
+NFS = 0
+STORAGE_OBJECTS = 0
+HISTORY_ROWS = 237
+MUNICIPAL_INDEX_VALID_UNIQUE = YES
+FISCAL_CONSTRAINT_VALIDATED = YES
+NF_RLS_ENABLED = YES
+
+Arquivos desta etapa:
+scripts/qa/health/fiscal-preview-sql.mjs (alvo fixo e rollback obrigatorio dos testes)
+supabase/tests/health_nfse_municipal.assert.sql (fixtures exclusivamente sinteticas)
+Evidencia ignorada: rehearsal/reports/HEALTH_FISCAL_PREVIEW_SQL.json
+
+Validacao local repetida:
+2613 testes PASS, 12 skipped; 299 arquivos PASS e 3 skipped.
+TypeScript --noEmit PASS; ESLint do novo runner PASS; node --check PASS;
+git diff --check PASS. Build nao repetido nesta etapa de SQL/scripts; build
+anterior PASS nao substitui CI nem smoke autenticado.
+Nenhum Docker criado nesta etapa; zero containers restantes.
+
+Supabase Advisors (sem ERROR): 17 INFO RLS sem policy em tabelas server-only,
+5 WARN search_path mutavel, 161 WARN funcoes SECURITY DEFINER executaveis por
+authenticated. Estes objetos/permissoes sao anteriores ao hotfix e o diff de
+catalogo demonstra que nao foram alterados. Revisao ampla nao realizada aqui;
+nao interpretar ausencia de diff como certificacao geral de seguranca.
+Referencias de revisao:
+https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy
+https://supabase.com/docs/guides/database/database-linter?lint=0011_function_search_path_mutable
+https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+Indicador MIGRATIONS_FAILED:
+Documentacao consultada confirma que o provisionamento depende do replay do
+historico da origem, nao apenas do esquema atual. Reparar definitivamente o
+provisionamento automatico exigiria um escopo proprio sobre esse historico;
+nao se alterou producao nem se executou reset/rebase da Preview reparada.
+https://supabase.com/docs/guides/troubleshooting/branch-in-migrations-failed-status
+
+Pendencias preservadas:
+- Publicar frontend apenas na branch Preview com Supabase isolado.
+- CI, clean-room da cadeia completa e smoke autenticado ainda pendentes.
+- PDFs reais ainda nao submetidos ao provedor nesta etapa.
+- Nao confundir SQL PASS com certificacao de parser visual/Storage end-to-end.
+- Segunda frente SACADO multi-CNPJ nao iniciada; producao intacta.
+
+CHECKPOINT - PUBLICACAO PREVIEW AUTORIZADA (2026-10-02)
+Usuario autorizou commit e push exclusivamente na branch de Preview.
+Branch: hotfix/health-fiscal-import; destino Git: origin, sem merge em main/homolog.
+Revisao do diff, TypeScript, lint do escopo e 2613 testes PASS (12 skipped).
+PDFs reais, arquivos de ambiente, credenciais, dumps e reports locais ignorados
+nao fazem parte do commit. Frontend e smoke ainda nao certificados nesta etapa.
+Vercel exige a branch existente no GitHub antes das variaveis por gitBranch;
+publicacao sera seguida de vinculo exclusivo a mkfslrspxzplghjeixjq.
+OPENAI_API_KEY global Preview existe, nao foi extraida nem copiada.

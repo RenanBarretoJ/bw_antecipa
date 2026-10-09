@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
+import { nfeFixtureKey } from './nfe-fixture-key.mjs'
 
 // Real shared importer and Storage; only the transport bytes are controlled QA fixtures.
 export async function verifySharedRouting({ db, admin, human, userId, dependencies, importFiscalFile,
@@ -43,7 +44,7 @@ export async function verifySharedRouting({ db, admin, human, userId, dependenci
   let serial = 800
   const xmlFile = (issuer = '98100000000168') => {
     const number = ++serial
-    const key = ['35', '2609', issuer, '55', '001', String(number).padStart(9, '0'), '1', '12345678', '9'].join('')
+    const key = nfeFixtureKey({ issuer, number, issued: dates.issued })
     return new File([`<?xml version="1.0"?><nfeProc><NFe><infNFe Id="NFe${key}">
       <ide><serie>1</serie><nNF>${number}</nNF><dhEmi>${dates.issued}T10:00:00-03:00</dhEmi></ide>
       <emit><CNPJ>${issuer}</CNPJ><xNome>CEDENTE QA SEM VALOR FISCAL</xNome></emit>

@@ -1,0 +1,134 @@
+NOTIFICACOES R4 - CHECKPOINT ANTES DE PRODUCAO
+Data: 2026-10-06
+PR: 95 / feature/notificacoes-fund-scope
+Source certificado: c93f88196614c41299b03175851cc2be3feda030
+
+ESCOPO
+Somente Notificacoes. Nenhuma alteracao funcional neste checkpoint: scripts QA
+e este documento. Sem merge, migration ou deploy em producao neste checkpoint.
+Homolog, RLX, HEALTH parser, SACADO e CERC permanecem intocados.
+
+EXCECAO AUTORIZADA
+Usuario confirmou Deploy to production do Supabase desligado e aceitou,
+excepcionalmente no R4, novo rehearsal SQL local com hashes como gate SQL.
+O workflow CI continua sem job SQL; nao declarar pgTAP executado no CI.
+
+EVIDENCIAS LOCAIS (artefatos ignorados pelo Git, sem segredos)
+rehearsal/reports/NOTIFICACOES_R4/rehearsal.json:
+- 429 checks SQL fresh/upgrade PASS no Docker exclusivo.
+- schema production-like conferido: SHA256
+  23ab8782a97872210730a4fe85ab5ceb6682694ca8572d6c9f41f7f04c58c589
+- catalog delta por migration: 28 / 3 / 20 / 2 objetos.
+- advisors sem novos achados; lint SQL preexistente no cadastro de cedente.
+- indice de listagem/paginacao utilizado; massa sintetica local de 20 mil.
+
+rehearsal/reports/NOTIFICACOES_R4/apply-local.json:
+- aplicador R4 executado em Docker limpo, somente as quatro migrations.
+- nomes, versoes, SHA256 LF e catalogos conferidos a cada passo.
+- historico registrado apenas apos execucao real, na mesma transacao.
+- catalogos alterados iguais ao rehearsal, objetos restantes preservados.
+- integridade das linhas preexistentes e backfill calculado antes da DDL.
+- original A6 ausente; nenhum preenchimento artificial de history.
+
+ALLOWLIST SHA256 LF
+20261005213812_notificacoes_fund_scope.sql
+6a82c232659985cd9be4e73d80c26f6ec8a431d84c505b18856982008b578010
+20261006114841_notificacoes_shared_cedente_producers.sql
+e8a259a8c5a1df6d14ece3c887ee12b008c8cbcc4a1c510f1634ef7016931748
+20261006124134_notificacoes_entity_producers.sql
+c0fda0f0893b7a8cd51d48a713ffdfd832f46f951a3f2ac8c32bcd5974ddf8f0
+20261006130657_notificacoes_scoped_ui.sql
+6acafc295bfcf998bdae0058cd3f59c0822a4d78ac5ed7928c487893f1e71ea0
+
+ENSAIO DO SMOKE DE PRODUCAO NA PREVIEW
+Artefato: rehearsal/reports/NOTIFICACOES_R4/smoke-preview.json
+Run PASS: 06a43fa4-0bec-4fde-9515-cf1c9da786d5
+- Gestor, Cedente, Sacado, Consultor: Auth/MFA real.
+- A/B isolados, GLOBAL separado, LEGACY negado; fundo nao autorizado negado.
+- badge, mark-one, mark-all, realtime sem roubo de foco, troca e href guard.
+- usuario single-fund; aceite/contestacao por RPC real em entidades QA.
+- produtores documento/cadastro/logistica/tecnico nas fronteiras RPC reais.
+- 390/820/1440 light/dark, teclado e Axe A/AA; seis screenshots.
+- cleanup realmente executado duas vezes; hashes de todas as tabelas e
+  Storage iguais a baseline; Auth/users/sessions/MFA QA = zero.
+
+Limites: nao executa cron global em producao, upload integral nem provedor
+externo. Nao equivale a auditoria manual com leitor de tela. O R3 ja exercitou
+cron real na Preview isolada. Futuras datas QA evitam acao de cron real.
+
+PRIMEIRO ENSAIO (NAO PASS)
+Run 0c33a487-79a9-47c4-9827-4ba59855d57a teve timeout no Cedente. Sem diagnostico
+de etapa suficiente naquela rodada, nao atribuir causa retroativamente.
+Limpeza falhou por array de sql_identifier do driver e normalizacao de email
+no Auth. Corrigidos apenas os controles QA. Recuperacao pelo manifesto de IDs
+exatos, conferindo toda a baseline antes de apagar; dupla limpeza PASS, 126
+tabelas vazias, zero usuarios/sessoes/MFA. Artefatos da tentativa preservados.
+O ensaio seguinte completo passou, sem mudanca no source da aplicacao.
+
+HOLD DE ATIVIDADE EM PRODUCAO
+Preflight read-only 17:38:26 UTC: schema identico a baseline certificada.
+Refresh read-only 17:59:25 UTC: schema ainda identico; houve atividade de dados.
+Entre as duas leituras: Storage 4652 -> 4678; notificacoes 8224 -> 8240;
+operacoes permanecem 82 mas hash mudou; documentos, remessa e cadastro tambem
+mudaram. Nenhuma dessas mudancas foi causada pelo rollout (nenhuma DML/DDL
+de producao executada). Confirmacao de legitimidade solicitada ao usuario.
+NAO considerar a nova baseline autorizada ate resposta explicita.
+
+CONTROLES
+- production-preflight.mjs: somente leitura; schema, history e hashes.
+- production-rehearsal.mjs: SQL local, advisors, performance, catalogos.
+- production-apply.mjs --local-rehearsal / --apply-production:
+  target fixo, source equivalente, CI do SHA, Preview QA PASS, baseline fresca,
+  quatro migrations sequenciais em transacao atomica e history verdadeira.
+- production-smoke.mjs --preview-rehearsal / --production:
+  target fixo, deploy gate, usuarios sinteticos sem email externo, MFA real,
+  cleanup restrito a grafo de IDs QA; recusa deriva em dados preexistentes.
+- production-fixtures.mjs: manifesto sem senhas/chaves, recuperacao da limpeza.
+- production-runtime.mjs: credenciais apenas em memoria, sem shell emitido
+  pelo CLI ser executado e sem segredo impresso ou salvo.
+
+STATUS DESTE CHECKPOINT
+NOTIF_PROD_SOURCE_EQUIVALENCE = PASS
+NOTIF_R4_SQL_LOCAL_EXCEPTION = USER_AUTHORIZED
+NOTIF_R4_SQL_REHEARSAL = PASS
+NOTIF_R4_APPLY_LOCAL_REHEARSAL = PASS
+NOTIF_R4_QA_HARNESS_PREVIEW = PASS
+NOTIF_PROD_MIGRATION_COUNT = 0 (ainda nao aplicadas)
+GUIBOR_A6_ORIGINAL_APPLIED = NO
+GUIBOR_A6_ORIGINAL_HISTORY_FAKED = NO
+NOTIF_PROD_DEPLOY = NOT_STARTED
+NOTIFICACOES_PROD_READY = NO
+
+Proximos gates: confirmar atividade, renovar baseline, CI do commit QA-only,
+aplicar quatro migrations, merge PR95/deploy, smoke prod, cleanup/postflight.
+Sem homolog/RLX neste roteiro, inclusive depois de READY.
+
+RETOMADA - INGESTAO LOGISTICA CONCORRENTE
+Usuario confirmou atividade legitima e informou que o Fundo dos webhooks nao
+tem NFs. Verificacao read-only: 55 eventos da ultima hora NAO_IDENTIFICADO,
+zero vinculos com NF, zero NFs no Fundo. Nao foi suspensa nenhuma integracao.
+Duas tentativas anteriores pararam antes da primeira DDL, sem commit.
+
+Controle R4 ajustado apenas em QA (concurrent-webhooks.mjs):
+- ancora atomica com IDs de eventos/Storage preexistentes e Fundos observados
+  sem notas; nenhuma linha antiga e removida da comparacao;
+- novos eventos so sao separados se NAO_IDENTIFICADO, no Fundo da ancora,
+  ainda sem nenhuma NF no Fundo, sem NF/CTe/canhoto/tipo de vinculo;
+- Storage separado apenas por JOIN exato bucket/path com aquele evento novo,
+  no prefixo canonico de evidencia bruta com integracao_id e evento_id;
+- todos os demais hashes/counts continuam obrigatorios, inclusive fiscal;
+- novos eventos e arquivos reais sao preservados e reportados separadamente,
+  nunca entram no conjunto de IDs QA para exclusao;
+- testes SQL Docker: 12 cenarios (13 checks contando suite) PASS, incluindo
+  negativos de update/delete, NF, arquivo fiscal, outro Fundo e evento vinculado.
+- reexecutado aplicador em Docker: quatro migrations/catalogos PASS.
+
+O smoke usa ativacao real por teclado para mark-one, lista pronta, exatamente
+uma requisicao de mutacao observada e contadores conferidos por RPC. Uma rodada
+anterior aguardou 1 nao lida, mas permaneceu em 2 apos o clique por ponteiro;
+esse resultado nao e PASS, nao prova bug no app nem tem causa retroativa
+confirmada. Evidencia preservada em smoke-preview-webhook-guard-attempt1.json.
+Nenhuma alteracao no source funcional certificado.
+
+Fechamento do rollout, quando efetivamente executado:
+rehearsal/reports/NOTIFICACOES_R4/FINAL.json (nao inferir READY deste documento).

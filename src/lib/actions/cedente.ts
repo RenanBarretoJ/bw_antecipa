@@ -5,7 +5,7 @@ import { DOCUMENT_TYPES, type DocumentoTipo } from '@/lib/types/domain'
 import { requireAuthenticated, requireCedenteManagementAccess, requireCedenteOrganizationalAccess, requireGestor } from '@/lib/auth/authorization'
 import { cedenteSchema, type CedenteFormData } from '@/lib/validations/cedente'
 import { registrarLog } from './auditoria'
-import { notificarGestores } from './notificacao'
+import { notificarGestoresCadastro } from '@/lib/notificacoes/cadastro.server'
 import {
   criarCaminhoDocumentoCadastral,
   executarUploadDocumentoCadastral,
@@ -67,11 +67,13 @@ export async function cadastrarCedente(data: CedenteFormData, managedCedenteId?:
       dados_depois: validated.data as unknown as Record<string, unknown>,
     })
 
-    await notificarGestores(
-      'Novo cedente cadastrado',
-      `O cedente ${cedenteData.razao_social} (${validated.data.cnpj}) realizou o cadastro e aguarda analise.`,
-      'cadastro_cedente'
-    )
+    await notificarGestoresCadastro({
+      cedenteId: cedenteData.id,
+      titulo: 'Novo cedente cadastrado',
+      mensagem: `O cedente ${cedenteData.razao_social} (${validated.data.cnpj}) realizou o cadastro e aguarda analise.`,
+      tipo: 'cadastro_cedente',
+      eventoKey: `onboarding:${cedenteData.id}`,
+    })
   }
 
   return {
@@ -159,11 +161,13 @@ export async function uploadDocumento(formData: FormData): Promise<CedenteAction
     dados_depois: { tipo, versao: novaVersao, nome_arquivo: file.name },
   })
 
-  await notificarGestores(
-    'Novo documento enviado',
-    `O cedente CNPJ ${cedenteData.cnpj} enviou o documento "${tipo}" (v${novaVersao}).`,
-    'documento_enviado'
-  )
+  await notificarGestoresCadastro({
+    cedenteId: cedenteData.id,
+    titulo: 'Novo documento enviado',
+    mensagem: `O cedente CNPJ ${cedenteData.cnpj} enviou o documento "${tipo}" (v${novaVersao}).`,
+    tipo: 'documento_enviado',
+    eventoKey: `documento:${result.documento.documento_id}:versao:${novaVersao}`,
+  })
 
   return { success: true, message: 'Documento enviado com sucesso!' }
 }
@@ -241,7 +245,7 @@ export async function solicitarAlteracaoCedente(
   // direto nesta tabela desde a canonicalizacao de ACL (20260817150507) --
   // a RPC resolve o cedente pelo auth.uid(), re-valida a permissao de
   // administrador e audita na mesma transacao.
-  const { error } = managedCedenteId
+  const { data: solicitacao, error } = managedCedenteId
     ? await supabase.rpc('solicitar_alteracao_cadastral_cedente_delegada', {
         p_cedente_id: managedCedenteId,
         p_dados_atuais: cedenteData,
@@ -258,11 +262,14 @@ export async function solicitarAlteracaoCedente(
 
   if (error) return { success: false, message: `Erro ao registrar solicitacao: ${error.message}` }
 
-  await notificarGestores(
-    'Solicitacao de alteracao cadastral',
-    `O cedente ${cedenteData.razao_social as string} (${cedenteData.cnpj as string}) solicitou alteracao nos dados cadastrais.`,
-    'alteracao_cadastral'
-  )
+  if (solicitacao?.id) await notificarGestoresCadastro({
+    cedenteId: cedenteData.id,
+    titulo: 'Solicitacao de alteracao cadastral',
+    mensagem: `O cedente ${cedenteData.razao_social as string} (${cedenteData.cnpj as string}) solicitou alteracao nos dados cadastrais.`,
+    tipo: 'alteracao_cadastral',
+    eventoKey: `solicitacao:${solicitacao.id}`,
+  })
+  else console.error('[notificacoes/cadastro] Solicitacao persistida sem identificador de evento.')
 
   return { success: true, message: 'Solicitacao enviada. Aguardando aprovacao do gestor.' }
 }

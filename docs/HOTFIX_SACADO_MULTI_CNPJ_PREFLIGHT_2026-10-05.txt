@@ -1,0 +1,141 @@
+SACADO MULTI-CNPJ - PRECHECK / PLANO CONTROLADO
+Data: 2026-10-05
+Branch local: hotfix/sacado-multi-cnpj
+Base main remota confirmada: 18374bf1fd30c69fbd618d743cab51f1958551cb
+Worktree: bw_antecipa_sacado_multi
+
+ESTADO
+Somente leitura remota. Nenhum schema, acesso, usuario, credencial, NF,
+operacao, snapshot ou arquivo alterado. Sem commit, push ou deploy.
+Implementacao funcional ainda NAO realizada.
+
+BACKFILL - EVIDENCIA REAL
+Producao tem 1 linha de sacados com user_id e zero sem user_id.
+Usuario vinculado: perfil sacado, ativo. Nao registrar e-mail/credenciais.
+CNPJ explicito: 11.344.038/0021-41.
+Unico Fundo evidenciado: HEALTH I.
+Fontes concordantes: notas_fiscais.fundo_id e operacoes.cedente_fundo_id
+via cedente_fundos. Nenhum segundo Fundo apareceu no levantamento.
+Proposta: criar somente o vinculo usuario legado + empresa 0021 + HEALTH.
+O CNPJ 11.344.038/0020-60 NAO entra automaticamente no backfill; sera
+adicionado pela nova UI com MFA, auditoria e confirmacao explicita.
+Reexecutar preflight antes de qualquer migration: dados podem mudar.
+Script: scripts/qa/sacado/preflight.sql (somente leitura).
+Se faltar Fundo, houver conflito ou novo caso ambiguo: PARAR.
+
+MODELO VERIFICADO
+sacados: PK(id), UNIQUE(cnpj); nao ha UNIQUE(user_id).
+FK user_id -> profiles tem ON DELETE CASCADE atualmente.
+Preservar coluna e dados; revisar a FK no desenho final para impedir que
+exclusao de um profissional apague a empresa compartilhada por outros.
+sacados_own_select e sacados_own_update usam user_id diretamente.
+sacado_acessos ainda nao existe no schema consultado.
+
+DEPENDENCIAS CONFIRMADAS NO CODIGO E/OU CATALOGO
+src/lib/sacado/contexto.server.ts: maybeSingle por user_id.
+src/lib/sacado/portal-loaders.server.ts: filtros de um CNPJ, dashboard e RPCs.
+src/lib/actions/sacado.ts: validacao singular do lote e pagamento informado.
+src/lib/actions/sacado-portal.ts: carregador legado singular.
+src/lib/auth/authorization.ts: acesso a NF/operacao por CNPJ singular.
+public.get_user_sacado_cnpj()
+public.carregar_dashboard_sacado()
+public.carregar_indicadores_nfs_sacado()
+public.listar_cedentes_aprovacao_sacado()
+public.processar_aceite_sacado(uuid[],text,text)
+private.sacado_tem_acesso_operacao(uuid)
+private.sacado_tem_acesso_operacao_nf(uuid,uuid)
+private.usuario_pode_ler_objeto_storage(text,text)
+Policies de notas_fiscais, operacoes, operacoes_nfs, eventos_dominio, sacados.
+public.registrar_duplicata_versao aparece na busca textual; classificar a
+referencia antes de modificar (pode ser cadastro fiscal, nao autorizacao).
+Notificacao de aceite atual itera profiles role gestor sem filtro de Fundo;
+revisar destinatarios no escopo do aceite, sem refatorar notificacoes globais.
+
+PLANO DE IMPLEMENTACAO
+1. Junction sacado_acessos (usuario + sacado + fundo), status e auditoria,
+   UNIQUE do trio, FKs/indices, grants minimos e RLS.
+2. Backfill minimo com preflight, sem DML financeiro, sem nova raiz autorizada.
+3. Contexto SET por sessao; helper canonico por CNPJ completo e Fundo.
+4. RPC de aceite valida TODO lote antes das mutacoes, com locks e estado
+   agregado da operacao considerando TODAS as NFs aplicaveis.
+5. Migrar policies, actions, eventos e Storage; fechar escrita direta de NF
+   pelo Sacado para que validacao/auditoria transacional nao seja contornada.
+6. Admin/Gestor: reutilizar modulo de usuarios/configuracoes; pesquisa
+   paginada e escopada, cadastro/ativacao/desativacao/revogacao com MFA fresco.
+7. Dashboard/listas: todos os CNPJs autorizados e filtro explicito;
+   nao somar duas vezes nem revelar NFs de outro escopo em operacoes mistas.
+8. Testes SQL/RLS/MFA/backfill/atomicidade + app/browser/a11y + Preview real.
+9. Somente apos todos gates: CI/checkpoint/migration explicita/deploy/smoke.
+10. HEALTH real pela UI; homolog somente apos producao PASS, delta exato.
+
+DECISAO PENDENTE - PREVIEW
+A6 original 20260929193129 continua ausente no history de producao.
+Main contem migrations historicas nao executadas nesse banco. Reproduzir
+cegamente toda a cadeia nao equivale ao schema vigente de producao.
+A excecao MANUAL_EXPLICIT_LIST anterior era EXCLUSIVA da Preview HEALTH;
+nao foi copiada nem generalizada para SACADO.
+Solicitada confirmacao da organizacao Supabase antes de consultar custo.
+Proposta a aprovar: Preview SACADO isolada, schema atual sem dados reais,
+aplicacao explicita apenas das novas migrations SACADO, hashes verificados,
+sem executar/marcar A6 original nem reparar historico artificialmente.
+Nao criar/reconfigurar Preview nem alterar politica global antes da decisao.
+
+GATES
+SACADO_ARCHITECTURE = JUNCTION_TABLE (PLANNED)
+SACADO_CNPJ_ROOT_AUTO_AUTH = NO
+SACADO_LEGACY_USER_ID_PRESERVED = YES
+SACADO_SCHEMA = NOT_IMPLEMENTED
+SACADO_BACKFILL = READ_ONLY_CANDIDATE_IDENTIFIED_NOT_APPLIED
+SACADO_PREVIEW_READY = NO
+SACADO_PROD_MIGRATION = NOT_EXECUTED
+SACADO_PROD_DEPLOY = NOT_EXECUTED
+SACADO_PROD_CONFIG_HEALTH_0020 = NOT_EXECUTED
+SACADO_PROD_CONFIG_HEALTH_0021 = NOT_EXECUTED
+SACADO_PROD_SMOKE = NOT_EXECUTED
+SACADO_HOMOLOG_CHERRYPICK = NOT_EXECUTED
+DOCKER_TEST_ENV_CLEANUP = NOT_APPLICABLE_NO_STACK_CREATED
+HEALTH_PARSER_CHANGED = NO
+RLX_EMAIL_CHANGED = NO
+CERC_CHANGED = NO
+GUIBOR_CHANGED = NO
+P17_CHANGED = NO
+SACADO_HOTFIX_READY = NO
+
+ATUALIZACAO - DECISAO DO USUARIO SOBRE PREVIEW
+Usuario pediu reutilizar a Preview das NFs e NAO criar outra por custo.
+Verificacao ao vivo:
+- Branch Git hotfix/health-fiscal-import ainda existe no SHA 2d98e324.
+- Branch Supabase HEALTH nao consta na listagem atual.
+- get_project(mkfslrspxzplghjeixjq) retorna Project not found.
+- Restam main, homolog e feature/rlx-email05-operations.
+Portanto nao existe banco HEALTH reutilizavel disponivel nesta verificacao.
+Nenhuma Preview nova criada; nenhum custo novo autorizado/gerado pelo agente.
+Nao reutilizar RLX, homolog ou producao como substituto sem decisao.
+Implementacao/rollout pendentes de definir ambiente para certificacao real.
+Alternativa sem nova branch paga: desenvolvimento e rehearsal Docker local,
+mantendo producao bloqueada ate existir Preview real aprovada no roteiro.
+
+ATUALIZACAO - PREVIEW NOVA AUTORIZADA
+Usuario autorizou criar nova Preview SACADO, custo US$0.01344/hora,
+e modo manual explicito exclusivo dela. Nao reutilizar RLX ou homolog.
+Branch Supabase: c31a3f44-0c5a-413d-8a39-b5d2eeda010e
+Project ref: yynlrtonrqxoatmuclrt
+Sem dados reais, criada inicialmente sem vinculo Git.
+Bootstrap automatico do provedor: MIGRATIONS_FAILED; verificacao confirmou
+zero tabelas de aplicacao, zero usuarios, zero objetos e zero history.
+Schema-only atual de producao exportado por db dump (somente leitura).
+SHA256: f8a5cbc7cae281be11b336a4457b571912c2e65eec18f88ff4555609c225d20e
+Precheck e carga transacional controlada: PASS.
+125 tabelas de aplicacao vazias; zero usuarios; zero objetos Storage.
+Catalogo sem diferencas funcionais em relacao a producao (duas variantes
+conhecidas de parenteses do pg_dump, comparadas por definicoes exatas).
+Historico de migrations continua ZERO: nenhuma versao historica marcada
+como aplicada. A6 original ausente. Nao executado reset/history repair.
+Catalogo inclui functions, RLS, grants, triggers, constraints e indices.
+Buckets vazios e policies Storage copiados como configuracao, sem arquivos.
+Excecao em config.toml SOMENTE remotes."hotfix/sacado-multi-cnpj".
+Lista explicita scripts/qa/sacado/preview-manifest.json vazia por enquanto.
+Nenhuma migration funcional SACADO certificada/aplicada nesta preparacao.
+Evidencias locais ignoradas: rehearsal/reports/SACADO_PREVIEW_*.json.
+Preparacao de infraestrutura nao equivale a implementacao multi-CNPJ,
+teste MFA autenticado, Preview funcional PASS ou liberacao de producao.

@@ -9,7 +9,7 @@ export async function verifyFiscalLifecycle({ admin, clients, fundId, linkId, es
     values($1,$2,$3,'review.pdf','application/pdf',100,'FILE','PROCESSING',$4,now()+interval '1 hour')`,
   [attachmentId, messages[0], randomUUID(), token])
   const actor = { ...actors[1], attachmentId, attachmentToken: token }
-  const fiscalKey = '9'.repeat(50)
+  const fiscalKey = '1234567890'.repeat(5)
   const fileHash = 'a'.repeat(64), fingerprint = 'b'.repeat(64)
   const reserveArgs = [actor, fundId, linkId, establishment, 'NFSE', fiscalKey, fileHash]
   const reserved = (await clients[1].query('select public.fiscal_intake_reserve($1,$2,$3,$4,$5,$6,$7) result', reserveArgs)).rows[0].result

@@ -10,6 +10,7 @@ import { processAttachmentJob } from '../../src/lib/email-intake/attachment-work
 import { importFiscalFile } from '../../src/lib/fiscal-intake/service.server.ts'
 import { createFiscalImportRepository } from '../../src/lib/fiscal-intake/repository.server.ts'
 import { createFiscalStorage } from '../../src/lib/fiscal-intake/storage.server.ts'
+import { parseFiscalFile } from '../../src/lib/fiscal-intake/parse.server.ts'
 import { verifySharedConcurrency } from './cross-channel-smoke.mjs'
 import { verifySharedRouting } from './routing-smoke.mjs'
 import { verifyBrowserReview } from './browser-review-smoke.mjs'
@@ -30,6 +31,8 @@ const value = (result, stage) => { assert.ok(!result.error, `${stage}:${result.e
 const fund = '22000000-0000-4000-8000-000000000001', cedente = '23000000-0000-4000-8000-000000000001'
 const link = '24000000-0000-4000-8000-000000000001', owner = '21000000-0000-4000-8000-000000000003'
 const checks = []
+const rpcFailures = []
+const importFailures = []
 let stage = 'REAL_AUTH'
 let browser
 function totp(secret) {
@@ -85,7 +88,26 @@ try {
   const claims = value(await admin.rpc('email_intake_claim_attachment', { p_queue: 'TEXT' }), 'CLAIM_ATTACHMENT')
   assert.equal(claims[0].id, attachment)
   const job = value(await admin.rpc('email_intake_get_attachment_claim', { p_id: attachment, p_token: claims[0].token }), 'READ_CLAIM')
-  const dependencies = client => ({ repository: createFiscalImportRepository(client), storage: createFiscalStorage() })
+  const dependencies = client => {
+    const observed = new Proxy(client, { get(target, property) {
+      if (property !== 'rpc') return Reflect.get(target, property)
+      return async (name, args) => {
+        const result = await target.rpc(name, args)
+        if (result.error) rpcFailures.push({ function: name, code: result.error.code,
+          domain: /^FISCAL_[A-Z_]+$/.test(result.error.message) ? result.error.message : 'SANITIZED' })
+        return result
+      }
+    } })
+    const repo = createFiscalImportRepository(observed)
+    const repository = Object.fromEntries(Object.entries(repo).map(([method, fn]) => [method, async (...args) => {
+      try { return await fn(...args) }
+      catch (error) { importFailures.push({ stage: method, code: error.code ?? error.name }); throw error }
+    }]))
+    return { repository, storage: createFiscalStorage(), parse: async (...args) => {
+      try { return await parseFiscalFile(...args) }
+      catch (error) { importFailures.push({ stage: 'parse', code: error.code ?? (/^NFSE_[A-Z_]+$/.test(error.message) ? error.message : error.name) }); throw error }
+    } }
+  }
   const beforeUsers = (await db.query('select count(*)::int n from auth.users')).rows[0].n
   const review = await processAttachmentJob(job, { downloadAttachment: async () => bytes }, input => importFiscalFile(input, dependencies(admin)))
   assert.equal(review.status, 'REQUIRES_REVIEW')
@@ -124,7 +146,7 @@ try {
   await writeFile(process.env.EMAIL_INTAKE_SMOKE_REPORT, JSON.stringify({ result: 'PASS', checks, scope: 'DISPOSABLE_SHARED_SERVICE_API_NOT_BROWSER_OR_GRAPH' }))
 } catch (error) {
   await writeFile(process.env.EMAIL_INTAKE_SMOKE_REPORT, JSON.stringify({ result: 'FAIL', stage, code: error.code ?? error.name,
-    message: error.message.replace(/\d{14,}/g, '[IDENTIFIER_REDACTED]').slice(0, 300), checks }))
+    message: error.message.replace(/\d{14,}/g, '[IDENTIFIER_REDACTED]').slice(0, 300), checks, rpcFailures, importFailures }))
   throw new Error('QA_SHARED_SERVICE_FAILED')
 } finally {
   if (browser) await browser.close()

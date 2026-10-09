@@ -231,8 +231,10 @@ describe('arquitetura do Escopo 4', () => {
     const source = ler('src/lib/sacado/contexto.server.ts')
     expect(source).toContain("requireRole('sacado')")
     expect(source).toContain("auth.profile.status !== 'ativo'")
-    expect(source).toContain(".eq('user_id', auth.user.id)")
-    expect(source).toContain('cnpj.length !== 14')
+    expect(source).toContain(".rpc('get_user_sacado_context')")
+    expect(source).toContain('a.user_id !== auth.user.id')
+    expect(source).toContain('!/^\\d{14}$/.test(a.cnpj)')
+    expect(source).not.toContain('.maybeSingle()')
     expect(source).not.toMatch(/resolverContextoSacado\s*\([^)]*(cnpj|sacadoId|fundoId)/)
   })
 

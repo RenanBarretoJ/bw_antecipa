@@ -51,7 +51,7 @@ describe('resultado por arquivo do upload de NFs', () => {
     expect(source).toContain('resolverRazaoSocialDestinatario({')
     expect(source).toContain('facts.parsed.razao_social_destinatario = recipient.razaoSocial')
     expect(source.indexOf('resolverRazaoSocialDestinatario({'))
-      .toBeLessThan(source.indexOf('await storage.upload('))
+      .toBeLessThan(source.indexOf('await storage.upload(intent, input.file)'))
   })
 
   it('limita requisicoes concorrentes e preserva a ordem do lote', async () => {
@@ -73,9 +73,9 @@ describe('resultado por arquivo do upload de NFs', () => {
 
   it('mantem gate PDF e checagem de duplicidade antes do Storage', () => {
     const source = readFileSync('src/lib/fiscal-intake/service.server.ts', 'utf8')
-    const uploadIndex = source.indexOf('await storage.upload(')
+    const uploadIndex = source.indexOf('await storage.upload(intent, input.file)')
     expect(uploadIndex).toBeGreaterThan(0)
-    for (const guard of ['(dependencies.parse ?? parseFiscalFile)(input.file)', 'await repository.reserve(', "if ('status' in reservation) return reservation"]) {
+    for (const guard of ['(dependencies.parse ?? parseFiscalFile)(input.file,', 'await repository.reserve(', "if ('status' in reservation) return reservation"]) {
       expect(source.indexOf(guard)).toBeGreaterThan(-1)
       expect(source.indexOf(guard)).toBeLessThan(uploadIndex)
     }

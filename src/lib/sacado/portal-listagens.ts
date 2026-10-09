@@ -64,6 +64,7 @@ function isStatusPagamento(
 }
 
 export type FiltrosNfsSacado = {
+  cnpj?: string
   page: number
   pageSize: 10 | 20 | 40
   q: string
@@ -73,6 +74,7 @@ export type FiltrosNfsSacado = {
 }
 
 export type FiltrosAprovacoesSacado = {
+  cnpj?: string
   page: number
   pageSize: 10 | 20 | 40
   q: string
@@ -86,6 +88,7 @@ export type FiltrosAprovacoesSacado = {
 }
 
 export type FiltrosPagamentosSacado = {
+  cnpj?: string
   page: number
   pageSize: 10 | 20 | 40
   q: string
@@ -105,6 +108,7 @@ export type OperacaoCompactaSacado = {
 export type NotaFiscalSacadoListagemItem = {
   id: string
   numero: string
+  sacado?: { cnpj: string; nome: string }
   serie: string | null
   chaveAcesso: string | null
   cedente: { id: string; nome: string; cnpj: string }
@@ -121,6 +125,7 @@ export type NotaFiscalSacadoListagemItem = {
 export type AprovacaoSacadoItem = {
   notaFiscalId: string
   numero: string
+  sacado?: { cnpj: string; nome: string }
   cedente: { id: string; nome: string; cnpj: string }
   valor: number
   emissaoEm: string | null
@@ -183,6 +188,7 @@ export type DashboardSacado = {
   proximosVencimentos: Array<{
     id: string
     numero: string
+  sacado?: { cnpj: string; nome: string }
     cedenteNome: string
     cedenteCnpj: string
     valor: number
@@ -223,6 +229,7 @@ export function parseFiltrosNfsSacado(searchParams: SearchParamsInput): FiltrosN
 
   return {
     ...pagination,
+    ...(readSearchParam(searchParams, 'cnpj') ? { cnpj: String(readSearchParam(searchParams, 'cnpj')).replace(/\D/g, '') || 'invalido' } : {}),
     q: normalizeSearch(readSearchParam(searchParams, 'q')),
     status: status && isStatusNf(status) ? status : null,
     sort: sort.field,
@@ -244,6 +251,7 @@ export function parseFiltrosAprovacoesSacado(
 
   return {
     ...pagination,
+    ...(readSearchParam(searchParams, 'cnpj') ? { cnpj: String(readSearchParam(searchParams, 'cnpj')).replace(/\D/g, '') || 'invalido' } : {}),
     q: normalizeSearch(readSearchParam(searchParams, 'q')),
     cedenteId: readSearchParam(searchParams, 'cedente') || null,
     vencimentoDe: dataValida(readSearchParam(searchParams, 'vencimentoDe')),
@@ -270,6 +278,7 @@ export function parseFiltrosPagamentosSacado(
 
   return {
     ...pagination,
+    ...(readSearchParam(searchParams, 'cnpj') ? { cnpj: String(readSearchParam(searchParams, 'cnpj')).replace(/\D/g, '') || 'invalido' } : {}),
     q: normalizeSearch(readSearchParam(searchParams, 'q')),
     status: status && isStatusPagamento(status) ? status : null,
     sort: sort.field,

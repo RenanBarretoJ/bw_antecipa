@@ -1,0 +1,216 @@
+HEALTH IMPORT - ROLLOUT ISOLADO - CHECKPOINT 2026-10-05
+
+ESTRATEGIA MANUAL EXPLICITA - AUTORIZADA PELO USUARIO
+Usuario determinou preservar a divergencia historica e impedir replay automatico
+somente na Preview HEALTH. Nao reconciliar history, executar A6 original ou
+marcar versoes ficticiamente como aplicadas. Nao alterar homolog ou producao.
+Configuracao: remotes."hotfix/health-fiscal-import", project mkfslrspxzplghjeixjq,
+db.migrations.enabled=false e db.seed.enabled=false. Defaults globais e todos
+os remotes preexistentes preservados, inclusive Auth. Excecao nao global.
+Manifesto: scripts/qa/health/migration-manifest.json. Unica entrada permitida:
+20261002205122_health_nfse_municipal_identity.sql, versao 20261002205122,
+nome health_nfse_municipal_identity,
+SHA256 53a0f6533c745381ccad139ff734960d7ca99fbd67cb1d979385fc6773dc5d65.
+Validacao de nome/versao/hash executada antes de acessar banco nos runners.
+Migration ja aplicada anteriormente na Preview: somente verificada, sem replay.
+Verifier read-only valida history exato e ausencia de A6 original; captura
+fingerprints de 127 tabelas, catalogo e history para comparar apos config deploy.
+Baseline confirmado: 237 entradas history, duas NFs e dois objetos Storage.
+Nenhuma alteracao de migration history ou dados operacionais nesta etapa.
+
+Validacoes locais nesta etapa: 2640 testes PASS, 12 skipped; 300 arquivos PASS,
+3 skipped. Os 8 testes novos HEALTH agora integram explicitamente o Vitest/CI.
+Rehearsal Docker repetido com manifesto fixado: clean-room 36 assercoes e
+upgrade 36 assercoes PASS; rollback completo e catalogo sem diferencas.
+O clean-room usa baseline vazio do schema produtivo, nao replay da cadeia antiga.
+Migration SQL nao foi editada. CI remoto e postflight dependem da publicacao.
+
+GATES (configuracao local; confirmar integracao/CI remotos apos push)
+HEALTH_PREVIEW_MIGRATION_MODE = MANUAL_EXPLICIT_LIST
+HEALTH_PREVIEW_AUTO_MIGRATION_REPLAY = DISABLED (config; publicacao pendente)
+GUIBOR_A6_ORIGINAL_APPLIED = NO
+GUIBOR_A6_ORIGINAL_HISTORY_FAKED = NO
+HEALTH_PREVIEW_MIGRATION_HASH_CHECK = PASS
+HEALTH_PREVIEW_EXPLICIT_MIGRATION_LIST = PASS
+HEALTH_PREVIEW_SQL_REHEARSAL = PASS
+HEALTH_PREVIEW_APP_CI = PENDING
+HEALTH_PREVIEW_HISTORICAL_DIVERGENCE = KNOWN_AND_PRESERVED
+HEALTH_HOMOLOG_CHANGED = NO
+HEALTH_PRODUCTION_CHANGED = NO
+
+Os checkpoints anteriores abaixo sao historicos; nao sobrescrever divergencias.
+
+INVESTIGACAO DE RECONCILIACAO AUTORIZADA - SEM ESCRITA REMOTA
+Usuario autorizou tratar divergencia somente na Preview HEALTH, preservando NFs.
+Inventario READ ONLY: 237 registros remotos e 237 arquivos locais, com sete
+versoes exclusivas em cada lado. Igualdade de contagens nao prova equivalencia.
+Quatro nomes coincidem com timestamps diferentes; comparacao MD5 do SQL normalizado
+por CRLF/trim entre producao e repo confirma igualdade exata apenas em P7.4.1.
+Os demais exigiriam revisao semantica, nao renomear por similaridade de nome.
+Tres locais adicionais: 002_schema_base, 20260922182301_p14 e
+20260929193129_guibor_a6_comissao_por_fundo. A A6 original foi explicitamente
+excluida do manifesto produtivo anterior (docs/correcoes/guibor-prod-02-rollout.md),
+substituida pela 20260929215557_guibor_a6_decouple_c5. Nao executar nem marcar
+artificialmente a A6 original como aplicada para forcar paridade do historico.
+Tres remotos sem arquivo direto: bootstrap administrativo, P16 e snapshot da
+Preview. Nao copiar bootstrap/DML de producao para repo ou executar na Preview.
+
+Alternativa existente no projeto: remotes de Preview especificos com migrations
+e seed automaticos desativados; validacao e aplicacao manual por allowlist/hash.
+Isso preserva o historico verdadeiro, mas muda o gate automatico. Requer decisao
+explicita do usuario; NAO implementado sob a autorizacao de reconciliar historia.
+Supabase/Postgres orientaram verificacao de equivalencia antes de repair.
+Fonte oficial: https://supabase.com/docs/guides/deployment/branching/configuration
+Nenhuma linha de migration history, NF ou objeto Storage foi alterada nesta etapa.
+CI de app no a76ebd6 PASS; Supabase Preview permanece FAIL por divergencia historica.
+
+POSTFLIGHT DA RETOMADA - BLOQUEADO ANTES DE PRODUCAO
+Novo HEAD a76ebd67a71099f93f51ddb9a060c1fe590faa6a inclui apenas runner e evidencias;
+codigo de runtime igual ao a66c16c aprovado pelo usuario.
+Check Supabase agora encontra a Preview existente, mas terminou FAILURE:
+Remote migration versions not found in local migrations directory.
+Consulta READ ONLY identificou sete versoes ausentes dos filenames locais:
+20260829173938 p5_2_neutralizar_resets_homolog_producao
+20260909024514 p5_7_bootstrap_primeiro_super_admin_producao
+20260915192524 p7_4_1_rls_importacoes_financeiras_gestor
+20260916144655 corrigir_overlay_exposicao_parcelas
+20260916153942 corrigir_aceite_sacado_vinculo_nf_cancelada
+20260928185439 p16_liberar_nf_de_operacao_cancelada
+20261002220000 health_preview_schema_snapshot
+Nao foram alterados registros de migration history. Nao adicionar migrations
+dessas outras frentes ao rollout fiscal nem marcar check como sucesso manual.
+Preview preservada: 237 entradas no historico, 2 NFs e 2 objetos Storage;
+migration municipal aplicada anteriormente permanece presente.
+Rehearsal Docker: 36 assercoes clean-room e 36 upgrade PASS.
+SHA256 da migration: 53a0f6533c745381ccad139ff734960d7ca99fbd67cb1d979385fc6773dc5d65.
+Cleanup executado exclusivamente no project-id health-import-prod-20261005:
+containers, volumes e rede removidos; consultas por label retornam zero recursos.
+DOCKER_TEST_ENV_CLEANUP = PASS
+Producao reconferida: dpl_D38joJT98E3vjLzYvFBDFzhZvrXE / d9133b4 inalterados.
+Sem merge, sem migration remota, sem escrita financeira ou operacional.
+HEALTH_IMPORT_HOTFIX_READY = NO (check Supabase FAIL; gates prod nao executados).
+Proximo passo exige escopo explicito para reconciliar historia SOMENTE Preview;
+preservar notas importadas e nao contornar a stop rule de CI.
+
+RETOMADA AUTORIZADA - VINCULO PREVIEW E DOCKER
+Usuario aprovou corrigir o vinculo da Preview existente e iniciou Docker.
+branches update alterou SOMENTE git_branch de b5227cca-3494-46f9-b3a7-2f0ddee7650d
+para hotfix/health-fiscal-import; listagem confirmou. Zero branch criada/excluida.
+Status historico MIGRATIONS_FAILED preservado; nao forcar status ou check verde.
+Rerequest do check pela API GitHub retornou 404; checkpoint publicado para nova
+avaliacao da integracao. CI de aplicativo no SHA a66c16c terminou SUCCESS.
+
+Docker isolado: health-import-prod-20261005, banco local 127.0.0.1:56322.
+Novo runner scripts/qa/health/production-rehearsal.mjs trava esse destino e
+acessa producao exclusivamente por BEGIN READ ONLY para metadados de schema.
+Reuso do dump schema-only, sem dados reais; catalogo restaurado comparado com
+producao atual. Sem diferencas funcionais de schema ou seguranca.
+Clean-room do hotfix sobre baseline de producao vazio: PASS, 36 assercoes SQL.
+Upgrade com fixtures sinteticas legadas: PASS, 36 assercoes SQL; fingerprint
+das linhas preexistentes identico antes/depois. Nao e replay da cadeia historica.
+Receipt/claim/fencing: PASS nos dois cenarios.
+Diff SQL limitado a nfse_fatos_check e nfse_municipal_identity_unique.
+Rollback: catalogo identico e zero usuarios/NFs/operacoes/objetos locais restantes.
+Evidencia sanitizada ignorada: rehearsal/reports/HEALTH_PROD_LOCAL_REHEARSAL.json.
+Cleanup dos containers ainda pendente neste checkpoint.
+Producao: nenhuma migration, importacao ou mudanca de app executada.
+Nao substituir gate Supabase cancelado por estes resultados locais.
+
+CHECKPOINT ANTERIOR (historico)
+
+ESCOPO E AUTORIZACAO
+Usuario solicitou executar HOTFIX_PROD_HEALTH_Importacao_Notas_Rollout_Isolado.txt.
+Promocao limitada a importacao fiscal; Sacado multi-CNPJ continua fora do escopo.
+
+BASE / CANDIDATO / ROLLBACK
+Main remota conferida por fetch explicito: d9133b4d2549937402c78aec7db28af62ddff43b.
+Nao usar origin/main local: refspec deste checkout nao a atualiza nesse fetch.
+Producao Vercel: dpl_D38joJT98E3vjLzYvFBDFzhZvrXE, mesmo SHA da main remota.
+Candidato: a66c16c2b6c31353dcbf2d1ec32830421ea19860.
+Branch: hotfix/health-fiscal-import.
+PR aberto nesta etapa: https://github.com/RenanBarretoJ/bw_antecipa/pull/88
+Sem merge, deploy de producao ou escrita no banco de producao nesta etapa.
+Rollback app: deployment/SHA atuais acima. Se houver importacoes municipais
+apos futuro rollout, preservar suporte aditivo de banco e os registros; nao
+remover constraint/indice nem documentos por rollback automatico.
+
+ESCOPO CONFERIDO
+Diff real da main remota ao candidato: 28 arquivos, somente pipeline fiscal,
+testes, migration municipal, scripts de certificacao Preview e documentacao.
+Nenhuma alteracao de Sacado multi-CNPJ, RLX Email, CERC, politica Guibor/P17,
+financeiro, operacoes ou snapshots.
+HEALTH_IMPORT_AND_SACADO_COUPLING = INDEPENDENT
+Identidade e classificacao derivam do documento; nao dependem de usuario Sacado.
+
+CAUSA RAIZ
+Barueri: PDF sem camada textual, municipal sem chave nacional. Classificador
+classifyFiscalImage em src/lib/nfse/openai-visual.server.ts so reconhecia DANFSe
+nacional e DANFE. validateNfseExtraction, review-facts e nfse_fatos_check exigiam
+identidade nacional. Estrategia nfse_municipal_visual preserva orgao/numero/CNPJ
+e codigo verificador sem inventar chave; vencimento ausente exige revisao.
+Hope: PDF sem texto com segunda pagina vazia. Falha real R2 no fallback visual:
+OPENAI_NF_ACCESS_KEY_INVALID, antes de Storage/persistencia. Chave impressa tem
+DV valido; payload bruto nao registrado, portanto digito incorreto desconhecido.
+extractDanfeWithOpenAi/resolveValidatedAccessKey em
+src/lib/danfe/openai-pdf-fallback.server.ts transcrevem 11 blocos de 4 digitos,
+preservando zeros, com mesmo checksum e rejeicao de multiplas chaves validas.
+Layouts textuais antigos usam caminhos anteriores; nacional visual preserva
+contrato. Regressao automatizada nao substitui smoke operacional em producao.
+
+SMOKE PREVIEW
+Usuario confirmou Hope PASS apos a66c16c: NF 57249, rascunho, R$342,85,
+emissao 26/03/2025, vencimento 25/04/2025 e arquivo original disponivel.
+Barueri PASS informado antes de R3 apos preenchimento manual do vencimento.
+Barueri ainda nao foi repetida no HEAD R3; nao declarar reexecucao inexistente.
+
+MIGRATION NECESSARIA (NAO APLICADA EM PRODUCAO)
+20261002205122_health_nfse_municipal_identity.sql
+Altera nfse_fatos_check e cria nfse_municipal_identity_unique.
+Sem DML, grants, policies, triggers ou RPC novos.
+Consulta remota READ ONLY: history_count=235; migration ausente; indice ausente.
+Rehearsal anterior na Preview registrado no diagnostico; rehearsal production-like
+e clean-room deste rollout ainda nao certificados. Nao executar db push.
+
+GATES DESTA ETAPA
+Full suite local: PASS, 2632 testes / 12 skipped, 299 arquivos / 3 skipped.
+Lint completo local: PASS, zero erros; aviso preexistente de import nao usado
+em src/lib/actions/liquidacao.ts. Nao alterado por estar fora do escopo.
+CI GitHub run 37314077323: concluido SUCCESS, TypeScript, testes, lint e build
+PASS. Nao confundir CI de app com check Supabase, que continua CANCELLED.
+
+STOP RULE - SUPABASE PREVIEW
+Check do PR: CANCELLED (gh pr checks apresenta fail), mensagem exata:
+Maximum number of concurrent branches reached. You can update this limit in
+Project Integrations Settings.
+Preview HEALTH existente: mkfslrspxzplghjeixjq, ACTIVE_HEALTHY, status historico
+MIGRATIONS_FAILED; listagem atual nao informa git_branch associado.
+Nao afirmar que erro de limite seja regressao fiscal ou o mesmo erro historico.
+Nao excluir RLX/homolog, aumentar limite/custo, recriar Preview, resetar schema
+ou forcar check verde. Resolver vinculacao/limite exige decisao antes de retomar.
+
+DOCKER / CLEANUP
+Docker daemon indisponivel; caminho padrao de Docker Desktop nao encontrado.
+Nenhum container, volume, network ou stack foi criado nesta etapa.
+Rehearsal e clean-room NAO EXECUTADOS, nao certificados por testes unitarios.
+Nenhum dado QA novo foi criado; preservar QA da Preview para continuidade.
+
+STATUS DE PROMOCAO
+HEALTH_IMPORT_CI = BLOCKED (Supabase Preview CANCELLED)
+HEALTH_IMPORT_PROD_MIGRATIONS = 20261002205122_health_nfse_municipal_identity.sql (pending)
+HEALTH_IMPORT_PROD_DEPLOY = NOT_EXECUTED
+HEALTH_IMPORT_PROD_SMOKE_OLD_LAYOUT = NOT_EXECUTED
+HEALTH_IMPORT_PROD_SMOKE_HOPE_MED = NOT_EXECUTED
+HEALTH_IMPORT_PROD_SMOKE_BARUERI = NOT_EXECUTED
+HEALTH_IMPORT_PROD_BATCH = NOT_EXECUTED
+HEALTH_IMPORT_PROD_POSTFLIGHT = NOT_EXECUTED
+HEALTH_IMPORT_HOTFIX_READY = NO
+SACADO_MULTI_CNPJ_CHANGED = NO
+RLX_EMAIL_CHANGED = NO
+CERC_CHANGED = NO
+GUIBOR_CHANGED = NO
+P17_CHANGED = NO
+
+Zero DML financeiro, alteracao de operacoes/snapshots ou replay de arquivos
+foi executado nesta etapa. Nao afirmar ausencia global de orfaos/duplicates
+de producao sem inventario. Lote historico de 67 permanece inconclusivo e nao
+foi reprocessado. Nao iniciar Sacado como parte deste rollout.

@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { registrarLog } from '@/lib/actions/auditoria'
+import { notificarEntidade } from '@/lib/actions/notificacao'
 
 // Cron job: verificar vencimentos e enviar alertas D-5, D-1 e inadimplencia
 // Executado diariamente as 08:00 UTC via Vercel Cron (vercel.json)
@@ -62,25 +63,20 @@ export async function GET(request: Request) {
 
       try {
         const vencimento = op.data_vencimento
-        const destinatariosCedente = await listarUsuariosCedenteCron(supabaseAdmin, op.cedente_id)
+        const contexto = { entidadeTipo: 'operacao' as const, entidadeId: op.id }
+        const notificar = async (destino: 'cedente' | 'gestor' | 'sacado', titulo: string, mensagem: string, tipo: string) => {
+          const aviso = await notificarEntidade(contexto, destino, titulo, mensagem, tipo,
+            `cron:operacao:${op.id}:${vencimento}:${tipo}`)
+          if (!aviso.success) resultados.erros++
+        }
 
         // D-5 alert
         if (vencimento === formatDate(em5dias)) {
-          const { error } = destinatariosCedente.length
-            ? await supabaseAdmin.from('notificacoes').insert(destinatariosCedente.map((usuarioId) => ({
-              usuario_id: usuarioId,
-              titulo: 'Vencimento em 5 dias',
-              mensagem: `A operacao #${op.id.substring(0, 8)} vence em 5 dias (${vencimento}).`,
-              tipo: 'alerta_vencimento',
-            })) as never[])
-            : { error: null }
-          if (error) {
-            console.error(`[cron/vencimentos] Erro notificacao D-5 op ${op.id}:`, error.message)
-            resultados.erros++
-          }
+          await notificar('cedente', 'Vencimento em 5 dias',
+            `A operacao #${op.id.substring(0, 8)} vence em 5 dias (${vencimento}).`, 'alerta_vencimento')
 
           // Notificar sacados vinculados
-          await notificarSacadosVinculados(supabaseAdmin, op.id, 'Vencimento em 5 dias',
+          await notificar('sacado', 'Vencimento em 5 dias',
             `Pagamento da operacao #${op.id.substring(0, 8)} vence em 5 dias. Favor providenciar.`,
             'alerta_vencimento')
 
@@ -89,21 +85,11 @@ export async function GET(request: Request) {
 
         // D-1 alert
         if (vencimento === formatDate(em1dia)) {
-          const { error } = destinatariosCedente.length
-            ? await supabaseAdmin.from('notificacoes').insert(destinatariosCedente.map((usuarioId) => ({
-            usuario_id: usuarioId,
-            titulo: 'VENCIMENTO AMANHA',
-            mensagem: `A operacao #${op.id.substring(0, 8)} vence AMANHA (${vencimento}).`,
-            tipo: 'alerta_vencimento_urgente',
-          })) as never[])
-            : { error: null }
-          if (error) {
-            console.error(`[cron/vencimentos] Erro notificacao D-1 op ${op.id}:`, error.message)
-            resultados.erros++
-          }
+          await notificar('cedente', 'VENCIMENTO AMANHA',
+            `A operacao #${op.id.substring(0, 8)} vence AMANHA (${vencimento}).`, 'alerta_vencimento_urgente')
 
           // Notificar gestores
-          await notificarGestoresCron(supabaseAdmin,
+          await notificar('gestor',
             'Vencimento amanha',
             `Operacao #${op.id.substring(0, 8)} do cedente ${op.cedentes.razao_social} vence amanha.`,
             'alerta_vencimento_gestor')
@@ -125,23 +111,13 @@ export async function GET(request: Request) {
           }
 
           // Alerta urgente ao gestor
-          await notificarGestoresCron(supabaseAdmin,
+          await notificar('gestor',
             'ALERTA URGENTE: Operacao inadimplente',
             `A operacao #${op.id.substring(0, 8)} do cedente ${op.cedentes.razao_social} venceu em ${vencimento} e o sacado NAO pagou.`,
             'inadimplencia_urgente')
 
-          const { error: notifError } = destinatariosCedente.length
-            ? await supabaseAdmin.from('notificacoes').insert(destinatariosCedente.map((usuarioId) => ({
-            usuario_id: usuarioId,
-            titulo: 'Operacao inadimplente',
-            mensagem: `A operacao #${op.id.substring(0, 8)} esta inadimplente. O sacado nao efetuou o pagamento no vencimento.`,
-            tipo: 'operacao_inadimplente',
-          })) as never[])
-            : { error: null }
-          if (notifError) {
-            console.error(`[cron/vencimentos] Erro notificacao inadimplente op ${op.id}:`, notifError.message)
-            resultados.erros++
-          }
+          await notificar('cedente', 'Operacao inadimplente',
+            `A operacao #${op.id.substring(0, 8)} esta inadimplente. O sacado nao efetuou o pagamento no vencimento.`, 'operacao_inadimplente')
 
           await registrarLog({
             tipo_evento: 'OPERACAO_INADIMPLENTE_AUTO',
@@ -171,103 +147,5 @@ export async function GET(request: Request) {
   } catch (err) {
     console.error('[cron/vencimentos] Erro geral:', err)
     return Response.json({ error: 'Erro interno no processamento.' }, { status: 500 })
-  }
-}
-
-// Helpers para o cron (nao usam createClient do server pois nao ha contexto de request auth)
-
-async function listarUsuariosCedenteCron(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: any,
-  cedenteId: string,
-): Promise<string[]> {
-  const [{ data: cedente }, { data: acessos, error }] = await Promise.all([
-    supabase.from('cedentes').select('user_id').eq('id', cedenteId).maybeSingle(),
-    supabase.from('cedente_acessos').select('user_id, status').eq('cedente_id', cedenteId),
-  ])
-  if (error) throw new Error(`Nao foi possivel resolver destinatarios do Cedente: ${error.message}`)
-  const associacoes = (acessos || []) as Array<{ user_id: string; status: string }>
-  const ativos = associacoes.filter((acesso) => acesso.status === 'ATIVO').map((acesso) => acesso.user_id)
-  if (associacoes.length === 0 && cedente?.user_id) ativos.push(String(cedente.user_id))
-  const candidatos = [...new Set(ativos)]
-  if (!candidatos.length) return []
-  const { data: profiles, error: profilesError } = await supabase
-    .from('profiles')
-    .select('id')
-    .in('id', candidatos)
-    .eq('status', 'ativo')
-  if (profilesError) throw new Error(`Nao foi possivel validar destinatarios ativos: ${profilesError.message}`)
-  return (profiles || []).map((profile: { id: string }) => profile.id)
-}
-
-async function notificarGestoresCron(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: any,
-  titulo: string,
-  mensagem: string,
-  tipo: string
-) {
-  try {
-    const { data: gestores } = await supabase.from('profiles').select('id').eq('role', 'gestor')
-    if (!gestores || gestores.length === 0) return
-
-    const notificacoes = (gestores as Array<{ id: string }>).map((g) => ({
-      usuario_id: g.id, titulo, mensagem, tipo,
-    }))
-
-    const { error } = await supabase.from('notificacoes').insert(notificacoes as never[])
-    if (error) {
-      console.error('[cron/notificarGestores] Erro:', error.message)
-    }
-  } catch (err) {
-    console.error('[cron/notificarGestores] Erro inesperado:', err)
-  }
-}
-
-async function notificarSacadosVinculados(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: any,
-  operacaoId: string,
-  titulo: string,
-  mensagem: string,
-  tipo: string
-) {
-  try {
-    const { data: opNfs } = await supabase
-      .from('operacoes_nfs')
-      .select('nota_fiscal_id')
-      .eq('operacao_id', operacaoId)
-
-    if (!opNfs) return
-
-    const nfIds = (opNfs as Array<{ nota_fiscal_id: string }>).map((n) => n.nota_fiscal_id)
-    const { data: nfs } = await supabase
-      .from('notas_fiscais')
-      .select('cnpj_destinatario')
-      .in('id', nfIds)
-
-    if (!nfs) return
-
-    const cnpjs = [...new Set((nfs as Array<{ cnpj_destinatario: string }>).map((n) => n.cnpj_destinatario))]
-
-    for (const cnpj of cnpjs) {
-      const { data: sacado } = await supabase
-        .from('sacados')
-        .select('user_id')
-        .eq('cnpj', cnpj)
-        .single()
-
-      if (sacado) {
-        const { error } = await supabase.from('notificacoes').insert({
-          usuario_id: (sacado as { user_id: string }).user_id,
-          titulo, mensagem, tipo,
-        } as never)
-        if (error) {
-          console.error(`[cron/notificarSacados] Erro para CNPJ ${cnpj}:`, error.message)
-        }
-      }
-    }
-  } catch (err) {
-    console.error('[cron/notificarSacados] Erro inesperado:', err)
   }
 }

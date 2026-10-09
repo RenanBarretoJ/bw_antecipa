@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
+import { once } from 'node:events'
 import { cp, mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { Client } from 'pg'
@@ -9,14 +10,20 @@ import { verifyFiscalFencing } from './fencing-db.mjs'
 import { verifyStorageApi } from './storage-api.mjs'
 import { verifyEmailAutomation } from './automation-db.mjs'
 import { verifyEmailTemporalAdmission } from './temporal-db.mjs'
+import { verifyEmailOperators } from './operators-db.mjs'
+import { verifyEmailOperatorBrowser } from './operator-browser.mjs'
+import { prepareEmailBrowserRuntime } from './browser-runtime.mjs'
+import { disposableResources, nativeSupabaseCli } from './disposable-resources.mjs'
 
 // Reuse platform bootstrap from the supported CLI. No schema stubs or remote links.
 const projectId = `bw_email03_${Date.now()}`
 const root = resolve('rehearsal/tmp', projectId)
-const cli = resolve('node_modules/supabase/dist/supabase.js')
+const cli = await nativeSupabaseCli()
 const environment = sanitizedLocalEnvironment()
 const storageApi = process.argv.includes('--storage-api')
 const automation = process.argv.includes('--automation')
+const operatorsOnly = process.argv.includes('--operators-only')
+const operators = operatorsOnly || process.argv.includes('--operators')
 for (const key of Object.keys(environment)) if (/EMAIL_INTAKE|SECRET|PASSWORD|TOKEN|CREDENTIAL/i.test(key)) delete environment[key]
 // Explicit executable path makes the same official browser smoke portable to Linux CI.
 if (process.env.EMAIL_INTAKE_QA_CHROME) environment.EMAIL_INTAKE_QA_CHROME = process.env.EMAIL_INTAKE_QA_CHROME
@@ -35,20 +42,43 @@ await writeFile(resolve(root, 'supabase/config.toml'), config, 'utf8')
 assert.equal(/project_id = "([^\"]+)"/.exec(config)?.[1], projectId)
 assert.ok(root.startsWith(resolve('rehearsal/tmp') + '\\') || root.startsWith(resolve('rehearsal/tmp') + '/'))
 
+let activeCli
 function run(args) {
   return new Promise((done, reject) => {
-    const child = spawn(process.execPath, [cli, ...args, '--workdir', root], { env: environment, windowsHide: true })
+    const child = spawn(cli, [...args, '--workdir', root], { env: environment, windowsHide: true })
+    activeCli = child
     let output = ''
     for (const stream of [child.stdout, child.stderr]) stream.on('data', bytes => { output += bytes.toString() })
     child.on('error', reject)
-    child.on('exit', code => done({ code, output }))
+    child.on('exit', code => { activeCli = null; done({ code, output }) })
   })
+}
+const owned = await disposableResources({ projectId, file: `rehearsal/reports/${projectId}-resources.json`, tempDirs: [root] })
+let cleanupPromise
+const cleanup = () => cleanupPromise ??= (async () => {
+  const stop = async () => {
+    const result = await run(['stop', '--project-id', projectId, '--no-backup'])
+    assert.equal(result.code, 0, 'NATIVE_CLI_STOP_FAILED')
+  }
+  await owned.cleanup(stop)
+  await owned.cleanup(stop)
+})()
+const interrupted = async () => {
+  const child = activeCli
+  if (child?.exitCode === null) { const exited = once(child, 'exit'); child.kill('SIGTERM'); await exited }
+  try { await cleanup() } finally { process.exit(130) }
+}
+process.once('SIGINT', interrupted); process.once('SIGTERM', interrupted)
+async function checkpoint(phase) {
+  await writeFile(resolve(root, 'clean-room-checkpoint.json'), JSON.stringify({ ...evidence, phase, result: 'IN_PROGRESS' }, null, 2))
 }
 try {
   console.log(JSON.stringify({ stage: 'START_ISOLATED_LOCAL', projectId, migrationCount: files.length }))
-  const excluded = storageApi ? 'realtime,imgproxy,mailpit,postgres-meta,studio,edge-runtime,logflare,vector,supavisor'
+  // The operator portal includes the notification bell; its real WebSocket needs Realtime.
+  const excluded = storageApi ? `${operators ? '' : 'realtime,'}imgproxy,mailpit,postgres-meta,studio,edge-runtime,logflare,vector,supavisor`
     : 'gotrue,realtime,storage-api,imgproxy,kong,mailpit,postgrest,postgres-meta,studio,edge-runtime,logflare,vector,supavisor'
   const start = await run(['start', '--exclude', excluded])
+  await owned.capture()
   if (start.code !== 0) {
     evidence.result = 'FAIL'
     evidence.failure = redactCommandOutput(start.output).slice(-4000)
@@ -93,9 +123,11 @@ try {
           },
         }
       }
-      evidence.fencingChecks = await verifyFiscalFencing(client, connection, `${setup.slice(0, beforeNf)}END;\n$setup$;`, storageFixtures)
+      if (operatorsOnly) await client.query(`${setup.slice(0, beforeNf)}END;\n$setup$;`)
+      else evidence.fencingChecks = await verifyFiscalFencing(client, connection, `${setup.slice(0, beforeNf)}END;\n$setup$;`, storageFixtures)
       if (automation) evidence.automationChecks = await verifyEmailAutomation(client, connection)
       if (automation) evidence.temporalChecks = await verifyEmailTemporalAdmission(client, connection)
+      if (operators) evidence.operatorChecks = await verifyEmailOperators(client, connection)
       if (storageApi) {
         const physicalObjects = reservationId => new Promise((done, reject) => {
           assert.match(reservationId, /^[0-9a-f-]{36}$/)
@@ -114,12 +146,15 @@ try {
             }}walk(root);process.stdout.write(String(count));`)
         })
         evidence.storageApiChecks = await verifyStorageApi({ db: client, url: local.API_URL, serviceKey: local.SERVICE_ROLE_KEY, physicalObjects })
+        await checkpoint('SQL_STORAGE_COMPLETE')
         const sharedReport = resolve(root, 'shared-result.json')
+        const browserEnvironment = { ...environment, NEXT_PUBLIC_SUPABASE_URL: local.API_URL,
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: local.ANON_KEY, SUPABASE_SERVICE_ROLE_KEY: local.SERVICE_ROLE_KEY,
+          NFSE_UPLOAD_ENABLED: 'true', OPENAI_API_KEY: '', EMAIL_INTAKE_DISPOSABLE_SMOKE: 'true', EMAIL_INTAKE_SMOKE_REPORT: sharedReport }
+        await prepareEmailBrowserRuntime(browserEnvironment, root)
         const shared = await new Promise((done, reject) => {
           const child = spawn(process.execPath, ['node_modules/vitest/vitest.mjs', 'run', '--config', 'scripts/email-intake/vitest.shared.config.mjs', '--pool=threads', '--maxWorkers=1', '--no-file-parallelism'], {
-            windowsHide: true, env: { ...environment, NEXT_PUBLIC_SUPABASE_URL: local.API_URL,
-              NEXT_PUBLIC_SUPABASE_ANON_KEY: local.ANON_KEY, SUPABASE_SERVICE_ROLE_KEY: local.SERVICE_ROLE_KEY,
-              NFSE_UPLOAD_ENABLED: 'true', OPENAI_API_KEY: '', EMAIL_INTAKE_DISPOSABLE_SMOKE: 'true', EMAIL_INTAKE_SMOKE_REPORT: sharedReport },
+            windowsHide: true, env: browserEnvironment,
           })
           let output = ''
           for (const stream of [child.stdout, child.stderr]) stream.on('data', bytes => { output += bytes.toString() })
@@ -132,6 +167,9 @@ try {
         assert.equal(shared.code, 0, `SHARED_SERVICE_SMOKE:${sharedResult.stage ?? sharedResult.result}:${sharedResult.message ?? ''}`)
         assert.equal(sharedResult.result, 'PASS', 'Shared service report is required for certification')
         assert.ok(evidence.sharedServiceChecks.includes('OFFICIAL_FORM_SYSTEM_TO_HUMAN_PERSISTENCE'), 'Official browser review proof missing')
+        await checkpoint('OFFICIAL_REVIEW_COMPLETE')
+        if (operators) evidence.operatorBrowserChecks = await verifyEmailOperatorBrowser({ db: client, url: local.API_URL,
+          serviceKey: local.SERVICE_ROLE_KEY, anonKey: local.ANON_KEY, environment, root })
       }
       evidence.result = 'PASS'
     } finally { await client.end() }
@@ -140,8 +178,9 @@ try {
   evidence.result = 'FAIL'
   evidence.failure = redactCommandOutput(error instanceof Error ? error.message : 'LOCAL_CLEAN_ROOM_FAILED')
 } finally {
-  const stop = await run(['stop', '--project-id', projectId, '--no-backup'])
-  evidence.cleanup = stop.code === 0 ? 'PASS' : 'FAIL'
+  try { await cleanup(); evidence.cleanup = 'PASS'; evidence.cleanupIdempotent = 'PASS' }
+  catch { evidence.cleanup = 'FAIL' }
+  process.off('SIGINT', interrupted); process.off('SIGTERM', interrupted)
   await writeFile(`rehearsal/reports/RLX_EMAIL_03_CLEAN_ROOM_${projectId}.json`, JSON.stringify(evidence, null, 2) + '\n', 'utf8')
   await writeFile('rehearsal/reports/RLX_EMAIL_03_CLEAN_ROOM.json', JSON.stringify(evidence, null, 2) + '\n', 'utf8')
   console.log(JSON.stringify({ result: evidence.result, cleanup: evidence.cleanup, migrationsApplied: evidence.migrationsApplied,

@@ -3,8 +3,9 @@
 import { revalidatePath } from 'next/cache'
 import type { AppSupabaseClient } from '@/lib/auth/authorization'
 import { carregarContextoEventoOperacao, registrarEventoDominio } from '@/lib/eventos-dominio/registrar'
-import { normalizarCnpjSacado, resolverContextoSacado } from '@/lib/sacado/contexto.server'
+import { resolverContextoSacado } from '@/lib/sacado/contexto.server'
 import { agruparVinculosOperacionaisAtivos, operacaoContaComoVinculoAtivo } from '@/lib/sacado/vinculo-operacional'
+import { possuiAcessoSacado, type SacadoAcesso } from '@/lib/sacado/acessos'
 import { registrarLog } from './auditoria'
 import { notificarGestores } from './notificacao'
 
@@ -21,18 +22,18 @@ function revalidarAceiteSacado() {
 
 async function validarLoteAceiteSacado(
   supabase: AppSupabaseClient,
-  cnpj: string,
+  acessos: readonly SacadoAcesso[],
   nfIds: string[],
 ): Promise<string | null> {
   const ids = [...new Set(nfIds)]
   const { data: nfs, error: nfsError } = await supabase
     .from('notas_fiscais')
-    .select('id, status, cnpj_destinatario')
+    .select('id, status, cnpj_destinatario, fundo_id')
     .in('id', ids)
 
   if (nfsError) return `Nao foi possivel validar as NFs: ${nfsError.message}`
   if ((nfs || []).length !== ids.length) return 'Uma ou mais NFs nao foram encontradas.'
-  if ((nfs || []).some((nf) => normalizarCnpjSacado(nf.cnpj_destinatario) !== cnpj)) {
+  if ((nfs || []).some((nf) => !possuiAcessoSacado(acessos, nf.cnpj_destinatario, nf.fundo_id))) {
     return 'Uma ou mais NFs nao pertencem ao sacado autenticado.'
   }
   if ((nfs || []).some((nf) => nf.status !== 'em_antecipacao')) {
@@ -77,7 +78,7 @@ async function executarAceite(
   const ids = [...new Set(nfIds)]
   const validacao = await validarLoteAceiteSacado(
     contexto.auth.supabase,
-    contexto.cnpj,
+    contexto.acessos,
     ids,
   )
   if (validacao) return { errorMessage: validacao }
@@ -179,7 +180,7 @@ export async function confirmarPagamento(
   const nfIds = opNfs.map((item) => item.nota_fiscal_id)
   const { data: nfs, error: nfsError } = await supabase
     .from('notas_fiscais')
-    .select('id, cnpj_destinatario')
+    .select('id, cnpj_destinatario, fundo_id')
     .in('id', nfIds)
 
   if (nfsError) {
@@ -188,7 +189,7 @@ export async function confirmarPagamento(
   if (
     !nfs
     || nfs.length !== nfIds.length
-    || nfs.some((nota) => normalizarCnpjSacado(nota.cnpj_destinatario) !== contexto.cnpj)
+    || nfs.some((nota) => !possuiAcessoSacado(contexto.acessos, nota.cnpj_destinatario, nota.fundo_id))
   ) {
     return { success: false, message: 'Operacao nao vinculada a voce.' }
   }
@@ -210,9 +211,11 @@ export async function confirmarPagamento(
   }
 
   await notificarGestores(
+    { entidadeTipo: 'operacao', entidadeId: operacaoId },
     'Sacado informou pagamento',
-    `O sacado ${contexto.razaoSocial} informou que realizou o pagamento da operacao #${operacaoId.substring(0, 8)}.${comprovante ? ' Comprovante informado.' : ''}`,
+    `O sacado ${contexto.auth.profile.nome_completo} informou que realizou o pagamento da operacao #${operacaoId.substring(0, 8)}.${comprovante ? ' Comprovante informado.' : ''}`,
     'pagamento_informado',
+    `operacao:${operacaoId}:pagamento:${contexto.auth.user.id}`,
   )
 
   await registrarLog({
@@ -220,7 +223,7 @@ export async function confirmarPagamento(
     entidade_tipo: 'operacoes',
     entidade_id: operacaoId,
     dados_depois: {
-      sacado_cnpj: contexto.cnpj,
+      sacado_cnpjs: [...new Set(nfs.map(nf => nf.cnpj_destinatario))],
       comprovante: comprovante || null,
     },
   })

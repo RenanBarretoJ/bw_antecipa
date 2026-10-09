@@ -6,6 +6,13 @@ const IV_BYTES = 12
 const TAG_BYTES = 16
 const KEY_BYTES = 32
 
+export class PortalFidcKeyringError extends Error {
+  constructor() {
+    super('Chave de criptografia das integracoes ausente ou invalida. Solicite ao administrador tecnico a configuracao deste ambiente e tente novamente.')
+    this.name = 'PortalFidcKeyringError'
+  }
+}
+
 export type PortalFidcCiphertext = {
   ciphertext: string
   chaveVersao: string
@@ -24,13 +31,20 @@ function decodeKey(raw: string) {
   if (/^[a-f0-9]{64}$/i.test(trimmed)) return Buffer.from(trimmed, 'hex')
   const decoded = Buffer.from(trimmed.replace(/-/g, '+').replace(/_/g, '/'), 'base64')
   if (decoded.length === KEY_BYTES) return decoded
-  throw new Error('Chave Portal FIDC invalida. Use chave de 32 bytes em base64/base64url ou 64 caracteres hex.')
+  throw new PortalFidcKeyringError()
 }
 
 function keyringFromEnv(): Record<string, string> {
   const json = process.env.PORTAL_FIDC_CREDENTIAL_KEYS_JSON
   if (json) {
-    const parsed = JSON.parse(json) as Record<string, unknown>
+    let parsed: Record<string, unknown>
+    try {
+      parsed = JSON.parse(json) as Record<string, unknown>
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error()
+    } catch {
+      // JSON.parse pode incluir trechos do segredo na mensagem original.
+      throw new PortalFidcKeyringError()
+    }
     return Object.fromEntries(
       Object.entries(parsed).filter(([, value]) => typeof value === 'string'),
     ) as Record<string, string>
@@ -52,7 +66,7 @@ export function getPortalFidcActiveKeyVersion() {
 export function getPortalFidcEncryptionKey(chaveVersao = getPortalFidcActiveKeyVersion()) {
   const keys = keyringFromEnv()
   const raw = keys[chaveVersao]
-  if (!raw) throw new Error(`Chave de criptografia Portal FIDC nao configurada para a versao ${chaveVersao}.`)
+  if (!raw) throw new PortalFidcKeyringError()
   return decodeKey(raw)
 }
 

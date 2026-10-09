@@ -1,9 +1,54 @@
 import { describe, expect, it } from 'vitest'
-import { NfseVisualFiscalError, safeNfseVisualDiagnostic } from './visual-diagnostics'
+import { NfseVisualContractError, NfseVisualFiscalError, safeNfseVisualDiagnostic, serializeNfseVisualDiagnostic } from './visual-diagnostics'
+import { format } from 'node:util'
 import { validateVisualNfse } from './visual-contract'
 import { visualFixture } from './fixtures/visual'
 
 describe('safe visual fiscal diagnostics', () => {
+  it('keeps nested issue codes visible in console output without serializing raw errors', () => {
+    const error = new NfseVisualContractError([
+      { path: ['ambiguous'], code: 'invalid_value' },
+      { path: ['confidence'], code: 'too_small' },
+    ])
+    const diagnostic = serializeNfseVisualDiagnostic(error)
+    expect(JSON.parse(diagnostic!)).toEqual(safeNfseVisualDiagnostic(error))
+    const logged = format('[nfse_visual]', { diagnostic })
+    expect(logged).toContain('ambiguous')
+    expect(logged).toContain('too_small')
+    expect(logged).not.toContain('[Object]')
+    expect(serializeNfseVisualDiagnostic(new Error('secret-payload'))).toBeUndefined()
+  })
+  it.each([
+    [{ ambiguous: true }, 'ambiguous', 'invalid_value'],
+    [{ confidence: 0.84 }, 'confidence', 'too_small'],
+    [{ document_count: 2 }, 'document_count', 'invalid_value'],
+    [{ fingerprint: 'private-provider-value' }, 'fingerprint', 'invalid_value'],
+    [{ prestador_nome: { value: 123, label: null } }, 'prestador_nome.value', 'invalid_type'],
+    [{ secret_extra_key: 'secret-value' }, 'document', 'unrecognized_keys'],
+  ] as const)('explains contract rejection without keeping raw input %j', (override, field, code) => {
+    let caught: unknown
+    try { validateVisualNfse({ ...visualFixture(), ...override }) } catch (error) { caught = error }
+    expect(caught).toBeInstanceOf(NfseVisualContractError)
+    expect((caught as Error).message).toBe('NFSE_VISUAL_INVALID_CONTRACT')
+    expect(safeNfseVisualDiagnostic(caught)).toEqual({ failed_fields: [], reasons: [], contract_issues: [{ field, code }] })
+    const serialized = JSON.stringify(caught)
+    for (const secret of ['private-provider-value', 'secret_extra_key', 'secret-value', 'PRESTADOR SINTETICO']) {
+      expect(serialized).not.toContain(secret)
+    }
+    expect(caught).not.toHaveProperty('cause')
+  })
+  it('sanitizes unknown paths, issue codes and diagnostic tampering at the log boundary', () => {
+    const error = new NfseVisualContractError([
+      { path: ['secret-key'], code: 'private-error' },
+      { path: ['prestador_nome', 'value', 'secret-child'], code: 'invalid_type' },
+      { path: [Symbol('secret')], code: 'invalid_type' },
+    ])
+    error.diagnostic.contract_issues.push({ field: 'injected-value', code: 'injected-code' })
+    expect(safeNfseVisualDiagnostic(error)).toEqual({ failed_fields: [], reasons: [], contract_issues: [
+      { field: 'document', code: 'invalid_contract' }, { field: 'document', code: 'invalid_type' },
+    ] })
+    expect(safeNfseVisualDiagnostic({ message: error.message, diagnostic: error.diagnostic })).toBeUndefined()
+  })
   it.each([
     ['chave_acesso_nfse', 'invalid-secret-key', 'nfse_chave_acesso_invalid'],
     ['prestador_cnpj', '11.222.333/0001-00', 'nfse_cnpj_emitente_invalid'],

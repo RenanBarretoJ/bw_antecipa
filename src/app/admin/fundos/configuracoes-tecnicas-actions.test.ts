@@ -19,18 +19,43 @@ vi.mock('@/lib/auth/admin-authorization', () => ({ requireSuperAdmin }))
 vi.mock('@/lib/auth/sensitive-action', () => ({ autorizarEConsumirAcaoSensivel: vi.fn() }))
 vi.mock('@/lib/admin/endpoint-seguro.server', () => ({ validarEndpointTecnicoSeguro: vi.fn() }))
 vi.mock('@/lib/integracoes/registry.server', () => ({ integrationProviderRegistry: { get: vi.fn() } }))
-vi.mock('@/lib/portal-fidc/credenciais', () => ({
+vi.mock('@/lib/portal-fidc/credenciais', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/lib/portal-fidc/credenciais')>(),
+  getPortalFidcEncryptionKey: vi.fn(),
   criptografarPortalFidcValor: vi.fn(),
   descriptografarPortalFidcValor: vi.fn(),
 }))
 
 import { integrationProviderRegistry } from '@/lib/integracoes/registry.server'
-import { publicarIntegracaoAdmin, salvarIntegracaoRascunhoAdmin } from './configuracoes-tecnicas-actions'
+import { getPortalFidcEncryptionKey, criptografarPortalFidcValor, PortalFidcKeyringError } from '@/lib/portal-fidc/credenciais'
+import { autorizarEConsumirAcaoSensivel } from '@/lib/auth/sensitive-action'
+import { publicarIntegracaoAdmin, salvarIntegracaoRascunhoAdmin, salvarCnabRascunhoAdmin } from './configuracoes-tecnicas-actions'
+import { calcularHashConfiguracaoCnab } from '@/lib/cnab/domain'
+import { normalizarConfiguracaoCnabInput } from '@/lib/cnab/resolver-configuracao'
 
 // UUID real aceito pelo PostgreSQL, mas sem nibble RFC de versao/variante.
 const fundoId = 'e84fdd30-39ed-de86-292e-0d8d9d92d759'
 const integrationId = '22222222-2222-4222-8222-222222222222'
 const versionId = '33333333-3333-4333-8333-333333333333'
+
+describe('persistencia CNAB compativel com geracao', () => {
+  it('salva conteudo normalizado com o mesmo hash usado pelo resolver da remessa', async () => {
+    vi.clearAllMocks()
+    rpc.mockResolvedValue({ data: { id: versionId }, error: null })
+    const cnab = {
+      layout: 'cnab444' as const, versaoLayout: '1', codigoBanco: '001', banco: 'banco qa', agencia: '0001', conta: '00002', digitoConta: 'x',
+      carteira: '001', convenio: '00003', codigoOriginador: '00004', codigoEmpresa: '00005', tipoInscricao: '02', numeroInscricao: '98.000.000/0001-68',
+      especieTitulo: '01', tipoRecebivel: '01', configuracao: { literalRemessa: 'remessa' },
+    }
+    const result = await salvarCnabRascunhoAdmin({ ...cnab, fundoId, codigo: 'qa_cnab', nome: 'QA CNAB' })
+    const normalized = normalizarConfiguracaoCnabInput(cnab)
+    expect(result.success).toBe(true)
+    expect(rpc).toHaveBeenCalledWith('admin_salvar_cnab_rascunho', expect.objectContaining({
+      p_conteudo_hash: calcularHashConfiguracaoCnab(normalized), p_banco: 'BANCO QA', p_numero_inscricao: '98000000000168',
+      p_digito_conta: 'X', p_codigo_originador: '00004', p_configuracao: normalized.configuracao,
+    }))
+  })
+})
 
 const base = {
   fundoId,
@@ -96,6 +121,50 @@ describe('salvar rascunho de integracao tecnica', () => {
     }))
   })
 
+  it('salva autenticacao cifrada e rascunho em uma unica RPC com MFA', async () => {
+    vi.mocked(criptografarPortalFidcValor).mockReturnValue({ ciphertext: 'v1:QA:QA:QA', chaveVersao: 'qa' })
+    rpc.mockResolvedValue({ data: { id: versionId, integracao_id: integrationId }, error: null })
+    const result = await salvarIntegracaoRascunhoAdmin({
+      ...base, providerKey: 'SINQIA', systemName: 'Portal FIDC', adapterKey: 'sinqia_portal_fidc',
+      capabilities: ['CESSAO_ENVIO'],
+      novaCredencial: { nome: 'QA', usuario: 'usuario-qa', senha: 'senha-qa-local', mfaCode: '123456' },
+    })
+    expect(result.success).toBe(true)
+    expect(autorizarEConsumirAcaoSensivel).toHaveBeenCalledWith(expect.anything(), 'cadastrar_credencial_integracao', '123456')
+    expect(rpc).toHaveBeenCalledTimes(1)
+    expect(rpc).toHaveBeenCalledWith('admin_salvar_integracao_com_credencial', expect.objectContaining({
+      p_usuario_criptografado: 'v1:QA:QA:QA', p_senha_criptografada: 'v1:QA:QA:QA', p_capabilities: ['CESSAO_ENVIO'],
+    }))
+    expect(JSON.stringify(rpc.mock.calls)).not.toContain('senha-qa-local')
+    expect(JSON.stringify(result)).not.toContain('v1:QA')
+  })
+
+  it('falha de keyring nao consome TOTP nem persiste rascunho ou credencial', async () => {
+    vi.mocked(getPortalFidcEncryptionKey).mockImplementationOnce(() => { throw new PortalFidcKeyringError() })
+    const result = await salvarIntegracaoRascunhoAdmin({
+      ...base, providerKey: 'SINQIA', systemName: 'Portal FIDC', adapterKey: 'sinqia_portal_fidc',
+      novaCredencial: { nome: 'QA', usuario: 'qa', senha: 'qa-local', mfaCode: '123456' },
+    })
+    expect(result.success).toBe(false)
+    expect(result.message).toContain('Chave de criptografia')
+    expect(rpc).not.toHaveBeenCalled()
+    expect(autorizarEConsumirAcaoSensivel).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    { providerKey: 'OUTRO', adapterKey: 'sinqia_portal_fidc', capabilities: [] },
+    { providerKey: 'SINQIA', adapterKey: 'sinqia_portal_fidc', capabilities: ['CARTEIRA'] },
+    { providerKey: 'VORTX', systemName: 'Vórtx VRS 2.0', adapterKey: 'vortx_vrs', capabilities: [] },
+    { providerKey: 'CUSTOM', adapterKey: null, capabilities: [] },
+  ])('rejeita contrato de autenticacao adulterado: %j', async (override) => {
+    const result = await salvarIntegracaoRascunhoAdmin({
+      ...base, systemName: 'Portal FIDC', ...override,
+      novaCredencial: { nome: 'QA', usuario: 'qa', senha: 'qa-local', mfaCode: '123456' },
+    })
+    expect(result.success).toBe(false)
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
   it('permite CREATE sem endpoint, adapter, credencial ou capability', async () => {
     const result = await salvarIntegracaoRascunhoAdmin({ ...base, systemName: 'TESTE QA' })
 
@@ -150,6 +219,8 @@ describe('salvar rascunho de integracao tecnica', () => {
       ...base,
       integracaoFundoId: integrationId,
       adapterKey: 'vortx_vrs',
+      providerKey: 'VORTX',
+      systemName: 'Vórtx VRS 2.0',
       capabilities: ['CESSAO_ENVIO'],
     })
 
@@ -197,6 +268,8 @@ describe('salvar rascunho de integracao tecnica', () => {
       ...base,
       integracaoFundoId: integrationId,
       adapterKey: 'sinqia_portal_fidc',
+      providerKey: 'SINQIA',
+      systemName: 'Portal FIDC',
     })
 
     expect(result).toMatchObject({ success: false, message: 'O adapter de uma integracao publicada nao pode ser alterado em uma nova versao.' })
@@ -239,6 +312,8 @@ describe('salvar rascunho de integracao tecnica', () => {
     const result = await salvarIntegracaoRascunhoAdmin({
       ...base,
       adapterKey: 'sinqia_portal_fidc',
+      providerKey: 'SINQIA',
+      systemName: 'Portal FIDC',
       capabilities: ['ESTOQUE', 'AQUISICOES', 'LIQUIDACOES'],
       configuracaoNaoSensivel: {
         relatorios_financeiros: { intervalo_polling_ms: 5000 },
@@ -263,6 +338,8 @@ describe('salvar rascunho de integracao tecnica', () => {
     const result = await salvarIntegracaoRascunhoAdmin({
       ...base,
       adapterKey: 'sinqia_portal_fidc',
+      providerKey: 'SINQIA',
+      systemName: 'Portal FIDC',
       capabilities: ['CESSAO_ENVIO'],
     })
 

@@ -1,4 +1,5 @@
 import { connection } from 'next/server'
+import { FiltroEmpresaSacado } from '@/components/sacado/FiltroEmpresaSacado'
 import { NotasFiscaisSacadoListagem } from '@/components/sacado/NotasFiscaisSacadoListagem'
 import { parseFiltrosNfsSacado } from '@/lib/sacado/portal-listagens'
 import { carregarNotasFiscaisSacado } from '@/lib/sacado/portal-loaders.server'
@@ -13,5 +14,5 @@ export default async function NfsRecebidasSacadoPage({
   await connection()
   const filtros = parseFiltrosNfsSacado(await searchParams)
   const resultado = await carregarNotasFiscaisSacado(filtros)
-  return <NotasFiscaisSacadoListagem filtros={filtros} resultado={resultado} />
+  return <><FiltroEmpresaSacado cnpj={filtros.cnpj} /><NotasFiscaisSacadoListagem filtros={filtros} resultado={resultado} /></>
 }

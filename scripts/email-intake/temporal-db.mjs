@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { Client } from 'pg'
+import { assertR110OwnedConnection } from '../qa/reconciliation/r1-10-stack-guard.mjs'
 
 /** Disposable database only. Exercise SQL even when a caller bypasses the TS gate. */
 export async function verifyEmailTemporalAdmission(db, connection) {
-  assert.equal(connection.host, '127.0.0.1'); assert.equal(connection.port, 57842)
+  if(connection.application_name?.startsWith('r110_'))await assertR110OwnedConnection(connection,'temporal')
+  else {assert.equal(connection.host, '127.0.0.1'); assert.equal(connection.port, 57842)}
   const id = randomUUID(), fund = '22000000-0000-4000-8000-000000000001', user = '21000000-0000-4000-8000-000000000003'
   const start = '2026-10-01T16:33:55.572Z', old = '2026-10-01T16:33:55.571Z', checks = [], clients = []
   const rpc = async (name, values = [], client = db) => (await client.query('select public.' + name + ' r', values)).rows[0]?.r

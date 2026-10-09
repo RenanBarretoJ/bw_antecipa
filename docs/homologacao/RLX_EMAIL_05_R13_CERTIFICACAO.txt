@@ -1,0 +1,35 @@
+RLX-EMAIL-05-R13 — recertificação e promoção para homolog
+
+A correção funcional do R12 foi preservada: a seleção oficial do fundo usa
+a atualização RSC do Server Action do cookie, sem hard reload concorrente.
+Não há nova migration nem alteração nos domínios fiscal, Graph, RLS/MFA,
+Storage, signed URL, saúde ou alertas.
+
+A nova certificação Linux passou com 2.693 testes aprovados e 12 ignorados,
+TypeScript, lint, build, 260 migrations, Auth/RLS/MFA, Storage, regressão
+03/04, formulários oficiais, Inbox, revisão e troca A→B. O navegador gerou
+106 capturas e 52 verificações de acessibilidade sem violações. A troca
+de fundo terminou com zero hard reload, pending ou stale DISCOVERED.
+
+Foi utilizado lock local temporário e monitor de eventos Docker. Duas
+leituras consecutivas confirmaram o baseline; nenhum churn externo ocorreu
+na execução aprovada. O monitor registra a label exclusiva também para os
+auxiliares transitórios do Supabase CLI com nomes aleatórios. Uma tentativa
+anterior foi interrompida por essa classificação local e foi preservada
+separadamente; ela não conta como certificação aprovada.
+
+O cleanup aprovado foi executado duas vezes, preservou recursos de outros
+trabalhos e removeu containers, volumes, networks e a cópia temporária do
+run. O lock foi liberado. Evidências foram copiadas e verificadas por hash.
+
+O commit/push é autorizado após esse Linux PASS. O PR #87 permanece Draft.
+São ainda gates independentes: ambos os CIs no mesmo SHA, novo deploy apenas
+em homolog, target/CSP corretos, smoke integral com a mensagem original
+950501, revisão SYSTEM→HUMAN, duplicate, health/alerts, signed URL, disable,
+routing ALL, RLS/MFA, redaction, responsividade, acessibilidade e cleanup
+duplo com preservação dos 32 conjuntos do baseline R11.
+
+Resultados operacionais: rehearsal/reports/email05-r13-status.json.
+Proveniência Linux: rehearsal/reports/email05-r13-linux-provenance.json.
+Monitor Docker: rehearsal/reports/email05-r13-docker.json.
+Produção e PERF permanecem fora deste escopo.

@@ -26,10 +26,10 @@ export function resolverBaseAntecipacao(
   if (nota.possuiParcelas) {
     return { elegivel: false, motivo: 'Antecipação pelo valor líquido indisponível para notas parceladas.' }
   }
-  if (nota.origemLiquido !== 'DOCUMENTO_EXPLICITO' || nota.valorLiquido === null
+  if (!['DOCUMENTO_EXPLICITO', 'CALCULADO_RETENCOES'].includes(nota.origemLiquido ?? '') || nota.valorLiquido === null
     || !Number.isFinite(nota.valorLiquido) || nota.valorLiquido <= 0
     || nota.valorLiquido > nota.valorBruto) {
-    return { elegivel: false, motivo: 'A antecipação pelo líquido exige valor positivo explicitamente informado no documento.' }
+    return { elegivel: false, motivo: 'A antecipação pelo líquido exige valor fiscal positivo, explícito ou calculado com retenções comprovadas.' }
   }
   return { elegivel: true, base, valorBase: nota.valorLiquido }
 }

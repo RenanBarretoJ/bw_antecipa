@@ -37,6 +37,8 @@ type NotaRow = {
   serie: string | null
   chave_acesso: string | null
   cedente_id: string
+  cnpj_destinatario: string
+  razao_social_destinatario: string
   cnpj_emitente: string
   razao_social_emitente: string
   valor_bruto: number
@@ -94,7 +96,7 @@ function buscaSegura(value: string): { texto: string; digitos: string } {
 
 function aplicarFiltrosNfs(
   supabase: Awaited<ReturnType<typeof resolverContextoSacado>>['auth']['supabase'],
-  cnpj: string,
+  cnpj: string | undefined,
   filtros: FiltrosNfsSacado,
 ) {
   let query = supabase
@@ -106,6 +108,8 @@ function aplicarFiltrosNfs(
       chave_acesso,
       cedente_id,
       cnpj_emitente,
+      cnpj_destinatario,
+      razao_social_destinatario,
       razao_social_emitente,
       valor_bruto,
       data_emissao,
@@ -114,8 +118,9 @@ function aplicarFiltrosNfs(
       arquivo_url,
       created_at
     `, { count: 'exact' })
-    .eq('cnpj_destinatario', cnpj)
 
+
+  if (cnpj) query = query.eq('cnpj_destinatario', cnpj)
   if (filtros.status) query = query.eq('status', filtros.status)
   if (filtros.q) {
     const { texto, digitos } = buscaSegura(filtros.q)
@@ -169,9 +174,9 @@ async function carregarOperacoesDasNotas(
   return porNota
 }
 
-export async function carregarDashboardSacado(): Promise<DashboardSacado> {
+export async function carregarDashboardSacado(cnpj?: string): Promise<DashboardSacado> {
   const { auth } = await resolverContextoSacado()
-  const { data, error } = await auth.supabase.rpc('carregar_dashboard_sacado')
+  const { data, error } = await auth.supabase.rpc('carregar_dashboard_sacado', { p_cnpj: cnpj || null })
   if (error) throw new Error(`Nao foi possivel carregar o dashboard do sacado: ${error.message}`)
 
   const payload = (data || {}) as unknown as DashboardSacado
@@ -198,9 +203,9 @@ export async function carregarDashboardSacado(): Promise<DashboardSacado> {
 export async function carregarNotasFiscaisSacado(
   filtros: FiltrosNfsSacado,
 ): Promise<ResultadoNfsSacado> {
-  const { auth, cnpj } = await resolverContextoSacado()
+  const { auth } = await resolverContextoSacado()
   let range = buildOffsetRange(filtros)
-  let result = await aplicarFiltrosNfs(auth.supabase, cnpj, filtros)
+  let result = await aplicarFiltrosNfs(auth.supabase, filtros.cnpj, filtros)
     .order(filtros.sort, { ascending: filtros.direction === 'asc' })
     .order('id', { ascending: filtros.direction === 'asc' })
     .range(range.from, range.to)
@@ -217,7 +222,7 @@ export async function carregarNotasFiscaisSacado(
 
   if (meta.wasPageAdjusted && total > 0) {
     range = buildOffsetRange({ page: meta.page, pageSize: filtros.pageSize })
-    result = await aplicarFiltrosNfs(auth.supabase, cnpj, { ...filtros, page: meta.page })
+    result = await aplicarFiltrosNfs(auth.supabase, filtros.cnpj, { ...filtros, page: meta.page })
       .order(filtros.sort, { ascending: filtros.direction === 'asc' })
       .order('id', { ascending: filtros.direction === 'asc' })
       .range(range.from, range.to)
@@ -231,6 +236,7 @@ export async function carregarNotasFiscaisSacado(
     return {
       id: row.id,
       numero: row.numero_nf,
+      sacado: { cnpj: row.cnpj_destinatario, nome: row.razao_social_destinatario },
       serie: row.serie,
       chaveAcesso: row.chave_acesso,
       cedente: {
@@ -256,7 +262,7 @@ export async function carregarNotasFiscaisSacado(
   })
 
   const { data: indicadoresData, error: indicadoresError } = await auth.supabase
-    .rpc('carregar_indicadores_nfs_sacado')
+    .rpc('carregar_indicadores_nfs_sacado', { p_cnpj: filtros.cnpj || null })
   if (indicadoresError) {
     throw new Error(`Nao foi possivel calcular os indicadores das NFs: ${indicadoresError.message}`)
   }
@@ -279,7 +285,7 @@ export async function carregarNotasFiscaisSacado(
 
 function aplicarFiltrosAprovacao(
   supabase: Awaited<ReturnType<typeof resolverContextoSacado>>['auth']['supabase'],
-  cnpj: string,
+  cnpj: string | undefined,
   filtros: FiltrosAprovacoesSacado,
 ) {
   let query = supabase
@@ -291,6 +297,8 @@ function aplicarFiltrosAprovacao(
       chave_acesso,
       cedente_id,
       cnpj_emitente,
+      cnpj_destinatario,
+      razao_social_destinatario,
       razao_social_emitente,
       valor_bruto,
       data_emissao,
@@ -309,12 +317,13 @@ function aplicarFiltrosAprovacao(
         )
       )
     `, { count: 'exact' })
-    .eq('cnpj_destinatario', cnpj)
+
     .eq('status', 'em_antecipacao')
     .eq('operacoes_nfs.operacoes.aceite_sacado_exigido', true)
     .eq('operacoes_nfs.operacoes.aceite_sacado_status', 'pendente')
     .in('operacoes_nfs.operacoes.status', STATUS_OPERACAO_ACEITE)
 
+  if (cnpj) query = query.eq('cnpj_destinatario', cnpj)
   if (filtros.cedenteId) query = query.eq('cedente_id', filtros.cedenteId)
   if (filtros.vencimentoDe) query = query.gte('data_vencimento', filtros.vencimentoDe)
   if (filtros.vencimentoAte) query = query.lte('data_vencimento', filtros.vencimentoAte)
@@ -335,9 +344,9 @@ function aplicarFiltrosAprovacao(
 export async function carregarAprovacoesSacado(
   filtros: FiltrosAprovacoesSacado,
 ): Promise<ResultadoAprovacoesSacado> {
-  const { auth, cnpj } = await resolverContextoSacado()
+  const { auth } = await resolverContextoSacado()
   let range = buildOffsetRange(filtros)
-  let result = await aplicarFiltrosAprovacao(auth.supabase, cnpj, filtros)
+  let result = await aplicarFiltrosAprovacao(auth.supabase, filtros.cnpj, filtros)
     .order(filtros.sort, { ascending: filtros.direction === 'asc' })
     .order('id', { ascending: filtros.direction === 'asc' })
     .range(range.from, range.to)
@@ -353,7 +362,7 @@ export async function carregarAprovacoesSacado(
   })
   if (meta.wasPageAdjusted && total > 0) {
     range = buildOffsetRange({ page: meta.page, pageSize: filtros.pageSize })
-    result = await aplicarFiltrosAprovacao(auth.supabase, cnpj, { ...filtros, page: meta.page })
+    result = await aplicarFiltrosAprovacao(auth.supabase, filtros.cnpj, { ...filtros, page: meta.page })
       .order(filtros.sort, { ascending: filtros.direction === 'asc' })
       .order('id', { ascending: filtros.direction === 'asc' })
       .range(range.from, range.to)
@@ -367,6 +376,7 @@ export async function carregarAprovacoesSacado(
     return [{
       notaFiscalId: row.id,
       numero: row.numero_nf,
+      sacado: { cnpj: row.cnpj_destinatario, nome: row.razao_social_destinatario },
       cedente: {
         id: row.cedente_id,
         nome: row.razao_social_emitente,
@@ -410,7 +420,7 @@ export async function carregarAprovacoesSacado(
 
 function aplicarFiltrosPagamentos(
   supabase: Awaited<ReturnType<typeof resolverContextoSacado>>['auth']['supabase'],
-  cnpj: string,
+  cnpj: string | undefined,
   filtros: FiltrosPagamentosSacado,
 ) {
   let query = supabase
@@ -432,9 +442,10 @@ function aplicarFiltrosPagamentos(
         )
       )
     `, { count: 'exact' })
-    .eq('operacoes_nfs.notas_fiscais.cnpj_destinatario', cnpj)
+
     .in('status', STATUS_PAGAMENTO_VALIDOS)
 
+  if (cnpj) query = query.eq('operacoes_nfs.notas_fiscais.cnpj_destinatario', cnpj)
   if (filtros.status) query = query.eq('status', filtros.status)
   if (filtros.q) {
     const { texto, digitos } = buscaSegura(filtros.q)
@@ -450,9 +461,9 @@ function aplicarFiltrosPagamentos(
 export async function carregarPagamentosSacado(
   filtros: FiltrosPagamentosSacado,
 ): Promise<ResultadoPagamentosSacado> {
-  const { auth, cnpj } = await resolverContextoSacado()
+  const { auth } = await resolverContextoSacado()
   let range = buildOffsetRange(filtros)
-  let result = await aplicarFiltrosPagamentos(auth.supabase, cnpj, filtros)
+  let result = await aplicarFiltrosPagamentos(auth.supabase, filtros.cnpj, filtros)
     .order(filtros.sort, { ascending: filtros.direction === 'asc', nullsFirst: false })
     .order('id', { ascending: filtros.direction === 'asc' })
     .range(range.from, range.to)
@@ -468,7 +479,7 @@ export async function carregarPagamentosSacado(
   })
   if (meta.wasPageAdjusted && total > 0) {
     range = buildOffsetRange({ page: meta.page, pageSize: filtros.pageSize })
-    result = await aplicarFiltrosPagamentos(auth.supabase, cnpj, { ...filtros, page: meta.page })
+    result = await aplicarFiltrosPagamentos(auth.supabase, filtros.cnpj, { ...filtros, page: meta.page })
       .order(filtros.sort, { ascending: filtros.direction === 'asc', nullsFirst: false })
       .order('id', { ascending: filtros.direction === 'asc' })
       .range(range.from, range.to)
