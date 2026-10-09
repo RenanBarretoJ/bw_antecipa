@@ -11,6 +11,7 @@ import puppeteer from 'puppeteer-core'
 import {probeLegacySequence,controlledOpeningProbe} from './focus-probe.mjs'
 import {keyboardCycle,keyboardOpen,keyboardClose,rememberFocus,unchangedFocus} from './focus-keyboard.mjs'
 import {clickMarkAllReady,readMarkState} from './mark-read-diagnostics.mjs'
+import {bellScrollRegression,scrollShellFixture} from './bell-scroll-regression.mjs'
 const require=createRequire(import.meta.url)
 const {build}=createRequire(require.resolve('tsx/package.json'))('esbuild')
 const output=resolve('rehearsal/reports/notificacoes-browser-local')
@@ -36,7 +37,8 @@ function row(id,fund,tipo){return{id,createdAt:'2026-10-06T10:00:00.123456Z',tit
 window.qa={role,fund:'A',rows:[row('A1','A','nf_aprovada'),row('A2','A','operacao_aprovada'),row('B1','B','nf_aprovada')],channels:[],requests:[],marks:[],filter:()=>{},row,
 emit(id,fund,tipo='nf_aprovada'){const r=row(id,fund,tipo);window.qa.rows.unshift(r);window.qa.channels.forEach(c=>c.callback({eventType:'INSERT',new:{usuario_id:'qa-user',scope_type:'FUNDO',fundo_id:fund},old:{}}))},
 refresh(){window.dispatchEvent(new Event(NOTIFICACOES_ATUALIZAR))}};
-function App(){const[filter,setFilter]=useState('todas');const[fund,setFund]=useState('A');window.qa.filter=setFilter;return<NotificacoesProvider userId='qa-user'><header className='flex justify-end gap-4 border-b border-border p-4'>{['gestor','cedente'].includes(role)&&<select aria-label='Fundo operacional QA' value={fund} onChange={async e=>{const value=e.target.value;iniciarTrocaContextoNotificacoes();await new Promise(r=>setTimeout(r,70));window.qa.fund=value;setFund(value);concluirTrocaContextoNotificacoes()}}><option>A</option><option>B</option></select>}<NotificationBell userId='qa-user'/></header><main className='pt-6'><NotificacoesPageClient initialFilter={filter} basePath={'/'+role+'/notificacoes'}/></main></NotificacoesProvider>};createRoot(document.getElementById('root')).render(<App/>);`
+${scrollShellFixture}
+function App(){if(new URLSearchParams(location.search).get('layout')==='scroll-shell')return <ScrollShell/>;const[filter,setFilter]=useState('todas');const[fund,setFund]=useState('A');window.qa.filter=setFilter;return<NotificacoesProvider userId='qa-user'><header className='flex justify-end gap-4 border-b border-border p-4'>{['gestor','cedente'].includes(role)&&<select aria-label='Fundo operacional QA' value={fund} onChange={async e=>{const value=e.target.value;iniciarTrocaContextoNotificacoes();await new Promise(r=>setTimeout(r,70));window.qa.fund=value;setFund(value);concluirTrocaContextoNotificacoes()}}><option>A</option><option>B</option></select>}<NotificationBell userId='qa-user'/></header><main className='pt-6'><NotificacoesPageClient initialFilter={filter} basePath={'/'+role+'/notificacoes'}/></main></NotificacoesProvider>};createRoot(document.getElementById('root')).render(<App/>);`
 const bundle=await build({stdin:{contents:entry,resolveDir:process.cwd(),loader:'tsx'},bundle:true,write:false,format:'iife',platform:'browser',jsx:'automatic',define:{'process.env.NODE_ENV':'"development"'},plugins:[{name:'isolated-ui',setup(b){
   b.onResolve({filter:/^(next\/|@\/)/},args=>mocks[args.path]?{path:args.path,namespace:'qa'}:undefined)
   b.onLoad({filter:/.*/,namespace:'qa'},args=>({contents:mocks[args.path],loader:'jsx',resolveDir:process.cwd()}))
@@ -52,7 +54,13 @@ try{
   const badge=async n=>page.waitForFunction(n=>document.querySelector('[data-testid="notificacao-badge"]')?.textContent===(n>9?'9+':String(n)),{},n)
   const items=()=>page.$$eval('ul[aria-label="Lista de notificações"] h2',nodes=>nodes.map(n=>n.childNodes[0].textContent))
   const ready=()=>page.waitForFunction(()=>document.querySelector('ul[aria-label="Lista de notificações"]')?.getAttribute('aria-busy')==='false')
-  if(process.argv.includes('--focus-probe')) {
+  if(process.argv.includes('--scroll-regression')) {
+    const results=await bellScrollRegression(page,base)
+    assert.deepEqual(errors,[])
+    const report={localOnly:true,authenticatedSmoke:false,success:true,results,errors}
+    writeFileSync(resolve(output,'scroll-regression.json'),JSON.stringify(report,null,2))
+    console.log(JSON.stringify({success:true,cases:results.length,errors}))
+  } else if(process.argv.includes('--focus-probe')) {
     await page.setViewport({width:390,height:1000})
     await page.goto(`${base}/?role=consultor`,{waitUntil:'domcontentloaded'});await badge(2);await ready()
     await page.evaluate(()=>document.documentElement.classList.add('dark'))
@@ -70,6 +78,9 @@ try{
     await page.waitForFunction(()=>document.querySelector('main [role="status"]')?.textContent.startsWith('0 não lidas'))
     console.log(JSON.stringify({markUnreadView:await page.evaluate(()=>({tag:document.activeElement.tagName,text:document.activeElement.textContent.slice(0,80)}))}))
   } else {
+  const scrollResults=await bellScrollRegression(page,base)
+  writeFileSync(resolve(output,'scroll-regression.json'),JSON.stringify({localOnly:true,results:scrollResults},null,2))
+  checks.push('bell-scroll:12-viewport-empty-long-list-mouse-keyboard-cases')
   const markProof=[]
   for(let round=0;round<3;round++){
     await page.goto(`${base}/?role=cedente`,{waitUntil:'domcontentloaded'});await badge(2);await ready()
