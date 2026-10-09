@@ -80,7 +80,7 @@ try{
   } else {
   const scrollResults=await bellScrollRegression(page,base)
   writeFileSync(resolve(output,'scroll-regression.json'),JSON.stringify({localOnly:true,results:scrollResults},null,2))
-  checks.push('bell-scroll:12-viewport-empty-long-list-mouse-keyboard-cases')
+  checks.push(`bell-scroll:${scrollResults.length}-real-page-and-placeholder-viewport-mouse-keyboard-cases`)
   const markProof=[]
   for(let round=0;round<3;round++){
     await page.goto(`${base}/?role=cedente`,{waitUntil:'domcontentloaded'});await badge(2);await ready()

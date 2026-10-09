@@ -3,7 +3,7 @@ import {openReady, triggerSelector} from './focus-probe.mjs'
 import {keyboardClose, assertInside} from './focus-keyboard.mjs'
 
 // Mirror PortalShell's viewport-height / internally scrolling main structure.
-// Real bell + context; only transport and surrounding navigation are synthetic.
+// Real bell, notification page and context; transport/navigation are synthetic.
 export const scrollShellFixture = `
 function ScrollShell(){return <NotificacoesProvider userId='qa-user'>
   <div data-scroll-shell className='flex h-dvh min-h-0 overflow-hidden bg-background'>
@@ -14,7 +14,7 @@ function ScrollShell(){return <NotificacoesProvider userId='qa-user'>
       <header className='sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between border-b border-border bg-card px-4 backdrop-blur-md sm:px-6'>
         <div className='ml-auto flex items-center gap-2 sm:gap-4'><NotificationBell userId='qa-user'/><button>Fundo QA</button></div>
       </header>
-      <main className='min-h-0 flex-1 overflow-y-auto overflow-x-hidden pt-5 sm:pt-6 lg:pt-8'><div style={{height:2500,padding:30}}>Conteúdo sintético</div></main>
+      <main className='min-h-0 flex-1 overflow-y-auto overflow-x-hidden pt-5 sm:pt-6 lg:pt-8'>{new URLSearchParams(location.search).get('background')==='notifications'?<NotificacoesPageClient initialFilter='todas' basePath='/gestor/notificacoes'/>:<div style={{height:2500,padding:30}}>Conteúdo sintético</div>}</main>
     </div>
   </div>
 </NotificacoesProvider>}
@@ -48,9 +48,9 @@ function assertStable(before, after) {
 
 export async function bellScrollRegression(page, base) {
   const results = []
-  for (const width of [390,1366,1920]) for (const count of [0,10]) for (const method of ['click','keyboard']) {
+  for (const background of ['placeholder','notifications']) for (const width of [390,1366,1920]) for (const count of [0,10]) for (const method of ['click','keyboard']) {
     await page.setViewport({width,height:768})
-    await page.goto(`${base}/?role=gestor&layout=scroll-shell`, {waitUntil:'domcontentloaded'})
+    await page.goto(`${base}/?role=gestor&layout=scroll-shell&background=${background}`, {waitUntil:'domcontentloaded'})
     await page.waitForFunction(() => document.querySelector('header button[aria-label^="Notificações,"]') && window.qa.requests.length > 0)
     await page.evaluate(count => {
       window.qa.rows = Array.from({length:count}, (_,i) => ({
@@ -58,11 +58,25 @@ export async function bellScrollRegression(page, base) {
         mensagem:'Notificação sintética para testar a rolagem sem dados reais. '.repeat(4),
       }))
       window.qa.refresh()
-      document.querySelector('main').scrollTop = 350
     }, count)
     await page.waitForFunction(count => document.querySelector('header button[aria-label^="Notificações,"]')?.getAttribute('aria-label') === `Notificações, ${count} não lidas no contexto atual`, {}, count)
+    if (background === 'notifications') {
+      await page.waitForFunction(count => document.querySelectorAll('main li').length === count && document.querySelector('main ul')?.getAttribute('aria-busy') === 'false', {}, count)
+    }
+    const closedAtTop = await layout(page)
+    assertStable(closedAtTop, closedAtTop)
+    if (background === 'notifications' && count) {
+      // Negative control: removing containment must reproduce the original bug.
+      await page.$eval('main section', element => { element.style.position = 'static' })
+      assert((await layout(page)).height > closedAtTop.viewportHeight, 'NEGATIVE_CONTROL_DID_NOT_REPRODUCE_PAGE_OVERFLOW')
+      await page.$eval('main section', element => { element.style.removeProperty('position') })
+      assertStable(closedAtTop, await layout(page))
+      assert.equal(await page.$$eval('main .sr-only', elements => elements.length), count * 2, 'ACCESSIBLE_ACTION_TITLES_REMOVED')
+    }
+    await page.$eval('main', element => { element.scrollTop = 350 })
     const before = await layout(page)
-    assert.equal(before.main.scrollTop,350,'FIXTURE_MAIN_NOT_SCROLLABLE')
+    if (count || background === 'placeholder') assert.equal(before.main.scrollTop,350,'FIXTURE_MAIN_NOT_SCROLLABLE')
+    assertStable(before, before)
     if (method === 'click') await page.click(triggerSelector)
     else {await page.focus(triggerSelector);await page.keyboard.press('Enter')}
     await openReady(page)
@@ -96,7 +110,17 @@ export async function bellScrollRegression(page, base) {
     }
     await keyboardClose(page)
     assertStable(before, await layout(page))
-    results.push({width,count,method,before,opened,popup,pass:true})
+    assert.equal(await page.$$eval('[role="dialog"]', elements => elements.length), 0)
+    if (background === 'notifications' && count) {
+      // Page remains internally scrollable through its last item after closing.
+      await page.$eval('main', element => { element.scrollTop = element.scrollHeight })
+      const atBottom = await layout(page)
+      assert.equal(atBottom.height, atBottom.viewportHeight, 'PAGE_BOTTOM_ESCAPED_VIEWPORT')
+      assert.equal(atBottom.windowY, 0, 'PAGE_BOTTOM_SCROLLED_DOCUMENT')
+      assert.deepEqual(atBottom.sidebar, closedAtTop.sidebar, 'PAGE_SCROLL_MOVED_SIDEBAR')
+      assert(await page.$eval('main li:last-child', element => element.getBoundingClientRect().bottom <= innerHeight), 'LAST_NOTIFICATION_UNREACHABLE')
+    }
+    results.push({background,width,count,method,closedAtTop,before,opened,popup,pass:true})
   }
   return results
 }
