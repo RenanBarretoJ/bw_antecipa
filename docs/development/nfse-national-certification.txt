@@ -1,0 +1,63 @@
+BW Antecipa — desenvolvimento e certificação Nacional
+
+Baseline oficial: 364c5ad2db6db9134be9e08added44299fff7a87.
+Branch de desenvolvimento: feature/nfse-e28-parser-certification.
+Este protocolo documenta uma PoC isolada e não habilita integração operacional.
+
+Fluxo: Desenvolvimento → Preview → aprovação explícita do usuário → Homolog →
+aprovação explícita do usuário → Produção. Nenhuma promoção é automática.
+Não realizar commit ou push diretamente em homolog.
+A E2.6 permanece bloqueada por ausência de emissão fiscal comprovada.
+E3, dispatcher, migrations, persistência e elegibilidade exigem nova autorização.
+
+Rastreabilidade histórica:
+- E1/E2: contrato canônico 1.1, corpus estrutural, adaptador isolado e consolidação.
+  73 testes do escopo. Schemas oficiais e divergências XSD preservados.
+- E2.5: PASS PARCIAL. 26 XMLs: 15 sintéticos, dez fixtures/templates e um documento
+  público sem comprovação de emissão; dois pares XML/PDF de terceiros.
+- E2.7: BLOCKED para substituição. 84 vetores identificaram rejeições insuficientes.
+- E2.8: PASS da PoC. 510 vetores, 26 XMLs e 3.276 campos por candidato equivalentes.
+  O candidato é sax@1.6.1 + guardas E2.7 + validação E2.8, e não o SAX nativo.
+Precisão e recall fiscais não são mensuráveis neste corpus.
+
+Os originais de evidências, logs, snapshots, campos extraídos e corpus de terceiros
+permanecem privados e identificados por hash. Não reescrever evidências históricas
+para aparentar que foram executadas em outra branch. Não enviar dados fiscais ou
+secrets ao Git, Preview ou serviços externos sem autorização e controles adequados.
+Os fixtures versionados são sintéticos estruturais. Os XSDs oficiais conservam
+suas fontes e hashes; conformidade estrutural não comprova autenticidade ou emissão.
+
+Utilize Node 22.x explicitamente. Os geradores históricos em e25/e27/e28 dependem
+de snapshots congelados e produzem relatórios datados. Não os reexecute para
+sobrescrever capturas. Uma nova certificação exige diretório privado novo, snapshot
+atual e revisão dos geradores em escopo aprovado antes da execução.
+
+Teste estrutural sem corpus privado:
+  node22 node_modules/vitest/vitest.mjs run src/lib/nfse/canonical src/lib/nfse/xml-nacional
+
+Segurança E2.8 sem corpus privado, para BW_NFSE_E28_PARSER=saxes e depois sax:
+  node22 node_modules/vitest/vitest.mjs run --config scripts/qa/nfse-national/e28/vitest.config.mjs scripts/qa/nfse-national/e28/security.test.mjs
+BW_NFSE_E28_OUTPUT é um diretório privado novo, opcional nessa suite.
+Comparação completa requer BW_NFSE_E25_PRIVATE e BW_NFSE_E28_OUTPUT com corpus
+autorizado, referências congeladas e hashes íntegros. Não substituir corpus ausente
+por sintéticos nem tratar a coleta como certificação de segurança.
+Instale dependências QA apenas em e25/e27, fixadas em lock e sem scripts de instalação.
+E2.8 reutiliza o bridge E2.7. Os candidatos antigos reprovados são controles históricos.
+
+Validação do plano: Node 22.23.3; TypeScript da raiz e quatro escopos QA aprovado.
+Lint dos 1.591 arquivos versionáveis e do escopo: zero erros e zero avisos.
+Lint irrestrito do filesystem foi interrompido ao incluir cópias locais ignoradas;
+essa execução não foi registrada como PASS.
+Regressão no checkout atual: 3.171 aprovados, uma falha CRLF conhecida e dez skips.
+No checkout LF preservado: 3.172 aprovados, zero falhas e dez skips. SQL histórico
+inalterado. A regra .gitattributes protege novos checkouts e é limitada a esse caminho.
+Build completo Next 16.3.3/Webpack aprovado: 98 páginas, sem ignorar erros TypeScript.
+E2.8 saxes e sax: 536 testes por engine aprovados nesta branch.
+Análise de imports: 674 módulos de produção, zero imports operacionais para os
+novos módulos Nacional/canônico. Não há integração operacional habilitada.
+
+A varredura de credenciais e revisão de procedência não são prova formal de ausência
+de todo segredo possível. A equivalência é limitada à suite e corpus executados;
+não constitui certificação W3C universal, assinatura, autorização ou situação ativa.
+O plano de commits depende da aprovação explícita do usuário. Antes do push e do
+Preview, conferir o diff exato e os gates em um checkout limpo.
