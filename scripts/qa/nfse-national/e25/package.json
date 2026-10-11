@@ -1,0 +1,11 @@
+{
+  "name": "bw-nfse-e25-parser-poc",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Development-only parser comparison; never imported by the application",
+  "devDependencies": {
+    "@types/node": "20.19.37",
+    "@types/sax": "1.2.7",
+    "sax": "1.6.1"
+  }
+}

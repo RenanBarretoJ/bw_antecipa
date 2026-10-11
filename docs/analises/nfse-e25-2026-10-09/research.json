@@ -1,0 +1,342 @@
+{
+  "checked_on": "2026-10-09",
+  "issued_documents_obtained": 0,
+  "official_homologation_documents_obtained": 0,
+  "fiscal_pairs_obtained": 0,
+  "public_repositories_examined": [
+    {
+      "repo": "nfe/poc-nfse-nacional",
+      "branch": "main",
+      "tree_sha": "903acf514e01078e3e4a5c9dcd3b67d21a718b77",
+      "truncated": false,
+      "paths": [
+        {
+          "path": "Poc.NFSe/assets/dps-teste.xml",
+          "sha": "7b808b57e0ebef365b9218cb0ac6ce1c0847d1cb",
+          "size": 1781
+        }
+      ]
+    },
+    {
+      "repo": "andrejfg/gerador-nfse-nacional-bun",
+      "branch": "main",
+      "tree_sha": "ccf64c9c78381a7adcbe7da680674911b3d96253",
+      "truncated": false,
+      "paths": [
+        {
+          "path": "biome.json",
+          "sha": "2263c68333621ff88f47678b3acc0ced8af8c25d",
+          "size": 683
+        },
+        {
+          "path": "examples/nfse-exemplo.xml",
+          "sha": "6198444ece76334cdcd50a8164ed42e0f9e1b40c",
+          "size": 4136
+        },
+        {
+          "path": "package.json",
+          "sha": "aa00866ef6e7eb69784e85ac16e2d01bfc9598ca",
+          "size": 2706
+        },
+        {
+          "path": "tests/e2e/nfse-fixture.xml",
+          "sha": "aad9ce1f70d2d29ed5c2a2b281014f41ea00b97c",
+          "size": 4145
+        },
+        {
+          "path": "tsconfig.build.json",
+          "sha": "d672fa0677db83707323352b8182b4e3723dc6be",
+          "size": 411
+        },
+        {
+          "path": "tsconfig.json",
+          "sha": "7e00ff89372db1c9b920816f0b15d34b77f782a5",
+          "size": 598
+        }
+      ]
+    },
+    {
+      "repo": "vagkaefer/nfse-nacional",
+      "branch": "main",
+      "tree_sha": "e2be49dddd606d5fa44973e6cf3db80c16a19d7c",
+      "truncated": false,
+      "paths": [
+        {
+          "path": "composer.json",
+          "sha": "12c602627932ae4cbb2e18a50c42da6b95ce8cd4",
+          "size": 1442
+        },
+        {
+          "path": "tests/Fixtures/dps-esperada.xml",
+          "sha": "59d853a9cc0b361250eeb1003a0528b2bbd788b2",
+          "size": 1263
+        },
+        {
+          "path": "tests/Fixtures/nfse-exemplo-ibscbs.xml",
+          "sha": "90aa7c5ec6b6e9675de5eb4e386791ed8afa6249",
+          "size": 2848
+        },
+        {
+          "path": "tests/Fixtures/nfse-exemplo.xml",
+          "sha": "81cb9f8fbcd5c9b93809a3845dd032ff2770d9a3",
+          "size": 2132
+        }
+      ]
+    },
+    {
+      "repo": "roberto-mello/pynfse-nacional",
+      "branch": "master",
+      "tree_sha": "fd43d81c22cedc6e60dabad418c024e2ad9cf891",
+      "truncated": false,
+      "paths": [
+        {
+          "path": ".beads/metadata.json",
+          "sha": "a2df9062863e4fd2639e3d3f44a6967658ed8e8b",
+          "size": 157
+        },
+        {
+          "path": ".lavra/config/lavra.json",
+          "sha": "441382db96aed71c47cc1a3e48882703e7727f7f",
+          "size": 246
+        },
+        {
+          "path": "tests/fixtures/samples/ibscbs_minimal.xml",
+          "sha": "5370ff0fa70eaae3f90c53a35d719dbce8b5e942",
+          "size": 1751
+        },
+        {
+          "path": "tests/fixtures/samples/ibscbs_with_retention.xml",
+          "sha": "17f3e32ceb2f773c3e1320897330feb9d3692021",
+          "size": 2110
+        }
+      ]
+    },
+    {
+      "repo": "IlsonSanches/NFS-e",
+      "branch": "main",
+      "tree_sha": "247abf5a798db3cfc2a6ee437acd73893b9c27ef",
+      "truncated": false,
+      "paths": [
+        {
+          "path": "manual_nfse_v1_2.pdf",
+          "sha": "8c35bda575a6971dd71beeb541e4a22de808c0da",
+          "size": 188158
+        },
+        {
+          "path": "pom.xml",
+          "sha": "02d51b6ee10bcc5b81738988dda526eb72a7610f",
+          "size": 1374
+        },
+        {
+          "path": "src/main/resources/examples/dps.json",
+          "sha": "71e3d6bffb106f07814211c3869caba0fd85e6bc",
+          "size": 1988
+        },
+        {
+          "path": "src/main/resources/examples/evento.json",
+          "sha": "5a9e947b64ca8bd51ab3e854c1b94800db37c457",
+          "size": 340
+        }
+      ]
+    },
+    {
+      "repo": "nfephp-org/sped-nfse",
+      "error": "HTTPError"
+    },
+    {
+      "repo": "ProjetoACBr/ACBr",
+      "error": "HTTPError"
+    },
+    {
+      "repo": "Engenere/BrazilFiscalReport",
+      "sha": "846122c88e0833c7da66c56f3a224a0052952726",
+      "samples": [
+        {
+          "path": "tests/fixtures/danfse/nfse_rtc_valid.xml",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "8522c3ea7a63eb9c9ef93abed691836fd55bdf22",
+          "size": 10454,
+          "url": "https://api.github.com/repos/Engenere/BrazilFiscalReport/git/blobs/8522c3ea7a63eb9c9ef93abed691836fd55bdf22"
+        },
+        {
+          "path": "tests/fixtures/danfse/nfse_test_cnpj_alfanumerico.xml",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "526b4b208de4242d9347d7f42a015c04426a0298",
+          "size": 3976,
+          "url": "https://api.github.com/repos/Engenere/BrazilFiscalReport/git/blobs/526b4b208de4242d9347d7f42a015c04426a0298"
+        },
+        {
+          "path": "tests/fixtures/danfse/nfse_test_hom.xml",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "f21f78a572e24ef745a162b61a2cf6c1b171043a",
+          "size": 3976,
+          "url": "https://api.github.com/repos/Engenere/BrazilFiscalReport/git/blobs/f21f78a572e24ef745a162b61a2cf6c1b171043a"
+        },
+        {
+          "path": "tests/fixtures/danfse/nfse_test_interm.xml",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "ebd1a100fe18d143ec6e2b7341c3c0051e34c3d6",
+          "size": 5482,
+          "url": "https://api.github.com/repos/Engenere/BrazilFiscalReport/git/blobs/ebd1a100fe18d143ec6e2b7341c3c0051e34c3d6"
+        },
+        {
+          "path": "tests/fixtures/danfse/nfse_test_minimal.xml",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "0971e73f2adce1f42e0a98678c67b40eae885dbf",
+          "size": 1527,
+          "url": "https://api.github.com/repos/Engenere/BrazilFiscalReport/git/blobs/0971e73f2adce1f42e0a98678c67b40eae885dbf"
+        },
+        {
+          "path": "tests/fixtures/danfse/nfse_test_prod.xml",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "6def52495066ab4528b29032ac3c6e7046e9b6e1",
+          "size": 4256,
+          "url": "https://api.github.com/repos/Engenere/BrazilFiscalReport/git/blobs/6def52495066ab4528b29032ac3c6e7046e9b6e1"
+        },
+        {
+          "path": "tests/fixtures/danfse/nfse_test_rtc.xml",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "145a8ef3d0b24f5c5df5479d2ffdf61d06b2c022",
+          "size": 8943,
+          "url": "https://api.github.com/repos/Engenere/BrazilFiscalReport/git/blobs/145a8ef3d0b24f5c5df5479d2ffdf61d06b2c022"
+        },
+        {
+          "path": "tests/generated/danfse/danfse_cancelled_hom.pdf",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "a103ab27dc3fa0eb0acca4875f81f58638cd4ebb",
+          "size": 85573,
+          "url": "https://api.github.com/repos/Engenere/BrazilFiscalReport/git/blobs/a103ab27dc3fa0eb0acca4875f81f58638cd4ebb"
+        },
+        {
+          "path": "tests/generated/danfse/danfse_cancelled_prod.pdf",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "db31b55455b52b531270f158a1ffe24cc373809e",
+          "size": 85467,
+          "url": "https://api.github.com/repos/Engenere/BrazilFiscalReport/git/blobs/db31b55455b52b531270f158a1ffe24cc373809e"
+        },
+        {
+          "path": "tests/generated/danfse/danfse_cnpj_alfanumerico.pdf",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "7db76bde65953afad89726862b6d2d1cd91bb22f",
+          "size": 85416,
+          "url": "https://api.github.com/repos/Engenere/BrazilFiscalReport/git/blobs/7db76bde65953afad89726862b6d2d1cd91bb22f"
+        },
+        {
+          "path": "tests/generated/danfse/danfse_default_hom.pdf",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "5cdba182ad03bd6de51c436d8f97ffc2c24aebcf",
+          "size": 85408,
+          "url": "https://api.github.com/repos/Engenere/BrazilFiscalReport/git/blobs/5cdba182ad03bd6de51c436d8f97ffc2c24aebcf"
+        },
+        {
+          "path": "tests/generated/danfse/danfse_default_prod.pdf",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "c432833068d10699c8b15c3bace39dfd7b2ff259",
+          "size": 85301,
+          "url": "https://api.github.com/repos/Engenere/BrazilFiscalReport/git/blobs/c432833068d10699c8b15c3bace39dfd7b2ff259"
+        },
+        {
+          "path": "tests/generated/danfse/danfse_intermediary.pdf",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "a6083edfbafd46e79afa4a464f3a0291f0579930",
+          "size": 85554,
+          "url": "https://api.github.com/repos/Engenere/BrazilFiscalReport/git/blobs/a6083edfbafd46e79afa4a464f3a0291f0579930"
+        },
+        {
+          "path": "tests/generated/danfse/danfse_minimal.pdf",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "34fab84e2937b5cb10a09e21b366b56015be99f6",
+          "size": 84561,
+          "url": "https://api.github.com/repos/Engenere/BrazilFiscalReport/git/blobs/34fab84e2937b5cb10a09e21b366b56015be99f6"
+        },
+        {
+          "path": "tests/generated/danfse/danfse_replaced.pdf",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "aba69e7a52307f537a32d64303f2f9f820d64fe5",
+          "size": 85903,
+          "url": "https://api.github.com/repos/Engenere/BrazilFiscalReport/git/blobs/aba69e7a52307f537a32d64303f2f9f820d64fe5"
+        },
+        {
+          "path": "tests/generated/danfse/danfse_rtc.pdf",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "a59a79a22480106ebc80b84b79e4b010d1582a3a",
+          "size": 85814,
+          "url": "https://api.github.com/repos/Engenere/BrazilFiscalReport/git/blobs/a59a79a22480106ebc80b84b79e4b010d1582a3a"
+        },
+        {
+          "path": "tests/generated/danfse/danfse_rtc_valid.pdf",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "f826f6cef4c8edeb6a96c8df28b5b7fde7848898",
+          "size": 85738,
+          "url": "https://api.github.com/repos/Engenere/BrazilFiscalReport/git/blobs/f826f6cef4c8edeb6a96c8df28b5b7fde7848898"
+        }
+      ]
+    },
+    {
+      "repo": "joaovmgs/danfse-brasil",
+      "sha": "9f1c02acac59a5a721ac576afb61d89447a5cb9c",
+      "samples": [
+        {
+          "path": "xml.xml",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "047a09f7671927c47f09b5f4f9b7ba816cc668df",
+          "size": 7145,
+          "url": "https://api.github.com/repos/joaovmgs/danfse-brasil/git/blobs/047a09f7671927c47f09b5f4f9b7ba816cc668df"
+        }
+      ]
+    }
+  ],
+  "official_api_access": [
+    {
+      "url": "https://sefin.producaorestrita.nfse.gov.br/API/SefinNacional/docs/index",
+      "error_type": "URLError",
+      "status": null
+    },
+    {
+      "url": "https://adn.producaorestrita.nfse.gov.br/docs/index.html",
+      "error_type": "SSLError",
+      "status": null
+    }
+  ],
+  "official_docs": [
+    {
+      "name": "nt008.pdf",
+      "url": "https://www.gov.br/nfse/pt-br/biblioteca/documentacao-tecnica/rtc/nt-008-se-cgnfse-danfse-20260505.pdf",
+      "sha256": "3d1dd84ec118f8c732af2f8ec874a9df0399a5cf08a8a97fd83ef19a9e823bf5",
+      "size": 1194919,
+      "type": "OFFICIAL_DOCUMENTATION_NOT_ISSUED_INVOICE"
+    },
+    {
+      "name": "manual-api.pdf",
+      "url": "https://www.gov.br/nfse/pt-br/biblioteca/documentacao-tecnica/documentacao-atual/manual-contribuintes-emissor-publico-api-sistema-nacional-nfs-e-v1-2-out2025.pdf",
+      "sha256": "ac2f36e34ff565cc36d67c5d67415c33cc09f27b2dea006e8da9bcd2ddce5581",
+      "size": 188158,
+      "type": "OFFICIAL_DOCUMENTATION_NOT_ISSUED_INVOICE"
+    }
+  ],
+  "sources": [
+    "https://www.gov.br/nfse/pt-br/biblioteca/documentacao-tecnica/documentacao-atual",
+    "https://www.gov.br/nfse/pt-br/biblioteca/documentacao-tecnica/producao-restrita",
+    "https://www.gov.br/nfse/pt-br/biblioteca/documentacao-tecnica/apis-prod-restrita-e-producao",
+    "https://www.w3.org/TR/xmlschema-0/#regexs"
+  ],
+  "limitations": "Bounded public research; declared environment or signature element is not provenance proof. Originals remain local/private. No documents sent to external AI. No certificate/authentication bypass."
+}

@@ -1,0 +1,146 @@
+{
+  "fiscal_certification": false,
+  "comparison": "LOCAL_TEXT_LABELS_NOT_OCR_OR_MODEL",
+  "pairs": [
+    {
+      "xml_id": "Engenere-BrazilFiscalReport-nfse_test_prod.xml",
+      "pdf_id": "Engenere-BrazilFiscalReport-danfse_default_prod.pdf",
+      "xml_sha256": "32080157299b47915b3e23f32ee551082d0b4de5a3a22f345779462b98c14225",
+      "pdf_sha256": "034089fb0e5ee07a58c4d3c45c907cb5a4fafe2b55dad168f7b81858c7d250d6",
+      "xml_url": "https://raw.githubusercontent.com/Engenere/BrazilFiscalReport/846122c88e0833c7da66c56f3a224a0052952726/tests/fixtures/danfse/nfse_test_prod.xml",
+      "pdf_url": "https://raw.githubusercontent.com/Engenere/BrazilFiscalReport/846122c88e0833c7da66c56f3a224a0052952726/tests/generated/danfse/danfse_default_prod.pdf",
+      "classification": "THIRD_PARTY_GENERATED_FIXTURE_PAIR",
+      "issued_or_official_homologation_proven": false,
+      "pdf_pages": 1,
+      "pair_identity_confirmed": true,
+      "checks": [
+        {
+          "field": "identificacao.chave_acesso",
+          "pdf_label": "chave de acesso da nfs-e",
+          "xml_state": "PRESENTE",
+          "matched": true,
+          "xml_xpath": "/n:NFSe/n:infNFSe/@Id",
+          "pdf_value_located": true
+        },
+        {
+          "field": "identificacao.numero_nfse",
+          "pdf_label": "numero da nfs-e",
+          "xml_state": "PRESENTE",
+          "matched": true,
+          "xml_xpath": "/n:NFSe/n:infNFSe/n:nNFSe",
+          "pdf_value_located": true
+        },
+        {
+          "field": "identificacao.competencia",
+          "pdf_label": "competencia da nfs-e",
+          "xml_state": "PRESENTE",
+          "matched": true,
+          "xml_xpath": "/n:NFSe/n:infNFSe/n:DPS/n:infDPS/n:dCompet",
+          "pdf_value_located": true
+        },
+        {
+          "field": "identificacao.emissao",
+          "pdf_label": "data e hora da emissao da nfs-e",
+          "xml_state": "PRESENTE",
+          "matched": true,
+          "xml_xpath": "/n:NFSe/n:infNFSe/n:dhProc",
+          "pdf_value_located": true
+        },
+        {
+          "field": "totais.valor_servicos",
+          "pdf_label": "valor da operacao / servico",
+          "xml_state": "PRESENTE",
+          "matched": true,
+          "xml_xpath": "/n:NFSe/n:infNFSe/n:DPS/n:infDPS/n:valores/n:vServPrest/n:vServ",
+          "pdf_value_located": true
+        },
+        {
+          "field": "totais.total_retencoes",
+          "pdf_label": "total das retencoes (issqn / federais)",
+          "xml_state": "PRESENTE",
+          "matched": true,
+          "xml_xpath": "/n:NFSe/n:infNFSe/n:valores/n:vTotalRet",
+          "pdf_value_located": true
+        },
+        {
+          "field": "totais.liquido_documental",
+          "pdf_label": "valor liquido da nfs-e",
+          "xml_state": "PRESENTE",
+          "matched": true,
+          "xml_xpath": "/n:NFSe/n:infNFSe/n:valores/n:vLiq",
+          "pdf_value_located": true
+        }
+      ]
+    },
+    {
+      "xml_id": "Engenere-BrazilFiscalReport-nfse_rtc_valid.xml",
+      "pdf_id": "Engenere-BrazilFiscalReport-danfse_rtc_valid.pdf",
+      "xml_sha256": "179a4c7966f782c825c34f60e58ca637a013d412f0ea93514928314f49f92a58",
+      "pdf_sha256": "1ade50491d8d96f55b43b24f8fd583c2cdb1fc35d6c3c28e6ed817dd97900d69",
+      "xml_url": "https://raw.githubusercontent.com/Engenere/BrazilFiscalReport/846122c88e0833c7da66c56f3a224a0052952726/tests/fixtures/danfse/nfse_rtc_valid.xml",
+      "pdf_url": "https://raw.githubusercontent.com/Engenere/BrazilFiscalReport/846122c88e0833c7da66c56f3a224a0052952726/tests/generated/danfse/danfse_rtc_valid.pdf",
+      "classification": "THIRD_PARTY_GENERATED_FIXTURE_PAIR",
+      "issued_or_official_homologation_proven": false,
+      "pdf_pages": 1,
+      "pair_identity_confirmed": true,
+      "checks": [
+        {
+          "field": "identificacao.chave_acesso",
+          "pdf_label": "chave de acesso da nfs-e",
+          "xml_state": "PRESENTE",
+          "matched": true,
+          "xml_xpath": "/n:NFSe/n:infNFSe/@Id",
+          "pdf_value_located": true
+        },
+        {
+          "field": "identificacao.numero_nfse",
+          "pdf_label": "numero da nfs-e",
+          "xml_state": "PRESENTE",
+          "matched": true,
+          "xml_xpath": "/n:NFSe/n:infNFSe/n:nNFSe",
+          "pdf_value_located": true
+        },
+        {
+          "field": "identificacao.competencia",
+          "pdf_label": "competencia da nfs-e",
+          "xml_state": "PRESENTE",
+          "matched": true,
+          "xml_xpath": "/n:NFSe/n:infNFSe/n:DPS/n:infDPS/n:dCompet",
+          "pdf_value_located": true
+        },
+        {
+          "field": "identificacao.emissao",
+          "pdf_label": "data e hora da emissao da nfs-e",
+          "xml_state": "PRESENTE",
+          "matched": true,
+          "xml_xpath": "/n:NFSe/n:infNFSe/n:dhProc",
+          "pdf_value_located": true
+        },
+        {
+          "field": "totais.valor_servicos",
+          "pdf_label": "valor da operacao / servico",
+          "xml_state": "PRESENTE",
+          "matched": true,
+          "xml_xpath": "/n:NFSe/n:infNFSe/n:DPS/n:infDPS/n:valores/n:vServPrest/n:vServ",
+          "pdf_value_located": true
+        },
+        {
+          "field": "totais.total_retencoes",
+          "pdf_label": "total das retencoes (issqn / federais)",
+          "xml_state": "PRESENTE",
+          "matched": true,
+          "xml_xpath": "/n:NFSe/n:infNFSe/n:valores/n:vTotalRet",
+          "pdf_value_located": true
+        },
+        {
+          "field": "totais.liquido_documental",
+          "pdf_label": "valor liquido da nfs-e",
+          "xml_state": "PRESENTE",
+          "matched": true,
+          "xml_xpath": "/n:NFSe/n:infNFSe/n:valores/n:vLiq",
+          "pdf_value_located": true
+        }
+      ]
+    }
+  ]
+}

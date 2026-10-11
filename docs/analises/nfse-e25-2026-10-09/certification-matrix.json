@@ -1,0 +1,80 @@
+{
+  "stage": "PASS PARCIAL",
+  "integration": "BLOCKED",
+  "versions": [
+    {
+      "version": "1.00",
+      "documents": 7,
+      "issued_proven": 0,
+      "official_homologation_proven": 0,
+      "fiscal_status": "PENDENTE",
+      "integration": "BLOCKED",
+      "identical_parser_results": 7,
+      "xsd_combinations": [
+        {
+          "engine": "libxml2",
+          "profile": "producao-20260209",
+          "checks": 7,
+          "pass": 5,
+          "reject": 2
+        },
+        {
+          "engine": "System.Xml",
+          "profile": "producao-20260209",
+          "checks": 7,
+          "pass": 5,
+          "reject": 2
+        }
+      ]
+    },
+    {
+      "version": "1.01",
+      "documents": 18,
+      "issued_proven": 0,
+      "official_homologation_proven": 0,
+      "fiscal_status": "PENDENTE",
+      "integration": "BLOCKED",
+      "identical_parser_results": 18,
+      "xsd_combinations": [
+        {
+          "engine": "libxml2",
+          "profile": "producao-20260209",
+          "checks": 18,
+          "pass": 3,
+          "reject": 15
+        },
+        {
+          "engine": "libxml2",
+          "profile": "homolog-20260727",
+          "checks": 18,
+          "pass": 15,
+          "reject": 3
+        },
+        {
+          "engine": "System.Xml",
+          "profile": "producao-20260209",
+          "checks": 18,
+          "pass": 15,
+          "reject": 3
+        },
+        {
+          "engine": "System.Xml",
+          "profile": "homolog-20260727",
+          "checks": 18,
+          "pass": 15,
+          "reject": 3
+        }
+      ]
+    },
+    {
+      "version": null,
+      "documents": 1,
+      "issued_proven": 0,
+      "official_homologation_proven": 0,
+      "fiscal_status": "NAO_CERTIFICAVEL_SEM_VERSAO",
+      "integration": "BLOCKED",
+      "identical_parser_results": 1,
+      "xsd_combinations": []
+    }
+  ]
+}

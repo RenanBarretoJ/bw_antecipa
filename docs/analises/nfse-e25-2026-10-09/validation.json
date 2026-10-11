@@ -1,0 +1,114 @@
+{
+  "date": "2026-10-09",
+  "node": "v22.23.3",
+  "stage": "PASS PARCIAL",
+  "integration": "BLOCKED",
+  "tests": {
+    "e1_e2": {
+      "numPassedTests": 73,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTotalTests": 73
+    },
+    "regression_lf": {
+      "numPassedTests": 3172,
+      "numFailedTests": 0,
+      "numPendingTests": 10,
+      "numTotalTests": 3182
+    },
+    "collection_saxes": {
+      "numPassedTests": 1,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTotalTests": 1
+    },
+    "collection_sax": {
+      "numPassedTests": 1,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTotalTests": 1
+    }
+  },
+  "reference_tests": {
+    "passed": 7,
+    "failed": 0
+  },
+  "typescript_root": "PASS",
+  "typescript_poc_checkJs": "PASS",
+  "poc_not_in_root_type_inputs": true,
+  "lint_new_files": "PASS",
+  "build_webpack_node22": "PASS",
+  "build_pages": 98,
+  "build_scope": "Unchanged application baseline; final QA scripts separately typechecked and executed",
+  "git_diff_check": "PASS",
+  "new_file_whitespace_check": "PASS",
+  "baseline_files_unchanged": 112,
+  "head_unchanged": true,
+  "branch_unchanged": true,
+  "stashes_unchanged": true,
+  "historic_migration_unchanged": true,
+  "no_operational_integration": true,
+  "no_database_or_migration_changes": true,
+  "no_deploy_commit_or_push": true,
+  "security_gate": {
+    "saxes": {
+      "cases": 22,
+      "passed": 22,
+      "negative_cases": 21,
+      "false_positive_acceptances": 0
+    },
+    "sax": {
+      "cases": 22,
+      "passed": 19,
+      "negative_cases": 21,
+      "false_positive_acceptances": 3
+    }
+  },
+  "collection_exit_success_is_not_parser_security_certification": true,
+  "private_log_sha256": {
+    "build-webpack-node22.log": "78873ef35ff828076bd88eb98a878749b91bd307e3c45204b0363a4eb73640f7",
+    "types.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "types-poc.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "lint.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "tests-e1-e2-node22.json": "735e33ad23dc7df012db35f31b730e3f1f84a7d1e71e417c2abb03f7749148bf",
+    "tests-regression-lf-node22.json": "0eb31111847253e1a6e4c45b48d075304c0b81a68629c8929fd33c805715aa4b",
+    "tests-saxes.json": "98f0381c1d4de9eb88e6968293e8e123ee18cc4076b4ab251692042b16b016f3",
+    "tests-sax.json": "7589585fe28a65a02f9fc85eebed39400d8d2e63d4cdad32ddd00cfcc81a088d",
+    "tests-reference.log": "06c9bc8658093c4f67bd6e87c926b904cdd0e884febdcbe6abedeef465ab68a5"
+  },
+  "new_files": [
+    "docs/analises/nfse-e25-2026-10-09/INVENTORY.md",
+    "docs/analises/nfse-e25-2026-10-09/REPORT.md",
+    "docs/analises/nfse-e25-2026-10-09/RISKS.md",
+    "docs/analises/nfse-e25-2026-10-09/SHADOW_MODE.md",
+    "docs/analises/nfse-e25-2026-10-09/XSD_RESULTS.md",
+    "docs/analises/nfse-e25-2026-10-09/benchmark.json",
+    "docs/analises/nfse-e25-2026-10-09/certification-matrix.json",
+    "docs/analises/nfse-e25-2026-10-09/dependencies.json",
+    "docs/analises/nfse-e25-2026-10-09/field-checks.csv",
+    "docs/analises/nfse-e25-2026-10-09/inventory.json",
+    "docs/analises/nfse-e25-2026-10-09/performance.json",
+    "docs/analises/nfse-e25-2026-10-09/preservation.json",
+    "docs/analises/nfse-e25-2026-10-09/reference-expectations.json",
+    "docs/analises/nfse-e25-2026-10-09/research.json",
+    "docs/analises/nfse-e25-2026-10-09/validation.json",
+    "docs/analises/nfse-e25-2026-10-09/xml-pdf-pairs.json",
+    "docs/analises/nfse-e25-2026-10-09/xsd-dotnet.json",
+    "docs/analises/nfse-e25-2026-10-09/xsd-libxml2.json",
+    "scripts/qa/nfse-national/e25/.gitignore",
+    "scripts/qa/nfse-national/e25/README.md",
+    "scripts/qa/nfse-national/e25/certify.py",
+    "scripts/qa/nfse-national/e25/comparison.test.mjs",
+    "scripts/qa/nfse-national/e25/inspect-pdf.mjs",
+    "scripts/qa/nfse-national/e25/package-lock.json",
+    "scripts/qa/nfse-national/e25/package.json",
+    "scripts/qa/nfse-national/e25/pair_pdf.py",
+    "scripts/qa/nfse-national/e25/performance.mjs",
+    "scripts/qa/nfse-national/e25/run-poc.py",
+    "scripts/qa/nfse-national/e25/sax-tree.mjs",
+    "scripts/qa/nfse-national/e25/test_reference.py",
+    "scripts/qa/nfse-national/e25/tsconfig.json",
+    "scripts/qa/nfse-national/e25/validate-dotnet.ps1",
+    "scripts/qa/nfse-national/e25/vitest.config.mjs"
+  ]
+}

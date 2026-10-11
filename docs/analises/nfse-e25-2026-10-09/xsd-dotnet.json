@@ -1,0 +1,472 @@
+{
+  "engine": "System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089",
+  "scope": "COMPLETE_DOCUMENT_OFFLINE",
+  "signature_verified": false,
+  "resultados": [
+    {
+      "id": "nfse-1-00",
+      "version": "1.00",
+      "profile": "producao-20260209",
+      "classification": "SINTETICO_ESTRUTURAL",
+      "xml_sha256": "1d4fa504c57f48c6bc608640a4cc7dc9ab5391f0fb769fc7535ace4f3db70d38",
+      "valid": true,
+      "errors": []
+    },
+    {
+      "id": "nfse-1-01",
+      "version": "1.01",
+      "profile": "producao-20260209",
+      "classification": "SINTETICO_ESTRUTURAL",
+      "xml_sha256": "196679c59d4b83c26953b4c6c3c661b4f8acda059084ed6ac34bca6bbc80eda0",
+      "valid": true,
+      "errors": []
+    },
+    {
+      "id": "nfse-1-01",
+      "version": "1.01",
+      "profile": "homolog-20260727",
+      "classification": "SINTETICO_ESTRUTURAL",
+      "xml_sha256": "196679c59d4b83c26953b4c6c3c661b4f8acda059084ed6ac34bca6bbc80eda0",
+      "valid": true,
+      "errors": []
+    },
+    {
+      "id": "cpf-liquido-zero",
+      "version": "1.01",
+      "profile": "producao-20260209",
+      "classification": "SINTETICO_ESTRUTURAL",
+      "xml_sha256": "c2861edb2a15b8b77b489a24cd369f28a73ec96dec4e006a37a53d2a5ae6d0a5",
+      "valid": true,
+      "errors": []
+    },
+    {
+      "id": "cpf-liquido-zero",
+      "version": "1.01",
+      "profile": "homolog-20260727",
+      "classification": "SINTETICO_ESTRUTURAL",
+      "xml_sha256": "c2861edb2a15b8b77b489a24cd369f28a73ec96dec4e006a37a53d2a5ae6d0a5",
+      "valid": true,
+      "errors": []
+    },
+    {
+      "id": "tomador-ausente",
+      "version": "1.01",
+      "profile": "producao-20260209",
+      "classification": "SINTETICO_ESTRUTURAL",
+      "xml_sha256": "2f9e72a02ca7da3711aaca686e0fc8cea681bd7150eadaf9305992f6ad7c15d4",
+      "valid": true,
+      "errors": []
+    },
+    {
+      "id": "tomador-ausente",
+      "version": "1.01",
+      "profile": "homolog-20260727",
+      "classification": "SINTETICO_ESTRUTURAL",
+      "xml_sha256": "2f9e72a02ca7da3711aaca686e0fc8cea681bd7150eadaf9305992f6ad7c15d4",
+      "valid": true,
+      "errors": []
+    },
+    {
+      "id": "opcionais-ausentes",
+      "version": "1.01",
+      "profile": "producao-20260209",
+      "classification": "SINTETICO_ESTRUTURAL",
+      "xml_sha256": "9dd86dee15fd8b30fb3c4fba62c854889b1910d632e47ad924079a0d07a72515",
+      "valid": true,
+      "errors": []
+    },
+    {
+      "id": "opcionais-ausentes",
+      "version": "1.01",
+      "profile": "homolog-20260727",
+      "classification": "SINTETICO_ESTRUTURAL",
+      "xml_sha256": "9dd86dee15fd8b30fb3c4fba62c854889b1910d632e47ad924079a0d07a72515",
+      "valid": true,
+      "errors": []
+    },
+    {
+      "id": "descontos-retencoes",
+      "version": "1.01",
+      "profile": "producao-20260209",
+      "classification": "SINTETICO_ESTRUTURAL",
+      "xml_sha256": "aacb12ec9c6a148c7ac6af0f24b153fcef791b1bb5886e0d793b13fb0a79b831",
+      "valid": true,
+      "errors": []
+    },
+    {
+      "id": "descontos-retencoes",
+      "version": "1.01",
+      "profile": "homolog-20260727",
+      "classification": "SINTETICO_ESTRUTURAL",
+      "xml_sha256": "aacb12ec9c6a148c7ac6af0f24b153fcef791b1bb5886e0d793b13fb0a79b831",
+      "valid": true,
+      "errors": []
+    },
+    {
+      "id": "divergencia-liquido",
+      "version": "1.01",
+      "profile": "producao-20260209",
+      "classification": "SINTETICO_ESTRUTURAL",
+      "xml_sha256": "677269b811288b2aee93cfb35d61f3749e897dca3370d624eda1ec9da494a58f",
+      "valid": true,
+      "errors": []
+    },
+    {
+      "id": "divergencia-liquido",
+      "version": "1.01",
+      "profile": "homolog-20260727",
+      "classification": "SINTETICO_ESTRUTURAL",
+      "xml_sha256": "677269b811288b2aee93cfb35d61f3749e897dca3370d624eda1ec9da494a58f",
+      "valid": true,
+      "errors": []
+    },
+    {
+      "id": "tomador-exterior",
+      "version": "1.01",
+      "profile": "producao-20260209",
+      "classification": "SINTETICO_ESTRUTURAL",
+      "xml_sha256": "b11c78bdce875e2158af5c4fa0073dfb81416fc4d76a08129a386b3dfdd3efe1",
+      "valid": true,
+      "errors": []
+    },
+    {
+      "id": "tomador-exterior",
+      "version": "1.01",
+      "profile": "homolog-20260727",
+      "classification": "SINTETICO_ESTRUTURAL",
+      "xml_sha256": "b11c78bdce875e2158af5c4fa0073dfb81416fc4d76a08129a386b3dfdd3efe1",
+      "valid": true,
+      "errors": []
+    },
+    {
+      "id": "nfse-substituinte",
+      "version": "1.00",
+      "profile": "producao-20260209",
+      "classification": "SINTETICO_ESTRUTURAL",
+      "xml_sha256": "999fcc8ea2dcbfe8cc4136fc08fc770514e41b1cf50c44fb40916d2d60e2453a",
+      "valid": true,
+      "errors": []
+    },
+    {
+      "id": "ibscbs-sem-projecao-financeira",
+      "version": "1.01",
+      "profile": "producao-20260209",
+      "classification": "SINTETICO_ESTRUTURAL",
+      "xml_sha256": "1ffae010e3be66b93c585f1b49545184b69f42862122ec5eb623dedefc326ded",
+      "valid": true,
+      "errors": []
+    },
+    {
+      "id": "ibscbs-sem-projecao-financeira",
+      "version": "1.01",
+      "profile": "homolog-20260727",
+      "classification": "SINTETICO_ESTRUTURAL",
+      "xml_sha256": "1ffae010e3be66b93c585f1b49545184b69f42862122ec5eb623dedefc326ded",
+      "valid": true,
+      "errors": []
+    },
+    {
+      "id": "campo-invalido",
+      "version": "1.01",
+      "profile": "producao-20260209",
+      "classification": "SINTETICO_ESTRUTURAL",
+      "xml_sha256": "f40c51b1042920171adbfca8a7276378eedf4599e8bd8bcd7c7db063a852580e",
+      "valid": false,
+      "errors": [
+        {
+          "line": 8,
+          "field": "vLiq",
+          "severity": "Error"
+        }
+      ]
+    },
+    {
+      "id": "campo-invalido",
+      "version": "1.01",
+      "profile": "homolog-20260727",
+      "classification": "SINTETICO_ESTRUTURAL",
+      "xml_sha256": "f40c51b1042920171adbfca8a7276378eedf4599e8bd8bcd7c7db063a852580e",
+      "valid": false,
+      "errors": [
+        {
+          "line": 8,
+          "field": "vLiq",
+          "severity": "Error"
+        }
+      ]
+    },
+    {
+      "id": "dps-nao-emitida",
+      "version": "1.01",
+      "profile": "producao-20260209",
+      "classification": "SINTETICO_ESTRUTURAL",
+      "xml_sha256": "12bf55af8c807e126249300056f41c5bc38c423c4fed0a63ee2ac936e0b25508",
+      "valid": true,
+      "errors": []
+    },
+    {
+      "id": "dps-nao-emitida",
+      "version": "1.01",
+      "profile": "homolog-20260727",
+      "classification": "SINTETICO_ESTRUTURAL",
+      "xml_sha256": "12bf55af8c807e126249300056f41c5bc38c423c4fed0a63ee2ac936e0b25508",
+      "valid": true,
+      "errors": []
+    },
+    {
+      "id": "evento-cancelamento",
+      "version": "1.01",
+      "profile": "producao-20260209",
+      "classification": "SINTETICO_ESTRUTURAL",
+      "xml_sha256": "1520d703fe5e966dec52f06789d4ccff553a0c72c83d7479ab847f6905f85acd",
+      "valid": true,
+      "errors": []
+    },
+    {
+      "id": "evento-cancelamento",
+      "version": "1.01",
+      "profile": "homolog-20260727",
+      "classification": "SINTETICO_ESTRUTURAL",
+      "xml_sha256": "1520d703fe5e966dec52f06789d4ccff553a0c72c83d7479ab847f6905f85acd",
+      "valid": true,
+      "errors": []
+    },
+    {
+      "id": "evento-substituicao",
+      "version": "1.01",
+      "profile": "producao-20260209",
+      "classification": "SINTETICO_ESTRUTURAL",
+      "xml_sha256": "3564dc646f063fddccdb15424e5264c88bde4b8eccb9e6854f19c8624a7e1dc4",
+      "valid": true,
+      "errors": []
+    },
+    {
+      "id": "evento-substituicao",
+      "version": "1.01",
+      "profile": "homolog-20260727",
+      "classification": "SINTETICO_ESTRUTURAL",
+      "xml_sha256": "3564dc646f063fddccdb15424e5264c88bde4b8eccb9e6854f19c8624a7e1dc4",
+      "valid": true,
+      "errors": []
+    },
+    {
+      "id": "pedido-cancelamento",
+      "version": "1.01",
+      "profile": "producao-20260209",
+      "classification": "SINTETICO_ESTRUTURAL",
+      "xml_sha256": "e38d8ef990d388fed8ed10bef035380af4b5f72116b48e086621d3cce6e9c255",
+      "valid": true,
+      "errors": []
+    },
+    {
+      "id": "pedido-cancelamento",
+      "version": "1.01",
+      "profile": "homolog-20260727",
+      "classification": "SINTETICO_ESTRUTURAL",
+      "xml_sha256": "e38d8ef990d388fed8ed10bef035380af4b5f72116b48e086621d3cce6e9c255",
+      "valid": true,
+      "errors": []
+    },
+    {
+      "id": "nfe-poc-nfse-nacional-dps-teste.xml",
+      "version": "1.00",
+      "profile": "producao-20260209",
+      "classification": "TEMPLATE_OR_FIXTURE_UNVERIFIED",
+      "xml_sha256": "7d5241a548b1d735fa9373d23264583a9155aabefbe1f189f11194eb64d89f48",
+      "valid": true,
+      "errors": []
+    },
+    {
+      "id": "andrejfg-gerador-nfse-nacional-bun-nfse-exemplo.xml",
+      "version": "1.00",
+      "profile": "producao-20260209",
+      "classification": "TEMPLATE_OR_FIXTURE_UNVERIFIED",
+      "xml_sha256": "1bc50a9c72838b054be0554768a434a1d1cdb1989169e2e46eae4dccc77d4dbe",
+      "valid": false,
+      "errors": [
+        {
+          "line": 3,
+          "field": "Id",
+          "severity": "Error"
+        },
+        {
+          "line": 4,
+          "field": "cStat",
+          "severity": "Error"
+        },
+        {
+          "line": 124,
+          "field": "NFSe",
+          "severity": "Error"
+        }
+      ]
+    },
+    {
+      "id": "andrejfg-gerador-nfse-nacional-bun-nfse-fixture.xml",
+      "version": "1.00",
+      "profile": "producao-20260209",
+      "classification": "TEMPLATE_OR_FIXTURE_UNVERIFIED",
+      "xml_sha256": "5af03f884d4c9a0dd990e22fe551daccf2b06682a059df456ce37c9d2e66e31b",
+      "valid": false,
+      "errors": [
+        {
+          "line": 3,
+          "field": "Id",
+          "severity": "Error"
+        },
+        {
+          "line": 4,
+          "field": "cStat",
+          "severity": "Error"
+        },
+        {
+          "line": 124,
+          "field": "NFSe",
+          "severity": "Error"
+        }
+      ]
+    },
+    {
+      "id": "vagkaefer-nfse-nacional-dps-esperada.xml",
+      "version": "1.00",
+      "profile": "producao-20260209",
+      "classification": "TEMPLATE_OR_FIXTURE_UNVERIFIED",
+      "xml_sha256": "6f325568e5768a576563d9cb489b82c5715d73c3e3ebb451193e16c772615450",
+      "valid": true,
+      "errors": []
+    },
+    {
+      "id": "vagkaefer-nfse-nacional-nfse-exemplo-ibscbs.xml",
+      "version": "1.01",
+      "profile": "producao-20260209",
+      "classification": "TEMPLATE_OR_FIXTURE_UNVERIFIED",
+      "xml_sha256": "cf1e0c64e1c919de39e3c73214f29f7392fdc47fd79e5c078a746cc7f34f358b",
+      "valid": false,
+      "errors": [
+        {
+          "line": 1,
+          "field": "NFSe",
+          "severity": "Error"
+        }
+      ]
+    },
+    {
+      "id": "vagkaefer-nfse-nacional-nfse-exemplo-ibscbs.xml",
+      "version": "1.01",
+      "profile": "homolog-20260727",
+      "classification": "TEMPLATE_OR_FIXTURE_UNVERIFIED",
+      "xml_sha256": "cf1e0c64e1c919de39e3c73214f29f7392fdc47fd79e5c078a746cc7f34f358b",
+      "valid": false,
+      "errors": [
+        {
+          "line": 1,
+          "field": "NFSe",
+          "severity": "Error"
+        }
+      ]
+    },
+    {
+      "id": "vagkaefer-nfse-nacional-nfse-exemplo.xml",
+      "version": "1.01",
+      "profile": "producao-20260209",
+      "classification": "TEMPLATE_OR_FIXTURE_UNVERIFIED",
+      "xml_sha256": "a7d22705d57f76c62ae6a89059687b08a0c0602a495e1e60f3c5a9d5564e553e",
+      "valid": false,
+      "errors": [
+        {
+          "line": 1,
+          "field": "NFSe",
+          "severity": "Error"
+        }
+      ]
+    },
+    {
+      "id": "vagkaefer-nfse-nacional-nfse-exemplo.xml",
+      "version": "1.01",
+      "profile": "homolog-20260727",
+      "classification": "TEMPLATE_OR_FIXTURE_UNVERIFIED",
+      "xml_sha256": "a7d22705d57f76c62ae6a89059687b08a0c0602a495e1e60f3c5a9d5564e553e",
+      "valid": false,
+      "errors": [
+        {
+          "line": 1,
+          "field": "NFSe",
+          "severity": "Error"
+        }
+      ]
+    },
+    {
+      "id": "roberto-mello-pynfse-nacional-ibscbs_minimal.xml",
+      "version": "1.01",
+      "profile": "producao-20260209",
+      "classification": "TEMPLATE_OR_FIXTURE_UNVERIFIED",
+      "xml_sha256": "9b074f4ca5631f83b581630b5c9f85e6a88c842c6480448589bdce4d206c8e2d",
+      "valid": true,
+      "errors": []
+    },
+    {
+      "id": "roberto-mello-pynfse-nacional-ibscbs_minimal.xml",
+      "version": "1.01",
+      "profile": "homolog-20260727",
+      "classification": "TEMPLATE_OR_FIXTURE_UNVERIFIED",
+      "xml_sha256": "9b074f4ca5631f83b581630b5c9f85e6a88c842c6480448589bdce4d206c8e2d",
+      "valid": true,
+      "errors": []
+    },
+    {
+      "id": "roberto-mello-pynfse-nacional-ibscbs_with_retention.xml",
+      "version": "1.01",
+      "profile": "producao-20260209",
+      "classification": "TEMPLATE_OR_FIXTURE_UNVERIFIED",
+      "xml_sha256": "de480b01df430c5c43b0a1b82295280af8d8a4c2257ff04758a1f3fe09047010",
+      "valid": true,
+      "errors": []
+    },
+    {
+      "id": "roberto-mello-pynfse-nacional-ibscbs_with_retention.xml",
+      "version": "1.01",
+      "profile": "homolog-20260727",
+      "classification": "TEMPLATE_OR_FIXTURE_UNVERIFIED",
+      "xml_sha256": "de480b01df430c5c43b0a1b82295280af8d8a4c2257ff04758a1f3fe09047010",
+      "valid": true,
+      "errors": []
+    },
+    {
+      "id": "Engenere-BrazilFiscalReport-nfse_rtc_valid.xml",
+      "version": "1.01",
+      "profile": "producao-20260209",
+      "classification": "TEMPLATE_OR_FIXTURE_UNVERIFIED",
+      "xml_sha256": "179a4c7966f782c825c34f60e58ca637a013d412f0ea93514928314f49f92a58",
+      "valid": true,
+      "errors": []
+    },
+    {
+      "id": "Engenere-BrazilFiscalReport-nfse_rtc_valid.xml",
+      "version": "1.01",
+      "profile": "homolog-20260727",
+      "classification": "TEMPLATE_OR_FIXTURE_UNVERIFIED",
+      "xml_sha256": "179a4c7966f782c825c34f60e58ca637a013d412f0ea93514928314f49f92a58",
+      "valid": true,
+      "errors": []
+    },
+    {
+      "id": "Engenere-BrazilFiscalReport-nfse_test_prod.xml",
+      "version": null,
+      "profile": null,
+      "classification": "TEMPLATE_OR_FIXTURE_UNVERIFIED",
+      "xml_sha256": "32080157299b47915b3e23f32ee551082d0b4de5a3a22f345779462b98c14225",
+      "valid": null,
+      "status": "NOT_EXECUTED_MISSING_SUPPORTED_VERSION",
+      "errors": []
+    },
+    {
+      "id": "joaovmgs-danfse-brasil-xml.xml",
+      "version": "1.00",
+      "profile": "producao-20260209",
+      "classification": "PUBLIC_DOCUMENT_UNVERIFIED",
+      "xml_sha256": "b11a763dfba5a7b310e066bc58a2e847f081d1e7ac3bf64e372ca8a086cd1330",
+      "valid": true,
+      "errors": []
+    }
+  ]
+}

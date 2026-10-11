@@ -1,0 +1,22 @@
+# Matriz de riscos E2.5
+
+| ID | Severidade | Evidência e impacto | Tratamento necessário antes da integração |
+| --- | --- | --- | --- |
+| R01 | Crítica | Zero documentos com emissão ou homologação oficial comprovadas. Estrutura, `tpAmb`, elemento de assinatura e fixture pública não comprovam autorização fiscal. | Obter corpus autorizado com comprovação de origem e gabarito humano; medir precisão fiscal nesse corpus. |
+| R02 | Alta | Produção 1.01 diverge entre libxml2 e System.Xml por `TSSerieDPS`. | Esclarecer o pacote com a documentação oficial; fixar perfil/validador explícitos. Não editar XSD nem substituir produção por homolog silenciosamente. |
+| R03 | Alta | `sax@1.6.1` aceitou atributo duplicado, U+0001 e declaração XML duplicada na PoC. | Não trocar a biblioteca. Qualquer candidato corrigido precisa de nova prova dos negativos e regressões. Os achados são comportamentais, não alegações de CVE ou execução remota. |
+| R04 | Alta | `saxes@6.0.0` tem repositório arquivado. Os negativos testados passaram, mas a manutenção futura é limitada. | Manter somente no estágio isolado atual; definir manutenção, monitoramento e nova alternativa antes de exposição operacional. Ausência de advisory conhecido não é garantia de segurança. |
+| R05 | Alta | `prestador` recebe dados de `infNFSe/emit`; o gabarito documental NT 008 usa `DPS/infDPS/prest`. Há cinco projeções presentes onde o campo do prestador está ausente no caminho normativo. O XSD prevê emissão por outros participantes. | Definir papéis documentais separadamente, evitar fallback entre emitente/prestador e testar `tpEmit` 1/2/3. Não usar o candidato para autorizar o vínculo. |
+| R06 | Média | Cinco documentos reconhecidos têm `dhProc`, mas `identificacao.emissao` fica ausente; NT 008 o exibe como emissão documental. `processamento` conserva o valor. | Definir emissão documental e emissão fiscal comprovada sem inferir atividade; revisar o contrato em escopo posterior. Não corrigir apenas o gabarito para esconder a diferença. |
+| R07 | Alta | Uma fixture NFS-e 1.01/DPS 1.00 passa no XSD de homolog e é recusada com `XML_DPS_VERSION_CONFLICT`. Os dois parsers têm o mesmo resultado. | Confirmar combinações oficialmente emitidas e rever a política somente com evidência. A causa está no adaptador compartilhado, não na biblioteca XML. |
+| R08 | Alta | Há schemas oficiais distintos com a mesma versão documental 1.01. O `perfil_id` atual identifica a referência do mapeamento; a saída declara XSD não executado. | Registrar pacote/hash/validador efetivamente usados na evidência futura; não apresentar a versão ou `perfil_id` como certificado fiscal. |
+| R09 | Alta | Comparar só campos de documentos reconhecidos esconderia os falsos negativos de uma rejeição completa. | Benchmark contabiliza a fixture de versão suportada rejeitada e mantém a amostra sem versão fora da precisão de campos. Separar os denominadores. |
+| R10 | Alta | CPF, líquido zero, ausência e cancelamento declarado são fatos documentais; não são critérios de antecipação. | Manter aprovação e elegibilidade existentes. Cancelamento comprovado impede nota ativa; desconhecido não vira ativo. |
+| R11 | Média | 20 MiB/50.000 nós ainda exigem CPU/memória. O pico observado no ensaio de nós foi próximo de 242 MiB, incluindo loader e processo. | Dimensionar concorrência e timeouts futuros por documento. A medição local não é capacidade ou latência de produção. |
+| R12 | Média | Os dois pares XML/PDF são PDFs gerados por terceiros, sem emissão oficial comprovada; foram comparados sete campos por par. | Obter pares oficiais; ampliar tributos, retenções, participantes e estados fiscais. Não usar a identidade coincidente como autenticidade. |
+| R13 | Média | O checkout Windows continua com CRLF na migration histórica já diagnosticada. A suíte completa foi executada no worktree LF preservado. | Tratar representação de checkout separadamente. Não editar migration aplicada. Não apresentar a suíte LF como aprovação do gate CRLF no checkout original. |
+| R14 | Média | Dados originais públicos podem conter identidades e certificados. Redistribuição e procedência são questões distintas de compatibilidade. | Originais e saídas completas ficam na pasta privada local; entrega inclui URL, hash e valores pessoais mascarados. Não enviar a IA externa nem publicar sem revisão. |
+
+**Decisão:** E2.5 = **PASS PARCIAL**; liberação de integração = **BLOCKED**.
+R01, R02, R03/R04, R05 e R07 impedem recomendar integração agora. Nenhum desses
+riscos foi resolvido por alteração operacional nesta etapa.

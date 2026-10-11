@@ -1,0 +1,63 @@
+{
+  "checked_on": "2026-10-09",
+  "scope": "saxes 6.0.0 and sax 1.6.1 only",
+  "checks": [
+    {
+      "name": "sax-registry",
+      "url": "https://registry.npmjs.org/sax",
+      "sha256": "a4feac75f908237426343469efbc5426e0094a74c57b9f7bebfce45505e0802b",
+      "result": {
+        "latest": "1.6.1",
+        "published": "2026-07-24T18:50:24.821Z"
+      }
+    },
+    {
+      "name": "saxes-registry",
+      "url": "https://registry.npmjs.org/saxes",
+      "sha256": "427344699d0c6e769bc59ee3dfc4e0c0ce3335446f180c52a8472d8d355276d4",
+      "result": {
+        "latest": "6.0.0",
+        "published": "2021-11-07T19:06:31.264Z"
+      }
+    },
+    {
+      "name": "sax-github",
+      "url": "https://api.github.com/repos/isaacs/sax-js",
+      "sha256": "4e2c06b33fd4e4c202bcde4df6d5718fb601e2f02075f45f8f35e5c800d2b91b",
+      "result": {
+        "archived": false,
+        "pushed_at": "2026-07-24T18:50:27Z",
+        "updated_at": "2026-10-09T17:48:21Z"
+      }
+    },
+    {
+      "name": "saxes-github",
+      "url": "https://api.github.com/repos/lddubeau/saxes",
+      "sha256": "9798868fa23aa7065d1d5a7aa5e3e4de11601640df2d94d557537162bd9ac99e",
+      "result": {
+        "archived": true,
+        "pushed_at": "2025-12-31T16:42:03Z",
+        "updated_at": "2026-09-09T09:00:08Z"
+      }
+    },
+    {
+      "name": "sax-advisories",
+      "url": "https://api.github.com/advisories?ecosystem=npm&affects=sax%401.6.1",
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "result": {
+        "count": 0,
+        "ids": []
+      }
+    },
+    {
+      "name": "saxes-advisories",
+      "url": "https://api.github.com/advisories?ecosystem=npm&affects=saxes%406.0.0",
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "result": {
+        "count": 0,
+        "ids": []
+      }
+    }
+  ],
+  "recommendation": "Do not replace saxes automatically; sax has three negative-case acceptance failures. No advisory found is not a security guarantee."
+}
