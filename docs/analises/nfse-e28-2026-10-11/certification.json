@@ -1,0 +1,68 @@
+{
+  "stage": "E2.8",
+  "classification": "PASS",
+  "node": "v22.23.3",
+  "gates": {
+    "preservation": true,
+    "fault_reproduced": true,
+    "quality": true,
+    "saxes_security": true,
+    "saxes_corpus": true,
+    "saxes_fields": true,
+    "saxes_resources": true,
+    "sax_security": true,
+    "sax_corpus": true,
+    "sax_fields": true,
+    "sax_resources": true
+  },
+  "summary": {
+    "saxes": {
+      "security_total": 510,
+      "security_passed": 510,
+      "positive": 164,
+      "negative": 346,
+      "false_accepts": 0,
+      "false_rejects": 0,
+      "unexpected_errors": 0,
+      "corpus_total": 26,
+      "corpus_matched": 26,
+      "tree_matched": 26,
+      "fields": 3276,
+      "fields_matched": 3276,
+      "resource_total": 14,
+      "resource_passed": 14,
+      "max_sampled_cpu_seconds": 4.859375,
+      "max_sampled_rss_mib": 144.28515625
+    },
+    "sax": {
+      "security_total": 510,
+      "security_passed": 510,
+      "positive": 164,
+      "negative": 346,
+      "false_accepts": 0,
+      "false_rejects": 0,
+      "unexpected_errors": 0,
+      "corpus_total": 26,
+      "corpus_matched": 26,
+      "tree_matched": 26,
+      "fields": 3276,
+      "fields_matched": 3276,
+      "resource_total": 14,
+      "resource_passed": 14,
+      "max_sampled_cpu_seconds": 5.03125,
+      "max_sampled_rss_mib": 163.4296875
+    }
+  },
+  "fault_control": {
+    "tests": 510,
+    "failures": 142,
+    "false_accepts": 142
+  },
+  "previous_cases": 84,
+  "new_cases": 426,
+  "certified_fiscal_documents": 0,
+  "fiscal_precision": null,
+  "fiscal_recall": null,
+  "e26": "BLOCKED: absence of proven fiscal issuance",
+  "operational_integration": "BLOCKED: new authorization required"
+}

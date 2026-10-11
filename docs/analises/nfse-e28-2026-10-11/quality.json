@@ -1,0 +1,42 @@
+[
+  {
+    "check": "fault-control",
+    "exit_code": 1,
+    "passed": true
+  },
+  {
+    "check": "types-poc",
+    "exit_code": 0,
+    "passed": true
+  },
+  {
+    "check": "types-root",
+    "exit_code": 0,
+    "passed": true
+  },
+  {
+    "check": "lint",
+    "exit_code": 0,
+    "passed": true
+  },
+  {
+    "check": "e1-e2",
+    "exit_code": 0,
+    "passed": true
+  },
+  {
+    "check": "regression-lf",
+    "exit_code": 0,
+    "passed": true
+  },
+  {
+    "check": "python",
+    "exit_code": 0,
+    "passed": true
+  },
+  {
+    "check": "diff",
+    "exit_code": 0,
+    "passed": true
+  }
+]
