@@ -1,0 +1,186 @@
+{
+  "date": "2026-10-11",
+  "stage": "BLOCKED",
+  "integration": "BLOCKED",
+  "e26": "BLOCKED",
+  "node": "v22.23.3",
+  "tests": {
+    "saxes": {
+      "numTotalTests": 110,
+      "numPassedTests": 110,
+      "numFailedTests": 0,
+      "numPendingTests": 0
+    },
+    "sax": {
+      "numTotalTests": 110,
+      "numPassedTests": 109,
+      "numFailedTests": 1,
+      "numPendingTests": 0
+    },
+    "fast": {
+      "numTotalTests": 110,
+      "numPassedTests": 102,
+      "numFailedTests": 8,
+      "numPendingTests": 0
+    },
+    "e1_e2": {
+      "numTotalTests": 73,
+      "numPassedTests": 73,
+      "numFailedTests": 0,
+      "numPendingTests": 0
+    },
+    "regression_lf": {
+      "numTotalTests": 3182,
+      "numPassedTests": 3172,
+      "numFailedTests": 0,
+      "numPendingTests": 10
+    },
+    "uncorrected_control": {
+      "numTotalTests": 84,
+      "numPassedTests": 59,
+      "numFailedTests": 25,
+      "numPendingTests": 0
+    }
+  },
+  "summary": {
+    "saxes": {
+      "xml_vectors": 84,
+      "positive_vectors": 25,
+      "negative_vectors": 59,
+      "vectors_passed": 84,
+      "false_positive_acceptances": [],
+      "false_negative_rejections": [],
+      "documents": 26,
+      "canonical_match": 26,
+      "structural_match": 26,
+      "recognized": 24,
+      "field_checks": 3276,
+      "complete_field_matches": 3276,
+      "resource_workloads": 11,
+      "resource_passes": 10
+    },
+    "sax": {
+      "xml_vectors": 84,
+      "positive_vectors": 25,
+      "negative_vectors": 59,
+      "vectors_passed": 83,
+      "false_positive_acceptances": [
+        "entidade-xml-case-sensitive"
+      ],
+      "false_negative_rejections": [],
+      "documents": 26,
+      "canonical_match": 26,
+      "structural_match": 26,
+      "recognized": 24,
+      "field_checks": 3276,
+      "complete_field_matches": 3276,
+      "resource_workloads": 11,
+      "resource_passes": 11
+    },
+    "fast": {
+      "xml_vectors": 84,
+      "positive_vectors": 25,
+      "negative_vectors": 59,
+      "vectors_passed": 76,
+      "false_positive_acceptances": [
+        "referencia-invalida-control",
+        "referencia-invalida-surrogate",
+        "referencia-invalida-overflow",
+        "referencia-invalida-fffe",
+        "entidade-desconhecida",
+        "entidade-html",
+        "entidade-xml-case-sensitive",
+        "xml-comentario-invalido"
+      ],
+      "false_negative_rejections": [],
+      "documents": 26,
+      "canonical_match": 26,
+      "structural_match": 26,
+      "recognized": 24,
+      "field_checks": 3276,
+      "complete_field_matches": 3276,
+      "resource_workloads": 11,
+      "resource_passes": 10
+    }
+  },
+  "candidate_passes": [],
+  "certified_fiscal_documents": 0,
+  "fiscal_precision": null,
+  "fiscal_recall": null,
+  "build": {
+    "executed": false,
+    "reason": "QA MJS/Python only; application and Next sources unchanged"
+  },
+  "scope": "ISOLATED_DEVELOPMENT_POC_NO_DISPATCHER_DATABASE_DEPLOY_COMMIT_PUSH",
+  "checks": [
+    {
+      "name": "e27_typecheck",
+      "command": "node22 node_modules/typescript/bin/tsc -p scripts/qa/nfse-national/e27/tsconfig.json",
+      "exit_code": 0,
+      "private_log": "types-e27.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "root_typecheck",
+      "command": "node22 node_modules/typescript/bin/tsc --noEmit --incremental false",
+      "exit_code": 0,
+      "private_log": "types-root.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "e27_lint",
+      "command": "node22 node_modules/eslint/bin/eslint.js scripts/qa/nfse-national/e27/*.mjs --max-warnings=0",
+      "exit_code": 0,
+      "private_log": "lint-e27.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "e1_e2_tests",
+      "command": "node22 node_modules/vitest/vitest.mjs run src/lib/nfse/canonical src/lib/nfse/xml-nacional",
+      "exit_code": 0,
+      "private_log": "tests-e1-e2.log",
+      "sha256": "3882f94d1ac05fd4cfc502b8dad3a6bca2a2e1e2f867927e33eb11f5dace41e8"
+    },
+    {
+      "name": "regression_lf",
+      "command": "node22 node_modules/vitest/vitest.mjs run (preserved LF worktree, same HEAD)",
+      "exit_code": 0,
+      "private_log": "tests-regression-lf.log",
+      "sha256": "2b06f90827f45f2e2879456ebbdf091679ae6aa099d7fcbc5bcecba427359618"
+    },
+    {
+      "name": "gate-saxes",
+      "command": "node22 vitest run E2.7 saxes",
+      "exit_code": 0,
+      "private_log": "tests-saxes.log",
+      "sha256": "646698656832e230a1e6a8562de7812f3965c7ed302bb04689494c2ea1bc0bf3"
+    },
+    {
+      "name": "gate-sax",
+      "command": "node22 vitest run E2.7 sax",
+      "exit_code": 1,
+      "private_log": "tests-sax.log",
+      "sha256": "b939dfe6cce5989e14e5142bae41cdbce4643ea0062a1cb341bfc66cf2a1e0a2"
+    },
+    {
+      "name": "gate-fast",
+      "command": "node22 vitest run E2.7 fast",
+      "exit_code": 1,
+      "private_log": "tests-fast.log",
+      "sha256": "93ef5e15a207b3fa7d649825736944e0e7333d0a3c7fa6dc9c2bc88a560350e0"
+    },
+    {
+      "name": "gate-sax-e25",
+      "command": "node22 vitest run E2.7 sax-e25",
+      "exit_code": 1,
+      "private_log": "tests-sax-e25.log",
+      "sha256": "23414cdc3fc82b004f097fa885bfa92d693196aaa9593df32dd0aa23a3dc76bb"
+    },
+    {
+      "name": "diff-check",
+      "exit_code": 0,
+      "tracked_warnings_present": true,
+      "new_source_whitespace_passed": true
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "name": "bw-nfse-e27-parser-certification",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": "22.x" },
+  "devDependencies": {
+    "@nodable/entities": "3.1.0",
+    "@types/node": "20.19.37",
+    "@types/sax": "1.2.7",
+    "fast-xml-parser": "5.11.2",
+    "sax": "1.6.1"
+  }
+}

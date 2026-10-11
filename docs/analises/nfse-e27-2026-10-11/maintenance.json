@@ -1,0 +1,140 @@
+{
+  "checked_on": "2026-10-11",
+  "checks": [
+    {
+      "package": "saxes",
+      "pinned_version": "6.0.0",
+      "kind": "registry",
+      "url": "https://registry.npmjs.org/saxes",
+      "sha256": "427344699d0c6e769bc59ee3dfc4e0c0ce3335446f180c52a8472d8d355276d4",
+      "result": {
+        "latest": "6.0.0",
+        "pinned_published": "2021-11-07T19:06:31.264Z",
+        "integrity": "sha512-xAg7SOnEhrm5zI3puOOKyy1OMcMlIJZYNJY7xLBwSze0UjhPLnWfj2GF2EpT0jmzaJKIWKHLsaSSajf35bcYnA=="
+      }
+    },
+    {
+      "package": "saxes",
+      "pinned_version": "6.0.0",
+      "kind": "advisories",
+      "url": "https://api.github.com/advisories?ecosystem=npm&affects=saxes@6.0.0",
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "result": {
+        "count": 0,
+        "ids": []
+      }
+    },
+    {
+      "package": "saxes",
+      "pinned_version": "6.0.0",
+      "kind": "repository",
+      "url": "https://api.github.com/repos/lddubeau/saxes",
+      "sha256": "9798868fa23aa7065d1d5a7aa5e3e4de11601640df2d94d557537162bd9ac99e",
+      "result": {
+        "archived": true,
+        "pushed_at": "2025-12-31T16:42:03Z"
+      }
+    },
+    {
+      "package": "sax",
+      "pinned_version": "1.6.1",
+      "kind": "registry",
+      "url": "https://registry.npmjs.org/sax",
+      "sha256": "a4feac75f908237426343469efbc5426e0094a74c57b9f7bebfce45505e0802b",
+      "result": {
+        "latest": "1.6.1",
+        "pinned_published": "2026-07-24T18:50:24.821Z",
+        "integrity": "sha512-42tBVwLWnaQvW5zc4HbZrTuWccECCZfBi92FDuwtqxasH+JbPB3/FOKb1m222K42R4WxuxzzMsTswfzgtSu64Q=="
+      }
+    },
+    {
+      "package": "sax",
+      "pinned_version": "1.6.1",
+      "kind": "advisories",
+      "url": "https://api.github.com/advisories?ecosystem=npm&affects=sax@1.6.1",
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "result": {
+        "count": 0,
+        "ids": []
+      }
+    },
+    {
+      "package": "sax",
+      "pinned_version": "1.6.1",
+      "kind": "repository",
+      "url": "https://api.github.com/repos/isaacs/sax-js",
+      "sha256": "4e2c06b33fd4e4c202bcde4df6d5718fb601e2f02075f45f8f35e5c800d2b91b",
+      "result": {
+        "archived": false,
+        "pushed_at": "2026-07-24T18:50:27Z"
+      }
+    },
+    {
+      "package": "fast-xml-parser",
+      "pinned_version": "5.11.2",
+      "kind": "registry",
+      "url": "https://registry.npmjs.org/fast-xml-parser",
+      "sha256": "85630c9bfe0e944b3cb3ab0c3d61f265bd0ecfe814992590fdbf1b022e564895",
+      "result": {
+        "latest": "5.11.2",
+        "pinned_published": "2026-09-29T04:45:32.224Z",
+        "integrity": "sha512-R9iDuNrQYeQut46cn2r2wHKn4HYzVDvDm5J1wW+koZewykv0yuO2HChTYeZtrULyHIDM9cj9TUXloCsueCQUog=="
+      }
+    },
+    {
+      "package": "fast-xml-parser",
+      "pinned_version": "5.11.2",
+      "kind": "advisories",
+      "url": "https://api.github.com/advisories?ecosystem=npm&affects=fast-xml-parser@5.11.2",
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "result": {
+        "count": 0,
+        "ids": []
+      }
+    },
+    {
+      "package": "fast-xml-parser",
+      "pinned_version": "5.11.2",
+      "kind": "repository",
+      "url": "https://api.github.com/repos/NaturalIntelligence/fast-xml-parser",
+      "sha256": "ac174eaff3ebc339780e7748dcdbc3d0cd5ef5dc7ff37e89eb44400812a24ffc",
+      "result": {
+        "archived": false,
+        "pushed_at": "2026-10-01T06:36:21Z"
+      }
+    },
+    {
+      "package": "@nodable/entities",
+      "pinned_version": "3.1.0",
+      "kind": "registry",
+      "url": "https://registry.npmjs.org/@nodable%2fentities",
+      "sha256": "ced47fae25b82d79e161dbfb9fc23a3eace78ac23c180b5cb270afdb16c44145",
+      "result": {
+        "latest": "3.1.0",
+        "pinned_published": "2026-09-29T04:15:42.785Z",
+        "integrity": "sha512-LsS/DjHr+uDM647Gru/cA8+J3a3HfhttwCKLyuoyN7yXTFCxKBtSgMQBvrW9yNPa2/zDRUNuGPaH5QUFoa4arQ=="
+      }
+    },
+    {
+      "package": "@nodable/entities",
+      "pinned_version": "3.1.0",
+      "kind": "advisories",
+      "url": "https://api.github.com/advisories?ecosystem=npm&affects=@nodable%2fentities@3.1.0",
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "result": {
+        "count": 0,
+        "ids": []
+      }
+    }
+  ],
+  "audit_exit_code": 0,
+  "audit_sha256": "585d6d23113779591b4ca7aa1ff664957506140d6e5557143a976e4275d5d773",
+  "audit_summary": {
+    "info": 0,
+    "low": 0,
+    "moderate": 0,
+    "high": 0,
+    "critical": 0,
+    "total": 0
+  }
+}
