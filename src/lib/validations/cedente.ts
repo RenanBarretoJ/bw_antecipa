@@ -15,7 +15,7 @@ export function validarCNPJ(cnpj: string): boolean {
   return Number(nums[13]) === d2
 }
 
-function validarCPF(cpf: string): boolean {
+export function validarCPF(cpf: string): boolean {
   const nums = cpf.replace(/\D/g, '')
   if (nums.length !== 11 || /^(\d)\1+$/.test(nums)) return false
   let sum = 0

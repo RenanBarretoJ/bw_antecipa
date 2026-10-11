@@ -1,0 +1,203 @@
+{
+  "fontes_consultadas": [
+    {
+      "repo": "nfse-nacional/danfse-php",
+      "url": "https://github.com/nfse-nacional/danfse-php",
+      "archived": false,
+      "updated_at": "2026-10-07T19:48:09Z",
+      "pushed_at": "2026-07-28T23:23:49Z",
+      "branch": "main",
+      "tree_sha": "ec01d6a5e3233fb835ee41df7ad9dfddfd138d68",
+      "xml_pdf_paths": [
+        "examples/output/danfse-exemplo.pdf"
+      ],
+      "tree_truncated": false
+    },
+    {
+      "repo": "willkerms/NFSe",
+      "url": "https://github.com/willkerms/NFSe",
+      "archived": false,
+      "updated_at": "2026-09-29T16:45:59Z",
+      "pushed_at": "2026-09-29T16:40:12Z",
+      "branch": "master",
+      "tree_sha": "b4a62d08ac30bca437bfa2f3e44e707deb3b1b1f",
+      "xml_pdf_paths": [
+        "docs/NFSe_ModeloConceitual_2008dez29_112009.pdf",
+        "docs/ginfes/Manual_Integracao_V2_GINFES.pdf",
+        "docs/ginfes/Manual_Integracao_V3_GINFES.pdf",
+        "docs/ginfes/informacoes adicionais site ginfes.pdf",
+        "docs/ginfes/servico_enviar_lote_rps_envio.xml",
+        "docs/issweb/iss-integracao.pdf",
+        "docs/issweb/modelo-funcional.xml",
+        "templates/abrasf-v2.4/CancelarNfseEnvio.xml",
+        "templates/abrasf-v2.4/ConsultarLoteRpsEnvio.xml",
+        "templates/abrasf-v2.4/ConsultarNfseRpsEnvio.xml",
+        "templates/abrasf-v2.4/ConsultarUrlNfseEnvio.xml",
+        "templates/abrasf-v2.4/Deducao.xml",
+        "templates/abrasf-v2.4/EnviarLoteRps.xml",
+        "templates/abrasf-v2.4/GerarNfseEnvio.xml",
+        "templates/abrasf-v2.4/Rps.xml",
+        "templates/abrasf-v2.4/Soap.xml",
+        "templates/boituva-sp-v1/CancelarNfseEnvio.xml",
+        "templates/boituva-sp-v1/DPS.xml",
+        "templates/coplan-br-v1/CancelarNfseEnvio.xml",
+        "templates/coplan-br-v1/ConsultarNfseDpsEnvio.xml",
+        "templates/coplan-br-v1/DPS.xml",
+        "templates/coplan-br-v1/GerarNfseEnvio.xml",
+        "templates/coplan-br-v1/Soap.xml",
+        "templates/coplan-v1/CancelarNfseEnvio.xml",
+        "templates/coplan-v1/ConsultarNfseRpsEnvio.xml",
+        "templates/coplan-v1/Deducao.xml",
+        "templates/coplan-v1/GerarNfseEnvio.xml",
+        "templates/coplan-v1/Rps.xml",
+        "templates/coplan-v1/Soap.xml",
+        "templates/elotech-pr-v2-03/CancelarNfseEnvio.xml",
+        "templates/elotech-pr-v2-03/ConsultarNfseRpsEnvio.xml",
+        "templates/elotech-pr-v2-03/Deducao.xml",
+        "templates/elotech-pr-v2-03/EnviarLoteRps.xml",
+        "templates/elotech-pr-v2-03/Rps.xml",
+        "templates/elotech-pr-v2-03/Soap.xml",
+        "templates/emissor-nacional/CancelarNfseEnvio.xml",
+        "templates/emissor-nacional/DPS.xml",
+        "templates/emissor-nacional/DocumentoDocDedRed.xml",
+        "templates/emissor-nacional/DocumentoReeRepRes.xml",
+        "templates/emissor-nacional/ItemPed.xml",
+        "templates/emissor-nacional/RefNfse.xml",
+        "templates/fiorilli-br-v1/CancelarNfseEnvio.xml",
+        "templates/fiorilli-br-v1/ConsultarLoteDpsEnvio.xml",
+        "templates/fiorilli-br-v1/ConsultarNfseDpsEnvio.xml",
+        "templates/fiorilli-br-v1/DPS.xml",
+        "templates/fiorilli-br-v1/DocumentoDocDedRed.xml",
+        "templates/fiorilli-br-v1/DocumentoReeRepRes.xml",
+        "templates/fiorilli-br-v1/ItemPed.xml",
+        "templates/fiorilli-br-v1/RecepcionarDpsEnvio.xml",
+        "templates/fiorilli-br-v1/RefNfse.xml",
+        "templates/fiorilli-br-v1/Soap.xml",
+        "templates/fiorilli-ro-v2-01/CancelarNfseEnvio.xml",
+        "templates/fiorilli-ro-v2-01/ConsultarNfseRpsEnvio.xml",
+        "templates/fiorilli-ro-v2-01/Deducao.xml",
+        "templates/fiorilli-ro-v2-01/GerarNfseEnvio.xml",
+        "templates/fiorilli-ro-v2-01/Rps.xml",
+        "templates/fiorilli-ro-v2-01/Soap.xml",
+        "templates/megasoft-go-v1/ConsultarNfseRpsEnvio.xml",
+        "templates/megasoft-go-v1/Deducao.xml",
+        "templates/megasoft-go-v1/GerarNfseEnvio.xml",
+        "templates/megasoft-go-v1/Rps.xml",
+        "templates/megasoft-go-v1/Soap.xml",
+        "templates/notacontrol-br-v1/CancelarNfseEnvio.xml",
+        "templates/notacontrol-br-v1/ConsultarNfseDpsEnvio.xml",
+        "templates/notacontrol-br-v1/ConsultarUrlNfseEnvio.xml",
+        "templates/notacontrol-br-v1/DPS.xml",
+        "templates/notacontrol-br-v1/EnviarLoteDpsEnvio.xml",
+        "templates/notacontrol-br-v1/GerarNfseEnvio.xml",
+        "templates/notacontrol-br-v1/Soap.xml",
+        "templates/notacontrol-go-v1/CancelarNfseEnvio.xml",
+        "templates/notacontrol-go-v1/ConsultarLoteRpsEnvio.xml",
+        "templates/notacontrol-go-v1/ConsultarNfseRpsEnvio.xml",
+        "templates/notacontrol-go-v1/Deducao.xml",
+        "templates/notacontrol-go-v1/EnviarLoteRps.xml",
+        "templates/notacontrol-go-v1/Rps.xml",
+        "templates/notacontrol-go-v1/Soap.xml",
+        "templates/prefGoiania-v1/ConsultarNfseRpsEnvio.xml",
+        "templates/prefGoiania-v1/Deducao.xml",
+        "templates/prefGoiania-v1/GerarNfseEnvio.xml",
+        "templates/prefGoiania-v1/Rps.xml",
+        "templates/prefGoiania-v1/Soap.xml",
+        "templates/saatri-ba-v2-01/CancelarNfseEnvio.xml",
+        "templates/saatri-ba-v2-01/ConsultarNfseRpsEnvio.xml",
+        "templates/saatri-ba-v2-01/Deducao.xml",
+        "templates/saatri-ba-v2-01/GerarNfseEnvio.xml",
+        "templates/saatri-ba-v2-01/Rps.xml",
+        "templates/saatri-ba-v2-01/Soap.xml",
+        "templates/webISS-se-v2-02/CancelarNfseEnvio.xml",
+        "templates/webISS-se-v2-02/ConsultarNfseRpsEnvio.xml",
+        "templates/webISS-se-v2-02/Deducao.xml",
+        "templates/webISS-se-v2-02/GerarNfseEnvio.xml",
+        "templates/webISS-se-v2-02/Rps.xml",
+        "templates/webISS-se-v2-02/Soap.xml"
+      ],
+      "tree_truncated": false
+    },
+    {
+      "repo": "gildonei/nfse-nacional",
+      "url": "https://github.com/gildonei/nfse-nacional",
+      "archived": false,
+      "updated_at": "2026-09-29T16:36:14Z",
+      "pushed_at": "2026-09-29T16:34:56Z",
+      "branch": "main",
+      "tree_sha": "0e49c5f5d3f5a44da8150d46c00a60f1ca435f0e",
+      "xml_pdf_paths": [
+        "phpunit.xml",
+        "tests/Fixture/Danfse/nfse-completa.xml"
+      ],
+      "tree_truncated": false
+    }
+  ],
+  "oficial_emitido_obtido": false,
+  "documentos_oficiais_emitidos_testados": 0,
+  "pares_xml_pdf_da_mesma_nota": 0,
+  "fixture_terceiro": {
+    "url": "https://github.com/gildonei/nfse-nacional/blob/main/tests/Fixture/Danfse/nfse-completa.xml",
+    "sha256": "3e935cbb026dc983e10378025fa75d3fde413ab8e56eacd78e068a21f1d02da3",
+    "classificacao": "FIXTURE_TERCEIRO_NAO_OFICIAL_ORIGEM_FISCAL_NAO_COMPROVADA",
+    "tpAmb_declarado": "2",
+    "assinado": false,
+    "nNFSe_declarado": "123",
+    "erro_ordem": "ambGer no lugar esperado para verAplic",
+    "assinatura_ausente": true,
+    "resultados_xsd": [
+      {
+        "perfil": "1.01",
+        "xsd_valido": false,
+        "erros": [
+          {
+            "linha": 11,
+            "tipo": "SCHEMAV_ELEMENT_CONTENT",
+            "campos": [
+              "ambGer"
+            ]
+          },
+          {
+            "linha": 2,
+            "tipo": "SCHEMAV_ELEMENT_CONTENT",
+            "campos": [
+              "NFSe"
+            ]
+          }
+        ]
+      },
+      {
+        "perfil": "homolog-20260727/1.01",
+        "xsd_valido": false,
+        "erros": [
+          {
+            "linha": 11,
+            "tipo": "SCHEMAV_ELEMENT_CONTENT",
+            "campos": [
+              "ambGer"
+            ]
+          },
+          {
+            "linha": 2,
+            "tipo": "SCHEMAV_ELEMENT_CONTENT",
+            "campos": [
+              "NFSe"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "pdf_terceiro": {
+    "url": "https://github.com/nfse-nacional/danfse-php/blob/main/examples/output/danfse-exemplo.pdf",
+    "origem_payload": "https://github.com/nfse-nacional/danfse-php/blob/main/examples/generate-pdf.php",
+    "classificacao": "TEMPLATE_GERADO_DE_PAYLOAD_EXPLICITO_DE_EXEMPLO",
+    "numero_no_payload": "42",
+    "mesma_nota_do_xml_terceiro": false
+  },
+  "manual_oficial": {
+    "url": "https://www.gov.br/nfse/pt-br/biblioteca/documentacao-tecnica/manualintegradosnnfse_v1-00-02-producao.pdf",
+    "classificacao": "MANUAL_COM_TRECHO_ILUSTRATIVO_NAO_XML_EMITIDO_COMPLETO"
+  },
+  "limitacao": "Busca limitada as fontes enumeradas, nao prova inexistencia universal de exemplares publicos. Nenhum documento real enviado a servicos externos."
+}

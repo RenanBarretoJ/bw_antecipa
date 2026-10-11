@@ -1,0 +1,29 @@
+{
+  "resultado": "RECONHECIDO",
+  "natureza_documento": "DPS",
+  "campos": {
+    "identificacao.situacao": {
+      "estado": "DERIVADO",
+      "valor": "DESCONHECIDA"
+    },
+    "vencimento": {
+      "estado": "AUSENTE",
+      "valor": null
+    },
+    "identificacao.numero_nfse": {
+      "estado": "AUSENTE",
+      "valor": null
+    },
+    "identificacao.chave_acesso": {
+      "estado": "AUSENTE",
+      "valor": null
+    },
+    "totais.valor_servicos": {
+      "estado": "PRESENTE",
+      "valor": "1000.00"
+    }
+  },
+  "alertas": [
+    "DPS_NAO_E_NFSE_EMITIDA"
+  ]
+}

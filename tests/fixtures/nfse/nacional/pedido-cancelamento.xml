@@ -1,0 +1,2 @@
+<?xml version='1.0' encoding='utf-8'?>
+<pedRegEvento xmlns="http://www.sped.fazenda.gov.br/nfse" versao="1.01"><infPedReg Id="PRE35503082212345678000195000000090000126100000000010101101"><tpAmb>2</tpAmb><verAplic>QA_E1E2</verAplic><dhEvento>2026-10-09T10:00:00-03:00</dhEvento><CNPJAutor>12345678000195</CNPJAutor><chNFSe>35503082212345678000195000000090000126100000000010</chNFSe><e101101><xDesc>Cancelamento de NFS-e</xDesc><cMotivo>1</cMotivo><xMotivo>MOTIVO FICTICIO PARA TESTES ESTRUTURAIS</xMotivo></e101101></infPedReg></pedRegEvento>

@@ -1,0 +1,90 @@
+{
+  "baseline_commit": "364c5ad2db6db9134be9e08added44299fff7a87",
+  "not_a_certified_corpus": true,
+  "documents": [
+    {
+      "id": "REAL-001",
+      "category": "REAL",
+      "format": "PDF",
+      "pages": 1,
+      "text_length": 3580,
+      "layout_marker": "DANFSe v2.0",
+      "baseline": {
+        "docId": "REAL-001",
+        "method": "PDF_TEXT_NATIVE",
+        "gate": {
+          "ok": true
+        },
+        "fieldsPresent": [
+          "cnpj_emitente",
+          "razao_social_emitente",
+          "cnpj_destinatario",
+          "razao_social_destinatario",
+          "endereco_destinatario",
+          "numero_nf",
+          "chave_acesso",
+          "data_emissao",
+          "competencia",
+          "valor_bruto",
+          "valor_liquido",
+          "total_retencoes",
+          "desconto_incondicionado",
+          "valor_liquido_com_ibscbs"
+        ],
+        "blockingReasons": [],
+        "warnings": [],
+        "note": "No independent fiscal ground truth was annotated; this is not a precision measurement."
+      },
+      "ground_truth_status": "NOT_INDEPENDENTLY_ANNOTATED",
+      "input_location": "Protected local library; not committed"
+    },
+    {
+      "id": "REAL-002",
+      "category": "REAL",
+      "format": "PDF",
+      "pages": 1,
+      "text_length": 2,
+      "layout_marker": "UNKNOWN",
+      "baseline": "Native text unavailable; no visual API call",
+      "ground_truth_status": "NOT_INDEPENDENTLY_ANNOTATED",
+      "input_location": "Protected local library; not committed"
+    },
+    {
+      "id": "SYNTHETIC-NATIONAL",
+      "category": "SYNTHETIC",
+      "format": "TEXT_AND_MOCK_JSON",
+      "input_location": "src/lib/nfse/fixtures/danfse-v2.ts; src/lib/nfse/fixtures/visual.ts",
+      "official_compatibility_proof": false
+    },
+    {
+      "id": "SYNTHETIC-MUNICIPAL",
+      "category": "SYNTHETIC",
+      "format": "MOCK_JSON",
+      "input_location": "src/lib/nfse/fixtures/municipal.ts",
+      "official_compatibility_proof": false
+    }
+  ],
+  "verification": [
+    {
+      "suite": "Fiscal extraction and shared intake",
+      "files": 16,
+      "passed": 298,
+      "kind": "UNIT_TESTS_AND_MOCKS"
+    },
+    {
+      "suite": "Read-only audit probes",
+      "files": 1,
+      "passed": 5,
+      "kind": "CURRENT_BEHAVIOR_NOT_CANDIDATE"
+    },
+    {
+      "suite": "Checkout restoration regression tests",
+      "files": 2,
+      "passed": 21,
+      "kind": "AT_RESTORATION_TIME_ONLY"
+    }
+  ],
+  "candidate_benchmark": "NOT_IMPLEMENTED_BY_FIRST_DELIVERY_SCOPE",
+  "real_ai_calls": 0,
+  "remote_database_mutations": 0
+}

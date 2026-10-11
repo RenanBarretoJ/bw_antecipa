@@ -1,0 +1,191 @@
+{
+  "assinaturas_verificadas": false,
+  "schemas_oficiais_alterados": false,
+  "resultados": [
+    {
+      "id": "nfse-1-00",
+      "xsd_valido": true,
+      "esperado": true,
+      "coincide": true,
+      "limitacao_xsd": null,
+      "erros": []
+    },
+    {
+      "id": "nfse-1-01",
+      "xsd_valido": false,
+      "esperado": false,
+      "coincide": true,
+      "limitacao_xsd": "TSSerieDPS usa ancoras literais ^ e $ em regex XSD; serie 00001 rejeitada pelo schema oficial intacto.",
+      "erros": [
+        {
+          "linha": 11,
+          "tipo": "SCHEMAV_CVC_PATTERN_VALID",
+          "campo": "serie"
+        }
+      ]
+    },
+    {
+      "id": "cpf-liquido-zero",
+      "xsd_valido": false,
+      "esperado": false,
+      "coincide": true,
+      "limitacao_xsd": "TSSerieDPS usa ancoras literais ^ e $ em regex XSD; serie 00001 rejeitada pelo schema oficial intacto.",
+      "erros": [
+        {
+          "linha": 11,
+          "tipo": "SCHEMAV_CVC_PATTERN_VALID",
+          "campo": "serie"
+        }
+      ]
+    },
+    {
+      "id": "tomador-ausente",
+      "xsd_valido": false,
+      "esperado": false,
+      "coincide": true,
+      "limitacao_xsd": "TSSerieDPS usa ancoras literais ^ e $ em regex XSD; serie 00001 rejeitada pelo schema oficial intacto.",
+      "erros": [
+        {
+          "linha": 11,
+          "tipo": "SCHEMAV_CVC_PATTERN_VALID",
+          "campo": "serie"
+        }
+      ]
+    },
+    {
+      "id": "opcionais-ausentes",
+      "xsd_valido": false,
+      "esperado": false,
+      "coincide": true,
+      "limitacao_xsd": "TSSerieDPS usa ancoras literais ^ e $ em regex XSD; serie 00001 rejeitada pelo schema oficial intacto.",
+      "erros": [
+        {
+          "linha": 11,
+          "tipo": "SCHEMAV_CVC_PATTERN_VALID",
+          "campo": "serie"
+        }
+      ]
+    },
+    {
+      "id": "descontos-retencoes",
+      "xsd_valido": false,
+      "esperado": false,
+      "coincide": true,
+      "limitacao_xsd": "TSSerieDPS usa ancoras literais ^ e $ em regex XSD; serie 00001 rejeitada pelo schema oficial intacto.",
+      "erros": [
+        {
+          "linha": 11,
+          "tipo": "SCHEMAV_CVC_PATTERN_VALID",
+          "campo": "serie"
+        }
+      ]
+    },
+    {
+      "id": "divergencia-liquido",
+      "xsd_valido": false,
+      "esperado": false,
+      "coincide": true,
+      "limitacao_xsd": "TSSerieDPS usa ancoras literais ^ e $ em regex XSD; serie 00001 rejeitada pelo schema oficial intacto.",
+      "erros": [
+        {
+          "linha": 11,
+          "tipo": "SCHEMAV_CVC_PATTERN_VALID",
+          "campo": "serie"
+        }
+      ]
+    },
+    {
+      "id": "tomador-exterior",
+      "xsd_valido": false,
+      "esperado": false,
+      "coincide": true,
+      "limitacao_xsd": "TSSerieDPS usa ancoras literais ^ e $ em regex XSD; serie 00001 rejeitada pelo schema oficial intacto.",
+      "erros": [
+        {
+          "linha": 11,
+          "tipo": "SCHEMAV_CVC_PATTERN_VALID",
+          "campo": "serie"
+        }
+      ]
+    },
+    {
+      "id": "nfse-substituinte",
+      "xsd_valido": true,
+      "esperado": true,
+      "coincide": true,
+      "limitacao_xsd": null,
+      "erros": []
+    },
+    {
+      "id": "ibscbs-sem-projecao-financeira",
+      "xsd_valido": false,
+      "esperado": false,
+      "coincide": true,
+      "limitacao_xsd": "TSSerieDPS usa ancoras literais ^ e $ em regex XSD; serie 00001 rejeitada pelo schema oficial intacto.",
+      "erros": [
+        {
+          "linha": 13,
+          "tipo": "SCHEMAV_CVC_PATTERN_VALID",
+          "campo": "serie"
+        }
+      ]
+    },
+    {
+      "id": "campo-invalido",
+      "xsd_valido": false,
+      "esperado": false,
+      "coincide": true,
+      "limitacao_xsd": "TSSerieDPS usa ancoras literais ^ e $ em regex XSD; serie 00001 rejeitada pelo schema oficial intacto.",
+      "erros": [
+        {
+          "linha": 8,
+          "tipo": "SCHEMAV_CVC_PATTERN_VALID",
+          "campo": "vLiq"
+        },
+        {
+          "linha": 11,
+          "tipo": "SCHEMAV_CVC_PATTERN_VALID",
+          "campo": "serie"
+        }
+      ]
+    },
+    {
+      "id": "dps-nao-emitida",
+      "xsd_valido": false,
+      "esperado": false,
+      "coincide": true,
+      "limitacao_xsd": "TSSerieDPS usa ancoras literais ^ e $ em regex XSD; serie 00001 rejeitada pelo schema oficial intacto.",
+      "erros": [
+        {
+          "linha": 4,
+          "tipo": "SCHEMAV_CVC_PATTERN_VALID",
+          "campo": "serie"
+        }
+      ]
+    },
+    {
+      "id": "evento-cancelamento",
+      "xsd_valido": true,
+      "esperado": true,
+      "coincide": true,
+      "limitacao_xsd": null,
+      "erros": []
+    },
+    {
+      "id": "evento-substituicao",
+      "xsd_valido": true,
+      "esperado": true,
+      "coincide": true,
+      "limitacao_xsd": null,
+      "erros": []
+    },
+    {
+      "id": "pedido-cancelamento",
+      "xsd_valido": true,
+      "esperado": true,
+      "coincide": true,
+      "limitacao_xsd": null,
+      "erros": []
+    }
+  ]
+}

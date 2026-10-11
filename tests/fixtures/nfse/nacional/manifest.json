@@ -1,0 +1,316 @@
+{
+  "versao": 1,
+  "descricao": "Somente estrutura; identidades e assinaturas ficticias, sem validade fiscal.",
+  "origem_schemas": "https://www.gov.br/nfse/pt-br/biblioteca/documentacao-tecnica/documentacao-atual/nfse-esquemas_xsd-v1-01-20260209.zip",
+  "casos": [
+    {
+      "id": "nfse-1-00",
+      "arquivo": "nfse-1-00.xml",
+      "esperado": "nfse-1-00.expected.json",
+      "origem": "SINTETICO_ESTRUTURAL",
+      "evidencia_compatibilidade_oficial": false,
+      "sha256": "1d4fa504c57f48c6bc608640a4cc7dc9ab5391f0fb769fc7535ace4f3db70d38",
+      "versao": "1.00",
+      "xsd_esperado": true,
+      "limitacao_xsd": null,
+      "raiz_xsd": "NFSe",
+      "xsd_erros_esperados": [],
+      "baseline_esperado": {
+        "resultado": "ERRO",
+        "codigo": "MISSING_IDENTITY"
+      }
+    },
+    {
+      "id": "nfse-1-01",
+      "arquivo": "nfse-1-01.xml",
+      "esperado": "nfse-1-01.expected.json",
+      "origem": "SINTETICO_ESTRUTURAL",
+      "evidencia_compatibilidade_oficial": false,
+      "sha256": "196679c59d4b83c26953b4c6c3c661b4f8acda059084ed6ac34bca6bbc80eda0",
+      "versao": "1.01",
+      "xsd_esperado": false,
+      "limitacao_xsd": "TSSerieDPS usa ancoras literais ^ e $ em regex XSD; serie 00001 rejeitada pelo schema oficial intacto.",
+      "raiz_xsd": "NFSe",
+      "xsd_erros_esperados": [
+        {
+          "campo": "serie",
+          "tipo": "SCHEMAV_CVC_PATTERN_VALID"
+        }
+      ],
+      "baseline_esperado": {
+        "resultado": "ERRO",
+        "codigo": "MISSING_IDENTITY"
+      }
+    },
+    {
+      "id": "cpf-liquido-zero",
+      "arquivo": "cpf-liquido-zero.xml",
+      "esperado": "cpf-liquido-zero.expected.json",
+      "origem": "SINTETICO_ESTRUTURAL",
+      "evidencia_compatibilidade_oficial": false,
+      "sha256": "c2861edb2a15b8b77b489a24cd369f28a73ec96dec4e006a37a53d2a5ae6d0a5",
+      "versao": "1.01",
+      "xsd_esperado": false,
+      "limitacao_xsd": "TSSerieDPS usa ancoras literais ^ e $ em regex XSD; serie 00001 rejeitada pelo schema oficial intacto.",
+      "raiz_xsd": "NFSe",
+      "xsd_erros_esperados": [
+        {
+          "campo": "serie",
+          "tipo": "SCHEMAV_CVC_PATTERN_VALID"
+        }
+      ],
+      "baseline_esperado": {
+        "resultado": "ERRO",
+        "codigo": "MISSING_IDENTITY"
+      }
+    },
+    {
+      "id": "tomador-ausente",
+      "arquivo": "tomador-ausente.xml",
+      "esperado": "tomador-ausente.expected.json",
+      "origem": "SINTETICO_ESTRUTURAL",
+      "evidencia_compatibilidade_oficial": false,
+      "sha256": "2f9e72a02ca7da3711aaca686e0fc8cea681bd7150eadaf9305992f6ad7c15d4",
+      "versao": "1.01",
+      "xsd_esperado": false,
+      "limitacao_xsd": "TSSerieDPS usa ancoras literais ^ e $ em regex XSD; serie 00001 rejeitada pelo schema oficial intacto.",
+      "raiz_xsd": "NFSe",
+      "xsd_erros_esperados": [
+        {
+          "campo": "serie",
+          "tipo": "SCHEMAV_CVC_PATTERN_VALID"
+        }
+      ],
+      "baseline_esperado": {
+        "resultado": "ERRO",
+        "codigo": "MISSING_IDENTITY"
+      }
+    },
+    {
+      "id": "opcionais-ausentes",
+      "arquivo": "opcionais-ausentes.xml",
+      "esperado": "opcionais-ausentes.expected.json",
+      "origem": "SINTETICO_ESTRUTURAL",
+      "evidencia_compatibilidade_oficial": false,
+      "sha256": "9dd86dee15fd8b30fb3c4fba62c854889b1910d632e47ad924079a0d07a72515",
+      "versao": "1.01",
+      "xsd_esperado": false,
+      "limitacao_xsd": "TSSerieDPS usa ancoras literais ^ e $ em regex XSD; serie 00001 rejeitada pelo schema oficial intacto.",
+      "raiz_xsd": "NFSe",
+      "xsd_erros_esperados": [
+        {
+          "campo": "serie",
+          "tipo": "SCHEMAV_CVC_PATTERN_VALID"
+        }
+      ],
+      "baseline_esperado": {
+        "resultado": "ERRO",
+        "codigo": "MISSING_IDENTITY"
+      }
+    },
+    {
+      "id": "descontos-retencoes",
+      "arquivo": "descontos-retencoes.xml",
+      "esperado": "descontos-retencoes.expected.json",
+      "origem": "SINTETICO_ESTRUTURAL",
+      "evidencia_compatibilidade_oficial": false,
+      "sha256": "aacb12ec9c6a148c7ac6af0f24b153fcef791b1bb5886e0d793b13fb0a79b831",
+      "versao": "1.01",
+      "xsd_esperado": false,
+      "limitacao_xsd": "TSSerieDPS usa ancoras literais ^ e $ em regex XSD; serie 00001 rejeitada pelo schema oficial intacto.",
+      "raiz_xsd": "NFSe",
+      "xsd_erros_esperados": [
+        {
+          "campo": "serie",
+          "tipo": "SCHEMAV_CVC_PATTERN_VALID"
+        }
+      ],
+      "baseline_esperado": {
+        "resultado": "ERRO",
+        "codigo": "MISSING_IDENTITY"
+      }
+    },
+    {
+      "id": "divergencia-liquido",
+      "arquivo": "divergencia-liquido.xml",
+      "esperado": "divergencia-liquido.expected.json",
+      "origem": "SINTETICO_ESTRUTURAL",
+      "evidencia_compatibilidade_oficial": false,
+      "sha256": "677269b811288b2aee93cfb35d61f3749e897dca3370d624eda1ec9da494a58f",
+      "versao": "1.01",
+      "xsd_esperado": false,
+      "limitacao_xsd": "TSSerieDPS usa ancoras literais ^ e $ em regex XSD; serie 00001 rejeitada pelo schema oficial intacto.",
+      "raiz_xsd": "NFSe",
+      "xsd_erros_esperados": [
+        {
+          "campo": "serie",
+          "tipo": "SCHEMAV_CVC_PATTERN_VALID"
+        }
+      ],
+      "baseline_esperado": {
+        "resultado": "ERRO",
+        "codigo": "MISSING_IDENTITY"
+      }
+    },
+    {
+      "id": "tomador-exterior",
+      "arquivo": "tomador-exterior.xml",
+      "esperado": "tomador-exterior.expected.json",
+      "origem": "SINTETICO_ESTRUTURAL",
+      "evidencia_compatibilidade_oficial": false,
+      "sha256": "b11c78bdce875e2158af5c4fa0073dfb81416fc4d76a08129a386b3dfdd3efe1",
+      "versao": "1.01",
+      "xsd_esperado": false,
+      "limitacao_xsd": "TSSerieDPS usa ancoras literais ^ e $ em regex XSD; serie 00001 rejeitada pelo schema oficial intacto.",
+      "raiz_xsd": "NFSe",
+      "xsd_erros_esperados": [
+        {
+          "campo": "serie",
+          "tipo": "SCHEMAV_CVC_PATTERN_VALID"
+        }
+      ],
+      "baseline_esperado": {
+        "resultado": "ERRO",
+        "codigo": "MISSING_IDENTITY"
+      }
+    },
+    {
+      "id": "nfse-substituinte",
+      "arquivo": "nfse-substituinte.xml",
+      "esperado": "nfse-substituinte.expected.json",
+      "origem": "SINTETICO_ESTRUTURAL",
+      "evidencia_compatibilidade_oficial": false,
+      "sha256": "999fcc8ea2dcbfe8cc4136fc08fc770514e41b1cf50c44fb40916d2d60e2453a",
+      "versao": "1.00",
+      "xsd_esperado": true,
+      "limitacao_xsd": null,
+      "raiz_xsd": "NFSe",
+      "xsd_erros_esperados": [],
+      "baseline_esperado": {
+        "resultado": "ERRO",
+        "codigo": "MISSING_IDENTITY"
+      }
+    },
+    {
+      "id": "ibscbs-sem-projecao-financeira",
+      "arquivo": "ibscbs-sem-projecao-financeira.xml",
+      "esperado": "ibscbs-sem-projecao-financeira.expected.json",
+      "origem": "SINTETICO_ESTRUTURAL",
+      "evidencia_compatibilidade_oficial": false,
+      "sha256": "1ffae010e3be66b93c585f1b49545184b69f42862122ec5eb623dedefc326ded",
+      "versao": "1.01",
+      "xsd_esperado": false,
+      "limitacao_xsd": "TSSerieDPS usa ancoras literais ^ e $ em regex XSD; serie 00001 rejeitada pelo schema oficial intacto.",
+      "raiz_xsd": "NFSe",
+      "xsd_erros_esperados": [
+        {
+          "campo": "serie",
+          "tipo": "SCHEMAV_CVC_PATTERN_VALID"
+        }
+      ],
+      "baseline_esperado": {
+        "resultado": "ERRO",
+        "codigo": "MISSING_IDENTITY"
+      }
+    },
+    {
+      "id": "campo-invalido",
+      "arquivo": "campo-invalido.xml",
+      "esperado": "campo-invalido.expected.json",
+      "origem": "SINTETICO_ESTRUTURAL",
+      "evidencia_compatibilidade_oficial": false,
+      "sha256": "f40c51b1042920171adbfca8a7276378eedf4599e8bd8bcd7c7db063a852580e",
+      "versao": "1.01",
+      "xsd_esperado": false,
+      "limitacao_xsd": "TSSerieDPS usa ancoras literais ^ e $ em regex XSD; serie 00001 rejeitada pelo schema oficial intacto.",
+      "raiz_xsd": "NFSe",
+      "xsd_erros_esperados": [
+        {
+          "campo": "serie",
+          "tipo": "SCHEMAV_CVC_PATTERN_VALID"
+        },
+        {
+          "campo": "vLiq",
+          "tipo": "SCHEMAV_CVC_PATTERN_VALID"
+        }
+      ],
+      "baseline_esperado": {
+        "resultado": "ERRO",
+        "codigo": "MISSING_IDENTITY"
+      }
+    },
+    {
+      "id": "dps-nao-emitida",
+      "arquivo": "dps-nao-emitida.xml",
+      "esperado": "dps-nao-emitida.expected.json",
+      "origem": "SINTETICO_ESTRUTURAL",
+      "evidencia_compatibilidade_oficial": false,
+      "sha256": "12bf55af8c807e126249300056f41c5bc38c423c4fed0a63ee2ac936e0b25508",
+      "versao": "1.01",
+      "xsd_esperado": false,
+      "limitacao_xsd": "TSSerieDPS usa ancoras literais ^ e $ em regex XSD; serie 00001 rejeitada pelo schema oficial intacto.",
+      "raiz_xsd": "DPS",
+      "xsd_erros_esperados": [
+        {
+          "campo": "serie",
+          "tipo": "SCHEMAV_CVC_PATTERN_VALID"
+        }
+      ],
+      "baseline_esperado": {
+        "resultado": "ERRO",
+        "codigo": "MISSING_IDENTITY"
+      }
+    },
+    {
+      "id": "evento-cancelamento",
+      "arquivo": "evento-cancelamento.xml",
+      "esperado": "evento-cancelamento.expected.json",
+      "origem": "SINTETICO_ESTRUTURAL",
+      "evidencia_compatibilidade_oficial": false,
+      "sha256": "1520d703fe5e966dec52f06789d4ccff553a0c72c83d7479ab847f6905f85acd",
+      "versao": "1.01",
+      "xsd_esperado": true,
+      "limitacao_xsd": null,
+      "raiz_xsd": "evento",
+      "xsd_erros_esperados": [],
+      "baseline_esperado": {
+        "resultado": "ERRO",
+        "codigo": "MISSING_IDENTITY"
+      }
+    },
+    {
+      "id": "evento-substituicao",
+      "arquivo": "evento-substituicao.xml",
+      "esperado": "evento-substituicao.expected.json",
+      "origem": "SINTETICO_ESTRUTURAL",
+      "evidencia_compatibilidade_oficial": false,
+      "sha256": "3564dc646f063fddccdb15424e5264c88bde4b8eccb9e6854f19c8624a7e1dc4",
+      "versao": "1.01",
+      "xsd_esperado": true,
+      "limitacao_xsd": null,
+      "raiz_xsd": "evento",
+      "xsd_erros_esperados": [],
+      "baseline_esperado": {
+        "resultado": "ERRO",
+        "codigo": "MISSING_IDENTITY"
+      }
+    },
+    {
+      "id": "pedido-cancelamento",
+      "arquivo": "pedido-cancelamento.xml",
+      "esperado": "pedido-cancelamento.expected.json",
+      "origem": "SINTETICO_ESTRUTURAL",
+      "evidencia_compatibilidade_oficial": false,
+      "sha256": "e38d8ef990d388fed8ed10bef035380af4b5f72116b48e086621d3cce6e9c255",
+      "versao": "1.01",
+      "xsd_esperado": true,
+      "limitacao_xsd": null,
+      "raiz_xsd": "pedRegEvento",
+      "xsd_erros_esperados": [],
+      "baseline_esperado": {
+        "resultado": "ERRO",
+        "codigo": "MISSING_IDENTITY"
+      }
+    }
+  ]
+}

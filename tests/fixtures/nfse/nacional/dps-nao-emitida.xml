@@ -1,0 +1,16 @@
+<?xml version='1.0' encoding='utf-8'?>
+<DPS xmlns="http://www.sped.fazenda.gov.br/nfse" versao="1.01"><infDPS Id="DPS355030821234567800019500001000000000900001">
+    <tpAmb>2</tpAmb><dhEmi>2026-10-09T09:00:00-03:00</dhEmi><verAplic>QA_E1E2</verAplic>
+    <serie>00001</serie><nDPS>900001</nDPS><dCompet>2026-10-09</dCompet><tpEmit>1</tpEmit><cLocEmi>3550308</cLocEmi>
+    <prest><CNPJ>12345678000195</CNPJ><xNome>PRESTADOR FICTICIO E1 E2</xNome>
+    <regTrib><opSimpNac>1</opSimpNac><regEspTrib>0</regEspTrib></regTrib></prest>
+    <toma><CNPJ>12345678000195</CNPJ><xNome>TOMADOR FICTICIO E1 E2</xNome>
+    <end><endNac><cMun>3550308</cMun><CEP>01001000</CEP></endNac><xLgr>RUA FICTICIA</xLgr><nro>10</nro><xBairro>CENTRO</xBairro></end>
+    <fone>11999999999</fone><email>qa@example.invalid</email></toma>
+    <serv><locPrest><cLocPrestacao>3550308</cLocPrestacao></locPrest>
+    <cServ><cTribNac>010101</cTribNac><xDescServ>SERVICO FICTICIO &amp; TESTE</xDescServ></cServ></serv>
+    <valores><vServPrest><vServ>1000.00</vServ></vServPrest>
+    <vDescCondIncond><vDescIncond>0.00</vDescIncond><vDescCond>0.00</vDescCond></vDescCondIncond>
+    <trib><tribMun><tribISSQN>1</tribISSQN><tpRetISSQN>1</tpRetISSQN></tribMun>
+    <totTrib><indTotTrib>0</indTotTrib></totTrib></trib></valores>
+    </infDPS></DPS>

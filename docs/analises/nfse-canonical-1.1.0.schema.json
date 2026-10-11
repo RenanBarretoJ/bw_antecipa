@@ -1,0 +1,3845 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.1.0"
+    },
+    "extrator_versao": {
+      "type": "string"
+    },
+    "natureza_documento": {
+      "type": "string",
+      "enum": [
+        "NFSE",
+        "DPS",
+        "RPS",
+        "EVENTO",
+        "OUTRO",
+        "DESCONHECIDO"
+      ]
+    },
+    "identificacao_layout": {
+      "type": "object",
+      "properties": {
+        "familia": {
+          "type": "string"
+        },
+        "provedor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "versao_documental": {
+          "type": "string"
+        },
+        "namespace": {
+          "type": "string"
+        },
+        "perfil_id": {
+          "type": "string"
+        },
+        "status_cobertura": {
+          "type": "string",
+          "const": "ESTRUTURAL"
+        }
+      },
+      "required": [
+        "familia",
+        "provedor",
+        "versao_documental",
+        "namespace",
+        "perfil_id",
+        "status_cobertura"
+      ],
+      "additionalProperties": false
+    },
+    "originais": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/__schema0"
+      }
+    },
+    "verificacao": {
+      "type": "object",
+      "properties": {
+        "xsd": {
+          "type": "string",
+          "const": "NAO_EXECUTADA"
+        },
+        "assinatura": {
+          "type": "string",
+          "const": "NAO_EXECUTADA"
+        },
+        "consulta_fiscal": {
+          "type": "string",
+          "const": "NAO_EXECUTADA"
+        },
+        "elegibilidade": {
+          "type": "string",
+          "const": "NAO_AVALIADA"
+        }
+      },
+      "required": [
+        "xsd",
+        "assinatura",
+        "consulta_fiscal",
+        "elegibilidade"
+      ],
+      "additionalProperties": false
+    },
+    "identificacao": {
+      "type": "object",
+      "properties": {
+        "numero_nfse": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "serie_nfse": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "codigo_verificacao": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "chave_acesso": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "confianca": {
+                  "$ref": "#/$defs/__schema2"
+                },
+                "validacoes": {
+                  "$ref": "#/$defs/__schema3"
+                },
+                "alertas": {
+                  "$ref": "#/$defs/__schema5"
+                },
+                "origem": {
+                  "$ref": "#/$defs/__schema6"
+                },
+                "metodo": {
+                  "$ref": "#/$defs/__schema7"
+                },
+                "evidencias": {
+                  "$ref": "#/$defs/__schema8"
+                },
+                "estado": {
+                  "type": "string",
+                  "const": "PRESENTE"
+                },
+                "original": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "valor": {
+                  "$ref": "#/$defs/__schema13"
+                },
+                "derivacao": {
+                  "type": "null"
+                }
+              },
+              "required": [
+                "confianca",
+                "validacoes",
+                "alertas",
+                "origem",
+                "metodo",
+                "evidencias",
+                "estado",
+                "original",
+                "valor",
+                "derivacao"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "confianca": {
+                  "$ref": "#/$defs/__schema2"
+                },
+                "validacoes": {
+                  "minItems": 1,
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/__schema14"
+                  }
+                },
+                "alertas": {
+                  "$ref": "#/$defs/__schema5"
+                },
+                "origem": {
+                  "$ref": "#/$defs/__schema6"
+                },
+                "metodo": {
+                  "$ref": "#/$defs/__schema7"
+                },
+                "evidencias": {
+                  "$ref": "#/$defs/__schema8"
+                },
+                "estado": {
+                  "type": "string",
+                  "const": "INVALIDO"
+                },
+                "original": {
+                  "type": "string"
+                },
+                "valor": {
+                  "type": "null"
+                },
+                "derivacao": {
+                  "type": "null"
+                }
+              },
+              "required": [
+                "confianca",
+                "validacoes",
+                "alertas",
+                "origem",
+                "metodo",
+                "evidencias",
+                "estado",
+                "original",
+                "valor",
+                "derivacao"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "confianca": {
+                  "$ref": "#/$defs/__schema2"
+                },
+                "validacoes": {
+                  "$ref": "#/$defs/__schema3"
+                },
+                "alertas": {
+                  "$ref": "#/$defs/__schema5"
+                },
+                "estado": {
+                  "type": "string",
+                  "const": "AUSENTE"
+                },
+                "original": {
+                  "type": "null"
+                },
+                "valor": {
+                  "type": "null"
+                },
+                "origem": {
+                  "type": "null"
+                },
+                "metodo": {
+                  "type": "null"
+                },
+                "evidencias": {
+                  "maxItems": 0,
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/__schema9"
+                  }
+                },
+                "derivacao": {
+                  "type": "null"
+                }
+              },
+              "required": [
+                "confianca",
+                "validacoes",
+                "alertas",
+                "estado",
+                "original",
+                "valor",
+                "origem",
+                "metodo",
+                "evidencias",
+                "derivacao"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "confianca": {
+                  "$ref": "#/$defs/__schema2"
+                },
+                "validacoes": {
+                  "$ref": "#/$defs/__schema3"
+                },
+                "alertas": {
+                  "$ref": "#/$defs/__schema5"
+                },
+                "origem": {
+                  "$ref": "#/$defs/__schema6"
+                },
+                "metodo": {
+                  "$ref": "#/$defs/__schema7"
+                },
+                "evidencias": {
+                  "$ref": "#/$defs/__schema8"
+                },
+                "estado": {
+                  "type": "string",
+                  "const": "NAO_APLICAVEL"
+                },
+                "original": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "valor": {
+                  "type": "null"
+                },
+                "derivacao": {
+                  "type": "null"
+                },
+                "justificativa": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "confianca",
+                "validacoes",
+                "alertas",
+                "origem",
+                "metodo",
+                "evidencias",
+                "estado",
+                "original",
+                "valor",
+                "derivacao",
+                "justificativa"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "confianca": {
+                  "$ref": "#/$defs/__schema2"
+                },
+                "validacoes": {
+                  "$ref": "#/$defs/__schema3"
+                },
+                "alertas": {
+                  "$ref": "#/$defs/__schema5"
+                },
+                "estado": {
+                  "type": "string",
+                  "const": "DERIVADO"
+                },
+                "original": {
+                  "type": "null"
+                },
+                "valor": {
+                  "$ref": "#/$defs/__schema13"
+                },
+                "origem": {
+                  "type": "string",
+                  "const": "CALCULO"
+                },
+                "metodo": {
+                  "type": "string",
+                  "const": "CALCULO_EVIDENCIADO"
+                },
+                "evidencias": {
+                  "minItems": 1,
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/__schema9"
+                  }
+                },
+                "derivacao": {
+                  "type": "object",
+                  "properties": {
+                    "formula_versao": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "campos_fontes": {
+                      "minItems": 1,
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/$defs/__schema15"
+                      }
+                    }
+                  },
+                  "required": [
+                    "formula_versao",
+                    "campos_fontes"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "confianca",
+                "validacoes",
+                "alertas",
+                "estado",
+                "original",
+                "valor",
+                "origem",
+                "metodo",
+                "evidencias",
+                "derivacao"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "emissao": {
+          "$ref": "#/$defs/__schema16"
+        },
+        "competencia": {
+          "$ref": "#/$defs/__schema20"
+        },
+        "municipio_emissor": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "processamento": {
+          "$ref": "#/$defs/__schema16"
+        },
+        "codigo_status_geracao": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "ambiente": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "situacao": {
+          "$ref": "#/$defs/__schema24"
+        },
+        "situacao_declarada": {
+          "$ref": "#/$defs/__schema24"
+        },
+        "dps": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "numero": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "serie": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "emissao": {
+              "$ref": "#/$defs/__schema16"
+            }
+          },
+          "required": [
+            "id",
+            "numero",
+            "serie",
+            "emissao"
+          ],
+          "additionalProperties": false
+        },
+        "rps": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "numero": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "serie": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "emissao": {
+              "$ref": "#/$defs/__schema16"
+            },
+            "tipo": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "id",
+            "numero",
+            "serie",
+            "emissao",
+            "tipo"
+          ],
+          "additionalProperties": false
+        },
+        "nota_substituida": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "nota_substituta": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "cancelamento_data": {
+          "$ref": "#/$defs/__schema16"
+        },
+        "cancelamento_motivo": {
+          "$ref": "#/$defs/__schema1"
+        }
+      },
+      "required": [
+        "numero_nfse",
+        "serie_nfse",
+        "codigo_verificacao",
+        "chave_acesso",
+        "emissao",
+        "competencia",
+        "municipio_emissor",
+        "processamento",
+        "codigo_status_geracao",
+        "ambiente",
+        "situacao",
+        "situacao_declarada",
+        "dps",
+        "rps",
+        "nota_substituida",
+        "nota_substituta",
+        "cancelamento_data",
+        "cancelamento_motivo"
+      ],
+      "additionalProperties": false
+    },
+    "prestador": {
+      "$ref": "#/$defs/__schema28"
+    },
+    "tomador": {
+      "$ref": "#/$defs/__schema28"
+    },
+    "intermediario": {
+      "$ref": "#/$defs/__schema28"
+    },
+    "servicos": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "descricao": {
+            "$ref": "#/$defs/__schema1"
+          },
+          "codigo_tributacao_nacional": {
+            "$ref": "#/$defs/__schema1"
+          },
+          "codigo_tributacao_municipal": {
+            "$ref": "#/$defs/__schema1"
+          },
+          "codigo_nbs": {
+            "$ref": "#/$defs/__schema1"
+          },
+          "municipio_prestacao": {
+            "$ref": "#/$defs/__schema1"
+          },
+          "pais_prestacao": {
+            "$ref": "#/$defs/__schema1"
+          },
+          "tributacao_iss": {
+            "$ref": "#/$defs/__schema1"
+          },
+          "tipo_retencao_iss": {
+            "$ref": "#/$defs/__schema1"
+          },
+          "tipo_retencao_pis_cofins": {
+            "$ref": "#/$defs/__schema1"
+          },
+          "cst_pis_cofins": {
+            "$ref": "#/$defs/__schema1"
+          },
+          "regime_simples": {
+            "$ref": "#/$defs/__schema1"
+          },
+          "regime_especial": {
+            "$ref": "#/$defs/__schema1"
+          }
+        },
+        "required": [
+          "descricao",
+          "codigo_tributacao_nacional",
+          "codigo_tributacao_municipal",
+          "codigo_nbs",
+          "municipio_prestacao",
+          "pais_prestacao",
+          "tributacao_iss",
+          "tipo_retencao_iss",
+          "tipo_retencao_pis_cofins",
+          "cst_pis_cofins",
+          "regime_simples",
+          "regime_especial"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "totais": {
+      "type": "object",
+      "properties": {
+        "valor_bruto_documental": {
+          "$ref": "#/$defs/__schema35"
+        },
+        "valor_servicos": {
+          "$ref": "#/$defs/__schema35"
+        },
+        "valor_operacao": {
+          "$ref": "#/$defs/__schema35"
+        },
+        "valor_recebido": {
+          "$ref": "#/$defs/__schema35"
+        },
+        "deducoes": {
+          "$ref": "#/$defs/__schema35"
+        },
+        "desconto_condicionado": {
+          "$ref": "#/$defs/__schema35"
+        },
+        "desconto_incondicionado": {
+          "$ref": "#/$defs/__schema35"
+        },
+        "base_calculo_iss": {
+          "$ref": "#/$defs/__schema35"
+        },
+        "aliquota_iss": {
+          "$ref": "#/$defs/__schema39"
+        },
+        "valor_iss": {
+          "$ref": "#/$defs/__schema35"
+        },
+        "iss_retido": {
+          "$ref": "#/$defs/__schema43"
+        },
+        "valor_pis": {
+          "$ref": "#/$defs/__schema35"
+        },
+        "valor_cofins": {
+          "$ref": "#/$defs/__schema35"
+        },
+        "base_pis_cofins": {
+          "$ref": "#/$defs/__schema35"
+        },
+        "aliquota_pis": {
+          "$ref": "#/$defs/__schema39"
+        },
+        "aliquota_cofins": {
+          "$ref": "#/$defs/__schema39"
+        },
+        "pis_retido": {
+          "$ref": "#/$defs/__schema43"
+        },
+        "cofins_retido": {
+          "$ref": "#/$defs/__schema43"
+        },
+        "csll_retido": {
+          "$ref": "#/$defs/__schema43"
+        },
+        "retencao_previdenciaria": {
+          "$ref": "#/$defs/__schema35"
+        },
+        "retencao_irrf": {
+          "$ref": "#/$defs/__schema35"
+        },
+        "retencao_csll": {
+          "$ref": "#/$defs/__schema35"
+        },
+        "outras_retencoes": {
+          "$ref": "#/$defs/__schema35"
+        },
+        "total_retencoes": {
+          "$ref": "#/$defs/__schema35"
+        },
+        "liquido_documental": {
+          "$ref": "#/$defs/__schema35"
+        },
+        "liquido_derivado": {
+          "$ref": "#/$defs/__schema35"
+        },
+        "valor_ibs": {
+          "$ref": "#/$defs/__schema35"
+        },
+        "valor_cbs": {
+          "$ref": "#/$defs/__schema35"
+        },
+        "total_nf_com_ibscbs": {
+          "$ref": "#/$defs/__schema35"
+        },
+        "liquido_com_ibscbs": {
+          "$ref": "#/$defs/__schema35"
+        }
+      },
+      "required": [
+        "valor_bruto_documental",
+        "valor_servicos",
+        "valor_operacao",
+        "valor_recebido",
+        "deducoes",
+        "desconto_condicionado",
+        "desconto_incondicionado",
+        "base_calculo_iss",
+        "aliquota_iss",
+        "valor_iss",
+        "iss_retido",
+        "valor_pis",
+        "valor_cofins",
+        "base_pis_cofins",
+        "aliquota_pis",
+        "aliquota_cofins",
+        "pis_retido",
+        "cofins_retido",
+        "csll_retido",
+        "retencao_previdenciaria",
+        "retencao_irrf",
+        "retencao_csll",
+        "outras_retencoes",
+        "total_retencoes",
+        "liquido_documental",
+        "liquido_derivado",
+        "valor_ibs",
+        "valor_cbs",
+        "total_nf_com_ibscbs",
+        "liquido_com_ibscbs"
+      ],
+      "additionalProperties": false
+    },
+    "vencimento": {
+      "$ref": "#/$defs/__schema20"
+    },
+    "evento": {
+      "type": "object",
+      "properties": {
+        "tipo": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "id": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "pedido_id": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "registro": {
+          "$ref": "#/$defs/__schema16"
+        }
+      },
+      "required": [
+        "tipo",
+        "id",
+        "pedido_id",
+        "registro"
+      ],
+      "additionalProperties": false
+    },
+    "campos_nao_mapeados": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/__schema9"
+      }
+    },
+    "alertas_documento": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "extrator_versao",
+    "natureza_documento",
+    "identificacao_layout",
+    "originais",
+    "verificacao",
+    "identificacao",
+    "prestador",
+    "tomador",
+    "intermediario",
+    "servicos",
+    "totais",
+    "vencimento",
+    "evento",
+    "campos_nao_mapeados",
+    "alertas_documento"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "__schema0": {
+      "type": "object",
+      "properties": {
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "formato": {
+          "type": "string",
+          "enum": [
+            "XML",
+            "PDF"
+          ]
+        }
+      },
+      "required": [
+        "sha256",
+        "formato"
+      ],
+      "additionalProperties": false
+    },
+    "__schema1": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "confianca": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "validacoes": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "alertas": {
+              "$ref": "#/$defs/__schema5"
+            },
+            "origem": {
+              "$ref": "#/$defs/__schema6"
+            },
+            "metodo": {
+              "$ref": "#/$defs/__schema7"
+            },
+            "evidencias": {
+              "$ref": "#/$defs/__schema8"
+            },
+            "estado": {
+              "type": "string",
+              "const": "PRESENTE"
+            },
+            "original": {
+              "type": "string",
+              "minLength": 1
+            },
+            "valor": {
+              "$ref": "#/$defs/__schema10"
+            },
+            "derivacao": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "confianca",
+            "validacoes",
+            "alertas",
+            "origem",
+            "metodo",
+            "evidencias",
+            "estado",
+            "original",
+            "valor",
+            "derivacao"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "confianca": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "validacoes": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/__schema11"
+              }
+            },
+            "alertas": {
+              "$ref": "#/$defs/__schema5"
+            },
+            "origem": {
+              "$ref": "#/$defs/__schema6"
+            },
+            "metodo": {
+              "$ref": "#/$defs/__schema7"
+            },
+            "evidencias": {
+              "$ref": "#/$defs/__schema8"
+            },
+            "estado": {
+              "type": "string",
+              "const": "INVALIDO"
+            },
+            "original": {
+              "type": "string"
+            },
+            "valor": {
+              "type": "null"
+            },
+            "derivacao": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "confianca",
+            "validacoes",
+            "alertas",
+            "origem",
+            "metodo",
+            "evidencias",
+            "estado",
+            "original",
+            "valor",
+            "derivacao"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "confianca": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "validacoes": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "alertas": {
+              "$ref": "#/$defs/__schema5"
+            },
+            "estado": {
+              "type": "string",
+              "const": "AUSENTE"
+            },
+            "original": {
+              "type": "null"
+            },
+            "valor": {
+              "type": "null"
+            },
+            "origem": {
+              "type": "null"
+            },
+            "metodo": {
+              "type": "null"
+            },
+            "evidencias": {
+              "maxItems": 0,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/__schema9"
+              }
+            },
+            "derivacao": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "confianca",
+            "validacoes",
+            "alertas",
+            "estado",
+            "original",
+            "valor",
+            "origem",
+            "metodo",
+            "evidencias",
+            "derivacao"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "confianca": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "validacoes": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "alertas": {
+              "$ref": "#/$defs/__schema5"
+            },
+            "origem": {
+              "$ref": "#/$defs/__schema6"
+            },
+            "metodo": {
+              "$ref": "#/$defs/__schema7"
+            },
+            "evidencias": {
+              "$ref": "#/$defs/__schema8"
+            },
+            "estado": {
+              "type": "string",
+              "const": "NAO_APLICAVEL"
+            },
+            "original": {
+              "type": "string",
+              "minLength": 1
+            },
+            "valor": {
+              "type": "null"
+            },
+            "derivacao": {
+              "type": "null"
+            },
+            "justificativa": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "confianca",
+            "validacoes",
+            "alertas",
+            "origem",
+            "metodo",
+            "evidencias",
+            "estado",
+            "original",
+            "valor",
+            "derivacao",
+            "justificativa"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "confianca": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "validacoes": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "alertas": {
+              "$ref": "#/$defs/__schema5"
+            },
+            "estado": {
+              "type": "string",
+              "const": "DERIVADO"
+            },
+            "original": {
+              "type": "null"
+            },
+            "valor": {
+              "$ref": "#/$defs/__schema10"
+            },
+            "origem": {
+              "type": "string",
+              "const": "CALCULO"
+            },
+            "metodo": {
+              "type": "string",
+              "const": "CALCULO_EVIDENCIADO"
+            },
+            "evidencias": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/__schema9"
+              }
+            },
+            "derivacao": {
+              "type": "object",
+              "properties": {
+                "formula_versao": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "campos_fontes": {
+                  "minItems": 1,
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/__schema12"
+                  }
+                }
+              },
+              "required": [
+                "formula_versao",
+                "campos_fontes"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "confianca",
+            "validacoes",
+            "alertas",
+            "estado",
+            "original",
+            "valor",
+            "origem",
+            "metodo",
+            "evidencias",
+            "derivacao"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "__schema2": {
+      "anyOf": [
+        {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema3": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "codigo": {
+            "$ref": "#/$defs/__schema4"
+          },
+          "resultado": {
+            "type": "string",
+            "enum": [
+              "PASSOU",
+              "FALHOU",
+              "NAO_EXECUTADA"
+            ]
+          }
+        },
+        "required": [
+          "codigo",
+          "resultado"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "__schema4": {
+      "type": "string",
+      "minLength": 1
+    },
+    "__schema5": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "__schema6": {
+      "type": "string",
+      "enum": [
+        "XML",
+        "PDF",
+        "MANUAL"
+      ]
+    },
+    "__schema7": {
+      "type": "string",
+      "enum": [
+        "XML_ESTRUTURAL",
+        "PDF_TEXTUAL",
+        "OCR",
+        "IA_VISUAL",
+        "ENTRADA_MANUAL"
+      ]
+    },
+    "__schema8": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/__schema9"
+      }
+    },
+    "__schema9": {
+      "type": "object",
+      "properties": {
+        "documento_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "caminho": {
+          "type": "string",
+          "minLength": 1
+        },
+        "namespace": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "documento_sha256",
+        "caminho",
+        "namespace"
+      ],
+      "additionalProperties": false
+    },
+    "__schema10": {
+      "type": "string",
+      "minLength": 1
+    },
+    "__schema11": {
+      "type": "object",
+      "properties": {
+        "codigo": {
+          "$ref": "#/$defs/__schema4"
+        },
+        "resultado": {
+          "type": "string",
+          "const": "FALHOU"
+        }
+      },
+      "required": [
+        "codigo",
+        "resultado"
+      ],
+      "additionalProperties": false
+    },
+    "__schema12": {
+      "type": "string",
+      "minLength": 1
+    },
+    "__schema13": {
+      "type": "string",
+      "pattern": "^\\d{50}$"
+    },
+    "__schema14": {
+      "type": "object",
+      "properties": {
+        "codigo": {
+          "$ref": "#/$defs/__schema4"
+        },
+        "resultado": {
+          "type": "string",
+          "const": "FALHOU"
+        }
+      },
+      "required": [
+        "codigo",
+        "resultado"
+      ],
+      "additionalProperties": false
+    },
+    "__schema15": {
+      "type": "string",
+      "minLength": 1
+    },
+    "__schema16": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "confianca": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "validacoes": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "alertas": {
+              "$ref": "#/$defs/__schema5"
+            },
+            "origem": {
+              "$ref": "#/$defs/__schema6"
+            },
+            "metodo": {
+              "$ref": "#/$defs/__schema7"
+            },
+            "evidencias": {
+              "$ref": "#/$defs/__schema8"
+            },
+            "estado": {
+              "type": "string",
+              "const": "PRESENTE"
+            },
+            "original": {
+              "type": "string",
+              "minLength": 1
+            },
+            "valor": {
+              "$ref": "#/$defs/__schema17"
+            },
+            "derivacao": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "confianca",
+            "validacoes",
+            "alertas",
+            "origem",
+            "metodo",
+            "evidencias",
+            "estado",
+            "original",
+            "valor",
+            "derivacao"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "confianca": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "validacoes": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/__schema18"
+              }
+            },
+            "alertas": {
+              "$ref": "#/$defs/__schema5"
+            },
+            "origem": {
+              "$ref": "#/$defs/__schema6"
+            },
+            "metodo": {
+              "$ref": "#/$defs/__schema7"
+            },
+            "evidencias": {
+              "$ref": "#/$defs/__schema8"
+            },
+            "estado": {
+              "type": "string",
+              "const": "INVALIDO"
+            },
+            "original": {
+              "type": "string"
+            },
+            "valor": {
+              "type": "null"
+            },
+            "derivacao": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "confianca",
+            "validacoes",
+            "alertas",
+            "origem",
+            "metodo",
+            "evidencias",
+            "estado",
+            "original",
+            "valor",
+            "derivacao"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "confianca": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "validacoes": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "alertas": {
+              "$ref": "#/$defs/__schema5"
+            },
+            "estado": {
+              "type": "string",
+              "const": "AUSENTE"
+            },
+            "original": {
+              "type": "null"
+            },
+            "valor": {
+              "type": "null"
+            },
+            "origem": {
+              "type": "null"
+            },
+            "metodo": {
+              "type": "null"
+            },
+            "evidencias": {
+              "maxItems": 0,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/__schema9"
+              }
+            },
+            "derivacao": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "confianca",
+            "validacoes",
+            "alertas",
+            "estado",
+            "original",
+            "valor",
+            "origem",
+            "metodo",
+            "evidencias",
+            "derivacao"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "confianca": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "validacoes": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "alertas": {
+              "$ref": "#/$defs/__schema5"
+            },
+            "origem": {
+              "$ref": "#/$defs/__schema6"
+            },
+            "metodo": {
+              "$ref": "#/$defs/__schema7"
+            },
+            "evidencias": {
+              "$ref": "#/$defs/__schema8"
+            },
+            "estado": {
+              "type": "string",
+              "const": "NAO_APLICAVEL"
+            },
+            "original": {
+              "type": "string",
+              "minLength": 1
+            },
+            "valor": {
+              "type": "null"
+            },
+            "derivacao": {
+              "type": "null"
+            },
+            "justificativa": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "confianca",
+            "validacoes",
+            "alertas",
+            "origem",
+            "metodo",
+            "evidencias",
+            "estado",
+            "original",
+            "valor",
+            "derivacao",
+            "justificativa"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "confianca": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "validacoes": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "alertas": {
+              "$ref": "#/$defs/__schema5"
+            },
+            "estado": {
+              "type": "string",
+              "const": "DERIVADO"
+            },
+            "original": {
+              "type": "null"
+            },
+            "valor": {
+              "$ref": "#/$defs/__schema17"
+            },
+            "origem": {
+              "type": "string",
+              "const": "CALCULO"
+            },
+            "metodo": {
+              "type": "string",
+              "const": "CALCULO_EVIDENCIADO"
+            },
+            "evidencias": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/__schema9"
+              }
+            },
+            "derivacao": {
+              "type": "object",
+              "properties": {
+                "formula_versao": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "campos_fontes": {
+                  "minItems": 1,
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/__schema19"
+                  }
+                }
+              },
+              "required": [
+                "formula_versao",
+                "campos_fontes"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "confianca",
+            "validacoes",
+            "alertas",
+            "estado",
+            "original",
+            "valor",
+            "origem",
+            "metodo",
+            "evidencias",
+            "derivacao"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "__schema17": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+        },
+        {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+        }
+      ]
+    },
+    "__schema18": {
+      "type": "object",
+      "properties": {
+        "codigo": {
+          "$ref": "#/$defs/__schema4"
+        },
+        "resultado": {
+          "type": "string",
+          "const": "FALHOU"
+        }
+      },
+      "required": [
+        "codigo",
+        "resultado"
+      ],
+      "additionalProperties": false
+    },
+    "__schema19": {
+      "type": "string",
+      "minLength": 1
+    },
+    "__schema20": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "confianca": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "validacoes": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "alertas": {
+              "$ref": "#/$defs/__schema5"
+            },
+            "origem": {
+              "$ref": "#/$defs/__schema6"
+            },
+            "metodo": {
+              "$ref": "#/$defs/__schema7"
+            },
+            "evidencias": {
+              "$ref": "#/$defs/__schema8"
+            },
+            "estado": {
+              "type": "string",
+              "const": "PRESENTE"
+            },
+            "original": {
+              "type": "string",
+              "minLength": 1
+            },
+            "valor": {
+              "$ref": "#/$defs/__schema21"
+            },
+            "derivacao": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "confianca",
+            "validacoes",
+            "alertas",
+            "origem",
+            "metodo",
+            "evidencias",
+            "estado",
+            "original",
+            "valor",
+            "derivacao"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "confianca": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "validacoes": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/__schema22"
+              }
+            },
+            "alertas": {
+              "$ref": "#/$defs/__schema5"
+            },
+            "origem": {
+              "$ref": "#/$defs/__schema6"
+            },
+            "metodo": {
+              "$ref": "#/$defs/__schema7"
+            },
+            "evidencias": {
+              "$ref": "#/$defs/__schema8"
+            },
+            "estado": {
+              "type": "string",
+              "const": "INVALIDO"
+            },
+            "original": {
+              "type": "string"
+            },
+            "valor": {
+              "type": "null"
+            },
+            "derivacao": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "confianca",
+            "validacoes",
+            "alertas",
+            "origem",
+            "metodo",
+            "evidencias",
+            "estado",
+            "original",
+            "valor",
+            "derivacao"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "confianca": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "validacoes": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "alertas": {
+              "$ref": "#/$defs/__schema5"
+            },
+            "estado": {
+              "type": "string",
+              "const": "AUSENTE"
+            },
+            "original": {
+              "type": "null"
+            },
+            "valor": {
+              "type": "null"
+            },
+            "origem": {
+              "type": "null"
+            },
+            "metodo": {
+              "type": "null"
+            },
+            "evidencias": {
+              "maxItems": 0,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/__schema9"
+              }
+            },
+            "derivacao": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "confianca",
+            "validacoes",
+            "alertas",
+            "estado",
+            "original",
+            "valor",
+            "origem",
+            "metodo",
+            "evidencias",
+            "derivacao"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "confianca": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "validacoes": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "alertas": {
+              "$ref": "#/$defs/__schema5"
+            },
+            "origem": {
+              "$ref": "#/$defs/__schema6"
+            },
+            "metodo": {
+              "$ref": "#/$defs/__schema7"
+            },
+            "evidencias": {
+              "$ref": "#/$defs/__schema8"
+            },
+            "estado": {
+              "type": "string",
+              "const": "NAO_APLICAVEL"
+            },
+            "original": {
+              "type": "string",
+              "minLength": 1
+            },
+            "valor": {
+              "type": "null"
+            },
+            "derivacao": {
+              "type": "null"
+            },
+            "justificativa": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "confianca",
+            "validacoes",
+            "alertas",
+            "origem",
+            "metodo",
+            "evidencias",
+            "estado",
+            "original",
+            "valor",
+            "derivacao",
+            "justificativa"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "confianca": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "validacoes": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "alertas": {
+              "$ref": "#/$defs/__schema5"
+            },
+            "estado": {
+              "type": "string",
+              "const": "DERIVADO"
+            },
+            "original": {
+              "type": "null"
+            },
+            "valor": {
+              "$ref": "#/$defs/__schema21"
+            },
+            "origem": {
+              "type": "string",
+              "const": "CALCULO"
+            },
+            "metodo": {
+              "type": "string",
+              "const": "CALCULO_EVIDENCIADO"
+            },
+            "evidencias": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/__schema9"
+              }
+            },
+            "derivacao": {
+              "type": "object",
+              "properties": {
+                "formula_versao": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "campos_fontes": {
+                  "minItems": 1,
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/__schema23"
+                  }
+                }
+              },
+              "required": [
+                "formula_versao",
+                "campos_fontes"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "confianca",
+            "validacoes",
+            "alertas",
+            "estado",
+            "original",
+            "valor",
+            "origem",
+            "metodo",
+            "evidencias",
+            "derivacao"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "__schema21": {
+      "type": "string",
+      "format": "date",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+    },
+    "__schema22": {
+      "type": "object",
+      "properties": {
+        "codigo": {
+          "$ref": "#/$defs/__schema4"
+        },
+        "resultado": {
+          "type": "string",
+          "const": "FALHOU"
+        }
+      },
+      "required": [
+        "codigo",
+        "resultado"
+      ],
+      "additionalProperties": false
+    },
+    "__schema23": {
+      "type": "string",
+      "minLength": 1
+    },
+    "__schema24": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "confianca": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "validacoes": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "alertas": {
+              "$ref": "#/$defs/__schema5"
+            },
+            "origem": {
+              "$ref": "#/$defs/__schema6"
+            },
+            "metodo": {
+              "$ref": "#/$defs/__schema7"
+            },
+            "evidencias": {
+              "$ref": "#/$defs/__schema8"
+            },
+            "estado": {
+              "type": "string",
+              "const": "PRESENTE"
+            },
+            "original": {
+              "type": "string",
+              "minLength": 1
+            },
+            "valor": {
+              "$ref": "#/$defs/__schema25"
+            },
+            "derivacao": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "confianca",
+            "validacoes",
+            "alertas",
+            "origem",
+            "metodo",
+            "evidencias",
+            "estado",
+            "original",
+            "valor",
+            "derivacao"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "confianca": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "validacoes": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/__schema26"
+              }
+            },
+            "alertas": {
+              "$ref": "#/$defs/__schema5"
+            },
+            "origem": {
+              "$ref": "#/$defs/__schema6"
+            },
+            "metodo": {
+              "$ref": "#/$defs/__schema7"
+            },
+            "evidencias": {
+              "$ref": "#/$defs/__schema8"
+            },
+            "estado": {
+              "type": "string",
+              "const": "INVALIDO"
+            },
+            "original": {
+              "type": "string"
+            },
+            "valor": {
+              "type": "null"
+            },
+            "derivacao": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "confianca",
+            "validacoes",
+            "alertas",
+            "origem",
+            "metodo",
+            "evidencias",
+            "estado",
+            "original",
+            "valor",
+            "derivacao"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "confianca": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "validacoes": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "alertas": {
+              "$ref": "#/$defs/__schema5"
+            },
+            "estado": {
+              "type": "string",
+              "const": "AUSENTE"
+            },
+            "original": {
+              "type": "null"
+            },
+            "valor": {
+              "type": "null"
+            },
+            "origem": {
+              "type": "null"
+            },
+            "metodo": {
+              "type": "null"
+            },
+            "evidencias": {
+              "maxItems": 0,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/__schema9"
+              }
+            },
+            "derivacao": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "confianca",
+            "validacoes",
+            "alertas",
+            "estado",
+            "original",
+            "valor",
+            "origem",
+            "metodo",
+            "evidencias",
+            "derivacao"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "confianca": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "validacoes": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "alertas": {
+              "$ref": "#/$defs/__schema5"
+            },
+            "origem": {
+              "$ref": "#/$defs/__schema6"
+            },
+            "metodo": {
+              "$ref": "#/$defs/__schema7"
+            },
+            "evidencias": {
+              "$ref": "#/$defs/__schema8"
+            },
+            "estado": {
+              "type": "string",
+              "const": "NAO_APLICAVEL"
+            },
+            "original": {
+              "type": "string",
+              "minLength": 1
+            },
+            "valor": {
+              "type": "null"
+            },
+            "derivacao": {
+              "type": "null"
+            },
+            "justificativa": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "confianca",
+            "validacoes",
+            "alertas",
+            "origem",
+            "metodo",
+            "evidencias",
+            "estado",
+            "original",
+            "valor",
+            "derivacao",
+            "justificativa"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "confianca": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "validacoes": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "alertas": {
+              "$ref": "#/$defs/__schema5"
+            },
+            "estado": {
+              "type": "string",
+              "const": "DERIVADO"
+            },
+            "original": {
+              "type": "null"
+            },
+            "valor": {
+              "$ref": "#/$defs/__schema25"
+            },
+            "origem": {
+              "type": "string",
+              "const": "CALCULO"
+            },
+            "metodo": {
+              "type": "string",
+              "const": "CALCULO_EVIDENCIADO"
+            },
+            "evidencias": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/__schema9"
+              }
+            },
+            "derivacao": {
+              "type": "object",
+              "properties": {
+                "formula_versao": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "campos_fontes": {
+                  "minItems": 1,
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/__schema27"
+                  }
+                }
+              },
+              "required": [
+                "formula_versao",
+                "campos_fontes"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "confianca",
+            "validacoes",
+            "alertas",
+            "estado",
+            "original",
+            "valor",
+            "origem",
+            "metodo",
+            "evidencias",
+            "derivacao"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "__schema25": {
+      "type": "string",
+      "enum": [
+        "ATIVA",
+        "CANCELADA",
+        "SUBSTITUIDA",
+        "DESCONHECIDA"
+      ]
+    },
+    "__schema26": {
+      "type": "object",
+      "properties": {
+        "codigo": {
+          "$ref": "#/$defs/__schema4"
+        },
+        "resultado": {
+          "type": "string",
+          "const": "FALHOU"
+        }
+      },
+      "required": [
+        "codigo",
+        "resultado"
+      ],
+      "additionalProperties": false
+    },
+    "__schema27": {
+      "type": "string",
+      "minLength": 1
+    },
+    "__schema28": {
+      "type": "object",
+      "properties": {
+        "cnpj": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "confianca": {
+                  "$ref": "#/$defs/__schema2"
+                },
+                "validacoes": {
+                  "$ref": "#/$defs/__schema3"
+                },
+                "alertas": {
+                  "$ref": "#/$defs/__schema5"
+                },
+                "origem": {
+                  "$ref": "#/$defs/__schema6"
+                },
+                "metodo": {
+                  "$ref": "#/$defs/__schema7"
+                },
+                "evidencias": {
+                  "$ref": "#/$defs/__schema8"
+                },
+                "estado": {
+                  "type": "string",
+                  "const": "PRESENTE"
+                },
+                "original": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "valor": {
+                  "$ref": "#/$defs/__schema29"
+                },
+                "derivacao": {
+                  "type": "null"
+                }
+              },
+              "required": [
+                "confianca",
+                "validacoes",
+                "alertas",
+                "origem",
+                "metodo",
+                "evidencias",
+                "estado",
+                "original",
+                "valor",
+                "derivacao"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "confianca": {
+                  "$ref": "#/$defs/__schema2"
+                },
+                "validacoes": {
+                  "minItems": 1,
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/__schema30"
+                  }
+                },
+                "alertas": {
+                  "$ref": "#/$defs/__schema5"
+                },
+                "origem": {
+                  "$ref": "#/$defs/__schema6"
+                },
+                "metodo": {
+                  "$ref": "#/$defs/__schema7"
+                },
+                "evidencias": {
+                  "$ref": "#/$defs/__schema8"
+                },
+                "estado": {
+                  "type": "string",
+                  "const": "INVALIDO"
+                },
+                "original": {
+                  "type": "string"
+                },
+                "valor": {
+                  "type": "null"
+                },
+                "derivacao": {
+                  "type": "null"
+                }
+              },
+              "required": [
+                "confianca",
+                "validacoes",
+                "alertas",
+                "origem",
+                "metodo",
+                "evidencias",
+                "estado",
+                "original",
+                "valor",
+                "derivacao"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "confianca": {
+                  "$ref": "#/$defs/__schema2"
+                },
+                "validacoes": {
+                  "$ref": "#/$defs/__schema3"
+                },
+                "alertas": {
+                  "$ref": "#/$defs/__schema5"
+                },
+                "estado": {
+                  "type": "string",
+                  "const": "AUSENTE"
+                },
+                "original": {
+                  "type": "null"
+                },
+                "valor": {
+                  "type": "null"
+                },
+                "origem": {
+                  "type": "null"
+                },
+                "metodo": {
+                  "type": "null"
+                },
+                "evidencias": {
+                  "maxItems": 0,
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/__schema9"
+                  }
+                },
+                "derivacao": {
+                  "type": "null"
+                }
+              },
+              "required": [
+                "confianca",
+                "validacoes",
+                "alertas",
+                "estado",
+                "original",
+                "valor",
+                "origem",
+                "metodo",
+                "evidencias",
+                "derivacao"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "confianca": {
+                  "$ref": "#/$defs/__schema2"
+                },
+                "validacoes": {
+                  "$ref": "#/$defs/__schema3"
+                },
+                "alertas": {
+                  "$ref": "#/$defs/__schema5"
+                },
+                "origem": {
+                  "$ref": "#/$defs/__schema6"
+                },
+                "metodo": {
+                  "$ref": "#/$defs/__schema7"
+                },
+                "evidencias": {
+                  "$ref": "#/$defs/__schema8"
+                },
+                "estado": {
+                  "type": "string",
+                  "const": "NAO_APLICAVEL"
+                },
+                "original": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "valor": {
+                  "type": "null"
+                },
+                "derivacao": {
+                  "type": "null"
+                },
+                "justificativa": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "confianca",
+                "validacoes",
+                "alertas",
+                "origem",
+                "metodo",
+                "evidencias",
+                "estado",
+                "original",
+                "valor",
+                "derivacao",
+                "justificativa"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "confianca": {
+                  "$ref": "#/$defs/__schema2"
+                },
+                "validacoes": {
+                  "$ref": "#/$defs/__schema3"
+                },
+                "alertas": {
+                  "$ref": "#/$defs/__schema5"
+                },
+                "estado": {
+                  "type": "string",
+                  "const": "DERIVADO"
+                },
+                "original": {
+                  "type": "null"
+                },
+                "valor": {
+                  "$ref": "#/$defs/__schema29"
+                },
+                "origem": {
+                  "type": "string",
+                  "const": "CALCULO"
+                },
+                "metodo": {
+                  "type": "string",
+                  "const": "CALCULO_EVIDENCIADO"
+                },
+                "evidencias": {
+                  "minItems": 1,
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/__schema9"
+                  }
+                },
+                "derivacao": {
+                  "type": "object",
+                  "properties": {
+                    "formula_versao": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "campos_fontes": {
+                      "minItems": 1,
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/$defs/__schema31"
+                      }
+                    }
+                  },
+                  "required": [
+                    "formula_versao",
+                    "campos_fontes"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "confianca",
+                "validacoes",
+                "alertas",
+                "estado",
+                "original",
+                "valor",
+                "origem",
+                "metodo",
+                "evidencias",
+                "derivacao"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "cpf": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "confianca": {
+                  "$ref": "#/$defs/__schema2"
+                },
+                "validacoes": {
+                  "$ref": "#/$defs/__schema3"
+                },
+                "alertas": {
+                  "$ref": "#/$defs/__schema5"
+                },
+                "origem": {
+                  "$ref": "#/$defs/__schema6"
+                },
+                "metodo": {
+                  "$ref": "#/$defs/__schema7"
+                },
+                "evidencias": {
+                  "$ref": "#/$defs/__schema8"
+                },
+                "estado": {
+                  "type": "string",
+                  "const": "PRESENTE"
+                },
+                "original": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "valor": {
+                  "$ref": "#/$defs/__schema32"
+                },
+                "derivacao": {
+                  "type": "null"
+                }
+              },
+              "required": [
+                "confianca",
+                "validacoes",
+                "alertas",
+                "origem",
+                "metodo",
+                "evidencias",
+                "estado",
+                "original",
+                "valor",
+                "derivacao"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "confianca": {
+                  "$ref": "#/$defs/__schema2"
+                },
+                "validacoes": {
+                  "minItems": 1,
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/__schema33"
+                  }
+                },
+                "alertas": {
+                  "$ref": "#/$defs/__schema5"
+                },
+                "origem": {
+                  "$ref": "#/$defs/__schema6"
+                },
+                "metodo": {
+                  "$ref": "#/$defs/__schema7"
+                },
+                "evidencias": {
+                  "$ref": "#/$defs/__schema8"
+                },
+                "estado": {
+                  "type": "string",
+                  "const": "INVALIDO"
+                },
+                "original": {
+                  "type": "string"
+                },
+                "valor": {
+                  "type": "null"
+                },
+                "derivacao": {
+                  "type": "null"
+                }
+              },
+              "required": [
+                "confianca",
+                "validacoes",
+                "alertas",
+                "origem",
+                "metodo",
+                "evidencias",
+                "estado",
+                "original",
+                "valor",
+                "derivacao"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "confianca": {
+                  "$ref": "#/$defs/__schema2"
+                },
+                "validacoes": {
+                  "$ref": "#/$defs/__schema3"
+                },
+                "alertas": {
+                  "$ref": "#/$defs/__schema5"
+                },
+                "estado": {
+                  "type": "string",
+                  "const": "AUSENTE"
+                },
+                "original": {
+                  "type": "null"
+                },
+                "valor": {
+                  "type": "null"
+                },
+                "origem": {
+                  "type": "null"
+                },
+                "metodo": {
+                  "type": "null"
+                },
+                "evidencias": {
+                  "maxItems": 0,
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/__schema9"
+                  }
+                },
+                "derivacao": {
+                  "type": "null"
+                }
+              },
+              "required": [
+                "confianca",
+                "validacoes",
+                "alertas",
+                "estado",
+                "original",
+                "valor",
+                "origem",
+                "metodo",
+                "evidencias",
+                "derivacao"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "confianca": {
+                  "$ref": "#/$defs/__schema2"
+                },
+                "validacoes": {
+                  "$ref": "#/$defs/__schema3"
+                },
+                "alertas": {
+                  "$ref": "#/$defs/__schema5"
+                },
+                "origem": {
+                  "$ref": "#/$defs/__schema6"
+                },
+                "metodo": {
+                  "$ref": "#/$defs/__schema7"
+                },
+                "evidencias": {
+                  "$ref": "#/$defs/__schema8"
+                },
+                "estado": {
+                  "type": "string",
+                  "const": "NAO_APLICAVEL"
+                },
+                "original": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "valor": {
+                  "type": "null"
+                },
+                "derivacao": {
+                  "type": "null"
+                },
+                "justificativa": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "confianca",
+                "validacoes",
+                "alertas",
+                "origem",
+                "metodo",
+                "evidencias",
+                "estado",
+                "original",
+                "valor",
+                "derivacao",
+                "justificativa"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "confianca": {
+                  "$ref": "#/$defs/__schema2"
+                },
+                "validacoes": {
+                  "$ref": "#/$defs/__schema3"
+                },
+                "alertas": {
+                  "$ref": "#/$defs/__schema5"
+                },
+                "estado": {
+                  "type": "string",
+                  "const": "DERIVADO"
+                },
+                "original": {
+                  "type": "null"
+                },
+                "valor": {
+                  "$ref": "#/$defs/__schema32"
+                },
+                "origem": {
+                  "type": "string",
+                  "const": "CALCULO"
+                },
+                "metodo": {
+                  "type": "string",
+                  "const": "CALCULO_EVIDENCIADO"
+                },
+                "evidencias": {
+                  "minItems": 1,
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/__schema9"
+                  }
+                },
+                "derivacao": {
+                  "type": "object",
+                  "properties": {
+                    "formula_versao": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "campos_fontes": {
+                      "minItems": 1,
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/$defs/__schema34"
+                      }
+                    }
+                  },
+                  "required": [
+                    "formula_versao",
+                    "campos_fontes"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "confianca",
+                "validacoes",
+                "alertas",
+                "estado",
+                "original",
+                "valor",
+                "origem",
+                "metodo",
+                "evidencias",
+                "derivacao"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "nif": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "motivo_sem_nif": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "caepf": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "inscricao_municipal": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "razao_social": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "nome_fantasia": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "email": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "telefone": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "endereco": {
+          "type": "object",
+          "properties": {
+            "logradouro": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "numero": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "complemento": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "bairro": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "codigo_municipio": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "municipio": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "uf": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "cep": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "codigo_pais": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "cidade_exterior": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "estado_exterior": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "codigo_postal_exterior": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "logradouro",
+            "numero",
+            "complemento",
+            "bairro",
+            "codigo_municipio",
+            "municipio",
+            "uf",
+            "cep",
+            "codigo_pais",
+            "cidade_exterior",
+            "estado_exterior",
+            "codigo_postal_exterior"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "cnpj",
+        "cpf",
+        "nif",
+        "motivo_sem_nif",
+        "caepf",
+        "inscricao_municipal",
+        "razao_social",
+        "nome_fantasia",
+        "email",
+        "telefone",
+        "endereco"
+      ],
+      "additionalProperties": false
+    },
+    "__schema29": {
+      "type": "string",
+      "pattern": "^\\d{14}$"
+    },
+    "__schema30": {
+      "type": "object",
+      "properties": {
+        "codigo": {
+          "$ref": "#/$defs/__schema4"
+        },
+        "resultado": {
+          "type": "string",
+          "const": "FALHOU"
+        }
+      },
+      "required": [
+        "codigo",
+        "resultado"
+      ],
+      "additionalProperties": false
+    },
+    "__schema31": {
+      "type": "string",
+      "minLength": 1
+    },
+    "__schema32": {
+      "type": "string",
+      "pattern": "^\\d{11}$"
+    },
+    "__schema33": {
+      "type": "object",
+      "properties": {
+        "codigo": {
+          "$ref": "#/$defs/__schema4"
+        },
+        "resultado": {
+          "type": "string",
+          "const": "FALHOU"
+        }
+      },
+      "required": [
+        "codigo",
+        "resultado"
+      ],
+      "additionalProperties": false
+    },
+    "__schema34": {
+      "type": "string",
+      "minLength": 1
+    },
+    "__schema35": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "confianca": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "validacoes": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "alertas": {
+              "$ref": "#/$defs/__schema5"
+            },
+            "origem": {
+              "$ref": "#/$defs/__schema6"
+            },
+            "metodo": {
+              "$ref": "#/$defs/__schema7"
+            },
+            "evidencias": {
+              "$ref": "#/$defs/__schema8"
+            },
+            "estado": {
+              "type": "string",
+              "const": "PRESENTE"
+            },
+            "original": {
+              "type": "string",
+              "minLength": 1
+            },
+            "valor": {
+              "$ref": "#/$defs/__schema36"
+            },
+            "derivacao": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "confianca",
+            "validacoes",
+            "alertas",
+            "origem",
+            "metodo",
+            "evidencias",
+            "estado",
+            "original",
+            "valor",
+            "derivacao"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "confianca": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "validacoes": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/__schema37"
+              }
+            },
+            "alertas": {
+              "$ref": "#/$defs/__schema5"
+            },
+            "origem": {
+              "$ref": "#/$defs/__schema6"
+            },
+            "metodo": {
+              "$ref": "#/$defs/__schema7"
+            },
+            "evidencias": {
+              "$ref": "#/$defs/__schema8"
+            },
+            "estado": {
+              "type": "string",
+              "const": "INVALIDO"
+            },
+            "original": {
+              "type": "string"
+            },
+            "valor": {
+              "type": "null"
+            },
+            "derivacao": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "confianca",
+            "validacoes",
+            "alertas",
+            "origem",
+            "metodo",
+            "evidencias",
+            "estado",
+            "original",
+            "valor",
+            "derivacao"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "confianca": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "validacoes": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "alertas": {
+              "$ref": "#/$defs/__schema5"
+            },
+            "estado": {
+              "type": "string",
+              "const": "AUSENTE"
+            },
+            "original": {
+              "type": "null"
+            },
+            "valor": {
+              "type": "null"
+            },
+            "origem": {
+              "type": "null"
+            },
+            "metodo": {
+              "type": "null"
+            },
+            "evidencias": {
+              "maxItems": 0,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/__schema9"
+              }
+            },
+            "derivacao": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "confianca",
+            "validacoes",
+            "alertas",
+            "estado",
+            "original",
+            "valor",
+            "origem",
+            "metodo",
+            "evidencias",
+            "derivacao"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "confianca": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "validacoes": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "alertas": {
+              "$ref": "#/$defs/__schema5"
+            },
+            "origem": {
+              "$ref": "#/$defs/__schema6"
+            },
+            "metodo": {
+              "$ref": "#/$defs/__schema7"
+            },
+            "evidencias": {
+              "$ref": "#/$defs/__schema8"
+            },
+            "estado": {
+              "type": "string",
+              "const": "NAO_APLICAVEL"
+            },
+            "original": {
+              "type": "string",
+              "minLength": 1
+            },
+            "valor": {
+              "type": "null"
+            },
+            "derivacao": {
+              "type": "null"
+            },
+            "justificativa": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "confianca",
+            "validacoes",
+            "alertas",
+            "origem",
+            "metodo",
+            "evidencias",
+            "estado",
+            "original",
+            "valor",
+            "derivacao",
+            "justificativa"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "confianca": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "validacoes": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "alertas": {
+              "$ref": "#/$defs/__schema5"
+            },
+            "estado": {
+              "type": "string",
+              "const": "DERIVADO"
+            },
+            "original": {
+              "type": "null"
+            },
+            "valor": {
+              "$ref": "#/$defs/__schema36"
+            },
+            "origem": {
+              "type": "string",
+              "const": "CALCULO"
+            },
+            "metodo": {
+              "type": "string",
+              "const": "CALCULO_EVIDENCIADO"
+            },
+            "evidencias": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/__schema9"
+              }
+            },
+            "derivacao": {
+              "type": "object",
+              "properties": {
+                "formula_versao": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "campos_fontes": {
+                  "minItems": 1,
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/__schema38"
+                  }
+                }
+              },
+              "required": [
+                "formula_versao",
+                "campos_fontes"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "confianca",
+            "validacoes",
+            "alertas",
+            "estado",
+            "original",
+            "valor",
+            "origem",
+            "metodo",
+            "evidencias",
+            "derivacao"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "__schema36": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d{0,14})\\.\\d{2}$"
+    },
+    "__schema37": {
+      "type": "object",
+      "properties": {
+        "codigo": {
+          "$ref": "#/$defs/__schema4"
+        },
+        "resultado": {
+          "type": "string",
+          "const": "FALHOU"
+        }
+      },
+      "required": [
+        "codigo",
+        "resultado"
+      ],
+      "additionalProperties": false
+    },
+    "__schema38": {
+      "type": "string",
+      "minLength": 1
+    },
+    "__schema39": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "confianca": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "validacoes": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "alertas": {
+              "$ref": "#/$defs/__schema5"
+            },
+            "origem": {
+              "$ref": "#/$defs/__schema6"
+            },
+            "metodo": {
+              "$ref": "#/$defs/__schema7"
+            },
+            "evidencias": {
+              "$ref": "#/$defs/__schema8"
+            },
+            "estado": {
+              "type": "string",
+              "const": "PRESENTE"
+            },
+            "original": {
+              "type": "string",
+              "minLength": 1
+            },
+            "valor": {
+              "$ref": "#/$defs/__schema40"
+            },
+            "derivacao": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "confianca",
+            "validacoes",
+            "alertas",
+            "origem",
+            "metodo",
+            "evidencias",
+            "estado",
+            "original",
+            "valor",
+            "derivacao"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "confianca": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "validacoes": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/__schema41"
+              }
+            },
+            "alertas": {
+              "$ref": "#/$defs/__schema5"
+            },
+            "origem": {
+              "$ref": "#/$defs/__schema6"
+            },
+            "metodo": {
+              "$ref": "#/$defs/__schema7"
+            },
+            "evidencias": {
+              "$ref": "#/$defs/__schema8"
+            },
+            "estado": {
+              "type": "string",
+              "const": "INVALIDO"
+            },
+            "original": {
+              "type": "string"
+            },
+            "valor": {
+              "type": "null"
+            },
+            "derivacao": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "confianca",
+            "validacoes",
+            "alertas",
+            "origem",
+            "metodo",
+            "evidencias",
+            "estado",
+            "original",
+            "valor",
+            "derivacao"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "confianca": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "validacoes": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "alertas": {
+              "$ref": "#/$defs/__schema5"
+            },
+            "estado": {
+              "type": "string",
+              "const": "AUSENTE"
+            },
+            "original": {
+              "type": "null"
+            },
+            "valor": {
+              "type": "null"
+            },
+            "origem": {
+              "type": "null"
+            },
+            "metodo": {
+              "type": "null"
+            },
+            "evidencias": {
+              "maxItems": 0,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/__schema9"
+              }
+            },
+            "derivacao": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "confianca",
+            "validacoes",
+            "alertas",
+            "estado",
+            "original",
+            "valor",
+            "origem",
+            "metodo",
+            "evidencias",
+            "derivacao"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "confianca": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "validacoes": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "alertas": {
+              "$ref": "#/$defs/__schema5"
+            },
+            "origem": {
+              "$ref": "#/$defs/__schema6"
+            },
+            "metodo": {
+              "$ref": "#/$defs/__schema7"
+            },
+            "evidencias": {
+              "$ref": "#/$defs/__schema8"
+            },
+            "estado": {
+              "type": "string",
+              "const": "NAO_APLICAVEL"
+            },
+            "original": {
+              "type": "string",
+              "minLength": 1
+            },
+            "valor": {
+              "type": "null"
+            },
+            "derivacao": {
+              "type": "null"
+            },
+            "justificativa": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "confianca",
+            "validacoes",
+            "alertas",
+            "origem",
+            "metodo",
+            "evidencias",
+            "estado",
+            "original",
+            "valor",
+            "derivacao",
+            "justificativa"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "confianca": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "validacoes": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "alertas": {
+              "$ref": "#/$defs/__schema5"
+            },
+            "estado": {
+              "type": "string",
+              "const": "DERIVADO"
+            },
+            "original": {
+              "type": "null"
+            },
+            "valor": {
+              "$ref": "#/$defs/__schema40"
+            },
+            "origem": {
+              "type": "string",
+              "const": "CALCULO"
+            },
+            "metodo": {
+              "type": "string",
+              "const": "CALCULO_EVIDENCIADO"
+            },
+            "evidencias": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/__schema9"
+              }
+            },
+            "derivacao": {
+              "type": "object",
+              "properties": {
+                "formula_versao": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "campos_fontes": {
+                  "minItems": 1,
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/__schema42"
+                  }
+                }
+              },
+              "required": [
+                "formula_versao",
+                "campos_fontes"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "confianca",
+            "validacoes",
+            "alertas",
+            "estado",
+            "original",
+            "valor",
+            "origem",
+            "metodo",
+            "evidencias",
+            "derivacao"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "__schema40": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d{0,2})(\\.\\d{1,4})?$"
+    },
+    "__schema41": {
+      "type": "object",
+      "properties": {
+        "codigo": {
+          "$ref": "#/$defs/__schema4"
+        },
+        "resultado": {
+          "type": "string",
+          "const": "FALHOU"
+        }
+      },
+      "required": [
+        "codigo",
+        "resultado"
+      ],
+      "additionalProperties": false
+    },
+    "__schema42": {
+      "type": "string",
+      "minLength": 1
+    },
+    "__schema43": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "confianca": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "validacoes": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "alertas": {
+              "$ref": "#/$defs/__schema5"
+            },
+            "origem": {
+              "$ref": "#/$defs/__schema6"
+            },
+            "metodo": {
+              "$ref": "#/$defs/__schema7"
+            },
+            "evidencias": {
+              "$ref": "#/$defs/__schema8"
+            },
+            "estado": {
+              "type": "string",
+              "const": "PRESENTE"
+            },
+            "original": {
+              "type": "string",
+              "minLength": 1
+            },
+            "valor": {
+              "$ref": "#/$defs/__schema44"
+            },
+            "derivacao": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "confianca",
+            "validacoes",
+            "alertas",
+            "origem",
+            "metodo",
+            "evidencias",
+            "estado",
+            "original",
+            "valor",
+            "derivacao"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "confianca": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "validacoes": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/__schema45"
+              }
+            },
+            "alertas": {
+              "$ref": "#/$defs/__schema5"
+            },
+            "origem": {
+              "$ref": "#/$defs/__schema6"
+            },
+            "metodo": {
+              "$ref": "#/$defs/__schema7"
+            },
+            "evidencias": {
+              "$ref": "#/$defs/__schema8"
+            },
+            "estado": {
+              "type": "string",
+              "const": "INVALIDO"
+            },
+            "original": {
+              "type": "string"
+            },
+            "valor": {
+              "type": "null"
+            },
+            "derivacao": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "confianca",
+            "validacoes",
+            "alertas",
+            "origem",
+            "metodo",
+            "evidencias",
+            "estado",
+            "original",
+            "valor",
+            "derivacao"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "confianca": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "validacoes": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "alertas": {
+              "$ref": "#/$defs/__schema5"
+            },
+            "estado": {
+              "type": "string",
+              "const": "AUSENTE"
+            },
+            "original": {
+              "type": "null"
+            },
+            "valor": {
+              "type": "null"
+            },
+            "origem": {
+              "type": "null"
+            },
+            "metodo": {
+              "type": "null"
+            },
+            "evidencias": {
+              "maxItems": 0,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/__schema9"
+              }
+            },
+            "derivacao": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "confianca",
+            "validacoes",
+            "alertas",
+            "estado",
+            "original",
+            "valor",
+            "origem",
+            "metodo",
+            "evidencias",
+            "derivacao"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "confianca": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "validacoes": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "alertas": {
+              "$ref": "#/$defs/__schema5"
+            },
+            "origem": {
+              "$ref": "#/$defs/__schema6"
+            },
+            "metodo": {
+              "$ref": "#/$defs/__schema7"
+            },
+            "evidencias": {
+              "$ref": "#/$defs/__schema8"
+            },
+            "estado": {
+              "type": "string",
+              "const": "NAO_APLICAVEL"
+            },
+            "original": {
+              "type": "string",
+              "minLength": 1
+            },
+            "valor": {
+              "type": "null"
+            },
+            "derivacao": {
+              "type": "null"
+            },
+            "justificativa": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "confianca",
+            "validacoes",
+            "alertas",
+            "origem",
+            "metodo",
+            "evidencias",
+            "estado",
+            "original",
+            "valor",
+            "derivacao",
+            "justificativa"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "confianca": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "validacoes": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "alertas": {
+              "$ref": "#/$defs/__schema5"
+            },
+            "estado": {
+              "type": "string",
+              "const": "DERIVADO"
+            },
+            "original": {
+              "type": "null"
+            },
+            "valor": {
+              "$ref": "#/$defs/__schema44"
+            },
+            "origem": {
+              "type": "string",
+              "const": "CALCULO"
+            },
+            "metodo": {
+              "type": "string",
+              "const": "CALCULO_EVIDENCIADO"
+            },
+            "evidencias": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/__schema9"
+              }
+            },
+            "derivacao": {
+              "type": "object",
+              "properties": {
+                "formula_versao": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "campos_fontes": {
+                  "minItems": 1,
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/__schema46"
+                  }
+                }
+              },
+              "required": [
+                "formula_versao",
+                "campos_fontes"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "confianca",
+            "validacoes",
+            "alertas",
+            "estado",
+            "original",
+            "valor",
+            "origem",
+            "metodo",
+            "evidencias",
+            "derivacao"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "__schema44": {
+      "type": "boolean"
+    },
+    "__schema45": {
+      "type": "object",
+      "properties": {
+        "codigo": {
+          "$ref": "#/$defs/__schema4"
+        },
+        "resultado": {
+          "type": "string",
+          "const": "FALHOU"
+        }
+      },
+      "required": [
+        "codigo",
+        "resultado"
+      ],
+      "additionalProperties": false
+    },
+    "__schema46": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "$id": "urn:bw-antecipa:nfse-canonical:1.1.0",
+  "title": "NFS-e canônica: extração documental sem elegibilidade"
+}

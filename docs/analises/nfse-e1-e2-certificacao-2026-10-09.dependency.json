@@ -1,0 +1,120 @@
+{
+  "consultado_em": "2026-10-09",
+  "escopo": "saxes@6.0.0 e xmlchars@2.2.0, nao auditoria de todas as dependencias do projeto",
+  "packages": [
+    {
+      "package": "saxes",
+      "latest": "6.0.0",
+      "latest_published": "2021-11-07T19:06:31.264Z",
+      "selected_published": "2021-11-07T19:06:31.264Z",
+      "registry_url": "https://registry.npmjs.org/saxes",
+      "osv_query": {
+        "package": {
+          "ecosystem": "npm",
+          "name": "saxes"
+        },
+        "version": "6.0.0"
+      },
+      "osv_result": {}
+    },
+    {
+      "package": "xmlchars",
+      "latest": "2.2.0",
+      "latest_published": "2019-09-06T16:38:51.976Z",
+      "selected_published": "2019-09-06T16:38:51.976Z",
+      "registry_url": "https://registry.npmjs.org/xmlchars",
+      "osv_query": {
+        "package": {
+          "ecosystem": "npm",
+          "name": "xmlchars"
+        },
+        "version": "2.2.0"
+      },
+      "osv_result": {}
+    },
+    {
+      "package": "sax",
+      "latest": "1.6.1",
+      "latest_published": "2026-07-24T18:50:24.821Z",
+      "selected_published": null,
+      "registry_url": "https://registry.npmjs.org/sax"
+    },
+    {
+      "package": "fast-xml-parser",
+      "latest": "5.11.2",
+      "latest_published": "2026-09-29T04:45:32.224Z",
+      "selected_published": null,
+      "registry_url": "https://registry.npmjs.org/fast-xml-parser"
+    }
+  ],
+  "repositories": [
+    {
+      "repo": "lddubeau/saxes",
+      "url": "https://github.com/lddubeau/saxes",
+      "archived": true,
+      "updated_at": "2026-09-09T09:00:08Z",
+      "pushed_at": "2025-12-31T16:42:03Z",
+      "branch": "master",
+      "tree_sha": "4968bd09b5fd0270a989c69913614b0e640dae1b",
+      "xml_pdf_paths": [
+        "examples/test.xml",
+        "test/files/entities.xml"
+      ],
+      "tree_truncated": false
+    },
+    {
+      "repo": "isaacs/sax-js",
+      "url": "https://github.com/isaacs/sax-js",
+      "archived": false,
+      "updated_at": "2026-10-09T17:48:21Z",
+      "pushed_at": "2026-07-24T18:50:27Z",
+      "branch": "main",
+      "tree_sha": "961ceeefcc5186005466f2085aeb36f31b161e37",
+      "xml_pdf_paths": [
+        "examples/big-not-pretty.xml",
+        "examples/not-pretty.xml",
+        "examples/shopping.xml",
+        "examples/test.xml"
+      ],
+      "tree_truncated": false
+    },
+    {
+      "repo": "NaturalIntelligence/fast-xml-parser",
+      "url": "https://github.com/NaturalIntelligence/fast-xml-parser",
+      "archived": false,
+      "updated_at": "2026-10-07T13:58:48Z",
+      "pushed_at": "2026-10-01T06:36:21Z",
+      "branch": "master",
+      "tree_sha": "80e88a848b073fd630bc181291a24922c6d1e839",
+      "xml_pdf_paths": [
+        "spec/assets/complex.xml",
+        "spec/assets/crlf.xml",
+        "spec/assets/invalid.xml",
+        "spec/assets/large.xml",
+        "spec/assets/midsize.xml",
+        "spec/assets/mini-sample.xml",
+        "spec/assets/mixed.xml",
+        "spec/assets/ptest.xml",
+        "spec/assets/ptest_with_prolog.xml",
+        "spec/assets/sample.xml"
+      ],
+      "tree_truncated": false
+    }
+  ],
+  "github_advisories": [
+    {
+      "package": "saxes",
+      "version": "6.0.0",
+      "url": "https://api.github.com/advisories?ecosystem=npm&affects=saxes%406.0.0",
+      "advisories_count": 0,
+      "ids": []
+    },
+    {
+      "package": "xmlchars",
+      "version": "2.2.0",
+      "url": "https://api.github.com/advisories?ecosystem=npm&affects=xmlchars%402.2.0",
+      "advisories_count": 0,
+      "ids": []
+    }
+  ]
+}

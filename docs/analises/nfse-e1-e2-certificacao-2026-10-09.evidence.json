@@ -1,0 +1,692 @@
+{
+  "node": "v22.23.3",
+  "modo": "SOMENTE_LEITURA",
+  "corpus": "SINTETICO_ESTRUTURAL",
+  "assinatura_verificada": false,
+  "autorizacao_fiscal_verificada": false,
+  "documentos_emitidos_testados": 0,
+  "schemas_oficiais_alterados": false,
+  "fontes": [
+    {
+      "url": "https://www.gov.br/nfse/pt-br/biblioteca/documentacao-tecnica/documentacao-atual/nfse-esquemas_xsd-v1-01-20260209.zip",
+      "tipo": "XSD_OFICIAL_PUBLICO",
+      "alterado": false,
+      "arquivos": [
+        {
+          "arquivo": "1.00/DPS_v1.00.xsd",
+          "sha256": "35b1efecd3a1a7eeea218f62a65becc3d27522ded22b7614e676bbf222cae651"
+        },
+        {
+          "arquivo": "1.00/evento_v1.00.xsd",
+          "sha256": "3c34425d9b46b58628ecde8818f65b8c11bac958c3fc71ee1af4e9980e8bc08c"
+        },
+        {
+          "arquivo": "1.00/NFSe_v1.00.xsd",
+          "sha256": "2c78fa25f38345209f2dbd0b5f2bd1be224fd92404f6c86af219c1294af455ba"
+        },
+        {
+          "arquivo": "1.00/pedRegEvento_v1.00.xsd",
+          "sha256": "ded678013de82b489f19d340824e07a45b2a01995af15ef56f7d2cdd27a5b317"
+        },
+        {
+          "arquivo": "1.00/tiposComplexos_v1.00.xsd",
+          "sha256": "52ecf2a78ffea4cb7f35c30d5c4b6dab8a8e7e84aa4565074eef22b2ab3669e1"
+        },
+        {
+          "arquivo": "1.00/tiposEventos_v1.00.xsd",
+          "sha256": "6743a30763b087f1a5da036ea2864c8798ba4d3c48a293d00ecafefe31770bdf"
+        },
+        {
+          "arquivo": "1.00/tiposSimples_v1.00.xsd",
+          "sha256": "9e35101b2a29b7b09f656ee4d83ed3752bd84d4b7ae370823f24efac744d0f04"
+        },
+        {
+          "arquivo": "1.00/xmldsig-core-schema.xsd",
+          "sha256": "d87432c5f6ebb2bd61a1de357797401c203f14daefde834b73946f25f926a216"
+        },
+        {
+          "arquivo": "1.01/DPS_v1.01.xsd",
+          "sha256": "fe45e5250a48e519aba89fc6a472863b8e602ed957778fb64692804933a00d0c"
+        },
+        {
+          "arquivo": "1.01/evento_v1.01.xsd",
+          "sha256": "986d0a1c4d27454f712169849aa7c2380aaa4560bd9c920e0ff03ba6599ae28b"
+        },
+        {
+          "arquivo": "1.01/NFSe_v1.01.xsd",
+          "sha256": "af0bd2d8c50acba3d9c3f3f515426eca083b3f66e3211ce8dd48a7cf101818b8"
+        },
+        {
+          "arquivo": "1.01/pedRegEvento_v1.01.xsd",
+          "sha256": "e90b6816d29cca0bd5ed8f86ad98d3b7b0d8bbfc11a7583e6ff8f98170fd4009"
+        },
+        {
+          "arquivo": "1.01/tiposComplexos_v1.01.xsd",
+          "sha256": "e8e09d525574cc224ca6d1f8d8eb0366043ab2a3aa8d0d234058e6244d60e371"
+        },
+        {
+          "arquivo": "1.01/tiposEventos_v1.01.xsd",
+          "sha256": "1b32bea21089dc232d78b62d805e9c07382f440d4e0ea2cb3fb6b82ebde68c11"
+        },
+        {
+          "arquivo": "1.01/tiposSimples_v1.01.xsd",
+          "sha256": "830ea116c34d7310699e34b214b7214a65f7e5d3b1f09aeaa702f7e3f4283b17"
+        },
+        {
+          "arquivo": "1.01/xmldsig-core-schema.xsd",
+          "sha256": "49848f732663aecb618d72ad6130c5c3240f0a10f3a1a8544b7d48a6c726046f"
+        }
+      ]
+    },
+    {
+      "url": "https://www.gov.br/nfse/pt-br/biblioteca/documentacao-tecnica/producao-restrita/esquemas-nfse-rtc-v1-01-20260727.zip",
+      "tipo": "XSD_OFICIAL_PUBLICO_HOMOLOGACAO",
+      "alterado": false,
+      "zip_sha256": "6c7e0510d3ecff4454f291f4e10b742d27a4818f23aab181494f96d0ea79f3dc",
+      "origem_download": "Cache da auditoria desta data; nova tentativa HTTP 403; pagina oficial confirmada nesta certificacao",
+      "arquivos": [
+        {
+          "arquivo": "homolog-20260727/1.01/CNC_v1.00.xsd",
+          "sha256": "26961f705970ccb1dede1b6bb0ab544ca1d089137c22e93371d789c1e15ef0c4"
+        },
+        {
+          "arquivo": "homolog-20260727/1.01/DPS_v1.01.xsd",
+          "sha256": "c7dab363d8cf7c83fc2b3b21e72cf669a51bd30947a5690685ea96c4b3e39dcd"
+        },
+        {
+          "arquivo": "homolog-20260727/1.01/evento_v1.01.xsd",
+          "sha256": "dd14062174d439a67a11266d82e822cb9021db1595a41bd876a16560a38f6aec"
+        },
+        {
+          "arquivo": "homolog-20260727/1.01/NFSe_v1.01.xsd",
+          "sha256": "1dd8f543060a4ba6f355693f1fa5d79a269acae7c3dfe42d621f62911cfebac0"
+        },
+        {
+          "arquivo": "homolog-20260727/1.01/pedRegEvento_v1.01.xsd",
+          "sha256": "186c83f33752a195845300af61ffbe7136547f84cab032b35238c78f9d78f7c6"
+        },
+        {
+          "arquivo": "homolog-20260727/1.01/tiposCnc_v1.00.xsd",
+          "sha256": "c1cc33f1007251075b1fff7766bf881bba6a8ad7f1f36d149e54ae98090c77f8"
+        },
+        {
+          "arquivo": "homolog-20260727/1.01/tiposComplexos_v1.01.xsd",
+          "sha256": "6f792f408a33c11e799042a8d61cac7d1c9f5992c53e07e60ce75a15f157d1ac"
+        },
+        {
+          "arquivo": "homolog-20260727/1.01/tiposEventos_v1.01.xsd",
+          "sha256": "6c9ae744b1cb886607c1138c32eeb76cd410b856ce7301197b95d48d63f7b40b"
+        },
+        {
+          "arquivo": "homolog-20260727/1.01/tiposSimples_v1.01.xsd",
+          "sha256": "3d8171c9b7c9a82ecb48eed9a96485f2077006e7d21db6cd182839dd34dbb5e4"
+        },
+        {
+          "arquivo": "homolog-20260727/1.01/xmldsig-core-schema.xsd",
+          "sha256": "bf43998b2df1fedd9ed7d6914f91ab4d34958e8730c3b500cbe0b21e60335f11"
+        }
+      ]
+    }
+  ],
+  "xsd": [
+    {
+      "id": "nfse-1-00",
+      "versao": "1.00",
+      "origem": "SINTETICO_ESTRUTURAL",
+      "perfil": "producao-20260209",
+      "xsd_sha256": "2c78fa25f38345209f2dbd0b5f2bd1be224fd92404f6c86af219c1294af455ba",
+      "xml_sha256": "1d4fa504c57f48c6bc608640a4cc7dc9ab5391f0fb769fc7535ace4f3db70d38",
+      "xsd_valido": true,
+      "erros": [],
+      "expectativa_negativa": false,
+      "coincide_com_expectativa": true
+    },
+    {
+      "id": "nfse-1-01",
+      "versao": "1.01",
+      "origem": "SINTETICO_ESTRUTURAL",
+      "perfil": "producao-20260209",
+      "xsd_sha256": "af0bd2d8c50acba3d9c3f3f515426eca083b3f66e3211ce8dd48a7cf101818b8",
+      "xml_sha256": "196679c59d4b83c26953b4c6c3c661b4f8acda059084ed6ac34bca6bbc80eda0",
+      "xsd_valido": false,
+      "erros": [
+        {
+          "linha": 11,
+          "tipo": "SCHEMAV_CVC_PATTERN_VALID",
+          "campo": "serie"
+        }
+      ],
+      "expectativa_negativa": true,
+      "coincide_com_expectativa": true
+    },
+    {
+      "id": "nfse-1-01",
+      "versao": "1.01",
+      "origem": "SINTETICO_ESTRUTURAL",
+      "perfil": "homolog-20260727",
+      "xsd_sha256": "1dd8f543060a4ba6f355693f1fa5d79a269acae7c3dfe42d621f62911cfebac0",
+      "xml_sha256": "196679c59d4b83c26953b4c6c3c661b4f8acda059084ed6ac34bca6bbc80eda0",
+      "xsd_valido": true,
+      "erros": [],
+      "expectativa_negativa": false,
+      "coincide_com_expectativa": true
+    },
+    {
+      "id": "cpf-liquido-zero",
+      "versao": "1.01",
+      "origem": "SINTETICO_ESTRUTURAL",
+      "perfil": "producao-20260209",
+      "xsd_sha256": "af0bd2d8c50acba3d9c3f3f515426eca083b3f66e3211ce8dd48a7cf101818b8",
+      "xml_sha256": "c2861edb2a15b8b77b489a24cd369f28a73ec96dec4e006a37a53d2a5ae6d0a5",
+      "xsd_valido": false,
+      "erros": [
+        {
+          "linha": 11,
+          "tipo": "SCHEMAV_CVC_PATTERN_VALID",
+          "campo": "serie"
+        }
+      ],
+      "expectativa_negativa": true,
+      "coincide_com_expectativa": true
+    },
+    {
+      "id": "cpf-liquido-zero",
+      "versao": "1.01",
+      "origem": "SINTETICO_ESTRUTURAL",
+      "perfil": "homolog-20260727",
+      "xsd_sha256": "1dd8f543060a4ba6f355693f1fa5d79a269acae7c3dfe42d621f62911cfebac0",
+      "xml_sha256": "c2861edb2a15b8b77b489a24cd369f28a73ec96dec4e006a37a53d2a5ae6d0a5",
+      "xsd_valido": true,
+      "erros": [],
+      "expectativa_negativa": false,
+      "coincide_com_expectativa": true
+    },
+    {
+      "id": "tomador-ausente",
+      "versao": "1.01",
+      "origem": "SINTETICO_ESTRUTURAL",
+      "perfil": "producao-20260209",
+      "xsd_sha256": "af0bd2d8c50acba3d9c3f3f515426eca083b3f66e3211ce8dd48a7cf101818b8",
+      "xml_sha256": "2f9e72a02ca7da3711aaca686e0fc8cea681bd7150eadaf9305992f6ad7c15d4",
+      "xsd_valido": false,
+      "erros": [
+        {
+          "linha": 11,
+          "tipo": "SCHEMAV_CVC_PATTERN_VALID",
+          "campo": "serie"
+        }
+      ],
+      "expectativa_negativa": true,
+      "coincide_com_expectativa": true
+    },
+    {
+      "id": "tomador-ausente",
+      "versao": "1.01",
+      "origem": "SINTETICO_ESTRUTURAL",
+      "perfil": "homolog-20260727",
+      "xsd_sha256": "1dd8f543060a4ba6f355693f1fa5d79a269acae7c3dfe42d621f62911cfebac0",
+      "xml_sha256": "2f9e72a02ca7da3711aaca686e0fc8cea681bd7150eadaf9305992f6ad7c15d4",
+      "xsd_valido": true,
+      "erros": [],
+      "expectativa_negativa": false,
+      "coincide_com_expectativa": true
+    },
+    {
+      "id": "opcionais-ausentes",
+      "versao": "1.01",
+      "origem": "SINTETICO_ESTRUTURAL",
+      "perfil": "producao-20260209",
+      "xsd_sha256": "af0bd2d8c50acba3d9c3f3f515426eca083b3f66e3211ce8dd48a7cf101818b8",
+      "xml_sha256": "9dd86dee15fd8b30fb3c4fba62c854889b1910d632e47ad924079a0d07a72515",
+      "xsd_valido": false,
+      "erros": [
+        {
+          "linha": 11,
+          "tipo": "SCHEMAV_CVC_PATTERN_VALID",
+          "campo": "serie"
+        }
+      ],
+      "expectativa_negativa": true,
+      "coincide_com_expectativa": true
+    },
+    {
+      "id": "opcionais-ausentes",
+      "versao": "1.01",
+      "origem": "SINTETICO_ESTRUTURAL",
+      "perfil": "homolog-20260727",
+      "xsd_sha256": "1dd8f543060a4ba6f355693f1fa5d79a269acae7c3dfe42d621f62911cfebac0",
+      "xml_sha256": "9dd86dee15fd8b30fb3c4fba62c854889b1910d632e47ad924079a0d07a72515",
+      "xsd_valido": true,
+      "erros": [],
+      "expectativa_negativa": false,
+      "coincide_com_expectativa": true
+    },
+    {
+      "id": "descontos-retencoes",
+      "versao": "1.01",
+      "origem": "SINTETICO_ESTRUTURAL",
+      "perfil": "producao-20260209",
+      "xsd_sha256": "af0bd2d8c50acba3d9c3f3f515426eca083b3f66e3211ce8dd48a7cf101818b8",
+      "xml_sha256": "aacb12ec9c6a148c7ac6af0f24b153fcef791b1bb5886e0d793b13fb0a79b831",
+      "xsd_valido": false,
+      "erros": [
+        {
+          "linha": 11,
+          "tipo": "SCHEMAV_CVC_PATTERN_VALID",
+          "campo": "serie"
+        }
+      ],
+      "expectativa_negativa": true,
+      "coincide_com_expectativa": true
+    },
+    {
+      "id": "descontos-retencoes",
+      "versao": "1.01",
+      "origem": "SINTETICO_ESTRUTURAL",
+      "perfil": "homolog-20260727",
+      "xsd_sha256": "1dd8f543060a4ba6f355693f1fa5d79a269acae7c3dfe42d621f62911cfebac0",
+      "xml_sha256": "aacb12ec9c6a148c7ac6af0f24b153fcef791b1bb5886e0d793b13fb0a79b831",
+      "xsd_valido": true,
+      "erros": [],
+      "expectativa_negativa": false,
+      "coincide_com_expectativa": true
+    },
+    {
+      "id": "divergencia-liquido",
+      "versao": "1.01",
+      "origem": "SINTETICO_ESTRUTURAL",
+      "perfil": "producao-20260209",
+      "xsd_sha256": "af0bd2d8c50acba3d9c3f3f515426eca083b3f66e3211ce8dd48a7cf101818b8",
+      "xml_sha256": "677269b811288b2aee93cfb35d61f3749e897dca3370d624eda1ec9da494a58f",
+      "xsd_valido": false,
+      "erros": [
+        {
+          "linha": 11,
+          "tipo": "SCHEMAV_CVC_PATTERN_VALID",
+          "campo": "serie"
+        }
+      ],
+      "expectativa_negativa": true,
+      "coincide_com_expectativa": true
+    },
+    {
+      "id": "divergencia-liquido",
+      "versao": "1.01",
+      "origem": "SINTETICO_ESTRUTURAL",
+      "perfil": "homolog-20260727",
+      "xsd_sha256": "1dd8f543060a4ba6f355693f1fa5d79a269acae7c3dfe42d621f62911cfebac0",
+      "xml_sha256": "677269b811288b2aee93cfb35d61f3749e897dca3370d624eda1ec9da494a58f",
+      "xsd_valido": true,
+      "erros": [],
+      "expectativa_negativa": false,
+      "coincide_com_expectativa": true
+    },
+    {
+      "id": "tomador-exterior",
+      "versao": "1.01",
+      "origem": "SINTETICO_ESTRUTURAL",
+      "perfil": "producao-20260209",
+      "xsd_sha256": "af0bd2d8c50acba3d9c3f3f515426eca083b3f66e3211ce8dd48a7cf101818b8",
+      "xml_sha256": "b11c78bdce875e2158af5c4fa0073dfb81416fc4d76a08129a386b3dfdd3efe1",
+      "xsd_valido": false,
+      "erros": [
+        {
+          "linha": 11,
+          "tipo": "SCHEMAV_CVC_PATTERN_VALID",
+          "campo": "serie"
+        }
+      ],
+      "expectativa_negativa": true,
+      "coincide_com_expectativa": true
+    },
+    {
+      "id": "tomador-exterior",
+      "versao": "1.01",
+      "origem": "SINTETICO_ESTRUTURAL",
+      "perfil": "homolog-20260727",
+      "xsd_sha256": "1dd8f543060a4ba6f355693f1fa5d79a269acae7c3dfe42d621f62911cfebac0",
+      "xml_sha256": "b11c78bdce875e2158af5c4fa0073dfb81416fc4d76a08129a386b3dfdd3efe1",
+      "xsd_valido": true,
+      "erros": [],
+      "expectativa_negativa": false,
+      "coincide_com_expectativa": true
+    },
+    {
+      "id": "nfse-substituinte",
+      "versao": "1.00",
+      "origem": "SINTETICO_ESTRUTURAL",
+      "perfil": "producao-20260209",
+      "xsd_sha256": "2c78fa25f38345209f2dbd0b5f2bd1be224fd92404f6c86af219c1294af455ba",
+      "xml_sha256": "999fcc8ea2dcbfe8cc4136fc08fc770514e41b1cf50c44fb40916d2d60e2453a",
+      "xsd_valido": true,
+      "erros": [],
+      "expectativa_negativa": false,
+      "coincide_com_expectativa": true
+    },
+    {
+      "id": "ibscbs-sem-projecao-financeira",
+      "versao": "1.01",
+      "origem": "SINTETICO_ESTRUTURAL",
+      "perfil": "producao-20260209",
+      "xsd_sha256": "af0bd2d8c50acba3d9c3f3f515426eca083b3f66e3211ce8dd48a7cf101818b8",
+      "xml_sha256": "1ffae010e3be66b93c585f1b49545184b69f42862122ec5eb623dedefc326ded",
+      "xsd_valido": false,
+      "erros": [
+        {
+          "linha": 13,
+          "tipo": "SCHEMAV_CVC_PATTERN_VALID",
+          "campo": "serie"
+        }
+      ],
+      "expectativa_negativa": true,
+      "coincide_com_expectativa": true
+    },
+    {
+      "id": "ibscbs-sem-projecao-financeira",
+      "versao": "1.01",
+      "origem": "SINTETICO_ESTRUTURAL",
+      "perfil": "homolog-20260727",
+      "xsd_sha256": "1dd8f543060a4ba6f355693f1fa5d79a269acae7c3dfe42d621f62911cfebac0",
+      "xml_sha256": "1ffae010e3be66b93c585f1b49545184b69f42862122ec5eb623dedefc326ded",
+      "xsd_valido": true,
+      "erros": [],
+      "expectativa_negativa": false,
+      "coincide_com_expectativa": true
+    },
+    {
+      "id": "campo-invalido",
+      "versao": "1.01",
+      "origem": "SINTETICO_ESTRUTURAL",
+      "perfil": "producao-20260209",
+      "xsd_sha256": "af0bd2d8c50acba3d9c3f3f515426eca083b3f66e3211ce8dd48a7cf101818b8",
+      "xml_sha256": "f40c51b1042920171adbfca8a7276378eedf4599e8bd8bcd7c7db063a852580e",
+      "xsd_valido": false,
+      "erros": [
+        {
+          "linha": 8,
+          "tipo": "SCHEMAV_CVC_PATTERN_VALID",
+          "campo": "vLiq"
+        },
+        {
+          "linha": 11,
+          "tipo": "SCHEMAV_CVC_PATTERN_VALID",
+          "campo": "serie"
+        }
+      ],
+      "expectativa_negativa": true,
+      "coincide_com_expectativa": true
+    },
+    {
+      "id": "campo-invalido",
+      "versao": "1.01",
+      "origem": "SINTETICO_ESTRUTURAL",
+      "perfil": "homolog-20260727",
+      "xsd_sha256": "1dd8f543060a4ba6f355693f1fa5d79a269acae7c3dfe42d621f62911cfebac0",
+      "xml_sha256": "f40c51b1042920171adbfca8a7276378eedf4599e8bd8bcd7c7db063a852580e",
+      "xsd_valido": false,
+      "erros": [
+        {
+          "linha": 8,
+          "tipo": "SCHEMAV_CVC_PATTERN_VALID",
+          "campo": "vLiq"
+        }
+      ],
+      "expectativa_negativa": true,
+      "coincide_com_expectativa": true
+    },
+    {
+      "id": "dps-nao-emitida",
+      "versao": "1.01",
+      "origem": "SINTETICO_ESTRUTURAL",
+      "perfil": "producao-20260209",
+      "xsd_sha256": "fe45e5250a48e519aba89fc6a472863b8e602ed957778fb64692804933a00d0c",
+      "xml_sha256": "12bf55af8c807e126249300056f41c5bc38c423c4fed0a63ee2ac936e0b25508",
+      "xsd_valido": false,
+      "erros": [
+        {
+          "linha": 4,
+          "tipo": "SCHEMAV_CVC_PATTERN_VALID",
+          "campo": "serie"
+        }
+      ],
+      "expectativa_negativa": true,
+      "coincide_com_expectativa": true
+    },
+    {
+      "id": "dps-nao-emitida",
+      "versao": "1.01",
+      "origem": "SINTETICO_ESTRUTURAL",
+      "perfil": "homolog-20260727",
+      "xsd_sha256": "c7dab363d8cf7c83fc2b3b21e72cf669a51bd30947a5690685ea96c4b3e39dcd",
+      "xml_sha256": "12bf55af8c807e126249300056f41c5bc38c423c4fed0a63ee2ac936e0b25508",
+      "xsd_valido": true,
+      "erros": [],
+      "expectativa_negativa": false,
+      "coincide_com_expectativa": true
+    },
+    {
+      "id": "evento-cancelamento",
+      "versao": "1.01",
+      "origem": "SINTETICO_ESTRUTURAL",
+      "perfil": "producao-20260209",
+      "xsd_sha256": "986d0a1c4d27454f712169849aa7c2380aaa4560bd9c920e0ff03ba6599ae28b",
+      "xml_sha256": "1520d703fe5e966dec52f06789d4ccff553a0c72c83d7479ab847f6905f85acd",
+      "xsd_valido": true,
+      "erros": [],
+      "expectativa_negativa": false,
+      "coincide_com_expectativa": true
+    },
+    {
+      "id": "evento-cancelamento",
+      "versao": "1.01",
+      "origem": "SINTETICO_ESTRUTURAL",
+      "perfil": "homolog-20260727",
+      "xsd_sha256": "dd14062174d439a67a11266d82e822cb9021db1595a41bd876a16560a38f6aec",
+      "xml_sha256": "1520d703fe5e966dec52f06789d4ccff553a0c72c83d7479ab847f6905f85acd",
+      "xsd_valido": true,
+      "erros": [],
+      "expectativa_negativa": false,
+      "coincide_com_expectativa": true
+    },
+    {
+      "id": "evento-substituicao",
+      "versao": "1.01",
+      "origem": "SINTETICO_ESTRUTURAL",
+      "perfil": "producao-20260209",
+      "xsd_sha256": "986d0a1c4d27454f712169849aa7c2380aaa4560bd9c920e0ff03ba6599ae28b",
+      "xml_sha256": "3564dc646f063fddccdb15424e5264c88bde4b8eccb9e6854f19c8624a7e1dc4",
+      "xsd_valido": true,
+      "erros": [],
+      "expectativa_negativa": false,
+      "coincide_com_expectativa": true
+    },
+    {
+      "id": "evento-substituicao",
+      "versao": "1.01",
+      "origem": "SINTETICO_ESTRUTURAL",
+      "perfil": "homolog-20260727",
+      "xsd_sha256": "dd14062174d439a67a11266d82e822cb9021db1595a41bd876a16560a38f6aec",
+      "xml_sha256": "3564dc646f063fddccdb15424e5264c88bde4b8eccb9e6854f19c8624a7e1dc4",
+      "xsd_valido": true,
+      "erros": [],
+      "expectativa_negativa": false,
+      "coincide_com_expectativa": true
+    },
+    {
+      "id": "pedido-cancelamento",
+      "versao": "1.01",
+      "origem": "SINTETICO_ESTRUTURAL",
+      "perfil": "producao-20260209",
+      "xsd_sha256": "e90b6816d29cca0bd5ed8f86ad98d3b7b0d8bbfc11a7583e6ff8f98170fd4009",
+      "xml_sha256": "e38d8ef990d388fed8ed10bef035380af4b5f72116b48e086621d3cce6e9c255",
+      "xsd_valido": true,
+      "erros": [],
+      "expectativa_negativa": false,
+      "coincide_com_expectativa": true
+    },
+    {
+      "id": "pedido-cancelamento",
+      "versao": "1.01",
+      "origem": "SINTETICO_ESTRUTURAL",
+      "perfil": "homolog-20260727",
+      "xsd_sha256": "186c83f33752a195845300af61ffbe7136547f84cab032b35238c78f9d78f7c6",
+      "xml_sha256": "e38d8ef990d388fed8ed10bef035380af4b5f72116b48e086621d3cce6e9c255",
+      "xsd_valido": true,
+      "erros": [],
+      "expectativa_negativa": false,
+      "coincide_com_expectativa": true
+    }
+  ],
+  "canonical": [
+    {
+      "id": "nfse-1-00",
+      "valido": true,
+      "erros": []
+    },
+    {
+      "id": "nfse-1-01",
+      "valido": true,
+      "erros": []
+    },
+    {
+      "id": "cpf-liquido-zero",
+      "valido": true,
+      "erros": []
+    },
+    {
+      "id": "tomador-ausente",
+      "valido": true,
+      "erros": []
+    },
+    {
+      "id": "opcionais-ausentes",
+      "valido": true,
+      "erros": []
+    },
+    {
+      "id": "descontos-retencoes",
+      "valido": true,
+      "erros": []
+    },
+    {
+      "id": "divergencia-liquido",
+      "valido": true,
+      "erros": []
+    },
+    {
+      "id": "tomador-exterior",
+      "valido": true,
+      "erros": []
+    },
+    {
+      "id": "nfse-substituinte",
+      "valido": true,
+      "erros": []
+    },
+    {
+      "id": "ibscbs-sem-projecao-financeira",
+      "valido": true,
+      "erros": []
+    },
+    {
+      "id": "campo-invalido",
+      "valido": true,
+      "erros": []
+    },
+    {
+      "id": "dps-nao-emitida",
+      "valido": true,
+      "erros": []
+    },
+    {
+      "id": "evento-cancelamento",
+      "valido": true,
+      "erros": []
+    },
+    {
+      "id": "evento-substituicao",
+      "valido": true,
+      "erros": []
+    },
+    {
+      "id": "pedido-cancelamento",
+      "valido": true,
+      "erros": []
+    }
+  ],
+  "canonical_negativos": [
+    {
+      "id": "ausente_com_zero",
+      "rejeitado": true
+    },
+    {
+      "id": "presente_sem_fonte",
+      "rejeitado": true
+    },
+    {
+      "id": "elegibilidade_inventada",
+      "rejeitado": true
+    },
+    {
+      "id": "campo_extra",
+      "rejeitado": true
+    },
+    {
+      "id": "decimal_ambiguo",
+      "rejeitado": true
+    },
+    {
+      "id": "derivado_sem_formula",
+      "rejeitado": true
+    }
+  ],
+  "probe_serie_libxml2": [
+    {
+      "schema": "1.01",
+      "serie": "00001",
+      "valido": false
+    },
+    {
+      "schema": "1.01",
+      "serie": "1",
+      "valido": false
+    },
+    {
+      "schema": "1.01",
+      "serie": "^1$",
+      "valido": true
+    },
+    {
+      "schema": "homolog-20260727/1.01",
+      "serie": "00001",
+      "valido": true
+    },
+    {
+      "schema": "homolog-20260727/1.01",
+      "serie": "1",
+      "valido": true
+    },
+    {
+      "schema": "homolog-20260727/1.01",
+      "serie": "^1$",
+      "valido": false
+    }
+  ],
+  "probe_escopo": "TIPO_ISOLADO_NAO_DOCUMENTO_COMPLETO",
+  "schema_canonico_sha256": "ebd8a5b0ae4d31c80787670e3ef56146816439770d9dbe945d625aef0415008e",
+  "validadores": {
+    "libxml2": [
+      2,
+      11,
+      9
+    ],
+    "lxml": [
+      6,
+      1,
+      1,
+      0
+    ],
+    "jsonschema": "4.26.0",
+    "dialeto": "draft-2020-12"
+  }
+}

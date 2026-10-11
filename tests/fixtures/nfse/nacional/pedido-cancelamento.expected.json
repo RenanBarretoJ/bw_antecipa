@@ -1,0 +1,29 @@
+{
+  "resultado": "RECONHECIDO",
+  "natureza_documento": "EVENTO",
+  "campos": {
+    "identificacao.situacao": {
+      "estado": "DERIVADO",
+      "valor": "DESCONHECIDA"
+    },
+    "vencimento": {
+      "estado": "AUSENTE",
+      "valor": null
+    },
+    "evento.tipo": {
+      "estado": "PRESENTE",
+      "valor": "e101101"
+    },
+    "identificacao.chave_acesso": {
+      "estado": "PRESENTE",
+      "valor": "35503082212345678000195000000090000126100000000010"
+    },
+    "identificacao.situacao_declarada": {
+      "estado": "AUSENTE",
+      "valor": null
+    }
+  },
+  "alertas": [
+    "PEDIDO_DE_EVENTO_NAO_COMPROVA_EFEITO_FISCAL"
+  ]
+}

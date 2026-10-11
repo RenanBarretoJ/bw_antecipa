@@ -1,0 +1,71 @@
+{
+  "escopo": [
+    "E1",
+    "E2"
+  ],
+  "branch": "homolog",
+  "head": "364c5ad2db6db9134be9e08added44299fff7a87",
+  "banco_modificado": false,
+  "deploy_executado": false,
+  "documentos_reais_enviados_a_servicos_externos": false,
+  "ambiente": {
+    "node": "v24.19.0",
+    "node_requerido_no_projeto": "22.x",
+    "lxml": "6.1.1"
+  },
+  "regressao_focada": {
+    "comando": "vitest run src/lib/nfse src/lib/fiscal-intake src/lib/notas-fiscais/emitente-autorizado.test.ts src/lib/pdf-nf-parser.test.ts src/lib/danfe/multilayout.test.ts",
+    "passaram": 340,
+    "falharam": 0
+  },
+  "suite_completa": {
+    "comando": "vitest run --silent --reporter=json",
+    "passaram": 3154,
+    "falharam": 1,
+    "ignorados": 10,
+    "falha": {
+      "codigo": "FORWARD_NOT_EXACT_LF",
+      "teste": "src/lib/analytics/c5-a6-compat.migration.test.ts",
+      "arquivo": "supabase/migrations/20261006210815_c5_reader_a6_compat.sql",
+      "checkout_crlf": true,
+      "head_crlf": false,
+      "checkout_normalizado_igual_head": true,
+      "sha256_head": "8f8ed3284e670ee4b559cccffcd0b323818c659a4f76e26547e40d48392ec7ef"
+    }
+  },
+  "typescript_src": {
+    "comando": "tsc -p scripts/qa/nfse-national/tsconfig.json",
+    "resultado": "PASSOU"
+  },
+  "typescript_padrao": {
+    "comando": "tsc --noEmit --incremental false",
+    "resultado": "OOM",
+    "causa_observada": "tsconfig inclui rehearsal; 5879 arquivos .ts de copias locais versus 769 no src na inspe??o inicial."
+  },
+  "lint_escopo": {
+    "resultado": "PASSOU"
+  },
+  "diff_check": {
+    "resultado": "PASSOU"
+  },
+  "build": {
+    "comando": "next build --webpack",
+    "compilacao": "PASSOU",
+    "typescript": "OOM",
+    "resultado_final": "NAO_APROVADO"
+  },
+  "json_schema": {
+    "padrao": "2020-12",
+    "compilador": "Ajv8 + ajv-formats",
+    "documentos_validados": 15,
+    "resultado": "PASSOU"
+  },
+  "xsd": {
+    "casos": 15,
+    "validos": 5,
+    "rejeitados": 10,
+    "resultados_esperados": 15,
+    "resultado": "REJEICOES_DOCUMENTADAS_NAO_EQUIVALEM_A_VALIDACAO_XSD",
+    "schemas_modificados": false
+  }
+}

@@ -1,0 +1,1778 @@
+{
+  "audit_date": "2026-10-09",
+  "note": "Acquisition is not validation of fiscal documents. Community materials were not incorporated into product code.",
+  "materials": [
+    {
+      "key": "national_prod_index",
+      "url": "https://www.gov.br/nfse/pt-br/biblioteca/documentacao-tecnica/documentacao-atual",
+      "final_url": "https://www.gov.br/nfse/pt-br/biblioteca/documentacao-tecnica/documentacao-atual",
+      "kind": "OFFICIAL_INDEX",
+      "content_type": "text/html;charset=utf-8",
+      "bytes": 88061,
+      "sha256": "e5e5893b34cb621b982dc1e157478e0880aaf1e691aa6c345b28c90cfb653c7b",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "national_homolog_index",
+      "url": "https://www.gov.br/nfse/pt-br/biblioteca/documentacao-tecnica/producao-restrita",
+      "final_url": "https://www.gov.br/nfse/pt-br/biblioteca/documentacao-tecnica/producao-restrita",
+      "kind": "OFFICIAL_INDEX",
+      "content_type": "text/html;charset=utf-8",
+      "bytes": 85485,
+      "sha256": "16d2b3230a5a67757da865596e8a99ce8f1af89dcdee4e129c257f630dd0d29f",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "abrasf_104",
+      "url": "https://abrasf.org.br/biblioteca/arquivos-publicos/nfs-e/versao-1-00",
+      "final_url": "https://abrasf.org.br/biblioteca/arquivos-publicos/nfs-e/versao-1-00",
+      "kind": "OFFICIAL_INDEX",
+      "content_type": "text/html; charset=utf-8",
+      "bytes": 79118,
+      "sha256": "452229f22ed7c17189788461d048b1ccfbcf66b7d65141b0a361df93ea606e3e",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "abrasf_204",
+      "url": "https://abrasf.org.br/biblioteca/arquivos-publicos/nfs-e/versao-2-04",
+      "final_url": "https://abrasf.org.br/biblioteca/arquivos-publicos/nfs-e/versao-2-04",
+      "kind": "OFFICIAL_INDEX",
+      "content_type": "text/html; charset=utf-8",
+      "bytes": 82314,
+      "sha256": "40755d2e11e8d6344686996a0f14cbe0ef51b1f35aa73eecee4a5c09bcc5edc6",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "abrasf_204_xsd",
+      "url": "https://abrasf.org.br/biblioteca/arquivos-publicos/schema-nfse-v2-04/download",
+      "final_url": "https://abrasf.org.br/biblioteca/arquivos-publicos/schema-nfse-v2-04/download",
+      "kind": "OFFICIAL_XSD",
+      "content_type": "application/zip",
+      "bytes": 5976,
+      "sha256": "fb072bd0711249211828e977bb6a09163a847c5536687ae454a79438725f349a",
+      "status": "OBTAINED",
+      "archive_files": [
+        "schema nfse v2-04.xsd"
+      ],
+      "schemas": [
+        {
+          "file": "schema nfse v2-04.xsd",
+          "namespaces": [
+            "http://www.abrasf.org.br/nfse.xsd"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "betha_manual",
+      "url": "https://iss.ajuda.betha.cloud/assets/files/4-547a9bc0ced9561108383dfc0fc818f7.pdf",
+      "final_url": "https://iss.ajuda.betha.cloud/assets/files/4-547a9bc0ced9561108383dfc0fc818f7.pdf",
+      "kind": "OFFICIAL_MANUAL",
+      "content_type": "application/pdf",
+      "bytes": 762916,
+      "sha256": "b95d3c8e834b7b0943a57b02cab6d790e536de37cc1b5980ed924157afd705ad",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "issnet_notacontrol_manual",
+      "url": "https://www.notacontrol.com.br/download/nfse/Manual_integracao_v101.pdf",
+      "final_url": "https://www.notacontrol.com.br/download/nfse/Manual_integracao_v101.pdf",
+      "kind": "OFFICIAL_MANUAL",
+      "content_type": "application/pdf",
+      "bytes": 3516260,
+      "sha256": "b33f4b0755fa6c4eecacacdca3d2a58fa64c4f3857656e3525a65cacb4b0cfca",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "tiplan_manual",
+      "url": "https://itaguaihomologacao.nfe.com.br/files/manuais/WsNFSeNacional_Complementar.pdf",
+      "final_url": "https://itaguaihomologacao.nfe.com.br/files/manuais/WsNFSeNacional_Complementar.pdf",
+      "kind": "OFFICIAL_MANUAL",
+      "content_type": "application/pdf",
+      "bytes": 891237,
+      "sha256": "d0e4997c26fcb966f2394eba7294bcb4302f3da2173a48f93e63588f23e90d48",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "elotech_manual",
+      "url": "https://atendimento.elotech.com.br/hc/pt-br/article_attachments/360048406694/Manual_de_Integra__o_WebService_para_Sistema_de_NFS-e.pdf",
+      "kind": "OFFICIAL_MANUAL",
+      "status": "UNAVAILABLE",
+      "acquisition_error": "<urlopen error [SSL: SSLV3_ALERT_HANDSHAKE_FAILURE] ssl/tls alert handshake failure (_ssl.c:1032)>"
+    },
+    {
+      "key": "fiorilli_manual",
+      "url": "https://acessos.fiorilli.com.br/downloads/instalacao/issweb/homologacao/manual_integracao.pdf",
+      "final_url": "https://acessos.fiorilli.com.br/downloads/instalacao/issweb/homologacao/manual_integracao.pdf",
+      "kind": "OFFICIAL_MANUAL",
+      "content_type": "application/pdf",
+      "bytes": 743693,
+      "sha256": "e1648dd1b4683a9dbea3546ac0ba135a68613cd39e3409949caf4d93145bc17d",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "saatri_manual",
+      "url": "https://www.saatri.com.br/download/NFSE-NACIONAL_Manual_De_Integra%C3%A7%C3%A3o%20vers%C3%A3o%202-01%20-%20altera%C3%A7%C3%B5es.pdf",
+      "final_url": "https://www.saatri.com.br/download/NFSE-NACIONAL_Manual_De_Integra%C3%A7%C3%A3o%20vers%C3%A3o%202-01%20-%20altera%C3%A7%C3%B5es.pdf",
+      "kind": "OFFICIAL_MANUAL",
+      "content_type": "application/pdf",
+      "bytes": 743693,
+      "sha256": "e1648dd1b4683a9dbea3546ac0ba135a68613cd39e3409949caf4d93145bc17d",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "megasoft_index",
+      "url": "https://mais.megasoft.com.br/webservice-nfse",
+      "final_url": "https://mais.megasoft.com.br/webservice-nfse",
+      "kind": "OFFICIAL_INDEX",
+      "content_type": "text/html",
+      "bytes": 98612,
+      "sha256": "53eb0d5a0d3829c8cc2171cb591a795fd13d644c6fc093ca13c4e3a98eefe053",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "megasoft_xsd",
+      "url": "https://megasoftarrecadanet.com.br/xsd/nfse_v01.xsd",
+      "final_url": "https://megasoftarrecadanet.com.br/xsd/nfse_v01.xsd",
+      "kind": "OFFICIAL_XSD",
+      "content_type": "application/octet-stream",
+      "bytes": 48501,
+      "sha256": "6b159c0ab26af9241f582c59954c1a761ede904781f0a280d407679902239b5c",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "sp_index",
+      "url": "https://notadomilhao.sf.prefeitura.sp.gov.br/desenvolvedor/",
+      "final_url": "https://notadomilhao.sf.prefeitura.sp.gov.br/desenvolvedor/",
+      "kind": "OFFICIAL_INDEX",
+      "content_type": "text/html; charset=UTF-8",
+      "bytes": 88117,
+      "sha256": "481492f4c2a63d2d0a582e2d4d541fb5b6dec0044bcb668d9b4a73eae6a82134",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "sp_manual",
+      "url": "https://notadomilhao.sf.prefeitura.sp.gov.br/wp-content/uploads/2026/01/NFe_Web_Service.pdf",
+      "kind": "OFFICIAL_MANUAL",
+      "status": "UNAVAILABLE",
+      "acquisition_error": "HTTP Error 404: Not Found"
+    },
+    {
+      "key": "rio_manual",
+      "url": "https://notacarioca.rio.gov.br/files/manuais/wsnfsenacional.pdf",
+      "kind": "OFFICIAL_MANUAL",
+      "status": "UNAVAILABLE",
+      "acquisition_error": "<urlopen error [WinError 10060] Uma tentativa de conexão falhou porque o componente conectado não respondeu\r\ncorretamente após um período de tempo ou "
+    },
+    {
+      "key": "rio_xsd",
+      "url": "https://notacarioca.rio.gov.br/files/WSNacional/schemas.zip",
+      "kind": "OFFICIAL_XSD",
+      "status": "UNAVAILABLE",
+      "acquisition_error": "<urlopen error [WinError 10060] Uma tentativa de conexão falhou porque o componente conectado não respondeu\r\ncorretamente após um período de tempo ou "
+    },
+    {
+      "key": "ipm_index",
+      "url": "https://camboriu.atende.net/subportal/atualizacao-do-sistema-fiscal-web",
+      "final_url": "https://camboriu.atende.net/subportal/atualizacao-do-sistema-fiscal-web",
+      "kind": "OFFICIAL_INDEX",
+      "content_type": "text/html; charset=iso-8859-1",
+      "bytes": 302683,
+      "sha256": "195f89a4203b3b17686527b1edf6d48002c48438e97c4365fcee1bdfab984aec",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "national_prod_index_xsd_8",
+      "url": "https://www.gov.br/nfse/pt-br/biblioteca/documentacao-tecnica/documentacao-atual/nfse-esquemas_xsd-v1-01-20260209.zip",
+      "final_url": "https://www.gov.br/nfse/pt-br/biblioteca/documentacao-tecnica/documentacao-atual/nfse-esquemas_xsd-v1-01-20260209.zip",
+      "kind": "OFFICIAL_XSD",
+      "content_type": "application/zip",
+      "bytes": 65640,
+      "sha256": "e7935cbd9470527c6cc32984c1b2263e614183bf0139ce2733eaaed2de9a8072",
+      "status": "OBTAINED",
+      "archive_files": [
+        "Schemas/",
+        "Schemas/1.00/",
+        "Schemas/1.00/CNC_v1.00.xsd",
+        "Schemas/1.00/DPS_v1.00.xsd",
+        "Schemas/1.00/evento_v1.00.xsd",
+        "Schemas/1.00/NFSe_v1.00.xsd",
+        "Schemas/1.00/pedRegEvento_v1.00.xsd",
+        "Schemas/1.00/tiposCnc_v1.00.xsd",
+        "Schemas/1.00/tiposComplexos_v1.00.xsd",
+        "Schemas/1.00/tiposEventos_v1.00.xsd",
+        "Schemas/1.00/tiposSimples_v1.00.xsd",
+        "Schemas/1.00/xmldsig-core-schema.xsd",
+        "Schemas/1.01/",
+        "Schemas/1.01/CNC_v1.00.xsd",
+        "Schemas/1.01/DPS_v1.01.xsd",
+        "Schemas/1.01/evento_v1.01.xsd",
+        "Schemas/1.01/NFSe_v1.01.xsd",
+        "Schemas/1.01/pedRegEvento_v1.01.xsd",
+        "Schemas/1.01/tiposCnc_v1.00.xsd",
+        "Schemas/1.01/tiposComplexos_v1.01.xsd",
+        "Schemas/1.01/tiposEventos_v1.01.xsd",
+        "Schemas/1.01/tiposSimples_v1.01.xsd",
+        "Schemas/1.01/xmldsig-core-schema.xsd",
+        "Schemas/Componente_recepcao/",
+        "Schemas/Componente_Schemas/"
+      ],
+      "schemas": [
+        {
+          "file": "Schemas/1.00/CNC_v1.00.xsd",
+          "namespaces": [
+            "http://www.sped.fazenda.gov.br/nfse"
+          ]
+        },
+        {
+          "file": "Schemas/1.00/DPS_v1.00.xsd",
+          "namespaces": [
+            "http://www.sped.fazenda.gov.br/nfse"
+          ]
+        },
+        {
+          "file": "Schemas/1.00/evento_v1.00.xsd",
+          "namespaces": [
+            "http://www.sped.fazenda.gov.br/nfse"
+          ]
+        },
+        {
+          "file": "Schemas/1.00/NFSe_v1.00.xsd",
+          "namespaces": [
+            "http://www.sped.fazenda.gov.br/nfse"
+          ]
+        },
+        {
+          "file": "Schemas/1.00/pedRegEvento_v1.00.xsd",
+          "namespaces": [
+            "http://www.sped.fazenda.gov.br/nfse"
+          ]
+        },
+        {
+          "file": "Schemas/1.00/tiposCnc_v1.00.xsd",
+          "namespaces": [
+            "http://www.sped.fazenda.gov.br/nfse"
+          ]
+        },
+        {
+          "file": "Schemas/1.00/tiposComplexos_v1.00.xsd",
+          "namespaces": [
+            "http://www.sped.fazenda.gov.br/nfse"
+          ]
+        },
+        {
+          "file": "Schemas/1.00/tiposEventos_v1.00.xsd",
+          "namespaces": [
+            "http://www.sped.fazenda.gov.br/nfse"
+          ]
+        },
+        {
+          "file": "Schemas/1.00/tiposSimples_v1.00.xsd",
+          "namespaces": [
+            "http://www.sped.fazenda.gov.br/nfse"
+          ]
+        },
+        {
+          "file": "Schemas/1.00/xmldsig-core-schema.xsd",
+          "namespaces": [
+            "http://www.w3.org/2000/09/xmldsig#"
+          ]
+        },
+        {
+          "file": "Schemas/1.01/CNC_v1.00.xsd",
+          "namespaces": [
+            "http://www.sped.fazenda.gov.br/nfse"
+          ]
+        },
+        {
+          "file": "Schemas/1.01/DPS_v1.01.xsd",
+          "namespaces": [
+            "http://www.sped.fazenda.gov.br/nfse"
+          ]
+        },
+        {
+          "file": "Schemas/1.01/evento_v1.01.xsd",
+          "namespaces": [
+            "http://www.sped.fazenda.gov.br/nfse"
+          ]
+        },
+        {
+          "file": "Schemas/1.01/NFSe_v1.01.xsd",
+          "namespaces": [
+            "http://www.sped.fazenda.gov.br/nfse"
+          ]
+        },
+        {
+          "file": "Schemas/1.01/pedRegEvento_v1.01.xsd",
+          "namespaces": [
+            "http://www.sped.fazenda.gov.br/nfse"
+          ]
+        },
+        {
+          "file": "Schemas/1.01/tiposCnc_v1.00.xsd",
+          "namespaces": [
+            "http://www.sped.fazenda.gov.br/nfse"
+          ]
+        },
+        {
+          "file": "Schemas/1.01/tiposComplexos_v1.01.xsd",
+          "namespaces": [
+            "http://www.sped.fazenda.gov.br/nfse"
+          ]
+        },
+        {
+          "file": "Schemas/1.01/tiposEventos_v1.01.xsd",
+          "namespaces": [
+            "http://www.sped.fazenda.gov.br/nfse"
+          ]
+        },
+        {
+          "file": "Schemas/1.01/tiposSimples_v1.01.xsd",
+          "namespaces": [
+            "http://www.sped.fazenda.gov.br/nfse"
+          ]
+        },
+        {
+          "file": "Schemas/1.01/xmldsig-core-schema.xsd",
+          "namespaces": [
+            "http://www.w3.org/2000/09/xmldsig#"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "national_prod_index_xsd_10",
+      "url": "https://www.gov.br/nfse/pt-br/nfs-e-via/documentacao-tecnica/arquivos-dos-esquemas-xsd",
+      "final_url": "https://www.gov.br/nfse/pt-br/nfs-e-via/documentacao-tecnica/arquivos-dos-esquemas-xsd",
+      "kind": "OFFICIAL_XSD",
+      "content_type": "text/html;charset=utf-8",
+      "bytes": 81701,
+      "sha256": "661e850ec8a7cb3fa9b297651697da7f258c9008a64de181655517d3556cbd7f",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "national_homolog_index_xsd_5",
+      "url": "https://www.gov.br/nfse/pt-br/nfs-e-via/documentacao-tecnica/arquivos-dos-esquemas-xsd",
+      "final_url": "https://www.gov.br/nfse/pt-br/nfs-e-via/documentacao-tecnica/arquivos-dos-esquemas-xsd",
+      "kind": "OFFICIAL_XSD",
+      "content_type": "text/html;charset=utf-8",
+      "bytes": 81695,
+      "sha256": "6bed0e503c4c5207b4ed134eefa6edb21df618d5c8e685732cac108985f24ff5",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "national_homolog_xsd",
+      "url": "https://www.gov.br/nfse/pt-br/biblioteca/documentacao-tecnica/producao-restrita/esquemas-nfse-rtc-v1-01-20260727.zip",
+      "final_url": "https://www.gov.br/nfse/pt-br/biblioteca/documentacao-tecnica/producao-restrita/esquemas-nfse-rtc-v1-01-20260727.zip",
+      "kind": "OFFICIAL_XSD",
+      "content_type": "application/zip",
+      "bytes": 34933,
+      "sha256": "6c7e0510d3ecff4454f291f4e10b742d27a4818f23aab181494f96d0ea79f3dc",
+      "status": "OBTAINED",
+      "archive_files": [
+        "CNC_v1.00.xsd",
+        "DPS_v1.01.xsd",
+        "evento_v1.01.xsd",
+        "NFSe_v1.01.xsd",
+        "pedRegEvento_v1.01.xsd",
+        "tiposCnc_v1.00.xsd",
+        "tiposComplexos_v1.01.xsd",
+        "tiposEventos_v1.01.xsd",
+        "tiposSimples_v1.01.xsd",
+        "xmldsig-core-schema.xsd"
+      ],
+      "schemas": [
+        {
+          "file": "CNC_v1.00.xsd",
+          "namespaces": [
+            "http://www.sped.fazenda.gov.br/nfse"
+          ]
+        },
+        {
+          "file": "DPS_v1.01.xsd",
+          "namespaces": [
+            "http://www.sped.fazenda.gov.br/nfse"
+          ]
+        },
+        {
+          "file": "evento_v1.01.xsd",
+          "namespaces": [
+            "http://www.sped.fazenda.gov.br/nfse"
+          ]
+        },
+        {
+          "file": "NFSe_v1.01.xsd",
+          "namespaces": [
+            "http://www.sped.fazenda.gov.br/nfse"
+          ]
+        },
+        {
+          "file": "pedRegEvento_v1.01.xsd",
+          "namespaces": [
+            "http://www.sped.fazenda.gov.br/nfse"
+          ]
+        },
+        {
+          "file": "tiposCnc_v1.00.xsd",
+          "namespaces": [
+            "http://www.sped.fazenda.gov.br/nfse"
+          ]
+        },
+        {
+          "file": "tiposComplexos_v1.01.xsd",
+          "namespaces": [
+            "http://www.sped.fazenda.gov.br/nfse"
+          ]
+        },
+        {
+          "file": "tiposEventos_v1.01.xsd",
+          "namespaces": [
+            "http://www.sped.fazenda.gov.br/nfse"
+          ]
+        },
+        {
+          "file": "tiposSimples_v1.01.xsd",
+          "namespaces": [
+            "http://www.sped.fazenda.gov.br/nfse"
+          ]
+        },
+        {
+          "file": "xmldsig-core-schema.xsd",
+          "namespaces": [
+            "http://www.w3.org/2000/09/xmldsig#"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "abrasf_100_xsd",
+      "url": "https://abrasf.org.br/biblioteca/arquivos-publicos/xml-schema-nfse-v1/download",
+      "final_url": "https://abrasf.org.br/biblioteca/arquivos-publicos/xml-schema-nfse-v1/download",
+      "kind": "OFFICIAL_XSD",
+      "content_type": "application/zip",
+      "bytes": 6130,
+      "sha256": "9a119d9eeb59b3358eb5c174dba3f3a0b9ebeebba79ec6ec85e443722a777bce",
+      "status": "OBTAINED",
+      "archive_files": [
+        "nfse.xsd",
+        "xmldsig-core-schema20020212.xsd"
+      ],
+      "schemas": [
+        {
+          "file": "nfse.xsd",
+          "namespaces": [
+            "http:/www.abrasf.org.br/nfse.xsd"
+          ]
+        },
+        {
+          "file": "xmldsig-core-schema20020212.xsd",
+          "namespaces": [
+            "http://www.w3.org/2000/09/xmldsig#"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "abrasf_200_xsd",
+      "url": "https://abrasf.org.br/biblioteca/arquivos-publicos/schema-xml-nfse-v2/download",
+      "kind": "OFFICIAL_XSD",
+      "status": "UNAVAILABLE",
+      "acquisition_error": "HTTP Error 404: Not Found"
+    },
+    {
+      "key": "abrasf_201_xsd",
+      "url": "https://abrasf.org.br/biblioteca/arquivos-publicos/schema-nfse-v2-01/download",
+      "kind": "OFFICIAL_XSD",
+      "status": "UNAVAILABLE",
+      "acquisition_error": "HTTP Error 404: Not Found"
+    },
+    {
+      "key": "abrasf_202_xsd",
+      "url": "https://abrasf.org.br/biblioteca/arquivos-publicos/schema-xml-nfse-v2-02/download",
+      "final_url": "https://abrasf.org.br/biblioteca/arquivos-publicos/schema-xml-nfse-v2-02/download",
+      "kind": "OFFICIAL_XSD",
+      "content_type": "application/zip",
+      "bytes": 5646,
+      "sha256": "be07167223779855fba935a3eada78ca40ba4b6d7ef5c2a65dbcbe5fe29228f6",
+      "status": "OBTAINED",
+      "archive_files": [
+        "nfse v2 02.xsd",
+        "xmldsig-core-schema20020212.xsd"
+      ],
+      "schemas": [
+        {
+          "file": "nfse v2 02.xsd",
+          "namespaces": [
+            "http://www.abrasf.org.br/nfse.xsd"
+          ]
+        },
+        {
+          "file": "xmldsig-core-schema20020212.xsd",
+          "namespaces": [
+            "http://www.w3.org/2000/09/xmldsig#"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "abrasf_203_xsd",
+      "url": "https://abrasf.org.br/biblioteca/arquivos-publicos/schema-nfse-v2-03/download",
+      "kind": "OFFICIAL_XSD",
+      "status": "UNAVAILABLE",
+      "acquisition_error": "HTTP Error 404: Not Found"
+    },
+    {
+      "key": "sp_xsd",
+      "url": "https://nfpaulistana.prefeitura.sp.gov.br/arquivos/schemas-v01-0.zip",
+      "kind": "OFFICIAL_XSD",
+      "status": "UNAVAILABLE",
+      "acquisition_error": "<urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1032)>"
+    },
+    {
+      "key": "sp_link_1",
+      "url": "https://notadomilhao.sf.prefeitura.sp.gov.br/wp-content/uploads/2025/09/schemas-assincrono-v01-1.zip",
+      "final_url": "https://notadomilhao.sf.prefeitura.sp.gov.br/wp-content/uploads/2025/09/schemas-assincrono-v01-1.zip",
+      "kind": "OFFICIAL_MATERIAL",
+      "content_type": "application/zip",
+      "bytes": 13693,
+      "sha256": "1798da505cc182f0ae1717198227e74a5729163b3f2882bb8f144b1876005379",
+      "status": "OBTAINED",
+      "archive_files": [
+        "ConsultaGuia_v01.xsd",
+        "ConsultaSituacaoGuiaAsync_v01.xsd",
+        "ConsultaSituacaoLoteAsync_v01.xsd",
+        "EmissaoGuiaAsync_v01.xsd",
+        "PedidoEnvioLoteRPS_v01.xsd",
+        "RetornoEnvioLoteRPSAsync_v01.xsd",
+        "RetornoEnvioLoteRPS_v01.xsd",
+        "TiposNFeAsync_v01.xsd",
+        "TiposNFe_v01.xsd",
+        "xmldsig-core-schema_v01.xsd"
+      ],
+      "schemas": [
+        {
+          "file": "ConsultaGuia_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfe"
+          ]
+        },
+        {
+          "file": "ConsultaSituacaoGuiaAsync_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfe"
+          ]
+        },
+        {
+          "file": "ConsultaSituacaoLoteAsync_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfe"
+          ]
+        },
+        {
+          "file": "EmissaoGuiaAsync_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfe"
+          ]
+        },
+        {
+          "file": "PedidoEnvioLoteRPS_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfe"
+          ]
+        },
+        {
+          "file": "RetornoEnvioLoteRPSAsync_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfe"
+          ]
+        },
+        {
+          "file": "RetornoEnvioLoteRPS_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfe"
+          ]
+        },
+        {
+          "file": "TiposNFeAsync_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfe/tipos"
+          ]
+        },
+        {
+          "file": "TiposNFe_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfe/tipos"
+          ]
+        },
+        {
+          "file": "xmldsig-core-schema_v01.xsd",
+          "namespaces": [
+            "http://www.w3.org/2000/09/xmldsig#"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "sp_link_2",
+      "url": "https://notadomilhao.sf.prefeitura.sp.gov.br/wp-content/uploads/2025/09/schemas-v01-0.zip",
+      "final_url": "https://notadomilhao.sf.prefeitura.sp.gov.br/wp-content/uploads/2025/09/schemas-v01-0.zip",
+      "kind": "OFFICIAL_MATERIAL",
+      "content_type": "application/zip",
+      "bytes": 37395,
+      "sha256": "35f9ab16c77fb2bcfc3e9e94de0d810c38f3d7342649b0bd55988245f11e4c22",
+      "status": "OBTAINED",
+      "archive_files": [
+        "nfse/",
+        "nfse/PedidoCancelamentoNFe_v01.xsd",
+        "nfse/PedidoConsultaCNPJ_v01.xsd",
+        "nfse/PedidoConsultaLote_v01.xsd",
+        "nfse/PedidoConsultaNFePeriodo_v01.xsd",
+        "nfse/PedidoConsultaNFe_v01.xsd",
+        "nfse/PedidoEnvioLoteRPS_v01.xsd",
+        "nfse/PedidoEnvioRPS_v01.xsd",
+        "nfse/PedidoInformacoesLote_v01.xsd",
+        "nfse/RetornoCancelamentoNFe_v01.xsd",
+        "nfse/RetornoConsultaCNPJ_v01.xsd",
+        "nfse/RetornoConsulta_v01.xsd",
+        "nfse/RetornoEnvioLoteRPS_v01.xsd",
+        "nfse/RetornoEnvioRPS_v01.xsd",
+        "nfse/RetornoInformacoesLote_v01.xsd",
+        "nfse/TiposNFe_v01.xsd",
+        "nfse/xmldsig-core-schema_v01.xsd",
+        "nfts/",
+        "nfts/PedidoCancelamentoNFTS_v01.xsd",
+        "nfts/PedidoConsultaCPOM_v01.xsd",
+        "nfts/PedidoConsultaEmissaoNFSE_v01.xsd",
+        "nfts/PedidoConsultaInformacoesLoteNFTS_v01.xsd",
+        "nfts/PedidoConsultaLoteNFTS_v01.xsd",
+        "nfts/PedidoConsultaNFTS_v01.xsd",
+        "nfts/PedidoEnvioLoteNFTS_v01.xsd",
+        "nfts/PedidoEnvioNFTS_v01.xsd",
+        "nfts/RetornoCancelamentoNFTS_v01.xsd",
+        "nfts/RetornoConsultaCPOM_v01.xsd",
+        "nfts/RetornoConsultaEmissaoNFSE_v01.xsd",
+        "nfts/RetornoConsultaInformacoesLoteNFTS_v01.xsd",
+        "nfts/RetornoConsultaNFTS_v01.xsd",
+        "nfts/RetornoEnvioLoteNFTS_v01.xsd",
+        "nfts/RetornoEnvioNFTS_v01.xsd",
+        "nfts/TiposNFTS_v01.xsd"
+      ],
+      "schemas": [
+        {
+          "file": "nfse/PedidoCancelamentoNFe_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfe"
+          ]
+        },
+        {
+          "file": "nfse/PedidoConsultaCNPJ_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfe"
+          ]
+        },
+        {
+          "file": "nfse/PedidoConsultaLote_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfe"
+          ]
+        },
+        {
+          "file": "nfse/PedidoConsultaNFePeriodo_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfe"
+          ]
+        },
+        {
+          "file": "nfse/PedidoConsultaNFe_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfe"
+          ]
+        },
+        {
+          "file": "nfse/PedidoEnvioLoteRPS_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfe"
+          ]
+        },
+        {
+          "file": "nfse/PedidoEnvioRPS_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfe"
+          ]
+        },
+        {
+          "file": "nfse/PedidoInformacoesLote_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfe"
+          ]
+        },
+        {
+          "file": "nfse/RetornoCancelamentoNFe_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfe"
+          ]
+        },
+        {
+          "file": "nfse/RetornoConsultaCNPJ_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfe"
+          ]
+        },
+        {
+          "file": "nfse/RetornoConsulta_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfe"
+          ]
+        },
+        {
+          "file": "nfse/RetornoEnvioLoteRPS_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfe"
+          ]
+        },
+        {
+          "file": "nfse/RetornoEnvioRPS_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfe"
+          ]
+        },
+        {
+          "file": "nfse/RetornoInformacoesLote_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfe"
+          ]
+        },
+        {
+          "file": "nfse/TiposNFe_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfe/tipos"
+          ]
+        },
+        {
+          "file": "nfse/xmldsig-core-schema_v01.xsd",
+          "namespaces": [
+            "http://www.w3.org/2000/09/xmldsig#"
+          ]
+        },
+        {
+          "file": "nfts/PedidoCancelamentoNFTS_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfts"
+          ]
+        },
+        {
+          "file": "nfts/PedidoConsultaCPOM_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfts"
+          ]
+        },
+        {
+          "file": "nfts/PedidoConsultaEmissaoNFSE_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfts"
+          ]
+        },
+        {
+          "file": "nfts/PedidoConsultaInformacoesLoteNFTS_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfts"
+          ]
+        },
+        {
+          "file": "nfts/PedidoConsultaLoteNFTS_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfts"
+          ]
+        },
+        {
+          "file": "nfts/PedidoConsultaNFTS_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfts"
+          ]
+        },
+        {
+          "file": "nfts/PedidoEnvioLoteNFTS_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfts"
+          ]
+        },
+        {
+          "file": "nfts/PedidoEnvioNFTS_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfts"
+          ]
+        },
+        {
+          "file": "nfts/RetornoCancelamentoNFTS_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfts"
+          ]
+        },
+        {
+          "file": "nfts/RetornoConsultaCPOM_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfts"
+          ]
+        },
+        {
+          "file": "nfts/RetornoConsultaEmissaoNFSE_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfts"
+          ]
+        },
+        {
+          "file": "nfts/RetornoConsultaInformacoesLoteNFTS_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfts"
+          ]
+        },
+        {
+          "file": "nfts/RetornoConsultaNFTS_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfts"
+          ]
+        },
+        {
+          "file": "nfts/RetornoEnvioLoteNFTS_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfts"
+          ]
+        },
+        {
+          "file": "nfts/RetornoEnvioNFTS_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfts"
+          ]
+        },
+        {
+          "file": "nfts/TiposNFTS_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfts/tipos"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "sp_link_3",
+      "url": "https://notadomilhao.sf.prefeitura.sp.gov.br/wp-content/uploads/2025/09/schemas-v01-1.zip",
+      "final_url": "https://notadomilhao.sf.prefeitura.sp.gov.br/wp-content/uploads/2025/09/schemas-v01-1.zip",
+      "kind": "OFFICIAL_MATERIAL",
+      "content_type": "application/zip",
+      "bytes": 39754,
+      "sha256": "1dbff23c6a3acbb523904d0fbcd5174cb09ca41d07a3e759932746a1074e246a",
+      "status": "OBTAINED",
+      "archive_files": [
+        "schemasv02/",
+        "schemasv02/nfse/",
+        "schemasv02/nfse/PedidoCancelamentoLote_v01.xsd",
+        "schemasv02/nfse/PedidoCancelamentoNFe_v01.xsd",
+        "schemasv02/nfse/PedidoConsultaCNPJ_v01.xsd",
+        "schemasv02/nfse/PedidoConsultaLote_v01.xsd",
+        "schemasv02/nfse/PedidoConsultaNFePeriodo_v01.xsd",
+        "schemasv02/nfse/PedidoConsultaNFe_v01.xsd",
+        "schemasv02/nfse/PedidoEnvioLoteRPS_v01.xsd",
+        "schemasv02/nfse/PedidoEnvioRPS_v01.xsd",
+        "schemasv02/nfse/PedidoInformacoesLote_v01.xsd",
+        "schemasv02/nfse/RetornoCancelamentoNFe_v01.xsd",
+        "schemasv02/nfse/RetornoConsultaCNPJ_v01.xsd",
+        "schemasv02/nfse/RetornoConsulta_v01.xsd",
+        "schemasv02/nfse/RetornoEnvioLoteRPS_v01.xsd",
+        "schemasv02/nfse/RetornoEnvioRPS_v01.xsd",
+        "schemasv02/nfse/RetornoInformacoesLote_v01.xsd",
+        "schemasv02/nfse/TiposNFe_v01.xsd",
+        "schemasv02/nfse/xmldsig-core-schema_v01.xsd",
+        "schemasv02/nfts/",
+        "schemasv02/nfts/PedidoCancelamentoNFTS_v01.xsd",
+        "schemasv02/nfts/PedidoConsultaCPOM_v01.xsd",
+        "schemasv02/nfts/PedidoConsultaEmissaoNFSE_v01.xsd",
+        "schemasv02/nfts/PedidoConsultaInformacoesLoteNFTS_v01.xsd",
+        "schemasv02/nfts/PedidoConsultaLoteNFTS_v01.xsd",
+        "schemasv02/nfts/PedidoConsultaNFTS_v01.xsd",
+        "schemasv02/nfts/PedidoEnvioLoteNFTS_v01.xsd",
+        "schemasv02/nfts/PedidoEnvioNFTS_v01.xsd",
+        "schemasv02/nfts/RetornoCancelamentoNFTS_v01.xsd",
+        "schemasv02/nfts/RetornoConsultaCPOM_v01.xsd",
+        "schemasv02/nfts/RetornoConsultaEmissaoNFSE_v01.xsd",
+        "schemasv02/nfts/RetornoConsultaInformacoesLoteNFTS_v01.xsd",
+        "schemasv02/nfts/RetornoConsultaNFTS_v01.xsd",
+        "schemasv02/nfts/RetornoEnvioLoteNFTS_v01.xsd",
+        "schemasv02/nfts/RetornoEnvioNFTS_v01.xsd",
+        "schemasv02/nfts/TiposNFTS_v01.xsd"
+      ],
+      "schemas": [
+        {
+          "file": "schemasv02/nfse/PedidoCancelamentoLote_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfe"
+          ]
+        },
+        {
+          "file": "schemasv02/nfse/PedidoCancelamentoNFe_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfe"
+          ]
+        },
+        {
+          "file": "schemasv02/nfse/PedidoConsultaCNPJ_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfe"
+          ]
+        },
+        {
+          "file": "schemasv02/nfse/PedidoConsultaLote_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfe"
+          ]
+        },
+        {
+          "file": "schemasv02/nfse/PedidoConsultaNFePeriodo_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfe"
+          ]
+        },
+        {
+          "file": "schemasv02/nfse/PedidoConsultaNFe_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfe"
+          ]
+        },
+        {
+          "file": "schemasv02/nfse/PedidoEnvioLoteRPS_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfe"
+          ]
+        },
+        {
+          "file": "schemasv02/nfse/PedidoEnvioRPS_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfe"
+          ]
+        },
+        {
+          "file": "schemasv02/nfse/PedidoInformacoesLote_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfe"
+          ]
+        },
+        {
+          "file": "schemasv02/nfse/RetornoCancelamentoNFe_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfe"
+          ]
+        },
+        {
+          "file": "schemasv02/nfse/RetornoConsultaCNPJ_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfe"
+          ]
+        },
+        {
+          "file": "schemasv02/nfse/RetornoConsulta_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfe"
+          ]
+        },
+        {
+          "file": "schemasv02/nfse/RetornoEnvioLoteRPS_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfe"
+          ]
+        },
+        {
+          "file": "schemasv02/nfse/RetornoEnvioRPS_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfe"
+          ]
+        },
+        {
+          "file": "schemasv02/nfse/RetornoInformacoesLote_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfe"
+          ]
+        },
+        {
+          "file": "schemasv02/nfse/TiposNFe_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfe/tipos"
+          ]
+        },
+        {
+          "file": "schemasv02/nfse/xmldsig-core-schema_v01.xsd",
+          "namespaces": [
+            "http://www.w3.org/2000/09/xmldsig#"
+          ]
+        },
+        {
+          "file": "schemasv02/nfts/PedidoCancelamentoNFTS_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfts"
+          ]
+        },
+        {
+          "file": "schemasv02/nfts/PedidoConsultaCPOM_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfts"
+          ]
+        },
+        {
+          "file": "schemasv02/nfts/PedidoConsultaEmissaoNFSE_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfts"
+          ]
+        },
+        {
+          "file": "schemasv02/nfts/PedidoConsultaInformacoesLoteNFTS_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfts"
+          ]
+        },
+        {
+          "file": "schemasv02/nfts/PedidoConsultaLoteNFTS_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfts"
+          ]
+        },
+        {
+          "file": "schemasv02/nfts/PedidoConsultaNFTS_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfts"
+          ]
+        },
+        {
+          "file": "schemasv02/nfts/PedidoEnvioLoteNFTS_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfts"
+          ]
+        },
+        {
+          "file": "schemasv02/nfts/PedidoEnvioNFTS_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfts"
+          ]
+        },
+        {
+          "file": "schemasv02/nfts/RetornoCancelamentoNFTS_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfts"
+          ]
+        },
+        {
+          "file": "schemasv02/nfts/RetornoConsultaCPOM_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfts"
+          ]
+        },
+        {
+          "file": "schemasv02/nfts/RetornoConsultaEmissaoNFSE_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfts"
+          ]
+        },
+        {
+          "file": "schemasv02/nfts/RetornoConsultaInformacoesLoteNFTS_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfts"
+          ]
+        },
+        {
+          "file": "schemasv02/nfts/RetornoConsultaNFTS_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfts"
+          ]
+        },
+        {
+          "file": "schemasv02/nfts/RetornoEnvioLoteNFTS_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfts"
+          ]
+        },
+        {
+          "file": "schemasv02/nfts/RetornoEnvioNFTS_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfts"
+          ]
+        },
+        {
+          "file": "schemasv02/nfts/TiposNFTS_v01.xsd",
+          "namespaces": [
+            "http://www.prefeitura.sp.gov.br/nfts/tipos"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "willkerms_NFSe_0",
+      "url": "https://raw.githubusercontent.com/willkerms/NFSe/b4a62d08ac30bca437bfa2f3e44e707deb3b1b1f/schemas/abrasf/nfse_v2-03 2016.xsd",
+      "kind": "COMMUNITY_XSD",
+      "status": "UNAVAILABLE",
+      "acquisition_error": "URL can't contain control characters. '/willkerms/NFSe/b4a62d08ac30bca437bfa2f3e44e707deb3b1b1f/schemas/abrasf/nfse_v2-03 2016.xsd' (found at least ' "
+    },
+    {
+      "key": "willkerms_NFSe_1",
+      "url": "https://raw.githubusercontent.com/willkerms/NFSe/b4a62d08ac30bca437bfa2f3e44e707deb3b1b1f/schemas/abrasf/xmldsig-core-schema20020212.xsd",
+      "final_url": "https://raw.githubusercontent.com/willkerms/NFSe/b4a62d08ac30bca437bfa2f3e44e707deb3b1b1f/schemas/abrasf/xmldsig-core-schema20020212.xsd",
+      "kind": "COMMUNITY_XSD",
+      "content_type": "text/plain; charset=utf-8",
+      "bytes": 10292,
+      "sha256": "5baf55ea1ef7cfb89ca33209d7a764c594d26feca814116dacc04bee51b868ce",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "willkerms_NFSe_2",
+      "url": "https://raw.githubusercontent.com/willkerms/NFSe/b4a62d08ac30bca437bfa2f3e44e707deb3b1b1f/schemas/ginfes/v2/servico_cancelar_nfse_envio_v02.xsd",
+      "final_url": "https://raw.githubusercontent.com/willkerms/NFSe/b4a62d08ac30bca437bfa2f3e44e707deb3b1b1f/schemas/ginfes/v2/servico_cancelar_nfse_envio_v02.xsd",
+      "kind": "COMMUNITY_XSD",
+      "content_type": "text/plain; charset=utf-8",
+      "bytes": 999,
+      "sha256": "777c77a3ae4c5b722b05ca775d32784d79b5a472bfeaadd3200bc6fb01648bec",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "willkerms_NFSe_3",
+      "url": "https://raw.githubusercontent.com/willkerms/NFSe/b4a62d08ac30bca437bfa2f3e44e707deb3b1b1f/schemas/ginfes/v2/servico_consultar_lote_rps_envio_v02.xsd",
+      "final_url": "https://raw.githubusercontent.com/willkerms/NFSe/b4a62d08ac30bca437bfa2f3e44e707deb3b1b1f/schemas/ginfes/v2/servico_consultar_lote_rps_envio_v02.xsd",
+      "kind": "COMMUNITY_XSD",
+      "content_type": "text/plain; charset=utf-8",
+      "bytes": 1062,
+      "sha256": "e519b335c3dd8a413761ae300a373c97ae00daa18ef851207b2b0235a335e8ba",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "willkerms_NFSe_4",
+      "url": "https://raw.githubusercontent.com/willkerms/NFSe/b4a62d08ac30bca437bfa2f3e44e707deb3b1b1f/schemas/ginfes/v2/servico_consultar_nfse_envio_v02.xsd",
+      "final_url": "https://raw.githubusercontent.com/willkerms/NFSe/b4a62d08ac30bca437bfa2f3e44e707deb3b1b1f/schemas/ginfes/v2/servico_consultar_nfse_envio_v02.xsd",
+      "kind": "COMMUNITY_XSD",
+      "content_type": "text/plain; charset=utf-8",
+      "bytes": 1723,
+      "sha256": "0ee63fc778b360c50918c81687014412f57490c1074bce3a2672bec8943abaa3",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "willkerms_NFSe_5",
+      "url": "https://raw.githubusercontent.com/willkerms/NFSe/b4a62d08ac30bca437bfa2f3e44e707deb3b1b1f/schemas/ginfes/v2/servico_consultar_nfse_rps_envio_v02.xsd",
+      "final_url": "https://raw.githubusercontent.com/willkerms/NFSe/b4a62d08ac30bca437bfa2f3e44e707deb3b1b1f/schemas/ginfes/v2/servico_consultar_nfse_rps_envio_v02.xsd",
+      "kind": "COMMUNITY_XSD",
+      "content_type": "text/plain; charset=utf-8",
+      "bytes": 1280,
+      "sha256": "e1f7fa4cd17b67eb8b165e80e216011c221ac5b4076647307473a7584b1edd7d",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "willkerms_NFSe_6",
+      "url": "https://raw.githubusercontent.com/willkerms/NFSe/b4a62d08ac30bca437bfa2f3e44e707deb3b1b1f/schemas/ginfes/v2/servico_consultar_situacao_lote_rps_envio_v02.xsd",
+      "final_url": "https://raw.githubusercontent.com/willkerms/NFSe/b4a62d08ac30bca437bfa2f3e44e707deb3b1b1f/schemas/ginfes/v2/servico_consultar_situacao_lote_rps_envio_v02.xsd",
+      "kind": "COMMUNITY_XSD",
+      "content_type": "text/plain; charset=utf-8",
+      "bytes": 1074,
+      "sha256": "d14269fee44806c70ff184e7c5b8eb44994f629725bb8a5ad037f31f89d8e5d8",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "willkerms_NFSe_7",
+      "url": "https://raw.githubusercontent.com/willkerms/NFSe/b4a62d08ac30bca437bfa2f3e44e707deb3b1b1f/schemas/ginfes/v2/servico_enviar_lote_rps_envio_v02.xsd",
+      "final_url": "https://raw.githubusercontent.com/willkerms/NFSe/b4a62d08ac30bca437bfa2f3e44e707deb3b1b1f/schemas/ginfes/v2/servico_enviar_lote_rps_envio_v02.xsd",
+      "kind": "COMMUNITY_XSD",
+      "content_type": "text/plain; charset=utf-8",
+      "bytes": 1481,
+      "sha256": "968710d28d74178c8d8fa22c2bd8888c4f2ff2a1ada0d3315c1975e3d4ec3f2b",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "willkerms_NFSe_8",
+      "url": "https://raw.githubusercontent.com/willkerms/NFSe/b4a62d08ac30bca437bfa2f3e44e707deb3b1b1f/README.md",
+      "final_url": "https://raw.githubusercontent.com/willkerms/NFSe/b4a62d08ac30bca437bfa2f3e44e707deb3b1b1f/README.md",
+      "kind": "COMMUNITY_DOCUMENTATION",
+      "content_type": "text/plain; charset=utf-8",
+      "bytes": 38017,
+      "sha256": "aa6c8991d395080f59b0a0de33057d9891f57b3871cb20033547d038ab957ae0",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "danimaribeiro_NFSe.Net_0",
+      "url": "https://raw.githubusercontent.com/danimaribeiro/NFSe.Net/bcbe5ddb7c6cc64d700ece296f2e58942c754362/NFSE.Net/schemas/NFSe/ABRASF/nfse.xsd",
+      "final_url": "https://raw.githubusercontent.com/danimaribeiro/NFSe.Net/bcbe5ddb7c6cc64d700ece296f2e58942c754362/NFSE.Net/schemas/NFSe/ABRASF/nfse.xsd",
+      "kind": "COMMUNITY_XSD",
+      "content_type": "text/plain; charset=utf-8",
+      "bytes": 30242,
+      "sha256": "75b231340ef30f06156c4a0869a986fd1c2e84a612ec537c44c3fe400c3f37d5",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "danimaribeiro_NFSe.Net_1",
+      "url": "https://raw.githubusercontent.com/danimaribeiro/NFSe.Net/bcbe5ddb7c6cc64d700ece296f2e58942c754362/NFSE.Net/schemas/NFSe/ABRASF/xmldsig-core-schema20020212.xsd",
+      "final_url": "https://raw.githubusercontent.com/danimaribeiro/NFSe.Net/bcbe5ddb7c6cc64d700ece296f2e58942c754362/NFSE.Net/schemas/NFSe/ABRASF/xmldsig-core-schema20020212.xsd",
+      "kind": "COMMUNITY_XSD",
+      "content_type": "text/plain; charset=utf-8",
+      "bytes": 10155,
+      "sha256": "50ae626215983867fae928bb4e47955fa939811b069627bb28f08483c934d6dd",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "danimaribeiro_NFSe.Net_2",
+      "url": "https://raw.githubusercontent.com/danimaribeiro/NFSe.Net/bcbe5ddb7c6cc64d700ece296f2e58942c754362/NFSE.Net/schemas/NFSe/GINFES/cabecalho_v03.xsd",
+      "final_url": "https://raw.githubusercontent.com/danimaribeiro/NFSe.Net/bcbe5ddb7c6cc64d700ece296f2e58942c754362/NFSE.Net/schemas/NFSe/GINFES/cabecalho_v03.xsd",
+      "kind": "COMMUNITY_XSD",
+      "content_type": "text/plain; charset=utf-8",
+      "bytes": 686,
+      "sha256": "634ee007181fbbb304f9dc25898f37bddb70a3eda656df7170a5d4aa8140af5e",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "danimaribeiro_NFSe.Net_3",
+      "url": "https://raw.githubusercontent.com/danimaribeiro/NFSe.Net/bcbe5ddb7c6cc64d700ece296f2e58942c754362/NFSE.Net/schemas/NFSe/GINFES/servico_cancelar_nfse_envio_v02.xsd",
+      "final_url": "https://raw.githubusercontent.com/danimaribeiro/NFSe.Net/bcbe5ddb7c6cc64d700ece296f2e58942c754362/NFSE.Net/schemas/NFSe/GINFES/servico_cancelar_nfse_envio_v02.xsd",
+      "kind": "COMMUNITY_XSD",
+      "content_type": "text/plain; charset=utf-8",
+      "bytes": 999,
+      "sha256": "777c77a3ae4c5b722b05ca775d32784d79b5a472bfeaadd3200bc6fb01648bec",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "danimaribeiro_NFSe.Net_4",
+      "url": "https://raw.githubusercontent.com/danimaribeiro/NFSe.Net/bcbe5ddb7c6cc64d700ece296f2e58942c754362/NFSE.Net/schemas/NFSe/GINFES/servico_cancelar_nfse_envio_v03.xsd",
+      "final_url": "https://raw.githubusercontent.com/danimaribeiro/NFSe.Net/bcbe5ddb7c6cc64d700ece296f2e58942c754362/NFSE.Net/schemas/NFSe/GINFES/servico_cancelar_nfse_envio_v03.xsd",
+      "kind": "COMMUNITY_XSD",
+      "content_type": "text/plain; charset=utf-8",
+      "bytes": 902,
+      "sha256": "ac88ce1609bbc51c81efaca4c7bf1ea98f7a7c720d8ca13132a5f76252b2ceac",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "danimaribeiro_NFSe.Net_5",
+      "url": "https://raw.githubusercontent.com/danimaribeiro/NFSe.Net/bcbe5ddb7c6cc64d700ece296f2e58942c754362/NFSE.Net/schemas/NFSe/GINFES/servico_cancelar_nfse_resposta_v03.xsd",
+      "final_url": "https://raw.githubusercontent.com/danimaribeiro/NFSe.Net/bcbe5ddb7c6cc64d700ece296f2e58942c754362/NFSE.Net/schemas/NFSe/GINFES/servico_cancelar_nfse_resposta_v03.xsd",
+      "kind": "COMMUNITY_XSD",
+      "content_type": "text/plain; charset=utf-8",
+      "bytes": 761,
+      "sha256": "c776cad5f48a8248d26869bb0c2ed24aecdc1e31e13e4b5a00f753932b5c61aa",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "danimaribeiro_NFSe.Net_6",
+      "url": "https://raw.githubusercontent.com/danimaribeiro/NFSe.Net/bcbe5ddb7c6cc64d700ece296f2e58942c754362/NFSE.Net/schemas/NFSe/GINFES/servico_consultar_lote_rps_envio_v03.xsd",
+      "final_url": "https://raw.githubusercontent.com/danimaribeiro/NFSe.Net/bcbe5ddb7c6cc64d700ece296f2e58942c754362/NFSE.Net/schemas/NFSe/GINFES/servico_consultar_lote_rps_envio_v03.xsd",
+      "kind": "COMMUNITY_XSD",
+      "content_type": "text/plain; charset=utf-8",
+      "bytes": 1053,
+      "sha256": "ff65e94dce8a24922dfd2714b2043a06969ce8e9bc2d7e15ad3225ffd40ff2fc",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "danimaribeiro_NFSe.Net_7",
+      "url": "https://raw.githubusercontent.com/danimaribeiro/NFSe.Net/bcbe5ddb7c6cc64d700ece296f2e58942c754362/NFSE.Net/schemas/NFSe/GINFES/servico_consultar_lote_rps_resposta_v03.xsd",
+      "final_url": "https://raw.githubusercontent.com/danimaribeiro/NFSe.Net/bcbe5ddb7c6cc64d700ece296f2e58942c754362/NFSE.Net/schemas/NFSe/GINFES/servico_consultar_lote_rps_resposta_v03.xsd",
+      "kind": "COMMUNITY_XSD",
+      "content_type": "text/plain; charset=utf-8",
+      "bytes": 973,
+      "sha256": "646c41644b80af2d2986fb4306dcd2394648ba859f1ca79c3ccc36b404c521d0",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "danimaribeiro_NFSe.Net_8",
+      "url": "https://raw.githubusercontent.com/danimaribeiro/NFSe.Net/bcbe5ddb7c6cc64d700ece296f2e58942c754362/README.md",
+      "final_url": "https://raw.githubusercontent.com/danimaribeiro/NFSe.Net/bcbe5ddb7c6cc64d700ece296f2e58942c754362/README.md",
+      "kind": "COMMUNITY_DOCUMENTATION",
+      "content_type": "text/plain; charset=utf-8",
+      "bytes": 613,
+      "sha256": "97088177cec8a2de1720f15db407548798d5fdc3d2d3ee1b867ad28259502e15",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "vhghilardi_ghinfe_0",
+      "url": "https://raw.githubusercontent.com/vhghilardi/ghinfe/6074b3ad94cfaa07aa2bda1fc8f9ec90b19d4b52/schemas/nfe/PL_009_V4/consReciNFe_v4.00.xsd",
+      "final_url": "https://raw.githubusercontent.com/vhghilardi/ghinfe/6074b3ad94cfaa07aa2bda1fc8f9ec90b19d4b52/schemas/nfe/PL_009_V4/consReciNFe_v4.00.xsd",
+      "kind": "COMMUNITY_XSD",
+      "content_type": "text/plain; charset=utf-8",
+      "bytes": 610,
+      "sha256": "cff8456db0a6fe1195543d731ed9563b0664df2d6135ea77115dcd3069506b5a",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "vhghilardi_ghinfe_1",
+      "url": "https://raw.githubusercontent.com/vhghilardi/ghinfe/6074b3ad94cfaa07aa2bda1fc8f9ec90b19d4b52/schemas/nfe/PL_009_V4/consSitNFe_v4.00.xsd",
+      "final_url": "https://raw.githubusercontent.com/vhghilardi/ghinfe/6074b3ad94cfaa07aa2bda1fc8f9ec90b19d4b52/schemas/nfe/PL_009_V4/consSitNFe_v4.00.xsd",
+      "kind": "COMMUNITY_XSD",
+      "content_type": "text/plain; charset=utf-8",
+      "bytes": 568,
+      "sha256": "ec103f360d2193f56a18630ec2b9676a1d09d1dbf2d98123f8c42ad0497e3db5",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "vhghilardi_ghinfe_2",
+      "url": "https://raw.githubusercontent.com/vhghilardi/ghinfe/6074b3ad94cfaa07aa2bda1fc8f9ec90b19d4b52/schemas/nfe/PL_009_V4/consStatServ_v4.00.xsd",
+      "final_url": "https://raw.githubusercontent.com/vhghilardi/ghinfe/6074b3ad94cfaa07aa2bda1fc8f9ec90b19d4b52/schemas/nfe/PL_009_V4/consStatServ_v4.00.xsd",
+      "kind": "COMMUNITY_XSD",
+      "content_type": "text/plain; charset=utf-8",
+      "bytes": 595,
+      "sha256": "1712598b391a46e24fb399b79c3e8049349bd00c892ec30249daf21aad0fc324",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "vhghilardi_ghinfe_3",
+      "url": "https://raw.githubusercontent.com/vhghilardi/ghinfe/6074b3ad94cfaa07aa2bda1fc8f9ec90b19d4b52/schemas/nfe/PL_009_V4/enviNFe_v3.10.xsd",
+      "final_url": "https://raw.githubusercontent.com/vhghilardi/ghinfe/6074b3ad94cfaa07aa2bda1fc8f9ec90b19d4b52/schemas/nfe/PL_009_V4/enviNFe_v3.10.xsd",
+      "kind": "COMMUNITY_XSD",
+      "content_type": "text/plain; charset=utf-8",
+      "bytes": 599,
+      "sha256": "0bf2bae6a28d9a7bc975abcaabef89bba91c1dffa4535fb4d605005235cab4f6",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "vhghilardi_ghinfe_4",
+      "url": "https://raw.githubusercontent.com/vhghilardi/ghinfe/6074b3ad94cfaa07aa2bda1fc8f9ec90b19d4b52/LICENSE",
+      "final_url": "https://raw.githubusercontent.com/vhghilardi/ghinfe/6074b3ad94cfaa07aa2bda1fc8f9ec90b19d4b52/LICENSE",
+      "kind": "COMMUNITY_DOCUMENTATION",
+      "content_type": "text/plain; charset=utf-8",
+      "bytes": 1081,
+      "sha256": "2f4d668da8b84d31857777df67481018162d14fbc959daadbd8bcc0a6ef85688",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "vhghilardi_ghinfe_5",
+      "url": "https://raw.githubusercontent.com/vhghilardi/ghinfe/6074b3ad94cfaa07aa2bda1fc8f9ec90b19d4b52/README.md",
+      "final_url": "https://raw.githubusercontent.com/vhghilardi/ghinfe/6074b3ad94cfaa07aa2bda1fc8f9ec90b19d4b52/README.md",
+      "kind": "COMMUNITY_DOCUMENTATION",
+      "content_type": "text/plain; charset=utf-8",
+      "bytes": 13389,
+      "sha256": "5d5cb22d59b5d7100f44bb6775be391028fdfee06d76ad1e198e96bbd2c8688d",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "gildonei_nfse-nacional_0",
+      "url": "https://raw.githubusercontent.com/gildonei/nfse-nacional/0e49c5f5d3f5a44da8150d46c00a60f1ca435f0e/src/Resources/danfse/schemas/1.00/CNC_v1.00.xsd",
+      "final_url": "https://raw.githubusercontent.com/gildonei/nfse-nacional/0e49c5f5d3f5a44da8150d46c00a60f1ca435f0e/src/Resources/danfse/schemas/1.00/CNC_v1.00.xsd",
+      "kind": "COMMUNITY_XSD",
+      "content_type": "text/plain; charset=utf-8",
+      "bytes": 570,
+      "sha256": "9aa2f8bff12530e3fc3ee839c2768c3f78990ca33557e20e0416ed4e40b291ec",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "gildonei_nfse-nacional_1",
+      "url": "https://raw.githubusercontent.com/gildonei/nfse-nacional/0e49c5f5d3f5a44da8150d46c00a60f1ca435f0e/src/Resources/danfse/schemas/1.00/DPS_v1.00.xsd",
+      "final_url": "https://raw.githubusercontent.com/gildonei/nfse-nacional/0e49c5f5d3f5a44da8150d46c00a60f1ca435f0e/src/Resources/danfse/schemas/1.00/DPS_v1.00.xsd",
+      "kind": "COMMUNITY_XSD",
+      "content_type": "text/plain; charset=utf-8",
+      "bytes": 587,
+      "sha256": "35b1efecd3a1a7eeea218f62a65becc3d27522ded22b7614e676bbf222cae651",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "gildonei_nfse-nacional_2",
+      "url": "https://raw.githubusercontent.com/gildonei/nfse-nacional/0e49c5f5d3f5a44da8150d46c00a60f1ca435f0e/src/Resources/danfse/schemas/1.00/NFSe_v1.00.xsd",
+      "final_url": "https://raw.githubusercontent.com/gildonei/nfse-nacional/0e49c5f5d3f5a44da8150d46c00a60f1ca435f0e/src/Resources/danfse/schemas/1.00/NFSe_v1.00.xsd",
+      "kind": "COMMUNITY_XSD",
+      "content_type": "text/plain; charset=utf-8",
+      "bytes": 648,
+      "sha256": "2c78fa25f38345209f2dbd0b5f2bd1be224fd92404f6c86af219c1294af455ba",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "gildonei_nfse-nacional_3",
+      "url": "https://raw.githubusercontent.com/gildonei/nfse-nacional/0e49c5f5d3f5a44da8150d46c00a60f1ca435f0e/src/Resources/danfse/schemas/1.00/evento_v1.00.xsd",
+      "final_url": "https://raw.githubusercontent.com/gildonei/nfse-nacional/0e49c5f5d3f5a44da8150d46c00a60f1ca435f0e/src/Resources/danfse/schemas/1.00/evento_v1.00.xsd",
+      "kind": "COMMUNITY_XSD",
+      "content_type": "text/plain; charset=utf-8",
+      "bytes": 737,
+      "sha256": "3c34425d9b46b58628ecde8818f65b8c11bac958c3fc71ee1af4e9980e8bc08c",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "gildonei_nfse-nacional_4",
+      "url": "https://raw.githubusercontent.com/gildonei/nfse-nacional/0e49c5f5d3f5a44da8150d46c00a60f1ca435f0e/LICENSE",
+      "final_url": "https://raw.githubusercontent.com/gildonei/nfse-nacional/0e49c5f5d3f5a44da8150d46c00a60f1ca435f0e/LICENSE",
+      "kind": "COMMUNITY_DOCUMENTATION",
+      "content_type": "text/plain; charset=utf-8",
+      "bytes": 1077,
+      "sha256": "054db2a3716db4d1f7562384ac6b167ea8603caaac7993d892522c2e7e8850d0",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "gildonei_nfse-nacional_5",
+      "url": "https://raw.githubusercontent.com/gildonei/nfse-nacional/0e49c5f5d3f5a44da8150d46c00a60f1ca435f0e/README.md",
+      "final_url": "https://raw.githubusercontent.com/gildonei/nfse-nacional/0e49c5f5d3f5a44da8150d46c00a60f1ca435f0e/README.md",
+      "kind": "COMMUNITY_DOCUMENTATION",
+      "content_type": "text/plain; charset=utf-8",
+      "bytes": 24919,
+      "sha256": "0a0172d47ec53334b47599de4345088ba5142b4134f915aa3bf7912041f60485",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "coplan_manual",
+      "url": "https://www.gp.srv.br/tributario_camponovodoparecis/PublicTempStorage/nfse_documentos/NFSE_NACIONAL_Manual_De_Integracao_versao_2_02_alteracoes.pdf",
+      "kind": "OFFICIAL_MANUAL",
+      "status": "UNAVAILABLE",
+      "acquisition_error": "HTTP Error 404: Not Found"
+    },
+    {
+      "key": "rio_homolog_manual",
+      "url": "https://notacariocahomteste.rio.gov.br/files/manuais/WsNFSeNacional.pdf",
+      "kind": "OFFICIAL_MANUAL",
+      "status": "UNAVAILABLE",
+      "acquisition_error": "<urlopen error [WinError 10054] Foi forçado o cancelamento de uma conexão existente pelo host remoto>"
+    },
+    {
+      "key": "rio_homolog_xsd",
+      "url": "https://notacariocahomteste.rio.gov.br/files/WSNacional/schemas.zip",
+      "kind": "OFFICIAL_XSD",
+      "status": "UNAVAILABLE",
+      "acquisition_error": "<urlopen error [WinError 10054] Foi forçado o cancelamento de uma conexão existente pelo host remoto>"
+    },
+    {
+      "key": "elotech_municipal_note",
+      "url": "https://navirai.ms.gov.br/wp-content/uploads/2021/01/orientacoes-para-implantacao-integracao-de-xml.pdf",
+      "final_url": "https://navirai.ms.gov.br/wp-content/uploads/2021/01/orientacoes-para-implantacao-integracao-de-xml.pdf",
+      "kind": "OFFICIAL_MANUAL",
+      "content_type": "application/pdf",
+      "bytes": 66860,
+      "sha256": "12d4527f52cf134dba4c9e25b947f8f044e2bb27f739ef310790cd2223735cd4",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "betha_rps_index",
+      "url": "https://iss.ajuda.betha.cloud/e-nota-cloud/ajuda/modulo-contribuinte/rps/",
+      "final_url": "https://iss.ajuda.betha.cloud/e-nota-cloud/ajuda/modulo-contribuinte/rps/",
+      "kind": "OFFICIAL_INDEX",
+      "content_type": "text/html",
+      "bytes": 138790,
+      "sha256": "7138c7f110adb00c7879cbf4f31c6313e1245997bf9eabb93cea4c2304535024",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "willkerms_NFSe_targeted_0",
+      "url": "https://raw.githubusercontent.com/willkerms/NFSe/b4a62d08ac30bca437bfa2f3e44e707deb3b1b1f/schemas/abrasf/nfse_v2-03%202016.xsd",
+      "final_url": "https://raw.githubusercontent.com/willkerms/NFSe/b4a62d08ac30bca437bfa2f3e44e707deb3b1b1f/schemas/abrasf/nfse_v2-03%202016.xsd",
+      "kind": "COMMUNITY_XSD",
+      "content_type": "text/plain; charset=utf-8",
+      "bytes": 50637,
+      "sha256": "d432d5215485f1df8723d392791b65aee491caf4d7cfa433478fb0c14679180c",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "willkerms_NFSe_targeted_1",
+      "url": "https://raw.githubusercontent.com/willkerms/NFSe/b4a62d08ac30bca437bfa2f3e44e707deb3b1b1f/schemas/ginfes/v3/tipos_v03.xsd",
+      "final_url": "https://raw.githubusercontent.com/willkerms/NFSe/b4a62d08ac30bca437bfa2f3e44e707deb3b1b1f/schemas/ginfes/v3/tipos_v03.xsd",
+      "kind": "COMMUNITY_XSD",
+      "content_type": "text/plain; charset=utf-8",
+      "bytes": 20844,
+      "sha256": "20b4f07f25f3d00a99be486f0eaee4768eabe38e9d4d8c91b7d3a73aa2876fb7",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "danimaribeiro_NFSe.Net_targeted_0",
+      "url": "https://raw.githubusercontent.com/danimaribeiro/NFSe.Net/bcbe5ddb7c6cc64d700ece296f2e58942c754362/NFSE.Net/schemas/NFSe/BETHA/TiposNFe_v01.xsd",
+      "final_url": "https://raw.githubusercontent.com/danimaribeiro/NFSe.Net/bcbe5ddb7c6cc64d700ece296f2e58942c754362/NFSE.Net/schemas/NFSe/BETHA/TiposNFe_v01.xsd",
+      "kind": "COMMUNITY_XSD",
+      "content_type": "text/plain; charset=utf-8",
+      "bytes": 25300,
+      "sha256": "e7c54abe5f8e6f29f7099501c4598d63e5ec18b9bee4972f99806dae9a0a5dda",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "danimaribeiro_NFSe.Net_targeted_1",
+      "url": "https://raw.githubusercontent.com/danimaribeiro/NFSe.Net/bcbe5ddb7c6cc64d700ece296f2e58942c754362/NFSE.Net/schemas/NFSe/BETHA/nfse_v01.xsd",
+      "final_url": "https://raw.githubusercontent.com/danimaribeiro/NFSe.Net/bcbe5ddb7c6cc64d700ece296f2e58942c754362/NFSE.Net/schemas/NFSe/BETHA/nfse_v01.xsd",
+      "kind": "COMMUNITY_XSD",
+      "content_type": "text/plain; charset=utf-8",
+      "bytes": 31738,
+      "sha256": "eb39c79b021d6fe7a314985a62d36ded486d4d568e5d45cb239f4c60c783c693",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "danimaribeiro_NFSe.Net_targeted_2",
+      "url": "https://raw.githubusercontent.com/danimaribeiro/NFSe.Net/bcbe5ddb7c6cc64d700ece296f2e58942c754362/NFSE.Net/schemas/NFSe/BETHA/servico_cancelar_nfse_envio_v01.xsd",
+      "final_url": "https://raw.githubusercontent.com/danimaribeiro/NFSe.Net/bcbe5ddb7c6cc64d700ece296f2e58942c754362/NFSE.Net/schemas/NFSe/BETHA/servico_cancelar_nfse_envio_v01.xsd",
+      "kind": "COMMUNITY_XSD",
+      "content_type": "text/plain; charset=utf-8",
+      "bytes": 759,
+      "sha256": "5d99240f636198597da33ca2311512a250ce02ce4adb423eeb759bbbf87a600c",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "danimaribeiro_NFSe.Net_targeted_3",
+      "url": "https://raw.githubusercontent.com/danimaribeiro/NFSe.Net/bcbe5ddb7c6cc64d700ece296f2e58942c754362/NFSE.Net/schemas/NFSe/BETHA/servico_cancelar_nfse_resposta_v01.xsd",
+      "final_url": "https://raw.githubusercontent.com/danimaribeiro/NFSe.Net/bcbe5ddb7c6cc64d700ece296f2e58942c754362/NFSE.Net/schemas/NFSe/BETHA/servico_cancelar_nfse_resposta_v01.xsd",
+      "kind": "COMMUNITY_XSD",
+      "content_type": "text/plain; charset=utf-8",
+      "bytes": 964,
+      "sha256": "092cbdc00147c17c657341fc60924620893307add939337bf95ebe5ed97c1b57",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "danimaribeiro_NFSe.Net_targeted_4",
+      "url": "https://raw.githubusercontent.com/danimaribeiro/NFSe.Net/bcbe5ddb7c6cc64d700ece296f2e58942c754362/NFSE.Net/schemas/NFSe/BETHA/servico_consultar_lote_rps_envio_v01.xsd",
+      "final_url": "https://raw.githubusercontent.com/danimaribeiro/NFSe.Net/bcbe5ddb7c6cc64d700ece296f2e58942c754362/NFSE.Net/schemas/NFSe/BETHA/servico_consultar_lote_rps_envio_v01.xsd",
+      "kind": "COMMUNITY_XSD",
+      "content_type": "text/plain; charset=utf-8",
+      "bytes": 893,
+      "sha256": "d5667dcba5c5d66f1de22821c0fb59c50c73114eb0e1e49dcf7fb8e6bb9da185",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "danimaribeiro_NFSe.Net_targeted_5",
+      "url": "https://raw.githubusercontent.com/danimaribeiro/NFSe.Net/bcbe5ddb7c6cc64d700ece296f2e58942c754362/NFSE.Net/schemas/NFSe/BETHA/servico_consultar_lote_rps_resposta_v01.xsd",
+      "final_url": "https://raw.githubusercontent.com/danimaribeiro/NFSe.Net/bcbe5ddb7c6cc64d700ece296f2e58942c754362/NFSE.Net/schemas/NFSe/BETHA/servico_consultar_lote_rps_resposta_v01.xsd",
+      "kind": "COMMUNITY_XSD",
+      "content_type": "text/plain; charset=utf-8",
+      "bytes": 1312,
+      "sha256": "9a96738116197bc92d7cc0715db043b82c3b09d49092adaff1fdae25a54cad4a",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "danimaribeiro_NFSe.Net_targeted_6",
+      "url": "https://raw.githubusercontent.com/danimaribeiro/NFSe.Net/bcbe5ddb7c6cc64d700ece296f2e58942c754362/NFSE.Net/schemas/NFSe/BETHA/servico_consultar_nfse_envio_v01.xsd",
+      "final_url": "https://raw.githubusercontent.com/danimaribeiro/NFSe.Net/bcbe5ddb7c6cc64d700ece296f2e58942c754362/NFSE.Net/schemas/NFSe/BETHA/servico_consultar_nfse_envio_v01.xsd",
+      "kind": "COMMUNITY_XSD",
+      "content_type": "text/plain; charset=utf-8",
+      "bytes": 1535,
+      "sha256": "eac07e559f0453806ee07aa43464853bc064ccec3cb8117e65a749007ec9f46d",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "danimaribeiro_NFSe.Net_targeted_7",
+      "url": "https://raw.githubusercontent.com/danimaribeiro/NFSe.Net/bcbe5ddb7c6cc64d700ece296f2e58942c754362/NFSE.Net/schemas/NFSe/BETHA/servico_consultar_nfse_resposta_v01.xsd",
+      "final_url": "https://raw.githubusercontent.com/danimaribeiro/NFSe.Net/bcbe5ddb7c6cc64d700ece296f2e58942c754362/NFSE.Net/schemas/NFSe/BETHA/servico_consultar_nfse_resposta_v01.xsd",
+      "kind": "COMMUNITY_XSD",
+      "content_type": "text/plain; charset=utf-8",
+      "bytes": 1083,
+      "sha256": "63a3bad7e64084b000a51df60a53620f08d2231072326c58b24e452d12e9320a",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "danimaribeiro_NFSe.Net_targeted_8",
+      "url": "https://raw.githubusercontent.com/danimaribeiro/NFSe.Net/bcbe5ddb7c6cc64d700ece296f2e58942c754362/NFSE.Net/schemas/NFSe/BETHA/servico_consultar_nfse_rps_envio_v01.xsd",
+      "final_url": "https://raw.githubusercontent.com/danimaribeiro/NFSe.Net/bcbe5ddb7c6cc64d700ece296f2e58942c754362/NFSE.Net/schemas/NFSe/BETHA/servico_consultar_nfse_rps_envio_v01.xsd",
+      "kind": "COMMUNITY_XSD",
+      "content_type": "text/plain; charset=utf-8",
+      "bytes": 904,
+      "sha256": "73722fa748066f3b85cba02bfb55c4932376609f01b667b5e1407aff9a5386c7",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "danimaribeiro_NFSe.Net_targeted_9",
+      "url": "https://raw.githubusercontent.com/danimaribeiro/NFSe.Net/bcbe5ddb7c6cc64d700ece296f2e58942c754362/NFSE.Net/schemas/NFSe/BETHA/servico_consultar_nfse_rps_resposta_v01.xsd",
+      "final_url": "https://raw.githubusercontent.com/danimaribeiro/NFSe.Net/bcbe5ddb7c6cc64d700ece296f2e58942c754362/NFSE.Net/schemas/NFSe/BETHA/servico_consultar_nfse_rps_resposta_v01.xsd",
+      "kind": "COMMUNITY_XSD",
+      "content_type": "text/plain; charset=utf-8",
+      "bytes": 875,
+      "sha256": "da569f7cc7a05a1a07ceb306b91256dd2d770448eb7089323fa924d74dcd8d37",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "danimaribeiro_NFSe.Net_targeted_10",
+      "url": "https://raw.githubusercontent.com/danimaribeiro/NFSe.Net/bcbe5ddb7c6cc64d700ece296f2e58942c754362/NFSE.Net/schemas/NFSe/BETHA/servico_consultar_situacao_lote_rps_envio_v01.xsd",
+      "final_url": "https://raw.githubusercontent.com/danimaribeiro/NFSe.Net/bcbe5ddb7c6cc64d700ece296f2e58942c754362/NFSE.Net/schemas/NFSe/BETHA/servico_consultar_situacao_lote_rps_envio_v01.xsd",
+      "kind": "COMMUNITY_XSD",
+      "content_type": "text/plain; charset=utf-8",
+      "bytes": 901,
+      "sha256": "463e0f2a661e85124f67dba86f502d776c205697abecfb8bcf1ca24501c217f5",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "danimaribeiro_NFSe.Net_targeted_11",
+      "url": "https://raw.githubusercontent.com/danimaribeiro/NFSe.Net/bcbe5ddb7c6cc64d700ece296f2e58942c754362/NFSE.Net/schemas/NFSe/BETHA/servico_consultar_situacao_lote_rps_resposta_v01.xsd",
+      "final_url": "https://raw.githubusercontent.com/danimaribeiro/NFSe.Net/bcbe5ddb7c6cc64d700ece296f2e58942c754362/NFSE.Net/schemas/NFSe/BETHA/servico_consultar_situacao_lote_rps_resposta_v01.xsd",
+      "kind": "COMMUNITY_XSD",
+      "content_type": "text/plain; charset=utf-8",
+      "bytes": 1042,
+      "sha256": "489c2437c5f028cd623b261a51abc9dbe182952141daa3876cec99980b19bac0",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "danimaribeiro_NFSe.Net_targeted_12",
+      "url": "https://raw.githubusercontent.com/danimaribeiro/NFSe.Net/bcbe5ddb7c6cc64d700ece296f2e58942c754362/NFSE.Net/schemas/NFSe/BETHA/servico_enviar_lote_rps_envio_v01.xsd",
+      "final_url": "https://raw.githubusercontent.com/danimaribeiro/NFSe.Net/bcbe5ddb7c6cc64d700ece296f2e58942c754362/NFSE.Net/schemas/NFSe/BETHA/servico_enviar_lote_rps_envio_v01.xsd",
+      "kind": "COMMUNITY_XSD",
+      "content_type": "text/plain; charset=utf-8",
+      "bytes": 832,
+      "sha256": "e04d3197732a82e59d1205ad807c82d66c2615cb0a8829c1afcc1a141aba3e97",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "danimaribeiro_NFSe.Net_targeted_13",
+      "url": "https://raw.githubusercontent.com/danimaribeiro/NFSe.Net/bcbe5ddb7c6cc64d700ece296f2e58942c754362/NFSE.Net/schemas/NFSe/BETHA/servico_enviar_lote_rps_resposta_v01.xsd",
+      "final_url": "https://raw.githubusercontent.com/danimaribeiro/NFSe.Net/bcbe5ddb7c6cc64d700ece296f2e58942c754362/NFSE.Net/schemas/NFSe/BETHA/servico_enviar_lote_rps_resposta_v01.xsd",
+      "kind": "COMMUNITY_XSD",
+      "content_type": "text/plain; charset=utf-8",
+      "bytes": 1129,
+      "sha256": "a30e50344d469f5f55c77411ee4a84cbfe96f934a8a79e786a3557c1c445655a",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "danimaribeiro_NFSe.Net_targeted_14",
+      "url": "https://raw.githubusercontent.com/danimaribeiro/NFSe.Net/bcbe5ddb7c6cc64d700ece296f2e58942c754362/NFSE.Net/schemas/NFSe/GINFES/tipos_v02.xsd",
+      "final_url": "https://raw.githubusercontent.com/danimaribeiro/NFSe.Net/bcbe5ddb7c6cc64d700ece296f2e58942c754362/NFSE.Net/schemas/NFSe/GINFES/tipos_v02.xsd",
+      "kind": "COMMUNITY_XSD",
+      "content_type": "text/plain; charset=utf-8",
+      "bytes": 27100,
+      "sha256": "2214c9bbd6b1ba40e6116a1e48a544753bdea05c17e2e0d27cd1957e89b001a0",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "abrasf_index_2-00",
+      "url": "https://abrasf.org.br/biblioteca/arquivos-publicos/nfs-e/versao-2-00",
+      "final_url": "https://abrasf.org.br/biblioteca/arquivos-publicos/nfs-e/versao-2-00",
+      "kind": "OFFICIAL_INDEX",
+      "content_type": "text/html; charset=utf-8",
+      "bytes": 84382,
+      "sha256": "d4a1e9f34e0e8f7c698e3facd7a00804e11ef09161429b89eae17bb2a0cf8c6d",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "abrasf_2-00_xsd_resolved",
+      "url": "https://abrasf.org.br/biblioteca/arquivos-publicos/xml-schema-nfse-v2/download",
+      "final_url": "https://abrasf.org.br/biblioteca/arquivos-publicos/xml-schema-nfse-v2/download",
+      "kind": "OFFICIAL_XSD",
+      "content_type": "application/zip",
+      "bytes": 5668,
+      "sha256": "588b58380710c7dc0f051e820cb98ea2fb9562b5c7def94969c097b9d768f2d8",
+      "status": "OBTAINED",
+      "archive_files": [
+        "xmldsig-core-schema20020212.xsd",
+        "nfse v2 0.xsd"
+      ],
+      "schemas": [
+        {
+          "file": "xmldsig-core-schema20020212.xsd",
+          "namespaces": [
+            "http://www.w3.org/2000/09/xmldsig#"
+          ]
+        },
+        {
+          "file": "nfse v2 0.xsd",
+          "namespaces": [
+            "http://www.abrasf.org.br/nfse.xsd"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "abrasf_index_2-01",
+      "url": "https://abrasf.org.br/biblioteca/arquivos-publicos/nfs-e/versao-2-01",
+      "final_url": "https://abrasf.org.br/biblioteca/arquivos-publicos/nfs-e/versao-2-01",
+      "kind": "OFFICIAL_INDEX",
+      "content_type": "text/html; charset=utf-8",
+      "bytes": 88707,
+      "sha256": "2dcb8893a147174c02891290d5278003ffdd72ef2020c4aeeb37c64e86f5f6fa",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "abrasf_2-01_xsd_resolved",
+      "url": "https://abrasf.org.br/biblioteca/arquivos-publicos/schema-xml-nfse-v2-01/download",
+      "final_url": "https://abrasf.org.br/biblioteca/arquivos-publicos/schema-xml-nfse-v2-01/download",
+      "kind": "OFFICIAL_XSD",
+      "content_type": "application/zip",
+      "bytes": 5676,
+      "sha256": "f07bad8801526f2687b61046f623cffe569f3fa7beb03663062741034565e15f",
+      "status": "OBTAINED",
+      "archive_files": [
+        "xmldsig-core-schema20020212.xsd",
+        "nfse v2 01.xsd"
+      ],
+      "schemas": [
+        {
+          "file": "xmldsig-core-schema20020212.xsd",
+          "namespaces": [
+            "http://www.w3.org/2000/09/xmldsig#"
+          ]
+        },
+        {
+          "file": "nfse v2 01.xsd",
+          "namespaces": [
+            "http://www.abrasf.org.br/nfse.xsd"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "abrasf_index_2-03",
+      "url": "https://abrasf.org.br/biblioteca/arquivos-publicos/nfs-e/versao-2-03",
+      "final_url": "https://abrasf.org.br/biblioteca/arquivos-publicos/nfs-e/versao-2-03",
+      "kind": "OFFICIAL_INDEX",
+      "content_type": "text/html; charset=utf-8",
+      "bytes": 86569,
+      "sha256": "49eb0abd0348a5fe869f940e5e88973023f5ca5ec547c37b9d2ca9b3ae834991",
+      "status": "OBTAINED"
+    },
+    {
+      "key": "abrasf_2-03_xsd_resolved",
+      "url": "https://abrasf.org.br/biblioteca/arquivos-publicos/schema-xml-nfs-e-v2-03/download",
+      "final_url": "https://abrasf.org.br/biblioteca/arquivos-publicos/schema-xml-nfs-e-v2-03/download",
+      "kind": "OFFICIAL_XSD",
+      "content_type": "application/zip",
+      "bytes": 7397,
+      "sha256": "638f7f9a0dfb76898357e4335270424a5123c2cc2ab040bdb0b2de08da58a941",
+      "status": "OBTAINED",
+      "archive_files": [
+        "nfse_v2-03 2016.txt",
+        "xmldsig-core-schema20020212.xsd"
+      ],
+      "schemas": [
+        {
+          "file": "xmldsig-core-schema20020212.xsd",
+          "namespaces": [
+            "http://www.w3.org/2000/09/xmldsig#"
+          ]
+        }
+      ]
+    }
+  ],
+  "repositories": [
+    {
+      "repository": "https://github.com/willkerms/NFSe",
+      "commit": "b4a62d08ac30bca437bfa2f3e44e707deb3b1b1f",
+      "license_metadata": null,
+      "xsd_count": 53,
+      "tree_truncated": false
+    },
+    {
+      "repository": "https://github.com/danimaribeiro/NFSe.Net",
+      "commit": "bcbe5ddb7c6cc64d700ece296f2e58942c754362",
+      "license_metadata": {
+        "key": "gpl-2.0",
+        "name": "GNU General Public License v2.0",
+        "spdx_id": "GPL-2.0",
+        "url": "https://api.github.com/licenses/gpl-2.0",
+        "node_id": "MDc6TGljZW5zZTg="
+      },
+      "xsd_count": 134,
+      "tree_truncated": false
+    },
+    {
+      "repository": "https://github.com/vhghilardi/ghinfe",
+      "commit": "6074b3ad94cfaa07aa2bda1fc8f9ec90b19d4b52",
+      "license_metadata": {
+        "key": "mit",
+        "name": "MIT License",
+        "spdx_id": "MIT",
+        "url": "https://api.github.com/licenses/mit",
+        "node_id": "MDc6TGljZW5zZTEz"
+      },
+      "xsd_count": 10,
+      "tree_truncated": false
+    },
+    {
+      "repository": "https://github.com/gildonei/nfse-nacional",
+      "commit": "0e49c5f5d3f5a44da8150d46c00a60f1ca435f0e",
+      "license_metadata": {
+        "key": "mit",
+        "name": "MIT License",
+        "spdx_id": "MIT",
+        "url": "https://api.github.com/licenses/mit",
+        "node_id": "MDc6TGljZW5zZTEz"
+      },
+      "xsd_count": 20,
+      "tree_truncated": false
+    }
+  ],
+  "additional_checks": [
+    {
+      "material": "abrasf_2-03_xsd_resolved",
+      "member": "nfse_v2-03 2016.txt",
+      "declared_namespace": "http://www.abrasf.org.br/nfse.xsd",
+      "xml_well_formed": false,
+      "failure": "mismatched tag: line 420, column 17",
+      "action": "Original preserved; no silent repair or certification."
+    }
+  ]
+}

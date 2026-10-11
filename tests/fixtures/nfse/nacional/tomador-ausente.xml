@@ -1,0 +1,25 @@
+<?xml version='1.0' encoding='utf-8'?>
+<NFSe xmlns="http://www.sped.fazenda.gov.br/nfse" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" versao="1.01"><infNFSe Id="NFS35503082212345678000195000000090000126100000000010">
+    <xLocEmi>SAO PAULO</xLocEmi><xLocPrestacao>SAO PAULO</xLocPrestacao><nNFSe>900001</nNFSe>
+    <xTribNac>SERVICOS FICTICIOS</xTribNac><verAplic>QA_E1E2</verAplic><ambGer>2</ambGer><tpEmis>1</tpEmis>
+    <cStat>100</cStat><dhProc>2026-10-09T09:05:00-03:00</dhProc><nDFSe>1</nDFSe>
+    <emit><CNPJ>12345678000195</CNPJ><xNome>PRESTADOR FICTICIO E1 E2</xNome>
+    <enderNac><xLgr>RUA FICTICIA</xLgr><nro>10</nro><xBairro>CENTRO</xBairro><cMun>3550308</cMun><UF>SP</UF><CEP>01001000</CEP></enderNac></emit>
+    <valores><vBC>1000.00</vBC><pAliqAplic>2.00</pAliqAplic><vISSQN>20.00</vISSQN><vTotalRet>0.00</vTotalRet><vLiq>1000.00</vLiq></valores>
+    <DPS versao="1.01"><infDPS Id="DPS355030821234567800019500001000000000900001">
+    <tpAmb>2</tpAmb><dhEmi>2026-10-09T09:00:00-03:00</dhEmi><verAplic>QA_E1E2</verAplic>
+    <serie>00001</serie><nDPS>900001</nDPS><dCompet>2026-10-09</dCompet><tpEmit>1</tpEmit><cLocEmi>3550308</cLocEmi>
+    <prest><CNPJ>12345678000195</CNPJ><xNome>PRESTADOR FICTICIO E1 E2</xNome>
+    <regTrib><opSimpNac>1</opSimpNac><regEspTrib>0</regEspTrib></regTrib></prest>
+    <serv><locPrest><cLocPrestacao>3550308</cLocPrestacao></locPrest>
+    <cServ><cTribNac>010101</cTribNac><xDescServ>SERVICO FICTICIO &amp; TESTE</xDescServ></cServ></serv>
+    <valores><vServPrest><vServ>1000.00</vServ></vServPrest>
+    <vDescCondIncond><vDescIncond>0.00</vDescIncond><vDescCond>0.00</vDescCond></vDescCondIncond>
+    <trib><tribMun><tribISSQN>1</tribISSQN><tpRetISSQN>1</tpRetISSQN></tribMun>
+    <totTrib><indTotTrib>0</indTotTrib></totTrib></trib></valores>
+    </infDPS></DPS></infNFSe><ds:Signature><ds:SignedInfo>
+    <ds:CanonicalizationMethod Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315" />
+    <ds:SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1" />
+    <ds:Reference URI="#NFS35503082212345678000195000000090000126100000000010"><ds:Transforms><ds:Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature" /><ds:Transform Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315" /></ds:Transforms><ds:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1" />
+    <ds:DigestValue>AAAAAAAAAAAAAAAAAAAAAAAAAAA=</ds:DigestValue></ds:Reference>
+    </ds:SignedInfo><ds:SignatureValue>AQ==</ds:SignatureValue><ds:KeyInfo><ds:X509Data><ds:X509Certificate>AQ==</ds:X509Certificate></ds:X509Data></ds:KeyInfo></ds:Signature></NFSe>

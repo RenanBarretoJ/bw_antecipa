@@ -1,0 +1,48 @@
+﻿{
+    "engine":  "System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089",
+    "scope":  "TYPE_ONLY_NOT_FULL_DOCUMENT",
+    "resultados":  [
+                       {
+                           "schema":  "tests/fixtures/nfse/nacional/schemas/1.01/tiposSimples_v1.01.xsd",
+                           "sha256":  "830ea116c34d7310699e34b214b7214a65f7e5d3b1f09aeaa702f7e3f4283b17",
+                           "pattern":  "^0{0,4}\\d{1,5}$",
+                           "serie":  "00001",
+                           "valid":  true
+                       },
+                       {
+                           "schema":  "tests/fixtures/nfse/nacional/schemas/1.01/tiposSimples_v1.01.xsd",
+                           "sha256":  "830ea116c34d7310699e34b214b7214a65f7e5d3b1f09aeaa702f7e3f4283b17",
+                           "pattern":  "^0{0,4}\\d{1,5}$",
+                           "serie":  "1",
+                           "valid":  true
+                       },
+                       {
+                           "schema":  "tests/fixtures/nfse/nacional/schemas/1.01/tiposSimples_v1.01.xsd",
+                           "sha256":  "830ea116c34d7310699e34b214b7214a65f7e5d3b1f09aeaa702f7e3f4283b17",
+                           "pattern":  "^0{0,4}\\d{1,5}$",
+                           "serie":  "^1$",
+                           "valid":  false
+                       },
+                       {
+                           "schema":  "tests/fixtures/nfse/nacional/schemas/homolog-20260727/1.01/tiposSimples_v1.01.xsd",
+                           "sha256":  "3d8171c9b7c9a82ecb48eed9a96485f2077006e7d21db6cd182839dd34dbb5e4",
+                           "pattern":  "[0-9]{1,4}|[0-8][0-9]{4}",
+                           "serie":  "00001",
+                           "valid":  true
+                       },
+                       {
+                           "schema":  "tests/fixtures/nfse/nacional/schemas/homolog-20260727/1.01/tiposSimples_v1.01.xsd",
+                           "sha256":  "3d8171c9b7c9a82ecb48eed9a96485f2077006e7d21db6cd182839dd34dbb5e4",
+                           "pattern":  "[0-9]{1,4}|[0-8][0-9]{4}",
+                           "serie":  "1",
+                           "valid":  true
+                       },
+                       {
+                           "schema":  "tests/fixtures/nfse/nacional/schemas/homolog-20260727/1.01/tiposSimples_v1.01.xsd",
+                           "sha256":  "3d8171c9b7c9a82ecb48eed9a96485f2077006e7d21db6cd182839dd34dbb5e4",
+                           "pattern":  "[0-9]{1,4}|[0-8][0-9]{4}",
+                           "serie":  "^1$",
+                           "valid":  false
+                       }
+                   ]
+}

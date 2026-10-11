@@ -1,0 +1,3004 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:bw-antecipa:docs:nfse-canonical-draft:1.0.0",
+  "title": "Proposta documental do contrato NFS-e; não implantado",
+  "description": "Ground truth, validação documental, autorização e elegibilidade são gates externos. Campo ausente é null com estado; dinheiro usa decimal string; identidade mantém zeros. Schema não comprova autenticidade, situação fiscal ou precisão. Alíquota normalizada em percentual, nunca fração sem de/para aprovado.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "natureza_documento": {
+      "enum": [
+        "NFSE",
+        "DPS",
+        "RPS",
+        "EVENTO",
+        "OUTRO",
+        "DESCONHECIDO"
+      ]
+    },
+    "identificacao_layout": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "familia": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "provedor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "versao_documental": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "namespace": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "perfil_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status_cobertura": {
+          "enum": [
+            "DESCONHECIDO",
+            "DOCUMENTADO",
+            "EXPERIMENTAL",
+            "CERTIFICADO"
+          ]
+        }
+      },
+      "required": [
+        "familia",
+        "provedor",
+        "versao_documental",
+        "namespace",
+        "perfil_id",
+        "status_cobertura"
+      ]
+    },
+    "originais": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "formato": {
+            "enum": [
+              "XML",
+              "PDF"
+            ]
+          }
+        },
+        "required": [
+          "sha256",
+          "formato"
+        ]
+      }
+    },
+    "extrator_versao": {
+      "type": "string"
+    },
+    "identificacao": {
+      "$ref": "#/$defs/identificacao"
+    },
+    "prestador": {
+      "$ref": "#/$defs/pessoa"
+    },
+    "tomador": {
+      "$ref": "#/$defs/pessoa"
+    },
+    "servicos": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/servico"
+      }
+    },
+    "totais": {
+      "$ref": "#/$defs/valores"
+    },
+    "vencimento": {
+      "$ref": "#/$defs/fieldDate"
+    },
+    "alertas_documento": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "natureza_documento",
+    "identificacao_layout",
+    "originais",
+    "extrator_versao",
+    "identificacao",
+    "prestador",
+    "tomador",
+    "servicos",
+    "totais",
+    "vencimento",
+    "alertas_documento"
+  ],
+  "$defs": {
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "origem": {
+          "enum": [
+            "XML",
+            "PDF",
+            "MANUAL"
+          ]
+        },
+        "caminho_xml": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "namespaces": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "pagina_pdf": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "bbox_pdf": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "minItems": 4,
+              "maxItems": 4
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "unidade_bbox": {
+          "anyOf": [
+            {
+              "enum": [
+                "POINTS",
+                "NORMALIZED"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ancora": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "origem",
+        "caminho_xml",
+        "pagina_pdf",
+        "ancora"
+      ]
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "codigo": {
+          "type": "string"
+        },
+        "resultado": {
+          "enum": [
+            "PASSOU",
+            "FALHOU",
+            "NAO_EXECUTADA",
+            "NAO_APLICAVEL"
+          ]
+        }
+      },
+      "required": [
+        "codigo",
+        "resultado"
+      ]
+    },
+    "fieldString": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "original": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "valor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "estado": {
+          "enum": [
+            "PRESENTE",
+            "AUSENTE",
+            "NAO_APLICAVEL",
+            "DERIVADO"
+          ]
+        },
+        "origem": {
+          "anyOf": [
+            {
+              "enum": [
+                "XML",
+                "PDF",
+                "MANUAL",
+                "CALCULO"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "metodo": {
+          "anyOf": [
+            {
+              "enum": [
+                "XML_ESTRUTURAL",
+                "PDF_TEXTUAL",
+                "OCR",
+                "IA_VISUAL",
+                "ENTRADA_MANUAL",
+                "CALCULO_EVIDENCIADO"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "evidencias": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/evidence"
+          }
+        },
+        "confianca": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "validacoes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/validation"
+          }
+        },
+        "alertas": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "derivacao": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "formula_versao": {
+                  "type": "string"
+                },
+                "campos_fontes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1
+                }
+              },
+              "required": [
+                "formula_versao",
+                "campos_fontes"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "original",
+        "valor",
+        "estado",
+        "origem",
+        "metodo",
+        "evidencias",
+        "confianca",
+        "validacoes",
+        "alertas",
+        "derivacao"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "estado": {
+                "enum": [
+                  "AUSENTE",
+                  "NAO_APLICAVEL"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "valor": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "estado": {
+                "enum": [
+                  "PRESENTE",
+                  "DERIVADO"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "valor": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "estado": {
+                "const": "AUSENTE"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "original": {
+                "type": "null"
+              },
+              "confianca": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "estado": {
+                "const": "DERIVADO"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "origem": {
+                "const": "CALCULO"
+              },
+              "metodo": {
+                "const": "CALCULO_EVIDENCIADO"
+              },
+              "derivacao": {
+                "$ref": "#/$defs/fieldString/properties/derivacao/anyOf/0"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "fieldDecimal": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "original": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "valor": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^-?[0-9]+\\.[0-9]{2}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "estado": {
+          "enum": [
+            "PRESENTE",
+            "AUSENTE",
+            "NAO_APLICAVEL",
+            "DERIVADO"
+          ]
+        },
+        "origem": {
+          "anyOf": [
+            {
+              "enum": [
+                "XML",
+                "PDF",
+                "MANUAL",
+                "CALCULO"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "metodo": {
+          "anyOf": [
+            {
+              "enum": [
+                "XML_ESTRUTURAL",
+                "PDF_TEXTUAL",
+                "OCR",
+                "IA_VISUAL",
+                "ENTRADA_MANUAL",
+                "CALCULO_EVIDENCIADO"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "evidencias": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/evidence"
+          }
+        },
+        "confianca": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "validacoes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/validation"
+          }
+        },
+        "alertas": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "derivacao": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "formula_versao": {
+                  "type": "string"
+                },
+                "campos_fontes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1
+                }
+              },
+              "required": [
+                "formula_versao",
+                "campos_fontes"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "original",
+        "valor",
+        "estado",
+        "origem",
+        "metodo",
+        "evidencias",
+        "confianca",
+        "validacoes",
+        "alertas",
+        "derivacao"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "estado": {
+                "enum": [
+                  "AUSENTE",
+                  "NAO_APLICAVEL"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "valor": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "estado": {
+                "enum": [
+                  "PRESENTE",
+                  "DERIVADO"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "valor": {
+                "type": "string",
+                "pattern": "^-?[0-9]+\\.[0-9]{2}$"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "estado": {
+                "const": "AUSENTE"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "original": {
+                "type": "null"
+              },
+              "confianca": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "estado": {
+                "const": "DERIVADO"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "origem": {
+                "const": "CALCULO"
+              },
+              "metodo": {
+                "const": "CALCULO_EVIDENCIADO"
+              },
+              "derivacao": {
+                "$ref": "#/$defs/fieldDecimal/properties/derivacao/anyOf/0"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "fieldRate": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "original": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "valor": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9]+(?:\\.[0-9]+)?$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "estado": {
+          "enum": [
+            "PRESENTE",
+            "AUSENTE",
+            "NAO_APLICAVEL",
+            "DERIVADO"
+          ]
+        },
+        "origem": {
+          "anyOf": [
+            {
+              "enum": [
+                "XML",
+                "PDF",
+                "MANUAL",
+                "CALCULO"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "metodo": {
+          "anyOf": [
+            {
+              "enum": [
+                "XML_ESTRUTURAL",
+                "PDF_TEXTUAL",
+                "OCR",
+                "IA_VISUAL",
+                "ENTRADA_MANUAL",
+                "CALCULO_EVIDENCIADO"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "evidencias": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/evidence"
+          }
+        },
+        "confianca": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "validacoes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/validation"
+          }
+        },
+        "alertas": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "derivacao": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "formula_versao": {
+                  "type": "string"
+                },
+                "campos_fontes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1
+                }
+              },
+              "required": [
+                "formula_versao",
+                "campos_fontes"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "original",
+        "valor",
+        "estado",
+        "origem",
+        "metodo",
+        "evidencias",
+        "confianca",
+        "validacoes",
+        "alertas",
+        "derivacao"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "estado": {
+                "enum": [
+                  "AUSENTE",
+                  "NAO_APLICAVEL"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "valor": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "estado": {
+                "enum": [
+                  "PRESENTE",
+                  "DERIVADO"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "valor": {
+                "type": "string",
+                "pattern": "^[0-9]+(?:\\.[0-9]+)?$"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "estado": {
+                "const": "AUSENTE"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "original": {
+                "type": "null"
+              },
+              "confianca": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "estado": {
+                "const": "DERIVADO"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "origem": {
+                "const": "CALCULO"
+              },
+              "metodo": {
+                "const": "CALCULO_EVIDENCIADO"
+              },
+              "derivacao": {
+                "$ref": "#/$defs/fieldRate/properties/derivacao/anyOf/0"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "fieldBoolean": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "original": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "valor": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "estado": {
+          "enum": [
+            "PRESENTE",
+            "AUSENTE",
+            "NAO_APLICAVEL",
+            "DERIVADO"
+          ]
+        },
+        "origem": {
+          "anyOf": [
+            {
+              "enum": [
+                "XML",
+                "PDF",
+                "MANUAL",
+                "CALCULO"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "metodo": {
+          "anyOf": [
+            {
+              "enum": [
+                "XML_ESTRUTURAL",
+                "PDF_TEXTUAL",
+                "OCR",
+                "IA_VISUAL",
+                "ENTRADA_MANUAL",
+                "CALCULO_EVIDENCIADO"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "evidencias": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/evidence"
+          }
+        },
+        "confianca": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "validacoes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/validation"
+          }
+        },
+        "alertas": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "derivacao": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "formula_versao": {
+                  "type": "string"
+                },
+                "campos_fontes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1
+                }
+              },
+              "required": [
+                "formula_versao",
+                "campos_fontes"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "original",
+        "valor",
+        "estado",
+        "origem",
+        "metodo",
+        "evidencias",
+        "confianca",
+        "validacoes",
+        "alertas",
+        "derivacao"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "estado": {
+                "enum": [
+                  "AUSENTE",
+                  "NAO_APLICAVEL"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "valor": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "estado": {
+                "enum": [
+                  "PRESENTE",
+                  "DERIVADO"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "valor": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "estado": {
+                "const": "AUSENTE"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "original": {
+                "type": "null"
+              },
+              "confianca": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "estado": {
+                "const": "DERIVADO"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "origem": {
+                "const": "CALCULO"
+              },
+              "metodo": {
+                "const": "CALCULO_EVIDENCIADO"
+              },
+              "derivacao": {
+                "$ref": "#/$defs/fieldBoolean/properties/derivacao/anyOf/0"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "fieldDate": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "original": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "valor": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "estado": {
+          "enum": [
+            "PRESENTE",
+            "AUSENTE",
+            "NAO_APLICAVEL",
+            "DERIVADO"
+          ]
+        },
+        "origem": {
+          "anyOf": [
+            {
+              "enum": [
+                "XML",
+                "PDF",
+                "MANUAL",
+                "CALCULO"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "metodo": {
+          "anyOf": [
+            {
+              "enum": [
+                "XML_ESTRUTURAL",
+                "PDF_TEXTUAL",
+                "OCR",
+                "IA_VISUAL",
+                "ENTRADA_MANUAL",
+                "CALCULO_EVIDENCIADO"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "evidencias": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/evidence"
+          }
+        },
+        "confianca": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "validacoes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/validation"
+          }
+        },
+        "alertas": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "derivacao": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "formula_versao": {
+                  "type": "string"
+                },
+                "campos_fontes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1
+                }
+              },
+              "required": [
+                "formula_versao",
+                "campos_fontes"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "original",
+        "valor",
+        "estado",
+        "origem",
+        "metodo",
+        "evidencias",
+        "confianca",
+        "validacoes",
+        "alertas",
+        "derivacao"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "estado": {
+                "enum": [
+                  "AUSENTE",
+                  "NAO_APLICAVEL"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "valor": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "estado": {
+                "enum": [
+                  "PRESENTE",
+                  "DERIVADO"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "valor": {
+                "type": "string",
+                "format": "date"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "estado": {
+                "const": "AUSENTE"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "original": {
+                "type": "null"
+              },
+              "confianca": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "estado": {
+                "const": "DERIVADO"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "origem": {
+                "const": "CALCULO"
+              },
+              "metodo": {
+                "const": "CALCULO_EVIDENCIADO"
+              },
+              "derivacao": {
+                "$ref": "#/$defs/fieldDate/properties/derivacao/anyOf/0"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "fieldDateTime": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "original": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "valor": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "estado": {
+          "enum": [
+            "PRESENTE",
+            "AUSENTE",
+            "NAO_APLICAVEL",
+            "DERIVADO"
+          ]
+        },
+        "origem": {
+          "anyOf": [
+            {
+              "enum": [
+                "XML",
+                "PDF",
+                "MANUAL",
+                "CALCULO"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "metodo": {
+          "anyOf": [
+            {
+              "enum": [
+                "XML_ESTRUTURAL",
+                "PDF_TEXTUAL",
+                "OCR",
+                "IA_VISUAL",
+                "ENTRADA_MANUAL",
+                "CALCULO_EVIDENCIADO"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "evidencias": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/evidence"
+          }
+        },
+        "confianca": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "validacoes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/validation"
+          }
+        },
+        "alertas": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "derivacao": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "formula_versao": {
+                  "type": "string"
+                },
+                "campos_fontes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1
+                }
+              },
+              "required": [
+                "formula_versao",
+                "campos_fontes"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "original",
+        "valor",
+        "estado",
+        "origem",
+        "metodo",
+        "evidencias",
+        "confianca",
+        "validacoes",
+        "alertas",
+        "derivacao"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "estado": {
+                "enum": [
+                  "AUSENTE",
+                  "NAO_APLICAVEL"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "valor": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "estado": {
+                "enum": [
+                  "PRESENTE",
+                  "DERIVADO"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "valor": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "estado": {
+                "const": "AUSENTE"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "original": {
+                "type": "null"
+              },
+              "confianca": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "estado": {
+                "const": "DERIVADO"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "origem": {
+                "const": "CALCULO"
+              },
+              "metodo": {
+                "const": "CALCULO_EVIDENCIADO"
+              },
+              "derivacao": {
+                "$ref": "#/$defs/fieldDateTime/properties/derivacao/anyOf/0"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "fieldCnpj": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "original": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "valor": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9]{14}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "estado": {
+          "enum": [
+            "PRESENTE",
+            "AUSENTE",
+            "NAO_APLICAVEL",
+            "DERIVADO"
+          ]
+        },
+        "origem": {
+          "anyOf": [
+            {
+              "enum": [
+                "XML",
+                "PDF",
+                "MANUAL",
+                "CALCULO"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "metodo": {
+          "anyOf": [
+            {
+              "enum": [
+                "XML_ESTRUTURAL",
+                "PDF_TEXTUAL",
+                "OCR",
+                "IA_VISUAL",
+                "ENTRADA_MANUAL",
+                "CALCULO_EVIDENCIADO"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "evidencias": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/evidence"
+          }
+        },
+        "confianca": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "validacoes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/validation"
+          }
+        },
+        "alertas": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "derivacao": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "formula_versao": {
+                  "type": "string"
+                },
+                "campos_fontes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1
+                }
+              },
+              "required": [
+                "formula_versao",
+                "campos_fontes"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "original",
+        "valor",
+        "estado",
+        "origem",
+        "metodo",
+        "evidencias",
+        "confianca",
+        "validacoes",
+        "alertas",
+        "derivacao"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "estado": {
+                "enum": [
+                  "AUSENTE",
+                  "NAO_APLICAVEL"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "valor": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "estado": {
+                "enum": [
+                  "PRESENTE",
+                  "DERIVADO"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "valor": {
+                "type": "string",
+                "pattern": "^[0-9]{14}$"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "estado": {
+                "const": "AUSENTE"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "original": {
+                "type": "null"
+              },
+              "confianca": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "estado": {
+                "const": "DERIVADO"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "origem": {
+                "const": "CALCULO"
+              },
+              "metodo": {
+                "const": "CALCULO_EVIDENCIADO"
+              },
+              "derivacao": {
+                "$ref": "#/$defs/fieldCnpj/properties/derivacao/anyOf/0"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "fieldCpf": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "original": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "valor": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9]{11}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "estado": {
+          "enum": [
+            "PRESENTE",
+            "AUSENTE",
+            "NAO_APLICAVEL",
+            "DERIVADO"
+          ]
+        },
+        "origem": {
+          "anyOf": [
+            {
+              "enum": [
+                "XML",
+                "PDF",
+                "MANUAL",
+                "CALCULO"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "metodo": {
+          "anyOf": [
+            {
+              "enum": [
+                "XML_ESTRUTURAL",
+                "PDF_TEXTUAL",
+                "OCR",
+                "IA_VISUAL",
+                "ENTRADA_MANUAL",
+                "CALCULO_EVIDENCIADO"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "evidencias": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/evidence"
+          }
+        },
+        "confianca": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "validacoes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/validation"
+          }
+        },
+        "alertas": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "derivacao": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "formula_versao": {
+                  "type": "string"
+                },
+                "campos_fontes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1
+                }
+              },
+              "required": [
+                "formula_versao",
+                "campos_fontes"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "original",
+        "valor",
+        "estado",
+        "origem",
+        "metodo",
+        "evidencias",
+        "confianca",
+        "validacoes",
+        "alertas",
+        "derivacao"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "estado": {
+                "enum": [
+                  "AUSENTE",
+                  "NAO_APLICAVEL"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "valor": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "estado": {
+                "enum": [
+                  "PRESENTE",
+                  "DERIVADO"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "valor": {
+                "type": "string",
+                "pattern": "^[0-9]{11}$"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "estado": {
+                "const": "AUSENTE"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "original": {
+                "type": "null"
+              },
+              "confianca": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "estado": {
+                "const": "DERIVADO"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "origem": {
+                "const": "CALCULO"
+              },
+              "metodo": {
+                "const": "CALCULO_EVIDENCIADO"
+              },
+              "derivacao": {
+                "$ref": "#/$defs/fieldCpf/properties/derivacao/anyOf/0"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "fieldIbge": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "original": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "valor": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9]{7}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "estado": {
+          "enum": [
+            "PRESENTE",
+            "AUSENTE",
+            "NAO_APLICAVEL",
+            "DERIVADO"
+          ]
+        },
+        "origem": {
+          "anyOf": [
+            {
+              "enum": [
+                "XML",
+                "PDF",
+                "MANUAL",
+                "CALCULO"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "metodo": {
+          "anyOf": [
+            {
+              "enum": [
+                "XML_ESTRUTURAL",
+                "PDF_TEXTUAL",
+                "OCR",
+                "IA_VISUAL",
+                "ENTRADA_MANUAL",
+                "CALCULO_EVIDENCIADO"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "evidencias": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/evidence"
+          }
+        },
+        "confianca": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "validacoes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/validation"
+          }
+        },
+        "alertas": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "derivacao": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "formula_versao": {
+                  "type": "string"
+                },
+                "campos_fontes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1
+                }
+              },
+              "required": [
+                "formula_versao",
+                "campos_fontes"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "original",
+        "valor",
+        "estado",
+        "origem",
+        "metodo",
+        "evidencias",
+        "confianca",
+        "validacoes",
+        "alertas",
+        "derivacao"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "estado": {
+                "enum": [
+                  "AUSENTE",
+                  "NAO_APLICAVEL"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "valor": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "estado": {
+                "enum": [
+                  "PRESENTE",
+                  "DERIVADO"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "valor": {
+                "type": "string",
+                "pattern": "^[0-9]{7}$"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "estado": {
+                "const": "AUSENTE"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "original": {
+                "type": "null"
+              },
+              "confianca": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "estado": {
+                "const": "DERIVADO"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "origem": {
+                "const": "CALCULO"
+              },
+              "metodo": {
+                "const": "CALCULO_EVIDENCIADO"
+              },
+              "derivacao": {
+                "$ref": "#/$defs/fieldIbge/properties/derivacao/anyOf/0"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "fieldSituation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "original": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "valor": {
+          "anyOf": [
+            {
+              "enum": [
+                "ATIVA",
+                "CANCELADA",
+                "SUBSTITUIDA",
+                "DESCONHECIDA"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "estado": {
+          "enum": [
+            "PRESENTE",
+            "AUSENTE",
+            "NAO_APLICAVEL",
+            "DERIVADO"
+          ]
+        },
+        "origem": {
+          "anyOf": [
+            {
+              "enum": [
+                "XML",
+                "PDF",
+                "MANUAL",
+                "CALCULO"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "metodo": {
+          "anyOf": [
+            {
+              "enum": [
+                "XML_ESTRUTURAL",
+                "PDF_TEXTUAL",
+                "OCR",
+                "IA_VISUAL",
+                "ENTRADA_MANUAL",
+                "CALCULO_EVIDENCIADO"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "evidencias": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/evidence"
+          }
+        },
+        "confianca": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "validacoes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/validation"
+          }
+        },
+        "alertas": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "derivacao": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "formula_versao": {
+                  "type": "string"
+                },
+                "campos_fontes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1
+                }
+              },
+              "required": [
+                "formula_versao",
+                "campos_fontes"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "original",
+        "valor",
+        "estado",
+        "origem",
+        "metodo",
+        "evidencias",
+        "confianca",
+        "validacoes",
+        "alertas",
+        "derivacao"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "estado": {
+                "enum": [
+                  "AUSENTE",
+                  "NAO_APLICAVEL"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "valor": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "estado": {
+                "enum": [
+                  "PRESENTE",
+                  "DERIVADO"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "valor": {
+                "enum": [
+                  "ATIVA",
+                  "CANCELADA",
+                  "SUBSTITUIDA",
+                  "DESCONHECIDA"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "estado": {
+                "const": "AUSENTE"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "original": {
+                "type": "null"
+              },
+              "confianca": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "estado": {
+                "const": "DERIVADO"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "origem": {
+                "const": "CALCULO"
+              },
+              "metodo": {
+                "const": "CALCULO_EVIDENCIADO"
+              },
+              "derivacao": {
+                "$ref": "#/$defs/fieldSituation/properties/derivacao/anyOf/0"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "fieldTemporal": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "original": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "valor": {
+          "anyOf": [
+            {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "estado": {
+          "enum": [
+            "PRESENTE",
+            "AUSENTE",
+            "NAO_APLICAVEL",
+            "DERIVADO"
+          ]
+        },
+        "origem": {
+          "anyOf": [
+            {
+              "enum": [
+                "XML",
+                "PDF",
+                "MANUAL",
+                "CALCULO"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "metodo": {
+          "anyOf": [
+            {
+              "enum": [
+                "XML_ESTRUTURAL",
+                "PDF_TEXTUAL",
+                "OCR",
+                "IA_VISUAL",
+                "ENTRADA_MANUAL",
+                "CALCULO_EVIDENCIADO"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "evidencias": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/evidence"
+          }
+        },
+        "confianca": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "validacoes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/validation"
+          }
+        },
+        "alertas": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "derivacao": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "formula_versao": {
+                  "type": "string"
+                },
+                "campos_fontes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1
+                }
+              },
+              "required": [
+                "formula_versao",
+                "campos_fontes"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "original",
+        "valor",
+        "estado",
+        "origem",
+        "metodo",
+        "evidencias",
+        "confianca",
+        "validacoes",
+        "alertas",
+        "derivacao"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "estado": {
+                "enum": [
+                  "AUSENTE",
+                  "NAO_APLICAVEL"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "valor": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "estado": {
+                "enum": [
+                  "PRESENTE",
+                  "DERIVADO"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "valor": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "estado": {
+                "const": "AUSENTE"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "original": {
+                "type": "null"
+              },
+              "confianca": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "estado": {
+                "const": "DERIVADO"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "origem": {
+                "const": "CALCULO"
+              },
+              "metodo": {
+                "const": "CALCULO_EVIDENCIADO"
+              },
+              "derivacao": {
+                "$ref": "#/$defs/fieldTemporal/properties/derivacao/anyOf/0"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "municipio": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "nome": {
+          "$ref": "#/$defs/fieldString"
+        },
+        "codigo_ibge": {
+          "$ref": "#/$defs/fieldIbge"
+        }
+      },
+      "required": [
+        "nome",
+        "codigo_ibge"
+      ]
+    },
+    "endereco": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "logradouro": {
+          "$ref": "#/$defs/fieldString"
+        },
+        "numero": {
+          "$ref": "#/$defs/fieldString"
+        },
+        "complemento": {
+          "$ref": "#/$defs/fieldString"
+        },
+        "bairro": {
+          "$ref": "#/$defs/fieldString"
+        },
+        "uf": {
+          "$ref": "#/$defs/fieldString"
+        },
+        "cep": {
+          "$ref": "#/$defs/fieldString"
+        },
+        "pais": {
+          "$ref": "#/$defs/fieldString"
+        },
+        "municipio": {
+          "$ref": "#/$defs/municipio"
+        }
+      },
+      "required": [
+        "logradouro",
+        "numero",
+        "complemento",
+        "bairro",
+        "uf",
+        "cep",
+        "pais",
+        "municipio"
+      ]
+    },
+    "pessoa": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "nome_razao_social": {
+          "$ref": "#/$defs/fieldString"
+        },
+        "nome_fantasia": {
+          "$ref": "#/$defs/fieldString"
+        },
+        "cnpj": {
+          "$ref": "#/$defs/fieldCnpj"
+        },
+        "cpf": {
+          "$ref": "#/$defs/fieldCpf"
+        },
+        "nif": {
+          "$ref": "#/$defs/fieldString"
+        },
+        "inscricao_municipal": {
+          "$ref": "#/$defs/fieldString"
+        },
+        "endereco": {
+          "$ref": "#/$defs/endereco"
+        },
+        "email": {
+          "$ref": "#/$defs/fieldString"
+        }
+      },
+      "required": [
+        "nome_razao_social",
+        "nome_fantasia",
+        "cnpj",
+        "cpf",
+        "nif",
+        "inscricao_municipal",
+        "endereco",
+        "email"
+      ]
+    },
+    "origemFiscal": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "numero": {
+          "$ref": "#/$defs/fieldString"
+        },
+        "serie": {
+          "$ref": "#/$defs/fieldString"
+        },
+        "chave": {
+          "$ref": "#/$defs/fieldString"
+        }
+      },
+      "required": [
+        "numero",
+        "serie",
+        "chave"
+      ]
+    },
+    "identificacao": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "numero_nfse": {
+          "$ref": "#/$defs/fieldString"
+        },
+        "serie_nfse": {
+          "$ref": "#/$defs/fieldString"
+        },
+        "codigo_verificacao": {
+          "$ref": "#/$defs/fieldString"
+        },
+        "chave_acesso": {
+          "$ref": "#/$defs/fieldString"
+        },
+        "emissao": {
+          "$ref": "#/$defs/fieldTemporal"
+        },
+        "competencia": {
+          "$ref": "#/$defs/fieldDate"
+        },
+        "municipio_emissor": {
+          "$ref": "#/$defs/municipio"
+        },
+        "situacao": {
+          "$ref": "#/$defs/fieldSituation"
+        },
+        "rps": {
+          "$ref": "#/$defs/origemFiscal"
+        },
+        "dps": {
+          "$ref": "#/$defs/origemFiscal"
+        },
+        "nota_substituida": {
+          "$ref": "#/$defs/origemFiscal"
+        },
+        "nota_substituta": {
+          "$ref": "#/$defs/origemFiscal"
+        },
+        "cancelamento_data": {
+          "$ref": "#/$defs/fieldTemporal"
+        },
+        "cancelamento_motivo": {
+          "$ref": "#/$defs/fieldString"
+        }
+      },
+      "required": [
+        "numero_nfse",
+        "serie_nfse",
+        "codigo_verificacao",
+        "chave_acesso",
+        "emissao",
+        "competencia",
+        "municipio_emissor",
+        "situacao",
+        "rps",
+        "dps",
+        "nota_substituida",
+        "nota_substituta",
+        "cancelamento_data",
+        "cancelamento_motivo"
+      ]
+    },
+    "valores": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "valor_servicos": {
+          "$ref": "#/$defs/fieldDecimal"
+        },
+        "valor_operacao": {
+          "$ref": "#/$defs/fieldDecimal"
+        },
+        "deducoes": {
+          "$ref": "#/$defs/fieldDecimal"
+        },
+        "desconto_condicionado": {
+          "$ref": "#/$defs/fieldDecimal"
+        },
+        "desconto_incondicionado": {
+          "$ref": "#/$defs/fieldDecimal"
+        },
+        "base_calculo_iss": {
+          "$ref": "#/$defs/fieldDecimal"
+        },
+        "valor_iss": {
+          "$ref": "#/$defs/fieldDecimal"
+        },
+        "pis": {
+          "$ref": "#/$defs/fieldDecimal"
+        },
+        "cofins": {
+          "$ref": "#/$defs/fieldDecimal"
+        },
+        "csll": {
+          "$ref": "#/$defs/fieldDecimal"
+        },
+        "ir": {
+          "$ref": "#/$defs/fieldDecimal"
+        },
+        "inss": {
+          "$ref": "#/$defs/fieldDecimal"
+        },
+        "outras_retencoes": {
+          "$ref": "#/$defs/fieldDecimal"
+        },
+        "total_retencoes": {
+          "$ref": "#/$defs/fieldDecimal"
+        },
+        "liquido_documental": {
+          "$ref": "#/$defs/fieldDecimal"
+        },
+        "liquido_derivado": {
+          "$ref": "#/$defs/fieldDecimal"
+        },
+        "valor_ibs": {
+          "$ref": "#/$defs/fieldDecimal"
+        },
+        "valor_cbs": {
+          "$ref": "#/$defs/fieldDecimal"
+        },
+        "liquido_com_ibscbs": {
+          "$ref": "#/$defs/fieldDecimal"
+        },
+        "aliquota_iss": {
+          "$ref": "#/$defs/fieldRate"
+        },
+        "iss_retido": {
+          "$ref": "#/$defs/fieldBoolean"
+        }
+      },
+      "required": [
+        "valor_servicos",
+        "valor_operacao",
+        "deducoes",
+        "desconto_condicionado",
+        "desconto_incondicionado",
+        "base_calculo_iss",
+        "valor_iss",
+        "pis",
+        "cofins",
+        "csll",
+        "ir",
+        "inss",
+        "outras_retencoes",
+        "total_retencoes",
+        "liquido_documental",
+        "liquido_derivado",
+        "valor_ibs",
+        "valor_cbs",
+        "liquido_com_ibscbs",
+        "aliquota_iss",
+        "iss_retido"
+      ]
+    },
+    "servico": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "descricao": {
+          "$ref": "#/$defs/fieldString"
+        },
+        "codigo_servico": {
+          "$ref": "#/$defs/fieldString"
+        },
+        "item_lista_servicos": {
+          "$ref": "#/$defs/fieldString"
+        },
+        "codigo_tributacao_municipal": {
+          "$ref": "#/$defs/fieldString"
+        },
+        "cnae": {
+          "$ref": "#/$defs/fieldString"
+        },
+        "nbs": {
+          "$ref": "#/$defs/fieldString"
+        },
+        "municipio_prestacao": {
+          "$ref": "#/$defs/municipio"
+        },
+        "municipio_incidencia_iss": {
+          "$ref": "#/$defs/municipio"
+        },
+        "valores": {
+          "$ref": "#/$defs/valores"
+        }
+      },
+      "required": [
+        "descricao",
+        "codigo_servico",
+        "item_lista_servicos",
+        "codigo_tributacao_municipal",
+        "cnae",
+        "nbs",
+        "municipio_prestacao",
+        "municipio_incidencia_iss",
+        "valores"
+      ]
+    }
+  }
+}

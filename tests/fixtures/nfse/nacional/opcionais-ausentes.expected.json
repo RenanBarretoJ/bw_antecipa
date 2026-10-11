@@ -1,0 +1,135 @@
+{
+  "resultado": "RECONHECIDO",
+  "natureza_documento": "NFSE",
+  "campos": {
+    "identificacao.numero_nfse": {
+      "estado": "PRESENTE",
+      "valor": "900001"
+    },
+    "identificacao.chave_acesso": {
+      "estado": "PRESENTE",
+      "valor": "35503082212345678000195000000090000126100000000010"
+    },
+    "identificacao.processamento": {
+      "estado": "PRESENTE",
+      "valor": "2026-10-09T09:05:00-03:00"
+    },
+    "identificacao.emissao": {
+      "estado": "AUSENTE",
+      "valor": null
+    },
+    "identificacao.competencia": {
+      "estado": "PRESENTE",
+      "valor": "2026-10-09"
+    },
+    "identificacao.codigo_status_geracao": {
+      "estado": "PRESENTE",
+      "valor": "100"
+    },
+    "identificacao.situacao": {
+      "estado": "DERIVADO",
+      "valor": "DESCONHECIDA"
+    },
+    "identificacao.dps.id": {
+      "estado": "PRESENTE",
+      "valor": "DPS355030821234567800019500001000000000900001"
+    },
+    "identificacao.dps.serie": {
+      "estado": "PRESENTE",
+      "valor": "00001"
+    },
+    "identificacao.dps.numero": {
+      "estado": "PRESENTE",
+      "valor": "900001"
+    },
+    "identificacao.dps.emissao": {
+      "estado": "PRESENTE",
+      "valor": "2026-10-09T09:00:00-03:00"
+    },
+    "prestador.cnpj": {
+      "estado": "PRESENTE",
+      "valor": "12345678000195"
+    },
+    "prestador.cpf": {
+      "estado": "AUSENTE",
+      "valor": null
+    },
+    "prestador.razao_social": {
+      "estado": "PRESENTE",
+      "valor": "PRESTADOR FICTICIO E1 E2"
+    },
+    "prestador.endereco.uf": {
+      "estado": "PRESENTE",
+      "valor": "SP"
+    },
+    "prestador.endereco.cep": {
+      "estado": "PRESENTE",
+      "valor": "01001000"
+    },
+    "tomador.cnpj": {
+      "estado": "PRESENTE",
+      "valor": "12345678000195"
+    },
+    "tomador.email": {
+      "estado": "PRESENTE",
+      "valor": "qa@example.invalid"
+    },
+    "tomador.endereco.codigo_municipio": {
+      "estado": "PRESENTE",
+      "valor": "3550308"
+    },
+    "tomador.endereco.uf": {
+      "estado": "AUSENTE",
+      "valor": null
+    },
+    "servicos.0.descricao": {
+      "estado": "PRESENTE",
+      "valor": "SERVICO FICTICIO & TESTE"
+    },
+    "servicos.0.codigo_tributacao_nacional": {
+      "estado": "PRESENTE",
+      "valor": "010101"
+    },
+    "totais.valor_servicos": {
+      "estado": "PRESENTE",
+      "valor": "1000.00"
+    },
+    "totais.valor_operacao": {
+      "estado": "AUSENTE",
+      "valor": null
+    },
+    "totais.desconto_condicionado": {
+      "estado": "AUSENTE",
+      "valor": null
+    },
+    "totais.desconto_incondicionado": {
+      "estado": "AUSENTE",
+      "valor": null
+    },
+    "totais.liquido_documental": {
+      "estado": "PRESENTE",
+      "valor": "1000.00"
+    },
+    "totais.liquido_derivado": {
+      "estado": "AUSENTE",
+      "valor": null
+    },
+    "totais.total_retencoes": {
+      "estado": "AUSENTE",
+      "valor": null
+    },
+    "totais.iss_retido": {
+      "estado": "PRESENTE",
+      "valor": false
+    },
+    "totais.valor_pis": {
+      "estado": "AUSENTE",
+      "valor": null
+    },
+    "vencimento": {
+      "estado": "AUSENTE",
+      "valor": null
+    }
+  },
+  "alertas": []
+}
