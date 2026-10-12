@@ -4,7 +4,7 @@ import { createAdminClient, createClient } from '@/lib/supabase/server'
 import type { AppSupabaseClient, AuthContext } from '@/lib/auth/authorization'
 import { AuthorizationError, requireAuthenticated } from '@/lib/auth/authorization'
 import { obterFluxoAutenticacao } from '@/lib/auth/auth-flow-server'
-import type { Database, Profile, UserRole } from '@/types/database'
+import type { Database, Profile, SegurancaEvento, UserRole } from '@/types/database'
 import { avaliarValidadeSessaoMfa, MFA_SESSION_DURATION_MS, type MfaSessionStatus } from '@/lib/auth/mfa-session'
 
 export const MFA_ELEVATED_SESSION_WINDOW_MS = MFA_SESSION_DURATION_MS
@@ -345,8 +345,7 @@ export async function registrarEventoSeguranca(input: {
   correlation_id?: string | null
   dados?: Record<string, unknown>
 }) {
-  const admin = createAdminClient()
-  await admin.from('seguranca_eventos').insert({
+  const payload = {
     tipo_evento: input.tipo_evento,
     usuario_id: input.usuario_id || null,
     ator_usuario_id: input.ator_usuario_id || null,
@@ -357,9 +356,22 @@ export async function registrarEventoSeguranca(input: {
     entidade_id: input.entidade_id || null,
     ip_hash: input.ip_hash || null,
     user_agent_hash: input.user_agent_hash || null,
-    correlation_id: input.correlation_id || null,
-    dados: input.dados || {},
-  } as never)
+    // The canonical audit table stores contextual metadata in dados, not in a correlation_id column.
+    dados: input.correlation_id
+      ? { ...input.dados, correlation_id: input.correlation_id }
+      : { ...input.dados },
+  } satisfies Omit<SegurancaEvento, 'id' | 'created_at'>
+
+  try {
+    const { error } = await createAdminClient().from('seguranca_eventos').insert(payload)
+    if (error) throw error
+  } catch (error) {
+    // Do not log raw errors, payloads or request context: they may contain credentials or PII.
+    const code = error && typeof error === 'object' && 'code' in error ? error.code : null
+    const databaseCode = typeof code === 'string' && /^(?:[0-9A-Z]{5}|PGRST\d{3})$/.test(code) ? code : null
+    console.error('[auth][SECURITY_AUDIT_WRITE_FAILED]', { databaseCode })
+    throw new Error('Nao foi possivel registrar o evento de seguranca.')
+  }
 }
 
 export function gerarRecoveryCodes(count = MFA_RECOVERY_CODE_COUNT) {

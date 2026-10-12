@@ -4,6 +4,7 @@ import { calculateFiscalNet } from './liquido-fiscal'
 
 export type NfseReview = {
   intentId?: string
+  sourceChannel?: 'EMAIL_INTAKE'
   numero: string; bruto: number; liquido: number | null; emissao: string
   strategy: NonNullable<NfseExtraction['strategy']>
 }

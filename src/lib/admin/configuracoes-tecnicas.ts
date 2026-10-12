@@ -52,8 +52,8 @@ export type AdminCredencialIntegracao = {
   integracao_fundo_id: string | null
   fundo_id: string
   provider_key: string
-  credential_type: 'usuario_senha'
-  capabilities: IntegrationCapability[]
+  credential_type: 'usuario_senha' | 'oauth_client_credentials'
+  capabilities: (IntegrationCapability | 'EMAIL_INTAKE')[]
   ambiente: 'homologacao' | 'producao'
   nome: string
   status: AdminCredencialStatus

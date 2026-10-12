@@ -147,6 +147,7 @@ export function FundoIntegracoesTecnicas({ state, execPage, vortxConfig }: { sta
   }
 
   return <div className="space-y-5">
+    <Card><CardHeader><CardTitle>Integrações de e-mail</CardTitle><CardDescription>Configure as caixas, vincule credenciais do cofre e acompanhe as importações deste fundo.</CardDescription></CardHeader><CardContent><Link className="inline-flex rounded-lg border px-3 py-2 text-sm font-medium hover:bg-muted" href={`/admin/integracoes-email?fundo=${state.fundo.id}`}>Abrir integrações e credenciais de e-mail</Link></CardContent></Card>
     {!state.fundo.ativo && <div className="flex gap-3 rounded-xl border border-warning/40 bg-warning/10 p-4 text-sm"><ShieldAlert className="size-5 shrink-0 text-warning-foreground" /><p>Fundo inativo: configuracoes e testes tecnicos continuam permitidos, mas execucoes operacionais permanecem bloqueadas.</p></div>}
 
     <Card>

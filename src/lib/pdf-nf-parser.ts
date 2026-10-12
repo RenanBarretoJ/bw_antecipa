@@ -37,6 +37,8 @@ function validNfeKey(key: string): boolean {
 }
 
 export interface NfPdfExtracted {
+  identidade_ambigua?: boolean
+  tipo_reconhecido?: 'DANFE'
   numero_nf?: string
   serie?: string
   chave_acesso?: string
@@ -221,6 +223,7 @@ export function extractDanfeFromText(input: string): NfPdfExtracted {
   const confianca: Partial<Record<DanfeCriticalField, number>> = {}
   const proveniencia: Partial<Record<DanfeCriticalField, { source: string; corroboratedBy: string[] }>> = {}
   const extracted: NfPdfExtracted = { campos_extraidos, candidatos, confianca, proveniencia, motivos_bloqueio: [] }
+  if (/\bDANFE\b|DOCUMENTO\s+AUXILIAR\s+DA\s+NOTA\s+FISCAL/i.test(normalized)) extracted.tipo_reconhecido = 'DANFE'
   const record = (field: DanfeCriticalField, value: string | number, source: string, confidence: number, corroboratedBy: string[] = [], rawText?: string) => {
     const item: DanfeFieldCandidate = { field, value, source, anchor: source, confidence, corroboratedBy, ...(rawText ? { rawText } : {}) }
     candidatos[field] = [...(candidatos[field] || []), item]
@@ -232,6 +235,11 @@ export function extractDanfeFromText(input: string): NfPdfExtracted {
 
   const chaveLida = extractChaveAcesso(normalized)
   const chave = chaveLida && validNfeKey(chaveLida) ? chaveLida : undefined
+  const keys = new Set([
+    ...normalized.matchAll(/\b(\d{44})\b/g),
+    ...normalized.matchAll(/(\d[\d. ]{50,65}\d)/g),
+  ].map(match => match[1].replace(/\D/g, '')).filter(validNfeKey))
+  if (keys.size > 1) extracted.identidade_ambigua = true
   if (chaveLida && !chave) extracted.motivos_bloqueio?.push('invalid_access_key')
   const numeroCabecalho = extractNumeroNF(normalized)
   const numero = chave ? String(Number(chave.slice(25, 34))) : numeroCabecalho
@@ -520,6 +528,14 @@ export function valorTotalExtraidoValido(
 export type DanfePersistenceGate =
   | { ok: true }
   | { ok: false; failedFields: DanfeCriticalField[]; reasons: string[] }
+
+/** A complementary document carries identity evidence; it never supplies missing NF facts. */
+export function validarDanfeParaVinculo(extracted: NfPdfExtracted): boolean {
+  return extracted.tipo_reconhecido === 'DANFE' && validNfeKey(extracted.chave_acesso ?? '')
+    && !extracted.identidade_ambigua
+    && (extracted.confianca?.chave_acesso ?? 0) >= MIN_CRITICAL_CONFIDENCE
+    && !(extracted.motivos_bloqueio ?? []).some(reason => reason.endsWith('_conflict') || reason.includes('access_key'))
+}
 
 export function validarDanfeParaPersistencia(extracted: NfPdfExtracted): DanfePersistenceGate {
   const failedFields: DanfeCriticalField[] = []

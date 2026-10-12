@@ -7,6 +7,7 @@ export type UploadFileStatus =
   | 'REJECTED_INVALID'
   | 'DUPLICATE'
   | 'STORAGE_ERROR'
+  | 'EXTRACTION_ERROR'
   | 'PERSISTENCE_ERROR'
 
 export type UploadFileResult =

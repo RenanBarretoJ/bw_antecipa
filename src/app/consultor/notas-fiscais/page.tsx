@@ -1,3 +1,4 @@
+import { temRevisaoEmailPendente } from '@/lib/actions/fiscal-email-review'
 import { connection } from 'next/server'
 import { AlertTriangle, FileText } from 'lucide-react'
 import { assertRole, requireAuthenticated } from '@/lib/auth/authorization'
@@ -83,6 +84,7 @@ export default async function NotasFiscaisConsultorPage({ searchParams }: { sear
     )
   }
 
+  const emailReviewAvailable = await temRevisaoEmailPendente(cedenteId)
   const selecionado = {
     id: resultado.contexto.cedenteId,
     razaoSocial: resultado.contexto.cedenteRazaoSocial,
@@ -117,6 +119,7 @@ export default async function NotasFiscaisConsultorPage({ searchParams }: { sear
         filtros={filtros}
         basePath="/consultor/notas-fiscais"
         cedenteIdSelecionado={cedenteId}
+        emailReviewAvailable={emailReviewAvailable}
       />
     </div>
   )

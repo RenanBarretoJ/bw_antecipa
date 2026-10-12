@@ -1,6 +1,7 @@
 import { connection } from 'next/server'
 import { carregarNotasFiscaisComResumoDocumental } from '@/lib/notas-fiscais/listagem.server'
 import NotasFiscaisListagem from './notas-fiscais-listagem'
+import { temRevisaoEmailPendente } from '@/lib/actions/fiscal-email-review'
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>
 
@@ -36,6 +37,7 @@ export default async function NotasFiscaisCedentePage({
     vencimentoAte: primeiroValor(params.vencimentoAte) || '',
   }
   const resultado = await carregarNotasFiscaisComResumoDocumental(filtros)
+  const emailReviewAvailable = await temRevisaoEmailPendente()
 
   return (
     <NotasFiscaisListagem
@@ -55,6 +57,7 @@ export default async function NotasFiscaisCedentePage({
       ].join(':')}
       resultado={resultado}
       filtros={filtros}
+      emailReviewAvailable={emailReviewAvailable}
     />
   )
 }
