@@ -3,7 +3,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { obterUrlArquivoNotaFiscal } from '@/lib/actions/arquivo-nota-fiscal'
 import { salvarDadosNF, submeterNF, resubmeterNFAjustada } from '@/lib/actions/nota-fiscal'
 import { formatCNPJ, formatCurrency, formatDate } from '@/lib/utils'
 import Link from 'next/link'
@@ -27,6 +26,7 @@ import { DuplicatasDaNota } from '@/components/duplicatas/DuplicatasDaNota'
 import { ParcelasDaNota } from '@/components/notas-fiscais/ParcelasDaNota'
 
 interface NfCompleta {
+  fiscal_reservation_id?: string | null
   tipo_documento_fiscal?: 'NFE' | 'NFSE' | null
   valor_liquido_origem?: string | null
   vencimento_origem?: string | null
@@ -98,12 +98,10 @@ function LabelValue({ label, value, mono = false }: { label: string; value: stri
 
 function ReadOnlyNfDetails({
   nf,
-  previewUrl,
   temParcelas,
   parcelasSection,
 }: {
   nf: NfCompleta
-  previewUrl: string | null
   temParcelas: boolean
   parcelasSection: ReactNode
 }) {
@@ -217,7 +215,7 @@ function ReadOnlyNfDetails({
             </div>
           </div>
         </section>
-        <ArquivoOriginalCompacto previewUrl={previewUrl} arquivoUrl={nf.arquivo_url} title="Arquivo original" />
+        <ArquivoOriginalCompacto notaFiscalId={nf.id} />
       </div>
     </div>
   )
@@ -253,7 +251,6 @@ export function NotaFiscalDetalheFeature({
   })
   const [message, setMessage] = useState('')
   const [messageType, setMessageType] = useState<'success' | 'error'>('success')
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [buscandoCnpj, setBuscandoCnpj] = useState(false)
   const [temParcelas, setTemParcelas] = useState(false)
 
@@ -323,10 +320,7 @@ export function NotaFiscalDetalheFeature({
         })
 
         // Gerar URL de preview do arquivo
-        if (nfData.arquivo_url || nfData.tipo_documento_fiscal === 'NFSE') {
-          const signed = await obterUrlArquivoNotaFiscal(nfData.id)
-          if (signed.success && signed.url) setPreviewUrl(signed.url)
-        }
+
       }
 
       const { data: entregaData } = await supabase
@@ -834,7 +828,7 @@ export function NotaFiscalDetalheFeature({
             </div>
           </div>
 
-          <ArquivoOriginalCompacto previewUrl={previewUrl} arquivoUrl={nf.arquivo_url} title="Arquivo original" />
+          <ArquivoOriginalCompacto notaFiscalId={nf.id} />
 
           {/* Info */}
           {nf.status === 'requer_ajuste' ? (
@@ -863,7 +857,7 @@ export function NotaFiscalDetalheFeature({
         </div>
       </div>
         ) : (
-          <ReadOnlyNfDetails nf={nf} previewUrl={previewUrl} temParcelas={temParcelas} parcelasSection={parcelasSection} />
+          <ReadOnlyNfDetails nf={nf} temParcelas={temParcelas} parcelasSection={parcelasSection} />
         )
       })()}
 

@@ -29,7 +29,7 @@ export async function obterUrlArquivoNotaFiscal(
     const context = await requireNotaFiscalAccess(notaFiscalId)
     const { data: nota, error } = await context.supabase
       .from('notas_fiscais')
-      .select('id, arquivo_url, tipo_documento_fiscal, fiscal_proveniencia')
+      .select('id, arquivo_url, tipo_documento_fiscal, fiscal_proveniencia, fiscal_reservation_id')
       .eq('id', notaFiscalId)
       .maybeSingle()
 
@@ -38,6 +38,18 @@ export async function obterUrlArquivoNotaFiscal(
     }
     let bucket: string = buckets.notasFiscais
     let path = nota.arquivo_url
+    if (nota.fiscal_reservation_id) {
+      const { data: original, error: originalError } = await createAdminClient()
+        .rpc('fiscal_intake_get_original', { p_nf_id: nota.id })
+      if (originalError || !original || typeof original !== 'object' || Array.isArray(original)
+        || !('bucket' in original) || !('path' in original)
+        || (original.bucket !== buckets.notasFiscais && original.bucket !== 'documentos-v2')
+        || typeof original.path !== 'string' || !original.path) {
+        return { success: false, message: 'Arquivo indisponivel ou sem permissao de acesso.' }
+      }
+      bucket = original.bucket
+      path = original.path
+    }
     if (!path && nota.tipo_documento_fiscal === 'NFSE') {
       const { data: links, error: linksError } = await context.supabase.from('documento_requisito_instancias')
         .select('documento_id').eq('nota_fiscal_id', nota.id).eq('tipo_documento_codigo_snapshot', 'nf_danfe_pdf')

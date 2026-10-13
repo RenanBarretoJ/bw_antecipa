@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { ExternalLink, FileText, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { lerArquivoLimitado, MAX_XML_PREVIEW_BYTES } from '@/lib/notas-fiscais/arquivo-fiscal-client'
 
 const IMAGE_MIME_TYPES = new Set([
   'image/gif',
@@ -22,12 +23,14 @@ export function resolvePreviewType({
 }: {
   path: string | null | undefined
   mimeType?: string | null
-}): 'pdf' | 'image' | 'unsupported' {
+}): 'pdf' | 'image' | 'xml' | 'unsupported' {
   const normalizedMime = normalizedMimeType(mimeType)
   if (normalizedMime === 'application/pdf') return 'pdf'
   if (IMAGE_MIME_TYPES.has(normalizedMime)) return 'image'
+  if (normalizedMime === 'application/xml' || normalizedMime === 'text/xml') return 'xml'
   if (/\.pdf(?:$|\?)/i.test(path || '')) return 'pdf'
   if (/\.(jpg|jpeg|png|gif|webp)(?:$|\?)/i.test(path || '')) return 'image'
+  if (/\.xml(?:$|\?)/i.test(path || '')) return 'xml'
   return 'unsupported'
 }
 
@@ -37,6 +40,29 @@ export function isPreviewPdf(path: string | null | undefined, mimeType?: string 
 
 export function isPreviewImage(path: string | null | undefined, mimeType?: string | null) {
   return resolvePreviewType({ path, mimeType }) === 'image'
+}
+
+export function XmlPreviewText({ text, title, className }: { text: string; title: string; className: string }) {
+  // Texto escapado pelo React: nenhum parser, HTML, entidade ou URL é executado.
+  return <pre aria-label={`Conteúdo XML — ${title}`} className={`overflow-auto whitespace-pre-wrap break-all rounded-lg border bg-muted p-4 font-mono text-xs ${className}`}>{text}</pre>
+}
+
+function XmlPreviewContent({ url, title, className }: { url: string; title: string; className: string }) {
+  const [state, setState] = useState({ text: '', loading: true, failed: false })
+  const [attempt, setAttempt] = useState(0)
+  useEffect(() => {
+    let active = true
+    const controller = new AbortController()
+    void fetch(url, { credentials: 'omit', signal: controller.signal })
+      .then(response => lerArquivoLimitado(response, MAX_XML_PREVIEW_BYTES))
+      .then(blob => blob.text())
+      .then(text => { if (active) setState({ text, loading: false, failed: false }) })
+      .catch(() => { if (active) setState({ text: '', loading: false, failed: true }) })
+    return () => { active = false; controller.abort() }
+  }, [url, attempt])
+  if (state.loading) return <p role="status">Carregando XML...</p>
+  if (state.failed) return <div role="alert" className="space-y-3 rounded-lg border p-4"><p>Não foi possível visualizar o XML. O preview aceita até 2 MB; você pode baixar o arquivo original.</p><Button type="button" variant="outline" onClick={() => { setState({ text: '', loading: true, failed: false }); setAttempt(a => a + 1) }}>Tentar novamente</Button></div>
+  return <XmlPreviewText text={state.text} title={title} className={className} />
 }
 
 export function FilePreviewContent({
@@ -105,6 +131,8 @@ export function FilePreviewContent({
       </div>
     )
   }
+
+  if (previewType === 'xml') return <XmlPreviewContent key={url} url={url} title={title} className={className} />
 
   if (isPdf) {
     if (loading) {

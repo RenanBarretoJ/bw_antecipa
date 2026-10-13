@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { aprovarNF, reprovarNF, solicitarAjusteNF } from '@/lib/actions/nota-fiscal'
-import { obterUrlArquivoNotaFiscal } from '@/lib/actions/arquivo-nota-fiscal'
 import { formatCurrency, formatCNPJ, formatDate, parseLocalDate } from '@/lib/utils'
 import Link from 'next/link'
 import {
@@ -32,6 +31,7 @@ import { DuplicatasDaNota } from '@/components/duplicatas/DuplicatasDaNota'
 import { ParcelasDaNota } from '@/components/notas-fiscais/ParcelasDaNota'
 
 interface NfCompleta {
+  fiscal_reservation_id?: string | null
   tipo_documento_fiscal?: 'NFE' | 'NFSE' | null
   id: string
   numero_nf: string
@@ -98,7 +98,6 @@ export default function NfDetalheGestorPage() {
   const [processing, setProcessing] = useState(false)
   const [message, setMessage] = useState('')
   const [messageType, setMessageType] = useState<'success' | 'error'>('success')
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [showReprovar, setShowReprovar] = useState(false)
   const [motivo, setMotivo] = useState('')
   const [showAjuste, setShowAjuste] = useState(false)
@@ -133,10 +132,7 @@ export default function NfDetalheGestorPage() {
         const nfData = data as NfCompleta
         setNf(nfData)
 
-        if (nfData.arquivo_url || nfData.tipo_documento_fiscal === 'NFSE') {
-          const signed = await obterUrlArquivoNotaFiscal(nfData.id)
-          if (signed.success && signed.url) setPreviewUrl(signed.url)
-        }
+
       }
 
       const { data: entregaData } = await supabase
@@ -538,7 +534,7 @@ export default function NfDetalheGestorPage() {
             </CardContent>
           </Card>
 
-          <ArquivoOriginalCompacto previewUrl={previewUrl} arquivoUrl={nf.arquivo_url} title="Arquivo original" />
+          <ArquivoOriginalCompacto notaFiscalId={nf.id} />
 
           {/* Metadados */}
           <div className="bg-muted/50 rounded-xl p-4 text-sm">
