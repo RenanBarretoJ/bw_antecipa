@@ -40,8 +40,8 @@ describe('autorizacao de Storage do Escopo 9C', () => {
 
   it('valida o ator e resolve o path registrado antes de usar service role', () => {
     const authorizationAt = action.indexOf('requireNotaFiscalAccess(notaFiscalId)')
-    const pathAt = action.indexOf(".select('id, arquivo_url, tipo_documento_fiscal, fiscal_proveniencia')")
-    const adminAt = action.indexOf('createAdminClient().storage')
+    const pathAt = action.indexOf(".select('id, arquivo_url, tipo_documento_fiscal, fiscal_proveniencia, fiscal_reservation_id')")
+    const adminAt = action.indexOf('createAdminClient()', authorizationAt)
 
     expect(authorizationAt).toBeGreaterThan(-1)
     expect(pathAt).toBeGreaterThan(authorizationAt)
@@ -54,8 +54,8 @@ describe('autorizacao de Storage do Escopo 9C', () => {
   })
 
   it('nao gera URL assinada diretamente nas paginas de NF', () => {
-    expect(gestorPage).toContain('obterUrlArquivoNotaFiscal(nfData.id)')
-    expect(cedentePage).toContain('obterUrlArquivoNotaFiscal(nfData.id)')
+    expect(gestorPage).toContain('<ArquivoOriginalCompacto notaFiscalId={nf.id}')
+    expect(cedentePage).toContain('<ArquivoOriginalCompacto notaFiscalId={nf.id}')
     expect(gestorPage).not.toContain('createSignedUrl(')
     expect(cedentePage).not.toContain('createSignedUrl(')
   })

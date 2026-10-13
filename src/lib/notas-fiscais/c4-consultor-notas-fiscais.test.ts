@@ -1,3 +1,4 @@
+import { verifyLocalContract } from '@/test/email03-local-contracts.mjs'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
@@ -54,16 +55,10 @@ describe('C4 - Consultor opera NFs somente no Cedente selecionado', () => {
     expect(detailPage).toContain('validarNotaNoContextoSelecionado(auth.supabase, id, contexto)')
   })
 
-  it('mantem validacao de emitente, estabelecimento e parser unico no upload compartilhado', () => {
-    expect(action).toContain("formData.get('cedente_id')")
-    expect(action).toContain('resolverContextoOperacionalNotaFiscal(auth, cedenteIdInformado)')
-    expect(action).toContain('validarXmlNfeParaUploadCedente({')
-    expect(action).toContain('resolverEstabelecimentoOrigem({')
-    expect(action).toContain('e instanceof EstabelecimentoOrigemError && !notaFiscalPersistidaId')
-    expect(action).toContain("status: 'REJECTED_INVALID', error: mensagemErroEstabelecimentoOrigem(e)")
-    expect(action).toContain('O CNPJ emitente não pertence ao Cedente selecionado.')
-    expect(action).toContain("excluir_notas_fiscais_rascunho_operador")
-  })
+  it('mantem validacao de emitente, estabelecimento e parser unico no upload compartilhado', async () => {
+    const proof = await verifyLocalContract('ISSUER_SCOPE')
+    expect(proof.status).toBe('PASS')
+  }, 60000)
 
   it('autoriza o gate de estabelecimento do Consultor somente no contexto operacional exato', () => {
     expect(establishmentGateMigration).toContain(
