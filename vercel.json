@@ -21,5 +21,10 @@
     "src/app/api/contratos/**/*.ts": {
       "maxDuration": 60
     }
+  },
+  "git": {
+    "deploymentEnabled": {
+      "feature/email03-r4-local-release-candidate-20261013": false
+    }
   }
 }
