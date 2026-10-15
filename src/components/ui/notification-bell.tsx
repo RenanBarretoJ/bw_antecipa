@@ -19,7 +19,7 @@ export function NotificationBell({ userId }: { userId: string }) {
       <Bell className="size-5" aria-hidden="true" />
       {unread > 0 && <span aria-hidden="true" data-testid="notificacao-badge" className="absolute -right-0.5 -top-0.5 flex size-5 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">{unread > 9 ? '9+' : unread}</span>}
     </Popover.Trigger>
-    <Popover.Portal><Popover.Positioner side="bottom" align="end" sideOffset={8} collisionPadding={12} className="z-50">
+    <Popover.Portal><Popover.Positioner positionMethod="fixed" side="bottom" align="end" sideOffset={8} collisionPadding={12} className="z-50">
       <Popover.Popup className="w-[min(24rem,calc(100vw-1.5rem))] max-h-[min(38rem,var(--available-height))] overflow-y-auto rounded-xl border border-border bg-popover text-popover-foreground shadow-xl outline-none">
         <div className="space-y-3 border-b border-border p-4">
           <div className="flex items-center justify-between gap-2">
