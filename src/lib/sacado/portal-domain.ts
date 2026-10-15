@@ -1,3 +1,5 @@
+import { operacaoPermiteDecisaoSacado } from './aceite'
+
 export type SacadoPortalNfStatus =
   | 'rascunho'
   | 'submetida'
@@ -77,7 +79,6 @@ export type SacadoDashboardResumo = {
 
 const OPERACAO_STATUS_PAGAMENTO_ABERTO = new Set(['aprovada', 'em_andamento', 'inadimplente'])
 const OPERACAO_STATUS_TERMINAL = new Set(['liquidada', 'cancelada', 'reprovada'])
-const ACEITE_STATUS_FINAL = new Set(['aceito', 'contestado', 'dispensado'])
 
 function parseIsoDate(value: string): Date {
   const [year, month, day] = value.split('-').map(Number)
@@ -162,10 +163,11 @@ export function nfContaComoAtivaParaSacado(nf: SacadoPortalNotaFiscal): boolean 
 }
 
 export function nfPendenteAceiteSacado(nf: SacadoPortalNotaFiscal): boolean {
-  if (nf.aceite_sacado_exigido === false) return false
-  if (nf.aceite_sacado_status && ACEITE_STATUS_FINAL.has(nf.aceite_sacado_status)) return false
-  if (operacaoTerminal(nf.operacao_status)) return false
-  return nf.status === 'em_antecipacao' || nf.status === 'aprovada' || nf.status === 'submetida' || nf.status === 'validada'
+  return nf.status === 'em_antecipacao' && operacaoPermiteDecisaoSacado({
+    status: nf.operacao_status,
+    aceite_sacado_exigido: nf.aceite_sacado_exigido,
+    aceite_sacado_status: nf.aceite_sacado_status,
+  })
 }
 
 export function calcularDashboardSacado(nfs: SacadoPortalNotaFiscal[], hojeIso: string): SacadoDashboardResumo {

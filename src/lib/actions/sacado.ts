@@ -6,6 +6,7 @@ import { carregarContextoEventoOperacao, registrarEventoDominio } from '@/lib/ev
 import { resolverContextoSacado } from '@/lib/sacado/contexto.server'
 import { agruparVinculosOperacionaisAtivos, operacaoContaComoVinculoAtivo } from '@/lib/sacado/vinculo-operacional'
 import { possuiAcessoSacado, type SacadoAcesso } from '@/lib/sacado/acessos'
+import { LIMITE_LOTE_ACEITE_SACADO, operacaoPermiteDecisaoSacado } from '@/lib/sacado/aceite'
 import { registrarLog } from './auditoria'
 import { notificarGestores } from './notificacao'
 
@@ -31,7 +32,7 @@ async function validarLoteAceiteSacado(
     .select('id, status, cnpj_destinatario, fundo_id')
     .in('id', ids)
 
-  if (nfsError) return `Nao foi possivel validar as NFs: ${nfsError.message}`
+  if (nfsError) return 'Nao foi possivel validar as NFs. Atualize a pagina e tente novamente.'
   if ((nfs || []).length !== ids.length) return 'Uma ou mais NFs nao foram encontradas.'
   if ((nfs || []).some((nf) => !possuiAcessoSacado(acessos, nf.cnpj_destinatario, nf.fundo_id))) {
     return 'Uma ou mais NFs nao pertencem ao sacado autenticado.'
@@ -44,7 +45,7 @@ async function validarLoteAceiteSacado(
     .from('operacoes_nfs')
     .select('nota_fiscal_id, operacao_id')
     .in('nota_fiscal_id', ids)
-  if (linksError) return `Nao foi possivel validar os vinculos operacionais: ${linksError.message}`
+  if (linksError) return 'Nao foi possivel validar os vinculos operacionais. Atualize a pagina e tente novamente.'
 
   const operacaoIds = Array.from(new Set((links || []).map((link) => link.operacao_id)))
   const { data: operacoes, error: operacoesError } = await supabase
@@ -52,7 +53,7 @@ async function validarLoteAceiteSacado(
     .select('id, status, aceite_sacado_exigido, aceite_sacado_status')
     .in('id', operacaoIds)
 
-  if (operacoesError) return `Nao foi possivel validar as operacoes: ${operacoesError.message}`
+  if (operacoesError) return 'Nao foi possivel validar as operacoes. Atualize a pagina e tente novamente.'
   if ((operacoes || []).length !== operacaoIds.length) return 'Uma ou mais operacoes nao estao acessiveis.'
 
   const operacoesPorNota = agruparVinculosOperacionaisAtivos(links || [], operacoes || [])
@@ -60,9 +61,7 @@ async function validarLoteAceiteSacado(
     return 'Todas as NFs precisam possuir um unico vinculo operacional ativo.'
   }
   if ((operacoes || []).filter((operacao) => operacaoContaComoVinculoAtivo(operacao.status)).some((operacao) => (
-    !['solicitada', 'em_analise'].includes(operacao.status)
-    || operacao.aceite_sacado_exigido !== true
-    || operacao.aceite_sacado_status !== 'pendente'
+    !operacaoPermiteDecisaoSacado(operacao)
   ))) {
     return 'Uma ou mais operacoes nao estao abertas para aceite.'
   }
@@ -74,6 +73,15 @@ async function executarAceite(
   acao: 'aceitar' | 'contestar',
   motivo?: string,
 ) {
+  if (!Array.isArray(nfIds) || nfIds.length === 0) {
+    return { errorMessage: 'Nenhuma NF selecionada.' }
+  }
+  if (nfIds.some((id) => typeof id !== 'string' || !id.trim())) {
+    return { errorMessage: 'Selecao de NFs invalida.' }
+  }
+  if (new Set(nfIds).size > LIMITE_LOTE_ACEITE_SACADO) {
+    return { errorMessage: `Selecione no maximo ${LIMITE_LOTE_ACEITE_SACADO} NFs por vez.` }
+  }
   const contexto = await resolverContextoSacado()
   const ids = [...new Set(nfIds)]
   const validacao = await validarLoteAceiteSacado(
@@ -93,7 +101,10 @@ async function executarAceite(
     if (lower.includes('não exige aceite') || lower.includes('nao exige aceite')) {
       return { errorMessage: 'Esta operacao nao exige aceite do sacado.' }
     }
-    return { errorMessage: error.message }
+    if (error.code === '42501') return { errorMessage: 'Uma ou mais NFs nao estao autorizadas para este acesso.' }
+    if (error.code === 'P0001') return { errorMessage: 'Uma ou mais NFs nao permitem esta decisao no estado atual. Atualize a pagina.' }
+    console.error('[sacado/aceite] Falha ao processar decisao.', { code: error.code })
+    return { errorMessage: 'Nao foi possivel confirmar a decisao. Confira as notas antes de tentar novamente.' }
   }
   return { data: data as Record<string, unknown> }
 }
@@ -149,13 +160,29 @@ export async function contestarCessao(
   nfId: string,
   motivo: string,
 ): Promise<SacadoActionState> {
-  if (!motivo?.trim()) {
+  if (typeof motivo !== 'string' || !motivo.trim()) {
     return { success: false, message: 'Motivo da contestacao e obrigatorio.' }
   }
   const result = await executarAceite([nfId], 'contestar', motivo.trim())
   if (result.errorMessage) return { success: false, message: result.errorMessage }
   revalidarAceiteSacado()
   return { success: true, message: 'Contestacao registrada. O gestor foi notificado.' }
+}
+
+export async function contestarCessaoLote(
+  nfIds: string[],
+  motivo: string,
+): Promise<SacadoActionState> {
+  if (typeof motivo !== 'string' || !motivo.trim()) {
+    return { success: false, message: 'Motivo da contestacao e obrigatorio.' }
+  }
+  const result = await executarAceite(nfIds, 'contestar', motivo.trim())
+  if (result.errorMessage) return { success: false, message: result.errorMessage }
+  revalidarAceiteSacado()
+  return {
+    success: true,
+    message: `${new Set(nfIds).size} contestacao(oes) registrada(s). O gestor foi notificado.`,
+  }
 }
 
 export async function confirmarPagamento(

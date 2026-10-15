@@ -128,4 +128,14 @@ describe('portal-domain do sacado', () => {
     expect(nfPendenteAceiteSacado({ ...nfBase, aceite_sacado_exigido: true, aceite_sacado_status: 'aceito' })).toBe(false)
     expect(nfPendenteAceiteSacado({ ...nfBase, aceite_sacado_exigido: true, aceite_sacado_status: 'pendente', operacao_status: 'liquidada' })).toBe(false)
   })
+
+  it('mantém as NFs pendentes mesmo quando outra NF da operação foi contestada', () => {
+    const nf = { ...nfBase, aceite_sacado_status: 'contestado', operacao_status: 'em_analise' }
+    expect(nfPendenteAceiteSacado(nf)).toBe(true)
+    for (const status of ['aceita', 'contestada', 'aprovada', 'submetida', 'validada']) {
+      expect(nfPendenteAceiteSacado({ ...nf, status })).toBe(false)
+    }
+    expect(nfPendenteAceiteSacado({ ...nf, operacao_status: 'aprovada' })).toBe(false)
+    expect(nfPendenteAceiteSacado({ ...nf, aceite_sacado_exigido: false })).toBe(false)
+  })
 })
