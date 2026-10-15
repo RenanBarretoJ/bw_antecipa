@@ -15,7 +15,7 @@ import {
   XCircle,
 } from 'lucide-react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { aprovarCessao, aprovarCessaoLote, contestarCessao } from '@/lib/actions/sacado'
+import { aprovarCessao, aprovarCessaoLote, contestarCessao, contestarCessaoLote } from '@/lib/actions/sacado'
 import { obterUrlArquivoNotaSacado } from '@/lib/actions/sacado-portal'
 import type {
   FiltrosAprovacoesSacado,
@@ -32,6 +32,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 export function AprovacoesSacadoListagem({
   filtros,
@@ -51,12 +52,18 @@ export function AprovacoesSacadoListagem({
   const [processandoLote, setProcessandoLote] = useState(false)
   const [contestando, setContestando] = useState<string | null>(null)
   const [motivo, setMotivo] = useState('')
+  const [loteContestacao, setLoteContestacao] = useState<{ ids: string[]; numeros: string[]; valor: number } | null>(null)
+  const [motivoLote, setMotivoLote] = useState('')
   const [showFiltros, setShowFiltros] = useState(false)
   const [preview, setPreview] = useState<{ titulo: string; url: string } | null>(null)
   const [loadingPreview, setLoadingPreview] = useState<string | null>(null)
   const currentParams = useMemo(() => Object.fromEntries(searchParams.entries()), [searchParams])
+  const ocupado = processing !== null || processandoLote || isPending
+  const itensSelecionados = resultado.items.filter((item) => selecionadas.has(item.notaFiscalId))
+  const idsSelecionados = itensSelecionados.map((item) => item.notaFiscalId)
 
   const navegar = (updates: Record<string, string | number | null>) => {
+    if (ocupado) return
     setSelecionadas(new Set())
     startTransition(() => router.replace(buildListUrl(pathname, currentParams, updates)))
   }
@@ -83,45 +90,79 @@ export function AprovacoesSacadoListagem({
   })
 
   const aprovar = async (id: string) => {
+    if (ocupado) return
     setProcessing(id)
-    const result = await aprovarCessao(id)
-    notifications.fromActionResult(result)
-    if (result?.success) {
-      setSelecionadas((atual) => {
-        const proximo = new Set(atual)
-        proximo.delete(id)
-        return proximo
-      })
-      startTransition(() => router.refresh())
+    try {
+      const result = await aprovarCessao(id)
+      notifications.fromActionResult(result)
+      if (result?.success) {
+        setSelecionadas((atual) => new Set([...atual].filter((item) => item !== id)))
+        startTransition(() => router.refresh())
+      }
+    } catch {
+      notifications.error('Não foi possível confirmar o resultado. Atualize a página antes de tentar novamente.')
+    } finally {
+      setProcessing(null)
     }
-    setProcessing(null)
   }
 
   const aprovarLote = async () => {
+    if (ocupado || idsSelecionados.length === 0) return
     setProcessandoLote(true)
-    const result = await aprovarCessaoLote(Array.from(selecionadas))
-    notifications.fromActionResult(result)
-    if (result?.success) {
-      setSelecionadas(new Set())
-      startTransition(() => router.refresh())
+    try {
+      const result = await aprovarCessaoLote(idsSelecionados)
+      notifications.fromActionResult(result)
+      if (result?.success) {
+        setSelecionadas(new Set())
+        startTransition(() => router.refresh())
+      }
+    } catch {
+      notifications.error('Não foi possível confirmar o resultado. Atualize a página antes de tentar novamente.')
+    } finally {
+      setProcessandoLote(false)
     }
-    setProcessandoLote(false)
   }
 
   const contestar = async (id: string) => {
+    if (ocupado) return
     if (!motivo.trim()) {
       notifications.error('Informe o motivo da contestacao.')
       return
     }
     setProcessing(id)
-    const result = await contestarCessao(id, motivo)
-    notifications.fromActionResult(result)
-    if (result?.success) {
-      setContestando(null)
-      setMotivo('')
-      startTransition(() => router.refresh())
+    try {
+      const result = await contestarCessao(id, motivo)
+      notifications.fromActionResult(result)
+      if (result?.success) {
+        setContestando(null)
+        setMotivo('')
+        setSelecionadas((atual) => new Set([...atual].filter((item) => item !== id)))
+        startTransition(() => router.refresh())
+      }
+    } catch {
+      notifications.error('Não foi possível confirmar o resultado. Atualize a página antes de tentar novamente.')
+    } finally {
+      setProcessing(null)
     }
-    setProcessing(null)
+  }
+
+  const contestarLote = async () => {
+    if (ocupado || !loteContestacao || !motivoLote.trim()) return
+    setProcessandoLote(true)
+    try {
+      const result = await contestarCessaoLote(loteContestacao.ids, motivoLote)
+      notifications.fromActionResult(result)
+      if (result?.success) {
+        setSelecionadas(new Set())
+        setLoteContestacao(null)
+        setMotivoLote('')
+        startTransition(() => router.refresh())
+      }
+    } catch {
+      notifications.error('Não foi possível confirmar o resultado. Atualize a página antes de tentar novamente.')
+    } finally {
+      setProcessandoLote(false)
+    }
   }
 
   const abrirPreview = async (id: string, numero: string) => {
@@ -228,17 +269,22 @@ export function AprovacoesSacadoListagem({
             )}
           </CardContent></Card>
 
-          {selecionadas.size > 0 && (
+          {idsSelecionados.length > 0 && (
             <div className="mb-4 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-primary/20 bg-primary/5 p-3">
               <div className="text-sm font-medium">
-                <span className="text-primary">{selecionadas.size}</span> NF(s) selecionada(s)
+                <span className="text-primary">{idsSelecionados.length}</span> NF(s) selecionada(s)
                 <span className="font-normal text-muted-foreground"> — Total: {formatCurrency(valorSelecionado)}</span>
               </div>
               <div className="flex gap-2">
-                <Button variant="ghost" size="sm" onClick={() => setSelecionadas(new Set())}>Desmarcar</Button>
-                <Button size="sm" disabled={processandoLote} onClick={aprovarLote} className="bg-green-600 text-white hover:bg-green-700">
+                <Button variant="ghost" size="sm" disabled={ocupado} onClick={() => setSelecionadas(new Set())}>Desmarcar</Button>
+                <Button variant="destructive" size="sm" disabled={ocupado} onClick={() => {
+                  setContestando(null)
+                  setMotivoLote('')
+                  setLoteContestacao({ ids: idsSelecionados, numeros: itensSelecionados.map((item) => item.numero), valor: valorSelecionado })
+                }}><XCircle size={14} /> Contestar {idsSelecionados.length} NF(s)</Button>
+                <Button size="sm" disabled={ocupado} onClick={aprovarLote} className="bg-green-600 text-white hover:bg-green-700">
                   {processandoLote ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
-                  Aprovar {selecionadas.size} NF(s)
+                  Aprovar {idsSelecionados.length} NF(s)
                 </Button>
               </div>
             </div>
@@ -248,7 +294,7 @@ export function AprovacoesSacadoListagem({
             <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Cessoes para aprovacao, tabela com rolagem horizontal">
               <table className="min-w-[900px] w-full text-sm">
                 <thead><tr className="border-b bg-muted/50">
-                  <th className="w-10 px-4 py-3"><button onClick={toggleTodas} aria-label="Selecionar todas da pagina">{todasSelecionadas ? <CheckSquare size={16} className="text-primary" /> : <Square size={16} />}</button></th>
+                  <th className="w-10 px-4 py-3"><button disabled={ocupado} onClick={toggleTodas} aria-label="Selecionar todas da pagina">{todasSelecionadas ? <CheckSquare size={16} className="text-primary" /> : <Square size={16} />}</button></th>
                   <th className="px-4 py-3 text-left text-xs uppercase text-muted-foreground">NF</th>
                   <th className="px-4 py-3 text-left text-xs uppercase text-muted-foreground">Cedente</th>
                   <th className="px-4 py-3 text-right text-xs uppercase text-muted-foreground">Valor</th>
@@ -264,21 +310,21 @@ export function AprovacoesSacadoListagem({
                     const isProcessing = processing === id
                     return <Fragment key={id}>
                       <tr className={selecionadas.has(id) ? 'bg-primary/5' : 'hover:bg-muted/30'}>
-                        <td className="px-4 py-3"><button onClick={() => toggleItem(id)} aria-label={`Selecionar NF ${item.numero}`}>{selecionadas.has(id) ? <CheckSquare size={16} className="text-primary" /> : <Square size={16} />}</button></td>
+                        <td className="px-4 py-3"><button disabled={ocupado} onClick={() => toggleItem(id)} aria-label={`Selecionar NF ${item.numero}`}>{selecionadas.has(id) ? <CheckSquare size={16} className="text-primary" /> : <Square size={16} />}</button></td>
                         <td className="px-4 py-3"><p className="font-medium">{item.numero}</p>{item.sacado && <p className="text-xs text-muted-foreground">{item.sacado.nome}<br />{formatCNPJ(item.sacado.cnpj)}</p>}<Badge className="mt-1 bg-purple-100 text-purple-700">Cessao ativa</Badge></td>
                         <td className="w-[220px] max-w-[220px] px-4 py-3"><ListNameCell name={item.cedente.nome} subline={formatCNPJ(item.cedente.cnpj)} /></td>
                         <td className="whitespace-nowrap px-4 py-3 text-right font-bold tabular-nums">{formatCurrency(item.valor)}</td>
                         <td className="whitespace-nowrap px-4 py-3">{item.vencimentoEm ? formatDate(item.vencimentoEm) : '—'}</td>
                         <td className="px-4 py-3"><div className="flex items-center justify-end gap-1">
                           {item.possuiArquivo && <Button variant="ghost" size="icon" title="Ver NF" disabled={loadingPreview === id} onClick={() => abrirPreview(id, item.numero)}>{loadingPreview === id ? <Loader2 size={13} className="animate-spin" /> : <Eye size={13} />}</Button>}
-                          <Button size="sm" disabled={isProcessing || processandoLote} onClick={() => aprovar(id)} className="bg-green-600 text-white hover:bg-green-700">{isProcessing ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle size={12} />} Aprovar</Button>
-                          <Button size="sm" variant="destructive" disabled={isProcessing || processandoLote} onClick={() => setContestando(isContestando ? null : id)}><XCircle size={12} /> Contestar</Button>
+                          <Button size="sm" disabled={ocupado} onClick={() => aprovar(id)} className="bg-green-600 text-white hover:bg-green-700">{isProcessing ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle size={12} />} Aprovar</Button>
+                          <Button size="sm" variant="destructive" disabled={ocupado} onClick={() => { setContestando(isContestando ? null : id); setMotivo('') }}><XCircle size={12} /> Contestar</Button>
                         </div></td>
                       </tr>
                       {isContestando && <tr className="bg-red-50 dark:bg-red-950/10"><td colSpan={6} className="px-4 py-3">
                         <div className="mb-2 flex items-center gap-2 text-sm font-medium text-red-800 dark:text-red-300"><AlertTriangle size={15} />Contestar NF {item.numero}</div>
-                        <textarea aria-label="Motivo da contestacao" value={motivo} onChange={(event) => setMotivo(event.target.value)} rows={2} className="mb-2 w-full rounded-lg border bg-background px-3 py-2 text-sm" placeholder="Descreva o motivo da contestacao (obrigatorio)..." />
-                        <div className="flex gap-2"><Button variant="outline" size="sm" onClick={() => { setContestando(null); setMotivo('') }}>Cancelar</Button><Button variant="destructive" size="sm" disabled={isProcessing} onClick={() => contestar(id)}>Confirmar Contestacao</Button></div>
+                        <textarea aria-label="Motivo da contestacao" disabled={ocupado} value={motivo} onChange={(event) => setMotivo(event.target.value)} rows={2} className="mb-2 w-full rounded-lg border bg-background px-3 py-2 text-sm" placeholder="Descreva o motivo da contestacao (obrigatorio)..." />
+                        <div className="flex gap-2"><Button variant="outline" size="sm" disabled={ocupado} onClick={() => { setContestando(null); setMotivo('') }}>Cancelar</Button><Button variant="destructive" size="sm" disabled={ocupado || !motivo.trim()} onClick={() => contestar(id)}>Confirmar Contestacao</Button></div>
                       </td></tr>}
                     </Fragment>
                   })}
@@ -291,13 +337,38 @@ export function AprovacoesSacadoListagem({
             <ListPagination
               className="border-t px-4 py-3"
               pagination={resultado.pagination}
-              disabled={isPending}
+              disabled={ocupado}
               onPageChange={(page) => navegar({ page })}
               onPageSizeChange={(pageSize) => navegar({ pageSize, page: 1 })}
             />
           </Card>
         </>
       )}
+
+      <Dialog open={loteContestacao !== null} onOpenChange={(open) => {
+        if (!open && !processandoLote) { setLoteContestacao(null); setMotivoLote('') }
+      }}>
+        <DialogContent showCloseButton={!processandoLote} className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Contestar {loteContestacao?.ids.length} NF(s)</DialogTitle>
+            <DialogDescription>O mesmo motivo será registrado em todas as notas selecionadas. As demais notas continuarão disponíveis para decisão.</DialogDescription>
+          </DialogHeader>
+          <div className="max-h-32 overflow-auto rounded-lg border p-3 text-sm">
+            <p>NFs: {loteContestacao?.numeros.join(', ')}</p>
+            <p className="mt-1 font-medium">Total: {formatCurrency(loteContestacao?.valor ?? 0)}</p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="motivo-contestacao-lote">Motivo da contestação *</Label>
+            <textarea id="motivo-contestacao-lote" required disabled={processandoLote} value={motivoLote} onChange={(event) => setMotivoLote(event.target.value)} rows={3} className="w-full rounded-lg border bg-background px-3 py-2 text-sm" />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" disabled={processandoLote} onClick={() => { setLoteContestacao(null); setMotivoLote('') }}>Cancelar</Button>
+            <Button variant="destructive" disabled={ocupado || !motivoLote.trim()} onClick={contestarLote}>
+              {processandoLote && <Loader2 size={14} className="animate-spin" />} Confirmar contestação em lote
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {preview && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">

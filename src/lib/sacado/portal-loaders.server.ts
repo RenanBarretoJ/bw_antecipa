@@ -20,11 +20,8 @@ import {
   type ResultadoPagamentosSacado,
 } from './portal-listagens'
 import type { OperacaoStatus } from '@/lib/types/domain'
+import { STATUS_ACEITE_SACADO_COM_PENDENCIAS, STATUS_OPERACAO_ACEITE_SACADO } from './aceite'
 
-const STATUS_OPERACAO_ACEITE = [
-  'solicitada',
-  'em_analise',
-] as const satisfies readonly OperacaoStatus[]
 const STATUS_PAGAMENTO_VALIDOS = [
   'em_andamento',
   'liquidada',
@@ -320,8 +317,8 @@ function aplicarFiltrosAprovacao(
 
     .eq('status', 'em_antecipacao')
     .eq('operacoes_nfs.operacoes.aceite_sacado_exigido', true)
-    .eq('operacoes_nfs.operacoes.aceite_sacado_status', 'pendente')
-    .in('operacoes_nfs.operacoes.status', STATUS_OPERACAO_ACEITE)
+    .in('operacoes_nfs.operacoes.aceite_sacado_status', STATUS_ACEITE_SACADO_COM_PENDENCIAS)
+    .in('operacoes_nfs.operacoes.status', STATUS_OPERACAO_ACEITE_SACADO)
 
   if (cnpj) query = query.eq('cnpj_destinatario', cnpj)
   if (filtros.cedenteId) query = query.eq('cedente_id', filtros.cedenteId)
