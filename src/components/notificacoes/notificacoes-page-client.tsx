@@ -17,7 +17,8 @@ export function NotificacoesPageClient({ initialFilter, basePath }: { initialFil
   const { page, loading, more, busy, error, mark, loadMore, retry } = useNotificacoes(initialFilter, 20)
   const { rootRef, onFocusCapture } = useNotificacaoItemFocus(page.items.map((item) => item.id))
   const counts = page.contadores ?? { total: 0, naoLidas: 0 }
-  return <section className="mx-auto w-full max-w-4xl space-y-5 px-4 pb-8 sm:px-6" aria-labelledby="notificacoes-title">
+  // Contain absolute sr-only labels inside the portal's scrolling content.
+  return <section className="relative mx-auto w-full max-w-4xl space-y-5 px-4 pb-8 sm:px-6" aria-labelledby="notificacoes-title">
     <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
       <div className="min-w-0 space-y-2">
         <h1 id="notificacoes-title" className="text-2xl font-bold text-foreground">Notificações</h1>
