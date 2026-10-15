@@ -1,4 +1,5 @@
 import { moneyTokensFromLine, parseDanfeMoney } from './money'
+import { extractDanfeFatura } from './fatura'
 
 export type DanfeLayout = 'generic_danfe' | 'fiscal_grid_after_labels' | 'canhoto_total'
 export type ValorSource =
@@ -152,8 +153,12 @@ export function resolveDanfeValue(text: string, numeroNf?: string): ValorResolut
   const original = collectDirect(lines, /VALOR\s+ORIGINAL/i, 'VALOR_ORIGINAL', 0.80)
   const liquid = collectDirect(lines, /VALOR\s+L[IÍ]QUIDO/i, 'VALOR_LIQUIDO', 0.78)
   const products = collectDirect(lines, /(?:V\.?|VALOR)\s*TOTAL\s+(?:DOS\s+)?PRODUTOS/i, 'VALOR_TOTAL_DOS_PRODUTOS', 0.61)
-  const duplicatas = collectDuplicatas(lines, numeroNf)
   const grid = collectFiscalGrid(lines)
+  const fatura = extractDanfeFatura(text)
+  const faturaCorroborated = fatura && [...direct, ...canhoto, ...grid].some(item => Math.abs(item.cents - fatura.cents) <= CENT_TOLERANCE)
+  const duplicatas = [...collectDuplicatas(lines, numeroNf), ...(fatura?.entries.length ? [
+    candidate('DUPLICATA_SUM', fatura.cents, 'fatura:val:complete_series', `${fatura.entries.length} parcela(s)`, faturaCorroborated ? 0.88 : 0.70),
+  ] : [])]
   const candidates = [...direct, ...canhoto, ...duplicatas, ...grid, ...original, ...liquid, ...products]
   const layout = detectLayout(lines, duplicatas, grid)
   const groups = groupCandidates(candidates)
@@ -165,6 +170,7 @@ export function resolveDanfeValue(text: string, numeroNf?: string): ValorResolut
   const formulaConflict = winner ? fiscalFormulaConflict(lines, winner.cents) : false
   const conflict = strongConflict || repeatedGridConflict || unmatchedGridConflict || formulaConflict
   const reasons = [
+    ...(fatura?.reasons ?? []),
     ...(strongConflict ? ['canonical_duplicate_conflict'] : []),
     ...(repeatedGridConflict || unmatchedGridConflict ? ['fiscal_grid_duplicate_conflict'] : []),
     ...(formulaConflict ? ['fiscal_formula_conflict'] : []),
