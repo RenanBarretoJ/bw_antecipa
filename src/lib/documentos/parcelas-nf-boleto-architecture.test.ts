@@ -369,46 +369,44 @@ describe('UI/Operacional: correcao de parcelas pelo Cedente (RPC editar_parcelas
   })
 })
 
-describe('UI/Operacional: detalhe por parcela na Operacao do Gestor (nao mais agregado so por NF)', () => {
-  it('carrega operacoes_nf_parcelas e operacao_calculo_nfs.parcela_id (nao apenas nota_fiscal_id)', () => {
+describe('UI/Operacional: tabela por parcela na Operacao do Gestor', () => {
+  const tabela = readFileSync('src/components/operacoes/OperacaoParcelasTabela.tsx', 'utf8')
+  const linhas = readFileSync('src/lib/operacoes/parcelas-tabela.ts', 'utf8')
+
+  it('carrega somente vínculos desta operação e memória individual por parcela', () => {
     expect(operacaoDetalheGestorClient).toContain("from('operacoes_nf_parcelas')")
     expect(operacaoDetalheGestorClient).toContain('parcela_id, dias_aplicados, vencimento_contratual')
+    expect(operacaoDetalheGestorClient).toContain('memoriasLegadas: memoriasCalculo')
   })
-
-  it('bruto/antecipado exibidos por NF usam as parcelas cedidas nesta operacao quando existirem, nao o valor integral da NF', () => {
-    expect(operacaoDetalheGestorClient).toContain('brutoCedido ?? nf.valor_bruto')
-    expect(operacaoDetalheGestorClient).toContain('valorAntecipado: antecipadoPersistido')
-    expect(operacaoDetalheGestorClient).toContain('const antecipadoPersistido = cedidas?.length')
-    expect(operacaoDetalheGestorClient).not.toContain('valorAntecipadoPorNf')
+  it('separa bruto fiscal integral da NF e base congelada por parcela', () => {
+    expect(linhas).toContain('brutoFiscal: nf.valor_bruto')
+    expect(linhas).toContain('valorBaseSnapshot(snapshot, nf.id, p.valorNominal, p.parcelaId)')
+    expect(linhas).toContain('antecipado: p.valorPresente')
   })
-
-  it('NF sem parcelas (totalParcelas === 0) nao renderiza nenhum bloco extra -- legado intacto', () => {
-    expect(operacaoDetalheGestorClient).toContain('totalParcelas > 0 && (')
+  it('identifica NF legada sem inventar parcela e sem fallback integral em NF parcelada', () => {
+    expect(linhas).toContain('if ((totalParcelasPorNf.get(nf.id) ?? 0) > 0) return []')
+    expect(linhas).toContain('parcelaId: null, numeroParcela: null')
+    expect(tabela).toContain('Nota legada sem parcelas cadastradas')
   })
-
-  it('bloco de parcelas cedidas e expansivel por NF ("X/Y parcelas cedidas")', () => {
-    expect(operacaoDetalheGestorClient).toContain('parcelas cedidas')
-    expect(operacaoDetalheGestorClient).toContain('toggleNfExpandida')
+  it('mantém todas as parcelas visíveis e usa cabeçalhos semânticos', () => {
+    expect(tabela).toContain('exibidas.map(linha => <tr')
+    expect(tabela).toContain('<th scope="col"')
+    expect(tabela).not.toContain('aria-expanded')
+    expect(operacaoDetalheGestorClient).not.toContain('toggleNfExpandida')
   })
-
-  it('P11.1 preserva a memoria para parcelas e CSV, mas retira os dois details redundantes', () => {
-    expect(operacaoDetalheGestorClient).not.toContain('Ver memoria de calculo por NF')
+  it('preserva memória persistida e exporta linhas com a identidade da parcela', () => {
     expect(operacaoDetalheGestorClient).toContain(".from('operacao_calculo_nfs')")
-    expect(operacaoDetalheGestorClient).toContain('setMemoriasCalculo(memoriasRows)')
-    expect(operacaoDetalheGestorClient).toContain('const memoria = memoriaPorParcela.get(row.parcela_id)')
-    expect(operacaoDetalheGestorClient).toContain('diasAplicados: memoria?.dias_aplicados')
     expect(operacaoDetalheGestorClient).toContain('valorPresente: memoria ? Number(memoria.valor_presente)')
-    expect(operacaoDetalheGestorClient).toContain('desconto: memoria ? Number(memoria.desconto)')
-    expect(operacaoDetalheGestorClient).toContain('const antecipadoLegadoPersistido = memoriasDaNf.length > 0')
-    expect(operacaoDetalheGestorClient).toContain('...notasFiscaisView.map((nf) => {')
+    expect(operacaoDetalheGestorClient).toContain('...linhasParcelas.map(l => [op.id, op.cedentes.razao_social, l.numeroNf, l.numeroParcela')
+    expect(linhas).toContain('m.parcela_id === null')
   })
-
-  it('P11.1 mostra memoria apenas para NF legada, em qualquer etapa da operacao', () => {
-    expect(operacaoDetalheGestorClient).toContain('totalParcelas === 0')
-    expect(operacaoDetalheGestorClient).toContain('memoria.parcela_id === null')
-    expect(operacaoDetalheGestorClient).toContain('memoriaLegada={memoriaLegada}')
-    expect(operacaoDetalheGestorClient).toContain('{canDisburse && (')
-    expect(operacaoDetalheGestorClient).toContain('{!canAnalyze && !canDisburse && (')
+  it('mantém a tabela em todas as etapas sem usar simulação como valor persistido', () => {
+    expect(operacaoDetalheGestorClient).toContain('<OperacaoParcelasTabela')
+    expect(operacaoDetalheGestorClient).toContain('<OperacaoResumoCard')
+    expect(operacaoDetalheGestorClient).toContain('{canDisburse && <div')
+    expect(operacaoDetalheGestorClient).toContain('valorLiquido={canAnalyze ? valorLiquido : op.valor_liquido_desembolso}')
+    const montagem = operacaoDetalheGestorClient.slice(operacaoDetalheGestorClient.indexOf('const linhasParcelas ='), operacaoDetalheGestorClient.indexOf('const aceiteDispensado'))
+    expect(montagem).not.toContain('calculoFinanceiro')
   })
 })
 

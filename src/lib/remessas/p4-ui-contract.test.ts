@@ -9,7 +9,7 @@ const sendRoute = readFileSync(join(process.cwd(), 'src/app/api/contratos/enviar
 describe('P4 - contrato de UI e autorizacao', () => {
   it('expõe os nomes genericos de remessa e remove as acoes CNAB especificas', () => {
     expect(client).toContain('Gerar Remessa')
-    expect(client).toContain('Enviar Remessa para ADM')
+    expect(client).toContain('Enviar para ADM')
     expect(client).not.toContain('Gerar CNAB')
     expect(client).not.toContain('Enviar CNAB para Portal FIDC')
   })

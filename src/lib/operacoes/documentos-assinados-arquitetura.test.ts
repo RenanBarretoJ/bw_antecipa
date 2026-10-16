@@ -40,7 +40,8 @@ describe('arquitetura do upload de documentos assinados', () => {
     expect(actions).not.toContain('export async function salvarTermoAssinado')
     expect(actions).not.toContain('export async function salvarComprovantePagamento')
     expect(actions).not.toContain('export async function salvarNotificacaoAssinada')
-    expect(pagina.match(/<UploadDocumentoAssinadoOperacao/g)?.length).toBe(6)
+    // Uma única seção compartilhada entre aprovada e histórico, com os mesmos três controles.
+    expect(pagina.match(/<UploadDocumentoAssinadoOperacao/g)?.length).toBe(3)
     expect(pagina).toContain('TERMO_CESSAO_ASSINADO')
     expect(pagina).toContain('NOTIFICACAO_SACADO_ASSINADA')
     expect(pagina).toContain('COMPROVANTE_DESEMBOLSO_TED')

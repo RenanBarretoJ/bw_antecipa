@@ -3,27 +3,25 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { aprovarOperacao, desembolsarOperacao, listarTestemunhasOperacao, reprovarOperacao, removerNfDaOperacao, salvarTestemunhasOperacao, salvarQuitacaoAssinada } from '@/lib/actions/operacao'
+import { aprovarOperacao, desembolsarOperacao, listarTestemunhasOperacao, reprovarOperacao, removerNfDaOperacao, removerParcelaDaOperacao, salvarTestemunhasOperacao, salvarQuitacaoAssinada } from '@/lib/actions/operacao'
 import { liquidarOperacao, marcarInadimplente } from '@/lib/actions/liquidacao'
 import { carregarResumoEntregaPorOperacao } from '@/lib/actions/logistica'
-import { formatCurrency, formatCNPJ, formatDate } from '@/lib/utils'
+import { formatCNPJ, formatDate } from '@/lib/utils'
 import Link from 'next/link'
 import {
   ArrowLeft,
   ArrowRight,
   CheckCircle,
-  ChevronDown,
-  ChevronUp,
   XCircle,
   Clock,
   AlertCircle,
   Banknote,
-  FileText,
   FileDown,
+  FileText,
+  BriefcaseBusiness,
   Calculator,
   Loader2,
   Send,
-  Truck,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -36,17 +34,15 @@ import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useNotifications } from '@/components/notifications/notification-provider'
-import {
-  OperacaoNotaFiscalCard,
-  buildOperacaoNotaFiscalView,
-  resolveStatusCurtoDaNota,
-  type OperacaoNotaFiscalView,
-} from '@/components/operacoes/OperacaoNotaFiscalCard'
+import { OperacaoParcelasTabela } from '@/components/operacoes/OperacaoParcelasTabela'
+import { RemoverItemOperacaoDialog } from '@/components/operacoes/RemoverItemOperacaoDialog'
+import { OperacaoResumoCard } from '@/components/operacoes/OperacaoResumoCard'
+import { construirLinhasParcelasOperacao, type LinhaParcelaOperacao } from '@/lib/operacoes/parcelas-tabela'
 import { useFundoAtivo } from '@/components/fundos/fundo-ativo-provider'
 import { HistoricoTimelineCard } from '@/components/historico/HistoricoTimelineCard'
 import { obterCapacidadesOperacao, type CapabilitiesOperacao, type DocumentoOperacaoParaPolitica } from '@/lib/operacoes/politica-operacao'
 import { AndamentoOperacaoCard } from '@/components/operacoes/AndamentoOperacaoCard'
-import { OperacaoParcelaCedidaRow, PARCELA_CEDIDA_COLUNAS, type ParcelaCedidaOperacao } from '@/components/operacoes/OperacaoParcelaCedidaRow'
+import { type ParcelaCedidaOperacao } from '@/components/operacoes/OperacaoParcelaCedidaRow'
 import {
   calcularAntecipacaoEmLote,
   METODOS_CALCULO_LABELS,
@@ -60,7 +56,6 @@ import {
   taxaMantemPropostaConsultor,
 } from '@/lib/operacoes/taxa-operacao'
 import { valorBaseSnapshot, type BaseAntecipacaoSnapshot } from '@/lib/operacoes/base-antecipacao'
-import { BaseAntecipacaoResumo } from '@/components/operacoes/BaseAntecipacaoResumo'
 
 interface Testemunha {
   id: string
@@ -99,6 +94,10 @@ interface OperacaoDetalhe {
   created_at: string
   testemunha_1_id: string | null
   testemunha_2_id: string | null
+  termo_url: string | null
+  termo_gerado_em: string | null
+  notificacao_gerado_em: string | null
+  quitacao_gerado_em: string | null
   termo_assinado_url: string | null
   comprovante_pagamento_url: string | null
   notificacao_url: string | null
@@ -183,7 +182,6 @@ interface MemoriaCalculoNf {
 }
 
 type BadgeVariant = 'default' | 'secondary' | 'destructive' | 'outline' | 'ghost' | 'link'
-type NotaFiscalSort = 'vencimento' | 'numero' | 'sacado' | 'valor' | 'status'
 
 function csvCell(value: string | number | null | undefined) {
   const raw = value === null || value === undefined ? '' : String(value)
@@ -218,106 +216,6 @@ const statusConfig: Record<string, { label: string; variant: BadgeVariant; class
   inadimplente: { label: 'Inadimplente', variant: 'destructive', className: '', icon: AlertCircle },
   reprovada: { label: 'Reprovada', variant: 'destructive', className: '', icon: XCircle },
   cancelada: { label: 'Cancelada', variant: 'outline', className: 'text-muted-foreground', icon: XCircle },
-}
-
-const entregaStatusConfig: Record<string, { label: string; className: string }> = {
-  nao_aplicavel: { label: 'Nao aplicavel', className: 'bg-muted text-muted-foreground' },
-  em_transito: { label: 'Em transito', className: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' },
-  aguardando_validacao: { label: 'Aguard. validacao', className: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300' },
-  entregue: { label: 'Entregue', className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' },
-  entrega_com_pendencia: { label: 'Com pendencia', className: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' },
-  devolvida: { label: 'Devolvida', className: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300' },
-  cancelada: { label: 'Cancelada', className: 'bg-muted text-muted-foreground' },
-}
-
-function NfStatusBadge({
-  status,
-  aceiteDispensado,
-  operacaoAprovada,
-  entregaStatus,
-}: {
-  status: string
-  aceiteDispensado: boolean
-  operacaoAprovada: boolean
-  entregaStatus?: string | null
-}) {
-  if (entregaStatus === 'em_transito') {
-    return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 whitespace-nowrap">
-        <Truck size={11} /> Em trânsito
-      </span>
-    )
-  }
-
-  if (entregaStatus === 'aguardando_validacao') {
-    return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700 whitespace-nowrap">
-        <Clock size={11} /> Aguard. validação
-      </span>
-    )
-  }
-
-  if (entregaStatus === 'entregue') {
-    return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 whitespace-nowrap">
-        <CheckCircle size={11} /> Entregue
-      </span>
-    )
-  }
-
-  if (entregaStatus === 'entrega_com_pendencia') {
-    return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700 whitespace-nowrap">
-        <AlertCircle size={11} /> Pendência entrega
-      </span>
-    )
-  }
-
-  if (status === 'aceita') {
-    return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 whitespace-nowrap">
-        <CheckCircle size={11} /> Aprov. Sacado
-      </span>
-    )
-  }
-
-  if (status === 'contestada') {
-    return (
-      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700 whitespace-nowrap">
-        Contestada
-      </span>
-    )
-  }
-
-  if (status === 'em_antecipacao' && aceiteDispensado) {
-    return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 whitespace-nowrap">
-        <CheckCircle size={11} /> Aceite dispensado
-      </span>
-    )
-  }
-
-  if (status === 'em_antecipacao' && operacaoAprovada) {
-    return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 whitespace-nowrap">
-        <CheckCircle size={11} /> Aprov. gestor
-      </span>
-    )
-  }
-
-  if (status === 'em_antecipacao') {
-    return (
-      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700 whitespace-nowrap">
-        Aguard. aprovação
-      </span>
-    )
-  }
-
-  return (
-    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground whitespace-nowrap">
-      {status}
-    </span>
-  )
 }
 
 function PageSkeleton() {
@@ -398,7 +296,7 @@ export default function OperacaoDetalheGestorClient({
   const [memoriasCalculo, setMemoriasCalculo] = useState<MemoriaCalculoNf[]>([])
   const [parcelasCedidasPorNf, setParcelasCedidasPorNf] = useState<Map<string, ParcelaCedidaOperacao[]>>(new Map())
   const [totalParcelasPorNf, setTotalParcelasPorNf] = useState<Map<string, number>>(new Map())
-  const [nfsExpandidas, setNfsExpandidas] = useState<Set<string>>(new Set())
+  const [remocaoPendente, setRemocaoPendente] = useState<LinhaParcelaOperacao | null>(null)
   const [loading, setLoading] = useState(true)
   const [processing, setProcessing] = useState(false)
   const [removendoNf, setRemovendoNf] = useState<string | null>(null)
@@ -440,7 +338,7 @@ export default function OperacaoDetalheGestorClient({
   const [remessaFromtisId, setRemessaFromtisId] = useState<string | null>(null)
   const [remessaOperacional, setRemessaOperacional] = useState<RemessaOperacionalUi | null>(null)
   const [desembolsando, setDesembolsando] = useState(false)
-  const [nfSort, setNfSort] = useState<NotaFiscalSort>('vencimento')
+  const [loadVersion, setLoadVersion] = useState(0)
 
   const capacidades = useMemo<CapabilitiesOperacao>(() => obterCapacidadesOperacao(op || {}, {
     documentos: requisitos as DocumentoOperacaoParaPolitica[],
@@ -549,8 +447,7 @@ export default function OperacaoDetalheGestorClient({
         const memoriasRows = (memorias || []) as MemoriaCalculoNf[]
         setMemoriasCalculo(memoriasRows)
 
-        // Detalhe por parcela (Objetivo A): NF continua agrupadora visual,
-        // mas para NF com parcelas os totais/expand devem representar
+        // Para NF com parcelas, considerar
         // somente as parcelas efetivamente cedidas NESTA operacao via
         // operacoes_nf_parcelas -- nunca o valor integral da NF. NF sem
         // parcelas (totalParcelasPorNf sem entrada) mantem o legado intacto.
@@ -617,7 +514,7 @@ export default function OperacaoDetalheGestorClient({
       setLoading(false)
     }
     load()
-  }, [opId, carregarLogistica, loadingFundo, bloqueado, fundoAtivo?.id])
+  }, [opId, carregarLogistica, loadingFundo, bloqueado, fundoAtivo?.id, loadVersion])
 
   const metodoCalculo = useMemo(() => {
     const snapshot = op?.politica_snapshot as { calculo_financeiro?: { metodo?: string } } | null
@@ -686,118 +583,30 @@ export default function OperacaoDetalheGestorClient({
 
   const valorLiquido = calculoFinanceiro?.valorLiquidoTotal ?? op?.valor_liquido_desembolso ?? null
 
-  const entregaPorNfId = useMemo(() => new Map(entregas.map((entrega) => [entrega.nota_fiscal_id, entrega])), [entregas])
 
-  const notasFiscaisView = useMemo<OperacaoNotaFiscalView[]>(() => {
-    const views = nfs.map((nf) => {
-      // Objetivo A: para NF com parcelas cedidas nesta operacao (subset da
-      // NF), o bruto/antecipado exibidos representam so as parcelas
-      // cedidas, nunca o valor integral da NF. NF sem parcela (nenhuma
-      // linha em operacoes_nf_parcelas para ela) mantem o legado intacto.
-      const cedidas = parcelasCedidasPorNf.get(nf.id)
-      const brutoCedido = cedidas?.length ? cedidas.reduce((soma, item) => soma + item.valorNominal, 0) : null
-      const antecipadoMemoria = cedidas?.length && cedidas.every((item) => item.valorPresente !== null)
-        ? cedidas.reduce((soma, item) => soma + (item.valorPresente ?? 0), 0)
-        : null
-      const memoriasDaNf = memoriasCalculo.filter((item) => item.nota_fiscal_id === nf.id)
-      const antecipadoLegadoPersistido = memoriasDaNf.length > 0
-        ? memoriasDaNf.reduce((soma, item) => soma + Number(item.valor_presente), 0)
-        : null
-      const operacaoEmPreparacao = op?.status === 'solicitada' || op?.status === 'em_analise'
-      const antecipadoPersistido = cedidas?.length
-        ? antecipadoMemoria
-        : antecipadoLegadoPersistido
-          ?? (!operacaoEmPreparacao ? (nf.valor_antecipado ?? nf.valor_liquido) : null)
-          ?? (!operacaoEmPreparacao && nfs.length === 1 ? op?.valor_liquido_desembolso ?? null : null)
+  const linhasParcelas = useMemo(() => loading ? [] : construirLinhasParcelasOperacao({
+    notas: nfs,
+    parcelasPorNf: parcelasCedidasPorNf,
+    totalParcelasPorNf,
+    snapshot: op?.base_antecipacao_snapshot,
+    memoriasLegadas: memoriasCalculo,
+    historico: !!op && !['solicitada', 'em_analise'].includes(op.status),
+  }), [loading, nfs, parcelasCedidasPorNf, totalParcelasPorNf, op, memoriasCalculo])
 
-      return buildOperacaoNotaFiscalView({
-        notaFiscal: {
-          id: nf.id,
-          numero_nf: nf.numero_nf,
-          cnpj_destinatario: nf.cnpj_destinatario,
-          razao_social_destinatario: nf.razao_social_destinatario,
-          valor_bruto: brutoCedido ?? nf.valor_bruto,
-          data_vencimento: nf.data_vencimento,
-          status: nf.status,
-        },
-        // O card exibe somente memoria/valor persistido. A simulacao local
-        // permanece restrita ao formulario de decisao e nao vira fonte de
-        // verdade da NF antes da aprovacao.
-        valorAntecipado: antecipadoPersistido,
-      })
-    })
-
-    return views.sort((a, b) => {
-      if (nfSort === 'numero') return a.numero_nf.localeCompare(b.numero_nf, 'pt-BR', { numeric: true })
-      if (nfSort === 'sacado') return a.razao_social_destinatario.localeCompare(b.razao_social_destinatario, 'pt-BR')
-      if (nfSort === 'valor') return b.valor_bruto - a.valor_bruto
-      if (nfSort === 'status') return a.status.localeCompare(b.status, 'pt-BR')
-      return new Date(a.data_vencimento).getTime() - new Date(b.data_vencimento).getTime()
-    })
-  }, [memoriasCalculo, nfs, nfSort, op?.status, op?.valor_liquido_desembolso, parcelasCedidasPorNf])
-
-  const totaisNfs = useMemo(() => ({
-    bruto: op?.valor_bruto_total ?? notasFiscaisView.reduce((acc, nf) => acc + nf.valor_bruto, 0),
-    // Previa editavel usa o mesmo resultado do painel de decisao; historico e persistido.
-    antecipado: op && ['solicitada', 'em_analise'].includes(op.status)
-      ? calculoFinanceiro?.valorLiquidoTotal ?? null
-      : op?.valor_liquido_desembolso ?? null,
-  }), [calculoFinanceiro, notasFiscaisView, op])
-
-  const aceiteDispensado = !!op && (op.aceite_sacado_exigido === false || op.aceite_sacado_status === 'dispensado')
+  const aceiteDispensado = !capacidades.exigeAceiteSacado || op?.aceite_sacado_status === 'dispensado'
   const todasAceitas = aceiteDispensado || (nfs.length > 0 && nfs.every((nf) => nf.status === 'aceita'))
 
   const handleExportarNfsCsv = useCallback(() => {
-    if (!op || notasFiscaisView.length === 0) {
-      notifications.notify({
-        type: 'info',
-        message: 'Esta operacao ainda nao possui NFs para exportar.',
-        dedupeKey: `operacao:${opId}:csv-vazio`,
-      })
-      return
-    }
-
+    if (!op || !linhasParcelas.length) return
     const rows: Array<Array<string | number | null | undefined>> = [
-      [
-        'Operacao',
-        'Cedente',
-        'CNPJ cedente',
-        'Numero NF',
-        'Sacado',
-        'CNPJ sacado',
-        'Valor bruto',
-        'Valor antecipado',
-        'Prazo dias',
-        'Vencimento',
-        'Status NF',
-        'Status logistico',
-      ],
-      ...notasFiscaisView.map((nf) => {
-        const entregaStatus = entregaPorNfId.get(nf.id)?.status_entrega ?? null
-        return [
-          op.id,
-          op.cedentes.razao_social,
-          formatCNPJ(op.cedentes.cnpj),
-          nf.numero_nf,
-          nf.razao_social_destinatario,
-          formatCNPJ(nf.cnpj_destinatario),
-          csvCurrency(nf.valor_bruto),
-          csvCurrency(nf.valor_antecipado),
-          nf.prazo_dias,
-          formatDate(nf.data_vencimento),
-          resolveStatusCurtoDaNota(nf.status, entregaStatus, aceiteDispensado),
-          entregaStatus ? entregaStatusConfig[entregaStatus]?.label ?? entregaStatus : '',
-        ]
-      }),
+      ['Operação', 'Cedente', 'NF', 'Parcela', 'Sacado', 'CNPJ sacado', 'Bruto fiscal da NF', 'Base cedida da parcela', 'Antecipado da parcela', 'Vencimento', 'Aceite'],
+      ...linhasParcelas.map(l => [op.id, op.cedentes.razao_social, l.numeroNf, l.numeroParcela,
+        l.sacado, formatCNPJ(l.cnpjSacado), csvCurrency(l.brutoFiscal), csvCurrency(l.baseCedida),
+        csvCurrency(l.antecipado), formatDate(l.vencimento), aceiteDispensado ? 'Não exigido' : l.statusNf === 'aceita' ? 'Aprovado' : l.statusNf === 'contestada' ? 'Contestado' : 'Pendente']),
     ]
-
-    downloadCsv(`operacao-${op.id.slice(0, 8)}-notas-fiscais.csv`, rows)
-    notifications.notify({
-      type: 'success',
-      message: 'CSV das NFs exportado.',
-      dedupeKey: `operacao:${op.id}:csv-exportado`,
-    })
-  }, [aceiteDispensado, entregaPorNfId, notasFiscaisView, notifications, op, opId])
+    downloadCsv(`operacao-${op.id.slice(0, 8)}-parcelas.csv`, rows)
+    notifications.notify({ type: 'success', message: 'CSV das parcelas exportado.', dedupeKey: `operacao:${op.id}:csv-exportado` })
+  }, [aceiteDispensado, linhasParcelas, notifications, op])
 
   const aplicarTaxaConfig = (t: TaxaConfig) => {
     setTaxaInput(formatarTaxaOperacaoInput(t.taxa_percentual))
@@ -856,36 +665,27 @@ export default function OperacaoDetalheGestorClient({
     setDesembolsando(false)
   }
 
-  const handleRemoverNf = async (nfId: string) => {
-    setRemovendoNf(nfId)
-    const result = await removerNfDaOperacao(opId, nfId)
-    setMessage(result?.message || 'Erro.')
-    setMessageType(result?.success ? 'success' : 'error')
-    if (result?.success) {
-      const supabase = createClient()
-      const { data: opAtual } = await supabase.from('operacoes').select('*, cedentes(razao_social, cnpj, contrato_url, contrato_assinado_url)').eq('id', opId).single()
-      if (opAtual) setOp(opAtual as OperacaoDetalhe)
-      const { data: opNfs } = await supabase.from('operacoes_nfs').select('nota_fiscal_id').eq('operacao_id', opId)
-      if (opNfs) {
-        const ids = (opNfs as Array<{ nota_fiscal_id: string }>).map((n) => n.nota_fiscal_id)
-        if (ids.length > 0) {
-          const { data: nfsAtt } = await supabase.from('notas_fiscais').select('id, numero_nf, cnpj_destinatario, razao_social_destinatario, valor_bruto, valor_liquido, valor_antecipado, data_vencimento, status').in('id', ids).order('data_vencimento', { ascending: true })
-          setNfs((nfsAtt || []) as NfDaOperacao[])
-        } else {
-          setNfs([])
-        }
+  const handleRemoverItem = async (parcelaId: string | null) => {
+    if (!remocaoPendente || removendoNf) return
+    setRemovendoNf(remocaoPendente.notaFiscalId)
+    try {
+      const result = parcelaId
+        ? await removerParcelaDaOperacao(opId, remocaoPendente.notaFiscalId, parcelaId)
+        : await removerNfDaOperacao(opId, remocaoPendente.notaFiscalId)
+      setMessage(result?.message || 'Não foi possível retirar o item da operação.')
+      setMessageType(result?.success ? 'success' : 'error')
+      if (result?.success) {
+        setRemocaoPendente(null)
+        setLoading(true)
+        setLoadVersion(v => v + 1)
+        router.refresh()
       }
+    } catch {
+      setMessage('Não foi possível confirmar a retirada. Atualize a operação antes de tentar novamente.')
+      setMessageType('error')
+    } finally {
+      setRemovendoNf(null)
     }
-    setRemovendoNf(null)
-  }
-
-  const toggleNfExpandida = (nfId: string) => {
-    setNfsExpandidas((atual) => {
-      const proximo = new Set(atual)
-      if (proximo.has(nfId)) proximo.delete(nfId)
-      else proximo.add(nfId)
-      return proximo
-    })
   }
 
   const handleSalvarTestemunhas = async () => {
@@ -1067,127 +867,16 @@ export default function OperacaoDetalheGestorClient({
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-6">
           {exposicaoLogistica}
-          {/* NFs da operacao */}
-          <Card className="overflow-visible">
-            <CardHeader className="pb-3">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                <div>
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <FileText size={18} />
-                    Notas Fiscais ({notasFiscaisView.length})
-                  </CardTitle>
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-3 lg:min-w-[420px]">
-                  <div className="rounded-lg border bg-background px-3 py-2">
-                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Total bruto</p>
-                    <p className="font-semibold tabular-nums">{formatCurrency(totaisNfs.bruto)}</p>
-                  </div>
-                  <div className="rounded-lg border bg-background px-3 py-2">
-                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Antecipado</p>
-                    <p className="font-semibold text-success-foreground tabular-nums">{totaisNfs.antecipado === null ? '—' : formatCurrency(totaisNfs.antecipado)}</p>
-                  </div>
-                  <div className="rounded-lg border bg-background px-3 py-2">
-                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Diferença</p>
-                    <p className="font-semibold tabular-nums">{totaisNfs.antecipado === null ? '—' : formatCurrency(Math.max(0, totaisNfs.bruto - totaisNfs.antecipado))}</p>
-                  </div>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-sm text-muted-foreground">
-                  {notasFiscaisView.length === 1 ? '1 NF vinculada' : `${notasFiscaisView.length} NFs vinculadas`}
-                </p>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleExportarNfsCsv}
-                    disabled={notasFiscaisView.length === 0}
-                    className="h-9 gap-2"
-                  >
-                    <FileDown size={14} />
-                    Exportar CSV
-                  </Button>
-                  <span className="text-sm text-muted-foreground">Ordenar por</span>
-                  <Select value={nfSort} onValueChange={(value) => setNfSort(value as NotaFiscalSort)}>
-                    <SelectTrigger className="h-9 w-[170px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="vencimento">Vencimento</SelectItem>
-                      <SelectItem value="numero">Número</SelectItem>
-                      <SelectItem value="sacado">Sacado</SelectItem>
-                      <SelectItem value="valor">Valor</SelectItem>
-                      <SelectItem value="status">Status</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="space-y-3">
-                {notasFiscaisView.map((nf, index) => {
-                  const totalParcelas = totalParcelasPorNf.get(nf.id) || 0
-                  const cedidas = parcelasCedidasPorNf.get(nf.id) || []
-                  const expandido = nfsExpandidas.has(nf.id)
-                  const memoriaLegada = totalParcelas === 0
-                    ? memoriasCalculo.find((memoria) => memoria.nota_fiscal_id === nf.id && memoria.parcela_id === null)
-                    : null
-                  return (
-                    <div key={nf.id}>
-                      <OperacaoNotaFiscalCard
-                        notaFiscal={nf}
-                        memoriaLegada={memoriaLegada}
-                        href={`/gestor/notas-fiscais/${nf.id}`}
-                        menuPlacement={index === notasFiscaisView.length - 1 ? 'top' : 'bottom'}
-                        canRemove={canRemoveNf}
-                        removing={removendoNf === nf.id}
-                        onRemove={() => handleRemoverNf(nf.id)}
-                        statusNode={(
-                          <NfStatusBadge
-                            status={nf.status}
-                            aceiteDispensado={aceiteDispensado}
-                            operacaoAprovada={['aprovada', 'em_andamento', 'liquidada'].includes(op.status)}
-                            entregaStatus={entregaPorNfId.get(nf.id)?.status_entrega}
-                          />
-                        )}
-                      />
-                      {totalParcelas > 0 && (
-                        <div className="mt-1 rounded-lg border bg-muted/20">
-                          <button
-                            type="button"
-                            onClick={() => toggleNfExpandida(nf.id)}
-                            className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                            aria-expanded={expandido}
-                            aria-controls={`parcelas-${nf.id}`}
-                          >
-                            <span>{cedidas.length}/{totalParcelas} parcelas cedidas</span>
-                            {expandido ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
-                          </button>
-                          {expandido && (
-                            <div id={`parcelas-${nf.id}`} className="divide-y divide-border border-t">
-                              <div aria-hidden="true" className="hidden grid-cols-[3.5rem_6rem_7rem_5rem_7rem_7rem] gap-2 px-3 py-1.5 text-xs font-medium text-muted-foreground md:grid">
-                                {PARCELA_CEDIDA_COLUNAS.map((label) => <span key={label}>{label}</span>)}
-                              </div>
-                              {cedidas.map((parcela) => (
-                                <OperacaoParcelaCedidaRow key={parcela.parcelaId} parcela={parcela} />
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            </CardContent>
-
-            {op.motivo_reprovacao && (
-              <div className="p-3 bg-destructive/10 rounded-lg text-sm text-destructive">
-                <strong>Motivo da reprovacao:</strong> {op.motivo_reprovacao}
-              </div>
-            )}
-          </Card>
+          <OperacaoParcelasTabela
+            linhas={linhasParcelas}
+            aceiteExigido={!aceiteDispensado}
+            podeRemover={canRemoveNf}
+            removendo={removendoNf !== null}
+            bloqueada={processing}
+            onRemover={setRemocaoPendente}
+            onExportar={handleExportarNfsCsv}
+          />
+          {op.motivo_reprovacao && <p className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive"><strong>Motivo da reprovação:</strong> {op.motivo_reprovacao}</p>}
 
           {acompanhamentoLogistico}
           <AndamentoOperacaoCard
@@ -1197,22 +886,28 @@ export default function OperacaoDetalheGestorClient({
             logistica={entregas}
             compact
           />
+          <HistoricoTimelineCard entidade="operacao" entidadeId={opId} compacto />
         </div>
 
         {/* Sidebar */}
-        <aside className="space-y-6 xl:sticky xl:top-6 xl:self-start">
+        <aside className="space-y-5 xl:sticky xl:top-6 xl:self-start">
 
-          {/* ETAPA 1: Definir termos (solicitada / em_analise) */}
-          <BaseAntecipacaoResumo snapshot={op.base_antecipacao_snapshot} notas={nfs} />
-          {canAnalyze && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Calculator size={18} className="text-primary" />
-                  Definir Termos
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0 space-y-4">
+          <OperacaoResumoCard
+            status={op.status === 'aprovada' ? 'Aprovada' : status.label}
+            statusClassName={status.className}
+            valorOperacao={op.valor_bruto_total}
+            taxa={canAnalyze ? taxa : op.taxa_desconto}
+            metodo={METODOS_CALCULO_LABELS[metodoCalculo]}
+            dataBase={canAnalyze ? dataBaseServidor : op.calculo_data_base}
+            prazo={op.prazo_dias}
+            valorLiquido={canAnalyze ? valorLiquido : op.valor_liquido_desembolso}
+            aprovadoEm={op.aprovado_em}
+            previa={canAnalyze}
+          >
+            {(canAnalyze || canDisburse || ['em_andamento', 'inadimplente'].includes(op.status)) ? <>
+              {canAnalyze && <section className="space-y-4" aria-label="Definir termos">
+                <h3 className="flex items-center gap-2 text-xs font-semibold"><Calculator size={15} aria-hidden />Definir termos</h3>
+
                 {op.taxa_proposta_consultor !== null && (
                   <div className="rounded-lg border bg-muted/30 p-3 text-sm">
                     <span className="block text-xs text-muted-foreground">Taxa proposta pelo Consultor</span>
@@ -1275,17 +970,6 @@ export default function OperacaoDetalheGestorClient({
                   </div>
                 )}
 
-                <div className="grid grid-cols-2 gap-3 rounded-lg border bg-muted/30 p-3 text-sm">
-                  <div>
-                    <span className="block text-xs text-muted-foreground">Metodo de calculo</span>
-                    <strong>{METODOS_CALCULO_LABELS[metodoCalculo]}</strong>
-                  </div>
-                  <div>
-                    <span className="block text-xs text-muted-foreground">Taxa mensal</span>
-                    <strong className="tabular-nums">{taxa === null ? 'Nao configurada' : `${taxa}% a.m.`}</strong>
-                  </div>
-                </div>
-
                 {testemunhas.length > 0 && (
                   <div className="space-y-2 border-t pt-4">
                     <p className="text-xs font-medium text-muted-foreground">Testemunhas do Termo</p>
@@ -1346,21 +1030,6 @@ export default function OperacaoDetalheGestorClient({
                   </div>
                 )}
 
-                <div className="p-3 bg-muted/50 rounded-lg space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Bruto</span>
-                    <span className="font-medium tabular-nums">{formatCurrency(op.valor_bruto_total)}</span>
-                  </div>
-                  <div className="flex justify-between text-destructive">
-                    <span className="tabular-nums">(-) Desconto ({taxa === null ? 'sem taxa' : `${taxa}% a.m.`}, prazo por NF)</span>
-                    <span className="tabular-nums">{valorLiquido === null ? 'Pendente' : formatCurrency(op.valor_bruto_total - valorLiquido)}</span>
-                  </div>
-                  <div className="flex justify-between border-t pt-2">
-                    <span className="font-semibold">Liquido</span>
-                    <span className="font-bold text-green-700 dark:text-green-400 text-lg tabular-nums">{valorLiquido === null ? 'Pendente' : formatCurrency(valorLiquido)}</span>
-                  </div>
-                </div>
-
                 <div className="space-y-2">
                   {!todasAceitas && (
                     <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg p-2">
@@ -1385,144 +1054,9 @@ export default function OperacaoDetalheGestorClient({
                     Reprovar
                   </Button>
                 </div>
-              </CardContent>
-            </Card>
-          )}
 
-          {/* ETAPA 2: Documentos e desembolso (status aprovada) */}
-          {canDisburse && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Resumo</CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0 space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Valor Bruto</span>
-                  <span className="font-bold tabular-nums">{formatCurrency(op.valor_bruto_total)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Taxa</span>
-                  <span className="font-medium tabular-nums">{op.taxa_desconto === null ? 'Nao definida' : `${op.taxa_desconto}% a.m.`}</span>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <span className="text-muted-foreground">Metodo</span>
-                  <span className="text-right font-medium">{METODOS_CALCULO_LABELS[metodoCalculo]}</span>
-                </div>
-                {op.calculo_data_base && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Data-base</span>
-                    <span className="font-medium">{formatDate(op.calculo_data_base)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Prazo</span>
-                  <span className="font-medium tabular-nums">{op.prazo_dias} dias</span>
-                </div>
-                <div className="flex justify-between border-t pt-2">
-                  <span className="font-semibold">Valor Liquido</span>
-                  <span className="font-bold text-green-700 dark:text-green-400 tabular-nums">{op.valor_liquido_desembolso === null ? 'Pendente' : formatCurrency(op.valor_liquido_desembolso)}</span>
-                </div>
-                {op.aprovado_em && (
-                  <div className="flex justify-between text-muted-foreground text-xs mt-2">
-                    <span>Aprovada em</span>
-                    <span>{formatDate(op.aprovado_em)}</span>
-                  </div>
-                )}
-                <div className="border-t pt-4 mt-2 space-y-3">
-                  <p className="text-xs font-medium text-muted-foreground">Documentos gerados</p>
-                  <div className="flex flex-col gap-2">
-                    <BotaoDownloadContrato
-                      tipo="contrato"
-                      id={op.cedente_id}
-                      storagePath={op.cedentes.contrato_url}
-                      hasSignedDoc={!!op.cedentes.contrato_assinado_url}
-                      label="Contrato Mae"
-                      className="w-full"
-                    />
-                    <BotaoDownloadContrato
-                      tipo="termo"
-                      id={op.id}
-                      storagePath={(op as unknown as Record<string, unknown>).termo_url as string | null}
-                      hasSignedDoc={!!termoAssinadoUrl}
-                      className="w-full"
-                    />
-                    <BotaoDownloadContrato
-                      tipo="notificacao"
-                      id={op.id}
-                      storagePath={(op as unknown as Record<string, unknown>).notificacao_url as string | null}
-                      hasSignedDoc={!!notificacaoAssinadaUrl}
-                      label="Notificacao ao Sacado"
-                      className="w-full"
-                    />
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleGerarRemessa}
-                    disabled={gerandoRemessa}
-                    className="w-full gap-2"
-                  >
-                    {gerandoRemessa ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />}
-                    {gerandoRemessa ? 'Gerando...' : 'Gerar Remessa'}
-                  </Button>
-                  {remessaOperacional && (
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      <Button variant="outline" size="sm" onClick={() => handleBaixarRemessa('excel')} className="w-full gap-2"><FileDown size={14} />Baixar Excel</Button>
-                      <Button variant="outline" size="sm" onClick={() => handleBaixarRemessa('pacote')} className="w-full gap-2"><FileDown size={14} />Baixar pacote</Button>
-                      <p className="sm:col-span-2 text-xs text-muted-foreground">Formato: {remessaOperacional.formato === 'VRS_CSV' ? 'VRS CSV' : 'CNAB'} · Agrupamento: {remessaOperacional.estrategiaAgrupamento === 'POR_CEDENTE' ? 'por Cedente' : 'por lote'}</p>
-                    </div>
-                  )}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleEnviarRemessa}
-                    disabled={enviandoRemessa || !remessaGeradaEm || !remessaOperacional?.envioAutomaticoSuportado}
-                    title={remessaOperacional?.motivoBloqueioEnvio ?? undefined}
-                    className="w-full gap-2"
-                  >
-                    {enviandoRemessa ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-                    {enviandoRemessa ? 'Enviando...' : remessaEnviadaEm ? `Reenviado ${formatDate(remessaEnviadaEm)}` : 'Enviar Remessa para ADM'}
-                  </Button>
-                  {remessaFromtisId && (
-                    <p className="text-xs text-muted-foreground">Protocolo Portal FIDC: {remessaFromtisId}</p>
-                  )}
-                  {remessaFromtisId && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleConsultarStatusPortalFidc}
-                      disabled={enviandoRemessa}
-                      className="w-full gap-2"
-                    >
-                      Consultar status Portal FIDC
-                    </Button>
-                  )}
-
-                  <p className="text-xs font-medium text-muted-foreground border-t pt-3">Documentos assinados</p>
-                  <div className="flex flex-col gap-2">
-                    <UploadDocumentoAssinadoOperacao
-                      label="Termo de Cessao Assinado"
-                      storagePath={termoAssinadoUrl}
-                      operacaoId={op.id}
-                      tipoDocumento="TERMO_CESSAO_ASSINADO"
-                      onSuccess={() => setTermoAssinadoUrl('registrado')}
-                    />
-                    <UploadDocumentoAssinadoOperacao
-                      label="Notificacao ao Sacado Assinada"
-                      storagePath={notificacaoAssinadaUrl}
-                      operacaoId={op.id}
-                      tipoDocumento="NOTIFICACAO_SACADO_ASSINADA"
-                      onSuccess={() => setNotificacaoAssinadaUrl('registrado')}
-                    />
-                    <UploadDocumentoAssinadoOperacao
-                      label="Comprovante de Desembolso (TED)"
-                      storagePath={comprovanteUrl}
-                      operacaoId={op.id}
-                      tipoDocumento="COMPROVANTE_DESEMBOLSO_TED"
-                      onSuccess={() => setComprovanteUrl('registrado')}
-                    />
-                  </div>
-
+              </section>}
+              {canDisburse && <div className="space-y-3">
                   {(!termoAssinadoUrl || !comprovanteUrl) && (
                     <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg p-2">
                       Envie os documentos assinados e o comprovante TED para liberar o desembolso.
@@ -1537,52 +1071,10 @@ export default function OperacaoDetalheGestorClient({
                     {desembolsando ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
                     {desembolsando ? 'Processando...' : 'Desembolsar'}
                   </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
 
-          {/* ETAPA 3: Em andamento / liquidação */}
-          {!canAnalyze && !canDisburse && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Resumo</CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0 space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Valor Bruto</span>
-                  <span className="font-bold tabular-nums">{formatCurrency(op.valor_bruto_total)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Taxa</span>
-                  <span className="font-medium tabular-nums">{op.taxa_desconto === null ? 'Nao definida' : `${op.taxa_desconto}% a.m.`}</span>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <span className="text-muted-foreground">Metodo</span>
-                  <span className="text-right font-medium">{METODOS_CALCULO_LABELS[metodoCalculo]}</span>
-                </div>
-                {op.calculo_data_base && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Data-base</span>
-                    <span className="font-medium">{formatDate(op.calculo_data_base)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Prazo</span>
-                  <span className="font-medium tabular-nums">{op.prazo_dias} dias</span>
-                </div>
-                <div className="flex justify-between border-t pt-2">
-                  <span className="font-semibold">Valor Liquido</span>
-                  <span className="font-bold text-green-700 dark:text-green-400 tabular-nums">{op.valor_liquido_desembolso === null ? 'Pendente' : formatCurrency(op.valor_liquido_desembolso)}</span>
-                </div>
-                {op.aprovado_em && (
-                  <div className="flex justify-between text-muted-foreground text-xs mt-2">
-                    <span>Aprovada em</span>
-                    <span>{formatDate(op.aprovado_em)}</span>
-                  </div>
-                )}
+              </div>}
                 {(op.status === 'em_andamento' || op.status === 'inadimplente') && (
-                  <div className="space-y-2 border-t pt-4 mt-2">
+                  <div className="space-y-2">
                     <Button
                       onClick={async () => {
                         setProcessing(true)
@@ -1628,130 +1120,158 @@ export default function OperacaoDetalheGestorClient({
                     )}
                   </div>
                 )}
+            </> : null}
+          </OperacaoResumoCard>
 
-                {/* Documentos para operacoes legadas (em_andamento sem docs ainda) */}
-                {showDocs && !canDisburse && (
-                  <div className="border-t pt-4 mt-2 space-y-3">
-                    <p className="text-xs font-medium text-muted-foreground">Documentos gerados</p>
-                    <div className="flex flex-col gap-2">
+          {showDocs && (
+            <div className="space-y-5">
+              <Card className="gap-0 rounded-xl border border-border/80 py-0 shadow-none ring-0">
+                <CardHeader className="px-4 pt-4 pb-1"><CardTitle role="heading" aria-level={2} className="flex items-center gap-2 text-[13px] font-semibold"><FileText size={16} aria-hidden />Documentos gerados</CardTitle></CardHeader>
+                <CardContent className="px-0 pt-0">
+                  <div className="divide-y divide-border/70">
+                    <BotaoDownloadContrato
+                      tipo="contrato"
+                      apresentacao="linha"
+                      id={op.cedente_id}
+                      storagePath={op.cedentes.contrato_url}
+                      hasSignedDoc={!!op.cedentes.contrato_assinado_url}
+                      label="Contrato-mãe"
+                      className="w-full"
+                    />
+                    <BotaoDownloadContrato
+                      tipo="termo"
+                      apresentacao="linha"
+                      label="Termo de cessão"
+                      geradoEm={op.termo_gerado_em}
+                      id={op.id}
+                      storagePath={op.termo_url}
+                      hasSignedDoc={!!termoAssinadoUrl}
+                      className="w-full"
+                    />
+                    <BotaoDownloadContrato
+                      tipo="notificacao"
+                      apresentacao="linha"
+                      geradoEm={op.notificacao_gerado_em}
+                      id={op.id}
+                      storagePath={op.notificacao_url}
+                      hasSignedDoc={!!notificacaoAssinadaUrl}
+                      label="Notificação ao sacado"
+                      className="w-full"
+                    />
+                    {op.status === 'liquidada' && (
                       <BotaoDownloadContrato
-                        tipo="contrato"
-                        id={op.cedente_id}
-                        storagePath={op.cedentes.contrato_url}
-                        hasSignedDoc={!!op.cedentes.contrato_assinado_url}
-                        label="Contrato Mae"
-                        className="w-full"
-                      />
-                      <BotaoDownloadContrato
-                        tipo="termo"
+                        tipo="quitacao"
+                        apresentacao="linha"
+                        geradoEm={op.quitacao_gerado_em}
                         id={op.id}
-                        storagePath={(op as unknown as Record<string, unknown>).termo_url as string | null}
-                        hasSignedDoc={!!termoAssinadoUrl}
+                        storagePath={op.quitacao_url}
+                        hasSignedDoc={!!quitacaoAssinadaUrl}
+                        label="Termo de quitação"
                         className="w-full"
                       />
-                      <BotaoDownloadContrato
-                        tipo="notificacao"
-                        id={op.id}
-                        storagePath={(op as unknown as Record<string, unknown>).notificacao_url as string | null}
-                        hasSignedDoc={!!notificacaoAssinadaUrl}
-                        label="Notificacao ao Sacado"
-                        className="w-full"
-                      />
-                      {op.status === 'liquidada' && (
-                        <BotaoDownloadContrato
-                          tipo="quitacao"
-                          id={op.id}
-                          storagePath={op.quitacao_url}
-                          hasSignedDoc={!!quitacaoAssinadaUrl}
-                          label="Termo de Quitacao"
-                          className="w-full"
-                        />
-                      )}
-                    </div>
-                    <p className="text-xs font-medium text-muted-foreground border-t pt-3">Documentos assinados</p>
-                    <div className="flex flex-col gap-2">
-                      <UploadDocumentoAssinadoOperacao
-                        label="Termo de Cessao Assinado"
-                        storagePath={termoAssinadoUrl}
-                        operacaoId={op.id}
-                        tipoDocumento="TERMO_CESSAO_ASSINADO"
-                        onSuccess={() => setTermoAssinadoUrl('registrado')}
-                      />
-                      <UploadDocumentoAssinadoOperacao
-                        label="Notificacao ao Sacado Assinada"
-                        storagePath={notificacaoAssinadaUrl}
-                        operacaoId={op.id}
-                        tipoDocumento="NOTIFICACAO_SACADO_ASSINADA"
-                        onSuccess={() => setNotificacaoAssinadaUrl('registrado')}
-                      />
-                      <UploadDocumentoAssinadoOperacao
-                        label="Comprovante de Pagamento"
-                        storagePath={comprovanteUrl}
-                        operacaoId={op.id}
-                        tipoDocumento="COMPROVANTE_DESEMBOLSO_TED"
-                        onSuccess={() => setComprovanteUrl('registrado')}
-                      />
-                      {op.status === 'liquidada' && (
-                        <UploadDocumentoAssinado
-                          label="Termo de Quitacao Assinado"
-                          storagePath={quitacaoAssinadaUrl}
-                          uploadPath={`operacoes/${op.id}/termo-quitacao-assinado.pdf`}
-                          tipoEntidade="operacao"
-                          entidadeId={op.id}
-                          tipoDocumento="quitacao_assinada"
-                          onSuccess={async (path) => {
-                            await salvarQuitacaoAssinada(op.id, path)
-                            setQuitacaoAssinadaUrl(path)
-                          }}
-                        />
-                      )}
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleGerarRemessa}
-                      disabled={gerandoRemessa}
-                      className="w-full gap-2"
-                    >
-                      {gerandoRemessa ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />}
-                      {gerandoRemessa ? 'Gerando...' : 'Gerar Remessa'}
-                    </Button>
-                    {remessaOperacional && (
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        <Button variant="outline" size="sm" onClick={() => handleBaixarRemessa('excel')} className="w-full gap-2"><FileDown size={14} />Baixar Excel</Button>
-                        <Button variant="outline" size="sm" onClick={() => handleBaixarRemessa('pacote')} className="w-full gap-2"><FileDown size={14} />Baixar pacote</Button>
-                        <p className="sm:col-span-2 text-xs text-muted-foreground">Formato: {remessaOperacional.formato === 'VRS_CSV' ? 'VRS CSV' : 'CNAB'} · Agrupamento: {remessaOperacional.estrategiaAgrupamento === 'POR_CEDENTE' ? 'por Cedente' : 'por lote'}</p>
-                      </div>
-                    )}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleEnviarRemessa}
-                      disabled={enviandoRemessa || !remessaGeradaEm || !remessaOperacional?.envioAutomaticoSuportado}
-                      title={remessaOperacional?.motivoBloqueioEnvio ?? undefined}
-                      className="w-full gap-2"
-                    >
-                      {enviandoRemessa ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-                      {enviandoRemessa ? 'Enviando...' : remessaEnviadaEm ? `Reenviado ${formatDate(remessaEnviadaEm)}` : 'Enviar Remessa para ADM'}
-                    </Button>
-                    {remessaFromtisId && (
-                      <p className="text-xs text-muted-foreground">Protocolo Portal FIDC: {remessaFromtisId}</p>
-                    )}
-                    {remessaFromtisId && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleConsultarStatusPortalFidc}
-                        disabled={enviandoRemessa}
-                        className="w-full gap-2"
-                      >
-                        Consultar status Portal FIDC
-                      </Button>
                     )}
                   </div>
-                )}
-              </CardContent>
-            </Card>
+
+                </CardContent>
+              </Card>
+              <Card className="gap-0 rounded-xl border border-border/80 py-0 shadow-none ring-0">
+                <CardHeader className="flex flex-row items-center justify-between gap-2 px-4 pt-4 pb-1"><CardTitle role="heading" aria-level={2} className="flex items-center gap-2 text-[13px] font-semibold"><CheckCircle size={16} aria-hidden />Assinados e comprovantes</CardTitle><span className="shrink-0 rounded border px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground" aria-label="Arquivos recebidos entre os itens exibidos">{[termoAssinadoUrl, notificacaoAssinadaUrl, comprovanteUrl, ...(op.status === 'liquidada' ? [quitacaoAssinadaUrl] : [])].filter(Boolean).length}/{op.status === 'liquidada' ? 4 : 3}</span></CardHeader>
+                <CardContent className="px-0 pt-0">
+                  <div className="divide-y divide-border/70">
+                    <UploadDocumentoAssinadoOperacao
+                      apresentacao="linha"
+                      label="Termo de cessão assinado"
+                      storagePath={termoAssinadoUrl}
+                      operacaoId={op.id}
+                      tipoDocumento="TERMO_CESSAO_ASSINADO"
+                      onSuccess={() => setTermoAssinadoUrl('registrado')}
+                    />
+                    <UploadDocumentoAssinadoOperacao
+                      apresentacao="linha"
+                      label="Notificação assinada"
+                      storagePath={notificacaoAssinadaUrl}
+                      operacaoId={op.id}
+                      tipoDocumento="NOTIFICACAO_SACADO_ASSINADA"
+                      onSuccess={() => setNotificacaoAssinadaUrl('registrado')}
+                    />
+                    <UploadDocumentoAssinadoOperacao
+                      apresentacao="linha"
+                      label="Comprovante TED"
+                      storagePath={comprovanteUrl}
+                      operacaoId={op.id}
+                      tipoDocumento="COMPROVANTE_DESEMBOLSO_TED"
+                      destaquePendente={canDisburse}
+                      onSuccess={() => setComprovanteUrl('registrado')}
+                    />
+                    {op.status === 'liquidada' && (
+                      <UploadDocumentoAssinado
+                        apresentacao="linha"
+                        label="Termo de quitação assinado"
+                        storagePath={quitacaoAssinadaUrl}
+                        uploadPath={`operacoes/${op.id}/termo-quitacao-assinado.pdf`}
+                        tipoEntidade="operacao"
+                        entidadeId={op.id}
+                        tipoDocumento="quitacao_assinada"
+                        onSuccess={async (path) => {
+                          await salvarQuitacaoAssinada(op.id, path)
+                          setQuitacaoAssinadaUrl(path)
+                        }}
+                      />
+                    )}
+                  </div>
+
+                </CardContent>
+              </Card>
+              <Card className="gap-0 rounded-xl border border-border/80 py-0 shadow-none ring-0">
+                <CardHeader className="flex flex-row items-center justify-between gap-2 px-4 pt-4 pb-2"><CardTitle role="heading" aria-level={2} className="flex items-center gap-2 text-[13px] font-semibold"><BriefcaseBusiness size={16} aria-hidden />Remessa</CardTitle><Badge variant="outline" className="rounded-md text-[10px]">{remessaEnviadaEm ? 'Enviada' : remessaGeradaEm ? 'Gerada' : 'Não enviada'}</Badge></CardHeader>
+                <CardContent className="space-y-2 px-4 pt-0 pb-4">
+                  <p className="text-xs text-muted-foreground">Arquivo e envio para a administradora.</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleGerarRemessa}
+                    disabled={gerandoRemessa}
+                    className="w-full gap-2"
+                  >
+                    {gerandoRemessa ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />}
+                    {gerandoRemessa ? 'Gerando...' : 'Gerar Remessa'}
+                  </Button>
+                  {remessaOperacional && (
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <Button variant="outline" size="sm" onClick={() => handleBaixarRemessa('excel')} className="w-full gap-2"><FileDown size={14} />Baixar Excel</Button>
+                      <Button variant="outline" size="sm" onClick={() => handleBaixarRemessa('pacote')} className="w-full gap-2"><FileDown size={14} />Baixar pacote</Button>
+                      <p className="sm:col-span-2 text-xs text-muted-foreground">Formato: {remessaOperacional.formato === 'VRS_CSV' ? 'VRS CSV' : 'CNAB'} · Agrupamento: {remessaOperacional.estrategiaAgrupamento === 'POR_CEDENTE' ? 'por Cedente' : 'por lote'}</p>
+                    </div>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleEnviarRemessa}
+                    disabled={enviandoRemessa || !remessaGeradaEm || !remessaOperacional?.envioAutomaticoSuportado}
+                    title={remessaOperacional?.motivoBloqueioEnvio ?? undefined}
+                    className="w-full gap-2"
+                  >
+                    {enviandoRemessa ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                    {enviandoRemessa ? 'Enviando...' : remessaEnviadaEm ? 'Reenviar para ADM' : 'Enviar para ADM'}
+                  </Button>
+                  <p className="text-[10px] leading-relaxed text-muted-foreground">{remessaEnviadaEm ? `Último envio em ${formatDate(remessaEnviadaEm)}.` : !remessaGeradaEm ? 'Disponível após a geração do arquivo.' : remessaOperacional?.motivoBloqueioEnvio ?? 'Arquivo gerado. Confira os dados antes do envio.'}</p>
+                  {remessaFromtisId && (
+                    <p className="text-xs text-muted-foreground">Protocolo Portal FIDC: {remessaFromtisId}</p>
+                  )}
+                  {remessaFromtisId && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleConsultarStatusPortalFidc}
+                      disabled={enviandoRemessa}
+                      className="w-full gap-2"
+                    >
+                      Consultar status Portal FIDC
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           )}
 
           {canAnalyze && (
@@ -1765,7 +1285,16 @@ export default function OperacaoDetalheGestorClient({
         </aside>
       </div>
 
-      <HistoricoTimelineCard entidade="operacao" entidadeId={opId} />
+      {remocaoPendente && canRemoveNf && (
+        <RemoverItemOperacaoDialog
+          key={remocaoPendente.id}
+          linha={remocaoPendente}
+          linhasDaNf={linhasParcelas.filter(l => l.notaFiscalId === remocaoPendente.notaFiscalId)}
+          processando={removendoNf !== null}
+          onClose={() => setRemocaoPendente(null)}
+          onConfirm={handleRemoverItem}
+        />
+      )}
     </div>
   )
 }

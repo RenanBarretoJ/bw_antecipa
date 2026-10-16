@@ -22,6 +22,7 @@ import { atualizarRiscoAposCessao } from '@/lib/financeiro/risco/atualizacao-pos
 import { validarComposicaoEstabelecimentosOperacao } from '@/lib/cedentes/estabelecimentos'
 import { resolverCedenteSolicitanteOperacao } from '@/lib/operacoes/solicitante.server'
 import { revalidatePath } from 'next/cache'
+import { z } from 'zod'
 
 export type OperacaoActionState = {
   success?: boolean
@@ -1044,6 +1045,28 @@ export async function removerNfDaOperacao(
   revalidatePath('/gestor/operacoes')
   revalidatePath(`/gestor/operacoes/${operacaoId}`)
   return { success: true, message: `NF ${resultado.numero_nf} removida. Novo valor bruto: ${formatBRL(resultado.novo_valor_bruto)}.` }
+}
+
+export async function removerParcelaDaOperacao(operacaoId: string, nfId: string, parcelaId: string): Promise<OperacaoActionState> {
+  await requireGestor()
+  if (![operacaoId, nfId, parcelaId].every(id => z.uuid().safeParse(id).success)) {
+    return { success: false, message: 'Não foi possível identificar a parcela desta operação.' }
+  }
+  const supabase = await createClient()
+  const acesso = await validarOperacaoNoFundoAtivo(supabase, operacaoId)
+  if (!acesso?.success) return { success: false, message: 'Operação indisponível no fundo ativo.' }
+  const { data, error } = await supabase.rpc('remover_parcela_operacao_gestor_atomica' as never, {
+    p_operacao_id: operacaoId, p_nota_fiscal_id: nfId, p_parcela_id: parcelaId,
+  } as never)
+  if (error || !data) {
+    console.error('[remover-parcela-operacao]', { code: error?.code })
+    return { success: false, message: 'Não foi possível retirar a parcela. Confira a composição e a etapa da operação antes de tentar novamente.' }
+  }
+  const resultado = data as { numero_nf: string; numero_parcela: number; operacao_cancelada: boolean; nf_retirada: boolean }
+  revalidatePath('/gestor/operacoes')
+  revalidatePath(`/gestor/operacoes/${operacaoId}`)
+  revalidatePath('/cedente/operacoes')
+  return { success: true, message: `Parcela ${String(resultado.numero_parcela).padStart(3, '0')} da NF ${resultado.numero_nf} retirada.${resultado.operacao_cancelada ? ' A operação ficou vazia e foi cancelada.' : resultado.nf_retirada ? ' A NF deixou de compor esta operação.' : ' As demais parcelas foram preservadas.'}` }
 }
 
 export async function salvarTestemunhasOperacao(

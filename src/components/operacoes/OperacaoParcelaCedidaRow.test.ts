@@ -31,6 +31,7 @@ const notaFiscal = buildOperacaoNotaFiscalView({
 })
 
 const detalheSource = readFileSync('src/app/gestor/operacoes/[id]/OperacaoDetalheGestorClient.tsx', 'utf8')
+const tabelaSource = readFileSync('src/components/operacoes/OperacaoParcelasTabela.tsx', 'utf8')
 
 describe('P11.2.2 parcelas cedidas responsivas', () => {
   it('identifica semanticamente cada valor no mobile sem depender do cabeçalho', () => {
@@ -52,13 +53,13 @@ describe('P11.2.2 parcelas cedidas responsivas', () => {
   it('mantém o cabeçalho no desktop e oculta visualmente os rótulos por linha', () => {
     const html = renderToStaticMarkup(createElement(OperacaoParcelaCedidaRow, { parcela: parcelaPersistida }))
 
-    expect(detalheSource).toContain('aria-hidden="true" className="hidden grid-cols-[3.5rem_6rem_7rem_5rem_7rem_7rem]')
-    expect(detalheSource).toContain('text-muted-foreground md:grid')
+    expect(tabelaSource).toContain('<th scope="col"')
+    expect(tabelaSource).toContain('overflow-x-auto')
     expect(html.match(/md:sr-only/g)).toHaveLength(6)
     expect(html).toContain('md:grid-cols-[3.5rem_6rem_7rem_5rem_7rem_7rem]')
-    expect(detalheSource).toContain('aria-expanded={expandido}')
-    expect(detalheSource).toContain('aria-controls={`parcelas-${nf.id}`}')
-    expect(detalheSource).toContain('focus-visible:ring-2 focus-visible:ring-ring')
+    expect(detalheSource).toContain('<OperacaoParcelasTabela')
+    expect(tabelaSource).not.toContain('aria-expanded')
+    expect(tabelaSource).toContain('focus-visible:outline-ring')
   })
 
   it('mantém identificação e valores distintos quando há múltiplas parcelas', () => {
@@ -95,18 +96,24 @@ describe('P11.2.2 parcelas cedidas responsivas', () => {
     expect(detalheSource).toContain('desconto: memoria ? Number(memoria.desconto)')
   })
 
-  it('renderiza os cards antes dos ramos de análise, desembolso e histórico', () => {
-    const cardIndex = detalheSource.indexOf('...notasFiscaisView.map((nf) => {')
-    const analyseIndex = detalheSource.indexOf('{canAnalyze && (', cardIndex)
-    const disburseIndex = detalheSource.indexOf('{canDisburse && (', cardIndex)
-    const historyIndex = detalheSource.indexOf('{!canAnalyze && !canDisburse && (', cardIndex)
+  it('mantém tabela e histórico na coluna principal, antes do resumo e das ações', () => {
+    const cardIndex = detalheSource.indexOf('<OperacaoParcelasTabela')
+    const resumoIndex = detalheSource.indexOf('<OperacaoResumoCard', cardIndex)
+    const analyseIndex = detalheSource.indexOf('{canAnalyze && <section', resumoIndex)
+    const disburseIndex = detalheSource.indexOf('{canDisburse && <div', resumoIndex)
+    const historyIndex = detalheSource.indexOf('<HistoricoTimelineCard', cardIndex)
+    const sidebarIndex = detalheSource.indexOf('<aside', cardIndex)
 
     expect(cardIndex).toBeGreaterThan(-1)
-    expect(analyseIndex).toBeGreaterThan(cardIndex)
+    expect(historyIndex).toBeGreaterThan(cardIndex)
+    expect(sidebarIndex).toBeGreaterThan(historyIndex)
+    expect(resumoIndex).toBeGreaterThan(sidebarIndex)
+    expect(analyseIndex).toBeGreaterThan(resumoIndex)
     expect(disburseIndex).toBeGreaterThan(analyseIndex)
-    expect(historyIndex).toBeGreaterThan(disburseIndex)
     expect(detalheSource).toContain("const canAnalyze = op.status === 'solicitada' || op.status === 'em_analise'")
     expect(detalheSource).toContain("const canDisburse = op.status === 'aprovada'")
+    expect(detalheSource).toContain('disabled={processing || !todasAceitas || taxa === null || !calculoFinanceiro}')
+    expect(detalheSource).toContain('disabled={desembolsando || !termoAssinadoUrl || !comprovanteUrl}')
   })
 
   it.each(['solicitada', 'em_analise', 'aprovada', 'em_andamento', 'liquidada', 'inadimplente', 'reprovada', 'cancelada'])(
@@ -131,7 +138,7 @@ describe('P11.2.2 parcelas cedidas responsivas', () => {
       expect(cardLegado).toContain('Memória congelada da NF')
       expect(cardLegado).toContain(formatCurrency(9500))
       expect(detalheSource).not.toContain('Ver memoria de calculo por NF')
-      expect(detalheSource).toContain('memoriaLegada={memoriaLegada}')
+      expect(detalheSource).toContain('memoriasLegadas: memoriasCalculo')
     },
   )
 })

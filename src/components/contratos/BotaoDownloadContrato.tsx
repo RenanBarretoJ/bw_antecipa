@@ -4,6 +4,9 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { FileText, Download, RefreshCw, Loader2, AlertTriangle } from 'lucide-react'
 import { useNotifications } from '@/components/notifications/notification-provider'
+import { AcoesArquivoDocumento, DocumentoArquivoLinha } from '@/components/documentos/DocumentoArquivoLinha'
+import { abrirDocumentoAutorizado, type AcaoArquivoDocumento } from '@/lib/documentos/abrir-documento-client'
+import { formatDate } from '@/lib/utils'
 
 interface Props {
   tipo: 'contrato' | 'termo' | 'notificacao' | 'quitacao'
@@ -12,14 +15,17 @@ interface Props {
   hasSignedDoc?: boolean // se ja existe versao assinada no cadastro/operacao
   label?: string
   className?: string
+  apresentacao?: 'botao' | 'linha'
+  geradoEm?: string | null
 }
 
-export function BotaoDownloadContrato({ tipo, id, storagePath, hasSignedDoc, label, className }: Props) {
+export function BotaoDownloadContrato({ tipo, id, storagePath, hasSignedDoc, label, className, apresentacao = 'botao', geradoEm }: Props) {
   const notifications = useNotifications()
   const [gerando, setGerando] = useState(false)
   const [currentPath, setCurrentPath] = useState(storagePath)
   const [downloading, setDownloading] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
+  const [dataGeracao, setDataGeracao] = useState(geradoEm)
 
   const handleGerar = async () => {
     setGerando(true)
@@ -46,6 +52,7 @@ export function BotaoDownloadContrato({ tipo, id, storagePath, hasSignedDoc, lab
       const data = await res.json()
       if (data.sucesso && data.path) {
         setCurrentPath(data.path)
+        setDataGeracao(null)
         notifications.success('Documento gerado.')
         if (data.url) {
           window.open(data.url, '_blank')
@@ -69,7 +76,7 @@ export function BotaoDownloadContrato({ tipo, id, storagePath, hasSignedDoc, lab
     }
   }
 
-  const handleDownload = async () => {
+  const handleDownload = async (acao: AcaoArquivoDocumento = 'visualizar') => {
     if (!currentPath) return
     setDownloading(true)
     try {
@@ -88,7 +95,7 @@ export function BotaoDownloadContrato({ tipo, id, storagePath, hasSignedDoc, lab
       const res = await fetch(`/api/contratos/download?${params.toString()}`)
       const data = await res.json()
       if (data.url) {
-        window.open(data.url, '_blank')
+        abrirDocumentoAutorizado(data.url, acao, `${label || defaultLabel}.pdf`)
       } else {
         notifications.error('Erro ao obter link de download.')
       }
@@ -121,12 +128,37 @@ export function BotaoDownloadContrato({ tipo, id, storagePath, hasSignedDoc, lab
 
   const isCritico = hasSignedDoc && tipo === 'contrato'
 
+  const confirmacao = showConfirm && (
+    <div className={`mt-3 rounded-lg border p-3 text-xs space-y-2 ${
+      isCritico ? 'bg-destructive/10 border-destructive/30 text-destructive' : 'bg-warning/10 border-warning/30 text-warning-foreground'
+    }`}>
+      <div className="flex items-start gap-2"><AlertTriangle size={14} className="mt-0.5 shrink-0" /><p>{mensagemConfirmacao}</p></div>
+      <div className="flex gap-2">
+        <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setShowConfirm(false)}>Cancelar</Button>
+        <Button size="sm" className={`h-7 text-xs ${isCritico ? 'bg-destructive text-destructive-foreground hover:bg-destructive/85' : 'bg-warning text-warning-foreground hover:bg-warning/85'}`} onClick={handleGerar} disabled={gerando}>
+          {gerando ? <Loader2 size={12} className="animate-spin" /> : null}Confirmar
+        </Button>
+      </div>
+    </div>
+  )
+
+  if (apresentacao === 'linha') {
+    const titulo = label || defaultLabel
+    return (
+      <DocumentoArquivoLinha titulo={titulo} detalhe={currentPath ? `PDF · Gerado${dataGeracao ? ` em ${formatDate(dataGeracao)}` : ''}` : 'PDF · Ainda não gerado'} acoes={currentPath ? <AcoesArquivoDocumento titulo={titulo} ocupado={downloading || gerando} baixando={downloading} onVisualizar={() => handleDownload()} onBaixar={() => handleDownload('baixar')}>
+        <Button type="button" variant="ghost" size="icon-sm" onClick={handleClickRegerar} disabled={gerando || downloading} aria-label={`Regenerar ${titulo}`} title={`Regenerar ${titulo}`}>{gerando ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}</Button>
+      </AcoesArquivoDocumento> : <Button type="button" variant="outline" size="sm" onClick={handleGerar} disabled={gerando} aria-label={`Gerar ${titulo}`}>{gerando ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}{gerando ? 'Gerando…' : 'Gerar'}</Button>}>
+        {confirmacao}
+      </DocumentoArquivoLinha>
+    )
+  }
+
   if (currentPath) {
     return (
       <div className={`flex flex-col gap-2${className ? ' ' + className : ''}`}>
         <div className="flex items-center gap-2">
           <Button
-            onClick={handleDownload}
+            onClick={() => handleDownload()}
             disabled={downloading}
             variant="outline"
             size="sm"
@@ -154,37 +186,7 @@ export function BotaoDownloadContrato({ tipo, id, storagePath, hasSignedDoc, lab
           </Button>
         </div>
 
-        {showConfirm && (
-          <div className={`rounded-lg border p-3 text-xs space-y-2 ${
-            isCritico
-              ? 'bg-destructive/10 border-destructive/30 text-destructive'
-              : 'bg-warning/10 border-warning/30 text-warning-foreground'
-          }`}>
-            <div className="flex items-start gap-2">
-              <AlertTriangle size={14} className="mt-0.5 shrink-0" />
-              <p>{mensagemConfirmacao}</p>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-7 text-xs"
-                onClick={() => setShowConfirm(false)}
-              >
-                Cancelar
-              </Button>
-              <Button
-                size="sm"
-                className={`h-7 text-xs ${isCritico ? 'bg-destructive text-destructive-foreground hover:bg-destructive/85' : 'bg-warning text-warning-foreground hover:bg-warning/85'}`}
-                onClick={handleGerar}
-                disabled={gerando}
-              >
-                {gerando ? <Loader2 size={12} className="animate-spin" /> : null}
-                Confirmar
-              </Button>
-            </div>
-          </div>
-        )}
+        {confirmacao}
       </div>
     )
   }

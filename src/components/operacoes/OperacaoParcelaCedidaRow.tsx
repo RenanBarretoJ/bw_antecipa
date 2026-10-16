@@ -1,14 +1,7 @@
 import { formatCurrency, formatDate } from '@/lib/utils'
 
-export interface ParcelaCedidaOperacao {
-  parcelaId: string
-  numeroParcela: number
-  dataVencimento: string
-  valorNominal: number
-  diasAplicados: number | null
-  valorPresente: number | null
-  desconto: number | null
-}
+import type { ParcelaCedidaOperacao } from '@/lib/operacoes/parcelas-tabela'
+export type { ParcelaCedidaOperacao } from '@/lib/operacoes/parcelas-tabela'
 
 export const PARCELA_CEDIDA_COLUNAS = [
   'Parcela',
