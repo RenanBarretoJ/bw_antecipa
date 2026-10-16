@@ -9,6 +9,7 @@ import type { ContratoDocumentType, ContratoEntityType } from '@/lib/types/domai
 import { useNotifications } from '@/components/notifications/notification-provider'
 import { AcoesArquivoDocumento, DocumentoArquivoLinha } from '@/components/documentos/DocumentoArquivoLinha'
 import { abrirDocumentoAutorizado, type AcaoArquivoDocumento } from '@/lib/documentos/abrir-documento-client'
+import { AreaSoltarDocumento } from '@/components/documentos/AreaSoltarDocumento'
 
 interface Props {
   label: string
@@ -25,6 +26,7 @@ interface Props {
 export function UploadDocumentoAssinado({ label, storagePath, uploadPath, tipoEntidade, entidadeId, tipoDocumento, accept = 'application/pdf', onSuccess, apresentacao = 'botao' }: Props) {
   const notifications = useNotifications()
   const inputRef = useRef<HTMLInputElement>(null)
+  const envioEmCurso = useRef(false)
   const [uploading, setUploading] = useState(false)
   const [downloading, setDownloading] = useState(false)
   const [currentPath, setCurrentPath] = useState(storagePath)
@@ -49,10 +51,9 @@ export function UploadDocumentoAssinado({ label, storagePath, uploadPath, tipoEn
     }
   }
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
+  const enviarArquivo = async (file: File) => {
+    if (envioEmCurso.current) return
+    envioEmCurso.current = true
     setUploading(true)
 
     try {
@@ -69,13 +70,26 @@ export function UploadDocumentoAssinado({ label, storagePath, uploadPath, tipoEn
     } catch (err) {
       notifications.error(err instanceof Error ? err.message : 'Erro ao enviar arquivo.')
     } finally {
+      envioEmCurso.current = false
       setUploading(false)
       if (inputRef.current) inputRef.current.value = ''
     }
   }
 
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || uploading) return
+    await enviarArquivo(file)
+  }
+
+  const receberArquivoSolto = async (file: File) => {
+    if (uploading || downloading || envioEmCurso.current) return
+    if (currentPath && !window.confirm(`Substituir ${label}?`)) return
+    await enviarArquivo(file)
+  }
+
   return (
-    <div className="space-y-1">
+    <AreaSoltarDocumento className="space-y-1" habilitado={apresentacao === 'linha'} bloqueado={uploading || downloading} aceitar={accept} onArquivo={receberArquivoSolto} onErro={mensagem => notifications.error(mensagem)}>
       <input
         ref={inputRef}
         type="file"
@@ -127,6 +141,6 @@ export function UploadDocumentoAssinado({ label, storagePath, uploadPath, tipoEn
           )}
         </Button>
       )}
-    </div>
+    </AreaSoltarDocumento>
   )
 }
