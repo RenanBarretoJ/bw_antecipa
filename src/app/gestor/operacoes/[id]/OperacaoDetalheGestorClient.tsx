@@ -53,7 +53,6 @@ import {
   taxaMantemPropostaConsultor,
 } from '@/lib/operacoes/taxa-operacao'
 import { valorBaseSnapshot, type BaseAntecipacaoSnapshot } from '@/lib/operacoes/base-antecipacao'
-import { BaseAntecipacaoResumo } from '@/components/operacoes/BaseAntecipacaoResumo'
 
 interface Testemunha {
   id: string
@@ -886,7 +885,6 @@ export default function OperacaoDetalheGestorClient({
         <aside className="space-y-6 xl:sticky xl:top-6 xl:self-start">
 
           {/* ETAPA 1: Definir termos (solicitada / em_analise) */}
-          <BaseAntecipacaoResumo snapshot={op.base_antecipacao_snapshot} notas={nfs} />
           {canAnalyze && (
             <Card>
               <CardHeader className="pb-3">
