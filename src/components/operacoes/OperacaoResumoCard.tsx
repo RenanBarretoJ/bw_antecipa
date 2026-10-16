@@ -24,7 +24,7 @@ export function OperacaoResumoCard({ status, statusClassName, valorOperacao, tax
       </CardHeader>
       <dl className="space-y-2.5 px-5 pb-5 text-xs [&>div]:flex [&>div]:justify-between [&>div]:gap-3 [&_dt]:text-muted-foreground [&_dd]:text-right [&_dd]:font-medium [&_dd]:tabular-nums">
         <div><dt>Valor da operação</dt><dd>{formatCurrency(valorOperacao)}</dd></div>
-        <div className="!-mt-1 text-[10px]"><dt>Base nas parcelas cedidas</dt><dd className="sr-only">Soma das bases cedidas, distinta do bruto fiscal das notas.</dd></div>
+        <div className="relative !-mt-1 text-[10px]"><dt>Base nas parcelas cedidas</dt><dd className="sr-only">Soma das bases cedidas, distinta do bruto fiscal das notas.</dd></div>
         <div><dt>Taxa</dt><dd>{taxa === null ? 'Não definida' : `${taxa.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}% a.m.`}</dd></div>
         <div><dt>Método</dt><dd>{metodo}</dd></div>
         {dataBase && <div><dt>Data-base</dt><dd>{formatDate(dataBase)}</dd></div>}
