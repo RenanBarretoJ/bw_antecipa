@@ -7,6 +7,7 @@ import { useNotifications } from '@/components/notifications/notification-provid
 import type { TipoDocumentoAssinadoOperacao } from '@/lib/operacoes/documentos-assinados'
 import { AcoesArquivoDocumento, DocumentoArquivoLinha } from '@/components/documentos/DocumentoArquivoLinha'
 import { abrirDocumentoAutorizado, type AcaoArquivoDocumento } from '@/lib/documentos/abrir-documento-client'
+import { AreaSoltarDocumento } from '@/components/documentos/AreaSoltarDocumento'
 
 type ApiResponse = {
   success?: boolean
@@ -39,24 +40,23 @@ export function UploadDocumentoAssinadoOperacao({
 }: Props) {
   const notifications = useNotifications()
   const inputRef = useRef<HTMLInputElement>(null)
+  const envioEmCurso = useRef(false)
   const [enviando, setEnviando] = useState(false)
   const [baixando, setBaixando] = useState(false)
   const [disponivel, setDisponivel] = useState(Boolean(storagePath))
 
   useEffect(() => setDisponivel(Boolean(storagePath)), [storagePath])
 
+  const confirmarSubstituicao = () => !disponivel || window.confirm(`Substituir ${label}? O documento atual sera preservado se o novo envio falhar.`)
+
   const abrirSeletor = () => {
-    if (enviando) return
-    if (disponivel && !window.confirm(`Substituir ${label}? O documento atual sera preservado se o novo envio falhar.`)) {
-      return
-    }
+    if (enviando || envioEmCurso.current || !confirmarSubstituicao()) return
     inputRef.current?.click()
   }
 
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const arquivo = event.target.files?.[0]
-    if (!arquivo || enviando) return
-
+  const enviarArquivo = async (arquivo: File) => {
+    if (envioEmCurso.current) return
+    envioEmCurso.current = true
     setEnviando(true)
     try {
       const formData = new FormData()
@@ -76,9 +76,21 @@ export function UploadDocumentoAssinadoOperacao({
     } catch (error) {
       notifications.error(error instanceof Error ? error.message : 'Nao foi possivel enviar o documento.')
     } finally {
+      envioEmCurso.current = false
       setEnviando(false)
       if (inputRef.current) inputRef.current.value = ''
     }
+  }
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const arquivo = event.target.files?.[0]
+    if (!arquivo || enviando) return
+    await enviarArquivo(arquivo)
+  }
+
+  const receberArquivoSolto = async (arquivo: File) => {
+    if (enviando || baixando || envioEmCurso.current || !confirmarSubstituicao()) return
+    await enviarArquivo(arquivo)
   }
 
   const handleDownload = async (acao: AcaoArquivoDocumento = 'visualizar') => {
@@ -98,7 +110,7 @@ export function UploadDocumentoAssinadoOperacao({
   }
 
   return (
-    <div className="w-full min-w-0">
+    <AreaSoltarDocumento className="w-full min-w-0" habilitado={apresentacao === 'linha'} bloqueado={enviando || baixando} aceitar="application/pdf,.pdf" onArquivo={receberArquivoSolto} onErro={mensagem => notifications.error(mensagem)}>
       <input
         ref={inputRef}
         type="file"
@@ -151,6 +163,6 @@ export function UploadDocumentoAssinadoOperacao({
           )}
         </Button>
       )}
-    </div>
+    </AreaSoltarDocumento>
   )
 }
