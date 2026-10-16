@@ -11,6 +11,7 @@ vi.mock('puppeteer-core', () => ({ default: { launch: mocks.launch } }))
 vi.mock('node:fs/promises', () => ({ stat: mocks.stat }))
 
 beforeEach(() => {
+  Reflect.deleteProperty(globalThis, Symbol.for('bw-antecipa.pdf.chromium-preparation.v1'))
   vi.resetAllMocks()
   vi.stubEnv('NODE_ENV', 'production')
   vi.stubEnv('CHROME_PATH', '')
