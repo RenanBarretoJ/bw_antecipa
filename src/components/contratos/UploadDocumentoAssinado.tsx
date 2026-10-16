@@ -7,6 +7,8 @@ import { createClient } from '@/lib/supabase/client'
 import { buckets } from '@/lib/storage'
 import type { ContratoDocumentType, ContratoEntityType } from '@/lib/types/domain'
 import { useNotifications } from '@/components/notifications/notification-provider'
+import { AcoesArquivoDocumento, DocumentoArquivoLinha } from '@/components/documentos/DocumentoArquivoLinha'
+import { abrirDocumentoAutorizado, type AcaoArquivoDocumento } from '@/lib/documentos/abrir-documento-client'
 
 interface Props {
   label: string
@@ -17,16 +19,17 @@ interface Props {
   tipoDocumento: ContratoDocumentType
   accept?: string     // default: 'application/pdf'
   onSuccess: (path: string) => void
+  apresentacao?: 'botao' | 'linha'
 }
 
-export function UploadDocumentoAssinado({ label, storagePath, uploadPath, tipoEntidade, entidadeId, tipoDocumento, accept = 'application/pdf', onSuccess }: Props) {
+export function UploadDocumentoAssinado({ label, storagePath, uploadPath, tipoEntidade, entidadeId, tipoDocumento, accept = 'application/pdf', onSuccess, apresentacao = 'botao' }: Props) {
   const notifications = useNotifications()
   const inputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
   const [downloading, setDownloading] = useState(false)
   const [currentPath, setCurrentPath] = useState(storagePath)
 
-  const handleDownload = async () => {
+  const handleDownload = async (acao: AcaoArquivoDocumento = 'visualizar') => {
     if (!currentPath) return
     setDownloading(true)
     try {
@@ -37,7 +40,7 @@ export function UploadDocumentoAssinado({ label, storagePath, uploadPath, tipoEn
       })
       const res = await fetch(`/api/contratos/download?${params.toString()}`)
       const data = await res.json()
-      if (data.url) window.open(data.url, '_blank')
+      if (data.url) abrirDocumentoAutorizado(data.url, acao, `${label}.pdf`)
       else notifications.error('Erro ao obter link de download.')
     } catch {
       notifications.error('Erro ao baixar arquivo.')
@@ -81,12 +84,16 @@ export function UploadDocumentoAssinado({ label, storagePath, uploadPath, tipoEn
         onChange={handleFileChange}
       />
 
-      {currentPath ? (
+      {apresentacao === 'linha' ? (
+        <DocumentoArquivoLinha titulo={label} detalhe={currentPath ? 'PDF · Recebido' : 'Pendente de envio'} acoes={currentPath ? <AcoesArquivoDocumento titulo={label} ocupado={downloading || uploading} baixando={downloading} onVisualizar={() => handleDownload()} onBaixar={() => handleDownload('baixar')}>
+          <Button type="button" variant="ghost" size="icon-sm" onClick={() => inputRef.current?.click()} disabled={uploading || downloading} aria-label={`Substituir ${label}`} title={`Substituir ${label}`}>{uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}</Button>
+        </AcoesArquivoDocumento> : <Button type="button" variant="outline" size="sm" onClick={() => inputRef.current?.click()} disabled={uploading} aria-label={`Anexar ${label}`}>{uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}{uploading ? 'Enviando…' : 'Anexar'}</Button>} />
+      ) : currentPath ? (
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
-            onClick={handleDownload}
+            onClick={() => handleDownload()}
             disabled={downloading}
             className="gap-2 flex-1 text-xs"
           >

@@ -402,8 +402,9 @@ describe('UI/Operacional: tabela por parcela na Operacao do Gestor', () => {
   })
   it('mantém a tabela em todas as etapas sem usar simulação como valor persistido', () => {
     expect(operacaoDetalheGestorClient).toContain('<OperacaoParcelasTabela')
-    expect(operacaoDetalheGestorClient).toContain('{canDisburse && (')
-    expect(operacaoDetalheGestorClient).toContain('{!canAnalyze && !canDisburse && (')
+    expect(operacaoDetalheGestorClient).toContain('<OperacaoResumoCard')
+    expect(operacaoDetalheGestorClient).toContain('{canDisburse && <div')
+    expect(operacaoDetalheGestorClient).toContain('valorLiquido={canAnalyze ? valorLiquido : op.valor_liquido_desembolso}')
     const montagem = operacaoDetalheGestorClient.slice(operacaoDetalheGestorClient.indexOf('const linhasParcelas ='), operacaoDetalheGestorClient.indexOf('const aceiteDispensado'))
     expect(montagem).not.toContain('calculoFinanceiro')
   })

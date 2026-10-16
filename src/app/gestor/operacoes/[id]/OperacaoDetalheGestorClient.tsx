@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { aprovarOperacao, desembolsarOperacao, listarTestemunhasOperacao, reprovarOperacao, removerNfDaOperacao, removerParcelaDaOperacao, salvarTestemunhasOperacao, salvarQuitacaoAssinada } from '@/lib/actions/operacao'
 import { liquidarOperacao, marcarInadimplente } from '@/lib/actions/liquidacao'
 import { carregarResumoEntregaPorOperacao } from '@/lib/actions/logistica'
-import { formatCurrency, formatCNPJ, formatDate } from '@/lib/utils'
+import { formatCNPJ, formatDate } from '@/lib/utils'
 import Link from 'next/link'
 import {
   ArrowLeft,
@@ -17,6 +17,8 @@ import {
   AlertCircle,
   Banknote,
   FileDown,
+  FileText,
+  BriefcaseBusiness,
   Calculator,
   Loader2,
   Send,
@@ -34,6 +36,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useNotifications } from '@/components/notifications/notification-provider'
 import { OperacaoParcelasTabela } from '@/components/operacoes/OperacaoParcelasTabela'
 import { RemoverItemOperacaoDialog } from '@/components/operacoes/RemoverItemOperacaoDialog'
+import { OperacaoResumoCard } from '@/components/operacoes/OperacaoResumoCard'
 import { construirLinhasParcelasOperacao, type LinhaParcelaOperacao } from '@/lib/operacoes/parcelas-tabela'
 import { useFundoAtivo } from '@/components/fundos/fundo-ativo-provider'
 import { HistoricoTimelineCard } from '@/components/historico/HistoricoTimelineCard'
@@ -91,6 +94,10 @@ interface OperacaoDetalhe {
   created_at: string
   testemunha_1_id: string | null
   testemunha_2_id: string | null
+  termo_url: string | null
+  termo_gerado_em: string | null
+  notificacao_gerado_em: string | null
+  quitacao_gerado_em: string | null
   termo_assinado_url: string | null
   comprovante_pagamento_url: string | null
   notificacao_url: string | null
@@ -882,18 +889,24 @@ export default function OperacaoDetalheGestorClient({
         </div>
 
         {/* Sidebar */}
-        <aside className="space-y-6 xl:sticky xl:top-6 xl:self-start">
+        <aside className="space-y-5 xl:sticky xl:top-6 xl:self-start">
 
-          {/* ETAPA 1: Definir termos (solicitada / em_analise) */}
-          {canAnalyze && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Calculator size={18} className="text-primary" />
-                  Definir Termos
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0 space-y-4">
+          <OperacaoResumoCard
+            status={op.status === 'aprovada' ? 'Aprovada' : status.label}
+            statusClassName={status.className}
+            valorOperacao={op.valor_bruto_total}
+            taxa={canAnalyze ? taxa : op.taxa_desconto}
+            metodo={METODOS_CALCULO_LABELS[metodoCalculo]}
+            dataBase={canAnalyze ? dataBaseServidor : op.calculo_data_base}
+            prazo={op.prazo_dias}
+            valorLiquido={canAnalyze ? valorLiquido : op.valor_liquido_desembolso}
+            aprovadoEm={op.aprovado_em}
+            previa={canAnalyze}
+          >
+            {(canAnalyze || canDisburse || ['em_andamento', 'inadimplente'].includes(op.status)) ? <>
+              {canAnalyze && <section className="space-y-4" aria-label="Definir termos">
+                <h3 className="flex items-center gap-2 text-xs font-semibold"><Calculator size={15} aria-hidden />Definir termos</h3>
+
                 {op.taxa_proposta_consultor !== null && (
                   <div className="rounded-lg border bg-muted/30 p-3 text-sm">
                     <span className="block text-xs text-muted-foreground">Taxa proposta pelo Consultor</span>
@@ -956,17 +969,6 @@ export default function OperacaoDetalheGestorClient({
                   </div>
                 )}
 
-                <div className="grid grid-cols-2 gap-3 rounded-lg border bg-muted/30 p-3 text-sm">
-                  <div>
-                    <span className="block text-xs text-muted-foreground">Metodo de calculo</span>
-                    <strong>{METODOS_CALCULO_LABELS[metodoCalculo]}</strong>
-                  </div>
-                  <div>
-                    <span className="block text-xs text-muted-foreground">Taxa mensal</span>
-                    <strong className="tabular-nums">{taxa === null ? 'Nao configurada' : `${taxa}% a.m.`}</strong>
-                  </div>
-                </div>
-
                 {testemunhas.length > 0 && (
                   <div className="space-y-2 border-t pt-4">
                     <p className="text-xs font-medium text-muted-foreground">Testemunhas do Termo</p>
@@ -1027,21 +1029,6 @@ export default function OperacaoDetalheGestorClient({
                   </div>
                 )}
 
-                <div className="p-3 bg-muted/50 rounded-lg space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Bruto</span>
-                    <span className="font-medium tabular-nums">{formatCurrency(op.valor_bruto_total)}</span>
-                  </div>
-                  <div className="flex justify-between text-destructive">
-                    <span className="tabular-nums">(-) Desconto ({taxa === null ? 'sem taxa' : `${taxa}% a.m.`}, prazo por NF)</span>
-                    <span className="tabular-nums">{valorLiquido === null ? 'Pendente' : formatCurrency(op.valor_bruto_total - valorLiquido)}</span>
-                  </div>
-                  <div className="flex justify-between border-t pt-2">
-                    <span className="font-semibold">Liquido</span>
-                    <span className="font-bold text-green-700 dark:text-green-400 text-lg tabular-nums">{valorLiquido === null ? 'Pendente' : formatCurrency(valorLiquido)}</span>
-                  </div>
-                </div>
-
                 <div className="space-y-2">
                   {!todasAceitas && (
                     <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg p-2">
@@ -1066,50 +1053,9 @@ export default function OperacaoDetalheGestorClient({
                     Reprovar
                   </Button>
                 </div>
-              </CardContent>
-            </Card>
-          )}
 
-          {/* ETAPA 2: Documentos e desembolso (status aprovada) */}
-          {canDisburse && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Resumo</CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0 space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground" title="Soma das bases cedidas dos itens desta operação">Valor da operação</span>
-                  <span className="font-bold tabular-nums">{formatCurrency(op.valor_bruto_total)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Taxa</span>
-                  <span className="font-medium tabular-nums">{op.taxa_desconto === null ? 'Nao definida' : `${op.taxa_desconto}% a.m.`}</span>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <span className="text-muted-foreground">Metodo</span>
-                  <span className="text-right font-medium">{METODOS_CALCULO_LABELS[metodoCalculo]}</span>
-                </div>
-                {op.calculo_data_base && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Data-base</span>
-                    <span className="font-medium">{formatDate(op.calculo_data_base)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Prazo</span>
-                  <span className="font-medium tabular-nums">{op.prazo_dias} dias</span>
-                </div>
-                <div className="flex justify-between border-t pt-2">
-                  <span className="font-semibold">Valor Liquido</span>
-                  <span className="font-bold text-green-700 dark:text-green-400 tabular-nums">{op.valor_liquido_desembolso === null ? 'Pendente' : formatCurrency(op.valor_liquido_desembolso)}</span>
-                </div>
-                {op.aprovado_em && (
-                  <div className="flex justify-between text-muted-foreground text-xs mt-2">
-                    <span>Aprovada em</span>
-                    <span>{formatDate(op.aprovado_em)}</span>
-                  </div>
-                )}
-                <div className="border-t pt-4 mt-2 space-y-3">
+              </section>}
+              {canDisburse && <div className="space-y-3">
                   {(!termoAssinadoUrl || !comprovanteUrl) && (
                     <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg p-2">
                       Envie os documentos assinados e o comprovante TED para liberar o desembolso.
@@ -1124,52 +1070,10 @@ export default function OperacaoDetalheGestorClient({
                     {desembolsando ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
                     {desembolsando ? 'Processando...' : 'Desembolsar'}
                   </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
 
-          {/* ETAPA 3: Em andamento / liquidação */}
-          {!canAnalyze && !canDisburse && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Resumo</CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0 space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground" title="Soma das bases cedidas dos itens desta operação">Valor da operação</span>
-                  <span className="font-bold tabular-nums">{formatCurrency(op.valor_bruto_total)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Taxa</span>
-                  <span className="font-medium tabular-nums">{op.taxa_desconto === null ? 'Nao definida' : `${op.taxa_desconto}% a.m.`}</span>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <span className="text-muted-foreground">Metodo</span>
-                  <span className="text-right font-medium">{METODOS_CALCULO_LABELS[metodoCalculo]}</span>
-                </div>
-                {op.calculo_data_base && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Data-base</span>
-                    <span className="font-medium">{formatDate(op.calculo_data_base)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Prazo</span>
-                  <span className="font-medium tabular-nums">{op.prazo_dias} dias</span>
-                </div>
-                <div className="flex justify-between border-t pt-2">
-                  <span className="font-semibold">Valor Liquido</span>
-                  <span className="font-bold text-green-700 dark:text-green-400 tabular-nums">{op.valor_liquido_desembolso === null ? 'Pendente' : formatCurrency(op.valor_liquido_desembolso)}</span>
-                </div>
-                {op.aprovado_em && (
-                  <div className="flex justify-between text-muted-foreground text-xs mt-2">
-                    <span>Aprovada em</span>
-                    <span>{formatDate(op.aprovado_em)}</span>
-                  </div>
-                )}
+              </div>}
                 {(op.status === 'em_andamento' || op.status === 'inadimplente') && (
-                  <div className="space-y-2 border-t pt-4 mt-2">
+                  <div className="space-y-2">
                     <Button
                       onClick={async () => {
                         setProcessing(true)
@@ -1215,48 +1119,53 @@ export default function OperacaoDetalheGestorClient({
                     )}
                   </div>
                 )}
-
-
-              </CardContent>
-            </Card>
-          )}
+            </> : null}
+          </OperacaoResumoCard>
 
           {showDocs && (
             <div className="space-y-5">
-              <Card>
-                <CardHeader className="pb-3"><CardTitle className="text-base">Documentos gerados</CardTitle></CardHeader>
-                <CardContent className="pt-0">
-<div className="flex flex-col gap-2">
+              <Card className="gap-0 rounded-xl border border-border/80 py-0 shadow-none ring-0">
+                <CardHeader className="px-4 pt-4 pb-1"><CardTitle role="heading" aria-level={2} className="flex items-center gap-2 text-[13px] font-semibold"><FileText size={16} aria-hidden />Documentos gerados</CardTitle></CardHeader>
+                <CardContent className="px-0 pt-0">
+                  <div className="divide-y divide-border/70">
                     <BotaoDownloadContrato
                       tipo="contrato"
+                      apresentacao="linha"
                       id={op.cedente_id}
                       storagePath={op.cedentes.contrato_url}
                       hasSignedDoc={!!op.cedentes.contrato_assinado_url}
-                      label="Contrato Mae"
+                      label="Contrato-mãe"
                       className="w-full"
                     />
                     <BotaoDownloadContrato
                       tipo="termo"
+                      apresentacao="linha"
+                      label="Termo de cessão"
+                      geradoEm={op.termo_gerado_em}
                       id={op.id}
-                      storagePath={(op as unknown as Record<string, unknown>).termo_url as string | null}
+                      storagePath={op.termo_url}
                       hasSignedDoc={!!termoAssinadoUrl}
                       className="w-full"
                     />
                     <BotaoDownloadContrato
                       tipo="notificacao"
+                      apresentacao="linha"
+                      geradoEm={op.notificacao_gerado_em}
                       id={op.id}
-                      storagePath={(op as unknown as Record<string, unknown>).notificacao_url as string | null}
+                      storagePath={op.notificacao_url}
                       hasSignedDoc={!!notificacaoAssinadaUrl}
-                      label="Notificacao ao Sacado"
+                      label="Notificação ao sacado"
                       className="w-full"
                     />
                     {op.status === 'liquidada' && (
                       <BotaoDownloadContrato
                         tipo="quitacao"
+                        apresentacao="linha"
+                        geradoEm={op.quitacao_gerado_em}
                         id={op.id}
                         storagePath={op.quitacao_url}
                         hasSignedDoc={!!quitacaoAssinadaUrl}
-                        label="Termo de Quitacao"
+                        label="Termo de quitação"
                         className="w-full"
                       />
                     )}
@@ -1264,34 +1173,39 @@ export default function OperacaoDetalheGestorClient({
 
                 </CardContent>
               </Card>
-              <Card>
-                <CardHeader className="pb-3"><CardTitle className="text-base">Assinados e comprovantes</CardTitle></CardHeader>
-                <CardContent className="pt-0">
-<div className="flex flex-col gap-2">
+              <Card className="gap-0 rounded-xl border border-border/80 py-0 shadow-none ring-0">
+                <CardHeader className="flex flex-row items-center justify-between gap-2 px-4 pt-4 pb-1"><CardTitle role="heading" aria-level={2} className="flex items-center gap-2 text-[13px] font-semibold"><CheckCircle size={16} aria-hidden />Assinados e comprovantes</CardTitle><span className="shrink-0 rounded border px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground" aria-label="Arquivos recebidos entre os itens exibidos">{[termoAssinadoUrl, notificacaoAssinadaUrl, comprovanteUrl, ...(op.status === 'liquidada' ? [quitacaoAssinadaUrl] : [])].filter(Boolean).length}/{op.status === 'liquidada' ? 4 : 3}</span></CardHeader>
+                <CardContent className="px-0 pt-0">
+                  <div className="divide-y divide-border/70">
                     <UploadDocumentoAssinadoOperacao
-                      label="Termo de Cessao Assinado"
+                      apresentacao="linha"
+                      label="Termo de cessão assinado"
                       storagePath={termoAssinadoUrl}
                       operacaoId={op.id}
                       tipoDocumento="TERMO_CESSAO_ASSINADO"
                       onSuccess={() => setTermoAssinadoUrl('registrado')}
                     />
                     <UploadDocumentoAssinadoOperacao
-                      label="Notificacao ao Sacado Assinada"
+                      apresentacao="linha"
+                      label="Notificação assinada"
                       storagePath={notificacaoAssinadaUrl}
                       operacaoId={op.id}
                       tipoDocumento="NOTIFICACAO_SACADO_ASSINADA"
                       onSuccess={() => setNotificacaoAssinadaUrl('registrado')}
                     />
                     <UploadDocumentoAssinadoOperacao
-                      label="Comprovante de Pagamento"
+                      apresentacao="linha"
+                      label="Comprovante TED"
                       storagePath={comprovanteUrl}
                       operacaoId={op.id}
                       tipoDocumento="COMPROVANTE_DESEMBOLSO_TED"
+                      destaquePendente={canDisburse}
                       onSuccess={() => setComprovanteUrl('registrado')}
                     />
                     {op.status === 'liquidada' && (
                       <UploadDocumentoAssinado
-                        label="Termo de Quitacao Assinado"
+                        apresentacao="linha"
+                        label="Termo de quitação assinado"
                         storagePath={quitacaoAssinadaUrl}
                         uploadPath={`operacoes/${op.id}/termo-quitacao-assinado.pdf`}
                         tipoEntidade="operacao"
@@ -1307,10 +1221,11 @@ export default function OperacaoDetalheGestorClient({
 
                 </CardContent>
               </Card>
-              <Card>
-                <CardHeader className="pb-3"><CardTitle className="text-base">Remessa</CardTitle></CardHeader>
-                <CardContent className="space-y-3 pt-0">
-<Button
+              <Card className="gap-0 rounded-xl border border-border/80 py-0 shadow-none ring-0">
+                <CardHeader className="flex flex-row items-center justify-between gap-2 px-4 pt-4 pb-2"><CardTitle role="heading" aria-level={2} className="flex items-center gap-2 text-[13px] font-semibold"><BriefcaseBusiness size={16} aria-hidden />Remessa</CardTitle><Badge variant="outline" className="rounded-md text-[10px]">{remessaEnviadaEm ? 'Enviada' : remessaGeradaEm ? 'Gerada' : 'Não enviada'}</Badge></CardHeader>
+                <CardContent className="space-y-2 px-4 pt-0 pb-4">
+                  <p className="text-xs text-muted-foreground">Arquivo e envio para a administradora.</p>
+                  <Button
                     variant="outline"
                     size="sm"
                     onClick={handleGerarRemessa}
@@ -1336,8 +1251,9 @@ export default function OperacaoDetalheGestorClient({
                     className="w-full gap-2"
                   >
                     {enviandoRemessa ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-                    {enviandoRemessa ? 'Enviando...' : remessaEnviadaEm ? `Reenviado ${formatDate(remessaEnviadaEm)}` : 'Enviar Remessa para ADM'}
+                    {enviandoRemessa ? 'Enviando...' : remessaEnviadaEm ? 'Reenviar para ADM' : 'Enviar para ADM'}
                   </Button>
+                  <p className="text-[10px] leading-relaxed text-muted-foreground">{remessaEnviadaEm ? `Último envio em ${formatDate(remessaEnviadaEm)}.` : !remessaGeradaEm ? 'Disponível após a geração do arquivo.' : remessaOperacional?.motivoBloqueioEnvio ?? 'Arquivo gerado. Confira os dados antes do envio.'}</p>
                   {remessaFromtisId && (
                     <p className="text-xs text-muted-foreground">Protocolo Portal FIDC: {remessaFromtisId}</p>
                   )}
@@ -1378,7 +1294,7 @@ export default function OperacaoDetalheGestorClient({
           onConfirm={handleRemoverItem}
         />
       )}
-      <HistoricoTimelineCard entidade="operacao" entidadeId={opId} />
+      <HistoricoTimelineCard entidade="operacao" entidadeId={opId} compacto />
     </div>
   )
 }
