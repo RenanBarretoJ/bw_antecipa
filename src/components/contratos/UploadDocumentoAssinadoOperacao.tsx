@@ -5,6 +5,8 @@ import { Download, Loader2, Paperclip, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useNotifications } from '@/components/notifications/notification-provider'
 import type { TipoDocumentoAssinadoOperacao } from '@/lib/operacoes/documentos-assinados'
+import { AcoesArquivoDocumento, DocumentoArquivoLinha } from '@/components/documentos/DocumentoArquivoLinha'
+import { abrirDocumentoAutorizado, type AcaoArquivoDocumento } from '@/lib/documentos/abrir-documento-client'
 
 type ApiResponse = {
   success?: boolean
@@ -18,6 +20,8 @@ type Props = {
   tipoDocumento: TipoDocumentoAssinadoOperacao
   storagePath: string | null
   onSuccess?: () => void
+  apresentacao?: 'botao' | 'linha'
+  destaquePendente?: boolean
 }
 
 async function lerResposta(response: Response): Promise<ApiResponse> {
@@ -30,6 +34,8 @@ export function UploadDocumentoAssinadoOperacao({
   tipoDocumento,
   storagePath,
   onSuccess,
+  apresentacao = 'botao',
+  destaquePendente = false,
 }: Props) {
   const notifications = useNotifications()
   const inputRef = useRef<HTMLInputElement>(null)
@@ -75,7 +81,7 @@ export function UploadDocumentoAssinadoOperacao({
     }
   }
 
-  const handleDownload = async () => {
+  const handleDownload = async (acao: AcaoArquivoDocumento = 'visualizar') => {
     if (!disponivel || baixando) return
     setBaixando(true)
     try {
@@ -83,7 +89,7 @@ export function UploadDocumentoAssinadoOperacao({
       const response = await fetch(`/api/operacoes/${encodeURIComponent(operacaoId)}/documentos-assinados?${params}`)
       const data = await lerResposta(response)
       if (!response.ok || !data.url) throw new Error(data.message || 'Nao foi possivel obter o documento.')
-      window.open(data.url, '_blank', 'noopener,noreferrer')
+      abrirDocumentoAutorizado(data.url, acao, `${label}.pdf`)
     } catch (error) {
       notifications.error(error instanceof Error ? error.message : 'Nao foi possivel abrir o documento.')
     } finally {
@@ -102,12 +108,16 @@ export function UploadDocumentoAssinadoOperacao({
         onChange={handleFileChange}
       />
 
-      {disponivel ? (
+      {apresentacao === 'linha' ? (
+        <DocumentoArquivoLinha titulo={label} detalhe={disponivel ? 'PDF · Recebido' : 'Pendente de envio'} destaquePendente={destaquePendente && !disponivel} acoes={disponivel ? <AcoesArquivoDocumento titulo={label} ocupado={baixando || enviando} baixando={baixando} onVisualizar={() => handleDownload()} onBaixar={() => handleDownload('baixar')}>
+          <Button type="button" variant="ghost" size="icon-sm" onClick={abrirSeletor} disabled={enviando || baixando} title="Substituir documento" aria-label={`Substituir ${label}`}>{enviando ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}</Button>
+        </AcoesArquivoDocumento> : <Button type="button" variant="outline" size="sm" onClick={abrirSeletor} disabled={enviando} aria-label={`Anexar ${label}`}>{enviando ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}{enviando ? 'Enviando…' : 'Anexar'}</Button>} />
+      ) : disponivel ? (
         <div className="flex w-full min-w-0 items-center gap-2">
           <Button
             variant="outline"
             size="sm"
-            onClick={handleDownload}
+            onClick={() => handleDownload()}
             disabled={baixando || enviando}
             className="min-w-0 flex-1 gap-2 text-xs"
           >

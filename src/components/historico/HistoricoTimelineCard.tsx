@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState, useTransition } from 'react'
+import { useId, useMemo, useState, useTransition } from 'react'
 import { AlertCircle, CheckCircle2, ChevronDown, Clock3, FileText, History, Loader2, Send, ShieldCheck, Truck } from 'lucide-react'
 import { carregarEventosHistorico, type HistoricoCursor } from '@/lib/actions/historico'
 import { formatEventTime, groupHistoricoByDate, type HistoricoEventoView } from '@/lib/eventos-dominio/formatters'
@@ -16,6 +16,7 @@ type Props = {
   entidade: EntidadeHistorico
   entidadeId: string
   className?: string
+  compacto?: boolean
 }
 
 const FILTERS: Array<{ value: FiltroHistorico; label: string }> = [
@@ -77,7 +78,8 @@ function EventRow({ event }: { event: HistoricoEventoView }) {
   )
 }
 
-export function HistoricoTimelineCard({ entidade, entidadeId, className }: Props) {
+export function HistoricoTimelineCard({ entidade, entidadeId, className, compacto = false }: Props) {
+  const conteudoId = useId()
   const [expanded, setExpanded] = useState(false)
   const [filtro, setFiltro] = useState<FiltroHistorico>('todos')
   const [eventos, setEventos] = useState<HistoricoEventoView[]>([])
@@ -132,15 +134,15 @@ export function HistoricoTimelineCard({ entidade, entidadeId, className }: Props
   const grupos = useMemo(() => groupHistoricoByDate(eventos), [eventos])
 
   return (
-    <Card className={cn('overflow-hidden', className)}>
-      <CardHeader className="flex flex-row items-center justify-between gap-3 border-b px-4 py-3">
+    <Card className={cn('overflow-hidden', compacto && 'gap-0 rounded-xl border border-border/80 py-0 shadow-none ring-0', className)}>
+      <CardHeader className={cn('flex flex-row items-center justify-between gap-3 px-4 py-3', (!compacto || expanded) && 'border-b', compacto && 'px-5 py-5')}>
         <div className="min-w-0">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <History className="size-4 text-primary" />
+          <CardTitle className={cn('flex items-center gap-2 text-base', compacto && 'text-sm font-semibold')}>
+            <History className={cn('size-4', !compacto && 'text-primary')} />
             Histórico
             {total !== null && <Badge variant="secondary" className="h-5 text-[11px]">{total}</Badge>}
           </CardTitle>
-          <p className="mt-1 truncate text-xs text-muted-foreground">
+          <p className={cn('mt-1 truncate text-xs text-muted-foreground', compacto && !expanded && 'sr-only')}>
             {ultimoEvento
               ? `Último evento: ${ultimoEvento.descricao}`
               : total === 0
@@ -148,14 +150,14 @@ export function HistoricoTimelineCard({ entidade, entidadeId, className }: Props
                 : 'Expanda para consultar o histórico operacional.'}
           </p>
         </div>
-        <Button type="button" variant="outline" size="sm" onClick={toggleExpanded} aria-expanded={expanded}>
+        <Button type="button" variant={compacto ? 'ghost' : 'outline'} size="sm" onClick={toggleExpanded} aria-expanded={expanded} aria-controls={conteudoId} className={compacto ? 'h-8 gap-1 px-1 text-[11px]' : undefined}>
           {expanded ? 'Recolher' : 'Expandir'}
           <ChevronDown className={cn('size-4 transition-transform', expanded && 'rotate-180')} />
         </Button>
       </CardHeader>
 
       {expanded && (
-        <CardContent className="p-0">
+        <CardContent id={conteudoId} className="p-0">
           <div className="flex flex-wrap gap-2 border-b px-4 py-3">
             {FILTERS.map((item) => (
               <Button
