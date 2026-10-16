@@ -4,6 +4,7 @@ import fs from 'fs'
 import path from 'path'
 import { createHash, randomUUID } from 'crypto'
 import { createPdfTelemetry, type PdfTelemetry } from './pdf-telemetry'
+import { resolverExecutavelChromium } from './chromium-executable'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { buckets } from '@/lib/storage'
 import type { Database } from '@/types/database'
@@ -220,9 +221,7 @@ export async function htmlParaPdf(html: string, telemetry: PdfTelemetry = create
 
   const executablePath = await telemetry.observe('RESOLVE_CHROMIUM', async () => isLocal
     ? chromePath || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
-    : process.env.CHROMIUM_BINARY_URL
-      ? await chromium.executablePath(process.env.CHROMIUM_BINARY_URL)
-      : await chromium.executablePath())
+    : await resolverExecutavelChromium())
 
   await telemetry.captureExecutable(executablePath)
 

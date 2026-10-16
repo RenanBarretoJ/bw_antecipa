@@ -22,6 +22,9 @@ type ExecutableStat = {
   size?: number
   mode?: number
   mtimeMs?: number
+  ctimeMs?: number
+  dev?: number
+  ino?: number
   isFile?: boolean
   error?: SafeError
 }
@@ -163,7 +166,7 @@ export function createPdfTelemetry(documentType: DocumentType, sink: Sink = defa
       resolvedExecutablePath = safePath(executablePath)
       try {
         const info = await stat(executablePath)
-        executableStat = { exists: true, size: info.size, mode: info.mode, mtimeMs: info.mtimeMs, isFile: info.isFile() }
+        executableStat = { exists: true, size: info.size, mode: info.mode, mtimeMs: info.mtimeMs, ctimeMs: info.ctimeMs, dev: info.dev, ino: info.ino, isFile: info.isFile() }
       } catch (error) {
         const safeError = sanitizePdfError(error)
         executableStat = { exists: safeError.code === 'ENOENT' ? false : null, error: safeError }
