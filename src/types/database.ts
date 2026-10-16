@@ -2421,6 +2421,7 @@ export interface Database {
       fiscal_intake_stage: { Args: { p_id: string; p_token: string; p_generation: number; p_values: Record<string, unknown>; p_parcelas: Array<{ numero_parcela: number; valor_nominal: number; data_vencimento: string }>; p_file_name: string; p_mime_type: string; p_size_bytes: number; p_document_code: string }; Returns: undefined }
       fiscal_intake_prepare_storage: { Args: { p_id: string; p_token: string; p_generation: number }; Returns: unknown }
       fiscal_intake_get_original: { Args: { p_nf_id: string }; Returns: unknown }
+      fiscal_intake_get_originals: { Args: { p_nf_ids: string[] }; Returns: { nota_fiscal_id: string; bucket: string; path: string }[] }
       fiscal_intake_commit: { Args: { p_id: string; p_token: string; p_generation: number; p_storage_intent_id: string }; Returns: unknown }
       fiscal_intake_abort: { Args: { p_id: string; p_token: string; p_generation: number }; Returns: unknown }
       fiscal_intake_open_review: { Args: { p_id: string; p_token: string; p_generation: number; p_fiscal_sha256: string }; Returns: string }

@@ -2,6 +2,7 @@ import 'server-only'
 
 import type { AppSupabaseClient } from '@/lib/auth/authorization'
 import type { PoliticaNivelValidacao } from '@/lib/types/domain'
+import { carregarOriginaisFiscaisCanonicos } from './originais-canonicos.server'
 import {
   avaliarElegibilidadeDocumentalDaNota,
   type AvaliacaoChecklistAprovacao,
@@ -16,6 +17,7 @@ type NotaFiscalContextoRow = {
   cedente_fundo_id: string | null
   fundo_id: string | null
   arquivo_url: string | null
+  fiscal_reservation_id: string | null
 }
 
 type InstanciaRow = {
@@ -150,7 +152,7 @@ export async function carregarResumoDocumentalDasNotas(
   const [notasResult, instanciasResult, linksResult] = await Promise.all([
     supabase
       .from('notas_fiscais')
-      .select('id, cedente_id, cedente_fundo_id, fundo_id, arquivo_url')
+      .select('id, cedente_id, cedente_fundo_id, fundo_id, arquivo_url, fiscal_reservation_id')
       .in('id', ids),
     supabase
       .from('documento_requisito_instancias')
@@ -484,6 +486,7 @@ export async function carregarResumoDocumentalDasNotas(
     instanciasPorNota.set(instancia.notaFiscalId, atuais)
   }
 
+  const originaisCanonicos = await carregarOriginaisFiscaisCanonicos(notas)
   const avaliacoes = new Map<string, AvaliacaoChecklistAprovacao>()
   for (const nota of notas) {
     const contexto = contextoPorNota.get(nota.id) || politicaNaoResolvida()
@@ -501,7 +504,9 @@ export async function carregarResumoDocumentalDasNotas(
       politica: contexto.politica,
       requisitosEsperados: requisitosDaVersao,
       instancias: instanciasDaNota,
-      arquivoOriginal: nota.arquivo_url,
+      arquivoOriginal: nota.fiscal_reservation_id
+        ? originaisCanonicos.get(nota.id) ?? null
+        : nota.arquivo_url,
     }))
   }
 
