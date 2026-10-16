@@ -26,9 +26,11 @@ describe('P17 limites de rollout e historico', () => {
     expect(repair).not.toMatch(/UPDATE public.notas_fiscais|politica_snapshot\s*=|taxa_desconto\s*=|status\s*=/)
     expect(repair).toContain('OPERACAO_PREVIA_RECALCULADA_P17')
   })
-  it('gestor simula apenas editaveis e usa a mesma previa no total e na decisao', () => {
+  it('gestor simula apenas editaveis e separa a prévia da decisão dos valores persistidos na tabela', () => {
     expect(client.match(/if \(!\['solicitada', 'em_analise'\].includes\(op.status\)\) return null/g)).toHaveLength(2)
-    expect(client).toContain('antecipado: op &&')
-    expect(client).toContain('? calculoFinanceiro?.valorLiquidoTotal ?? null')
+    expect(client).toContain('const valorLiquido = calculoFinanceiro?.valorLiquidoTotal ?? op?.valor_liquido_desembolso ?? null')
+    expect(client).toContain('memoriasLegadas: memoriasCalculo')
+    const tabela = client.slice(client.indexOf('const linhasParcelas ='), client.indexOf('const aceiteDispensado'))
+    expect(tabela).not.toContain('calculoFinanceiro')
   })
 })
