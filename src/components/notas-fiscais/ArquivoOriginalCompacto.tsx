@@ -32,16 +32,16 @@ function ArquivoFiscalCard({ notaFiscalId, arquivo }: { notaFiscalId: string; ar
   }
 
   return (
-    <article className="rounded-xl border bg-card p-4" aria-label={`${arquivo.tipo} — ${arquivo.nome}`}>
+    <article className="min-w-0 rounded-xl border bg-card p-4" aria-label={`${arquivo.tipo} — ${arquivo.nome}`}>
       <div className="flex items-start gap-3">
         <FileText size={20} className="mt-1 shrink-0 text-muted-foreground" />
         <div className="min-w-0 flex-1">
-          <h4 className="font-semibold">{arquivo.tipo}{arquivo.id === 'original' ? ' original' : ''}</h4>
+          <h4 className="break-words font-semibold">{arquivo.tipo}{arquivo.id === 'original' ? ' original' : ''}</h4>
           <p className="truncate text-sm text-muted-foreground" title={arquivo.nome}>{arquivo.nome}</p>
           {arquivo.numeroVersao !== null && <p className="text-xs text-muted-foreground">Versão {arquivo.numeroVersao}</p>}
         </div>
       </div>
-      <div className="mt-3 flex flex-wrap gap-2">
+      <div className="mt-3 flex flex-wrap gap-2 [&>button]:max-w-full [&>button]:h-auto [&>button]:min-h-8 [&>button]:whitespace-normal [&>button]:text-left">
         <Button type="button" variant="outline" size="sm" disabled={working} onClick={() => void open('preview')}>
           {working ? <Loader2 size={14} className="animate-spin" /> : <Eye size={14} />}
           Visualizar {label}
@@ -89,7 +89,7 @@ export function ArquivoOriginalCompacto({ notaFiscalId, title = 'Arquivos origin
   return (
     <section aria-label={title} className="space-y-3">
       <h3 className="font-semibold">{title}</h3>
-      <div className="grid gap-3 lg:grid-cols-2">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,16rem),1fr))] gap-3">
         {state.arquivos.map(arquivo => <ArquivoFiscalCard key={`${notaFiscalId}:${arquivo.id}`} notaFiscalId={notaFiscalId} arquivo={arquivo} />)}
       </div>
     </section>
