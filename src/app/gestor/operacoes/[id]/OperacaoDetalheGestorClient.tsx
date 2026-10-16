@@ -886,6 +886,7 @@ export default function OperacaoDetalheGestorClient({
             logistica={entregas}
             compact
           />
+          <HistoricoTimelineCard entidade="operacao" entidadeId={opId} compacto />
         </div>
 
         {/* Sidebar */}
@@ -1294,7 +1295,6 @@ export default function OperacaoDetalheGestorClient({
           onConfirm={handleRemoverItem}
         />
       )}
-      <HistoricoTimelineCard entidade="operacao" entidadeId={opId} compacto />
     </div>
   )
 }
