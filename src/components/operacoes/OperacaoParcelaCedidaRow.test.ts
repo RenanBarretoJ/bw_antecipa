@@ -96,18 +96,20 @@ describe('P11.2.2 parcelas cedidas responsivas', () => {
     expect(detalheSource).toContain('desconto: memoria ? Number(memoria.desconto)')
   })
 
-  it('renderiza a tabela antes dos ramos de análise, desembolso e histórico', () => {
+  it('mantém tabela e histórico na coluna principal, antes do resumo e das ações', () => {
     const cardIndex = detalheSource.indexOf('<OperacaoParcelasTabela')
     const resumoIndex = detalheSource.indexOf('<OperacaoResumoCard', cardIndex)
     const analyseIndex = detalheSource.indexOf('{canAnalyze && <section', resumoIndex)
     const disburseIndex = detalheSource.indexOf('{canDisburse && <div', resumoIndex)
-    const historyIndex = detalheSource.indexOf('<HistoricoTimelineCard', disburseIndex)
+    const historyIndex = detalheSource.indexOf('<HistoricoTimelineCard', cardIndex)
+    const sidebarIndex = detalheSource.indexOf('<aside', cardIndex)
 
     expect(cardIndex).toBeGreaterThan(-1)
-    expect(resumoIndex).toBeGreaterThan(cardIndex)
+    expect(historyIndex).toBeGreaterThan(cardIndex)
+    expect(sidebarIndex).toBeGreaterThan(historyIndex)
+    expect(resumoIndex).toBeGreaterThan(sidebarIndex)
     expect(analyseIndex).toBeGreaterThan(resumoIndex)
     expect(disburseIndex).toBeGreaterThan(analyseIndex)
-    expect(historyIndex).toBeGreaterThan(disburseIndex)
     expect(detalheSource).toContain("const canAnalyze = op.status === 'solicitada' || op.status === 'em_analise'")
     expect(detalheSource).toContain("const canDisburse = op.status === 'aprovada'")
     expect(detalheSource).toContain('disabled={processing || !todasAceitas || taxa === null || !calculoFinanceiro}')

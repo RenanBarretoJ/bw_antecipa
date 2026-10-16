@@ -142,13 +142,13 @@ export function HistoricoTimelineCard({ entidade, entidadeId, className, compact
             Histórico
             {total !== null && <Badge variant="secondary" className="h-5 text-[11px]">{total}</Badge>}
           </CardTitle>
-          <p className={cn('mt-1 truncate text-xs text-muted-foreground', compacto && !expanded && 'sr-only')}>
+          {(!compacto || expanded) && <p className="mt-1 truncate text-xs text-muted-foreground">
             {ultimoEvento
               ? `Último evento: ${ultimoEvento.descricao}`
               : total === 0
                 ? 'Nenhum evento operacional registrado.'
                 : 'Expanda para consultar o histórico operacional.'}
-          </p>
+          </p>}
         </div>
         <Button type="button" variant={compacto ? 'ghost' : 'outline'} size="sm" onClick={toggleExpanded} aria-expanded={expanded} aria-controls={conteudoId} className={compacto ? 'h-8 gap-1 px-1 text-[11px]' : undefined}>
           {expanded ? 'Recolher' : 'Expandir'}
