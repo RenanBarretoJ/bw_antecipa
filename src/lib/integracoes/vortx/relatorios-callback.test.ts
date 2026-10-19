@@ -49,6 +49,24 @@ describe('Vortx callback contract', () => {
   it('is disabled by default', () => expect(callbackPreviewPermitido({})).toBe(false))
   it('allows only the explicitly authorized Preview', () => expect(callbackPreviewPermitido(env)).toBe(true))
   it.each(Object.keys(env))('fails closed if %s changes', key => expect(callbackPreviewPermitido({ ...env, [key]: 'other' })).toBe(false))
+  const exception = { ...env, VORTX_REPORT_CALLBACK_QUERY_REDACTION_VERIFIED: 'false', VORTX_REPORT_CALLBACK_URL_RISK_ACCEPTED: 'true' }
+  it('accepts the explicit Preview risk exception without claiming redaction', () => {
+    expect(callbackPreviewPermitido(exception)).toBe(true)
+    expect(exception.VORTX_REPORT_CALLBACK_QUERY_REDACTION_VERIFIED).toBe('false')
+  })
+  it.each(['false', '', 'TRUE', undefined])('does not infer risk acceptance from %s', value => {
+    expect(callbackPreviewPermitido({ ...exception, VORTX_REPORT_CALLBACK_URL_RISK_ACCEPTED: value })).toBe(false)
+  })
+  it.each([
+    ['VERCEL_ENV', 'production'], ['VERCEL_ENV', 'development'],
+    ['VERCEL_GIT_COMMIT_REF', 'homolog'], ['VERCEL_GIT_COMMIT_REF', 'main'],
+    ['NEXT_PUBLIC_SUPABASE_URL', 'https://wwsndnuvnjuabpbjwlck.supabase.co'],
+    ['NEXT_PUBLIC_SUPABASE_URL', 'https://fhgkmggthxikfpogrvaa.supabase.co'],
+    ['VORTX_REPORTS_PREVIEW_FUNDO_ID', 'invalid'], ['VORTX_REPORTS_PREVIEW_ENABLED', 'false'],
+    ['VORTX_REPORT_CALLBACK_PREVIEW_ENABLED', 'false'],
+  ])('risk acceptance never overrides %s=%s', (key, value) => {
+    expect(callbackPreviewPermitido({ ...exception, [key]: value })).toBe(false)
+  })
 })
 
 describe('bounded durable receipt without downloads', () => {

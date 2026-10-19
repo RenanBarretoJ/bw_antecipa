@@ -54,5 +54,7 @@ export function callbackPreviewPermitido(env: Readonly<Record<string, string | u
   return z.uuid().safeParse(env.VORTX_REPORTS_PREVIEW_FUNDO_ID).success
     && relatoriosPreviewPermitidos(env.VORTX_REPORTS_PREVIEW_FUNDO_ID ?? '', env)
     && env.VORTX_REPORT_CALLBACK_PREVIEW_ENABLED === 'true'
-    && env.VORTX_REPORT_CALLBACK_QUERY_REDACTION_VERIFIED === 'true'
+    // Temporary, operator-authorized Preview exception; this is NOT proof of log redaction.
+    && (env.VORTX_REPORT_CALLBACK_QUERY_REDACTION_VERIFIED === 'true'
+      || env.VORTX_REPORT_CALLBACK_URL_RISK_ACCEPTED === 'true')
 }

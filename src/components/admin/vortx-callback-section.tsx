@@ -79,6 +79,7 @@ export function VortxCallbackSection({ fundoId, versaoId }: { fundoId: string; v
             <div><dt className="text-muted-foreground">Cadastro informado pelo operador</dt><dd className="mt-1">{date(status.cadastroInformadoEm)}</dd></div>
             <div><dt className="text-muted-foreground">Último evento desde a geração</dt><dd className="mt-1">{date(status.ultimoEventoEm)}</dd></div></dl></div>
         {!enabled && result?.success && <p className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm">{result.bloqueio}</p>}
+        {result?.success && result.avisoRisco && <p role="note" aria-label="Risco aceito na Preview" className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-foreground">{result.avisoRisco}</p>}
         <div className="flex flex-wrap gap-2">
           <Button type="button" className="min-h-11" disabled={pending || loading || !enabled} onClick={() => setAction(status.ativo ? 'rotacionar' : 'gerar')}><Link2 aria-hidden="true" className="size-4" />{status.ativo ? 'Rotacionar e gerar nova URL' : 'Gerar URL de callback'}</Button>
           {status.ativo && <Button type="button" variant="outline" className="min-h-11" disabled={pending || loading || !enabled} onClick={() => setAction('informar_cadastro')}>Informar cadastro na Vórtx</Button>}
