@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { VortxCredentialSection } from './vortx-vrs-credential-section'
+import { VortxCallbackSection } from './vortx-callback-section'
 import { InlineCredentialFields } from './integration-inline-credential-fields'
 import type { AdminIntegracao, AdminIntegracaoVersao, AdminCredencialIntegracao } from '@/lib/admin/configuracoes-tecnicas'
 import type { VortxConfiguracaoStatus } from '@/lib/admin/vortx-vrs'
@@ -137,6 +138,9 @@ export function IntegrationDraftForm({
       <p className="text-sm text-muted-foreground">A substituicao Vortx e imediata para este fundo e ambiente, mediante confirmacao TOTP. Nao depende da publicacao do rascunho.</p>
       <VortxCredentialSection key={environment} fundoId={fundId} ambiente={environment} vortxConfig={vortxConfig} onChanged={onChanged} />
     </section>}
+    {providerKey === 'VORTX' && adapterKey === 'vortx_vrs' && <VortxCallbackSection
+      key={`${fundId}:${integration?.id ?? 'novo'}:${environment}`}
+      fundoId={fundId} versaoId={integration?.versoes.find(v => v.status === 'publicada' && v.adapter_key === 'vortx_vrs' && v.ambiente === environment)?.id} />}
     {catalogo?.credentialKind === 'usuario_senha' && history.length > 0 && <details className="rounded-xl border border-border p-4">
       <summary className="cursor-pointer text-sm font-semibold">Historico de autenticacao · {history.length}</summary>
       <div className="divide-y divide-border">{history.map((credential) => <div key={credential.id} className="flex flex-wrap items-center justify-between gap-2 py-3">
