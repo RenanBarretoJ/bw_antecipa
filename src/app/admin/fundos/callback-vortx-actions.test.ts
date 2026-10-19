@@ -18,6 +18,7 @@ const auth = { user: { id }, supabase: { rpc: mocks.rpc } }
 beforeEach(() => {
   vi.resetAllMocks()
   for (const [key, value] of Object.entries(env)) vi.stubEnv(key, value)
+  vi.stubEnv('VORTX_REPORT_CALLBACK_URL_RISK_ACCEPTED', 'false')
   mocks.contexto.mockResolvedValue({ auth, contexto: { versoes: [{ id: version }] } })
   mocks.mfa.mockResolvedValue({ nonceHash: 'c'.repeat(64) })
   mocks.rpc.mockResolvedValue({ data: status, error: null })
@@ -68,6 +69,24 @@ describe('callback operator actions', () => {
   it('failed TOTP never reaches mutation', async () => {
     mocks.mfa.mockRejectedValue(new AuthorizationError('TOTP inválido', 'FORBIDDEN'))
     expect(await alterarCallbackVortx(input)).toEqual({ success: false, message: 'TOTP inválido' }); expect(mocks.rpc).not.toHaveBeenCalled()
+  })
+  it('explicit risk exception enables generation but preserves the canonical MFA and safe warning', async () => {
+    vi.stubEnv('VORTX_REPORT_CALLBACK_QUERY_REDACTION_VERIFIED', 'false')
+    vi.stubEnv('VORTX_REPORT_CALLBACK_URL_RISK_ACCEPTED', 'true')
+    const result = await alterarCallbackVortx(input)
+    expect(result).toMatchObject({ success: true, habilitado: true, avisoRisco: expect.stringContaining('mascaramento não foi comprovado') })
+    expect(mocks.mfa).toHaveBeenCalledWith(auth, 'configurar_credencial_vortx_vrs', input.mfaCode, { consumoTransacional: true })
+    expect(mocks.rpc).toHaveBeenCalledOnce()
+  })
+  it('risk acceptance does not bypass failed TOTP', async () => {
+    vi.stubEnv('VORTX_REPORT_CALLBACK_QUERY_REDACTION_VERIFIED', 'false')
+    vi.stubEnv('VORTX_REPORT_CALLBACK_URL_RISK_ACCEPTED', 'true')
+    mocks.mfa.mockRejectedValue(new AuthorizationError('TOTP inválido', 'FORBIDDEN'))
+    expect(await alterarCallbackVortx(input)).toEqual({ success: false, message: 'TOTP inválido' })
+    expect(mocks.rpc).not.toHaveBeenCalled()
+  })
+  it('does not show a risk exception warning on the verified path', async () => {
+    expect(await obterCallbackVortx({ fundoId: id, versaoId: version })).toMatchObject({ success: true, habilitado: true, avisoRisco: null })
   })
   it('handles concurrent change and infrastructure error without leaking backend details', async () => {
     mocks.rpc.mockResolvedValue({ data: null, error: { code: '40001', message: 'sql secret' } })

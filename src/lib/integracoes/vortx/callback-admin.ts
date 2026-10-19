@@ -11,7 +11,7 @@ export const callbackStatusSchema = z.object({ id: z.uuid().nullable(), revisao:
 })
 export type CallbackStatus = z.infer<typeof callbackStatusSchema>
 export type CallbackAdminResult = { success: false; message: string } | { success: true; message: string;
-  status: CallbackStatus; habilitado: boolean; bloqueio: string | null; urlUnica?: string }
+  status: CallbackStatus; habilitado: boolean; bloqueio: string | null; avisoRisco: string | null; urlUnica?: string }
 
 export function situacaoCallback(status: CallbackStatus) {
   if (!status.id) return 'URL não gerada'

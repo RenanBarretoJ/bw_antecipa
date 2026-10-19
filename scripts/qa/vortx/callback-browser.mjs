@@ -40,6 +40,16 @@ try {
     await button.click(); await handle.dispose()
   }
   async function visit(mode) { await page.goto(`${base}/?mode=${mode}`, { waitUntil: 'networkidle0' }); if (mode !== 'unpublished') await page.waitForFunction(() => !document.querySelector('[role=status]')?.textContent.includes('Consultando')) }
+  // Exercise the real component with a safe readiness DTO; never inject a URL secret.
+  async function riskWarning() {
+    await page.evaluate(() => { window.qa.status.avisoRisco = 'Exceção autorizada somente nesta Preview: a URL contém um segredo que pode aparecer nos logs da hospedagem. O mascaramento não foi comprovado.' })
+    await press('Atualizar estado')
+    await page.waitForSelector('[role=note][aria-label="Risco aceito na Preview"]')
+    assert((await page.$eval('[role=note]', e => e.textContent)).includes('mascaramento não foi comprovado'))
+    assert(await page.$$eval('button', buttons => !buttons.find(b => b.textContent.includes('Rotacionar'))?.disabled))
+    assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+    assert.equal(await page.evaluate(() => window.qa.calls.length), 0)
+  }
   for (const [width, height, dark] of [[1440, 1000, false], [375, 812, true], [812, 375, false]]) {
     await page.setViewport({ width, height }); await page.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'reduce' }])
     for (const mode of ['empty', 'active', 'disabled', 'unpublished']) {
@@ -51,6 +61,13 @@ try {
       await page.screenshot({ path: resolve(output, `${mode}-${width}-${dark ? 'dark' : 'light'}.png`), fullPage: true })
       checks.push(`${mode}-${width}:responsive-no-auto-mutation`)
     }
+  }
+  for (const [width, height, dark] of [[1440, 1000, false], [375, 812, true], [812, 375, false]]) {
+    await page.setViewport({ width, height }); await visit('active')
+    await page.evaluate(value => document.documentElement.classList.toggle('dark', value), dark)
+    await riskWarning()
+    await page.screenshot({ path: resolve(output, `risk-accepted-${width}.png`), fullPage: true })
+    checks.push(`risk-accepted-${width}:visible-warning-enabled-no-auto-mutation`)
   }
   await page.setViewport({ width: 375, height: 812 })
   for (const mode of ['empty', 'active']) {
