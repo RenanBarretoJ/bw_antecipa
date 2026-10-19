@@ -1,0 +1,2 @@
+# Vortx Preview: preserve the exact migration bytes recorded by Supabase.
+supabase/migrations/20261019180624_vortx_report_requests_preview.sql text eol=lf

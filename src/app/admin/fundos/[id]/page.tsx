@@ -17,6 +17,7 @@ import { obterConfiguracoesTecnicasAdminFundo } from '@/lib/admin/configuracoes-
 import { obterDadosFinanceirosAdminFundo } from '@/lib/admin/dados-financeiros.server'
 import { obterConfiguracaoVortxVrsAdmin } from '@/app/admin/fundos/vortx-vrs-actions'
 import { formatCNPJ } from '@/lib/utils'
+import { relatoriosPreviewPermitidos } from '@/lib/integracoes/vortx/relatorios-operacao'
 
 const tabClass = 'inline-flex h-9 items-center rounded-lg px-3 text-sm font-medium'
 const formatDate = (value: string) => new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value))
@@ -84,7 +85,10 @@ export default async function AdminFundoDetailPage({ params, searchParams }: { p
           )}
         </DetailSection>
       ) : tab === 'integracoes' && technical ? (
-        <FundoIntegracoesTecnicas state={technical} execPage={execPage} vortxConfig={vortxConfig} />
+        <>
+          {relatoriosPreviewPermitidos(id) && <section className="flex flex-wrap items-center justify-between gap-4 rounded-xl border bg-card p-5"><div><h2 className="font-semibold">Relatórios Vórtx · Preview</h2><p className="mt-1 text-sm text-muted-foreground">Consulte estoque, cessões realizadas e exclusões. Sem enviar remessas ou importar dados.</p></div><Link href={`/admin/fundos/${id}/relatorios-vortx`} className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">Solicitar e acompanhar relatórios</Link></section>}
+          <FundoIntegracoesTecnicas state={technical} execPage={execPage} vortxConfig={vortxConfig} />
+        </>
       ) : tab === 'envios' && technical ? (
         <FundoEnviosOperacionais state={technical} />
       ) : tab === 'dados-financeiros' && dadosFinanceiros ? (
