@@ -12,9 +12,10 @@ const root = fileURLToPath(new URL('../../../', import.meta.url))
 const output = resolve(process.env.LOCALAPPDATA, 'bw-antecipa-evidence/vortx-callback-20261019', `sql-${Date.now()}`)
 mkdirSync(output, { recursive: true })
 const sha = value => createHash('sha256').update(value).digest('hex')
-const paths = ['supabase/migrations/20261019180624_vortx_report_requests_preview.sql', 'supabase/migrations/20261019201346_vortx_report_callback_inbox.sql', 'supabase/migrations/20261019203424_vortx_callback_admin_ui.sql']
+const paths = ['supabase/migrations/20261019180624_vortx_report_requests_preview.sql', 'supabase/migrations/20261019201346_vortx_report_callback_inbox.sql', 'supabase/migrations/20261019203424_vortx_callback_admin_ui.sql', 'supabase/migrations/20261019211756_vortx_report_audit_event_types.sql']
 const migrations = paths.map(path => ({ path, sql: readFileSync(resolve(root, path), 'utf8') }))
 const canonical = JSON.parse(readFileSync(new URL('./__fixtures__/report-auth-canonical.json', import.meta.url), 'utf8')).functions
+const auditConstraint = JSON.parse(readFileSync(new URL('./__fixtures__/callback-audit-constraint.json', import.meta.url), 'utf8'))
 assert.equal(canonical.length, 5)
 function docker(args) {
   const r = spawnSync('docker', args, { encoding: 'utf8', windowsHide: true, timeout: 60000 })
@@ -22,7 +23,7 @@ function docker(args) {
 }
 const inventory = () => ({ containers: docker(['ps', '-aq']).split(/\s+/).filter(Boolean).sort(), networks: docker(['network', 'ls', '-q']).split(/\s+/).filter(Boolean).sort() })
 const before = inventory()
-const report = { scope: 'LOCAL_SYNTHETIC_FOCUSED_SQL', migrations: migrations.map(m => ({ path: m.path, sha256: sha(m.sql) })),
+const report = { scope: 'LOCAL_SYNTHETIC_FOCUSED_SQL', auditConstraintSha256: sha(auditConstraint.expression), migrations: migrations.map(m => ({ path: m.path, sha256: sha(m.sql) })),
   canonicalFunctions: canonical.map(f => ({ name: f.name, sha256: sha(f.definition) })), stacks: [], error: null, DOCKER_TEST_ENV_CLEANUP: false }
 const bootstrap = `
 create role anon nologin; create role authenticated nologin; create role service_role nologin;
@@ -38,7 +39,7 @@ create table public.autorizacoes_acoes_sensiveis(id uuid primary key,user_id uui
 create table public.integracoes_fundo(id uuid primary key,fundo_id uuid,status text,provider_key text);
 create table public.integracao_fundo_versoes(id uuid primary key,integracao_fundo_id uuid,ambiente text,status text,adapter_key text,configuracao_nao_sensivel jsonb);
 create table public.integracao_fundo_versao_capacidades(integracao_fundo_versao_id uuid,fundo_id uuid,ambiente text,capability text,disponivel_desde timestamptz,disponivel_ate timestamptz);
-create table public.seguranca_eventos(id uuid default gen_random_uuid(),tipo_evento text,ator_usuario_id uuid,ator_tipo text check(ator_tipo in ('usuario','sistema','cron','integracao')),origem text,severidade text check(severidade in ('info','warning','critical')),entidade_tipo text,entidade_id uuid,dados jsonb);
+create table public.seguranca_eventos(id uuid primary key default gen_random_uuid(),tipo_evento text not null CONSTRAINT seguranca_eventos_tipo_check CHECK (${auditConstraint.expression}),ator_usuario_id uuid references profiles(id),ator_tipo text not null default 'usuario' check(ator_tipo in ('usuario','sistema','cron','integracao')),origem text not null default 'app',severidade text not null default 'info' check(severidade in ('info','warning','critical')),entidade_tipo text,entidade_id uuid,dados jsonb not null default '{}' check(jsonb_typeof(dados)='object'));
 `
 try {
   for (let iteration = 1; iteration <= 2; iteration++) {
@@ -108,6 +109,42 @@ try {
       const authorize = 'select vortx_autorizar_callback($1,$2) as r'
       const receive = 'select vortx_receber_callback($1,$2,$3,$4,$5,$6,$7) as r'
       const secretHash = sha(randomBytes(32)), newerHash = sha(randomBytes(32))
+      const deniedAudit = { code: '23514', constraint: 'seguranca_eventos_tipo_check' }
+      await assert.rejects(worker(configure, [fund, version, secretHash]), deniedAudit)
+      const rollbackNonce = sha(randomUUID())
+      await db.query("insert into autorizacoes_acoes_sensiveis values($1,$2,$3,'configurar_credencial_vortx_vrs',$4,null,null,now()+interval '2 minutes')", [randomUUID(), admin.id, admin.session, rollbackNonce])
+      await assert.rejects(user('select admin_vortx_callback_mutar($1,$2,$3,0,$4,$5)', [fund, version, 'gerar', secretHash, rollbackNonce]), deniedAudit)
+      assert.equal((await db.query('select count(*)::int n from private.vortx_callback_endpoints')).rows[0].n, 0)
+      assert.equal((await db.query('select consumida_em from autorizacoes_acoes_sensiveis where nonce_hash=$1', [rollbackNonce])).rows[0].consumida_em, null)
+      check('real_audit_constraint_reproduces_23514_and_rolls_back_endpoint_and_nonce')
+      const legacyTypes = [...auditConstraint.expression.matchAll(/'([^']+)'::text/g)].map(m => m[1])
+      assert(legacyTypes.length >= 40)
+      for (const type of legacyTypes) await db.query('insert into seguranca_eventos(tipo_evento,dados) values($1,$2)', [type, { synthetic: true }])
+      const auditsBefore = (await db.query('select * from seguranca_eventos')).rows
+      if (process.env.VORTX_CALLBACK_AUDIT_REHEARSE_PAYLOAD) {
+        const payload = JSON.parse(readFileSync(process.env.VORTX_CALLBACK_AUDIT_REHEARSE_PAYLOAD, 'utf8'))
+        assert.equal(payload.project, auditConstraint.project)
+        assert.equal(payload.entry.path, migrations[3].path)
+        assert.equal(payload.entry.sha256, sha(migrations[3].sql))
+        assert.equal(payload.querySha256, sha(payload.query))
+        await db.query('create schema supabase_migrations; create table supabase_migrations.schema_migrations(version text primary key,name text,statements text[])')
+        // These three sources really ran earlier in this disposable stack.
+        for (const migration of migrations.slice(0, 3)) {
+          const [, version, name] = migration.path.match(/\/(\d+)_(.+)\.sql$/)
+          await db.query('insert into supabase_migrations.schema_migrations values($1,$2,$3)', [version, name, [migration.sql]])
+        }
+        await db.query(payload.query)
+        assert.equal((await db.query('select name from supabase_migrations.schema_migrations where version=$1', [payload.entry.version])).rows[0].name, payload.entry.name)
+        check('exact_managed_payload_preserves_rows_functions_grants_policies_and_records_actual_execution')
+      } else await db.query(migrations[3].sql)
+      const constraintAfter = (await db.query("select pg_get_constraintdef(oid) definition,convalidated from pg_constraint where conrelid='seguranca_eventos'::regclass and conname='seguranca_eventos_tipo_check'")).rows[0]
+      assert.equal(constraintAfter.convalidated, true)
+      await db.query(migrations[3].sql)
+      assert.deepEqual((await db.query("select pg_get_constraintdef(oid) definition,convalidated from pg_constraint where conrelid='seguranca_eventos'::regclass and conname='seguranca_eventos_tipo_check'")).rows[0], constraintAfter)
+      assert.deepEqual((await db.query('select * from seguranca_eventos')).rows, auditsBefore)
+      for (const type of legacyTypes) await db.query('insert into seguranca_eventos(tipo_evento,dados) values($1,$2)', [type, { synthetic: true, after: true }])
+      await assert.rejects(db.query("insert into seguranca_eventos(tipo_evento,dados) values('QA_UNKNOWN_AUDIT_EVENT','{}')"), deniedAudit)
+      check('audit_fix_validated_idempotent_preserves_history_and_rejects_unknown_events')
       const endpoint = (await worker(configure, [fund, version, secretHash])).rows[0].r.id
       check('worker_registration_derived_from_published_active_integration')
       await assert.rejects(worker(configure, [otherFund, otherVersion, sha('cross')]), { code: '42501' })

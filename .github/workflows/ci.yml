@@ -36,6 +36,12 @@ jobs:
         if: github.head_ref == 'feature/vortx-real-data-preview' || github.ref == 'refs/heads/feature/vortx-real-data-preview'
         run: node --test scripts/qa/vortx/preview-scope.test.mjs
 
+      - name: Vortx callback SQL regression (two disposable local stacks)
+        if: github.head_ref == 'feature/vortx-real-data-preview' || github.ref == 'refs/heads/feature/vortx-real-data-preview'
+        run: node scripts/qa/vortx/callback-sql-rehearsal.mjs
+        env:
+          LOCALAPPDATA: ${{ runner.temp }}
+
       - name: Tests
         run: npm test -- --run
 
