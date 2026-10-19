@@ -1,0 +1,26 @@
+{
+  "source": "phdckowbexkkvuwnzeaf",
+  "retrievedAt": "2026-10-19",
+  "functions": [
+    {
+      "name": "auth.jwt",
+      "definition": "CREATE OR REPLACE FUNCTION auth.jwt()\n RETURNS jsonb\n LANGUAGE sql\n STABLE\nAS $function$\n  select \n    coalesce(\n        nullif(current_setting('request.jwt.claim', true), ''),\n        nullif(current_setting('request.jwt.claims', true), '')\n    )::jsonb\n$function$\n"
+    },
+    {
+      "name": "auth.uid",
+      "definition": "CREATE OR REPLACE FUNCTION auth.uid()\n RETURNS uuid\n LANGUAGE sql\n STABLE\nAS $function$\n  select \n  coalesce(\n    nullif(current_setting('request.jwt.claim.sub', true), ''),\n    (nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub')\n  )::uuid\n$function$\n"
+    },
+    {
+      "name": "private.usuario_e_super_admin",
+      "definition": "CREATE OR REPLACE FUNCTION private.usuario_e_super_admin()\n RETURNS boolean\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO ''\nAS $function$\r\n  SELECT (SELECT auth.uid()) IS NOT NULL\r\n    AND EXISTS (\r\n      SELECT 1\r\n        FROM public.profiles p\r\n        JOIN public.usuario_papeis up ON up.usuario_id = p.id\r\n       WHERE p.id = (SELECT auth.uid())\r\n         AND p.status::text = 'ativo'\r\n         AND up.papel::text = 'super_admin'\r\n         AND up.ativo IS TRUE\r\n    );\r\n$function$\n"
+    },
+    {
+      "name": "public.consumir_autorizacao_acao_sensivel",
+      "definition": "CREATE OR REPLACE FUNCTION public.consumir_autorizacao_acao_sensivel(p_action_type text, p_nonce_hash text)\n RETURNS boolean\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'auth', 'pg_temp'\nAS $function$\r\ndeclare\r\n  v_session_id uuid;\r\n  v_consumida uuid;\r\nbegin\r\n  begin\r\n    v_session_id := nullif(auth.jwt() ->> 'session_id', '')::uuid;\r\n  exception when others then\r\n    return false;\r\n  end;\r\n\r\n  update public.autorizacoes_acoes_sensiveis a\r\n     set consumida_em = clock_timestamp()\r\n   where a.user_id = auth.uid()\r\n     and a.session_id = v_session_id\r\n     and a.action_type = p_action_type\r\n     and a.nonce_hash = p_nonce_hash\r\n     and a.consumida_em is null\r\n     and a.revogada_em is null\r\n     and clock_timestamp() < a.expira_em\r\n  returning a.id into v_consumida;\r\n\r\n  return v_consumida is not null;\r\nend;\r\n$function$\n"
+    },
+    {
+      "name": "public.obter_sessao_mfa_atual",
+      "definition": "CREATE OR REPLACE FUNCTION public.obter_sessao_mfa_atual()\n RETURNS TABLE(session_id uuid, status text, elevada_em timestamp with time zone, expira_em timestamp with time zone, server_now timestamp with time zone, metodo text, factor_id text)\n LANGUAGE plpgsql\n STABLE SECURITY DEFINER\n SET search_path TO 'public', 'auth', 'pg_temp'\nAS $function$\r\ndeclare\r\n  v_user_id uuid := auth.uid();\r\n  v_session_id uuid;\r\n  v_agora timestamptz := clock_timestamp();\r\n  v_elevacao public.sessoes_elevadas%rowtype;\r\nbegin\r\n  if v_user_id is null then\r\n    return query select null::uuid, 'unauthenticated'::text, null::timestamptz,\r\n      null::timestamptz, v_agora, null::text, null::text;\r\n    return;\r\n  end if;\r\n\r\n  begin\r\n    v_session_id := nullif(auth.jwt() ->> 'session_id', '')::uuid;\r\n  exception when others then\r\n    v_session_id := null;\r\n  end;\r\n\r\n  if v_session_id is null or not exists (\r\n    select 1 from auth.sessions s\r\n     where s.id = v_session_id and s.user_id = v_user_id\r\n       and s.aal = 'aal2'\r\n       and (s.not_after is null or v_agora < s.not_after)\r\n  ) then\r\n    return query select v_session_id, 'session_invalid'::text, null::timestamptz,\r\n      null::timestamptz, v_agora, null::text, null::text;\r\n    return;\r\n  end if;\r\n\r\n  select * into v_elevacao\r\n    from public.sessoes_elevadas e\r\n   where e.user_id = v_user_id and e.session_id = v_session_id;\r\n\r\n  if not found then\r\n    return query select v_session_id, 'missing'::text, null::timestamptz,\r\n      null::timestamptz, v_agora, null::text, null::text;\r\n    return;\r\n  end if;\r\n\r\n  if v_elevacao.revogada_em is not null then\r\n    return query select v_session_id, 'revoked'::text, v_elevacao.elevada_em,\r\n      v_elevacao.expira_em, v_agora, v_elevacao.metodo, v_elevacao.factor_id;\r\n    return;\r\n  end if;\r\n\r\n  if v_agora >= v_elevacao.expira_em then\r\n    return query select v_session_id, 'expired'::text, v_elevacao.elevada_em,\r\n      v_elevacao.expira_em, v_agora, v_elevacao.metodo, v_elevacao.factor_id;\r\n    return;\r\n  end if;\r\n\r\n  if v_elevacao.metodo <> 'totp' or v_elevacao.factor_id is null or not exists (\r\n    select 1 from auth.mfa_factors f\r\n     where f.id::text = v_elevacao.factor_id\r\n       and f.user_id = v_user_id\r\n       and f.status = 'verified'\r\n  ) then\r\n    return query select v_session_id, 'factor_invalid'::text, v_elevacao.elevada_em,\r\n      v_elevacao.expira_em, v_agora, v_elevacao.metodo, v_elevacao.factor_id;\r\n    return;\r\n  end if;\r\n\r\n  return query select v_session_id, 'valid'::text, v_elevacao.elevada_em,\r\n    v_elevacao.expira_em, v_agora, v_elevacao.metodo, v_elevacao.factor_id;\r\nend;\r\n$function$\n"
+    }
+  ]
+}

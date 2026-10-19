@@ -2401,7 +2401,7 @@ export interface Database {
       risco_revisoes: { Row: RiscoRevisao & Record<string, unknown>; Insert: Partial<RiscoRevisao> & Pick<RiscoRevisao, 'risco_execucao_id' | 'fundo_id' | 'operacao_id' | 'assinatura_inputs'> & Record<string, unknown>; Update: Partial<RiscoRevisao> & Record<string, unknown>; Relationships: [] }
     }
     Views: Record<string, never>
-    Functions: import('@/lib/email-intake/automation/database').EmailAutomationFunctions & import('@/lib/email-intake/operations/database').EmailOperatorFunctions & {
+    Functions: import('@/lib/email-intake/automation/database').EmailAutomationFunctions & import('@/lib/email-intake/operations/database').EmailOperatorFunctions & import('@/lib/integracoes/vortx/relatorios-database').VortxReportFunctions & {
       destinatarios_sacado_operacao: { Args: { p_operacao_id: string }; Returns: { user_id: string; cnpj: string }[] }
       consultar_empresa_sacado: { Args: { p_fundo_id: string; p_cnpj: string }; Returns: { cnpj: string; razao_social: string } | null }
       get_user_sacado_context: { Args: Record<string, never>; Returns: import('@/lib/sacado/acessos').SacadoAcesso[] }
