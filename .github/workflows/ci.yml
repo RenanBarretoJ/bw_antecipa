@@ -9,6 +9,7 @@ on:
       - master
       - release/homolog-reconciliation-2026-10-08
       - validation/r2-2-sacado-mapping
+      - feature/vortx-real-data-preview
 
 jobs:
   validate:
@@ -32,6 +33,10 @@ jobs:
       - name: TypeScript
         run: npx tsc --noEmit
 
+      - name: Vortx Preview boundary (synthetic only)
+        if: github.head_ref == 'feature/vortx-real-data-preview' || github.ref == 'refs/heads/feature/vortx-real-data-preview'
+        run: node --test scripts/qa/vortx/preview-scope.test.mjs
+
       - name: Tests
         run: npm test -- --run
 
@@ -39,7 +44,7 @@ jobs:
         run: npm run lint
 
       - name: Build
-        if: github.head_ref != 'reconcile/main-homolog-2026-10-06' && github.ref != 'refs/heads/reconcile/main-homolog-2026-10-06' && github.head_ref != 'release/homolog-reconciliation-2026-10-08' && github.ref != 'refs/heads/release/homolog-reconciliation-2026-10-08' && github.head_ref != 'homolog' && github.ref != 'refs/heads/homolog' && github.head_ref != 'validation/r2-2-sacado-mapping' && github.ref != 'refs/heads/validation/r2-2-sacado-mapping'
+        if: github.head_ref != 'reconcile/main-homolog-2026-10-06' && github.ref != 'refs/heads/reconcile/main-homolog-2026-10-06' && github.head_ref != 'release/homolog-reconciliation-2026-10-08' && github.ref != 'refs/heads/release/homolog-reconciliation-2026-10-08' && github.head_ref != 'homolog' && github.ref != 'refs/heads/homolog' && github.head_ref != 'validation/r2-2-sacado-mapping' && github.ref != 'refs/heads/validation/r2-2-sacado-mapping' && github.head_ref != 'feature/vortx-real-data-preview' && github.ref != 'refs/heads/feature/vortx-real-data-preview'
         run: npm run build
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'https://example.supabase.co' }}
@@ -49,7 +54,7 @@ jobs:
 
       # These exact certification/rollout branches must never receive real service credentials.
       - name: Reconciliation build (isolated placeholders)
-        if: github.head_ref == 'reconcile/main-homolog-2026-10-06' || github.ref == 'refs/heads/reconcile/main-homolog-2026-10-06' || github.head_ref == 'release/homolog-reconciliation-2026-10-08' || github.ref == 'refs/heads/release/homolog-reconciliation-2026-10-08' || github.head_ref == 'homolog' || github.ref == 'refs/heads/homolog' || github.head_ref == 'validation/r2-2-sacado-mapping' || github.ref == 'refs/heads/validation/r2-2-sacado-mapping'
+        if: github.head_ref == 'reconcile/main-homolog-2026-10-06' || github.ref == 'refs/heads/reconcile/main-homolog-2026-10-06' || github.head_ref == 'release/homolog-reconciliation-2026-10-08' || github.ref == 'refs/heads/release/homolog-reconciliation-2026-10-08' || github.head_ref == 'homolog' || github.ref == 'refs/heads/homolog' || github.head_ref == 'validation/r2-2-sacado-mapping' || github.ref == 'refs/heads/validation/r2-2-sacado-mapping' || github.head_ref == 'feature/vortx-real-data-preview' || github.ref == 'refs/heads/feature/vortx-real-data-preview'
         run: npm run build
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co

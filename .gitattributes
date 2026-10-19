@@ -1,3 +1,7 @@
+# Canonical forward artifacts pinned by reconciliation/ci/contracts.json.
+supabase/migrations/20261006201914_fiscal_intake_nfse_municipal_identity_compat.sql text eol=lf
+supabase/migrations/20261006210815_c5_reader_a6_compat.sql text eol=lf
+
 # R2.2 exact-byte artifacts only. Historical migration representation is unchanged.
 supabase/migrations/20261008183349_r2_2_sacado_explicit_mapping_bootstrap.sql text eol=lf
 scripts/qa/reconciliation/ci/r2-2-* text eol=lf

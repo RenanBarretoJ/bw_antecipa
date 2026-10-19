@@ -1,0 +1,23 @@
+{
+  "scope": "VORTX_READ_VALIDATION_PREVIEW",
+  "branch": "feature/vortx-real-data-preview",
+  "baseBranch": "homolog",
+  "baseCommit": "364c5ad2db6db9134be9e08added44299fff7a87",
+  "projectRef": "phdckowbexkkvuwnzeaf",
+  "supabaseBranchId": "7c85b227-0aa4-4a12-9f03-ef76f315ec7b",
+  "supabaseBranchName": "preview/operacao-parcelas-layout4",
+  "reusesApprovedPreview": true,
+  "previousScope": "operacao-parcelas-layout4; production PR 103 merged",
+  "vercelProjectId": "prj_nKt7FiU3FWHrmRyf0mbDudM0AVIF",
+  "vercelTeamId": "team_UMQZzH6dda2EN0TLeAeUSXOJ",
+  "appBaseUrl": "https://bw-antecipa-git-feature-vortx-real-data-preview-renanbarretoj.vercel.app",
+  "runtimeEnvironment": "homologacao",
+  "productionRef": "wwsndnuvnjuabpbjwlck",
+  "homologRef": "fhgkmggthxikfpogrvaa",
+  "migrationMode": "NO_AUTOMATIC_REPLAY",
+  "originalA6Version": "20260929193129",
+  "newRealRemittanceSubmissionAllowed": false,
+  "productionDatabaseWritesAllowed": false,
+  "productionDecryptionKeyReuseAllowed": false,
+  "preserveExistingQaData": true
+}
