@@ -47,6 +47,8 @@ export function projetarPosicaoLogistica(input: {
       valor_aquisicao_nulo_preservado: valorAquisicao === null,
       matching_status_original: matching?.status || null,
       matching_metodo_original: matching?.metodo || null,
+      // Provider entry state is retained for inspection, not used as delivery evidence.
+      status_entrada_provedor: text(estoque.status_entrada_provedor),
     },
   }
 }

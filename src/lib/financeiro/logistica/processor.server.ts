@@ -7,6 +7,8 @@ import { projetarPosicaoLogistica, somarValoresConhecidos } from './snapshot'
 import { LOGISTICS_RULE_VERSION } from './types'
 import { criarAssinaturaPosicaoLogisticaBootstrap, criarAssinaturaPosicaoLogistica, criarFingerprintLogistico } from './fingerprint'
 import { resolverBootstrapFinanceiro } from '@/lib/financeiro/bootstrap/detector.server'
+import { filtroFonteFinanceira, resolverFonteFinanceira, TABELA_LEITURA_ESTOQUE } from '../fontes/fonte-financeira.server'
+import { carregarPaginasFinanceiras } from '../fontes/paginas-financeiras'
 
 type DynamicClient = ReturnType<typeof createAdminClient> & {
   from: (table: string) => ReturnType<ReturnType<typeof createAdminClient>['from']>
@@ -20,10 +22,11 @@ export async function executarPosicaoLogisticaFinanceira(input: {
   atorUsuarioId: string
 }) {
   const client = admin()
+  const fonte = await resolverFonteFinanceira(input.fundoId)
   const stockResult = await client.from('importacoes_financeiras')
     .select('id,fundo_id,provedor,data_referencia,status,completude,publicada_em')
     .eq('fundo_id', input.fundoId).eq('tipo_base', 'ESTOQUE')
-    .eq('data_referencia', input.dataReferencia).eq('status', 'PUBLICADA')
+    .eq('data_referencia', input.dataReferencia).eq('status', 'PUBLICADA').or(filtroFonteFinanceira(fonte))
     .order('publicada_em', { ascending: false }).limit(1).maybeSingle()
   if (stockResult.error) throw new Error(`Nao foi possivel resolver o Estoque D-1: ${stockResult.error.message}`)
   if (!stockResult.data) {
@@ -65,15 +68,14 @@ export async function executarPosicaoLogisticaFinanceira(input: {
   if (!matchingResult.data) throw new Error('Execute o matching da base de Estoque D-1 publicada antes da posicao logistica.')
   const matching = matchingResult.data as Row
 
-  const [positionsResult, matchesResult] = await Promise.all([
-    client.from('estoque_posicoes').select('*').eq('fundo_id', input.fundoId).eq('importacao_id', stock.id).order('id'),
-    client.from('matching_resultados').select('*').eq('fundo_id', input.fundoId)
-      .eq('execucao_id', matching.id).eq('origem_registro', 'ESTOQUE').order('origem_registro_id'),
+  const [positionsData, matchesData] = await Promise.all([
+    carregarPaginasFinanceiras((from, to) => client.from(TABELA_LEITURA_ESTOQUE).select('*')
+      .eq('fundo_id', input.fundoId).eq('importacao_id', stock.id).order('id').range(from, to)),
+    carregarPaginasFinanceiras((from, to) => client.from('matching_resultados').select('*').eq('fundo_id', input.fundoId)
+      .eq('execucao_id', matching.id).eq('origem_registro', 'ESTOQUE').order('origem_registro_id').range(from, to)),
   ])
-  if (positionsResult.error) throw new Error(`Nao foi possivel carregar a posicao D-1: ${positionsResult.error.message}`)
-  if (matchesResult.error) throw new Error(`Nao foi possivel carregar o matching da posicao: ${matchesResult.error.message}`)
-  const positions = (positionsResult.data || []) as Row[]
-  const matches = (matchesResult.data || []) as Row[]
+  const positions = positionsData as Row[]
+  const matches = matchesData as Row[]
   const matchByPosition = new Map(matches.map((row) => [String(row.origem_registro_id), row]))
   const missingMatch = positions.find((position) => !matchByPosition.has(position.id))
   if (missingMatch || matches.length !== positions.length) {

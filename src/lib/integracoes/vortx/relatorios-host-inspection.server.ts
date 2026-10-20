@@ -2,9 +2,8 @@ import 'server-only'
 import { createHash, timingSafeEqual } from 'node:crypto'
 import { z } from 'zod'
 import { createAdminClient } from '@/lib/supabase/server'
-import { descriptografarPortalFidcValor } from '@/lib/portal-fidc/credenciais'
 import { readBoundedBody } from '@/lib/email-intake/providers/graph-http.server'
-import { interpretarCallbackRelatorio, prepararEventoCallback } from './relatorios-callback'
+import { abrirEventoPreservado, eventoPreservadoSchema } from './relatorios-evento-preservado.server'
 import { relatoriosPreviewPermitidos } from './relatorios-operacao'
 
 const configSchema = z.object({
@@ -12,17 +11,6 @@ const configSchema = z.object({
   inicio: z.iso.datetime(), fim: z.iso.datetime(),
   eventos: z.array(z.uuid()).min(1).max(4).refine(ids => new Set(ids).size === ids.length),
 }).strict()
-const rowSchema = z.object({
-  id: z.uuid(), endpoint_id: z.uuid(), fundo_id: z.uuid(), ambiente: z.enum(['producao', 'homologacao']),
-  hash_evento: z.string().regex(/^[a-f0-9]{64}$/),
-  payload_criptografado: z.string().max(40000), chave_versao: z.string().min(1).max(80),
-  correlacao: z.enum(['PENDENTE', 'CORRELACIONADO', 'CONFLITANTE']),
-})
-const envelopeSchema = z.object({
-  purpose: z.literal('VORTX_CALLBACK_RELATORIO_V1'), endpointId: z.uuid(), fundoId: z.uuid(),
-  ambiente: z.enum(['producao', 'homologacao']), codigoCarteira: z.string().min(1).max(100),
-  hash: z.string().regex(/^[a-f0-9]{64}$/), evento: z.unknown(),
-}) // Historical encrypted envelopes may also contain corpoOriginal; it is never returned or retained here.
 
 type Ambiente = Readonly<Record<string, string | undefined>>
 type Leitor = (fundoId: string, ids: string[]) => Promise<unknown[]>
@@ -70,18 +58,12 @@ export async function inspecionarHostsPreservados(request: Request, options: {
     if (request.body) await readBoundedBody(new Response(request.body, { headers: request.headers }), 0)
   } catch { return reply(400) }
   try {
-    const rows = z.array(rowSchema).length(config.eventos.length).parse(await (options.ler ?? lerEventos)(config.fundoId, config.eventos))
+    const rows = z.array(eventoPreservadoSchema).length(config.eventos.length).parse(await (options.ler ?? lerEventos)(config.fundoId, config.eventos))
     if (new Set(rows.map(row => row.id)).size !== rows.length) return reply(409)
     const hosts = rows.map(row => {
       if (row.fundo_id !== config.fundoId || !config.eventos.includes(row.id)) throw new Error('SCOPE')
-      const envelope = envelopeSchema.parse(JSON.parse(descriptografarPortalFidcValor(row.payload_criptografado, row.chave_versao)))
-      const evento = interpretarCallbackRelatorio(envelope.evento)
-      const expected = prepararEventoCallback(row.endpoint_id, evento)
-      if (envelope.endpointId !== row.endpoint_id || envelope.fundoId !== row.fundo_id
-        || envelope.ambiente !== row.ambiente || envelope.codigoCarteira !== evento.idCarteira
-        || envelope.hash !== row.hash_evento || expected.hash !== row.hash_evento
-        || evento.statusRelatorio !== 'Disponível' || !evento.urlRelatorio) throw new Error('BINDING')
-      const url = new URL(evento.urlRelatorio)
+      const { evento } = abrirEventoPreservado(row)
+      const url = new URL(evento.urlRelatorio!)
       return { tipo: evento.tipoRelatorio, hostname: url.hostname, porta: url.port || '443',
         expiracao: evento.dataExpiracao, correlacao: row.correlacao }
     })

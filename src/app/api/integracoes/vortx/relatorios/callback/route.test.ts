@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-const mocks = vi.hoisted(() => ({ repo: vi.fn(), receive: vi.fn(), capture: vi.fn() }))
+const mocks = vi.hoisted(() => ({ repo: vi.fn(), receive: vi.fn(), capture: vi.fn(), after: vi.fn(), process: vi.fn() }))
+vi.mock('next/server', () => ({ after: mocks.after }))
+vi.mock('@/lib/integracoes/vortx/estoque-processamento.server', async original => ({
+  ...await original<object>(), processarProximoEstoqueVortx: mocks.process,
+}))
 vi.mock('@/lib/integracoes/vortx/relatorios-callback-capture.server', () => ({ iniciarCapturaCallback: mocks.capture }))
 vi.mock('@/lib/integracoes/vortx/relatorios-callback-repository.server', () => ({ criarRepositorioCallbackRelatorio: mocks.repo }))
 vi.mock('@/lib/integracoes/vortx/relatorios-callback-handler.server', () => ({ receberCallbackRelatorio: mocks.receive }))
@@ -8,7 +12,7 @@ const fund = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 const env = { VERCEL_ENV: 'preview', VERCEL_GIT_COMMIT_REF: 'feature/vortx-real-data-preview', NEXT_PUBLIC_SUPABASE_URL: 'https://phdckowbexkkvuwnzeaf.supabase.co',
   VORTX_REPORTS_PREVIEW_ENABLED: 'true', VORTX_REPORTS_PREVIEW_FUNDO_ID: fund, VORTX_REPORT_CALLBACK_PREVIEW_ENABLED: 'true', VORTX_REPORT_CALLBACK_QUERY_REDACTION_VERIFIED: 'true' }
 const request = () => new Request('https://example.invalid/callback?token=synthetic-secret', { method: 'POST', body: '{}' })
-afterEach(() => { vi.unstubAllEnvs(); vi.restoreAllMocks(); mocks.repo.mockReset(); mocks.receive.mockReset(); mocks.capture.mockReset() })
+afterEach(() => { vi.unstubAllEnvs(); vi.restoreAllMocks(); mocks.repo.mockReset(); mocks.receive.mockReset(); mocks.capture.mockReset(); mocks.after.mockReset(); mocks.process.mockReset() })
 describe('callback Preview boundary and sanitized logging', () => {
   it.each([200,400,401,503])('never clones or captures the request after retirement, including HTTP %i', async status => {
     for (const [key,value] of Object.entries(env)) vi.stubEnv(key,value)
@@ -61,5 +65,25 @@ describe('callback Preview boundary and sanitized logging', () => {
     expect(response.status).toBe(503); expect(await response.text()).toBe('')
     expect(log).toHaveBeenCalledWith('vortx_callback_receipt', expect.objectContaining({ etapa: 'ROTA', motivo: 'FALHA_INESPERADA' }))
     expect(JSON.stringify(log.mock.calls)).not.toContain('synthetic-secret')
+  })
+  it.each([200, 400, 401, 503])('wakes the durable processor only after committed HTTP 200, not %i', async status => {
+    for (const [key, value] of Object.entries(env)) vi.stubEnv(key, value)
+    vi.stubEnv('VORTX_REPORT_STOCK_PROCESSING_ENABLED', 'true')
+    vi.stubEnv('VORTX_REPORT_DOWNLOAD_HOSTS', 'reports.example.invalid')
+    mocks.repo.mockReturnValue({}); mocks.receive.mockResolvedValue(new Response(null, { status }))
+    vi.spyOn(console, 'info').mockImplementation(() => {})
+    expect((await POST(request())).status).toBe(status)
+    expect(mocks.after).toHaveBeenCalledTimes(status === 200 ? 1 : 0)
+    expect(mocks.process).not.toHaveBeenCalled() // Scheduling does not block the acknowledgement.
+  })
+  it('preserves the committed receipt when scheduling fails', async () => {
+    for (const [key, value] of Object.entries(env)) vi.stubEnv(key, value)
+    vi.stubEnv('VORTX_REPORT_STOCK_PROCESSING_ENABLED', 'true'); vi.stubEnv('VORTX_REPORT_DOWNLOAD_HOSTS', 'reports.example.invalid')
+    mocks.repo.mockReturnValue({}); mocks.receive.mockResolvedValue(new Response(null, { status: 200 }))
+    mocks.after.mockImplementation(() => { throw new Error('private-scheduler-error') })
+    vi.spyOn(console, 'info').mockImplementation(() => {}); const log = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    expect((await POST(request())).status).toBe(200)
+    expect(log).toHaveBeenCalledWith('vortx_stock_processing', { estado: 'AGENDAMENTO_INDISPONIVEL' })
+    expect(JSON.stringify(log.mock.calls)).not.toContain('private-scheduler-error')
   })
 })

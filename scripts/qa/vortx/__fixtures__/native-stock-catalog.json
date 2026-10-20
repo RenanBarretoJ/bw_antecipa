@@ -1,0 +1,1484 @@
+{
+  "source": "phdckowbexkkvuwnzeaf",
+  "readOnly": true,
+  "scope": "focused structural baseline; foreign keys to unrelated tables excluded",
+  "enums": [
+    {
+      "name": "cedente_status",
+      "labels": [
+        "pendente",
+        "em_analise",
+        "ativo",
+        "reprovado",
+        "bloqueado"
+      ]
+    },
+    {
+      "name": "conta_escrow_status",
+      "labels": [
+        "ativa",
+        "bloqueada",
+        "encerrada"
+      ]
+    },
+    {
+      "name": "documento_status",
+      "labels": [
+        "aguardando_envio",
+        "enviado",
+        "em_analise",
+        "aprovado",
+        "reprovado"
+      ]
+    },
+    {
+      "name": "documento_tipo",
+      "labels": [
+        "contrato_social",
+        "cartao_cnpj",
+        "rg_cpf",
+        "comprovante_endereco",
+        "extrato_bancario",
+        "balanco_patrimonial",
+        "dre",
+        "procuracao",
+        "comprovante_de_renda",
+        "representante_comprovante_residencia"
+      ]
+    },
+    {
+      "name": "movimento_tipo",
+      "labels": [
+        "credito",
+        "debito"
+      ]
+    },
+    {
+      "name": "nf_status",
+      "labels": [
+        "rascunho",
+        "submetida",
+        "em_analise",
+        "aprovada",
+        "em_antecipacao",
+        "aceita",
+        "contestada",
+        "liquidada",
+        "cancelada",
+        "requer_ajuste"
+      ]
+    },
+    {
+      "name": "operacao_status",
+      "labels": [
+        "solicitada",
+        "em_analise",
+        "aprovada",
+        "em_andamento",
+        "liquidada",
+        "inadimplente",
+        "reprovada",
+        "cancelada"
+      ]
+    },
+    {
+      "name": "tipo_conta_bancaria",
+      "labels": [
+        "corrente",
+        "poupanca"
+      ]
+    },
+    {
+      "name": "user_role",
+      "labels": [
+        "gestor",
+        "cedente",
+        "sacado",
+        "consultor",
+        "super_admin"
+      ]
+    },
+    {
+      "name": "user_status",
+      "labels": [
+        "ativo",
+        "inativo",
+        "bloqueado"
+      ]
+    }
+  ],
+  "tables": [
+    {
+      "name": "aquisicao_movimentos",
+      "columns": "id uuid NOT NULL DEFAULT gen_random_uuid(),\nimportacao_id uuid NOT NULL,\nlinha_id uuid NOT NULL,\nfundo_id uuid NOT NULL,\nprovedor text NOT NULL,\ndata_referencia date NOT NULL,\nid_recebivel text NOT NULL,\nseu_numero text,\nnumero_documento text,\ncedente_documento text,\nsacado_documento text,\ntipo_recebivel text,\nchave_nfe text,\nvalor_compra numeric(20,4) NOT NULL,\nvalor_vencimento numeric(20,4),\ndata_movimento date NOT NULL,\ndata_vencimento date,\ncodigo_movimento text,\nvigente boolean NOT NULL DEFAULT true,\npublicada_em timestamp with time zone NOT NULL DEFAULT now(),\nfingerprint_linha text NOT NULL,\nfingerprint_versao text NOT NULL DEFAULT 'RLX_FP_V1'::text,\npayload_origem jsonb NOT NULL DEFAULT '{}'::jsonb"
+    },
+    {
+      "name": "carteira_snapshots",
+      "columns": "id uuid NOT NULL DEFAULT gen_random_uuid(),\nimportacao_id uuid NOT NULL,\nlinha_id uuid NOT NULL,\nfundo_id uuid NOT NULL,\nprovedor text NOT NULL,\ndata_referencia date NOT NULL,\nfundo_externo text,\ndocumento_fundo text,\nversao_externa text,\npatrimonio_liquido numeric(20,4) NOT NULL,\npublicada_externamente_em timestamp with time zone,\nvigente boolean NOT NULL DEFAULT true,\npublicada_em timestamp with time zone NOT NULL DEFAULT now(),\npayload_origem jsonb NOT NULL DEFAULT '{}'::jsonb"
+    },
+    {
+      "name": "cedente_fundos",
+      "columns": "id uuid NOT NULL DEFAULT gen_random_uuid(),\ncedente_id uuid NOT NULL,\nfundo_id uuid NOT NULL,\ncodigo_externo text,\nstatus text NOT NULL DEFAULT 'ativo'::text,\nvigente_desde timestamp with time zone NOT NULL DEFAULT now(),\nvigente_ate timestamp with time zone,\nobservacoes text,\ncreated_at timestamp with time zone NOT NULL DEFAULT now(),\nupdated_at timestamp with time zone NOT NULL DEFAULT now(),\nbase_valor_antecipacao text NOT NULL DEFAULT 'BRUTO'::text"
+    },
+    {
+      "name": "conciliacao_execucoes",
+      "columns": "id uuid NOT NULL DEFAULT gen_random_uuid(),\nfundo_id uuid NOT NULL,\ndata_referencia date NOT NULL,\nregra_versao text NOT NULL DEFAULT 'RLX_RECON_V1'::text,\nestoque_d2_importacao_id uuid,\nestoque_d1_importacao_id uuid,\naquisicoes_d1_importacao_id uuid,\nliquidacoes_d1_importacao_id uuid,\nmatching_execucao_id uuid,\nassinatura_execucao text NOT NULL,\nstatus text NOT NULL DEFAULT 'PROCESSANDO'::text,\ncontagens jsonb NOT NULL DEFAULT '{}'::jsonb,\nvalores_agregados jsonb NOT NULL DEFAULT '{}'::jsonb,\ndetalhes jsonb NOT NULL DEFAULT '{}'::jsonb,\niniciado_em timestamp with time zone NOT NULL DEFAULT clock_timestamp(),\nfinalizado_em timestamp with time zone,\ncorrelation_id uuid NOT NULL DEFAULT gen_random_uuid(),\ncriado_por uuid,\ncreated_at timestamp with time zone NOT NULL DEFAULT clock_timestamp(),\nbootstrap boolean NOT NULL DEFAULT false"
+    },
+    {
+      "name": "conciliacao_resultados",
+      "columns": "id uuid NOT NULL DEFAULT gen_random_uuid(),\nexecucao_id uuid NOT NULL,\nfundo_id uuid NOT NULL,\nidentidade_externa text NOT NULL,\nprovedor text NOT NULL,\nvinculo_id uuid,\nnota_fiscal_id uuid,\npresente_d2 boolean NOT NULL DEFAULT false,\npresente_d1 boolean NOT NULL DEFAULT false,\nvalor_aquisicao_d2 numeric(24,2),\nvalor_aquisicao_d1 numeric(24,2),\naquisicoes_count integer NOT NULL DEFAULT 0,\naquisicoes_valor numeric(24,2) NOT NULL DEFAULT 0,\nliquidacoes_count integer NOT NULL DEFAULT 0,\nliquidacoes_valor_pago numeric(24,2) NOT NULL DEFAULT 0,\nstatus text NOT NULL,\ndetalhes jsonb NOT NULL DEFAULT '{}'::jsonb,\ncriado_em timestamp with time zone NOT NULL DEFAULT clock_timestamp()"
+    },
+    {
+      "name": "estoque_posicoes",
+      "columns": "id uuid NOT NULL DEFAULT gen_random_uuid(),\nimportacao_id uuid NOT NULL,\nlinha_id uuid NOT NULL,\nfundo_id uuid NOT NULL,\nprovedor text NOT NULL,\ndata_referencia date NOT NULL,\nid_recebivel text NOT NULL,\nseu_numero text,\nnumero_documento text,\ntipo_recebivel text,\nchave_nfe text,\ncedente_nome text,\ncedente_documento text,\nsacado_nome text,\nsacado_documento text,\nvalor_nominal numeric(20,4) NOT NULL,\nvalor_presente numeric(20,4),\nvalor_aquisicao numeric(20,4),\nvalor_pdd numeric(20,4),\ndata_emissao date,\ndata_vencimento_original date,\ndata_aquisicao date,\nsituacao_recebivel text,\nvigente boolean NOT NULL DEFAULT true,\npublicada_em timestamp with time zone NOT NULL DEFAULT now(),\nexternal_title_key text NOT NULL,\npayload_origem jsonb NOT NULL DEFAULT '{}'::jsonb"
+    },
+    {
+      "name": "fundos",
+      "columns": "id uuid NOT NULL DEFAULT gen_random_uuid(),\nnome text NOT NULL,\ncnpj text NOT NULL,\nadministradora_nome text NOT NULL,\nadministradora_cnpj text NOT NULL,\ngestora_nome text NOT NULL,\ngestora_cnpj text NOT NULL,\ncustodiante_nome text,\ncustodiante_cnpj text,\nconta_vinculada text,\nagencia text,\nbanco text,\nativo boolean DEFAULT true,\ncreated_at timestamp with time zone DEFAULT now(),\ncreated_by uuid,\nupdated_at timestamp with time zone NOT NULL DEFAULT now(),\nadministradora_endereco text,\nadministradora_ato_declaratorio text,\ncontato_nome text,\ncontato_email text"
+    },
+    {
+      "name": "importacao_arquivos",
+      "columns": "id uuid NOT NULL DEFAULT gen_random_uuid(),\nimportacao_id uuid NOT NULL,\nfundo_id uuid NOT NULL,\nordem integer NOT NULL DEFAULT 1,\nnome_arquivo text NOT NULL,\nmime_type text NOT NULL,\ntamanho_bytes bigint NOT NULL,\nhash_conteudo text NOT NULL,\nstorage_bucket text NOT NULL DEFAULT 'financeiro-importacoes'::text,\nstorage_path text NOT NULL,\ncriado_em timestamp with time zone NOT NULL DEFAULT now()"
+    },
+    {
+      "name": "importacao_linhas",
+      "columns": "id uuid NOT NULL DEFAULT gen_random_uuid(),\nimportacao_id uuid NOT NULL,\nfundo_id uuid NOT NULL,\nnumero_linha integer NOT NULL,\nstatus text NOT NULL,\ndados_brutos jsonb NOT NULL,\ndados_normalizados jsonb NOT NULL DEFAULT '{}'::jsonb,\nerros jsonb NOT NULL DEFAULT '[]'::jsonb,\navisos jsonb NOT NULL DEFAULT '[]'::jsonb,\ncriada_em timestamp with time zone NOT NULL DEFAULT now()"
+    },
+    {
+      "name": "importacoes_financeiras",
+      "columns": "id uuid NOT NULL DEFAULT gen_random_uuid(),\nfundo_id uuid NOT NULL,\nprovedor text NOT NULL,\ntipo_base text NOT NULL,\ndata_referencia date NOT NULL,\nversao_layout text NOT NULL,\nstatus text NOT NULL DEFAULT 'RECEBIDA'::text,\ncompletude text NOT NULL DEFAULT 'INCOMPLETO'::text,\norigem text NOT NULL DEFAULT 'MANUAL'::text,\nhash_conteudo text NOT NULL,\nnome_arquivo text,\nmime_type text,\ntamanho_bytes bigint NOT NULL,\nstorage_bucket text DEFAULT 'financeiro-importacoes'::text,\nstorage_path text,\nlinhas_total integer NOT NULL DEFAULT 0,\nlinhas_validas integer NOT NULL DEFAULT 0,\nlinhas_invalidas integer NOT NULL DEFAULT 0,\nlinhas_warning integer NOT NULL DEFAULT 0,\nvalor_total numeric(20,4),\nerros jsonb NOT NULL DEFAULT '[]'::jsonb,\nmetadados jsonb NOT NULL DEFAULT '{}'::jsonb,\ncorrelation_id uuid NOT NULL DEFAULT gen_random_uuid(),\ncriado_por uuid,\nrecebida_em timestamp with time zone NOT NULL DEFAULT now(),\nvalidacao_iniciada_em timestamp with time zone,\nvalidacao_concluida_em timestamp with time zone,\npublicada_em timestamp with time zone,\nsubstituida_em timestamp with time zone,\ncancelada_em timestamp with time zone,\ncreated_at timestamp with time zone NOT NULL DEFAULT now(),\nupdated_at timestamp with time zone NOT NULL DEFAULT now(),\nlayout_nome text NOT NULL,\nencoding_detectado text NOT NULL,\nlinhas_publicadas integer NOT NULL DEFAULT 0,\nsubstitui_importacao_id uuid,\nfinalizada_em timestamp with time zone,\nerro_sanitizado text,\ndeclaracao_sem_movimento boolean NOT NULL DEFAULT false,\nintegracao_fundo_versao_id uuid"
+    },
+    {
+      "name": "integracao_fundo_versao_capacidades",
+      "columns": "id uuid NOT NULL DEFAULT gen_random_uuid(),\nintegracao_fundo_versao_id uuid NOT NULL,\nfundo_id uuid NOT NULL,\nambiente text NOT NULL,\ncapability text NOT NULL,\ndisponivel_desde timestamp with time zone,\ndisponivel_ate timestamp with time zone,\ncreated_at timestamp with time zone NOT NULL DEFAULT clock_timestamp()"
+    },
+    {
+      "name": "integracao_fundo_versoes",
+      "columns": "id uuid NOT NULL DEFAULT gen_random_uuid(),\nintegracao_fundo_id uuid NOT NULL,\nversao integer NOT NULL,\nambiente text NOT NULL,\nstatus text NOT NULL DEFAULT 'rascunho'::text,\nidentificador_cliente text NOT NULL,\ncodigo_originador text,\nendpoint_base text NOT NULL,\nconfiguracao_nao_sensivel jsonb NOT NULL DEFAULT '{}'::jsonb,\ncredential_ref text NOT NULL,\nsecret_name text,\nvault_key text,\nvigente_desde timestamp with time zone NOT NULL DEFAULT now(),\nvigente_ate timestamp with time zone,\npublicada_por uuid,\npublicada_em timestamp with time zone,\ncreated_at timestamp with time zone NOT NULL DEFAULT now(),\ncredencial_integracao_id uuid,\nupdated_at timestamp with time zone NOT NULL DEFAULT now(),\nadapter_key text"
+    },
+    {
+      "name": "integracoes_fundo",
+      "columns": "id uuid NOT NULL DEFAULT gen_random_uuid(),\nfundo_id uuid NOT NULL,\nprovedor text NOT NULL,\nnome text NOT NULL,\nstatus text NOT NULL DEFAULT 'rascunho'::text,\ncreated_by uuid NOT NULL,\ncreated_at timestamp with time zone NOT NULL DEFAULT now(),\nupdated_at timestamp with time zone NOT NULL DEFAULT now(),\nprovider_key text NOT NULL,\nsystem_name text NOT NULL"
+    },
+    {
+      "name": "liquidacao_movimentos",
+      "columns": "id uuid NOT NULL DEFAULT gen_random_uuid(),\nimportacao_id uuid NOT NULL,\nlinha_id uuid NOT NULL,\nfundo_id uuid NOT NULL,\nprovedor text NOT NULL,\ndata_referencia date NOT NULL,\nid_recebivel text NOT NULL,\nseu_numero text,\nnumero_documento text,\ncedente_documento text,\nsacado_documento text,\ntipo_recebivel text,\nid_tipo_movimento text,\ntipo_movimento text,\nstatus_recebivel text,\ndata_movimento date NOT NULL,\ndata_aquisicao date,\ndata_vencimento date,\nvalor_aquisicao numeric(20,4),\nvalor_pago numeric(20,4) NOT NULL,\nvalor_nominal numeric(20,4),\njuros numeric(20,4),\nvigente boolean NOT NULL DEFAULT true,\npublicada_em timestamp with time zone NOT NULL DEFAULT now(),\nid_movimento_externo text,\nfingerprint_linha text NOT NULL,\nfingerprint_versao text NOT NULL DEFAULT 'RLX_FP_V1'::text,\npayload_origem jsonb NOT NULL DEFAULT '{}'::jsonb"
+    },
+    {
+      "name": "logs_auditoria",
+      "columns": "id uuid NOT NULL DEFAULT gen_random_uuid(),\nusuario_id uuid,\ntipo_evento text NOT NULL,\nentidade_tipo text NOT NULL,\nentidade_id uuid,\ndados_antes jsonb,\ndados_depois jsonb,\nip_origem text,\ncreated_at timestamp with time zone NOT NULL DEFAULT now(),\nator_tipo text NOT NULL DEFAULT 'usuario'::text,\norigem text NOT NULL DEFAULT 'server_action'::text,\nator_identificador text"
+    },
+    {
+      "name": "matching_candidatos",
+      "columns": "id uuid NOT NULL DEFAULT gen_random_uuid(),\nmatching_resultado_id uuid NOT NULL,\nfundo_id uuid NOT NULL,\nnota_fiscal_id uuid NOT NULL,\nordem integer NOT NULL,\nmetodo text NOT NULL,\nevidencias jsonb NOT NULL DEFAULT '{}'::jsonb,\ncriado_em timestamp with time zone NOT NULL DEFAULT clock_timestamp()"
+    },
+    {
+      "name": "matching_execucoes",
+      "columns": "id uuid NOT NULL DEFAULT gen_random_uuid(),\nfundo_id uuid NOT NULL,\ndata_referencia date NOT NULL,\nregra_versao text NOT NULL DEFAULT 'RLX_MATCH_V1'::text,\ninput_import_ids uuid[] NOT NULL,\nassinatura_execucao text NOT NULL,\nstatus text NOT NULL DEFAULT 'PROCESSANDO'::text,\ntotal_registros integer NOT NULL DEFAULT 0,\nmatched integer NOT NULL DEFAULT 0,\nambiguos integer NOT NULL DEFAULT 0,\nnao_conciliados integer NOT NULL DEFAULT 0,\nconflitos integer NOT NULL DEFAULT 0,\nvalor_total numeric(24,2) NOT NULL DEFAULT 0,\nvalor_matched numeric(24,2) NOT NULL DEFAULT 0,\nvalor_ambiguo numeric(24,2) NOT NULL DEFAULT 0,\nvalor_nao_conciliado numeric(24,2) NOT NULL DEFAULT 0,\ndetalhes jsonb NOT NULL DEFAULT '{}'::jsonb,\niniciado_em timestamp with time zone NOT NULL DEFAULT clock_timestamp(),\nfinalizado_em timestamp with time zone,\ncorrelation_id uuid NOT NULL DEFAULT gen_random_uuid(),\ncriado_por uuid,\ncreated_at timestamp with time zone NOT NULL DEFAULT clock_timestamp(),\nbootstrap boolean NOT NULL DEFAULT false"
+    },
+    {
+      "name": "matching_resultados",
+      "columns": "id uuid NOT NULL DEFAULT gen_random_uuid(),\nexecucao_id uuid NOT NULL,\nfundo_id uuid NOT NULL,\nprovedor text NOT NULL,\norigem_registro text NOT NULL,\norigem_registro_id uuid NOT NULL,\nidentidade_externa text NOT NULL,\nid_recebivel text,\nseu_numero text,\nchave_nfe text,\nnumero_documento text,\ncedente_documento text,\ncedente_nome text,\nsacado_documento text,\nsacado_nome text,\ndata_vencimento date,\nvalor_referencia numeric(24,2),\ntipo_recebivel text,\nstatus text NOT NULL,\nmetodo text NOT NULL,\nnota_fiscal_id uuid,\nvinculo_id uuid,\ncandidate_count integer NOT NULL DEFAULT 0,\nevidencias jsonb NOT NULL DEFAULT '{}'::jsonb,\ncriado_em timestamp with time zone NOT NULL DEFAULT clock_timestamp()"
+    },
+    {
+      "name": "notas_fiscais",
+      "columns": "id uuid NOT NULL DEFAULT gen_random_uuid(),\ncedente_id uuid NOT NULL,\nnumero_nf text NOT NULL,\nserie text,\nchave_acesso text,\ndata_emissao date NOT NULL,\ndata_vencimento date NOT NULL,\ncnpj_emitente text NOT NULL,\nrazao_social_emitente text NOT NULL,\ncnpj_destinatario text NOT NULL,\nrazao_social_destinatario text NOT NULL,\nvalor_bruto numeric NOT NULL,\nvalor_liquido numeric,\nvalor_icms numeric DEFAULT 0,\nvalor_iss numeric DEFAULT 0,\nvalor_pis numeric DEFAULT 0,\nvalor_cofins numeric DEFAULT 0,\nvalor_ipi numeric DEFAULT 0,\ndescricao_itens text,\ncondicao_pagamento text,\narquivo_url text,\nstatus nf_status NOT NULL DEFAULT 'rascunho'::nf_status,\ncreated_at timestamp with time zone NOT NULL DEFAULT now(),\nupdated_at timestamp with time zone NOT NULL DEFAULT now(),\npedido_sap text,\nstatus_sap text DEFAULT 'Pagamento Agendado'::text,\ntaxa_desagio numeric(10,4),\nvalor_antecipado numeric(15,2),\naprovada_gestor_em timestamp with time zone,\naprovacao_sacado_em timestamp with time zone,\nmotivo_ajuste text,\ncedente_fundo_id uuid,\nfundo_id uuid,\nsubmetida_em timestamp with time zone,\nsubmetida_por uuid,\nestabelecimento_id uuid,\nquantidade_total numeric,\nunidade_quantidade text,\nitens_estruturados jsonb,\ntipo_documento_fiscal text,\nvalor_liquido_origem text,\nvencimento_origem text,\nfiscal_proveniencia jsonb,\nfiscal_reservation_id uuid,\nsource_channel text"
+    },
+    {
+      "name": "operacoes",
+      "columns": "id uuid NOT NULL DEFAULT gen_random_uuid(),\ncedente_id uuid NOT NULL,\nconta_escrow_id uuid,\nvalor_bruto_total numeric NOT NULL,\ntaxa_desconto numeric,\nprazo_dias integer NOT NULL,\nvalor_liquido_desembolso numeric,\ndata_vencimento date NOT NULL,\nstatus operacao_status NOT NULL DEFAULT 'solicitada'::operacao_status,\naprovado_por uuid,\naprovado_em timestamp with time zone,\nmotivo_reprovacao text,\ncreated_at timestamp with time zone NOT NULL DEFAULT now(),\nupdated_at timestamp with time zone NOT NULL DEFAULT now(),\ntermo_url text,\ntermo_gerado_em timestamp with time zone,\ntaxa_desagio numeric(10,4),\nvalor_face_total numeric(15,2),\npreco_aquisicao numeric(15,2),\ntestemunha_1_id uuid,\ntestemunha_2_id uuid,\ntermo_assinado_url text,\ncomprovante_pagamento_url text,\nnotificacao_url text,\nnotificacao_gerado_em timestamp with time zone,\nnotificacao_assinada_url text,\nremessa_url text,\nremessa_gerado_em timestamp with time zone,\nremessa_enviado_em timestamp with time zone,\nremessa_fromtis_id text,\nremessa_fromtis_retorno text,\nliquidada_em timestamp with time zone,\nquitacao_url text,\nquitacao_gerado_em timestamp with time zone,\nquitacao_assinada_url text,\ncedente_fundo_id uuid,\npolitica_operacional_id uuid,\npolitica_operacional_versao_id uuid,\npolitica_versao integer,\npolitica_snapshot jsonb,\npolitica_snapshot_hash text,\ncontexto_configuracao_status text,\ncontexto_capturado_em timestamp with time zone,\naceite_sacado_exigido boolean,\naceite_sacado_status text,\naceite_sacado_em timestamp with time zone,\ncessao_efetivada_em timestamp with time zone,\nsolicitacao_idempotency_key text,\npolitica_atribuicao_id uuid,\nmetodo_calculo_financeiro text,\ncalculo_data_base date,\ncalculo_versao_motor integer,\ncalculo_memoria jsonb,\nrisco_execucao_id uuid,\nrisco_revisao_id uuid,\nrisco_decisao_snapshot text,\nrisco_assinatura_inputs text,\nrisco_avaliado_em timestamp with time zone,\ntaxa_proposta_consultor numeric,\ntaxa_proposta_por uuid,\ntaxa_proposta_consultor_id uuid,\ntaxa_proposta_em timestamp with time zone,\ncalculo_proposta_memoria jsonb,\nbase_antecipacao_snapshot jsonb"
+    },
+    {
+      "name": "plataforma_auditoria",
+      "columns": "id uuid NOT NULL DEFAULT gen_random_uuid(),\ntipo_evento text NOT NULL,\nator_usuario_id uuid,\nusuario_alvo_id uuid,\norigem text NOT NULL,\ncorrelation_id uuid NOT NULL DEFAULT gen_random_uuid(),\ndados jsonb NOT NULL DEFAULT '{}'::jsonb,\ncreated_at timestamp with time zone NOT NULL DEFAULT now()"
+    },
+    {
+      "name": "posicao_logistica_execucoes",
+      "columns": "id uuid NOT NULL DEFAULT gen_random_uuid(),\nfundo_id uuid NOT NULL,\ndata_referencia date NOT NULL,\nestoque_importacao_id uuid,\nmatching_execucao_id uuid,\nregra_versao text NOT NULL DEFAULT 'RLX_LOGISTICA_V1'::text,\nlogistica_as_of timestamp with time zone NOT NULL,\nfingerprint_logistico text NOT NULL,\nassinatura_execucao text NOT NULL,\nstatus text NOT NULL DEFAULT 'PROCESSANDO'::text,\ntotal_posicoes integer NOT NULL DEFAULT 0,\nposicoes_matched integer NOT NULL DEFAULT 0,\nposicoes_sem_match integer NOT NULL DEFAULT 0,\nposicoes_entregues integer NOT NULL DEFAULT 0,\nposicoes_em_transito integer NOT NULL DEFAULT 0,\nposicoes_indeterminadas integer NOT NULL DEFAULT 0,\nposicoes_valor_ausente integer NOT NULL DEFAULT 0,\nvalor_total_aquisicao numeric(24,4),\nvalor_matched numeric(24,4),\nvalor_sem_match numeric(24,4),\nvalor_entregue numeric(24,4),\nvalor_em_transito numeric(24,4),\nvalor_indeterminado numeric(24,4),\ndetalhes jsonb NOT NULL DEFAULT '{}'::jsonb,\ncorrelation_id uuid NOT NULL DEFAULT gen_random_uuid(),\ncriado_por uuid,\niniciado_em timestamp with time zone NOT NULL DEFAULT clock_timestamp(),\nfinalizado_em timestamp with time zone,\ncreated_at timestamp with time zone NOT NULL DEFAULT clock_timestamp(),\nbootstrap boolean NOT NULL DEFAULT false"
+    },
+    {
+      "name": "posicao_logistica_resultados",
+      "columns": "id uuid NOT NULL DEFAULT gen_random_uuid(),\nexecucao_id uuid NOT NULL,\nfundo_id uuid NOT NULL,\nestoque_importacao_id uuid NOT NULL,\nestoque_posicao_id uuid NOT NULL,\nmatching_resultado_id uuid NOT NULL,\nmatching_status text NOT NULL,\nmatching_metodo text NOT NULL,\nstatus_vinculo text NOT NULL,\nvinculo_id uuid,\nnota_fiscal_id uuid,\nstatus_logistico text,\nid_recebivel text,\nseu_numero text,\nnumero_documento text,\ncedente_nome text,\ncedente_documento text,\nsacado_nome text,\nsacado_documento text,\ndata_vencimento date,\nvalor_nominal numeric(24,4),\nvalor_aquisicao numeric(24,4),\nvalor_aquisicao_qualidade text NOT NULL,\nnf_compartilhada_entre_posicoes boolean NOT NULL DEFAULT false,\nevidencia_familia text,\ndocumento_id uuid,\ndocumento_versao_id uuid,\ndocumento_analise_id uuid,\nfundamento text NOT NULL,\nevidencias jsonb NOT NULL DEFAULT '{}'::jsonb,\ndetalhes jsonb NOT NULL DEFAULT '{}'::jsonb,\ncriado_em timestamp with time zone NOT NULL DEFAULT clock_timestamp()"
+    },
+    {
+      "name": "profiles",
+      "columns": "id uuid NOT NULL,\nrole user_role NOT NULL DEFAULT 'cedente'::user_role,\nnome_completo text NOT NULL,\nemail text NOT NULL,\ntelefone text,\nstatus user_status NOT NULL DEFAULT 'ativo'::user_status,\ncreated_at timestamp with time zone NOT NULL DEFAULT now(),\nupdated_at timestamp with time zone NOT NULL DEFAULT now(),\nmfa_obrigatorio_override boolean,\nmfa_ativado_em timestamp with time zone,\nultima_autenticacao_forte_em timestamp with time zone,\nmfa_reset_em timestamp with time zone,\nsessoes_revogadas_em timestamp with time zone,\nsenha_alterada_em timestamp with time zone"
+    },
+    {
+      "name": "titulo_nf_vinculo_chaves",
+      "columns": "id uuid NOT NULL DEFAULT gen_random_uuid(),\nvinculo_id uuid NOT NULL,\nfundo_id uuid NOT NULL,\nprovedor text NOT NULL,\ntipo_chave text NOT NULL,\nvalor_normalizado text NOT NULL,\nfonte text NOT NULL,\ncriado_em timestamp with time zone NOT NULL DEFAULT clock_timestamp()"
+    },
+    {
+      "name": "titulo_nf_vinculos",
+      "columns": "id uuid NOT NULL DEFAULT gen_random_uuid(),\nfundo_id uuid NOT NULL,\nprovedor text NOT NULL,\nidentidade_externa text NOT NULL,\nnota_fiscal_id uuid NOT NULL,\nstatus text NOT NULL DEFAULT 'ATIVO'::text,\norigem text NOT NULL,\nmetodo text NOT NULL,\nregra_versao text NOT NULL DEFAULT 'RLX_MATCH_V1'::text,\nevidencias jsonb NOT NULL DEFAULT '{}'::jsonb,\ncandidate_count integer NOT NULL DEFAULT 1,\ncriado_em timestamp with time zone NOT NULL DEFAULT clock_timestamp(),\ncriado_por uuid,\nconfirmado_em timestamp with time zone,\nconfirmado_por uuid,\nrevogado_em timestamp with time zone,\nrevogado_por uuid,\nmotivo_revogacao text,\ncorrelation_id uuid NOT NULL DEFAULT gen_random_uuid()"
+    },
+    {
+      "name": "usuario_fundos",
+      "columns": "id uuid NOT NULL DEFAULT gen_random_uuid(),\nusuario_id uuid NOT NULL,\nfundo_id uuid NOT NULL,\nperfil_no_fundo text NOT NULL DEFAULT 'gestor'::text,\nstatus text NOT NULL DEFAULT 'ativo'::text,\nprincipal boolean NOT NULL DEFAULT false,\ncreated_at timestamp with time zone NOT NULL DEFAULT now(),\nupdated_at timestamp with time zone NOT NULL DEFAULT now()"
+    },
+    {
+      "name": "usuario_papeis",
+      "columns": "usuario_id uuid NOT NULL,\npapel user_role NOT NULL,\nativo boolean NOT NULL DEFAULT true,\norigem text NOT NULL DEFAULT 'perfil_primario'::text,\natribuido_por uuid,\natribuido_em timestamp with time zone NOT NULL DEFAULT now(),\nrevogado_em timestamp with time zone,\ncreated_at timestamp with time zone NOT NULL DEFAULT now(),\nupdated_at timestamp with time zone NOT NULL DEFAULT now()"
+    }
+  ],
+  "functions": [
+    {
+      "name": "financeiro_gestor_tem_acesso_fundo",
+      "definition": "CREATE OR REPLACE FUNCTION private.financeiro_gestor_tem_acesso_fundo(p_fundo_id uuid)\n RETURNS boolean\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO ''\nAS $function$\n  SELECT private.gestor_tem_acesso_fundo_operacional(p_fundo_id);\n$function$\n"
+    },
+    {
+      "name": "gestor_tem_acesso_fundo_operacional",
+      "definition": "CREATE OR REPLACE FUNCTION private.gestor_tem_acesso_fundo_operacional(p_fundo_id uuid)\n RETURNS boolean\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO ''\nAS $function$\n  SELECT\n    p_fundo_id IS NOT NULL\n    AND (SELECT auth.uid()) IS NOT NULL\n    AND EXISTS (\n      SELECT 1\n      FROM public.profiles p\n      JOIN public.usuario_fundos uf\n        ON uf.usuario_id = p.id\n       AND uf.fundo_id = p_fundo_id\n       AND uf.status = 'ativo'\n      JOIN public.fundos f\n        ON f.id = uf.fundo_id\n       AND f.ativo\n      WHERE p.id = (SELECT auth.uid())\n        AND p.status::text = 'ativo'\n        AND (\n          p.role::text = 'gestor'\n          OR EXISTS (\n            SELECT 1\n            FROM public.usuario_papeis up\n            WHERE up.usuario_id = p.id\n              AND up.papel::text = 'gestor'\n              AND up.ativo\n          )\n        )\n    );\n$function$\n"
+    },
+    {
+      "name": "financeiro_chamada_service_role",
+      "definition": "CREATE OR REPLACE FUNCTION private.financeiro_chamada_service_role()\n RETURNS boolean\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO ''\nAS $function$\n  SELECT COALESCE((SELECT auth.jwt() ->> 'role'), '') = 'service_role';\n$function$\n"
+    },
+    {
+      "name": "matching_bloquear_mutacao_historica",
+      "definition": "CREATE OR REPLACE FUNCTION private.matching_bloquear_mutacao_historica()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n  RAISE EXCEPTION USING ERRCODE = 'P0001', MESSAGE = 'Resultados historicos P2.3 sao imutaveis';\nEND;\n$function$\n"
+    },
+    {
+      "name": "validar_linhagem_integracao_financeira",
+      "definition": "CREATE OR REPLACE FUNCTION public.validar_linhagem_integracao_financeira()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO ''\nAS $function$\nBEGIN\n  IF NEW.integracao_fundo_versao_id IS NULL THEN\n    RETURN NEW;\n  END IF;\n  IF NEW.origem <> 'CRON' THEN\n    RAISE EXCEPTION 'Somente importacao automatica pode registrar versao de integracao' USING ERRCODE = '23514';\n  END IF;\n  IF NOT EXISTS (\n    SELECT 1\n      FROM public.integracao_fundo_versoes v\n      JOIN public.integracoes_fundo i ON i.id = v.integracao_fundo_id\n      JOIN public.integracao_fundo_versao_capacidades c\n        ON c.integracao_fundo_versao_id = v.id\n     WHERE v.id = NEW.integracao_fundo_versao_id\n       AND i.fundo_id = NEW.fundo_id\n       AND c.capability = NEW.tipo_base\n  ) THEN\n    RAISE EXCEPTION 'Versao de integracao nao fornece a capability financeira informada' USING ERRCODE = '23514';\n  END IF;\n  RETURN NEW;\nEND;\n$function$\n"
+    },
+    {
+      "name": "financeiro_auditar",
+      "definition": "CREATE OR REPLACE FUNCTION private.financeiro_auditar(p_tipo_evento text, p_importacao_id uuid, p_fundo_id uuid, p_correlation_id uuid, p_dados jsonb)\n RETURNS void\n LANGUAGE sql\n SECURITY DEFINER\n SET search_path TO ''\nAS $function$\n  INSERT INTO public.plataforma_auditoria (\n    tipo_evento, ator_usuario_id, origem, correlation_id, dados\n  ) VALUES (\n    p_tipo_evento,\n    (SELECT auth.uid()),\n    'ingestao_financeira',\n    COALESCE(p_correlation_id, gen_random_uuid()),\n    jsonb_build_object(\n      'importacao_id', p_importacao_id,\n      'fundo_id', p_fundo_id\n    ) || COALESCE(p_dados, '{}'::jsonb)\n  );\n$function$\n"
+    },
+    {
+      "name": "financeiro_autorizar_tecnico",
+      "definition": "CREATE OR REPLACE FUNCTION private.financeiro_autorizar_tecnico()\n RETURNS void\n LANGUAGE plpgsql\n STABLE SECURITY DEFINER\n SET search_path TO ''\nAS $function$\nBEGIN\n  IF NOT private.financeiro_chamada_service_role() AND NOT private.usuario_e_super_admin() THEN\n    RAISE EXCEPTION USING ERRCODE = '42501', MESSAGE = 'Acesso tecnico nao autorizado';\n  END IF;\nEND;\n$function$\n"
+    },
+    {
+      "name": "financeiro_fundo_virgem",
+      "definition": "CREATE OR REPLACE FUNCTION private.financeiro_fundo_virgem(p_fundo_id uuid)\n RETURNS boolean\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO 'public', 'pg_catalog'\nAS $function$\n  SELECT NOT (\n    EXISTS (\n      SELECT 1 FROM public.operacoes o\n      JOIN public.cedente_fundos cf ON cf.id = o.cedente_fundo_id\n      WHERE cf.fundo_id = p_fundo_id\n        AND o.status IN ('em_andamento', 'inadimplente', 'liquidada')\n        AND o.cessao_efetivada_em IS NOT NULL\n    )\n    OR EXISTS (SELECT 1 FROM public.estoque_posicoes p WHERE p.fundo_id = p_fundo_id)\n    OR EXISTS (SELECT 1 FROM public.aquisicao_movimentos m WHERE m.fundo_id = p_fundo_id)\n    OR EXISTS (SELECT 1 FROM public.liquidacao_movimentos m WHERE m.fundo_id = p_fundo_id)\n  );\n$function$\n"
+    },
+    {
+      "name": "usuario_e_super_admin",
+      "definition": "CREATE OR REPLACE FUNCTION private.usuario_e_super_admin()\n RETURNS boolean\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO ''\nAS $function$\r\n  SELECT (SELECT auth.uid()) IS NOT NULL\r\n    AND EXISTS (\r\n      SELECT 1\r\n        FROM public.profiles p\r\n        JOIN public.usuario_papeis up ON up.usuario_id = p.id\r\n       WHERE p.id = (SELECT auth.uid())\r\n         AND p.status::text = 'ativo'\r\n         AND up.papel::text = 'super_admin'\r\n         AND up.ativo IS TRUE\r\n    );\r\n$function$\n"
+    }
+  ],
+  "constraints": [
+    {
+      "name": "aquisicao_movimentos_fundo_id_fkey",
+      "table": "aquisicao_movimentos",
+      "definition": "FOREIGN KEY (fundo_id) REFERENCES fundos(id) ON DELETE RESTRICT"
+    },
+    {
+      "name": "aquisicao_movimentos_importacao_id_fkey",
+      "table": "aquisicao_movimentos",
+      "definition": "FOREIGN KEY (importacao_id) REFERENCES importacoes_financeiras(id) ON DELETE RESTRICT"
+    },
+    {
+      "name": "aquisicao_movimentos_linha_id_fkey",
+      "table": "aquisicao_movimentos",
+      "definition": "FOREIGN KEY (linha_id) REFERENCES importacao_linhas(id) ON DELETE RESTRICT"
+    },
+    {
+      "name": "aquisicao_movimentos_payload_origem_check",
+      "table": "aquisicao_movimentos",
+      "definition": "CHECK ((jsonb_typeof(payload_origem) = 'object'::text))"
+    },
+    {
+      "name": "aquisicao_movimentos_pkey",
+      "table": "aquisicao_movimentos",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "aquisicoes_linha_unique",
+      "table": "aquisicao_movimentos",
+      "definition": "UNIQUE (importacao_id, linha_id)"
+    },
+    {
+      "name": "carteira_linha_unique",
+      "table": "carteira_snapshots",
+      "definition": "UNIQUE (importacao_id, linha_id)"
+    },
+    {
+      "name": "carteira_snapshots_fundo_id_fkey",
+      "table": "carteira_snapshots",
+      "definition": "FOREIGN KEY (fundo_id) REFERENCES fundos(id) ON DELETE RESTRICT"
+    },
+    {
+      "name": "carteira_snapshots_importacao_id_fkey",
+      "table": "carteira_snapshots",
+      "definition": "FOREIGN KEY (importacao_id) REFERENCES importacoes_financeiras(id) ON DELETE RESTRICT"
+    },
+    {
+      "name": "carteira_snapshots_linha_id_fkey",
+      "table": "carteira_snapshots",
+      "definition": "FOREIGN KEY (linha_id) REFERENCES importacao_linhas(id) ON DELETE RESTRICT"
+    },
+    {
+      "name": "carteira_snapshots_payload_origem_check",
+      "table": "carteira_snapshots",
+      "definition": "CHECK ((jsonb_typeof(payload_origem) = 'object'::text))"
+    },
+    {
+      "name": "carteira_snapshots_pkey",
+      "table": "carteira_snapshots",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "cedente_fundos_base_valor_antecipacao_check",
+      "table": "cedente_fundos",
+      "definition": "CHECK ((base_valor_antecipacao = ANY (ARRAY['BRUTO'::text, 'LIQUIDO'::text])))"
+    },
+    {
+      "name": "cedente_fundos_fundo_id_fkey",
+      "table": "cedente_fundos",
+      "definition": "FOREIGN KEY (fundo_id) REFERENCES fundos(id) ON DELETE RESTRICT"
+    },
+    {
+      "name": "cedente_fundos_pkey",
+      "table": "cedente_fundos",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "cedente_fundos_status_check",
+      "table": "cedente_fundos",
+      "definition": "CHECK ((status = ANY (ARRAY['ativo'::text, 'suspenso'::text, 'encerrado'::text])))"
+    },
+    {
+      "name": "cedente_fundos_vigencia_check",
+      "table": "cedente_fundos",
+      "definition": "CHECK (((vigente_ate IS NULL) OR (vigente_ate > vigente_desde)))"
+    },
+    {
+      "name": "conciliacao_execucoes_aquisicoes_d1_importacao_id_fkey",
+      "table": "conciliacao_execucoes",
+      "definition": "FOREIGN KEY (aquisicoes_d1_importacao_id) REFERENCES importacoes_financeiras(id)"
+    },
+    {
+      "name": "conciliacao_execucoes_assinatura_unique",
+      "table": "conciliacao_execucoes",
+      "definition": "UNIQUE (fundo_id, assinatura_execucao)"
+    },
+    {
+      "name": "conciliacao_execucoes_criado_por_fkey",
+      "table": "conciliacao_execucoes",
+      "definition": "FOREIGN KEY (criado_por) REFERENCES profiles(id)"
+    },
+    {
+      "name": "conciliacao_execucoes_estoque_d1_importacao_id_fkey",
+      "table": "conciliacao_execucoes",
+      "definition": "FOREIGN KEY (estoque_d1_importacao_id) REFERENCES importacoes_financeiras(id)"
+    },
+    {
+      "name": "conciliacao_execucoes_estoque_d2_importacao_id_fkey",
+      "table": "conciliacao_execucoes",
+      "definition": "FOREIGN KEY (estoque_d2_importacao_id) REFERENCES importacoes_financeiras(id)"
+    },
+    {
+      "name": "conciliacao_execucoes_fundo_id_fkey",
+      "table": "conciliacao_execucoes",
+      "definition": "FOREIGN KEY (fundo_id) REFERENCES fundos(id)"
+    },
+    {
+      "name": "conciliacao_execucoes_liquidacoes_d1_importacao_id_fkey",
+      "table": "conciliacao_execucoes",
+      "definition": "FOREIGN KEY (liquidacoes_d1_importacao_id) REFERENCES importacoes_financeiras(id)"
+    },
+    {
+      "name": "conciliacao_execucoes_matching_execucao_id_fkey",
+      "table": "conciliacao_execucoes",
+      "definition": "FOREIGN KEY (matching_execucao_id) REFERENCES matching_execucoes(id)"
+    },
+    {
+      "name": "conciliacao_execucoes_pkey",
+      "table": "conciliacao_execucoes",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "conciliacao_execucoes_regra_check",
+      "table": "conciliacao_execucoes",
+      "definition": "CHECK ((regra_versao = 'RLX_RECON_V1'::text))"
+    },
+    {
+      "name": "conciliacao_execucoes_status_check",
+      "table": "conciliacao_execucoes",
+      "definition": "CHECK ((status = ANY (ARRAY['PROCESSANDO'::text, 'CONCLUIDA'::text, 'BASE_INCOMPLETA'::text, 'FALHA'::text])))"
+    },
+    {
+      "name": "conciliacao_resultados_aquisicoes_count_check",
+      "table": "conciliacao_resultados",
+      "definition": "CHECK ((aquisicoes_count >= 0))"
+    },
+    {
+      "name": "conciliacao_resultados_execucao_id_fkey",
+      "table": "conciliacao_resultados",
+      "definition": "FOREIGN KEY (execucao_id) REFERENCES conciliacao_execucoes(id)"
+    },
+    {
+      "name": "conciliacao_resultados_fundo_id_fkey",
+      "table": "conciliacao_resultados",
+      "definition": "FOREIGN KEY (fundo_id) REFERENCES fundos(id)"
+    },
+    {
+      "name": "conciliacao_resultados_identidade_unique",
+      "table": "conciliacao_resultados",
+      "definition": "UNIQUE (execucao_id, identidade_externa)"
+    },
+    {
+      "name": "conciliacao_resultados_liquidacoes_count_check",
+      "table": "conciliacao_resultados",
+      "definition": "CHECK ((liquidacoes_count >= 0))"
+    },
+    {
+      "name": "conciliacao_resultados_nota_fiscal_id_fkey",
+      "table": "conciliacao_resultados",
+      "definition": "FOREIGN KEY (nota_fiscal_id) REFERENCES notas_fiscais(id)"
+    },
+    {
+      "name": "conciliacao_resultados_pkey",
+      "table": "conciliacao_resultados",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "conciliacao_resultados_status_check",
+      "table": "conciliacao_resultados",
+      "definition": "CHECK ((status = ANY (ARRAY['MANTIDO_CORRETO'::text, 'ENTRADA_INCORPORADA'::text, 'ENTRADA_NAO_INCORPORADA'::text, 'ENTRADA_SEM_AQUISICAO'::text, 'SAIDA_REFLETIDA'::text, 'SAIDA_NAO_REFLETIDA'::text, 'SAIDA_SEM_LIQUIDACAO'::text, 'LIQUIDADO_AINDA_NO_ESTOQUE'::text, 'DIVERGENCIA_VALOR'::text, 'NAO_CONCILIADO'::text, 'BASE_INCOMPLETA'::text, 'RETIFICACAO_ESTOQUE'::text, 'RETIFICACAO_AQUISICAO'::text, 'LIQUIDACAO_REPETIDA_MESMO_DIA'::text, 'LIQUIDACAO_PARCIAL_SALDO'::text, 'DIA_SEM_MOVIMENTO'::text, 'ARQUIVO_DUPLICADO_HASH'::text])))"
+    },
+    {
+      "name": "conciliacao_resultados_vinculo_id_fkey",
+      "table": "conciliacao_resultados",
+      "definition": "FOREIGN KEY (vinculo_id) REFERENCES titulo_nf_vinculos(id)"
+    },
+    {
+      "name": "estoque_linha_unique",
+      "table": "estoque_posicoes",
+      "definition": "UNIQUE (importacao_id, linha_id)"
+    },
+    {
+      "name": "estoque_posicoes_fundo_id_fkey",
+      "table": "estoque_posicoes",
+      "definition": "FOREIGN KEY (fundo_id) REFERENCES fundos(id) ON DELETE RESTRICT"
+    },
+    {
+      "name": "estoque_posicoes_importacao_id_fkey",
+      "table": "estoque_posicoes",
+      "definition": "FOREIGN KEY (importacao_id) REFERENCES importacoes_financeiras(id) ON DELETE RESTRICT"
+    },
+    {
+      "name": "estoque_posicoes_linha_id_fkey",
+      "table": "estoque_posicoes",
+      "definition": "FOREIGN KEY (linha_id) REFERENCES importacao_linhas(id) ON DELETE RESTRICT"
+    },
+    {
+      "name": "estoque_posicoes_payload_origem_check",
+      "table": "estoque_posicoes",
+      "definition": "CHECK ((jsonb_typeof(payload_origem) = 'object'::text))"
+    },
+    {
+      "name": "estoque_posicoes_pkey",
+      "table": "estoque_posicoes",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "fundos_created_by_fkey",
+      "table": "fundos",
+      "definition": "FOREIGN KEY (created_by) REFERENCES profiles(id) ON DELETE SET NULL"
+    },
+    {
+      "name": "fundos_pkey",
+      "table": "fundos",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "importacao_arquivos_fundo_id_fkey",
+      "table": "importacao_arquivos",
+      "definition": "FOREIGN KEY (fundo_id) REFERENCES fundos(id) ON DELETE RESTRICT"
+    },
+    {
+      "name": "importacao_arquivos_hash_conteudo_check",
+      "table": "importacao_arquivos",
+      "definition": "CHECK ((hash_conteudo ~ '^[0-9a-f]{64}$'::text))"
+    },
+    {
+      "name": "importacao_arquivos_importacao_id_fkey",
+      "table": "importacao_arquivos",
+      "definition": "FOREIGN KEY (importacao_id) REFERENCES importacoes_financeiras(id) ON DELETE RESTRICT"
+    },
+    {
+      "name": "importacao_arquivos_ordem_check",
+      "table": "importacao_arquivos",
+      "definition": "CHECK ((ordem > 0))"
+    },
+    {
+      "name": "importacao_arquivos_ordem_unique",
+      "table": "importacao_arquivos",
+      "definition": "UNIQUE (importacao_id, ordem)"
+    },
+    {
+      "name": "importacao_arquivos_path_unique",
+      "table": "importacao_arquivos",
+      "definition": "UNIQUE (storage_bucket, storage_path)"
+    },
+    {
+      "name": "importacao_arquivos_pkey",
+      "table": "importacao_arquivos",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "importacao_arquivos_tamanho_bytes_check",
+      "table": "importacao_arquivos",
+      "definition": "CHECK (((tamanho_bytes >= 0) AND (tamanho_bytes <= 20971520)))"
+    },
+    {
+      "name": "importacao_linhas_avisos_check",
+      "table": "importacao_linhas",
+      "definition": "CHECK ((jsonb_typeof(avisos) = 'array'::text))"
+    },
+    {
+      "name": "importacao_linhas_dados_brutos_check",
+      "table": "importacao_linhas",
+      "definition": "CHECK ((jsonb_typeof(dados_brutos) = 'object'::text))"
+    },
+    {
+      "name": "importacao_linhas_dados_normalizados_check",
+      "table": "importacao_linhas",
+      "definition": "CHECK ((jsonb_typeof(dados_normalizados) = 'object'::text))"
+    },
+    {
+      "name": "importacao_linhas_erros_check",
+      "table": "importacao_linhas",
+      "definition": "CHECK ((jsonb_typeof(erros) = 'array'::text))"
+    },
+    {
+      "name": "importacao_linhas_fundo_id_fkey",
+      "table": "importacao_linhas",
+      "definition": "FOREIGN KEY (fundo_id) REFERENCES fundos(id) ON DELETE RESTRICT"
+    },
+    {
+      "name": "importacao_linhas_importacao_id_fkey",
+      "table": "importacao_linhas",
+      "definition": "FOREIGN KEY (importacao_id) REFERENCES importacoes_financeiras(id) ON DELETE RESTRICT"
+    },
+    {
+      "name": "importacao_linhas_numero_linha_check",
+      "table": "importacao_linhas",
+      "definition": "CHECK ((numero_linha > 1))"
+    },
+    {
+      "name": "importacao_linhas_numero_unique",
+      "table": "importacao_linhas",
+      "definition": "UNIQUE (importacao_id, numero_linha)"
+    },
+    {
+      "name": "importacao_linhas_pkey",
+      "table": "importacao_linhas",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "importacao_linhas_status_check",
+      "table": "importacao_linhas",
+      "definition": "CHECK ((status = ANY (ARRAY['VALIDA'::text, 'INVALIDA'::text, 'WARNING'::text])))"
+    },
+    {
+      "name": "importacoes_contagem_check",
+      "table": "importacoes_financeiras",
+      "definition": "CHECK (((linhas_validas + linhas_invalidas) <= linhas_total))"
+    },
+    {
+      "name": "importacoes_declaracao_vazia_check",
+      "table": "importacoes_financeiras",
+      "definition": "CHECK ((((declaracao_sem_movimento = false) AND (nome_arquivo IS NOT NULL) AND (mime_type IS NOT NULL) AND (storage_bucket IS NOT NULL) AND (storage_path IS NOT NULL)) OR ((declaracao_sem_movimento = true) AND (tipo_base = ANY (ARRAY['AQUISICOES'::text, 'LIQUIDACOES'::text])) AND (completude = 'COMPLETO_VAZIO'::text) AND (linhas_total = 0) AND (nome_arquivo IS NULL) AND (mime_type IS NULL) AND (storage_bucket IS NULL) AND (storage_path IS NULL))))"
+    },
+    {
+      "name": "importacoes_financeiras_completude_check",
+      "table": "importacoes_financeiras",
+      "definition": "CHECK ((completude = ANY (ARRAY['COMPLETO_COM_DADOS'::text, 'COMPLETO_VAZIO'::text, 'INCOMPLETO'::text])))"
+    },
+    {
+      "name": "importacoes_financeiras_erros_check",
+      "table": "importacoes_financeiras",
+      "definition": "CHECK ((jsonb_typeof(erros) = 'array'::text))"
+    },
+    {
+      "name": "importacoes_financeiras_fundo_id_fkey",
+      "table": "importacoes_financeiras",
+      "definition": "FOREIGN KEY (fundo_id) REFERENCES fundos(id) ON DELETE RESTRICT"
+    },
+    {
+      "name": "importacoes_financeiras_hash_conteudo_check",
+      "table": "importacoes_financeiras",
+      "definition": "CHECK ((hash_conteudo ~ '^[0-9a-f]{64}$'::text))"
+    },
+    {
+      "name": "importacoes_financeiras_integracao_fundo_versao_id_fkey",
+      "table": "importacoes_financeiras",
+      "definition": "FOREIGN KEY (integracao_fundo_versao_id) REFERENCES integracao_fundo_versoes(id) ON DELETE RESTRICT"
+    },
+    {
+      "name": "importacoes_financeiras_linhas_invalidas_check",
+      "table": "importacoes_financeiras",
+      "definition": "CHECK ((linhas_invalidas >= 0))"
+    },
+    {
+      "name": "importacoes_financeiras_linhas_publicadas_check",
+      "table": "importacoes_financeiras",
+      "definition": "CHECK ((linhas_publicadas >= 0))"
+    },
+    {
+      "name": "importacoes_financeiras_linhas_total_check",
+      "table": "importacoes_financeiras",
+      "definition": "CHECK ((linhas_total >= 0))"
+    },
+    {
+      "name": "importacoes_financeiras_linhas_validas_check",
+      "table": "importacoes_financeiras",
+      "definition": "CHECK ((linhas_validas >= 0))"
+    },
+    {
+      "name": "importacoes_financeiras_linhas_warning_check",
+      "table": "importacoes_financeiras",
+      "definition": "CHECK ((linhas_warning >= 0))"
+    },
+    {
+      "name": "importacoes_financeiras_metadados_check",
+      "table": "importacoes_financeiras",
+      "definition": "CHECK ((jsonb_typeof(metadados) = 'object'::text))"
+    },
+    {
+      "name": "importacoes_financeiras_origem_check",
+      "table": "importacoes_financeiras",
+      "definition": "CHECK ((origem = ANY (ARRAY['MANUAL'::text, 'CRON'::text, 'GOLDEN_DATASET'::text])))"
+    },
+    {
+      "name": "importacoes_financeiras_pkey",
+      "table": "importacoes_financeiras",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "importacoes_financeiras_status_check",
+      "table": "importacoes_financeiras",
+      "definition": "CHECK ((status = ANY (ARRAY['RECEBIDA'::text, 'VALIDANDO'::text, 'VALIDA'::text, 'PUBLICADA'::text, 'FALHA'::text, 'RETIFICADA'::text, 'CANCELADA'::text])))"
+    },
+    {
+      "name": "importacoes_financeiras_substitui_importacao_id_fkey",
+      "table": "importacoes_financeiras",
+      "definition": "FOREIGN KEY (substitui_importacao_id) REFERENCES importacoes_financeiras(id) ON DELETE RESTRICT"
+    },
+    {
+      "name": "importacoes_financeiras_tamanho_bytes_check",
+      "table": "importacoes_financeiras",
+      "definition": "CHECK (((tamanho_bytes >= 0) AND (tamanho_bytes <= 20971520)))"
+    },
+    {
+      "name": "importacoes_financeiras_tipo_base_check",
+      "table": "importacoes_financeiras",
+      "definition": "CHECK ((tipo_base = ANY (ARRAY['CARTEIRA'::text, 'ESTOQUE'::text, 'AQUISICOES'::text, 'LIQUIDACOES'::text])))"
+    },
+    {
+      "name": "importacoes_hash_unique",
+      "table": "importacoes_financeiras",
+      "definition": "UNIQUE (fundo_id, tipo_base, data_referencia, hash_conteudo)"
+    },
+    {
+      "name": "importacoes_publicacao_check",
+      "table": "importacoes_financeiras",
+      "definition": "CHECK (((status <> ALL (ARRAY['PUBLICADA'::text, 'RETIFICADA'::text])) OR (publicada_em IS NOT NULL)))"
+    },
+    {
+      "name": "importacoes_vazio_check",
+      "table": "importacoes_financeiras",
+      "definition": "CHECK (((completude <> 'COMPLETO_VAZIO'::text) OR (linhas_total = 0)))"
+    },
+    {
+      "name": "integracao_fundo_versao_capacid_integracao_fundo_versao_id_fkey",
+      "table": "integracao_fundo_versao_capacidades",
+      "definition": "FOREIGN KEY (integracao_fundo_versao_id) REFERENCES integracao_fundo_versoes(id) ON DELETE RESTRICT"
+    },
+    {
+      "name": "integracao_fundo_versao_capacidades_fundo_id_fkey",
+      "table": "integracao_fundo_versao_capacidades",
+      "definition": "FOREIGN KEY (fundo_id) REFERENCES fundos(id) ON DELETE RESTRICT"
+    },
+    {
+      "name": "integracao_fundo_versao_capacidades_pkey",
+      "table": "integracao_fundo_versao_capacidades",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "integracao_versao_capacidades_ambiente_check",
+      "table": "integracao_fundo_versao_capacidades",
+      "definition": "CHECK ((ambiente = ANY (ARRAY['homologacao'::text, 'producao'::text])))"
+    },
+    {
+      "name": "integracao_versao_capacidades_capability_check",
+      "table": "integracao_fundo_versao_capacidades",
+      "definition": "CHECK ((capability = ANY (ARRAY['CESSAO_ENVIO'::text, 'ESTOQUE'::text, 'AQUISICOES'::text, 'LIQUIDACOES'::text, 'CARTEIRA'::text])))"
+    },
+    {
+      "name": "integracao_versao_capacidades_unique",
+      "table": "integracao_fundo_versao_capacidades",
+      "definition": "UNIQUE (integracao_fundo_versao_id, capability)"
+    },
+    {
+      "name": "integracao_versao_capacidades_vigencia_check",
+      "table": "integracao_fundo_versao_capacidades",
+      "definition": "CHECK ((((disponivel_desde IS NULL) AND (disponivel_ate IS NULL)) OR ((disponivel_desde IS NOT NULL) AND ((disponivel_ate IS NULL) OR (disponivel_ate >= disponivel_desde)))))"
+    },
+    {
+      "name": "integracao_fundo_versoes_adapter_key_check",
+      "table": "integracao_fundo_versoes",
+      "definition": "CHECK (((adapter_key IS NULL) OR (adapter_key ~ '^[a-z][a-z0-9_]{1,79}$'::text)))"
+    },
+    {
+      "name": "integracao_fundo_versoes_ambiente_check",
+      "table": "integracao_fundo_versoes",
+      "definition": "CHECK ((ambiente = ANY (ARRAY['homologacao'::text, 'producao'::text])))"
+    },
+    {
+      "name": "integracao_fundo_versoes_credential_ref_check",
+      "table": "integracao_fundo_versoes",
+      "definition": "CHECK ((credential_ref <> ''::text))"
+    },
+    {
+      "name": "integracao_fundo_versoes_integracao_fundo_id_fkey",
+      "table": "integracao_fundo_versoes",
+      "definition": "FOREIGN KEY (integracao_fundo_id) REFERENCES integracoes_fundo(id) ON DELETE RESTRICT"
+    },
+    {
+      "name": "integracao_fundo_versoes_pkey",
+      "table": "integracao_fundo_versoes",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "integracao_fundo_versoes_publicacao_check",
+      "table": "integracao_fundo_versoes",
+      "definition": "CHECK ((((status = 'publicada'::text) AND (publicada_por IS NOT NULL) AND (publicada_em IS NOT NULL)) OR (status <> 'publicada'::text)))"
+    },
+    {
+      "name": "integracao_fundo_versoes_publicada_por_fkey",
+      "table": "integracao_fundo_versoes",
+      "definition": "FOREIGN KEY (publicada_por) REFERENCES profiles(id) ON DELETE RESTRICT"
+    },
+    {
+      "name": "integracao_fundo_versoes_status_check",
+      "table": "integracao_fundo_versoes",
+      "definition": "CHECK ((status = ANY (ARRAY['rascunho'::text, 'publicada'::text, 'substituida'::text, 'cancelada'::text, 'desativada'::text])))"
+    },
+    {
+      "name": "integracao_fundo_versoes_unique",
+      "table": "integracao_fundo_versoes",
+      "definition": "UNIQUE (integracao_fundo_id, versao)"
+    },
+    {
+      "name": "integracao_fundo_versoes_versao_check",
+      "table": "integracao_fundo_versoes",
+      "definition": "CHECK ((versao > 0))"
+    },
+    {
+      "name": "integracao_fundo_versoes_vigencia_check",
+      "table": "integracao_fundo_versoes",
+      "definition": "CHECK (((vigente_ate IS NULL) OR (vigente_ate > vigente_desde)))"
+    },
+    {
+      "name": "integracoes_fundo_created_by_fkey",
+      "table": "integracoes_fundo",
+      "definition": "FOREIGN KEY (created_by) REFERENCES profiles(id) ON DELETE RESTRICT"
+    },
+    {
+      "name": "integracoes_fundo_fundo_id_fkey",
+      "table": "integracoes_fundo",
+      "definition": "FOREIGN KEY (fundo_id) REFERENCES fundos(id) ON DELETE RESTRICT"
+    },
+    {
+      "name": "integracoes_fundo_pkey",
+      "table": "integracoes_fundo",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "integracoes_fundo_provider_key_check",
+      "table": "integracoes_fundo",
+      "definition": "CHECK ((provider_key ~ '^[A-Z][A-Z0-9_]{1,63}$'::text))"
+    },
+    {
+      "name": "integracoes_fundo_status_check",
+      "table": "integracoes_fundo",
+      "definition": "CHECK ((status = ANY (ARRAY['rascunho'::text, 'ativa'::text, 'desativada'::text])))"
+    },
+    {
+      "name": "integracoes_fundo_system_name_check",
+      "table": "integracoes_fundo",
+      "definition": "CHECK (((length(TRIM(BOTH FROM system_name)) >= 2) AND (length(TRIM(BOTH FROM system_name)) <= 160)))"
+    },
+    {
+      "name": "liquidacao_movimentos_fundo_id_fkey",
+      "table": "liquidacao_movimentos",
+      "definition": "FOREIGN KEY (fundo_id) REFERENCES fundos(id) ON DELETE RESTRICT"
+    },
+    {
+      "name": "liquidacao_movimentos_importacao_id_fkey",
+      "table": "liquidacao_movimentos",
+      "definition": "FOREIGN KEY (importacao_id) REFERENCES importacoes_financeiras(id) ON DELETE RESTRICT"
+    },
+    {
+      "name": "liquidacao_movimentos_linha_id_fkey",
+      "table": "liquidacao_movimentos",
+      "definition": "FOREIGN KEY (linha_id) REFERENCES importacao_linhas(id) ON DELETE RESTRICT"
+    },
+    {
+      "name": "liquidacao_movimentos_payload_origem_check",
+      "table": "liquidacao_movimentos",
+      "definition": "CHECK ((jsonb_typeof(payload_origem) = 'object'::text))"
+    },
+    {
+      "name": "liquidacao_movimentos_pkey",
+      "table": "liquidacao_movimentos",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "liquidacoes_linha_unique",
+      "table": "liquidacao_movimentos",
+      "definition": "UNIQUE (importacao_id, linha_id)"
+    },
+    {
+      "name": "logs_auditoria_ator_tipo_check",
+      "table": "logs_auditoria",
+      "definition": "CHECK ((ator_tipo = ANY (ARRAY['usuario'::text, 'sistema'::text, 'integracao'::text, 'cron'::text])))"
+    },
+    {
+      "name": "logs_auditoria_pkey",
+      "table": "logs_auditoria",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "logs_auditoria_usuario_id_fkey",
+      "table": "logs_auditoria",
+      "definition": "FOREIGN KEY (usuario_id) REFERENCES profiles(id)"
+    },
+    {
+      "name": "matching_candidatos_fundo_id_fkey",
+      "table": "matching_candidatos",
+      "definition": "FOREIGN KEY (fundo_id) REFERENCES fundos(id)"
+    },
+    {
+      "name": "matching_candidatos_matching_resultado_id_fkey",
+      "table": "matching_candidatos",
+      "definition": "FOREIGN KEY (matching_resultado_id) REFERENCES matching_resultados(id)"
+    },
+    {
+      "name": "matching_candidatos_nota_fiscal_id_fkey",
+      "table": "matching_candidatos",
+      "definition": "FOREIGN KEY (nota_fiscal_id) REFERENCES notas_fiscais(id)"
+    },
+    {
+      "name": "matching_candidatos_ordem_check",
+      "table": "matching_candidatos",
+      "definition": "CHECK ((ordem > 0))"
+    },
+    {
+      "name": "matching_candidatos_pkey",
+      "table": "matching_candidatos",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "matching_candidatos_unique",
+      "table": "matching_candidatos",
+      "definition": "UNIQUE (matching_resultado_id, nota_fiscal_id)"
+    },
+    {
+      "name": "matching_execucoes_ambiguos_check",
+      "table": "matching_execucoes",
+      "definition": "CHECK ((ambiguos >= 0))"
+    },
+    {
+      "name": "matching_execucoes_assinatura_unique",
+      "table": "matching_execucoes",
+      "definition": "UNIQUE (fundo_id, assinatura_execucao)"
+    },
+    {
+      "name": "matching_execucoes_conflitos_check",
+      "table": "matching_execucoes",
+      "definition": "CHECK ((conflitos >= 0))"
+    },
+    {
+      "name": "matching_execucoes_criado_por_fkey",
+      "table": "matching_execucoes",
+      "definition": "FOREIGN KEY (criado_por) REFERENCES profiles(id)"
+    },
+    {
+      "name": "matching_execucoes_fundo_id_fkey",
+      "table": "matching_execucoes",
+      "definition": "FOREIGN KEY (fundo_id) REFERENCES fundos(id)"
+    },
+    {
+      "name": "matching_execucoes_inputs_check",
+      "table": "matching_execucoes",
+      "definition": "CHECK ((bootstrap OR (cardinality(input_import_ids) > 0)))"
+    },
+    {
+      "name": "matching_execucoes_matched_check",
+      "table": "matching_execucoes",
+      "definition": "CHECK ((matched >= 0))"
+    },
+    {
+      "name": "matching_execucoes_nao_conciliados_check",
+      "table": "matching_execucoes",
+      "definition": "CHECK ((nao_conciliados >= 0))"
+    },
+    {
+      "name": "matching_execucoes_pkey",
+      "table": "matching_execucoes",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "matching_execucoes_regra_check",
+      "table": "matching_execucoes",
+      "definition": "CHECK ((regra_versao = 'RLX_MATCH_V1'::text))"
+    },
+    {
+      "name": "matching_execucoes_status_check",
+      "table": "matching_execucoes",
+      "definition": "CHECK ((status = ANY (ARRAY['PROCESSANDO'::text, 'CONCLUIDA'::text, 'FALHA'::text])))"
+    },
+    {
+      "name": "matching_execucoes_total_registros_check",
+      "table": "matching_execucoes",
+      "definition": "CHECK ((total_registros >= 0))"
+    },
+    {
+      "name": "matching_resultados_candidate_count_check",
+      "table": "matching_resultados",
+      "definition": "CHECK ((candidate_count >= 0))"
+    },
+    {
+      "name": "matching_resultados_execucao_id_fkey",
+      "table": "matching_resultados",
+      "definition": "FOREIGN KEY (execucao_id) REFERENCES matching_execucoes(id)"
+    },
+    {
+      "name": "matching_resultados_fundo_id_fkey",
+      "table": "matching_resultados",
+      "definition": "FOREIGN KEY (fundo_id) REFERENCES fundos(id)"
+    },
+    {
+      "name": "matching_resultados_match_check",
+      "table": "matching_resultados",
+      "definition": "CHECK ((((status = 'MATCH_FORTE'::text) AND (nota_fiscal_id IS NOT NULL) AND (vinculo_id IS NOT NULL) AND (candidate_count = 1)) OR ((status <> 'MATCH_FORTE'::text) AND (vinculo_id IS NULL))))"
+    },
+    {
+      "name": "matching_resultados_metodo_check",
+      "table": "matching_resultados",
+      "definition": "CHECK ((metodo = ANY (ARRAY['CHAVE_NFE'::text, 'SEU_NUMERO'::text, 'COMPOSTO'::text, 'ID_RECEBIVEL'::text, 'AMBIGUO'::text, 'NAO_CONCILIADO'::text, 'CONFLITO'::text])))"
+    },
+    {
+      "name": "matching_resultados_nota_fiscal_id_fkey",
+      "table": "matching_resultados",
+      "definition": "FOREIGN KEY (nota_fiscal_id) REFERENCES notas_fiscais(id)"
+    },
+    {
+      "name": "matching_resultados_origem_registro_check",
+      "table": "matching_resultados",
+      "definition": "CHECK ((origem_registro = ANY (ARRAY['ESTOQUE'::text, 'AQUISICAO'::text, 'LIQUIDACAO'::text])))"
+    },
+    {
+      "name": "matching_resultados_origem_unique",
+      "table": "matching_resultados",
+      "definition": "UNIQUE (execucao_id, origem_registro, origem_registro_id)"
+    },
+    {
+      "name": "matching_resultados_pkey",
+      "table": "matching_resultados",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "matching_resultados_status_check",
+      "table": "matching_resultados",
+      "definition": "CHECK ((status = ANY (ARRAY['MATCH_FORTE'::text, 'AMBIGUO'::text, 'NAO_CONCILIADO'::text, 'CONFLITO'::text])))"
+    },
+    {
+      "name": "matching_resultados_vinculo_id_fkey",
+      "table": "matching_resultados",
+      "definition": "FOREIGN KEY (vinculo_id) REFERENCES titulo_nf_vinculos(id)"
+    },
+    {
+      "name": "nf_liquido_origem_check",
+      "table": "notas_fiscais",
+      "definition": "CHECK ((valor_liquido_origem = ANY (ARRAY['DOCUMENTO_EXPLICITO'::text, 'CALCULADO_RETENCOES'::text, 'LEGACY_BRUTO'::text, 'NAO_INFORMADO'::text])))"
+    },
+    {
+      "name": "nf_tipo_fiscal_check",
+      "table": "notas_fiscais",
+      "definition": "CHECK ((tipo_documento_fiscal = ANY (ARRAY['NFE'::text, 'NFSE'::text])))"
+    },
+    {
+      "name": "nf_vencimento_origem_check",
+      "table": "notas_fiscais",
+      "definition": "CHECK ((vencimento_origem = ANY (ARRAY['DOCUMENT'::text, 'MANUAL'::text])))"
+    },
+    {
+      "name": "nfse_calculated_net_evidence_check",
+      "table": "notas_fiscais",
+      "definition": "CHECK (((valor_liquido_origem IS DISTINCT FROM 'CALCULADO_RETENCOES'::text) OR (((tipo_documento_fiscal = 'NFSE'::text) AND private.nfse_calculo_liquido_valido(valor_bruto, valor_liquido, (fiscal_proveniencia -> 'calculo_liquido'::text))) IS TRUE)))"
+    },
+    {
+      "name": "nfse_fatos_check",
+      "table": "notas_fiscais",
+      "definition": "CHECK (((tipo_documento_fiscal IS DISTINCT FROM 'NFSE'::text) OR (((valor_liquido_origem IS NOT NULL) AND (((valor_liquido_origem = ANY (ARRAY['DOCUMENTO_EXPLICITO'::text, 'CALCULADO_RETENCOES'::text])) AND (valor_liquido IS NOT NULL) AND (valor_liquido > (0)::numeric) AND (valor_liquido <= valor_bruto)) OR ((valor_liquido_origem = 'NAO_INFORMADO'::text) AND (valor_liquido IS NULL))) AND (vencimento_origem IS NOT NULL) AND (data_vencimento >= data_emissao) AND (fiscal_proveniencia IS NOT NULL) AND (jsonb_typeof(fiscal_proveniencia) = 'object'::text) AND (fiscal_proveniencia ?& ARRAY['strategy'::text, 'source'::text, 'competencia'::text, 'sha256'::text, 'vencimento_documento'::text]) AND ((fiscal_proveniencia ->> 'sha256'::text) ~ '^[0-9a-f]{64}$'::text) AND ((((fiscal_proveniencia ->> 'strategy'::text) = ANY (ARRAY['danfse_v2_labels'::text, 'danfse_v2_visual'::text])) AND ((fiscal_proveniencia ->> 'source'::text) = ANY (ARRAY['PDF_TEXT_NATIVE'::text, 'PDF_VISUAL_FALLBACK'::text])) AND (chave_acesso IS NOT NULL) AND (chave_acesso ~ '^[0-9]{50}$'::text) AND (chave_acesso !~ '^([0-9])\\1{49}$'::text)) OR (((fiscal_proveniencia ->> 'strategy'::text) = 'nfse_municipal_visual'::text) AND ((fiscal_proveniencia ->> 'source'::text) = 'PDF_VISUAL_FALLBACK'::text) AND (chave_acesso IS NULL) AND (numero_nf ~ '^[1-9][0-9]{0,14}$'::text) AND (cnpj_emitente ~ '^[0-9]{14}$'::text) AND (cnpj_destinatario ~ '^[0-9]{14}$'::text) AND (valor_bruto > (0)::numeric) AND (fiscal_proveniencia ?& ARRAY['orgao_emissor'::text, 'codigo_verificacao'::text]) AND (jsonb_typeof((fiscal_proveniencia -> 'orgao_emissor'::text)) = 'string'::text) AND ((fiscal_proveniencia ->> 'orgao_emissor'::text) ~ '^(PREFEITURA|MUNICIPIO|SECRETARIA)'::text) AND ((length((fiscal_proveniencia ->> 'orgao_emissor'::text)) >= 8) AND (length((fiscal_proveniencia ->> 'orgao_emissor'::text)) <= 200)) AND ((fiscal_proveniencia ->> 'orgao_emissor'::text) = upper(btrim(regexp_replace((fiscal_proveniencia ->> 'orgao_emissor'::text), '\\s+'::text, ' '::text, 'g'::text)))) AND ((fiscal_proveniencia ->> 'orgao_emissor'::text) !~ '[^A-Z0-9 /().,''-]'::text) AND (jsonb_typeof((fiscal_proveniencia -> 'codigo_verificacao'::text)) = 'string'::text) AND ((fiscal_proveniencia ->> 'codigo_verificacao'::text) ~ '^[A-Za-z0-9][A-Za-z0-9./-]{3,79}$'::text)))) IS TRUE)))"
+    },
+    {
+      "name": "notas_fiscais_cedente_fundo_id_fkey",
+      "table": "notas_fiscais",
+      "definition": "FOREIGN KEY (cedente_fundo_id) REFERENCES cedente_fundos(id) ON DELETE RESTRICT"
+    },
+    {
+      "name": "notas_fiscais_chave_acesso_key",
+      "table": "notas_fiscais",
+      "definition": "UNIQUE (chave_acesso)"
+    },
+    {
+      "name": "notas_fiscais_fiscal_reservation_id_key",
+      "table": "notas_fiscais",
+      "definition": "UNIQUE (fiscal_reservation_id)"
+    },
+    {
+      "name": "notas_fiscais_fundo_id_fkey",
+      "table": "notas_fiscais",
+      "definition": "FOREIGN KEY (fundo_id) REFERENCES fundos(id) ON DELETE RESTRICT"
+    },
+    {
+      "name": "notas_fiscais_pkey",
+      "table": "notas_fiscais",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "notas_fiscais_quantidade_total_check",
+      "table": "notas_fiscais",
+      "definition": "CHECK (((quantidade_total IS NULL) OR (quantidade_total >= (0)::numeric)))"
+    },
+    {
+      "name": "notas_fiscais_source_channel_check",
+      "table": "notas_fiscais",
+      "definition": "CHECK ((source_channel = ANY (ARRAY['MANUAL_UPLOAD'::text, 'EMAIL_INTAKE'::text])))"
+    },
+    {
+      "name": "notas_fiscais_submetida_por_fkey",
+      "table": "notas_fiscais",
+      "definition": "FOREIGN KEY (submetida_por) REFERENCES profiles(id) ON DELETE SET NULL"
+    },
+    {
+      "name": "notas_fiscais_valor_bruto_check",
+      "table": "notas_fiscais",
+      "definition": "CHECK ((valor_bruto > (0)::numeric))"
+    },
+    {
+      "name": "operacoes_aceite_status_check",
+      "table": "operacoes",
+      "definition": "CHECK (((aceite_sacado_status IS NULL) OR (aceite_sacado_status = ANY (ARRAY['pendente'::text, 'aceito'::text, 'contestado'::text, 'dispensado'::text]))))"
+    },
+    {
+      "name": "operacoes_aprovado_por_fkey",
+      "table": "operacoes",
+      "definition": "FOREIGN KEY (aprovado_por) REFERENCES profiles(id)"
+    },
+    {
+      "name": "operacoes_cedente_fundo_fk",
+      "table": "operacoes",
+      "definition": "FOREIGN KEY (cedente_fundo_id) REFERENCES cedente_fundos(id) ON DELETE RESTRICT"
+    },
+    {
+      "name": "operacoes_contexto_completo_check",
+      "table": "operacoes",
+      "definition": "CHECK (((contexto_configuracao_status IS DISTINCT FROM 'completo'::text) OR ((cedente_fundo_id IS NOT NULL) AND (politica_operacional_id IS NOT NULL) AND (politica_operacional_versao_id IS NOT NULL) AND (politica_versao IS NOT NULL) AND (politica_snapshot IS NOT NULL) AND (politica_snapshot_hash IS NOT NULL) AND (contexto_capturado_em IS NOT NULL) AND (aceite_sacado_exigido IS NOT NULL) AND (aceite_sacado_status IS NOT NULL))))"
+    },
+    {
+      "name": "operacoes_contexto_status_check",
+      "table": "operacoes",
+      "definition": "CHECK (((contexto_configuracao_status IS NULL) OR (contexto_configuracao_status = ANY (ARRAY['completo'::text, 'legado_inferido'::text, 'legado_indefinido'::text]))))"
+    },
+    {
+      "name": "operacoes_metodo_calculo_check",
+      "table": "operacoes",
+      "definition": "CHECK (((metodo_calculo_financeiro IS NULL) OR (metodo_calculo_financeiro = ANY (ARRAY['LEGADO_MENSAL_DIAS_REAIS_30'::text, 'DIAS_UTEIS_252'::text, 'TRINTA_360'::text, 'DIAS_CORRIDOS_365'::text]))))"
+    },
+    {
+      "name": "operacoes_pkey",
+      "table": "operacoes",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "operacoes_politica_versao_check",
+      "table": "operacoes",
+      "definition": "CHECK (((politica_versao IS NULL) OR (politica_versao > 0)))"
+    },
+    {
+      "name": "operacoes_prazo_dias_check",
+      "table": "operacoes",
+      "definition": "CHECK ((prazo_dias > 0))"
+    },
+    {
+      "name": "operacoes_proposta_consultor_completa_check",
+      "table": "operacoes",
+      "definition": "CHECK ((num_nonnulls(taxa_proposta_consultor, taxa_proposta_por, taxa_proposta_consultor_id, taxa_proposta_em, calculo_proposta_memoria) = ANY (ARRAY[0, 5])))"
+    },
+    {
+      "name": "operacoes_risco_assinatura_inputs_check",
+      "table": "operacoes",
+      "definition": "CHECK (((risco_assinatura_inputs IS NULL) OR (risco_assinatura_inputs ~ '^[0-9a-f]{64}$'::text)))"
+    },
+    {
+      "name": "operacoes_risco_decisao_snapshot_check",
+      "table": "operacoes",
+      "definition": "CHECK ((risco_decisao_snapshot = ANY (ARRAY['NAO_APLICAVEL'::text, 'APTO'::text, 'REVISAO_MANUAL'::text])))"
+    },
+    {
+      "name": "operacoes_snapshot_hash_check",
+      "table": "operacoes",
+      "definition": "CHECK (((politica_snapshot IS NULL) OR (politica_snapshot_hash IS NOT NULL)))"
+    },
+    {
+      "name": "operacoes_taxa_desconto_check",
+      "table": "operacoes",
+      "definition": "CHECK ((taxa_desconto >= (0)::numeric))"
+    },
+    {
+      "name": "operacoes_taxa_proposta_consultor_check",
+      "table": "operacoes",
+      "definition": "CHECK (((taxa_proposta_consultor IS NULL) OR (taxa_proposta_consultor >= (0)::numeric)))"
+    },
+    {
+      "name": "operacoes_taxa_proposta_por_fkey",
+      "table": "operacoes",
+      "definition": "FOREIGN KEY (taxa_proposta_por) REFERENCES profiles(id) ON DELETE RESTRICT"
+    },
+    {
+      "name": "operacoes_valor_bruto_total_check",
+      "table": "operacoes",
+      "definition": "CHECK ((valor_bruto_total > (0)::numeric))"
+    },
+    {
+      "name": "plataforma_auditoria_ator_usuario_id_fkey",
+      "table": "plataforma_auditoria",
+      "definition": "FOREIGN KEY (ator_usuario_id) REFERENCES profiles(id) ON DELETE SET NULL"
+    },
+    {
+      "name": "plataforma_auditoria_dados_check",
+      "table": "plataforma_auditoria",
+      "definition": "CHECK ((jsonb_typeof(dados) = 'object'::text))"
+    },
+    {
+      "name": "plataforma_auditoria_pkey",
+      "table": "plataforma_auditoria",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "plataforma_auditoria_usuario_alvo_id_fkey",
+      "table": "plataforma_auditoria",
+      "definition": "FOREIGN KEY (usuario_alvo_id) REFERENCES profiles(id) ON DELETE SET NULL"
+    },
+    {
+      "name": "posicao_logistica_execucoes_assinatura_execucao_check",
+      "table": "posicao_logistica_execucoes",
+      "definition": "CHECK ((length(assinatura_execucao) = 64))"
+    },
+    {
+      "name": "posicao_logistica_execucoes_assinatura_unique",
+      "table": "posicao_logistica_execucoes",
+      "definition": "UNIQUE (fundo_id, assinatura_execucao)"
+    },
+    {
+      "name": "posicao_logistica_execucoes_bootstrap_check",
+      "table": "posicao_logistica_execucoes",
+      "definition": "CHECK ((bootstrap OR ((estoque_importacao_id IS NOT NULL) AND (matching_execucao_id IS NOT NULL))))"
+    },
+    {
+      "name": "posicao_logistica_execucoes_criado_por_fkey",
+      "table": "posicao_logistica_execucoes",
+      "definition": "FOREIGN KEY (criado_por) REFERENCES profiles(id)"
+    },
+    {
+      "name": "posicao_logistica_execucoes_estoque_importacao_id_fkey",
+      "table": "posicao_logistica_execucoes",
+      "definition": "FOREIGN KEY (estoque_importacao_id) REFERENCES importacoes_financeiras(id)"
+    },
+    {
+      "name": "posicao_logistica_execucoes_fingerprint_logistico_check",
+      "table": "posicao_logistica_execucoes",
+      "definition": "CHECK ((length(fingerprint_logistico) = 64))"
+    },
+    {
+      "name": "posicao_logistica_execucoes_fundo_id_fkey",
+      "table": "posicao_logistica_execucoes",
+      "definition": "FOREIGN KEY (fundo_id) REFERENCES fundos(id)"
+    },
+    {
+      "name": "posicao_logistica_execucoes_matching_execucao_id_fkey",
+      "table": "posicao_logistica_execucoes",
+      "definition": "FOREIGN KEY (matching_execucao_id) REFERENCES matching_execucoes(id)"
+    },
+    {
+      "name": "posicao_logistica_execucoes_pkey",
+      "table": "posicao_logistica_execucoes",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "posicao_logistica_execucoes_posicoes_em_transito_check",
+      "table": "posicao_logistica_execucoes",
+      "definition": "CHECK ((posicoes_em_transito >= 0))"
+    },
+    {
+      "name": "posicao_logistica_execucoes_posicoes_entregues_check",
+      "table": "posicao_logistica_execucoes",
+      "definition": "CHECK ((posicoes_entregues >= 0))"
+    },
+    {
+      "name": "posicao_logistica_execucoes_posicoes_indeterminadas_check",
+      "table": "posicao_logistica_execucoes",
+      "definition": "CHECK ((posicoes_indeterminadas >= 0))"
+    },
+    {
+      "name": "posicao_logistica_execucoes_posicoes_matched_check",
+      "table": "posicao_logistica_execucoes",
+      "definition": "CHECK ((posicoes_matched >= 0))"
+    },
+    {
+      "name": "posicao_logistica_execucoes_posicoes_sem_match_check",
+      "table": "posicao_logistica_execucoes",
+      "definition": "CHECK ((posicoes_sem_match >= 0))"
+    },
+    {
+      "name": "posicao_logistica_execucoes_posicoes_valor_ausente_check",
+      "table": "posicao_logistica_execucoes",
+      "definition": "CHECK ((posicoes_valor_ausente >= 0))"
+    },
+    {
+      "name": "posicao_logistica_execucoes_regra_versao_check",
+      "table": "posicao_logistica_execucoes",
+      "definition": "CHECK ((regra_versao = 'RLX_LOGISTICA_V1'::text))"
+    },
+    {
+      "name": "posicao_logistica_execucoes_status_check",
+      "table": "posicao_logistica_execucoes",
+      "definition": "CHECK ((status = ANY (ARRAY['PROCESSANDO'::text, 'CONCLUIDA'::text, 'BASE_INCOMPLETA'::text, 'FALHA'::text])))"
+    },
+    {
+      "name": "posicao_logistica_execucoes_total_posicoes_check",
+      "table": "posicao_logistica_execucoes",
+      "definition": "CHECK ((total_posicoes >= 0))"
+    },
+    {
+      "name": "posicao_logistica_resultado_valor_aquisicao_qualidade_check",
+      "table": "posicao_logistica_resultados",
+      "definition": "CHECK ((valor_aquisicao_qualidade = ANY (ARRAY['PRESENTE'::text, 'AUSENTE'::text])))"
+    },
+    {
+      "name": "posicao_logistica_resultados_coerencia",
+      "table": "posicao_logistica_resultados",
+      "definition": "CHECK ((((status_vinculo = 'SEM_MATCH_FINANCEIRO_NF'::text) AND (nota_fiscal_id IS NULL) AND (status_logistico IS NULL)) OR ((status_vinculo = 'MATCHED_FINANCEIRO_NF'::text) AND (nota_fiscal_id IS NOT NULL) AND (status_logistico IS NOT NULL))))"
+    },
+    {
+      "name": "posicao_logistica_resultados_estoque_importacao_id_fkey",
+      "table": "posicao_logistica_resultados",
+      "definition": "FOREIGN KEY (estoque_importacao_id) REFERENCES importacoes_financeiras(id)"
+    },
+    {
+      "name": "posicao_logistica_resultados_estoque_posicao_id_fkey",
+      "table": "posicao_logistica_resultados",
+      "definition": "FOREIGN KEY (estoque_posicao_id) REFERENCES estoque_posicoes(id)"
+    },
+    {
+      "name": "posicao_logistica_resultados_evidencia_familia_check",
+      "table": "posicao_logistica_resultados",
+      "definition": "CHECK ((evidencia_familia = ANY (ARRAY['cte'::text, 'comprovante_entrega'::text])))"
+    },
+    {
+      "name": "posicao_logistica_resultados_execucao_id_fkey",
+      "table": "posicao_logistica_resultados",
+      "definition": "FOREIGN KEY (execucao_id) REFERENCES posicao_logistica_execucoes(id)"
+    },
+    {
+      "name": "posicao_logistica_resultados_fundo_id_fkey",
+      "table": "posicao_logistica_resultados",
+      "definition": "FOREIGN KEY (fundo_id) REFERENCES fundos(id)"
+    },
+    {
+      "name": "posicao_logistica_resultados_matching_resultado_id_fkey",
+      "table": "posicao_logistica_resultados",
+      "definition": "FOREIGN KEY (matching_resultado_id) REFERENCES matching_resultados(id)"
+    },
+    {
+      "name": "posicao_logistica_resultados_matching_status_check",
+      "table": "posicao_logistica_resultados",
+      "definition": "CHECK ((matching_status = ANY (ARRAY['MATCH_FORTE'::text, 'AMBIGUO'::text, 'NAO_CONCILIADO'::text, 'CONFLITO'::text])))"
+    },
+    {
+      "name": "posicao_logistica_resultados_nota_fiscal_id_fkey",
+      "table": "posicao_logistica_resultados",
+      "definition": "FOREIGN KEY (nota_fiscal_id) REFERENCES notas_fiscais(id)"
+    },
+    {
+      "name": "posicao_logistica_resultados_pkey",
+      "table": "posicao_logistica_resultados",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "posicao_logistica_resultados_posicao_unique",
+      "table": "posicao_logistica_resultados",
+      "definition": "UNIQUE (execucao_id, estoque_posicao_id)"
+    },
+    {
+      "name": "posicao_logistica_resultados_status_logistico_check",
+      "table": "posicao_logistica_resultados",
+      "definition": "CHECK ((status_logistico = ANY (ARRAY['ENTREGUE'::text, 'EM_TRANSITO'::text, 'INDETERMINADA'::text])))"
+    },
+    {
+      "name": "posicao_logistica_resultados_status_vinculo_check",
+      "table": "posicao_logistica_resultados",
+      "definition": "CHECK ((status_vinculo = ANY (ARRAY['MATCHED_FINANCEIRO_NF'::text, 'SEM_MATCH_FINANCEIRO_NF'::text])))"
+    },
+    {
+      "name": "posicao_logistica_resultados_vinculo_id_fkey",
+      "table": "posicao_logistica_resultados",
+      "definition": "FOREIGN KEY (vinculo_id) REFERENCES titulo_nf_vinculos(id)"
+    },
+    {
+      "name": "profiles_pkey",
+      "table": "profiles",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "titulo_nf_vinculo_chaves_fundo_id_fkey",
+      "table": "titulo_nf_vinculo_chaves",
+      "definition": "FOREIGN KEY (fundo_id) REFERENCES fundos(id)"
+    },
+    {
+      "name": "titulo_nf_vinculo_chaves_pkey",
+      "table": "titulo_nf_vinculo_chaves",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "titulo_nf_vinculo_chaves_tipo_chave_check",
+      "table": "titulo_nf_vinculo_chaves",
+      "definition": "CHECK ((tipo_chave = ANY (ARRAY['CHAVE_NFE'::text, 'ID_RECEBIVEL'::text, 'SEU_NUMERO'::text, 'EXTERNAL_TITLE_KEY'::text, 'DOCUMENTO'::text, 'NOSSO_NUMERO'::text])))"
+    },
+    {
+      "name": "titulo_nf_vinculo_chaves_unique",
+      "table": "titulo_nf_vinculo_chaves",
+      "definition": "UNIQUE (vinculo_id, tipo_chave, valor_normalizado)"
+    },
+    {
+      "name": "titulo_nf_vinculo_chaves_valor_normalizado_check",
+      "table": "titulo_nf_vinculo_chaves",
+      "definition": "CHECK ((length(btrim(valor_normalizado)) > 0))"
+    },
+    {
+      "name": "titulo_nf_vinculo_chaves_vinculo_id_fkey",
+      "table": "titulo_nf_vinculo_chaves",
+      "definition": "FOREIGN KEY (vinculo_id) REFERENCES titulo_nf_vinculos(id)"
+    },
+    {
+      "name": "titulo_nf_vinculos_candidate_count_check",
+      "table": "titulo_nf_vinculos",
+      "definition": "CHECK ((candidate_count >= 1))"
+    },
+    {
+      "name": "titulo_nf_vinculos_confirmado_por_fkey",
+      "table": "titulo_nf_vinculos",
+      "definition": "FOREIGN KEY (confirmado_por) REFERENCES profiles(id)"
+    },
+    {
+      "name": "titulo_nf_vinculos_criado_por_fkey",
+      "table": "titulo_nf_vinculos",
+      "definition": "FOREIGN KEY (criado_por) REFERENCES profiles(id)"
+    },
+    {
+      "name": "titulo_nf_vinculos_fundo_id_fkey",
+      "table": "titulo_nf_vinculos",
+      "definition": "FOREIGN KEY (fundo_id) REFERENCES fundos(id)"
+    },
+    {
+      "name": "titulo_nf_vinculos_metodo_check",
+      "table": "titulo_nf_vinculos",
+      "definition": "CHECK ((metodo = ANY (ARRAY['CHAVE_NFE'::text, 'SEU_NUMERO'::text, 'COMPOSTO'::text, 'ID_RECEBIVEL'::text, 'MANUAL'::text])))"
+    },
+    {
+      "name": "titulo_nf_vinculos_nota_fiscal_id_fkey",
+      "table": "titulo_nf_vinculos",
+      "definition": "FOREIGN KEY (nota_fiscal_id) REFERENCES notas_fiscais(id)"
+    },
+    {
+      "name": "titulo_nf_vinculos_origem_check",
+      "table": "titulo_nf_vinculos",
+      "definition": "CHECK ((origem = ANY (ARRAY['AUTOMATICO'::text, 'MANUAL'::text])))"
+    },
+    {
+      "name": "titulo_nf_vinculos_pkey",
+      "table": "titulo_nf_vinculos",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "titulo_nf_vinculos_revogacao_check",
+      "table": "titulo_nf_vinculos",
+      "definition": "CHECK ((((status = 'ATIVO'::text) AND (revogado_em IS NULL) AND (revogado_por IS NULL) AND (motivo_revogacao IS NULL)) OR ((status = 'REVOGADO'::text) AND (revogado_em IS NOT NULL) AND (revogado_por IS NOT NULL) AND (length(btrim(motivo_revogacao)) >= 5))))"
+    },
+    {
+      "name": "titulo_nf_vinculos_revogado_por_fkey",
+      "table": "titulo_nf_vinculos",
+      "definition": "FOREIGN KEY (revogado_por) REFERENCES profiles(id)"
+    },
+    {
+      "name": "titulo_nf_vinculos_status_check",
+      "table": "titulo_nf_vinculos",
+      "definition": "CHECK ((status = ANY (ARRAY['ATIVO'::text, 'REVOGADO'::text])))"
+    },
+    {
+      "name": "usuario_fundos_fundo_id_fkey",
+      "table": "usuario_fundos",
+      "definition": "FOREIGN KEY (fundo_id) REFERENCES fundos(id) ON DELETE CASCADE"
+    },
+    {
+      "name": "usuario_fundos_perfil_no_fundo_check",
+      "table": "usuario_fundos",
+      "definition": "CHECK ((perfil_no_fundo = ANY (ARRAY['gestor'::text, 'administrador'::text, 'operador'::text, 'auditor'::text, 'plataforma'::text])))"
+    },
+    {
+      "name": "usuario_fundos_pkey",
+      "table": "usuario_fundos",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "usuario_fundos_status_check",
+      "table": "usuario_fundos",
+      "definition": "CHECK ((status = ANY (ARRAY['ativo'::text, 'suspenso'::text, 'revogado'::text])))"
+    },
+    {
+      "name": "usuario_fundos_usuario_fundo_unique",
+      "table": "usuario_fundos",
+      "definition": "UNIQUE (usuario_id, fundo_id)"
+    },
+    {
+      "name": "usuario_fundos_usuario_id_fkey",
+      "table": "usuario_fundos",
+      "definition": "FOREIGN KEY (usuario_id) REFERENCES profiles(id) ON DELETE CASCADE"
+    },
+    {
+      "name": "usuario_papeis_atribuido_por_fkey",
+      "table": "usuario_papeis",
+      "definition": "FOREIGN KEY (atribuido_por) REFERENCES profiles(id) ON DELETE SET NULL"
+    },
+    {
+      "name": "usuario_papeis_origem_check",
+      "table": "usuario_papeis",
+      "definition": "CHECK ((origem = ANY (ARRAY['perfil_primario'::text, 'bootstrap_homolog'::text, 'bootstrap_producao'::text, 'administracao'::text])))"
+    },
+    {
+      "name": "usuario_papeis_pkey",
+      "table": "usuario_papeis",
+      "definition": "PRIMARY KEY (usuario_id, papel)"
+    },
+    {
+      "name": "usuario_papeis_revogacao_check",
+      "table": "usuario_papeis",
+      "definition": "CHECK ((((ativo = true) AND (revogado_em IS NULL)) OR ((ativo = false) AND (revogado_em IS NOT NULL))))"
+    },
+    {
+      "name": "usuario_papeis_usuario_id_fkey",
+      "table": "usuario_papeis",
+      "definition": "FOREIGN KEY (usuario_id) REFERENCES profiles(id) ON DELETE CASCADE"
+    }
+  ]
+}
