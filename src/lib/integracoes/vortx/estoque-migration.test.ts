@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
-const migration = readFileSync('supabase/migrations/20261019192624_vortx_native_stock.sql', 'utf8')
+// Git may check out CRLF on Windows; compare the complete SQL contract in canonical LF.
+const migration = readFileSync('supabase/migrations/20261019192624_vortx_native_stock.sql', 'utf8').replace(/\r\n/g, '\n')
 const baseline = JSON.parse(readFileSync('scripts/qa/vortx/__fixtures__/native-stock-functions-baseline.json', 'utf8')) as {
   functions: { name: string; definition: string }[]
 }
