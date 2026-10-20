@@ -8,7 +8,7 @@ import { obterDataCivilOperacional } from '@/lib/operacoes/data-operacional.serv
 import { carregarContextoRelatorios } from '@/lib/integracoes/vortx/relatorios-contexto.server'
 import { prepararSolicitacaoRelatorioVortx, ContratoRelatorioVortxError } from '@/lib/integracoes/vortx/relatorios-contrato'
 import { solicitarRelatorioSchema, solicitacaoRelatorioSchema, RELATORIOS_OPERADOR, type SolicitacaoRelatorioResult } from '@/lib/integracoes/vortx/relatorios-operacao'
-import { resolverConfiguracaoVortxVrs } from '@/lib/integracoes/vortx/credenciais.server'
+import { resolverConfiguracaoVortxVrs, type VortxVrsConfig } from '@/lib/integracoes/vortx/credenciais.server'
 import { autenticarVortxVrs } from '@/lib/integracoes/vortx/vortx-vrs-client.server'
 import { solicitarRelatorioVortxHttp } from '@/lib/integracoes/vortx/relatorios-http.server'
 
@@ -54,8 +54,9 @@ export async function solicitarRelatorioVortx(input: unknown): Promise<Solicitac
       return solicitacaoRelatorioSchema.parse(result.data)
     }
     let token: string
+    let config: VortxVrsConfig
     try {
-      const config = await resolverConfiguracaoVortxVrs(form.fundoId, row.ambiente)
+      config = await resolverConfiguracaoVortxVrs(form.fundoId, row.ambiente)
       const origin = row.ambiente === 'producao' ? 'https://api.vortx.com.br' : 'https://api-stg.vortx.com.br'
       if (config.fundoId !== form.fundoId || config.ambiente !== row.ambiente || config.baseUrl !== origin) throw new Error('VRS_CREDENTIAL_SCOPE_MISMATCH')
       token = (await autenticarVortxVrs(config)).accessToken
@@ -63,7 +64,7 @@ export async function solicitarRelatorioVortx(input: unknown): Promise<Solicitac
       return { success: true, criada: true, solicitacao: await transicionar('falha_autenticacao') }
     }
     await transicionar('enviando') // Se o banco não registrar o início, não enviar o POST.
-    const resposta = await solicitarRelatorioVortxHttp({ ambiente: row.ambiente, token, pedido: row.pedido })
+    const resposta = await solicitarRelatorioVortxHttp({ ambiente: row.ambiente, token, pedido: row.pedido, credential: config.credential })
     return { success: true, criada: true, solicitacao: await transicionar(resposta.estado, resposta.protocolo, resposta.http) }
   } catch (error) {
     if (!reservada && (error instanceof AuthorizationError || error instanceof ContratoRelatorioVortxError)) {

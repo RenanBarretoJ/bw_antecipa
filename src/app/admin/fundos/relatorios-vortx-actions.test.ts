@@ -10,11 +10,12 @@ import { AuthorizationError } from '@/lib/auth/authorization'
 const id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',version='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
 const input={fundoId:id,versaoId:version,tipo:'Inclusao',inicio:'2020-01-01',fim:'2020-01-02',referencia:'2020-01-02',extensao:2,mfaCode:'123456'}
 const pedido={codigoCarteira:'qa-carteira',tipoRelatorio:'Inclusao',dataInicio:input.inicio,dataFim:input.fim,dataReferencia:input.referencia,extensaoArquivo:2}
+const credential={certificadoPem:'synthetic-cert-only',chavePrivadaPem:'synthetic-key-only'}
 const row={id,fundo_id:id,integracao_versao_id:version,ambiente:'producao',pedido,estado:'registrada',protocolo_externo:null,codigo_http:null,criada_em:'2026-10-19T17:00:00Z',envio_iniciado_em:null,concluida_em:null}
 const context={auth:{user:{id:'ator'},supabase:{rpc}},contexto:{fundo:{id,nome:'QA',cnpj:'00000000000000'},versoes:[{id:version,versao:1,ambiente:'producao',carteira:'qa-carteira',capabilities:['AQUISICOES']}]}}
 beforeEach(()=>{
   vi.resetAllMocks();contexto.mockResolvedValue(context);mfa.mockResolvedValue({nonceHash:'a'.repeat(64)})
-  resolve.mockResolvedValue({fundoId:id,ambiente:'producao',baseUrl:'https://api.vortx.com.br'})
+  resolve.mockResolvedValue({fundoId:id,ambiente:'producao',baseUrl:'https://api.vortx.com.br',credential})
   login.mockResolvedValue({accessToken:'qa-token'});http.mockResolvedValue({estado:'aceita',protocolo:id,http:200})
   rpc.mockImplementation(async(name,args)=>({data:name==='admin_reservar_relatorio_vortx'?{criada:true,solicitacao:row}:{...row,estado:args.p_estado,protocolo_externo:args.p_protocolo,codigo_http:args.p_http},error:null}))
 })
@@ -26,8 +27,8 @@ describe('orquestração de relatório Vórtx',()=>{
     expect(mfa.mock.invocationCallOrder[0]).toBeLessThan(rpc.mock.invocationCallOrder[0])
     expect(rpc.mock.invocationCallOrder[0]).toBeLessThan(resolve.mock.invocationCallOrder[0])
     expect(rpc.mock.invocationCallOrder[1]).toBeLessThan(http.mock.invocationCallOrder[0])
-    expect(http).toHaveBeenCalledExactlyOnceWith({ambiente:'producao',token:'qa-token',pedido})
-    expect(JSON.stringify(result)).not.toMatch(/qa-token|123456|nonceHash|lease/)
+    expect(http).toHaveBeenCalledExactlyOnceWith({ambiente:'producao',token:'qa-token',pedido,credential})
+    expect(JSON.stringify(result)).not.toMatch(/qa-token|123456|nonceHash|lease|synthetic-cert-only|synthetic-key-only/)
   })
   it('pedido idêntico não resolve segredo, faz login ou POST',async()=>{
     rpc.mockResolvedValue({data:{criada:false,solicitacao:row},error:null})
