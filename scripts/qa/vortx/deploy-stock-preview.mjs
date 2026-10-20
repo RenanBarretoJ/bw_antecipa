@@ -68,7 +68,10 @@ try {
   }
   report.before = await fingerprint()
   if (apply) {
-    await db.query('set default_transaction_read_only=off; begin')
+    // Separate protocol messages: SET + BEGIN in a single simple-query message
+    // can inherit the read-only implicit transaction opened before SET ran.
+    await db.query('set default_transaction_read_only=off')
+    await db.query('begin read write')
     try {
       for (const e of entries) {
         const body = e.sql.replace(/^BEGIN;\s*\n/m, '').replace(/\bCOMMIT;\s*$/, '')
