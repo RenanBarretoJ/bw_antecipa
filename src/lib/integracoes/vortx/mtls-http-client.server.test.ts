@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events'
 import type { request as httpsRequest } from 'node:https'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { MtlsRequestError, postJsonMtls } from './mtls-http-client.server'
 
 type RequestFn = typeof httpsRequest
@@ -9,6 +9,9 @@ const credential = { certificadoPem: '-----BEGIN CERTIFICATE-----\nfake\n-----EN
 
 class FakeResponse extends EventEmitter {
   statusCode: number
+  complete = true
+  destroyed = false
+  destroy() { this.destroyed = true }
   constructor(statusCode: number) {
     super()
     this.statusCode = statusCode
@@ -47,6 +50,7 @@ function fakeRequestFn(statusCode: number, responseBody: string, capturedOptions
 }
 
 describe('postJsonMtls', () => {
+  afterEach(() => vi.useRealTimers())
   it('envia cert/key/metodo/corpo corretos e retorna status + JSON parseado', async () => {
     const captured: { current?: unknown } = {}
     const requestFn = fakeRequestFn(200, JSON.stringify({ data: { accessToken: 'abc' } }), captured)
@@ -66,6 +70,9 @@ describe('postJsonMtls', () => {
     expect(options.path).toBe('/v2/auth/login')
     expect(options.cert).toBe(credential.certificadoPem)
     expect(options.key).toBe(credential.chavePrivadaPem)
+    expect(options.rejectUnauthorized).toBe(true)
+    expect(options.agent).toBe(false)
+    expect(options.headers).not.toHaveProperty('authorization')
   })
 
   it('rejeita com categoria resposta_invalida quando o corpo nao e JSON valido', async () => {
@@ -135,5 +142,118 @@ describe('postJsonMtls', () => {
       credential,
     }, requestFn)).toThrow(MtlsRequestError)
     expect(requestFn).not.toHaveBeenCalled()
+  })
+
+  const input = { baseUrl: 'https://api.vortx.com.br', path: '/v1/vrs/externo/solicitar', body: {}, credential }
+
+  function controlled() {
+    const req = new FakeRequest(), res = new FakeResponse(200)
+    const requestFn = vi.fn((_options: unknown, callback: (res: FakeResponse) => void) => {
+      queueMicrotask(() => callback(res))
+      return req
+    }) as unknown as RequestFn
+    return { req, res, requestFn }
+  }
+
+  it('aceita exatamente 64 KiB em varios chunks e envia Bearer sem duplicar o POST', async () => {
+    const { req, res, requestFn } = controlled()
+    const payload = JSON.stringify('a'.repeat(64 * 1024 - 2))
+    const pending = postJsonMtls({ ...input, bearerToken: 'synthetic-token', maxResponseBytes: 64 * 1024 }, requestFn)
+    await Promise.resolve()
+    res.emit('data', Buffer.from(payload.slice(0, 32768)))
+    res.emit('data', Buffer.from(payload.slice(32768)))
+    res.emit('end')
+    expect(await pending).toEqual({ statusCode: 200, body: 'a'.repeat(64 * 1024 - 2) })
+    expect(requestFn).toHaveBeenCalledOnce()
+    expect(requestFn).toHaveBeenCalledWith(expect.objectContaining({ headers: expect.objectContaining({ authorization: 'Bearer synthetic-token' }) }), expect.any(Function))
+    expect(req.written).toHaveLength(1)
+    expect(req.ended).toBe(true)
+  })
+
+  it('interrompe acima de 64 KiB preservando HTTP, sem parse nem retry', async () => {
+    const { req, res, requestFn } = controlled()
+    const pending = postJsonMtls({ ...input, maxResponseBytes: 65536 }, requestFn)
+    const check = expect(pending).rejects.toMatchObject({ httpStatus: 200, codigo: 'RESPONSE_TOO_LARGE' })
+    await Promise.resolve()
+    res.emit('data', Buffer.alloc(65536, 32)); res.emit('data', Buffer.from('x'))
+    res.emit('end')
+    await check
+    expect(req.destroyed && res.destroyed).toBe(true)
+    expect(requestFn).toHaveBeenCalledOnce()
+  })
+
+  it.each(['aborted', 'close', 'end'])('rejeita stream incompleto (%s), ainda que contenha JSON valido', async (event) => {
+    const { req, res, requestFn } = controlled()
+    const pending = postJsonMtls(input, requestFn)
+    const check = expect(pending).rejects.toMatchObject({ categoria: 'resposta_invalida', httpStatus: 200, codigo: 'RESPONSE_ABORTED' })
+    await Promise.resolve()
+    res.emit('data', Buffer.from('{}')); res.complete = false; res.emit(event)
+    await check
+    expect(req.destroyed && res.destroyed).toBe(true)
+  })
+
+  it('prazo total abrange resposta que nunca termina e libera o timer ao falhar', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const { req, res, requestFn } = controlled()
+    const pending = postJsonMtls({ ...input, totalTimeoutMs: 20000 }, requestFn)
+    const check = expect(pending).rejects.toMatchObject({ categoria: 'timeout', httpStatus: 200, codigo: 'ETIMEDOUT' })
+    await Promise.resolve()
+    for (let i = 0; i < 4; i++) { res.emit('data', Buffer.from(' ')); await vi.advanceTimersByTimeAsync(5000) }
+    await check
+    expect(req.destroyed && res.destroyed).toBe(true)
+    expect(vi.getTimerCount()).toBe(0)
+    expect(requestFn).toHaveBeenCalledOnce()
+  })
+
+  it('prazo total tambem limita conexao sem headers', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const req = new FakeRequest()
+    const pending = postJsonMtls({ ...input, totalTimeoutMs: 20000 }, (() => req) as unknown as RequestFn)
+    const check = expect(pending).rejects.toMatchObject({ categoria: 'timeout', httpStatus: null })
+    await vi.advanceTimersByTimeAsync(20000)
+    await check
+    expect(req.destroyed).toBe(true)
+  })
+
+  it('sucesso limpa deadline; erro tardio nao altera o resultado', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const { req, res, requestFn } = controlled()
+    const pending = postJsonMtls({ ...input, totalTimeoutMs: 20000 }, requestFn)
+    await Promise.resolve(); res.emit('data', Buffer.from('{}')); res.emit('end')
+    await expect(pending).resolves.toEqual({ statusCode: 200, body: {} })
+    req.emit('error', new Error('late synthetic error'))
+    expect(vi.getTimerCount()).toBe(0)
+    expect(req.destroyed).toBe(false)
+  })
+
+  it.each([302, 401, 500])('descarta corpo nao JSON de HTTP %s sem seguir redirect', async (status) => {
+    const { req, res, requestFn } = controlled(); res.statusCode = status
+    const pending = postJsonMtls({ ...input, discardNonSuccessBody: true }, requestFn)
+    expect(await pending).toEqual({ statusCode: status, body: null })
+    expect(res.listenerCount('data')).toBe(0)
+    expect(req.destroyed && res.destroyed).toBe(true)
+    expect(requestFn).toHaveBeenCalledOnce()
+  })
+
+  it.each(['', 'token\r\nInjected: yes', 'token with spaces'])('nega Bearer invalido antes de conectar (%j)', (bearerToken) => {
+    const requestFn = vi.fn()
+    expect(() => postJsonMtls({ ...input, bearerToken }, requestFn)).toThrow(MtlsRequestError)
+    expect(requestFn).not.toHaveBeenCalled()
+  })
+
+  it.each([0, -1, 1.5, Number.NaN])('nega limites invalidos (%s)', (limit) => {
+    const requestFn = vi.fn()
+    expect(() => postJsonMtls({ ...input, maxResponseBytes: limit }, requestFn)).toThrow(MtlsRequestError)
+    expect(() => postJsonMtls({ ...input, totalTimeoutMs: limit }, requestFn)).toThrow(MtlsRequestError)
+    expect(requestFn).not.toHaveBeenCalled()
+  })
+
+  it('sanitiza erro do stream e nao propaga codigo arbitrario nem mensagem externa', async () => {
+    const { res, requestFn } = controlled()
+    const pending = postJsonMtls(input, requestFn)
+    const check = expect(pending).rejects.toMatchObject({ message: 'Falha de conexao mTLS.', categoria: 'conexao', httpStatus: 200, codigo: null })
+    await Promise.resolve()
+    res.emit('error', Object.assign(new Error('synthetic-private-key-and-token'), { code: 'synthetic-private-key-and-token' }))
+    await check
   })
 })
