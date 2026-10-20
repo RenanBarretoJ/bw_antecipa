@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-const mocks = vi.hoisted(() => ({ repo: vi.fn(), receive: vi.fn() }))
+const mocks = vi.hoisted(() => ({ repo: vi.fn(), receive: vi.fn(), capture: vi.fn() }))
+vi.mock('@/lib/integracoes/vortx/relatorios-callback-capture.server', () => ({ iniciarCapturaCallback: mocks.capture }))
 vi.mock('@/lib/integracoes/vortx/relatorios-callback-repository.server', () => ({ criarRepositorioCallbackRelatorio: mocks.repo }))
 vi.mock('@/lib/integracoes/vortx/relatorios-callback-handler.server', () => ({ receberCallbackRelatorio: mocks.receive }))
 import { POST } from './route'
@@ -7,8 +8,20 @@ const fund = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 const env = { VERCEL_ENV: 'preview', VERCEL_GIT_COMMIT_REF: 'feature/vortx-real-data-preview', NEXT_PUBLIC_SUPABASE_URL: 'https://phdckowbexkkvuwnzeaf.supabase.co',
   VORTX_REPORTS_PREVIEW_ENABLED: 'true', VORTX_REPORTS_PREVIEW_FUNDO_ID: fund, VORTX_REPORT_CALLBACK_PREVIEW_ENABLED: 'true', VORTX_REPORT_CALLBACK_QUERY_REDACTION_VERIFIED: 'true' }
 const request = () => new Request('https://example.invalid/callback?token=synthetic-secret', { method: 'POST', body: '{}' })
-afterEach(() => { vi.unstubAllEnvs(); vi.restoreAllMocks(); mocks.repo.mockReset(); mocks.receive.mockReset() })
+afterEach(() => { vi.unstubAllEnvs(); vi.restoreAllMocks(); mocks.repo.mockReset(); mocks.receive.mockReset(); mocks.capture.mockReset() })
 describe('callback Preview boundary and sanitized logging', () => {
+  it.each([200,400,401,503])('never clones or captures the request after retirement, including HTTP %i', async status => {
+    for (const [key,value] of Object.entries(env)) vi.stubEnv(key,value)
+    vi.stubEnv('VORTX_REPORT_CALLBACK_RAW_CAPTURE_ID',fund)
+    vi.stubEnv('VORTX_REPORT_CALLBACK_RAW_ENDPOINT_ID',fund)
+    vi.stubEnv('VORTX_REPORT_CALLBACK_RAW_CAPTURE_UNTIL',new Date(Date.now()+3600000).toISOString())
+    vi.stubEnv('VORTX_REPORT_CALLBACK_PROTOCOL_CAPTURE_UNTIL',new Date(Date.now()+3600000).toISOString())
+    const req=request(), clone=vi.spyOn(req,'clone'), log=vi.spyOn(console,'info').mockImplementation(()=>{})
+    mocks.repo.mockReturnValue({});mocks.receive.mockResolvedValue(new Response(null,{status}))
+    expect((await POST(req)).status).toBe(status)
+    expect(clone).not.toHaveBeenCalled();expect(mocks.capture).not.toHaveBeenCalled()
+    expect(JSON.stringify(log.mock.calls)).not.toMatch(/synthetic-secret|private_capture|corpo|headers|https:/)
+  })
   it('returns 404 before creating admin client when disabled', async () => {
     vi.stubEnv('VORTX_REPORT_CALLBACK_PREVIEW_ENABLED', 'false')
     expect((await POST(request())).status).toBe(404)

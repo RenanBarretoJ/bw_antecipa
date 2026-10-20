@@ -6,7 +6,7 @@ import type { CallbackRejection } from './relatorios-callback-diagnostic'
 
 export type CallbackRepository = {
   autorizar(id: string, hash: string): Promise<{ status: 'UNAUTHORIZED' | 'RATE_LIMITED' } | ({ status: 'AUTHORIZED' } & CallbackBinding)>
-  persistir(binding: CallbackBinding, segredoHash: string, evento: EventoRelatorioVortx, corpoOriginal?: string): Promise<void>
+  persistir(binding: CallbackBinding, segredoHash: string, evento: EventoRelatorioVortx): Promise<void>
   diagnosticarRejeicao?(binding: CallbackBinding, segredoHash: string, rejection: CallbackRejection, token: string): Promise<void>
 }
 
@@ -97,7 +97,7 @@ export async function receberCallbackRelatorio(request: Request, repository: Cal
   }
   if (evento.idCarteira !== binding.codigoCarteira) return finish(403, 'CARTEIRA', 'CARTEIRA_DIVERGENTE')
   try {
-    await repository.persistir(binding, secretHash, evento, corpo)
+    await repository.persistir(binding, secretHash, evento)
     return finish(200, 'PERSISTENCIA', 'RECEBIDO') // Only after durable commit.
   } catch { return finish(503, 'PERSISTENCIA', 'PERSISTENCIA_INDISPONIVEL') }
 }

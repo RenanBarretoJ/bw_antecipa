@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { prazoCapturaCallback, prepararDiagnosticoCallback } from './relatorios-callback-diagnostic'
 import { receberCallbackRelatorio, type CallbackRepository } from './relatorios-callback-handler.server'
-import { criarRepositorioCallbackRelatorio } from './relatorios-callback-repository.server'
+import { criarRepositorioDiagnosticoHistorico as criarRepositorioCallbackRelatorio } from '@/test/vortx-callback-diagnostic-repository'
 import { descriptografarPortalFidcValor } from '@/lib/portal-fidc/credenciais'
 
 const id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', other = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
@@ -27,7 +27,7 @@ function enable() {
   vi.stubEnv('PORTAL_FIDC_CREDENTIAL_ACTIVE_KEY_VERSION', 'qa')
 }
 
-describe('temporary private rejected callback diagnostics', () => {
+describe('historical synthetic temporary diagnostics (retired from application)', () => {
   it('requires an explicit short-lived window in the exact allowed Preview', () => {
     expect(prazoCapturaCallback({}, now)).toBeNull()
     expect(prazoCapturaCallback(env, now)).toBe('2026-10-21T13:00:00.000Z')

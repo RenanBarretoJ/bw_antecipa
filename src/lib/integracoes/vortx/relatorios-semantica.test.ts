@@ -40,16 +40,19 @@ describe('report-specific Vortx semantics', () => {
   it.each([{ tipoWebhook: 'anotherEvent' }, { extra: true }, { tipoRelatorio: 'unknown' }, { dataReferencia: '2026-02-30' }])('keeps the strict boundary for %j', change => {
     expect(() => interpretarCallbackRelatorio({ ...raw, ...change })).toThrow()
   })
-  it('preserves the original authenticated JSON inside encryption alongside normalized metadata', async () => {
+  it('keeps only the canonical event and never retains the original JSON', async () => {
     vi.stubEnv('PORTAL_FIDC_CREDENTIAL_KEYS_JSON', JSON.stringify({ qa: 'b'.repeat(64) }))
     vi.stubEnv('PORTAL_FIDC_CREDENTIAL_ACTIVE_KEY_VERSION', 'qa')
     const rpc = vi.fn().mockResolvedValue({ data: { recebido: true, duplicado: false }, error: null })
     const repo = criarRepositorioCallbackRelatorio({ rpc } as unknown as Parameters<typeof criarRepositorioCallbackRelatorio>[0])
     const original = JSON.stringify(raw)
-    await repo.persistir({ endpointId: id, fundoId: id, ambiente: 'producao', codigoCarteira: 'qa-wallet', revisao: 1 }, 'c'.repeat(64), interpretarCallbackRelatorio(raw), original)
+    // Even an obsolete caller passing a fourth argument cannot retain its source JSON.
+    await Reflect.apply(repo.persistir, repo, [{ endpointId: id, fundoId: id, ambiente: 'producao', codigoCarteira: 'qa-wallet', revisao: 1 }, 'c'.repeat(64), interpretarCallbackRelatorio(raw), original])
     const args = rpc.mock.calls[0][1]
     expect(JSON.stringify(args)).not.toContain('1900-01-01'); expect(args.p_metadados.dataInicio).toBe('2026-10-19')
     const envelope = JSON.parse(descriptografarPortalFidcValor(args.p_ciphertext, args.p_chave_versao))
-    expect(envelope.corpoOriginal).toBe(original); expect(envelope.evento.tipoRelatorio).toBe('PosicaoParcela')
+    expect(envelope).not.toHaveProperty('corpoOriginal'); expect(envelope.evento.tipoRelatorio).toBe('PosicaoParcela')
+    expect(JSON.stringify(envelope)).not.toContain('1900-01-01')
+    expect(envelope.evento.urlRelatorio).toBe(raw.urlRelatorio)
   })
 })

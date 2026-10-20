@@ -18,6 +18,7 @@ const sha = value => createHash('sha256').update(value).digest('hex')
 const paths = ['supabase/migrations/20261019180624_vortx_report_requests_preview.sql', 'supabase/migrations/20261019201346_vortx_report_callback_inbox.sql', 'supabase/migrations/20261019203424_vortx_callback_admin_ui.sql', 'supabase/migrations/20261019211756_vortx_report_audit_event_types.sql', 'supabase/migrations/20261020134509_vortx_callback_rejected_diagnostics.sql']
 paths.push('supabase/migrations/20261020165910_vortx_callback_single_capture_preview.sql')
 paths.push('supabase/migrations/20261020180645_vortx_report_type_semantics.sql')
+paths.push('supabase/migrations/20261020183635_vortx_retire_callback_diagnostics.sql')
 const migrations = paths.map(path => ({ path, sql: readFileSync(resolve(root, path), 'utf8') }))
 const canonical = JSON.parse(readFileSync(new URL('./__fixtures__/report-auth-canonical.json', import.meta.url), 'utf8')).functions
 const auditConstraint = JSON.parse(readFileSync(new URL('./__fixtures__/callback-audit-constraint.json', import.meta.url), 'utf8'))
@@ -325,6 +326,27 @@ try {
       assert.deepEqual((await db.query('select oid,proname,pg_get_functiondef(oid) as definition,proacl::text from pg_proc where oid=ANY($1::oid[]) order by oid', [unchanged.map(f => f.oid)])).rows, unchanged)
       check('forward_semantics_preserves_all_historical_events_and_every_other_function_acl')
       await runCallbackSemanticsChecks({ db, worker, admin, check })
+      const beforeRetirement = (await db.query('select * from vortx_relatorio_eventos order by id')).rows
+      const guardBefore = (await db.query("select pg_get_functiondef('private.vortx_callback_proteger_evento()'::regprocedure) def")).rows
+      await db.query(migrations[7].sql)
+      assert.deepEqual((await db.query('select * from vortx_relatorio_eventos order by id')).rows, beforeRetirement)
+      assert.deepEqual((await db.query("select pg_get_functiondef('private.vortx_callback_proteger_evento()'::regprocedure) def")).rows, guardBefore)
+      check('retirement_preserves_canonical_events_and_immutable_guard')
+      for (const signature of ['public.vortx_reservar_captura_callback(uuid,uuid,uuid)',
+        'public.vortx_concluir_captura_callback(uuid,text,text,text,integer,boolean,integer)',
+        'public.vortx_registrar_callback_rejeitado(uuid,text,integer,text,integer,text,text,text,timestamptz)']) {
+        for (const role of ['anon','authenticated','service_role']) {
+          assert.equal((await db.query('select has_function_privilege($1,$2,\'EXECUTE\') allowed',[role,signature])).rows[0].allowed,false)
+        }
+        check(`retired_diagnostic_denies_every_api_role:${signature}`)
+      }
+      await assert.rejects(worker('select vortx_reservar_captura_callback($1,$2,$3)',[randomUUID(),endpoint,fund]),{code:'42501'})
+      check('retired_capture_rpc_rejects_real_worker_execution')
+      await db.query('delete from private.vortx_callback_limites')
+      assert.equal((await worker(authorize,[endpoint,newerHash])).rows[0].r.status,'AUTHORIZED')
+      const afterRetirement = args({...orphan,idRelatorio:randomUUID()},4,newerHash)
+      assert.equal((await worker(receive,afterRetirement)).rows[0].r.recebido,true)
+      check('canonical_authorization_and_receipt_still_work_after_retirement')
       assert.deepEqual(await preserved(), baseline.canonical); assert.deepEqual(await requestInternals(), baseline.requestInternals)
     } finally {
       if (db) await db.end()
