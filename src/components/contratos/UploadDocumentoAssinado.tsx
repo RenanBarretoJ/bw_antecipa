@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { buckets } from '@/lib/storage'
 import type { ContratoDocumentType, ContratoEntityType } from '@/lib/types/domain'
 import { useNotifications } from '@/components/notifications/notification-provider'
+import { concluirUploadDocumentoAssinado, enviarDocumentoAssinado } from '@/lib/contratos/upload-documento-assinado'
 
 interface Props {
   label: string
@@ -16,12 +17,15 @@ interface Props {
   entidadeId: string
   tipoDocumento: ContratoDocumentType
   accept?: string     // default: 'application/pdf'
-  onSuccess: (path: string) => void
+  uploadEndpoint?: string
+  maxBytes?: number
+  onSuccess: (path: string) => void | Promise<void>
 }
 
-export function UploadDocumentoAssinado({ label, storagePath, uploadPath, tipoEntidade, entidadeId, tipoDocumento, accept = 'application/pdf', onSuccess }: Props) {
+export function UploadDocumentoAssinado({ label, storagePath, uploadPath, tipoEntidade, entidadeId, tipoDocumento, accept = 'application/pdf', onSuccess, uploadEndpoint, maxBytes }: Props) {
   const notifications = useNotifications()
   const inputRef = useRef<HTMLInputElement>(null)
+  const envioEmCurso = useRef(false)
   const [uploading, setUploading] = useState(false)
   const [downloading, setDownloading] = useState(false)
   const [currentPath, setCurrentPath] = useState(storagePath)
@@ -48,36 +52,47 @@ export function UploadDocumentoAssinado({ label, storagePath, uploadPath, tipoEn
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (!file) return
+    if (!file || envioEmCurso.current) return
+    if (maxBytes && file.size > maxBytes) {
+      notifications.error(`O arquivo excede o limite de ${Math.floor(maxBytes / 1024 / 1024)} MB.`)
+      e.target.value = ''
+      return
+    }
 
+    envioEmCurso.current = true
     setUploading(true)
 
     try {
-      const supabase = createClient()
-      const { error: uploadError } = await supabase.storage
-        .from(buckets.contratos)
-        .upload(uploadPath, file, { contentType: file.type, upsert: true })
-
-      if (uploadError) throw new Error(uploadError.message)
-
-      setCurrentPath(uploadPath)
-      onSuccess(uploadPath)
-      notifications.success('Documento assinado enviado.')
+      const path = await concluirUploadDocumentoAssinado(async () => {
+        if (uploadEndpoint) return enviarDocumentoAssinado(uploadEndpoint, file)
+        // Compatibilidade com o uso legado de quitacao, fora deste hotfix.
+        const supabase = createClient()
+        const { error: uploadError } = await supabase.storage
+          .from(buckets.contratos)
+          .upload(uploadPath, file, { contentType: file.type, upsert: true })
+        if (uploadError) throw new Error(uploadError.message)
+        return uploadPath
+      }, onSuccess)
+      setCurrentPath(path)
+      notifications.success('Documento assinado salvo.')
     } catch (err) {
       notifications.error(err instanceof Error ? err.message : 'Erro ao enviar arquivo.')
     } finally {
+      envioEmCurso.current = false
       setUploading(false)
       if (inputRef.current) inputRef.current.value = ''
     }
   }
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-1" aria-busy={uploading}>
       <input
         ref={inputRef}
         type="file"
         accept={accept}
         className="hidden"
+        aria-label={`Anexar ${label}`}
+        disabled={uploading}
         onChange={handleFileChange}
       />
 
@@ -120,6 +135,7 @@ export function UploadDocumentoAssinado({ label, storagePath, uploadPath, tipoEn
           )}
         </Button>
       )}
+      {maxBytes ? <p className="text-xs text-muted-foreground" role="status">{uploading ? 'Salvando contrato…' : `PDF de até ${Math.floor(maxBytes / 1024 / 1024)} MB. O envio só será confirmado após o salvamento.`}</p> : null}
     </div>
   )
 }
