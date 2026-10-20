@@ -606,3 +606,38 @@ Evidencias: `vortx-native-stock-20261019` (SQL/qualidade/aplicacao) e
 `vortx-stock-processing-20261020` (performance/closeout), sob
 `%LOCALAPPDATA%/bw-antecipa-evidence/`. Contagens finais e estado hospedado devem
 ser lidos no closeout da execucao, nao inferidos apenas da existencia deste fonte.
+
+### Transporte ZIP observado e retomada explicita
+
+O primeiro smoke hospedado retornou `DOWNLOAD_FALHOU`, sem upload, staging ou
+importacao. O diagnostico derivado (sem URL, headers ou corpo preservados)
+confirmou HTTP 200 e MIME ZIP para os dois relatorios de 19/10. A falha e seu
+relatorio permanecem historicos; nao se transforma aquela tentativa em PASS.
+
+O extrator reutiliza JSZip instalado, sem nova dependencia. Aceita somente ZIP32
+de um CSV, sem pastas, caminhos relativos, links, criptografia ou multiplos
+volumes. Limita o transporte a 20 MiB e a saida efetiva a 20 MiB, verifica tamanho
+e CRC32 durante a extracao, aplica deadline e nao escreve caminhos do ZIP em
+disco. O parser CSV e as validacoes de Fundo/carteira/identidade continuam iguais.
+Os originais preservados pelo fluxo financeiro sao os bytes dos CSVs extraidos;
+o conteiner ZIP nao e um terceiro arquivo financeiro nem e retido como captura.
+
+Migration forward adicional `20261020201600_vortx_stock_zip_recovery.sql`:
+adiciona os tres indices de FK apontados pelo advisor e uma retomada interna
+explicita. Nao edita as duas migrations ja aplicadas. So pode retomar
+`DOWNLOAD_FALHOU`, com menos de tres tentativas, sem manifesto de upload,
+staging ou resultado financeiro, e com o par canonico ainda autorizado. Registra
+estado/erro/tentativa anteriores na auditoria imutavel antes da transicao. Nao
+retoma erro de contrato nem persistencia indeterminada; nao zera tentativas.
+
+`POST /api/integracoes/vortx/relatorios/retomar-download` usa a mesma barreira
+tecnica de Preview e credencial do worker, sem query/corpo, e nunca e chamado
+automaticamente pelo webhook. Aplicador separado:
+`scripts/qa/vortx/deploy-stock-recovery-preview.mjs`; exige a terceira migration
+ensaiada em duas stacks e os fontes exatos dos dois predecessores no banco.
+
+O modo temporario de diagnostico de download do inspetor e opt-in por
+configuracao server-side com hash, janela de ate uma hora e IDs explicitos.
+Somente eventos correlacionados de estoque podem ser consultados. Nao reativa
+captura de requisicao/corpo bruto, nao importa dados e retorna apenas categorias
+enumeradas de transporte/conteudo. A configuracao e retirada ao concluir.
