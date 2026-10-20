@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto'
 import { criptografarPortalFidcValor } from '@/lib/portal-fidc/credenciais'
 import { interpretarCallbackRelatorio, prepararEventoCallback } from './relatorios-callback'
 import { inspecionarHostsPreservados } from './relatorios-host-inspection.server'
+import { DownloadRelatorioError } from './relatorios-download.server'
 
 const id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', other = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
 const token = 'a'.repeat(64), now = Date.parse('2026-10-20T22:00:00Z')
@@ -69,6 +70,34 @@ describe('expiring Preview-only preserved host inspection', () => {
       expiracao: '2026-10-22T12:00:00.000Z', correlacao: 'PENDENTE' }] })
     expect(response.headers.get('cache-control')).toBe('no-store')
     expect(response.headers.get('access-control-allow-origin')).toBeNull()
+  })
+  it('does not download in ordinary inspection mode', async () => {
+    const baixar = vi.fn()
+    expect((await inspecionarHostsPreservados(request(), { env, now, ler: vi.fn().mockResolvedValue([row()]), baixar })).status).toBe(200)
+    expect(baixar).not.toHaveBeenCalled()
+  })
+  it.each(['pending', 'disabled', 'no_hosts'])('rejects a download probe before network effects: %s', async mode => {
+    const value = row(); if (mode !== 'pending') value.correlacao = 'CORRELACIONADO'
+    const probeEnv = { ...env, VORTX_REPORT_HOST_INSPECTION_JSON: JSON.stringify({ ...config, diagnosticarDownload: true }),
+      VORTX_REPORT_STOCK_PROCESSING_ENABLED: mode === 'disabled' ? 'false' : 'true',
+      VORTX_REPORT_DOWNLOAD_HOSTS: mode === 'no_hosts' ? '' : 'reports.example.invalid' }
+    const baixar = vi.fn()
+    expect((await inspecionarHostsPreservados(request(), { env: probeEnv, now, ler: vi.fn().mockResolvedValue([value]), baixar })).status).toBe(409)
+    expect(baixar).not.toHaveBeenCalled()
+  })
+  it.each(['success', 'failure'])('exports only bounded derived download diagnostics: %s', async mode => {
+    const value = row(); value.correlacao = 'CORRELACIONADO'
+    const probeEnv = { ...env, VORTX_REPORT_HOST_INSPECTION_JSON: JSON.stringify({ ...config, diagnosticarDownload: true }),
+      VORTX_REPORT_STOCK_PROCESSING_ENABLED: 'true', VORTX_REPORT_DOWNLOAD_HOSTS: 'reports.example.invalid' }
+    const baixar = mode === 'success' ? vi.fn().mockResolvedValue(Buffer.from('private-csv-never-exported'))
+      : vi.fn().mockRejectedValue(new DownloadRelatorioError('DOWNLOAD_HTTP', { http: 403, conteudo: 'JSON' }))
+    const response = await inspecionarHostsPreservados(request(), { env: probeEnv, now, ler: vi.fn().mockResolvedValue([value]), baixar })
+    expect(response.status).toBe(200)
+    const text = await response.text()
+    expect(JSON.parse(text)).toEqual({ somenteLeitura: true, importacaoExecutada: false, diagnosticos: [{ tipo: 'PosicaoParcela',
+      ...(mode === 'success' ? { resultado: 'DOWNLOAD_OK', bytes: 26 } : { resultado: 'DOWNLOAD_HTTP', http: 403, conteudo: 'JSON' }) }] })
+    for (const secret of ['signature', 'private-csv', 'corpoOriginal', 'Authorization', 'payload_criptografado']) expect(text).not.toContain(secret)
+    expect(baixar).toHaveBeenCalledOnce()
   })
   it('permits a genuinely empty transport stream without permitting any body bytes', async () => {
     const ler = vi.fn().mockResolvedValue([row()])

@@ -100,4 +100,8 @@ describe('signed report download isolation and bounds', () => {
     await vi.advanceTimersByTimeAsync(60000); await assertion
     expect(test.req.destroy).toHaveBeenCalled()
   })
+  it('classifies an unsupported provider format without exporting headers or bytes', async () => {
+    const test = transport({ headers: { 'content-type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' } })
+    await expect(baixarRelatorioVortx(signed, hosts, test.deps)).rejects.toMatchObject({ codigo: 'CONTEUDO_INVALIDO', diagnostico: { http: 200, conteudo: 'XLSX' } })
+  })
 })

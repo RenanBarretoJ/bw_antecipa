@@ -5,8 +5,14 @@ import { request as httpsRequest, type RequestOptions } from 'node:https'
 import type { ClientRequest, IncomingMessage } from 'node:http'
 
 export const MAX_REPORT_BYTES = 20 * 1024 * 1024
+const transportCodes = ['ENOTFOUND', 'EAI_AGAIN', 'ETIMEDOUT', 'ECONNRESET', 'ECONNREFUSED', 'ENETUNREACH',
+  'EHOSTUNREACH', 'ERR_TLS_CERT_ALTNAME_INVALID', 'CERT_HAS_EXPIRED', 'UNABLE_TO_VERIFY_LEAF_SIGNATURE']
+const transportCode = (error: unknown) => typeof error === 'object' && error !== null && 'code' in error
+  && typeof error.code === 'string' && transportCodes.includes(error.code) ? error.code : 'OUTRO'
+type DownloadDiagnostic = { http?: number; conteudo?: 'CSV' | 'TEXTO' | 'BINARIO' | 'ZIP' | 'XLSX' | 'HTML' | 'JSON' | 'OUTRO'; transporte?: string }
 export class DownloadRelatorioError extends Error {
-  constructor(readonly codigo: 'HOST_NEGADO' | 'DNS_NEGADO' | 'DOWNLOAD_TIMEOUT' | 'DOWNLOAD_HTTP' | 'CONTEUDO_INVALIDO' | 'DOWNLOAD_FALHOU') {
+  constructor(readonly codigo: 'HOST_NEGADO' | 'DNS_NEGADO' | 'DOWNLOAD_TIMEOUT' | 'DOWNLOAD_HTTP' | 'CONTEUDO_INVALIDO' | 'DOWNLOAD_FALHOU',
+    readonly diagnostico: DownloadDiagnostic = {}) {
     super(codigo); this.name = 'DownloadRelatorioError'
   }
 }
@@ -50,7 +56,7 @@ export async function baixarRelatorioVortx(raw: string, hosts: readonly string[]
       (deps.resolver ?? (host => lookup(host, { all: true, verbatim: true })))(url.hostname),
       new Promise<never>((_, reject) => { dnsTimer = setTimeout(() => reject(new DownloadRelatorioError('DOWNLOAD_TIMEOUT')), 5000) }),
     ])
-  } catch (error) { throw error instanceof DownloadRelatorioError ? error : new DownloadRelatorioError('DNS_NEGADO') }
+  } catch (error) { throw error instanceof DownloadRelatorioError ? error : new DownloadRelatorioError('DNS_NEGADO', { transporte: transportCode(error) }) }
   finally { clearTimeout(dnsTimer) }
   if (!addresses.length || addresses.some(value => !ipPublicoParaRelatorio(value.address)
     || isIP(value.address) !== value.family)) throw new DownloadRelatorioError('DNS_NEGADO')
@@ -62,9 +68,15 @@ export async function baixarRelatorioVortx(raw: string, hosts: readonly string[]
     headers: { Host: url.hostname, Accept: 'text/csv,application/octet-stream,text/plain', 'Accept-Encoding': 'identity' } }
   return new Promise((resolve, reject) => {
     let req: ClientRequest | undefined, response: IncomingMessage | undefined, settled = false
-    const fail = (codigo: DownloadRelatorioError['codigo']) => {
+    const fail = (codigo: DownloadRelatorioError['codigo'], transporte?: string) => {
       if (settled) return
-      settled = true; clearTimeout(timer); reject(new DownloadRelatorioError(codigo)); response?.destroy(); req?.destroy()
+      const mime = response?.headers['content-type']?.split(';')[0].trim().toLowerCase()
+      const conteudo: DownloadDiagnostic['conteudo'] = mime === 'text/csv' || mime === 'application/csv' ? 'CSV'
+        : mime === 'text/plain' ? 'TEXTO' : ['application/octet-stream', 'binary/octet-stream'].includes(mime ?? '') ? 'BINARIO'
+          : mime === 'application/zip' ? 'ZIP' : mime === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ? 'XLSX'
+            : mime === 'text/html' ? 'HTML' : mime === 'application/json' ? 'JSON' : 'OUTRO'
+      settled = true; clearTimeout(timer); reject(new DownloadRelatorioError(codigo,
+        { ...(response ? { http: response.statusCode, conteudo } : {}), ...(transporte ? { transporte } : {}) })); response?.destroy(); req?.destroy()
     }
     const timer = setTimeout(() => fail('DOWNLOAD_TIMEOUT'), 60000)
     try {
@@ -95,7 +107,7 @@ export async function baixarRelatorioVortx(raw: string, hosts: readonly string[]
           settled = true; clearTimeout(timer); resolve(Buffer.concat(chunks, bytes))
         })
       })
-      req.on('error', () => fail('DOWNLOAD_FALHOU')); req.end()
-    } catch { fail('DOWNLOAD_FALHOU') }
+      req.on('error', error => fail('DOWNLOAD_FALHOU', transportCode(error))); req.end()
+    } catch (error) { fail('DOWNLOAD_FALHOU', transportCode(error)) }
   })
 }

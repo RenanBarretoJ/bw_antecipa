@@ -5,11 +5,13 @@ import { createAdminClient } from '@/lib/supabase/server'
 import { readBoundedBody } from '@/lib/email-intake/providers/graph-http.server'
 import { abrirEventoPreservado, eventoPreservadoSchema } from './relatorios-evento-preservado.server'
 import { relatoriosPreviewPermitidos } from './relatorios-operacao'
+import { baixarRelatorioVortx, DownloadRelatorioError } from './relatorios-download.server'
 
 const configSchema = z.object({
   segredoHash: z.string().regex(/^[a-f0-9]{64}$/),
   inicio: z.iso.datetime(), fim: z.iso.datetime(),
   eventos: z.array(z.uuid()).min(1).max(4).refine(ids => new Set(ids).size === ids.length),
+  diagnosticarDownload: z.boolean().optional(),
 }).strict()
 
 type Ambiente = Readonly<Record<string, string | undefined>>
@@ -39,10 +41,12 @@ function configuracao(env: Ambiente, now: number) {
 /** Read-only, operator-authorized Preview inspection. Not an importer or a user/MFA substitute.
  * Only an expiring machine credential can inspect explicitly listed preserved events.
  * Never exports keyring, ciphertext, original JSON, signed URL, path, query or headers.
- * Observing a host does NOT authorize it for downloads or resolve PENDENTE correlation.
+ * Default inspection never downloads. An explicit expiring diagnostic setting can
+ * reuse the strict downloader for correlated stock events only, without importing
+ * or returning/persisting original bytes. It never resolves PENDENTE correlation.
  */
 export async function inspecionarHostsPreservados(request: Request, options: {
-  env?: Ambiente; now?: number; ler?: Leitor
+  env?: Ambiente; now?: number; ler?: Leitor; baixar?: typeof baixarRelatorioVortx
 } = {}): Promise<Response> {
   const config = configuracao(options.env ?? process.env, options.now ?? Date.now())
   if (!config) return reply(404)
@@ -60,6 +64,25 @@ export async function inspecionarHostsPreservados(request: Request, options: {
   try {
     const rows = z.array(eventoPreservadoSchema).length(config.eventos.length).parse(await (options.ler ?? lerEventos)(config.fundoId, config.eventos))
     if (new Set(rows.map(row => row.id)).size !== rows.length) return reply(409)
+    if (config.diagnosticarDownload) {
+      const env = options.env ?? process.env
+      if (env.VORTX_REPORT_STOCK_PROCESSING_ENABLED !== 'true' || !env.VORTX_REPORT_DOWNLOAD_HOSTS?.trim()
+        || rows.some(row => row.correlacao !== 'CORRELACIONADO' || row.fundo_id !== config.fundoId || !config.eventos.includes(row.id))) return reply(409)
+      const eventos = rows.map(row => abrirEventoPreservado(row).evento)
+      if (eventos.some(evento => !['PosicaoAtivo', 'PosicaoParcela'].includes(evento.tipoRelatorio)
+        || !evento.dataExpiracao || Date.parse(evento.dataExpiracao) <= (options.now ?? Date.now()))) return reply(409)
+      const diagnosticos = []
+      for (const evento of eventos) {
+        try {
+          const bytes = await (options.baixar ?? baixarRelatorioVortx)(evento.urlRelatorio!, env.VORTX_REPORT_DOWNLOAD_HOSTS.split(',').map(host => host.trim()))
+          diagnosticos.push({ tipo: evento.tipoRelatorio, resultado: 'DOWNLOAD_OK', bytes: bytes.byteLength })
+        } catch (error) {
+          if (!(error instanceof DownloadRelatorioError)) throw error
+          diagnosticos.push({ tipo: evento.tipoRelatorio, resultado: error.codigo, ...error.diagnostico })
+        }
+      }
+      return Response.json({ diagnosticos, somenteLeitura: true, importacaoExecutada: false }, { headers })
+    }
     const hosts = rows.map(row => {
       if (row.fundo_id !== config.fundoId || !config.eventos.includes(row.id)) throw new Error('SCOPE')
       const { evento } = abrirEventoPreservado(row)
