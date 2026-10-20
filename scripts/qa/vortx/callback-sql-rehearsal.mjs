@@ -7,6 +7,7 @@ import { spawnSync } from 'node:child_process'
 import pg from 'pg'
 import { runCallbackAdminChecks } from './callback-admin-checks.mjs'
 import { runCallbackDiagnosticChecks } from './callback-diagnostic-checks.mjs'
+import { runCallbackCaptureChecks } from './callback-capture-checks.mjs'
 
 // Synthetic, focused SQL contract rehearsal; not hosted Auth/Storage E2E.
 const root = fileURLToPath(new URL('../../../', import.meta.url))
@@ -14,6 +15,7 @@ const output = resolve(process.env.LOCALAPPDATA, 'bw-antecipa-evidence/vortx-cal
 mkdirSync(output, { recursive: true })
 const sha = value => createHash('sha256').update(value).digest('hex')
 const paths = ['supabase/migrations/20261019180624_vortx_report_requests_preview.sql', 'supabase/migrations/20261019201346_vortx_report_callback_inbox.sql', 'supabase/migrations/20261019203424_vortx_callback_admin_ui.sql', 'supabase/migrations/20261019211756_vortx_report_audit_event_types.sql', 'supabase/migrations/20261020134509_vortx_callback_rejected_diagnostics.sql']
+paths.push('supabase/migrations/20261020165910_vortx_callback_single_capture_preview.sql')
 const migrations = paths.map(path => ({ path, sql: readFileSync(resolve(root, path), 'utf8') }))
 const canonical = JSON.parse(readFileSync(new URL('./__fixtures__/report-auth-canonical.json', import.meta.url), 'utf8')).functions
 const auditConstraint = JSON.parse(readFileSync(new URL('./__fixtures__/callback-audit-constraint.json', import.meta.url), 'utf8'))
@@ -150,6 +152,11 @@ try {
       const endpoint = (await worker(configure, [fund, version, secretHash])).rows[0].r.id
       check('worker_registration_derived_from_published_active_integration')
       await runCallbackDiagnosticChecks({ db, fund, integration, endpoint, secretHash, worker, as, check })
+      const oldFunctions = (await db.query("select oid,pg_get_functiondef(oid) as definition,proacl::text from pg_proc where pronamespace in ('public'::regnamespace,'private'::regnamespace,'auth'::regnamespace) order by oid")).rows
+      await db.query(migrations[5].sql)
+      await runCallbackCaptureChecks({ db, config, fund, otherFund, integration, endpoint, worker, as, check })
+      assert.deepEqual((await db.query('select oid,pg_get_functiondef(oid) as definition,proacl::text from pg_proc where oid=ANY($1::oid[]) order by oid', [oldFunctions.map(f => f.oid)])).rows, oldFunctions)
+      check('capture_migration_preserves_every_existing_function_and_function_grant')
       await assert.rejects(worker(configure, [otherFund, otherVersion, sha('cross')]), { code: '42501' })
       await assert.rejects(worker(configure, [otherFund, version, sha('cross')]), { code: '42501' })
       const hom = randomUUID()
