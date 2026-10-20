@@ -2,10 +2,12 @@ import 'server-only'
 import { z } from 'zod'
 import { readBoundedBody } from '@/lib/email-intake/providers/graph-http.server'
 import { CALLBACK_MAX_BODY, hashSegredoCallback, interpretarCallbackRelatorio, type CallbackBinding, type EventoRelatorioVortx } from './relatorios-callback'
+import type { CallbackRejection } from './relatorios-callback-diagnostic'
 
 export type CallbackRepository = {
   autorizar(id: string, hash: string): Promise<{ status: 'UNAUTHORIZED' | 'RATE_LIMITED' } | ({ status: 'AUTHORIZED' } & CallbackBinding)>
   persistir(binding: CallbackBinding, segredoHash: string, evento: EventoRelatorioVortx): Promise<void>
+  diagnosticarRejeicao?(binding: CallbackBinding, segredoHash: string, rejection: CallbackRejection, token: string): Promise<void>
 }
 
 const reply = (status: number) => new Response(null, { status, headers: {
@@ -29,12 +31,28 @@ export async function receberCallbackRelatorio(request: Request, repository: Cal
   } catch { return reply(503) }
   if (request.headers.get('content-type')?.split(';')[0].trim().toLowerCase() !== 'application/json') return reply(415)
   if (request.headers.get('content-encoding') && request.headers.get('content-encoding') !== 'identity') return reply(415)
-  let evento: EventoRelatorioVortx
+  let bytes: Uint8Array, corpo: string
   try {
-    const bytes = await readBoundedBody(new Response(request.body, { headers: request.headers }), CALLBACK_MAX_BODY)
-    evento = interpretarCallbackRelatorio(JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes)))
+    bytes = await readBoundedBody(new Response(request.body, { headers: request.headers }), CALLBACK_MAX_BODY)
+    corpo = new TextDecoder('utf-8', { fatal: true }).decode(bytes)
   } catch (error) {
     return reply(error && typeof error === 'object' && 'code' in error && error.code === 'FILE_TOO_LARGE' ? 413 : 400)
+  }
+  const capture = async (motivo: CallbackRejection['motivo']) => {
+    try { await repository.diagnosticarRejeicao?.(binding, secretHash, { motivo, corpo, bytes: bytes.byteLength }, tokens[0]) }
+    catch {
+      // Diagnostics must not acknowledge an invalid event or leak the rejected payload.
+      console.warn('vortx_callback_diagnostic', { estado: 'FALHA_CAPTURA' })
+    }
+  }
+  let parsed: unknown
+  try { parsed = JSON.parse(corpo) } catch { await capture('JSON_INVALIDO'); return reply(400) }
+  let evento: EventoRelatorioVortx
+  try { evento = interpretarCallbackRelatorio(parsed) } catch {
+    // A known cross-wallet payload is not collected, even if another field is also invalid.
+    const wallet = parsed && typeof parsed === 'object' && 'idCarteira' in parsed ? parsed.idCarteira : undefined
+    if (wallet === undefined || wallet === null || wallet === binding.codigoCarteira) await capture('CONTRATO_INVALIDO')
+    return reply(400)
   }
   if (evento.idCarteira !== binding.codigoCarteira) return reply(403)
   try {
