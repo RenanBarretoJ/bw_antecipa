@@ -1,4 +1,5 @@
 export type VortxStockFunctions = {
+  vortx_retomar_download_estoque: { Args: { p_fundo_id: string; p_correlation_id: string }; Returns: boolean }
   financeiro_possui_historico_fonte_vortx: { Args: { p_fundo_id: string; p_ambiente: string }; Returns: boolean }
   persistir_estoque_vortx: { Args: { p_payload: Record<string, unknown> }; Returns: Record<string, unknown> }
   publicar_estoque_vortx: { Args: { p_importacao_id: string }; Returns: Record<string, unknown> }

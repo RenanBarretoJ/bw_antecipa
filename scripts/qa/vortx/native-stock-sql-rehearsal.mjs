@@ -28,7 +28,8 @@ function docker(args, allowFailure = false) {
 const inventory = () => ({ containers: docker(['ps', '-aq']).split(/\s+/).filter(Boolean).sort(), networks: docker(['network', 'ls', '-q']).split(/\s+/).filter(Boolean).sort() })
 const before = inventory()
 const report = { scope: 'LOCAL_FOCUSED_NATIVE_STOCK_SQL_RLS', migration: migrationPath, migrationSha256: sha(migration),
-  migrations: [migrationPath, 'supabase/migrations/20261020192527_vortx_stock_callback_processing.sql'].map(path => ({ path, sha256: sha(read(path)) })),
+  migrations: [migrationPath, 'supabase/migrations/20261020192527_vortx_stock_callback_processing.sql',
+    'supabase/migrations/20261020201600_vortx_stock_zip_recovery.sql'].map(path => ({ path, sha256: sha(read(path)) })),
   catalogSha256: sha(JSON.stringify(catalog)), preservedFunctionHashes: oldFunctions.map(f => ({ name: f.name, sha256: sha(f.definition) })),
   stacks: [], error: null, DOCKER_TEST_ENV_CLEANUP: false }
 try {

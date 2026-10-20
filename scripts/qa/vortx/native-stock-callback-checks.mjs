@@ -158,4 +158,41 @@ export async function checkStockCallbackProcessing({ db, config, internal, asRol
   stack.bulk = { parcelas: 5000, chunks, normalizedJsonBytes: Buffer.byteLength(JSON.stringify(bulk)),
     manifestBytes: Buffer.byteLength(JSON.stringify(bulkManifest)), durationMs: Math.round(performance.now() - start) }
   stack.tests.push('bulk_5000_rows_bounded_transport_atomic_completion_measured')
+  await db.query(read('supabase/migrations/20261020201600_vortx_stock_zip_recovery.sql'))
+  for (const role of ['anon', 'authenticated']) await assert.rejects(asRole(role,
+    'select vortx_retomar_download_estoque($1,$2)', [fund, randomUUID()], actor), { code: '42501' })
+  const recover = (target = fund) => internal('select vortx_retomar_download_estoque($1,$2) r', [target, randomUUID()]).then(r => r.rows[0].r)
+  assert.equal(await recover(otherFund), false)
+  stack.tests.push('recovery_worker_only_and_no_cross_fund_job_adoption')
+  await event('PosicaoAtivo', '2026-10-23'); await event('PosicaoParcela', '2026-10-23')
+  const downloadFailure = await reserve()
+  await internal('select vortx_falhar_processamento_estoque($1,$2,$3)', [downloadFailure.id, downloadFailure.lease, 'DOWNLOAD_FALHOU'])
+  await db.query('update private.vortx_callback_endpoints set ativo=false where id=$1', [endpoint])
+  assert.equal(await recover(), false)
+  await db.query('update private.vortx_callback_endpoints set ativo=true where id=$1', [endpoint])
+  assert.equal(await recover(), true); assert.equal(await recover(), false)
+  const audit = (await db.query("select dados from plataforma_auditoria where tipo_evento='VORTX_CALLBACK_ESTOQUE_RETENTATIVA' order by created_at desc limit 1")).rows[0].dados
+  assert.equal(audit.processamento_id, downloadFailure.id); assert.equal(audit.erro_anterior, 'DOWNLOAD_FALHOU')
+  assert.equal(audit.tentativa_anterior, 1); assert.equal(audit.motivo, 'ZIP_CSV_SUPORTADO')
+  const secondAttempt = await reserve(); assert.equal(secondAttempt.id, downloadFailure.id); assert.equal(secondAttempt.tentativas, 2)
+  stack.tests.push('explicit_retry_rechecks_current_scope_and_retains_failed_attempt_in_audit')
+  await internal('select vortx_falhar_processamento_estoque($1,$2,$3)', [secondAttempt.id, secondAttempt.lease, 'DOWNLOAD_FALHOU'])
+  assert.equal(await recover(), true)
+  const thirdAttempt = await reserve(); assert.equal(thirdAttempt.tentativas, 3)
+  await internal('select vortx_falhar_processamento_estoque($1,$2,$3)', [thirdAttempt.id, thirdAttempt.lease, 'DOWNLOAD_FALHOU'])
+  assert.equal(await recover(), false)
+  stack.tests.push('explicit_recovery_never_resets_attempt_ceiling_or_retries_permanent_contract_failure')
+  await event('PosicaoAtivo', '2026-10-24'); await event('PosicaoParcela', '2026-10-24')
+  const intentJob = await reserve(), intentBody = payload({ date: '2026-10-24', suffix: 'recovery-intent' })
+  const { ativos: intentAssets, parcelas: intentParcels, ...intentHeader } = intentBody
+  await internal('select vortx_reservar_manifesto_estoque($1,$2,$3)', [intentJob.id, intentJob.lease, {
+    ...intentHeader, processamento_id: intentJob.id, processamento_lease: intentJob.lease,
+    ativos_total: intentAssets.length, parcelas_total: intentParcels.length,
+  }])
+  await internal('select vortx_falhar_processamento_estoque($1,$2,$3)', [intentJob.id, intentJob.lease, 'DOWNLOAD_FALHOU'])
+  assert.equal(await recover(), false)
+  stack.tests.push('recovery_refuses_upload_intents_or_possible_financial_side_effects')
+  assert.equal((await db.query("select count(*)::int n from pg_indexes where schemaname='private' and indexname=any($1)",
+    [['vortx_estoque_processamento_importacao_idx','vortx_estoque_processamento_parcela_idx','vortx_estoque_processamento_versao_idx']])).rows[0].n, 3)
+  stack.tests.push('new_processing_foreign_keys_have_covering_indexes')
 }

@@ -3,8 +3,9 @@ import { lookup } from 'node:dns/promises'
 import { BlockList, isIP } from 'node:net'
 import { request as httpsRequest, type RequestOptions } from 'node:https'
 import type { ClientRequest, IncomingMessage } from 'node:http'
+import { MAX_REPORT_BYTES, extrairCsvZipVortx } from './relatorios-zip.server'
 
-export const MAX_REPORT_BYTES = 20 * 1024 * 1024
+export { MAX_REPORT_BYTES } from './relatorios-zip.server'
 const transportCodes = ['ENOTFOUND', 'EAI_AGAIN', 'ETIMEDOUT', 'ECONNRESET', 'ECONNREFUSED', 'ENETUNREACH',
   'EHOSTUNREACH', 'ERR_TLS_CERT_ALTNAME_INVALID', 'CERT_HAS_EXPIRED', 'UNABLE_TO_VERIFY_LEAF_SIGNATURE']
 const transportCode = (error: unknown) => typeof error === 'object' && error !== null && 'code' in error
@@ -90,7 +91,7 @@ export async function baixarRelatorioVortx(raw: string, hosts: readonly string[]
         const mime = res.headers['content-type']?.split(';')[0].trim().toLowerCase()
         const encoding = res.headers['content-encoding']
         const length = res.headers['content-length']
-        if (!mime || !['text/csv', 'application/csv', 'text/plain', 'application/octet-stream', 'binary/octet-stream'].includes(mime)
+        if (!mime || !['text/csv', 'application/csv', 'text/plain', 'application/octet-stream', 'binary/octet-stream', 'application/zip'].includes(mime)
           || (encoding && encoding !== 'identity') || (length && (!/^\d+$/.test(length) || Number(length) > MAX_REPORT_BYTES))) {
           fail('CONTEUDO_INVALIDO'); return
         }
@@ -101,10 +102,17 @@ export async function baixarRelatorioVortx(raw: string, hosts: readonly string[]
           if (bytes > MAX_REPORT_BYTES) { fail('CONTEUDO_INVALIDO'); return }
           chunks.push(chunk)
         })
-        res.on('end', () => {
+        res.on('end', async () => {
           if (settled) return
           if (!res.complete || !bytes || (length && Number(length) !== bytes)) { fail('CONTEUDO_INVALIDO'); return }
-          settled = true; clearTimeout(timer); resolve(Buffer.concat(chunks, bytes))
+          const body = Buffer.concat(chunks, bytes)
+          const isZip = body.length >= 4 && body.readUInt32LE(0) === 0x04034b50
+          if (mime === 'application/zip' && !isZip) { fail('CONTEUDO_INVALIDO'); return }
+          try {
+            const csv = isZip ? await extrairCsvZipVortx(body) : body
+            if (settled) return
+            settled = true; clearTimeout(timer); resolve(csv)
+          } catch { fail('CONTEUDO_INVALIDO') }
         })
       })
       req.on('error', error => fail('DOWNLOAD_FALHOU', transportCode(error))); req.end()

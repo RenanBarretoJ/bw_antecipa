@@ -1,4 +1,5 @@
 import { EventEmitter } from 'node:events'
+import JSZip from 'jszip'
 import type { request as httpsRequest } from 'node:https'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { baixarRelatorioVortx, ipPublicoParaRelatorio, MAX_REPORT_BYTES, validarUrlDownloadRelatorio } from './relatorios-download.server'
@@ -103,5 +104,10 @@ describe('signed report download isolation and bounds', () => {
   it('classifies an unsupported provider format without exporting headers or bytes', async () => {
     const test = transport({ headers: { 'content-type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' } })
     await expect(baixarRelatorioVortx(signed, hosts, test.deps)).rejects.toMatchObject({ codigo: 'CONTEUDO_INVALIDO', diagnostico: { http: 200, conteudo: 'XLSX' } })
+  })
+  it('accepts the observed ZIP transport only after bounded single-CSV extraction', async () => {
+    const zip = new JSZip(); zip.file('posicao.csv', 'qa;valor\n1;2.00')
+    const test = transport({ headers: { 'content-type': 'application/zip' } }, [await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' })])
+    expect(Buffer.from(await baixarRelatorioVortx(signed, hosts, test.deps)).toString()).toBe('qa;valor\n1;2.00')
   })
 })
