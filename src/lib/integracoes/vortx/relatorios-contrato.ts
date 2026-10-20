@@ -1,26 +1,27 @@
 import { z } from 'zod'
 import { CODIGO_CARTEIRA_PATTERN } from '@/lib/integracoes/configuracao-vortx-vrs'
+import { TIPOS_RELATORIO_VORTX, relatorioDePosicao } from './relatorios-tipos'
+export { TIPOS_RELATORIO_VORTX, type TipoRelatorioVortx } from './relatorios-tipos'
 
 export const VORTX_RELATORIO_SOLICITAR_PATH = '/v1/vrs/externo/solicitar'
-export const TIPOS_RELATORIO_VORTX = ['Inclusao', 'Exclusao', 'PosicaoAtivo', 'PosicaoParcela'] as const
-export type TipoRelatorioVortx = typeof TIPOS_RELATORIO_VORTX[number]
-
 const solicitacaoSchema = z.object({
   codigoCarteira: z.string().trim().regex(CODIGO_CARTEIRA_PATTERN),
-  dataInicio: z.iso.date(),
-  dataFim: z.iso.date(),
+  dataInicio: z.iso.date().optional(),
+  dataFim: z.iso.date().optional(),
   dataReferencia: z.iso.date().optional(),
   tipoRelatorio: z.enum(TIPOS_RELATORIO_VORTX),
   extensaoArquivo: z.union([z.literal(1), z.literal(2)]).default(2),
 }).strict()
 
-export type SolicitacaoRelatorioVortx = Omit<z.output<typeof solicitacaoSchema>, 'dataReferencia'> & {
+export type SolicitacaoRelatorioVortx = Omit<z.output<typeof solicitacaoSchema>, 'dataReferencia' | 'dataInicio' | 'dataFim'> & {
   dataReferencia: string
+  dataInicio: string
+  dataFim: string
 }
 
 const protocoloSchema = z.object({
   id: z.uuid(),
-  status: z.literal(0),
+  status: z.union([z.literal(0), z.literal('Pendente')]).transform(() => 0 as const),
   dataSolicitacao: z.iso.datetime({ offset: true }),
 })
 export type ProtocoloRelatorioVortx = z.output<typeof protocoloSchema>
@@ -43,20 +44,24 @@ export function prepararSolicitacaoRelatorioVortx(entrada: unknown, hoje: string
     throw new ContratoRelatorioVortxError('Parametros da solicitacao de relatorio Vortx invalidos.', 'configuracao')
   }
   const body = parse.data
-  // A descricao exige fim posterior ao inicio. Periodos de um unico dia
-  // aguardam confirmacao contratual, em vez de presumir que a API os aceita.
-  if (body.dataFim <= body.dataInicio) {
-    throw new ContratoRelatorioVortxError('O fim do periodo deve ser posterior ao inicio.', 'configuracao')
-  }
-  const posicao = body.tipoRelatorio === 'PosicaoAtivo' || body.tipoRelatorio === 'PosicaoParcela'
+  const posicao = relatorioDePosicao(body.tipoRelatorio)
   if (posicao && !body.dataReferencia) {
     throw new ContratoRelatorioVortxError('Relatorios de posicao exigem data de referencia explicita.', 'configuracao')
   }
-  const dataReferencia = body.dataReferencia ?? body.dataFim
-  if ([body.dataInicio, body.dataFim, dataReferencia].some((data) => data > hoje)) {
+  if (!posicao && (!body.dataInicio || !body.dataFim || body.dataFim <= body.dataInicio)) {
+    throw new ContratoRelatorioVortxError('O fim do periodo deve ser posterior ao inicio.', 'configuracao')
+  }
+  const dataReferencia = body.dataReferencia ?? body.dataFim!
+  // Position reports have one business date. These deterministic transport fields
+  // satisfy the documented required body without introducing an operator-selected range.
+  const previous = new Date(`${dataReferencia}T00:00:00Z`)
+  previous.setUTCDate(previous.getUTCDate() - 1)
+  const dataInicio = posicao ? previous.toISOString().slice(0, 10) : body.dataInicio!
+  const dataFim = posicao ? dataReferencia : body.dataFim!
+  if ([dataInicio, dataFim, dataReferencia].some((data) => data > hoje)) {
     throw new ContratoRelatorioVortxError('Relatorios Vortx nao permitem datas futuras.', 'configuracao')
   }
-  return { ...body, dataReferencia }
+  return { ...body, dataInicio, dataFim, dataReferencia }
 }
 
 /**

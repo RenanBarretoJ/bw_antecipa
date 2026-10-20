@@ -35,6 +35,29 @@ function enable() { vi.spyOn(Date, 'now').mockReturnValue(now) }
 afterEach(() => { vi.unstubAllEnvs(); vi.restoreAllMocks(); vi.useRealTimers(); mocks.rpc.mockReset() })
 
 describe('one-shot encrypted application-level callback capture', () => {
+  it('captures only an authenticated, explicitly pre-armed report protocol in protocol mode', async () => {
+    enable()
+    const scoped = { ...env, VORTX_REPORT_CALLBACK_PROTOCOL_CAPTURE_UNTIL: env.VORTX_REPORT_CALLBACK_RAW_CAPTURE_UNTIL }
+    const repo = repository(), req = () => request(JSON.stringify({ idRelatorio: other, tipoRelatorio: 'provider spelling' }))
+    expect(await iniciarCapturaCallback(req(), () => repo, scoped)!(401, false)).toEqual({ estado: 'IGNORADA' })
+    expect(await iniciarCapturaCallback(req(), () => repo, scoped)!(403, true)).toEqual({ estado: 'IGNORADA' })
+    expect(repo.reservar).not.toHaveBeenCalled()
+    expect(await iniciarCapturaCallback(req(), () => repo, scoped)!(400, true)).toEqual({ estado: 'SALVA', completa: true })
+    expect(repo.reservar).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ id: other, endpointId: id, fundoId: id }))
+    expect(repo.salvar.mock.calls[0][1].capturaId).toBe(other)
+    repo.reservar.mockResolvedValue(false)
+    expect(await iniciarCapturaCallback(req(), () => repo, scoped)!(200, true)).toEqual({ estado: 'IGNORADA' })
+    expect(repo.salvar).toHaveBeenCalledTimes(1)
+  })
+  it('never reserves an arbitrary or missing protocol ID even for an authenticated body', async () => {
+    enable()
+    const scoped = { ...env, VORTX_REPORT_CALLBACK_PROTOCOL_CAPTURE_UNTIL: env.VORTX_REPORT_CALLBACK_RAW_CAPTURE_UNTIL }
+    const repo = repository()
+    for (const value of [{}, { idRelatorio: 'wrong' }]) {
+      expect(await iniciarCapturaCallback(request(JSON.stringify(value)), () => repo, scoped)!(400, true)).toEqual({ estado: 'IGNORADA' })
+    }
+    expect(repo.reservar).not.toHaveBeenCalled(); expect(repo.salvar).not.toHaveBeenCalled()
+  })
   it('is opt-in, on the exact Preview, endpoint and callback path only', () => {
     expect(configurarCapturaCallback(request(), {}, now)).toBeNull()
     expect(configurarCapturaCallback(request(), env, now)).toMatchObject({ id, endpointId: id, fundoId: id })

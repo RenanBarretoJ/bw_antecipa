@@ -1,5 +1,6 @@
 import { z } from 'zod'
-import { TIPOS_RELATORIO_VORTX, type TipoRelatorioVortx } from './relatorios-contrato'
+import { TIPOS_RELATORIO_VORTX } from './relatorios-contrato'
+export { relatorioDePosicao } from './relatorios-tipos'
 
 export const RELATORIOS_OPERADOR = [
   { tipo: 'PosicaoParcela', titulo: 'Estoque em aberto', subtitulo: 'Posição por parcela', descricao: 'Parcelas em aberto na data escolhida. É a base principal para conferir o estoque.', capability: 'ESTOQUE' },
@@ -39,8 +40,6 @@ export function relatoriosPreviewPermitidos(fundoId: string, env: Readonly<Recor
     && env.VORTX_REPORTS_PREVIEW_ENABLED === 'true'
     && Boolean(env.VORTX_REPORTS_PREVIEW_FUNDO_ID) && fundoId === env.VORTX_REPORTS_PREVIEW_FUNDO_ID
 }
-
-export function relatorioDePosicao(tipo: TipoRelatorioVortx): boolean { return tipo === 'PosicaoAtivo' || tipo === 'PosicaoParcela' }
 
 export function situacaoRelatorio(row: SolicitacaoRelatorio, agora = Date.now()): { titulo: string; descricao: string; tom: 'neutro'|'atencao'|'erro' } {
   if (['registrada','enviando'].includes(row.estado) && agora - Date.parse(row.criada_em) > 120_000) {

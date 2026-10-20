@@ -25,7 +25,7 @@ describe('Vortx callback contract', () => {
   })
   it.each([
     { tipoRelatorio: 'Consolidado' }, { statusRelatorio: 'pronto' }, { idRelatorio: 'invalid' }, { idCarteira: 'invalid|wallet' },
-    { dataInicio: '2026-10-17' }, { dataFim: '2026-02-31' }, { urlRelatorio: null }, { dataExpiracao: null },
+    { tipoRelatorio: 'Inclusao', dataInicio: '2026-10-17' }, { dataFim: '2026-02-31' }, { urlRelatorio: null }, { dataExpiracao: null },
     { urlRelatorio: 'http://example.invalid/' }, { urlRelatorio: 'https://user:pass@example.invalid/' },
     { urlRelatorio: 'https://example.invalid/#secret' }, { extra: 'unexpected' },
   ])('rejects invalid or unsupported event %# without echoing input', change => {

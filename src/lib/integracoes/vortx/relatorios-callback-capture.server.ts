@@ -66,6 +66,16 @@ export function configurarCapturaCallback(request: Request, env: Environment = p
   return { id: id!, endpointId: endpointId!, fundoId: fundoId!, capturarAte: new Date(deadline).toISOString() }
 }
 
+function configurarCapturaPorProtocolo(request: Request, env: Environment): Omit<CaptureConfig, 'id'> | null {
+  // Reuse the exact Preview/endpoint/deadline selector. The real reservation ID is
+  // read later from the bounded, already-authenticated body, NEVER created from input.
+  const selected = configurarCapturaCallback(request, { ...env,
+    VORTX_REPORT_CALLBACK_RAW_CAPTURE_ID: env.VORTX_REPORT_CALLBACK_RAW_ENDPOINT_ID,
+    VORTX_REPORT_CALLBACK_RAW_CAPTURE_UNTIL: env.VORTX_REPORT_CALLBACK_PROTOCOL_CAPTURE_UNTIL,
+  })
+  return selected ? { endpointId: selected.endpointId, fundoId: selected.fundoId, capturarAte: selected.capturarAte } : null
+}
+
 async function lerCorpoCapturado(request: Request): Promise<CapturedBody> {
   if (!request.body) return { bytes: Buffer.alloc(0), completo: true, motivo: 'EOF' }
   const reader = request.body.getReader(), chunks: Buffer[] = []
@@ -119,28 +129,39 @@ function criarRepositorioCaptura(): CaptureRepository {
 export function iniciarCapturaCallback(request: Request,
   repositoryFactory: () => CaptureRepository = criarRepositorioCaptura,
   env: Environment = process.env,
-): ((statusHttp: number) => Promise<CaptureResult>) | null {
+): ((statusHttp: number, autorizada?: boolean) => Promise<CaptureResult>) | null {
+  const protocolScope = configurarCapturaPorProtocolo(request, env)
   const config = configurarCapturaCallback(request, env)
-  if (!config) return null
+  if (!config && !protocolScope) return null
   let copy: Request
   try { copy = request.clone() } catch { return async () => ({ estado: 'FALHA' }) }
   const recebidoEm = new Date().toISOString()
-  return async statusHttp => {
+  return async (statusHttp, autorizada = false) => {
     try {
+      let selected = config, captured: CapturedBody | undefined
+      if (protocolScope) {
+        if (!autorizada || statusHttp === 401 || statusHttp === 403) return { estado: 'IGNORADA' }
+        captured = await lerCorpoCapturado(copy)
+        if (!captured.completo) return { estado: 'IGNORADA' }
+        const protocol = z.object({ idRelatorio: z.uuid() }).safeParse(JSON.parse(captured.bytes.toString('utf8')))
+        if (!protocol.success) return { estado: 'IGNORADA' }
+        selected = { ...protocolScope, id: protocol.data.idRelatorio.toLowerCase() }
+      }
+      if (!selected) return { estado: 'IGNORADA' }
       const repository = repositoryFactory()
-      if (!await repository.reservar(config)) return { estado: 'IGNORADA' }
+      if (!await repository.reservar(selected)) return { estado: 'IGNORADA' }
       const headers: [string, string][] = Array.from(copy.headers.entries())
       if (Buffer.byteLength(JSON.stringify({ url: copy.url, headers }), 'utf8') > MAX_METADATA_BYTES) return { estado: 'FALHA' }
-      const body = await lerCorpoCapturado(copy)
+      const body = captured ?? await lerCorpoCapturado(copy)
       const envelope: CaptureEnvelope = {
-        purpose: 'VORTX_CALLBACK_APPLICATION_REQUEST_V1', capturaId: config.id,
-        endpointId: config.endpointId, fundoId: config.fundoId, recebidoEm,
+        purpose: 'VORTX_CALLBACK_APPLICATION_REQUEST_V1', capturaId: selected.id,
+        endpointId: selected.endpointId, fundoId: selected.fundoId, recebidoEm,
         origemNaoAutenticada: true, nivelCaptura: 'WEB_REQUEST_APOS_VERCEL_NAO_WIRE',
         metodo: copy.method, url: copy.url, headers, corpoBase64: body.bytes.toString('base64'),
         hashCorpo: createHash('sha256').update(body.bytes).digest('hex'), bytesCorpo: body.bytes.length,
         corpoCompleto: body.completo, motivoCorpo: body.motivo, statusHttp,
       }
-      return await repository.salvar(config.id, envelope) ? { estado: 'SALVA', completa: body.completo } : { estado: 'IGNORADA' }
+      return await repository.salvar(selected.id, envelope) ? { estado: 'SALVA', completa: body.completo } : { estado: 'IGNORADA' }
     } catch { return { estado: 'FALHA' } }
     finally { if (copy.body && !copy.bodyUsed) void copy.body.cancel().catch(() => {}) }
   }

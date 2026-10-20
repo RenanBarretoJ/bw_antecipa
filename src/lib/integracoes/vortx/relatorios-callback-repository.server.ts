@@ -33,11 +33,11 @@ export function criarRepositorioCallbackRelatorio(client = createAdminClient()):
       if (result.error) throw new Error('Callback temporariamente indisponivel.')
       return bindingSchema.parse(result.data)
     },
-    async persistir(binding, segredoHash, evento) {
+    async persistir(binding, segredoHash, evento, corpoOriginal) {
       const { metadados, hash } = prepararEventoCallback(binding.endpointId, evento)
       const sealed = criptografarPortalFidcValor(JSON.stringify({ purpose: 'VORTX_CALLBACK_RELATORIO_V1',
         endpointId: binding.endpointId, fundoId: binding.fundoId, ambiente: binding.ambiente,
-        codigoCarteira: binding.codigoCarteira, hash, evento }))
+        codigoCarteira: binding.codigoCarteira, hash, evento, corpoOriginal }))
       const result = await client.rpc('vortx_receber_callback', { p_id: binding.endpointId, p_segredo_hash: segredoHash,
         p_revisao: binding.revisao, p_metadados: metadados, p_hash_evento: hash, p_ciphertext: sealed.ciphertext, p_chave_versao: sealed.chaveVersao })
       if (result.error || !z.object({ recebido: z.literal(true), duplicado: z.boolean() }).safeParse(result.data).success) {
