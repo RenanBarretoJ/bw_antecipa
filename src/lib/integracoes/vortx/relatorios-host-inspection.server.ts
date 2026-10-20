@@ -3,6 +3,7 @@ import { createHash, timingSafeEqual } from 'node:crypto'
 import { z } from 'zod'
 import { createAdminClient } from '@/lib/supabase/server'
 import { descriptografarPortalFidcValor } from '@/lib/portal-fidc/credenciais'
+import { readBoundedBody } from '@/lib/email-intake/providers/graph-http.server'
 import { interpretarCallbackRelatorio, prepararEventoCallback } from './relatorios-callback'
 import { relatoriosPreviewPermitidos } from './relatorios-operacao'
 
@@ -62,7 +63,12 @@ export async function inspecionarHostsPreservados(request: Request, options: {
   const hash = createHash('sha256').update(auth.slice(7)).digest()
   if (!timingSafeEqual(hash, Buffer.from(config.segredoHash, 'hex'))) return reply(401)
   if (request.method !== 'POST') return reply(405)
-  if (new URL(request.url).search || request.body !== null) return reply(400)
+  if (new URL(request.url).search) return reply(400)
+  // The hosted adapter can represent an empty POST as a non-null, empty stream.
+  // Permit zero bytes only; do not accept any caller payload or caller-selected event IDs.
+  try {
+    if (request.body) await readBoundedBody(new Response(request.body, { headers: request.headers }), 0)
+  } catch { return reply(400) }
   try {
     const rows = z.array(rowSchema).length(config.eventos.length).parse(await (options.ler ?? lerEventos)(config.fundoId, config.eventos))
     if (new Set(rows.map(row => row.id)).size !== rows.length) return reply(409)
