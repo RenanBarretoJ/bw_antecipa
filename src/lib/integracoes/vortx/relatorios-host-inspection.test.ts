@@ -70,6 +70,13 @@ describe('expiring Preview-only preserved host inspection', () => {
     expect(response.headers.get('cache-control')).toBe('no-store')
     expect(response.headers.get('access-control-allow-origin')).toBeNull()
   })
+  it('permits a genuinely empty transport stream without permitting any body bytes', async () => {
+    const ler = vi.fn().mockResolvedValue([row()])
+    const response = await inspecionarHostsPreservados(request({ body: '' }), { env, now, ler })
+    expect(response.status).toBe(200)
+    expect((await inspecionarHostsPreservados(request({ body: ' ' }), { env, now, ler })).status).toBe(400)
+    expect(ler).toHaveBeenCalledTimes(1)
+  })
   it.each([{ fundoId: other }, { endpointId: other }, { ambiente: 'homologacao' },
     { codigoCarteira: 'another-wallet' }, { hash: '0'.repeat(64) }, { purpose: 'ANOTHER_PURPOSE' }])('rejects wrong encrypted scope %j', async change => {
     const response = await inspecionarHostsPreservados(request(), { env, now, ler: vi.fn().mockResolvedValue([row(change)]) })
