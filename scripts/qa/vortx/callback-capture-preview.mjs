@@ -1,7 +1,7 @@
 // Explicitly authorized Preview only. No provider request, import or production/homolog write.
 import assert from 'node:assert/strict'
 import { constants, createDecipheriv, createHash, generateKeyPairSync, privateDecrypt, randomUUID, X509Certificate } from 'node:crypto'
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import pg from 'pg'
 import { manifest, previewDetails, assertPreviewDetails, repository } from './preview-runtime.mjs'
@@ -64,7 +64,9 @@ try {
     const quality = JSON.parse(readFileSync(join(base, qualityName, 'QUALITY.json'), 'utf8'))
     assert.equal(quality.checks.length, 5); assert(quality.checks.every(c => c.exitCode === 0))
     const sqlBase = resolve(process.env.LOCALAPPDATA, 'bw-antecipa-evidence/vortx-callback-20261019')
-    const certified = readdirSync(sqlBase).filter(n => n.startsWith('sql-')).sort().reverse()
+    const sqlRuns = readdirSync(sqlBase).filter(n => n.startsWith('sql-')).sort().reverse()
+    report.incompleteHistoricalSqlRuns = sqlRuns.filter(n => !existsSync(join(sqlBase, n, 'REPORT.json')))
+    const certified = sqlRuns.filter(n => existsSync(join(sqlBase, n, 'REPORT.json')))
       .map(n => JSON.parse(readFileSync(join(sqlBase, n, 'REPORT.json'), 'utf8')))
       .find(r => !r.error && r.DOCKER_TEST_ENV_CLEANUP && r.stacks.length === 2 && r.stacks.every(s => s.checks.length >= 71)
         && r.migrations.some(m => m.path === entries[1].path && m.sha256 === entries[1].sha256))
