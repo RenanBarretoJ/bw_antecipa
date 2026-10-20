@@ -2501,6 +2501,10 @@ export interface Database {
         Args: { p_documento_id: string }
         Returns: Array<{ documento_id: string; atualizacao_solicitada_em: string }>
       }
+      registrar_contrato_assinado_cedente: {
+        Args: { p_cedente_id: string; p_fundo_id: string; p_path_anterior: string | null; p_path_novo: string; p_sha256: string; p_tamanho: number; p_nome_original: string }
+        Returns: string
+      }
       aprovar_cadastro_cedente_gestor: {
         Args: { p_cedente_id: string }
         Returns: Array<{ cedente_id: string; status: CedenteStatus; conta_escrow_identificador: string }>
