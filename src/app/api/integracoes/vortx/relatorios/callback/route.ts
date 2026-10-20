@@ -17,7 +17,8 @@ export async function POST(request: Request) {
     diagnostico = { etapa: 'ROTA', motivo: 'FALHA_INESPERADA' }
     result = new Response(null, { status: 503, headers: { 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' } })
   }
-  const captura = capturar ? await capturar(result.status) : undefined
+  const autorizada = diagnostico && 'autorizacao' in diagnostico && diagnostico.autorizacao === 'AUTORIZADA'
+  const captura = capturar ? await capturar(result.status, Boolean(autorizada)) : undefined
   if (captura) console.info('vortx_callback_private_capture', captura)
   // Never log Request, URL, query, headers, payload, ciphertext or exception messages.
   console.info('vortx_callback_receipt', { status: result.status, durationMs: Date.now() - started, ...diagnostico })

@@ -26,7 +26,8 @@ describe('contrato documentado de solicitacao Vortx VRS 2', () => {
 
   it.each(TIPOS_RELATORIO_VORTX)('prepara %s como CSV sem inventar codigo numerico', (tipoRelatorio) => {
     const body = prepararSolicitacaoRelatorioVortx({ ...pedido, tipoRelatorio, dataReferencia: '2026-10-18' }, hoje)
-    expect(body).toEqual({ ...pedido, tipoRelatorio, dataReferencia: '2026-10-18', extensaoArquivo: 2 })
+    expect(body).toEqual({ ...pedido, tipoRelatorio, dataReferencia: '2026-10-18', extensaoArquivo: 2,
+      dataInicio: tipoRelatorio.startsWith('Posicao') ? '2026-10-17' : pedido.dataInicio })
   })
 
   it.each(['Inclusao', 'Exclusao'])('explicita referencia igual ao fim quando omitida para %s', (tipoRelatorio) => {
@@ -88,6 +89,9 @@ describe('contrato documentado de solicitacao Vortx VRS 2', () => {
 })
 
 describe('protocolo de relatorio Vortx, ainda pendente', () => {
+  it('normalizes the observed Pendente label to pending status 0, not file delivery', () => {
+    expect(interpretarProtocoloRelatorioVortx({ data: { ...protocolo, status: 'Pendente' } })).toEqual(protocolo)
+  })
   it('aceita o schema direto e o envelope do exemplo documental', () => {
     expect(interpretarProtocoloRelatorioVortx(protocolo)).toEqual(protocolo)
     expect(interpretarProtocoloRelatorioVortx({ data: protocolo })).toEqual(protocolo)

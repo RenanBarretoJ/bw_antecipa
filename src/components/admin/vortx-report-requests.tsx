@@ -45,9 +45,10 @@ export function VortxReportRequests({ contexto, historico, pagina, hoje }: {
     setErro(''); setResult(null)
     if (!versao || !disponivel) { setErro('Publique uma integração Vórtx com a funcionalidade deste relatório habilitada.'); return }
     try {
-      const pedido = prepararSolicitacaoRelatorioVortx({ codigoCarteira: versao.carteira, tipoRelatorio: tipo, dataInicio: inicio, dataFim: fim,
+      const pedido = prepararSolicitacaoRelatorioVortx({ codigoCarteira: versao.carteira, tipoRelatorio: tipo,
+        ...(!relatorioDePosicao(tipo) ? { dataInicio: inicio, dataFim: fim } : {}),
         dataReferencia: relatorioDePosicao(tipo) ? referencia : fim, extensaoArquivo: extensao }, hoje)
-      setConfirmacao({ fundoId: contexto.fundo.id, versaoId, tipo, inicio, fim, referencia: pedido.dataReferencia, extensao })
+      setConfirmacao({ fundoId: contexto.fundo.id, versaoId, tipo, inicio: pedido.dataInicio, fim: pedido.dataFim, referencia: pedido.dataReferencia, extensao })
     } catch (error) { setErro(error instanceof Error ? error.message : 'Confira as datas do pedido.') }
   }
 
@@ -90,11 +91,13 @@ export function VortxReportRequests({ contexto, historico, pagina, hoje }: {
               </div></fieldset>
               <div className="space-y-3"><h2 className="font-semibold">2. Informe as datas</h2>
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  <div className="space-y-2"><Label htmlFor="relatorio-inicio">Início do período</Label><Input required id="relatorio-inicio" type="date" max={hoje} value={inicio} onChange={event => setInicio(event.target.value)} /></div>
-                  <div className="space-y-2"><Label htmlFor="relatorio-fim">Fim do período</Label><Input required id="relatorio-fim" type="date" max={hoje} value={fim} onChange={event => setFim(event.target.value)} /></div>
+                  {!relatorioDePosicao(tipo) && <>
+                    <div className="space-y-2"><Label htmlFor="relatorio-inicio">Início do período</Label><Input required id="relatorio-inicio" type="date" max={hoje} value={inicio} onChange={event => setInicio(event.target.value)} /></div>
+                    <div className="space-y-2"><Label htmlFor="relatorio-fim">Fim do período</Label><Input required id="relatorio-fim" type="date" max={hoje} value={fim} onChange={event => setFim(event.target.value)} /></div>
+                  </>}
                   {relatorioDePosicao(tipo) && <div className="space-y-2"><Label htmlFor="relatorio-referencia">Data da posição</Label><Input required id="relatorio-referencia" type="date" max={hoje} value={referencia} onChange={event => setReferencia(event.target.value)} /></div>}
                 </div>
-                <p className="text-xs text-muted-foreground">{relatorioDePosicao(tipo) ? 'A data da posição define o estoque consultado. A API também exige início e fim, mesmo para posições.' : 'O período define os movimentos consultados. A referência enviada será o fim do período.'} O fim deve ser posterior ao início; não são aceitas datas futuras.</p>
+                <p className="text-xs text-muted-foreground">{relatorioDePosicao(tipo) ? 'O estoque será consultado somente na data da posição. Não há período a selecionar.' : 'O período define os movimentos consultados. O fim deve ser posterior ao início.'} Não são aceitas datas futuras.</p>
               </div>
               <div className="max-w-xs space-y-2"><Label htmlFor="relatorio-formato">Formato do arquivo</Label><select id="relatorio-formato" value={extensao} onChange={event => setExtensao(event.target.value === '1' ? 1 : 2)} className="h-10 w-full rounded-lg border bg-background px-3 text-sm"><option value="2">CSV (.csv) — recomendado</option><option value="1">Excel (.xlsx)</option></select></div>
               {erro && <p role="alert" className="text-sm text-destructive">{erro}</p>}
@@ -109,13 +112,13 @@ export function VortxReportRequests({ contexto, historico, pagina, hoje }: {
     <Card>
       <CardHeader><div className="flex flex-wrap items-start justify-between gap-3"><div><CardTitle className="flex items-center gap-2"><ClipboardList className="size-5" />3. Acompanhe os pedidos</CardTitle><CardDescription>{historico.total} pedido(s) neste Fundo · nenhum dado financeiro importado por esta tela.</CardDescription></div><Button type="button" variant="outline" disabled={pending} onClick={() => startTransition(() => router.refresh())}><RefreshCw className={`size-4 ${pending ? 'animate-spin' : ''}`} />Atualizar histórico</Button></div></CardHeader>
       <CardContent className="space-y-4">
-        <p className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">Recebimento de arquivos ainda não habilitado: falta confirmar com a Vórtx o cadastro e a autenticação do callback. O protocolo confirma o pedido, não a entrega. Atualizar esta lista não refaz consultas na Vórtx.</p>
+        <p className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">O protocolo confirma o pedido, não a importação. Os callbacks são recebidos separadamente; nenhum arquivo é baixado nem dado financeiro é publicado automaticamente. Atualizar esta lista não refaz consultas na Vórtx.</p>
         {historico.solicitacoes.length === 0 ? <div className="rounded-xl border border-dashed p-8 text-center"><ClipboardList className="mx-auto mb-3 size-7 text-muted-foreground" /><p className="font-medium">Nenhum pedido nesta página</p><p className="mt-1 text-sm text-muted-foreground">Escolha um relatório acima para começar. Abrir esta tela não faz solicitações automaticamente.</p></div> :
           <div className="divide-y rounded-xl border">{historico.solicitacoes.map(row => {
             const situacao = situacaoRelatorio(row)
             return <article key={row.id} className="space-y-3 p-4">
               <div className="flex flex-wrap items-start justify-between gap-2"><div><h3 className="text-sm font-semibold">{RELATORIOS_OPERADOR.find(r => r.tipo === row.pedido.tipoRelatorio)?.titulo}</h3><p className="text-xs text-muted-foreground">Solicitado em {instante(row.criada_em)} · {row.ambiente === 'producao' ? 'Produção do provedor' : 'Homologação do provedor'}</p></div><Badge variant={situacao.tom === 'erro' ? 'destructive' : 'outline'}>{situacao.titulo}</Badge></div>
-              <p className="text-sm">{dataCivil(row.pedido.dataInicio)} a {dataCivil(row.pedido.dataFim)}{relatorioDePosicao(row.pedido.tipoRelatorio) && ` · Posição de ${dataCivil(row.pedido.dataReferencia)}`} · {row.pedido.extensaoArquivo === 2 ? 'CSV' : 'Excel'}</p>
+              <p className="text-sm">{relatorioDePosicao(row.pedido.tipoRelatorio) ? `Posição de ${dataCivil(row.pedido.dataReferencia)}` : `${dataCivil(row.pedido.dataInicio)} a ${dataCivil(row.pedido.dataFim)}`} · {row.pedido.extensaoArquivo === 2 ? 'CSV' : 'Excel'}</p>
               <p className="text-sm text-muted-foreground">{situacao.descricao}</p>
               <details className="text-xs text-muted-foreground"><summary className="cursor-pointer text-primary">Detalhes e protocolo</summary><dl className="mt-2 grid gap-2 break-all"><div><dt className="font-medium">Pedido BW</dt><dd className="font-mono">{row.id}</dd></div><div><dt className="font-medium">Protocolo Vórtx</dt><dd className="select-all font-mono">{row.protocolo_externo || 'Não confirmado'}</dd></div><div><dt className="font-medium">Retorno HTTP do relatório</dt><dd>{row.codigo_http ?? 'Sem retorno registrado'}</dd></div><div><dt className="font-medium">Carteira VRS</dt><dd>{row.pedido.codigoCarteira}</dd></div></dl></details>
             </article>
@@ -124,7 +127,7 @@ export function VortxReportRequests({ contexto, historico, pagina, hoje }: {
       </CardContent>
     </Card>
     {confirmacao && <SensitiveConfirmDialog open onOpenChange={value => { if (!pending && !value) setConfirmacao(null) }} title="Confirmar solicitação de relatório" description="Um pedido à Vórtx, sem envio de cessão ou importação. Pedidos idênticos não serão reenviados." confirmLabel="Confirmar e solicitar" pendingLabel="Solicitando uma vez…" pending={pending} onConfirm={executar}>
-      <dl className="space-y-2 rounded-lg bg-muted p-4 text-sm"><div><dt className="text-xs text-muted-foreground">Fundo</dt><dd>{contexto.fundo.nome}</dd></div><div><dt className="text-xs text-muted-foreground">Relatório · ambiente do provedor</dt><dd>{descricao.titulo} · {versao?.ambiente === 'producao' ? 'Produção' : 'Homologação'}</dd></div><div><dt className="text-xs text-muted-foreground">Período · referência · formato</dt><dd>{dataCivil(confirmacao.inicio)} a {dataCivil(confirmacao.fim)} · {dataCivil(confirmacao.referencia)} · {confirmacao.extensao === 2 ? 'CSV' : 'Excel'}</dd></div></dl>
+      <dl className="space-y-2 rounded-lg bg-muted p-4 text-sm"><div><dt className="text-xs text-muted-foreground">Fundo</dt><dd>{contexto.fundo.nome}</dd></div><div><dt className="text-xs text-muted-foreground">Relatório · ambiente do provedor</dt><dd>{descricao.titulo} · {versao?.ambiente === 'producao' ? 'Produção' : 'Homologação'}</dd></div><div><dt className="text-xs text-muted-foreground">{relatorioDePosicao(confirmacao.tipo) ? 'Data da posição · formato' : 'Período · formato'}</dt><dd>{relatorioDePosicao(confirmacao.tipo) ? dataCivil(confirmacao.referencia) : `${dataCivil(confirmacao.inicio)} a ${dataCivil(confirmacao.fim)}`} · {confirmacao.extensao === 2 ? 'CSV' : 'Excel'}</dd></div></dl>
     </SensitiveConfirmDialog>}
   </div>
 }

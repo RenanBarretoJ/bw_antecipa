@@ -48,6 +48,23 @@ try {
   }
   await page.setViewport({width:1440,height:1000})
   async function press(text){await page.evaluate(t=>[...document.querySelectorAll('button')].find(b=>b.textContent.includes(t))?.click(),text)}
+  for(const tipo of ['PosicaoAtivo','PosicaoParcela']) {
+    await page.goto(`${base}/?mode=empty`,{waitUntil:'networkidle0'})
+    await page.click(`input[value=${tipo}]`)
+    assert.equal(await page.$('#relatorio-inicio'),null,'POSITION_HAS_NO_PERIOD_START')
+    assert.equal(await page.$('#relatorio-fim'),null,'POSITION_HAS_NO_PERIOD_END')
+    assert(await page.$('#relatorio-referencia'),'POSITION_REQUIRES_POINT_DATE')
+    await press('Revisar e solicitar');await page.waitForSelector('[role=dialog]')
+    assert((await page.$eval('[role=dialog]',e=>e.textContent)).includes('Data da posição'))
+    await page.type('#admin-sensitive-mfa','123456');await press('Confirmar e solicitar')
+    await page.waitForFunction(()=>!document.querySelector('[role=dialog]'))
+    const calls=await page.evaluate(()=>window.qa.calls)
+    assert.equal(calls.length,1)
+    assert.equal(calls[0].referencia,'2026-10-19')
+    assert.equal(calls[0].inicio,'2026-10-18','TECHNICAL_TRANSPORT_DATE_ONLY')
+    assert.equal(calls[0].fim,'2026-10-19')
+    checks.push(`${tipo}:single-point-date-confirmation-and-normalized-transport`)
+  }
   for(const mode of ['normal','duplicate','unknown','failure','error']) {
     await page.goto(`${base}/?mode=${mode}`,{waitUntil:'networkidle0'})
     await page.click('input[value=Inclusao]');assert.equal(await page.$('#relatorio-referencia'),null)
@@ -63,6 +80,7 @@ try {
     checks.push(`${mode}:confirmation-double-click-result-refresh`)
   }
   await page.goto(`${base}/?mode=empty`,{waitUntil:'networkidle0'})
+  await page.click('input[value=Inclusao]')
   await page.$eval('#relatorio-inicio',e=>{const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;setter.call(e,'2026-10-19');e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}))})
   await press('Revisar e solicitar');await page.waitForSelector('[role=alert]');assert.equal(await page.$('[role=dialog]'),null);checks.push('invalid-period-blocks-confirmation')
   assert.deepEqual(errors,[])

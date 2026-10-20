@@ -8,6 +8,7 @@ import pg from 'pg'
 import { runCallbackAdminChecks } from './callback-admin-checks.mjs'
 import { runCallbackDiagnosticChecks } from './callback-diagnostic-checks.mjs'
 import { runCallbackCaptureChecks } from './callback-capture-checks.mjs'
+import { runCallbackSemanticsChecks } from './callback-semantics-checks.mjs'
 
 // Synthetic, focused SQL contract rehearsal; not hosted Auth/Storage E2E.
 const root = fileURLToPath(new URL('../../../', import.meta.url))
@@ -16,6 +17,7 @@ mkdirSync(output, { recursive: true })
 const sha = value => createHash('sha256').update(value).digest('hex')
 const paths = ['supabase/migrations/20261019180624_vortx_report_requests_preview.sql', 'supabase/migrations/20261019201346_vortx_report_callback_inbox.sql', 'supabase/migrations/20261019203424_vortx_callback_admin_ui.sql', 'supabase/migrations/20261019211756_vortx_report_audit_event_types.sql', 'supabase/migrations/20261020134509_vortx_callback_rejected_diagnostics.sql']
 paths.push('supabase/migrations/20261020165910_vortx_callback_single_capture_preview.sql')
+paths.push('supabase/migrations/20261020180645_vortx_report_type_semantics.sql')
 const migrations = paths.map(path => ({ path, sql: readFileSync(resolve(root, path), 'utf8') }))
 const canonical = JSON.parse(readFileSync(new URL('./__fixtures__/report-auth-canonical.json', import.meta.url), 'utf8')).functions
 const auditConstraint = JSON.parse(readFileSync(new URL('./__fixtures__/callback-audit-constraint.json', import.meta.url), 'utf8'))
@@ -313,6 +315,16 @@ try {
       for (const secret of [secretHash, newerHash, 'https://example.invalid/', 'v1:synthetic']) assert(!audit.includes(secret))
       check('audit_has_no_secret_url_or_ciphertext')
       await runCallbackAdminChecks({ db, config, fund, otherFund, admin, ordinary, cross, unbound, as, user, worker, check })
+      // Run every historical check BEFORE the authorized forward semantics change.
+      // The only old function allowed to change is the report-specific correlation predicate.
+      const guardedFunctions = (await db.query("select oid,proname,pg_get_functiondef(oid) as definition,proacl::text from pg_proc where pronamespace in ('public'::regnamespace,'private'::regnamespace,'auth'::regnamespace) order by oid")).rows
+      const historicalEvents = (await db.query('select * from vortx_relatorio_eventos order by id')).rows
+      await db.query(migrations[6].sql)
+      assert.deepEqual((await db.query('select * from vortx_relatorio_eventos order by id')).rows, historicalEvents)
+      const unchanged = guardedFunctions.filter(f => f.proname !== 'vortx_callback_correlacionar')
+      assert.deepEqual((await db.query('select oid,proname,pg_get_functiondef(oid) as definition,proacl::text from pg_proc where oid=ANY($1::oid[]) order by oid', [unchanged.map(f => f.oid)])).rows, unchanged)
+      check('forward_semantics_preserves_all_historical_events_and_every_other_function_acl')
+      await runCallbackSemanticsChecks({ db, worker, admin, check })
       assert.deepEqual(await preserved(), baseline.canonical); assert.deepEqual(await requestInternals(), baseline.requestInternals)
     } finally {
       if (db) await db.end()
