@@ -1,4 +1,8 @@
 export type VortxReportFunctions = {
+  admin_ressolicitar_relatorio_vortx: {
+    Args: { p_fundo_id: string; p_versao_id: string; p_tipo: string; p_inicio: string; p_fim: string; p_referencia: string; p_extensao: number; p_nonce_hash: string; p_lease_hash: string; p_anterior: string }
+    Returns: Record<string, unknown>
+  }
   admin_reservar_relatorio_vortx: {
     Args: { p_fundo_id: string; p_versao_id: string; p_tipo: string; p_inicio: string; p_fim: string; p_referencia: string; p_extensao: number; p_nonce_hash: string; p_lease_hash: string }
     Returns: Record<string, unknown>

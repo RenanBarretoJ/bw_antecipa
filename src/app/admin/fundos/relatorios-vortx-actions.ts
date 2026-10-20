@@ -26,23 +26,29 @@ export async function solicitarRelatorioVortx(input: unknown): Promise<Solicitac
     if (!versao || !descricao || !versao.capabilities.includes(descricao.capability)) {
       return { success: false, message: 'Este relatório não está habilitado na versão publicada deste Fundo.' }
     }
-    const pedido = prepararSolicitacaoRelatorioVortx({ codigoCarteira: versao.carteira, tipoRelatorio: form.tipo,
+    const preparado = prepararSolicitacaoRelatorioVortx({ codigoCarteira: versao.carteira, tipoRelatorio: form.tipo,
       dataInicio: form.inicio, dataFim: form.fim, dataReferencia: form.referencia, extensaoArquivo: form.extensao }, obterDataCivilOperacional())
+    // Explicit repetition preserves historical transport fields; SQL verifies the entire original body.
+    const pedido = form.solicitacaoAnteriorId ? { ...preparado, dataInicio: form.inicio, dataFim: form.fim } : preparado
     // Mesmo contrato de confirmação VRS; o nonce é consumido atomicamente com a reserva no banco.
     const autorizacao = await autorizarEConsumirAcaoSensivel(auth, 'testar_conexao_vortx_vrs', form.mfaCode, { consumoTransacional: true })
     if (!('nonceHash' in autorizacao) || !autorizacao.nonceHash) throw new Error('MISSING_TRANSACTION_NONCE')
     const lease = randomBytes(32).toString('hex')
-    const { data, error } = await auth.supabase.rpc('admin_reservar_relatorio_vortx', {
+    const args = {
       p_fundo_id: form.fundoId, p_versao_id: versao.id, p_tipo: pedido.tipoRelatorio, p_inicio: pedido.dataInicio,
       p_fim: pedido.dataFim, p_referencia: pedido.dataReferencia, p_extensao: pedido.extensaoArquivo,
       p_nonce_hash: autorizacao.nonceHash, p_lease_hash: createHash('sha256').update(lease).digest('hex'),
-    })
+    }
+    const { data, error } = form.solicitacaoAnteriorId
+      ? await auth.supabase.rpc('admin_ressolicitar_relatorio_vortx', { ...args, p_anterior: form.solicitacaoAnteriorId })
+      : await auth.supabase.rpc('admin_reservar_relatorio_vortx', args)
     if (error) throw new Error('REPORT_RESERVATION_FAILED')
     const reserva = reservaSchema.parse(data)
     if (!reserva.criada) return { success: true, criada: false, solicitacao: reserva.solicitacao }
     reservada = true
     // Contexto retornado pela RPC deve coincidir com o pedido validado. Nunca aceitar carteira do cliente.
     const row = reserva.solicitacao
+    if (form.solicitacaoAnteriorId && row.solicitacao_anterior_id !== form.solicitacaoAnteriorId) throw new Error('RESERVATION_LINEAGE_MISMATCH')
     if (row.fundo_id !== form.fundoId || row.integracao_versao_id !== versao.id || row.ambiente !== versao.ambiente
       || Object.entries(pedido).some(([key, value]) => row.pedido[key as keyof typeof pedido] !== value)) throw new Error('RESERVATION_SCOPE_MISMATCH')
 

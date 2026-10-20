@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { formatCNPJ } from '@/lib/utils'
 import { prepararSolicitacaoRelatorioVortx } from '@/lib/integracoes/vortx/relatorios-contrato'
-import { RELATORIOS_OPERADOR, relatorioDePosicao, situacaoRelatorio, type ContextoRelatorios, type HistoricoRelatorio, type RelatorioFormulario, type SolicitacaoRelatorioResult } from '@/lib/integracoes/vortx/relatorios-operacao'
+import { RELATORIOS_OPERADOR, podeSolicitarNovamente, relatorioDePosicao, situacaoRelatorio, type ContextoRelatorios, type HistoricoRelatorio, type RelatorioFormulario, type SolicitacaoRelatorio, type SolicitacaoRelatorioResult } from '@/lib/integracoes/vortx/relatorios-operacao'
 
 const dataCivil = (data: string) => data.split('-').reverse().join('/')
 const instante = (data: string) => new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short', timeZone: 'America/Sao_Paulo' }).format(new Date(data))
@@ -39,6 +39,19 @@ export function VortxReportRequests({ contexto, historico, pagina, hoje }: {
   const descricao = RELATORIOS_OPERADOR.find(r => r.tipo === tipo)!
   const disponivel = Boolean(versao?.capabilities.includes(descricao.capability))
   const totalPaginas = Math.max(1, Math.ceil(historico.total / 20))
+  const confirmado = confirmacao && {
+    descricao: RELATORIOS_OPERADOR.find(r => r.tipo === confirmacao.tipo)!,
+    versao: contexto.versoes.find(v => v.id === confirmacao.versaoId),
+  }
+
+  function solicitarNovamente(row: SolicitacaoRelatorio) {
+    if (!podeSolicitarNovamente(row) || pending) return
+    setErro(''); setResult(null)
+    setConfirmacao({ fundoId: contexto.fundo.id, versaoId: row.integracao_versao_id,
+      tipo: row.pedido.tipoRelatorio, inicio: row.pedido.dataInicio, fim: row.pedido.dataFim,
+      referencia: row.pedido.dataReferencia, extensao: row.pedido.extensaoArquivo,
+      solicitacaoAnteriorId: row.id })
+  }
 
   function revisar(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -69,7 +82,7 @@ export function VortxReportRequests({ contexto, historico, pagina, hoje }: {
   return <div className="space-y-6">
     <div className="rounded-xl border border-primary/25 bg-primary/5 p-4 text-sm">
       <p className="flex items-center gap-2 font-semibold"><ShieldCheck className="size-4 shrink-0" />Piloto na Preview · consultas reais à Vórtx</p>
-      <p className="mt-1 text-muted-foreground">O pedido usa a credencial do ambiente indicado abaixo. Não envia remessas, não importa dados e não altera o estoque ou as operações.</p>
+      <p className="mt-1 text-muted-foreground">O pedido usa a credencial do ambiente indicado abaixo e não envia remessas. Quando os dois relatórios de estoque da mesma data chegam, o sistema valida e salva uma versão privada. A publicação nos módulos é uma etapa separada.</p>
     </div>
     <Card>
       <CardHeader><CardTitle>1. Escolha o que deseja conferir</CardTitle><CardDescription>{contexto.fundo.nome} · {formatCNPJ(contexto.fundo.cnpj)}</CardDescription></CardHeader>
@@ -108,11 +121,12 @@ export function VortxReportRequests({ contexto, historico, pagina, hoje }: {
     </Card>
     {result && <div role="status" aria-live="polite" className="rounded-xl border bg-card p-4 text-sm">
       {result.success ? <><p className="font-semibold">{!result.criada ? 'Pedido idêntico já registrado — não reenviado' : situacaoRelatorio(result.solicitacao).titulo}</p><p className="mt-1 text-muted-foreground">{situacaoRelatorio(result.solicitacao).descricao}</p>{result.solicitacao.protocolo_externo && <p className="mt-2 break-all font-mono text-xs">Protocolo Vórtx: {result.solicitacao.protocolo_externo}</p>}</> : <p>{result.message}</p>}
+      {result.success && !result.criada && podeSolicitarNovamente(result.solicitacao) && <Button type="button" variant="outline" className="mt-3 min-h-11" disabled={pending} onClick={() => solicitarNovamente(result.solicitacao)}>Solicitar uma versão atualizada</Button>}
     </div>}
     <Card>
-      <CardHeader><div className="flex flex-wrap items-start justify-between gap-3"><div><CardTitle className="flex items-center gap-2"><ClipboardList className="size-5" />3. Acompanhe os pedidos</CardTitle><CardDescription>{historico.total} pedido(s) neste Fundo · nenhum dado financeiro importado por esta tela.</CardDescription></div><Button type="button" variant="outline" disabled={pending} onClick={() => startTransition(() => router.refresh())}><RefreshCw className={`size-4 ${pending ? 'animate-spin' : ''}`} />Atualizar histórico</Button></div></CardHeader>
+      <CardHeader><div className="flex flex-wrap items-start justify-between gap-3"><div><CardTitle className="flex items-center gap-2"><ClipboardList className="size-5" />3. Acompanhe os pedidos</CardTitle><CardDescription>{historico.total} pedido(s) neste Fundo · histórico e versões anteriores preservados.</CardDescription></div><Button type="button" variant="outline" disabled={pending} onClick={() => startTransition(() => router.refresh())}><RefreshCw className={`size-4 ${pending ? 'animate-spin' : ''}`} />Atualizar histórico</Button></div></CardHeader>
       <CardContent className="space-y-4">
-        <p className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">O protocolo confirma o pedido, não a importação. Os callbacks são recebidos separadamente; nenhum arquivo é baixado nem dado financeiro é publicado automaticamente. Atualizar esta lista não refaz consultas na Vórtx.</p>
+        <p className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">O protocolo confirma o pedido, não a importação. Para obter uma correção da mesma data, use “Solicitar novamente”. O pedido anterior não será apagado e arquivos idênticos não duplicarão o estoque. Para conferir uma posição corrigida, solicite ativo e parcela da mesma data. Atualizar esta lista não refaz consultas na Vórtx.</p>
         {historico.solicitacoes.length === 0 ? <div className="rounded-xl border border-dashed p-8 text-center"><ClipboardList className="mx-auto mb-3 size-7 text-muted-foreground" /><p className="font-medium">Nenhum pedido nesta página</p><p className="mt-1 text-sm text-muted-foreground">Escolha um relatório acima para começar. Abrir esta tela não faz solicitações automaticamente.</p></div> :
           <div className="divide-y rounded-xl border">{historico.solicitacoes.map(row => {
             const situacao = situacaoRelatorio(row)
@@ -120,14 +134,15 @@ export function VortxReportRequests({ contexto, historico, pagina, hoje }: {
               <div className="flex flex-wrap items-start justify-between gap-2"><div><h3 className="text-sm font-semibold">{RELATORIOS_OPERADOR.find(r => r.tipo === row.pedido.tipoRelatorio)?.titulo}</h3><p className="text-xs text-muted-foreground">Solicitado em {instante(row.criada_em)} · {row.ambiente === 'producao' ? 'Produção do provedor' : 'Homologação do provedor'}</p></div><Badge variant={situacao.tom === 'erro' ? 'destructive' : 'outline'}>{situacao.titulo}</Badge></div>
               <p className="text-sm">{relatorioDePosicao(row.pedido.tipoRelatorio) ? `Posição de ${dataCivil(row.pedido.dataReferencia)}` : `${dataCivil(row.pedido.dataInicio)} a ${dataCivil(row.pedido.dataFim)}`} · {row.pedido.extensaoArquivo === 2 ? 'CSV' : 'Excel'}</p>
               <p className="text-sm text-muted-foreground">{situacao.descricao}</p>
+              <div className="flex flex-wrap items-center justify-between gap-3"><span className="text-xs text-muted-foreground">Solicitação {row.revisao ?? 1}{row.solicitacao_anterior_id ? ' · nova consulta vinculada à anterior' : ' · original'}</span><Button type="button" variant="outline" className="min-h-11" disabled={pending || !podeSolicitarNovamente(row) || !contexto.versoes.some(v => v.id === row.integracao_versao_id)} onClick={() => solicitarNovamente(row)} aria-label={`Solicitar novamente ${RELATORIOS_OPERADOR.find(r => r.tipo === row.pedido.tipoRelatorio)?.titulo} de ${dataCivil(row.pedido.dataReferencia)}`}><RefreshCw className="size-4" />Solicitar novamente</Button></div>
               <details className="text-xs text-muted-foreground"><summary className="cursor-pointer text-primary">Detalhes e protocolo</summary><dl className="mt-2 grid gap-2 break-all"><div><dt className="font-medium">Pedido BW</dt><dd className="font-mono">{row.id}</dd></div><div><dt className="font-medium">Protocolo Vórtx</dt><dd className="select-all font-mono">{row.protocolo_externo || 'Não confirmado'}</dd></div><div><dt className="font-medium">Retorno HTTP do relatório</dt><dd>{row.codigo_http ?? 'Sem retorno registrado'}</dd></div><div><dt className="font-medium">Carteira VRS</dt><dd>{row.pedido.codigoCarteira}</dd></div></dl></details>
             </article>
           })}</div>}
         {totalPaginas > 1 && <nav aria-label="Páginas do histórico" className="flex flex-wrap items-center justify-between gap-3 text-sm"><span>Página {pagina} de {totalPaginas}</span><div className="flex gap-4">{pagina > 1 && <Link className="text-primary underline" href={`?pagina=${pagina - 1}`}>Anterior</Link>}{pagina < totalPaginas && <Link className="text-primary underline" href={`?pagina=${pagina + 1}`}>Próxima</Link>}</div></nav>}
       </CardContent>
     </Card>
-    {confirmacao && <SensitiveConfirmDialog open onOpenChange={value => { if (!pending && !value) setConfirmacao(null) }} title="Confirmar solicitação de relatório" description="Um pedido à Vórtx, sem envio de cessão ou importação. Pedidos idênticos não serão reenviados." confirmLabel="Confirmar e solicitar" pendingLabel="Solicitando uma vez…" pending={pending} onConfirm={executar}>
-      <dl className="space-y-2 rounded-lg bg-muted p-4 text-sm"><div><dt className="text-xs text-muted-foreground">Fundo</dt><dd>{contexto.fundo.nome}</dd></div><div><dt className="text-xs text-muted-foreground">Relatório · ambiente do provedor</dt><dd>{descricao.titulo} · {versao?.ambiente === 'producao' ? 'Produção' : 'Homologação'}</dd></div><div><dt className="text-xs text-muted-foreground">{relatorioDePosicao(confirmacao.tipo) ? 'Data da posição · formato' : 'Período · formato'}</dt><dd>{relatorioDePosicao(confirmacao.tipo) ? dataCivil(confirmacao.referencia) : `${dataCivil(confirmacao.inicio)} a ${dataCivil(confirmacao.fim)}`} · {confirmacao.extensao === 2 ? 'CSV' : 'Excel'}</dd></div></dl>
+    {confirmacao && <SensitiveConfirmDialog open onOpenChange={value => { if (!pending && !value) setConfirmacao(null) }} title={confirmacao.solicitacaoAnteriorId ? 'Solicitar uma versão atualizada' : 'Confirmar solicitação de relatório'} description={confirmacao.solicitacaoAnteriorId ? 'Será feito um novo pedido à Vórtx, com os mesmos parâmetros, sem apagar o anterior. Se o retorno anterior foi indeterminado, os dois pedidos poderão chegar. A confirmação exige o autenticador e não publica estoque automaticamente.' : 'Um pedido à Vórtx, sem envio de cessão. Pedidos idênticos são bloqueados; uma nova consulta deve ser confirmada pelo histórico.'} confirmLabel={confirmacao.solicitacaoAnteriorId ? 'Confirmar nova solicitação' : 'Confirmar e solicitar'} pendingLabel="Solicitando uma vez…" pending={pending} onConfirm={executar}>
+      <dl className="space-y-2 rounded-lg bg-muted p-4 text-sm"><div><dt className="text-xs text-muted-foreground">Fundo</dt><dd>{contexto.fundo.nome}</dd></div><div><dt className="text-xs text-muted-foreground">Relatório · ambiente do provedor</dt><dd>{confirmado?.descricao.titulo} · {confirmado?.versao?.ambiente === 'producao' ? 'Produção' : 'Homologação'}</dd></div><div><dt className="text-xs text-muted-foreground">{relatorioDePosicao(confirmacao.tipo) ? 'Data da posição · formato' : 'Período · formato'}</dt><dd>{relatorioDePosicao(confirmacao.tipo) ? dataCivil(confirmacao.referencia) : `${dataCivil(confirmacao.inicio)} a ${dataCivil(confirmacao.fim)}`} · {confirmacao.extensao === 2 ? 'CSV' : 'Excel'}</dd></div></dl>
     </SensitiveConfirmDialog>}
   </div>
 }

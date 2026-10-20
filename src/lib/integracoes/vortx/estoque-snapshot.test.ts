@@ -7,6 +7,19 @@ const input = () => ({ contexto: CONTEXTO_CSV_QA, integracaoFundoVersaoId: '893a
   parcela: { nome: 'Parcela.csv', conteudo: csvVortxQa('PosicaoParcela') } })
 
 describe('snapshot nativo Vortx', () => {
+  it('uma revisão de pedido não muda a identidade; arquivo atualizado na mesma data muda', () => {
+    const original = input()
+    const first = prepararSnapshotEstoqueVortx(original)
+    expect(prepararSnapshotEstoqueVortx(original).payload.hash_conteudo).toBe(first.payload.hash_conteudo)
+    const changed = input()
+    // Valid CSV bytes changed, same business date and scope; originals are never overwritten.
+    changed.ativo.conteudo = Buffer.from(Buffer.from(changed.ativo.conteudo).toString('utf8').replaceAll('\r\n', '\n'))
+    if (Buffer.from(changed.ativo.conteudo).equals(Buffer.from(original.ativo.conteudo))) {
+      changed.ativo.conteudo = Buffer.from(Buffer.from(changed.ativo.conteudo).toString('utf8').replaceAll('\n', '\r\n'))
+    }
+    expect(prepararSnapshotEstoqueVortx(changed).payload.hash_conteudo).not.toBe(first.payload.hash_conteudo)
+    expect(changed.contexto.dataReferencia).toBe(original.contexto.dataReferencia)
+  })
   it('preserva dois arquivos/linhas e identidades sem transformar parcela em estoque legado', () => {
     const result = prepararSnapshotEstoqueVortx(input())
     expect(result.arquivos.map(f => f.ordem)).toEqual([1, 2])
