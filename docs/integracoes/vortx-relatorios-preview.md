@@ -641,3 +641,39 @@ configuracao server-side com hash, janela de ate uma hora e IDs explicitos.
 Somente eventos correlacionados de estoque podem ser consultados. Nao reativa
 captura de requisicao/corpo bruto, nao importa dados e retorna apenas categorias
 enumeradas de transporte/conteudo. A configuracao e retirada ao concluir.
+
+## Nova solicitacao da mesma data — 20/10/2026
+
+`Solicitar novamente`, no historico, cria uma revisao vinculada ao pedido
+anterior. Exige a mesma autorizacao administrativa, Fundo ativo, sessao AAL2,
+MFA recente e nonce transacional do fluxo existente. Nao apaga nem altera o
+pedido anterior, callbacks, arquivos ou importacoes. A revisao e local; nao e
+um campo adicional enviado a Vortx.
+
+Migration forward: `20261020204704_vortx_report_request_revisions.sql`.
+O hash continua representando os parametros originais. A unicidade inclui
+revisao e ha no maximo um sucessor por pedido. Reserva normal e nova consulta
+compartilham a mesma funcao central e lock transacional de identidade.
+Repetir a confirmacao da mesma origem retorna o sucessor existente, sem novo
+login ou POST. O formulario normal retorna a revisao mais recente, sem
+reenviar. Pedidos registrados/em envio nao podem receber sucessor; estados
+indeterminados exigem confirmacao humana com aviso de possivel chegada dos
+dois pedidos. Nao existe retentativa automatica.
+
+Para obter uma posicao corrigida, solicitar ativo e parcela da mesma data.
+O processamento existente escolhe os arquivos disponiveis mais recentes no
+mesmo escopo e revalida a conciliacao; as duas consultas nao constituem uma
+transacao atomica na Vortx. O historico desta tela mostra pedidos, nao o estado
+do processamento. Um par de conteudos identicos reutiliza a importacao;
+conteudo alterado pode gerar outro snapshot da mesma data. Nenhuma versao e
+publicada automaticamente nem substitui a anterior nos modulos sem passar
+pelo publicador e suas validacoes.
+
+Ensaios: `scripts/qa/vortx/callback-sql-rehearsal.mjs` aplica a migration ao
+baseline completo de callbacks em duas stacks descartaveis, preservando os
+checks historicos e acrescentando RLS/MFA, concorrencia, linhagem, callbacks
+de protocolos antigos/novos e ausencia de DML direto.
+Aplicador exclusivo da Preview: `scripts/qa/vortx/deploy-report-revisions-preview.mjs`.
+Sem `--apply`, somente leitura. Exige hash da migration ensaiada, confere os
+corpos anteriores, preserva fingerprints de dados/policies/guards e registra
+history apenas junto da execucao real na mesma transacao. Sem A6 ou replay.

@@ -1,5 +1,5 @@
 import { describe,expect,it } from 'vitest'
-import { relatoriosPreviewPermitidos, situacaoRelatorio, solicitacaoRelatorioSchema, solicitarRelatorioSchema, RELATORIOS_OPERADOR, type SolicitacaoRelatorio } from './relatorios-operacao'
+import { podeSolicitarNovamente, relatoriosPreviewPermitidos, situacaoRelatorio, solicitacaoRelatorioSchema, solicitarRelatorioSchema, RELATORIOS_OPERADOR, type SolicitacaoRelatorio } from './relatorios-operacao'
 const id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 const env={VERCEL_ENV:'preview',VERCEL_GIT_COMMIT_REF:'feature/vortx-real-data-preview',NEXT_PUBLIC_SUPABASE_URL:'https://phdckowbexkkvuwnzeaf.supabase.co',VORTX_REPORTS_PREVIEW_ENABLED:'true',VORTX_REPORTS_PREVIEW_FUNDO_ID:id}
 export const row: SolicitacaoRelatorio = {id,fundo_id:id,integracao_versao_id:id,ambiente:'producao',pedido:{codigoCarteira:'qa',tipoRelatorio:'Inclusao',dataInicio:'2020-01-01',dataFim:'2020-01-02',dataReferencia:'2020-01-02',extensaoArquivo:2},estado:'aceita',protocolo_externo:id,codigo_http:200,criada_em:'2026-10-19T17:00:00Z',envio_iniciado_em:'2026-10-19T17:00:01Z',concluida_em:'2026-10-19T17:00:02Z'}
@@ -7,7 +7,9 @@ describe('apresentação e isolamento dos relatórios',()=>{
   it('permite somente a combinação exata da Preview autorizada',()=>expect(relatoriosPreviewPermitidos(id,env)).toBe(true))
   it.each(Object.keys(env))('nega alteração do guard %s',key=>expect(relatoriosPreviewPermitidos(id,{...env,[key]:'outro'})).toBe(false))
   it('nega outro Fundo',()=>expect(relatoriosPreviewPermitidos('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',env)).toBe(false))
-  it('nunca chama protocolo de arquivo recebido/importado',()=>expect(situacaoRelatorio(row).titulo).toBe('Aguardando arquivo'))
+  it('nunca chama protocolo de arquivo recebido/importado',()=>expect(situacaoRelatorio(row).titulo).toBe('Pedido aceito pela Vórtx'))
+  it.each(['registrada','enviando'] as const)('bloqueia nova solicitação durante %s',estado=>expect(podeSolicitarNovamente({...row,estado})).toBe(false))
+  it.each(['aceita','recusada','indeterminada','falha_autenticacao'] as const)('permite confirmação explícita de novo pedido após %s',estado=>expect(podeSolicitarNovamente({...row,estado})).toBe(true))
   it.each(['registrada','enviando'] as const)('pedido %s antigo exige conferência sem retry',estado=>expect(situacaoRelatorio({...row,estado},Date.parse(row.criada_em)+120001)).toMatchObject({titulo:'Requer conferência',tom:'atencao'}))
   it.each(['recusada','indeterminada','falha_autenticacao'] as const)('estado %s tem orientação própria',estado=>expect(situacaoRelatorio({...row,estado}).descricao.length).toBeGreaterThan(40))
   it('DTO remove lease, sessão, hash e ator antes do navegador',()=>{

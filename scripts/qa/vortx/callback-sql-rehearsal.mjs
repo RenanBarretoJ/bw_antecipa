@@ -9,6 +9,7 @@ import { runCallbackAdminChecks } from './callback-admin-checks.mjs'
 import { runCallbackDiagnosticChecks } from './callback-diagnostic-checks.mjs'
 import { runCallbackCaptureChecks } from './callback-capture-checks.mjs'
 import { runCallbackSemanticsChecks } from './callback-semantics-checks.mjs'
+import { runReportRevisionChecks } from './report-revision-checks.mjs'
 
 // Synthetic, focused SQL contract rehearsal; not hosted Auth/Storage E2E.
 const root = fileURLToPath(new URL('../../../', import.meta.url))
@@ -19,7 +20,8 @@ const paths = ['supabase/migrations/20261019180624_vortx_report_requests_preview
 paths.push('supabase/migrations/20261020165910_vortx_callback_single_capture_preview.sql')
 paths.push('supabase/migrations/20261020180645_vortx_report_type_semantics.sql')
 paths.push('supabase/migrations/20261020183635_vortx_retire_callback_diagnostics.sql')
-const migrations = paths.map(path => ({ path, sql: readFileSync(resolve(root, path), 'utf8') }))
+paths.push('supabase/migrations/20261020204704_vortx_report_request_revisions.sql')
+const migrations = paths.map(path => ({ path, sql: readFileSync(resolve(root, path), 'utf8').replace(/\r\n/g, '\n') }))
 const canonical = JSON.parse(readFileSync(new URL('./__fixtures__/report-auth-canonical.json', import.meta.url), 'utf8')).functions
 const auditConstraint = JSON.parse(readFileSync(new URL('./__fixtures__/callback-audit-constraint.json', import.meta.url), 'utf8'))
 assert.equal(canonical.length, 5)
@@ -348,6 +350,16 @@ try {
       assert.equal((await worker(receive,afterRetirement)).rows[0].r.recebido,true)
       check('canonical_authorization_and_receipt_still_work_after_retirement')
       assert.deepEqual(await preserved(), baseline.canonical); assert.deepEqual(await requestInternals(), baseline.requestInternals)
+      const requestsBeforeRevisions = (await db.query('select to_jsonb(s) row from vortx_relatorio_solicitacoes s order by id')).rows
+      const eventsBeforeRevisions = (await db.query('select to_jsonb(e) row from vortx_relatorio_eventos e order by id')).rows
+      const functionsBeforeRevisions = (await db.query("select oid,proname,pg_get_functiondef(oid) definition,proacl::text from pg_proc where pronamespace in ('public'::regnamespace,'private'::regnamespace,'auth'::regnamespace) order by oid")).rows
+      await db.query(migrations[8].sql)
+      assert.deepEqual((await db.query("select to_jsonb(s)-'revisao'-'solicitacao_anterior_id' row from vortx_relatorio_solicitacoes s order by id")).rows, requestsBeforeRevisions)
+      assert.deepEqual((await db.query('select to_jsonb(e) row from vortx_relatorio_eventos e order by id')).rows, eventsBeforeRevisions)
+      const preservedAfterRevisions = functionsBeforeRevisions.filter(f => !['vortx_relatorio_reservar','admin_listar_relatorios_vortx'].includes(f.proname))
+      assert.deepEqual((await db.query('select oid,proname,pg_get_functiondef(oid) definition,proacl::text from pg_proc where oid=ANY($1::oid[]) order by oid', [preservedAfterRevisions.map(f => f.oid)])).rows, preservedAfterRevisions)
+      check('revisions_forward_migration_preserves_request_values_events_auth_mfa_guards_and_other_function_acls')
+      await runReportRevisionChecks({ db, config, user, as, worker, endpoint, admin, ordinary, cross, unbound, fund, version, check })
     } finally {
       if (db) await db.end()
       if (container) { assert.equal(docker(['inspect', '--format', '{{index .Config.Labels "bw.qa.scope"}}', scope]), scope); docker(['rm', '-f', scope]); assert.equal(docker(['ps', '-aq', '--filter', `name=^/${scope}$`]), '') }

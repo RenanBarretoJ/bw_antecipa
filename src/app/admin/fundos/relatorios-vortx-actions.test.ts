@@ -34,6 +34,31 @@ describe('orquestração de relatório Vórtx',()=>{
     rpc.mockResolvedValue({data:{criada:false,solicitacao:row},error:null})
     expect(await solicitarRelatorioVortx(input)).toMatchObject({success:true,criada:false});expect(resolve).not.toHaveBeenCalled();expect(http).not.toHaveBeenCalled()
   })
+  it('nova consulta explícita usa reserva com origem e o mesmo MFA antes de um único POST',async()=>{
+    rpc.mockImplementation(async(name,args)=>({data:name==='admin_ressolicitar_relatorio_vortx'
+      ?{criada:true,solicitacao:{...row,revisao:2,solicitacao_anterior_id:version}}
+      :{...row,estado:args.p_estado,protocolo_externo:args.p_protocolo,codigo_http:args.p_http},error:null}))
+    expect(await solicitarRelatorioVortx({...input,solicitacaoAnteriorId:version})).toMatchObject({success:true,criada:true})
+    expect(rpc.mock.calls[0]).toEqual(['admin_ressolicitar_relatorio_vortx',expect.objectContaining({p_anterior:version,p_nonce_hash:'a'.repeat(64)})])
+    expect(mfa).toHaveBeenCalledOnce();expect(http).toHaveBeenCalledOnce()
+  })
+  it('retry da mesma origem recebe o sucessor existente sem novo login ou POST',async()=>{
+    rpc.mockResolvedValue({data:{criada:false,solicitacao:{...row,revisao:2,solicitacao_anterior_id:version}},error:null})
+    expect(await solicitarRelatorioVortx({...input,solicitacaoAnteriorId:version})).toMatchObject({success:true,criada:false})
+    expect(login).not.toHaveBeenCalled();expect(http).not.toHaveBeenCalled()
+  })
+  it('origem divergente na reserva não recebe credenciais nem POST',async()=>{
+    rpc.mockResolvedValue({data:{criada:true,solicitacao:{...row,solicitacao_anterior_id:id}},error:null})
+    expect(await solicitarRelatorioVortx({...input,solicitacaoAnteriorId:version})).toMatchObject({success:false})
+    expect(resolve).not.toHaveBeenCalled();expect(http).not.toHaveBeenCalled()
+  })
+  it('nova consulta não altera os campos históricos de transporte da posição',async()=>{
+    const historical={...pedido,tipoRelatorio:'PosicaoAtivo',dataInicio:'2020-01-01',dataFim:'2020-01-07',dataReferencia:'2020-01-03'}
+    contexto.mockResolvedValue({...context,contexto:{...context.contexto,versoes:[{...context.contexto.versoes[0],capabilities:['ESTOQUE']}]}})
+    rpc.mockImplementation(async(name,args)=>({data:name==='admin_ressolicitar_relatorio_vortx'?{criada:true,solicitacao:{...row,pedido:historical,solicitacao_anterior_id:version}}:{...row,pedido:historical,estado:args.p_estado,protocolo_externo:args.p_protocolo,codigo_http:args.p_http},error:null}))
+    expect(await solicitarRelatorioVortx({...input,tipo:'PosicaoAtivo',inicio:'2020-01-01',fim:'2020-01-07',referencia:'2020-01-03',solicitacaoAnteriorId:version})).toMatchObject({success:true,criada:true})
+    expect(http).toHaveBeenCalledWith(expect.objectContaining({pedido:historical}))
+  })
   it.each(['URL','token','codigoCarteira','ambiente'])('rejeita %s do cliente antes de autenticar',async key=>{
     expect(await solicitarRelatorioVortx({...input,[key]:'arbitrario'})).toMatchObject({success:false});expect(contexto).not.toHaveBeenCalled()
   })
