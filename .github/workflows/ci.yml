@@ -43,6 +43,13 @@ jobs:
         env:
           LOCALAPPDATA: ${{ runner.temp }}
 
+      # Native tables and callback leases must retain their real SQL/RLS proof on this Preview branch.
+      - name: Vortx stock SQL regression (two disposable local stacks)
+        if: github.head_ref == 'feature/vortx-real-data-preview' || github.ref == 'refs/heads/feature/vortx-real-data-preview'
+        run: node scripts/qa/vortx/native-stock-sql-rehearsal.mjs
+        env:
+          LOCALAPPDATA: ${{ runner.temp }}
+
       - name: Tests
         run: npm test -- --run
 

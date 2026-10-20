@@ -11,6 +11,8 @@ import {
 } from '../matching/matching'
 import { avaliarCompletudeBases, reconciliarTitulosD2D1 } from './reconciliation'
 import { resolverBootstrapFinanceiro } from '@/lib/financeiro/bootstrap/detector.server'
+import { filtroFonteFinanceira, resolverFonteFinanceira, TABELA_LEITURA_ESTOQUE, type FonteFinanceira } from '../fontes/fonte-financeira.server'
+import { carregarPaginasFinanceiras } from '../fontes/paginas-financeiras'
 import {
   MATCH_RULE_VERSION,
   RECONCILIATION_RULE_VERSION,
@@ -37,10 +39,11 @@ type CanonicalRow = Record<string, unknown> & { id: string; fundo_id: string; pr
 export type FinancialPipelineReadCache = {
   imports: Map<string, Promise<ImportRow | null>>
   canonicalRows: Map<string, Promise<CanonicalRow[]>>
+  fontes: Map<string, Promise<FonteFinanceira>>
 }
 
 export function createFinancialPipelineReadCache(): FinancialPipelineReadCache {
-  return { imports: new Map(), canonicalRows: new Map() }
+  return { imports: new Map(), canonicalRows: new Map(), fontes: new Map() }
 }
 
 const admin = () => createAdminClient() as ReturnType<typeof createAdminClient> & {
@@ -85,13 +88,16 @@ async function latestImport(fundoId: string, type: ImportRow['tipo_base'], date:
   const cached = cache?.imports.get(cacheKey)
   if (cached) return cached
   const request = (async () => {
+    const sourceRequest = cache?.fontes.get(fundoId) ?? resolverFonteFinanceira(fundoId)
+    cache?.fontes.set(fundoId, sourceRequest)
+    const fonte = await sourceRequest
     const { data, error } = await admin()
       .from('importacoes_financeiras')
       .select('id,fundo_id,provedor,tipo_base,data_referencia,status,completude,publicada_em,substitui_importacao_id')
       .eq('fundo_id', fundoId)
       .eq('tipo_base', type)
       .eq('data_referencia', date)
-      .eq('status', 'PUBLICADA')
+      .eq('status', 'PUBLICADA').or(filtroFonteFinanceira(fonte))
       .order('publicada_em', { ascending: false })
       .limit(1)
       .maybeSingle()
@@ -109,7 +115,7 @@ async function latestImport(fundoId: string, type: ImportRow['tipo_base'], date:
 
 async function canonicalRows(type: ImportRow['tipo_base'], importId: string, cache?: FinancialPipelineReadCache): Promise<CanonicalRow[]> {
   const table = type === 'ESTOQUE'
-    ? 'estoque_posicoes'
+    ? TABELA_LEITURA_ESTOQUE
     : type === 'AQUISICOES'
       ? 'aquisicao_movimentos'
       : 'liquidacao_movimentos'
@@ -117,9 +123,9 @@ async function canonicalRows(type: ImportRow['tipo_base'], importId: string, cac
   const cached = cache?.canonicalRows.get(cacheKey)
   if (cached) return cached
   const request = (async () => {
-    const { data, error } = await admin().from(table).select('*').eq('importacao_id', importId).order('id')
-    if (error) throw new Error(`Nao foi possivel carregar ${type}: ${error.message}`)
-    return (data || []) as CanonicalRow[]
+    const rows = await carregarPaginasFinanceiras((from, to) => admin().from(table).select('*')
+      .eq('importacao_id', importId).order('id').range(from, to))
+    return rows as CanonicalRow[]
   })()
   cache?.canonicalRows.set(cacheKey, request)
   try {

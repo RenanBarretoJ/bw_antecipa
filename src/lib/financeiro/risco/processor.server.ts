@@ -11,6 +11,7 @@ import { executarExposicaoFinanceira } from '@/lib/financeiro/exposicao/processo
 import { classificarExposicaoLogisticaCandidata } from '@/lib/financeiro/exposicao/calculo'
 import { resolverBootstrapFinanceiro, type EstadoBootstrapFinanceiro } from '@/lib/financeiro/bootstrap/detector.server'
 import { resolverPlReferencia } from '@/lib/financeiro/pl-referencia.server'
+import { filtroFonteFinanceira, resolverFonteFinanceira } from '../fontes/fonte-financeira.server'
 import { classificarGateRisco } from './classificador'
 import { criarAssinaturaRisco } from './fingerprint'
 import { RISK_GATE_RULE_VERSION, type RiskCandidateProjection, type RiskPolicy } from './types'
@@ -195,9 +196,10 @@ async function resolverFingerprintFinanceiro(client: DynamicClient, input: {
   dataOperacional: string
   dates: { ESTOQUE: string }
 }) {
+  const fonte = await resolverFonteFinanceira(input.fundoId)
   const base = (tipoBase: 'ESTOQUE' | 'AQUISICOES' | 'LIQUIDACOES', dataReferencia: string) => client.from('importacoes_financeiras')
     .select('id,hash_conteudo').eq('fundo_id', input.fundoId).eq('tipo_base', tipoBase)
-    .eq('data_referencia', dataReferencia).eq('status', 'PUBLICADA')
+    .eq('data_referencia', dataReferencia).eq('status', 'PUBLICADA').or(filtroFonteFinanceira(fonte))
     .order('publicada_em', { ascending: false }).limit(1).maybeSingle()
   const [estoque, aquisicoes, liquidacoes, carteiraReferencia] = await Promise.all([
     base('ESTOQUE', input.dates.ESTOQUE), base('AQUISICOES', input.dates.ESTOQUE),
