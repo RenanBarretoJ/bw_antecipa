@@ -51,6 +51,7 @@ function DetalhesPedido({ row, children }: { row: SolicitacaoRelatorio; children
         <div><dt className="font-medium">Download concluído</dt><dd>{p?.downloadEm ? instante(p.downloadEm) : p?.processadoEm ? 'Confirmado pela importação · horário não registrado' : 'Ainda não confirmado'}</dd></div>
         <div><dt className="font-medium">Processamento concluído</dt><dd>{p?.processadoEm ? instante(p.processadoEm) : 'Ainda não confirmado'}</dd></div>
         {p?.processadoEm && <div><dt className="font-medium">Dados salvos</dt><dd>{p.ativos} ativos · {p.parcelas} parcelas · {p.publicadoEm ? 'Publicado' : 'Sem publicação'}</dd></div>}
+        {p?.pddPendente && <div><dt className="font-medium">Conferência de PDD</dt><dd>Aviso temporário, não bloqueia a persistência. Valores originais preservados, sem rateio. A publicação permanece separada.</dd></div>}
         <div><dt className="font-medium">Pedido BW</dt><dd className="break-all font-mono">{row.id}</dd></div>
         <div><dt className="font-medium">Protocolo Vórtx</dt><dd className="break-all font-mono">{row.protocolo_externo || 'Não confirmado'}</dd></div>
         <div><dt className="font-medium">Retorno HTTP do relatório</dt><dd>{row.codigo_http ?? 'Sem retorno registrado'}</dd></div>
