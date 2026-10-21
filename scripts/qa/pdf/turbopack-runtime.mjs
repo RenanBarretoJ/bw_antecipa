@@ -28,7 +28,8 @@ const start = generator.indexOf('export async function htmlParaPdf(')
 const end = generator.indexOf('\nasync function salvarPdfStorage(', start)
 assert(start >= 0 && end > start, 'RENDERER_BOUNDARY_CHANGED')
 const renderer = generator.slice(start, end)
-await writeFile(join(fixture, 'renderer.ts'), `import chromium from '@sparticuz/chromium'\nimport puppeteer from 'puppeteer-core'\nimport {createPdfTelemetry, type PdfTelemetry} from './pdf-telemetry'\n${renderer}`)
+await writeFile(join(fixture, 'renderer.ts'), `import chromium from '@sparticuz/chromium'\nimport puppeteer from 'puppeteer-core'\nimport {resolverExecutavelChromium} from './chromium-executable'\nimport {createPdfTelemetry, type PdfTelemetry} from './pdf-telemetry'\n${renderer}`)
+await copyFile(resolve(root, 'src/lib/pdf/chromium-executable.ts'), join(fixture, 'chromium-executable.ts'))
 await copyFile(resolve(root, 'src/lib/pdf/pdf-telemetry.ts'), join(fixture, 'pdf-telemetry.ts'))
 await writeFile(join(fixture, 'app/api/contratos/gerar-termo/route.ts'), `
 import {htmlParaPdf} from '../../../../renderer'

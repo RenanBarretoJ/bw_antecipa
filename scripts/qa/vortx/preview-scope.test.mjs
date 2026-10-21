@@ -11,8 +11,9 @@ const details = (ref = manifest.projectRef) => ({
 })
 
 test('pins the new Git branch to the reusable disposable Preview', () => {
-  assert.equal(manifest.branch, 'feature/vortx-real-data-preview')
-  assert.equal(manifest.baseBranch, 'homolog')
+  assert.equal(manifest.branch, 'integration/vortx-main-20261021')
+  assert.equal(manifest.baseBranch, 'main')
+  assert.equal(manifest.baseCommit, '344708db0236a3393bba22cff2c1adfd79f8d5c3')
   assert.equal(assertPreviewDetails(details()).SUPABASE_URL, `https://${manifest.projectRef}.supabase.co`)
 })
 test('rejects production and shared homolog API targets', () => {

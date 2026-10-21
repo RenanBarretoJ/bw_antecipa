@@ -1,8 +1,10 @@
 {
   "scope": "VORTX_READ_VALIDATION_PREVIEW",
-  "branch": "feature/vortx-real-data-preview",
-  "baseBranch": "homolog",
-  "baseCommit": "364c5ad2db6db9134be9e08added44299fff7a87",
+  "branch": "integration/vortx-main-20261021",
+  "baseBranch": "main",
+  "baseCommit": "344708db0236a3393bba22cff2c1adfd79f8d5c3",
+  "sourceBranch": "feature/vortx-real-data-preview",
+  "sourceCommit": "88a0f9c8567b6be99fc86c316f3031a6fc5bd7c1",
   "projectRef": "phdckowbexkkvuwnzeaf",
   "supabaseBranchId": "7c85b227-0aa4-4a12-9f03-ef76f315ec7b",
   "supabaseBranchName": "preview/operacao-parcelas-layout4",

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { branchPreviewVortxPermitida } from './preview-branch'
 import { TIPOS_RELATORIO_VORTX } from './relatorios-contrato'
 export { relatorioDePosicao } from './relatorios-tipos'
 
@@ -57,7 +58,7 @@ export function podeSolicitarNovamente(row: SolicitacaoRelatorio): boolean {
 }
 
 export function relatoriosPreviewPermitidos(fundoId: string, env: Readonly<Record<string,string|undefined>> = process.env): boolean {
-  return env.VERCEL_ENV === 'preview' && env.VERCEL_GIT_COMMIT_REF === 'feature/vortx-real-data-preview'
+  return env.VERCEL_ENV === 'preview' && branchPreviewVortxPermitida(env.VERCEL_GIT_COMMIT_REF)
     && env.NEXT_PUBLIC_SUPABASE_URL === 'https://phdckowbexkkvuwnzeaf.supabase.co'
     && env.VORTX_REPORTS_PREVIEW_ENABLED === 'true'
     && Boolean(env.VORTX_REPORTS_PREVIEW_FUNDO_ID) && fundoId === env.VORTX_REPORTS_PREVIEW_FUNDO_ID

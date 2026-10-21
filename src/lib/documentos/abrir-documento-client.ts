@@ -8,6 +8,6 @@ export function abrirDocumentoAutorizado(url: string, acao: AcaoArquivoDocumento
   if (!['https:', 'http:'].includes(destino.protocol)) throw new Error('Link do documento inválido.')
   // Mesma opção de Content-Disposition usada por createSignedUrl({ download }).
   // O arquivo segue direto do Storage para o navegador, sem cópia em memória.
-  if (acao === 'baixar') destino.searchParams.set('download', nomeDownloadSeguro(nome))
+  if (acao === 'baixar' && !destino.searchParams.get('download')) destino.searchParams.set('download', nomeDownloadSeguro(nome))
   window.open(destino.toString(), '_blank', 'noopener,noreferrer')
 }

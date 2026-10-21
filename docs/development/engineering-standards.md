@@ -23,6 +23,19 @@ revisão do diff → relatório → aguardar validação → próximo escopo.
 
 ## 2. Diagnóstico antes de programar
 
+### Origem de novas branches
+
+Novas branches de trabalho e integração devem nascer de `origin/main`
+atualizada, nunca de `homolog`. Homolog é ambiente de validação, não a base de
+desenvolvimento. Conferir o ref remoto explicitamente: um `git fetch origin main`
+pode atualizar somente `FETCH_HEAD` quando o clone tem refspec restrito.
+
+Antes da publicação, verificar que a main remota atual é ancestral da branch,
+revisar o diff contra ela e preservar seus hotfixes, telas, guards e migrations.
+Quando houver divergência, integrar em uma nova worktree baseada na main e
+transportar somente os commits e dependências do escopo autorizado. Nunca
+substituir a árvore da main pela árvore de uma Preview.
+
 Antes de alterar código:
 
 - mapear o fluxo atual e a fonte de verdade;

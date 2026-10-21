@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { branchPreviewVortxPermitida } from './preview-branch'
 
 export const carteiraDiagnosticSchema = z.object({
   fundoId: z.uuid(),
@@ -22,7 +23,7 @@ export type CarteiraDiagnosticResult =
 // Excecao temporaria autorizada: nunca habilitar o diagnostico em outro banco/branch.
 export function diagnosticoCarteiraPermitido(fundoId: string, env: Readonly<Record<string, string | undefined>> = process.env): boolean {
   return env.VERCEL_ENV === 'preview'
-    && env.VERCEL_GIT_COMMIT_REF === 'feature/vortx-real-data-preview'
+    && branchPreviewVortxPermitida(env.VERCEL_GIT_COMMIT_REF)
     && env.NEXT_PUBLIC_SUPABASE_URL === 'https://phdckowbexkkvuwnzeaf.supabase.co'
     && env.VORTX_CARTEIRA_DIAGNOSTIC_ENABLED === 'true'
     && Boolean(env.VORTX_CARTEIRA_DIAGNOSTIC_FUNDO_ID)

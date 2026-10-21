@@ -1,0 +1,66 @@
+{
+  "scope": "VORTX_MAIN_INTEGRATION_LOCAL_CERTIFICATION",
+  "branch": "integration/vortx-main-20261021",
+  "baseBranch": "main",
+  "baseCommit": "344708db0236a3393bba22cff2c1adfd79f8d5c3",
+  "sourceBranch": "feature/vortx-real-data-preview",
+  "sourceCommit": "88a0f9c8567b6be99fc86c316f3031a6fc5bd7c1",
+  "sourceCommitsTransplanted": 30,
+  "mainPreservation": {
+    "result": "PASS",
+    "protectedFiles": 35,
+    "importedMigrationHashesPreserved": 18,
+    "historicalMigrationsChanged": 0,
+    "mainAndOriginalFeatureBranchRewritten": false,
+    "originalA6Executed": false,
+    "applicationMigrationHistoryEdited": false
+  },
+  "validation": {
+    "typescript": "PASS",
+    "applicationBuildWebpack": "PASS",
+    "applicationBuildHost": "WINDOWS_NODE24_ENGINE_WARNING_NODE22_RUNTIME_VALIDATED_SEPARATELY",
+    "lint": "PASS_WITH_TWO_UNCHANGED_BASELINE_WARNINGS",
+    "diffCheck": "PASS",
+    "previewBoundaryAndCanonicalProfileNegatives": { "passed": 11, "failed": 0 },
+    "focusedDocumentAndPreviewBranchTests": { "passed": 71, "skipped": 3 },
+    "mainWithoutNativeEnvironment": { "passed": 3171, "failedNativePrerequisites": 5, "skipped": 12 },
+    "integrationWithoutNativeEnvironment": { "passed": 3990, "failedNativePrerequisites": 5, "skipped": 12 },
+    "nativeAuthMfaDatabaseStorage": {
+      "result": "PASS",
+      "passed": 75,
+      "failed": 0,
+      "skipped": 0,
+      "contracts": ["NO_DUP", "INVALID_SUM", "ORDER_FANOUT", "ATOMIC_ROLLBACK", "ISSUER_SCOPE"],
+      "report": "rehearsal/reports/bw-main-native-1792607803803/report.json",
+      "coreSqlBodiesMatchMain": 7,
+      "sourceAndRestoredEffectiveAclOwnerRlsPoliciesEqual": true,
+      "fullMigrationChainCertified": false,
+      "DOCKER_TEST_ENV_CLEANUP": "PASS"
+    },
+    "fullSuiteWithNativeContextNode22Linux": {
+      "result": "PASS_WITH_EXISTING_SKIPS",
+      "total": 4007,
+      "passed": 3995,
+      "failed": 0,
+      "skipped": 12,
+      "nativeContractsRepeatedInIndependentStack": true,
+      "DOCKER_TEST_ENV_CLEANUP": "PASS",
+      "report": "rehearsal/reports/bw-main-native-1792607985836/report.json"
+    },
+    "callbackSql": { "stacks": 2, "checksPerStack": 124, "cleanup": "PASS" },
+    "nativeStockSql": { "stacks": 2, "checksPerStack": 70, "cleanup": "PASS" },
+    "signedContractSql": { "passed": 30, "rlsAndGrantsPreserved": true, "cleanup": "PASS", "report": "rehearsal/reports/cedente-contrato-assinado-1792607914860.json" },
+    "realPdfTurbopackNode22Linux": { "result": "PASS", "bytes": 7840, "assets": 4, "cleanup": "PASS", "report": "C:/Users/BrenoAlvim/AppData/Local/bw-pdf-turbopack-ngUDjv/REPORT.json" }
+  },
+  "historicalFailures": "PRESERVED_IN_ORIGINAL_REPORTS_NOT_RECLASSIFIED_AS_PASS",
+  "remoteCi": "NOT_PUBLISHED",
+  "previewDeployment": "NOT_PUBLISHED",
+  "homologChanged": false,
+  "productionChanged": false,
+  "nextGates": [
+    "Package native bootstrap for reproducible CI without a preexisting local database",
+    "Confirm branch-scoped Vercel configuration targets only the reusable disposable Preview before push",
+    "Publish integration branch and validate remote CI before Preview business smoke",
+    "Authenticated smoke of the main operation layout and both document generation actions"
+  ]
+}
