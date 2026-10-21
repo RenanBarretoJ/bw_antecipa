@@ -14,12 +14,23 @@ const contexto = { fundo: { id: row.fundo_id, nome: 'Fundo QA', cnpj: '000000000
   versoes: [{ id: row.integracao_versao_id, versao: 1, ambiente: 'producao' as const, carteira: 'qa', capabilities: ['ESTOQUE', 'AQUISICOES'] }] }
 
 describe('histórico de relatórios com solicitação explícita', () => {
+  it('não renderiza TOTP adicional nem leva Gestor à configuração administrativa',()=>{
+    const html=renderToStaticMarkup(createElement(VortxReportRequests,{contexto:{...contexto,versoes:[]},historico:{total:0,solicitacoes:[]},pagina:1,hoje:'2026-10-20'}))
+    expect(html).not.toMatch(/mfaCode|autocomplete="one-time-code"|\/admin\/fundos/)
+    expect(html).toContain('Peça ao administrador')
+  })
+  it('LEITOR acompanha mas não pode iniciar revisão ou nova solicitação',()=>{
+    const html=renderToStaticMarkup(createElement(VortxReportRequests,{contexto:{...contexto,podeSolicitar:false},historico:{total:1,solicitacoes:[row]},pagina:1,hoje:'2026-10-20'}))
+    expect(html.match(/<button[^>]*aria-label="Solicitar novamente[^>]+>/)?.[0]).toContain('disabled')
+    expect(html).toContain('sem iniciar novas solicitações')
+    expect(html).toContain('Não exige código TOTP adicional')
+  })
   it('mostra ação identificável, origem e separa pedido de publicação', () => {
     const html = renderToStaticMarkup(createElement(VortxReportRequests, { contexto, historico: { total: 1,
       solicitacoes: [{ ...row, revisao: 2, solicitacao_anterior_id: row.id }] }, pagina: 1, hoje: '2026-10-20' }))
     expect(html).toContain('Solicitar novamente')
     expect(html).toContain('aria-label="Solicitar novamente Cessões realizadas de 02/01/2020"')
-    expect(html).toContain('Solicitação 2')
+    expect(html).toContain('Solicitação manual')
     expect(html).toContain('nova consulta vinculada à anterior')
     expect(html).toContain('arquivos idênticos não duplicarão o estoque')
     expect(html).not.toContain('nenhum arquivo é baixado')

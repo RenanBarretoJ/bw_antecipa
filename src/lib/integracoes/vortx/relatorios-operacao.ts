@@ -12,7 +12,7 @@ export const RELATORIOS_OPERADOR = [
 export const solicitarRelatorioSchema = z.object({
   fundoId: z.uuid(), versaoId: z.uuid(), tipo: z.enum(TIPOS_RELATORIO_VORTX),
   inicio: z.iso.date(), fim: z.iso.date(), referencia: z.iso.date(),
-  extensao: z.union([z.literal(1), z.literal(2)]), mfaCode: z.string().regex(/^\d{6}$/),
+  extensao: z.union([z.literal(1), z.literal(2)]), mfaCode: z.string().regex(/^\d{6}$/).optional(),
   solicitacaoAnteriorId: z.uuid().optional(),
 }).strict()
 export type RelatorioFormulario = Omit<z.infer<typeof solicitarRelatorioSchema>, 'mfaCode'>
@@ -25,6 +25,13 @@ export const solicitacaoRelatorioSchema = z.object({
   protocolo_externo: z.uuid().nullable(), codigo_http: z.number().int().nullable(), criada_em: z.string(),
   envio_iniciado_em: z.string().nullable(), concluida_em: z.string().nullable(),
   revisao: z.number().int().positive().optional(), solicitacao_anterior_id: z.uuid().nullable().optional(),
+  origem: z.enum(['MANUAL', 'CRON']).optional(), data_operacional: z.iso.date().nullable().optional(),
+  acompanhamento: z.object({ recebidoEm: z.string().nullable(), arquivoStatus: z.string().nullable(),
+    processamento: z.enum(['PENDENTE','PROCESSANDO','PERSISTIDO','REVISAO','FALHA']).nullable(),
+    downloadEm: z.string().nullable(), processadoEm: z.string().nullable(), erro: z.string().nullable(),
+    publicacao: z.string().nullable(), publicadoEm: z.string().nullable(),
+    ativos: z.number().int().nonnegative(), parcelas: z.number().int().nonnegative(), duplicada: z.boolean(),
+  }).optional(),
 })
 export type SolicitacaoRelatorio = z.infer<typeof solicitacaoRelatorioSchema>
 export const historicoRelatorioSchema = z.object({ total: z.number().int().nonnegative(), solicitacoes: z.array(solicitacaoRelatorioSchema) })
@@ -33,8 +40,15 @@ export type SolicitacaoRelatorioResult = { success: true; criada: boolean; solic
 
 export type ContextoRelatorios = {
   fundo: { id: string; nome: string; cnpj: string }
+  podeSolicitar?: boolean
   versoes: Array<{ id: string; versao: number; ambiente: 'producao'|'homologacao'; carteira: string; capabilities: string[] }>
 }
+
+export const contextoRelatoriosSchema = z.object({
+  fundo: z.object({ id: z.uuid(), nome: z.string(), cnpj: z.string() }), podeSolicitar: z.boolean(),
+  versoes: z.array(z.object({ id: z.uuid(), versao: z.number().int().positive(), ambiente: z.enum(['producao','homologacao']),
+    carteira: z.string().regex(/^[A-Za-z0-9._-]{1,100}$/), capabilities: z.array(z.string()) })),
+})
 
 export function podeSolicitarNovamente(row: SolicitacaoRelatorio): boolean {
   return !['registrada', 'enviando'].includes(row.estado)

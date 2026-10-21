@@ -10,6 +10,7 @@ import { runCallbackDiagnosticChecks } from './callback-diagnostic-checks.mjs'
 import { runCallbackCaptureChecks } from './callback-capture-checks.mjs'
 import { runCallbackSemanticsChecks } from './callback-semantics-checks.mjs'
 import { runReportRevisionChecks } from './report-revision-checks.mjs'
+import { runReportOperationalChecks } from './report-operational-checks.mjs'
 
 // Synthetic, focused SQL contract rehearsal; not hosted Auth/Storage E2E.
 const root = fileURLToPath(new URL('../../../', import.meta.url))
@@ -21,6 +22,7 @@ paths.push('supabase/migrations/20261020165910_vortx_callback_single_capture_pre
 paths.push('supabase/migrations/20261020180645_vortx_report_type_semantics.sql')
 paths.push('supabase/migrations/20261020183635_vortx_retire_callback_diagnostics.sql')
 paths.push('supabase/migrations/20261020204704_vortx_report_request_revisions.sql')
+paths.push('supabase/migrations/20261020212422_vortx_operational_reports.sql')
 const migrations = paths.map(path => ({ path, sql: readFileSync(resolve(root, path), 'utf8').replace(/\r\n/g, '\n') }))
 const canonical = JSON.parse(readFileSync(new URL('./__fixtures__/report-auth-canonical.json', import.meta.url), 'utf8')).functions
 const auditConstraint = JSON.parse(readFileSync(new URL('./__fixtures__/callback-audit-constraint.json', import.meta.url), 'utf8'))
@@ -360,6 +362,7 @@ try {
       assert.deepEqual((await db.query('select oid,proname,pg_get_functiondef(oid) definition,proacl::text from pg_proc where oid=ANY($1::oid[]) order by oid', [preservedAfterRevisions.map(f => f.oid)])).rows, preservedAfterRevisions)
       check('revisions_forward_migration_preserves_request_values_events_auth_mfa_guards_and_other_function_acls')
       await runReportRevisionChecks({ db, config, user, as, worker, endpoint, admin, ordinary, cross, unbound, fund, version, check })
+      await runReportOperationalChecks({ db, user, as, worker, admin, ordinary, cross, unbound, fund, otherFund, version, check, migration: migrations[9].sql })
     } finally {
       if (db) await db.end()
       if (container) { assert.equal(docker(['inspect', '--format', '{{index .Config.Labels "bw.qa.scope"}}', scope]), scope); docker(['rm', '-f', scope]); assert.equal(docker(['ps', '-aq', '--filter', `name=^/${scope}$`]), '') }

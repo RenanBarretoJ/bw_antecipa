@@ -18,11 +18,14 @@ import { obterDadosFinanceirosAdminFundo } from '@/lib/admin/dados-financeiros.s
 import { obterConfiguracaoVortxVrsAdmin } from '@/app/admin/fundos/vortx-vrs-actions'
 import { formatCNPJ } from '@/lib/utils'
 import { relatoriosPreviewPermitidos } from '@/lib/integracoes/vortx/relatorios-operacao'
+import { carregarHistoricoRelatorios } from '@/lib/integracoes/vortx/relatorios-contexto.server'
+import { obterDataCivilOperacional } from '@/lib/operacoes/data-operacional.server'
+import { VortxReportRequests } from '@/components/admin/vortx-report-requests'
 
 const tabClass = 'inline-flex h-9 items-center rounded-lg px-3 text-sm font-medium'
 const formatDate = (value: string) => new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value))
 
-export default async function AdminFundoDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ tab?: string; execPage?: string }> }) {
+export default async function AdminFundoDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ tab?: string; execPage?: string; pagina?: string }> }) {
   const { id } = await params
   const query = await searchParams
   const requestedTab = query.tab
@@ -35,7 +38,9 @@ export default async function AdminFundoDetailPage({ params, searchParams }: { p
   const gestores = tab === 'gestores' ? await listarGestoresAdminFundo(id) : []
   const technical = tab === 'integracoes' || tab === 'envios' ? await obterConfiguracoesTecnicasAdminFundo(id, execPage) : null
   const vortxConfig = tab === 'integracoes' ? await obterConfiguracaoVortxVrsAdmin(id) : []
-  const dadosFinanceiros = tab === 'dados-financeiros' ? await obterDadosFinanceirosAdminFundo(id) : null
+  const pagina = Math.min(10000, Math.max(1, Number.parseInt(query.pagina || '1', 10) || 1))
+  const relatorios = tab === 'dados-financeiros' && relatoriosPreviewPermitidos(id) ? await carregarHistoricoRelatorios(id, pagina) : null
+  const dadosFinanceiros = tab === 'dados-financeiros' && !relatorios?.contexto.versoes.length ? await obterDadosFinanceirosAdminFundo(id) : null
 
   return (
     <PageContainer className="space-y-5">
@@ -86,11 +91,13 @@ export default async function AdminFundoDetailPage({ params, searchParams }: { p
         </DetailSection>
       ) : tab === 'integracoes' && technical ? (
         <>
-          {relatoriosPreviewPermitidos(id) && <section className="flex flex-wrap items-center justify-between gap-4 rounded-xl border bg-card p-5"><div><h2 className="font-semibold">Relatórios Vórtx · Preview</h2><p className="mt-1 text-sm text-muted-foreground">Consulte estoque, cessões realizadas e exclusões. Sem enviar remessas ou importar dados.</p></div><Link href={`/admin/fundos/${id}/relatorios-vortx`} className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">Solicitar e acompanhar relatórios</Link></section>}
+          {relatoriosPreviewPermitidos(id) && <section className="flex flex-wrap items-center justify-between gap-4 rounded-xl border bg-card p-5"><div><h2 className="font-semibold">Relatórios Vórtx</h2><p className="mt-1 text-sm text-muted-foreground">A solicitação e o acompanhamento ficam em Dados Financeiros.</p></div><Link href={`/admin/fundos/${id}?tab=dados-financeiros`} className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">Abrir Dados Financeiros</Link></section>}
           <FundoIntegracoesTecnicas state={technical} execPage={execPage} vortxConfig={vortxConfig} />
         </>
       ) : tab === 'envios' && technical ? (
         <FundoEnviosOperacionais state={technical} />
+      ) : tab === 'dados-financeiros' && relatorios?.contexto.versoes.length ? (
+        <VortxReportRequests key={id} {...relatorios} pagina={pagina} hoje={obterDataCivilOperacional()} historicoHref={`/admin/fundos/${id}?tab=dados-financeiros`} configuracaoHref={`/admin/fundos/${id}?tab=integracoes`} />
       ) : tab === 'dados-financeiros' && dadosFinanceiros ? (
         <FundoDadosFinanceiros state={dadosFinanceiros} />
       ) : (
