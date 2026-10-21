@@ -43,6 +43,16 @@ describe('composicao Vortx por ativo e parcela', () => {
     expect(result.posicoes[0].financeiro.valor_pdd).toBe('0.0000')
     expect(result.posicoes[0].ativo.dadosNormalizados.valor_pdd).toBe('2.0000')
     expect(result.publicacaoHabilitada).toBe(false)
+    expect(result.reconciliadoFinanceiro).toBe(true)
+    expect(result.avisosPdd).toEqual([{ linhaAtivo: 2, campo: 'valor_pdd', codigo: 'TOTAL_DIVERGENTE' }])
+  })
+
+  it.each(['valor_nominal', 'valor_aquisicao', 'valor_presente'])('PDD advisory never waives %s reconciliation', campo => {
+    const result = comporEstoqueVortx(relatorioVortxQa('PosicaoAtivo'), relatorioVortxQa('PosicaoParcela', [{ [campo]: '1.00', valor_pdd: '0.00' }]))
+    expect(result.reconciliadoFinanceiro).toBe(false)
+    expect(result.reconciliado).toBe(false)
+    expect(result.publicacaoHabilitada).toBe(false)
+    expect(result.divergencias).toContainEqual({ linhaAtivo: 2, campo, codigo: 'TOTAL_DIVERGENTE' })
   })
 
   it('reconcilia valores acima do limite inteiro seguro do JavaScript sem perder centavos', () => {

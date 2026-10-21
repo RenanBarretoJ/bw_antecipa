@@ -13,5 +13,15 @@ describe('etapas operacionais baseadas em fatos persistidos',()=>{
   })
   it('reconhece deduplicação sem afirmar nova persistência',()=>expect(acompanharRelatorio({...row,acompanhamento:{...empty,processamento:'PERSISTIDO',duplicada:true}}).titulo).toBe('Conteúdo já importado'))
   it('importação em revisão nunca é publicação',()=>expect(acompanharRelatorio({...row,acompanhamento:{...empty,processamento:'REVISAO'}}).descricao).toContain('não foi publicado'))
+  it('PDD advisory reports real persistence but never financial publication',()=>{
+    const result=acompanharRelatorio({...row,acompanhamento:{...empty,processamento:'PERSISTIDO',pddPendente:true}})
+    expect(result.titulo).toBe('Importado · PDD a conferir')
+    expect(result.descricao).toContain('sem bloquear a persistência')
+    expect(result.descricao).toContain('não foi publicado')
+    expect(result.tom).toBe('atencao')
+  })
+  it('PDD warning cannot hide another financial discrepancy',()=>{
+    expect(acompanharRelatorio({...row,acompanhamento:{...empty,processamento:'REVISAO',pddPendente:true}}).titulo).toBe('Importado · em revisão')
+  })
   it('publicação comprovada prevalece sobre expiração posterior do link',()=>expect(acompanharRelatorio({...row,acompanhamento:{...empty,arquivoStatus:'Expirado',publicacao:'PUBLICADA'}}).titulo).toBe('Publicado nos módulos'))
 })

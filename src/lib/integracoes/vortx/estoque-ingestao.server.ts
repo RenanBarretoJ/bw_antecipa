@@ -6,7 +6,8 @@ import { integrationRuntimeEnvironment, resolverIntegracaoPorCapability } from '
 import { prepararSnapshotEstoqueVortx, type ArquivoPosicaoVortx } from './estoque-snapshot'
 import { blocosEstoqueVortx } from './estoque-blocos'
 
-const resultadoSchema = z.object({ id: z.uuid(), status: z.string(), duplicada: z.boolean(), reconciliado: z.boolean().optional() })
+const resultadoSchema = z.object({ id: z.uuid(), status: z.string(), duplicada: z.boolean(), reconciliado: z.boolean().optional(),
+  reconciliadoFinanceiro: z.boolean().optional(), pddPendente: z.boolean().optional() })
 const execucaoSchema = z.object({ id: z.uuid(), lease: z.uuid(), ambiente: z.enum(['producao', 'homologacao']),
   versaoId: z.uuid(), codigoCarteira: z.string().min(1).max(100) }).strict()
 

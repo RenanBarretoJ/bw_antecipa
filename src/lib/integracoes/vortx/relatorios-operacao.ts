@@ -31,6 +31,7 @@ export const solicitacaoRelatorioSchema = z.object({
     downloadEm: z.string().nullable(), processadoEm: z.string().nullable(), erro: z.string().nullable(),
     publicacao: z.string().nullable(), publicadoEm: z.string().nullable(),
     ativos: z.number().int().nonnegative(), parcelas: z.number().int().nonnegative(), duplicada: z.boolean(),
+    pddPendente: z.boolean().optional(),
   }).optional(),
 })
 export type SolicitacaoRelatorio = z.infer<typeof solicitacaoRelatorioSchema>

@@ -48,7 +48,7 @@ describe('durable stock callback processor', () => {
   })
   it('decrypts in runtime, downloads only both validated events and persists without publication', async () => {
     expect(await processarProximoEstoqueVortx(env)).toEqual({ estado: 'PERSISTIDO', ativos: 1, parcelas: 2,
-      duplicada: false, divergencias: 0, publicado: false })
+      duplicada: false, divergencias: 0, pddPendente: false, publicado: false })
     expect(mocks.download).toHaveBeenCalledTimes(2)
     expect(mocks.rpc).toHaveBeenCalledWith('vortx_marcar_download_estoque',{p_id:id,p_lease:id})
     expect(mocks.ingest.mock.calls[0][0]).toMatchObject({ fundoId: id, dataReferencia: '2026-10-19',
@@ -69,6 +69,16 @@ describe('durable stock callback processor', () => {
   it('preserves financial discrepancies for review rather than publishing them', async () => {
     mocks.ingest.mockResolvedValue({ reconciliado: false, duplicada: false, resumo: { ativos: 1, parcelas: 2 }, divergencias: [{}] })
     expect(await processarProximoEstoqueVortx(env)).toMatchObject({ estado: 'REVISAO', publicado: false, divergencias: 1 })
+  })
+  it('persists a canonical PDD-only advisory without declaring full reconciliation or publication', async () => {
+    mocks.ingest.mockResolvedValue({ reconciliado: false, reconciliadoFinanceiro: true, pddPendente: true,
+      duplicada: false, resumo: { ativos: 1, parcelas: 2 }, divergencias: [{ campo: 'valor_pdd' }] })
+    expect(await processarProximoEstoqueVortx(env)).toMatchObject({ estado: 'PERSISTIDO', pddPendente: true, divergencias: 1, publicado: false })
+  })
+  it('remains strict against an old SQL completion missing the advisory decision', async () => {
+    mocks.ingest.mockResolvedValue({ reconciliado: false, duplicada: true,
+      resumo: { ativos: 1, parcelas: 2 }, divergencias: [{ campo: 'valor_pdd' }] })
+    expect(await processarProximoEstoqueVortx(env)).toMatchObject({ estado: 'REVISAO', pddPendente: false, publicado: false })
   })
   it('fails a denied download without ingesting or exposing its signed URL', async () => {
     mocks.download.mockRejectedValue(new DownloadRelatorioError('HOST_NEGADO'))

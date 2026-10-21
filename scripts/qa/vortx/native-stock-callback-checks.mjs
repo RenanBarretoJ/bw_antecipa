@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { randomUUID, createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import pg from 'pg'
+import { checkPddAdvisory } from './pdd-advisory-checks.mjs'
 
 const read = name => readFileSync(new URL(`../../../${name}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n')
 const sha = value => createHash('sha256').update(value).digest('hex')
@@ -195,4 +196,5 @@ export async function checkStockCallbackProcessing({ db, config, internal, asRol
   assert.equal((await db.query("select count(*)::int n from pg_indexes where schemaname='private' and indexname=any($1)",
     [['vortx_estoque_processamento_importacao_idx','vortx_estoque_processamento_parcela_idx','vortx_estoque_processamento_versao_idx']])).rows[0].n, 3)
   stack.tests.push('new_processing_foreign_keys_have_covering_indexes')
+  await checkPddAdvisory({ db, internal, asRole, event, reserve, finish, payload, fund, otherFund, actor, stack })
 }

@@ -53,9 +53,12 @@ export async function processarProximoEstoqueVortx(env: Env = process.env) {
     const result = await ingerirEstoqueNativoVortx({ fundoId, dataReferencia: job.data_referencia,
       ativo: { nome: 'posicao-ativo.csv', conteudo: ativo }, parcela: { nome: 'posicao-parcela.csv', conteudo: parcela },
       execucao: { id: job.id, lease: job.lease, ambiente: job.ambiente, versaoId: job.versao_id, codigoCarteira: job.codigo_carteira } })
-    return { estado: result.reconciliado ? 'PERSISTIDO' as const : 'REVISAO' as const,
+    // The canonical SQL completion decides financial eligibility; older servers
+    // retain their stricter behavior until the forward migration is applied.
+    const conferido = result.reconciliadoFinanceiro ?? result.reconciliado
+    return { estado: conferido ? 'PERSISTIDO' as const : 'REVISAO' as const,
       ativos: result.resumo.ativos, parcelas: result.resumo.parcelas, duplicada: result.duplicada,
-      divergencias: result.divergencias.length, publicado: false as const }
+      divergencias: result.divergencias.length, pddPendente: result.pddPendente ?? false, publicado: false as const }
   } catch (error) {
     const motivo = error instanceof DownloadRelatorioError ? 'DOWNLOAD_FALHOU'
       : error instanceof RelatorioVortxError || etapa === 'CONTRATO' ? 'CONTRATO_INVALIDO' : 'PERSISTENCIA_INDETERMINADA'

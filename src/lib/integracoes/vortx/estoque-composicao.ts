@@ -92,6 +92,10 @@ export function comporEstoqueVortx(ativos: RelatorioVortxProcessado, parcelas: R
   for (const row of posicoes) entradas[row.statusEntradaProvedor] += 1
   return {
     posicoes, divergencias, reconciliado: divergencias.length === 0,
+    // VORTX_PDD_ADVISORY_V1: pending provider semantics, PDD remains an advisory
+    // for persistence only. The original full/publication reconciliation is unchanged.
+    reconciliadoFinanceiro: divergencias.every(item => item.campo === 'valor_pdd'),
+    avisosPdd: divergencias.filter(item => item.campo === 'valor_pdd'),
     resumo: { ativos: grupos.size, parcelas: posicoes.length, statusEntrada: entradas },
     // Eligibility only; the internal publisher revalidates rows and integration scope in SQL.
     publicacaoHabilitada: divergencias.length === 0,
