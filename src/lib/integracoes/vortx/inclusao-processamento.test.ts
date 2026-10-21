@@ -11,8 +11,8 @@ import { DownloadRelatorioError } from './relatorios-download.server'
 const id=ctx.fundoId
 const env={VERCEL_ENV:'preview',VERCEL_GIT_COMMIT_REF:'feature/vortx-real-data-preview',NEXT_PUBLIC_SUPABASE_URL:'https://phdckowbexkkvuwnzeaf.supabase.co',
   VORTX_REPORTS_PREVIEW_ENABLED:'true',VORTX_REPORTS_PREVIEW_FUNDO_ID:id,VORTX_REPORT_INCLUSION_PROCESSING_ENABLED:'true',VORTX_REPORT_DOWNLOAD_HOSTS:'reports.example.invalid'}
-function job(){
-  const evento=interpretarCallbackRelatorio({idRelatorio:id,idCarteira:ctx.codigoCarteira,tipoRelatorio:'Inclusao',dataReferencia:ctx.dataReferencia,
+function job(providerReference=ctx.dataReferencia){
+  const evento=interpretarCallbackRelatorio({idRelatorio:id,idCarteira:ctx.codigoCarteira,tipoRelatorio:'Inclusao',dataReferencia:providerReference,
     dataInicio:ctx.dataInicio,dataFim:ctx.dataFim,statusRelatorio:'Disponível',urlRelatorio:'https://reports.example.invalid/report?sig=synthetic',dataExpiracao:new Date(Date.now()+86400000).toISOString()})
   const {hash}=prepararEventoCallback(id,evento)
   const sealed=criptografarPortalFidcValor(JSON.stringify({purpose:'VORTX_CALLBACK_RELATORIO_V1',endpointId:id,fundoId:id,ambiente:ctx.ambiente,codigoCarteira:ctx.codigoCarteira,hash,evento}))
@@ -33,6 +33,19 @@ beforeEach(()=>{
 })
 afterEach(()=>vi.unstubAllEnvs())
 describe('durable Inclusion worker',()=>{
+  it('accepts provider sentinel only as interval metadata and persists the canonical request reference',async()=>{
+    const original=job('1900-01-01'),snapshot=JSON.stringify(original),impl=mocks.rpc.getMockImplementation()!
+    mocks.rpc.mockImplementation(async(name,args)=>name==='vortx_reservar_processamento_inclusao'?{data:original,error:null}:impl(name,args))
+    expect(await processarProximaInclusaoVortx(env)).toMatchObject({estado:'PERSISTIDO',publicado:false})
+    expect(mocks.rpc.mock.calls.find(c=>c[0]==='vortx_manifesto_inclusao')![1].p_manifesto.data_referencia).toBe(ctx.dataReferencia)
+    expect(JSON.stringify(original)).toBe(snapshot)
+  })
+  it.each(['data_inicio','data_fim'])('rejects well-formed but different interval %s before network',async key=>{
+    const original={...job('1900-01-01'),[key]:'2026-10-01'},impl=mocks.rpc.getMockImplementation()!
+    mocks.rpc.mockImplementation(async(name,args)=>name==='vortx_reservar_processamento_inclusao'?{data:original,error:null}:impl(name,args))
+    expect(await processarProximaInclusaoVortx(env)).toMatchObject({estado:'FALHA',motivo:'CONTRATO_INVALIDO'})
+    expect(mocks.download).not.toHaveBeenCalled();expect(mocks.upload).not.toHaveBeenCalled()
+  })
   it.each([{VERCEL_ENV:'production'},{VERCEL_GIT_COMMIT_REF:'main'},{VORTX_REPORT_INCLUSION_PROCESSING_ENABLED:'false'},{VORTX_REPORT_DOWNLOAD_HOSTS:''}])('is inert outside Preview/flag %j',async change=>{
     expect(await processarProximaInclusaoVortx({...env,...change})).toEqual({estado:'DESABILITADO'});expect(mocks.rpc).not.toHaveBeenCalled()
   })

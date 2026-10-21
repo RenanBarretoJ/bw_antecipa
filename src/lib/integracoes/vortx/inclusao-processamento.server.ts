@@ -34,7 +34,9 @@ export async function processarProximaInclusaoVortx(env: Env = process.env) {
     if (job.fundo_id !== env.VORTX_REPORTS_PREVIEW_FUNDO_ID || row.id !== job.evento_id
       || row.fundo_id !== job.fundo_id || row.ambiente !== job.ambiente || row.correlacao !== 'CORRELACIONADO'
       || evento.tipoRelatorio !== 'Inclusao' || evento.idCarteira !== job.codigo_carteira
-      || evento.dataReferencia !== job.data_referencia || evento.dataInicio !== job.data_inicio || evento.dataFim !== job.data_fim
+      // Inclusion is an interval report: its provider point-reference may be a sentinel.
+      // The guarded reservation supplies the canonical request reference; never rewrite the original event.
+      || evento.dataInicio !== job.data_inicio || evento.dataFim !== job.data_fim
       || !evento.dataExpiracao || Date.parse(evento.dataExpiracao) <= Date.now()) throw new Error('SCOPE')
     etapa = 'DOWNLOAD'
     const bytes = await baixarRelatorioVortx(evento.urlRelatorio!, env.VORTX_REPORT_DOWNLOAD_HOSTS!.split(',').map(h => h.trim()).filter(Boolean))

@@ -1,7 +1,20 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 const sql=readFileSync('supabase/migrations/20261021155151_vortx_inclusao_persistence.sql','utf8')
+const correction=readFileSync('supabase/migrations/20261021163306_vortx_inclusao_periodo_canonico.sql','utf8').replace(/\r\n/g,'\n')
 describe('Inclusion-only forward migration boundaries',()=>{
+  it('changes only the interval-reference comparison and canonical reservation source, preserving every other SQL guard',()=>{
+    for(const name of ['private.vortx_inclusao_autorizada','public.vortx_reservar_processamento_inclusao']){
+      const extract=(source:string)=>source.slice(source.indexOf(`FUNCTION ${name}(`)).split('$$;')[0]+'$$;'
+      const expected=extract(sql.replace(/\r\n/g,'\n'))
+        .replace(" AND s.pedido->>'dataReferencia'=e.data_referencia::text\n",'')
+        .replace('SELECT ev.*,s.integracao_versao_id FROM',"SELECT ev.*,s.integracao_versao_id,(s.pedido->>'dataReferencia')::date referencia_pedido FROM")
+        .replace("e.metadados->>'idCarteira',e.data_referencia,e.data_inicio", "e.metadados->>'idCarteira',e.referencia_pedido,e.data_inicio")
+      expect(extract(correction)).toBe(expected)
+    }
+    expect(correction.match(/CREATE OR REPLACE FUNCTION/g)).toHaveLength(2)
+    expect(correction).not.toMatch(/GRANT|REVOKE|ALTER TABLE|CREATE POLICY|UPDATE public\.|DELETE FROM public\./)
+  })
   it('adds an isolated immutable native movement/version namespace, not legacy financial writes',()=>{
     expect(sql).toContain('CREATE TABLE public.vortx_inclusoes')
     expect(sql).toContain('CREATE TABLE public.vortx_inclusao_linhas')
