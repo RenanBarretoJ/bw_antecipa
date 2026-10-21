@@ -43,4 +43,15 @@ describe('contexto de relatórios somente Preview',()=>{
   it('erro de histórico não se transforma em vazio ou sucesso',async()=>{
     rpc.mockResolvedValueOnce({data:state,error:null}).mockResolvedValueOnce({data:null,error:{code:'missing'}});await expect(carregarHistoricoRelatorios(id,1)).rejects.toThrow('Não foi possível carregar')
   })
+  it('central filtra no servidor com parâmetros tipados, sem baixar todas as páginas', async () => {
+    await carregarHistoricoRelatorios(id, 3, { tipo: 'PosicaoAtivo', origem: 'CRON', estado: 'aceita', referencia: '2026-10-19' })
+    expect(rpc).toHaveBeenCalledWith('vortx_central_bases_historico', { p_fundo_id: id, p_pagina: 3,
+      p_tipo: 'PosicaoAtivo', p_origem: 'CRON', p_estado: 'aceita', p_referencia: '2026-10-19' })
+    expect(rpc).toHaveBeenCalledTimes(2)
+  })
+  it('central sem filtros carrega também o resumo global autorizado', async () => {
+    await carregarHistoricoRelatorios(id, 1, {})
+    expect(rpc).toHaveBeenCalledWith('vortx_central_bases_historico', { p_fundo_id: id, p_pagina: 1,
+      p_tipo: null, p_origem: null, p_estado: null, p_referencia: null })
+  })
 })

@@ -34,7 +34,7 @@ export const solicitacaoRelatorioSchema = z.object({
   }).optional(),
 })
 export type SolicitacaoRelatorio = z.infer<typeof solicitacaoRelatorioSchema>
-export const historicoRelatorioSchema = z.object({ total: z.number().int().nonnegative(), solicitacoes: z.array(solicitacaoRelatorioSchema) })
+export const historicoRelatorioSchema = z.object({ total: z.number().int().nonnegative(), solicitacoes: z.array(solicitacaoRelatorioSchema).max(20), resumo: z.array(solicitacaoRelatorioSchema).max(4).optional() })
 export type HistoricoRelatorio = z.infer<typeof historicoRelatorioSchema>
 export type SolicitacaoRelatorioResult = { success: true; criada: boolean; solicitacao: SolicitacaoRelatorio } | { success: false; message: string }
 
