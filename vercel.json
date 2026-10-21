@@ -29,8 +29,7 @@
   "git": {
     "deploymentEnabled": {
       "feature/email03-r4-local-release-candidate-20261013": false,
-      "feature/operacao-parcelas-layout4": false,
-      "integration/vortx-main-20261021": false
+      "feature/operacao-parcelas-layout4": false
     }
   }
 }
