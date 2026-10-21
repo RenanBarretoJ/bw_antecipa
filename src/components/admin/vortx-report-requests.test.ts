@@ -35,7 +35,7 @@ describe('histórico de relatórios com solicitação explícita', () => {
     expect(html).not.toContain('Publicado nos módulos')
   })
   it('exibe PDD como aviso de lote persistido, sem bloquear a tela nem alegar publicação', () => {
-    const persisted = { ...row, acompanhamento: { recebidoEm: null, arquivoStatus: 'Disponível',
+    const persisted = { ...row, pedido: { ...row.pedido, tipoRelatorio: 'PosicaoParcela' as const }, acompanhamento: { recebidoEm: null, arquivoStatus: 'Disponível',
       processamento: 'PERSISTIDO' as const, downloadEm: '2026-10-21T12:00:00Z', processadoEm: '2026-10-21T12:01:00Z',
       erro: null, publicacao: 'VALIDA', publicadoEm: null, ativos: 1, parcelas: 2, duplicada: false, pddPendente: true } }
     const html = renderToStaticMarkup(createElement(VortxReportRequests, { contexto, historico: { total: 1, solicitacoes: [persisted], resumo: [persisted] }, pagina: 1, hoje: '2026-10-21' }))

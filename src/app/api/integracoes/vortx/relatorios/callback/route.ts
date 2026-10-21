@@ -3,6 +3,7 @@ import { receberCallbackRelatorio, type CallbackReceiptDiagnostic } from '@/lib/
 import { criarRepositorioCallbackRelatorio } from '@/lib/integracoes/vortx/relatorios-callback-repository.server'
 import { after } from 'next/server'
 import { processarProximoEstoqueVortx, processamentoEstoquePreviewPermitido } from '@/lib/integracoes/vortx/estoque-processamento.server'
+import { processarProximaInclusaoVortx, processamentoInclusaoPreviewPermitido } from '@/lib/integracoes/vortx/inclusao-processamento.server'
 
 export const maxDuration = 300
 
@@ -25,6 +26,12 @@ export async function POST(request: Request) {
       try { console.info('vortx_stock_processing', await processarProximoEstoqueVortx()) }
       catch { console.warn('vortx_stock_processing', { estado: 'RECONCILIAR_EXECUCAO' }) }
     }) } catch { console.warn('vortx_stock_processing', { estado: 'AGENDAMENTO_INDISPONIVEL' }) }
+  }
+  if (result.status === 200 && processamentoInclusaoPreviewPermitido()) {
+    try { after(async () => {
+      try { console.info('vortx_inclusion_processing', await processarProximaInclusaoVortx()) }
+      catch { console.warn('vortx_inclusion_processing', { estado: 'RECONCILIAR_EXECUCAO' }) }
+    }) } catch { console.warn('vortx_inclusion_processing', { estado: 'AGENDAMENTO_INDISPONIVEL' }) }
   }
   return result
 }

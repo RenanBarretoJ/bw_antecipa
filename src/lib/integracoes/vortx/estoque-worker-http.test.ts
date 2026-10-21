@@ -9,6 +9,16 @@ const env = { VERCEL_ENV: 'preview', VERCEL_GIT_COMMIT_REF: 'feature/vortx-real-
 const request = (change: RequestInit = {}, query = '') => new Request('https://example.invalid/processar' + query,
   { method: 'POST', headers: { authorization: `Bearer ${token}` }, ...change })
 describe('machine-only stock processing HTTP boundary', () => {
+  it('resumes Inclusion through the same authenticated machine boundary, not through an open processing endpoint', async () => {
+    const includeEnv={...env,VORTX_REPORT_INCLUSION_PROCESSING_ENABLED:'true'}
+    const stock=vi.fn().mockResolvedValue({estado:'AGUARDANDO_PAR'})
+    const inclusion=vi.fn().mockResolvedValue({estado:'PERSISTIDO',inclusoes:5,publicado:false})
+    expect((await executarWorkerEstoque(request({headers:{authorization:'Bearer wrong'}}),includeEnv,stock,inclusion)).status).toBe(401)
+    expect(inclusion).not.toHaveBeenCalled()
+    const response=await executarWorkerEstoque(request(),includeEnv,stock,inclusion)
+    expect(response.status).toBe(200);expect(await response.json()).toEqual({estado:'AGUARDANDO_PAR',inclusao:{estado:'PERSISTIDO',inclusoes:5,publicado:false}})
+    expect(inclusion).toHaveBeenCalledExactlyOnceWith(includeEnv)
+  })
   it.each(['production', 'development'])('does not process outside Preview: %s', async VERCEL_ENV => {
     const run = vi.fn()
     expect((await executarWorkerEstoque(request(), { ...env, VERCEL_ENV }, run)).status).toBe(404)

@@ -5,6 +5,13 @@ const id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 const row:SolicitacaoRelatorio={id,fundo_id:id,integracao_versao_id:id,ambiente:'producao',pedido:{codigoCarteira:'qa',tipoRelatorio:'PosicaoAtivo',dataInicio:'2020-01-01',dataFim:'2020-01-02',dataReferencia:'2020-01-02',extensaoArquivo:2},estado:'aceita',protocolo_externo:id,codigo_http:200,criada_em:'2026-10-19T17:00:00Z',envio_iniciado_em:null,concluida_em:null}
 const empty:NonNullable<SolicitacaoRelatorio['acompanhamento']>={recebidoEm:null,arquivoStatus:null,processamento:null,downloadEm:null,processadoEm:null,erro:null,publicacao:null,publicadoEm:null,ativos:0,parcelas:0,duplicada:false}
 describe('etapas operacionais baseadas em fatos persistidos',()=>{
+  it('inclusion receipt does not assert download, while persisted inclusions are distinct from stock',()=>{
+    const inclusao={...row,pedido:{...row.pedido,tipoRelatorio:'Inclusao' as const}}
+    expect(acompanharRelatorio({...inclusao,acompanhamento:{...empty,arquivoStatus:'Disponível'}}).titulo).toContain('aguardando processamento')
+    const saved=acompanharRelatorio({...inclusao,acompanhamento:{...empty,processamento:'PERSISTIDO',inclusoes:10}})
+    expect(saved.titulo).toBe('Inclusões importadas');expect(saved.descricao).toContain('10 movimentos');expect(saved.descricao).toContain('não foi publicada')
+    expect(acompanharRelatorio({...inclusao,acompanhamento:{...empty,processamento:'REVISAO',conflitos:1}}).titulo).toBe('Inclusões importadas · em revisão')
+  })
   it('protocolo não é recebimento nem importação',()=>expect(acompanharRelatorio(row).titulo).toBe('Pedido aceito pela Vórtx'))
   it('posição disponível aguarda par, sem afirmar download',()=>expect(acompanharRelatorio({...row,acompanhamento:{...empty,arquivoStatus:'Disponível'}}).titulo).toContain('aguardando par'))
   it('inclusão não implica aquisição automática',()=>expect(acompanharRelatorio({...row,pedido:{...row.pedido,tipoRelatorio:'Inclusao'},acompanhamento:{...empty,arquivoStatus:'Disponível'}}).descricao).toContain('nenhuma aquisição ou baixa'))
