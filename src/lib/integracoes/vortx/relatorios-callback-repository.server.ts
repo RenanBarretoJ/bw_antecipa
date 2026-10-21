@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/server'
 import { criptografarPortalFidcValor } from '@/lib/portal-fidc/credenciais'
 import type { CallbackRepository } from './relatorios-callback-handler.server'
 import { prepararEventoCallback } from './relatorios-callback'
+import { configurarRuntimeRelatorios } from './relatorios-runtime'
 
 const bindingSchema = z.discriminatedUnion('status', [
   z.object({ status: z.literal('UNAUTHORIZED') }), z.object({ status: z.literal('RATE_LIMITED') }),
@@ -16,7 +17,10 @@ export function criarRepositorioCallbackRelatorio(client = createAdminClient()):
     async autorizar(id, hash) {
       const result = await client.rpc('vortx_autorizar_callback', { p_id: id, p_segredo_hash: hash })
       if (result.error) throw new Error('Callback temporariamente indisponivel.')
-      return bindingSchema.parse(result.data)
+      const binding = bindingSchema.parse(result.data)
+      if (binding.status === 'AUTHORIZED' && configurarRuntimeRelatorios()?.ambiente === 'production'
+        && binding.ambiente !== 'producao') return { status: 'UNAUTHORIZED' as const }
+      return binding
     },
     async persistir(binding, segredoHash, evento) {
       const { metadados, hash } = prepararEventoCallback(binding.endpointId, evento)

@@ -1,7 +1,7 @@
 import 'server-only'
 import { z } from 'zod'
 import { createAdminClient } from '@/lib/supabase/server'
-import { relatoriosPreviewPermitidos } from './relatorios-operacao'
+import { configurarRuntimeRelatorios, fundoRelatoriosConfigurado, relatoriosPermitidos } from './relatorios-runtime'
 import { abrirEventoPreservado, eventoPreservadoSchema } from './relatorios-evento-preservado.server'
 import { baixarRelatorioVortx, DownloadRelatorioError } from './relatorios-download.server'
 import { prepararInclusaoVortx } from './inclusao-snapshot'
@@ -16,7 +16,7 @@ const resultadoSchema = z.object({ id: z.uuid(), estado: z.enum(['PERSISTIDO', '
 type Env = Readonly<Record<string, string | undefined>>
 
 export function processamentoInclusaoPreviewPermitido(env: Env = process.env) {
-  return relatoriosPreviewPermitidos(env.VORTX_REPORTS_PREVIEW_FUNDO_ID ?? '', env)
+  return relatoriosPermitidos(fundoRelatoriosConfigurado(env) ?? '', env)
     && env.VORTX_REPORT_INCLUSION_PROCESSING_ENABLED === 'true' && Boolean(env.VORTX_REPORT_DOWNLOAD_HOSTS?.trim())
 }
 
@@ -24,14 +24,16 @@ export function processamentoInclusaoPreviewPermitido(env: Env = process.env) {
 export async function processarProximaInclusaoVortx(env: Env = process.env) {
   if (!processamentoInclusaoPreviewPermitido(env)) return { estado: 'DESABILITADO' as const }
   const client = createAdminClient()
-  const reserved = await client.rpc('vortx_reservar_processamento_inclusao', { p_fundo_id: env.VORTX_REPORTS_PREVIEW_FUNDO_ID! })
+  const fundoId = fundoRelatoriosConfigurado(env)!
+  const reserved = await client.rpc('vortx_reservar_processamento_inclusao', { p_fundo_id: fundoId })
   if (reserved.error) throw new Error('PROCESSAMENTO_INDISPONIVEL')
   if (reserved.data === null) return { estado: 'AGUARDANDO_RELATORIO' as const }
   const job = jobSchema.parse(reserved.data)
   let etapa: 'CONTRATO' | 'DOWNLOAD' | 'PERSISTENCIA' = 'CONTRATO'
   try {
     const { row, evento } = abrirEventoPreservado(job.evento)
-    if (job.fundo_id !== env.VORTX_REPORTS_PREVIEW_FUNDO_ID || row.id !== job.evento_id
+    if ((configurarRuntimeRelatorios(env)?.ambiente === 'production' && job.ambiente !== 'producao')
+      || job.fundo_id !== fundoId || row.id !== job.evento_id
       || row.fundo_id !== job.fundo_id || row.ambiente !== job.ambiente || row.correlacao !== 'CORRELACIONADO'
       || evento.tipoRelatorio !== 'Inclusao' || evento.idCarteira !== job.codigo_carteira
       // Inclusion is an interval report: its provider point-reference may be a sentinel.

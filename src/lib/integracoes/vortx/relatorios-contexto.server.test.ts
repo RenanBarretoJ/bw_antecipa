@@ -13,6 +13,15 @@ beforeEach(()=>{
 })
 afterEach(()=>vi.unstubAllEnvs())
 describe('contexto de relatórios somente Preview',()=>{
+  it('produção exige configuração própria e omite versões de homologação', async () => {
+    for (const [key,value] of Object.entries({ VERCEL_ENV:'production', VERCEL_GIT_COMMIT_REF:'main',
+      NEXT_PUBLIC_SUPABASE_URL:'https://wwsndnuvnjuabpbjwlck.supabase.co', INTEGRATION_RUNTIME_ENV:'producao',
+      VORTX_REPORTS_PRODUCTION_ENABLED:'true', VORTX_REPORTS_PRODUCTION_FUNDO_ID:id })) vi.stubEnv(key,value)
+    rpc.mockResolvedValue({data:{...state,versoes:[version,{...version,id:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',ambiente:'homologacao'}]},error:null})
+    expect((await carregarContextoRelatorios(id)).contexto.versoes).toEqual([version])
+    expect(admin).toHaveBeenCalledOnce()
+    expect(rpc).toHaveBeenCalledWith('vortx_contexto_relatorios',{p_fundo_id:id})
+  })
   it('serializa apenas contexto mínimo e capabilities ativas',async()=>{
     rpc.mockResolvedValue({data:{...state,credenciais:[{segredo:'never-return'}],versoes:[{...version,private:'never-return'}]},error:null})
     expect((await carregarContextoRelatorios(id)).contexto).toEqual(state)

@@ -41,6 +41,12 @@ for (const file of [
   // The protected main files, migration hashes and ancestry checks above remain exact.
   'src/lib/pdf-nf-parser.ts', 'src/lib/danfe/access-key.ts',
   'src/lib/danfe/fatura.ts', 'src/lib/danfe/inline-reference.test.ts',
+  // Explicitly authorized production promotion. Preview diagnostic guards and
+  // all protected main files/migration hashes remain checked above.
+  'src/lib/integracoes/vortx/relatorios-runtime.ts',
+  'src/lib/integracoes/vortx/relatorios-runtime.test.ts',
+  'src/lib/integracoes/vortx/relatorios-production-boundaries.test.ts',
+  'docs/integracoes/vortx-production-rollout.json',
 ]) allowed.add(file)
 for (const path of lines(git(['diff', '--name-only', manifest.baseCommit]))) {
   assert(allowed.has(path) || /^scripts\/qa\/vortx\/main-[a-z-]+\.(?:mjs|json)$/.test(path), `OUT_OF_SCOPE_CHANGE:${path}`)

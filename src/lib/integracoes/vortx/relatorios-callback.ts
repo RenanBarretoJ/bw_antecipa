@@ -2,6 +2,7 @@ import { createHash, randomBytes } from 'node:crypto'
 import { z } from 'zod'
 import { CODIGO_CARTEIRA_PATTERN } from '../configuracao-vortx-vrs'
 import { relatoriosPreviewPermitidos } from './relatorios-operacao'
+import { configurarRuntimeRelatorios } from './relatorios-runtime'
 import { normalizarTipoCallbackVortx, relatorioDePosicao, TIPOS_RELATORIO_VORTX } from './relatorios-tipos'
 
 export const CALLBACK_MAX_BODY = 16 * 1024
@@ -66,4 +67,13 @@ export function callbackPreviewPermitido(env: Readonly<Record<string, string | u
     // Temporary, operator-authorized Preview exception; this is NOT proof of log redaction.
     && (env.VORTX_REPORT_CALLBACK_QUERY_REDACTION_VERIFIED === 'true'
       || env.VORTX_REPORT_CALLBACK_URL_RISK_ACCEPTED === 'true')
+}
+
+/** The Preview risk exception must never authorize a production callback. */
+export function callbackRelatoriosPermitido(env: Readonly<Record<string, string | undefined>> = process.env) {
+  const runtime = configurarRuntimeRelatorios(env)
+  if (!runtime) return false
+  if (runtime.ambiente === 'preview') return callbackPreviewPermitido(env)
+  return env.VORTX_REPORT_CALLBACK_PRODUCTION_ENABLED === 'true'
+    && env.VORTX_REPORT_CALLBACK_QUERY_REDACTION_VERIFIED === 'true'
 }

@@ -1,7 +1,7 @@
 import 'server-only'
 import { z } from 'zod'
 import { createAdminClient } from '@/lib/supabase/server'
-import { relatoriosPreviewPermitidos } from './relatorios-operacao'
+import { configurarRuntimeRelatorios, fundoRelatoriosConfigurado, relatoriosPermitidos } from './relatorios-runtime'
 import { abrirEventoPreservado, eventoPreservadoSchema } from './relatorios-evento-preservado.server'
 import { baixarRelatorioVortx, DownloadRelatorioError } from './relatorios-download.server'
 import { ingerirEstoqueNativoVortx } from './estoque-ingestao.server'
@@ -12,8 +12,8 @@ const jobSchema = z.object({ id: z.uuid(), lease: z.uuid(), fundo_id: z.uuid(), 
   ativo_evento_id: z.uuid(), parcela_evento_id: z.uuid(), ativo: eventoPreservadoSchema, parcela: eventoPreservadoSchema })
 type Env = Readonly<Record<string, string | undefined>>
 export function processamentoEstoquePreviewPermitido(env: Env = process.env) {
-  return z.uuid().safeParse(env.VORTX_REPORTS_PREVIEW_FUNDO_ID).success
-    && relatoriosPreviewPermitidos(env.VORTX_REPORTS_PREVIEW_FUNDO_ID ?? '', env)
+  return z.uuid().safeParse(fundoRelatoriosConfigurado(env)).success
+    && relatoriosPermitidos(fundoRelatoriosConfigurado(env) ?? '', env)
     && env.VORTX_REPORT_STOCK_PROCESSING_ENABLED === 'true'
     && Boolean(env.VORTX_REPORT_DOWNLOAD_HOSTS?.trim())
 }
@@ -24,7 +24,7 @@ export function processamentoEstoquePreviewPermitido(env: Env = process.env) {
  */
 export async function processarProximoEstoqueVortx(env: Env = process.env) {
   if (!processamentoEstoquePreviewPermitido(env)) return { estado: 'DESABILITADO' as const }
-  const fundoId = env.VORTX_REPORTS_PREVIEW_FUNDO_ID!
+  const fundoId = fundoRelatoriosConfigurado(env)!
   const client = createAdminClient()
   const reserved = await client.rpc('vortx_reservar_processamento_estoque', { p_fundo_id: fundoId })
   if (reserved.error) throw new Error('PROCESSAMENTO_INDISPONIVEL')
@@ -33,6 +33,7 @@ export async function processarProximoEstoqueVortx(env: Env = process.env) {
   let etapa: 'CONTRATO' | 'DOWNLOAD' | 'PERSISTENCIA' = 'CONTRATO'
   try {
     if (job.fundo_id !== fundoId) throw new Error('SCOPE')
+    if (configurarRuntimeRelatorios(env)?.ambiente === 'production' && job.ambiente !== 'producao') throw new Error('SCOPE')
     const abrir = (tipo: 'PosicaoAtivo' | 'PosicaoParcela', id: string, value: unknown) => {
       const { row, evento } = abrirEventoPreservado(value)
       if (row.id !== id || row.fundo_id !== fundoId || row.ambiente !== job.ambiente || row.correlacao !== 'CORRELACIONADO'

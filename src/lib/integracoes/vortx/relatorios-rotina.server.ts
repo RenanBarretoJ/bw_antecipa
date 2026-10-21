@@ -2,28 +2,30 @@ import 'server-only'
 import { createHash, randomBytes } from 'node:crypto'
 import { z } from 'zod'
 import { createAdminClient } from '@/lib/supabase/server'
-import { contextoRelatoriosSchema, relatoriosPreviewPermitidos, solicitacaoRelatorioSchema } from './relatorios-operacao'
+import { contextoRelatoriosSchema, solicitacaoRelatorioSchema } from './relatorios-operacao'
+import { fundoRelatoriosConfigurado, relatoriosPermitidos } from './relatorios-runtime'
 import { prepararSolicitacaoRelatorioVortx } from './relatorios-contrato'
 import { enviarRelatorioReservado } from './relatorios-envio.server'
 import { planejarRotinaRelatoriosVortx } from './relatorios-rotina'
 
 type Env = Readonly<Record<string,string|undefined>>
 export function rotinaRelatoriosPermitida(env: Env = process.env) {
-  return env.VORTX_REPORTS_DAILY_ENABLED === 'true' && relatoriosPreviewPermitidos(env.VORTX_REPORTS_PREVIEW_FUNDO_ID ?? '', env)
+  return env.VORTX_REPORTS_DAILY_ENABLED === 'true' && relatoriosPermitidos(fundoRelatoriosConfigurado(env) ?? '', env)
 }
 const reservaSchema = z.object({ criada: z.boolean(), solicitacao: solicitacaoRelatorioSchema })
 export async function executarRotinaRelatoriosVortx(env: Env = process.env, agora = new Date()) {
   if (!rotinaRelatoriosPermitida(env)) return { estado: 'DESABILITADA' as const }
   const plano = planejarRotinaRelatoriosVortx(agora)
   if (!plano.executar) return { estado: 'IGNORADA' as const, dataOperacional: plano.dataOperacional, motivo: plano.motivo }
-  const client = createAdminClient(), fundoId = env.VORTX_REPORTS_PREVIEW_FUNDO_ID!
+  const client = createAdminClient(), fundoId = fundoRelatoriosConfigurado(env)!
   const contextResult = await client.rpc('vortx_contexto_rotina', { p_fundo_id: fundoId })
   const contexto = contextoRelatoriosSchema.safeParse(contextResult.data)
   if (contextResult.error || !contexto.success || contexto.data.fundo.id !== fundoId) throw new Error('ROTINA_CONTEXTO_INDISPONIVEL')
   const resultados: Array<{ tipo: string; estado: string; nova?: boolean }> = []
   // Exactly four bounded iterations, no retry, self-invocation, fake Auth session or publication.
   for (const form of plano.pedidos) {
-    const versoes = contexto.data.versoes.filter(v => v.capabilities.includes(form.capability))
+    const versoes = contexto.data.versoes.filter(v => v.capabilities.includes(form.capability)
+      && (env.VERCEL_ENV !== 'production' || v.ambiente === 'producao'))
     if (versoes.length !== 1) { resultados.push({ tipo: form.tipo, estado: 'FONTE_INDISPONIVEL' }); continue }
     const versao = versoes[0]
     try {

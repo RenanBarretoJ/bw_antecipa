@@ -18,6 +18,20 @@ beforeEach(() => {
   send.mockImplementation(async (r,transition) => {await transition('enviando');return {...r,estado:'aceita'} })
 })
 describe('rotina técnica sem sessão humana nem TOTP', () => {
+  it('produção usa apenas versões de produção e o Fundo configurado, não a Preview', async () => {
+    const original = rpc.getMockImplementation()!
+    rpc.mockImplementation(async (name,args) => name==='vortx_contexto_rotina'
+      ? {data:{...context,versoes:[...context.versoes,{...context.versoes[0],id:fund,ambiente:'homologacao'}]},error:null}
+      : original(name,args))
+    expect(await executarRotinaRelatoriosVortx({...env,VERCEL_ENV:'production',VERCEL_GIT_COMMIT_REF:'main',
+      NEXT_PUBLIC_SUPABASE_URL:'https://wwsndnuvnjuabpbjwlck.supabase.co',INTEGRATION_RUNTIME_ENV:'producao',
+      VORTX_REPORTS_PRODUCTION_ENABLED:'true',VORTX_REPORTS_PRODUCTION_FUNDO_ID:fund,
+      VORTX_REPORTS_PREVIEW_FUNDO_ID:version},clock)).toMatchObject({estado:'EXECUTADA'})
+    expect(send).toHaveBeenCalledTimes(4)
+    for (const [,args] of rpc.mock.calls.filter(([name])=>name==='vortx_rotina_reservar')) {
+      expect(args).toMatchObject({p_fundo_id:fund,p_versao_id:version})
+    }
+  })
   it.each([{VERCEL_ENV:'production'},{VORTX_REPORTS_DAILY_ENABLED:'false'},{VERCEL_GIT_COMMIT_REF:'main'},{NEXT_PUBLIC_SUPABASE_URL:'https://other.supabase.co'}])('fica inerte fora da autorização %j',async change => {
     expect(await executarRotinaRelatoriosVortx({...env,...change},clock)).toEqual({estado:'DESABILITADA'});expect(admin).not.toHaveBeenCalled()
   })

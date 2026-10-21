@@ -4,7 +4,9 @@ vi.mock('@/lib/supabase/server', () => ({ createAdminClient: () => ({ rpc: mocks
 vi.mock('./estoque-processamento.server', () => ({ processamentoEstoquePreviewPermitido: (env: Record<string, string>) => env.VERCEL_ENV === 'preview',
   processarProximoEstoqueVortx: mocks.process }))
 import { retomarDownloadEstoqueVortx } from './estoque-recuperacao.server'
-const env = { VERCEL_ENV: 'preview', VORTX_REPORTS_PREVIEW_FUNDO_ID: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' }
+const env = { VERCEL_ENV: 'preview', VORTX_REPORTS_PREVIEW_FUNDO_ID: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+  VERCEL_GIT_COMMIT_REF: 'integration/vortx-main-20261021',
+  NEXT_PUBLIC_SUPABASE_URL: 'https://phdckowbexkkvuwnzeaf.supabase.co', VORTX_REPORTS_PREVIEW_ENABLED: 'true' }
 beforeEach(() => vi.resetAllMocks())
 describe('explicit technical stock download recovery', () => {
   it('does not touch anything outside approved Preview', async () => {

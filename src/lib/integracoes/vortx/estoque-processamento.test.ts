@@ -36,6 +36,22 @@ beforeEach(() => {
 })
 afterEach(() => vi.unstubAllEnvs())
 describe('durable stock callback processor', () => {
+  it('processes the explicitly configured production Fund, never the Preview Fund', async () => {
+    const production = { ...env, VERCEL_ENV:'production', VERCEL_GIT_COMMIT_REF:'main',
+      NEXT_PUBLIC_SUPABASE_URL:'https://wwsndnuvnjuabpbjwlck.supabase.co', INTEGRATION_RUNTIME_ENV:'producao',
+      VORTX_REPORTS_PRODUCTION_ENABLED:'true', VORTX_REPORTS_PRODUCTION_FUNDO_ID:id,
+      VORTX_REPORTS_PREVIEW_FUNDO_ID:parcelId }
+    expect(await processarProximoEstoqueVortx(production)).toMatchObject({estado:'PERSISTIDO',publicado:false})
+    expect(mocks.rpc).toHaveBeenCalledWith('vortx_reservar_processamento_estoque',{p_fundo_id:id})
+    expect(mocks.download).toHaveBeenCalledTimes(2)
+  })
+  it('does not download a homologation job in production', async () => {
+    mocks.rpc.mockImplementation(async name => ({data:name==='vortx_reservar_processamento_estoque'?{...job(),ambiente:'homologacao'}:true,error:null}))
+    expect(await processarProximoEstoqueVortx({...env,VERCEL_ENV:'production',VERCEL_GIT_COMMIT_REF:'main',
+      NEXT_PUBLIC_SUPABASE_URL:'https://wwsndnuvnjuabpbjwlck.supabase.co',INTEGRATION_RUNTIME_ENV:'producao',
+      VORTX_REPORTS_PRODUCTION_ENABLED:'true',VORTX_REPORTS_PRODUCTION_FUNDO_ID:id})).toEqual({estado:'FALHA',motivo:'CONTRATO_INVALIDO'})
+    expect(mocks.download).not.toHaveBeenCalled();expect(mocks.ingest).not.toHaveBeenCalled()
+  })
   it.each([{ VERCEL_ENV: 'production' }, { VERCEL_GIT_COMMIT_REF: 'main' },
     { VORTX_REPORT_STOCK_PROCESSING_ENABLED: 'false' }, { VORTX_REPORT_DOWNLOAD_HOSTS: '' }])('is inert outside approved Preview %j', async change => {
     expect(await processarProximoEstoqueVortx({ ...env, ...change })).toEqual({ estado: 'DESABILITADO' })

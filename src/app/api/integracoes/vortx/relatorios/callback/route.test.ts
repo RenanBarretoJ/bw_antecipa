@@ -17,6 +17,19 @@ const env = { VERCEL_ENV: 'preview', VERCEL_GIT_COMMIT_REF: 'feature/vortx-real-
 const request = () => new Request('https://example.invalid/callback?token=synthetic-secret', { method: 'POST', body: '{}' })
 afterEach(() => { vi.unstubAllEnvs(); vi.restoreAllMocks(); mocks.repo.mockReset(); mocks.receive.mockReset(); mocks.capture.mockReset(); mocks.after.mockReset(); mocks.process.mockReset(); mocks.inclusion.mockReset() })
 describe('callback Preview boundary and sanitized logging', () => {
+  it('receives production callbacks only with independent readiness and the production Fund', async () => {
+    for (const [key,value] of Object.entries({VERCEL_ENV:'production',VERCEL_GIT_COMMIT_REF:'main',
+      NEXT_PUBLIC_SUPABASE_URL:'https://wwsndnuvnjuabpbjwlck.supabase.co',INTEGRATION_RUNTIME_ENV:'producao',
+      VORTX_REPORTS_PRODUCTION_ENABLED:'true',VORTX_REPORTS_PRODUCTION_FUNDO_ID:fund,
+      VORTX_REPORTS_PREVIEW_FUNDO_ID:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+      VORTX_REPORT_CALLBACK_PRODUCTION_ENABLED:'true',VORTX_REPORT_CALLBACK_QUERY_REDACTION_VERIFIED:'true'})) vi.stubEnv(key,value)
+    const req=request()
+    vi.spyOn(console,'info').mockImplementation(()=>{})
+    mocks.repo.mockReturnValue({});mocks.receive.mockResolvedValue(new Response(null,{status:200}))
+    expect((await POST(req)).status).toBe(200)
+    expect(mocks.receive).toHaveBeenCalledWith(req,{},fund,expect.any(Function))
+    expect(mocks.capture).not.toHaveBeenCalled()
+  })
   it.each([200, 400, 401, 503])('Inclusion wakes only after committed callback %i and its own flag', async status => {
     for (const [key, value] of Object.entries(env)) vi.stubEnv(key, value)
     vi.stubEnv('VORTX_REPORT_INCLUSION_PROCESSING_ENABLED', 'true')

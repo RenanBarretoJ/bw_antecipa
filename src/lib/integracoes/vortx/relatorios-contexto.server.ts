@@ -1,17 +1,21 @@
 import 'server-only'
 import { AuthorizationError, requireAuthenticated } from '@/lib/auth/authorization'
-import { contextoRelatoriosSchema, historicoRelatorioSchema, relatoriosPreviewPermitidos } from './relatorios-operacao'
+import { contextoRelatoriosSchema, historicoRelatorioSchema } from './relatorios-operacao'
+import { configurarRuntimeRelatorios, relatoriosPermitidos } from './relatorios-runtime'
 import { filtrosBasesSchema, type FiltrosBases } from './central-bases'
 
 export async function carregarContextoRelatorios(fundoId: string) {
-  if (!relatoriosPreviewPermitidos(fundoId)) throw new AuthorizationError('Solicitação de relatórios indisponível neste ambiente ou Fundo.', 'FORBIDDEN')
+  if (!relatoriosPermitidos(fundoId)) throw new AuthorizationError('Solicitação de relatórios indisponível neste ambiente ou Fundo.', 'FORBIDDEN')
   const auth = await requireAuthenticated()
   const { data, error } = await auth.supabase.rpc('vortx_contexto_relatorios', { p_fundo_id: fundoId })
   const parsed = contextoRelatoriosSchema.safeParse(data)
   if (error || !parsed.success || parsed.data.fundo.id !== fundoId) {
     throw new AuthorizationError('É necessário vínculo ativo com este Fundo.', 'FORBIDDEN')
   }
-  return { auth, contexto: parsed.data }
+  const contexto = configurarRuntimeRelatorios()?.ambiente === 'production'
+    ? { ...parsed.data, versoes: parsed.data.versoes.filter(version => version.ambiente === 'producao') }
+    : parsed.data
+  return { auth, contexto }
 }
 
 export async function carregarHistoricoRelatorios(fundoId: string, pagina: number, filtros?: FiltrosBases) {

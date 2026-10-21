@@ -17,7 +17,7 @@ import { obterConfiguracoesTecnicasAdminFundo } from '@/lib/admin/configuracoes-
 import { obterDadosFinanceirosAdminFundo } from '@/lib/admin/dados-financeiros.server'
 import { obterConfiguracaoVortxVrsAdmin } from '@/app/admin/fundos/vortx-vrs-actions'
 import { formatCNPJ } from '@/lib/utils'
-import { relatoriosPreviewPermitidos } from '@/lib/integracoes/vortx/relatorios-operacao'
+import { relatoriosPermitidos } from '@/lib/integracoes/vortx/relatorios-runtime'
 import { carregarHistoricoRelatorios } from '@/lib/integracoes/vortx/relatorios-contexto.server'
 import { obterDataCivilOperacional } from '@/lib/operacoes/data-operacional.server'
 import { VortxReportRequests } from '@/components/admin/vortx-report-requests'
@@ -43,7 +43,7 @@ export default async function AdminFundoDetailPage({ params, searchParams }: { p
   const vortxConfig = tab === 'integracoes' ? await obterConfiguracaoVortxVrsAdmin(id) : []
   const pagina = Math.min(10000, Math.max(1, Number.parseInt(query.pagina || '1', 10) || 1))
   const filtros = lerFiltrosBases(query)
-  const relatorios = tab === 'dados-financeiros' && relatoriosPreviewPermitidos(id) ? await carregarHistoricoRelatorios(id, pagina, filtros) : null
+  const relatorios = tab === 'dados-financeiros' && relatoriosPermitidos(id) ? await carregarHistoricoRelatorios(id, pagina, filtros) : null
   const dadosFinanceiros = tab === 'dados-financeiros' && !relatorios?.contexto.versoes.length ? await obterDadosFinanceirosAdminFundo(id) : null
 
   return (
@@ -95,7 +95,7 @@ export default async function AdminFundoDetailPage({ params, searchParams }: { p
         </DetailSection>
       ) : tab === 'integracoes' && technical ? (
         <>
-          {relatoriosPreviewPermitidos(id) && <section className="flex flex-wrap items-center justify-between gap-4 rounded-xl border bg-card p-5"><div><h2 className="font-semibold">Relatórios Vórtx</h2><p className="mt-1 text-sm text-muted-foreground">A solicitação e o acompanhamento ficam na Central de Bases.</p></div><Link href={`/admin/fundos/${id}?tab=dados-financeiros`} className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">Abrir Central de Bases</Link></section>}
+          {relatoriosPermitidos(id) && <section className="flex flex-wrap items-center justify-between gap-4 rounded-xl border bg-card p-5"><div><h2 className="font-semibold">Relatórios Vórtx</h2><p className="mt-1 text-sm text-muted-foreground">A solicitação e o acompanhamento ficam na Central de Bases.</p></div><Link href={`/admin/fundos/${id}?tab=dados-financeiros`} className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">Abrir Central de Bases</Link></section>}
           <FundoIntegracoesTecnicas state={technical} execPage={execPage} vortxConfig={vortxConfig} />
         </>
       ) : tab === 'envios' && technical ? (
