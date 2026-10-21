@@ -19,10 +19,11 @@ import '@/app/globals.css';
 const id=${JSON.stringify(id)};
 const base={id,fundo_id:id,integracao_versao_id:id,ambiente:'producao',pedido:{codigoCarteira:'QA-SINTETICA',tipoRelatorio:'Inclusao',dataInicio:'2026-10-18',dataFim:'2026-10-19',dataReferencia:'2026-10-19',extensaoArquivo:2},estado:'aceita',protocolo_externo:id,codigo_http:200,criada_em:'2026-10-20T13:00:00Z',envio_iniciado_em:null,concluida_em:null,origem:'MANUAL'};
 const ctx={fundo:{id,nome:'Fundo Demonstração QA',cnpj:'00000000000000'},podeSolicitar:true,versoes:[{id,versao:1,ambiente:'producao',carteira:'QA-SINTETICA',capabilities:['ESTOQUE','AQUISICOES','LIQUIDACOES']}]};
+const geometryRows=['PosicaoParcela','PosicaoAtivo','Inclusao','Exclusao','PosicaoParcela'].map((tipo,index)=>({...base,id:id.slice(0,-1)+index,pedido:{...base.pedido,tipoRelatorio:tipo},acompanhamento:index<2?{processamento:'REVISAO',publicacao:'NAO_PUBLICADA',processadoEm:'2026-10-20T14:00:00Z',ativos:12,parcelas:18}:undefined}));
 const app=createRoot(document.getElementById('root'));let revision=0;
 window.__qa={requests:[],pushes:[],refresh:0};
 window.mount=(mode='operator')=>{window.__qa={requests:[],pushes:[],refresh:0}; const contexto={...ctx,podeSolicitar:mode!=='reader',versoes:mode==='unconfigured'?[]:ctx.versoes};
-app.render(React.createElement(VortxReportRequests,{key:++revision,contexto,historico:{total:mode==='empty'?0:25,solicitacoes:mode==='empty'?[]:[base],resumo:[base]},pagina:1,hoje:'2026-10-21',filtros:{tipo:'Inclusao'},historicoHref:'/admin/fundos/qa?tab=dados-financeiros'}));};window.mount();`
+app.render(React.createElement(VortxReportRequests,{key:++revision,contexto,historico:{total:mode==='empty'?0:25,solicitacoes:mode==='empty'?[]:mode==='geometry'?geometryRows:[base],resumo:mode==='geometry'?geometryRows:[base]},pagina:1,hoje:'2026-10-21',filtros:mode==='geometry'?{}:{tipo:'Inclusao'},historicoHref:'/admin/fundos/qa?tab=dados-financeiros'}));};window.mount();`
 writeFileSync(resolve(generated, 'entry.jsx'), entry)
 writeFileSync(resolve(generated, 'router.mjs'), `export const useRouter=()=>({refresh:()=>window.__qa.refresh++,push:url=>window.__qa.pushes.push(url)});`)
 writeFileSync(resolve(generated, 'link.mjs'), `import React from 'react';export default function Link({href,children,...props}){return React.createElement('a',{...props,href},children)}`)
@@ -40,7 +41,7 @@ await build({ root, configFile: false, logLevel: 'error', define: { 'process.env
 })
 const css = readdirSync(output).filter(name => name.endsWith('.css'))
 assert(css.length > 0)
-writeFileSync(resolve(output, 'index.html'), `<!doctype html><html lang="pt-BR" style="--font-inter:Arial"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">${css.map(name => `<link rel="stylesheet" href="${name}">`).join('')}<title>QA local · Central de Bases</title></head><body class="font-sans"><main class="mx-auto max-w-7xl p-4 sm:p-6" id="root"></main><script src="app.js"></script></body></html>`)
+writeFileSync(resolve(output, 'index.html'), `<!doctype html><html lang="pt-BR" style="--font-inter:'Segoe UI'"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">${css.map(name => `<link rel="stylesheet" href="${name}">`).join('')}<style>#root{max-width:1240px;margin:auto;padding:28px 32px}@media(max-width:760px){#root{padding:20px 14px}}</style><title>QA local · Central de Bases</title></head><body class="font-sans"><main id="root"></main><script src="app.js"></script></body></html>`)
 const report = { scope: 'REAL_CLIENT_COMPONENTS_SYNTHETIC_ACTIONS_ONLY', output, checks: [], externalRequests: [], errors: [], browserClosed: false, error: null }
 let browser
 try {
@@ -71,6 +72,37 @@ try {
   }
   await page.setViewport({ width: 1440, height: 1000 })
   await page.evaluate(() => { document.documentElement.className = '' })
+  await page.evaluate(() => window.mount('geometry'))
+  await page.waitForFunction(() => document.querySelectorAll('tbody tr').length === 5)
+  const actual = await page.evaluate(() => {
+    const rect=selector=>{const e=document.querySelector(selector),r=e.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height,fontSize:parseFloat(getComputedStyle(e).fontSize)}}
+    return {heading:rect('[data-bases-layout] > section h2'),metrics:[...document.querySelector('[aria-label="Últimos pedidos por base, independentemente dos filtros"]').children].map(e=>({height:e.getBoundingClientRect().height,width:e.getBoundingClientRect().width})),request:rect('#solicitar-bases'),manual:rect('#importacao-bases'),wallet:rect('#carteira-bases'),history:rect('#historico-bases'),select:!!document.querySelector('select#relatorio-tipo'),radios:document.querySelectorAll('input[type="radio"]').length}
+  })
+  await page.screenshot({path:resolve(output,'option-1-corrected-1440.png'),fullPage:true})
+  const referencePage=await browser.newPage()
+  await referencePage.setRequestInterception(true)
+  referencePage.on('request',req=>{if(/^https?:/.test(req.url())){report.externalRequests.push(new URL(req.url()).origin);req.abort()}else req.continue()})
+  await referencePage.setViewport({width:1440,height:1000})
+  await referencePage.goto(pathToFileURL(resolve(root,'design-previews/bases-20261021/01-central-de-bases.html')).href)
+  await referencePage.evaluate(()=>document.querySelector('.prototype').remove())
+  const reference=await referencePage.evaluate(()=>{
+    const rect=selector=>{const e=document.querySelector(selector),r=e.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height,fontSize:parseFloat(getComputedStyle(e).fontSize)}}
+    return {heading:rect('h1'),metrics:[...document.querySelectorAll('.metric')].map(e=>({height:e.getBoundingClientRect().height,width:e.getBoundingClientRect().width})),request:rect('#solicitar'),manual:rect('#importacao'),wallet:rect('#carteira'),history:rect('#historico')}
+  })
+  await referencePage.screenshot({path:resolve(output,'option-1-approved-1440.png'),fullPage:true})
+  await referencePage.close()
+  assert.equal(actual.metrics.length,4); assert.equal(actual.heading.fontSize,reference.heading.fontSize)
+  assert(Math.abs(actual.request.y-actual.manual.y)<2,'API and manual must share a row')
+  assert(Math.abs(actual.request.width-actual.manual.width)<2,'Equal-width panels')
+  assert(Math.abs(actual.history.width-reference.history.width)<3,'Match approved content width')
+  assert(actual.metrics.every((m,index)=>m.height<=reference.metrics[index].height+45),'Compact metric height contract')
+  assert(actual.request.height<=reference.request.height+130,'Compact request panel contract')
+  assert(actual.wallet.y>actual.request.y && actual.request.y>actual.history.y,'Approved section order')
+  assert(actual.select && actual.radios===0,'Compact select, not radio cards')
+  report.checks.push({name:'approved_option_1_geometry_comparison',actual,reference,syntheticDataOnly:true})
+  writeFileSync(resolve(output,'comparison.html'),`<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>Opção 1 · comparação local</title><style>body{font:16px system-ui;background:#eef2f7;margin:24px}main{display:grid;grid-template-columns:1fr 1fr;gap:16px}img{width:100%;border:1px solid #ccd4df}h2{font-size:18px}</style><h1>Opção 1 aprovada × implementação corrigida</h1><p>Apenas dados sintéticos. Estados reais não foram inventados para reproduzir os exemplos do protótipo.</p><main><section><h2>HTML aprovado</h2><img src="option-1-approved-1440.png"></section><section><h2>Componente real corrigido</h2><img src="option-1-corrected-1440.png"></section></main></html>`)
+  await page.evaluate(() => window.mount('operator'))
+  await page.waitForFunction(() => document.querySelectorAll('tbody tr').length === 1)
   await page.select('#bases-tipo', 'Exclusao'); await page.select('#bases-origem', 'CRON')
   await page.$eval('form[aria-label="Filtrar histórico completo"]', form => form.requestSubmit())
   assert.equal(await page.evaluate(() => window.__qa.pushes[0]), '/admin/fundos/qa?tab=dados-financeiros&tipo=Exclusao&origem=CRON&pagina=1#historico-bases')
