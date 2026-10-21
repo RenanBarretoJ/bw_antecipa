@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { DOCUMENT_TYPES, type DocumentoTipo } from '@/lib/types/domain'
-import { requireAuthenticated, requireCedenteManagementAccess, requireCedenteOrganizationalAccess, requireGestor } from '@/lib/auth/authorization'
+import { requireAuthenticated, requireCedenteManagementAccess, requireCedenteOrganizationalAccess } from '@/lib/auth/authorization'
 import { cedenteSchema, type CedenteFormData } from '@/lib/validations/cedente'
 import { registrarLog } from './auditoria'
 import { notificarGestoresCadastro } from '@/lib/notificacoes/cadastro.server'
@@ -272,27 +272,4 @@ export async function solicitarAlteracaoCedente(
   else console.error('[notificacoes/cadastro] Solicitacao persistida sem identificador de evento.')
 
   return { success: true, message: 'Solicitacao enviada. Aguardando aprovacao do gestor.' }
-}
-
-export async function salvarContratoAssinado(
-  cedenteId: string,
-  path: string
-): Promise<{ success: boolean; message: string }> {
-  await requireGestor()
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { success: false, message: 'Nao autenticado.' }
-
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-  if (!profile || (profile as { role: string }).role !== 'gestor') {
-    return { success: false, message: 'Acesso negado.' }
-  }
-
-  const { error } = await supabase
-    .from('cedentes')
-    .update({ contrato_assinado_url: path } as never)
-    .eq('id', cedenteId)
-
-  if (error) return { success: false, message: `Erro: ${error.message}` }
-  return { success: true, message: 'Contrato assinado salvo.' }
 }

@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { request as httpsRequest, type RequestOptions } from 'node:https'
+import type { ClientRequest, IncomingMessage } from 'node:http'
 
 export type MtlsCredential = {
   certificadoPem: string
@@ -16,11 +17,15 @@ export type MtlsErrorCategoria = 'timeout' | 'conexao' | 'resposta_invalida'
 
 export class MtlsRequestError extends Error {
   readonly categoria: MtlsErrorCategoria
+  readonly httpStatus: number | null
+  readonly codigo: string | null
 
-  constructor(message: string, categoria: MtlsErrorCategoria) {
+  constructor(message: string, categoria: MtlsErrorCategoria, httpStatus: number | null = null, codigo: string | null = null) {
     super(message)
     this.name = 'MtlsRequestError'
     this.categoria = categoria
+    this.httpStatus = httpStatus
+    this.codigo = codigo
   }
 }
 
@@ -31,10 +36,8 @@ type RequestFn = typeof httpsRequest
  * cliente deve passar por aqui -- nunca reimplementar https.request com
  * cert/key espalhado pelo projeto.
  *
- * O erro de conexao do Node (ECONNREFUSED, falha de handshake TLS, etc.) nao
- * inclui o conteudo do certificado/chave privada na mensagem -- seguro para
- * propagar; ainda assim o body da requisicao (Key/Secret) nunca e incluido
- * no erro.
+ * Sem redirects ou retry. Erros externos nunca sao interpolados; apenas
+ * codigos allowlisted podem compor o diagnostico, sem headers/certificados.
  */
 export function postJsonMtls(
   input: {
@@ -43,6 +46,10 @@ export function postJsonMtls(
     body: Record<string, unknown>
     credential: MtlsCredential
     timeoutMs?: number
+    bearerToken?: string
+    maxResponseBytes?: number
+    totalTimeoutMs?: number
+    discardNonSuccessBody?: boolean
   },
   requestFn: RequestFn = httpsRequest,
 ): Promise<MtlsJsonRequestResult> {
@@ -58,6 +65,12 @@ export function postJsonMtls(
   if (!input.credential.certificadoPem || !input.credential.chavePrivadaPem) {
     throw new MtlsRequestError('Certificado ou chave privada mTLS ausentes.', 'conexao')
   }
+  if (input.bearerToken !== undefined && (!/^[\x21-\x7e]+$/.test(input.bearerToken) || input.bearerToken.length > 16384)) {
+    throw new MtlsRequestError('Bearer invalido para transporte mTLS.', 'conexao')
+  }
+  for (const limit of [input.maxResponseBytes, input.totalTimeoutMs]) {
+    if (limit !== undefined && (!Number.isSafeInteger(limit) || limit <= 0)) throw new MtlsRequestError('Limite mTLS invalido.', 'conexao')
+  }
 
   const payload = Buffer.from(JSON.stringify(input.body), 'utf8')
   const options: RequestOptions = {
@@ -67,38 +80,78 @@ export function postJsonMtls(
     path: `${url.pathname}${url.search}`,
     cert: input.credential.certificadoPem,
     key: input.credential.chavePrivadaPem,
+    rejectUnauthorized: true,
+    agent: false,
     headers: {
       'content-type': 'application/json',
       'content-length': payload.length,
+      ...(input.bearerToken ? { authorization: `Bearer ${input.bearerToken}`, accept: 'application/json' } : {}),
     },
     timeout: input.timeoutMs ?? 15_000,
   }
 
   return new Promise((resolve, reject) => {
-    const req = requestFn(options, (res) => {
-      const chunks: Buffer[] = []
-      res.on('data', (chunk: Buffer) => chunks.push(chunk))
-      res.on('end', () => {
-        const raw = Buffer.concat(chunks).toString('utf8')
-        if (!raw) {
-          resolve({ statusCode: res.statusCode || 0, body: null })
-          return
+    let settled = false, http: number | null = null
+    let req: ClientRequest | undefined, response: IncomingMessage | undefined
+    let deadline: ReturnType<typeof setTimeout> | undefined
+    const fail = (error: MtlsRequestError) => {
+      if (settled) return
+      settled = true; clearTimeout(deadline)
+      reject(error)
+      response?.destroy(); req?.destroy()
+    }
+    const done = (body: unknown) => {
+      if (settled) return
+      settled = true; clearTimeout(deadline)
+      resolve({ statusCode: http ?? 0, body })
+    }
+    const connectionFailure = (error: unknown) => {
+      const code = error && typeof error === 'object' && 'code' in error ? error.code : null
+      const allowed = ['ECONNRESET', 'ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN', 'ETIMEDOUT',
+        'CERT_HAS_EXPIRED', 'UNABLE_TO_VERIFY_LEAF_SIGNATURE', 'ERR_TLS_CERT_ALTNAME_INVALID',
+        'ERR_SSL_TLSV13_ALERT_CERTIFICATE_REQUIRED', 'ERR_SSL_SSLV3_ALERT_BAD_CERTIFICATE']
+      fail(new MtlsRequestError('Falha de conexao mTLS.', 'conexao', http, typeof code === 'string' && allowed.includes(code) ? code : null))
+    }
+    try {
+      req = requestFn(options, (res) => {
+        response = res
+        http = res.statusCode || null
+        res.on('error', connectionFailure)
+        if (settled) { res.destroy(); return }
+        if (input.discardNonSuccessBody && (http === null || http < 200 || http >= 300)) {
+          done(null); res.destroy(); req?.destroy(); return
         }
-        try {
-          resolve({ statusCode: res.statusCode || 0, body: JSON.parse(raw) })
-        } catch {
-          reject(new MtlsRequestError('Resposta do servidor nao e um JSON valido.', 'resposta_invalida'))
-        }
+        const chunks: Buffer[] = []
+        let bytes = 0
+        res.on('aborted', () => fail(new MtlsRequestError('Resposta mTLS interrompida.', 'resposta_invalida', http, 'RESPONSE_ABORTED')))
+        res.on('close', () => {
+          if (!settled && res.complete === false) fail(new MtlsRequestError('Resposta mTLS incompleta.', 'resposta_invalida', http, 'RESPONSE_ABORTED'))
+        })
+        res.on('data', (chunk: Buffer) => {
+          if (settled) return
+          bytes += chunk.length
+          if (input.maxResponseBytes !== undefined && bytes > input.maxResponseBytes) {
+            fail(new MtlsRequestError('Resposta mTLS excede o limite.', 'resposta_invalida', http, 'RESPONSE_TOO_LARGE')); return
+          }
+          chunks.push(chunk)
+        })
+        res.on('end', () => {
+          if (settled) return
+          if (res.complete === false) { fail(new MtlsRequestError('Resposta mTLS incompleta.', 'resposta_invalida', http, 'RESPONSE_ABORTED')); return }
+          const raw = Buffer.concat(chunks).toString('utf8')
+          if (!raw) { done(null); return }
+          try { done(JSON.parse(raw)) }
+          catch { fail(new MtlsRequestError('Resposta do servidor nao e um JSON valido.', 'resposta_invalida', http, 'INVALID_JSON')) }
+        })
       })
-    })
+    } catch (error) { connectionFailure(error); return }
     req.on('timeout', () => {
-      req.destroy()
-      reject(new MtlsRequestError('Tempo limite excedido na requisicao mTLS.', 'timeout'))
+      fail(new MtlsRequestError('Tempo limite excedido na requisicao mTLS.', 'timeout', http, 'ETIMEDOUT'))
     })
-    req.on('error', (error: Error) => {
-      reject(new MtlsRequestError(`Falha de conexao mTLS: ${error.message}`, 'conexao'))
-    })
-    req.write(payload)
-    req.end()
+    req.on('error', connectionFailure)
+    if (input.totalTimeoutMs !== undefined) deadline = setTimeout(() => {
+      fail(new MtlsRequestError('Tempo total excedido na requisicao mTLS.', 'timeout', http, 'ETIMEDOUT'))
+    }, input.totalTimeoutMs)
+    try { req.write(payload); req.end() } catch (error) { connectionFailure(error) }
   })
 }

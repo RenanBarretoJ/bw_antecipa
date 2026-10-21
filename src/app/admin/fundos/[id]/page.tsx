@@ -17,11 +17,18 @@ import { obterConfiguracoesTecnicasAdminFundo } from '@/lib/admin/configuracoes-
 import { obterDadosFinanceirosAdminFundo } from '@/lib/admin/dados-financeiros.server'
 import { obterConfiguracaoVortxVrsAdmin } from '@/app/admin/fundos/vortx-vrs-actions'
 import { formatCNPJ } from '@/lib/utils'
+import { relatoriosPermitidos } from '@/lib/integracoes/vortx/relatorios-runtime'
+import { carregarHistoricoRelatorios } from '@/lib/integracoes/vortx/relatorios-contexto.server'
+import { obterDataCivilOperacional } from '@/lib/operacoes/data-operacional.server'
+import { VortxReportRequests } from '@/components/admin/vortx-report-requests'
+import { VortxCarteiraDiagnostic } from '@/components/admin/vortx-carteira-diagnostic'
+import { diagnosticoCarteiraPermitido } from '@/lib/integracoes/vortx/carteira-diagnostic'
+import { lerFiltrosBases } from '@/lib/integracoes/vortx/central-bases'
 
 const tabClass = 'inline-flex h-9 items-center rounded-lg px-3 text-sm font-medium'
 const formatDate = (value: string) => new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value))
 
-export default async function AdminFundoDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ tab?: string; execPage?: string }> }) {
+export default async function AdminFundoDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ tab?: string; execPage?: string; pagina?: string; tipo?: string; origem?: string; estado?: string; referencia?: string }> }) {
   const { id } = await params
   const query = await searchParams
   const requestedTab = query.tab
@@ -34,7 +41,10 @@ export default async function AdminFundoDetailPage({ params, searchParams }: { p
   const gestores = tab === 'gestores' ? await listarGestoresAdminFundo(id) : []
   const technical = tab === 'integracoes' || tab === 'envios' ? await obterConfiguracoesTecnicasAdminFundo(id, execPage) : null
   const vortxConfig = tab === 'integracoes' ? await obterConfiguracaoVortxVrsAdmin(id) : []
-  const dadosFinanceiros = tab === 'dados-financeiros' ? await obterDadosFinanceirosAdminFundo(id) : null
+  const pagina = Math.min(10000, Math.max(1, Number.parseInt(query.pagina || '1', 10) || 1))
+  const filtros = lerFiltrosBases(query)
+  const relatorios = tab === 'dados-financeiros' && relatoriosPermitidos(id) ? await carregarHistoricoRelatorios(id, pagina, filtros) : null
+  const dadosFinanceiros = tab === 'dados-financeiros' && !relatorios?.contexto.versoes.length ? await obterDadosFinanceirosAdminFundo(id) : null
 
   return (
     <PageContainer className="space-y-5">
@@ -44,7 +54,7 @@ export default async function AdminFundoDetailPage({ params, searchParams }: { p
         <Link className={`${tabClass} ${tab === 'gestores' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`} href={`/admin/fundos/${id}?tab=gestores`}>Gestores</Link>
         <Link className={`${tabClass} ${tab === 'integracoes' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`} href={`/admin/fundos/${id}?tab=integracoes`}>Integracoes</Link>
         <Link className={`${tabClass} ${tab === 'envios' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`} href={`/admin/fundos/${id}?tab=envios`}>Envios Operacionais</Link>
-        <Link className={`${tabClass} ${tab === 'dados-financeiros' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`} href={`/admin/fundos/${id}?tab=dados-financeiros`}>Dados Financeiros</Link>
+        <Link className={`${tabClass} ${tab === 'dados-financeiros' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`} href={`/admin/fundos/${id}?tab=dados-financeiros`}>Central de Bases</Link>
         <Link className={`${tabClass} ${tab === 'auditoria' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`} href={`/admin/fundos/${id}?tab=auditoria`}>Auditoria</Link>
       </div>
 
@@ -84,9 +94,14 @@ export default async function AdminFundoDetailPage({ params, searchParams }: { p
           )}
         </DetailSection>
       ) : tab === 'integracoes' && technical ? (
-        <FundoIntegracoesTecnicas state={technical} execPage={execPage} vortxConfig={vortxConfig} />
+        <>
+          {relatoriosPermitidos(id) && <section className="flex flex-wrap items-center justify-between gap-4 rounded-xl border bg-card p-5"><div><h2 className="font-semibold">Relatórios Vórtx</h2><p className="mt-1 text-sm text-muted-foreground">A solicitação e o acompanhamento ficam na Central de Bases.</p></div><Link href={`/admin/fundos/${id}?tab=dados-financeiros`} className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">Abrir Central de Bases</Link></section>}
+          <FundoIntegracoesTecnicas state={technical} execPage={execPage} vortxConfig={vortxConfig} />
+        </>
       ) : tab === 'envios' && technical ? (
         <FundoEnviosOperacionais state={technical} />
+      ) : tab === 'dados-financeiros' && relatorios?.contexto.versoes.length ? (
+        <VortxReportRequests key={id} {...relatorios} pagina={pagina} filtros={filtros} hoje={obterDataCivilOperacional()} historicoHref={`/admin/fundos/${id}?tab=dados-financeiros`} configuracaoHref={`/admin/fundos/${id}?tab=integracoes`} carteira={diagnosticoCarteiraPermitido(id) ? <VortxCarteiraDiagnostic fundoId={id} hoje={obterDataCivilOperacional()} /> : undefined} />
       ) : tab === 'dados-financeiros' && dadosFinanceiros ? (
         <FundoDadosFinanceiros state={dadosFinanceiros} />
       ) : (

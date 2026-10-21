@@ -16,7 +16,7 @@ function decodeArquivo(buffer: Uint8Array): { text: string; encoding: 'utf-8' | 
   }
 }
 
-function normalizeDate(value: string): string {
+export function normalizeDate(value: string): string {
   const clean = value.trim()
   const isoMatch = clean.match(/^(\d{4})-(\d{2})-(\d{2})$/)
   const localMatch = clean.match(/^(\d{2})[/-](\d{2})[/-](\d{4})$/)

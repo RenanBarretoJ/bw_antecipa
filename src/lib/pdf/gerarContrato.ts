@@ -7,6 +7,8 @@ import { createPdfTelemetry, type PdfTelemetry } from './pdf-telemetry'
 import { resolverExecutavelChromium } from './chromium-executable'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { buckets } from '@/lib/storage'
+import { nomeDocumentoDoFundo } from './nome-download.server'
+import type { ContratoDocumentType } from '@/lib/types/domain'
 import type { Database } from '@/types/database'
 import {
   registrarDocumentoGerado,
@@ -260,7 +262,8 @@ export async function htmlParaPdf(html: string, telemetry: PdfTelemetry = create
 
 async function salvarPdfStorage(
   buffer: Buffer,
-  caminho: string
+  caminho: string,
+  documento: { fundoId: string; tipo: ContratoDocumentType; identificador: string },
 ): Promise<string> {
   // Usar createClient do supabase-js diretamente com service role para Storage
   const { createClient } = await import('@supabase/supabase-js')
@@ -268,6 +271,7 @@ async function salvarPdfStorage(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   )
+  const nomeArquivo = await nomeDocumentoDoFundo(supabase, documento)
 
   const { error } = await supabase.storage
     .from(buckets.contratos)
@@ -281,7 +285,7 @@ async function salvarPdfStorage(
   // Gerar URL assinada (bucket privado) - 24h de validade
   const { data: signedData } = await supabase.storage
     .from(buckets.contratos)
-    .createSignedUrl(caminho, 86400)
+    .createSignedUrl(caminho, 86400, nomeArquivo ? { download: nomeArquivo } : undefined)
 
   return signedData?.signedUrl || caminho
 }
@@ -409,7 +413,7 @@ export async function gerarContratoCessao(
         versao: templateResolvido.versao.versao,
       })
     : `cedentes/${cedenteId}/contrato-cessao.pdf`
-  const url = await telemetry.observe('UPLOAD', () => salvarPdfStorage(pdfBuffer, caminho))
+  const url = await telemetry.observe('UPLOAD', () => salvarPdfStorage(pdfBuffer, caminho, { fundoId, tipo: 'contrato', identificador: String(ced.cnpj) }))
 
   await telemetry.observe('REGISTER', async () => {
     if (templateResolvido) {
@@ -597,7 +601,7 @@ export async function gerarTermoCessao(
         versao: templateResolvido.versao.versao,
       })
     : `operacoes/${operacaoId}/termo-cessao.pdf`
-  const url = await telemetry.observe('UPLOAD', () => salvarPdfStorage(pdfBuffer, caminho))
+  const url = await telemetry.observe('UPLOAD', () => salvarPdfStorage(pdfBuffer, caminho, { fundoId, tipo: 'termo', identificador: operacaoId }))
 
   await telemetry.observe('REGISTER', async () => {
     if (templateResolvido) {
@@ -703,7 +707,7 @@ export async function gerarNotificacaoCessao(
         versao: templateResolvido.versao.versao,
       })
     : `operacoes/${operacaoId}/notificacao-cessao.pdf`
-  const url = await telemetry.observe('UPLOAD', () => salvarPdfStorage(pdfBuffer, caminho))
+  const url = await telemetry.observe('UPLOAD', () => salvarPdfStorage(pdfBuffer, caminho, { fundoId, tipo: 'notificacao', identificador: operacaoId }))
 
   await telemetry.observe('REGISTER', async () => {
     if (templateResolvido) {
@@ -866,7 +870,7 @@ export async function gerarTermoQuitacao(
         versao: templateResolvido.versao.versao,
       })
     : `operacoes/${operacaoId}/termo-quitacao.pdf`
-  const url = await telemetry.observe('UPLOAD', () => salvarPdfStorage(pdfBuffer, caminho))
+  const url = await telemetry.observe('UPLOAD', () => salvarPdfStorage(pdfBuffer, caminho, { fundoId, tipo: 'quitacao', identificador: operacaoId }))
 
   await telemetry.observe('REGISTER', async () => {
     if (templateResolvido) {

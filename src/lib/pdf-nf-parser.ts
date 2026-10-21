@@ -1,6 +1,7 @@
 import { resolveDanfeValue, type DanfeLayout, type ValorSource } from './danfe/valor'
 import { safeDanfeFallbackFailureCode, type DanfeFallbackFailureCode } from './danfe/fallback-diagnostics'
 import { extractDanfeFatura, parseDanfeDate as parseBRDate } from './danfe/fatura'
+import { resolveDanfeAccessKey, validNfeKey } from './danfe/access-key'
 
 // pdf-parse está em serverExternalPackages (next.config.ts): o Next.js usa o require
 // nativo do Node.js, evitando o problema do index.js tentar ler arquivo de teste ao ser bundlado.
@@ -23,20 +24,6 @@ const MIN_CRITICAL_CONFIDENCE = 0.85
 
 function normalizeDanfeText(text: string): string {
   return text.normalize('NFC').replace(/[\u200B-\u200D\uFEFF]/g, '').replace(/\r\n?/g, '\n').replace(/[ \t]+/g, ' ').trim()
-}
-
-function validNfeKey(key: string): boolean {
-  if (!/^\d{44}$/.test(key)) return false
-  if (key.slice(20, 22) !== '55' || !/^(?:1[1-7]|2[1-9]|3[1-3]|35|4[1-3]|5[0-3])$/.test(key.slice(0, 2))) return false
-  if (Number(key.slice(4, 6)) < 1 || Number(key.slice(4, 6)) > 12) return false
-  let sum = 0
-  let weight = 2
-  for (let index = 42; index >= 0; index -= 1) {
-    sum += Number(key[index]) * weight
-    weight = weight === 9 ? 2 : weight + 1
-  }
-  const remainder = sum % 11
-  return Number(key[43]) === (remainder < 2 ? 0 : 11 - remainder)
 }
 
 export interface NfPdfExtracted {
@@ -236,20 +223,18 @@ export function extractDanfeFromText(input: string): NfPdfExtracted {
     }
   }
 
-  const chaveLida = extractChaveAcesso(normalized)
-  const chave = chaveLida && validNfeKey(chaveLida) ? chaveLida : undefined
-  const keys = new Set([
-    ...normalized.matchAll(/\b(\d{44})\b/g),
-    ...normalized.matchAll(/(\d[\d. ]{50,65}\d)/g),
-  ].map(match => match[1].replace(/\D/g, '')).filter(validNfeKey))
-  if (keys.size > 1) { extracted.identidade_ambigua = true; extracted.motivos_bloqueio?.push('multiple_access_keys_conflict') }
-  if (chaveLida && !chave) extracted.motivos_bloqueio?.push('invalid_access_key')
   const numeroCabecalho = extractNumeroNF(normalized)
+  const serieCabecalho = extractSerie(normalized)
+  const cnpjEmitenteTextual = extractCnpjEmitenteContextual(normalized)
+  const dataEmissao = extractDataEmissao(normalized)
+  const identity = resolveDanfeAccessKey(normalized, { numero: numeroCabecalho, serie: serieCabecalho, issuer: cnpjEmitenteTextual, issued: dataEmissao })
+  const chave = identity.key
+  if (identity.ambiguous) { extracted.identidade_ambigua = true; extracted.motivos_bloqueio?.push('multiple_access_keys_conflict') }
+  if (identity.invalid) extracted.motivos_bloqueio?.push('invalid_access_key')
   const numero = chave ? String(Number(chave.slice(25, 34))) : numeroCabecalho
   if (chave && numeroCabecalho && Number(numeroCabecalho) !== Number(numero)) extracted.motivos_bloqueio?.push('invoice_key_conflict')
   if (numero) { extracted.numero_nf = numero; campos_extraidos.push('numero_nf'); record('numero_nf', numero, chave ? 'chave_acesso' : 'cabecalho_nf', chave ? 0.99 : 0.86) }
 
-  const serieCabecalho = extractSerie(normalized)
   const serie = chave ? String(Number(chave.slice(22, 25))) : serieCabecalho
   if (chave && serieCabecalho && Number(serieCabecalho) !== Number(serie)) extracted.motivos_bloqueio?.push('series_key_conflict')
   if (serie) { extracted.serie = serie; campos_extraidos.push('serie'); record('serie', serie, chave ? 'chave_acesso' : 'cabecalho_serie', chave ? 0.99 : 0.82) }
@@ -261,7 +246,6 @@ export function extractDanfeFromText(input: string): NfPdfExtracted {
     record('chave_acesso', chave, 'chave_44_digitos_dv', 0.99)
     record('cnpj_emitente', extracted.cnpj_emitente, 'chave_acesso', 0.99)
   }
-  const cnpjEmitenteTextual = extractCnpjEmitenteContextual(normalized)
   if (cnpjEmitenteTextual) {
     record('cnpj_emitente', cnpjEmitenteTextual, 'identificacao_emitente', 0.88)
     if (extracted.cnpj_emitente && extracted.cnpj_emitente !== cnpjEmitenteTextual) {
@@ -274,7 +258,6 @@ export function extractDanfeFromText(input: string): NfPdfExtracted {
     }
   }
 
-  const dataEmissao = extractDataEmissao(normalized)
   if (dataEmissao) { extracted.data_emissao = dataEmissao; campos_extraidos.push('data_emissao'); record('data_emissao', dataEmissao, 'rotulo_emissao', 0.90) }
 
   const dataVencimento = extractDataVencimento(normalized)
@@ -288,10 +271,12 @@ export function extractDanfeFromText(input: string): NfPdfExtracted {
 
   // Newly supported FATURA/Val documents must carry independent printed identities.
   // A barcode CNPJ or a carrier/footer CNPJ cannot fill a missing fiscal section.
-  if (extractDanfeFatura(normalized)) {
+  const fatura = extractDanfeFatura(normalized)
+  if (fatura) {
     if (!chave || !numeroCabecalho || !serieCabecalho || !cnpjEmitenteTextual || !cnpjDest || !dataVencimento) extracted.motivos_bloqueio?.push('fatura_identity_conflict')
     if (chave && dataEmissao && dataEmissao.slice(2, 7).replace('-', '') !== chave.slice(2, 6)) extracted.motivos_bloqueio?.push('issue_date_key_conflict')
     if (dataEmissao && dataVencimento && dataVencimento < dataEmissao) extracted.motivos_bloqueio?.push('due_date_issue_conflict')
+    if (fatura.invoiceNumber && fatura.invoiceNumber !== numero) extracted.motivos_bloqueio?.push('fatura_identity_conflict')
   }
 
   const valor = resolveDanfeValue(normalized, numero)
@@ -348,19 +333,15 @@ function extractSerie(text: string): string | undefined {
   return m?.[1] ?? undefined
 }
 
-function extractChaveAcesso(text: string): string | undefined {
-  // Chave de acesso: 44 dígitos com separadores espaço ou ponto (ex: VIDA SAUDE usa pontos)
-  const m = text.match(/(\d[\d. ]{50,65}\d)/)
-  if (m?.[1]) {
-    const digits = m[1].replace(/\D/g, '')
-    if (digits.length === 44) return digits
-  }
-  // Tentativa direta: 44 dígitos sem separação
-  const m2 = text.match(/\b(\d{44})\b/)
-  return m2?.[1] ?? undefined
-}
-
 function extractDataEmissao(text: string): string | undefined {
+  const recipientStart = destinatarioSectionIndex(text)
+  if (recipientStart >= 0) {
+    const fiscalSection = text.slice(recipientStart).split(/\n\s*(?:FATURA|DUPLICATAS|C[ÁA]LCULO\s+DO\s+IMPOSTO|TRANSPORTADOR|DADOS\s+DOS\s+PRODUTOS)\b/i)[0]
+    const printed = /DATA\s+(?:(?:DA|DE)\s+)?EMISS[ÃA]O[ \t]*[:\-]?[ \t]*(\d{2}\/\d{2}\/\d{4})/i.exec(fiscalSection)
+      || /DATA\s+(?:(?:DA|DE)\s+)?EMISS[ÃA]O[^\n]*\n[^\n]*?(\d{2}\/\d{2}\/\d{4})/i.exec(fiscalSection)
+    // The fiscal body takes priority over the receipt banner/PDF print date.
+    if (printed) return parseBRDate(printed[1])
+  }
   const patterns = [
     /EMISS[ÃA]O\s*:\s*(\d{2}[-/]\d{2}[-/]\d{4})/i,
     /DATA\s+(?:DE\s+)?EMISS[ÃA]O\s*[:\-\/]?\s*(\d{2}\/\d{2}\/\d{4})/i,
@@ -411,13 +392,17 @@ function extractDataVencimento(text: string): string | undefined {
   return undefined
 }
 
+function destinatarioSectionIndex(text: string): number {
+  return text.search(/DESTINAT[ÁA]RIO\s*\/\s*REMETENTE|(?:^|\n)[ \t]*DESTINAT[ÁA]RIO[ \t]*(?=\n|$)/i)
+}
+
 function extractCnpjs(text: string): { destinatario?: string } {
   // Adjacent PDF columns may concatenate CNPJ + DD/MM/YYYY without a space.
   const cnpjRe = /(?<!\d)(\d{2}[\.\s]?\d{3}[\.\s]?\d{3}[\/\s]?\d{4}[-\s]?\d{2})(?=\D|$|\d{2}\/\d{2}\/\d{4}(?!\d))/g
 
   // Preferir a seção "DESTINATÁRIO / REMETENTE" (cabeçalho da tabela, não o banner)
   // O banner usa "DESTINATÁRIO: ..." e está antes do bloco real da tabela
-  const destSectionIdx = text.search(/DESTINAT[ÁA]RIO\s*\/\s*REMETENTE/i)
+  const destSectionIdx = destinatarioSectionIndex(text)
   if (destSectionIdx >= 0) {
     const bloco = text.slice(destSectionIdx).split(/\n\s*(?:FATURA|DUPLICATAS|C[ÁA]LCULO\s+DO\s+IMPOSTO|TRANSPORTADOR|DADOS\s+DOS\s+PRODUTOS)\b/i)[0].slice(0, 1500)
     const unique = [...new Set([...bloco.matchAll(cnpjRe)].map(m => m[1].replace(/\D/g, '')))]
@@ -448,7 +433,7 @@ function extractRazaoSocialDestinatario(text: string): string | undefined {
   //     Ex: "INSTITUTO NACIONAL DE TECNOLOGIA E SAUDE 11.344.038/0021-41 09/02/2026"
   //     Captura tudo antes do padrão nn.nnn.nnn (início de CNPJ)
   const cnpjLineMatch = bloco.match(
-    /([A-ZÁÀÂÃÉÊÍÓÔÕÚÜÇ][A-ZÁÀÂÃÉÊÍÓÔÕÚÜÇA-Z0-9 ]{5,60})\s+\d{2}[.\s]\d{3}[.\s]\d{3}/i
+    /([A-ZÁÀÂÃÉÊÍÓÔÕÚÜÇ][A-ZÁÀÂÃÉÊÍÓÔÕÚÜÇA-Z0-9 ]{5,60})[ \t]*\d{2}[.\s]\d{3}[.\s]\d{3}/i
   )
   if (cnpjLineMatch?.[1]) {
     const candidate = cnpjLineMatch[1].trim()
@@ -470,9 +455,9 @@ function extractRazaoSocialDestinatario(text: string): string | undefined {
 function extractCnpjEmitenteContextual(text: string): string | undefined {
   const start = text.search(/IDENTIFICA[ÇC][ÃA]O\s+DO\s+EMITENTE|DADOS\s+DO\s+EMITENTE|INSCRI[ÇC][ÃA]O\s+ESTADUAL[^\n]*CNPJ/i)
   if (start < 0) return undefined
-  const destination = text.slice(start).search(/DESTINAT[ÁA]RIO\s*\/\s*REMETENTE/i)
+  const destination = destinatarioSectionIndex(text.slice(start))
   const block = text.slice(start, start + Math.min(destination > 0 ? destination : 1500, 1500))
-  const matches = [...block.matchAll(/\b(\d{2}[.\s]?\d{3}[.\s]?\d{3}[\/\s]?\d{4}[-\s]?\d{2})\b/g)]
+  const matches = [...block.matchAll(/(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}|\b\d{2}[.\s]?\d{3}[.\s]?\d{3}[\/\s]?\d{4}[-\s]?\d{2}\b)/g)]
     .map((match) => match[1].replace(/\D/g, ''))
   const unique = [...new Set(matches)]
   return unique.length === 1 ? unique[0] : undefined

@@ -5,7 +5,7 @@ import { use } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { analisarDocumento, aprovarCedente, reprovarCedente, solicitarAtualizacaoDocumento, toggleEscrowCedente, toggleCoobrigacaoCedente, toggleCadastroFiliaisCedente, aprovarAlteracaoCedente, reprovarAlteracaoCedente, convidarUsuarioCedente, revogarAcessoCedente, vincularFundoCedente, listarAcessosVinculadosCedente } from '@/lib/actions/gestor'
 import { salvarTaxasCedente } from '@/lib/actions/operacao'
-import { salvarContratoAssinado } from '@/lib/actions/cedente'
+import { MAX_CONTRATO_ASSINADO_BYTES } from '@/lib/contratos/contrato-assinado-config'
 import { formatCNPJ, formatDate } from '@/lib/utils'
 import { buckets } from '@/lib/storage'
 import { ArrowLeft, CheckCircle, XCircle, FileText, FilePenLine, Eye, X, Plus, Trash2, Settings, RefreshCw, Loader2, GitCompare, Users, UserPlus, UserX, UserRound, Landmark } from 'lucide-react'
@@ -1123,15 +1123,17 @@ export default function CedenteDetalhePage({ params }: { params: Promise<{ id: s
           <div className="space-y-2 border-t border-border pt-4">
             <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Versao assinada pelas partes</p>
             <UploadDocumentoAssinado
+              key={cedente.id}
               label="Contrato Assinado"
               storagePath={cedente.contrato_assinado_url}
               uploadPath={`cedentes/${cedente.id}/contrato-cessao-assinado.pdf`}
+              uploadEndpoint={`/api/cedentes/${cedente.id}/contrato-assinado`}
+              maxBytes={MAX_CONTRATO_ASSINADO_BYTES}
               tipoEntidade="cedente"
               entidadeId={cedente.id}
               tipoDocumento="contrato_assinado"
-              onSuccess={async (path) => {
-                await salvarContratoAssinado(cedente.id, path)
-                await loadData()
+              onSuccess={(path) => {
+                setCedente(current => current ? { ...current, contrato_assinado_url: path } : current)
               }}
             />
           </div>

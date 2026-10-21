@@ -3,6 +3,7 @@ import { requireCedenteAccess, requireOperationAccess, AuthorizationError } from
 import { createAdminClient } from '@/lib/supabase/server'
 import { buckets } from '@/lib/storage'
 import type { ContratoDocumentType, ContratoEntityType } from '@/lib/types/domain'
+import { resolverNomeDownloadDocumento } from '@/lib/pdf/nome-download.server'
 
 const CEDENTE_DOCUMENT_FIELDS: Partial<Record<ContratoDocumentType, 'contrato_url' | 'contrato_assinado_url'>> = {
   contrato: 'contrato_url',
@@ -103,10 +104,13 @@ export async function GET(req: NextRequest) {
     }
 
     const supabaseAdmin = createAdminClient()
+    const nomeArquivo = await resolverNomeDownloadDocumento(supabaseAdmin, {
+      entidadeTipo: tipoEntidade, entidadeId, tipo: tipoDocumento, storagePath: filePath,
+    })
 
     const { data, error } = await supabaseAdmin.storage
       .from(bucket)
-      .createSignedUrl(filePath, 3600)
+      .createSignedUrl(filePath, 3600, nomeArquivo ? { download: nomeArquivo } : undefined)
 
     if (error) {
       return NextResponse.json({ error: `Erro ao gerar URL: ${error.message}` }, { status: 500 })

@@ -1,0 +1,206 @@
+{
+  "scope": "VORTX_COMPLETE_PRODUCTION_PROMOTION_PREPARATION",
+  "branch": "integration/vortx-main-20261021",
+  "baseBranch": "main",
+  "baseCommit": "344708db0236a3393bba22cff2c1adfd79f8d5c3",
+  "previewApprovedByOperator": true,
+  "danfeOriginalUiSmokeApprovedByOperator": true,
+  "productionProjectRef": "wwsndnuvnjuabpbjwlck",
+  "productionFundId": "255624cd-17af-44e4-99d8-7e66e36d4e95",
+  "productionOrigin": "https://bw-antecipa.better-with.tech",
+  "scopeIncluded": [
+    "Vortx Central de Bases; native stock and inclusion persistence",
+    "D-1 ANBIMA four-report scheduler",
+    "Provider-separated financial data source",
+    "Signed cedente contract hotfix",
+    "CNAB Fromtis/Sinqia shorter uppercase names",
+    "Document download names and preserved main Chromium fix",
+    "DANFE referenced-key and inline-fatura hotfix"
+  ],
+  "intentionallyNotEnabled": [
+    "Preview QA fixtures/users/data/keys never copied",
+    "Raw callback capture and rejected-JSON diagnostic",
+    "Temporary wallet JSON diagnostic",
+    "Exclusao financial persistence not certified; no automatic liquidation",
+    "Stock publication not newly enabled by this rollout"
+  ],
+  "migrationMode": "MANUAL_EXPLICIT_ORDER_AND_HASH_ONLY_NO_REPLAY",
+  "migrationSha256Normalization": "UTF8_LF",
+  "migrations": [
+    {
+      "path": "supabase/migrations/20261019180624_vortx_report_requests_preview.sql",
+      "sha256": "f5313bbbde4adc0fc0022238628ebee05611e0b7412fa6e7dd9967f42e97a3ad"
+    },
+    {
+      "path": "supabase/migrations/20261019192624_vortx_native_stock.sql",
+      "sha256": "b6d755b1cadbf9175603abf7a691d8332ba5cce0a0cf2f9a4dd13dbbf60657e7"
+    },
+    {
+      "path": "supabase/migrations/20261019201346_vortx_report_callback_inbox.sql",
+      "sha256": "66ef0d3456d5d366e699d7056714b4bf6c10c3d7f82b5df623382479b274c0e9"
+    },
+    {
+      "path": "supabase/migrations/20261019203424_vortx_callback_admin_ui.sql",
+      "sha256": "ae56fcf9af67db6dad81cd3593c93a6cb0dccc0673ab394c0a84155704d76bb6"
+    },
+    {
+      "path": "supabase/migrations/20261019211756_vortx_report_audit_event_types.sql",
+      "sha256": "fe5776d31e271569cce9498e71842addb1b5d256a5be875d15db9eaa419c1bd4"
+    },
+    {
+      "path": "supabase/migrations/20261020134509_vortx_callback_rejected_diagnostics.sql",
+      "sha256": "8cafc3734b7963515d3b4aea88e538f45224dbb9db84c70338bcd692443ebacf"
+    },
+    {
+      "path": "supabase/migrations/20261020160000_cedente_contrato_assinado_canonico.sql",
+      "sha256": "4c3eeec371ef9a9e0196f6d41f28516275909e646bf15c16013c0b2518ab710f"
+    },
+    {
+      "path": "supabase/migrations/20261020165910_vortx_callback_single_capture_preview.sql",
+      "sha256": "e6cbd169b0ff89259f9225eaa21d3d3d0e2e6d4f204419dcd120426e71016e6d"
+    },
+    {
+      "path": "supabase/migrations/20261020180645_vortx_report_type_semantics.sql",
+      "sha256": "292f1b7cccd80da0a464a4a15090f58540a8595ff6cd30d232ac7b53c99cd2d1"
+    },
+    {
+      "path": "supabase/migrations/20261020183635_vortx_retire_callback_diagnostics.sql",
+      "sha256": "1c00cfbd342e2f6d6128f84e62dc9c3727721dc88ee2f156ed620ca67ef1dedb"
+    },
+    {
+      "path": "supabase/migrations/20261020192527_vortx_stock_callback_processing.sql",
+      "sha256": "11f2524c9483a202590007950bdb31e7736a6121e063be571111f5bf8b2ce008"
+    },
+    {
+      "path": "supabase/migrations/20261020201600_vortx_stock_zip_recovery.sql",
+      "sha256": "f3432ddb8d0f9f65171c08fc6d2b15f7ea5a8fdecc4f51744d02f73945b4ade5"
+    },
+    {
+      "path": "supabase/migrations/20261020204704_vortx_report_request_revisions.sql",
+      "sha256": "99dd5a531a99558c10d646da569638fe370fcb8749ea1f92e46a293d5b50d43d"
+    },
+    {
+      "path": "supabase/migrations/20261020212422_vortx_operational_reports.sql",
+      "sha256": "ce1e0caa7e1143b8457496e15a2e72693a85c75fe4ab2049e4ee491b8f6189b0"
+    },
+    {
+      "path": "supabase/migrations/20261021123847_vortx_central_bases_history.sql",
+      "sha256": "2dc1623e5e03dd8a4c01dd399c2f53dbdbaae440bc4f063c583884081f33cca6"
+    },
+    {
+      "path": "supabase/migrations/20261021144651_vortx_pdd_advisory_persistence.sql",
+      "sha256": "4fe2adab81c5b67eecd68cbb429e1f24d12becf4b84a29bee07cc45379c2ca90"
+    },
+    {
+      "path": "supabase/migrations/20261021155151_vortx_inclusao_persistence.sql",
+      "sha256": "799e09d3019d036c8db9624ceb136a38328114159f4d15d732d2ef29f3634af5"
+    },
+    {
+      "path": "supabase/migrations/20261021163306_vortx_inclusao_periodo_canonico.sql",
+      "sha256": "b3457af2b2fcf487d17fb33ffa2565debf2c83079668cadf8a32fca6276b6a7c"
+    }
+  ],
+  "originalA6Applied": false,
+  "originalA6HistoryFaked": false,
+  "configuration": {
+    "VERCEL_ENV": "production",
+    "VERCEL_GIT_COMMIT_REF": "main",
+    "NEXT_PUBLIC_SUPABASE_URL": "https://wwsndnuvnjuabpbjwlck.supabase.co",
+    "INTEGRATION_RUNTIME_ENV": "production",
+    "VORTX_REPORTS_PRODUCTION_FUNDO_ID": "255624cd-17af-44e4-99d8-7e66e36d4e95",
+    "VORTX_REPORTS_PRODUCTION_ENABLED": "Set true only at certified promotion",
+    "VORTX_REPORT_CALLBACK_PRODUCTION_ENABLED": "Independent opt-in after certified promotion and explicit production risk acceptance or evidenced redaction",
+    "VORTX_REPORT_CALLBACK_PRODUCTION_URL_RISK_ACCEPTED": "Specific production operator authorization on 2026-10-21; not proof of log redaction and not inherited from Preview",
+    "VORTX_REPORT_CALLBACK_QUERY_REDACTION_VERIFIED": "Never set true without actual evidence; Preview risk acceptance is not valid",
+    "VORTX_REPORT_CALLBACK_BASE_URL": "https://bw-antecipa.better-with.tech",
+    "VORTX_REPORT_STOCK_PROCESSING_ENABLED": "Independent opt-in after provider binding and hosts checked",
+    "VORTX_REPORT_INCLUSION_PROCESSING_ENABLED": "Independent opt-in after provider binding and hosts checked",
+    "VORTX_REPORT_DOWNLOAD_HOSTS": "Exact existing certified provider allowlist; no wildcard",
+    "VORTX_REPORTS_DAILY_ENABLED": "Independent opt-in after callback readiness and production credentials",
+    "VORTX_REPORT_STOCK_WORKER_HASH": "New production-only machine secret hash configured privately, never copied from Preview",
+    "PORTAL_FIDC_CREDENTIAL_KEYS_JSON": "Existing production keyring; never copy or replace with Preview keyring",
+    "CRON_SECRET": "Existing production-scoped secret configured privately"
+  },
+  "sequence": [
+    "Reconfirm exact Git main ancestor and no historical migration changes",
+    "Certify exact release locally and in remote CI; no bypass or fabricated PASS",
+    "Confirm production VRS version published, production endpoint, capabilities and private credential",
+    "Rehearse exact 18 ordered migrations against an appropriate production-compatible schema; retain hashes",
+    "Capture production before-state and rollback/compatibility plan; apply only exact missing approved migrations manually",
+    "Verify schema/grants/RLS, durable ledgers, financial preservation and original A6 remains unapplied",
+    "Configure production-only switches and callback origin with explicit production risk acceptance; never claim redaction or enable captures",
+    "Promote tested release through normal protected PR/Git workflow; allow normal Vercel main deployment",
+    "Operator generates production callback URL with MFA and sends it privately for new Vortx wallet registration",
+    "Authenticated operator smoke and controlled D-1 report request; no remittance/acquisition test",
+    "Observe download/ingestion/deduplication and scheduling only after provider callback is live",
+    "Remove only work-owned Preview/QA resources in a separate authorized cleanup after all acceptance"
+  ],
+  "productionReadOnlyPreflight": {
+    "at": "2026-10-21",
+    "newMigrationCountAlreadyApplied": 0,
+    "existingXmlAndDanfeCatalog": true,
+    "rlxIntegrationStatus": "ativa",
+    "rlxVersionStatus": "publicada",
+    "rlxVersionPublishedAt": "2026-10-21T20:44:04.319593Z",
+    "endpointEmpty": true,
+    "genericCredentialLinked": false,
+    "vrsCredentialStoredSeparately": true,
+    "vrsCredentialStatus": "ativa",
+    "vrsCredentialEnvironment": "producao",
+    "vrsCredentialBaseUrl": "https://api.vortx.com.br",
+    "vrsCredentialUpdatedAt": "2026-10-21T20:42:11.252113Z",
+    "technicalIntegrationPublicationStillPending": false,
+    "genericEndpointAndCredentialNotRequiredForVrsAdapter": true,
+    "actualEndpointComesFromSeparateActiveVrsCredential": true
+  },
+  "blockers": [
+    "REMOTE_CI_PUBLIC_ECR_RATE_LIMIT_REPEATED",
+    "PRODUCTION_CALLBACK_NEW_REGISTRATION_PENDING_PROVIDER",
+    "PRODUCTION_MIGRATION_COMPATIBILITY_REHEARSAL_PENDING"
+  ],
+  "acceptedResidualRisks": [{
+    "risk": "CALLBACK_QUERY_SECRET_MAY_APPEAR_IN_HOSTING_LOGS",
+    "authorizedBy": "Breno Alvim",
+    "authorizationDate": "2026-10-21",
+    "queryRedactionVerified": false,
+    "downloadAllowlistDoesNotMitigateThisRisk": true,
+    "controls": ["Exact production origin and RLX Fund", "Independent production opt-in", "Private one-time URL handoff and rotation", "Private endpoint secret hash only", "No raw callback capture"]
+  }],
+  "localValidation": {
+    "focused": {
+      "files": 47,
+      "passed": 762,
+      "failed": 0
+    },
+    "typecheck": "PASS",
+    "mainPreservation": {
+      "protectedFiles": 35,
+      "migrationHashes": 18,
+      "result": "PASS"
+    },
+    "lint": "PASS_WITH_TWO_EXISTING_WARNINGS",
+    "fullNativeSuite": {
+      "result": "PASS_WITH_EXISTING_SKIPS",
+      "passed": 4038,
+      "failed": 0,
+      "skipped": 12,
+      "runtime": "NODE22_LINUX_OFFICIAL_AUTH_REST_STORAGE",
+      "cleanup": "PASS",
+      "report": "rehearsal/reports/bw-main-native-1792615095219/report.json",
+      "fullMigrationChainCertified": false
+    },
+    "build": "PASS_WEBPACK_WINDOWS_NODE24",
+    "remoteCiEvidence": {
+      "run": 39666015895,
+      "attempt": 2,
+      "testedCommit": "188b6a16ebcda0cdf2e62a4fa52d78d66a8330e5",
+      "status": "FAILED_EXTERNAL_REGISTRY_DATA_LIMIT_BEFORE_NATIVE_TESTS",
+      "newProductionPromotionChangesTestedRemotely": false
+    }
+  },
+  "productionWritesPerformed": false,
+  "homologWritesPerformed": false,
+  "mergePerformed": false,
+  "productionDeployPerformed": false,
+  "releaseStatus": "PREPARATION_ONLY_NOT_READY_TO_MERGE"
+}

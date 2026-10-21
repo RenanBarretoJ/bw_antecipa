@@ -1,0 +1,79 @@
+import { z } from 'zod'
+import { branchPreviewVortxPermitida } from './preview-branch'
+import { TIPOS_RELATORIO_VORTX } from './relatorios-contrato'
+export { relatorioDePosicao } from './relatorios-tipos'
+
+export const RELATORIOS_OPERADOR = [
+  { tipo: 'PosicaoParcela', titulo: 'Estoque em aberto', subtitulo: 'Posição por parcela', descricao: 'Parcelas em aberto na data escolhida. É a base principal para conferir o estoque.', capability: 'ESTOQUE' },
+  { tipo: 'PosicaoAtivo', titulo: 'Estoque consolidado', subtitulo: 'Posição por ativo', descricao: 'Visão consolidada dos ativos para confrontar com as parcelas. Não deve ser somada ao estoque em aberto.', capability: 'ESTOQUE' },
+  { tipo: 'Inclusao', titulo: 'Cessões realizadas', subtitulo: 'Relatório de inclusão', descricao: 'Movimentos de inclusão no período. Solicitar este relatório não envia novas cessões.', capability: 'AQUISICOES' },
+  { tipo: 'Exclusao', titulo: 'Liquidações e exclusões', subtitulo: 'Relatório de exclusão', descricao: 'Movimentos de exclusão no período. A interpretação do layout ainda está pendente; nenhum título será baixado automaticamente.', capability: 'LIQUIDACOES' },
+] as const
+
+export const solicitarRelatorioSchema = z.object({
+  fundoId: z.uuid(), versaoId: z.uuid(), tipo: z.enum(TIPOS_RELATORIO_VORTX),
+  inicio: z.iso.date(), fim: z.iso.date(), referencia: z.iso.date(),
+  extensao: z.union([z.literal(1), z.literal(2)]), mfaCode: z.string().regex(/^\d{6}$/).optional(),
+  solicitacaoAnteriorId: z.uuid().optional(),
+}).strict()
+export type RelatorioFormulario = Omit<z.infer<typeof solicitarRelatorioSchema>, 'mfaCode'>
+
+export const solicitacaoRelatorioSchema = z.object({
+  id: z.uuid(), fundo_id: z.uuid(), integracao_versao_id: z.uuid(), ambiente: z.enum(['producao','homologacao']),
+  pedido: z.object({ codigoCarteira: z.string(), tipoRelatorio: z.enum(TIPOS_RELATORIO_VORTX),
+    dataInicio: z.iso.date(), dataFim: z.iso.date(), dataReferencia: z.iso.date(), extensaoArquivo: z.union([z.literal(1),z.literal(2)]) }),
+  estado: z.enum(['registrada','enviando','aceita','recusada','indeterminada','falha_autenticacao']),
+  protocolo_externo: z.uuid().nullable(), codigo_http: z.number().int().nullable(), criada_em: z.string(),
+  envio_iniciado_em: z.string().nullable(), concluida_em: z.string().nullable(),
+  revisao: z.number().int().positive().optional(), solicitacao_anterior_id: z.uuid().nullable().optional(),
+  origem: z.enum(['MANUAL', 'CRON']).optional(), data_operacional: z.iso.date().nullable().optional(),
+  acompanhamento: z.object({ recebidoEm: z.string().nullable(), arquivoStatus: z.string().nullable(),
+    processamento: z.enum(['PENDENTE','PROCESSANDO','PERSISTIDO','REVISAO','FALHA']).nullable(),
+    downloadEm: z.string().nullable(), processadoEm: z.string().nullable(), erro: z.string().nullable(),
+    publicacao: z.string().nullable(), publicadoEm: z.string().nullable(),
+    ativos: z.number().int().nonnegative(), parcelas: z.number().int().nonnegative(), duplicada: z.boolean(),
+    pddPendente: z.boolean().optional(),
+    inclusoes: z.number().int().nonnegative().optional(), conflitos: z.number().int().nonnegative().optional(),
+  }).optional(),
+})
+export type SolicitacaoRelatorio = z.infer<typeof solicitacaoRelatorioSchema>
+export const historicoRelatorioSchema = z.object({ total: z.number().int().nonnegative(), solicitacoes: z.array(solicitacaoRelatorioSchema).max(20), resumo: z.array(solicitacaoRelatorioSchema).max(4).optional() })
+export type HistoricoRelatorio = z.infer<typeof historicoRelatorioSchema>
+export type SolicitacaoRelatorioResult = { success: true; criada: boolean; solicitacao: SolicitacaoRelatorio } | { success: false; message: string }
+
+export type ContextoRelatorios = {
+  fundo: { id: string; nome: string; cnpj: string }
+  podeSolicitar?: boolean
+  versoes: Array<{ id: string; versao: number; ambiente: 'producao'|'homologacao'; carteira: string; capabilities: string[] }>
+}
+
+export const contextoRelatoriosSchema = z.object({
+  fundo: z.object({ id: z.uuid(), nome: z.string(), cnpj: z.string() }), podeSolicitar: z.boolean(),
+  versoes: z.array(z.object({ id: z.uuid(), versao: z.number().int().positive(), ambiente: z.enum(['producao','homologacao']),
+    carteira: z.string().regex(/^[A-Za-z0-9._-]{1,100}$/), capabilities: z.array(z.string()) })),
+})
+
+export function podeSolicitarNovamente(row: SolicitacaoRelatorio): boolean {
+  return !['registrada', 'enviando'].includes(row.estado)
+}
+
+export function relatoriosPreviewPermitidos(fundoId: string, env: Readonly<Record<string,string|undefined>> = process.env): boolean {
+  return env.VERCEL_ENV === 'preview' && branchPreviewVortxPermitida(env.VERCEL_GIT_COMMIT_REF)
+    && env.NEXT_PUBLIC_SUPABASE_URL === 'https://phdckowbexkkvuwnzeaf.supabase.co'
+    && env.VORTX_REPORTS_PREVIEW_ENABLED === 'true'
+    && Boolean(env.VORTX_REPORTS_PREVIEW_FUNDO_ID) && fundoId === env.VORTX_REPORTS_PREVIEW_FUNDO_ID
+}
+
+export function situacaoRelatorio(row: SolicitacaoRelatorio, agora = Date.now()): { titulo: string; descricao: string; tom: 'neutro'|'atencao'|'erro' } {
+  if (['registrada','enviando'].includes(row.estado) && agora - Date.parse(row.criada_em) > 120_000) {
+    return { titulo: 'Requer conferência', descricao: 'A execução não registrou uma conclusão. Não solicite novamente: confirme com o suporte se a Vórtx recebeu o pedido.', tom: 'atencao' }
+  }
+  switch (row.estado) {
+    case 'registrada': return { titulo: 'Preparando pedido', descricao: 'Solicitação registrada no BW; o envio à Vórtx ainda não foi iniciado.', tom: 'neutro' }
+    case 'enviando': return { titulo: 'Consultando a Vórtx', descricao: 'Envio iniciado. Aguardando a resposta com o protocolo.', tom: 'neutro' }
+    case 'aceita': return { titulo: 'Pedido aceito pela Vórtx', descricao: 'O protocolo confirma o pedido, não o recebimento nem a importação. O arquivo e o processamento são acompanhados separadamente.', tom: 'neutro' }
+    case 'recusada': return { titulo: 'Pedido recusado', descricao: row.codigo_http === 401 || row.codigo_http === 403 ? 'A API negou a solicitação. Confira a permissão das credenciais para este relatório.' : 'A API recusou a solicitação. Confira o período e a configuração da integração com o suporte.', tom: 'erro' }
+    case 'indeterminada': return { titulo: 'Retorno não confirmado', descricao: 'O pedido pode ter chegado à Vórtx, mas não recebemos um protocolo válido. Não reenviamos automaticamente para evitar duplicidade.', tom: 'atencao' }
+    case 'falha_autenticacao': return { titulo: 'Não enviado', descricao: 'Não foi possível preparar ou autenticar a solicitação. O relatório não foi solicitado; confira o teste de conexão da integração.', tom: 'erro' }
+  }
+}

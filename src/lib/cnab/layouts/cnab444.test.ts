@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { CONFIGURACAO_CNAB_LEGADO_PADRAO, calcularHashConfiguracaoCnab, type RemessaOperacao } from '@/lib/cnab/domain'
 import { geradorCnab444, validarCnab444Conteudo } from '@/lib/cnab/layouts/cnab444'
+import { gerarRemessaCnab444ComSequencial } from '@/lib/cnab/gerarCnab444'
 
 type Golden = {
   lineCount: number
@@ -15,6 +16,17 @@ type Golden = {
 const golden = JSON.parse(
   readFileSync(join(process.cwd(), 'src/lib/cnab/__fixtures__/cnab444-golden.json'), 'utf8'),
 ) as Golden
+
+it('nome curto de transporte preserva bytes, hash, sequencial e idempotencia do CNAB444',()=>{
+  const sample=sampleInput()
+  const contexto={...sample,dataGeracao:sample.identificadores.dataGeracao,idempotencyKey:'original-key',payloadHash:'original-hash'}
+  const legacy=gerarRemessaCnab444ComSequencial(contexto,42)
+  const short=gerarRemessaCnab444ComSequencial(contexto,42,'REM_BW_12345678_20260721.REM')
+  expect(short.resultado).toEqual(legacy.resultado)
+  expect(short.idempotencyKey).toBe(legacy.idempotencyKey);expect(short.payloadHash).toBe(legacy.payloadHash)
+  expect(short.input.identificadores.sequencial).toBe(42)
+  expect(short.nomeArquivo).toBe('REM_BW_12345678_20260721.REM')
+})
 
 function sliceCnab(line: string, start: number, end: number) {
   return line.slice(start - 1, end)

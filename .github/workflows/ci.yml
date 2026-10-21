@@ -7,6 +7,8 @@ on:
       - homolog
       - main
       - master
+      - feature/vortx-real-data-preview
+      - integration/vortx-main-20261021
 
 jobs:
   validate:
@@ -17,6 +19,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -30,16 +34,87 @@ jobs:
       - name: TypeScript
         run: npx tsc --noEmit
 
+      - name: Main ancestry and production hotfix preservation
+        if: github.head_ref == 'integration/vortx-main-20261021' || github.ref == 'refs/heads/integration/vortx-main-20261021'
+        run: node scripts/qa/vortx/main-preservation.mjs
+
+      - name: Vortx Preview boundary (synthetic only)
+        if: contains(fromJSON('["feature/vortx-real-data-preview","integration/vortx-main-20261021"]'), github.head_ref || github.ref_name)
+        run: node --test scripts/qa/vortx/preview-scope.test.mjs
+
+      - name: Vortx callback SQL regression (two disposable local stacks)
+        if: contains(fromJSON('["feature/vortx-real-data-preview","integration/vortx-main-20261021"]'), github.head_ref || github.ref_name)
+        run: node scripts/qa/vortx/callback-sql-rehearsal.mjs
+        env:
+          LOCALAPPDATA: ${{ runner.temp }}
+
+      # Native tables and callback leases must retain their real SQL/RLS proof on this Preview branch.
+      - name: Vortx stock SQL regression (two disposable local stacks)
+        if: contains(fromJSON('["feature/vortx-real-data-preview","integration/vortx-main-20261021"]'), github.head_ref || github.ref_name)
+        run: node scripts/qa/vortx/native-stock-sql-rehearsal.mjs
+        env:
+          LOCALAPPDATA: ${{ runner.temp }}
+
       - name: Tests
+        if: ${{ !contains(fromJSON('["integration/vortx-main-20261021","main","homolog"]'), github.head_ref || github.ref_name) }}
         run: npm test -- --run
+
+      - name: Complete tests with native Auth MFA Database Storage (isolated synthetic QA)
+        if: contains(fromJSON('["integration/vortx-main-20261021","main","homolog"]'), github.head_ref || github.ref_name)
+        run: |
+          node --test scripts/qa/vortx/main-native-images.test.mjs
+          node scripts/qa/vortx/main-native-images.mjs --local-only
+          node --test scripts/qa/vortx/main-native-fixture.test.mjs scripts/qa/vortx/main-native-snapshot.test.mjs
+          node scripts/qa/vortx/main-native-qa.mjs --local-only --full-suite --snapshot --release-upgrade
+
+      - name: Native QA sanitized evidence
+        if: always() && contains(fromJSON('["integration/vortx-main-20261021","main","homolog"]'), github.head_ref || github.ref_name)
+        uses: actions/upload-artifact@v4
+        with:
+          name: vortx-main-native-qa
+          path: |
+            rehearsal/reports/bw-main-native-*/report.json
+            rehearsal/reports/bw-main-native-*/vitest.json
+            rehearsal/reports/bw-main-native-*/full-vitest.json
+            rehearsal/reports/bw-main-native-*/contracts/*.json
+          if-no-files-found: error
+
+      - name: PDF Turbopack packaging regression (synthetic Linux runtime)
+        if: contains(fromJSON('["feature/vortx-real-data-preview","integration/vortx-main-20261021"]'), github.head_ref || github.ref_name)
+        run: |
+          node scripts/qa/pdf/turbopack-runtime.mjs --local-only --expect-missing-assets
+          node scripts/qa/pdf/turbopack-runtime.mjs --local-only --expect-pass
+        env:
+          LOCALAPPDATA: ${{ runner.temp }}
+
+      - name: PDF runtime evidence
+        if: always() && (contains(fromJSON('["feature/vortx-real-data-preview","integration/vortx-main-20261021"]'), github.head_ref || github.ref_name))
+        uses: actions/upload-artifact@v4
+        with:
+          name: pdf-turbopack-runtime
+          path: |
+            ${{ runner.temp }}/bw-pdf-turbopack-*/REPORT.json
+            ${{ runner.temp }}/bw-pdf-turbopack-*/*.log
+          if-no-files-found: ignore
 
       - name: Lint
         run: npm run lint
 
       - name: Build
+        if: ${{ !contains(fromJSON('["feature/vortx-real-data-preview","integration/vortx-main-20261021"]'), github.head_ref || github.ref_name) }}
         run: npm run build
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'https://example.supabase.co' }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'ci-placeholder-anon-key' }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || 'ci-placeholder-service-role-key' }}
           PORTAL_FIDC_CREDENTIALS_JSON: ${{ secrets.PORTAL_FIDC_CREDENTIALS_JSON || '{}' }}
+
+      # These exact certification/rollout branches must never receive real service credentials.
+      - name: Reconciliation build (isolated placeholders)
+        if: contains(fromJSON('["feature/vortx-real-data-preview","integration/vortx-main-20261021"]'), github.head_ref || github.ref_name)
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key
+          PORTAL_FIDC_CREDENTIALS_JSON: '{}'

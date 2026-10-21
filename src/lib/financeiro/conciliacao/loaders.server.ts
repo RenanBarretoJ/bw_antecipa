@@ -4,6 +4,7 @@ import { obterFundoAtivoAutorizado } from '@/lib/fundos/fundo-ativo.server'
 import { requireGestor } from '@/lib/auth/authorization'
 import { resolverDataCivilOperacional } from '@/lib/operacoes/data-operacional.server'
 import { resolverPlReferencia } from '@/lib/financeiro/pl-referencia.server'
+import { filtroFonteFinanceira, resolverFonteFinanceira } from '../fontes/fonte-financeira.server'
 import {
   execucaoExposicaoCompativelComBase,
   montarBaseFinanceiraDaData,
@@ -172,12 +173,13 @@ async function carregarBaseFinanceira(
   dataOperacional: string,
 ) {
   const expected = montarBaseFinanceiraDaData({ dataOperacional, importacoes: [], snapshots: [] })
+  const fonte = await resolverFonteFinanceira(fundoId)
   const [importsResult, plReferencia] = await Promise.all([
     supabase.from('importacoes_financeiras')
       .select('id,tipo_base,data_referencia,completude,declaracao_sem_movimento,origem,provedor,linhas_publicadas,valor_total,publicada_em')
       .eq('fundo_id', fundoId).eq('status', 'PUBLICADA')
       .in('tipo_base', ['ESTOQUE', 'AQUISICOES', 'LIQUIDACOES'])
-      .in('data_referencia', [expected.dataD1, expected.dataD2])
+      .in('data_referencia', [expected.dataD1, expected.dataD2]).or(filtroFonteFinanceira(fonte))
       .order('publicada_em', { ascending: false }),
     resolverPlReferencia(supabase, { fundoId, dataOperacional }),
   ])

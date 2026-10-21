@@ -2097,7 +2097,8 @@ export interface PosicaoLogisticaResultado {
   execucao_id: string
   fundo_id: string
   estoque_importacao_id: string
-  estoque_posicao_id: string
+  estoque_posicao_id: string | null
+  vortx_posicao_parcela_id: string | null
   matching_resultado_id: string
   matching_status: MatchingResultado['status']
   matching_metodo: string
@@ -2401,7 +2402,7 @@ export interface Database {
       risco_revisoes: { Row: RiscoRevisao & Record<string, unknown>; Insert: Partial<RiscoRevisao> & Pick<RiscoRevisao, 'risco_execucao_id' | 'fundo_id' | 'operacao_id' | 'assinatura_inputs'> & Record<string, unknown>; Update: Partial<RiscoRevisao> & Record<string, unknown>; Relationships: [] }
     }
     Views: Record<string, never>
-    Functions: import('@/lib/email-intake/automation/database').EmailAutomationFunctions & import('@/lib/email-intake/operations/database').EmailOperatorFunctions & {
+    Functions: import('@/lib/email-intake/automation/database').EmailAutomationFunctions & import('@/lib/email-intake/operations/database').EmailOperatorFunctions & import('@/lib/integracoes/vortx/relatorios-database').VortxReportFunctions & import('@/lib/integracoes/vortx/estoque-database').VortxStockFunctions & import('@/lib/integracoes/vortx/relatorios-callback-database').VortxCallbackFunctions & {
       destinatarios_sacado_operacao: { Args: { p_operacao_id: string }; Returns: { user_id: string; cnpj: string }[] }
       consultar_empresa_sacado: { Args: { p_fundo_id: string; p_cnpj: string }; Returns: { cnpj: string; razao_social: string } | null }
       get_user_sacado_context: { Args: Record<string, never>; Returns: import('@/lib/sacado/acessos').SacadoAcesso[] }
@@ -2500,6 +2501,10 @@ export interface Database {
       solicitar_atualizacao_documento_gestor: {
         Args: { p_documento_id: string }
         Returns: Array<{ documento_id: string; atualizacao_solicitada_em: string }>
+      }
+      registrar_contrato_assinado_cedente: {
+        Args: { p_cedente_id: string; p_fundo_id: string; p_path_anterior: string | null; p_path_novo: string; p_sha256: string; p_tamanho: number; p_nome_original: string }
+        Returns: string
       }
       aprovar_cadastro_cedente_gestor: {
         Args: { p_cedente_id: string }

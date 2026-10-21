@@ -1,4 +1,4 @@
-const CODIGO_CARTEIRA_PATTERN = /^[A-Za-z0-9._-]{1,100}$/
+export const CODIGO_CARTEIRA_PATTERN = /^[A-Za-z0-9._-]{1,100}$/
 
 export interface VortxVrsInclusaoConfig {
   termo: string
