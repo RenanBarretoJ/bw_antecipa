@@ -35,6 +35,11 @@ describe('explicit Vortx production promotion boundaries', () => {
     expect(relatoriosPermitidos(other, production)).toBe(false)
     expect(fundoRelatoriosConfigurado(production)).toBe(fund)
   })
+  it.each(['production', 'producao', 'prod'])('preserves the canonical production runtime alias %s', alias => {
+    expect(configurarRuntimeRelatorios({ ...production, INTEGRATION_RUNTIME_ENV: alias }))
+      .toEqual({ ambiente: 'production', fundoId: fund })
+    expect(configurarRuntimeRelatorios({ ...production, INTEGRATION_RUNTIME_ENV: 'homologacao' })).toBeNull()
+  })
   it.each(Object.keys(production))('fails closed for a missing or changed production field %s', key => {
     expect(configurarRuntimeRelatorios({ ...production, [key]: undefined })).toBeNull()
     expect(configurarRuntimeRelatorios({ ...production, [key]: 'wrong' })).toBeNull()

@@ -18,7 +18,9 @@ export function configurarRuntimeRelatorios(env: Environment = process.env): Rel
     const fundo = z.uuid().safeParse(env.VORTX_REPORTS_PRODUCTION_FUNDO_ID)
     return fundo.success && env.VERCEL_GIT_COMMIT_REF === 'main'
       && env.NEXT_PUBLIC_SUPABASE_URL === 'https://wwsndnuvnjuabpbjwlck.supabase.co'
-      && env.INTEGRATION_RUNTIME_ENV === 'producao'
+      // Same explicit production aliases as the existing integration resolver;
+      // never rewrite its shared deployment setting just for this provider.
+      && ['producao', 'production', 'prod'].includes(env.INTEGRATION_RUNTIME_ENV ?? '')
       && env.VORTX_REPORTS_PRODUCTION_ENABLED === 'true'
       ? { ambiente: 'production', fundoId: fundo.data } : null
   }

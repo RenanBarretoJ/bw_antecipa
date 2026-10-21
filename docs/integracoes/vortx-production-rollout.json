@@ -106,7 +106,7 @@
     "VERCEL_ENV": "production",
     "VERCEL_GIT_COMMIT_REF": "main",
     "NEXT_PUBLIC_SUPABASE_URL": "https://wwsndnuvnjuabpbjwlck.supabase.co",
-    "INTEGRATION_RUNTIME_ENV": "producao",
+    "INTEGRATION_RUNTIME_ENV": "production",
     "VORTX_REPORTS_PRODUCTION_FUNDO_ID": "255624cd-17af-44e4-99d8-7e66e36d4e95",
     "VORTX_REPORTS_PRODUCTION_ENABLED": "Set true only at certified promotion",
     "VORTX_REPORT_CALLBACK_PRODUCTION_ENABLED": "Independent opt-in after certified promotion and explicit production risk acceptance or evidenced redaction",
