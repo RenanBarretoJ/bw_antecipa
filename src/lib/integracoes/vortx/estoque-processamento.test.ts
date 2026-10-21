@@ -50,6 +50,7 @@ describe('durable stock callback processor', () => {
     expect(await processarProximoEstoqueVortx(env)).toEqual({ estado: 'PERSISTIDO', ativos: 1, parcelas: 2,
       duplicada: false, divergencias: 0, publicado: false })
     expect(mocks.download).toHaveBeenCalledTimes(2)
+    expect(mocks.rpc).toHaveBeenCalledWith('vortx_marcar_download_estoque',{p_id:id,p_lease:id})
     expect(mocks.ingest.mock.calls[0][0]).toMatchObject({ fundoId: id, dataReferencia: '2026-10-19',
       execucao: { id, lease: id, ambiente: 'producao', versaoId: id, codigoCarteira: 'qa-wallet' } })
   })
@@ -72,6 +73,11 @@ describe('durable stock callback processor', () => {
   it('fails a denied download without ingesting or exposing its signed URL', async () => {
     mocks.download.mockRejectedValue(new DownloadRelatorioError('HOST_NEGADO'))
     expect(await processarProximoEstoqueVortx(env)).toEqual({ estado: 'FALHA', motivo: 'DOWNLOAD_FALHOU' })
+    expect(mocks.ingest).not.toHaveBeenCalled()
+  })
+  it('checkpoint indisponível impede persistência sem afirmar download confirmado',async()=>{
+    mocks.rpc.mockImplementation(async name=>name==='vortx_marcar_download_estoque'?{data:null,error:{code:'42501'}}:{data:name==='vortx_reservar_processamento_estoque'?job():true,error:null})
+    expect(await processarProximoEstoqueVortx(env)).toEqual({estado:'FALHA',motivo:'PERSISTENCIA_INDETERMINADA'})
     expect(mocks.ingest).not.toHaveBeenCalled()
   })
   it('does not claim a known failure when a late worker could not update the ledger', async () => {

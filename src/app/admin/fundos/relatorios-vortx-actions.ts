@@ -3,14 +3,11 @@
 import { createHash, randomBytes } from 'node:crypto'
 import { z } from 'zod'
 import { AuthorizationError } from '@/lib/auth/authorization'
-import { autorizarEConsumirAcaoSensivel } from '@/lib/auth/sensitive-action'
 import { obterDataCivilOperacional } from '@/lib/operacoes/data-operacional.server'
 import { carregarContextoRelatorios } from '@/lib/integracoes/vortx/relatorios-contexto.server'
 import { prepararSolicitacaoRelatorioVortx, ContratoRelatorioVortxError } from '@/lib/integracoes/vortx/relatorios-contrato'
 import { solicitarRelatorioSchema, solicitacaoRelatorioSchema, RELATORIOS_OPERADOR, type SolicitacaoRelatorioResult } from '@/lib/integracoes/vortx/relatorios-operacao'
-import { resolverConfiguracaoVortxVrs, type VortxVrsConfig } from '@/lib/integracoes/vortx/credenciais.server'
-import { autenticarVortxVrs } from '@/lib/integracoes/vortx/vortx-vrs-client.server'
-import { solicitarRelatorioVortxHttp } from '@/lib/integracoes/vortx/relatorios-http.server'
+import { enviarRelatorioReservado } from '@/lib/integracoes/vortx/relatorios-envio.server'
 
 const reservaSchema = z.object({ criada: z.boolean(), solicitacao: solicitacaoRelatorioSchema })
 
@@ -18,9 +15,10 @@ export async function solicitarRelatorioVortx(input: unknown): Promise<Solicitac
   let reservada = false
   try {
     const parsed = solicitarRelatorioSchema.safeParse(input)
-    if (!parsed.success) return { success: false, message: 'Revise o tipo, as datas e o código do autenticador.' }
+    if (!parsed.success) return { success: false, message: 'Revise o tipo e as datas do relatório.' }
     const form = parsed.data
     const { auth, contexto } = await carregarContextoRelatorios(form.fundoId)
+    if (contexto.podeSolicitar === false) throw new AuthorizationError('Seu acesso permite consultar, mas não solicitar relatórios neste Fundo.', 'FORBIDDEN')
     const versao = contexto.versoes.find(v => v.id === form.versaoId)
     const descricao = RELATORIOS_OPERADOR.find(r => r.tipo === form.tipo)
     if (!versao || !descricao || !versao.capabilities.includes(descricao.capability)) {
@@ -30,18 +28,14 @@ export async function solicitarRelatorioVortx(input: unknown): Promise<Solicitac
       dataInicio: form.inicio, dataFim: form.fim, dataReferencia: form.referencia, extensaoArquivo: form.extensao }, obterDataCivilOperacional())
     // Explicit repetition preserves historical transport fields; SQL verifies the entire original body.
     const pedido = form.solicitacaoAnteriorId ? { ...preparado, dataInicio: form.inicio, dataFim: form.fim } : preparado
-    // Mesmo contrato de confirmação VRS; o nonce é consumido atomicamente com a reserva no banco.
-    const autorizacao = await autorizarEConsumirAcaoSensivel(auth, 'testar_conexao_vortx_vrs', form.mfaCode, { consumoTransacional: true })
-    if (!('nonceHash' in autorizacao) || !autorizacao.nonceHash) throw new Error('MISSING_TRANSACTION_NONCE')
     const lease = randomBytes(32).toString('hex')
     const args = {
       p_fundo_id: form.fundoId, p_versao_id: versao.id, p_tipo: pedido.tipoRelatorio, p_inicio: pedido.dataInicio,
       p_fim: pedido.dataFim, p_referencia: pedido.dataReferencia, p_extensao: pedido.extensaoArquivo,
-      p_nonce_hash: autorizacao.nonceHash, p_lease_hash: createHash('sha256').update(lease).digest('hex'),
+      p_lease_hash: createHash('sha256').update(lease).digest('hex'),
+      p_anterior: form.solicitacaoAnteriorId ?? null,
     }
-    const { data, error } = form.solicitacaoAnteriorId
-      ? await auth.supabase.rpc('admin_ressolicitar_relatorio_vortx', { ...args, p_anterior: form.solicitacaoAnteriorId })
-      : await auth.supabase.rpc('admin_reservar_relatorio_vortx', args)
+    const { data, error } = await auth.supabase.rpc('vortx_solicitar_relatorio', args)
     if (error) throw new Error('REPORT_RESERVATION_FAILED')
     const reserva = reservaSchema.parse(data)
     if (!reserva.criada) return { success: true, criada: false, solicitacao: reserva.solicitacao }
@@ -59,19 +53,7 @@ export async function solicitarRelatorioVortx(input: unknown): Promise<Solicitac
       if (result.error) throw new Error('REPORT_TRANSITION_FAILED')
       return solicitacaoRelatorioSchema.parse(result.data)
     }
-    let token: string
-    let config: VortxVrsConfig
-    try {
-      config = await resolverConfiguracaoVortxVrs(form.fundoId, row.ambiente)
-      const origin = row.ambiente === 'producao' ? 'https://api.vortx.com.br' : 'https://api-stg.vortx.com.br'
-      if (config.fundoId !== form.fundoId || config.ambiente !== row.ambiente || config.baseUrl !== origin) throw new Error('VRS_CREDENTIAL_SCOPE_MISMATCH')
-      token = (await autenticarVortxVrs(config)).accessToken
-    } catch {
-      return { success: true, criada: true, solicitacao: await transicionar('falha_autenticacao') }
-    }
-    await transicionar('enviando') // Se o banco não registrar o início, não enviar o POST.
-    const resposta = await solicitarRelatorioVortxHttp({ ambiente: row.ambiente, token, pedido: row.pedido, credential: config.credential })
-    return { success: true, criada: true, solicitacao: await transicionar(resposta.estado, resposta.protocolo, resposta.http) }
+    return { success: true, criada: true, solicitacao: await enviarRelatorioReservado(row, transicionar) }
   } catch (error) {
     if (!reservada && (error instanceof AuthorizationError || error instanceof ContratoRelatorioVortxError)) {
       return { success: false, message: error.message }

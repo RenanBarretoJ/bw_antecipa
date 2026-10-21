@@ -9,6 +9,10 @@
   },
   "crons": [
     {
+      "path": "/api/cron/vortx-relatorios",
+      "schedule": "30 12 * * 1-5"
+    },
+    {
       "path": "/api/cron/financeiro",
       "schedule": "30 12 * * 1-5"
     },

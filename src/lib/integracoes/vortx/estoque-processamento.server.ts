@@ -48,6 +48,8 @@ export async function processarProximoEstoqueVortx(env: Env = process.env) {
     const ativo = await baixarRelatorioVortx(ativoUrl, hosts)
     const parcela = await baixarRelatorioVortx(parcelaUrl, hosts)
     etapa = 'PERSISTENCIA'
+    const downloaded = await client.rpc('vortx_marcar_download_estoque', { p_id: job.id, p_lease: job.lease })
+    if (downloaded.error) throw new Error('DOWNLOAD_CHECKPOINT_UNAVAILABLE')
     const result = await ingerirEstoqueNativoVortx({ fundoId, dataReferencia: job.data_referencia,
       ativo: { nome: 'posicao-ativo.csv', conteudo: ativo }, parcela: { nome: 'posicao-parcela.csv', conteudo: parcela },
       execucao: { id: job.id, lease: job.lease, ambiente: job.ambiente, versaoId: job.versao_id, codigoCarteira: job.codigo_carteira } })

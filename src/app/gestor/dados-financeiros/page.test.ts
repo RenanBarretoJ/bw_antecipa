@@ -1,0 +1,41 @@
+import { beforeEach,afterEach,describe,expect,it,vi } from 'vitest'
+import { renderToStaticMarkup } from 'react-dom/server'
+const m=vi.hoisted(()=>({auth:vi.fn(),fund:vi.fn(),history:vi.fn()}))
+vi.mock('@/lib/auth/authorization',()=>({requireGestor:m.auth}))
+vi.mock('@/lib/gestor/contexto-fundo.server',()=>({resolverContextoFundoGestor:m.fund}))
+vi.mock('@/lib/integracoes/vortx/relatorios-contexto.server',()=>({carregarHistoricoRelatorios:m.history}))
+vi.mock('@/app/admin/fundos/relatorios-vortx-actions',()=>({solicitarRelatorioVortx:vi.fn()}))
+vi.mock('next/navigation',()=>({useRouter:()=>({refresh:vi.fn()})}))
+import Page from './page'
+const id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+beforeEach(()=>{
+  vi.resetAllMocks()
+  const env={VERCEL_ENV:'preview',VERCEL_GIT_COMMIT_REF:'feature/vortx-real-data-preview',NEXT_PUBLIC_SUPABASE_URL:'https://phdckowbexkkvuwnzeaf.supabase.co',VORTX_REPORTS_PREVIEW_ENABLED:'true',VORTX_REPORTS_PREVIEW_FUNDO_ID:id}
+  for(const [key,value] of Object.entries(env))vi.stubEnv(key,value)
+  m.auth.mockResolvedValue({user:{id:'synthetic'}})
+  m.fund.mockResolvedValue({fundoId:id,fundoNome:'Fundo ativo QA'})
+  m.history.mockResolvedValue({contexto:{fundo:{id,nome:'Fundo ativo QA',cnpj:'00000000000000'},podeSolicitar:true,versoes:[]},historico:{total:0,solicitacoes:[]}})
+})
+afterEach(()=>vi.unstubAllEnvs())
+describe('Dados Financeiros do Gestor',()=>{
+  it('deriva Fundo do contexto autenticado e limita paginação',async()=>{
+    const html=renderToStaticMarkup(await Page({searchParams:Promise.resolve({pagina:'20000'})}))
+    expect(m.history).toHaveBeenCalledExactlyOnceWith(id,10000)
+    expect(m.fund).toHaveBeenCalledWith({user:{id:'synthetic'}})
+    expect(html).toContain('Dados Financeiros');expect(html).toContain('Fundo ativo QA')
+    expect(html).not.toContain('Configurar integração')
+  })
+  it('não carrega relatórios fora da Preview habilitada',async()=>{
+    vi.stubEnv('VERCEL_ENV','production')
+    const html=renderToStaticMarkup(await Page({searchParams:Promise.resolve({})}))
+    expect(m.history).not.toHaveBeenCalled();expect(html).toContain('ainda não está habilitada')
+  })
+  it('outro Fundo ativo não usa silenciosamente a integração da Preview',async()=>{
+    m.fund.mockResolvedValue({fundoId:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',fundoNome:'Outro Fundo'})
+    await Page({searchParams:Promise.resolve({})});expect(m.history).not.toHaveBeenCalled()
+  })
+  it('falha de autenticação ou vínculo não é apresentada como histórico vazio',async()=>{
+    m.fund.mockRejectedValue(new Error('sem vínculo'))
+    await expect(Page({searchParams:Promise.resolve({})})).rejects.toThrow('sem vínculo');expect(m.history).not.toHaveBeenCalled()
+  })
+})
