@@ -5,6 +5,7 @@ import { carregarContextoCnab444, gerarRemessaCnab444ComSequencial } from '@/lib
 import { createAdminClient } from '@/lib/supabase/server'
 import { buckets } from '@/lib/storage'
 import { registrarLog } from '@/lib/actions/auditoria'
+import { nomeRemessaFromtis } from '@/lib/arquivos/nomes'
 
 export interface ArquivoCnabLegadoGerado {
   remessaCnabId: string
@@ -71,8 +72,10 @@ export async function gerarArquivoCnabLegado(input: { operacaoId: string; userId
   const sequencial = Number(sequencialData)
   if (!Number.isInteger(sequencial) || sequencial <= 0) throw new Error('Sequencial CNAB invalido retornado pelo banco.')
 
-  const remessa = gerarRemessaCnab444ComSequencial(contexto, sequencial)
   const remessaId = randomUUID()
+  const remessa = gerarRemessaCnab444ComSequencial(contexto, sequencial, nomeRemessaFromtis({
+    fundoNome: contexto.fundo.nome, remessaId, dataGeracao: contexto.dataGeracao,
+  }))
   const path = storagePathRemessa({
     fundoId: remessa.fundoId,
     configuracaoId: remessa.configuracaoCnabId,
