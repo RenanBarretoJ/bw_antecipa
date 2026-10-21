@@ -19,12 +19,12 @@ export async function checkInclusao({ db, config, internal, asRole, fund, otherF
   stack.inclusionMigration = { path, sha256: createHash('sha256').update(migration).digest('hex') }
   stack.tests.push('inclusion_forward_preserves_every_existing_function_acl_rls_and_stock_row')
   await db.query(`insert into integracao_fundo_versao_capacidades(integracao_fundo_versao_id,fundo_id,ambiente,capability,disponivel_desde) values($1,$2,'homologacao','AQUISICOES',now()-interval '1 day')`, [version,fund])
-  async function event({ start='2026-10-15',end='2026-10-16',reference=end,correlated=true,type='Inclusao' }={}) {
+  async function event({ start='2026-10-15',end='2026-10-16',reference=end,providerReference=reference,correlated=true,type='Inclusao' }={}) {
     const request=randomUUID(),id=randomUUID(),protocol=randomUUID()
     await db.query(`insert into vortx_relatorio_solicitacoes(id,fundo_id,integracao_versao_id,ambiente,pedido,hash_pedido,estado,protocolo_externo,codigo_http,solicitada_por,session_id,lease_hash)
       values($1,$2,$3,'homologacao',$4,$5,'aceita',$6,201,$7,$8,$9)`,[request,fund,version,{tipoRelatorio:type,dataInicio:start,dataFim:end,dataReferencia:reference,codigoCarteira:'QA-CARTEIRA',extensaoArquivo:2},sha(id),protocol,actor,randomUUID(),sha(request)])
     await db.query(`insert into vortx_relatorio_eventos(id,endpoint_id,fundo_id,ambiente,solicitacao_id,protocolo_externo,tipo_relatorio,status_relatorio,data_referencia,data_inicio,data_fim,data_expiracao,correlacao,metadados,hash_evento,payload_criptografado,chave_versao)
-      values($1,$2,$3,'homologacao',$4,$5,$6,'Disponível',$7,$8,$9,now()+interval '1 day',$10,'{"idCarteira":"QA-CARTEIRA"}',$11,$12,'synthetic')`,[id,endpoint,fund,correlated?request:null,protocol,type,reference,start,end,correlated?'CORRELACIONADO':'PENDENTE',sha(id),'v1:'+'x'.repeat(50)])
+      values($1,$2,$3,'homologacao',$4,$5,$6,'Disponível',$7,$8,$9,now()+interval '1 day',$10,'{"idCarteira":"QA-CARTEIRA"}',$11,$12,'synthetic')`,[id,endpoint,fund,correlated?request:null,protocol,type,providerReference,start,end,correlated?'CORRELACIONADO':'PENDENTE',sha(id),'v1:'+'x'.repeat(50)])
     return {id,request}
   }
   const reserve=()=>internal('select vortx_reservar_processamento_inclusao($1) r',[fund]).then(r=>r.rows[0].r)
@@ -155,4 +155,41 @@ export async function checkInclusao({ db, config, internal, asRole, fund, otherF
   stack.tests.push('inclusion_real_history_projection_counts_timestamps_no_secret_cross_fund_mfa_revocation_and_auditor')
   assert.equal(sha(await stock()),beforeStock)
   stack.tests.push('inclusion_private_worker_only_authenticated_nonowner_fund_rls_and_legacy_stock_preserved')
+  // Forward correction runs only AFTER every historical assertion above has completed.
+  const sentinel=await event({end:'2026-10-24',providerReference:'1900-01-01'})
+  assert.equal(await reserve(),null)
+  const eventSnapshot=async()=>sha((await db.query('select * from vortx_relatorio_eventos where id=$1',[sentinel.id])).rows)
+  const originalEvent=await eventSnapshot()
+  stack.tests.push('inclusion_original_migration_reproduces_sentinel_reference_refusal')
+  const correctionPath='supabase/migrations/20261021163306_vortx_inclusao_periodo_canonico.sql',correction=source(correctionPath)
+  const functionSnapshot=async()=>(await db.query(`select oid,proname,pg_get_functiondef(oid) def,proacl::text,proowner,prosecdef,proconfig from pg_proc where pronamespace in ('public'::regnamespace,'private'::regnamespace) order by oid`)).rows
+  const existing=await functionSnapshot(),allowed=['vortx_inclusao_autorizada','vortx_reservar_processamento_inclusao']
+  const policySnapshot=async()=>(await db.query('select * from pg_policies order by schemaname,tablename,policyname')).rows
+  const policiesBefore=await policySnapshot()
+  await db.query(correction)
+  const updatedFunctions=await functionSnapshot()
+  assert.deepEqual(updatedFunctions.filter(f=>!allowed.includes(f.proname)),existing.filter(f=>!allowed.includes(f.proname)))
+  const acl=rows=>rows.filter(f=>allowed.includes(f.proname)).map(f=>({oid:f.oid,proname:f.proname,proacl:f.proacl,proowner:f.proowner,prosecdef:f.prosecdef,proconfig:f.proconfig}))
+  assert.deepEqual(acl(updatedFunctions),acl(existing));assert.deepEqual(await policySnapshot(),policiesBefore)
+  stack.inclusionPeriodMigration={path:correctionPath,sha256:createHash('sha256').update(correction).digest('hex')}
+  const authorized=async()=> (await db.query('select private.vortx_inclusao_autorizada($1) r',[sentinel.id])).rows[0].r
+  assert.equal(await authorized(),true)
+  for(const field of ['dataInicio','dataFim','codigoCarteira']){
+    const saved=(await db.query('select pedido from vortx_relatorio_solicitacoes where id=$1',[sentinel.request])).rows[0].pedido
+    await db.query('update vortx_relatorio_solicitacoes set pedido=$1 where id=$2',[{...saved,[field]:field==='codigoCarteira'?'OTHER':'2026-10-01'},sentinel.request])
+    assert.equal(await authorized(),false);assert.equal(await reserve(),null)
+    await db.query('update vortx_relatorio_solicitacoes set pedido=$1 where id=$2',[saved,sentinel.request])
+  }
+  const canonical=await reserve();assert(canonical);assert.equal(canonical.evento_id,sentinel.id)
+  assert.equal(canonical.data_referencia,'2026-10-24');assert.equal(canonical.evento.data_referencia,'1900-01-01')
+  const canonicalRows=[row(canonical)],canonicalManifest=manifest(canonical,canonicalRows)
+  await assert.rejects(intent(canonical,{...canonicalManifest,data_referencia:'1900-01-01'}),{code:'23514'})
+  await intent(canonical,canonicalManifest);await block(canonical,canonicalRows)
+  await db.query('update private.vortx_callback_endpoints set ativo=false where id=$1',[endpoint]);await assert.rejects(finish(canonical),{code:'42501'})
+  await db.query('update private.vortx_callback_endpoints set ativo=true where id=$1',[endpoint])
+  const persisted=await finish(canonical)
+  assert.equal(persisted.estado,'REVISAO') // Existing economic-version conflict is deliberately preserved.
+  assert.equal((await db.query('select data_referencia::text from importacoes_financeiras where id=$1',[persisted.id])).rows[0].data_referencia,'2026-10-24')
+  assert.equal(await eventSnapshot(),originalEvent);assert.equal(sha(await stock()),beforeStock)
+  stack.tests.push('inclusion_period_canonical_reference_preserves_original_event_scope_acl_stock_and_review')
 }
