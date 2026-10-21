@@ -1,0 +1,104 @@
+{
+  "date": "2026-10-21",
+  "timezone": "America/Sao_Paulo",
+  "branch": "feature/vortx-real-data-preview",
+  "baseCommit": "961abf4b45229f7fa68fabfe1f274a044dc92670",
+  "scope": "OPTION_1_CENTRAL_DE_BASES_UI_AND_READ_ONLY_HISTORY",
+  "implementation": {
+    "layout": "Central de Bases, opção 1 escolhida pelo usuário, adaptada às capacidades existentes",
+    "uiSkill": "ui-ux-pro-max: hierarquia operacional, controles rotulados, estados reais, detalhes progressivos, responsividade e tokens do portal",
+    "contentOnly": true,
+    "sidebarChanged": false,
+    "globalHeaderChanged": false,
+    "routesPreserved": ["/gestor/dados-financeiros", "/admin/fundos/[id]?tab=dados-financeiros"],
+    "history": "Tabela com etapas expansíveis e nova solicitação explicitamente confirmada. Até 20 registros por página.",
+    "filters": ["tipo de relatório", "origem do pedido: operador ou rotina diária", "situação do pedido", "data de referência"],
+    "filterScope": "Histórico completo do Fundo; filtros antes de LIMIT/OFFSET no servidor, com ordem estável por criada_em e id. Não é filtro dos 20 registros já carregados.",
+    "summary": "Último pedido por tipo no Fundo, independente dos filtros e da página. Pedido aceito não significa processamento nem publicação.",
+    "manualImport": "Importador legado preservado sem alterações. O envio manual Vórtx está explicitamente identificado como não conectado; nenhum CSV Vórtx é direcionado ao parser legado.",
+    "wallet": "Consulta diagnóstica existente pode ser exibida na mesma central administrativa, somente quando seu gate original permite. Gestor não recebe esse componente. O contrato Super Admin/MFA da action não mudou. Não foi criada persistência de carteira.",
+    "automaticSchedule": "Somente informação da rotina já existente. Não habilitada ou disparada por esta tarefa."
+  },
+  "files": {
+    "modified": [
+      "src/app/admin/fundos/[id]/page.tsx",
+      "src/app/gestor/dados-financeiros/page.tsx",
+      "src/app/gestor/dados-financeiros/page.test.ts",
+      "src/components/admin/vortx-report-requests.tsx",
+      "src/components/admin/vortx-report-requests.test.ts",
+      "src/lib/integracoes/vortx/relatorios-contexto.server.ts",
+      "src/lib/integracoes/vortx/relatorios-contexto.server.test.ts",
+      "src/lib/integracoes/vortx/relatorios-operacao.ts",
+      "src/lib/integracoes/vortx/relatorios-database.ts",
+      "scripts/qa/vortx/callback-sql-rehearsal.mjs"
+    ],
+    "created": [
+      "src/components/admin/central-bases-history.tsx",
+      "src/lib/integracoes/vortx/central-bases.ts",
+      "src/lib/integracoes/vortx/central-bases.test.ts",
+      "supabase/migrations/20261021123847_vortx_central_bases_history.sql",
+      "scripts/qa/vortx/central-bases-checks.mjs",
+      "scripts/qa/vortx/central-bases-browser.mjs",
+      "scripts/qa/vortx/central-bases-quality.mjs",
+      "docs/integracoes/vortx-central-bases-local-20261021.json"
+    ],
+    "preexistingUntrackedPreserved": [
+      "design-previews/",
+      "scripts/qa/vortx/build-operational-migration.mjs",
+      "scripts/qa/vortx/callback-closeout.mjs",
+      "scripts/qa/vortx/callback-preview-probe.mjs",
+      "scripts/qa/vortx/callback-quality.mjs",
+      "scripts/qa/vortx/callback-ui-closeout.mjs",
+      "scripts/qa/vortx/deploy-callback-preview.mjs"
+    ]
+  },
+  "migration": {
+    "path": "supabase/migrations/20261021123847_vortx_central_bases_history.sql",
+    "sha256": "2dc1623e5e03dd8a4c01dd399c2f53dbdbaae440bc4f063c583884081f33cca6",
+    "applied": "ONLY_LOCAL_DISPOSABLE_DOCKER_STACKS",
+    "newRpc": "public.vortx_central_bases_historico(uuid,integer,text,text,text,date)",
+    "privateProjection": "private.vortx_central_bases_historico(uuid,integer,text,text,text,date)",
+    "access": "Public SECURITY INVOKER wrapper; private SECURITY DEFINER reads the already-private processing ledger only after the unchanged canonical vortx_relatorio_operador guard. Explicit EXECUTE only to authenticated; anon/service_role/PUBLIC denied. No additional table privileges.",
+    "preservation": "All prior function definitions, ACLs, table grants, RLS, policies and existing request rows compared before/after the additive migration in both stacks. Historical migrations unchanged.",
+    "reads": "Only selected page and up to four latest requests receive the detailed processing projection; signed URLs, raw callback, leases and session IDs are not returned."
+  },
+  "validation": {
+    "focusedTests": {"passed": 35, "command": "npx --no-install vitest run src/components/admin/vortx-report-requests.test.ts src/lib/integracoes/vortx/central-bases.test.ts src/lib/integracoes/vortx/relatorios-contexto.server.test.ts src/app/gestor/dados-financeiros/page.test.ts"},
+    "fullTests": {"passed": 3825, "failed": 0, "skipped": 18, "command": "node node_modules/vitest/vitest.mjs run --maxWorkers 2 --reporter=json"},
+    "typecheck": "PASS",
+    "scopedLint": "PASS: src and scripts/qa/vortx",
+    "globalLint": "FAIL_PREEXISTING: rehearsal/tmp/closeout-vortx-semantics-20261020.mjs:28 @next/next/no-assign-module-variable; not edited, not excluded, no test/protection bypass",
+    "build": "PASS: next build --webpack, Windows, Node v24.19.0, placeholder environment; no Linux/Node22/remote CI certification claimed",
+    "diffCheck": "PASS",
+    "sql": {"command": "node scripts/qa/vortx/callback-sql-rehearsal.mjs", "stacks": 2, "checksPerStack": 124, "DOCKER_TEST_ENV_CLEANUP": true, "scope": "Focused canonical Auth/MFA and synthetic database fixtures, not hosted Auth/Storage E2E"},
+    "browser": {"command": "node scripts/qa/vortx/central-bases-browser.mjs", "checks": 9, "widths": [375, 768, 1440], "themes": ["light", "dark"], "reducedMotion": true, "externalRequests": 0, "pageErrors": 0, "browserClosed": true, "scope": "Real client components, portal CSS, synthetic props, action/router doubles; no business API or real credentials. Filters, page URL, labels, anchors, horizontal containment, details, cancel, confirmation, double-click single-flight, failure feedback, LEITOR and empty-state checks executed."},
+    "initialFailuresPreserved": [
+      "First SQL attempt used the wrong argument order for the existing test actor helper; corrected the new harness call, reran both fresh stacks. No business or authorization assertion changed.",
+      "Initial browser harness attempts failed to resolve its entry/action double and then process.env.NODE_ENV in library mode. Corrected only the test builder. One generated TSX fixture entered the application's typecheck; removed only that task-generated entry and moved generated fixture sources into the external evidence directory. Source generator and failure evidence remain; unrelated temporary files untouched."
+    ]
+  },
+  "evidence": {
+    "quality": "C:/Users/BrenoAlvim/AppData/Local/bw-antecipa-evidence/central-bases-20261021/quality-1792587175147/REPORT.json",
+    "sql": "C:/Users/BrenoAlvim/AppData/Local/bw-antecipa-evidence/vortx-callback-20261019/sql-1792586899632/REPORT.json",
+    "browser": "C:/Users/BrenoAlvim/AppData/Local/bw-antecipa-evidence/central-bases-20261021/browser-1792587297220/REPORT.json",
+    "desktopCapture": "C:/Users/BrenoAlvim/AppData/Local/bw-antecipa-evidence/central-bases-20261021/browser-1792587297220/central-1440-light.png"
+  },
+  "pending": [
+    "Conectar importação manual Vórtx ao pipeline nativo autorizado, com testes de upload, escopo, compensação e deduplicação; não reutilizar o parser legado.",
+    "Implementar processamento e persistência operacional de Carteira JSON para os perfis autorizados; o diagnóstico existente não substitui este fluxo.",
+    "Antes de publicar a UI, aplicar explicitamente somente a nova migration na Preview autorizada; sem ela a nova RPC não existe. Não há fallback silencioso que ignore filtros.",
+    "CI remoto e smoke autenticado na Preview com dados e perfis reais continuam pendentes.",
+    "Resolver ou tratar formalmente o lint global preexistente antes de considerar todos os gates globais aprovados."
+  ],
+  "status": {
+    "LOCAL_UI_AND_FILTERS_VALIDATED": true,
+    "ALL_REQUESTED_OPERATIONAL_FLOWS_COMPLETE": false,
+    "GLOBAL_QUALITY_GATE_PASS": false,
+    "COMMIT_CREATED": false,
+    "PUSHED": false,
+    "PREVIEW_DEPLOYED": false,
+    "HOMOLOG_CHANGED": false,
+    "PRODUCTION_CHANGED": false,
+    "PROVIDER_REQUESTS_SENT": false
+  }
+}

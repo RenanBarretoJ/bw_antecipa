@@ -20,10 +20,14 @@ afterEach(()=>vi.unstubAllEnvs())
 describe('Dados Financeiros do Gestor',()=>{
   it('deriva Fundo do contexto autenticado e limita paginação',async()=>{
     const html=renderToStaticMarkup(await Page({searchParams:Promise.resolve({pagina:'20000'})}))
-    expect(m.history).toHaveBeenCalledExactlyOnceWith(id,10000)
+    expect(m.history).toHaveBeenCalledExactlyOnceWith(id,10000,{})
     expect(m.fund).toHaveBeenCalledWith({user:{id:'synthetic'}})
-    expect(html).toContain('Dados Financeiros');expect(html).toContain('Fundo ativo QA')
+    expect(html).toContain('Central de Bases');expect(html).toContain('Fundo ativo QA')
     expect(html).not.toContain('Configurar integração')
+  })
+  it('preserva a rota e encaminha filtros normalizados sem aceitar Fundo da URL', async () => {
+    await Page({ searchParams: Promise.resolve({ tipo: 'Inclusao', origem: 'CRON', estado: 'aceita', referencia: '2026-10-19' }) })
+    expect(m.history).toHaveBeenCalledExactlyOnceWith(id, 1, { tipo: 'Inclusao', origem: 'CRON', estado: 'aceita', referencia: '2026-10-19' })
   })
   it('não carrega relatórios fora da Preview habilitada',async()=>{
     vi.stubEnv('VERCEL_ENV','production')
