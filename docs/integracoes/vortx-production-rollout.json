@@ -109,7 +109,8 @@
     "INTEGRATION_RUNTIME_ENV": "producao",
     "VORTX_REPORTS_PRODUCTION_FUNDO_ID": "255624cd-17af-44e4-99d8-7e66e36d4e95",
     "VORTX_REPORTS_PRODUCTION_ENABLED": "Set true only at certified promotion",
-    "VORTX_REPORT_CALLBACK_PRODUCTION_ENABLED": "Keep false until query-secret log protection is evidenced",
+    "VORTX_REPORT_CALLBACK_PRODUCTION_ENABLED": "Independent opt-in after certified promotion and explicit production risk acceptance or evidenced redaction",
+    "VORTX_REPORT_CALLBACK_PRODUCTION_URL_RISK_ACCEPTED": "Specific production operator authorization on 2026-10-21; not proof of log redaction and not inherited from Preview",
     "VORTX_REPORT_CALLBACK_QUERY_REDACTION_VERIFIED": "Never set true without actual evidence; Preview risk acceptance is not valid",
     "VORTX_REPORT_CALLBACK_BASE_URL": "https://bw-antecipa.better-with.tech",
     "VORTX_REPORT_STOCK_PROCESSING_ENABLED": "Independent opt-in after provider binding and hosts checked",
@@ -127,7 +128,7 @@
     "Rehearse exact 18 ordered migrations against an appropriate production-compatible schema; retain hashes",
     "Capture production before-state and rollback/compatibility plan; apply only exact missing approved migrations manually",
     "Verify schema/grants/RLS, durable ledgers, financial preservation and original A6 remains unapplied",
-    "Configure production-only switches and callback origin without Preview exceptions or capture",
+    "Configure production-only switches and callback origin with explicit production risk acceptance; never claim redaction or enable captures",
     "Promote tested release through normal protected PR/Git workflow; allow normal Vercel main deployment",
     "Operator generates production callback URL with MFA and sends it privately for new Vortx wallet registration",
     "Authenticated operator smoke and controlled D-1 report request; no remittance/acquisition test",
@@ -154,10 +155,17 @@
   },
   "blockers": [
     "REMOTE_CI_PUBLIC_ECR_RATE_LIMIT_REPEATED",
-    "CALLBACK_QUERY_SECRET_LOG_PROTECTION_NOT_EVIDENCED",
     "PRODUCTION_CALLBACK_NEW_REGISTRATION_PENDING_PROVIDER",
     "PRODUCTION_MIGRATION_COMPATIBILITY_REHEARSAL_PENDING"
   ],
+  "acceptedResidualRisks": [{
+    "risk": "CALLBACK_QUERY_SECRET_MAY_APPEAR_IN_HOSTING_LOGS",
+    "authorizedBy": "Breno Alvim",
+    "authorizationDate": "2026-10-21",
+    "queryRedactionVerified": false,
+    "downloadAllowlistDoesNotMitigateThisRisk": true,
+    "controls": ["Exact production origin and RLX Fund", "Independent production opt-in", "Private one-time URL handoff and rotation", "Private endpoint secret hash only", "No raw callback capture"]
+  }],
   "localValidation": {
     "focused": {
       "files": 47,

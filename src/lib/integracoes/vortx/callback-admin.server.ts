@@ -20,8 +20,10 @@ export function origemCallback(env: Readonly<Record<string, string | undefined>>
 }
 export function prontidaoCallback(env: Readonly<Record<string, string | undefined>> = process.env) {
   const habilitado = callbackRelatoriosPermitido(env) && origemCallback(env) !== null
+  const avisoProducao = 'Aceite de risco autorizado em produção: a URL contém um segredo que pode aparecer nos logs da hospedagem. O mascaramento não foi comprovado. Compartilhe apenas com a Vórtx por canal privado, restrinja o acesso aos logs e rotacione a URL em caso de exposição.'
   const avisoRisco = habilitado && env.VORTX_REPORT_CALLBACK_QUERY_REDACTION_VERIFIED !== 'true'
-    ? 'Exceção autorizada somente nesta Preview: a URL contém um segredo que pode aparecer nos logs da hospedagem. O mascaramento não foi comprovado. Compartilhe apenas com a Vórtx por canal privado e revogue o recebimento ao concluir os testes.' : null
+    ? configurarRuntimeRelatorios(env)?.ambiente === 'production' ? avisoProducao
+      : 'Exceção autorizada somente nesta Preview: a URL contém um segredo que pode aparecer nos logs da hospedagem. O mascaramento não foi comprovado. Compartilhe apenas com a Vórtx por canal privado e revogue o recebimento ao concluir os testes.' : null
   return { habilitado, avisoRisco, bloqueio: habilitado ? null : 'A geração depende da liberação técnica do endereço público e da proteção do segredo nos logs deste ambiente.' }
 }
 export function montarUrlCallback(id: string, segredo: string, env: Readonly<Record<string, string | undefined>> = process.env) {

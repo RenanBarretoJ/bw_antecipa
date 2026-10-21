@@ -84,6 +84,19 @@ describe('explicit Vortx production promotion boundaries', () => {
       expect(origemCallback({ ...callback, VORTX_REPORT_CALLBACK_BASE_URL: base })).toBeNull()
     }
   })
+  it('requires an independent production risk acceptance without claiming redaction', () => {
+    const accepted = { ...callback, VORTX_REPORT_CALLBACK_QUERY_REDACTION_VERIFIED: 'false',
+      VORTX_REPORT_CALLBACK_PRODUCTION_URL_RISK_ACCEPTED: 'true' }
+    expect(callbackRelatoriosPermitido(accepted)).toBe(true)
+    expect(prontidaoCallback(accepted)).toMatchObject({ habilitado: true,
+      avisoRisco: expect.stringContaining('Aceite de risco autorizado em produção') })
+    expect(prontidaoCallback(accepted).avisoRisco).toContain('O mascaramento não foi comprovado')
+    expect(callbackRelatoriosPermitido({ ...accepted, VORTX_REPORT_CALLBACK_PRODUCTION_ENABLED: 'false' })).toBe(false)
+    expect(callbackRelatoriosPermitido({ ...accepted, VORTX_REPORT_CALLBACK_PRODUCTION_URL_RISK_ACCEPTED: '1' })).toBe(false)
+    expect(callbackRelatoriosPermitido({ ...accepted, NEXT_PUBLIC_SUPABASE_URL: preview.NEXT_PUBLIC_SUPABASE_URL })).toBe(false)
+    expect(callbackPreviewPermitido({ ...preview, VORTX_REPORT_CALLBACK_PREVIEW_ENABLED: 'true',
+      VORTX_REPORT_CALLBACK_PRODUCTION_URL_RISK_ACCEPTED: 'true' })).toBe(false)
+  })
   it('keeps raw capture and wallet diagnostic tools Preview-only even with all diagnostic flags', () => {
     const env = { ...callback, VORTX_REPORTS_PREVIEW_ENABLED: 'true', VORTX_REPORTS_PREVIEW_FUNDO_ID: fund,
       VORTX_REPORT_CALLBACK_PREVIEW_ENABLED: 'true', VORTX_CARTEIRA_DIAGNOSTIC_ENABLED: 'true',

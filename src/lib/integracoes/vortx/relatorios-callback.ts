@@ -69,11 +69,14 @@ export function callbackPreviewPermitido(env: Readonly<Record<string, string | u
       || env.VORTX_REPORT_CALLBACK_URL_RISK_ACCEPTED === 'true')
 }
 
-/** The Preview risk exception must never authorize a production callback. */
+/** Each environment needs its own explicit approval; Preview approval never promotes. */
 export function callbackRelatoriosPermitido(env: Readonly<Record<string, string | undefined>> = process.env) {
   const runtime = configurarRuntimeRelatorios(env)
   if (!runtime) return false
   if (runtime.ambiente === 'preview') return callbackPreviewPermitido(env)
   return env.VORTX_REPORT_CALLBACK_PRODUCTION_ENABLED === 'true'
-    && env.VORTX_REPORT_CALLBACK_QUERY_REDACTION_VERIFIED === 'true'
+    && (env.VORTX_REPORT_CALLBACK_QUERY_REDACTION_VERIFIED === 'true'
+      // Production operator accepted this specific hosting-log exposure risk.
+      // This is NOT proof of redaction and grants no data/processing permissions.
+      || env.VORTX_REPORT_CALLBACK_PRODUCTION_URL_RISK_ACCEPTED === 'true')
 }

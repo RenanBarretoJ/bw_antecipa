@@ -56,17 +56,19 @@ jobs:
           LOCALAPPDATA: ${{ runner.temp }}
 
       - name: Tests
-        if: github.head_ref != 'integration/vortx-main-20261021' && github.ref != 'refs/heads/integration/vortx-main-20261021'
+        if: ${{ !contains(fromJSON('["integration/vortx-main-20261021","main","homolog"]'), github.head_ref || github.ref_name) }}
         run: npm test -- --run
 
       - name: Complete tests with native Auth MFA Database Storage (isolated synthetic QA)
-        if: github.head_ref == 'integration/vortx-main-20261021' || github.ref == 'refs/heads/integration/vortx-main-20261021'
+        if: contains(fromJSON('["integration/vortx-main-20261021","main","homolog"]'), github.head_ref || github.ref_name)
         run: |
+          node --test scripts/qa/vortx/main-native-images.test.mjs
+          node scripts/qa/vortx/main-native-images.mjs --local-only
           node --test scripts/qa/vortx/main-native-fixture.test.mjs scripts/qa/vortx/main-native-snapshot.test.mjs
-          node scripts/qa/vortx/main-native-qa.mjs --local-only --full-suite --snapshot
+          node scripts/qa/vortx/main-native-qa.mjs --local-only --full-suite --snapshot --release-upgrade
 
       - name: Native QA sanitized evidence
-        if: always() && (github.head_ref == 'integration/vortx-main-20261021' || github.ref == 'refs/heads/integration/vortx-main-20261021')
+        if: always() && contains(fromJSON('["integration/vortx-main-20261021","main","homolog"]'), github.head_ref || github.ref_name)
         uses: actions/upload-artifact@v4
         with:
           name: vortx-main-native-qa

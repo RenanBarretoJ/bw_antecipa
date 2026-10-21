@@ -37,6 +37,7 @@ for (const file of [
   'src/lib/integracoes/vortx/preview-branch.ts', 'src/lib/integracoes/vortx/preview-branch.test.ts',
   'scripts/qa/vortx/main-native-fixture.test.mjs',
   'scripts/qa/vortx/main-native-snapshot.test.mjs', manifest.nativeSnapshot.path,
+  'scripts/qa/vortx/main-native-images.test.mjs',
   // Explicitly authorized DANFE layout hotfix on this same integration branch.
   // The protected main files, migration hashes and ancestry checks above remain exact.
   'src/lib/pdf-nf-parser.ts', 'src/lib/danfe/access-key.ts',

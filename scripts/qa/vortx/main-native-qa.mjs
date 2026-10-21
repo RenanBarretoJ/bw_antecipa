@@ -4,12 +4,15 @@ import { createHash, randomBytes, createHmac } from 'node:crypto'
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { decodeSnapshot, criticalNames, securityCatalog } from './main-native-snapshot.mjs'
+import { rehearseReleaseUpgrade } from './main-release-upgrade.mjs'
 
 // Development-only native contract runner. No remote clients, credentials or
-// migration replay. Preserve the existing platform and export schema only.
+// historical replay. Optional exact release upgrade runs only in the new local DB.
+// Preserve the existing platform and export schema only.
 const fullSuite = process.argv.includes('--full-suite')
 const snapshotMode = process.argv.includes('--snapshot')
-assert.deepEqual(process.argv.slice(2), ['--local-only', ...(fullSuite ? ['--full-suite'] : []), ...(snapshotMode ? ['--snapshot'] : [])])
+const releaseUpgrade = process.argv.includes('--release-upgrade')
+assert.deepEqual(process.argv.slice(2), ['--local-only', ...(fullSuite ? ['--full-suite'] : []), ...(snapshotMode ? ['--snapshot'] : []), ...(releaseUpgrade ? ['--release-upgrade'] : [])])
 assert(!process.env.DOCKER_HOST || /^(npipe:|unix:)/.test(process.env.DOCKER_HOST), 'REMOTE_DOCKER_REFUSED')
 const source = 'supabase_db_bw_email03_r1full_cleanroom_179137940498'
 const id = `bw-main-native-${Date.now()}`
@@ -176,6 +179,7 @@ try {
   assert.equal(report.securityCatalog.target, report.securityCatalog.source, 'SCHEMA_ACL_OWNER_OR_RLS_DRIFT')
   assert.equal(await sql('SELECT count(*) FROM auth.users; SELECT count(*) FROM public.profiles; SELECT count(*) FROM storage.objects;'), '0\n0\n0', 'USER_DATA_MUST_NOT_BE_COPIED')
   assert.equal(await sql("SELECT count(*) FROM pg_trigger WHERE tgrelid='auth.users'::regclass AND tgname='on_auth_user_created' AND tgenabled='O';"), '1')
+  if (releaseUpgrade) report.releaseUpgrade = await rehearseReleaseUpgrade(sql, phase)
   for (const role of ['postgres', 'authenticator', 'supabase_auth_admin', 'supabase_storage_admin']) await sql(`ALTER ROLE ${role} LOGIN PASSWORD '${password}';`)
   await phase('OFFICIAL_AUTH_POSTGREST_STORAGE')
   await start(names.auth, [...namespace, ...envArgs({
