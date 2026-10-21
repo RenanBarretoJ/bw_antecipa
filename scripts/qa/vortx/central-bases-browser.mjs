@@ -21,10 +21,11 @@ const base={id,fundo_id:id,integracao_versao_id:id,ambiente:'producao',pedido:{c
 const ctx={fundo:{id,nome:'Fundo Demonstração QA',cnpj:'00000000000000'},podeSolicitar:true,versoes:[{id,versao:1,ambiente:'producao',carteira:'QA-SINTETICA',capabilities:['ESTOQUE','AQUISICOES','LIQUIDACOES']}]};
 const geometryRows=['PosicaoParcela','PosicaoAtivo','Inclusao','Exclusao','PosicaoParcela'].map((tipo,index)=>({...base,id:id.slice(0,-1)+index,pedido:{...base.pedido,tipoRelatorio:tipo},acompanhamento:index<2?{processamento:'REVISAO',publicacao:'NAO_PUBLICADA',processadoEm:'2026-10-20T14:00:00Z',ativos:12,parcelas:18}:undefined}));
 const pddRow={...base,pedido:{...base.pedido,tipoRelatorio:'PosicaoParcela'},acompanhamento:{processamento:'PERSISTIDO',pddPendente:true,duplicada:false,publicacao:'VALIDA',publicadoEm:null,processadoEm:'2026-10-20T14:00:00Z',downloadEm:'2026-10-20T13:59:00Z',ativos:1,parcelas:2}};
+const inclusionRow={...base,acompanhamento:{recebidoEm:'2026-10-20T13:58:00Z',arquivoStatus:'Disponível',processamento:'PERSISTIDO',duplicada:false,publicacao:'VALIDA',publicadoEm:null,processadoEm:'2026-10-20T14:00:00Z',downloadEm:'2026-10-20T13:59:00Z',ativos:0,parcelas:0,inclusoes:25,conflitos:0}};
 const app=createRoot(document.getElementById('root'));let revision=0;
 window.__qa={requests:[],pushes:[],refresh:0};
 window.mount=(mode='operator')=>{window.__qa={requests:[],pushes:[],refresh:0}; const contexto={...ctx,podeSolicitar:mode!=='reader',versoes:mode==='unconfigured'?[]:ctx.versoes};
-app.render(React.createElement(VortxReportRequests,{key:++revision,contexto,historico:{total:mode==='empty'?0:25,solicitacoes:mode==='empty'?[]:mode==='geometry'?geometryRows:mode==='pdd'?[pddRow]:[base],resumo:mode==='geometry'?geometryRows:mode==='pdd'?[pddRow]:[base]},pagina:1,hoje:'2026-10-21',filtros:mode==='geometry'||mode==='pdd'?{}:{tipo:'Inclusao'},historicoHref:'/admin/fundos/qa?tab=dados-financeiros'}));};window.mount();`
+app.render(React.createElement(VortxReportRequests,{key:++revision,contexto,historico:{total:mode==='empty'?0:25,solicitacoes:mode==='empty'?[]:mode==='geometry'?geometryRows:mode==='pdd'?[pddRow]:mode==='inclusion'?[inclusionRow]:[base],resumo:mode==='geometry'?geometryRows:mode==='pdd'?[pddRow]:mode==='inclusion'?[inclusionRow]:[base]},pagina:1,hoje:'2026-10-21',filtros:mode==='geometry'||mode==='pdd'?{}:{tipo:'Inclusao'},historicoHref:'/admin/fundos/qa?tab=dados-financeiros'}));};window.mount();`
 writeFileSync(resolve(generated, 'entry.jsx'), entry)
 writeFileSync(resolve(generated, 'router.mjs'), `export const useRouter=()=>({refresh:()=>window.__qa.refresh++,push:url=>window.__qa.pushes.push(url)});`)
 writeFileSync(resolve(generated, 'link.mjs'), `import React from 'react';export default function Link({href,children,...props}){return React.createElement('a',{...props,href},children)}`)
@@ -146,6 +147,19 @@ try {
   }
   assert.equal(await page.evaluate(()=>window.__qa.requests.length),0)
   report.checks.push({name:'pdd_warning_is_persisted_not_published_not_a_review_block_no_provider_request_mobile_desktop'})
+  await page.evaluate(()=>window.mount('inclusion'))
+  await page.waitForFunction(()=>document.body.textContent.includes('Inclusões importadas'))
+  await page.click('#historico-bases summary')
+  assert(await page.evaluate(()=>document.body.textContent.includes('25 movimentos de inclusão')))
+  assert(await page.evaluate(()=>document.body.textContent.includes('a base não foi publicada')))
+  assert.equal(await page.evaluate(()=>document.body.textContent.includes('0 ativos · 0 parcelas')),false)
+  for(const width of [375,1440]){
+    await page.setViewport({width,height:900})
+    assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
+    await page.screenshot({path:resolve(output,`inclusion-persisted-${width}.png`),fullPage:true})
+  }
+  assert.equal(await page.evaluate(()=>window.__qa.requests.length),0)
+  report.checks.push({name:'inclusion_saved_count_and_real_download_processing_times_not_stock_or_financial_publication'})
   assert.equal(report.externalRequests.length, 0); assert.equal(report.errors.length, 0)
 } catch (error) { report.error = { name: error.name, message: error.message }; process.exitCode = 1 }
 finally {

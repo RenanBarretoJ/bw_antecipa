@@ -1,4 +1,9 @@
 export type VortxReportFunctions = {
+  vortx_reservar_processamento_inclusao: { Args: { p_fundo_id: string }; Returns: Record<string, unknown> | null }
+  vortx_manifesto_inclusao: { Args: { p_id: string; p_lease: string; p_manifesto: Record<string, unknown> }; Returns: boolean }
+  vortx_estagiar_inclusao: { Args: { p_id: string; p_lease: string; p_ordem: number; p_linhas: object[] }; Returns: number }
+  vortx_concluir_inclusao: { Args: { p_id: string; p_lease: string }; Returns: Record<string, unknown> }
+  vortx_falhar_inclusao: { Args: { p_id: string; p_lease: string; p_erro: string }; Returns: boolean }
   vortx_central_bases_historico: {
     Args: { p_fundo_id: string; p_pagina: number; p_tipo: string | null; p_origem: string | null; p_estado: string | null; p_referencia: string | null }
     Returns: Record<string, unknown>
