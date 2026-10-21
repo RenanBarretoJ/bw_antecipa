@@ -52,6 +52,24 @@ jobs:
       - name: Tests
         run: npm test -- --run
 
+      - name: PDF Turbopack packaging regression (synthetic Linux runtime)
+        if: github.head_ref == 'feature/vortx-real-data-preview' || github.ref == 'refs/heads/feature/vortx-real-data-preview'
+        run: |
+          node scripts/qa/pdf/turbopack-runtime.mjs --local-only --expect-missing-assets
+          node scripts/qa/pdf/turbopack-runtime.mjs --local-only --expect-pass
+        env:
+          LOCALAPPDATA: ${{ runner.temp }}
+
+      - name: PDF runtime evidence
+        if: always() && (github.head_ref == 'feature/vortx-real-data-preview' || github.ref == 'refs/heads/feature/vortx-real-data-preview')
+        uses: actions/upload-artifact@v4
+        with:
+          name: pdf-turbopack-runtime
+          path: |
+            ${{ runner.temp }}/bw-pdf-turbopack-*/REPORT.json
+            ${{ runner.temp }}/bw-pdf-turbopack-*/*.log
+          if-no-files-found: ignore
+
       - name: Lint
         run: npm run lint
 

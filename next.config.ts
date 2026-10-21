@@ -7,6 +7,14 @@ const nextConfig: NextConfig = {
   // pdf-parse usa require() interno e acessa o filesystem — não pode ser bundlado pelo Webpack.
   // Com esta flag Next.js usa o require nativo do Node.js, eliminando o workaround do lazy require.
   serverExternalPackages: ['pdf-parse', 'jszip', 'handlebars'],
+  // Chromium is externalized by Next, but its import.meta.url-based bin path
+  // is not traced by Turbopack. Ship the installed assets with PDF functions.
+  outputFileTracingIncludes: {
+    '/api/contratos/gerar-contrato': ['./node_modules/@sparticuz/chromium/bin/**/*'],
+    '/api/contratos/gerar-termo': ['./node_modules/@sparticuz/chromium/bin/**/*'],
+    '/api/contratos/gerar-notificacao': ['./node_modules/@sparticuz/chromium/bin/**/*'],
+    '/api/contratos/gerar-quitacao': ['./node_modules/@sparticuz/chromium/bin/**/*'],
+  },
   reactCompiler: true,
   experimental: {
     serverActions: {
