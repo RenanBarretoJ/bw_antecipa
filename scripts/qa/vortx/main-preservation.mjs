@@ -37,6 +37,10 @@ for (const file of [
   'src/lib/integracoes/vortx/preview-branch.ts', 'src/lib/integracoes/vortx/preview-branch.test.ts',
   'scripts/qa/vortx/main-native-fixture.test.mjs',
   'scripts/qa/vortx/main-native-snapshot.test.mjs', manifest.nativeSnapshot.path,
+  // Explicitly authorized DANFE layout hotfix on this same integration branch.
+  // The protected main files, migration hashes and ancestry checks above remain exact.
+  'src/lib/pdf-nf-parser.ts', 'src/lib/danfe/access-key.ts',
+  'src/lib/danfe/fatura.ts', 'src/lib/danfe/inline-reference.test.ts',
 ]) allowed.add(file)
 for (const path of lines(git(['diff', '--name-only', manifest.baseCommit]))) {
   assert(allowed.has(path) || /^scripts\/qa\/vortx\/main-[a-z-]+\.(?:mjs|json)$/.test(path), `OUT_OF_SCOPE_CHANGE:${path}`)
