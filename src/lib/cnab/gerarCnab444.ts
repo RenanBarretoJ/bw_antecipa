@@ -202,14 +202,14 @@ export async function carregarContextoCnab444({
   return { fundo, cedente, operacoes, titulos, configuracao, dataGeracao, idempotencyKey, payloadHash }
 }
 
-export function gerarRemessaCnab444ComSequencial(contexto: ContextoCnabCarregado, sequencial: number): RemessaCnabPreparada {
+export function gerarRemessaCnab444ComSequencial(contexto: ContextoCnabCarregado, sequencial: number, nomeArquivoTransporte?: string): RemessaCnabPreparada {
   const data = new Date(contexto.dataGeracao)
   const yyyymmdd = [
     data.getUTCFullYear(),
     String(data.getUTCMonth() + 1).padStart(2, '0'),
     String(data.getUTCDate()).padStart(2, '0'),
   ].join('')
-  const nomeArquivo = `REM_${sanitizeArquivoSegment(contexto.fundo.nome)}_${yyyymmdd}_${String(sequencial).padStart(7, '0')}.REM`
+  const nomeArquivo = nomeArquivoTransporte ?? `REM_${sanitizeArquivoSegment(contexto.fundo.nome)}_${yyyymmdd}_${String(sequencial).padStart(7, '0')}.REM`
 
   const input: RemessaOperacao = {
     fundo: contexto.fundo,
