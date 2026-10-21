@@ -3,11 +3,13 @@ import { spawn } from 'node:child_process'
 import { createHash, randomBytes, createHmac } from 'node:crypto'
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
+import { decodeSnapshot, criticalNames, securityCatalog } from './main-native-snapshot.mjs'
 
 // Development-only native contract runner. No remote clients, credentials or
 // migration replay. Preserve the existing platform and export schema only.
 const fullSuite = process.argv.includes('--full-suite')
-assert.deepEqual(process.argv.slice(2), fullSuite ? ['--local-only', '--full-suite'] : ['--local-only'])
+const snapshotMode = process.argv.includes('--snapshot')
+assert.deepEqual(process.argv.slice(2), ['--local-only', ...(fullSuite ? ['--full-suite'] : []), ...(snapshotMode ? ['--snapshot'] : [])])
 assert(!process.env.DOCKER_HOST || /^(npipe:|unix:)/.test(process.env.DOCKER_HOST), 'REMOTE_DOCKER_REFUSED')
 const source = 'supabase_db_bw_email03_r1full_cleanroom_179137940498'
 const id = `bw-main-native-${Date.now()}`
@@ -66,18 +68,20 @@ const anon = jwt('anon'), service = jwt('service_role')
 try {
   assert.match(await docker(['context', 'inspect', '--format', '{{.Endpoints.docker.Host}}']), /^(npipe:|unix:)/)
   await phase('READ_ONLY_SCHEMA_EXPORT')
-  const image = await docker(['inspect', source, '--format', '{{.Config.Image}}'])
+  const manifest = JSON.parse(await readFile('scripts/qa/vortx/main-integration-manifest.json', 'utf8'))
+  const snapshotPayload = snapshotMode ? decodeSnapshot(await readFile(manifest.nativeSnapshot.path, 'utf8'), manifest.nativeSnapshot.sha256) : null
+  report.bootstrapSource = snapshotMode ? 'VERSIONED_LOCAL_SCHEMA_ONLY_FIXTURE' : 'READ_ONLY_EXISTING_LOCAL_SCHEMA'
+  const image = snapshotPayload?.image ?? await docker(['inspect', source, '--format', '{{.Config.Image}}'])
   assert.match(image, /^public\.ecr\.aws\/supabase\/postgres:/)
-  const schema = await docker(['exec', source, 'pg_dump', '-U', 'supabase_admin', '-d', 'postgres', '--schema-only', '--no-publications', '--no-subscriptions'])
+  const schema = snapshotPayload?.schema ?? await docker(['exec', source, 'pg_dump', '-U', 'supabase_admin', '-d', 'postgres', '--schema-only', '--no-publications', '--no-subscriptions'])
   assert(schema.length > 100000 && !/^COPY |^INSERT INTO /m.test(schema), 'SCHEMA_ONLY_REQUIRED')
   report.schemaSha256 = hash(schema)
   // Actual native platform migration metadata, not application migration history.
-  const platformHistory = await docker(['exec', source, 'pg_dump', '-U', 'supabase_admin', '-d', 'postgres', '--data-only', '--column-inserts', '-t', 'auth.schema_migrations', '-t', 'storage.migrations'])
+  const platformHistory = snapshotPayload?.platformHistory ?? await docker(['exec', source, 'pg_dump', '-U', 'supabase_admin', '-d', 'postgres', '--data-only', '--column-inserts', '-t', 'auth.schema_migrations', '-t', 'storage.migrations'])
   report.platformHistorySha256 = hash(platformHistory)
   // Do not certify the current application against an unverified old runtime.
   // Compare exact SQL bodies (line endings only) to their last main definition.
-  const critical = new Set(['handle_new_user', 'registrar_sessao_mfa_atual', 'fiscal_intake_commit',
-    'fiscal_intake_stage', 'fiscal_intake_reserve', 'fiscal_validate_stored_actor', 'fiscal_instanciar_requisitos_nota'])
+  const critical = new Set(criticalNames)
   const expected = new Map()
   for (const path of (await readdir('supabase/migrations')).filter(path => path.endsWith('.sql')).sort()) {
     const text = (await readFile(resolve('supabase/migrations', path), 'utf8')).replaceAll('\r\n', '\n')
@@ -92,13 +96,13 @@ try {
       expected.set(`${match[1]}.${match[2]}`, { path, body: section.slice(begin, end) })
     }
   }
-  const observed = JSON.parse(await docker(['exec', source, 'psql', '-XAt', '-U', 'supabase_admin', '-d', 'postgres', '-c',
+  const observed = snapshotPayload?.functions ?? JSON.parse(await docker(['exec', source, 'psql', '-XAt', '-U', 'supabase_admin', '-d', 'postgres', '-c',
     "SELECT json_agg(json_build_object('name',n.nspname||'.'||p.proname,'body',p.prosrc)) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname IN ('public','private')"]))
   report.canonicalCoreChecks = [...expected].map(([name, value]) => ({ name, source: value.path,
     expected: hash(value.body), actual: hash((observed.find(item => item.name === name)?.body ?? '').replaceAll('\r\n', '\n')) }))
   assert(report.canonicalCoreChecks.length >= critical.size, 'CANONICAL_CORE_PROVENANCE_INCOMPLETE')
   assert(report.canonicalCoreChecks.every(check => check.expected === check.actual), 'LOCAL_SNAPSHOT_CORE_DIFFERS_FROM_MAIN')
-  const roles = JSON.parse(await docker(['exec', source, 'psql', '-XAt', '-U', 'supabase_admin', '-d', 'postgres', '-c',
+  const roles = snapshotPayload?.roles ?? JSON.parse(await docker(['exec', source, 'psql', '-XAt', '-U', 'supabase_admin', '-d', 'postgres', '-c',
     "SELECT json_agg(json_build_object('name',rolname,'super',rolsuper,'inherit',rolinherit,'createrole',rolcreaterole,'createdb',rolcreatedb,'login',rolcanlogin,'replication',rolreplication,'bypass',rolbypassrls)) FROM pg_roles WHERE rolname !~ '^pg_'"]))
   await phase('PREPARE_NODE22_NO_CREDENTIALS')
   await docker(['network', 'create', '--label', label, id]); owned.push(['network', id])
@@ -158,13 +162,7 @@ try {
     ALTER DATABASE qa_bootstrap ALLOW_CONNECTIONS true;
     ALTER DATABASE native_qa RENAME TO postgres;`, 'template1')
   report.nativeSchemaRestored = true
-  const securityCatalog = `SELECT md5(jsonb_build_object(
-    'policies',(SELECT jsonb_agg(to_jsonb(p) ORDER BY schemaname,tablename,policyname) FROM pg_policies p WHERE schemaname IN ('public','private','auth','storage')),
-    'tables',(SELECT jsonb_agg(jsonb_build_array(n.nspname,c.relname,c.relowner::regrole::text,c.relrowsecurity,c.relforcerowsecurity,
-      (SELECT jsonb_agg(a::text ORDER BY a::text) FROM unnest(coalesce(c.relacl,acldefault('r',c.relowner))) a)) ORDER BY n.nspname,c.relname)
-      FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname IN ('public','private','auth','storage') AND c.relkind IN ('r','p'))
-    )::text);`
-  const sourceSecurity = await docker(['exec', source, 'psql', '-XAt', '-U', 'supabase_admin', '-d', 'postgres', '-c', securityCatalog])
+  const sourceSecurity = snapshotPayload?.securityHash ?? await docker(['exec', source, 'psql', '-XAt', '-U', 'supabase_admin', '-d', 'postgres', '-c', securityCatalog])
   report.securityCatalog = { source: sourceSecurity, target: await sql(securityCatalog) }
   report.securityCatalog.aclComparison = 'EXACT_EFFECTIVE_ENTRIES_SORTED_NULL_USES_PG_ACLDEFAULT_OWNER_GRANTOR_GRANT_OPTION_PRESERVED'
   if (report.securityCatalog.target !== report.securityCatalog.source) {
@@ -172,7 +170,7 @@ try {
       'policies',(SELECT jsonb_agg(to_jsonb(p) ORDER BY schemaname,tablename,policyname) FROM pg_policies p WHERE schemaname IN ('public','private','auth','storage')),
       'tables',(SELECT jsonb_agg(jsonb_build_array(n.nspname,c.relname,c.relowner::regrole::text,c.relrowsecurity,c.relforcerowsecurity,c.relacl) ORDER BY n.nspname,c.relname)
         FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname IN ('public','private','auth','storage') AND c.relkind IN ('r','p')));`
-    await writeFile(resolve(reports, 'security-source.json'), await docker(['exec', source, 'psql', '-XAt', '-U', 'supabase_admin', '-d', 'postgres', '-c', details]))
+    await writeFile(resolve(reports, 'security-source.json'), snapshotMode ? JSON.stringify({ expectedHash: sourceSecurity }) : await docker(['exec', source, 'psql', '-XAt', '-U', 'supabase_admin', '-d', 'postgres', '-c', details]))
     await writeFile(resolve(reports, 'security-target.json'), await sql(details))
   }
   assert.equal(report.securityCatalog.target, report.securityCatalog.source, 'SCHEMA_ACL_OWNER_OR_RLS_DRIFT')

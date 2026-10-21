@@ -29,12 +29,14 @@ assert.deepEqual(changedHistoricalMigrations, [], 'HISTORICAL_MAIN_MIGRATIONS_CH
 for (const file of manifest.importedMigrations) {
   assert.equal(hash(readFileSync(resolve(root, file.path), 'utf8')), file.sha256, `IMPORTED_MIGRATION_BYTES_CHANGED:${file.path}`)
 }
+assert.equal(hash(readFileSync(resolve(root, manifest.nativeSnapshot.path), 'utf8')), manifest.nativeSnapshot.sha256, 'NATIVE_SNAPSHOT_HASH_DRIFT')
 const allowed = new Set(lines(git(['diff', '--name-only', manifest.sourceBaseCommit, manifest.sourceCommit])))
 for (const file of [
   'docs/development/engineering-standards.md',
   'src/lib/documentos/abrir-documento-client.ts', 'src/lib/documentos/abrir-documento-client.test.ts',
   'src/lib/integracoes/vortx/preview-branch.ts', 'src/lib/integracoes/vortx/preview-branch.test.ts',
   'scripts/qa/vortx/main-native-fixture.test.mjs',
+  'scripts/qa/vortx/main-native-snapshot.test.mjs', manifest.nativeSnapshot.path,
 ]) allowed.add(file)
 for (const path of lines(git(['diff', '--name-only', manifest.baseCommit]))) {
   assert(allowed.has(path) || /^scripts\/qa\/vortx\/main-[a-z-]+\.(?:mjs|json)$/.test(path), `OUT_OF_SCOPE_CHANGE:${path}`)

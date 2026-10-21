@@ -56,7 +56,26 @@ jobs:
           LOCALAPPDATA: ${{ runner.temp }}
 
       - name: Tests
+        if: github.head_ref != 'integration/vortx-main-20261021' && github.ref != 'refs/heads/integration/vortx-main-20261021'
         run: npm test -- --run
+
+      - name: Complete tests with native Auth MFA Database Storage (isolated synthetic QA)
+        if: github.head_ref == 'integration/vortx-main-20261021' || github.ref == 'refs/heads/integration/vortx-main-20261021'
+        run: |
+          node --test scripts/qa/vortx/main-native-fixture.test.mjs scripts/qa/vortx/main-native-snapshot.test.mjs
+          node scripts/qa/vortx/main-native-qa.mjs --local-only --full-suite --snapshot
+
+      - name: Native QA sanitized evidence
+        if: always() && (github.head_ref == 'integration/vortx-main-20261021' || github.ref == 'refs/heads/integration/vortx-main-20261021')
+        uses: actions/upload-artifact@v4
+        with:
+          name: vortx-main-native-qa
+          path: |
+            rehearsal/reports/bw-main-native-*/report.json
+            rehearsal/reports/bw-main-native-*/vitest.json
+            rehearsal/reports/bw-main-native-*/full-vitest.json
+            rehearsal/reports/bw-main-native-*/contracts/*.json
+          if-no-files-found: error
 
       - name: PDF Turbopack packaging regression (synthetic Linux runtime)
         if: contains(fromJSON('["feature/vortx-real-data-preview","integration/vortx-main-20261021"]'), github.head_ref || github.ref_name)

@@ -252,5 +252,10 @@
       "sha256": "b3457af2b2fcf487d17fb33ffa2565debf2c83079668cadf8a32fca6276b6a7c"
     }
   ],
+  "nativeSnapshot": {
+    "path": "scripts/qa/vortx/__fixtures__/main-native-platform.json",
+    "sha256": "a63b7ced16fbf452f51204deae0b2510e90ad0e7fa5dff60d9c27fb733040968",
+    "source": "LOCAL_SCHEMA_ONLY_NO_APPLICATION_DATA"
+  },
   "noRemoteDatabaseChanges": true
 }
