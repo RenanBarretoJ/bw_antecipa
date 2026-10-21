@@ -19,7 +19,7 @@ export const gestorMenuItems: SidebarItem[] = [
   { label: 'Operacoes', href: '/gestor/operacoes', icon: CreditCard },
   { label: 'Logistica', href: '/gestor/logistica', icon: Truck },
   { label: 'Conciliacao', href: '/gestor/conciliacao', icon: GitCompareArrows },
-  { label: 'Dados Financeiros', href: '/gestor/dados-financeiros', icon: Database },
+  { label: 'Central de Bases', href: '/gestor/dados-financeiros', icon: Database },
   { label: 'Escrow', href: '/gestor/escrow', icon: Wallet },
   { label: 'Relatorios', href: '/gestor/relatorios', icon: BarChart3 },
   { label: 'Notificacoes', href: '/gestor/notificacoes', icon: Bell },

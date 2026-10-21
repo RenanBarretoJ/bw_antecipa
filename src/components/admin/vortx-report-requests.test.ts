@@ -20,7 +20,11 @@ describe('histórico de relatórios com solicitação explícita', () => {
     expect(html).toContain('Filtrar histórico completo')
     expect(html).toContain('Importação manual')
     expect(html).toContain('ainda não está conectado nesta tela')
-    expect(html).not.toContain('type="file"')
+    expect(html).toContain('data-bases-layout="option-1"')
+    expect(html.match(/<input[^>]*id="manual-ativo"[^>]*>/)?.[0]).toContain('disabled')
+    expect(html.match(/<input[^>]*id="manual-parcela"[^>]*>/)?.[0]).toContain('disabled')
+    expect(html).toContain('id="relatorio-tipo"')
+    expect(html).not.toContain('type="radio"')
     expect(html).not.toMatch(/<aside|<header|service_role|token=/)
   })
   it('resumo permanece independente da página filtrada e não trata HTTP 200 como importação', () => {
