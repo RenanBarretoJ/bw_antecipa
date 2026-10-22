@@ -39,6 +39,7 @@ export type ConciliacaoTab = 'visao-geral' | 'matching' | 'conciliacao' | 'logis
 
 export type ConciliacaoFilters = {
   tab: ConciliacaoTab
+  fila?: import('@/lib/navigation/conciliacao').FilaConciliacao
   dataReferencia: string
   status: string
   metodo: string

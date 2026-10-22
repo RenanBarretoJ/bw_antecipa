@@ -25,10 +25,14 @@ import { cn } from '@/lib/utils'
 import type { ConciliacaoDashboard, ConciliacaoTab, MatchingViewRow } from '@/lib/financeiro/conciliacao/loaders.server'
 import { rotuloEstadoExecucaoFinanceira } from '@/lib/financeiro/conciliacao/execution-state'
 import { RISK_REASON_CODES } from '@/lib/financeiro/risco/types'
-import { CONCILIACAO_SUBTABS, resumirBaseFinanceira } from './central-ux'
+import { CONCILIACAO_SUBTABS, resumirBaseFinanceira, resumirResultadosConciliacao } from './central-ux'
 import { baseMovimentoDispensada, diagnosticoCompativel } from '@/lib/financeiro/conciliacao/movimentos-condicionais'
 import { PipelineCockpit } from './pipeline-cockpit'
 import type { AcaoEsteiraFinanceiraId } from '@/lib/financeiro/conciliacao/pipeline-status.server'
+import { hrefConciliacao, parametrosConciliacao } from '@/lib/navigation/conciliacao'
+import { ConciliationNavigation, HiddenConciliationNavigation } from './conciliation-navigation'
+import { PendingWorkqueues } from './pending-workqueues-view'
+import { estadoFilaConciliacao, totalFilaConciliacao } from './pending-workqueues'
 
 type NoteOption = {
   id: string
@@ -67,10 +71,7 @@ function badge(status: string) {
 }
 
 function currentQuery(dashboard: ConciliacaoDashboard, tab: ConciliacaoTab, preserveDate = true) {
-  const params = new URLSearchParams()
-  params.set('tab', tab)
-  if (preserveDate && dashboard.filtros.dataReferencia) params.set('data', dashboard.filtros.dataReferencia)
-  return `/gestor/conciliacao?${params.toString()}`
+  return hrefConciliacao(tab, preserveDate ? dashboard.filtros.dataReferencia : undefined, tab === 'excecoes' ? dashboard.filtros.fila : undefined)
 }
 
 function SummaryCard({ label, value, tone = 'default' }: { label: string; value: string | number; tone?: 'default' | 'success' | 'warning' | 'danger' }) {
@@ -184,14 +185,11 @@ export function ConciliacaoFinanceiraClient({ dashboard }: { dashboard: Concilia
     ? rotuloEstadoExecucaoFinanceira(dashboard.estadosExecucao.matching)
     : `${matchingCoverage}%`
   const reconciliationStateLabel = rotuloEstadoExecucaoFinanceira(dashboard.estadosExecucao.conciliacao)
-  const reconCounts = dashboard.conciliacaoExecucao?.contagens || {}
-  const correct = Number(reconCounts.MANTIDO_CORRETO || 0) + Number(reconCounts.ENTRADA_INCORPORADA || 0) + Number(reconCounts.SAIDA_REFLETIDA || 0)
-  const divergences = Object.entries(reconCounts)
-    .filter(([status]) => !['MANTIDO_CORRETO', 'ENTRADA_INCORPORADA', 'SAIDA_REFLETIDA'].includes(status))
-    .reduce((sum, [, count]) => sum + Number(count || 0), 0)
-  const noExceptions = dashboard.filtros.tab === 'excecoes'
-    && !dashboard.erros.matching && !dashboard.erros.conciliacao && !dashboard.erros.logistica
-    && dashboard.matching.total === 0 && dashboard.conciliacao.total === 0 && dashboard.logistica.total === 0
+  const { corretos: correct, divergencias: divergences } = resumirResultadosConciliacao(dashboard.conciliacaoExecucao?.contagens || {})
+  const selectedQueue = dashboard.filtros.tab === 'excecoes' ? dashboard.filtros.fila : undefined
+  const queueState = selectedQueue ? estadoFilaConciliacao(dashboard, selectedQueue) : null
+  const visibleTab = selectedQueue || dashboard.filtros.tab
+  const hasTable = !['visao-geral', 'excecoes'].includes(dashboard.filtros.tab) || Boolean(selectedQueue)
   const pipelineActions = new Map(dashboard.esteira.etapas.flatMap((stage) => stage.acao ? [[stage.acao.id, stage.acao]] : []))
 
   const initialCandidates = useMemo(() => manualRow?.candidatos
@@ -236,59 +234,59 @@ export function ConciliacaoFinanceiraClient({ dashboard }: { dashboard: Concilia
         </div>
         <div className="min-w-0">
           <div className="grid gap-2 sm:flex sm:flex-wrap sm:justify-end">
-            <Button variant={dashboard.filtros.tab === 'matching' ? 'default' : 'outline'} disabled={pending || !pipelineActions.get('matching')?.habilitada} onClick={() => executePipelineAction('matching')}>
+            {visibleTab === 'matching' && <Button variant="default" disabled={pending || !pipelineActions.get('matching')?.habilitada} onClick={() => executePipelineAction('matching')}>
               <Play /> Executar vínculo
-            </Button>
-            <Button variant={dashboard.filtros.tab === 'conciliacao' ? 'default' : 'outline'} disabled={pending || !pipelineActions.get('conciliacao')?.habilitada} onClick={() => executePipelineAction('conciliacao')}>
+            </Button>}
+            {visibleTab === 'conciliacao' && <Button variant="default" disabled={pending || !pipelineActions.get('conciliacao')?.habilitada} onClick={() => executePipelineAction('conciliacao')}>
               <GitCompareArrows /> Executar conciliação
-            </Button>
-            <Button variant={dashboard.filtros.tab === 'logistica' ? 'default' : 'outline'} disabled={pending || !pipelineActions.get('logistica')?.habilitada} onClick={() => executePipelineAction('logistica')}>
+            </Button>}
+            {visibleTab === 'logistica' && <Button variant="default" disabled={pending || !pipelineActions.get('logistica')?.habilitada} onClick={() => executePipelineAction('logistica')}>
               <Truck /> Atualizar logística
-            </Button>
-            <Button variant={dashboard.filtros.tab === 'exposicao' ? 'default' : 'outline'} disabled={pending || !pipelineActions.get('exposicao')?.habilitada} onClick={() => executePipelineAction('exposicao')}>
+            </Button>}
+            {visibleTab === 'exposicao' && <Button variant="default" disabled={pending || !pipelineActions.get('exposicao')?.habilitada} onClick={() => executePipelineAction('exposicao')}>
               <Calculator /> Calcular exposição
-            </Button>
-            <Button aria-describedby="risk-action-help" variant={dashboard.filtros.tab === 'risco' ? 'default' : 'outline'} disabled={pending || !pipelineActions.get('risco')?.habilitada} onClick={() => executePipelineAction('risco')}>
+            </Button>}
+            {visibleTab === 'risco' && <Button aria-describedby="risk-action-help" variant="default" disabled={pending || !pipelineActions.get('risco')?.habilitada} onClick={() => executePipelineAction('risco')}>
               <ShieldCheck /> Atualizar risco
-            </Button>
+            </Button>}
           </div>
           <p id="risk-action-help" className={cn('mt-2 max-w-2xl text-xs text-muted-foreground lg:text-right', dashboard.filtros.tab !== 'risco' && 'sr-only')}>Reprocessa Matching, Conciliação, Logística e Exposição antes de recalcular o Gate de Risco.</p>
         </div>
       </header>
 
-      <BaseFinanceiraCard dashboard={dashboard} />
-
-      <nav className="grid grid-cols-2 gap-1 rounded-xl bg-muted p-1 md:grid-cols-4 xl:grid-cols-7" aria-label="Seções da conciliação">
-        {CONCILIACAO_SUBTABS.map((tab) => (
-          <Link key={tab.id} href={currentQuery(dashboard, tab.id)} aria-current={dashboard.filtros.tab === tab.id ? 'page' : undefined} className={cn('flex min-h-10 items-center justify-center rounded-lg px-2 py-2 text-center text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', dashboard.filtros.tab === tab.id ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}>
-            {tab.label}
-          </Link>
-        ))}
-      </nav>
+      <ConciliationNavigation filters={dashboard.filtros} />
 
       <SubtabIntro tab={dashboard.filtros.tab} />
 
+      {['visao-geral', 'conciliacao'].includes(dashboard.filtros.tab)
+        ? <BaseFinanceiraCard dashboard={dashboard} />
+        : <details className="rounded-xl border bg-card px-4 py-3"><summary className="cursor-pointer text-sm font-medium">Consultar bases e datas utilizadas</summary><div className="mt-3"><BaseFinanceiraCard dashboard={dashboard} /></div></details>}
+      {['matching', 'logistica'].includes(dashboard.filtros.tab) && <div className="flex flex-col gap-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+        <p>Vínculo documental e acompanhamento de entrega não são a conciliação financeira. O estado de entrada do provedor não substitui uma evidência aprovada.</p>
+        <Button variant="outline" render={<Link href="/gestor/logistica" />} nativeButton={false}>Abrir Central Logística</Button>
+      </div>}
+
       <Card>
         <CardContent>
-          <form method="get" className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(240px,1fr)_180px_180px_180px_auto]">
-            <input type="hidden" name="tab" value={dashboard.filtros.tab} />
-            <label className="relative min-w-0">
+          <form method="get" className={cn('grid items-end gap-3 md:grid-cols-2', hasTable ? 'xl:grid-cols-[minmax(240px,1fr)_180px_180px_180px_auto]' : 'xl:grid-cols-[240px_auto]')}>
+            <HiddenConciliationNavigation filters={dashboard.filtros} />
+            {hasTable && <label className="relative min-w-0">
               <span className="sr-only">Buscar</span>
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input name="q" defaultValue={dashboard.filtros.q} placeholder="Titulo, cedente, sacado, NF ou chave" className="pl-9" />
-            </label>
-            <select name="data" defaultValue={dashboard.filtros.dataReferencia} className="h-8 rounded-lg border border-input bg-background px-2 text-sm">
+            </label>}
+            <label className="grid gap-1 text-sm"><span>Data operacional</span><select name="data" defaultValue={dashboard.filtros.dataReferencia} className="h-9 rounded-lg border border-input bg-background px-2 text-sm">
               {!dashboard.filtros.dataReferencia && <option value="">Data de referencia</option>}
               {dashboard.datasDisponiveis.map((item) => <option key={item} value={item}>{date(item)}</option>)}
-            </select>
-            <select name="status" defaultValue={dashboard.filtros.status} className="h-8 rounded-lg border border-input bg-background px-2 text-sm">
+            </select></label>
+            {hasTable && dashboard.filtros.tab !== 'excecoes' && <select name="status" aria-label="Status dos registros" defaultValue={dashboard.filtros.status} className="h-9 rounded-lg border border-input bg-background px-2 text-sm">
               <option value="">Todos os status</option>
               {['MATCH_FORTE', 'AMBIGUO', 'NAO_CONCILIADO', 'CONFLITO', 'MANTIDO_CORRETO', 'ENTRADA_INCORPORADA', 'ENTRADA_NAO_INCORPORADA', 'SAIDA_REFLETIDA', 'SAIDA_SEM_LIQUIDACAO', 'LIQUIDADO_AINDA_NO_ESTOQUE', 'DIVERGENCIA_VALOR', 'ENTREGUE', 'EM_TRANSITO', 'INDETERMINADA', 'SEM_MATCH_FINANCEIRO_NF', 'INCLUIDA_EM_TRANSITO', 'JA_INCORPORADO_ESTOQUE', 'OPERACAO_NAO_INCORPORADA', 'VALOR_AUSENTE', 'APTO', 'REVISAO_MANUAL', 'BLOQUEADO', 'NAO_APLICAVEL', 'AVALIACAO_RISCO_INDISPONIVEL'].map((item) => <option key={item}>{item}</option>)}
-            </select>
-            <select name="metodo" defaultValue={dashboard.filtros.metodo} className="h-8 rounded-lg border border-input bg-background px-2 text-sm">
+            </select>}
+            {hasTable && ['matching', 'logistica'].includes(visibleTab) && <select name="metodo" aria-label="Método do vínculo" defaultValue={dashboard.filtros.metodo} className="h-9 rounded-lg border border-input bg-background px-2 text-sm">
               <option value="">Todos os metodos</option>
               {['CHAVE_NFE', 'SEU_NUMERO', 'COMPOSTO', 'ID_RECEBIVEL', 'AMBIGUO', 'NAO_CONCILIADO', 'CONFLITO'].map((item) => <option key={item}>{item}</option>)}
-            </select>
+            </select>}
             <div className="flex gap-2">
               <Button type="submit">Aplicar</Button>
               <Button render={<Link href={currentQuery(dashboard, dashboard.filtros.tab, false)} />} nativeButton={false} variant="outline">Limpar</Button>
@@ -296,7 +294,7 @@ export function ConciliacaoFinanceiraClient({ dashboard }: { dashboard: Concilia
           </form>
           {dashboard.filtros.tab === 'logistica' && (
             <form method="get" className="mt-3 grid gap-2 border-t pt-3 sm:grid-cols-2 xl:grid-cols-4">
-              <input type="hidden" name="tab" value="logistica" />
+              <HiddenConciliationNavigation filters={dashboard.filtros} />
               <input type="hidden" name="data" value={dashboard.filtros.dataReferencia} />
               <input type="hidden" name="q" value={dashboard.filtros.q} />
               <input type="hidden" name="status" value={dashboard.filtros.status} />
@@ -313,7 +311,7 @@ export function ConciliacaoFinanceiraClient({ dashboard }: { dashboard: Concilia
           )}
           {dashboard.filtros.tab === 'risco' && (
             <form method="get" className="mt-3 grid gap-2 border-t pt-3 sm:grid-cols-2 xl:grid-cols-3">
-              <input type="hidden" name="tab" value="risco" />
+              <HiddenConciliationNavigation filters={dashboard.filtros} />
               <input type="hidden" name="data" value={dashboard.filtros.dataReferencia} />
               <input type="hidden" name="q" value={dashboard.filtros.q} />
               <input type="hidden" name="status" value={dashboard.filtros.status} />
@@ -347,15 +345,16 @@ export function ConciliacaoFinanceiraClient({ dashboard }: { dashboard: Concilia
         </>
       )}
 
-      {noExceptions && <Card><CardContent className="py-10 text-center text-muted-foreground">Nenhuma excecao registrada para esta data.</CardContent></Card>}
+      {dashboard.filtros.tab === 'excecoes' && <PendingWorkqueues dashboard={dashboard} />}
+      {queueState && !queueState.verificada && <Card><CardContent className="py-8 text-center text-muted-foreground">{queueState.label}. Verifique a etapa correspondente no Resumo; a ausência de execução não comprova ausência de pendências.</CardContent></Card>}
 
-      {!noExceptions && (dashboard.filtros.tab === 'matching' || dashboard.filtros.tab === 'excecoes') && (
+      {(dashboard.filtros.tab === 'matching' || (selectedQueue === 'matching' && queueState?.verificada)) && (
         dashboard.erros.matching ? <BlockError message={dashboard.erros.matching} /> : <div className="space-y-3"><PreviousExecution label="execucao de matching" value={!dashboard.matchingExecucao ? dashboard.execucoesAnteriores.matching?.data_referencia : null} /><MatchingTable rows={dashboard.matching.rows} total={dashboard.matching.total} onManual={openManual} onRevoke={(row) => { setRevokeRow(row); setReason(''); setTotp('') }} /></div>
       )}
-      {!noExceptions && (dashboard.filtros.tab === 'conciliacao' || dashboard.filtros.tab === 'excecoes') && (
+      {(dashboard.filtros.tab === 'conciliacao' || (selectedQueue === 'conciliacao' && queueState?.verificada)) && (
         dashboard.erros.conciliacao ? <BlockError message={dashboard.erros.conciliacao} /> : <div className="space-y-3"><PreviousExecution label="execucao de conciliacao" value={!dashboard.conciliacaoExecucao ? dashboard.execucoesAnteriores.conciliacao?.data_referencia : null} /><ReconciliationTable rows={dashboard.conciliacao.rows} total={dashboard.conciliacao.total} /></div>
       )}
-      {!noExceptions && (dashboard.filtros.tab === 'logistica' || dashboard.filtros.tab === 'excecoes') && (
+      {(dashboard.filtros.tab === 'logistica' || (selectedQueue === 'logistica' && queueState?.verificada)) && (
         dashboard.erros.logistica ? <BlockError message={dashboard.erros.logistica} /> : <LogisticsView dashboard={dashboard} />
       )}
       {dashboard.filtros.tab === 'exposicao' && (
@@ -381,7 +380,7 @@ export function ConciliacaoFinanceiraClient({ dashboard }: { dashboard: Concilia
         }} />
       )}
 
-      <Pagination dashboard={dashboard} total={dashboard.filtros.tab === 'risco' ? dashboard.risco.total : dashboard.filtros.tab === 'exposicao' ? dashboard.exposicao.total : dashboard.filtros.tab === 'logistica' ? dashboard.logistica.total : dashboard.filtros.tab === 'conciliacao' ? dashboard.conciliacao.total : dashboard.filtros.tab === 'matching' ? dashboard.matching.total : Math.max(dashboard.matching.total, dashboard.conciliacao.total, dashboard.logistica.total)} />
+      {hasTable && (!queueState || queueState.verificada) && <Pagination dashboard={dashboard} total={dashboard.filtros.tab === 'excecoes' ? totalFilaConciliacao(dashboard) : dashboard.filtros.tab === 'risco' ? dashboard.risco.total : dashboard.filtros.tab === 'exposicao' ? dashboard.exposicao.total : dashboard.filtros.tab === 'logistica' ? dashboard.logistica.total : dashboard.filtros.tab === 'conciliacao' ? dashboard.conciliacao.total : dashboard.matching.total} />}
 
       <Dialog open={Boolean(manualRow)} onOpenChange={(open) => { if (!open) setManualRow(null) }}>
         <DialogContent className="sm:max-w-3xl">
@@ -685,8 +684,9 @@ function Pagination({ dashboard, total }: { dashboard: ConciliacaoDashboard; tot
   const pages = Math.max(1, Math.ceil(total / dashboard.filtros.pageSize))
   if (pages <= 1) return null
   const href = (page: number) => {
-    const params = new URLSearchParams({ tab: dashboard.filtros.tab, page: String(page), pageSize: String(dashboard.filtros.pageSize) })
-    if (dashboard.filtros.dataReferencia) params.set('data', dashboard.filtros.dataReferencia)
+    const params = parametrosConciliacao(dashboard.filtros.tab, dashboard.filtros.dataReferencia, dashboard.filtros.fila)
+    params.set('page', String(page))
+    params.set('pageSize', String(dashboard.filtros.pageSize))
     if (dashboard.filtros.status) params.set('status', dashboard.filtros.status)
     if (dashboard.filtros.metodo) params.set('metodo', dashboard.filtros.metodo)
     if (dashboard.filtros.q) params.set('q', dashboard.filtros.q)

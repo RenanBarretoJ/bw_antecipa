@@ -13,7 +13,7 @@ export type ConciliacaoSubtab = {
 export const CONCILIACAO_SUBTABS: ConciliacaoSubtab[] = [
   {
     id: 'visao-geral',
-    label: 'Visão geral',
+    label: 'Resumo',
     description: 'Resume a disponibilidade das bases e o estado das execuções para a data operacional selecionada.',
   },
   {
@@ -46,9 +46,9 @@ export const CONCILIACAO_SUBTABS: ConciliacaoSubtab[] = [
   },
   {
     id: 'excecoes',
-    label: 'Exceções Operacionais',
+    label: 'Pendências',
     description: 'Consolida situações que exigem atenção ou intervenção operacional nas etapas anteriores.',
-    detail: 'Esta visão cobre Vínculo Título × NF, Conciliação Financeira e Posição Logística. O Gate de Risco possui tratamento próprio na aba correspondente.',
+    detail: 'As filas de vínculo, movimentações e logística são consultadas separadamente, sem somar ocorrências como títulos únicos. O Gate de Risco possui tratamento próprio na seção Exposição e Risco.',
   },
 ]
 
@@ -60,6 +60,15 @@ type BaseComLabel = {
 export type ResumoBaseFinanceira = {
   tone: 'success' | 'warning' | 'default'
   message: string
+}
+
+export function resumirResultadosConciliacao(contagens: Record<string, number>) {
+  const corretos = ['MANTIDO_CORRETO', 'ENTRADA_INCORPORADA', 'SAIDA_REFLETIDA', 'LIQUIDACAO_PARCIAL_SALDO']
+  return Object.entries(contagens).reduce((resumo, [status, count]) => {
+    if (corretos.includes(status)) resumo.corretos += count
+    else resumo.divergencias += count
+    return resumo
+  }, { corretos: 0, divergencias: 0 })
 }
 
 function formatList(values: string[]) {
