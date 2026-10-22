@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { carregarLoteRemessaCanonico } from './loader.server'
+import { classificarStatusLogisticoPreCessao } from '@/lib/logistica/evidencias-logisticas'
 
-const mocks = vi.hoisted(() => ({ from: vi.fn(), download: vi.fn(), resolver: vi.fn(), consultar: vi.fn() }))
+const mocks = vi.hoisted(() => ({ from: vi.fn(), download: vi.fn(), resolver: vi.fn(), consultar: vi.fn(), classificar: vi.fn() }))
 vi.mock('@/lib/supabase/server', () => ({ createAdminClient: () => ({ from: mocks.from, storage: { from: () => ({ download: mocks.download }) } }) }))
 vi.mock('@/lib/integracoes/resolver.server', () => ({ integrationRuntimeEnvironment: () => 'homologacao', resolverIntegracaoPorCapability: mocks.resolver }))
 vi.mock('@/lib/cadastro/cnpj.server', () => ({ consultarCnpj: mocks.consultar }))
+vi.mock('@/lib/financeiro/logistica/evidencias.server', () => ({ classificarLogisticaDasNotas: mocks.classificar }))
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -27,6 +29,9 @@ beforeEach(() => {
   }) }))
   mocks.resolver.mockResolvedValue({ status: 'CONFIGURADA', integrationVersion: { integrationVersionId: 'version', adapterKey: 'vortx_vrs', config: {} } })
   mocks.consultar.mockResolvedValue({ ok: true, dados: { cnpj: '68522785000104', cep: '01310100', logradouro: 'Rua consulta', numero: '10', bairro: 'Centro', cidade: 'Sao Paulo', uf: 'SP' } })
+  mocks.classificar.mockResolvedValue(new Map([['nf', classificarStatusLogisticoPreCessao([
+    { familia: 'cte', documentoId: 'qa-doc', versaoId: 'qa-v1', versaoStatus: 'aprovado' },
+  ])]]))
 })
 
 describe('loader de remessa com fallback VRS', () => {
@@ -36,6 +41,9 @@ describe('loader de remessa com fallback VRS', () => {
     expect(lote.operacoes[0].notas[0].parcelasSelecionadas).toEqual([{ id: 'parcela', numero: 1, vencimento: '2026-12-01', valorNominal: 100, valorPresente: 95, taxaMensal: 2 }])
     expect(mocks.consultar).toHaveBeenCalledWith('68522785000104')
     expect(mocks.download).not.toHaveBeenCalled()
+    expect(mocks.classificar).toHaveBeenCalledTimes(1)
+    expect(mocks.classificar).toHaveBeenCalledWith(expect.anything(), 'fundo', ['nf'])
+    expect(lote.operacoes[0].notas[0].classificacaoLogistica).toMatchObject({ status: 'EM_TRANSITO', documentoId: 'qa-doc', versaoId: 'qa-v1' })
   })
 
   it('nao introduz consulta de CNPJ na geracao de outro integrador', async () => {
@@ -43,10 +51,16 @@ describe('loader de remessa com fallback VRS', () => {
     const lote = await carregarLoteRemessaCanonico(['op'])
     expect(lote.operacoes[0].notas[0].devedor.endereco).toBeNull()
     expect(mocks.consultar).not.toHaveBeenCalled()
+    expect(mocks.classificar).not.toHaveBeenCalled()
   })
 
   it('interrompe o carregamento se o endereco nao puder ser resolvido', async () => {
     mocks.consultar.mockResolvedValue({ ok: false, categoria: 'timeout', mensagem: '' })
     await expect(carregarLoteRemessaCanonico(['op'])).rejects.toThrow(/NF 100.*timeout/)
+  })
+  it('interrompe o carregamento se as evidencias nao puderem ser conferidas', async () => {
+    mocks.classificar.mockRejectedValue(new Error('evidencias indisponiveis'))
+    await expect(carregarLoteRemessaCanonico(['op'])).rejects.toThrow(/evidencias indisponiveis/)
+    expect(mocks.consultar).not.toHaveBeenCalled()
   })
 })

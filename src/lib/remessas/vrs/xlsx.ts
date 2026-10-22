@@ -3,7 +3,7 @@ import { gerarXlsxAbas, fixarDatasZip } from '../xlsx'
 import type { VrsInclusaoMapeada } from './mapper'
 import { VRS_XLSX_COLUNAS } from './xlsx-layout'
 
-export const VRS_LAYOUT_VERSION = 'inclusao_v3_chaves_estaveis_xlsx'
+export const VRS_LAYOUT_VERSION = 'inclusao_v4_duplicata_por_parcela'
 export const XLSX_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 
 export async function gerarVrsInclusaoXlsx(input: VrsInclusaoMapeada) {

@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import type { ClassificacaoLogisticaPreCessao } from '@/lib/logistica/evidencias-logisticas'
 
 export type RemessaFormato = 'CNAB444' | 'VRS_CSV'
 export type EstrategiaAgrupamentoRemessa = 'POR_LOTE' | 'POR_CEDENTE'
@@ -38,6 +39,7 @@ export interface RemessaNotaFiscalCanonica {
   dataEmissao: string
   valorBruto: number
   quantidadeParcelasOriginal: number
+  classificacaoLogistica?: ClassificacaoLogisticaPreCessao
   emissor: {
     estabelecimentoId: string | null
     cnpj: string

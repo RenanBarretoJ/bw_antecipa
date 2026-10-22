@@ -135,10 +135,9 @@ export async function gerarRemessaOperacional(input: { operacaoIds: string[]; us
         idempotencyKey: hashRemessa(`${idempotencyKey}:${mapped.cedenteId}`),
         conteudo: csv.conteudo,
         uploadNovo: true,
-        chaves: [
-          ...mapped.ativos.map((item) => ({ operacaoId: item.operacaoId, notaFiscalId: item.notaFiscalId, parcelaId: null, chaveUnicaAtivo: item.chaveUnicaAtivo, chaveUnicaParcela: null })),
-          ...mapped.fluxos.map((item) => ({ operacaoId: item.operacaoId, notaFiscalId: item.notaFiscalId, parcelaId: item.parcelaId, chaveUnicaAtivo: item.chaveUnicaAtivo, chaveUnicaParcela: item.chaveUnicaParcela })),
-        ],
+        // Cada duplicata tem um unico fluxo. Uma referencia por parcela preserva
+        // ambas as chaves sem repetir a linha ATIVO com parcela_id NULL por NF.
+        chaves: mapped.fluxos.map((item) => ({ operacaoId: item.operacaoId, notaFiscalId: item.notaFiscalId, parcelaId: item.parcelaId, chaveUnicaAtivo: item.chaveUnicaAtivo, chaveUnicaParcela: item.chaveUnicaParcela })),
       })
     }
   } else if (lote.integracao.adapterKey === 'sinqia_portal_fidc') {
@@ -239,6 +238,11 @@ export async function gerarRemessaOperacional(input: { operacaoIds: string[]; us
         payload_hash: payloadHash,
         ...(gruposVrs.length > 0 ? {
           layout: VRS_LAYOUT_VERSION,
+          classificacoes_logisticas: lote.operacoes.flatMap(operacao => operacao.notas.map(nota => ({
+            operacao_id: operacao.id, nota_fiscal_id: nota.id, status: nota.classificacaoLogistica?.status,
+            documento_id: nota.classificacaoLogistica?.documentoId, versao_id: nota.classificacaoLogistica?.versaoId,
+            fundamento: nota.classificacaoLogistica?.fundamento,
+          }))),
           enderecos_consultados: lote.operacoes.flatMap(operacao => operacao.notas
             .filter(nota => nota.devedor.fonteEndereco !== 'xml')
             .map(nota => ({ nota_fiscal_id: nota.id, fonte: nota.devedor.fonteEndereco, campos: nota.devedor.camposEnderecoConsultados }))),
