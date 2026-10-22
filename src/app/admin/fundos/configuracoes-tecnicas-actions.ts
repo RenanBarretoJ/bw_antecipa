@@ -22,6 +22,7 @@ import { validarEndpointTecnicoSeguro } from '@/lib/admin/endpoint-seguro.server
 import { integrationProviderRegistry } from '@/lib/integracoes/registry.server'
 import { obterAdapterCatalogo } from '@/lib/integracoes/adapter-catalog'
 import { prepararConfiguracaoFinanceiraDoFundo, possuiCapabilityFinanceira } from '@/lib/integracoes/configuracao-financeira'
+import { prepararConfiguracaoCarteiraVortx, validarConfiguracaoCarteiraVortx } from '@/lib/integracoes/vortx/carteira-configuracao'
 import {
   criptografarPortalFidcValor,
   descriptografarPortalFidcValor,
@@ -213,6 +214,11 @@ export async function salvarIntegracaoRascunhoAdmin(input: unknown): Promise<Adm
     }
     const endpoint = parsed.data.endpointBase ? new URL(parsed.data.endpointBase).toString() : ''
     let configuracaoNaoSensivel = parsed.data.configuracaoNaoSensivel
+    if (parsed.data.adapterKey === 'vortx_vrs') {
+      const erroCotas = validarConfiguracaoCarteiraVortx(configuracaoNaoSensivel)
+      if (erroCotas) return respostaErro(erroCotas, correlationId)
+      configuracaoNaoSensivel = prepararConfiguracaoCarteiraVortx(configuracaoNaoSensivel)
+    }
     if (possuiCapabilityFinanceira(parsed.data.capabilities)) {
       const { data: fundo, error: fundoError } = await context.supabase
         .from('fundos')

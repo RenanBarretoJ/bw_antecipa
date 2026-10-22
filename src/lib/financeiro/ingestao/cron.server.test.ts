@@ -53,6 +53,19 @@ function supabaseStub() {
 }
 
 describe('cron financeiro por capability', () => {
+  it('reserva Vortx CARTEIRA para a rotina D-1 das 17h sem consultar handler CSV na manha', async () => {
+    const supabase = supabaseStub()
+    const resolve = vi.fn(async ({ capability }: { capability: FinancialIntegrationCapability }) => ({ status: 'CONFIGURADA' as const,
+      integrationVersion: { ...integrationVersion(capability), ...(capability === 'CARTEIRA' ? { adapterKey: 'vortx_vrs', providerKey: 'VORTX' } : {}) } }))
+    const handlers = { get: vi.fn(() => null) }
+    const result = await executarCicloFinanceiro('2026-08-10', { supabase: supabase.client as never, resolve: resolve as never, handlers })
+    expect(handlers.get.mock.calls).toHaveLength(3)
+    expect(result.errosProviders.some(row => row.capability === 'CARTEIRA')).toBe(false)
+    const details = supabase.updates[0].detalhes as { capabilities: Array<{ capability: string; status: string; data_referencia: string; motivo: string }> }
+    expect(details.capabilities.find(row => row.capability === 'CARTEIRA')).toMatchObject({ status: 'AGENDADA', data_referencia: '2026-08-07', motivo: 'ROTINA_CARTEIRA_D1_17H' })
+    expect(supabase.updates[0].falhas).toBe(3)
+    expect(supabase.updates[0].detalhes).toMatchObject({ expectativas: { CARTEIRA: '2026-08-07' } })
+  })
   beforeEach(() => {
     process.env.INTEGRATION_RUNTIME_ENV = 'homologacao'
   })

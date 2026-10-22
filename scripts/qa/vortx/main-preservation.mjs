@@ -16,7 +16,9 @@ const hash = text => createHash('sha256').update(text.replaceAll('\r\n', '\n')).
 const lines = text => text.trim().split('\n').filter(Boolean)
 
 assert.equal(manifest.baseBranch, 'main', 'HOMOLOG_IS_NOT_A_DEVELOPMENT_BASE')
-assert.equal(git(['rev-parse', 'refs/remotes/origin/main']).trim(), manifest.baseCommit, 'REMOTE_MAIN_ADVANCED_RECONCILE_BEFORE_PUBLICATION')
+const publicationBase = manifest.publicationBaseCommit ?? manifest.baseCommit
+assert.equal(git(['rev-parse', 'refs/remotes/origin/main']).trim(), publicationBase, 'REMOTE_MAIN_ADVANCED_RECONCILE_BEFORE_PUBLICATION')
+git(['merge-base', '--is-ancestor', publicationBase, 'HEAD'])
 git(['merge-base', '--is-ancestor', manifest.baseCommit, 'HEAD'])
 const first = lines(git(['rev-list', '--first-parent', '--reverse', `${manifest.baseCommit}..HEAD`]))[0]
 assert(first, 'MAIN_INTEGRATION_COMMITS_MISSING')
@@ -49,11 +51,14 @@ for (const file of [
   'src/lib/integracoes/vortx/relatorios-production-boundaries.test.ts',
   'docs/integracoes/vortx-production-rollout.json',
 ]) allowed.add(file)
-for (const path of lines(git(['diff', '--name-only', manifest.baseCommit]))) {
+// Post-PR104 wallet work is explicit. The original ancestry, protected file hashes,
+// imported migration hashes and historical migration checks above are not rebased.
+for (const path of manifest.publicationFiles ?? []) allowed.add(path)
+for (const path of lines(git(['diff', '--name-only', publicationBase]))) {
   assert(allowed.has(path) || /^scripts\/qa\/vortx\/main-[a-z-]+\.(?:mjs|json)$/.test(path), `OUT_OF_SCOPE_CHANGE:${path}`)
 }
 const renderer = readFileSync(resolve(root, 'src/lib/pdf/gerarContrato.ts'), 'utf8')
 assert(renderer.includes("import { resolverExecutavelChromium } from './chromium-executable'"), 'MAIN_CHROMIUM_PREPARATION_IMPORT_REMOVED')
 assert(renderer.includes('await resolverExecutavelChromium()'), 'MAIN_CHROMIUM_CONCURRENCY_FIX_REMOVED')
-console.log(JSON.stringify({ result: 'PASS', base: manifest.baseCommit, source: manifest.sourceCommit,
+console.log(JSON.stringify({ result: 'PASS', base: manifest.baseCommit, publicationBase, source: manifest.sourceCommit,
   protectedFiles: manifest.protectedFiles.length, preservedMigrations: manifest.importedMigrations.length, historicalMigrationsChanged: 0 }))

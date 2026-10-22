@@ -5,6 +5,7 @@ import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { decodeSnapshot, criticalNames, securityCatalog } from './main-native-snapshot.mjs'
 import { rehearseReleaseUpgrade } from './main-release-upgrade.mjs'
+import { rehearseCarteira } from './carteira-checks.mjs'
 
 // Development-only native contract runner. No remote clients, credentials or
 // historical replay. Optional exact release upgrade runs only in the new local DB.
@@ -12,7 +13,9 @@ import { rehearseReleaseUpgrade } from './main-release-upgrade.mjs'
 const fullSuite = process.argv.includes('--full-suite')
 const snapshotMode = process.argv.includes('--snapshot')
 const releaseUpgrade = process.argv.includes('--release-upgrade')
-assert.deepEqual(process.argv.slice(2), ['--local-only', ...(fullSuite ? ['--full-suite'] : []), ...(snapshotMode ? ['--snapshot'] : []), ...(releaseUpgrade ? ['--release-upgrade'] : [])])
+const carteira = process.argv.includes('--carteira')
+assert.deepEqual(process.argv.slice(2), ['--local-only', ...(fullSuite ? ['--full-suite'] : []), ...(snapshotMode ? ['--snapshot'] : []), ...(releaseUpgrade ? ['--release-upgrade'] : []), ...(carteira ? ['--carteira'] : [])])
+assert(!carteira || releaseUpgrade, 'CARTEIRA_REQUIRES_EXACT_RELEASE_BASELINE')
 assert(!process.env.DOCKER_HOST || /^(npipe:|unix:)/.test(process.env.DOCKER_HOST), 'REMOTE_DOCKER_REFUSED')
 const source = 'supabase_db_bw_email03_r1full_cleanroom_179137940498'
 const id = `bw-main-native-${Date.now()}`
@@ -50,6 +53,12 @@ const before = await inventory(), owned = []
 report.sourceInputs = await Promise.all(['src/test/email03-local-contracts.mjs',
   'src/lib/documentos/parcelas-nf-boleto-architecture.test.ts', 'src/lib/notas-fiscais/c4-consultor-notas-fiscais.test.ts',
   'scripts/qa/vortx/main-native-qa.mjs', 'scripts/qa/vortx/main-native-fixture.mjs',
+  ...(carteira ? ['vercel.json', 'scripts/qa/vortx/carteira-checks.mjs',
+    'src/lib/integracoes/vortx/carteira-persistencia.server.ts', 'src/lib/integracoes/vortx/carteira-rotina.ts',
+    'src/lib/integracoes/vortx/carteira-rotina.server.ts', 'src/lib/integracoes/vortx/carteira-posicao.server.ts',
+    'src/lib/financeiro/ingestao/cron.server.ts', 'src/app/api/cron/vortx-carteira/route.ts',
+    'src/app/gestor/dados-financeiros/carteira-actions.ts', 'src/app/gestor/dados-financeiros/page.tsx',
+    'src/components/admin/vortx-carteira-operacional.tsx', 'src/components/admin/vortx-report-requests.tsx'] : []),
 ].map(async path => ({ path, sha256: hash(await readFile(path)) })))
 const phase = async name => { report.phases.push(name); report.currentPhase = name
   await writeFile(resolve(reports, 'report.json'), JSON.stringify(report, null, 2)); console.log(JSON.stringify({ stage: name, id })) }
@@ -61,9 +70,9 @@ async function sql(input, database = 'postgres') {
   return docker(['exec', '-i', names.db, 'psql', '-XAt', '-v', 'ON_ERROR_STOP=1', '-p', '57862', '-U', 'supabase_admin', '-d', database], input)
 }
 const envArgs = values => Object.entries(values).flatMap(([key, value]) => ['-e', `${key}=${value}`])
-function jwt(role) {
+function jwt(role, claims = {}) {
   const encode = value => Buffer.from(JSON.stringify(value)).toString('base64url')
-  const now = Math.floor(Date.now() / 1000), value = `${encode({ alg: 'HS256', typ: 'JWT' })}.${encode({ role, iss: 'supabase', iat: now, exp: now + 14400 })}`
+  const now = Math.floor(Date.now() / 1000), value = `${encode({ alg: 'HS256', typ: 'JWT' })}.${encode({ role, ...claims, iss: 'supabase', iat: now, exp: now + 14400 })}`
   const token = `${value}.${createHmac('sha256', secret).update(value).digest('base64url')}`
   sensitive.push(token); return token
 }
@@ -215,6 +224,29 @@ try {
     const db=new Client({host:'127.0.0.1',port:57862,user:'postgres',password:process.env.LOCAL_QA_PG_PASSWORD,database:'postgres'});
     await db.connect();try{console.log(JSON.stringify(await seedNativeFixture(db)))}finally{await db.end()}`
   report.fixture = JSON.parse(await docker(['exec', '-e', `LOCAL_QA_PG_PASSWORD=${password}`, names.runner, 'node', '--input-type=module', '-e', seed]))
+  if (carteira) report.carteira = await rehearseCarteira(sql, phase, async evidence => {
+    await writeFile(resolve(reports, 'carteira.json'), JSON.stringify(evidence, null, 2))
+  }, async context => {
+    await sql("NOTIFY pgrst,'reload schema';")
+    const actorToken = jwt('authenticated', { sub: context.user, aal: 'aal2', aud: 'authenticated' })
+    const proof = `import assert from 'node:assert/strict';import {createHash} from 'node:crypto';import {createClient} from '@supabase/supabase-js';
+      const ctx=${JSON.stringify(context)},service=process.env.LOCAL_QA_SERVICE,actorToken=process.env.LOCAL_QA_ACTOR;
+      let ready=false;for(let i=0;i<60;i++){const r=await fetch('http://127.0.0.1:3000/',{headers:{Authorization:'Bearer '+service}});const schema=await r.json();if(schema.paths?.['/rpc/vortx_reservar_carteira']){ready=true;break}await new Promise(done=>setTimeout(done,250))}assert(ready,'NEW_SCHEMA_NOT_READY');
+      const client=createClient('http://127.0.0.1:57861',service,{auth:{persistSession:false,autoRefreshToken:false}});
+      const actor=createClient('http://127.0.0.1:57861',process.env.LOCAL_QA_ANON,{auth:{persistSession:false,autoRefreshToken:false},global:{headers:{Authorization:'Bearer '+actorToken}}});
+      const response=structuredClone(ctx.original);response[0].carteiras[2].pl+=2;
+      const bytes=Buffer.from(JSON.stringify(response)),hash=createHash('sha256').update(bytes).digest('hex');
+      const reservation=await client.rpc('vortx_reservar_carteira',{p_fundo_id:ctx.fund,p_versao_id:ctx.version,p_referencia:ctx.date,p_hash:hash,p_tamanho:bytes.length});assert(!reservation.error,'RESERVATION_FAILED');const job=reservation.data;
+      const bucket=client.storage.from('vortx-carteiras');const upload=await bucket.upload(job.storage_path,bytes,{contentType:'application/json',upsert:false});assert(!upload.error,'NATIVE_UPLOAD_FAILED');
+      const saved=await client.rpc('vortx_concluir_carteira',{p_id:job.id,p_lease:job.lease,p_resposta:response});assert(!saved.error,'NATIVE_CONCLUSION_FAILED');assert.equal(saved.data.estado,'PERSISTIDA');
+      const download=await bucket.download(job.storage_path);assert(!download.error,'NATIVE_DOWNLOAD_FAILED');assert.equal(createHash('sha256').update(Buffer.from(await download.data.arrayBuffer())).digest('hex'),hash);
+      const denied=await actor.storage.from('vortx-carteiras').upload(job.storage_path+'.forbidden',bytes,{contentType:'application/json',upsert:false});assert(denied.error,'AUTHENTICATED_RAW_WRITE_ALLOWED');
+      const raw=await actor.storage.from('vortx-carteiras').download(job.storage_path);assert(raw.error,'AUTHENTICATED_RAW_READ_ALLOWED');
+      const visible=await actor.from('vortx_carteira_cotas').select('codigo_cota,patrimonio_liquido').eq('importacao_id',job.id);assert(!visible.error);assert.equal(visible.data.length,3);
+      const safe=await client.rpc('vortx_encerrar_carteira',{p_id:job.id,p_lease:job.lease});assert(!safe.error);assert.equal(safe.data.podeRemoverArquivo,false);
+      console.log(JSON.stringify({result:'PASS',originalSha256:hash,importId:job.id,privateOriginalHashVerified:true,authenticatedRawUploadDenied:true,authenticatedRawDownloadDenied:true,gestorQuotaRows:visible.data.length,fencedPublishedOriginalPreserved:true,syntheticJwtOnly:true}));`
+    return JSON.parse(await docker(['exec', ...envArgs({ LOCAL_QA_SERVICE: service, LOCAL_QA_ANON: anon, LOCAL_QA_ACTOR: actorToken }), names.runner, 'node', '--input-type=module', '-e', proof]))
+  })
   await phase('UNCHANGED_NATIVE_TESTS')
   const testEnvironment = { EMAIL_INTAKE_DISPOSABLE_SMOKE: 'true', EMAIL03_LOCAL_CONTRACT_REPORT: '/reports/contracts', LOCAL_QA_PG_PASSWORD: password,
     NEXT_PUBLIC_SUPABASE_URL: 'http://127.0.0.1:57861', NEXT_PUBLIC_SUPABASE_ANON_KEY: anon, SUPABASE_SERVICE_ROLE_KEY: service }

@@ -5,6 +5,8 @@ vi.mock('@/lib/auth/authorization',()=>({requireGestor:m.auth}))
 vi.mock('@/lib/gestor/contexto-fundo.server',()=>({resolverContextoFundoGestor:m.fund}))
 vi.mock('@/lib/integracoes/vortx/relatorios-contexto.server',()=>({carregarHistoricoRelatorios:m.history}))
 vi.mock('@/app/admin/fundos/relatorios-vortx-actions',()=>({solicitarRelatorioVortx:vi.fn()}))
+vi.mock('@/app/gestor/dados-financeiros/carteira-actions',()=>({processarCarteiraVortxAction:vi.fn()}))
+vi.mock('@/lib/integracoes/vortx/carteira-posicao.server',()=>({carregarPosicaoCarteiraVortx:vi.fn()}))
 vi.mock('next/navigation',()=>({useRouter:()=>({refresh:vi.fn()})}))
 import Page from './page'
 const id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
