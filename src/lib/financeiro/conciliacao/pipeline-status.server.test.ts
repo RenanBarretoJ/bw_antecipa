@@ -188,6 +188,26 @@ describe('resolver server-side da esteira financeira', () => {
     expect(status(resolverStatusEsteiraFinanceira(input({ base, execucoes: { ...input().execucoes, conciliacao: execution } })), 'conciliacao').status).toBe('BLOQUEADA')
   })
 
+  it.each([true, false])('distingue execucao V2 de conciliacao integral: %s', (integral) => {
+    const execution = conciliacao({ regra_versao: 'FIN_RECON_V2', detalhes: { integral } })
+    const result = resolverStatusEsteiraFinanceira(input({ execucoes: { ...input().execucoes, conciliacao: execution } }))
+    expect(status(result, 'conciliacao').status).toBe(integral ? 'EXECUTADA' : 'PENDENTE')
+    if (!integral) expect(status(result, 'conciliacao').motivo).toContain('integral ainda não confirmada')
+  })
+
+  it('mantem execucao V1 apenas como historico quando o diagnostico V2 esta ativo', () => {
+    const base = baseCompleta()
+    base.diagnosticoEstoques = {
+      regraVersao: 'FIN_RECON_V2', estoqueD2ImportacaoId: IDS.estoqueD2, estoqueD1ImportacaoId: IDS.estoqueD1,
+      entradas: 0, saidas: 0, reducoes: 0, aumentos: 0, invalidas: 0,
+      exigeAquisicoes: false, exigeLiquidacoes: false, estoquesEquivalentes: true,
+    }
+    const execution = conciliacao({ regra_versao: 'RLX_RECON_V1' })
+    const result = resolverStatusEsteiraFinanceira(input({ base, execucoes: { ...input().execucoes, conciliacao: execution } }))
+    expect(status(result, 'conciliacao')).toMatchObject({ status: 'PRONTA', ultimaExecucao: { historica: true } })
+    expect(execution.regra_versao).toBe('RLX_RECON_V1')
+  })
+
   it('bloqueia Logistica sem Matching compativel', () => {
     expect(status(resolverStatusEsteiraFinanceira(input()), 'logistica')).toMatchObject({ status: 'BLOQUEADA', motivo: expect.stringContaining('Vínculo Título × NF') })
   })

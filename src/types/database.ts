@@ -2650,6 +2650,7 @@ export interface Database {
       resolver_bootstrap_financeiro: { Args: { p_fundo_id: string }; Returns: Record<string, unknown> }
       persistir_matching_execucao: { Args: { p_payload: Record<string, unknown> }; Returns: string }
       persistir_conciliacao_execucao: { Args: { p_payload: Record<string, unknown> }; Returns: string }
+      diagnosticar_variacao_estoques: { Args: { p_fundo_id: string; p_estoque_d2_id: string; p_estoque_d1_id: string }; Returns: Record<string, unknown> }
       persistir_posicao_logistica_execucao: { Args: { p_payload: Record<string, unknown> }; Returns: string }
       persistir_exposicao_execucao: { Args: { p_payload: Record<string, unknown> }; Returns: string }
       confirmar_match_manual: { Args: { p_matching_resultado_id: string; p_nota_fiscal_id: string; p_motivo: string; p_correlation_id?: string }; Returns: string }

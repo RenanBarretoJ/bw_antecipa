@@ -10,6 +10,8 @@ import type {
 import type { BaseFinanceiraDaData, BaseFinanceiraResolvida } from './base-financeira'
 import type { ConciliacaoBlock, PoliticaFinanceiraDaData } from './loaders.server'
 import { totalDeContagens } from './execution-state'
+import { basesObrigatoriasConciliacao, diagnosticoCompativel } from './movimentos-condicionais'
+import { RECONCILIATION_RULE_VERSION } from './types'
 
 export type EtapaEsteiraFinanceiraId = 'bases' | 'matching' | 'conciliacao' | 'logistica' | 'exposicao' | 'risco'
 export type StatusEtapaEsteiraFinanceira =
@@ -156,7 +158,8 @@ function etapaNaoAplicavel(id: EtapaEsteiraFinanceiraId, titulo: string, dataRef
 
 function resolverBases(input: ResolverStatusEsteiraFinanceiraInput): EtapaEsteiraFinanceira {
   const bases = BASES_CONCILIACAO.map(({ key }) => input.base[key])
-  const ausentes = BASES_FINANCEIRAS.filter(({ key }) => !baseDisponivel(input.base[key])).map(({ label }) => label)
+  const exigidas = [...basesObrigatoriasConciliacao(input.base), { key: 'carteira' as const, label: 'PL de referência' }]
+  const ausentes = exigidas.filter(({ key }) => !baseDisponivel(input.base[key])).map(({ label }) => label)
   if (input.erros?.base) {
     return {
       id: 'bases', titulo: 'Bases financeiras', aplicavel: true, status: 'ERRO', dataReferencia: input.base.dataOperacional,
@@ -213,6 +216,7 @@ function resolverMatching(input: ResolverStatusEsteiraFinanceiraInput): EtapaEst
 
 function conciliacaoCompativel(execution: ConciliacaoExecucao | null, base: BaseFinanceiraDaData) {
   return Boolean(execution
+    && (!base.diagnosticoEstoques || execution.regra_versao === RECONCILIATION_RULE_VERSION)
     && execution.data_referencia === base.dataD1
     && idsIguais(
       [execution.estoque_d2_importacao_id, execution.estoque_d1_importacao_id, execution.aquisicoes_d1_importacao_id, execution.liquidacoes_d1_importacao_id],
@@ -230,13 +234,16 @@ function resolverConciliacao(input: ResolverStatusEsteiraFinanceiraInput): Etapa
   if (execution?.status === 'PROCESSANDO' && compatible) return { id: 'conciliacao', titulo: 'Conciliação Financeira', aplicavel: true, status: 'PENDENTE', dataReferencia: input.base.dataD1, ultimaExecucao: history, motivo: 'A execução da data ainda está em processamento.', acao: { ...action, habilitada: false } }
   if (execution?.status === 'CONCLUIDA' && compatible) {
     const empty = totalDeContagens(execution.contagens) === 0
+    if (execution.regra_versao === RECONCILIATION_RULE_VERSION && execution.detalhes.integral === false) {
+      return { id: 'conciliacao', titulo: 'Conciliação Financeira', aplicavel: true, status: 'PENDENTE', dataReferencia: input.base.dataD1, ultimaExecucao: history, motivo: 'Conferência executada com divergências. Conciliação integral ainda não confirmada; confira os resultados por título.', acao: action }
+    }
     return { id: 'conciliacao', titulo: 'Conciliação Financeira', aplicavel: true, status: empty ? 'EXECUTADA_SEM_MOVIMENTO' : 'EXECUTADA', dataReferencia: input.base.dataD1, ultimaExecucao: history, motivo: empty ? 'Conciliação concluída sem movimento para a data.' : 'Conciliação operacional concluída para as bases atuais.', acao: action }
   }
-  const missing = BASES_CONCILIACAO.filter(({ key }) => !baseDisponivel(input.base[key])).map(({ label }) => label)
+  const missing = basesObrigatoriasConciliacao(input.base).filter(({ key }) => !baseDisponivel(input.base[key])).map(({ label }) => label)
   if (execution?.status === 'BASE_INCOMPLETA' && compatible || missing.length > 0 && !(input.fundoVirgem && missing.length === BASES_CONCILIACAO.length)) {
     return { id: 'conciliacao', titulo: 'Conciliação Financeira', aplicavel: true, status: 'BLOQUEADA', dataReferencia: input.base.dataD1, ultimaExecucao: history, motivo: `${formatarLista(missing)} ${missing.length === 1 ? 'precisa ser publicada' : 'precisam ser publicadas'} para concluir a conciliação.`, acao: { ...action, habilitada: false } }
   }
-  return { id: 'conciliacao', titulo: 'Conciliação Financeira', aplicavel: true, status: 'PRONTA', dataReferencia: input.base.dataD1, ultimaExecucao: history, motivo: execution && !compatible ? 'A execução encontrada usa bases substituídas e permanece apenas no histórico.' : input.fundoVirgem ? 'Fundo virgem apto a registrar conciliação válida sem movimento.' : 'As quatro bases necessárias estão disponíveis.', acao: action }
+  return { id: 'conciliacao', titulo: 'Conciliação Financeira', aplicavel: true, status: 'PRONTA', dataReferencia: input.base.dataD1, ultimaExecucao: history, motivo: execution && !compatible ? 'A execução encontrada usa bases ou regra anteriores e permanece apenas no histórico.' : input.fundoVirgem ? 'Fundo virgem apto a registrar conciliação válida sem movimento.' : diagnosticoCompativel(input.base)?.estoquesEquivalentes ? 'Estoques conferidos por título e principal. Relatórios sem movimentação necessária estão dispensados.' : 'As bases necessárias para as variações do estoque estão disponíveis.', acao: action }
 }
 
 function logisticaCompativel(execution: PosicaoLogisticaExecucao | null, input: ResolverStatusEsteiraFinanceiraInput, matchingOk: boolean) {

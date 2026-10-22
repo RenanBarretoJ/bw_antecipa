@@ -5,6 +5,7 @@ import {
   type PlReferenciaResolvido,
 } from '@/lib/financeiro/pl-referencia'
 import type { ImportacaoFinanceira } from '@/types/database'
+import type { DiagnosticoEstoques } from './movimentos-condicionais'
 
 export type EstadoBaseFinanceira = 'VALOR' | 'ZERO' | 'SEM_MOVIMENTO' | 'DISPONIVEL' | 'INDISPONIVEL'
 export type StatusGeralBaseFinanceira = 'PRONTA' | 'BASE_INCOMPLETA' | 'SEM_MOVIMENTO' | 'INDISPONIVEL'
@@ -38,6 +39,7 @@ export type BaseFinanceiraResolvida = {
 }
 
 export type BaseFinanceiraDaData = {
+  diagnosticoEstoques?: DiagnosticoEstoques | null
   dataOperacional: string
   dataD1: string
   dataD2: string

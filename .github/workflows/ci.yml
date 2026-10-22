@@ -55,6 +55,20 @@ jobs:
         env:
           LOCALAPPDATA: ${{ runner.temp }}
 
+      - name: Conditional reconciliation SQL regression (two disposable local stacks)
+        if: github.head_ref == 'integration/vortx-main-20261021' || github.ref == 'refs/heads/integration/vortx-main-20261021'
+        run: node scripts/qa/conciliacao/reconciliation-sql.mjs --local-only
+        env:
+          LOCALAPPDATA: ${{ runner.temp }}
+
+      - name: Conditional reconciliation SQL evidence
+        if: always() && (github.head_ref == 'integration/vortx-main-20261021' || github.ref == 'refs/heads/integration/vortx-main-20261021')
+        uses: actions/upload-artifact@v4
+        with:
+          name: conditional-reconciliation-sql
+          path: ${{ runner.temp }}/bw-antecipa-evidence/reconciliation-v2-*/REPORT.json
+          if-no-files-found: error
+
       - name: Tests
         if: ${{ !contains(fromJSON('["integration/vortx-main-20261021","main","homolog"]'), github.head_ref || github.ref_name) }}
         run: npm test -- --run

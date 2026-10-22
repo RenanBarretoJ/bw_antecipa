@@ -1,5 +1,5 @@
 export const MATCH_RULE_VERSION = 'RLX_MATCH_V1' as const
-export const RECONCILIATION_RULE_VERSION = 'RLX_RECON_V1' as const
+export const RECONCILIATION_RULE_VERSION = 'FIN_RECON_V2' as const
 
 export const MATCH_STATUSES = ['MATCH_FORTE', 'AMBIGUO', 'NAO_CONCILIADO', 'CONFLITO'] as const
 export type MatchStatus = typeof MATCH_STATUSES[number]
@@ -95,6 +95,9 @@ export type MatchResult = {
 }
 
 export type ReconciliationRow = {
+  cedenteDocumento?: string | null
+  valorPrincipal?: string | null
+  valorPrincipalBaixado?: string | null
   identidadeExterna: string | null
   fundoId: string
   provedor: string

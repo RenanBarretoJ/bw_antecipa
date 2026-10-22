@@ -1,4 +1,5 @@
-import { carregarConciliacaoGestor, type ConciliacaoFilters, type ConciliacaoTab } from '@/lib/financeiro/conciliacao/loaders.server'
+import { carregarConciliacaoGestor, type ConciliacaoFilters } from '@/lib/financeiro/conciliacao/loaders.server'
+import { resolverNavegacaoConciliacao } from '@/lib/navigation/conciliacao'
 import { ConciliacaoFinanceiraClient } from './conciliacao-financeira-client'
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>
@@ -14,12 +15,9 @@ function positiveInteger(value: string, fallback: number) {
 
 export default async function ConciliacaoPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams
-  const rawTab = single(params.tab)
-  const tab: ConciliacaoTab = ['matching', 'conciliacao', 'logistica', 'exposicao', 'risco', 'excecoes'].includes(rawTab)
-    ? rawTab as ConciliacaoTab
-    : 'visao-geral'
+  const navigation = resolverNavegacaoConciliacao(single(params.tab), single(params.detalhe), single(params.fila))
   const filters: ConciliacaoFilters = {
-    tab,
+    ...navigation,
     dataReferencia: single(params.data),
     status: single(params.status),
     metodo: single(params.metodo),

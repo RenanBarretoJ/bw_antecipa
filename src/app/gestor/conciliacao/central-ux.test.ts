@@ -2,9 +2,10 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import type { BaseFinanceiraDaData, BaseFinanceiraResolvida } from '@/lib/financeiro/conciliacao/base-financeira'
-import { CONCILIACAO_SUBTABS, resumirBaseFinanceira } from './central-ux'
+import { CONCILIACAO_SUBTABS, resumirBaseFinanceira, resumirResultadosConciliacao } from './central-ux'
 
 const client = readFileSync(join(process.cwd(), 'src/app/gestor/conciliacao/conciliacao-financeira-client.tsx'), 'utf8')
+const navigation = readFileSync(join(process.cwd(), 'src/app/gestor/conciliacao/conciliation-navigation.tsx'), 'utf8')
 
 const baseItem = (estado: BaseFinanceiraResolvida['estado']): BaseFinanceiraResolvida => ({
   tipo: 'ESTOQUE',
@@ -32,15 +33,19 @@ const baseCompleta = (): BaseFinanceiraDaData => ({
 })
 
 describe('quick wins de UX da Central de Conciliação', () => {
+  it('apresenta baixa parcial com saldo comprovado como correta, sem liberar divergencias', () => {
+    expect(resumirResultadosConciliacao({ MANTIDO_CORRETO: 10, LIQUIDACAO_PARCIAL_SALDO: 2, DIVERGENCIA_VALOR: 1 })).toEqual({ corretos: 12, divergencias: 1 })
+    expect(resumirResultadosConciliacao({})).toEqual({ corretos: 0, divergencias: 0 })
+  })
   it('mantém ids internos e apresenta a nova nomenclatura das subtabs', () => {
     expect(CONCILIACAO_SUBTABS.map(({ id, label }) => ({ id, label }))).toEqual([
-      { id: 'visao-geral', label: 'Visão geral' },
+      { id: 'visao-geral', label: 'Resumo' },
       { id: 'matching', label: 'Vínculo Título × NF' },
       { id: 'conciliacao', label: 'Conciliação Financeira' },
       { id: 'logistica', label: 'Posição Logística' },
       { id: 'exposicao', label: 'Exposição em Trânsito' },
       { id: 'risco', label: 'Gate de Risco' },
-      { id: 'excecoes', label: 'Exceções Operacionais' },
+      { id: 'excecoes', label: 'Pendências' },
     ])
   })
 
@@ -119,15 +124,17 @@ describe('quick wins de UX da Central de Conciliação', () => {
   })
 
   it('mantém navegação e ações responsivas e acessíveis', () => {
-    expect(client).toContain('grid grid-cols-2 gap-1 rounded-xl bg-muted p-1 md:grid-cols-4 xl:grid-cols-7')
-    expect(client).toContain("aria-current={dashboard.filtros.tab === tab.id ? 'page' : undefined}")
+    expect(navigation).toContain('grid grid-cols-2 gap-1 rounded-xl bg-muted p-1 lg:grid-cols-5')
+    expect(navigation).toContain("aria-current={selected ? 'page' : undefined}")
     expect(client).toContain('grid gap-2 sm:flex sm:flex-wrap sm:justify-end')
-    expect(client).toContain('focus-visible:ring-2 focus-visible:ring-ring')
+    expect(navigation).toContain('focus-visible:ring-2 focus-visible:ring-ring')
   })
 
-  it('destaca somente pelo contexto visual a ação da subtab ativa', () => {
+  it('mostra somente a ação pertinente sem alterar seus guards ou handlers', () => {
     for (const tab of ['matching', 'conciliacao', 'logistica', 'exposicao', 'risco']) {
-      expect(client).toContain(`dashboard.filtros.tab === '${tab}' ? 'default' : 'outline'`)
+      expect(client).toContain(`visibleTab === '${tab}' && <Button`)
+      expect(client).toContain(`!pipelineActions.get('${tab}')?.habilitada`)
+      expect(client).toContain(`executePipelineAction('${tab}')`)
     }
   })
 })
