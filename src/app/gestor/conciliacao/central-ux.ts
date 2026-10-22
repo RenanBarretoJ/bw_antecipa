@@ -1,5 +1,6 @@
 import type { ConciliacaoTab } from '@/lib/financeiro/conciliacao/loaders.server'
 import type { BaseFinanceiraDaData, BaseFinanceiraResolvida } from '@/lib/financeiro/conciliacao/base-financeira'
+import { basesObrigatoriasConciliacao, diagnosticoCompativel, baseMovimentoDispensada } from '@/lib/financeiro/conciliacao/movimentos-condicionais'
 
 export type ConciliacaoSubtab = {
   id: ConciliacaoTab
@@ -73,7 +74,7 @@ export function resumirBaseFinanceira(base: BaseFinanceiraDaData): ResumoBaseFin
     { label: 'Aquisições D-1', base: base.aquisicoes },
     { label: 'Liquidações D-1', base: base.liquidacoes },
   ]
-  const ausentes = basesDaConciliacao.filter((item) => item.base.estado === 'INDISPONIVEL').map((item) => item.label)
+  const ausentes = basesObrigatoriasConciliacao(base).filter(({ key }) => base[key].estado === 'INDISPONIVEL').map(item => item.label)
   if (ausentes.length > 0) {
     return {
       tone: 'warning',
@@ -86,6 +87,11 @@ export function resumirBaseFinanceira(base: BaseFinanceiraDaData): ResumoBaseFin
       tone: 'warning',
       message: 'Bases de conciliação disponíveis. O PL de referência ainda não está disponível para Exposição em Trânsito e Gate de Risco.',
     }
+  }
+
+  const dispensadas = basesDaConciliacao.filter(item => item.base.estado === 'INDISPONIVEL' && baseMovimentoDispensada(base, item.base.tipo))
+  if (diagnosticoCompativel(base) && dispensadas.length) {
+    return { tone: 'success', message: `Conciliação integral disponível. ${formatList(dispensadas.map(item => item.label))} dispensadas pela comparação por título e saldo principal. Nenhuma base vazia foi criada.` }
   }
 
   const semMovimento = basesDaConciliacao.filter((item) => item.base.estado === 'SEM_MOVIMENTO').map((item) => item.label)

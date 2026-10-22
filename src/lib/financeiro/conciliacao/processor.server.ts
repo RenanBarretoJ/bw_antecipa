@@ -9,7 +9,9 @@ import {
   executarMatchDeterministico,
   identidadeExternaDaFonte,
 } from '../matching/matching'
-import { avaliarCompletudeBases, reconciliarTitulosD2D1 } from './reconciliation'
+import { avaliarCompletudeBases } from './reconciliation'
+import { diagnosticoEstoquesSchema } from './movimentos-condicionais'
+import { identidadeCanonicaConciliacao, reconciliarTitulosV2 } from './reconciliation-v2'
 import { resolverBootstrapFinanceiro } from '@/lib/financeiro/bootstrap/detector.server'
 import { filtroFonteFinanceira, resolverFonteFinanceira, TABELA_LEITURA_ESTOQUE, type FonteFinanceira } from '../fontes/fonte-financeira.server'
 import { carregarPaginasFinanceiras } from '../fontes/paginas-financeiras'
@@ -253,7 +255,12 @@ function reconRow(row: CanonicalRow, movement: 'ESTOQUE' | 'AQUISICAO' | 'LIQUID
   const external = identity(row)
   const link = external ? links.get(`${row.provedor}:ID_RECEBIVEL:${external}`) : undefined
   return {
-    identidadeExterna: external, fundoId: row.fundo_id, provedor: row.provedor,
+    identidadeExterna: identidadeCanonicaConciliacao(row), fundoId: row.fundo_id, provedor: row.provedor,
+    cedenteDocumento: text(row.cedente_documento),
+    valorPrincipal: text(movement === 'AQUISICAO' ? row.valor_vencimento : row.valor_nominal),
+    // A canonical paid-principal field is required for V2 settlement proof.
+    // Total paid / original face value cannot safely be substituted for amortized principal.
+    valorPrincipalBaixado: null,
     valorAquisicao: text(row.valor_aquisicao ?? row.valor_compra),
     valorMovimento: movement === 'AQUISICAO' ? text(row.valor_compra) : movement === 'LIQUIDACAO' ? text(row.valor_pago) : null,
     tipoMovimento: movement === 'LIQUIDACAO' ? text(row.tipo_movimento) : null,
@@ -287,12 +294,24 @@ export async function executarConciliacaoFinanceira(input: { fundoId: string; da
     latestImport(input.fundoId, 'AQUISICOES', input.dataReferencia, input.readCache), latestImport(input.fundoId, 'LIQUIDACOES', input.dataReferencia, input.readCache),
   ])
   const imports = [stockD2, stockD1, acquisitionsD1, liquidationsD1]
-  const missing = avaliarCompletudeBases([
+  let missing = avaliarCompletudeBases([
     { nome: 'ESTOQUE_D2', existe: Boolean(stockD2), completude: stockD2?.completude || null },
     { nome: 'ESTOQUE_D1', existe: Boolean(stockD1), completude: stockD1?.completude || null },
     { nome: 'AQUISICOES_D1', existe: Boolean(acquisitionsD1), completude: acquisitionsD1?.completude || null },
     { nome: 'LIQUIDACOES_D1', existe: Boolean(liquidationsD1), completude: liquidationsD1?.completude || null },
   ])
+  let diagnosticoEstoques = null
+  if (!missing.includes('ESTOQUE_D2') && !missing.includes('ESTOQUE_D1') && stockD2 && stockD1) {
+    const diagnostic = await admin().rpc('diagnosticar_variacao_estoques', {
+      p_fundo_id: input.fundoId, p_estoque_d2_id: stockD2.id, p_estoque_d1_id: stockD1.id,
+    })
+    if (diagnostic.error) throw new Error('Nao foi possivel conferir as variacoes dos estoques publicados.')
+    diagnosticoEstoques = diagnosticoEstoquesSchema.parse(diagnostic.data)
+    if (diagnosticoEstoques.invalidas || diagnosticoEstoques.estoqueD2ImportacaoId !== stockD2.id
+      || diagnosticoEstoques.estoqueD1ImportacaoId !== stockD1.id) throw new Error('Diagnostico ou cobertura dos estoques invalido.')
+    missing = missing.filter(name => !(name === 'AQUISICOES_D1' && !acquisitionsD1 && !diagnosticoEstoques!.exigeAquisicoes)
+      && !(name === 'LIQUIDACOES_D1' && !liquidationsD1 && !diagnosticoEstoques!.exigeLiquidacoes))
+  }
   const inputIds = imports.filter(Boolean).map((item) => item!.id).sort()
   const matching = await admin().from('matching_execucoes').select('id')
     .eq('fundo_id', input.fundoId).eq('data_referencia', input.dataReferencia).eq('status', 'CONCLUIDA')
@@ -334,21 +353,20 @@ export async function executarConciliacaoFinanceira(input: { fundoId: string; da
 
   const [rowsD2, rowsD1, rowsAcq, rowsLiq, crosswalk, stockRetifications, acquisitionRetifications] = await Promise.all([
     canonicalRows('ESTOQUE', stockD2!.id, input.readCache), canonicalRows('ESTOQUE', stockD1!.id, input.readCache),
-    canonicalRows('AQUISICOES', acquisitionsD1!.id, input.readCache), canonicalRows('LIQUIDACOES', liquidationsD1!.id, input.readCache),
+    acquisitionsD1 ? canonicalRows('AQUISICOES', acquisitionsD1.id, input.readCache) : Promise.resolve([]),
+    liquidationsD1 ? canonicalRows('LIQUIDACOES', liquidationsD1.id, input.readCache) : Promise.resolve([]),
     crosswalkForFund(input.fundoId),
     retifiedIdentities(stockD1, 'ESTOQUE', input.readCache),
     retifiedIdentities(acquisitionsD1, 'AQUISICOES', input.readCache),
   ])
   const links = new Map(crosswalk.map((item) => [`${item.provedor}:${item.tipoChave}:${item.valorNormalizado}`, item]))
-  const results = reconciliarTitulosD2D1({
+  const results = reconciliarTitulosV2({
     fundoId: input.fundoId,
     estoqueD2: rowsD2.map((row) => reconRow(row, 'ESTOQUE', links)),
     estoqueD1: rowsD1.map((row) => reconRow(row, 'ESTOQUE', links)),
     aquisicoesD1: rowsAcq.map((row) => reconRow(row, 'AQUISICAO', links)),
     liquidacoesD1: rowsLiq.map((row) => reconRow(row, 'LIQUIDACAO', links)),
-    // Retificacao e um fato da importacao/execucao. Ela permanece registrada
-    // nos detalhes da execucao abaixo, sem substituir o status economico do titulo.
-    contexto: {},
+    aquisicoesRecebidas: Boolean(acquisitionsD1), liquidacoesRecebidas: Boolean(liquidationsD1),
   })
   const counts = Object.fromEntries([...new Set(results.map((row) => row.status))].map((status) => [status, results.filter((row) => row.status === status).length]))
   const totalD1 = rowsD1.reduce((sum, row) => sum.plus(new Decimal(text(row.valor_aquisicao) || 0)), new Decimal(0)).toFixed(2)
@@ -357,17 +375,20 @@ export async function executarConciliacaoFinanceira(input: { fundoId: string; da
     input_import_ids: inputIds, assinatura_execucao: signature, correlation_id: correlationId,
     criado_por: input.atorUsuarioId, matching_execucao_id: matching.data?.id || null,
     estoque_d2_importacao_id: stockD2!.id, estoque_d1_importacao_id: stockD1!.id,
-    aquisicoes_d1_importacao_id: acquisitionsD1!.id, liquidacoes_d1_importacao_id: liquidationsD1!.id,
+    aquisicoes_d1_importacao_id: acquisitionsD1?.id || null, liquidacoes_d1_importacao_id: liquidationsD1?.id || null,
     status: 'CONCLUIDA', detalhes: {
       estrutura: 'D-2 + aquisicoes D-1 - liquidacoes D-1 = D-1',
       sem_saldo_contabil: true,
+      diagnostico_estoques: diagnosticoEstoques,
+      bases_dispensadas: [!acquisitionsD1 ? 'AQUISICOES_D1' : null, !liquidationsD1 ? 'LIQUIDACOES_D1' : null].filter(Boolean),
+      integral: results.every(row => ['MANTIDO_CORRETO', 'ENTRADA_INCORPORADA', 'SAIDA_REFLETIDA', 'LIQUIDACAO_PARCIAL_SALDO'].includes(row.status)),
       retificacoes_detectadas: {
         estoque: [...stockRetifications],
         aquisicoes: [...acquisitionRetifications],
       },
       bases_sem_movimento: [
-        acquisitionsD1!.completude === 'COMPLETO_VAZIO' ? 'AQUISICOES_D1' : null,
-        liquidationsD1!.completude === 'COMPLETO_VAZIO' ? 'LIQUIDACOES_D1' : null,
+        acquisitionsD1?.completude === 'COMPLETO_VAZIO' ? 'AQUISICOES_D1' : null,
+        liquidationsD1?.completude === 'COMPLETO_VAZIO' ? 'LIQUIDACOES_D1' : null,
       ].filter(Boolean),
     },
     contagens: counts, valores_agregados: { estoque_d1_valor_aquisicao: totalD1 },

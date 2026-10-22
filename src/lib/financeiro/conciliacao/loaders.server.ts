@@ -32,6 +32,8 @@ import {
   type EstadoExecucaoFinanceira,
 } from './execution-state'
 import { resolverStatusEsteiraFinanceira, type StatusEsteiraFinanceira } from './pipeline-status.server'
+import { basesObrigatoriasConciliacao, diagnosticoEstoquesSchema } from './movimentos-condicionais'
+import { RECONCILIATION_RULE_VERSION } from './types'
 
 export type ConciliacaoTab = 'visao-geral' | 'matching' | 'conciliacao' | 'logistica' | 'exposicao' | 'risco' | 'excecoes'
 
@@ -185,13 +187,25 @@ async function carregarBaseFinanceira(
   ])
   if (importsResult.error) throw new Error(`Nao foi possivel resolver as bases publicadas: ${importsResult.error.message}`)
   const imports = (importsResult.data || []) as ImportacaoResumoBase[]
-  return montarBaseFinanceiraDaData({
+  const base = montarBaseFinanceiraDaData({
     dataOperacional,
     fundoId,
     importacoes: imports,
     snapshots: [],
     plReferencia,
   })
+  if (base.estoqueD2.importacaoId && base.estoque.importacaoId) {
+    const result = await supabase.rpc('diagnosticar_variacao_estoques', {
+      p_fundo_id: fundoId, p_estoque_d2_id: base.estoqueD2.importacaoId, p_estoque_d1_id: base.estoque.importacaoId,
+    })
+    if (result.error) throw new Error('Nao foi possivel conferir as variacoes dos estoques publicados.')
+    base.diagnosticoEstoques = diagnosticoEstoquesSchema.parse(result.data)
+    if (base.diagnosticoEstoques.invalidas) throw new Error('Estoque com chaves, saldos ou cobertura invalidos.')
+    if (basesObrigatoriasConciliacao(base).every(({ key }) => base[key].estado !== 'INDISPONIVEL') && base.carteira.estado !== 'INDISPONIVEL') {
+      base.statusGeral = 'PRONTA'
+    }
+  }
+  return base
 }
 
 async function carregarPoliticaDaData(
@@ -591,6 +605,11 @@ export async function carregarConciliacaoGestor(filters: ConciliacaoFilters): Pr
   const executions = base
     ? await latestExecutions(context.supabase, fundo.id, base)
     : { current: emptyExecutions(), previous: emptyExecutions(), incompatibleExposure: null, errors: {} }
+  if (base?.diagnosticoEstoques && executions.current.conciliacao
+    && executions.current.conciliacao.regra_versao !== RECONCILIATION_RULE_VERSION) {
+    executions.previous.conciliacao = executions.current.conciliacao
+    executions.current.conciliacao = null
+  }
   Object.assign(errors, executions.errors)
   const estadosExecucao = {
     matching: classificarEstadoExecucaoFinanceira({

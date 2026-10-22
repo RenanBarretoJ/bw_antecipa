@@ -26,6 +26,7 @@ import type { ConciliacaoDashboard, ConciliacaoTab, MatchingViewRow } from '@/li
 import { rotuloEstadoExecucaoFinanceira } from '@/lib/financeiro/conciliacao/execution-state'
 import { RISK_REASON_CODES } from '@/lib/financeiro/risco/types'
 import { CONCILIACAO_SUBTABS, resumirBaseFinanceira } from './central-ux'
+import { baseMovimentoDispensada, diagnosticoCompativel } from '@/lib/financeiro/conciliacao/movimentos-condicionais'
 import { PipelineCockpit } from './pipeline-cockpit'
 import type { AcaoEsteiraFinanceiraId } from '@/lib/financeiro/conciliacao/pipeline-status.server'
 
@@ -128,9 +129,13 @@ function BaseFinanceiraCard({ dashboard }: { dashboard: ConciliacaoDashboard }) 
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-          {items.map(([label, item, reference]) => <div key={label} className="min-w-0 rounded-lg border bg-muted/20 p-3"><p className="text-xs font-medium uppercase text-muted-foreground">{label} · {reference}</p><p className="mt-1 font-semibold tabular-nums">{baseValue(item)}</p><p className="mt-1 truncate text-xs text-muted-foreground" title={sourceLabel(item)}>{sourceLabel(item)}</p></div>)}
+          {items.map(([label, item, reference]) => {
+            const dispensada = item.estado === 'INDISPONIVEL' && baseMovimentoDispensada(base, item.tipo)
+            return <div key={label} className="min-w-0 rounded-lg border bg-muted/20 p-3"><p className="text-xs font-medium uppercase text-muted-foreground">{label} · {reference}</p><p className="mt-1 font-semibold tabular-nums">{dispensada ? 'Dispensada nesta data' : baseValue(item)}</p><p className="mt-1 text-xs text-muted-foreground">{dispensada ? 'Comparação por chave e saldo principal; sem base fictícia.' : sourceLabel(item)}</p></div>
+          })}
         </div>
         <p role="status" className={cn('rounded-lg border px-3 py-2 text-sm', summary.tone === 'success' && 'border-success/25 bg-success/5 text-success-foreground', summary.tone === 'warning' && 'border-warning/30 bg-warning/10 text-warning-foreground', summary.tone === 'default' && 'bg-muted/40 text-muted-foreground')}>{summary.message}</p>
+        {diagnosticoCompativel(base) && <p className="text-sm text-muted-foreground">Comparação de principal: {base.diagnosticoEstoques!.entradas} entradas · {base.diagnosticoEstoques!.saidas} saídas · {base.diagnosticoEstoques!.reducoes} reduções de saldo · {base.diagnosticoEstoques!.aumentos} aumentos de saldo. VP e PDD não comprovam movimentação.</p>}
         {dashboard.erros.base && <BlockError message={dashboard.erros.base} />}
       </CardContent>
     </Card>
@@ -476,7 +481,13 @@ function ReconciliationTable({ rows, total }: { rows: ConciliacaoDashboard['conc
       <CardContent className="overflow-x-auto">
         <table className="w-full min-w-[920px] text-left text-sm">
           <thead className="border-b text-xs uppercase text-muted-foreground"><tr><th className="py-2 pr-3">Título / NF</th><th className="pr-3">Estoque D-2</th><th className="pr-3">Aquisições D-1</th><th className="pr-3">Liquidações D-1</th><th className="pr-3">Estoque D-1</th><th>Resultado</th></tr></thead>
-          <tbody className="divide-y">{rows.map((row) => <tr key={row.id}><td className="max-w-64 truncate py-3 pr-3 font-mono text-xs" title={row.identidade_externa}>{row.identidade_externa}{row.nota_fiscal_id ? ` · NF ${row.nota_fiscal_id.slice(0, 8)}` : ''}</td><td className="pr-3 tabular-nums">{row.presente_d2 ? money(row.valor_aquisicao_d2) : 'Ausente'}</td><td className="pr-3 tabular-nums">{row.aquisicoes_count} · {money(row.aquisicoes_valor)}</td><td className="pr-3 tabular-nums">{row.liquidacoes_count} · {money(row.liquidacoes_valor_pago)}</td><td className="pr-3 tabular-nums">{row.presente_d1 ? money(row.valor_aquisicao_d1) : 'Ausente'}</td><td><span className={badge(row.status)}>{row.status}</span></td></tr>)}</tbody>
+          <tbody className="divide-y">{rows.map((row) => {
+            const details = row.detalhes
+            const principalD2 = typeof details.principal_d2 === 'string' ? details.principal_d2 : row.valor_aquisicao_d2
+            const principalD1 = typeof details.principal_d1 === 'string' ? details.principal_d1 : row.valor_aquisicao_d1
+            const title = typeof details.chave_titulo === 'string' ? details.chave_titulo : row.identidade_externa
+            return <tr key={row.id}><td className="max-w-64 truncate py-3 pr-3 font-mono text-xs" title={title}>{title}{row.nota_fiscal_id ? ` · NF ${row.nota_fiscal_id.slice(0, 8)}` : ''}</td><td className="pr-3 tabular-nums">{row.presente_d2 ? money(principalD2) : 'Ausente'}</td><td className="pr-3 tabular-nums">{details.aquisicoes_relatorio_recebido === false ? 'Dispensado' : `${row.aquisicoes_count} · ${money(row.aquisicoes_valor)}`}</td><td className="pr-3 tabular-nums">{details.liquidacoes_relatorio_recebido === false ? 'Dispensado' : `${row.liquidacoes_count} · ${money(row.liquidacoes_valor_pago)}`}</td><td className="pr-3 tabular-nums">{row.presente_d1 ? money(principalD1) : 'Ausente'}</td><td><span className={badge(row.status)}>{row.status}</span>{details.principal_baixa_nao_comprovado === true && <p className="mt-1 text-xs text-warning-foreground">Principal baixado não comprovado pelo layout.</p>}</td></tr>
+          })}</tbody>
         </table>
         {!rows.length && <p className="py-10 text-center text-muted-foreground">Nenhum resultado de conciliacao para os filtros informados.</p>}
       </CardContent>
