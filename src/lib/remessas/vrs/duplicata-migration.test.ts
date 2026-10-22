@@ -1,5 +1,4 @@
 import { readFileSync } from 'node:fs'
-import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { expect, it } from 'vitest'
 
@@ -15,8 +14,10 @@ it('altera somente o formato das duas chaves, preservando contratos legados', ()
 })
 it('preserva os bytes da migration historica e do golden XLSX', () => {
   const historical = 'supabase/migrations/20260826211301_p4_remessas_operacionais_adapter.sql'
-  const git = execFileSync('git', ['show', `HEAD:${historical}`]).toString('utf8').replaceAll('\r\n', '\n')
-  expect(readFileSync(historical, 'utf8').replaceAll('\r\n', '\n')).toBe(git)
+  // Pin the reviewed historical bytes, normalizing CRLF only. Native Docker QA
+  // intentionally receives source without .git; do not depend on repository metadata.
+  expect(createHash('sha256').update(readFileSync(historical, 'utf8').replaceAll('\r\n', '\n')).digest('hex'))
+    .toBe('17951a8db672a314fe917ef7702e332a8008dbfb4b855e44791734d75e768154')
   expect(createHash('sha256').update(readFileSync('src/lib/remessas/vrs/__fixtures__/inclusao_modelo.xlsx')).digest('hex'))
     .toBe('a758b9032c94fc3dfc2c9560d3325c55ec9101d2b03c8de71a5149e743d5d813')
 })
