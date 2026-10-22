@@ -1,0 +1,1470 @@
+{
+  "projectRef": "wwsndnuvnjuabpbjwlck",
+  "host": "aws-1-us-east-1.pooler.supabase.com",
+  "database": "postgres",
+  "database_user": "postgres",
+  "mainSha": "83ece9c676a4f39ff130a8885847735c8b1da17d",
+  "appSha": "83ece9c676a4f39ff130a8885847735c8b1da17d",
+  "deploymentId": "dpl_C4Jb3Q2GVxekaJDZAWaSZieg5jUD",
+  "p16Commit": "65ba24f50b5b599e3f3ac321cab9d7d2949e048f",
+  "migrationVersion": "20260928185439",
+  "migrationSha256": "6390f43842e82d7d980acfb6ae61e66cd551676e17c21a01a6e8ca237ce3efa1",
+  "capturedAt": "2026-09-28T19:50:00.051Z",
+  "functions": [
+    {
+      "schema": "private",
+      "proname": "consultor_usuario_pode_operar_cedente",
+      "pronargs": 2,
+      "signature": "private.consultor_usuario_pode_operar_cedente(uuid,uuid)",
+      "definition": "CREATE OR REPLACE FUNCTION private.consultor_usuario_pode_operar_cedente(p_user_id uuid, p_cedente_id uuid)\n RETURNS boolean\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO ''\nAS $function$\r\n  SELECT p_user_id IS NOT NULL\r\n    AND p_user_id = (SELECT auth.uid())\r\n    AND EXISTS (\r\n      SELECT 1\r\n      FROM public.consultor_usuarios cu\r\n      JOIN public.consultores co ON co.id = cu.consultor_id\r\n      JOIN public.consultor_cedentes cc\r\n        ON cc.consultor_id = cu.consultor_id\r\n       AND cc.cedente_id = p_cedente_id\r\n       AND cc.status = 'ativo'\r\n      JOIN public.cedentes c\r\n        ON c.id = cc.cedente_id\r\n       AND c.status = 'ativo'::public.cedente_status\r\n      JOIN public.cedente_fundos cf\r\n        ON cf.cedente_id = c.id\r\n       AND cf.status = 'ativo'\r\n      JOIN public.consultor_fundos cfu\r\n        ON cfu.consultor_id = cu.consultor_id\r\n       AND cfu.fundo_id = cf.fundo_id\r\n       AND cfu.status = 'ativo'\r\n      JOIN public.fundos f ON f.id = cf.fundo_id\r\n      JOIN public.profiles p ON p.id = cu.user_id\r\n      WHERE cu.user_id = p_user_id\r\n        AND cu.status = 'ativo'\r\n        AND cu.papel IN ('OWNER', 'ADMIN', 'OPERADOR')\r\n        AND co.status = 'ativo'\r\n        AND p.role::text = 'consultor'\r\n        AND p.status::text = 'ativo'\r\n        AND coalesce(f.ativo, true) = true\r\n    );\r\n$function$\n",
+      "md5": "58b5fda2089c79d6680fd6a2da2d89f9",
+      "acl": "{postgres=X/postgres,authenticated=X/postgres}"
+    },
+    {
+      "schema": "private",
+      "proname": "consultor_usuario_tem_acesso_fundo",
+      "pronargs": 2,
+      "signature": "private.consultor_usuario_tem_acesso_fundo(uuid,uuid)",
+      "definition": "CREATE OR REPLACE FUNCTION private.consultor_usuario_tem_acesso_fundo(p_user_id uuid, p_fundo_id uuid)\n RETURNS boolean\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO ''\nAS $function$\r\n  SELECT EXISTS (\r\n    SELECT 1\r\n    FROM public.consultor_usuarios cu\r\n    JOIN public.consultores co ON co.id = cu.consultor_id\r\n    JOIN public.consultor_fundos cfu\r\n      ON cfu.consultor_id = cu.consultor_id\r\n     AND cfu.fundo_id = p_fundo_id\r\n     AND cfu.status = 'ativo'\r\n    JOIN public.fundos f ON f.id = cfu.fundo_id\r\n    JOIN public.profiles p ON p.id = cu.user_id\r\n    WHERE cu.user_id = p_user_id\r\n      AND cu.status = 'ativo'\r\n      AND cu.papel IN ('OWNER', 'ADMIN', 'OPERADOR')\r\n      AND co.status = 'ativo'\r\n      AND p.role::text = 'consultor'\r\n      AND p.status::text = 'ativo'\r\n      AND coalesce(f.ativo, true) = true\r\n  );\r\n$function$\n",
+      "md5": "75aeda1915523cc253685a6aa5db36d5",
+      "acl": "{postgres=X/postgres}"
+    },
+    {
+      "schema": "private",
+      "proname": "operacao_status_reserva_nf",
+      "pronargs": 1,
+      "signature": "private.operacao_status_reserva_nf(operacao_status)",
+      "definition": "CREATE OR REPLACE FUNCTION private.operacao_status_reserva_nf(p_status operacao_status)\n RETURNS boolean\n LANGUAGE sql\n IMMUTABLE PARALLEL SAFE STRICT\n SET search_path TO ''\nAS $function$\n  SELECT p_status IN (\n    'solicitada'::public.operacao_status,\n    'em_analise'::public.operacao_status,\n    'aprovada'::public.operacao_status,\n    'em_andamento'::public.operacao_status,\n    'liquidada'::public.operacao_status,\n    'inadimplente'::public.operacao_status,\n    'cancelada'::public.operacao_status\n  );\n$function$\n",
+      "md5": "90cbdcc13789bfe14907f403903a5cac",
+      "acl": "{postgres=X/postgres}"
+    },
+    {
+      "schema": "public",
+      "proname": "get_user_cedente_id",
+      "pronargs": 0,
+      "signature": "get_user_cedente_id()",
+      "definition": "CREATE OR REPLACE FUNCTION public.get_user_cedente_id()\n RETURNS uuid\n LANGUAGE plpgsql\n STABLE SECURITY DEFINER\n SET search_path TO ''\nAS $function$\nDECLARE\n  v_user_id uuid := auth.uid();\n  v_cedente_ids uuid[];\nBEGIN\n  IF v_user_id IS NULL THEN\n    RETURN NULL;\n  END IF;\n\n  SELECT array_agg(associacoes.cedente_id ORDER BY associacoes.cedente_id)\n    INTO v_cedente_ids\n    FROM (\n      SELECT DISTINCT ca.cedente_id\n      FROM public.cedente_acessos ca\n      WHERE ca.user_id = v_user_id\n        AND ca.status = 'ATIVO'\n    ) associacoes;\n\n  IF COALESCE(cardinality(v_cedente_ids), 0) > 1 THEN\n    RAISE EXCEPTION USING\n      ERRCODE = '21000',\n      MESSAGE = 'USUARIO_CEDENTE_AMBIGUO: mais de uma associacao ativa foi encontrada.';\n  END IF;\n\n  IF COALESCE(cardinality(v_cedente_ids), 0) = 1 THEN\n    RETURN v_cedente_ids[1];\n  END IF;\n\n  SELECT array_agg(owners.id ORDER BY owners.id)\n    INTO v_cedente_ids\n    FROM (\n      SELECT DISTINCT c.id\n      FROM public.cedentes c\n      WHERE c.user_id = v_user_id\n        AND NOT EXISTS (\n          SELECT 1\n          FROM public.cedente_acessos ca\n          WHERE ca.user_id = v_user_id\n            AND ca.cedente_id = c.id\n        )\n    ) owners;\n\n  IF COALESCE(cardinality(v_cedente_ids), 0) > 1 THEN\n    RAISE EXCEPTION USING\n      ERRCODE = '21000',\n      MESSAGE = 'USUARIO_CEDENTE_AMBIGUO: mais de um owner legado foi encontrado.';\n  END IF;\n\n  RETURN v_cedente_ids[1];\nEND;\n$function$\n",
+      "md5": "885693a0dc06d781067a6396b12d7d1e",
+      "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}"
+    },
+    {
+      "schema": "public",
+      "proname": "get_user_role",
+      "pronargs": 0,
+      "signature": "get_user_role()",
+      "definition": "CREATE OR REPLACE FUNCTION public.get_user_role()\n RETURNS text\n LANGUAGE plpgsql\n STABLE SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\r\nBEGIN\r\n  RETURN (\r\n    SELECT p.role::text\r\n    FROM public.profiles p\r\n    WHERE p.id = auth.uid()\r\n  );\r\nEND;\r\n$function$\n",
+      "md5": "fecf527dd20554bc1d9c321ae3a97bd3",
+      "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}"
+    },
+    {
+      "schema": "public",
+      "proname": "solicitar_operacao_antecipacao_atomica",
+      "pronargs": 16,
+      "signature": "solicitar_operacao_antecipacao_atomica(uuid,uuid,uuid,uuid,integer,jsonb,text,boolean,text,uuid[],numeric,numeric,integer,numeric,date,text)",
+      "definition": "CREATE OR REPLACE FUNCTION public.solicitar_operacao_antecipacao_atomica(p_cedente_id uuid, p_cedente_fundo_id uuid, p_politica_operacional_id uuid, p_politica_operacional_versao_id uuid, p_politica_versao integer, p_politica_snapshot jsonb, p_politica_snapshot_hash text, p_aceite_sacado_exigido boolean, p_aceite_sacado_status text, p_nota_fiscal_ids uuid[], p_valor_bruto_total numeric, p_taxa_desconto numeric, p_prazo_dias integer, p_valor_liquido_desembolso numeric, p_data_vencimento date, p_idempotency_key text)\n RETURNS jsonb\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\nDECLARE\n  actor_id uuid := auth.uid();\n  actor_role text := public.get_user_role();\n  cedente_row record;\n  vinculo_row record;\n  escrow_row record;\n  existing_op record;\n  expected_count integer;\n  matched_count integer;\n  already_linked_count integer;\n  inserted_op_id uuid;\n  now_ts timestamptz := now();\n  politica_atribuicao_row record;\nBEGIN\n  IF actor_id IS NULL THEN\n    RAISE EXCEPTION 'Usuario nao autenticado';\n  END IF;\n\n  IF actor_role <> 'cedente' THEN\n    RAISE EXCEPTION 'Somente cedente pode solicitar antecipacao';\n  END IF;\n\n  IF p_nota_fiscal_ids IS NULL OR cardinality(p_nota_fiscal_ids) = 0 THEN\n    RAISE EXCEPTION 'Selecione ao menos uma NF';\n  END IF;\n\n  IF p_idempotency_key IS NULL OR length(trim(p_idempotency_key)) < 16 THEN\n    RAISE EXCEPTION 'Chave de idempotencia invalida';\n  END IF;\n\n  SELECT * INTO existing_op\n  FROM public.operacoes\n  WHERE solicitacao_idempotency_key = p_idempotency_key\n  LIMIT 1;\n\n  IF FOUND THEN\n    RETURN jsonb_build_object(\n      'operacao_id', existing_op.id,\n      'idempotent_replay', true,\n      'status', existing_op.status\n    );\n  END IF;\n\n  SELECT * INTO cedente_row\n  FROM public.cedentes\n  WHERE id = p_cedente_id\n    AND user_id = actor_id\n  FOR UPDATE;\n\n  IF NOT FOUND THEN\n    RAISE EXCEPTION 'Cadastro de cedente nao encontrado para o usuario autenticado';\n  END IF;\n\n  IF cedente_row.status <> 'ativo' THEN\n    RAISE EXCEPTION 'Cedente nao esta ativo';\n  END IF;\n\n  SELECT * INTO vinculo_row\n  FROM public.cedente_fundos\n  WHERE id = p_cedente_fundo_id\n    AND cedente_id = p_cedente_id\n  FOR UPDATE;\n\n  IF NOT FOUND THEN\n    RAISE EXCEPTION 'Vinculo cedente-fundo nao encontrado';\n  END IF;\n\n  IF vinculo_row.status <> 'ativo' THEN\n    RAISE EXCEPTION 'Vinculo cedente-fundo nao esta ativo';\n  END IF;\n\n  IF NOT EXISTS (\n    SELECT 1\n    FROM public.fundos f\n    WHERE f.id = vinculo_row.fundo_id\n      AND coalesce(f.ativo, true) = true\n  ) THEN\n    RAISE EXCEPTION 'Fundo vinculado ao cedente nao esta ativo';\n  END IF;\n\n  SELECT cfp.*\n  INTO politica_atribuicao_row\n  FROM public.cedente_fundo_politicas cfp\n  JOIN public.politicas_operacionais p\n    ON p.id = cfp.politica_operacional_id\n  JOIN public.politica_operacional_versoes v\n    ON v.id = p_politica_operacional_versao_id\n   AND v.politica_operacional_id = p.id\n  WHERE cfp.cedente_fundo_id = p_cedente_fundo_id\n    AND cfp.politica_operacional_id = p_politica_operacional_id\n    AND cfp.status = 'ativa'\n    AND cfp.vigente_desde <= now_ts\n    AND (cfp.vigente_ate IS NULL OR cfp.vigente_ate > now_ts)\n    AND p.fundo_id = vinculo_row.fundo_id\n    AND p.status = 'ativa'\n    AND v.fundo_id = vinculo_row.fundo_id\n    AND v.publicada_em IS NOT NULL\n    AND v.publicada_por IS NOT NULL\n    AND v.vigente_ate IS NULL\n    AND v.versao = p_politica_versao\n  ORDER BY cfp.vigente_desde DESC\n  LIMIT 1;\n\n  IF politica_atribuicao_row.id IS NULL THEN\n    RAISE EXCEPTION 'Politica operacional vigente nao vinculada ao cedente-fundo';\n  END IF;\n\n  SELECT * INTO escrow_row\n  FROM public.contas_escrow\n  WHERE cedente_id = p_cedente_id\n    AND status = 'ativa'\n  ORDER BY created_at ASC\n  LIMIT 1\n  FOR UPDATE;\n\n  IF NOT FOUND THEN\n    RAISE EXCEPTION 'Conta escrow nao encontrada ou inativa';\n  END IF;\n\n  SELECT count(DISTINCT nf_id) INTO expected_count\n  FROM unnest(p_nota_fiscal_ids) AS item(nf_id);\n\n  WITH locked_nfs AS (\n    SELECT nf.id\n    FROM public.notas_fiscais nf\n    WHERE nf.id = ANY(p_nota_fiscal_ids)\n      AND nf.cedente_id = p_cedente_id\n      AND nf.cedente_fundo_id = p_cedente_fundo_id\n      AND nf.fundo_id = vinculo_row.fundo_id\n      AND nf.status = 'aprovada'\n    FOR UPDATE\n  )\n  SELECT count(DISTINCT id) INTO matched_count\n  FROM locked_nfs;\n\n  IF matched_count <> expected_count THEN\n    RAISE EXCEPTION 'Uma ou mais NFs nao pertencem ao contexto ativo ou nao estao aprovadas';\n  END IF;\n\n  SELECT count(*) INTO already_linked_count\n  FROM public.operacoes_nfs onf\n  JOIN public.operacoes op ON op.id = onf.operacao_id\n  WHERE onf.nota_fiscal_id = ANY(p_nota_fiscal_ids)\n    AND private.operacao_status_reserva_nf(op.status);\n\n  IF already_linked_count > 0 THEN\n    RAISE EXCEPTION USING\n      ERRCODE = 'P1401',\n      MESSAGE = 'NF_ALREADY_LINKED_TO_ACTIVE_OPERATION';\n  END IF;\n\n  INSERT INTO public.operacoes (\n    cedente_id,\n    conta_escrow_id,\n    valor_bruto_total,\n    taxa_desconto,\n    prazo_dias,\n    valor_liquido_desembolso,\n    data_vencimento,\n    status,\n    cedente_fundo_id,\n    politica_operacional_id,\n    politica_operacional_versao_id,\n    politica_atribuicao_id,\n    politica_versao,\n    politica_snapshot,\n    politica_snapshot_hash,\n    contexto_configuracao_status,\n    contexto_capturado_em,\n    aceite_sacado_exigido,\n    aceite_sacado_status,\n    aceite_sacado_em,\n    cessao_efetivada_em,\n    solicitacao_idempotency_key\n  )\n  VALUES (\n    p_cedente_id,\n    escrow_row.id,\n    p_valor_bruto_total,\n    p_taxa_desconto,\n    p_prazo_dias,\n    greatest(0, p_valor_liquido_desembolso),\n    p_data_vencimento,\n    'solicitada',\n    p_cedente_fundo_id,\n    p_politica_operacional_id,\n    p_politica_operacional_versao_id,\n    politica_atribuicao_row.id,\n    p_politica_versao,\n    p_politica_snapshot,\n    p_politica_snapshot_hash,\n    'completo',\n    now_ts,\n    p_aceite_sacado_exigido,\n    p_aceite_sacado_status,\n    CASE WHEN p_aceite_sacado_exigido THEN NULL ELSE now_ts END,\n    NULL,\n    p_idempotency_key\n  )\n  RETURNING id INTO inserted_op_id;\n\n  INSERT INTO public.operacoes_nfs (operacao_id, nota_fiscal_id)\n  SELECT inserted_op_id, DISTINCT_NF.nf_id\n  FROM (SELECT DISTINCT nf_id FROM unnest(p_nota_fiscal_ids) AS item(nf_id)) DISTINCT_NF;\n\n  UPDATE public.notas_fiscais\n  SET status = 'em_antecipacao'\n  WHERE id = ANY(p_nota_fiscal_ids)\n    AND cedente_id = p_cedente_id\n    AND cedente_fundo_id = p_cedente_fundo_id;\n\n  GET DIAGNOSTICS matched_count = ROW_COUNT;\n  IF matched_count <> expected_count THEN\n    RAISE EXCEPTION 'Falha ao atualizar todas as NFs da operacao';\n  END IF;\n\n  INSERT INTO public.logs_auditoria (\n    usuario_id,\n    tipo_evento,\n    entidade_tipo,\n    entidade_id,\n    dados_depois\n  )\n  VALUES (\n    actor_id,\n    'OPERACAO_SOLICITADA',\n    'operacoes',\n    inserted_op_id,\n    jsonb_build_object(\n      'valor_bruto_total', p_valor_bruto_total,\n      'taxa_desconto', p_taxa_desconto,\n      'prazo_dias', p_prazo_dias,\n      'nota_fiscal_ids', p_nota_fiscal_ids,\n      'cedente_fundo_id', p_cedente_fundo_id,\n      'politica_atribuicao_id', politica_atribuicao_row.id,\n      'politica_snapshot_hash', p_politica_snapshot_hash,\n      'idempotency_key', p_idempotency_key\n    )\n  );\n\n  RETURN jsonb_build_object(\n    'operacao_id', inserted_op_id,\n    'idempotent_replay', false,\n    'status', 'solicitada',\n    'politica_atribuicao_id', politica_atribuicao_row.id\n  );\nEND;\n$function$\n",
+      "md5": "3e8de55f12866ef332af984fde40c102",
+      "acl": "{postgres=X/postgres,authenticated=X/postgres}"
+    },
+    {
+      "schema": "public",
+      "proname": "solicitar_operacao_antecipacao_atomica",
+      "pronargs": 17,
+      "signature": "solicitar_operacao_antecipacao_atomica(uuid,uuid,uuid,uuid,integer,jsonb,text,boolean,text,uuid[],numeric,numeric,integer,numeric,date,text,uuid[])",
+      "definition": "CREATE OR REPLACE FUNCTION public.solicitar_operacao_antecipacao_atomica(p_cedente_id uuid, p_cedente_fundo_id uuid, p_politica_operacional_id uuid, p_politica_operacional_versao_id uuid, p_politica_versao integer, p_politica_snapshot jsonb, p_politica_snapshot_hash text, p_aceite_sacado_exigido boolean, p_aceite_sacado_status text, p_nota_fiscal_ids uuid[], p_valor_bruto_total numeric, p_taxa_desconto numeric, p_prazo_dias integer, p_valor_liquido_desembolso numeric, p_data_vencimento date, p_idempotency_key text, p_parcela_ids uuid[] DEFAULT NULL::uuid[])\n RETURNS jsonb\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO ''\nAS $function$\r\nDECLARE\r\n  actor_id uuid := auth.uid(); actor_role text := public.get_user_role();\r\n  cedente_row record; vinculo_row record; escrow_row record; existing_op record;\r\n  expected_count integer; matched_count integer; already_linked_count integer;\r\n  parcelas_expected_count integer; parcelas_matched_count integer;\r\n  inserted_op_id uuid; now_ts timestamptz := now(); politica_atribuicao_row record;\r\nBEGIN\r\n  IF actor_id IS NULL THEN RAISE EXCEPTION 'Usuario nao autenticado'; END IF;\r\n  IF actor_role NOT IN ('cedente', 'consultor') THEN RAISE EXCEPTION 'Somente Cedente ou Consultor pode solicitar antecipacao'; END IF;\r\n  IF p_nota_fiscal_ids IS NULL OR cardinality(p_nota_fiscal_ids) = 0 THEN RAISE EXCEPTION 'Selecione ao menos uma NF'; END IF;\r\n  IF p_idempotency_key IS NULL OR length(trim(p_idempotency_key)) < 16 THEN RAISE EXCEPTION 'Chave de idempotencia invalida'; END IF;\r\n\r\n  SELECT * INTO cedente_row FROM public.cedentes WHERE id = p_cedente_id FOR UPDATE;\r\n  IF NOT FOUND THEN RAISE EXCEPTION 'Cadastro de Cedente nao encontrado'; END IF;\r\n  IF cedente_row.status <> 'ativo' THEN RAISE EXCEPTION 'Cedente nao esta aprovado e ativo'; END IF;\r\n\r\n  IF actor_role = 'cedente' THEN\r\n    IF public.get_user_cedente_id() IS DISTINCT FROM p_cedente_id THEN\r\n      RAISE EXCEPTION 'Cedente sem acesso ao cadastro informado';\r\n    END IF;\r\n  ELSIF NOT private.consultor_usuario_pode_operar_cedente(actor_id, p_cedente_id) THEN\r\n    RAISE EXCEPTION 'Consultor sem vinculo organizacional ativo com o Cedente informado';\r\n  END IF;\r\n\r\n  SELECT * INTO existing_op FROM public.operacoes WHERE solicitacao_idempotency_key = p_idempotency_key LIMIT 1;\r\n  IF FOUND THEN\r\n    IF existing_op.cedente_id IS DISTINCT FROM p_cedente_id\r\n       OR existing_op.cedente_fundo_id IS DISTINCT FROM p_cedente_fundo_id THEN\r\n      RAISE EXCEPTION 'Chave de idempotencia pertence a outro contexto operacional';\r\n    END IF;\r\n    RETURN jsonb_build_object('operacao_id', existing_op.id, 'idempotent_replay', true, 'status', existing_op.status);\r\n  END IF;\r\n\r\n  SELECT * INTO vinculo_row FROM public.cedente_fundos WHERE id = p_cedente_fundo_id AND cedente_id = p_cedente_id FOR UPDATE;\r\n  IF NOT FOUND THEN RAISE EXCEPTION 'Vinculo cedente-fundo nao encontrado'; END IF;\r\n  IF vinculo_row.status <> 'ativo' THEN RAISE EXCEPTION 'Vinculo cedente-fundo nao esta ativo'; END IF;\r\n  IF NOT EXISTS (SELECT 1 FROM public.fundos f WHERE f.id = vinculo_row.fundo_id AND coalesce(f.ativo, true) = true) THEN\r\n    RAISE EXCEPTION 'Fundo vinculado ao cedente nao esta ativo';\r\n  END IF;\r\n  IF actor_role = 'consultor'\r\n     AND NOT private.consultor_usuario_tem_acesso_fundo(actor_id, vinculo_row.fundo_id) THEN\r\n    RAISE EXCEPTION 'Fundo nao autorizado para esta Consultoria';\r\n  END IF;\r\n\r\n  SELECT cfp.* INTO politica_atribuicao_row\r\n  FROM public.cedente_fundo_politicas cfp\r\n  JOIN public.politicas_operacionais p ON p.id = cfp.politica_operacional_id\r\n  JOIN public.politica_operacional_versoes v ON v.id = p_politica_operacional_versao_id AND v.politica_operacional_id = p.id\r\n  WHERE cfp.cedente_fundo_id = p_cedente_fundo_id AND cfp.politica_operacional_id = p_politica_operacional_id\r\n    AND cfp.status = 'ativa' AND cfp.vigente_desde <= now_ts AND (cfp.vigente_ate IS NULL OR cfp.vigente_ate > now_ts)\r\n    AND p.fundo_id = vinculo_row.fundo_id AND p.status = 'ativa'\r\n    AND v.fundo_id = vinculo_row.fundo_id AND v.publicada_em IS NOT NULL AND v.publicada_por IS NOT NULL\r\n    AND v.vigente_ate IS NULL AND v.versao = p_politica_versao\r\n  ORDER BY cfp.vigente_desde DESC LIMIT 1;\r\n  IF politica_atribuicao_row.id IS NULL THEN RAISE EXCEPTION 'Politica operacional vigente nao vinculada ao cedente-fundo'; END IF;\r\n\r\n  SELECT * INTO escrow_row FROM public.contas_escrow WHERE cedente_id = p_cedente_id AND status = 'ativa'\r\n  ORDER BY created_at ASC LIMIT 1 FOR UPDATE;\r\n  IF NOT FOUND THEN RAISE EXCEPTION 'Conta escrow nao encontrada ou inativa'; END IF;\r\n\r\n  SELECT count(DISTINCT nf_id) INTO expected_count FROM unnest(p_nota_fiscal_ids) AS item(nf_id);\r\n  IF expected_count <> cardinality(p_nota_fiscal_ids) THEN RAISE EXCEPTION 'A selecao contem NFs repetidas'; END IF;\r\n\r\n  WITH locked_nfs AS (\r\n    SELECT nf.id FROM public.notas_fiscais nf\r\n    WHERE nf.id = ANY(p_nota_fiscal_ids) AND nf.cedente_id = p_cedente_id\r\n      AND nf.cedente_fundo_id = p_cedente_fundo_id AND nf.fundo_id = vinculo_row.fundo_id\r\n      AND nf.status = 'aprovada'\r\n    FOR UPDATE\r\n  )\r\n  SELECT count(DISTINCT id) INTO matched_count FROM locked_nfs;\r\n  IF matched_count <> expected_count THEN RAISE EXCEPTION 'Uma ou mais NFs nao pertencem ao contexto ativo ou nao estao aprovadas'; END IF;\r\n\r\n  -- P14: operacoes_nfs preserva historico. Somente operacoes em status que\r\n  -- reservam a NF bloqueiam o novo pedido; reprovada permanece reutilizavel.\r\n  SELECT count(*) INTO already_linked_count\r\n  FROM public.operacoes_nfs onf\r\n  JOIN public.operacoes op ON op.id = onf.operacao_id\r\n  WHERE onf.nota_fiscal_id = ANY(p_nota_fiscal_ids)\r\n    AND NOT EXISTS (SELECT 1 FROM public.nota_fiscal_parcelas p WHERE p.nota_fiscal_id = onf.nota_fiscal_id)\r\n    AND private.operacao_status_reserva_nf(op.status);\r\n  IF already_linked_count > 0 THEN\r\n    RAISE EXCEPTION USING\r\n      ERRCODE = 'P1401',\r\n      MESSAGE = 'NF_ALREADY_LINKED_TO_ACTIVE_OPERATION';\r\n  END IF;\r\n\r\n  IF p_parcela_ids IS NOT NULL AND cardinality(p_parcela_ids) > 0 THEN\r\n    SELECT count(DISTINCT id) INTO parcelas_expected_count FROM unnest(p_parcela_ids) AS item(id);\r\n    IF parcelas_expected_count <> cardinality(p_parcela_ids) THEN RAISE EXCEPTION 'A selecao contem parcelas repetidas'; END IF;\r\n\r\n    WITH locked_parcelas AS (\r\n      SELECT p.id FROM public.nota_fiscal_parcelas p\r\n      JOIN public.notas_fiscais nf ON nf.id = p.nota_fiscal_id\r\n      WHERE p.id = ANY(p_parcela_ids) AND p.status = 'disponivel'\r\n        AND nf.id = ANY(p_nota_fiscal_ids) AND nf.cedente_id = p_cedente_id\r\n        AND nf.cedente_fundo_id = p_cedente_fundo_id AND nf.fundo_id = vinculo_row.fundo_id\r\n      FOR UPDATE OF p\r\n    )\r\n    SELECT count(DISTINCT id) INTO parcelas_matched_count FROM locked_parcelas;\r\n    IF parcelas_matched_count <> parcelas_expected_count THEN\r\n      RAISE EXCEPTION 'Uma ou mais parcelas nao estao disponiveis ou nao pertencem ao contexto ativo';\r\n    END IF;\r\n\r\n    IF EXISTS (\r\n      SELECT 1 FROM unnest(p_nota_fiscal_ids) AS item(nf_id)\r\n      WHERE EXISTS (SELECT 1 FROM public.nota_fiscal_parcelas p WHERE p.nota_fiscal_id = item.nf_id)\r\n        AND NOT EXISTS (\r\n          SELECT 1 FROM public.nota_fiscal_parcelas p\r\n          WHERE p.nota_fiscal_id = item.nf_id AND p.id = ANY(p_parcela_ids)\r\n        )\r\n    ) THEN\r\n      RAISE EXCEPTION 'Toda NF com parcelas precisa ter ao menos uma parcela selecionada';\r\n    END IF;\r\n  ELSIF EXISTS (\r\n    SELECT 1 FROM unnest(p_nota_fiscal_ids) AS item(nf_id)\r\n    WHERE EXISTS (SELECT 1 FROM public.nota_fiscal_parcelas p WHERE p.nota_fiscal_id = item.nf_id)\r\n  ) THEN\r\n    RAISE EXCEPTION 'NF com parcelas precisa informar quais parcelas foram selecionadas';\r\n  END IF;\r\n\r\n  INSERT INTO public.operacoes (\r\n    cedente_id, conta_escrow_id, valor_bruto_total, taxa_desconto, prazo_dias, valor_liquido_desembolso,\r\n    data_vencimento, status, cedente_fundo_id, politica_operacional_id, politica_operacional_versao_id,\r\n    politica_atribuicao_id, politica_versao, politica_snapshot, politica_snapshot_hash,\r\n    contexto_configuracao_status, contexto_capturado_em, aceite_sacado_exigido, aceite_sacado_status,\r\n    aceite_sacado_em, cessao_efetivada_em, solicitacao_idempotency_key\r\n  ) VALUES (\r\n    p_cedente_id, escrow_row.id, p_valor_bruto_total, p_taxa_desconto, p_prazo_dias, greatest(0, p_valor_liquido_desembolso),\r\n    p_data_vencimento, 'solicitada', p_cedente_fundo_id, p_politica_operacional_id, p_politica_operacional_versao_id,\r\n    politica_atribuicao_row.id, p_politica_versao, p_politica_snapshot, p_politica_snapshot_hash,\r\n    'completo', now_ts, p_aceite_sacado_exigido, p_aceite_sacado_status,\r\n    CASE WHEN p_aceite_sacado_exigido THEN NULL ELSE now_ts END, NULL, p_idempotency_key\r\n  ) RETURNING id INTO inserted_op_id;\r\n\r\n  INSERT INTO public.operacoes_nfs (operacao_id, nota_fiscal_id)\r\n  SELECT inserted_op_id, DISTINCT_NF.nf_id\r\n  FROM (SELECT DISTINCT nf_id FROM unnest(p_nota_fiscal_ids) AS item(nf_id)) DISTINCT_NF;\r\n\r\n  IF p_parcela_ids IS NOT NULL AND cardinality(p_parcela_ids) > 0 THEN\r\n    INSERT INTO public.operacoes_nf_parcelas (operacao_id, nota_fiscal_id, parcela_id)\r\n    SELECT inserted_op_id, p.nota_fiscal_id, p.id\r\n    FROM public.nota_fiscal_parcelas p\r\n    WHERE p.id = ANY(p_parcela_ids);\r\n\r\n    UPDATE public.nota_fiscal_parcelas SET status = 'em_operacao' WHERE id = ANY(p_parcela_ids);\r\n  END IF;\r\n\r\n  UPDATE public.notas_fiscais nf\r\n  SET status = 'em_antecipacao'\r\n  WHERE nf.id = ANY(p_nota_fiscal_ids) AND nf.cedente_id = p_cedente_id AND nf.cedente_fundo_id = p_cedente_fundo_id\r\n    AND NOT EXISTS (SELECT 1 FROM public.nota_fiscal_parcelas p WHERE p.nota_fiscal_id = nf.id AND p.status = 'disponivel');\r\n\r\n  INSERT INTO public.logs_auditoria (usuario_id, tipo_evento, entidade_tipo, entidade_id, dados_depois)\r\n  VALUES (actor_id, 'OPERACAO_SOLICITADA', 'operacoes', inserted_op_id, jsonb_build_object(\r\n      'solicitado_por_role', actor_role,\r\n      'consultor_id', CASE WHEN actor_role = 'consultor' THEN private.consultor_organizacao_ativa_do_usuario(actor_id) ELSE NULL END,\r\n      'cedente_id', p_cedente_id,\r\n      'valor_bruto_total', p_valor_bruto_total, 'taxa_desconto', p_taxa_desconto, 'prazo_dias', p_prazo_dias,\r\n      'nota_fiscal_ids', p_nota_fiscal_ids, 'parcela_ids', p_parcela_ids, 'cedente_fundo_id', p_cedente_fundo_id,\r\n      'politica_atribuicao_id', politica_atribuicao_row.id, 'politica_snapshot_hash', p_politica_snapshot_hash,\r\n      'idempotency_key', p_idempotency_key\r\n  ));\r\n\r\n  RETURN jsonb_build_object('operacao_id', inserted_op_id, 'idempotent_replay', false, 'status', 'solicitada',\r\n    'politica_atribuicao_id', politica_atribuicao_row.id);\r\nEND;\r\n$function$\n",
+      "md5": "bf0ba6dfc83993afd4106c46408edb05",
+      "acl": "{postgres=X/postgres,authenticated=X/postgres}"
+    }
+  ],
+  "history": [
+    {
+      "version": "003",
+      "name": "storage_buckets_env",
+      "statements_md5": "ce328da909df4e1248046880c950aef5"
+    },
+    {
+      "version": "004",
+      "name": "aceite_sacado_em",
+      "statements_md5": "61b926e8af90601414d71a59126829f7"
+    },
+    {
+      "version": "005",
+      "name": "testemunhas",
+      "statements_md5": "be73ffaa7d2d26aa5e4a29d1e2babbed"
+    },
+    {
+      "version": "006",
+      "name": "documentos_assinados",
+      "statements_md5": "75be9ca66114d3f7e5ae4b1cf162980e"
+    },
+    {
+      "version": "007",
+      "name": "rename_aceite_sacado_em",
+      "statements_md5": "bf1b05c86e87ea4c4513b1efcabfec5f"
+    },
+    {
+      "version": "008",
+      "name": "document_update_request",
+      "statements_md5": "f89d67e2026076ec7372fe01f456fb97"
+    },
+    {
+      "version": "009",
+      "name": "habilitar_escrow_cedente",
+      "statements_md5": "f96d1491cabfbb364b67cdbfd01cc37a"
+    },
+    {
+      "version": "010",
+      "name": "solicitacoes_alteracao_cedente",
+      "statements_md5": "273a9cc861124fce37a3797c7f506ae7"
+    },
+    {
+      "version": "011",
+      "name": "cedente_acessos",
+      "statements_md5": "a58c0a696b9df0e38b6786ac78bcef9c"
+    },
+    {
+      "version": "012",
+      "name": "storage_policies_acesso_vinculado",
+      "statements_md5": "4e3e55e04bd467fa59558239c7d5a4a2"
+    },
+    {
+      "version": "013",
+      "name": "nf_solicitar_ajuste",
+      "statements_md5": "7b1752973dcd41b4886470a4dab2fed9"
+    },
+    {
+      "version": "014",
+      "name": "coobrigacao_notificacao",
+      "statements_md5": "21817db1582bf06bb0d99f532bb7bc2f"
+    },
+    {
+      "version": "015",
+      "name": "remessa_fromtis",
+      "statements_md5": "2629a20df9e39ee4092018f36a03ace4"
+    },
+    {
+      "version": "016",
+      "name": "termo_quitacao",
+      "statements_md5": "8f0642d78fe7947fde643e78a43012d5"
+    },
+    {
+      "version": "20260720203009",
+      "name": "fase1_auditoria_atores_origem",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260721123935",
+      "name": "fase2_nucleo_multifundo_politicas_snapshot",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260721132903",
+      "name": "fase3_repositorio_documental_nf",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260721170157",
+      "name": "fase4_roteamento_aceite_sacado",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260721183540",
+      "name": "fase5_logistica_pos_cessao",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260721190904",
+      "name": "fase6_templates_juridicos_fundo",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260721194546",
+      "name": "fase7_cnab_configuravel_rastreavel",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260722090000",
+      "name": "fase8_portal_fidc_fundo",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260722132525",
+      "name": "fase9_mfa_totp_hardening",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260722143728",
+      "name": "fase10_reset_administrativo_mfa",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260722145820",
+      "name": "complemento_credenciais_portal_fidc_banco",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260722170510",
+      "name": "corrigir_templates_juridicos_multifundo",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260722183107",
+      "name": "ampliar_catalogo_requisitos_politica_operacional",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260722191000",
+      "name": "corrigir_contexto_multifundo_upload_nf",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260722192500",
+      "name": "corrigir_rls_fundos_cedente_vinculado",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260722193500",
+      "name": "corrigir_catalogo_documental_requisitos_nf",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260723124410",
+      "name": "corrigir_constraints_desembolso_logistica",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260723124929",
+      "name": "corrigir_contexto_requisito_logistico_nullable",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260723125851",
+      "name": "corrigir_fluxo_status_entrega_pos_cessao",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260723134849",
+      "name": "estabilizacao_operacoes_atomicas_cnab_compensacao",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260723143749",
+      "name": "evoluir_documentos_pos_cessao_nf_cedente",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260723165651",
+      "name": "corrigir_requisitos_pos_cessao_snapshot",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260723182639",
+      "name": "reset_operacional_fundo_homolog_rpc",
+      "statements_md5": "02c01f780bb0bf67b1d2573cd6c63d16"
+    },
+    {
+      "version": "20260723195804",
+      "name": "corrigir_validacao_politica_operacao_atomica",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260727130046",
+      "name": "fundo_ativo_usuario_fundos",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260727142150",
+      "name": "validacao_cte_nfe",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260727151731",
+      "name": "politicas_catalogo_fundo",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260727192402",
+      "name": "onboarding_cedentes_sem_fundo_fallback",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260727202747",
+      "name": "desacoplar_politicas_operacionais_cedente_fundo",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260727204346",
+      "name": "relaxar_cedente_fundo_versoes_politica",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260727205426",
+      "name": "corrigir_instanciacao_checklist_nf_sem_colunas_contexto",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260727212053",
+      "name": "reconciliar_documentos_base_nf_checklist",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260727212953",
+      "name": "corrigir_documento_tipo_requisitos_nf",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260728122849",
+      "name": "corrigir_status_documentos_upload_aguardando_aprovacao",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260728123821",
+      "name": "permitir_tipo_cte_catalogado_em_requisito_generico",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260728130438",
+      "name": "historico_operacional_eventos_dominio",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260728145033",
+      "name": "password_recovery_flow",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260728153646",
+      "name": "reset_operacional_eventos_dominio",
+      "statements_md5": "02c01f780bb0bf67b1d2573cd6c63d16"
+    },
+    {
+      "version": "20260728155942",
+      "name": "password_recovery_security_hardening",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260728172000",
+      "name": "password_reauth_nonce_event",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260728181152",
+      "name": "corrigir_rls_politica_versionada_cedente",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260728182000",
+      "name": "rls_historico_portal_sacado",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260728190000",
+      "name": "auditoria_portal_sacado_contexto",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260728200000",
+      "name": "historico_aceite_sacado_operacao",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260728210000",
+      "name": "permitir_evento_documento_entrega",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260728213000",
+      "name": "corrigir_trigger_historico_aceite_nf_status",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260728220000",
+      "name": "reconciliar_documentos_base_nf_checklist_v2",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260728223000",
+      "name": "corrigir_perfil_evento_reconciliacao",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260729133826",
+      "name": "nf_submissao_manual",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260729180000",
+      "name": "simplificar_requisitos_documentais_politica",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260729185443",
+      "name": "performance_escopo2_onboarding_paginado",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260729203749",
+      "name": "performance_portal_sacado_dashboard",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260730143000",
+      "name": "performance_escopo6_escrow_rls",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260730152328",
+      "name": "performance_escopo7_dashboards_relatorios",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260730170007",
+      "name": "performance_escopo8_hardening_grants_rls",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260730190000",
+      "name": "escopo9b_corrigir_isolamento_rls",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260730194500",
+      "name": "escopo9b_policies_explicitas",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260730200000",
+      "name": "escopo9b_corrigir_recursao_sacado_rls",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260731140710",
+      "name": "escopo9c_storage_autorizacao_multifundo",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260731171219",
+      "name": "postergacao_upload_canhoto",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260803172546",
+      "name": "mfa_sessao_24h",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260804093210",
+      "name": "corrigir_ambiguidade_registrar_sessao_mfa",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260804103235",
+      "name": "corrigir_reset_postergacoes_canhoto",
+      "statements_md5": "0e45b0017d074e639df3a50a2bb630f2"
+    },
+    {
+      "version": "20260804171538",
+      "name": "corrigir_recursao_rls_cedente_fundos",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260805160000",
+      "name": "metodos_calculo_financeiro_operacao",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260805170000",
+      "name": "corrigir_ambiguidade_valor_bruto_aprovacao",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260805180000",
+      "name": "endurecer_aprovacao_financeira",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260806170000",
+      "name": "envio_antecipado_documentos_logisticos",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260806180000",
+      "name": "excluir_nfs_rascunho_cedente",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260806190000",
+      "name": "corrigir_record_nf_upload_logistico_antecipado",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260806200000",
+      "name": "corrigir_exclusao_rascunho_eventos_dominio",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260807132532",
+      "name": "corrigir_evento_entrega_em_validacao",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260807170000",
+      "name": "p1_motor_comunicacoes_email",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260810120000",
+      "name": "usar_smtp_ionos_comunicacoes",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260810121000",
+      "name": "snapshot_remetente_gestora_comunicacoes",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260811120000",
+      "name": "p2_0_duplicata_ativo_financeiro",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260811153000",
+      "name": "corrigir_reset_dependencias_logisticas_duplicatas",
+      "statements_md5": "36f1a5f8df91e12e3cd3bcffb1ea811a"
+    },
+    {
+      "version": "20260812115900",
+      "name": "sa0_super_admin_enum",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260812120000",
+      "name": "sa0_super_admin_roles",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260812143000",
+      "name": "sa1_admin_fundos",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260812170000",
+      "name": "sa2_admin_usuarios_acessos",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260812190000",
+      "name": "sa3_admin_configuracoes_tecnicas",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260813103000",
+      "name": "corrigir_ciclo_vida_credenciais_sa3",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260813150432",
+      "name": "corrigir_semantica_rascunhos_sa3",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260813191143",
+      "name": "p2_2_ingestao_financeira_versionada_rlx",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260813193629",
+      "name": "p2_2_complemento_linhagem_sem_movimento_rlx",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260813194809",
+      "name": "p2_2_lock_ciclo_financeiro_rlx",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260813195427",
+      "name": "p2_2_refresh_views_linhagem_rlx",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260813201000",
+      "name": "p2_2_hardening_rls_indices_rlx",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260813202000",
+      "name": "p2_2_escopo_hibrido_rlx",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260813203000",
+      "name": "p2_2_helper_rls_super_admin_rlx",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260813210000",
+      "name": "p2_2_1_integracoes_capabilities",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260814123000",
+      "name": "p2_2_2_sinqia_financeiro_envios",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260814141629",
+      "name": "p2_3_matching_conciliacao_rlx",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260814144500",
+      "name": "p2_2_2_cnpj_financeiro_derivado_fundo",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260814164101",
+      "name": "p2_4_posicao_logistica_rlx",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260814170500",
+      "name": "p2_4_precisao_valores_logisticos",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260814213000",
+      "name": "p2_5_exposicao_pl_overlay",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260814214500",
+      "name": "p2_5_politica_exposicao_imutavel",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260814220000",
+      "name": "p2_5_1_generalizacao_dominio_financeiro",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260814230000",
+      "name": "p2_6_gate_risco_decisao_operacional",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260817150505",
+      "name": "p2_6_4_canonicalizar_schema_funcional",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260817150507",
+      "name": "p2_6_4_canonicalizar_acl_rls",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260817150510",
+      "name": "p2_6_4_canonicalizar_storage",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260817152140",
+      "name": "p2_6_4_fechar_acl_rotinas_internas",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260817154500",
+      "name": "p2_6_4_restaurar_leitura_carteira_consultor",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260817171441",
+      "name": "p2_6_6_hardening_rls_multifundo_documental_logistico",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260817171442",
+      "name": "p2_6_6_corrigir_acessos_financeiros_legitimos",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260817174233",
+      "name": "p2_6_6_remover_gestor_global_politicas_operacionais",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260817182112",
+      "name": "hotfix_restaurar_leitura_identidade_autenticada",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260817185117",
+      "name": "hotfix_dashboard_gestor_acl",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260817200014",
+      "name": "p2_6_8_remover_legado_estrutural_rlx",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260817204159",
+      "name": "p2_6_8_1_hardening_rls_identidade_profiles",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260818191418",
+      "name": "p0_onboarding_cedente_rpc_segura",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260818194455",
+      "name": "p0_upload_documentos_cedente_permission_denied",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260818195119",
+      "name": "p0_compensacao_storage_documentos_cedente",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260818200641",
+      "name": "multi_cnpj_cedente_estabelecimentos",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260819120000",
+      "name": "p0_analise_documentos_gestor_permission_denied",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260819140000",
+      "name": "p0_mutacoes_cadastro_cedente_gestor",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260819141000",
+      "name": "p0_cedentes_leitura_multifundo_gestor",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260819150000",
+      "name": "p0_catalogo_documental_cadastro_estabelecimento",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260819160000",
+      "name": "p0_novo_tipo_comprovante_residencia_representante",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260819160500",
+      "name": "p0_backfill_comprovante_residencia_representante",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260819161000",
+      "name": "p0_representantes_leitura_multifundo_gestor",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260819170000",
+      "name": "evolucao_estabelecimentos_reuso_documental",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260819180000",
+      "name": "evolucao_estabelecimentos_listagem_paginada",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260819190000",
+      "name": "p0_validacao_raiz_cnpj_filial",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260819200000",
+      "name": "p0_permissao_cadastro_filiais_cedente",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260819210000",
+      "name": "fase1_parcelas_nf_boleto_por_parcela",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260819220000",
+      "name": "fase1_boleto_por_parcela",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260819230000",
+      "name": "fase2_selecao_parcelas_operacao",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260819240000",
+      "name": "fase2_solicitar_aprovar_operacao_por_parcela",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260820100000",
+      "name": "p0_gate_aprovacao_logistica_fonte_unificada",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260820110000",
+      "name": "p0_segundo_gate_logistico_submissao_nf78",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260820120000",
+      "name": "ui_parcelas_nf_operacao_editar_parcelas",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260820130000",
+      "name": "liberar_parcelas_operacao_rejeitada_cancelada",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260820140000",
+      "name": "permitir_cedente_cancelar_propria_operacao",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260820150000",
+      "name": "get_user_cedente_acesso_perfil",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260820160000",
+      "name": "dashboard_cedente_resumo_acesso_delegado",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260820170000",
+      "name": "simular_memoria_financeira_operacao_parcelas",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260820180000",
+      "name": "persistir_matching_execucao_universo_vazio",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260821000000",
+      "name": "bootstrap_fundo_virgem_carteira_qa",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260821010000",
+      "name": "bootstrap_risco_motivos_pl_oficial_indisponivel",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260821020000",
+      "name": "bootstrap_exposicao_flag_persistido",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260821030000",
+      "name": "bootstrap_fundo_virgem_evidencia_economica",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260821040000",
+      "name": "p0_nf_remessa_lastro_logistico",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260821050000",
+      "name": "p0_ajustes_finais_nf_remessa",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260821060000",
+      "name": "p0_politica_nf_remessa_requisito",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260821070000",
+      "name": "p0_nf_remessa_requisito_politica_satisfacao",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260823125731",
+      "name": "corrigir_reset_dependencias_risco",
+      "statements_md5": "d9a831db77c0d862e751a87a3aefe535"
+    },
+    {
+      "version": "20260823130000",
+      "name": "p0_nf_remessa_aprovacao_documental",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260823140000",
+      "name": "p0_canhoto_requisito_checklist",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260823150000",
+      "name": "p0_nf_remessa_atualizar_mesma_chave",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260824100000",
+      "name": "p0_webhook_comprovante_transportadora",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260824150000",
+      "name": "p0_fechar_webhook_transportadora_gaps",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260824180000",
+      "name": "p1_super_admin_integracao_transportadora",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260824190000",
+      "name": "p1_corrigir_idempotencia_backfill_token",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260824200000",
+      "name": "corrigir_digest_integracao_transportadora",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260824210000",
+      "name": "corrigir_acl_webhook_transportadora_service_role",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260825100000",
+      "name": "p0_vortx_vrs2_auth_mtls",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260825130000",
+      "name": "p0_vortx_vrs2_adapter_capabilities",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260826100000",
+      "name": "p0_webhook_transportadora_payload_auditoria",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260826110000",
+      "name": "p0_cadastro_cnpj_cep_bancos_filiais",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260826111500",
+      "name": "p0_corrigir_overloads_cadastro_filiais",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260826120000",
+      "name": "p0_corrigir_permissao_solicitacao_alteracao_cedente",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260826143321",
+      "name": "p0_vinculo_gestor_fundo_busca_paginada",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260826172150",
+      "name": "p1_identidade_organizacional_cedente",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260826190000",
+      "name": "p2_invite_first_novo_cedente",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260826193000",
+      "name": "p2_invite_first_compatibilidade_convites_existentes",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260826200000",
+      "name": "p3_cutover_autorizacao_cedente",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260826201000",
+      "name": "p3_notificacoes_cedente_ativas",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260826202000",
+      "name": "p3_hardening_acl_rpcs_cedente",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260826211301",
+      "name": "p4_remessas_operacionais_adapter",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260826211522",
+      "name": "p4_index_remessas_gerado_por",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260826220731",
+      "name": "p4_1_pagamento_vrs_estabelecimento",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260826223437",
+      "name": "p4_1_1_titular_pagamento_vrs",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260827150511",
+      "name": "p0_convite_gestor_lifecycle_aceite",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260827183411",
+      "name": "bridge_consultor_cedentes_para_consultor_cedente",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260827184403",
+      "name": "bridge_documentos_representante_legado",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260827185557",
+      "name": "bridge_remover_policies_legadas_gestor_global",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260827203000",
+      "name": "p2_runtime_compatibilidade_sacado_admin",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260827204000",
+      "name": "p2_runtime_notificacoes_authenticated",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260827205000",
+      "name": "p2_runtime_restaurar_trigger_profile_auth",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260827213304",
+      "name": "p3_1_vincular_cedentes_dlz",
+      "statements_md5": "2f1ce9cdc113a5435b0316b2e017683e"
+    },
+    {
+      "version": "20260829173938",
+      "name": "p5_2_neutralizar_resets_homolog_producao",
+      "statements_md5": "fb24004065d3561490d577d297b75360"
+    },
+    {
+      "version": "20260909024514",
+      "name": "p5_7_bootstrap_primeiro_super_admin_producao",
+      "statements_md5": "c29fdbfdc7c3f6b94f9bdee2133e8249"
+    },
+    {
+      "version": "20260914135436",
+      "name": "p6_1_expirar_convites_novo_cedente_antes_retry",
+      "statements_md5": "ff672cc82b928ae254b8b7ac11b7eba6"
+    },
+    {
+      "version": "20260915192524",
+      "name": "p7_4_1_rls_importacoes_financeiras_gestor",
+      "statements_md5": "f7d2c50fd60047ba017b262c64df3e81"
+    },
+    {
+      "version": "20260916103000",
+      "name": "corrigir_declaracao_financeira_sem_movimento_digest",
+      "statements_md5": "1aeda6f3793e8798374bf7be81662e56"
+    },
+    {
+      "version": "20260916144655",
+      "name": "corrigir_overlay_exposicao_parcelas",
+      "statements_md5": "615b2e5c788e475b013ccf9ba303a02d"
+    },
+    {
+      "version": "20260916153942",
+      "name": "corrigir_aceite_sacado_vinculo_nf_cancelada",
+      "statements_md5": "566a38f115b08299f45d7eaa7dcc9712"
+    },
+    {
+      "version": "20260916205302",
+      "name": "p9_3_documento_upload_intents",
+      "statements_md5": "7acc303907661f6a579f431543bad3db"
+    },
+    {
+      "version": "20260916210153",
+      "name": "p9_3_intents_documento_fk_cascade",
+      "statements_md5": "7731a77b81c35bb24e4a316ca341a2b4"
+    },
+    {
+      "version": "20260922214000",
+      "name": "c2_consultor_criacao_operacao_cedente",
+      "statements_md5": "5d63916173fd976c42f4ecf19d71cc4a"
+    },
+    {
+      "version": "20260923113000",
+      "name": "c2_remover_policy_legada_taxas_consultor",
+      "statements_md5": "85f72bda79ff744d5a6ecd9ce029221c"
+    },
+    {
+      "version": "20260923160649",
+      "name": "c3_consultor_cadastro_gestao_cedentes",
+      "statements_md5": null
+    },
+    {
+      "version": "20260923220357",
+      "name": "c3_1_restaurar_select_solicitacoes_alteracao",
+      "statements_md5": null
+    },
+    {
+      "version": "20260924143332",
+      "name": "c4_consultor_notas_fiscais_por_cedente",
+      "statements_md5": null
+    },
+    {
+      "version": "20260924170410",
+      "name": "c4_consultor_gate_estabelecimento_origem",
+      "statements_md5": null
+    },
+    {
+      "version": "20260924171344",
+      "name": "c4_consultor_leitura_estabelecimento_origem",
+      "statements_md5": null
+    },
+    {
+      "version": "20260924171634",
+      "name": "c4_consolidar_policy_estabelecimentos",
+      "statements_md5": null
+    },
+    {
+      "version": "20260924173100",
+      "name": "hotfix_remover_nf_operacao_atomica",
+      "statements_md5": "7fcc8f95ea485eb3bf2813b346b2cb95"
+    },
+    {
+      "version": "20260925124946",
+      "name": "corrigir_exclusao_rascunho_com_parcelas",
+      "statements_md5": null
+    },
+    {
+      "version": "20260925144545",
+      "name": "c1_1_organizacao_consultora_schema",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260925144547",
+      "name": "c1_1_autorizacao_organizacional",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260925144549",
+      "name": "c1_1_admin_consultorias_convites",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260925181927",
+      "name": "c1_1_corrigir_rls_consultor_dashboard",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260925200959",
+      "name": "c1_1_eventos_dominio_consultor",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "version": "20260925205512",
+      "name": "c1_1_reconciliar_documentos_consultor",
+      "statements_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    }
+  ],
+  "counts": {
+    "operacoes": "70",
+    "operacoes_nfs": "941",
+    "notas_fiscais": "1082",
+    "logs_auditoria": "3196",
+    "operations_digest": "fffe3fb0a68ab8d14e4dc3c805e2cad8",
+    "notes_digest": "1adcc595ae3bf2eb434b95954dcb484a",
+    "links_digest": "3f09fc8ac594a74b4f132f85c3c20448",
+    "case_audit_count": "2",
+    "case_operation_digest": "6a1a1ddfcd5007e14b53eff82d94b5c0",
+    "case_links_digest": "b8ef734f19c4435d20475853675837c7",
+    "case_audit_digest": "217b42aabcb8b4ec2dec7fa3ef8208e8"
+  },
+  "realCase": [
+    {
+      "cancelled_operation_id": "8cbb79f2-7829-462e-b350-518b459092d6",
+      "operation_status": "cancelada",
+      "nf_id": "f5ac12d2-6715-49cd-9d45-29166039c5b2",
+      "numero_nf": "279742",
+      "nf_status": "aprovada",
+      "all_links": [
+        {
+          "status": "cancelada",
+          "operation_id": "8cbb79f2-7829-462e-b350-518b459092d6"
+        }
+      ]
+    },
+    {
+      "cancelled_operation_id": "8cbb79f2-7829-462e-b350-518b459092d6",
+      "operation_status": "cancelada",
+      "nf_id": "ff64f872-c722-413d-b850-6302f7bb338b",
+      "numero_nf": "279749",
+      "nf_status": "aprovada",
+      "all_links": [
+        {
+          "status": "cancelada",
+          "operation_id": "8cbb79f2-7829-462e-b350-518b459092d6"
+        }
+      ]
+    },
+    {
+      "cancelled_operation_id": "8cbb79f2-7829-462e-b350-518b459092d6",
+      "operation_status": "cancelada",
+      "nf_id": "e185b2b2-479d-449b-bc98-80389d3ff6c7",
+      "numero_nf": "279754",
+      "nf_status": "aprovada",
+      "all_links": [
+        {
+          "status": "cancelada",
+          "operation_id": "8cbb79f2-7829-462e-b350-518b459092d6"
+        }
+      ]
+    },
+    {
+      "cancelled_operation_id": "8cbb79f2-7829-462e-b350-518b459092d6",
+      "operation_status": "cancelada",
+      "nf_id": "55aa5827-e693-42a0-bc7f-e83b2c26b328",
+      "numero_nf": "279760",
+      "nf_status": "aprovada",
+      "all_links": [
+        {
+          "status": "cancelada",
+          "operation_id": "8cbb79f2-7829-462e-b350-518b459092d6"
+        }
+      ]
+    },
+    {
+      "cancelled_operation_id": "8cbb79f2-7829-462e-b350-518b459092d6",
+      "operation_status": "cancelada",
+      "nf_id": "f6252eeb-b858-42c4-8f80-2a73ffa8c059",
+      "numero_nf": "279767",
+      "nf_status": "aprovada",
+      "all_links": [
+        {
+          "status": "cancelada",
+          "operation_id": "8cbb79f2-7829-462e-b350-518b459092d6"
+        }
+      ]
+    },
+    {
+      "cancelled_operation_id": "8cbb79f2-7829-462e-b350-518b459092d6",
+      "operation_status": "cancelada",
+      "nf_id": "64b0b059-b92f-4759-bde2-903db7804d50",
+      "numero_nf": "279775",
+      "nf_status": "aprovada",
+      "all_links": [
+        {
+          "status": "cancelada",
+          "operation_id": "8cbb79f2-7829-462e-b350-518b459092d6"
+        }
+      ]
+    },
+    {
+      "cancelled_operation_id": "8cbb79f2-7829-462e-b350-518b459092d6",
+      "operation_status": "cancelada",
+      "nf_id": "52cb4544-906a-48b5-ae3f-2f47bf4729db",
+      "numero_nf": "279785",
+      "nf_status": "aprovada",
+      "all_links": [
+        {
+          "status": "cancelada",
+          "operation_id": "8cbb79f2-7829-462e-b350-518b459092d6"
+        }
+      ]
+    },
+    {
+      "cancelled_operation_id": "8cbb79f2-7829-462e-b350-518b459092d6",
+      "operation_status": "cancelada",
+      "nf_id": "d44a6613-b3fc-4a4f-88f2-6fd3096613ea",
+      "numero_nf": "279790",
+      "nf_status": "aprovada",
+      "all_links": [
+        {
+          "status": "cancelada",
+          "operation_id": "8cbb79f2-7829-462e-b350-518b459092d6"
+        }
+      ]
+    },
+    {
+      "cancelled_operation_id": "8cbb79f2-7829-462e-b350-518b459092d6",
+      "operation_status": "cancelada",
+      "nf_id": "ff0ff817-2521-4b9b-a035-2a31287b5525",
+      "numero_nf": "279797",
+      "nf_status": "aprovada",
+      "all_links": [
+        {
+          "status": "cancelada",
+          "operation_id": "8cbb79f2-7829-462e-b350-518b459092d6"
+        }
+      ]
+    },
+    {
+      "cancelled_operation_id": "8cbb79f2-7829-462e-b350-518b459092d6",
+      "operation_status": "cancelada",
+      "nf_id": "c1a44a24-2b5a-4cb5-b83c-c25da4055b6a",
+      "numero_nf": "282676",
+      "nf_status": "aprovada",
+      "all_links": [
+        {
+          "status": "cancelada",
+          "operation_id": "8cbb79f2-7829-462e-b350-518b459092d6"
+        }
+      ]
+    },
+    {
+      "cancelled_operation_id": "8cbb79f2-7829-462e-b350-518b459092d6",
+      "operation_status": "cancelada",
+      "nf_id": "23ac6c97-be93-4097-833e-3c085e0b9548",
+      "numero_nf": "282681",
+      "nf_status": "aprovada",
+      "all_links": [
+        {
+          "status": "cancelada",
+          "operation_id": "8cbb79f2-7829-462e-b350-518b459092d6"
+        }
+      ]
+    },
+    {
+      "cancelled_operation_id": "8cbb79f2-7829-462e-b350-518b459092d6",
+      "operation_status": "cancelada",
+      "nf_id": "9655ba9b-82cb-4f6f-b8ff-35afaf5cf9eb",
+      "numero_nf": "282708",
+      "nf_status": "aprovada",
+      "all_links": [
+        {
+          "status": "cancelada",
+          "operation_id": "8cbb79f2-7829-462e-b350-518b459092d6"
+        }
+      ]
+    },
+    {
+      "cancelled_operation_id": "8cbb79f2-7829-462e-b350-518b459092d6",
+      "operation_status": "cancelada",
+      "nf_id": "03aa6e33-ff73-4416-bd7f-c21b963f9f5f",
+      "numero_nf": "282731",
+      "nf_status": "aprovada",
+      "all_links": [
+        {
+          "status": "cancelada",
+          "operation_id": "8cbb79f2-7829-462e-b350-518b459092d6"
+        }
+      ]
+    },
+    {
+      "cancelled_operation_id": "8cbb79f2-7829-462e-b350-518b459092d6",
+      "operation_status": "cancelada",
+      "nf_id": "cdd82ca0-6558-4860-88a0-69bc2da13957",
+      "numero_nf": "282742",
+      "nf_status": "aprovada",
+      "all_links": [
+        {
+          "status": "cancelada",
+          "operation_id": "8cbb79f2-7829-462e-b350-518b459092d6"
+        }
+      ]
+    },
+    {
+      "cancelled_operation_id": "8cbb79f2-7829-462e-b350-518b459092d6",
+      "operation_status": "cancelada",
+      "nf_id": "4943fabb-b760-496e-8b7b-cba413d68490",
+      "numero_nf": "282823",
+      "nf_status": "aprovada",
+      "all_links": [
+        {
+          "status": "cancelada",
+          "operation_id": "8cbb79f2-7829-462e-b350-518b459092d6"
+        }
+      ]
+    },
+    {
+      "cancelled_operation_id": "8cbb79f2-7829-462e-b350-518b459092d6",
+      "operation_status": "cancelada",
+      "nf_id": "d5147b2c-cda7-4b7e-9b98-4f32f099f8c5",
+      "numero_nf": "282830",
+      "nf_status": "aprovada",
+      "all_links": [
+        {
+          "status": "cancelada",
+          "operation_id": "8cbb79f2-7829-462e-b350-518b459092d6"
+        }
+      ]
+    },
+    {
+      "cancelled_operation_id": "8cbb79f2-7829-462e-b350-518b459092d6",
+      "operation_status": "cancelada",
+      "nf_id": "8740c1ed-2b9b-4dcc-9cec-30639317a498",
+      "numero_nf": "285264",
+      "nf_status": "aprovada",
+      "all_links": [
+        {
+          "status": "cancelada",
+          "operation_id": "8cbb79f2-7829-462e-b350-518b459092d6"
+        }
+      ]
+    },
+    {
+      "cancelled_operation_id": "8cbb79f2-7829-462e-b350-518b459092d6",
+      "operation_status": "cancelada",
+      "nf_id": "d5e12740-5ec1-4872-a080-f811e8046437",
+      "numero_nf": "285273",
+      "nf_status": "aprovada",
+      "all_links": [
+        {
+          "status": "cancelada",
+          "operation_id": "8cbb79f2-7829-462e-b350-518b459092d6"
+        }
+      ]
+    },
+    {
+      "cancelled_operation_id": "8cbb79f2-7829-462e-b350-518b459092d6",
+      "operation_status": "cancelada",
+      "nf_id": "d9ee14ce-d077-41c7-9fef-6a367551b12d",
+      "numero_nf": "285290",
+      "nf_status": "aprovada",
+      "all_links": [
+        {
+          "status": "cancelada",
+          "operation_id": "8cbb79f2-7829-462e-b350-518b459092d6"
+        }
+      ]
+    },
+    {
+      "cancelled_operation_id": "8cbb79f2-7829-462e-b350-518b459092d6",
+      "operation_status": "cancelada",
+      "nf_id": "0d597a87-af7a-46c5-ae7a-de649eda496f",
+      "numero_nf": "285303",
+      "nf_status": "aprovada",
+      "all_links": [
+        {
+          "status": "cancelada",
+          "operation_id": "8cbb79f2-7829-462e-b350-518b459092d6"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "projectRef": "fhgkmggthxikfpogrvaa",
+  "checkedAt": "2026-09-28T19:29:02.174Z",
+  "checkedReferences": 133,
+  "residuals": [],
+  "identity": {
+    "auth_users": "0",
+    "profiles": "0",
+    "audit_rows": "0"
+  },
+  "result": "PASS"
+}

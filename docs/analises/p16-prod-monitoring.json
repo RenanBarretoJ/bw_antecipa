@@ -1,0 +1,15 @@
+{
+  "from": "2026-09-28T19:50:01.088Z",
+  "to": "2026-09-28T19:52:45.565Z",
+  "source": "Vercel production request logs",
+  "rows": 29,
+  "limit": 200,
+  "statuses": {
+    "200": 29
+  },
+  "errors": 0,
+  "http4xx": 0,
+  "http5xx": 0,
+  "domainErrorMatches": 0,
+  "note": "Janela inicial curta, sem submit real; nao certifica o fluxo UI."
+}
