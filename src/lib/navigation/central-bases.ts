@@ -4,7 +4,7 @@ export const CENTRAL_BASES_GESTOR = '/gestor/central-bases'
 export function destinoCentralBases(query: Readonly<Record<string, string | string[] | undefined>>, fundoId?: string): string {
   const params = new URLSearchParams()
   if (fundoId !== undefined) params.set('tab', 'central-bases')
-  for (const key of ['pagina', 'tipo', 'origem', 'estado', 'referencia']) {
+  for (const key of ['pagina', 'tipo', 'origem', 'estado', 'referencia', 'carteiraPagina', 'carteiraEstado', 'carteiraReferencia']) {
     const value = query[key]
     if (typeof value === 'string') params.set(key, value)
   }

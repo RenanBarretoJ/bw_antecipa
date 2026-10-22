@@ -34,6 +34,13 @@ describe('histórico de relatórios com solicitação explícita', () => {
     expect(html).toContain('Nenhum pedido corresponde aos filtros')
     expect(html).not.toContain('Publicado nos módulos')
   })
+  it('liga o resumo à publicação independente do filtro e inclui histórico de carteira separado de callbacks', () => {
+    const html = renderToStaticMarkup(createElement(VortxReportRequests, { contexto, historico: { total: 0, solicitacoes: [] }, pagina: 1, hoje: '2026-10-22',
+      posicaoCarteira: { dataReferencia: '2026-10-21', patrimonioLiquidoTotal: '60.0000', cotas: [{ codigoCarteira: 'QA', rotulo: 'QA', patrimonioLiquido: '60.0000' }] },
+      historicoCarteira: { registros: [], total: 0, pagina: 1, filtros: { referencia: '2026-10-20' } } }))
+    expect(html).toContain('21/10/2026'); expect(html).toContain('60,00'); expect(html).toContain('Histórico da carteira')
+    expect(html).toContain('Nenhuma posição salva corresponde aos filtros'); expect(html).not.toContain('Persistência ainda não habilitada')
+  })
   it('exibe PDD como aviso de lote persistido, sem bloquear a tela nem alegar publicação', () => {
     const persisted = { ...row, pedido: { ...row.pedido, tipoRelatorio: 'PosicaoParcela' as const }, acompanhamento: { recebidoEm: null, arquivoStatus: 'Disponível',
       processamento: 'PERSISTIDO' as const, downloadEm: '2026-10-21T12:00:00Z', processadoEm: '2026-10-21T12:01:00Z',

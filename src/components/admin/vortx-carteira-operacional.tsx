@@ -30,7 +30,7 @@ export function VortxCarteiraOperacional({ hoje, referenciaInicial, habilitada, 
       try {
         const resposta = await processarAction({ dataReferencia: referencia })
         setResult(resposta)
-        if (resposta.success && resposta.estado === 'PUBLICADA') router.refresh()
+        if (resposta.success && ['PUBLICADA', 'JA_REGISTRADA', 'CONTEUDO_HISTORICO'].includes(resposta.estado)) router.refresh()
       } catch { setResult({ success: false, message: 'A resposta não foi confirmada. Atualize a página e confira a posição publicada antes de tentar novamente.' }) }
       finally { inFlight.current = false }
     })

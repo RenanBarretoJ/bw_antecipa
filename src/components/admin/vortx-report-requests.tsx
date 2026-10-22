@@ -9,14 +9,18 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import styles from './central-bases.module.css'
+import type { PosicaoCarteiraVortx } from '@/lib/integracoes/vortx/carteira-operacao'
+import type { HistoricoCarteira } from '@/lib/integracoes/vortx/carteira-historico'
+import { VortxCarteiraHistory } from './vortx-carteira-history'
 import { CentralBasesHistory, ResumoBases, dataCivil } from './central-bases-history'
 import type { FiltrosBases } from '@/lib/integracoes/vortx/central-bases'
 import { prepararSolicitacaoRelatorioVortx } from '@/lib/integracoes/vortx/relatorios-contrato'
 import { RELATORIOS_OPERADOR, podeSolicitarNovamente, relatorioDePosicao, situacaoRelatorio, type ContextoRelatorios, type HistoricoRelatorio, type RelatorioFormulario, type SolicitacaoRelatorio, type SolicitacaoRelatorioResult } from '@/lib/integracoes/vortx/relatorios-operacao'
 
-export function VortxReportRequests({ contexto, historico, pagina, hoje, historicoHref = '', configuracaoHref, filtros, carteira, carteiraOperacional, headingLevel = 2 }: {
+export function VortxReportRequests({ contexto, historico, pagina, hoje, historicoHref = '', configuracaoHref, filtros, carteira, carteiraOperacional, posicaoCarteira, historicoCarteira, headingLevel = 2 }: {
   contexto: ContextoRelatorios; historico: HistoricoRelatorio; pagina: number; hoje: string; historicoHref?: string; configuracaoHref?: string
   filtros?: FiltrosBases; carteira?: ReactNode; carteiraOperacional?: ReactNode; headingLevel?: 1 | 2
+  posicaoCarteira?: PosicaoCarteiraVortx | null; historicoCarteira?: HistoricoCarteira
 }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
@@ -87,7 +91,7 @@ export function VortxReportRequests({ contexto, historico, pagina, hoje, histori
       <div className={styles.actions}><a href="#importacao-bases" className={styles.button}>Importar arquivos</a><a href="#solicitar-bases" className={styles.button + ' ' + styles.primary}>Solicitar pela API<ArrowRight aria-hidden="true" /></a></div>
     </section>
     <div className={styles.context}><span><strong>{contexto.fundo.nome}</strong><span className={styles.divider} />Vórtx VRS 2.0</span><span>Fundo herdado do portal · sem nova seleção</span></div>
-    <ResumoBases resumo={historico.resumo} />
+    <ResumoBases resumo={historico.resumo} posicaoCarteira={posicaoCarteira} />
     {review && <div className={styles.notice + ' ' + styles.noticeAmber} role="status"><AlertTriangle aria-hidden="true" /><div><strong>Estoque importado, mas ainda não publicado</strong>Há divergências na posição de {dataCivil(review.pedido.dataReferencia)}. Confira os detalhes antes de disponibilizar essa base nos módulos.</div><a href="#historico-bases">Conferir pedidos →</a></div>}
     <nav aria-label="Seções da Central de Bases" className={styles.tabs}>{[
       ['historico-bases', 'Acompanhamento'], ['solicitar-bases', 'Nova solicitação'], ['importacao-bases', 'Importação manual'], ['carteira-bases', 'Carteira'],
@@ -134,6 +138,7 @@ export function VortxReportRequests({ contexto, historico, pagina, hoje, histori
       <div className={styles.heading}><div className={styles.sectionTitle}><p className={styles.eyebrow}>Posição patrimonial</p><h2>Carteira na mesma central</h2><p>Consulte a carteira por data e classe, sem confundir com estoque de parcelas.</p></div><div className={styles.actions}><Button className={styles.button} disabled>Importar arquivo compatível</Button>{carteiraOperacional ? <a className={styles.button + ' ' + styles.primary} href="#carteira-processamento">Processar carteira</a> : carteira ? <a className={styles.button + ' ' + styles.primary} href="#carteira-consulta" onClick={() => { if (carteiraRef.current) carteiraRef.current.open = true }}>Consultar carteira</a> : <Button className={styles.button + ' ' + styles.primary} disabled>Consultar carteira</Button>}</div></div>
       {carteiraOperacional || <div className={styles.stats}><div className={styles.stat}><small>Data da carteira</small><p>—</p></div><div className={styles.stat}><small>Classes identificadas</small><p>Sem posição persistida</p></div><div className={styles.stat}><small>Conferência</small><p>Processamento pendente</p></div></div>}
       {carteira ? <details id="carteira-consulta" ref={carteiraRef} className={styles.advanced}><summary>Consulta diagnóstica autorizada · sem persistência</summary><div>{carteira}</div></details> : !carteiraOperacional && <p role="status" className={styles.caption} style={{ marginTop: 12 }}>O processamento operacional da carteira ainda não está conectado. A consulta diagnóstica existente continua restrita ao administrador autorizado.</p>}
+      {historicoCarteira && <VortxCarteiraHistory historico={historicoCarteira} href={historicoHref} />}
     </section>
     <details className={styles.advanced}><summary><CalendarClock aria-hidden="true" className="mr-2 inline" />Agenda D−1 · estoque às 9h30 e carteira às 17h de Brasília</summary><div>Estoque consolidado, estoque por parcela, cessões e exclusões do dia útil anterior às 9h30. A carteira é consultada separadamente às 17h e só publica o PL se todas as cotas estiverem disponíveis. Ambas as referências usam dias úteis e excluem feriados ANBIMA. As agendas dependem de habilitação explícita e executam apenas no deployment de produção. A rotina de relatórios não publica estoque nem registra baixas financeiras.</div></details>
     {confirmacao && <Dialog open onOpenChange={value => { if (!pending && !value) setConfirmacao(null) }}><DialogContent><DialogHeader><DialogTitle>{confirmacao.solicitacaoAnteriorId ? 'Solicitar uma versão atualizada' : 'Confirmar solicitação de relatório'}</DialogTitle><DialogDescription>{confirmacao.solicitacaoAnteriorId ? 'Um novo pedido, com os mesmos parâmetros, sem apagar o anterior. Se o retorno anterior foi indeterminado, os dois poderão chegar. Nenhum estoque é publicado automaticamente.' : 'Um pedido à Vórtx, sem envio de cessão. Pedidos idênticos são bloqueados; uma nova consulta deve ser confirmada pelo histórico.'}</DialogDescription></DialogHeader>

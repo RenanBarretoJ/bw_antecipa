@@ -94,6 +94,7 @@
 .page .history :global([data-slot=card-header]) { display: block; padding: 0; }
 .page .history :global([data-slot=card-content]) { min-width: 0; padding: 0; }
 .toolbar { display: grid; grid-template-columns: 1.25fr 1fr 1fr 1.2fr auto; gap: 12px; align-items: end; padding: 18px 20px; border-bottom: 1px solid var(--bases-line); }
+.walletToolbar { grid-template-columns: 1fr 1fr auto auto; }
 .toolbar :global([data-slot=label]) { font-size: 12px; }
 .history table { width: 100%; min-width: 740px; border-collapse: collapse; }
 .history th { height: auto; padding: 12px 18px; background: var(--bases-soft); color: var(--bases-muted); font-size: 11px; font-weight: 600; }

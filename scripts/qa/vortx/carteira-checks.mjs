@@ -153,6 +153,17 @@ export async function rehearseCarteira(sql, phase, checkpoint, nativeStorageProo
     await reject(asActor('authenticated', user, `UPDATE public.vortx_carteira_cotas SET patrimonio_liquido=0 WHERE fundo_id=${q(fund)}`), /permission denied/)
     assert.equal(await scalar("SELECT public::text||':'||file_size_limit::text FROM storage.buckets WHERE id='vortx-carteiras';"), 'false:20971520')
   })
+  await check('HISTORY_COLLECTOR_MULTIROW_JSON_CONTROL', async () => {
+    // PostgreSQL json_agg(record) may include real newlines. Selecting only the
+    // first line truncates valid multirow evidence; jsonb serializes it in one line.
+    const multiline = await sql("SELECT json_build_object('count',count(*),'rows',json_agg(h)) FROM (VALUES(1),(2)) h(id);")
+    const complete = JSON.parse(multiline)
+    assert.equal(complete.rows.length, 2); assert(multiline.includes('\n'), 'MULTILINE_CONTROL_NOT_REPRODUCED')
+    assert.throws(() => JSON.parse(multiline.split('\n')[0]), SyntaxError)
+    const compact = await sql("SELECT jsonb_build_object('count',count(*),'rows',jsonb_agg(to_jsonb(h))) FROM (VALUES(1),(2)) h(id);")
+    assert.deepEqual(JSON.parse(compact), complete); assert(!compact.includes('\n'), 'COMPACT_COLLECTOR_NOT_SINGLE_LINE')
+    report.historyCollector = { result: 'PASS', multiline, compact, completeRowCount: 2, previousFirstLineParserRejectedTruncation: true }
+  })
   await check('REAL_SYNTHETIC_ACTORS_CROSS_FUND_AND_ROLE_MATRIX', async () => {
     const otherFund = randomUUID()
     await sql(`INSERT INTO public.fundos(id,nome,cnpj,administradora_nome,administradora_cnpj,gestora_nome,gestora_cnpj,ativo)
@@ -194,6 +205,21 @@ export async function rehearseCarteira(sql, phase, checkpoint, nativeStorageProo
         report.superAdminCanonicalPosition = { actor, role: 'authenticated', profileRole: scenario.role, fund, beforeCanonicalRole: denied,
           explicitFixturePlatformRole: 'super_admin', visible: canonicalRows, directQuotaAccess: 0, result: 'PASS', grantsChanged: false }
       }
+      const historySql = `SELECT jsonb_build_object('count',count(*),'rows',coalesce(jsonb_agg(to_jsonb(h) ORDER BY data_referencia DESC,publicada_em DESC,id DESC),'[]'::jsonb)) FROM (
+        SELECT id,data_referencia,status,valor_total,metadados->'cotas' AS cotas,recebida_em,publicada_em,substituida_em
+        FROM public.importacoes_financeiras WHERE fundo_id=${q(fund)} AND provedor='VORTX' AND tipo_base='CARTEIRA'
+        AND fonte_ambiente='producao' AND status IN ('PUBLICADA','RETIFICADA')
+        ORDER BY data_referencia DESC,publicada_em DESC,id DESC LIMIT 20 OFFSET 0) h`
+      const historyOutput = (await sql(asActor('authenticated', actor, historySql))).split('\n').filter(line => line.startsWith('{')).at(-1)
+      assert(historyOutput, 'CANONICAL_HISTORY_RESULT_MISSING')
+      const history = JSON.parse(historyOutput)
+      assert.equal(history.count, scenario.role === 'super_admin' || scenario.name === 'OWN_FUND_GESTOR' ? 2 : 0, `CANONICAL_WALLET_HISTORY_SCOPE:${scenario.name}`)
+      for (const item of history.rows) {
+        assert.equal(item.cotas.length, 3, 'CANONICAL_HISTORY_QUOTA_DTO'); assert(item.publicada_em, 'HISTORY_PUBLICATION_TIME_MISSING')
+        assert(!('storage_path' in item) && !('contexto' in item), 'HISTORY_PRIVATE_FIELDS_EXPOSED')
+      }
+      report.historyActorMatrix ??= []
+      report.historyActorMatrix.push({ scenario: scenario.name, role: 'authenticated', actor, fund, query: historySql, result: history, status: 'PASS' })
       report.actorMatrix.push({ scenario: scenario.name, actor, role: scenario.role, fund: scenario.fund, claimsRole: 'authenticated', initialProfile: canonical, testProfileRole: scenario.role, visible: result, result: 'PASS' })
     }
   })

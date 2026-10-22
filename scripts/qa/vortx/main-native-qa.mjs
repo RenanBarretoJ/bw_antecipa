@@ -56,6 +56,8 @@ report.sourceInputs = await Promise.all(['src/test/email03-local-contracts.mjs',
   ...(carteira ? ['vercel.json', 'scripts/qa/vortx/carteira-checks.mjs',
     'src/lib/integracoes/vortx/carteira-persistencia.server.ts', 'src/lib/integracoes/vortx/carteira-rotina.ts',
     'src/lib/integracoes/vortx/carteira-rotina.server.ts', 'src/lib/integracoes/vortx/carteira-posicao.server.ts',
+    'src/lib/integracoes/vortx/carteira-historico.ts', 'src/components/admin/vortx-carteira-history.tsx',
+    'src/components/admin/central-bases-history.tsx', 'src/components/admin/central-bases.module.css',
     'src/lib/financeiro/ingestao/cron.server.ts', 'src/app/api/cron/vortx-carteira/route.ts',
     'src/app/gestor/dados-financeiros/carteira-actions.ts', 'src/app/gestor/dados-financeiros/page.tsx',
     'src/app/gestor/central-bases/page.tsx', 'src/app/admin/fundos/carteira-processing-actions.ts',
@@ -246,8 +248,14 @@ try {
       const denied=await actor.storage.from('vortx-carteiras').upload(job.storage_path+'.forbidden',bytes,{contentType:'application/json',upsert:false});assert(denied.error,'AUTHENTICATED_RAW_WRITE_ALLOWED');
       const raw=await actor.storage.from('vortx-carteiras').download(job.storage_path);assert(raw.error,'AUTHENTICATED_RAW_READ_ALLOWED');
       const visible=await actor.from('vortx_carteira_cotas').select('codigo_cota,patrimonio_liquido').eq('importacao_id',job.id);assert(!visible.error);assert.equal(visible.data.length,3);
+      const history=await actor.from('importacoes_financeiras').select('id,data_referencia,valor_total,metadados,status,recebida_em,publicada_em,substituida_em',{count:'exact'})
+        .eq('fundo_id',ctx.fund).eq('provedor','VORTX').eq('tipo_base','CARTEIRA').eq('fonte_ambiente','producao').in('status',['PUBLICADA','RETIFICADA'])
+        .order('data_referencia',{ascending:false}).order('publicada_em',{ascending:false}).order('id',{ascending:false}).range(0,19);
+      assert(!history.error,'HISTORY_POSTGREST_READ_FAILED');assert.equal(history.count,3);assert.equal(history.data.length,3);assert.equal(history.data[0].id,job.id);
+      assert.equal(history.data.filter(row=>row.status==='PUBLICADA').length,1);assert.equal(history.data.filter(row=>row.status==='RETIFICADA').length,2);
+      assert(history.data.every(row=>row.metadados.cotas.length===3&&row.publicada_em),'HISTORY_POSTGREST_DTO_INCOMPLETE');
       const safe=await client.rpc('vortx_encerrar_carteira',{p_id:job.id,p_lease:job.lease});assert(!safe.error);assert.equal(safe.data.podeRemoverArquivo,false);
-      console.log(JSON.stringify({result:'PASS',originalSha256:hash,importId:job.id,privateOriginalHashVerified:true,authenticatedRawUploadDenied:true,authenticatedRawDownloadDenied:true,gestorQuotaRows:visible.data.length,fencedPublishedOriginalPreserved:true,syntheticJwtOnly:true}));`
+      console.log(JSON.stringify({result:'PASS',originalSha256:hash,importId:job.id,privateOriginalHashVerified:true,authenticatedRawUploadDenied:true,authenticatedRawDownloadDenied:true,gestorQuotaRows:visible.data.length,canonicalHistory:{count:history.count,authenticatedRead:true,deterministicOrder:true,published:1,retified:2},fencedPublishedOriginalPreserved:true,syntheticJwtOnly:true}));`
     return JSON.parse(await docker(['exec', ...envArgs({ LOCAL_QA_SERVICE: service, LOCAL_QA_ANON: anon, LOCAL_QA_ACTOR: actorToken }), names.runner, 'node', '--input-type=module', '-e', proof]))
   })
   await phase('UNCHANGED_NATIVE_TESTS')

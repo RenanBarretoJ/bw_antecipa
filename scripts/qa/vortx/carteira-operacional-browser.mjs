@@ -14,13 +14,17 @@ const root = process.cwd(), output = resolve(root, 'rehearsal/reports', `vortx-c
 mkdirSync(output, { recursive: true })
 const require = createRequire(import.meta.url), { build } = createRequire(require.resolve('tsx/package.json'))('esbuild')
 const entry = `import React from 'react';import {createRoot} from 'react-dom/client';import {VortxCarteiraOperacional} from '@/components/admin/vortx-carteira-operacional';
-const root=createRoot(document.getElementById('root'));let n=0;window.mount=(override={})=>{window.qa={calls:[],refreshes:0};root.render(<VortxCarteiraOperacional key={++n} hoje="2026-10-22" referenciaInicial="2026-10-21" habilitada podeProcessar posicaoInicial={{dataReferencia:'2026-10-20',patrimonioLiquidoTotal:'30.0000',cotas:[{codigoCarteira:'QA',rotulo:'Cota QA',patrimonioLiquido:'30.0000'}]}} {...override}/>)};window.mount();`
+import {VortxCarteiraHistory} from '@/components/admin/vortx-carteira-history';import {ResumoBases} from '@/components/admin/central-bases-history';import styles from '@/components/admin/central-bases.module.css';
+const initial={dataReferencia:'2026-10-20',patrimonioLiquidoTotal:'30.0000',cotas:[{codigoCarteira:'QA',rotulo:'Cota QA',patrimonioLiquido:'30.0000'}]};
+const history={registros:[{...initial,id:'qa-version',estado:'PUBLICADA',recebidaEm:'2026-10-22T14:40:51Z',publicadaEm:'2026-10-22T14:40:51Z',substituidaEm:null}],total:21,pagina:1,filtros:{}};
+const root=createRoot(document.getElementById('root'));let n=0;window.mount=(override={})=>{window.qa={calls:[],refreshes:0,pushes:[]};const {historicoCarteira=history,...props}=override;root.render(<div key={++n} className={styles.page}><ResumoBases resumo={[]} posicaoCarteira={props.posicaoInicial??initial}/><VortxCarteiraOperacional hoje="2026-10-22" referenciaInicial="2026-10-21" habilitada podeProcessar posicaoInicial={initial} {...props}/><VortxCarteiraHistory historico={historicoCarteira} href="/admin/fundos/qa?tab=central-bases&tipo=Inclusao"/></div>)};window.mount();`
 const bundle = await build({ absWorkingDir: root, bundle: true, write: false, outfile: 'qa/app.js', format: 'iife', jsx: 'automatic',
-  stdin: { contents: entry, loader: 'jsx', resolveDir: root }, alias: { '@': resolve(root, 'src') }, define: { 'process.env.NODE_ENV': '"production"' },
+  // Next normally replaces these compile-time flags; this standalone bundle has no Node process/env.
+  stdin: { contents: entry, loader: 'jsx', resolveDir: root }, alias: { '@': resolve(root, 'src') }, define: { 'process.env.NODE_ENV': '"production"', 'process.env': '{}' },
   plugins: [{ name: 'synthetic-action-only', setup(build) {
     build.onResolve({ filter: /^(next\/navigation|@\/app\/gestor\/dados-financeiros\/carteira-actions)$/ }, args => ({ path: args.path, namespace: 'qa' }))
     build.onLoad({ filter: /.*/, namespace: 'qa' }, args => ({ contents: args.path === 'next/navigation'
-      ? `export const useRouter=()=>({refresh:()=>window.qa.refreshes++});`
+      ? `export const useRouter=()=>({refresh:()=>window.qa.refreshes++,push:url=>window.qa.pushes.push(url)});`
       : `export async function processarCarteiraVortxAction(input){window.qa.calls.push(input);return new Promise(done=>{window.qa.release=done})}` }))
   } }],
 })
@@ -37,6 +41,8 @@ await new Promise(done => server.listen(0, '127.0.0.1', done))
 const origin = `http://127.0.0.1:${server.address().port}`
 const report = { result: 'RUNNING', scope: 'REAL_COMPONENT_SYNTHETIC_ACTION_ONLY', authenticatedSmoke: false, providerCalls: false, checks: [], externalRequests: [], embeddedResourceSchemes: [], errors: [],
   componentSha256: createHash('sha256').update(readFileSync('src/components/admin/vortx-carteira-operacional.tsx')).digest('hex'), browserClosed: false, serverClosed: false }
+report.historyInputs = ['src/components/admin/vortx-carteira-history.tsx', 'src/components/admin/central-bases-history.tsx', 'src/components/admin/central-bases.module.css', 'src/lib/integracoes/vortx/carteira-historico.ts']
+  .map(path => ({ path, sha256: createHash('sha256').update(readFileSync(path)).digest('hex') }))
 let browser, page
 try {
   browser = await puppeteer.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: true })
@@ -61,6 +67,26 @@ try {
   await page.evaluate(() => window.qa.release({ success: true, estado: 'PUBLICADA', posicao: { dataReferencia: '2026-10-21', patrimonioLiquidoTotal: '60.0000', cotas: [{ codigoCarteira: 'QA', rotulo: 'Cota QA', patrimonioLiquido: '60.0000' }] } }))
   await page.waitForFunction(() => document.body.textContent.includes('Carteira completa publicada com sucesso.'))
   assert.equal(await page.evaluate(() => window.qa.refreshes), 1); report.checks.push('PUBLICATION_CONFIRMED_REFRESH_AND_CURRENT_PL')
+  await page.click('form button'); await page.waitForFunction(() => window.qa.calls.length === 3)
+  await page.evaluate(() => window.qa.release({ success: true, estado: 'JA_REGISTRADA', posicao: { dataReferencia: '2026-10-20', patrimonioLiquidoTotal: '30.0000', cotas: [{ codigoCarteira: 'QA', rotulo: 'Cota QA', patrimonioLiquido: '30.0000' }] } }))
+  await page.waitForFunction(() => document.body.textContent.includes('Nenhuma publicação duplicada'))
+  assert.equal(await page.evaluate(() => window.qa.refreshes), 2); report.checks.push('DUPLICATE_REFRESHES_CANONICAL_SUMMARY_AND_HISTORY')
+  await page.evaluate(() => window.mount({ posicaoInicial: { dataReferencia: '2026-10-21', patrimonioLiquidoTotal: '60.0000', cotas: [{ codigoCarteira: 'QA', rotulo: 'Cota QA', patrimonioLiquido: '60.0000' }] } }))
+  await page.waitForFunction(() => document.querySelector('section[aria-label] article:last-child').textContent.includes('21/10/2026'))
+  assert(await page.$eval('section[aria-label] article:last-child', card => card.textContent.includes('60,00') && !card.textContent.includes('Não processada')))
+  assert(await page.$eval('#historico-carteira', history => history.textContent.includes('20/10/2026') && history.textContent.includes('11:40:51')))
+  report.checks.push('LATEST_REFERENCE_SUMMARY_INDEPENDENT_OF_OLDER_PROCESSED_POSITION')
+  await page.click('#historico-carteira button[type="button"]'); await page.waitForFunction(() => window.qa.refreshes === 1)
+  assert.equal(await page.evaluate(() => window.qa.calls.length), 0); report.checks.push('HISTORY_REFRESH_NO_PROVIDER_ACTION')
+  await page.select('#carteira-historico-estado', 'RETIFICADA')
+  await page.$eval('#carteira-historico-referencia', input => { input.value = '2026-10-20' })
+  await page.click('#historico-carteira button[type="submit"]'); await page.waitForFunction(() => window.qa.pushes.length === 1)
+  const filtered = new URL(await page.evaluate(() => window.qa.pushes[0]), origin)
+  assert.equal(filtered.searchParams.get('tab'), 'central-bases'); assert.equal(filtered.searchParams.get('tipo'), 'Inclusao')
+  assert.equal(filtered.searchParams.get('carteiraEstado'), 'RETIFICADA'); assert.equal(filtered.searchParams.get('carteiraReferencia'), '2026-10-20'); assert.equal(filtered.searchParams.get('carteiraPagina'), '1')
+  assert.equal(await page.evaluate(() => window.qa.calls.length), 0); report.checks.push('HISTORY_FILTERS_URL_ONLY_PRESERVE_ADMIN_AND_REPORT_STATE')
+  const next = await page.$eval('#historico-carteira nav a', link => link.getAttribute('href'))
+  assert.equal(new URL(next, origin).searchParams.get('carteiraPagina'), '2'); report.checks.push('HISTORY_SERVER_PAGINATION_LINK')
   for (const width of [375, 768, 1440]) for (const theme of ['light', 'dark']) {
     await page.setViewport({ width, height: 900 }); await page.evaluate(theme => { document.documentElement.className = theme === 'dark' ? 'dark' : '' }, theme)
     assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'HORIZONTAL_OVERFLOW')
