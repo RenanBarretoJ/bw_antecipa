@@ -9,8 +9,10 @@ import { Input } from '@/components/ui/input'
 import styles from './central-bases.module.css'
 
 const money = (value: string) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value))
-export function VortxCarteiraOperacional({ hoje, referenciaInicial, habilitada, podeProcessar, posicaoInicial }: {
+export function VortxCarteiraOperacional({ hoje, referenciaInicial, habilitada, podeProcessar, posicaoInicial, capacidadePublicada = true, processarAction = processarCarteiraVortxAction }: {
   hoje: string; referenciaInicial: string; habilitada: boolean; podeProcessar: boolean; posicaoInicial: PosicaoCarteiraVortx | null
+  processarAction?: (input: unknown) => Promise<ProcessamentoCarteiraResult>
+  capacidadePublicada?: boolean
 }) {
   const router = useRouter()
   const [referencia, setReferencia] = useState(referenciaInicial)
@@ -22,11 +24,11 @@ export function VortxCarteiraOperacional({ hoje, referenciaInicial, habilitada, 
     && result.posicao.dataReferencia >= (posicaoInicial?.dataReferencia ?? '') ? result.posicao : posicaoInicial
   function processar(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (inFlight.current || !habilitada || !podeProcessar) return
+    if (inFlight.current || !habilitada || !podeProcessar || !capacidadePublicada) return
     inFlight.current = true
     startTransition(async () => {
       try {
-        const resposta = await processarCarteiraVortxAction({ dataReferencia: referencia })
+        const resposta = await processarAction({ dataReferencia: referencia })
         setResult(resposta)
         if (resposta.success && resposta.estado === 'PUBLICADA') router.refresh()
       } catch { setResult({ success: false, message: 'A resposta não foi confirmada. Atualize a página e confira a posição publicada antes de tentar novamente.' }) }
@@ -42,7 +44,7 @@ export function VortxCarteiraOperacional({ hoje, referenciaInicial, habilitada, 
     </div>
     {posicao && <details className={styles.advanced}><summary>Conferir o PL por cota</summary><dl className="grid gap-2 sm:grid-cols-2">{posicao.cotas.map(cota => <div key={cota.codigoCarteira}><dt>{cota.rotulo} · {cota.codigoCarteira}</dt><dd className="font-semibold">{money(cota.patrimonioLiquido)}</dd></div>)}</dl></details>}
     <form id="carteira-processamento" onSubmit={processar} aria-label="Processar carteira do Fundo ativo" aria-busy={pending}>
-      <fieldset disabled={pending || !habilitada || !podeProcessar} className="space-y-3">
+      <fieldset disabled={pending || !habilitada || !podeProcessar || !capacidadePublicada} className="space-y-3">
         <div className={styles.fields}><label htmlFor="carteira-posicao-data">Data da posição<Input id="carteira-posicao-data" type="date" required max={hoje} value={referencia} onChange={event => { setReferencia(event.target.value); setResult(null) }} /></label></div>
         <p className={styles.caption}>Consulta a API uma vez e publica o PL somente se a carteira estiver completa. Não envia remessas, não registra aquisições e não exige código TOTP adicional.</p>
         <Button type="submit" className={styles.button + ' ' + styles.primary}>{pending ? 'Consultando e conferindo cotas…' : 'Consultar e publicar carteira completa'}</Button>
@@ -50,6 +52,7 @@ export function VortxCarteiraOperacional({ hoje, referenciaInicial, habilitada, 
     </form>
     {!habilitada && <p className={styles.caption}>O processamento operacional ainda não foi habilitado neste ambiente.</p>}
     {habilitada && !podeProcessar && <p className={styles.caption}>Seu acesso permite acompanhar a carteira, sem iniciar o processamento.</p>}
+    {habilitada && podeProcessar && !capacidadePublicada && <p role="status" className={styles.caption}>Configuração pendente: publique a capacidade Carteira na integração deste Fundo, mantendo todas as cotas esperadas. Nenhuma consulta à Vórtx foi enviada.</p>}
     <div role="status" aria-live="polite" aria-atomic="true">
       {pending ? <p>Consultando a Vórtx e verificando todas as cotas. Aguarde a confirmação.</p> : result && (!result.success ? <p>{result.message}</p>
         : result.estado === 'AGUARDANDO_COTAS' ? <div><p className="font-semibold">Aguardando cotas da posição de {result.dataReferencia.split('-').reverse().join('/')}</p><p>Faltam: {result.cotasPendentes.map(cota => `${cota.rotulo} (${cota.codigoCarteira})`).join(', ')}.</p><p>Nenhum PL parcial foi publicado. A última posição permanece preservada; consulte novamente após a liberação pela Vórtx.</p></div>

@@ -43,6 +43,7 @@ describe('processamento da carteira pelo Gestor', () => {
     { ...context, contexto: { ...context.contexto, podeSolicitar: false } },
     { ...context, contexto: { ...context.contexto, fundo: { id: version } } },
     { ...context, contexto: { ...context.contexto, versoes: [] } },
+    { ...context, contexto: { ...context.contexto, versoes: [{ id: version, ambiente: 'producao', capabilities: ['ESTOQUE'] }] } },
     { ...context, auth: { ...auth, profile: { role: 'cedente' } } },
   ])('bloqueia contexto/role/capability invalido antes de executar (%#)', async invalid => {
     m.contexto.mockResolvedValue(invalid)

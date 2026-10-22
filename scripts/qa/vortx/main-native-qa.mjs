@@ -58,6 +58,9 @@ report.sourceInputs = await Promise.all(['src/test/email03-local-contracts.mjs',
     'src/lib/integracoes/vortx/carteira-rotina.server.ts', 'src/lib/integracoes/vortx/carteira-posicao.server.ts',
     'src/lib/financeiro/ingestao/cron.server.ts', 'src/app/api/cron/vortx-carteira/route.ts',
     'src/app/gestor/dados-financeiros/carteira-actions.ts', 'src/app/gestor/dados-financeiros/page.tsx',
+    'src/app/gestor/central-bases/page.tsx', 'src/app/admin/fundos/carteira-processing-actions.ts',
+    'src/app/admin/fundos/[id]/page.tsx', 'src/lib/navigation/central-bases.ts',
+    'src/lib/integracoes/vortx/carteira-processamento.server.ts',
     'src/components/admin/vortx-carteira-operacional.tsx', 'src/components/admin/vortx-report-requests.tsx'] : []),
 ].map(async path => ({ path, sha256: hash(await readFile(path)) })))
 const phase = async name => { report.phases.push(name); report.currentPhase = name

@@ -19,8 +19,14 @@ describe('carteira operacional na Central de Bases', () => {
     const html = renderToStaticMarkup(createElement(VortxCarteiraOperacional, { ...base, posicaoInicial: { dataReferencia: '2026-10-20', patrimonioLiquidoTotal: '30.0000', cotas: [{ codigoCarteira: 'QA', rotulo: 'Subordinada', patrimonioLiquido: '30.0000' }] } }))
     expect(html).toContain('20/10/2026'); expect(html).toContain('Subordinada'); expect(html).toContain('Conferir o PL por cota')
   })
-  it.each([{ habilitada: false }, { podeProcessar: false }])('desabilita processamento sem escopo operacional %j', change => {
+  it.each([{ habilitada: false }, { podeProcessar: false }, { capacidadePublicada: false }])('desabilita processamento sem escopo operacional %j', change => {
     const html = renderToStaticMarkup(createElement(VortxCarteiraOperacional, { ...base, ...change }))
     expect(html).toContain('<fieldset disabled=')
+  })
+  it('distingue capacidade ausente de falta de acesso do operador', () => {
+    const html = renderToStaticMarkup(createElement(VortxCarteiraOperacional, { ...base, capacidadePublicada: false }))
+    expect(html).toContain('Configuração pendente: publique a capacidade Carteira')
+    expect(html).toContain('Nenhuma consulta à Vórtx foi enviada')
+    expect(html).not.toContain('Seu acesso permite acompanhar')
   })
 })

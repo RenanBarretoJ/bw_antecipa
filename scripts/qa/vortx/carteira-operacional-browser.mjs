@@ -69,6 +69,15 @@ try {
   }
   await page.evaluate(() => window.mount({ podeProcessar: false })); await page.waitForFunction(() => document.querySelector('fieldset').disabled)
   assert.equal(await page.evaluate(() => window.qa.calls.length), 0); report.checks.push('READ_ONLY_NO_PROCESSING')
+  await page.evaluate(() => window.mount({ capacidadePublicada: false })); await page.waitForFunction(() => document.body.textContent.includes('Configuração pendente: publique a capacidade Carteira'))
+  await page.$eval('form', form => form.requestSubmit())
+  assert(await page.$eval('fieldset', field => field.disabled)); assert.equal(await page.evaluate(() => window.qa.calls.length), 0)
+  report.checks.push('MISSING_CAPABILITY_DISTINCT_FROM_USER_PERMISSION_NO_ACTION')
+  await page.evaluate(() => window.mount({ processarAction: async input => { window.qa.calls.push({ portal: 'admin', input }); return { success: true, estado: 'AGUARDANDO_COTAS', dataReferencia: '2026-10-21', cotasPendentes: [{ codigoCarteira: 'SUB', rotulo: 'Subordinada' }] } } }))
+  await page.waitForFunction(() => !document.querySelector('fieldset').disabled)
+  await page.click('form button'); await page.waitForFunction(() => document.body.textContent.includes('Faltam: Subordinada (SUB)'))
+  assert.deepEqual(await page.evaluate(() => window.qa.calls), [{ portal: 'admin', input: { dataReferencia: '2026-10-21' } }])
+  report.checks.push('SAME_COMPONENT_USES_EXPLICIT_ADMIN_ACTION_ADAPTER_SYNTHETIC_ONLY')
   assert.deepEqual(report.externalRequests, []); assert.deepEqual(report.errors, []); report.result = 'PASS'
 } catch (error) { report.result = 'FAIL'; report.error = error.message; process.exitCode = 1; if (page) await page.screenshot({ path: resolve(output, 'failure.png'), fullPage: true }) }
 finally {

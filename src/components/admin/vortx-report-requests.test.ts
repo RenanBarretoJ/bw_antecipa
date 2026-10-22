@@ -46,8 +46,8 @@ describe('histórico de relatórios com solicitação explícita', () => {
     expect(html).not.toContain('Publicado nos módulos')
   })
   it('paginação preserva filtros e a aba administrativa', () => {
-    const html = renderToStaticMarkup(createElement(VortxReportRequests, { contexto, historico: { total: 25, solicitacoes: [row] }, filtros: { tipo: 'Inclusao' }, historicoHref: '/admin/fundos/qa?tab=dados-financeiros', pagina: 1, hoje: '2026-10-20' }))
-    expect(html).toContain('tab=dados-financeiros&amp;tipo=Inclusao&amp;pagina=2#historico-bases')
+    const html = renderToStaticMarkup(createElement(VortxReportRequests, { contexto, historico: { total: 25, solicitacoes: [row] }, filtros: { tipo: 'Inclusao' }, historicoHref: '/admin/fundos/qa?tab=central-bases', pagina: 1, hoje: '2026-10-20' }))
+    expect(html).toContain('tab=central-bases&amp;tipo=Inclusao&amp;pagina=2#historico-bases')
   })
   it('não renderiza TOTP adicional nem leva Gestor à configuração administrativa',()=>{
     const html=renderToStaticMarkup(createElement(VortxReportRequests,{contexto:{...contexto,versoes:[]},historico:{total:0,solicitacoes:[]},pagina:1,hoje:'2026-10-20'}))

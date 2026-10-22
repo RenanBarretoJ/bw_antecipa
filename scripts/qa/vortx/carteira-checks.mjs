@@ -165,6 +165,9 @@ export async function rehearseCarteira(sql, phase, checkpoint, nativeStorageProo
       { name: 'OWN_FUND_CONSULTOR', role: 'consultor', fund, expected: 0 },
       { name: 'OWN_FUND_SUSPENDED_LINK', role: 'gestor', fund, status: 'suspenso', expected: 0 },
       { name: 'OWN_FUND_GESTOR', role: 'gestor', fund, expected: 6 },
+      // Super Admin reads the already-authorized canonical import DTO, not the
+      // restricted quota table directly. No extra grant or policy is introduced.
+      { name: 'OWN_FUND_SUPER_ADMIN_CANONICAL_POSITION', role: 'super_admin', fund, expected: 0, canonical: 2 },
     ]) {
       const actor = randomUUID(), email = `${actor}@example.invalid`
       await sql(`INSERT INTO auth.users(id,email,raw_app_meta_data,raw_user_meta_data,created_at,updated_at) VALUES(${q(actor)},${q(email)},'{}','{}',now(),now());`)
@@ -175,6 +178,22 @@ export async function rehearseCarteira(sql, phase, checkpoint, nativeStorageProo
       const visible = await sql(asActor('authenticated', actor, `SELECT json_build_object('count',count(*),'ids',coalesce(json_agg(importacao_id::text||':'||codigo_cota ORDER BY importacao_id,codigo_cota),'[]'::json)) FROM public.vortx_carteira_cotas`))
       const result = JSON.parse(visible.split('\n').find(line => line.startsWith('{"count"')))
       assert.equal(result.count, scenario.expected, scenario.name)
+      if (scenario.canonical !== undefined) {
+        const canonicalQuery = asActor('authenticated', actor, `SELECT json_build_object('count',count(*),'total',max(valor_total)::text) FROM public.importacoes_financeiras WHERE fundo_id=${q(fund)} AND tipo_base='CARTEIRA'`)
+        assert.equal(await scalar(`SELECT count(*) FROM public.usuario_papeis WHERE usuario_id=${q(actor)} AND papel='super_admin' AND ativo;`), '0', 'UNEXPECTED_PREEXISTING_PLATFORM_ROLE')
+        const denied = JSON.parse((await sql(canonicalQuery)).split('\n').find(line => line.startsWith('{"count"')))
+        assert.equal(denied.count, 0, 'PROFILE_LABEL_ALONE_MUST_NOT_GRANT_ADMIN')
+        // Canonical platform role is the documented actor fixture, not a GRANT,
+        // policy change or assertion relaxation. The pre-role denial is retained.
+        await sql(`INSERT INTO public.usuario_papeis(usuario_id,papel,ativo,origem) VALUES(${q(actor)},'super_admin',true,'administracao');`)
+        const canonicalRows = JSON.parse((await sql(canonicalQuery)).split('\n').find(line => line.startsWith('{"count"')))
+        assert.equal(canonicalRows.count, scenario.canonical, 'SUPER_ADMIN_CANONICAL_POSITION_RLS')
+        assert(canonicalRows.total, 'SUPER_ADMIN_CANONICAL_PL_MISSING')
+        const quotas = await sql(asActor('authenticated', actor, 'SELECT count(*) FROM public.vortx_carteira_cotas'))
+        assert(quotas.split('\n').includes('0'), 'ADMIN_QUOTA_TABLE_ACCESS_NOT_BROADENED')
+        report.superAdminCanonicalPosition = { actor, role: 'authenticated', profileRole: scenario.role, fund, beforeCanonicalRole: denied,
+          explicitFixturePlatformRole: 'super_admin', visible: canonicalRows, directQuotaAccess: 0, result: 'PASS', grantsChanged: false }
+      }
       report.actorMatrix.push({ scenario: scenario.name, actor, role: scenario.role, fund: scenario.fund, claimsRole: 'authenticated', initialProfile: canonical, testProfileRole: scenario.role, visible: result, result: 'PASS' })
     }
   })

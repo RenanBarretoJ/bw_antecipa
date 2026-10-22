@@ -14,11 +14,11 @@ describe('consulta da Central de Bases', () => {
     expect(filtrosBasesSchema.safeParse({ tipo: "Inclusao' OR true" }).success).toBe(false)
   })
   it('preserva o tab administrativo e os filtros na paginação', () => {
-    expect(hrefBases('/admin/fundos/qa?tab=dados-financeiros', { tipo: 'Inclusao', origem: 'MANUAL' }, 2))
-      .toBe('/admin/fundos/qa?tab=dados-financeiros&tipo=Inclusao&origem=MANUAL&pagina=2#historico-bases')
+    expect(hrefBases('/admin/fundos/qa?tab=central-bases', { tipo: 'Inclusao', origem: 'MANUAL' }, 2))
+      .toBe('/admin/fundos/qa?tab=central-bases&tipo=Inclusao&origem=MANUAL&pagina=2#historico-bases')
   })
   it('nova busca volta à primeira página e limpar não mantém filtros anteriores', () => {
-    expect(hrefBases('/gestor/dados-financeiros?tipo=Inclusao&pagina=3', {}))
-      .toBe('/gestor/dados-financeiros?pagina=1#historico-bases')
+    expect(hrefBases('/gestor/central-bases?tipo=Inclusao&pagina=3', {}))
+      .toBe('/gestor/central-bases?pagina=1#historico-bases')
   })
 })

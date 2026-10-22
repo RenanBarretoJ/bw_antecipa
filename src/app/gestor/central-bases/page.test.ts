@@ -19,7 +19,7 @@ beforeEach(()=>{
   m.history.mockResolvedValue({contexto:{fundo:{id,nome:'Fundo ativo QA',cnpj:'00000000000000'},podeSolicitar:true,versoes:[]},historico:{total:0,solicitacoes:[]}})
 })
 afterEach(()=>vi.unstubAllEnvs())
-describe('Dados Financeiros do Gestor',()=>{
+describe('Central de Bases do Gestor',()=>{
   it('deriva Fundo do contexto autenticado e limita paginação',async()=>{
     const html=renderToStaticMarkup(await Page({searchParams:Promise.resolve({pagina:'20000'})}))
     expect(m.history).toHaveBeenCalledExactlyOnceWith(id,10000,{})
