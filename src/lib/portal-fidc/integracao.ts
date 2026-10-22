@@ -1,5 +1,6 @@
 import JSZip from 'jszip'
 import { validarOriginadorRemessa } from './originador-remessa'
+import { resolverEndpointRemessaPortalFidc } from './endpoint-remessa'
 import { createHash } from 'crypto'
 import { createAdminClient } from '@/lib/supabase/server'
 import { buckets } from '@/lib/storage'
@@ -398,6 +399,7 @@ async function enviarSoapPortalFidc(input: {
   remessa: RemessaPortalFidc
   cnabBuffer: Buffer
 }) {
+  const endpoint = resolverEndpointRemessaPortalFidc(input.credenciais.endpointBase || input.integracao.endpointBase)
   const legacy = isLegacyEnvSinqiaTerraConfig(input.integracao.configuracao, input.integracao.fundoId)
     ? resolverLegacyEnvSinqiaTerra()
     : null
@@ -428,7 +430,7 @@ async function enviarSoapPortalFidc(input: {
 </soapenv:Body>\
 </soapenv:Envelope>`
 
-  const response = await fetch(input.credenciais.endpointBase || input.integracao.endpointBase, {
+  const response = await fetch(endpoint, {
     method: 'POST',
     headers: {
       'Content-Type': 'text/xml; charset=utf-8',
