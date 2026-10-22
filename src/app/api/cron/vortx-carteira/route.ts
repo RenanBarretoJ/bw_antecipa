@@ -1,0 +1,14 @@
+import { timingSafeEqual } from 'node:crypto'
+import { executarRotinaCarteiraVortx, rotinaCarteiraPermitida } from '@/lib/integracoes/vortx/carteira-rotina.server'
+
+export const maxDuration = 300
+export async function GET(request: Request) {
+  const headers = { 'Cache-Control': 'no-store' }
+  if (!rotinaCarteiraPermitida()) return new Response(null, { status: 404, headers })
+  const expected = process.env.CRON_SECRET, supplied = request.headers.get('authorization')
+  if (!expected || !supplied || Buffer.byteLength(supplied) !== Buffer.byteLength(`Bearer ${expected}`)
+    || !timingSafeEqual(Buffer.from(supplied), Buffer.from(`Bearer ${expected}`))) return new Response(null, { status: 401, headers })
+  if (new URL(request.url).search || request.body) return new Response(null, { status: 400, headers })
+  try { return Response.json(await executarRotinaCarteiraVortx(), { headers }) }
+  catch { console.warn('vortx_daily_carteira', { estado: 'INDISPONIVEL' }); return new Response(null, { status: 503, headers }) }
+}

@@ -13,12 +13,14 @@ import { acompanharRelatorio } from '@/lib/integracoes/vortx/relatorios-acompanh
 import { ESTADOS_PEDIDO, hrefBases, lerFiltrosBases, TAMANHO_PAGINA_BASES, type FiltrosBases } from '@/lib/integracoes/vortx/central-bases'
 import { RELATORIOS_OPERADOR, podeSolicitarNovamente, relatorioDePosicao, type ContextoRelatorios, type HistoricoRelatorio, type SolicitacaoRelatorio } from '@/lib/integracoes/vortx/relatorios-operacao'
 import styles from './central-bases.module.css'
+import type { PosicaoCarteiraVortx } from '@/lib/integracoes/vortx/carteira-operacao'
+import { formatCurrency } from '@/lib/utils'
 
 const selectClass = 'h-11 w-full min-w-0 rounded-lg border border-input bg-background px-3 text-sm focus-visible:outline-2 focus-visible:outline-ring'
 export const dataCivil = (data: string) => data.split('-').reverse().join('/')
 export const instante = (data: string) => new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short', timeZone: 'America/Sao_Paulo' }).format(new Date(data))
 
-export function ResumoBases({ resumo }: { resumo: HistoricoRelatorio['resumo'] }) {
+export function ResumoBases({ resumo, posicaoCarteira }: { resumo: HistoricoRelatorio['resumo']; posicaoCarteira?: PosicaoCarteiraVortx | null }) {
   return <section aria-label="Últimos pedidos por base, independentemente dos filtros" className={styles.summary}>
     {[
       { titulo: 'Estoque', tipos: ['PosicaoParcela', 'PosicaoAtivo'] },
@@ -34,8 +36,10 @@ export function ResumoBases({ resumo }: { resumo: HistoricoRelatorio['resumo'] }
         <p className={styles.caption}>{row ? `Último pedido${base.titulo === 'Estoque' ? row.pedido.tipoRelatorio === 'PosicaoParcela' ? ' por parcela' : ' por ativo' : ''} · não comprova publicação` : resumo ? 'Sem pedidos registrados' : 'Resumo indisponível'}</p>
       </article>
     })}
-    <article className={styles.metric}><div className={styles.metricTop}><span>Carteira</span><span className={styles.badge}>Não processada</span></div>
-      <p className={styles.value}>—</p><p className={styles.caption}>Persistência ainda não habilitada. <a href="#carteira-bases" className="underline">Ver disponibilidade</a></p>
+    <article className={styles.metric}><div className={styles.metricTop}><span>Carteira</span><span className={`${styles.badge} ${posicaoCarteira ? styles.green : ''}`}>{posicaoCarteira ? 'Publicada' : 'Sem posição publicada'}</span></div>
+      <p className={styles.value}>{posicaoCarteira ? dataCivil(posicaoCarteira.dataReferencia) : '—'}</p>
+      <p className={styles.caption}>{posicaoCarteira ? `${posicaoCarteira.cotas.length} cotas · PL ${formatCurrency(Number(posicaoCarteira.patrimonioLiquidoTotal))}` : 'Nenhuma posição publicada para este Fundo.'}</p>
+      <a href="#historico-carteira" className="inline-flex min-h-11 items-center text-xs text-primary underline">Ver histórico da carteira</a>
     </article>
   </section>
 }

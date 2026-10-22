@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { VortxCredentialSection } from './vortx-vrs-credential-section'
 import { VortxCallbackSection } from './vortx-callback-section'
 import { InlineCredentialFields } from './integration-inline-credential-fields'
+import { VortxCotasEsperadas } from './vortx-cotas-esperadas'
 import type { AdminIntegracao, AdminIntegracaoVersao, AdminCredencialIntegracao } from '@/lib/admin/configuracoes-tecnicas'
 import type { VortxConfiguracaoStatus } from '@/lib/admin/vortx-vrs'
 import { adapterSubmissionFields } from '@/lib/admin/integracao-editor'
@@ -127,6 +128,7 @@ export function IntegrationDraftForm({
       <label className="space-y-1"><Label>Método de preço</Label><Input name="vrsMetodoPreco" value={vrsInclusao.metodo_preco} onChange={(event) => setVrsInclusao((current) => ({ ...current, metodo_preco: event.target.value }))} /></label>
       <label className="space-y-1"><Label>Modalidade da operação</Label><Input name="vrsModalidadeOperacao" inputMode="numeric" maxLength={4} value={vrsInclusao.modalidade_operacao} onChange={(event) => setVrsInclusao((current) => ({ ...current, modalidade_operacao: event.target.value.replace(/\D/g, '').slice(0, 4) }))} /></label>
       <label className="space-y-1"><Label>Registradora</Label><select name="vrsRegistradora" value={vrsInclusao.registradora} onChange={(event) => setVrsInclusao((current) => ({ ...current, registradora: event.target.value }))} className="h-10 w-full rounded-lg border border-input bg-background px-3"><option value="">Selecione</option><option value="CERC">CERC</option><option value="B3">B3</option></select></label>
+      <VortxCotasEsperadas configuracao={defaultVersion?.configuracao_nao_sensivel ?? {}} pending={pending} />
     </>}
     {usesFinancialReports && <label className="space-y-1"><Label>CNPJ do fundo para relatorios financeiros</Label><Input value={normalizedFundCnpj} readOnly aria-readonly="true" /><span className="block text-xs text-muted-foreground">Obtido do cadastro do fundo e preservado automaticamente nesta versao.</span></label>}
     {!catalogo && integration && <label className="space-y-1 md:col-span-2"><Label>Configuracao nao sensivel (JSON)</Label><textarea name="configuracao" value={config} onChange={(event) => setConfig(event.target.value)} className="min-h-24 w-full rounded-lg border border-input bg-background p-3 font-mono text-xs" /><span className="block text-xs text-muted-foreground">Parametros tecnicos adicionais. O CNPJ dos relatorios financeiros e controlado pelo cadastro do fundo.</span></label>}

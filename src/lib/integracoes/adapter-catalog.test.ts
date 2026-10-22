@@ -34,8 +34,8 @@ describe('obterAdapterCatalogo', () => {
 })
 
 describe('VORTX_VRS_CAPABILITIES', () => {
-  it('nao inclui CARTEIRA (contrato ainda nao fechado)', () => {
-    expect(VORTX_VRS_CAPABILITIES).not.toContain('CARTEIRA')
+  it('inclui CARTEIRA para o worker JSON com cotas configuradas', () => {
+    expect(VORTX_VRS_CAPABILITIES).toContain('CARTEIRA')
   })
 
   it('e um subconjunto valido de INTEGRATION_CAPABILITIES', () => {

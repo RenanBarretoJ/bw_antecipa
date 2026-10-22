@@ -8,6 +8,7 @@ import {
 } from './capabilities'
 import type { EstrategiaAgrupamentoRemessa, RemessaFormato } from '@/lib/remessas/domain'
 import { validarConfiguracaoInclusaoVrs } from './configuracao-vortx-vrs'
+import { lerConfiguracaoCarteiraVortx, validarConfiguracaoCarteiraVortx } from './vortx/carteira-configuracao'
 
 export interface OperationalRemittanceDefinition {
   formato: RemessaFormato
@@ -105,7 +106,11 @@ const adapters: readonly IntegrationAdapterDefinition[] = [
     // endpoint_base generico da versao.
     requiresEndpoint: false,
     validatePublication({ capabilities, config }) {
-      return capabilities.includes('CESSAO_ENVIO') ? validarConfiguracaoInclusaoVrs(config) : null
+      if (capabilities.includes('CARTEIRA') && lerConfiguracaoCarteiraVortx(config).estado !== 'CONFIGURADA') {
+        return 'Configure todas as cotas esperadas antes de publicar a carteira.'
+      }
+      return validarConfiguracaoCarteiraVortx(config)
+        ?? (capabilities.includes('CESSAO_ENVIO') ? validarConfiguracaoInclusaoVrs(config) : null)
     },
     async testConnection() {
       return {

@@ -121,6 +121,32 @@ describe('salvar rascunho de integracao tecnica', () => {
     }))
   })
 
+  it('salva a lista de cotas no JSON da mesma versao e preserva a carteira VRS', async () => {
+    const result = await salvarIntegracaoRascunhoAdmin({
+      ...base, providerKey: 'VORTX', systemName: 'Vórtx VRS 2.0', adapterKey: 'vortx_vrs', capabilities: ['ESTOQUE'],
+      configuracaoNaoSensivel: { codigo_carteira: 'QA-VRS', carteira_consolidada: { versao: 1, cotas: [{ codigoCarteira: ' 00123 ', rotulo: ' Cota QA ' }] } },
+    })
+    expect(result.success).toBe(true)
+    expect(requireSuperAdmin).toHaveBeenCalledOnce()
+    expect(rpc).toHaveBeenCalledWith('admin_salvar_integracao_rascunho', expect.objectContaining({
+      p_fundo_id: fundoId, p_integracao_fundo_id: null, p_versao_id: null, p_capabilities: ['ESTOQUE'],
+      p_configuracao_nao_sensivel: { codigo_carteira: 'QA-VRS',
+        carteira_consolidada: { versao: 1, cotas: [{ codigoCarteira: '00123', rotulo: 'Cota QA' }] },
+        relatorios_financeiros: { cnpj_fundo: '68522785000104' },
+      },
+    }))
+    expect(rpc).not.toHaveBeenCalledWith('admin_publicar_integracao_versao', expect.anything())
+    expect(autorizarEConsumirAcaoSensivel).not.toHaveBeenCalled()
+  })
+
+  it.each([null, {}, { versao: 1, cotas: [] }, { versao: 1, cotas: [{ codigoCarteira: 'QA', rotulo: 'A' }, { codigoCarteira: ' QA ', rotulo: 'B' }] }].map(lista => ({ lista })))('recusa lista adulterada no servidor antes de gravar: %j', async ({ lista }) => {
+    const result = await salvarIntegracaoRascunhoAdmin({ ...base, providerKey: 'VORTX', systemName: 'Vórtx VRS 2.0', adapterKey: 'vortx_vrs', configuracaoNaoSensivel: { carteira_consolidada: lista } })
+    expect(result).toMatchObject({ success: false })
+    expect(result.message).toContain('cotas esperadas')
+    expect(rpc).not.toHaveBeenCalled()
+    expect(autorizarEConsumirAcaoSensivel).not.toHaveBeenCalled()
+  })
+
   it('salva autenticacao cifrada e rascunho em uma unica RPC com MFA', async () => {
     vi.mocked(criptografarPortalFidcValor).mockReturnValue({ ciphertext: 'v1:QA:QA:QA', chaveVersao: 'qa' })
     rpc.mockResolvedValue({ data: { id: versionId, integracao_id: integrationId }, error: null })

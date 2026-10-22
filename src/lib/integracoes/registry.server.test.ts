@@ -16,12 +16,12 @@ describe('integrationProviderRegistry', () => {
   it('registra os adapters Sinqia e Vortx VRS somente para capacidades com handler comprovado', () => {
     expect(integrationProviderRegistry.list().map(({ key, supports }) => ({ key, supports }))).toEqual([
       { key: 'sinqia_portal_fidc', supports: ['CESSAO_ENVIO', 'ESTOQUE', 'AQUISICOES', 'LIQUIDACOES'] },
-      { key: 'vortx_vrs', supports: ['CESSAO_ENVIO', 'ESTOQUE', 'AQUISICOES', 'LIQUIDACOES'] },
+      { key: 'vortx_vrs', supports: ['CESSAO_ENVIO', 'ESTOQUE', 'AQUISICOES', 'LIQUIDACOES', 'CARTEIRA'] },
     ])
     expect(integrationProviderRegistry.supports('sinqia_portal_fidc', 'ESTOQUE')).toBe(true)
     expect(integrationProviderRegistry.supports('sinqia_portal_fidc', 'CARTEIRA')).toBe(false)
     expect(integrationProviderRegistry.supports('vortx_vrs', 'LIQUIDACOES')).toBe(true)
-    expect(integrationProviderRegistry.supports('vortx_vrs', 'CARTEIRA')).toBe(false)
+    expect(integrationProviderRegistry.supports('vortx_vrs', 'CARTEIRA')).toBe(true)
   })
 
   it('adapter Vortx VRS nao usa o fluxo generico de credencial/endpoint (vive em tabela propria)', () => {
@@ -54,6 +54,23 @@ describe('integrationProviderRegistry', () => {
     const result = await adapter?.testConnection({ endpoint: '', username: '', password: '', timeoutMs: 100 })
     expect(result?.ok).toBe(false)
     expect(result?.message).toMatch(/dedicado/)
+  })
+
+  it('Vortx valida a lista opcional de cotas ao publicar sem habilitar CARTEIRA', () => {
+    const adapter = integrationProviderRegistry.get('vortx_vrs')!
+    const base = { capabilities: ['ESTOQUE'] as const, clientIdentifier: '', originatorCode: null }
+    expect(adapter.validatePublication({ ...base, config: {} })).toBeNull()
+    expect(adapter.validatePublication({ ...base, config: { carteira_consolidada: null } })).toMatch(/cotas esperadas/)
+    expect(adapter.validatePublication({ ...base, config: { carteira_consolidada: { versao: 1, cotas: [{ codigoCarteira: 'QA', rotulo: 'Cota QA' }] } } })).toBeNull()
+    expect(adapter.supports).toContain('CARTEIRA')
+  })
+
+  it('exige lista explicita e valida de cotas para publicar CARTEIRA', () => {
+    const adapter = integrationProviderRegistry.get('vortx_vrs')!
+    const base = { capabilities: ['CARTEIRA'] as const, clientIdentifier: '', originatorCode: null }
+    expect(adapter.validatePublication({ ...base, config: {} })).toMatch(/cotas/i)
+    expect(adapter.validatePublication({ ...base, config: { carteira_consolidada: { versao: 1, cotas: [] } } })).toMatch(/cotas/i)
+    expect(adapter.validatePublication({ ...base, config: { carteira_consolidada: { versao: 1, cotas: [{ codigoCarteira: 'QA', rotulo: 'Cota QA' }] } } })).toBeNull()
   })
 
   it('delega o teste tecnico ao adapter e nao a um switch por provider', async () => {

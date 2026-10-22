@@ -21,7 +21,7 @@ type CronDependencies = {
 type CapabilityDetail = {
   capability: typeof FINANCIAL_CAPABILITIES[number]
   data_referencia: string
-  status: 'PUBLICADA' | 'VALIDA' | 'FALHA' | 'NAO_CONFIGURADA' | 'INDISPONIVEL' | 'ADAPTER_NAO_IMPLEMENTADO' | 'IGNORADA_CONCORRENCIA'
+  status: 'PUBLICADA' | 'VALIDA' | 'FALHA' | 'NAO_CONFIGURADA' | 'INDISPONIVEL' | 'ADAPTER_NAO_IMPLEMENTADO' | 'IGNORADA_CONCORRENCIA' | 'AGENDADA'
   integration_version_id?: string
   provider_key?: string
   system_name?: string
@@ -62,6 +62,7 @@ export async function executarCicloFinanceiro(dataOperacional: string, dependenc
     }
 
     const details: CapabilityDetail[] = []
+    const expectativasDoFundo = { ...expectativas }
     for (const capability of FINANCIAL_CAPABILITIES) {
       const tipoBase = capabilityParaTipoFinanceiro(capability)
       const dataReferencia = expectativas[tipoBase]
@@ -83,6 +84,13 @@ export async function executarCicloFinanceiro(dataOperacional: string, dependenc
       }
 
       const version = resolution.integrationVersion
+      if (version.adapterKey === 'vortx_vrs' && version.providerKey === 'VORTX' && capability === 'CARTEIRA') {
+        // Dedicated native JSON pipeline at 17:00 Sao Paulo, D-1 ANBIMA. Never the CSV morning handler.
+        expectativasDoFundo.CARTEIRA = expectativas.ESTOQUE
+        details.push({ capability, data_referencia: expectativas.ESTOQUE, status: 'AGENDADA', integration_version_id: version.integrationVersionId,
+          provider_key: version.providerKey, system_name: version.systemName, motivo: 'ROTINA_CARTEIRA_D1_17H' })
+        continue
+      }
       const handler = handlers.get(version.adapterKey, capability)
       if (!handler) {
         falhas += 1
@@ -129,8 +137,8 @@ export async function executarCicloFinanceiro(dataOperacional: string, dependenc
     const { error: finishError } = await supabase.from('importacao_ciclos').update({
       status,
       processadas: details.length,
-      falhas: details.length - successCount,
-      detalhes: { capabilities: details, resumo: `${successCount}/${FINANCIAL_CAPABILITIES.length} fontes disponiveis`, correlation_id: correlationId, expectativas },
+      falhas: details.filter(item => !['PUBLICADA', 'VALIDA', 'AGENDADA'].includes(item.status)).length,
+      detalhes: { capabilities: details, resumo: `${successCount}/${FINANCIAL_CAPABILITIES.length} fontes disponiveis`, correlation_id: correlationId, expectativas: expectativasDoFundo },
       concluida_em: new Date().toISOString(),
     }).eq('id', cycleId)
     if (finishError) throw new Error(`Nao foi possivel finalizar o ciclo financeiro do fundo: ${finishError.message}`)

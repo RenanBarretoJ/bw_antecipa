@@ -37,6 +37,8 @@ import {
   INTEGRATION_CAPABILITY_LABELS,
 } from '@/lib/integracoes/capabilities'
 import { prepararConfiguracaoVortxVrs } from '@/lib/integracoes/configuracao-vortx-vrs'
+import { prepararConfiguracaoCarteiraVortx } from '@/lib/integracoes/vortx/carteira-configuracao'
+import { VortxCotasEsperadasResumo } from './vortx-cotas-esperadas'
 
 type Confirmation = { kind: 'activate' | 'revoke' | 'publish' | 'disable' | 'test'; id: string } | null
 const date = (value?: string | null) => value ? new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value)) : 'Nao informado'
@@ -102,19 +104,22 @@ export function FundoIntegracoesTecnicas({ state, execPage, vortxConfig }: { sta
       let config: Record<string, unknown> = {}
       try { config = JSON.parse(String(formData.get('configuracao') || '{}')) as Record<string, unknown> } catch { notifications.error('O JSON de configuracao nao e valido.'); return }
       if (formData.get('adapterKey') === 'vortx_vrs') {
-        try { config = prepararConfiguracaoVortxVrs({
-          configuracao: config,
-          codigoCarteira: String(formData.get('codigoCarteira') || ''),
-          inclusao: {
-            termo: String(formData.get('vrsTermo') || ''),
-            cnpj_originador: String(formData.get('vrsCnpjOriginador') || ''),
-            tipo_preco: String(formData.get('vrsTipoPreco') || ''),
-            metodo_preco: String(formData.get('vrsMetodoPreco') || ''),
-            modalidade_operacao: String(formData.get('vrsModalidadeOperacao') || ''),
-            registradora: String(formData.get('vrsRegistradora') || ''),
-          },
-        }) }
-        catch (error) { notifications.error(error instanceof Error ? error.message : 'Codigo da carteira VRS invalido.'); return }
+        try {
+          config = prepararConfiguracaoVortxVrs({
+            configuracao: config,
+            codigoCarteira: String(formData.get('codigoCarteira') || ''),
+            inclusao: {
+              termo: String(formData.get('vrsTermo') || ''),
+              cnpj_originador: String(formData.get('vrsCnpjOriginador') || ''),
+              tipo_preco: String(formData.get('vrsTipoPreco') || ''),
+              metodo_preco: String(formData.get('vrsMetodoPreco') || ''),
+              modalidade_operacao: String(formData.get('vrsModalidadeOperacao') || ''),
+              registradora: String(formData.get('vrsRegistradora') || ''),
+            },
+          })
+          const cotas = formData.get('carteiraConsolidada')
+          config = prepararConfiguracaoCarteiraVortx(config, cotas === null ? undefined : JSON.parse(String(cotas)))
+        } catch (error) { notifications.error(error instanceof Error ? error.message : 'Revise a configuração da integração Vórtx.'); return }
       }
       const result = await executarMutacaoTecnica(() => salvarIntegracaoRascunhoAdmin({
         fundoId: state.fundo.id,
@@ -167,7 +172,21 @@ export function FundoIntegracoesTecnicas({ state, execPage, vortxConfig }: { sta
             ? <EmptyState title="Nenhuma integracao selecionada" description="Selecione uma integracao acima ou clique em Nova integracao para iniciar um rascunho." icon={PlugZap} />
             : <IntegrationDraftForm key={`${editor.mode}:${editor.mode === 'create' ? createFormGeneration : 0}:${integration?.id || 'novo'}:${defaultVersion?.id || 'novo'}:${defaultVersion?.updated_at || 'inicial'}`} integration={integration} defaultVersion={defaultVersion} fundCnpj={state.fundo.cnpj} fundId={state.fundo.id} onChanged={() => router.refresh()} vortxConfig={vortxConfig} onRevoke={(id) => setConfirmation({ kind: 'revoke', id })} credentials={state.credenciais} pending={pending} onSubmit={saveDraft} />}
           <div className="divide-y divide-border rounded-xl border border-border px-4">
-            {versions.map((version) => { const credencialPreparada = state.credenciais.some((item) => item.id === version.credencial_integracao_id && item.status === 'rascunho'); const testeGenericoIndisponivel = !version.adapter_key || version.adapter_key === 'vortx_vrs' || credencialPreparada; return <div key={version.id} className="flex flex-wrap items-center gap-3 py-3"><div className="min-w-0 flex-1"><p className="font-semibold">Versao {version.versao} · {version.ambiente}</p><p className="truncate text-xs text-muted-foreground" title={version.endpoint_base}>{version.endpoint_base || 'Endpoint nao informado'} · {version.capabilities.map((capability) => INTEGRATION_CAPABILITY_LABELS[capability]).join(', ') || 'sem capabilities'}</p></div><StatusBadge status={version.status === 'publicada' ? 'ativo' : version.status === 'rascunho' ? 'pendente' : 'desativada'} label={version.status} /><Button type="button" size="sm" variant="outline" disabled={testeGenericoIndisponivel} title={credencialPreparada ? 'Publique para ativar a credencial antes de testar' : !version.adapter_key ? 'Teste indisponivel: adapter nao implementado' : version.adapter_key === 'vortx_vrs' ? 'Use Testar conexao na autenticacao da integracao' : undefined} onClick={() => setConfirmation({ kind: 'test', id: version.id })}>Testar</Button>{version.status === 'rascunho' && <Button type="button" size="sm" disabled={!version.adapter_key} onClick={() => setConfirmation({ kind: 'publish', id: version.id })}>Publicar</Button>}{version.status === 'publicada' && <Button type="button" size="sm" variant="destructive" onClick={() => setConfirmation({ kind: 'disable', id: version.id })}>Desativar</Button>}</div> })}
+            {versions.map((version) => {
+              const credencialPreparada = state.credenciais.some((item) => item.id === version.credencial_integracao_id && item.status === 'rascunho')
+              const testeGenericoIndisponivel = !version.adapter_key || version.adapter_key === 'vortx_vrs' || credencialPreparada
+              return <div key={version.id} className="flex flex-wrap items-start gap-3 py-3">
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold">Versao {version.versao} · {version.ambiente}</p>
+                  <p className="truncate text-xs text-muted-foreground" title={version.endpoint_base}>{version.endpoint_base || 'Endpoint nao informado'} · {version.capabilities.map((capability) => INTEGRATION_CAPABILITY_LABELS[capability]).join(', ') || 'sem capabilities'}</p>
+                  {version.adapter_key === 'vortx_vrs' && <VortxCotasEsperadasResumo configuracao={version.configuracao_nao_sensivel} />}
+                </div>
+                <StatusBadge status={version.status === 'publicada' ? 'ativo' : version.status === 'rascunho' ? 'pendente' : 'desativada'} label={version.status} />
+                <Button type="button" size="sm" variant="outline" disabled={testeGenericoIndisponivel} title={credencialPreparada ? 'Publique para ativar a credencial antes de testar' : !version.adapter_key ? 'Teste indisponivel: adapter nao implementado' : version.adapter_key === 'vortx_vrs' ? 'Use Testar conexao na autenticacao da integracao' : undefined} onClick={() => setConfirmation({ kind: 'test', id: version.id })}>Testar</Button>
+                {version.status === 'rascunho' && <Button type="button" size="sm" disabled={!version.adapter_key} onClick={() => setConfirmation({ kind: 'publish', id: version.id })}>Publicar</Button>}
+                {version.status === 'publicada' && <Button type="button" size="sm" variant="destructive" onClick={() => setConfirmation({ kind: 'disable', id: version.id })}>Desativar</Button>}
+              </div>
+            })}
           </div>
         </CardContent>
       </Card>

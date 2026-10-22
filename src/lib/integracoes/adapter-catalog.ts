@@ -1,10 +1,9 @@
 import { INTEGRATION_CAPABILITIES, SINQIA_PORTAL_FIDC_CAPABILITIES, type IntegrationCapability } from './capabilities'
 
-// Capabilities suportadas pela Vortx VRS 2.0 neste momento. 'CARTEIRA' fica de
-// fora deliberadamente ate o contrato dessa capability ser fechado com a
-// Vortx (P0_Claude_Vortx_VRS2_Adapter_Orientado_Tab_Integracoes).
+// Carteira JSON uses the separate bounded reader and complete-quota worker.
+// Adding support does not activate an existing version or register a daily schedule.
 export const VORTX_VRS_CAPABILITIES = [
-  'CESSAO_ENVIO', 'ESTOQUE', 'AQUISICOES', 'LIQUIDACOES',
+  'CESSAO_ENVIO', 'ESTOQUE', 'AQUISICOES', 'LIQUIDACOES', 'CARTEIRA',
 ] as const satisfies readonly IntegrationCapability[]
 
 export type IntegrationEnvironment = 'homologacao' | 'producao'
