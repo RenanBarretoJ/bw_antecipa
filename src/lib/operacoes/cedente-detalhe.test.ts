@@ -98,6 +98,7 @@ describe('detalhe da operação para cedente', () => {
     expect(detalhe.notasFiscais[0]).toMatchObject({
       totalParcelas: 3,
       valorBruto: 6000,
+      valorBrutoFiscal: 10000,
       valorAntecipado: null,
     })
     expect(detalhe.notasFiscais[0].parcelasCedidas.map((item) => item.parcelaId)).toEqual(['p-1', 'p-3'])

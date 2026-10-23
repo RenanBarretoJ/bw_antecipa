@@ -155,6 +155,7 @@ export interface OperacaoCedenteDetalhe {
     sacado: string
     cnpjSacado: string | null
     valorBruto: number
+    valorBrutoFiscal: number
     valorAntecipado: number | null
     vencimento: string
     status: string
@@ -376,6 +377,7 @@ export function montarDetalheOperacaoCedente({
         numero: nf.numero_nf || '—',
         sacado: nf.razao_social_destinatario || '—',
         cnpjSacado: nf.cnpj_destinatario,
+        valorBrutoFiscal: nf.valor_bruto,
         valorBruto: cedidas.length ? cedidas.reduce((total, item) => total + item.valorNominal, 0) : nf.valor_bruto,
         valorAntecipado: cedidas.length
           ? memoriaCompleta

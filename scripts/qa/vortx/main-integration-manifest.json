@@ -3,6 +3,11 @@
   "baseCommit": "344708db0236a3393bba22cff2c1adfd79f8d5c3",
   "publicationBaseCommit": "ecfe20fe4eff69b7b5acaa8c3f81b8f5ea962b33",
   "publicationFiles": [
+    "src/components/operacoes/OperacaoAcompanhamentoPage.test.ts",
+    "src/components/operacoes/OperacaoAcompanhamentoTabela.tsx",
+    "src/components/operacoes/OperacaoAcompanhamentoTabela.test.ts",
+    "src/lib/operacoes/acompanhamento-tabela.ts",
+    "src/lib/operacoes/acompanhamento-tabela.test.ts",
     "src/lib/financeiro/risco/visao-operacional-ui.test.ts",
     "src/lib/operacoes/consultor-fundo.server.ts",
     "src/lib/operacoes/consultor-memoria-migration.test.ts",
