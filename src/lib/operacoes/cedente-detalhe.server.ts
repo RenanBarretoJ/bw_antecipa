@@ -1,5 +1,7 @@
-import { AuthorizationError, requireOperationAccess } from '@/lib/auth/authorization'
-import { createClient } from '@/lib/supabase/server'
+import 'server-only'
+
+import { AuthorizationError, assertRole, requireOperationAccess } from '@/lib/auth/authorization'
+import { exigirFundoConsultorOperacao } from './consultor-fundo.server'
 import {
   montarDetalheOperacaoCedente,
   type EntregaCedenteRaw,
@@ -12,9 +14,16 @@ import {
   type TotalParcelasNotaRaw,
 } from '@/lib/operacoes/cedente-detalhe'
 
-export async function carregarDetalheOperacaoCedente(operacaoId: string): Promise<OperacaoCedenteDetalhe> {
+export async function carregarDetalheOperacaoCedente(
+  operacaoId: string,
+  options: { perfil?: 'cedente' | 'consultor' } = {},
+): Promise<OperacaoCedenteDetalhe> {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(operacaoId)) {
+    throw new AuthorizationError('Operação não encontrada.', 'NOT_FOUND')
+  }
   const access = await requireOperationAccess(operacaoId)
-  const supabase = await createClient()
+  if (options.perfil) assertRole(access.profile.role, [options.perfil])
+  const supabase = access.supabase
 
   const { data: operacao, error: operacaoError } = await supabase
     .from('operacoes')
@@ -61,7 +70,7 @@ export async function carregarDetalheOperacaoCedente(operacaoId: string): Promis
   if (op.cedente_fundo_id) {
     const { data: vinculo, error: vinculoError } = await supabase
       .from('cedente_fundos')
-      .select('id, cedente_id')
+      .select('id, cedente_id, fundo_id, status')
       .eq('id', op.cedente_fundo_id)
       .eq('cedente_id', op.cedente_id)
       .maybeSingle()
@@ -70,28 +79,32 @@ export async function carregarDetalheOperacaoCedente(operacaoId: string): Promis
       throw new AuthorizationError('Operação não pertence ao vínculo cedente-fundo autorizado.', 'FORBIDDEN')
     }
   }
+  if (options.perfil === 'consultor') await exigirFundoConsultorOperacao(access, op)
 
-  const { data: links } = await supabase
+  const { data: links, error: linksError } = await supabase
     .from('operacoes_nfs')
     .select('nota_fiscal_id')
     .eq('operacao_id', operacaoId)
+  if (linksError) throw new Error('Não foi possível carregar as notas fiscais da operação.')
 
   const notaFiscalIds = ((links || []) as Array<{ nota_fiscal_id: string }>).map((link) => link.nota_fiscal_id)
 
-  const { data: notasFiscais } = notaFiscalIds.length > 0
+  const { data: notasFiscais, error: notasError } = notaFiscalIds.length > 0
     ? await supabase
       .from('notas_fiscais')
       .select('id, numero_nf, cnpj_destinatario, razao_social_destinatario, valor_bruto, valor_liquido, valor_antecipado, data_vencimento, status')
       .in('id', notaFiscalIds)
       .eq('cedente_id', op.cedente_id)
       .order('data_vencimento', { ascending: true })
-    : { data: [] }
+    : { data: [], error: null }
+  if (notasError) throw new Error('Não foi possível carregar as notas fiscais autorizadas.')
 
-  const { data: entregas } = await supabase
+  const { data: entregas, error: entregasError } = await supabase
     .from('nota_fiscal_entregas')
     .select('id, nota_fiscal_id, status_entrega, data_limite_cte, data_limite_canhoto, data_entrega, entrega_confirmada_em, motivo_pendencia')
     .eq('operacao_id', operacaoId)
     .order('created_at', { ascending: true })
+  if (entregasError) throw new Error('Não foi possível carregar o acompanhamento da entrega.')
 
   const entregaIds = ((entregas || []) as Array<{ id: string }>).map((entrega) => entrega.id)
 
@@ -151,5 +164,6 @@ export async function carregarDetalheOperacaoCedente(operacaoId: string): Promis
     parcelasCedidas,
     memoriasCalculo: (memoriasResult.data || []) as MemoriaCalculoParcelaRaw[],
     totaisParcelas: (totaisParcelasResult.data || []) as TotalParcelasNotaRaw[],
+    notasFiscaisBasePath: options.perfil === 'consultor' ? '/consultor/notas-fiscais' : '/cedente/notas-fiscais',
   })
 }

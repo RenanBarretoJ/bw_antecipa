@@ -155,6 +155,7 @@ export interface OperacaoCedenteDetalhe {
     sacado: string
     cnpjSacado: string | null
     valorBruto: number
+    valorBrutoFiscal: number
     valorAntecipado: number | null
     vencimento: string
     status: string
@@ -262,6 +263,7 @@ export function montarDetalheOperacaoCedente({
   parcelasCedidas = [],
   memoriasCalculo = [],
   totaisParcelas = [],
+  notasFiscaisBasePath = '/cedente/notas-fiscais',
   today = new Date(),
 }: {
   operacao: OperacaoCedenteRaw
@@ -271,9 +273,11 @@ export function montarDetalheOperacaoCedente({
   parcelasCedidas?: ParcelaCedidaOperacaoRaw[]
   memoriasCalculo?: MemoriaCalculoParcelaRaw[]
   totaisParcelas?: TotalParcelasNotaRaw[]
+  notasFiscaisBasePath?: '/cedente/notas-fiscais' | '/consultor/notas-fiscais'
   today?: Date
 }): OperacaoCedenteDetalhe {
   const nfById = new Map(notasFiscais.map((nf) => [nf.id, nf]))
+  const hrefNotaFiscal = (id: string) => `${notasFiscaisBasePath}/${id}${notasFiscaisBasePath.startsWith('/consultor/') ? `?cedente=${operacao.cedente_id}` : ''}`
   const entregaById = new Map(entregas.map((entrega) => [entrega.id, entrega]))
   const desembolsada = ['em_andamento', 'liquidada', 'inadimplente'].includes(operacao.status)
   const documentosPolitica = requisitos as DocumentoOperacaoParaPolitica[]
@@ -323,7 +327,7 @@ export function montarDetalheOperacaoCedente({
         situacaoPrazo: situacao.situacaoPrazo,
         dias: situacao.dias,
         status: requisito.status || 'pendente',
-        acaoHref: nf?.id ? `/cedente/notas-fiscais/${nf.id}` : null,
+        acaoHref: nf?.id ? hrefNotaFiscal(nf.id) : null,
       }
     })
 
@@ -373,6 +377,7 @@ export function montarDetalheOperacaoCedente({
         numero: nf.numero_nf || '—',
         sacado: nf.razao_social_destinatario || '—',
         cnpjSacado: nf.cnpj_destinatario,
+        valorBrutoFiscal: nf.valor_bruto,
         valorBruto: cedidas.length ? cedidas.reduce((total, item) => total + item.valorNominal, 0) : nf.valor_bruto,
         valorAntecipado: cedidas.length
           ? memoriaCompleta
@@ -382,7 +387,7 @@ export function montarDetalheOperacaoCedente({
         vencimento: cedidas.length ? cedidas[cedidas.length - 1].vencimentoOriginal : nf.data_vencimento,
         status: nf.status,
         statusLabel: nfStatusLabels[nf.status] || nf.status.replaceAll('_', ' '),
-        href: `/cedente/notas-fiscais/${nf.id}`,
+        href: hrefNotaFiscal(nf.id),
         parcelasCedidas: cedidas,
         totalParcelas: totalParcelasPorNf.get(nf.id) || 0,
       }
@@ -416,7 +421,7 @@ export function montarDetalheOperacaoCedente({
           status: entrega.status_entrega,
           statusLabel: entregaStatusLabels[entrega.status_entrega] || entrega.status_entrega.replaceAll('_', ' '),
           prazoMaisProximo: prazo,
-          href: `/cedente/notas-fiscais/${entrega.nota_fiscal_id}`,
+          href: hrefNotaFiscal(entrega.nota_fiscal_id),
         }
       }),
     },

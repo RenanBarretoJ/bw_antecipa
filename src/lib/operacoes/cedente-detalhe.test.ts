@@ -98,6 +98,7 @@ describe('detalhe da operação para cedente', () => {
     expect(detalhe.notasFiscais[0]).toMatchObject({
       totalParcelas: 3,
       valorBruto: 6000,
+      valorBrutoFiscal: 10000,
       valorAntecipado: null,
     })
     expect(detalhe.notasFiscais[0].parcelasCedidas.map((item) => item.parcelaId)).toEqual(['p-1', 'p-3'])
@@ -219,6 +220,23 @@ describe('detalhe da operação para cedente', () => {
 
     expect(operacaoBase.comprovante_pagamento_url).toBeTruthy()
     expect(detalhe.timeline.some((step) => step.id === 'pagamento')).toBe(false)
+  })
+
+  it('gera links de NF no portal do consultor preservando o contexto do cedente', () => {
+    const detalhe = montarDetalheOperacaoCedente({
+      operacao: operacaoBase, notasFiscais: nfs, entregas, requisitos: [],
+      notasFiscaisBasePath: '/consultor/notas-fiscais',
+    })
+    expect(detalhe.notasFiscais.length).toBeGreaterThan(0)
+    for (const nf of detalhe.notasFiscais) {
+      expect(nf.href).toBe(`/consultor/notas-fiscais/${nf.id}?cedente=${operacaoBase.cedente_id}`)
+    }
+    expect(detalhe.logistica.notas.every(nota => nota.href.startsWith('/consultor/notas-fiscais/'))).toBe(true)
+  })
+
+  it('mantém os links do cedente como padrão', () => {
+    const detalhe = montarDetalheOperacaoCedente({ operacao: operacaoBase, notasFiscais: nfs, entregas, requisitos: [] })
+    for (const nf of detalhe.notasFiscais) expect(nf.href).toBe(`/cedente/notas-fiscais/${nf.id}`)
   })
 
   it('não expõe campos técnicos de CNAB, integração ou Portal FIDC na projeção', () => {

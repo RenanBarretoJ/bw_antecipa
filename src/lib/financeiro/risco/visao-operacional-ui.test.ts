@@ -6,6 +6,7 @@ const operationServer = readFileSync('src/components/operacoes/ExposicaoLogistic
 const operationLoader = readFileSync('src/lib/financeiro/risco/visao-operacional.server.ts', 'utf8')
 const gestorPage = readFileSync('src/app/gestor/operacoes/[id]/page.tsx', 'utf8')
 const cedenteOperationPage = readFileSync('src/app/cedente/operacoes/[id]/page.tsx', 'utf8')
+const acompanhamentoPage = readFileSync('src/components/operacoes/OperacaoAcompanhamentoPage.tsx', 'utf8')
 const cedenteDashboard = readFileSync('src/app/cedente/dashboard/page.tsx', 'utf8')
 const dashboardLoader = readFileSync('src/lib/analytics/loaders.server.ts', 'utf8')
 const operationsList = readFileSync('src/components/operacoes/OperacoesPaginadas.tsx', 'utf8')
@@ -16,7 +17,9 @@ const proformaService = readFileSync('src/lib/financeiro/risco/proforma-selecao.
 describe('integração da visão operacional de exposição', () => {
   it('usa o mesmo componente e a mesma avaliação canônica na operação do gestor e do cedente', () => {
     expect(gestorPage).toContain('ExposicaoLogisticaOperacaoServer')
-    expect(cedenteOperationPage).toContain('ExposicaoLogisticaOperacaoServer')
+    expect(cedenteOperationPage).toContain('OperacaoAcompanhamentoPage')
+    expect(cedenteOperationPage).toContain('perfil="cedente"')
+    expect(acompanhamentoPage).toContain("perfil === 'cedente' && <ExposicaoLogisticaOperacaoServer")
     expect(operationServer).toContain('carregarVisaoExposicaoOperacaoCanonica')
     expect(operationServer).not.toContain('politica_operacional_versoes')
     expect(operationLoader).not.toContain("from('politica_operacional_versoes')")
