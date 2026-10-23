@@ -73,6 +73,12 @@ jobs:
         if: ${{ !contains(fromJSON('["integration/vortx-main-20261021","main","homolog"]'), github.head_ref || github.ref_name) }}
         run: npm test -- --run
 
+      - name: VRS duplicatas SQL regression (two disposable local stacks)
+        if: github.head_ref == 'integration/vortx-main-20261021' || github.ref == 'refs/heads/integration/vortx-main-20261021'
+        run: node scripts/qa/remessas/vrs-duplicatas-sql.mjs --local-only
+        env:
+          LOCALAPPDATA: ${{ runner.temp }}
+
       - name: Complete tests with native Auth MFA Database Storage (isolated synthetic QA)
         if: contains(fromJSON('["integration/vortx-main-20261021","main","homolog"]'), github.head_ref || github.ref_name)
         run: |

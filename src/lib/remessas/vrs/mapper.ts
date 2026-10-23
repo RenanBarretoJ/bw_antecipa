@@ -1,4 +1,5 @@
-import { chaveAtivoVrs, chaveParcelaVrs } from './chaves'
+import Decimal from 'decimal.js'
+import { chaveAtivoVrs, identidadeDuplicataVrs } from './chaves'
 import {
   type GrupoRemessaCanonico,
   type RemessaNotaFiscalCanonica,
@@ -7,7 +8,6 @@ import {
 export interface ConfiguracaoVrsInclusao {
   termo: string
   codigoCarteira: string
-  cnpjOriginador: string
   tipoPreco: 'POSFIXADO' | 'PREFIXADO'
   metodoPreco: string
   modalidadeOperacao: string
@@ -18,6 +18,7 @@ export interface VrsAtivoMapeado {
   chaveUnicaAtivo: string
   operacaoId: string
   notaFiscalId: string
+  parcelaId: string
   campos: string[]
 }
 
@@ -66,6 +67,13 @@ function dataBr(value: string) {
 function decimalBr(value: number) {
   if (!Number.isFinite(value)) return ''
   return value.toFixed(2).replace('.', ',')
+}
+
+function taxaPercentualBr(value: number | null) {
+  if (value === null || !Number.isFinite(value) || value < 0) return ''
+  // A memoria ja guarda percentual: 2.5 representa 2,5%, nao 0,025.
+  // Nao aplicar arredondamento monetario nem notacao cientifica.
+  return new Decimal(value).toFixed().replace('.', ',')
 }
 
 function validarCampoCsv(value: string, campo: string, bloqueios: string[]) {
@@ -161,7 +169,6 @@ export function lerConfiguracaoVrs(configuracao: Record<string, unknown>): Confi
   return {
     termo: texto(raiz.termo),
     codigoCarteira: texto(configuracao.codigo_carteira),
-    cnpjOriginador: somenteDigitos(texto(raiz.cnpj_originador)),
     tipoPreco: texto(raiz.tipo_preco) as ConfiguracaoVrsInclusao['tipoPreco'],
     metodoPreco: texto(raiz.metodo_preco),
     modalidadeOperacao: somenteDigitos(texto(raiz.modalidade_operacao)),
@@ -185,7 +192,6 @@ export function mapearGrupoParaVrs(
   if (cedenteCnpj.length !== 14) bloqueios.push('cedentes.cnpj deve possuir 14 digitos')
   if (!config.termo) bloqueios.push('configuracao_nao_sensivel.vrs_inclusao.termo')
   if (!config.codigoCarteira) bloqueios.push('configuracao_nao_sensivel.codigo_carteira')
-  if (config.cnpjOriginador.length !== 14) bloqueios.push('configuracao_nao_sensivel.vrs_inclusao.cnpj_originador deve possuir 14 digitos')
   if (!['POSFIXADO', 'PREFIXADO'].includes(config.tipoPreco)) bloqueios.push('configuracao_nao_sensivel.vrs_inclusao.tipo_preco')
   if (!config.metodoPreco) bloqueios.push('configuracao_nao_sensivel.vrs_inclusao.metodo_preco')
   if (!/^\d{4}$/.test(config.modalidadeOperacao)) bloqueios.push('configuracao_nao_sensivel.vrs_inclusao.modalidade_operacao deve possuir 4 digitos')
@@ -210,9 +216,7 @@ export function mapearGrupoParaVrs(
         bloqueios.push(`NF ${nota.numero} sem parcela selecionada em operacoes_nf_parcelas`)
         continue
       }
-      const chaveAtivo = chaveAtivoVrs(nota.id)
-      if (chavesAtivo.has(chaveAtivo)) bloqueios.push('Chave ATIVO repetida no lote VRS')
-      chavesAtivo.add(chaveAtivo)
+      chaveAtivoVrs(nota.id) // A origem continua sendo uma NF persistida, nao apenas um numero externo.
       const devedorCnpj = somenteDigitos(nota.devedor.cnpj)
       const cep = somenteDigitos(nota.devedor.cep)
       if (devedorCnpj.length !== 14) bloqueios.push(`NF ${nota.numero}: CNPJ do devedor invalido`)
@@ -224,42 +228,45 @@ export function mapearGrupoParaVrs(
       if (!nota.devedor.municipio) bloqueios.push(`NF ${nota.numero}: municipio do devedor ausente`)
       if (!/^[A-Za-z]{2}$/.test(nota.devedor.uf ?? '')) bloqueios.push(`NF ${nota.numero}: UF do devedor ausente ou invalida`)
       if (!dataBr(nota.dataEmissao)) bloqueios.push(`NF ${nota.numero}: data de emissao invalida`)
-      if (!/^\d{44}$/.test(nota.chaveAcesso ?? '')) bloqueios.push(`NF ${nota.numero}: chave de acesso deve possuir 44 digitos para o campo customizado 2`)
-      if (!somenteDigitos(nota.numero)) bloqueios.push('Numero da NF ausente para o campo customizado 1')
-
-      const vencimentos = nota.parcelasSelecionadas.map((parcela) => parcela.vencimento).sort()
-      const vencimentoAtivo = vencimentos.at(-1) ?? ''
-      const valorCompra = nota.parcelasSelecionadas.reduce((total, parcela) => total + parcela.valorPresente, 0)
-      const valorVencimento = nota.parcelasSelecionadas.reduce((total, parcela) => total + parcela.valorNominal, 0)
-      valorPagamento += valorCompra
-
-      const camposAtivo = [
-        'ATIVO', chaveAtivo, config.cnpjOriginador, emissorCnpj, devedorCnpj,
-        nota.devedor.nome, cep, nota.devedor.endereco ?? '', nota.devedor.numero ?? '', nota.devedor.complemento ?? '',
-        nota.devedor.bairro ?? '', nota.devedor.municipio ?? '', (nota.devedor.uf ?? '').toUpperCase(),
-        nota.devedor.email ?? '', somenteDigitos(nota.devedor.telefone), 'DM', config.tipoPreco,
-        config.metodoPreco, decimalBr(nota.valorBruto), decimalBr(valorCompra), decimalBr(valorVencimento),
-        dataBr(nota.dataEmissao), dataBr(nota.dataEmissao), dataBr(vencimentoAtivo), dataBr(vencimentoAtivo),
-        '', '', somenteDigitos(nota.numero), '', '', '', config.modalidadeOperacao,
-        String(nota.quantidadeParcelasOriginal), decimalBr(valorCompra), decimalBr(nota.valorBruto), config.registradora,
-        somenteDigitos(nota.numero), nota.chaveAcesso ?? '', '', '', '',
-      ].map((value, index) => validarCampoCsv(String(value), `ATIVO[${index}] NF ${nota.numero}`, bloqueios))
-      ativos.push({ chaveUnicaAtivo: chaveAtivo, operacaoId: operacao.id, notaFiscalId: nota.id, campos: camposAtivo })
+      if (!/^\d{44}$/.test(nota.chaveAcesso ?? '')) bloqueios.push(`NF ${nota.numero}: chave de acesso deve possuir 44 digitos para o campo customizado 1 do ATIVO e do FLUXO`)
+      const status = nota.classificacaoLogistica?.status
+      const statusEntrada = status === 'ENTREGUE' ? 'entregue' : status === 'EM_TRANSITO' ? 'em transito' : ''
+      if (!statusEntrada) bloqueios.push(`NF ${nota.numero}: status logistico indeterminado; valide CT-e ou comprovante antes de gerar a remessa VRS`)
 
       for (const parcela of nota.parcelasSelecionadas) {
-        const chaveParcela = chaveParcelaVrs(nota.id, parcela.numero)
+        const { chaveAtivo, chaveFluxo: chaveParcela, numeroEmissao } = identidadeDuplicataVrs(nota.numero, parcela.numero)
+        const chaveInterna = `${chaveAtivo}_${cedenteCnpj}`
+        if (chavesAtivo.has(chaveAtivo)) bloqueios.push('Chave ATIVO repetida no lote VRS')
+        chavesAtivo.add(chaveAtivo)
         if (chavesParcela.has(chaveParcela)) bloqueios.push('Chave FLUXO repetida no lote VRS')
         chavesParcela.add(chaveParcela)
         const vencimento = dataBr(parcela.vencimento)
         if (!vencimento) bloqueios.push(`NF ${nota.numero} parcela ${parcela.numero}: vencimento invalido`)
-        if (!(parcela.valorNominal > 0)) bloqueios.push(`NF ${nota.numero} parcela ${parcela.numero}: valor nominal invalido`)
-        if (!(parcela.valorPresente >= 0)) bloqueios.push(`NF ${nota.numero} parcela ${parcela.numero}: memoria financeira ausente ou invalida`)
+        if (!Number.isFinite(parcela.valorNominal) || !(parcela.valorNominal > 0)) bloqueios.push(`NF ${nota.numero} parcela ${parcela.numero}: valor nominal invalido`)
+        if (!Number.isFinite(parcela.valorPresente) || !(parcela.valorPresente >= 0)) bloqueios.push(`NF ${nota.numero} parcela ${parcela.numero}: memoria financeira ausente ou invalida`)
+        const taxaOperacao = taxaPercentualBr(parcela.taxaMensal)
+        if (!taxaOperacao) bloqueios.push(`NF ${nota.numero} parcela ${parcela.numero}: taxa mensal da memoria financeira ausente ou invalida`)
+        valorPagamento += parcela.valorPresente
+        const nominal = decimalBr(parcela.valorNominal)
+        const compra = decimalBr(parcela.valorPresente)
+        const camposAtivo = [
+          'ATIVO', chaveAtivo, emissorCnpj, emissorCnpj, devedorCnpj,
+          nota.devedor.nome, cep, nota.devedor.endereco ?? '', nota.devedor.numero ?? '', nota.devedor.complemento ?? '',
+          nota.devedor.bairro ?? '', nota.devedor.municipio ?? '', (nota.devedor.uf ?? '').toUpperCase(),
+          nota.devedor.email ?? '', somenteDigitos(nota.devedor.telefone), 'DM', config.tipoPreco,
+          config.metodoPreco, nominal, compra, nominal,
+          dataBr(nota.dataEmissao), '', vencimento, vencimento,
+          '', '', numeroEmissao, '', '', taxaOperacao, config.modalidadeOperacao,
+          '1', compra, nominal, config.registradora,
+          nota.chaveAcesso ?? '', statusEntrada, chaveInterna, '', '',
+        ].map((value, index) => validarCampoCsv(String(value), `ATIVO[${index}] NF ${nota.numero}`, bloqueios))
+        ativos.push({ chaveUnicaAtivo: chaveAtivo, operacaoId: operacao.id, notaFiscalId: nota.id, parcelaId: parcela.id, campos: camposAtivo })
         // O CSV oficial possui 15 colunas no golden, apesar de o documento textual
         // numerar um campo reservado adicional. Mantemos o arquivo oficial sem
         // preencher/corrigir criativamente essa divergencia.
         const camposFluxo = [
           'FLUXO', chaveAtivo, chaveParcela, emissorCnpj, vencimento, vencimento,
-          '', 'Amortizacao', '', decimalBr(parcela.valorNominal), '', '', '', '', '',
+          '', 'Amortizacao', '', decimalBr(parcela.valorNominal), nota.chaveAcesso ?? '', statusEntrada, chaveInterna, '', '',
         ]
         fluxos.push({
           chaveUnicaAtivo: chaveAtivo,

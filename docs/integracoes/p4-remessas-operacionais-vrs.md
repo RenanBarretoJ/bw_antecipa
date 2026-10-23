@@ -6,7 +6,7 @@ O P4 remove do núcleo operacional a premissa de que toda remessa é CNAB. A ope
 
 ```text
 Operação/lote
-  -> modelo canônico (NF = ATIVO; parcela selecionada = FLUXO)
+  -> modelo canônico (VRS: parcela selecionada = duplicata ATIVO + FLUXO único)
   -> integração CESSAO_ENVIO publicada do fundo
   -> definição do adapter
   -> estratégia de agrupamento
@@ -55,8 +55,8 @@ O documento textual numera 16 posições para `FLUXO`, mas omite o índice 10; o
 | Índice | Campo VRS | Fonte BW/regra |
 |---:|---|---|
 | 0 | tipo_registro | Fixo `ATIVO` |
-| 1 | chave_unica_do_ativo | `ATIVO_<notas_fiscais.id>` normalizado; persistida e estável |
-| 2 | cnpj_do_originador | `configuracao_nao_sensivel.vrs_inclusao.cnpj_originador`; bloqueante |
+| 1 | chave_unica_do_ativo | Número da NF + `/` + número original da parcela; exemplo `3518/4` |
+| 2 | cnpj_do_originador | Mesmo CNPJ do emitente da própria NF usado no campo emissor, somente dígitos; bloqueante |
 | 3 | cpf_cnpj_do_emissor | Estabelecimento da própria NF; fallback para snapshot `notas_fiscais.cnpj_emitente`; bloqueante |
 | 4 | cpf_cnpj_do_devedor | `notas_fiscais.cnpj_destinatario`; bloqueante |
 | 5 | nome_devedor | `notas_fiscais.razao_social_destinatario`; bloqueante |
@@ -64,23 +64,25 @@ O documento textual numera 16 posições para `FLUXO`, mas omite o índice 10; o
 | 15 | tipo_do_ativo | Fixo `DM` |
 | 16 | tipo_preco | `vrs_inclusao.tipo_preco`; `POSFIXADO` ou `PREFIXADO`; bloqueante |
 | 17 | metodo_de_preco | `vrs_inclusao.metodo_preco`; bloqueante |
-| 18 | valor_de_emissao | `notas_fiscais.valor_bruto` |
-| 19 | valor_de_compra | Soma de `operacao_calculo_nfs.valor_presente` das parcelas selecionadas |
-| 20 | valor_de_vencimento | Soma de `nota_fiscal_parcelas.valor_nominal` das parcelas selecionadas |
+| 18 | valor_de_emissao | `nota_fiscal_parcelas.valor_nominal` da parcela selecionada |
+| 19 | valor_de_compra | `operacao_calculo_nfs.valor_presente` da mesma parcela, já congelado na operação |
+| 20 | valor_de_vencimento | Valor nominal da mesma parcela |
 | 21 | data_de_emissao | `notas_fiscais.data_emissao` |
-| 22 | data_de_inicio_vigencia | Igual à data de emissão, conforme mapeamento atual |
-| 23–24 | vencimento/original | Maior vencimento entre as parcelas selecionadas |
+| 22 | data_de_inicio_vigencia | Vazio, conforme o exemplo aceito de duplicatas |
+| 23–24 | vencimento/original | Vencimento da própria parcela selecionada |
 | 25–26 | spread/percentual de índice | Vazios; não há fonte contratualmente confirmada |
-| 27 | numero_da_emissao_do_ativo | `notas_fiscais.numero_nf`, somente dígitos |
-| 28–30 | unidades/provisão/taxa | Vazios; não há fonte contratualmente confirmada |
+| 27 | numero_da_emissao_do_ativo | Número da NF concatenado ao número original da parcela, sem separador; exemplo `35184` |
+| 28–29 | unidades/provisão | Vazios; não há fonte contratualmente confirmada |
+| 30 | taxa_de_juros_operacao | `operacao_calculo_nfs.taxa_mensal` da mesma parcela; percentual sem `%`, vírgula decimal e sem zeros decimais adicionais: `2,5%` → `2,5`. Taxa ausente, negativa ou não finita bloqueia; zero explícito é válido. Não recalcula valores nem converte periodicidade. |
 | 31 | modalidade_operacao | `vrs_inclusao.modalidade_operacao`, quatro dígitos; bloqueante |
-| 32 | quantidade_original_parcelas | Contagem em `nota_fiscal_parcelas` para a NF |
-| 33 | valor_liquido_credito | Soma do valor presente das parcelas selecionadas |
-| 34 | valor_total_credito | `notas_fiscais.valor_bruto` |
+| 32 | quantidade_original_parcelas | Fixo `1`: cada duplicata possui um único fluxo |
+| 33 | valor_liquido_credito | Valor presente da própria parcela selecionada |
+| 34 | valor_total_credito | Valor nominal da própria parcela selecionada |
 | 35 | nome_registradora | `vrs_inclusao.registradora`; `B3` ou `CERC`; bloqueante |
-| 36 (posição física 37) | campo_customizado1 | Número da NF, somente dígitos, preservando zeros à esquerda |
-| 37 (posição física 38) | campo_customizado2 | Chave de acesso da NF como texto; exige 44 dígitos |
-| 38–40 | campos customizados 3–5 | Vazios |
+| 36 (posição física 37) | campo_customizado1 | Chave NFe da própria NF, como texto de exatamente 44 dígitos; igual ao campo 1 do FLUXO |
+| 37 (posição física 38) | campo_customizado2 | `entregue` ou `em transito`, conforme evidência logística validada |
+| 38 | campo_customizado3 | Chave interna BW: `chave_unica_do_ativo` + `_` + CNPJ do Cedente normalizado. Exemplo: `3518/4_07312248000137`; não usa CNPJ da Filial/Fundo/favorecido. |
+| 39–40 | campos customizados 4–5 | Vazios |
 
 ### FLUXO
 
@@ -89,15 +91,40 @@ Cada linha corresponde a um registro real de `operacoes_nf_parcelas` e à memór
 | Índice | Campo VRS | Fonte BW/regra |
 |---:|---|---|
 | 0 | tipo_registro | Fixo `FLUXO` |
-| 1 | chave_unica_ativo | Mesma chave do ATIVO da NF |
-| 2 | chave_unica_parcela | `FLUXO_<nota_fiscal_parcelas.id>` normalizado; persistida e estável |
+| 1 | chave_unica_ativo | Mesma chave da duplicata ATIVO; exemplo `3518/4` |
+| 2 | chave_unica_parcela | Chave do ATIVO + `-1`; exemplo `3518/4-1` |
 | 3 | cpf_cnpj_emissor_bancarizador | CNPJ do estabelecimento emissor da NF |
 | 4–5 | vencimento/original | `nota_fiscal_parcelas.data_vencimento` |
 | 6 | data_pagamento | Vazio; fluxo ainda não liquidado |
 | 7 | tipo_evento | Fixo `Amortizacao` |
 | 8 | taxa_evento | Vazio; não inferido |
 | 9 | valor_no_vencimento | `nota_fiscal_parcelas.valor_nominal` |
-| 10–14 no CSV real | reservados/customizados | Vazios |
+| 10 no CSV real | campo_customizado1 | Chave NFe da NF, como texto de exatamente 44 dígitos |
+| 11 no CSV real | campo_customizado2 | Mesmo `entregue` ou `em transito` do ATIVO |
+| 12 no CSV real | campo_customizado3 | Mesma chave interna do ATIVO, sem o sufixo `-1` do FLUXO. |
+| 13–14 no CSV real | campos customizados 4–5 | Vazios |
+
+O layout `inclusao_v4_duplicata_por_parcela` gera um ATIVO e um FLUXO para cada
+parcela efetivamente selecionada. A seleção das parcelas 4 e 5 da NF 3518 gera
+`3518/4` → `3518/4-1` e `3518/5` → `3518/5-1`, sem renumerar a parcela original.
+Números de NF preservam zeros à esquerda; números de parcela são normalizados
+como inteiros de 1 a 999. Colisões dentro do arquivo do mesmo Cedente bloqueiam
+a geração, em vez de sobrescrever ou agregar títulos. Cedentes distintos mantêm
+arquivos distintos.
+
+Originador e emissor são resolvidos individualmente por NF, inclusive quando
+Matriz e Filial compartilham a conta de pagamento. Não usam o CNPJ do Fundo,
+da conta favorecida ou um originador fixo da integração. O campo legado
+`vrs_inclusao.cnpj_originador` permanece nas configurações antigas, mas não é
+usado pelo gerador V4 e não substitui um emitente ausente ou inválido.
+
+A classificação reutiliza `classificarLogisticaDasNotas`, em uma consulta em
+lote por Fundo. CT-e aprovado indica `EM_TRANSITO`; comprovante aprovado indica
+`ENTREGUE`, conforme as regras do classificador existente. Classificação ausente
+ou `INDETERMINADA` bloqueia a geração: aprovação da operação não comprova entrega.
+Os IDs da evidência e versão, o fundamento e o estado utilizado são auditados e
+integram o payload. O campo customizado retrata o momento da geração; o
+acompanhamento gerencial posterior não reescreve arquivos históricos.
 
 ### PAGAMENTO
 
@@ -122,7 +149,13 @@ Matriz e Filial podem compartilhar o mesmo destino bancário e titular. Se as NF
 - `remessas_operacionais`: agregado do lote, fundo, versão da integração, adapter, agrupamento, hash do payload, idempotência e Excel.
 - `remessa_operacional_arquivos`: uma sub-remessa por saída real do adapter, com Cedente quando aplicável, formato, Storage, hash e estado individual.
 - `remessa_operacional_operacoes`: relação N:N entre lote e operações.
-- `remessa_operacional_chaves`: vínculo auditável de ATIVO/FLUXO com operação, NF e parcela.
+- `remessa_operacional_chaves`: no V4, um vínculo completo de ATIVO/FLUXO por parcela, com operação e NF; registros legados permanecem intactos.
+
+A migration incremental `20261022211047_vrs_duplicata_parcela_keys.sql` admite
+somente os novos formatos numéricos `NF/parcela` e `NF/parcela-1`, mantendo os
+formatos legados. Não modifica unicidade, FKs, RLS ou grants. Deve ser aplicada
+no ambiente de destino antes da publicação do V4; a validação local não equivale
+a uma aplicação remota.
 
 As tabelas possuem RLS. Usuários autenticados recebem somente `SELECT`, condicionado ao acesso ao fundo; mutações são restritas ao backend com `service_role`. As rotas exigem Gestor, sessão MFA elevada e fazem uma leitura RLS da operação/remessa antes de chamar serviços administrativos.
 
@@ -131,8 +164,9 @@ As tabelas possuem RLS. Usuários autenticados recebem somente `SELECT`, condici
 Para VRS, `Baixar Excel` produz um XLSX por Cedente nas abas `HEADER`, `ATIVO`,
 `FLUXO` e `PAGAMENTO`, com os cabeçalhos do arquivo de referência
 `inclusao_modelo.xlsx`. Cada aba contém cabeçalho na primeira linha e dados a
-partir da segunda; o tipo de registro não ocupa uma coluna. O número da NF e a
-chave ficam em `ATIVO!AJ` e `ATIVO!AK`. Chaves, CNPJs, CEPs e contas permanecem
+partir da segunda; o tipo de registro não ocupa uma coluna. A chave NFe e o
+status ficam em `ATIVO!AJ` e `ATIVO!AK`; chave NFe e status ficam em `FLUXO!J`
+e `FLUXO!K`. Chaves, CNPJs, CEPs e contas permanecem
 texto, preservando zeros e os 44 dígitos. Os valores usam o mesmo mapeamento do
 CSV, sem novo cálculo financeiro.
 
@@ -162,17 +196,27 @@ Não há UPDATE na NF, no sacado ou em cadastros históricos. A origem (`xml`,
 o evento de geração registra IDs das NFs e campos consultados, sem copiar o
 endereço ou a resposta da API para o log.
 
-A versão `inclusao_v3_chaves_estaveis_xlsx` integra a chave de idempotência VRS. Isso
+A versão `inclusao_v5_chave_interna_taxa` integra a chave de idempotência VRS. Isso
 permite gerar o novo layout sem sobrescrever remessas anteriores. A mesma
 versão e o mesmo payload reutilizam o arquivo existente; alteração de payload
 continua bloqueando reprocessamento. Downloads de remessas antigas preservam
 seus arquivos originais (inclusive o Excel genérico antigo).
 
+O V5 adiciona a chave interna em `ATIVO!AL` e `FLUXO!L` e a taxa em
+`ATIVO!AD`, preservando HEADER, PAGAMENTO, chaves oficiais, campos customizados
+1/2, valores financeiros e a estrutura de duplicata por parcela do V4.
+Essa chave é de correlação por Cedente; não substitui IDs internos ou o escopo
+por Fundo e não elimina colisões de mesma NF/parcela dentro do mesmo Cedente.
+O V4 permanece no histórico: a geração V5 não sobrescreve seus arquivos nem
+reutiliza sua chave de idempotência. Nenhuma migration é necessária.
+
 O XLSX de referência foi preservado como fixture sintética de teste. Seu TXT
 acompanhante possui lacunas de colunas que não existem no workbook real; o
 serializador segue o workbook real, com 5/40/14/7 colunas por aba, respectivamente.
-Exemplo somente para inspeção: [XLSX fictício](exemplos/vrs-inclusao-ficticia.xlsx)
-e [CSV fictício](exemplos/vrs-inclusao-ficticia.csv). Não são arquivos operacionais.
+Exemplos históricos V3, somente para inspeção: [XLSX fictício](exemplos/vrs-inclusao-ficticia.xlsx)
+e [CSV fictício](exemplos/vrs-inclusao-ficticia.csv). Não são arquivos operacionais
+nem representam o novo mapeamento V4. Os testes V4 conferem a equivalência
+CSV/XLSX por duplicata, valores, datas e campos customizados.
 
 ## Arquivos centrais
 
