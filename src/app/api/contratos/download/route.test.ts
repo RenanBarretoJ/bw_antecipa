@@ -3,11 +3,12 @@ import { NextRequest } from 'next/server'
 import { AuthorizationError } from '@/lib/auth/authorization'
 import { GET } from './route'
 
-const mocks=vi.hoisted(()=>({cedente:vi.fn(),operation:vi.fn(),from:vi.fn(),signed:vi.fn(),name:vi.fn(),admin:vi.fn()}))
+const mocks=vi.hoisted(()=>({cedente:vi.fn(),operation:vi.fn(),from:vi.fn(),signed:vi.fn(),name:vi.fn(),admin:vi.fn(),fund:vi.fn()}))
 vi.mock('@/lib/auth/authorization',async original=>({...await original<typeof import('@/lib/auth/authorization')>(),
   requireCedenteAccess:mocks.cedente,requireOperationAccess:mocks.operation}))
 vi.mock('@/lib/supabase/server',()=>({createAdminClient:mocks.admin}))
 vi.mock('@/lib/pdf/nome-download.server',()=>({resolverNomeDownloadDocumento:mocks.name}))
+vi.mock('@/lib/operacoes/consultor-fundo.server',()=>({exigirFundoConsultorOperacao:mocks.fund}))
 const id='90c3df7c-1111-4222-8333-444444444444',path='fundos/historico/documentos/original.pdf'
 const request=(query=`tipo_entidade=operacao&entidade_id=${id}&tipo_documento=termo`)=>new NextRequest(`https://example.invalid/api/contratos/download?${query}`)
 beforeEach(()=>{
@@ -15,11 +16,12 @@ beforeEach(()=>{
   const supabase={from:mocks.from},context={profile:{role:'gestor'},supabase}
   mocks.operation.mockResolvedValue(context)
   mocks.cedente.mockResolvedValue({...context,cedente:{contrato_url:path}})
-  const builder={select:vi.fn(()=>builder),eq:vi.fn(()=>builder),single:vi.fn(async()=>({data:{termo_url:path},error:null}))}
+  const builder={select:vi.fn(()=>builder),eq:vi.fn(()=>builder),single:vi.fn(async()=>({data:{termo_url:path},error:null})),maybeSingle:vi.fn(async()=>({data:{cedente_id:'qa-cedente',cedente_fundo_id:'qa-link'},error:null}))}
   mocks.from.mockReturnValue(builder)
   mocks.admin.mockReturnValue({storage:{from:()=>({createSignedUrl:mocks.signed})}})
   mocks.signed.mockResolvedValue({data:{signedUrl:'https://example.invalid/private-signed-download'},error:null})
   mocks.name.mockResolvedValue('TERMO_CESSAO_FIDC_HEALTH_90C3DF7C.PDF')
+  mocks.fund.mockResolvedValue(undefined)
 })
 describe('download privado com nome canonico',()=>{
   it('usa apenas o path autorizado e nome do servidor, ignorando Fundo/nome/path enviados pelo cliente',async()=>{
@@ -33,7 +35,15 @@ describe('download privado com nome canonico',()=>{
     mocks.operation.mockResolvedValue({profile:{role:'consultor'},supabase:{from:mocks.from}})
     expect((await GET(request())).status).toBe(200)
     expect(mocks.operation).toHaveBeenCalledExactlyOnceWith(id)
+    expect(mocks.fund).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({profile:{role:'consultor'}}),{cedente_id:'qa-cedente',cedente_fundo_id:'qa-link'})
+    expect(mocks.fund.mock.invocationCallOrder[0]).toBeLessThan(mocks.admin.mock.invocationCallOrder[0])
     expect(mocks.operation.mock.invocationCallOrder[0]).toBeLessThan(mocks.admin.mock.invocationCallOrder[0])
+  })
+  it('nega comprovantes de outro Fundo antes de qualquer assinatura administrativa',async()=>{
+    mocks.operation.mockResolvedValue({profile:{role:'consultor'},supabase:{from:mocks.from}})
+    mocks.fund.mockRejectedValue(new AuthorizationError('Operação não disponível.','NOT_FOUND'))
+    expect((await GET(request())).status).toBe(404)
+    expect(mocks.admin).not.toHaveBeenCalled();expect(mocks.name).not.toHaveBeenCalled();expect(mocks.signed).not.toHaveBeenCalled()
   })
   it('nao cria permissao de leitura alternativa quando o gate da main recusa o Consultor',async()=>{
     mocks.operation.mockRejectedValue(new AuthorizationError('Sem acesso.','FORBIDDEN'))

@@ -276,7 +276,7 @@ export function OperacoesPaginadas({
                   <th className="px-4 py-3">Liquido</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Data</th>
-                  {perfil !== 'consultor' && <th className="px-4 py-3">Acoes</th>}
+                  <th className="px-4 py-3">Acoes</th>
                 </tr></thead>
                 <tbody className="divide-y">
                   {resultado.items.map((item) => {
@@ -292,7 +292,7 @@ export function OperacoesPaginadas({
                       <td className="whitespace-nowrap px-4 py-3 font-bold text-green-700 tabular-nums dark:text-green-400">{item.valorLiquido === null ? 'Pendente' : formatCurrency(item.valorLiquido)}</td>
                       <td className="px-4 py-3"><Badge className={status.className}>{status.label}</Badge></td>
                       <td className="whitespace-nowrap px-4 py-3 text-sm text-muted-foreground">{formatDate(item.criadoEm)}</td>
-                      {perfil !== 'consultor' && <td className="whitespace-nowrap px-4 py-3">
+                      <td className="whitespace-nowrap px-4 py-3">
                         <div className="flex items-center gap-1">
                           <Link href={`/${perfil}/operacoes/${item.id}?returnTo=${encodeURIComponent(returnTo)}`}>
                             <Button variant="ghost" size="sm"><Eye size={14} />Ver</Button>
@@ -303,7 +303,7 @@ export function OperacoesPaginadas({
                             </Button>
                           )}
                         </div>
-                      </td>}
+                      </td>
                     </tr>
                   })}
                 </tbody>

@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/server'
 import { buckets } from '@/lib/storage'
 import type { ContratoDocumentType, ContratoEntityType } from '@/lib/types/domain'
 import { resolverNomeDownloadDocumento } from '@/lib/pdf/nome-download.server'
+import { exigirFundoConsultorOperacao } from '@/lib/operacoes/consultor-fundo.server'
 
 const CEDENTE_DOCUMENT_FIELDS: Partial<Record<ContratoDocumentType, 'contrato_url' | 'contrato_assinado_url'>> = {
   contrato: 'contrato_url',
@@ -69,6 +70,12 @@ export async function GET(req: NextRequest) {
       if (!field) return NextResponse.json({ error: 'Documento nao pertence a uma operacao.' }, { status: 400 })
 
       const context = await requireOperationAccess(entidadeId)
+      if (context.profile.role === 'consultor') {
+        const { data: operacao, error: operacaoError } = await context.supabase.from('operacoes')
+          .select('cedente_id,cedente_fundo_id').eq('id', entidadeId).maybeSingle()
+        if (operacaoError || !operacao) throw new AuthorizationError('Operação não encontrada.', 'NOT_FOUND')
+        await exigirFundoConsultorOperacao(context, operacao)
+      }
       if (tipoDocumento === 'remessa') {
         const { data: remessa } = await context.supabase
           .from('remessas_cnab_operacoes')

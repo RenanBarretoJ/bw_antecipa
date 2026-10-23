@@ -79,6 +79,20 @@ jobs:
         env:
           LOCALAPPDATA: ${{ runner.temp }}
 
+      - name: Consultor read-only financial memory SQL regression
+        if: github.head_ref == 'integration/vortx-main-20261021' || github.ref == 'refs/heads/integration/vortx-main-20261021'
+        run: node scripts/qa/consultor/readonly-sql.mjs --local-only
+        env:
+          LOCALAPPDATA: ${{ runner.temp }}
+
+      - name: Consultor read-only SQL evidence
+        if: always() && (github.head_ref == 'integration/vortx-main-20261021' || github.ref == 'refs/heads/integration/vortx-main-20261021')
+        uses: actions/upload-artifact@v4
+        with:
+          name: consultor-readonly-sql
+          path: ${{ runner.temp }}/bw-consultor-readonly-sql-*/REPORT.json
+          if-no-files-found: error
+
       - name: Complete tests with native Auth MFA Database Storage (isolated synthetic QA)
         if: contains(fromJSON('["integration/vortx-main-20261021","main","homolog"]'), github.head_ref || github.ref_name)
         run: |
