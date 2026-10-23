@@ -56,6 +56,7 @@ it('persiste uma referencia completa por duplicata, sem ATIVOs duplicados com pa
   })))
   const remessa = rows.get('remessas_operacionais')?.[0]
   expect(remessa?.idempotency_key).toBe(hashRemessa(stableStringify({ tipo: 'remessa_operacional', fundoId: 'fundo-1', integracaoVersaoId: 'config-v1', adapterKey: 'vortx_vrs', operacaoIds: ['operacao-cedente-a'], layout: VRS_LAYOUT_VERSION })))
+  expect(remessa?.idempotency_key).not.toBe(hashRemessa(stableStringify({ tipo: 'remessa_operacional', fundoId: 'fundo-1', integracaoVersaoId: 'config-v1', adapterKey: 'vortx_vrs', operacaoIds: ['operacao-cedente-a'], layout: 'inclusao_v4_duplicata_por_parcela' })))
   expect(mocks.upload).toHaveBeenCalledTimes(2)
   expect(mocks.upload.mock.calls[0][0]).toMatch(/12345678000195\.csv$/)
   expect(mocks.upload.mock.calls[1][0]).toMatch(/12345678000195\.xlsx$/)
@@ -77,6 +78,13 @@ it('compensa somente os novos uploads e a nova remessa quando a persistencia das
 it('status indeterminado bloqueia antes de upload ou persistencia de remessa', async () => {
   lote.operacoes[0].notas[0].classificacaoLogistica = undefined
   await expect(gerarRemessaOperacional({ operacaoIds: ['operacao-cedente-a'], userId: 'gestor-qa' })).rejects.toThrow(/status logistico indeterminado/)
+  expect(mocks.upload).not.toHaveBeenCalled()
+  expect(rows.size).toBe(0)
+})
+
+it('taxa ausente bloqueia antes de upload ou persistencia, sem substituir por zero', async () => {
+  lote.operacoes[0].notas[0].parcelasSelecionadas[0].taxaMensal = null
+  await expect(gerarRemessaOperacional({ operacaoIds: ['operacao-cedente-a'], userId: 'gestor-qa' })).rejects.toThrow(/taxa mensal da memoria financeira/)
   expect(mocks.upload).not.toHaveBeenCalled()
   expect(rows.size).toBe(0)
 })

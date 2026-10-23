@@ -18,6 +18,7 @@
     "src/lib/remessas/vrs/mapper.ts",
     "src/lib/remessas/vrs/xlsx.ts",
     "src/lib/remessas/vrs/vrs-remessa.test.ts",
+    "src/lib/remessas/vrs/vrs-custom-key-rate.test.ts",
     "src/lib/remessas/vrs/duplicata-migration.test.ts",
     "src/lib/remessas/vrs/__fixtures__/operacao.ts",
     "supabase/migrations/20261022211047_vrs_duplicata_parcela_keys.sql",

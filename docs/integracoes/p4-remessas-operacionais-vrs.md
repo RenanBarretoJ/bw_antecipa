@@ -72,7 +72,8 @@ O documento textual numera 16 posições para `FLUXO`, mas omite o índice 10; o
 | 23–24 | vencimento/original | Vencimento da própria parcela selecionada |
 | 25–26 | spread/percentual de índice | Vazios; não há fonte contratualmente confirmada |
 | 27 | numero_da_emissao_do_ativo | Número da NF concatenado ao número original da parcela, sem separador; exemplo `35184` |
-| 28–30 | unidades/provisão/taxa | Vazios; não há fonte contratualmente confirmada |
+| 28–29 | unidades/provisão | Vazios; não há fonte contratualmente confirmada |
+| 30 | taxa_de_juros_operacao | `operacao_calculo_nfs.taxa_mensal` da mesma parcela; percentual sem `%`, vírgula decimal e sem zeros decimais adicionais: `2,5%` → `2,5`. Taxa ausente, negativa ou não finita bloqueia; zero explícito é válido. Não recalcula valores nem converte periodicidade. |
 | 31 | modalidade_operacao | `vrs_inclusao.modalidade_operacao`, quatro dígitos; bloqueante |
 | 32 | quantidade_original_parcelas | Fixo `1`: cada duplicata possui um único fluxo |
 | 33 | valor_liquido_credito | Valor presente da própria parcela selecionada |
@@ -80,7 +81,8 @@ O documento textual numera 16 posições para `FLUXO`, mas omite o índice 10; o
 | 35 | nome_registradora | `vrs_inclusao.registradora`; `B3` ou `CERC`; bloqueante |
 | 36 (posição física 37) | campo_customizado1 | Chave NFe da própria NF, como texto de exatamente 44 dígitos; igual ao campo 1 do FLUXO |
 | 37 (posição física 38) | campo_customizado2 | `entregue` ou `em transito`, conforme evidência logística validada |
-| 38–40 | campos customizados 3–5 | Vazios |
+| 38 | campo_customizado3 | Chave interna BW: `chave_unica_do_ativo` + `_` + CNPJ do Cedente normalizado. Exemplo: `3518/4_07312248000137`; não usa CNPJ da Filial/Fundo/favorecido. |
+| 39–40 | campos customizados 4–5 | Vazios |
 
 ### FLUXO
 
@@ -99,7 +101,8 @@ Cada linha corresponde a um registro real de `operacoes_nf_parcelas` e à memór
 | 9 | valor_no_vencimento | `nota_fiscal_parcelas.valor_nominal` |
 | 10 no CSV real | campo_customizado1 | Chave NFe da NF, como texto de exatamente 44 dígitos |
 | 11 no CSV real | campo_customizado2 | Mesmo `entregue` ou `em transito` do ATIVO |
-| 12–14 no CSV real | campos customizados 3–5 | Vazios |
+| 12 no CSV real | campo_customizado3 | Mesma chave interna do ATIVO, sem o sufixo `-1` do FLUXO. |
+| 13–14 no CSV real | campos customizados 4–5 | Vazios |
 
 O layout `inclusao_v4_duplicata_por_parcela` gera um ATIVO e um FLUXO para cada
 parcela efetivamente selecionada. A seleção das parcelas 4 e 5 da NF 3518 gera
@@ -193,11 +196,19 @@ Não há UPDATE na NF, no sacado ou em cadastros históricos. A origem (`xml`,
 o evento de geração registra IDs das NFs e campos consultados, sem copiar o
 endereço ou a resposta da API para o log.
 
-A versão `inclusao_v4_duplicata_por_parcela` integra a chave de idempotência VRS. Isso
+A versão `inclusao_v5_chave_interna_taxa` integra a chave de idempotência VRS. Isso
 permite gerar o novo layout sem sobrescrever remessas anteriores. A mesma
 versão e o mesmo payload reutilizam o arquivo existente; alteração de payload
 continua bloqueando reprocessamento. Downloads de remessas antigas preservam
 seus arquivos originais (inclusive o Excel genérico antigo).
+
+O V5 adiciona a chave interna em `ATIVO!AL` e `FLUXO!L` e a taxa em
+`ATIVO!AD`, preservando HEADER, PAGAMENTO, chaves oficiais, campos customizados
+1/2, valores financeiros e a estrutura de duplicata por parcela do V4.
+Essa chave é de correlação por Cedente; não substitui IDs internos ou o escopo
+por Fundo e não elimina colisões de mesma NF/parcela dentro do mesmo Cedente.
+O V4 permanece no histórico: a geração V5 não sobrescreve seus arquivos nem
+reutiliza sua chave de idempotência. Nenhuma migration é necessária.
 
 O XLSX de referência foi preservado como fixture sintética de teste. Seu TXT
 acompanhante possui lacunas de colunas que não existem no workbook real; o

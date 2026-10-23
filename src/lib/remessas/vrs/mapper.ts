@@ -1,3 +1,4 @@
+import Decimal from 'decimal.js'
 import { chaveAtivoVrs, identidadeDuplicataVrs } from './chaves'
 import {
   type GrupoRemessaCanonico,
@@ -66,6 +67,13 @@ function dataBr(value: string) {
 function decimalBr(value: number) {
   if (!Number.isFinite(value)) return ''
   return value.toFixed(2).replace('.', ',')
+}
+
+function taxaPercentualBr(value: number | null) {
+  if (value === null || !Number.isFinite(value) || value < 0) return ''
+  // A memoria ja guarda percentual: 2.5 representa 2,5%, nao 0,025.
+  // Nao aplicar arredondamento monetario nem notacao cientifica.
+  return new Decimal(value).toFixed().replace('.', ',')
 }
 
 function validarCampoCsv(value: string, campo: string, bloqueios: string[]) {
@@ -227,6 +235,7 @@ export function mapearGrupoParaVrs(
 
       for (const parcela of nota.parcelasSelecionadas) {
         const { chaveAtivo, chaveFluxo: chaveParcela, numeroEmissao } = identidadeDuplicataVrs(nota.numero, parcela.numero)
+        const chaveInterna = `${chaveAtivo}_${cedenteCnpj}`
         if (chavesAtivo.has(chaveAtivo)) bloqueios.push('Chave ATIVO repetida no lote VRS')
         chavesAtivo.add(chaveAtivo)
         if (chavesParcela.has(chaveParcela)) bloqueios.push('Chave FLUXO repetida no lote VRS')
@@ -235,6 +244,8 @@ export function mapearGrupoParaVrs(
         if (!vencimento) bloqueios.push(`NF ${nota.numero} parcela ${parcela.numero}: vencimento invalido`)
         if (!Number.isFinite(parcela.valorNominal) || !(parcela.valorNominal > 0)) bloqueios.push(`NF ${nota.numero} parcela ${parcela.numero}: valor nominal invalido`)
         if (!Number.isFinite(parcela.valorPresente) || !(parcela.valorPresente >= 0)) bloqueios.push(`NF ${nota.numero} parcela ${parcela.numero}: memoria financeira ausente ou invalida`)
+        const taxaOperacao = taxaPercentualBr(parcela.taxaMensal)
+        if (!taxaOperacao) bloqueios.push(`NF ${nota.numero} parcela ${parcela.numero}: taxa mensal da memoria financeira ausente ou invalida`)
         valorPagamento += parcela.valorPresente
         const nominal = decimalBr(parcela.valorNominal)
         const compra = decimalBr(parcela.valorPresente)
@@ -245,9 +256,9 @@ export function mapearGrupoParaVrs(
           nota.devedor.email ?? '', somenteDigitos(nota.devedor.telefone), 'DM', config.tipoPreco,
           config.metodoPreco, nominal, compra, nominal,
           dataBr(nota.dataEmissao), '', vencimento, vencimento,
-          '', '', numeroEmissao, '', '', '', config.modalidadeOperacao,
+          '', '', numeroEmissao, '', '', taxaOperacao, config.modalidadeOperacao,
           '1', compra, nominal, config.registradora,
-          nota.chaveAcesso ?? '', statusEntrada, '', '', '',
+          nota.chaveAcesso ?? '', statusEntrada, chaveInterna, '', '',
         ].map((value, index) => validarCampoCsv(String(value), `ATIVO[${index}] NF ${nota.numero}`, bloqueios))
         ativos.push({ chaveUnicaAtivo: chaveAtivo, operacaoId: operacao.id, notaFiscalId: nota.id, parcelaId: parcela.id, campos: camposAtivo })
         // O CSV oficial possui 15 colunas no golden, apesar de o documento textual
@@ -255,7 +266,7 @@ export function mapearGrupoParaVrs(
         // preencher/corrigir criativamente essa divergencia.
         const camposFluxo = [
           'FLUXO', chaveAtivo, chaveParcela, emissorCnpj, vencimento, vencimento,
-          '', 'Amortizacao', '', decimalBr(parcela.valorNominal), nota.chaveAcesso ?? '', statusEntrada, '', '', '',
+          '', 'Amortizacao', '', decimalBr(parcela.valorNominal), nota.chaveAcesso ?? '', statusEntrada, chaveInterna, '', '',
         ]
         fluxos.push({
           chaveUnicaAtivo: chaveAtivo,

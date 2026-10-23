@@ -49,7 +49,7 @@ describe('P4 - adapter Vortx VRS por Cedente', () => {
     const mapped = mapearGrupoParaVrs(agruparRemessa([op], 'POR_CEDENTE')[0], config)
     const ativo = serializarVrsInclusaoCsv(mapped).conteudo.toString('utf8').split('\r\n')[1].split(';')
     expect(ativo).toHaveLength(41)
-    expect(ativo.slice(35)).toEqual(['CERC', op.notas[0].chaveAcesso, 'em transito', '', '', ''])
+    expect(ativo.slice(35)).toEqual(['CERC', op.notas[0].chaveAcesso, 'em transito', '000100/2_12345678000195', '', ''])
   })
 
   it.each([null, '', '123', 'x'.repeat(44)])('bloqueia chave de NF ausente ou invalida: %s', chave => {
@@ -322,7 +322,7 @@ describe('VRS identidades legadas e duplicatas V4', () => {
     const rows = csv.toString('utf8').replace(/^\uFEFF/, '').trim().split('\r\n').map(row => row.split(';'))
     expect(rows.filter(row => row[0] === 'ATIVO').map(row => row[1])).toEqual(numeros.map(numero => `000100/${numero}`))
     expect(rows.filter(row => row[0] === 'ATIVO').map(row => row[27])).toEqual(numeros.map(numero => `000100${numero}`))
-    expect(rows[1].slice(36)).toEqual(['0'.repeat(44), 'em transito', '', '', ''])
+    expect(rows[1].slice(36)).toEqual(['0'.repeat(44), 'em transito', `000100/${numeros[0]}_12345678000195`, '', ''])
     expect(rows.filter(row => row[0] === 'FLUXO').map(row => row.slice(1, 3))).toEqual(numeros.map(numero => [`000100/${numero}`, `000100/${numero}-1`]))
     const zip = await JSZip.loadAsync(await gerarVrsInclusaoXlsx(mapped))
     for (let sheet = 1; sheet <= 4; sheet++) {
@@ -361,7 +361,7 @@ describe('VRS identidades legadas e duplicatas V4', () => {
     expect(identidadeDuplicataVrs('1'.repeat(94), 999).chaveFluxo).toHaveLength(100)
     expect(() => identidadeDuplicataVrs('1'.repeat(95), 999)).toThrow(/limite/)
     expect(identidadeDuplicataVrs('3518', 4)).toEqual({ chaveAtivo: '3518/4', chaveFluxo: '3518/4-1', numeroEmissao: '35184' })
-    expect(VRS_LAYOUT_VERSION).toBe('inclusao_v4_duplicata_por_parcela')
+    expect(VRS_LAYOUT_VERSION).toBe('inclusao_v5_chave_interna_taxa')
   })
   it('V4 segue os valores e vencimentos por duplicata, sem repetir o total da NF', () => {
     const op = operacao()
@@ -406,8 +406,8 @@ describe('VRS identidades legadas e duplicatas V4', () => {
       { familia, documentoId: 'qa-evidencia', versaoId: 'qa-versao', versaoStatus: 'aprovado' },
     ])
     const mapped = mapear(op)
-    for (const ativo of mapped.ativos) expect(ativo.campos.slice(36)).toEqual([op.notas[0].chaveAcesso, status, '', '', ''])
-    for (const fluxo of mapped.fluxos) expect(fluxo.campos.slice(10)).toEqual([op.notas[0].chaveAcesso, status, '', '', ''])
+    for (const ativo of mapped.ativos) expect(ativo.campos.slice(36)).toEqual([op.notas[0].chaveAcesso, status, `${ativo.chaveUnicaAtivo}_12345678000195`, '', ''])
+    for (const fluxo of mapped.fluxos) expect(fluxo.campos.slice(10)).toEqual([op.notas[0].chaveAcesso, status, `${fluxo.chaveUnicaAtivo}_12345678000195`, '', ''])
   })
   it.each([undefined, classificarStatusLogisticoPreCessao([]), classificarStatusLogisticoPreCessao([
     { familia: 'comprovante_entrega', documentoId: 'qa-pendente', versaoId: 'qa-v1', versaoStatus: 'enviado' },
