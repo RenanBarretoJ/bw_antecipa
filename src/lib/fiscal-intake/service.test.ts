@@ -6,12 +6,14 @@ import { danfseFixture } from '@/lib/nfse/fixtures/danfse-v2'
 import { NfseExtractionStageError } from '@/lib/nfse/extraction-failure'
 
 const facts: FiscalFacts = { kind: 'DANFE', documentType: 'NFE', key: '1'.repeat(44), issuerCnpj: '11222333000181',
-  parsed: { campos_extraidos: [], numero_nf: '42', valor_bruto: 100, chave_acesso: '1'.repeat(44) } }
+  parsed: { campos_extraidos: [], numero_nf: '42', valor_bruto: 100, chave_acesso: '1'.repeat(44),
+    data_emissao: '2026-09-29', data_vencimento: '2026-10-30' } }
 const claim = { id: 'reservation', token: 'owner', generation: 1 }
 const scope = { fundoId: 'fund', cedenteId: 'cedente', cedenteFundoId: 'link', estabelecimentoId: 'issuer', cnpj: '11222333000181', razaoSocial: 'QA' }
 function setup() {
   const repository = {
-    resolveScope: vi.fn().mockResolvedValue(scope), reserve: vi.fn().mockResolvedValue(claim),
+    resolveScope: vi.fn().mockResolvedValue(scope), hasPersistedDuplicate: vi.fn().mockResolvedValue(false),
+    reserve: vi.fn().mockResolvedValue(claim),
     resumeReview: vi.fn().mockResolvedValue(claim), openReview: vi.fn().mockResolvedValue('review'),
     planStorage: vi.fn().mockResolvedValue({ id: 'intent', bucket: 'notas-fiscais', path: 'reserved/path' }),
     commit: vi.fn().mockResolvedValue({ nfId: 'nf', numero: '42' }),
@@ -24,6 +26,63 @@ function setup() {
 }
 
 describe('shared fiscal import orchestration', () => {
+  it('requires explicit due confirmation without reserving or uploading an undated DANFE', async () => {
+    const d = setup()
+    d.parse.mockResolvedValue({ ...facts, parsed: { ...facts.parsed, data_vencimento: undefined } })
+    expect(await importFiscalFile(d.input, d)).toEqual({ status: 'DUE_DATE_REQUIRED', review: { numero: '42', bruto: 100, emissao: '2026-09-29' } })
+    expect(d.repository.reserve).not.toHaveBeenCalled()
+    expect(d.storage.upload).not.toHaveBeenCalled()
+  })
+  it('rejects a persisted duplicate before asking for a missing DANFE due date', async () => {
+    const d = setup()
+    d.parse.mockResolvedValue({ ...facts, parsed: { ...facts.parsed, data_vencimento: undefined } })
+    d.repository.hasPersistedDuplicate.mockResolvedValue(true)
+    expect(await importFiscalFile(d.input, d)).toEqual({ status: 'DUPLICATE' })
+    expect(d.repository.hasPersistedDuplicate).toHaveBeenCalledWith(scope, expect.objectContaining({ key: facts.key }))
+    expect(d.repository.reserve).not.toHaveBeenCalled()
+    expect(d.repository.planStorage).not.toHaveBeenCalled()
+    expect(d.storage.upload).not.toHaveBeenCalled()
+  })
+  it('resolves authorization scope before checking whether a DANFE is duplicated', async () => {
+    const d = setup()
+    d.parse.mockResolvedValue({ ...facts, parsed: { ...facts.parsed, data_vencimento: undefined } })
+    d.repository.resolveScope.mockResolvedValue({ status: 'ROUTING_DENIED' })
+    expect(await importFiscalFile(d.input, d)).toEqual({ status: 'ROUTING_DENIED' })
+    expect(d.repository.hasPersistedDuplicate).not.toHaveBeenCalled()
+  })
+  it('records human due provenance without creating parcels or inferring a fiscal net', async () => {
+    const d = setup()
+    d.parse.mockResolvedValue({ ...facts, parsed: { ...facts.parsed, data_vencimento: undefined,
+      descricao_itens: 'PRIVATE SYNTHETIC COMPLEMENTARY TEXT - NOT PRODUCT DATA' } })
+    d.input.danfeManualDue = '2026-11-30'
+    expect(await importFiscalFile(d.input, d)).toEqual({ status: 'IMPORTED', nfId: 'nf', numero: '42' })
+    const prepared = d.repository.planStorage.mock.calls[0][3]
+    expect(prepared.parcelas).toEqual([])
+    expect(prepared.values).toMatchObject({ data_vencimento: '2026-11-30', vencimento_origem: 'MANUAL',
+      valor_liquido: null, valor_liquido_origem: 'NAO_INFORMADO', descricao_itens: null,
+      fiscal_proveniencia: { vencimento_documento: null, vencimento_manual: '2026-11-30' } })
+  })
+  it.each(['', '2026-02-30', '2026-09-28', '60 DIAS'])('does not persist an invalid manual due date: %s', async manual => {
+    const d = setup()
+    d.parse.mockResolvedValue({ ...facts, parsed: { ...facts.parsed, data_vencimento: undefined } })
+    d.input.danfeManualDue = manual
+    expect((await importFiscalFile(d.input, d)).status).toBe('DUE_DATE_REQUIRED')
+    expect(d.repository.reserve).not.toHaveBeenCalled()
+    expect(d.storage.upload).not.toHaveBeenCalled()
+  })
+  it('does not allow a technical actor to supply a human DANFE due date', async () => {
+    const d = setup()
+    d.input.actor = { type: 'SYSTEM', source: 'EMAIL_INTAKE', integrationId: 'i', messageId: 'm', attachmentId: 'a', attachmentToken: 't' }
+    d.input.danfeManualDue = '2026-11-30'
+    expect(await importFiscalFile(d.input, d)).toEqual({ status: 'INVALID' })
+    expect(d.repository.reserve).not.toHaveBeenCalled()
+    expect(d.storage.upload).not.toHaveBeenCalled()
+  })
+  it('does not allow human input to overwrite the printed due date', async () => {
+    const d = setup(); d.input.danfeManualDue = '2026-11-30'
+    expect((await importFiscalFile(d.input, d)).status).toBe('IMPORTED')
+    expect(d.repository.planStorage.mock.calls[0][3].values).toMatchObject({ data_vencimento: '2026-10-30', vencimento_origem: 'DOCUMENT' })
+  })
   it.each(['HUMAN', 'SYSTEM'] as const)('preserves %s extraction-failure outcome and never reserves', async actor => {
     const d = setup()
     if (actor === 'SYSTEM') d.input.actor = { type: 'SYSTEM', source: 'EMAIL_INTAKE', integrationId: 'i', messageId: 'm', attachmentId: 'a', attachmentToken: 't' }

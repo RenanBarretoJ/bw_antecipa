@@ -12,11 +12,12 @@ import { extractionFailureMessage, safeExtractionFailure, type SafeExtractionFai
 
 export async function importManualFiscalFile(input: {
   file: File; userId: string; cedenteId: string; cedenteFundoId: string; fundoId: string
-  client: AppSupabaseClient; telemetry: UploadTelemetry; fileIndex: number; reviewIntent?: string; manualDue?: string
+  client: AppSupabaseClient; telemetry: UploadTelemetry; fileIndex: number; reviewIntent?: string; manualDue?: string; danfeManualDue?: string
 }): Promise<ProcessedUploadFile> {
   let extractionFailure: SafeExtractionFailure | undefined
   const result = await importFiscalFile({ actor: { type: 'HUMAN', userId: input.userId }, fundoId: input.fundoId,
     cedenteFundoId: input.cedenteFundoId, file: input.file,
+    danfeManualDue: input.danfeManualDue,
     review: input.reviewIntent ? { intentId: input.reviewIntent, manualDue: input.manualDue ?? '' } : undefined,
   }, {
     repository: createFiscalImportRepository(input.client), storage: createFiscalStorage(),
@@ -49,6 +50,8 @@ export async function importManualFiscalFile(input: {
     ok: false, status: 'EXTRACTION_ERROR', error: extractionFailureMessage(extractionFailure),
   }
   if (result.status === 'IMPORTED') return { ok: true, id: result.nfId, isRascunho: true, nfNumero: result.numero }
+  if (result.status === 'DUE_DATE_REQUIRED') return { ok: false, status: 'DUE_DATE_REQUIRED', review: result.review,
+    error: 'NF-e reconhecida, sem vencimento expresso. Confirme o vencimento acordado para salvar como rascunho; nenhuma duplicata será criada.' }
   if (result.status === 'REQUIRES_REVIEW') return { ok: false, status: 'REQUIRES_REVIEW', review: result.review,
     error: 'Vencimento não informado no documento. Informe uma data de vencimento válida para concluir.' }
   if (result.status === 'DUPLICATE' || result.status === 'IN_PROGRESS') return { ok: false, status: 'DUPLICATE',

@@ -148,6 +148,7 @@ export function createUploadTelemetry(batchSize: number, sink: Sink = defaultSin
     complete(batch: UploadBatchResult) {
       const events: Record<UploadFileStatus, FileEvent> = {
         REQUIRES_REVIEW: 'NF_UPLOAD_FILE_REQUIRES_REVIEW',
+        DUE_DATE_REQUIRED: 'NF_UPLOAD_FILE_REQUIRES_REVIEW',
         IMPORTED: 'NF_UPLOAD_FILE_IMPORTED',
         REJECTED_AMBIGUOUS: 'NF_UPLOAD_FILE_REJECTED_AMBIGUOUS',
         REJECTED_INVALID: 'NF_UPLOAD_FILE_REJECTED_INVALID',
@@ -158,6 +159,7 @@ export function createUploadTelemetry(batchSize: number, sink: Sink = defaultSin
       }
       const classes: Record<Exclude<UploadFileStatus, 'IMPORTED'>, NonNullable<SafeEvent['error_class']>> = {
         REQUIRES_REVIEW: 'validation',
+        DUE_DATE_REQUIRED: 'validation',
         REJECTED_AMBIGUOUS: 'validation',
         REJECTED_INVALID: 'validation',
         DUPLICATE: 'duplicate',

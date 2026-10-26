@@ -45,6 +45,22 @@ function gridDanfe(numero: number, totalPtBr: string, totalDot: string, icms = '
 }
 
 describe('parser DANFE multilayout', () => {
+  it.each(['V.TOTALDANOTA', 'V. TOTAL DA NOTA', 'VALORTOTALDANOTA', 'VALOR TOTAL DA NOTA'])('recognizes the fiscal total cell %s without relying on item values', label => {
+    const text = gridDanfe(880101, '2.765,43', '2765.43')
+      .replace(/880101-01\/01[^\n]+\n/, '')
+      .split('CÁLCULO DO IMPOSTO')[0]
+      + `CÁLCULO DO IMPOSTO\nV.TOTALDOSPRODUTOS\n2.765,43\nDESCONTO\n0,00\n${label}\n2.765,43\nTRANSPORTADOR\nDADOS DOS PRODUTOS\nITEM A 123,45\nITEM B 2.641,98\nINFORMAÇÕES COMPLEMENTARES\nPAGAMENTO DA FATURA: 60 DIAS`
+    const parsed = extractDanfeFromText(text)
+    expect(validarDanfeParaPersistencia(parsed)).toEqual({ ok: true })
+    expect(parsed.valor_bruto).toBe(2765.43)
+    expect(parsed.data_vencimento).toBeUndefined()
+    expect(parsed.proveniencia?.valor_bruto?.source).toBe('VALOR_TOTAL_DA_NOTA')
+  })
+  it('keeps compact total conflicting with a complete schedule blocked', () => {
+    const parsed = extractDanfeFromText(gridDanfe(880101, '2.765,43', '2765.43') + '\nV.TOTALDANOTA\n3.000,00')
+    expect(validarDanfeParaPersistencia(parsed).ok).toBe(false)
+    expect(parsed.motivos_bloqueio).toContain('canonical_duplicate_conflict')
+  })
   it.each([
     [154806, '8.371,99', '8371.99', 8371.99, '0,00'],
     [154807, '10.966,02', '10966.02', 10966.02, '0,00'],

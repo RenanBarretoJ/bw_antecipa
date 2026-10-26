@@ -14,7 +14,7 @@ function setup() {
   const facts: FiscalFacts = {kind:'DANFE',documentType:'NFE',key:key(),issuerCnpj:key().slice(6,20),parsed}
   const scope={fundoId:'fund',cedenteId:'cedente',cedenteFundoId:'link',estabelecimentoId:'issuer',cnpj:facts.issuerCnpj,razaoSocial:'QA'}
   const claim={id:'claim',token:'owner',generation:1}
-  const repository={resolveScope:vi.fn().mockResolvedValue(scope),reserve:vi.fn(),resumeReview:vi.fn(),openReview:vi.fn(),planStorage:vi.fn(),commit:vi.fn(),fail:vi.fn(),
+  const repository={resolveScope:vi.fn().mockResolvedValue(scope),hasPersistedDuplicate:vi.fn().mockResolvedValue(false),reserve:vi.fn(),resumeReview:vi.fn(),openReview:vi.fn(),planStorage:vi.fn(),commit:vi.fn(),fail:vi.fn(),
     companion:vi.fn().mockResolvedValue({kind:'DOCUMENT',claim,intent:{id:'intent',bucket:'documentos-v2',path:'journal/path.pdf'}}),
     commitCompanion:vi.fn().mockResolvedValue({status:'COMPANION_LINKED',nfId:'nf',numero:'950501'}),failCompanion:vi.fn().mockResolvedValue({status:'CLEANUP_PENDING'})} satisfies FiscalImportRepository
   const input: FiscalImportInput={actor:{type:'SYSTEM',source:'EMAIL_INTAKE',integrationId:'integration',messageId:'message',attachmentId:'attachment',attachmentToken:'lease'},fundoId:'fund',file:new File(['%PDF-QA'],'same.pdf')}

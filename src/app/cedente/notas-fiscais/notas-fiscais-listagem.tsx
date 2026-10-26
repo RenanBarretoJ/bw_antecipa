@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useCallback } from 'react'
+import type { DanfeDueReview } from '@/lib/danfe/due-date'
+import { DanfeDueConfirmation } from '@/components/notas-fiscais/danfe-due-confirmation'
 import { useRouter } from 'next/navigation'
 import { uploadNFs, excluirRascunho, excluirRascunhos, type NfActionState } from '@/lib/actions/nota-fiscal'
 import { abrirProximaRevisaoEmail, concluirRevisaoEmail } from '@/lib/actions/fiscal-email-review'
@@ -154,6 +156,8 @@ export default function NotasFiscaisListagem({
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [nfseReviews, setNfseReviews] = useState<Map<File, import('@/lib/nfse/persistence').NfseReview>>(new Map())
   const [nfseDueDates, setNfseDueDates] = useState<Map<File, string>>(new Map())
+  const [danfeDueReviews, setDanfeDueReviews] = useState<Map<File, DanfeDueReview>>(new Map())
+  const [danfeDueDates, setDanfeDueDates] = useState<Map<File, string>>(new Map())
   const [uploadBatch, setUploadBatch] = useState<UploadBatchResult | null>(null)
   const [excluindo, setExcluindo] = useState<string | null>(null)
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set())
@@ -268,6 +272,10 @@ export default function NotasFiscaisListagem({
       notifications.warning('Informe a data de vencimento das NFS-e em revisão.')
       return
     }
+    if (selectedFiles.some(file => danfeDueReviews.has(file) && !danfeDueDates.get(file))) {
+      notifications.warning('Confirme o vencimento acordado das NF-e destacadas. Não será criada duplicata automática.')
+      return
+    }
 
     setUploading(true)
     const filesToSend = selectedFiles
@@ -277,6 +285,7 @@ export default function NotasFiscaisListagem({
         const formData = new FormData()
         formData.append('arquivos', file)
         if (nfseDueDates.get(file)) formData.append('nfse_vencimento_manual', nfseDueDates.get(file)!)
+        if (danfeDueDates.get(file)) formData.append('nfe_vencimento_manual', danfeDueDates.get(file)!)
         if (nfseReviews.get(file)?.intentId) formData.append('nfse_review_intent', nfseReviews.get(file)!.intentId!)
         if (cedenteIdSelecionado) formData.append('cedente_id', cedenteIdSelecionado)
 
@@ -304,6 +313,14 @@ export default function NotasFiscaisListagem({
       const batch = resumirUploadBatch(units.map((unit) => unit.result))
 
       setUploadBatch(batch)
+      setDanfeDueReviews(previous => {
+        const next = new Map(previous)
+        units.forEach((unit, index) => {
+          if (unit.result.status === 'DUE_DATE_REQUIRED') next.set(filesToSend[index], unit.result.review)
+          else next.delete(filesToSend[index])
+        })
+        return next
+      })
       setNfseReviews(previous => {
         const next = new Map(previous)
         units.forEach((unit, index) => {
@@ -316,6 +333,8 @@ export default function NotasFiscaisListagem({
 
       if (batch.errorCount === 0) {
         notifications.success(`${batch.successCount} de ${batch.total} arquivo(s) importado(s).`)
+      } else if (batch.results.some(item => item.status === 'DUE_DATE_REQUIRED')) {
+        notifications.warning('NF-e reconhecida: confirme o vencimento na fila para salvar o rascunho.')
       } else if (batch.results.some(item => item.status === 'REQUIRES_REVIEW')) {
         notifications.warning('NFS-e em revisão: informe o vencimento para concluir a importação.')
       } else if (batch.successCount > 0) {
@@ -499,6 +518,13 @@ export default function NotasFiscaisListagem({
                 ))}
               </div>
 
+              {selectedFiles.map((file, index) => {
+                const review = danfeDueReviews.get(file)
+                if (!review) return null
+                return <DanfeDueConfirmation key={`danfe-${index}`} review={review} inputId={`danfe-due-${index}`}
+                  disabled={uploading} value={danfeDueDates.get(file) ?? ''}
+                  onDueChange={value => setDanfeDueDates(previous => new Map(previous).set(file, value))} />
+              })}
               {selectedFiles.map((file, index) => {
                 const review = nfseReviews.get(file)
                 if (!review) return null

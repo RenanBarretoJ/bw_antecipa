@@ -2,6 +2,7 @@ import type { NfParsedData, NfParsedParcela } from '@/lib/nf-parser'
 import type { NfPdfExtracted } from '@/lib/pdf-nf-parser'
 import type { NfseExtraction } from '@/lib/nfse/contracts'
 import type { NfseReview } from '@/lib/nfse/persistence'
+import type { DanfeDueReview } from '@/lib/danfe/due-date'
 
 export type DomainActor =
   | { type: 'HUMAN'; userId: string }
@@ -23,6 +24,7 @@ export type FiscalImportResult =
   | { status: 'IMPORTED'; nfId: string; numero: string }
   | { status: 'COMPANION_LINKED'; nfId: string; numero: string }
   | { status: 'REQUIRES_REVIEW'; review: NfseReview }
+  | { status: 'DUE_DATE_REQUIRED'; review: DanfeDueReview }
   | { status: 'DUPLICATE' | 'IN_PROGRESS' | 'UNKNOWN_CEDENTE' | 'ROUTING_DENIED' | 'AMBIGUOUS'
       | 'INVALID' | 'MISSING_IDENTITY' | 'RETRYABLE_ERROR' | 'FAILED' | 'CLEANUP_PENDING' | 'WAITING_CANONICAL_XML' }
 export type FiscalValues = {

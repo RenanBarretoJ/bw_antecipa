@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto'
 import { fiscalFingerprint } from '@/lib/nfse/review-facts'
 import { resolverRazaoSocialDestinatario } from '@/lib/notas-fiscais/destinatario.server'
 import { validarDanfeParaPersistencia } from '@/lib/pdf-nf-parser'
+import { resolveDanfeDue } from '@/lib/danfe/due-date'
 import { prepareFiscalPersistence } from './prepare'
 import { parseFiscalFile } from './parse.server'
 import { FiscalIntakeError, type DomainActor, type FiscalClaim, type FiscalFacts, type FiscalImportResult,
@@ -11,6 +12,7 @@ import { FiscalIntakeError, type DomainActor, type FiscalClaim, type FiscalFacts
 export type FiscalImportInput = {
   actor: DomainActor; fundoId: string; cedenteFundoId?: string; file: File
   review?: { intentId: string; manualDue: string }
+  danfeManualDue?: string
 }
 type Unavailable = { status: 'DUPLICATE' | 'IN_PROGRESS' | 'CLEANUP_PENDING' }
 export interface FiscalImportRepository {
@@ -20,6 +22,7 @@ export interface FiscalImportRepository {
   commitCompanion?(claim: FiscalClaim): Promise<{ status: 'COMPANION_LINKED'; nfId: string; numero: string }>
   failCompanion?(claim: FiscalClaim): Promise<FiscalImportResult>
   resolveScope(input: FiscalImportInput, facts: FiscalFacts): Promise<FiscalScope | { status: 'UNKNOWN_CEDENTE' | 'ROUTING_DENIED' | 'AMBIGUOUS' }>
+  hasPersistedDuplicate(scope: FiscalScope, facts: FiscalFacts): Promise<boolean>
   reserve(input: FiscalImportInput, scope: FiscalScope, facts: FiscalFacts, sha256: string): Promise<FiscalClaim | Unavailable>
   resumeReview(input: FiscalImportInput, scope: FiscalScope, facts: FiscalFacts, sha256: string, fingerprint: string): Promise<FiscalClaim | Unavailable>
   openReview(claim: FiscalClaim, fingerprint: string): Promise<string>
@@ -45,6 +48,12 @@ export async function importFiscalFile(input: FiscalImportInput, dependencies: {
     const facts = await (dependencies.parse ?? parseFiscalFile)(input.file, { companion: systemNfe })
     const scope = await repository.resolveScope(input, facts)
     if ('status' in scope) return scope
+    if (input.danfeManualDue && (facts.kind !== 'DANFE' || input.actor.type !== 'HUMAN')) return { status: 'INVALID' }
+    // Avoid asking a human to supply a due date for an NF-e that is already
+    // persisted in the same canonical Fund/Cedente context. This read remains
+    // RLS-scoped; reserve() below is still the authoritative atomic race fence.
+    if (facts.kind === 'DANFE' && input.actor.type === 'HUMAN'
+      && await repository.hasPersistedDuplicate(scope, facts)) return { status: 'DUPLICATE' }
     const sha256 = createHash('sha256').update(Buffer.from(await input.file.arrayBuffer())).digest('hex')
     if (systemNfe && facts.documentType === 'NFE') {
       if (!repository.companion) throw new FiscalIntakeError('INFRASTRUCTURE')
@@ -59,6 +68,12 @@ export async function importFiscalFile(input: FiscalImportInput, dependencies: {
       if (facts.kind === 'DANFE' && !validarDanfeParaPersistencia(facts.parsed).ok) return { status: 'AMBIGUOUS' }
     }
     if (input.review && (facts.kind !== 'NFSE' || input.actor.type !== 'HUMAN')) return { status: 'INVALID' }
+    const today = (dependencies.today ?? (() => new Date().toISOString().slice(0, 10)))()
+    if (facts.kind === 'DANFE' && !resolveDanfeDue(facts.parsed, input.danfeManualDue ?? '', today)) {
+      if (!facts.parsed.data_emissao || !facts.parsed.numero_nf || !facts.parsed.valor_bruto) return { status: 'INVALID' }
+      return { status: 'DUE_DATE_REQUIRED', review: { numero: facts.parsed.numero_nf,
+        bruto: facts.parsed.valor_bruto, emissao: facts.parsed.data_emissao } }
+    }
     const reservation = input.review && facts.kind === 'NFSE'
       ? await repository.resumeReview(input, scope, facts, sha256, fiscalFingerprint(facts.parsed))
       : await repository.reserve(input, scope, facts, sha256)
@@ -69,7 +84,7 @@ export async function importFiscalFile(input: FiscalImportInput, dependencies: {
       facts.parsed.razao_social_destinatario = recipient.razaoSocial
     }
     const prepared = prepareFiscalPersistence({ facts, scope, sha256,
-      today: (dependencies.today ?? (() => new Date().toISOString().slice(0, 10)))(),
+      today, danfeManualDue: input.danfeManualDue,
       verifiedManualDue: input.review?.manualDue })
     if ('kind' in prepared) {
       if (facts.kind !== 'NFSE') throw new FiscalIntakeError('INVALID')

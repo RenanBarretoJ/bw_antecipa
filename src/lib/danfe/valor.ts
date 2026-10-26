@@ -34,6 +34,8 @@ export interface ValorResolution {
 
 const MAX_CENTS = 100_000_000_000_000
 const CENT_TOLERANCE = 1
+// Some native PDF text layers concatenate words inside the same fiscal cell.
+const TOTAL_NOTA_LABEL = /(?:V\.?|VALOR)\s*TOTAL\s*DA\s*NOTA\b/i
 
 function candidate(source: ValorSource, cents: number, anchor: string, rawText: string, confidence: number): ValorCandidate {
   return { field: 'valor_bruto', value: cents / 100, cents, source, anchor, rawText: rawText.slice(0, 80), confidence, corroboratedBy: [] }
@@ -84,7 +86,7 @@ function collectDuplicatas(lines: string[], numeroNf?: string): ValorCandidate[]
 }
 
 function collectFiscalGrid(lines: string[]): ValorCandidate[] {
-  const label = /(?:V\.?|VALOR)\s*TOTAL\s+DA\s+NOTA/i
+  const label = TOTAL_NOTA_LABEL
   const anchors = lines.flatMap((line, index) => label.test(line) || (!label.test(lines[index + 1] || '') && label.test(`${line} ${lines[index + 1] || ''}`)) ? [index] : [])
   const found: ValorCandidate[] = []
   for (const anchor of anchors) {
@@ -148,7 +150,7 @@ function fiscalFormulaConflict(lines: string[], selectedCents: number): boolean 
 /** Structural candidates, then cross-check. No issuer/CNPJ or filename branching. */
 export function resolveDanfeValue(text: string, numeroNf?: string): ValorResolution {
   const lines = text.split(/\n/).map((line) => line.trim())
-  const direct = collectDirect(lines, /(?:V\.?|VALOR)\s*TOTAL\s+DA\s+NOTA/i, 'VALOR_TOTAL_DA_NOTA', 0.94)
+  const direct = collectDirect(lines, TOTAL_NOTA_LABEL, 'VALOR_TOTAL_DA_NOTA', 0.94)
   const canhoto = collectDirect(lines, /VALOR\s+TOTAL\s*:/i, 'CANHOTO_VALOR_TOTAL', 0.93)
   const original = collectDirect(lines, /VALOR\s+ORIGINAL/i, 'VALOR_ORIGINAL', 0.80)
   const liquid = collectDirect(lines, /VALOR\s+L[IÍ]QUIDO/i, 'VALOR_LIQUIDO', 0.78)

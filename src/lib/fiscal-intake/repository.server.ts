@@ -64,6 +64,17 @@ export function createFiscalImportRepository(client: AppSupabaseClient): FiscalI
       check(error)
       return scopeSchema.parse(data)
     },
+    async hasPersistedDuplicate(scope, facts) {
+      const { data, error } = await client.from('notas_fiscais')
+        .select('id')
+        .eq('chave_acesso', facts.key)
+        .eq('fundo_id', scope.fundoId)
+        .eq('cedente_id', scope.cedenteId)
+        .eq('cedente_fundo_id', scope.cedenteFundoId)
+        .limit(1)
+      check(error)
+      return (data?.length ?? 0) > 0
+    },
     async reserve(input, scope, facts, sha256) {
       const { data, error } = await client.rpc('fiscal_intake_reserve', { p_actor: input.actor, p_fundo_id: scope.fundoId,
         p_cedente_fundo_id: scope.cedenteFundoId, p_estabelecimento_id: scope.estabelecimentoId,
