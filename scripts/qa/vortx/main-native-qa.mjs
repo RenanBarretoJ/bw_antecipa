@@ -14,8 +14,10 @@ const fullSuite = process.argv.includes('--full-suite')
 const snapshotMode = process.argv.includes('--snapshot')
 const releaseUpgrade = process.argv.includes('--release-upgrade')
 const carteira = process.argv.includes('--carteira')
-assert.deepEqual(process.argv.slice(2), ['--local-only', ...(fullSuite ? ['--full-suite'] : []), ...(snapshotMode ? ['--snapshot'] : []), ...(releaseUpgrade ? ['--release-upgrade'] : []), ...(carteira ? ['--carteira'] : [])])
+const s1Browser = process.argv.includes('--s1-browser')
+assert.deepEqual(process.argv.slice(2), ['--local-only', ...(fullSuite ? ['--full-suite'] : []), ...(snapshotMode ? ['--snapshot'] : []), ...(releaseUpgrade ? ['--release-upgrade'] : []), ...(carteira ? ['--carteira'] : []), ...(s1Browser ? ['--s1-browser'] : [])])
 assert(!carteira || releaseUpgrade, 'CARTEIRA_REQUIRES_EXACT_RELEASE_BASELINE')
+assert(!s1Browser || (snapshotMode && releaseUpgrade), 'S1_BROWSER_REQUIRES_VERSIONED_SNAPSHOT_AND_RELEASE_UPGRADE')
 assert(!process.env.DOCKER_HOST || /^(npipe:|unix:)/.test(process.env.DOCKER_HOST), 'REMOTE_DOCKER_REFUSED')
 const source = 'supabase_db_bw_email03_r1full_cleanroom_179137940498'
 const id = `bw-main-native-${Date.now()}`
@@ -142,6 +144,11 @@ try {
       "const fs=require('fs');const root='/root/.npm/_logs';for(const file of fs.readdirSync(root)){if(file.endsWith('debug-0.log'))process.stdout.write(fs.readFileSync(root+'/'+file,'utf8'))}"])
     await writeFile(resolve(reports, 'npm-install.log'), redact(diagnostic)); throw error
   }
+  if (s1Browser) {
+    await docker(['exec', names.runner, 'apt-get', 'update'], undefined, 300000)
+    await docker(['exec', names.runner, 'apt-get', 'install', '-y', '--no-install-recommends', 'chromium'], undefined, 300000)
+    report.browserRuntime = 'DEBIAN_CHROMIUM_EPHEMERAL_LOCAL_ONLY'
+  }
   // From this point every service shares only this runner's isolated loopback.
   // There are no host publications, Docker socket mounts or external network.
   await docker(['network', 'disconnect', id, names.runner])
@@ -194,6 +201,10 @@ try {
   assert.equal(await sql('SELECT count(*) FROM auth.users; SELECT count(*) FROM public.profiles; SELECT count(*) FROM storage.objects;'), '0\n0\n0', 'USER_DATA_MUST_NOT_BE_COPIED')
   assert.equal(await sql("SELECT count(*) FROM pg_trigger WHERE tgrelid='auth.users'::regclass AND tgname='on_auth_user_created' AND tgenabled='O';"), '1')
   if (releaseUpgrade) report.releaseUpgrade = await rehearseReleaseUpgrade(sql, phase)
+  if (s1Browser) {
+    const { applyS1BrowserUpgrade } = await import('../serpro/s1-browser-local.mjs')
+    report.s1Upgrade = await applyS1BrowserUpgrade(sql, phase)
+  }
   for (const role of ['postgres', 'authenticator', 'supabase_auth_admin', 'supabase_storage_admin']) await sql(`ALTER ROLE ${role} LOGIN PASSWORD '${password}';`)
   await phase('OFFICIAL_AUTH_POSTGREST_STORAGE')
   await start(names.auth, [...namespace, ...envArgs({
@@ -217,9 +228,11 @@ try {
     ENABLE_IMAGE_TRANSFORMATION: 'false', HOST: '127.0.0.1', PORT: '5000',
   })], 'public.ecr.aws/supabase/storage-api:v1.67.20')
   const gateway = `const http=require('node:http');const targets=[['/auth/v1',9999],['/rest/v1',3000],['/storage/v1',5000]];
-    http.createServer((req,res)=>{const route=targets.find(([prefix])=>req.url===prefix||req.url.startsWith(prefix+'/'));
-    if(!route){res.writeHead(404);res.end();return}const upstream=http.request({host:'127.0.0.1',port:route[1],path:req.url.slice(route[0].length)||'/',method:req.method,headers:req.headers},response=>{res.writeHead(response.statusCode,response.headers);response.pipe(res)});
-    upstream.on('error',()=>{res.writeHead(502);res.end()});req.pipe(upstream)}).listen(57861,'127.0.0.1');`
+    http.createServer((req,res)=>{const origin=req.headers.origin==='http://127.0.0.1:57860'?req.headers.origin:null;const cors=origin?{'access-control-allow-origin':origin,'access-control-allow-credentials':'true','vary':'Origin'}:{};
+    if(req.method==='OPTIONS'){res.writeHead(204,{...cors,'access-control-allow-methods':'GET,HEAD,POST,PUT,PATCH,DELETE,OPTIONS','access-control-allow-headers':req.headers['access-control-request-headers']||'authorization,apikey,content-type,x-client-info,prefer,range'});res.end();return}
+    const route=targets.find(([prefix])=>req.url===prefix||req.url.startsWith(prefix+'/'));
+    if(!route){res.writeHead(404,cors);res.end();return}const upstream=http.request({host:'127.0.0.1',port:route[1],path:req.url.slice(route[0].length)||'/',method:req.method,headers:req.headers},response=>{res.writeHead(response.statusCode,{...response.headers,...cors,'access-control-expose-headers':'Content-Range, X-Total-Count'});response.pipe(res)});
+    upstream.on('error',()=>{res.writeHead(502,cors);res.end()});req.pipe(upstream)}).listen(57861,'127.0.0.1');`
   await docker(['exec', '-d', names.runner, 'node', '-e', gateway])
   await docker(['exec', names.runner, 'node', '-e', `
     (async()=>{for(let i=0;i<80;i++){try{const results=await Promise.all(['http://127.0.0.1:9999/health','http://127.0.0.1:5000/status','http://127.0.0.1:3000/'].map(url=>fetch(url)));if(results.every(r=>r.ok))return}catch{}await new Promise(r=>setTimeout(r,500))}process.exit(1)})()`])
@@ -229,6 +242,10 @@ try {
     const db=new Client({host:'127.0.0.1',port:57862,user:'postgres',password:process.env.LOCAL_QA_PG_PASSWORD,database:'postgres'});
     await db.connect();try{console.log(JSON.stringify(await seedNativeFixture(db)))}finally{await db.end()}`
   report.fixture = JSON.parse(await docker(['exec', '-e', `LOCAL_QA_PG_PASSWORD=${password}`, names.runner, 'node', '--input-type=module', '-e', seed]))
+  if (s1Browser) {
+    const { runS1BrowserQa } = await import('../serpro/s1-browser-local.mjs')
+    report.s1Browser = await runS1BrowserQa({ docker, names, password, anon, service, sql, phase, reports, envArgs })
+  }
   if (carteira) report.carteira = await rehearseCarteira(sql, phase, async evidence => {
     await writeFile(resolve(reports, 'carteira.json'), JSON.stringify(evidence, null, 2))
   }, async context => {
