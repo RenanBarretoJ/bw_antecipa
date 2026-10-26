@@ -22,6 +22,7 @@ export interface FiscalImportRepository {
   commitCompanion?(claim: FiscalClaim): Promise<{ status: 'COMPANION_LINKED'; nfId: string; numero: string }>
   failCompanion?(claim: FiscalClaim): Promise<FiscalImportResult>
   resolveScope(input: FiscalImportInput, facts: FiscalFacts): Promise<FiscalScope | { status: 'UNKNOWN_CEDENTE' | 'ROUTING_DENIED' | 'AMBIGUOUS' }>
+  hasPersistedDuplicate(scope: FiscalScope, facts: FiscalFacts): Promise<boolean>
   reserve(input: FiscalImportInput, scope: FiscalScope, facts: FiscalFacts, sha256: string): Promise<FiscalClaim | Unavailable>
   resumeReview(input: FiscalImportInput, scope: FiscalScope, facts: FiscalFacts, sha256: string, fingerprint: string): Promise<FiscalClaim | Unavailable>
   openReview(claim: FiscalClaim, fingerprint: string): Promise<string>
@@ -48,6 +49,11 @@ export async function importFiscalFile(input: FiscalImportInput, dependencies: {
     const scope = await repository.resolveScope(input, facts)
     if ('status' in scope) return scope
     if (input.danfeManualDue && (facts.kind !== 'DANFE' || input.actor.type !== 'HUMAN')) return { status: 'INVALID' }
+    // Avoid asking a human to supply a due date for an NF-e that is already
+    // persisted in the same canonical Fund/Cedente context. This read remains
+    // RLS-scoped; reserve() below is still the authoritative atomic race fence.
+    if (facts.kind === 'DANFE' && input.actor.type === 'HUMAN'
+      && await repository.hasPersistedDuplicate(scope, facts)) return { status: 'DUPLICATE' }
     const sha256 = createHash('sha256').update(Buffer.from(await input.file.arrayBuffer())).digest('hex')
     if (systemNfe && facts.documentType === 'NFE') {
       if (!repository.companion) throw new FiscalIntakeError('INFRASTRUCTURE')

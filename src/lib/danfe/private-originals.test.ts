@@ -46,7 +46,8 @@ describe('authorized private NF-e originals (local opt-in)', () => {
         const scope = { fundoId: 'local-fund', cedenteId: 'local-cedente', cedenteFundoId: 'local-link', estabelecimentoId: 'local-issuer',
           cnpj: facts.issuerCnpj, razaoSocial: 'PRIVATE AUTHORIZED INPUT' }
         const repository: FiscalImportRepository = {
-          resolveScope: vi.fn().mockResolvedValue(scope), reserve: vi.fn(), resumeReview: vi.fn(), openReview: vi.fn(),
+          resolveScope: vi.fn().mockResolvedValue(scope), hasPersistedDuplicate: vi.fn().mockResolvedValue(false),
+          reserve: vi.fn(), resumeReview: vi.fn(), openReview: vi.fn(),
           planStorage: vi.fn(), commit: vi.fn(), fail: vi.fn(),
         }
         const storage = { upload: vi.fn() }

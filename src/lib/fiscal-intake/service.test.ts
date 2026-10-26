@@ -12,7 +12,8 @@ const claim = { id: 'reservation', token: 'owner', generation: 1 }
 const scope = { fundoId: 'fund', cedenteId: 'cedente', cedenteFundoId: 'link', estabelecimentoId: 'issuer', cnpj: '11222333000181', razaoSocial: 'QA' }
 function setup() {
   const repository = {
-    resolveScope: vi.fn().mockResolvedValue(scope), reserve: vi.fn().mockResolvedValue(claim),
+    resolveScope: vi.fn().mockResolvedValue(scope), hasPersistedDuplicate: vi.fn().mockResolvedValue(false),
+    reserve: vi.fn().mockResolvedValue(claim),
     resumeReview: vi.fn().mockResolvedValue(claim), openReview: vi.fn().mockResolvedValue('review'),
     planStorage: vi.fn().mockResolvedValue({ id: 'intent', bucket: 'notas-fiscais', path: 'reserved/path' }),
     commit: vi.fn().mockResolvedValue({ nfId: 'nf', numero: '42' }),
@@ -31,6 +32,23 @@ describe('shared fiscal import orchestration', () => {
     expect(await importFiscalFile(d.input, d)).toEqual({ status: 'DUE_DATE_REQUIRED', review: { numero: '42', bruto: 100, emissao: '2026-09-29' } })
     expect(d.repository.reserve).not.toHaveBeenCalled()
     expect(d.storage.upload).not.toHaveBeenCalled()
+  })
+  it('rejects a persisted duplicate before asking for a missing DANFE due date', async () => {
+    const d = setup()
+    d.parse.mockResolvedValue({ ...facts, parsed: { ...facts.parsed, data_vencimento: undefined } })
+    d.repository.hasPersistedDuplicate.mockResolvedValue(true)
+    expect(await importFiscalFile(d.input, d)).toEqual({ status: 'DUPLICATE' })
+    expect(d.repository.hasPersistedDuplicate).toHaveBeenCalledWith(scope, expect.objectContaining({ key: facts.key }))
+    expect(d.repository.reserve).not.toHaveBeenCalled()
+    expect(d.repository.planStorage).not.toHaveBeenCalled()
+    expect(d.storage.upload).not.toHaveBeenCalled()
+  })
+  it('resolves authorization scope before checking whether a DANFE is duplicated', async () => {
+    const d = setup()
+    d.parse.mockResolvedValue({ ...facts, parsed: { ...facts.parsed, data_vencimento: undefined } })
+    d.repository.resolveScope.mockResolvedValue({ status: 'ROUTING_DENIED' })
+    expect(await importFiscalFile(d.input, d)).toEqual({ status: 'ROUTING_DENIED' })
+    expect(d.repository.hasPersistedDuplicate).not.toHaveBeenCalled()
   })
   it('records human due provenance without creating parcels or inferring a fiscal net', async () => {
     const d = setup()
