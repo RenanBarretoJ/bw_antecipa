@@ -26,8 +26,13 @@ describe('arquitetura S1 privativa e desabilitada por padrão', () => {
   })
 
   it('RLS restringe leitura por Fundo e escrita ao service_role', () => {
+    const rlsPolicies = migration.slice(
+      migration.indexOf('CREATE POLICY nfe_fiscal_snapshots_gestor_admin_select'),
+      migration.indexOf('REVOKE ALL ON TABLE public.nfe_fiscal_snapshots'),
+    )
     expect(migration).toContain('private.financeiro_gestor_tem_acesso_fundo(fundo_id)')
-    expect(migration).toContain('private.usuario_e_super_admin()')
+    expect(migration).toContain('private.c1_1_usuario_e_super_admin_rls()')
+    expect(rlsPolicies).not.toContain('private.usuario_e_super_admin()')
     expect(migration).toContain('REVOKE ALL ON TABLE public.nfe_fiscal_consultas FROM PUBLIC, anon, authenticated')
     expect(migration).toContain('GRANT SELECT ON TABLE public.nfe_fiscal_consultas TO authenticated')
     expect(migration).not.toMatch(/GRANT (INSERT|UPDATE|DELETE|ALL) ON TABLE public\.nfe_fiscal_consultas TO authenticated/)

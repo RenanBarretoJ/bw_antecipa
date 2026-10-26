@@ -6,7 +6,8 @@ DO $preconditions$
 BEGIN
   IF to_regclass('public.notas_fiscais') IS NULL
      OR to_regprocedure('private.financeiro_gestor_tem_acesso_fundo(uuid)') IS NULL
-     OR to_regprocedure('private.usuario_e_super_admin()') IS NULL THEN
+     OR to_regprocedure('private.usuario_e_super_admin()') IS NULL
+     OR to_regprocedure('private.c1_1_usuario_e_super_admin_rls()') IS NULL THEN
     RAISE EXCEPTION 'S1 depende de notas_fiscais e dos helpers canônicos de Gestor/Super Admin';
   END IF;
 END
@@ -134,19 +135,19 @@ ALTER TABLE public.nfe_fiscal_provider_state FORCE ROW LEVEL SECURITY;
 CREATE POLICY nfe_fiscal_snapshots_gestor_admin_select
   ON public.nfe_fiscal_snapshots FOR SELECT TO authenticated
   USING (
-    (SELECT private.usuario_e_super_admin())
+    (SELECT private.c1_1_usuario_e_super_admin_rls())
     OR (SELECT private.financeiro_gestor_tem_acesso_fundo(fundo_id))
   );
 CREATE POLICY nfe_fiscal_consultas_gestor_admin_select
   ON public.nfe_fiscal_consultas FOR SELECT TO authenticated
   USING (
-    (SELECT private.usuario_e_super_admin())
+    (SELECT private.c1_1_usuario_e_super_admin_rls())
     OR (SELECT private.financeiro_gestor_tem_acesso_fundo(fundo_id))
   );
 CREATE POLICY nfe_fiscal_eventos_gestor_admin_select
   ON public.nfe_fiscal_eventos FOR SELECT TO authenticated
   USING (
-    (SELECT private.usuario_e_super_admin())
+    (SELECT private.c1_1_usuario_e_super_admin_rls())
     OR (SELECT private.financeiro_gestor_tem_acesso_fundo(fundo_id))
   );
 
