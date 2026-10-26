@@ -29,6 +29,7 @@ import { useFundoAtivo } from '@/components/fundos/fundo-ativo-provider'
 import { HistoricoTimelineCard } from '@/components/historico/HistoricoTimelineCard'
 import { DuplicatasDaNota } from '@/components/duplicatas/DuplicatasDaNota'
 import { ParcelasDaNota } from '@/components/notas-fiscais/ParcelasDaNota'
+import { SituacaoFiscalNfeCard } from '@/components/notas-fiscais/SituacaoFiscalNfeCard'
 
 interface NfCompleta {
   fiscal_reservation_id?: string | null
@@ -371,6 +372,10 @@ export default function NfDetalheGestorPage() {
       )}
 
       <ChecklistGestor notaFiscalId={nfId} />
+
+      {nf.tipo_documento_fiscal === 'NFE' && nf.status !== 'rascunho' && (
+        <SituacaoFiscalNfeCard notaFiscalId={nfId} />
+      )}
 
       <DuplicatasDaNota notaFiscalId={nfId} mode="gestor" />
 

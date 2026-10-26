@@ -1,0 +1,26 @@
+{
+  "source": "SERPRO OpenAPI - Consulta NF-e Direto na Faixa (DF)",
+  "sourceUrl": "https://apicenter.estaleiro.serpro.gov.br/documentacao/consulta-nfe/pt/chamadas/consulta-nfe-df/consulta-api-nfe-df.yaml",
+  "sourceSha256": "d607f4cb841e49b819f63587742a0bf902146ffb5981ed9b496cb0fdbf3f21fa",
+  "verifiedOn": "2026-10-26",
+  "environment": "production",
+  "tokenUrl": "https://gateway.apiserpro.serpro.gov.br/token",
+  "serverUrl": "https://gateway.apiserpro.serpro.gov.br/consulta-nfe-df/api/",
+  "pathTemplate": "/v1/nfe/{chave}",
+  "queryBaseUrl": "https://gateway.apiserpro.serpro.gov.br/consulta-nfe-df/api/v1/nfe/",
+  "trialQueryBaseUrl": "https://gateway.apiserpro.serpro.gov.br/consulta-nfe-df-trial/api/v1/nfe/",
+  "pathParameter": {
+    "name": "chave",
+    "location": "path",
+    "required": true,
+    "format": "44 numeric digits"
+  },
+  "authentication": "OAuth2 client_credentials token followed by Bearer authentication",
+  "documentedFullEvents": [
+    "110110",
+    "110111",
+    "210220",
+    "210240"
+  ],
+  "entitlementNote": "Public documentation proves the product contract shape, not this customer's subscription, quota, price or effective event coverage."
+}
