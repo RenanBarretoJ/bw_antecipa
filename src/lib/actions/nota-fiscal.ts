@@ -154,7 +154,8 @@ export async function uploadNFs(formData: FormData): Promise<NfActionState> {
       telemetry.start(fileIndex)
       return importManualFiscalFile({ file: arquivo, userId: context.userId, cedenteId: context.cedente.id,
         cedenteFundoId: context.cedenteFundoId, fundoId: context.fundoId, client: supabase, telemetry, fileIndex,
-        manualDue: String(formData.get('nfse_vencimento_manual') || ''), reviewIntent: String(formData.get('nfse_review_intent') || '') })
+        manualDue: String(formData.get('nfse_vencimento_manual') || ''), reviewIntent: String(formData.get('nfse_review_intent') || ''),
+        danfeManualDue: String(formData.get('nfe_vencimento_manual') || '') })
     },
     (error) => logUploadNf('processar_arquivo_rejeitado', { ...context, erro: error }),
   )

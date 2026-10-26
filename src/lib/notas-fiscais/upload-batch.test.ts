@@ -9,7 +9,7 @@ import {
 } from './upload-batch'
 
 const imported = (fileName: string): UploadFileResult => ({ fileName, status: 'IMPORTED', nfId: fileName })
-const failed = (fileName: string, status: Exclude<UploadFileResult['status'], 'IMPORTED' | 'REQUIRES_REVIEW'>): UploadFileResult => ({
+const failed = (fileName: string, status: Exclude<UploadFileResult['status'], 'IMPORTED' | 'REQUIRES_REVIEW' | 'DUE_DATE_REQUIRED'>): UploadFileResult => ({
   fileName,
   status,
   message: 'Nao importado.',

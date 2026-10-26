@@ -6,7 +6,7 @@ import { resolveDanfeAccessKey, validNfeKey } from './danfe/access-key'
 // pdf-parse está em serverExternalPackages (next.config.ts): o Next.js usa o require
 // nativo do Node.js, evitando o problema do index.js tentar ler arquivo de teste ao ser bundlado.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const pdfParse = require('pdf-parse') as (buffer: Buffer) => Promise<{ text: string }>
+const pdfParse = require('pdf-parse') as (bytes: Uint8Array) => Promise<{ text: string }>
 
 export type DanfeCriticalField = 'numero_nf' | 'serie' | 'chave_acesso' | 'cnpj_emitente' | 'cnpj_destinatario' | 'data_emissao' | 'data_vencimento' | 'valor_bruto'
 
@@ -136,7 +136,14 @@ export async function extractDanfeFromPdf(buffer: Buffer, dependencies: PdfExtra
     const parseWithRetry = async (): Promise<{ text: string }> => {
       let lastError: unknown
       for (let attempt = 0; attempt < 3; attempt += 1) {
-        try { return await (dependencies.extractNative || pdfParse)(Buffer.from(buffer)) }
+        try {
+          // PDF.js 1.x accepts Buffer as Uint8Array but then inherits Buffer's
+          // view-based slice semantics. An owned plain array avoids bad-XRef
+          // failures on otherwise valid small PDFs and repeated imports.
+          return await (dependencies.extractNative
+            ? dependencies.extractNative(Buffer.from(buffer))
+            : pdfParse(Uint8Array.from(buffer)))
+        }
         catch (error) { lastError = error }
       }
       throw lastError
@@ -384,7 +391,10 @@ function extractDataVencimento(text: string): string | undefined {
   // Fallback: qualquer data dentro do bloco FATURA/DUPLICATA
   const faturaIdx = text.search(/FATURA\s*[\/\s]*DUPLICATA/i)
   if (faturaIdx >= 0) {
-    const bloco = text.substring(Math.max(0, faturaIdx - 200), faturaIdx + 400)
+    // Never borrow an issue/exit date before an empty schedule, or a date in
+    // subsequent tax/product/additional-information sections.
+    const bloco = text.substring(faturaIdx, faturaIdx + 400)
+      .split(/\n\s*(?:C[ÁA]LCULO\s*DO\s*IMPOSTO|TRANSPORTADOR|DADOS\s*D[OA]S?\s*PRODUTOS|INFORMA[ÇC][ÕO]ES|DADOS\s*ADICIONAIS)\b/i)[0]
     const datas = [...bloco.matchAll(/(\d{2}\/\d{2}\/\d{4})/g)]
     if (datas.length > 0) return parseBRDate(datas[datas.length - 1][1])
   }
