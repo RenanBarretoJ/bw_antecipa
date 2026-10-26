@@ -1,0 +1,125 @@
+{
+  "REPORT_VERSION": "S1_SERPRO_CORRECAO_ENDPOINT_QA_ISOLADA_2026-10-26_V1",
+  "GENERATED_AT": "2026-10-26T15:24:00-03:00",
+  "FINAL_RESULT": "LOCAL_TECHNICAL_PASS_PREVIEW_NOT_RUN",
+  "REFERENCE_IMPLEMENTATION": {
+    "cte_simfrete_project_reviewed": true,
+    "project_path": "C:/Users/BrenoAlvim/OneDrive - SH ASSET/Documentos/TRABALHO/PROJETOS PYTHON/0 - EM DESENVOLVIMENTO/BAIXAR_CTEs_SIMFRETE",
+    "files_reviewed": [
+      "simfrete/serpro.py",
+      "simfrete/fiscal.py"
+    ],
+    "conclusion": "The maintained reference and the official Swagger agree on OAuth client_credentials at /token and production query at /consulta-nfe-df/api/v1/nfe/{chave}."
+  },
+  "SOURCE_AND_ENDPOINT": {
+    "official_swagger": "https://apicenter.estaleiro.serpro.gov.br/documentacao/consulta-nfe/pt/chamadas/consulta-nfe-df/consulta-api-nfe-df.yaml",
+    "official_swagger_sha256": "d607f4cb841e49b819f63587742a0bf902146ffb5981ed9b496cb0fdbf3f21fa",
+    "versioned_contract_fixture_sha256": "31D177353EBBF8BEE4B809615FE2A4C5B88F8DF9052589AD7BAF2B83B5371B17",
+    "token_endpoint": "https://gateway.apiserpro.serpro.gov.br/token",
+    "production_query_base": "https://gateway.apiserpro.serpro.gov.br/consulta-nfe-df/api/v1/nfe/",
+    "trial_query_base": "https://gateway.apiserpro.serpro.gov.br/consulta-nfe-df-trial/api/v1/nfe/",
+    "legacy_endpoint_rejected": "https://gateway.apiserpro.serpro.gov.br/nfe/1/",
+    "real_provider_calls": 0
+  },
+  "LOCAL_COMMIT": {
+    "branch": "feature/s1-serpro-nfe-gestor-20261026",
+    "base_sha": "5483ddb22ec0ff851eebfa76c8a5097a3a69593e",
+    "implementation_sha": "e3826b704047653111c782dfdbc593706218b76c",
+    "implementation_tree": "c4c09a9ff8289dac016b9bd1598c46ac97a520ee",
+    "push_performed": false,
+    "deployment_created": false
+  },
+  "PRODUCTION_REVALIDATION": {
+    "origin_main_sha": "5483ddb22ec0ff851eebfa76c8a5097a3a69593e",
+    "vercel_deployment_id": "dpl_FB2KjCQDmMweZQDuj8gvwuJCJFNV",
+    "vercel_state": "READY",
+    "vercel_target": "production",
+    "git_branch": "main",
+    "preserved": true
+  },
+  "IMPLEMENTED": [
+    "Single versioned source for the exact SERPRO production token and NF-e DF query endpoints.",
+    "Independent contract fixture with official Swagger hash and explicit production versus TRIAL distinction.",
+    "Negative guards for the incompatible /nfe/1/ route and the TRIAL route.",
+    "Model-55 key validation before OAuth or query calls.",
+    "Field-level provenance for key, protocol, issuer, recipient, number, series, issue date, total, returned installments and events.",
+    "No installment is inferred when cobr.dup is absent; only installments actually returned are recorded.",
+    "Auditable mapping for 110111, 110110, 210220 and 210240, with unknown registered events retained as yellow review items.",
+    "Immutable fiscal snapshot, bounded queue, lease fencing, circuit breaker, daily budget zero by default and no automatic backfill or cron.",
+    "Gestor/Super Admin UI and RPC scope without exposing the feature to Cedente, Consultor, Sacado or anonymous actors."
+  ],
+  "TEST_GATES": {
+    "focused_s1": "37/37 PASS",
+    "expanded_local_node24": "354 PASS, 2 BLOCKED_NOT_RUN because the pre-existing EMAIL03 disposable QA contract was not provisioned, 2 SKIP",
+    "critical_node22": "174/174 PASS",
+    "typescript": "PASS",
+    "eslint": "PASS with 0 errors and 2 pre-existing unrelated warnings",
+    "production_build_node24": "PASS",
+    "production_build_node22": "PASS",
+    "migration_replay": "PASS on a disposable Supabase PostgreSQL 17 image",
+    "pgtap_rls": "22/22 PASS",
+    "diff_check": "PASS",
+    "secret_scan": "No real credential material found; only qa-secret synthetic test literals matched"
+  },
+  "RLS_MATRIX": {
+    "gestor_own_fund": "PASS",
+    "gestor_other_fund": "DENIED_PASS",
+    "super_admin": "PASS through canonical complementary role",
+    "cedente": "DENIED_PASS",
+    "consultor": "DENIED_PASS",
+    "sacado": "DENIED_PASS",
+    "anonymous": "DENIED_PASS",
+    "authenticated_direct_write": "DENIED_PASS"
+  },
+  "LOCAL_AUTHENTICATED_BROWSER_SMOKE": {
+    "status": "NOT_RUN",
+    "reason": "A complete disposable local Next/Auth/MFA runtime could not be constructed from the canonical history because the pre-existing migration-history gap blocks a full reset. The focused database/RLS matrix used real PostgreSQL role switching and synthetic actors, but it is not represented as browser proof."
+  },
+  "PREVIEW": {
+    "status": "NOT_RUN",
+    "reason": "The current Vercel project has no SSO, password or trusted-IP protection for Preview, and the only Supabase Preview is shared and remains MIGRATIONS_FAILED. The task requires stopping before push/deploy instead of publishing S1 publicly or reusing that database.",
+    "shared_preview_project_ref": "phdckowbexkkvuwnzeaf",
+    "shared_preview_status": "MIGRATIONS_FAILED",
+    "s1_code_pushed": false,
+    "remote_migration_applied": false
+  },
+  "SERPRO_ENTITLEMENT": {
+    "status": "UNKNOWN",
+    "public_product_contract_shape": "VERIFIED",
+    "customer_subscription": "UNKNOWN",
+    "owner": "UNKNOWN",
+    "quota": "UNKNOWN",
+    "price": "UNKNOWN",
+    "spend_cap": "UNKNOWN",
+    "effective_event_coverage": "UNKNOWN",
+    "note": "Public documentation lists the event types but does not prove this customer's effective licensed response coverage."
+  },
+  "PRESERVATION": {
+    "production": "UNCHANGED",
+    "homolog": "UNCHANGED",
+    "shared_preview": "UNCHANGED",
+    "auth_mfa": "UNCHANGED",
+    "p0_cardiomed_2190_2191": "PRESERVED_BY_REGRESSION",
+    "xml_nfse_flows": "UNCHANGED",
+    "approval_logic": "UNCHANGED",
+    "automatic_duplicate_creation": "NOT_ADDED"
+  },
+  "COST": {
+    "amount_brl": 0,
+    "real_token_calls": 0,
+    "real_nfe_queries": 0,
+    "new_paid_resources": 0
+  },
+  "DOCKER_TEST_ENV_CLEANUP": {
+    "node22_test_container": "REMOVED_AUTOMATICALLY",
+    "node22_build_container": "REMOVED_AUTOMATICALLY",
+    "s1_database_container": "REMOVED",
+    "preexisting_cleanroom_stack": "PRESERVED"
+  },
+  "NEXT_GO": [
+    "Obtain customer-specific SERPRO entitlement evidence: owner, exact product/environment, quota, unit price, spend cap and effective event coverage.",
+    "Provision a dedicated, protected S1 Vercel Preview and an exclusive disposable Supabase branch with a green migration baseline, subject to explicit cost authorization if needed.",
+    "Keep all three SERPRO flags false, provider capability UNVERIFIED, circuit OPEN and daily budget zero until the protected Preview and entitlement gates pass.",
+    "Run the authenticated Gestor/Super Admin and negative cross-profile/cross-Fund browser matrix there before requesting any production GO."
+  ]
+}
