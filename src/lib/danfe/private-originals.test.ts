@@ -9,7 +9,8 @@ import { importFiscalFile, type FiscalImportRepository } from '@/lib/fiscal-inta
 // Private inputs and golden values stay outside Git. Never log extracted text,
 // descriptions, file names, patient data or a raw parser/result object.
 const manifestPath = process.env.BW_NFE_PRIVATE_CORPUS_MANIFEST
-type Original = { id: string; path: string; sha256: string; key: string; cents: number }
+type Original = { id: string; path: string; sha256: string; key: string; cents: number;
+  series: string; issued: string; issuer: string; recipient: string }
 const originals: Original[] = manifestPath ? JSON.parse(readFileSync(manifestPath, 'utf8')) : []
 
 describe('authorized private NF-e originals (local opt-in)', () => {
@@ -32,6 +33,10 @@ describe('authorized private NF-e originals (local opt-in)', () => {
         expect(gate.ok, 'PRIVATE_NATIVE_PARSE_GATE').toBe(true)
         expect(parsed.numero_nf === original.id, 'PRIVATE_NUMBER_MATCH').toBe(true)
         expect(parsed.chave_acesso === original.key, 'PRIVATE_KEY_MATCH').toBe(true)
+        expect(parsed.serie === original.series, 'PRIVATE_SERIES_MATCH').toBe(true)
+        expect(parsed.data_emissao === original.issued, 'PRIVATE_ISSUED_MATCH').toBe(true)
+        expect(parsed.cnpj_emitente === original.issuer, 'PRIVATE_ISSUER_MATCH').toBe(true)
+        expect(parsed.cnpj_destinatario === original.recipient, 'PRIVATE_RECIPIENT_MATCH').toBe(true)
         expect(Math.round((parsed.valor_bruto ?? 0) * 100) === original.cents, 'PRIVATE_EXACT_CENTS').toBe(true)
         expect(parsed.data_vencimento === undefined, 'PRIVATE_NO_PRINTED_DUE_DATE').toBe(true)
         const facts = await parseFiscalFile(new File([bytes], 'private-original.pdf', { type: 'application/pdf' }))
