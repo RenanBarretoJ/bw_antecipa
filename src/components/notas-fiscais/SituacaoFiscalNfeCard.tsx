@@ -79,7 +79,7 @@ export function SituacaoFiscalNfeCard({ notaFiscalId }: { notaFiscalId: string }
   }
 
   if (loading) {
-    return <Skeleton aria-label="Carregando situação fiscal" className="h-44 w-full rounded-xl" />
+    return <Skeleton aria-label="Carregando situação fiscal" className="h-32 w-full rounded-xl" />
   }
 
   const severity = situation?.severity ?? 'NEUTRO'
@@ -89,54 +89,54 @@ export function SituacaoFiscalNfeCard({ notaFiscalId }: { notaFiscalId: string }
 
   return (
     <Card aria-labelledby="situacao-fiscal-title" className={view.className}>
-      <CardHeader className="border-b border-current/10">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <CardTitle id="situacao-fiscal-title" className="flex items-center gap-2">
-              <Icon aria-hidden="true" className="size-5 shrink-0" />
+      <CardHeader className="space-y-2 border-b border-current/10 p-4 pb-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="min-w-0">
+            <CardTitle id="situacao-fiscal-title" className="flex items-center gap-2 text-base">
+              <Icon aria-hidden="true" className="size-4 shrink-0" />
               Situação fiscal da NF-e
             </CardTitle>
-            <CardDescription className="mt-1 text-current/75">
-              Fonte: SERPRO / consulta fiscal de NF-e
+            <CardDescription className="mt-0.5 text-xs text-current/75">
+              Fonte: SERPRO · consulta fiscal de NF-e
             </CardDescription>
           </div>
-          <Badge variant="outline" className="border-current/30 bg-background/70 text-current">
+          <Badge variant="outline" className="shrink-0 border-current/30 bg-background/70 text-current">
             {view.label}
           </Badge>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid gap-3 sm:grid-cols-2">
+      <CardContent className="space-y-3 p-4 pt-3">
+        <div className="grid grid-cols-2 gap-3 text-sm">
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-current/65">Estado da consulta</p>
-            <p className="mt-1 font-medium">{situation?.status.replaceAll('_', ' ') ?? 'SEM HISTÓRICO'}</p>
+            <p className="text-[11px] font-medium uppercase tracking-wide text-current/65">Estado</p>
+            <p className="mt-0.5 font-medium">{situation?.status.replaceAll('_', ' ') ?? 'SEM HISTÓRICO'}</p>
           </div>
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-current/65">Observado em</p>
-            <p className="mt-1 flex items-center gap-1.5 font-medium tabular-nums">
-              <Clock3 aria-hidden="true" className="size-4" />
+            <p className="text-[11px] font-medium uppercase tracking-wide text-current/65">Observado em</p>
+            <p className="mt-0.5 flex items-center gap-1 font-medium tabular-nums">
+              <Clock3 aria-hidden="true" className="size-3.5 shrink-0" />
               {formatTimestamp(situation?.checkedAt ?? null)}
             </p>
           </div>
         </div>
 
-        <p className="leading-relaxed">
+        <p className="text-sm leading-5">
           {situation?.summary ?? 'Esta nota não possui consulta fiscal S1. Não há afirmação de regularidade.'}
         </p>
 
         {!!situation?.differences.length && (
-          <div>
+          <div className="text-sm">
             <p className="font-medium">Divergências identificadas</p>
-            <ul className="mt-1 list-disc space-y-1 pl-5">
+            <ul className="mt-1 list-disc space-y-0.5 pl-5">
               {situation.differences.map(item => <li key={item}>{item}</li>)}
             </ul>
           </div>
         )}
 
         {!!situation?.events.length && (
-          <details className="rounded-lg border border-current/20 bg-background/55 p-3">
+          <details className="rounded-lg border border-current/20 bg-background/55 p-2.5 text-sm">
             <summary className="cursor-pointer font-medium">Eventos fiscais ({situation.events.length})</summary>
-            <ol className="mt-3 space-y-3">
+            <ol className="mt-2 space-y-2">
               {situation.events.map(event => (
                 <li key={`${event.code}:${event.protocol ?? event.observedAt}`} className="border-l-2 border-current/25 pl-3">
                   <p className="font-medium">{event.description}</p>
@@ -149,26 +149,29 @@ export function SituacaoFiscalNfeCard({ notaFiscalId }: { notaFiscalId: string }
           </details>
         )}
 
-        <div className="rounded-lg border border-current/20 bg-background/55 p-3 text-xs leading-relaxed">
+        <p className="border-t border-current/10 pt-3 text-xs leading-4 text-current/75">
           {situation?.eventCoverage === 'PARTIAL'
             ? 'Cobertura de eventos parcial: a ausência de evento no retorno não comprova inexistência de eventos fiscais.'
             : 'Histórico de eventos não comprovado para esta modalidade de consulta.'}
-        </div>
+        </p>
 
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p aria-live="polite" className="min-h-5 text-xs text-current/75">{feedback}</p>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={refreshing || capabilityUnavailable}
-            onClick={requestRefresh}
-            title={capabilityUnavailable ? 'Capacidade contratual ainda não validada' : undefined}
-          >
-            <RefreshCw aria-hidden="true" className={`size-4 ${refreshing ? 'animate-spin' : ''}`} />
-            {refreshing ? 'Solicitando…' : 'Atualizar situação'}
-          </Button>
-        </div>
+        {(feedback || !capabilityUnavailable) && (
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p aria-live="polite" className="text-xs text-current/75">{feedback}</p>
+            {!capabilityUnavailable && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={refreshing}
+                onClick={requestRefresh}
+              >
+                <RefreshCw aria-hidden="true" className={`size-4 ${refreshing ? 'animate-spin' : ''}`} />
+                {refreshing ? 'Solicitando…' : 'Atualizar situação'}
+              </Button>
+            )}
+          </div>
+        )}
       </CardContent>
     </Card>
   )

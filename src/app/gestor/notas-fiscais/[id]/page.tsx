@@ -373,10 +373,6 @@ export default function NfDetalheGestorPage() {
 
       <ChecklistGestor notaFiscalId={nfId} />
 
-      {nf.tipo_documento_fiscal === 'NFE' && nf.status !== 'rascunho' && (
-        <SituacaoFiscalNfeCard notaFiscalId={nfId} />
-      )}
-
       <DuplicatasDaNota notaFiscalId={nfId} mode="gestor" />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -538,6 +534,10 @@ export default function NfDetalheGestorPage() {
               </div>
             </CardContent>
           </Card>
+
+          {nf.tipo_documento_fiscal === 'NFE' && nf.status !== 'rascunho' && (
+            <SituacaoFiscalNfeCard notaFiscalId={nfId} />
+          )}
 
           <ArquivoOriginalCompacto notaFiscalId={nf.id} />
 

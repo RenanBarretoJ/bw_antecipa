@@ -6,6 +6,7 @@ const gestorPage = readFileSync('src/app/gestor/notas-fiscais/[id]/page.tsx', 'u
 const adminPage = readFileSync('src/app/admin/notas-fiscais/[id]/page.tsx', 'utf8')
 const cedentePage = readFileSync('src/app/cedente/notas-fiscais/[id]/page.tsx', 'utf8')
 const consultorPage = readFileSync('src/app/consultor/operacoes/[id]/page.tsx', 'utf8')
+const fiscalCard = readFileSync('src/components/notas-fiscais/SituacaoFiscalNfeCard.tsx', 'utf8')
 const action = readFileSync('src/lib/actions/situacao-fiscal-nfe.ts', 'utf8')
 const provider = readFileSync('src/lib/serpro-nfe/provider.server.ts', 'utf8')
 const officialContract = JSON.parse(readFileSync(
@@ -23,6 +24,18 @@ describe('arquitetura S1 privativa e desabilitada por padrão', () => {
     expect(adminPage).toContain("rpc('obter_nfe_identidade_fiscal_admin'")
     expect(adminPage).not.toContain("from('notas_fiscais')")
     expect(migration).toContain('IF NOT (SELECT private.usuario_e_super_admin()) THEN')
+  })
+
+  it('mantém o card fiscal compacto entre Resumo e Arquivos originais no Gestor', () => {
+    const resumo = gestorPage.indexOf('<CardTitle className="text-base">Resumo</CardTitle>')
+    const fiscal = gestorPage.indexOf('<SituacaoFiscalNfeCard notaFiscalId={nfId} />')
+    const arquivo = gestorPage.indexOf('<ArquivoOriginalCompacto notaFiscalId={nf.id} />')
+
+    expect(resumo).toBeGreaterThan(-1)
+    expect(fiscal).toBeGreaterThan(resumo)
+    expect(arquivo).toBeGreaterThan(fiscal)
+    expect(fiscalCard).toContain('className="h-32 w-full rounded-xl"')
+    expect(fiscalCard).toContain('{!capabilityUnavailable && (')
   })
 
   it('RLS restringe leitura por Fundo e escrita ao service_role', () => {
