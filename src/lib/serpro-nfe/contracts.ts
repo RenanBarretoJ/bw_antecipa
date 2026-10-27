@@ -30,10 +30,18 @@ export interface FiscalEventView {
   description: string
   protocol: string | null
   occurredAt: string | null
+  sequence: string | null
   observedAt: string
   registered: boolean
   severity: Extract<FiscalSeverity, 'AMARELO' | 'VERMELHO'>
   fingerprint: string
+  provenance: {
+    envelope: 'procEventosNFe'
+    sourceIndex: number
+    code: string
+    protocol: string
+    occurredAt: string
+  }
 }
 
 export interface FiscalAssessment {

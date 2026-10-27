@@ -110,53 +110,133 @@ function eventDescription(code: string) {
   return descriptions[code] ?? `Evento fiscal não mapeado (${code || 'sem código'})`
 }
 
-function extractEvents(raw: JsonObject, checkedAt: string, key: string) {
-  const events: FiscalEventView[] = []
-  let hasUncertainEvent = false
+type EventEnvelopeState = 'ABSENT' | 'INVALID' | 'EMPTY' | 'OBSERVED' | 'INCOMPLETE'
 
-  for (const value of list(raw.procEventoNFe)) {
+function officialEventEnvelope(raw: JsonObject) {
+  if (!Object.prototype.hasOwnProperty.call(raw, 'procEventosNFe')) {
+    return { values: [] as unknown[], state: 'ABSENT' as EventEnvelopeState }
+  }
+  if (!Array.isArray(raw.procEventosNFe)) {
+    return { values: [] as unknown[], state: 'INVALID' as EventEnvelopeState }
+  }
+  return {
+    values: raw.procEventosNFe,
+    state: raw.procEventosNFe.length ? 'OBSERVED' as EventEnvelopeState : 'EMPTY' as EventEnvelopeState,
+  }
+}
+
+function extractEvents(raw: JsonObject, checkedAt: string, key: string, parentContextValid: boolean) {
+  const envelope = officialEventEnvelope(raw)
+  const events: FiscalEventView[] = []
+  const observedCodes = new Set<string>()
+  const unknownCodes = new Set<string>()
+  let hasUncertainEvent = envelope.state === 'ABSENT' || envelope.state === 'INVALID'
+  let incompleteItems = 0
+  let contextRejectedItems = 0
+  let confirmedNonBlockingItems = 0
+
+  for (const [sourceIndex, value] of envelope.values.entries()) {
     const event = object(value)
     const request = object(object(event.evento).infEvento)
     const response = object(object(event.retEvento).infEvento)
-    const code = text(request.tpEvento || response.tpEvento)
-    const responseCode = text(response.cStat)
-    const sameContext = text(request.chNFe) === key
-      && text(response.chNFe) === key
-      && text(request.tpEvento) === text(response.tpEvento)
-      && text(request.nSeqEvento) === text(response.nSeqEvento)
-      && text(request.tpAmb) === '1'
-      && text(response.tpAmb) === '1'
-    const registered = sameContext && acceptedEventStatus.has(responseCode)
+    const requestCode = text(request.tpEvento)
+    const responseEventCode = text(response.tpEvento)
+    const code = requestCode || responseEventCode
+    const responseStatus = text(response.cStat)
+    const requestKey = text(request.chNFe)
+    const responseKey = text(response.chNFe)
+    const requestSequence = text(request.nSeqEvento)
+    const responseSequence = text(response.nSeqEvento)
+    const requestEnvironment = text(request.tpAmb)
+    const responseEnvironment = text(response.tpAmb)
+    const protocol = text(response.nProt)
+    const occurredAt = text(response.dhRegEvento || request.dhEvento)
+    const childKeysMatch = (!requestKey || requestKey === key)
+      && (!responseKey || responseKey === key)
+    const sequenceMatches = (!requestSequence && !responseSequence)
+      || (requestSequence !== '' && requestSequence === responseSequence)
+    const environmentMatches = (!requestEnvironment || requestEnvironment === '1')
+      && (!responseEnvironment || responseEnvironment === '1')
+    const statusAccepted = !responseStatus || acceptedEventStatus.has(responseStatus)
+    const sameContext = parentContextValid
+      && childKeysMatch
+      && requestCode !== ''
+      && requestCode === responseEventCode
+      && sequenceMatches
+      && environmentMatches
+    const registered = sameContext
+      && statusAccepted
+      && Boolean(protocol)
+      && Boolean(occurredAt)
+
+    if (code) observedCodes.add(code)
 
     if (!code || (!redEvents.has(code) && !yellowEvents.has(code) && !knownNonBlockingEvents.has(code))) {
       hasUncertainEvent = true
+      if (code) unknownCodes.add(code)
     }
-    if ((redEvents.has(code) || yellowEvents.has(code)) && !registered) {
+    if (!registered) {
       hasUncertainEvent = true
+      incompleteItems += 1
+      if (!parentContextValid || !childKeysMatch) {
+        contextRejectedItems += 1
+      }
       continue
     }
-    if (!registered || knownNonBlockingEvents.has(code)) continue
+    if (knownNonBlockingEvents.has(code)) {
+      confirmedNonBlockingItems += 1
+      continue
+    }
 
     if (!/^\d{6}$/.test(code)) continue
     const severity = redEvents.has(code) ? 'VERMELHO' : 'AMARELO'
-    const occurredAt = text(response.dhRegEvento || request.dhEvento) || null
-    const protocol = text(response.nProt) || null
-    const fingerprint = sha256({ code, protocol, occurredAt, key })
+    const fingerprint = sha256({
+      code,
+      protocol,
+      occurredAt,
+      key,
+      sequence: requestSequence,
+      environment: requestEnvironment,
+    })
     events.push({
       code,
       description: eventDescription(code),
-      protocol,
-      occurredAt,
+      protocol: protocol || null,
+      occurredAt: occurredAt || null,
+      sequence: requestSequence || null,
       observedAt: checkedAt,
       registered: true,
       severity,
       fingerprint,
+      provenance: {
+        envelope: 'procEventosNFe',
+        sourceIndex,
+        code: `procEventosNFe[${sourceIndex}].evento.infEvento.tpEvento|retEvento.infEvento.tpEvento`,
+        protocol: `procEventosNFe[${sourceIndex}].retEvento.infEvento.nProt`,
+        occurredAt: `procEventosNFe[${sourceIndex}].retEvento.infEvento.dhRegEvento|evento.infEvento.dhEvento`,
+      },
     })
   }
 
   const deduplicated = [...new Map(events.map(event => [event.fingerprint, event])).values()]
-    .sort((a, b) => `${a.occurredAt ?? ''}|${a.code}`.localeCompare(`${b.occurredAt ?? ''}|${b.code}`))
-  return { events: deduplicated, hasUncertainEvent }
+    .sort((a, b) => `${a.occurredAt ?? ''}|${a.code}|${a.sequence ?? ''}|${a.fingerprint}`
+      .localeCompare(`${b.occurredAt ?? ''}|${b.code}|${b.sequence ?? ''}|${b.fingerprint}`))
+  const state = envelope.state === 'OBSERVED' && incompleteItems > 0 ? 'INCOMPLETE' : envelope.state
+  return {
+    events: deduplicated,
+    hasUncertainEvent,
+    envelope: {
+      source: envelope.state === 'ABSENT' ? null : 'procEventosNFe',
+      state,
+      observedItems: envelope.values.length,
+      confirmedActionableItems: deduplicated.length,
+      confirmedNonBlockingItems,
+      incompleteItems,
+      contextRejectedItems,
+      observedCodes: [...observedCodes].sort(),
+      unknownCodes: [...unknownCodes].sort(),
+    },
+  }
 }
 
 export function mapSerproNfeResponse(raw: unknown, snapshot: FiscalSnapshot, checkedAt: string): FiscalAssessment {
@@ -189,7 +269,8 @@ export function mapSerproNfeResponse(raw: unknown, snapshot: FiscalSnapshot, che
   if (normalizedDate(ide.dhEmi || ide.dEmi) !== normalizedDate(snapshot.dataEmissao)) differences.push('Data de emissão divergente.')
   if (total === null || localTotal === null || total !== localTotal) differences.push('Valor total fiscal divergente ou ausente.')
 
-  const { events, hasUncertainEvent } = extractEvents(data, checkedAt, key)
+  const parentEventContextValid = remoteKey === key && infId === key
+  const { events, hasUncertainEvent, envelope } = extractEvents(data, checkedAt, key, parentEventContextValid)
   const hasRedEvent = events.some(event => event.severity === 'VERMELHO')
   const hasYellowEvent = events.some(event => event.severity === 'AMARELO')
   const redProtocol = redProtocolStatus.has(protocolStatus)
@@ -230,6 +311,7 @@ export function mapSerproNfeResponse(raw: unknown, snapshot: FiscalSnapshot, che
     ambiente: text(ide.tpAmb) || null,
     modelo: text(ide.mod) || null,
     returnedInstallments,
+    eventEnvelope: envelope,
     fieldProvenance: {
       chaveAcesso: [
         'nfeProc.protNFe.infProt.chNFe',
@@ -246,15 +328,27 @@ export function mapSerproNfeResponse(raw: unknown, snapshot: FiscalSnapshot, che
       ambiente: 'nfeProc.NFe.infNFe.ide.tpAmb',
       modelo: 'nfeProc.NFe.infNFe.ide.mod',
       returnedInstallments: returnedInstallments.length ? 'nfeProc.NFe.infNFe.cobr.dup' : null,
-      eventos: list(data.procEventoNFe).length ? 'procEventoNFe' : null,
+      eventos: envelope.source,
     },
   }
+  const canonicalEvents = events.map((event) => {
+    const canonical = { ...event } as Partial<FiscalEventView>
+    delete canonical.provenance
+    return canonical
+  })
+  const canonicalEnvelope = { ...envelope } as Partial<typeof envelope>
+  delete canonicalEnvelope.observedItems
+  const canonicalResult = { ...result, eventEnvelope: canonicalEnvelope }
   return {
     status,
     severity,
     summary,
     checkedAt,
-    responseFingerprint: sha256({ result, differences: [...differences].sort(), events }),
+    responseFingerprint: sha256({
+      result: canonicalResult,
+      differences: [...differences].sort(),
+      events: canonicalEvents,
+    }),
     result,
     differences,
     events,
