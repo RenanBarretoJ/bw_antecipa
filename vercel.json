@@ -33,7 +33,8 @@
   "git": {
     "deploymentEnabled": {
       "feature/email03-r4-local-release-candidate-20261013": false,
-      "feature/operacao-parcelas-layout4": false
+      "feature/operacao-parcelas-layout4": false,
+      "feature/s1-serpro-nfe-gestor-20261026": false
     }
   }
 }
