@@ -15,9 +15,13 @@ const snapshotMode = process.argv.includes('--snapshot')
 const releaseUpgrade = process.argv.includes('--release-upgrade')
 const carteira = process.argv.includes('--carteira')
 const s1Browser = process.argv.includes('--s1-browser')
-assert.deepEqual(process.argv.slice(2), ['--local-only', ...(fullSuite ? ['--full-suite'] : []), ...(snapshotMode ? ['--snapshot'] : []), ...(releaseUpgrade ? ['--release-upgrade'] : []), ...(carteira ? ['--carteira'] : []), ...(s1Browser ? ['--s1-browser'] : [])])
+const s1Utf8ModeArg = process.argv.find(value => value.startsWith('--s1-utf8-mode='))
+const s1Utf8Mode = s1Utf8ModeArg?.slice('--s1-utf8-mode='.length) ?? 'good'
+assert.deepEqual(process.argv.slice(2), ['--local-only', ...(fullSuite ? ['--full-suite'] : []), ...(snapshotMode ? ['--snapshot'] : []), ...(releaseUpgrade ? ['--release-upgrade'] : []), ...(carteira ? ['--carteira'] : []), ...(s1Browser ? ['--s1-browser'] : []), ...(s1Utf8ModeArg ? [s1Utf8ModeArg] : [])])
 assert(!carteira || releaseUpgrade, 'CARTEIRA_REQUIRES_EXACT_RELEASE_BASELINE')
 assert(!s1Browser || (snapshotMode && releaseUpgrade), 'S1_BROWSER_REQUIRES_VERSIONED_SNAPSHOT_AND_RELEASE_UPGRADE')
+assert(!s1Utf8ModeArg || s1Browser, 'S1_UTF8_MODE_REQUIRES_S1_BROWSER')
+assert(['good', 'bad-repair'].includes(s1Utf8Mode), 'INVALID_S1_UTF8_MODE')
 assert(!process.env.DOCKER_HOST || /^(npipe:|unix:)/.test(process.env.DOCKER_HOST), 'REMOTE_DOCKER_REFUSED')
 const source = 'supabase_db_bw_email03_r1full_cleanroom_179137940498'
 const id = `bw-main-native-${Date.now()}`
@@ -203,7 +207,7 @@ try {
   if (releaseUpgrade) report.releaseUpgrade = await rehearseReleaseUpgrade(sql, phase)
   if (s1Browser) {
     const { applyS1BrowserUpgrade } = await import('../serpro/s1-browser-local.mjs')
-    report.s1Upgrade = await applyS1BrowserUpgrade(sql, phase)
+    report.s1Upgrade = await applyS1BrowserUpgrade(sql, phase, { utf8Mode: s1Utf8Mode })
   }
   for (const role of ['postgres', 'authenticator', 'supabase_auth_admin', 'supabase_storage_admin']) await sql(`ALTER ROLE ${role} LOGIN PASSWORD '${password}';`)
   await phase('OFFICIAL_AUTH_POSTGREST_STORAGE')
