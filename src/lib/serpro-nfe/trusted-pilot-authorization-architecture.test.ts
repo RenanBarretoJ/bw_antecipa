@@ -5,6 +5,8 @@ import { describe, expect, it } from 'vitest'
 
 const facadePath = 'src/lib/serpro-nfe/trusted-pilot-authorization.server.ts'
 const facade = readFileSync(facadePath, 'utf8')
+const hardeningMigrationPath = 'supabase/migrations/20261028173558_s2_1a4h_serpro_audit_budget_hardening.sql'
+const hardeningMigration = readFileSync(hardeningMigrationPath, 'utf8')
 
 const frozenFiles = new Map([
   ['supabase/migrations/20261028140420_s2_1a1_serpro_selective_pilot_claim.sql', 'ef74d66e70d546fe95c7b8a21b6614e5094989928ebbe560d96425cac2a4e33d'],
@@ -82,7 +84,23 @@ describe('arquitetura S2.1A.3 da autorizacao manual confiavel', () => {
     }
   })
 
-  it('nao adiciona migration, endpoint, provider call, cron ou ativacao', () => {
+  it('mantem a nova migration restrita a RPC existente, auditoria atomica e orcamento diario', () => {
+    expect(hardeningMigration).toContain('CREATE OR REPLACE FUNCTION public.nfe_fiscal_pilot_authorize(')
+    expect(hardeningMigration).toContain("'SERPRO_PILOT_AUTHORIZATION_CREATED'")
+    expect(hardeningMigration).toContain('v_provider.budget_date = CURRENT_DATE')
+    expect(hardeningMigration).toContain('v_provider.calls_today')
+    expect(hardeningMigration).toContain('calls_today = 0')
+    expect(hardeningMigration).toContain('budget_date = CURRENT_DATE')
+    expect(hardeningMigration).toContain("SECURITY DEFINER\nSET search_path = ''")
+    expect(hardeningMigration).toContain('FROM PUBLIC, anon, authenticated, service_role')
+    expect(hardeningMigration).toContain('TO service_role')
+    expect(hardeningMigration).not.toContain('CREATE TABLE')
+    expect(hardeningMigration).not.toContain('CREATE POLICY')
+    expect(hardeningMigration).not.toContain("capability_state = 'ENABLED'")
+    expect(facade).not.toContain("outcome: 'CREATED'")
+  })
+
+  it('nao adiciona endpoint, provider call, cron ou ativacao', () => {
     expect(facade).not.toContain('fetch(')
     expect(facade).not.toContain('querySerproNfe')
     expect(facade).not.toContain('cron')

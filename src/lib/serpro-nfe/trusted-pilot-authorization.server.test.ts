@@ -293,6 +293,18 @@ describe('autorizacao manual confiavel do piloto SERPRO', () => {
     expect(admin.insert).toHaveBeenCalledTimes(2)
   })
 
+  it('delega o CREATED atomico a RPC e nao cria uma segunda janela de auditoria no facade', async () => {
+    await authorizeSerproNfePilotManual(request)
+    const admin = mocks.createAdminClient.mock.results[0].value as ReturnType<typeof adminClient>
+    const auditCalls = admin.insert.mock.calls as unknown as Array<[Record<string, unknown>]>
+
+    expect(auditCalls).toHaveLength(1)
+    expect(auditCalls[0][0]).toMatchObject({
+      tipo_evento: 'SERPRO_PILOT_AUTHORIZATION_REQUESTED',
+    })
+    expect(JSON.stringify(auditCalls)).not.toContain('AUTHORIZATION_CREATED')
+  })
+
   it('falha fechado se a auditoria minima nao puder ser registrada', async () => {
     const admin = adminClient({ auditError: { message: 'audit unavailable' } })
     mocks.createAdminClient.mockReturnValue(admin)
@@ -308,7 +320,7 @@ describe('autorizacao manual confiavel do piloto SERPRO', () => {
     const auditPayloads = auditCalls.map(call => call[0])
     const serialized = JSON.stringify(auditPayloads)
 
-    expect(auditPayloads).toHaveLength(2)
+    expect(auditPayloads).toHaveLength(1)
     expect(serialized).toContain(ids.fund)
     expect(serialized).toContain(ids.note)
     expect(serialized).toMatch(/[0-9a-f]{64}/)

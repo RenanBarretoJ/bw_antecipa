@@ -231,7 +231,7 @@ async function writeAudit(input: {
   context: AuthContext
   target: TrustedPilotAuthorizationRequest
   fingerprint: string
-  outcome: 'REQUESTED' | 'CREATED' | 'REJECTED'
+  outcome: 'REQUESTED' | 'REJECTED'
   reason?: 'DB_GATE_REJECTED'
 }) {
   const admin = createAdminClient() as unknown as PilotAdminClient
@@ -313,7 +313,6 @@ export async function authorizeSerproNfePilotManual(
     throw new TrustedPilotAuthorizationError('AUTHORIZATION_REJECTED')
   }
 
-  await writeAudit({ context, target: input, fingerprint, outcome: 'CREATED' })
   return createServerOnlyHandle({
     authorizationId,
     consultaId: target.consultaId,
