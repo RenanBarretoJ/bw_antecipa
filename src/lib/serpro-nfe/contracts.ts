@@ -3,6 +3,14 @@ export const SERPRO_NFE_CONTRACT_VERSION = 'SERPRO_NFE_PUBLIC_DOC_2026-10' as co
 export const SERPRO_NFE_MAPPER_VERSION = 'S1_MAPPER_V1' as const
 
 export type FiscalSeverity = 'NEUTRO' | 'VERDE' | 'AMARELO' | 'VERMELHO'
+export type FiscalConsumptionMode = 'OFF_ZERO_BUDGET' | 'UNLIMITED_WITH_METERING' | 'LIMITED'
+export type FiscalExecutionStatus =
+  | 'BLOQUEADA_OFF'
+  | 'SOLICITADA'
+  | 'EM_PROCESSAMENTO'
+  | 'CONCLUIDA'
+  | 'FALHOU'
+  | 'INDISPONIVEL'
 export type FiscalQueryStatus =
   | 'NAO_APLICAVEL'
   | 'AGUARDANDO_CHAVE'
@@ -60,6 +68,7 @@ export interface FiscalSituationView {
   status: FiscalQueryStatus
   provider: 'SERPRO'
   capabilityState: 'UNVERIFIED' | 'VERIFIED_DISABLED' | 'ENABLED'
+  consumptionMode: FiscalConsumptionMode
   eventCoverage: 'FULL' | 'PARTIAL' | 'UNSUPPORTED' | 'NOT_PROVEN'
   severity: FiscalSeverity
   summary: string
@@ -77,4 +86,28 @@ export interface FiscalSituationView {
     registered: boolean
     severity: 'AMARELO' | 'VERMELHO'
   }>
+  history: Array<{
+    requestId: string
+    source: 'AUTOMATICA_IMPORTACAO' | 'MANUAL_GESTOR'
+    status: FiscalExecutionStatus
+    requestedAt: string
+    startedAt: string | null
+    completedAt: string | null
+    checkedAt: string | null
+    resultStatus: string | null
+    severity: FiscalSeverity | null
+    summary: string | null
+    errorCode: string | null
+    providerCallCount: number
+    estimatedCost: number | string | null
+    costCurrency: 'BRL'
+  }>
+  consumption: {
+    noteCalls: number
+    fundCalls: number
+    noteEstimatedCost: number | string | null
+    fundEstimatedCost: number | string | null
+    currency: 'BRL'
+    estimateAvailable: boolean
+  }
 }

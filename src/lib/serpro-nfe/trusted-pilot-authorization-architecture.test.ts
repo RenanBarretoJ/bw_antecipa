@@ -11,8 +11,10 @@ const hardeningMigration = readFileSync(hardeningMigrationPath, 'utf8')
 const frozenFiles = new Map([
   ['supabase/migrations/20261028140420_s2_1a1_serpro_selective_pilot_claim.sql', 'faf330992c4e7460debf568dd29637e105695d07529b631a835a02d8b0114285'],
   ['src/lib/serpro-nfe/pilot-worker.server.ts', '190be79e6212ef32b94818291e78ef54b88bcfffcffbca9ded4ca65478c2c263'],
-  ['src/lib/serpro-nfe/pilot-worker.server.test.ts', 'f959b81ea8e28d9bd7afe1556d3477d385268784a73e6173d64d2cef062d65db'],
-  ['src/lib/serpro-nfe/pilot-architecture.test.ts', 'f0d0aac5e67fb447717783997ae668601671628467d746c6677f983aaed5a32a'],
+  // S2.2R evolves only these active test fixtures/contracts. Keep the original
+  // e55b3 bytes under the original frozen hashes instead of rebaselining them.
+  ['src/lib/serpro-nfe/__fixtures__/pilot-worker.server.test.ts.s2_1a2.frozen.txt', 'f959b81ea8e28d9bd7afe1556d3477d385268784a73e6173d64d2cef062d65db'],
+  ['src/lib/serpro-nfe/__fixtures__/pilot-architecture.test.ts.s2_1a2.frozen.txt', 'f0d0aac5e67fb447717783997ae668601671628467d746c6677f983aaed5a32a'],
   ['scripts/qa/serpro/s2-1a1-local-rehearsal.mjs', '3d5b353ca61afde4079103e229313bdd37d51097607a6ef63b0ca43b11dc4275'],
 ])
 

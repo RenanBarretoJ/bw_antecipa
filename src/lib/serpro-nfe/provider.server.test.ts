@@ -20,6 +20,7 @@ const config = {
   workerEnabled: true,
   contractVerified: true,
   queryEnabled: true,
+  consumptionMode: 'UNLIMITED_WITH_METERING' as const,
   consumerKey: 'qa-key',
   consumerSecret: 'qa-secret',
   tokenUrl: officialContract.tokenUrl,
@@ -52,6 +53,7 @@ describe('adapter SERPRO isolado', () => {
       SERPRO_NFE_WORKER_ENABLED: 'true',
       SERPRO_NFE_CONTRACT_VERIFIED: 'true',
       SERPRO_NFE_QUERY_ENABLED: 'true',
+      SERPRO_NFE_CONSUMPTION_MODE: 'UNLIMITED_WITH_METERING',
       SERPRO_NFE_CONSUMER_KEY: 'qa-key',
       SERPRO_NFE_CONSUMER_SECRET: 'qa-secret',
       SERPRO_NFE_BASE_URL: queryBaseUrl,
@@ -95,4 +97,20 @@ describe('adapter SERPRO isolado', () => {
       .mockResolvedValueOnce(new Response(body, { status: 200 }))
     await expect(querySerproNfe(key, config, fetcher)).rejects.toMatchObject({ code: 'INVALID_JSON_RESPONSE' })
   })
+})
+
+describe('modo de consumo S2.2', () => {
+  it.each(['OFF_ZERO_BUDGET', 'LIMITED', 'INVALID_VALUE'])(
+    'nao converte modo %s em consumo operacional sem teto',
+    consumptionMode => {
+      expect(readSerproNfeRuntimeConfig({
+        SERPRO_NFE_WORKER_ENABLED: 'true',
+        SERPRO_NFE_CONTRACT_VERIFIED: 'true',
+        SERPRO_NFE_QUERY_ENABLED: 'true',
+        SERPRO_NFE_CONSUMPTION_MODE: consumptionMode,
+        SERPRO_NFE_CONSUMER_KEY: 'qa-key',
+        SERPRO_NFE_CONSUMER_SECRET: 'qa-secret',
+      })).toMatchObject({ ready: false })
+    },
+  )
 })

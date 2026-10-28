@@ -35,7 +35,8 @@ describe('arquitetura S1 privativa e desabilitada por padrão', () => {
     expect(fiscal).toBeGreaterThan(resumo)
     expect(arquivo).toBeGreaterThan(fiscal)
     expect(fiscalCard).toContain('className="h-32 w-full rounded-xl"')
-    expect(fiscalCard).toContain('{!capabilityUnavailable && (')
+    expect(fiscalCard).toContain("situation.consumptionMode === 'UNLIMITED_WITH_METERING'")
+    expect(fiscalCard).toContain('{canRequest && (')
   })
 
   it('RLS restringe leitura por Fundo e escrita ao service_role', () => {

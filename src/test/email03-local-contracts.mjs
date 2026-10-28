@@ -8,12 +8,13 @@ import {createFiscalImportRepository} from '@/lib/fiscal-intake/repository.serve
 import {createFiscalStorage} from '@/lib/fiscal-intake/storage.server'
 import {nfeFixtureKey} from '../../scripts/email-intake/nfe-fixture-key.mjs'
 import {syntheticDanfePdf} from './synthetic-danfe-pdf.mjs'
+import {assertCanonicalProfile} from '../../scripts/qa/vortx/main-native-fixture.mjs'
 
 const fund='22000000-0000-4000-8000-000000000003',cedente='23000000-0000-4000-8000-000000000003',link='24000000-0000-4000-8000-000000000003',consultoria='29000000-0000-4000-8000-000000000001'
 function totp(secret){const chars='ABCDEFGHIJKLMNOPQRSTUVWXYZ234567',bits=[...secret.replace(/=/g,'').toUpperCase()].map(c=>chars.indexOf(c).toString(2).padStart(5,'0')).join(''),bytes=Buffer.from(bits.match(/.{8}/g).map(x=>parseInt(x,2))),counter=Buffer.alloc(8);counter.writeBigUInt64BE(BigInt(Math.floor(Date.now()/30000)));const h=createHmac('sha1',bytes).update(counter).digest(),o=h[19]&15;return String((h.readUInt32BE(o)&0x7fffffff)%1000000).padStart(6,'0')}
 const value=(r,stage)=>{assert.ok(!r.error,stage+':'+(r.error?.code??'UNKNOWN'));return r.data}
 
-/** @param {'NO_DUP'|'INVALID_SUM'|'ORDER_FANOUT'|'ATOMIC_ROLLBACK'|'ISSUER_SCOPE'|'DANFE_DRAFT'} mode */
+/** @param {'NO_DUP'|'INVALID_SUM'|'ORDER_FANOUT'|'ATOMIC_ROLLBACK'|'ISSUER_SCOPE'|'DANFE_DRAFT'|'GESTOR_XML'} mode */
 export async function verifyLocalContract(mode){
  assert.equal(process.env.EMAIL_INTAKE_DISPOSABLE_SMOKE,'true','Explicit disposable QA required; never skip or use fake success')
  assert.equal(process.env.NEXT_PUBLIC_SUPABASE_URL,'http://127.0.0.1:57861')
@@ -27,10 +28,12 @@ export async function verifyLocalContract(mode){
   const dates=(await db.query('select current_date::text issued,(current_date+30)::text due')).rows[0]
   const email='contract-'+randomUUID()+'@example.invalid',password='QA!A1'+randomBytes(24).toString('base64url')
   const {user}=value(await admin.auth.admin.createUser({email,password,email_confirm:true}),'NATIVE_CREATE');userId=user.id
-  const role=mode==='ISSUER_SCOPE'?'consultor':'cedente'
+  assertCanonicalProfile(await db.query('SELECT id,email,role::text,status::text,nome_completo FROM public.profiles WHERE id=$1',[userId]),userId,email)
+  const role=mode==='ISSUER_SCOPE'?'consultor':mode==='GESTOR_XML'?'gestor':'cedente'
   await db.query("update public.profiles set role=$2,status='ativo' where id=$1",[userId,role])
   if(role==='cedente')await db.query("insert into public.cedente_acessos(cedente_id,user_id,perfil,status,ativo,aceito_em) values($1,$2,'OPERACIONAL','ATIVO',true,now())",[cedente,userId])
-  else await db.query("insert into public.consultor_usuarios(consultor_id,user_id,papel,status,ativado_em) values($1,$2,'ADMIN','ativo',now())",[consultoria,userId])
+  else if(role==='consultor')await db.query("insert into public.consultor_usuarios(consultor_id,user_id,papel,status,ativado_em) values($1,$2,'ADMIN','ativo',now())",[consultoria,userId])
+  else await db.query("insert into public.usuario_fundos(usuario_id,fundo_id,perfil_no_fundo,status) values($1,$2,'gestor','ativo')",[userId,fund])
   value(await human.auth.signInWithPassword({email,password}),'NATIVE_LOGIN')
   const factor=value(await human.auth.mfa.enroll({factorType:'totp',friendlyName:'Local contract'}),'NATIVE_FACTOR'),challenge=value(await human.auth.mfa.challenge({factorId:factor.id}),'NATIVE_CHALLENGE')
   value(await human.auth.mfa.verify({factorId:factor.id,challengeId:challenge.id,code:totp(factor.totp.secret)}),'NATIVE_TOTP')
@@ -82,7 +85,7 @@ export async function verifyLocalContract(mode){
    assert.ok(requirements.length>0);assert.ok(requirements.every(row=>row.status==='pendente'))
    assert.equal((await run(f,undefined,{danfeManualDue:dates.due})).status,'DUPLICATE');assert.equal((await notes(f)).length,1)
    result.checks.push('NATIVE_DRAFT_COMMIT','EXACT_CENTS_AND_MANUAL_DUE_PROVENANCE','NO_INVENTED_NET_OR_PARCEL','ORIGINAL_PDF_BYTES_RETAINED','FUND_DOCUMENT_REQUIREMENTS_STILL_PENDING','DUPLICATE_ONE_NOTE')
-  }else if(mode==='NO_DUP'||mode==='ORDER_FANOUT'){
+  }else if(mode==='NO_DUP'||mode==='ORDER_FANOUT'||mode==='GESTOR_XML'){
    const f=make(mode==='NO_DUP'?'NO_DUP':'VALID'),r=await run(f);assert.equal(r.status,'IMPORTED');const n=(await notes(f))[0]
    assert.equal(n.status,'rascunho');assert.equal(Number(n.valor_bruto),100);assert.equal(Number(n.valor_liquido),100)
    const parcels=(await db.query('select id,numero_parcela,valor_nominal from public.nota_fiscal_parcelas where nota_fiscal_id=$1 order by numero_parcela',[n.id])).rows

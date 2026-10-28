@@ -37,6 +37,9 @@ function enableRuntime() {
   vi.stubEnv('SERPRO_NFE_WORKER_ENABLED', 'true')
   vi.stubEnv('SERPRO_NFE_CONTRACT_VERIFIED', 'true')
   vi.stubEnv('SERPRO_NFE_QUERY_ENABLED', 'true')
+  // Deliberate synthetic activation of the actual shared runtime enum; absence
+  // remains OFF. The SQL pilot still independently enforces its exact budget.
+  vi.stubEnv('SERPRO_NFE_CONSUMPTION_MODE', 'UNLIMITED_WITH_METERING')
   vi.stubEnv('SERPRO_NFE_CONSUMER_KEY', 'synthetic-key')
   vi.stubEnv('SERPRO_NFE_CONSUMER_SECRET', 'synthetic-secret')
 }

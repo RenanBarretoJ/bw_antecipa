@@ -1,0 +1,40 @@
+import { afterEach, describe, expect, it, vi } from 'vitest'
+const m = vi.hoisted(() => ({ after: vi.fn(), config: vi.fn(), worker: vi.fn() }))
+vi.mock('server-only', () => ({}))
+vi.mock('next/server', () => ({ after: m.after }))
+vi.mock('./provider.server', () => ({ readSerproNfeRuntimeConfig: m.config }))
+vi.mock('./worker.server', () => ({ runSerproNfeWorkerOnce: m.worker }))
+import { scheduleSerproNfePickup } from './dispatch.server'
+afterEach(() => { vi.restoreAllMocks(); vi.resetAllMocks() })
+describe('post-commit pickup hint is never delivery assurance', () => {
+  it('OFF does not schedule work', () => {
+    m.config.mockReturnValue({ ready: false })
+    scheduleSerproNfePickup()
+    expect(m.after).not.toHaveBeenCalled()
+    expect(m.worker).not.toHaveBeenCalled()
+  })
+  it('defers execution to the post-response hook', async () => {
+    m.config.mockReturnValue({ ready: true })
+    scheduleSerproNfePickup()
+    expect(m.worker).not.toHaveBeenCalled()
+    await m.after.mock.calls[0][0]()
+    expect(m.worker).toHaveBeenCalledOnce()
+  })
+  it('does not undo an import if registering a hook fails', () => {
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    m.config.mockReturnValue({ ready: true })
+    m.after.mockImplementation(() => { throw Error('synthetic context unavailable') })
+    expect(() => scheduleSerproNfePickup()).not.toThrow()
+    expect(m.worker).not.toHaveBeenCalled()
+    expect(warning).toHaveBeenCalledWith('serpro_pickup', { state: 'DURABLE_PICKUP_REQUIRED' })
+  })
+  it('leaves uncertain work for fenced recovery, without retrying the hint', async () => {
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    m.config.mockReturnValue({ ready: true })
+    m.worker.mockRejectedValue(Error('synthetic worker failure'))
+    scheduleSerproNfePickup()
+    await m.after.mock.calls[0][0]()
+    expect(m.worker).toHaveBeenCalledOnce()
+    expect(warning).toHaveBeenCalledWith('serpro_pickup', { state: 'RECOVERY_REQUIRED' })
+  })
+})

@@ -19,6 +19,7 @@ export interface SerproNfeRuntimeConfig {
   workerEnabled: boolean
   contractVerified: boolean
   queryEnabled: boolean
+  consumptionMode: 'OFF_ZERO_BUDGET' | 'UNLIMITED_WITH_METERING' | 'LIMITED' | 'INVALID'
   consumerKey: string
   consumerSecret: string
   tokenUrl: string
@@ -32,6 +33,12 @@ export function readSerproNfeRuntimeConfig(
   const workerEnabled = env.SERPRO_NFE_WORKER_ENABLED === 'true'
   const contractVerified = env.SERPRO_NFE_CONTRACT_VERIFIED === 'true'
   const queryEnabled = env.SERPRO_NFE_QUERY_ENABLED === 'true'
+  const configuredConsumptionMode = env.SERPRO_NFE_CONSUMPTION_MODE ?? 'OFF_ZERO_BUDGET'
+  const consumptionMode = (
+    configuredConsumptionMode === 'OFF_ZERO_BUDGET'
+    || configuredConsumptionMode === 'UNLIMITED_WITH_METERING'
+    || configuredConsumptionMode === 'LIMITED'
+  ) ? configuredConsumptionMode : 'INVALID'
   const consumerKey = env.SERPRO_NFE_CONSUMER_KEY ?? ''
   const consumerSecret = env.SERPRO_NFE_CONSUMER_SECRET ?? ''
   const tokenUrl = env.SERPRO_NFE_TOKEN_URL || SERPRO_NFE_TOKEN_URL
@@ -39,10 +46,16 @@ export function readSerproNfeRuntimeConfig(
   const safeEndpoints = tokenUrl === SERPRO_NFE_TOKEN_URL
     && queryBaseUrl === SERPRO_NFE_DF_QUERY_BASE_URL
   return {
-    ready: workerEnabled && contractVerified && queryEnabled && Boolean(consumerKey && consumerSecret) && safeEndpoints,
+    ready: workerEnabled
+      && contractVerified
+      && queryEnabled
+      && consumptionMode === 'UNLIMITED_WITH_METERING'
+      && Boolean(consumerKey && consumerSecret)
+      && safeEndpoints,
     workerEnabled,
     contractVerified,
     queryEnabled,
+    consumptionMode,
     consumerKey,
     consumerSecret,
     tokenUrl,

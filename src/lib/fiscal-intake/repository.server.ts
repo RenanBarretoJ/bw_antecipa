@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/server'
 import { FiscalIntakeError, type FiscalClaim } from './contracts'
 import type { FiscalImportRepository } from './service.server'
 import { processFiscalCleanup } from './storage.server'
+import { scheduleSerproNfePickup } from '@/lib/serpro-nfe/dispatch.server'
 
 const uuid = z.string().uuid()
 const claimSchema = z.object({ id: uuid, token: uuid, generation: z.number().int().positive() })
@@ -108,7 +109,9 @@ export function createFiscalImportRepository(client: AppSupabaseClient): FiscalI
     async commit(claim, intent) {
       const { data, error } = await client.rpc('fiscal_intake_commit', { ...fence(claim), p_storage_intent_id: intent.id })
       check(error)
-      return importedSchema.parse(data)
+      const imported = importedSchema.parse(data)
+      scheduleSerproNfePickup()
+      return imported
     },
     async fail(claim) {
       const admin = createAdminClient()

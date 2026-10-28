@@ -9,8 +9,11 @@ const genericWorker = readFileSync('src/lib/serpro-nfe/worker.server.ts', 'utf8'
 const pilotWorker = readFileSync('src/lib/serpro-nfe/pilot-worker.server.ts', 'utf8')
 
 describe('arquitetura S2.1A.1 do claim seletivo', () => {
-  it('preserva o claim generico e nao cria fallback pela fila', () => {
-    expect(genericWorker).toContain("db.rpc('nfe_fiscal_claim', { p_limit: 1 })")
+  it('mantem piloto seletivo e operacional sem fallback para fila historica', () => {
+    // S2.2 deliberately retires generic pickup in the product worker. The
+    // frozen pilot still requires its exact authorization; neither may scan S1.
+    expect(genericWorker).toContain("db.rpc('nfe_fiscal_operational_claim', { p_limit: 1 })")
+    expect(genericWorker).not.toContain("db.rpc('nfe_fiscal_claim'")
     expect(pilotWorker).toContain("db.rpc('nfe_fiscal_pilot_claim'")
     expect(pilotWorker).not.toContain("db.rpc('nfe_fiscal_claim'")
     expect(migration).not.toContain('CREATE OR REPLACE FUNCTION public.nfe_fiscal_claim(')
