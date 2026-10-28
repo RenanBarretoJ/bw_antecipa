@@ -69,9 +69,25 @@ jobs:
           path: ${{ runner.temp }}/bw-antecipa-evidence/reconciliation-v2-*/REPORT.json
           if-no-files-found: error
 
-      - name: Tests
+      - name: EMAIL03 native QA provisioning and tests (isolated synthetic)
         if: ${{ !contains(fromJSON('["integration/vortx-main-20261021","main","homolog"]'), github.head_ref || github.ref_name) }}
-        run: npm test -- --run
+        run: |
+          node --test scripts/qa/vortx/main-native-images.test.mjs
+          node scripts/qa/vortx/main-native-images.mjs --local-only
+          node --test scripts/qa/vortx/main-native-fixture.test.mjs scripts/qa/vortx/main-native-snapshot.test.mjs
+          node scripts/qa/vortx/main-native-qa.mjs --local-only --full-suite --snapshot
+
+      - name: EMAIL03 native QA sanitized evidence
+        if: always() && !contains(fromJSON('["integration/vortx-main-20261021","main","homolog"]'), github.head_ref || github.ref_name)
+        uses: actions/upload-artifact@v4
+        with:
+          name: email03-native-qa
+          path: |
+            rehearsal/reports/bw-main-native-*/report.json
+            rehearsal/reports/bw-main-native-*/vitest.json
+            rehearsal/reports/bw-main-native-*/full-vitest.json
+            rehearsal/reports/bw-main-native-*/contracts/*.json
+          if-no-files-found: error
 
       - name: VRS duplicatas SQL regression (two disposable local stacks)
         if: github.head_ref == 'integration/vortx-main-20261021' || github.ref == 'refs/heads/integration/vortx-main-20261021'

@@ -9,12 +9,17 @@ const hardeningMigrationPath = 'supabase/migrations/20261028173558_s2_1a4h_serpr
 const hardeningMigration = readFileSync(hardeningMigrationPath, 'utf8')
 
 const frozenFiles = new Map([
-  ['supabase/migrations/20261028140420_s2_1a1_serpro_selective_pilot_claim.sql', 'ef74d66e70d546fe95c7b8a21b6614e5094989928ebbe560d96425cac2a4e33d'],
-  ['src/lib/serpro-nfe/pilot-worker.server.ts', 'c1ab05648807de93345a20e56fc74b57b3af9ec852553909f2cb6ad5cc36fe5e'],
-  ['src/lib/serpro-nfe/pilot-worker.server.test.ts', '1f1620385df14c71851a728b30f71f55d9eb4e1cd294efbb837706b46bdb90aa'],
-  ['src/lib/serpro-nfe/pilot-architecture.test.ts', '64bead3894b503c183d41600a7623e14d079e2414cd8035b2e48a0990a04138a'],
-  ['scripts/qa/serpro/s2-1a1-local-rehearsal.mjs', 'fe7f4ec6a08aced88554e9d0275627b230d621df834bf008728704c10294dad9'],
+  ['supabase/migrations/20261028140420_s2_1a1_serpro_selective_pilot_claim.sql', 'faf330992c4e7460debf568dd29637e105695d07529b631a835a02d8b0114285'],
+  ['src/lib/serpro-nfe/pilot-worker.server.ts', '190be79e6212ef32b94818291e78ef54b88bcfffcffbca9ded4ca65478c2c263'],
+  ['src/lib/serpro-nfe/pilot-worker.server.test.ts', 'f959b81ea8e28d9bd7afe1556d3477d385268784a73e6173d64d2cef062d65db'],
+  ['src/lib/serpro-nfe/pilot-architecture.test.ts', 'f0d0aac5e67fb447717783997ae668601671628467d746c6677f983aaed5a32a'],
+  ['scripts/qa/serpro/s2-1a1-local-rehearsal.mjs', '3d5b353ca61afde4079103e229313bdd37d51097607a6ef63b0ca43b11dc4275'],
 ])
+
+function canonicalTextSha256(value: string | Buffer): string {
+  const canonical = value.toString('utf8').replace(/\r\n/g, '\n')
+  return createHash('sha256').update(canonical, 'utf8').digest('hex')
+}
 
 function sourceFiles(root: string): string[] {
   return readdirSync(root).flatMap(name => {
@@ -77,11 +82,17 @@ describe('arquitetura S2.1A.3 da autorizacao manual confiavel', () => {
     expect(facade).not.toContain('return { authorizationId')
   })
 
-  it('preserva byte a byte os cinco artefatos congelados da S2.1A.2', () => {
+  it('preserva o conteudo canonico dos cinco artefatos congelados da S2.1A.2', () => {
     for (const [path, expectedHash] of frozenFiles) {
-      const actual = createHash('sha256').update(readFileSync(path)).digest('hex')
+      const actual = canonicalTextSha256(readFileSync(path))
       expect(actual, path).toBe(expectedHash)
     }
+  })
+
+  it('calcula o mesmo hash canonico para checkouts LF e CRLF', () => {
+    const lf = 'linha 1\nlinha 2\n'
+    const crlf = lf.replace(/\n/g, '\r\n')
+    expect(canonicalTextSha256(crlf)).toBe(canonicalTextSha256(lf))
   })
 
   it('mantem a nova migration restrita a RPC existente, auditoria atomica e orcamento diario', () => {
