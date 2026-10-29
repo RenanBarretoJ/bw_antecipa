@@ -1,0 +1,205 @@
+{
+  "schemaVersion": 1,
+  "status": "LOCAL_RECONCILIATION_ONLY_NO_REMOTE_APPLY",
+  "basis": "R41_RECOVERY_BASELINE_CLOSEOUT_20261029",
+  "sourceHead": "0412749e62ff97b290c6c2a4c776e578c30d4ed0",
+  "sourceTree": "2ab4eac660011f8cba0d91aefa1ad34676c8212c",
+  "scope": "24_RELATIONS_25_FUNCTIONS_4_SCHEMAS_NOT_ENTIRE_PRODUCTION",
+  "observedAt": "2026-10-29T17:24:05.148676Z",
+  "baselineNormalizedSha256": "771b949e9d806903ff308e552b15194b0a904c92b463e6313129bb8484b0403c",
+  "remoteLedgerRows": 293,
+  "evidenceHashes": {
+    "R41_RECOVERY_BASELINE_CLOSEOUT.json": "110a8031dbb2a83047a46fb3a45d5df0ae9bf99599acb2d501cfe97a587c0cc9",
+    "seven-source-attestation.json": "aaf038addb0435299b7d92dd456a8ed1d551b8de97e6d3d7c2a76c07458755e4",
+    "baseline-fidelity.json": "203fba0e2c21ed7905bafc779d0ce8e7e60bc552fb9c635d03f8831f8dd78564"
+  },
+  "liveVerification": false,
+  "sqlGo": false,
+  "remoteApplyAllowed": false,
+  "noLedgerRepair": true,
+  "historicalSnapshotPreserved": "scripts/qa/serpro/s2-2sr-migration-provenance.json",
+  "caveats": [
+    "DATED_METADATA_NOT_FRESH_REMOTE_PREFLIGHT",
+    "ARCHIVED_LOCAL_LOGS_NOT_SIGNED_IMMUTABLE_AUDIT",
+    "INLINE_SQL_FILENAMES_NOT_RECORDED_OR_INVENTED",
+    "SACADO_GIT_ARCHIVED_AFTER_LEDGER_DATE",
+    "NO_AUTOMATIC_TIMESTAMP_EQUIVALENCE_OR_REPLAY",
+    "NEW_LOCAL_DIFF_NOT_COVERED_BY_PREVIOUS_REMOTE_CI"
+  ],
+  "rows": [
+    {
+      "version": "20260829173938",
+      "ledgerName": "p5_2_neutralizar_resets_homolog_producao",
+      "canonicalLfSha256": "82234e0782bab01d923963ad300cbaa73abc0ddf0156504b755031fcdd1a7cb4",
+      "sourceKind": "ORIGINAL_SUBMITTED_SQL_IN_ARCHIVED_APPLY_MIGRATION_CALL",
+      "sourceContentRecovered": true,
+      "classification": "FONTE_SQL_PRIMARIA_COMPROVADA",
+      "originalFilename": "NOT_RECORDED_INLINE_API_QUERY; RECOVERY_CONTAINER_FILENAME_IS_NOT_HISTORICAL_FILENAME",
+      "gitSource": null,
+      "archivedCall": {
+        "timestamp": "2026-08-29T17:39:38.747Z",
+        "recordSha256": "f599a710a1c98273316bc7bd31ef1da08ce822a751357670abd305981d5f3bed",
+        "tool": "supabase.apply_migration",
+        "status": "completed",
+        "isError": false
+      },
+      "replayed": false
+    },
+    {
+      "version": "20260909024514",
+      "ledgerName": "p5_7_bootstrap_primeiro_super_admin_producao",
+      "canonicalLfSha256": "c5954958b06fe68de3a71c01944b37b79c721c256a93c3e1e8a32c8489c5bf68",
+      "sourceKind": "ORIGINAL_SUBMITTED_SQL_IN_ARCHIVED_APPLY_MIGRATION_CALL",
+      "sourceContentRecovered": true,
+      "classification": "FONTE_SQL_PRIMARIA_COMPROVADA",
+      "originalFilename": "NOT_RECORDED_INLINE_API_QUERY; RECOVERY_CONTAINER_FILENAME_IS_NOT_HISTORICAL_FILENAME",
+      "gitSource": null,
+      "archivedCall": {
+        "timestamp": "2026-09-09T02:45:16.059Z",
+        "recordSha256": "289c5975401b0481f9c8bd56ffd578c7f68fe31a97b6ba835900849171fd1109",
+        "tool": "supabase.apply_migration",
+        "status": "completed",
+        "isError": false
+      },
+      "replayed": false
+    },
+    {
+      "version": "20260915192524",
+      "ledgerName": "p7_4_1_rls_importacoes_financeiras_gestor",
+      "canonicalLfSha256": "d01cbf5803f364394da413d72318fe8f829bc281aab5b5146d50b7b4ff4513c2",
+      "sourceKind": "ORIGINAL_SUBMITTED_SQL_IN_ARCHIVED_APPLY_MIGRATION_CALL",
+      "sourceContentRecovered": true,
+      "classification": "FONTE_SQL_PRIMARIA_COMPROVADA",
+      "originalFilename": "NOT_RECORDED_INLINE_API_QUERY; RECOVERY_CONTAINER_FILENAME_IS_NOT_HISTORICAL_FILENAME",
+      "gitSource": null,
+      "archivedCall": {
+        "timestamp": "2026-09-15T19:25:24.037Z",
+        "recordSha256": "dfcaa02fb3913af392b49d065bee0afac8f066826793015537057c541570e6a9",
+        "tool": "supabase.apply_migration",
+        "status": "completed",
+        "isError": false
+      },
+      "replayed": false
+    },
+    {
+      "version": "20260916144655",
+      "ledgerName": "corrigir_overlay_exposicao_parcelas",
+      "canonicalLfSha256": "62fd84f46e3dc45ce9028bc7850b0115e4162675879c9b29537f8312e453b50b",
+      "sourceKind": "ORIGINAL_SUBMITTED_SQL_IN_ARCHIVED_APPLY_MIGRATION_CALL",
+      "sourceContentRecovered": true,
+      "classification": "FONTE_SQL_PRIMARIA_COMPROVADA",
+      "originalFilename": "NOT_RECORDED_INLINE_API_QUERY; RECOVERY_CONTAINER_FILENAME_IS_NOT_HISTORICAL_FILENAME",
+      "gitSource": null,
+      "archivedCall": {
+        "timestamp": "2026-09-16T14:46:56.008Z",
+        "recordSha256": "64cbbb4c4c96fd2e590ce8ec116a5f2ab42a30e8ca1b117a79ce96e592ee46bf",
+        "tool": "supabase.apply_migration",
+        "status": "completed",
+        "isError": false
+      },
+      "replayed": false
+    },
+    {
+      "version": "20260916153942",
+      "ledgerName": "corrigir_aceite_sacado_vinculo_nf_cancelada",
+      "canonicalLfSha256": "a93585499f87747d66a5a975f24b4890885b5ab4a3e19bd6547a13ab91a6ef65",
+      "sourceKind": "ORIGINAL_SUBMITTED_SQL_IN_ARCHIVED_APPLY_MIGRATION_CALL",
+      "sourceContentRecovered": true,
+      "classification": "FONTE_SQL_PRIMARIA_COMPROVADA",
+      "originalFilename": "NOT_RECORDED_INLINE_API_QUERY; RECOVERY_CONTAINER_FILENAME_IS_NOT_HISTORICAL_FILENAME",
+      "gitSource": null,
+      "archivedCall": {
+        "timestamp": "2026-09-16T15:39:42.831Z",
+        "recordSha256": "b3a361e81df72e438138e1b41b0ab5b6810e5eb1f09937f28ae7fa6fd0113cc4",
+        "tool": "supabase.apply_migration",
+        "status": "completed",
+        "isError": false
+      },
+      "replayed": false
+    },
+    {
+      "version": "20260928185439",
+      "ledgerName": "p16_liberar_nf_de_operacao_cancelada",
+      "canonicalLfSha256": "6390f43842e82d7d980acfb6ae61e66cd551676e17c21a01a6e8ca237ce3efa1",
+      "sourceKind": "HISTORICAL_GIT_BLOB_MATCHING_LEDGER_CONTENT",
+      "sourceContentRecovered": true,
+      "classification": "FONTE_SQL_PRIMARIA_COMPROVADA",
+      "originalFilename": "supabase/migrations/20260928185439_p16_liberar_nf_de_operacao_cancelada.sql",
+      "gitSource": {
+        "commit": "0557ecff0f386db6e846242d840d0f818b71dfbc",
+        "blob": "8c7180d1f464b57f9242b99793ae8c33ce13c367",
+        "path": "supabase/migrations/20260928185439_p16_liberar_nf_de_operacao_cancelada.sql"
+      },
+      "archivedCall": null,
+      "replayed": false
+    },
+    {
+      "version": "20261005173648",
+      "ledgerName": "sacado_rls_non_sacado_short_circuit",
+      "canonicalLfSha256": "1006e35b48f871c4f14a72f7a3f2045b1f40c13f4bb80d7efeda0e26be8df3ac",
+      "sourceKind": "HISTORICAL_GIT_BLOB_MATCHING_LEDGER_CONTENT",
+      "sourceContentRecovered": true,
+      "classification": "FONTE_SQL_PRIMARIA_COMPROVADA",
+      "originalFilename": "supabase/migrations/20261005173648_sacado_rls_non_sacado_short_circuit.sql",
+      "gitSource": {
+        "commit": "364c5ad2db6db9134be9e08added44299fff7a87",
+        "blob": "a7106e7abe86c3f2ebc6910d3636b18b7e8971ed",
+        "path": "supabase/migrations/20261005173648_sacado_rls_non_sacado_short_circuit.sql"
+      },
+      "archivedCall": null,
+      "replayed": false
+    },
+    {
+      "version": "20261022202246",
+      "ledgerName": "financial_reconciliation_conditional_movements",
+      "canonicalLfSha256": "763be293af352adf38cb7110ffabf35ef13abb90d4a843f42f10b7a3270acc29",
+      "sourceKind": "ORIGINAL_SUBMITTED_SQL_IN_ARCHIVED_APPLY_MIGRATION_CALL",
+      "sourceContentRecovered": true,
+      "classification": "FONTE_SQL_PRIMARIA_COMPROVADA",
+      "originalFilename": "NOT_RECORDED_INLINE_API_QUERY; RECOVERY_CONTAINER_FILENAME_IS_NOT_HISTORICAL_FILENAME",
+      "gitSource": null,
+      "archivedCall": {
+        "timestamp": "2026-10-22T20:22:47.002Z",
+        "recordSha256": "13c7883901f77c3d257083837bdf27045dffe415aef4ca4ce8bc6b361250e265",
+        "tool": "supabase.apply_migration",
+        "status": "completed",
+        "isError": false
+      },
+      "replayed": false
+    },
+    {
+      "version": "20261023134600",
+      "ledgerName": "vrs_duplicata_parcela_keys",
+      "canonicalLfSha256": "935e666c52f305076e2f4d691e3cfe64867a2a7e6b6abb8950e334582da9bb50",
+      "sourceKind": "ORIGINAL_SUBMITTED_SQL_IN_ARCHIVED_APPLY_MIGRATION_CALL",
+      "sourceContentRecovered": true,
+      "classification": "FONTE_SQL_PRIMARIA_COMPROVADA",
+      "originalFilename": "NOT_RECORDED_INLINE_API_QUERY; RECOVERY_CONTAINER_FILENAME_IS_NOT_HISTORICAL_FILENAME",
+      "gitSource": null,
+      "archivedCall": {
+        "timestamp": "2026-10-23T13:46:01.746Z",
+        "recordSha256": "6642ddcff98836f2a95adeccd94d6c6cc809185622432bba9e9ce393895d48e3",
+        "tool": "supabase.apply_migration",
+        "status": "completed",
+        "isError": false
+      },
+      "replayed": false
+    },
+    {
+      "version": "20261023165316",
+      "ledgerName": "consultor_operacao_memoria_readonly",
+      "canonicalLfSha256": "a4e3a3fb77921b87d808e978cd8626bdd13a2d12b38343e7e539e1fcb25fa503",
+      "sourceKind": "HISTORICAL_GIT_BLOB_MATCHING_LEDGER_CONTENT",
+      "sourceContentRecovered": true,
+      "classification": "FONTE_SQL_PRIMARIA_COMPROVADA",
+      "originalFilename": "supabase/migrations/20261023143138_consultor_operacao_memoria_readonly.sql",
+      "gitSource": {
+        "commit": "4ce124bebfda17ea8733c25a7f34b77e8563fbe0",
+        "blob": "61bd8e9c0df4645734b96e46470bd338854eb239",
+        "path": "supabase/migrations/20261023143138_consultor_operacao_memoria_readonly.sql"
+      },
+      "archivedCall": null,
+      "replayed": false
+    }
+  ]
+}

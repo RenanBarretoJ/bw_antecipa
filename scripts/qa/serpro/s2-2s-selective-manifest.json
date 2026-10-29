@@ -2,6 +2,10 @@
   "schemaVersion": 1,
   "kind": "SELECTIVE_MANIFEST_PREPARATION_ONLY",
   "remoteApplyPolicy": "DRAFT/NO_REMOTE_APPLY",
+  "localReconciliation": {
+    "path": "scripts/qa/serpro/s2-2s-baseline-reconciliation.json",
+    "sha256": "a7cd213c02164dc5872f6bd9356a9bf1c7c2f49fb31f28af5ba6a80c6faf03a5"
+  },
   "provenance": {
     "path": "scripts/qa/serpro/s2-2sr-migration-provenance.json",
     "sha256": "7aa0dd75a67357f0f07381015d1fc3ffe09254741c5b02856b499a55a8385de7"

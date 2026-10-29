@@ -16,6 +16,43 @@ export const sha256 = value => createHash('sha256').update(value).digest('hex')
 export const canonicalHash = value => sha256(value.replace(/\r\n/g, '\n'))
 const validHash = value => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value)
 
+// Append dated reconciliation without rewriting the historical provenance table.
+export function verifyLocalReconciliation(manifest, reconciliation, text) {
+  assert.equal(manifest.localReconciliation.path, 'scripts/qa/serpro/s2-2s-baseline-reconciliation.json')
+  assert.equal(canonicalHash(text), manifest.localReconciliation.sha256, 'RECONCILIATION_HASH_DRIFT')
+  assert.deepEqual(reconciliation, JSON.parse(text), 'RECONCILIATION_DOCUMENT_MUST_MATCH_HASHED_TEXT')
+  assert.equal(reconciliation.status, 'LOCAL_RECONCILIATION_ONLY_NO_REMOTE_APPLY')
+  assert.equal(reconciliation.sqlGo, false)
+  assert.equal(reconciliation.remoteApplyAllowed, false)
+  assert.equal(reconciliation.liveVerification, false)
+  assert.equal(reconciliation.noLedgerRepair, true)
+  assert.equal(reconciliation.remoteLedgerRows, manifest.baseline.remoteCount)
+  assert.ok(validHash(reconciliation.baselineNormalizedSha256))
+  assert.deepEqual(Object.keys(reconciliation.evidenceHashes).sort(), ['R41_RECOVERY_BASELINE_CLOSEOUT.json', 'baseline-fidelity.json', 'seven-source-attestation.json'])
+  assert.ok(Object.values(reconciliation.evidenceHashes).every(validHash))
+  assert.deepEqual(reconciliation.rows.map(row => row.version), manifest.baseline.missingVersionEvidence.map(row => row.version))
+  for (const row of reconciliation.rows) {
+    const baseline = manifest.baseline.missingVersionEvidence.find(item => item.version === row.version)
+    assert.equal(row.canonicalLfSha256, baseline.statements_canonical_lf_sha256, 'RECONCILED_LEDGER_HASH_DRIFT')
+    assert.equal(row.sourceContentRecovered, true)
+    assert.equal(row.replayed, false)
+    if (row.sourceKind === 'ORIGINAL_SUBMITTED_SQL_IN_ARCHIVED_APPLY_MIGRATION_CALL') {
+      assert.equal(row.archivedCall.tool, 'supabase.apply_migration')
+      assert.equal(row.archivedCall.status, 'completed')
+      assert.equal(row.archivedCall.isError, false)
+      assert.ok(validHash(row.archivedCall.recordSha256))
+      assert.equal(row.gitSource, null)
+    } else {
+      assert.equal(row.sourceKind, 'HISTORICAL_GIT_BLOB_MATCHING_LEDGER_CONTENT')
+      assert.match(row.gitSource.blob, /^[a-f0-9]{40}$/)
+      assert.match(row.gitSource.commit, /^[a-f0-9]{40}$/)
+      assert.match(row.gitSource.path, /^supabase\/migrations\/\d{14}_[a-z0-9_]+\.sql$/)
+    }
+  }
+  return { status: 'DATED_SCOPED_BASELINE_RECONCILED_LOCAL_ONLY', rows: reconciliation.rows.length,
+    sourceContentRecovered: true, liveVerification: false, sqlApplyAllowed: false }
+}
+
 export function verifyProvenanceTable(manifest, table, text) {
   assert.equal(table.status, 'DRAFT_NO_REMOTE_APPLY')
   assert.equal(canonicalHash(text), manifest.provenance.sha256, 'PROVENANCE_TABLE_HASH_DRIFT')
@@ -93,6 +130,11 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   assert.equal(manifest.provenance.path, 'scripts/qa/serpro/s2-2sr-migration-provenance.json')
   const provenance = await readFile(manifest.provenance.path, 'utf8')
   verifyProvenanceTable(manifest, JSON.parse(provenance), provenance)
+  const text = await readFile(manifest.localReconciliation.path, 'utf8')
+  const reconciliation = verifyLocalReconciliation(manifest, JSON.parse(text), text)
   // A valid blocked draft exits 0: this is preparation, NEVER a release gate PASS.
-  console.log(JSON.stringify(analyzeManifest(manifest, await readMigrationSources()), null, 2))
+  const historicalDraft = analyzeManifest(manifest, await readMigrationSources())
+  console.log(JSON.stringify({ ...historicalDraft, reconciliation,
+    baseline: { ...historicalDraft.baseline, sourceAttestationComplete: true, datedScopedReconciliation: true },
+    blockers: ['FRESH_LEDGER_AND_EXPLICIT_GO_REQUIRED', 'LOCAL_DIFF_REQUIRES_SEPARATE_PUBLICATION_AND_CI_AUTHORITY'] }, null, 2))
 }
