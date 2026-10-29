@@ -11,6 +11,26 @@ const manifest = JSON.parse(readFileSync(new URL('./s2-2s-selective-manifest.jso
 const sources = await readMigrationSources()
 const clone = value => structuredClone(value)
 
+// Targeted context-root regression guard, not a full GitHub expression parser.
+// https://docs.github.com/en/actions/reference/workflows-and-actions/contexts#context-availability
+function assertJobEnvContexts(workflow) {
+  const allowed = new Set(['github', 'needs', 'strategy', 'matrix', 'vars', 'secrets', 'inputs'])
+  const forbidden = new Set(['runner', 'env', 'job', 'jobs', 'steps'])
+  for (const [jobName, job] of Object.entries(workflow.jobs)) {
+    for (const [key, value] of Object.entries(job.env ?? {})) {
+      for (const [, expression] of String(value).matchAll(/\$\{\{([\s\S]*?)\}\}/g)) {
+        const tokens = expression.replace(/'(?:[^']|'')*'/g, "''").match(/[A-Za-z_][A-Za-z0-9_]*|[^\s]/g) ?? []
+        for (let i = 0; i < tokens.length; i++) {
+          if (tokens[i - 1] === '.' || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(tokens[i])) continue
+          if (forbidden.has(tokens[i]) || ['.', '['].includes(tokens[i + 1])) {
+            assert.ok(allowed.has(tokens[i]), `JOB_ENV_CONTEXT_UNAVAILABLE ${jobName}.env.${key}: ${tokens[i]}`)
+          }
+        }
+      }
+    }
+  }
+}
+
 test('all ten provenance rows are explicit; exact bytes do not approve version equivalence', () => {
   const text = readFileSync(manifest.provenance.path, 'utf8')
   const table = JSON.parse(text)
@@ -140,4 +160,35 @@ test('CI branch routing retains legacy jobs and isolates the SERPRO job', () => 
   assert.ok(job.steps.slice(0, -1).every(step => !step.if && !step['continue-on-error']))
   assert.equal(job.steps.at(-1).if, 'always()')
   assert.doesNotMatch(job.steps.at(-1).with.path, /\.env|\.dump|\*\*\//)
+})
+
+test('workflow env contexts are job-compatible; runner.temp is scoped to the native QA step', () => {
+  const workflow = yaml.load(readFileSync('.github/workflows/ci.yml', 'utf8'))
+  assertJobEnvContexts(workflow)
+  const job = workflow.jobs.serpro_operational
+  assert.equal(Object.hasOwn(job.env, 'LOCALAPPDATA'), false)
+  const native = job.steps.find(step => step.run === 'node scripts/qa/serpro/s2-2r-contained-qa.mjs --native-full')
+  assert.equal(native.env.LOCALAPPDATA, '${{ runner.temp }}')
+  assert.deepEqual(job.steps.filter(step => Object.hasOwn(step.env ?? {}, 'LOCALAPPDATA')), [native])
+})
+
+for (const expression of [
+  '${{ runner.temp }}', "${{ runner['temp'] }}", '${{ runner . temp }}', '${{ toJSON(runner) }}',
+  '${{ env.LOCALAPPDATA }}', '${{ steps.qa.outputs.path }}', '${{ job.status }}', '${{ jobs.qa.outputs.path }}',
+]) test(`job env rejects unavailable context: ${expression}`, () => {
+  const workflow = yaml.load(readFileSync('.github/workflows/ci.yml', 'utf8'))
+  workflow.jobs.serpro_operational.env.LOCALAPPDATA = expression
+  assert.throws(() => assertJobEnvContexts(workflow), /JOB_ENV_CONTEXT_UNAVAILABLE/)
+})
+
+test('job env still accepts documented contexts, member names and literal runner text', () => {
+  const workflow = yaml.load(readFileSync('.github/workflows/ci.yml', 'utf8'))
+  Object.assign(workflow.jobs.serpro_operational.env, {
+    GITHUB: '${{ github.workflow }}', NEEDS: '${{ needs.qa.outputs.path }}',
+    STRATEGY: '${{ strategy.job-index }}', MATRIX: '${{ matrix.node }}',
+    VARS: "${{ vars['directory'] }}", INPUTS: '${{ inputs.directory }}',
+    MEMBER_NOT_CONTEXT: '${{ github.event.runner }}', LITERAL: "${{ 'runner.temp' }}",
+    FORMATTED: "${{ format('{0}', vars.directory) }}",
+  })
+  assertJobEnvContexts(workflow)
 })

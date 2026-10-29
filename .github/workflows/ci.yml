@@ -180,7 +180,6 @@ jobs:
     permissions:
       contents: read
     env:
-      LOCALAPPDATA: ${{ runner.temp }}
       NEXT_TELEMETRY_DISABLED: '1'
       NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:1
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-synthetic-anon
@@ -226,6 +225,8 @@ jobs:
 
       - name: Contained S1, pilot isolation, S2.2 recovery, EMAIL03 and full suite
         run: node scripts/qa/serpro/s2-2r-contained-qa.mjs --native-full
+        env:
+          LOCALAPPDATA: ${{ runner.temp }}
 
       - name: TypeScript
         run: npx tsc --noEmit
