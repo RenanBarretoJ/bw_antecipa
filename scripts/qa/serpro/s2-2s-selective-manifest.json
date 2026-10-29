@@ -1,0 +1,224 @@
+{
+  "schemaVersion": 1,
+  "kind": "SELECTIVE_MANIFEST_PREPARATION_ONLY",
+  "remoteApplyPolicy": "DRAFT/NO_REMOTE_APPLY",
+  "provenance": {
+    "path": "scripts/qa/serpro/s2-2sr-migration-provenance.json",
+    "sha256": "7aa0dd75a67357f0f07381015d1fc3ffe09254741c5b02856b499a55a8385de7"
+  },
+  "sourceCandidate": "461896b794c9059d9b8bc4c5cd3f9761cce24c79",
+  "capturedAt": "2026-10-28T21:52:30.387Z",
+  "hashContract": "SHA256_UTF8_CANONICAL_LF_NO_OTHER_NORMALIZATION",
+  "localMigrationCount": 297,
+  "localMigrationInventorySha256": "0170a6e585e4876f8e02db0c32d0dbf162ebe78d97f5cfcf062f2dd06172924c",
+  "required": [
+    {
+      "path": "supabase/migrations/20261028195850_s2_2_serpro_operational_queue_history.sql",
+      "sha256": "20ec5dc8ca746ed9af2ce9132ed56ec4b2c3032bf34f237289423afb18a1b2f7"
+    },
+    {
+      "path": "supabase/migrations/20261028204436_s2_2r_serpro_outbound_fencing_recovery.sql",
+      "sha256": "4fc2a0c34c1e6acee330a71622b1f44fa0b57ca6f55528cf18d87b591645d7d5"
+    }
+  ],
+  "excluded": [
+    {
+      "path": "supabase/migrations/20261028140420_s2_1a1_serpro_selective_pilot_claim.sql",
+      "sha256": "faf330992c4e7460debf568dd29637e105695d07529b631a835a02d8b0114285"
+    },
+    {
+      "path": "supabase/migrations/20261028173558_s2_1a4h_serpro_audit_budget_hardening.sql",
+      "sha256": "53c35f9e5ecbe50246835dd2d71541b2018e6e3c9527f7489d86cffe279d0b73"
+    }
+  ],
+  "baseline": {
+    "remoteCount": 293,
+    "versionInventorySha256": "ffbf9844e4fa73f41557be76da41dee43a9430cb166cea0870bd67d203e9790b",
+    "lastApplied": "20261026212352",
+    "missingVersionEvidence": [
+      {
+        "version": "20260829173938",
+        "name": "p5_2_neutralizar_resets_homolog_producao",
+        "statements_canonical_lf_sha256": "82234e0782bab01d923963ad300cbaa73abc0ddf0156504b755031fcdd1a7cb4",
+        "statement_count": 1
+      },
+      {
+        "version": "20260909024514",
+        "name": "p5_7_bootstrap_primeiro_super_admin_producao",
+        "statements_canonical_lf_sha256": "c5954958b06fe68de3a71c01944b37b79c721c256a93c3e1e8a32c8489c5bf68",
+        "statement_count": 1
+      },
+      {
+        "version": "20260915192524",
+        "name": "p7_4_1_rls_importacoes_financeiras_gestor",
+        "statements_canonical_lf_sha256": "d01cbf5803f364394da413d72318fe8f829bc281aab5b5146d50b7b4ff4513c2",
+        "statement_count": 1
+      },
+      {
+        "version": "20260916144655",
+        "name": "corrigir_overlay_exposicao_parcelas",
+        "statements_canonical_lf_sha256": "62fd84f46e3dc45ce9028bc7850b0115e4162675879c9b29537f8312e453b50b",
+        "statement_count": 1
+      },
+      {
+        "version": "20260916153942",
+        "name": "corrigir_aceite_sacado_vinculo_nf_cancelada",
+        "statements_canonical_lf_sha256": "a93585499f87747d66a5a975f24b4890885b5ab4a3e19bd6547a13ab91a6ef65",
+        "statement_count": 1
+      },
+      {
+        "version": "20260928185439",
+        "name": "p16_liberar_nf_de_operacao_cancelada",
+        "statements_canonical_lf_sha256": "6390f43842e82d7d980acfb6ae61e66cd551676e17c21a01a6e8ca237ce3efa1",
+        "statement_count": 1
+      },
+      {
+        "version": "20261005173648",
+        "name": "sacado_rls_non_sacado_short_circuit",
+        "statements_canonical_lf_sha256": "1006e35b48f871c4f14a72f7a3f2045b1f40c13f4bb80d7efeda0e26be8df3ac",
+        "statement_count": 1
+      },
+      {
+        "version": "20261022202246",
+        "name": "financial_reconciliation_conditional_movements",
+        "statements_canonical_lf_sha256": "763be293af352adf38cb7110ffabf35ef13abb90d4a843f42f10b7a3270acc29",
+        "statement_count": 1
+      },
+      {
+        "version": "20261023134600",
+        "name": "vrs_duplicata_parcela_keys",
+        "statements_canonical_lf_sha256": "935e666c52f305076e2f4d691e3cfe64867a2a7e6b6abb8950e334582da9bb50",
+        "statement_count": 1
+      },
+      {
+        "version": "20261023165316",
+        "name": "consultor_operacao_memoria_readonly",
+        "statements_canonical_lf_sha256": "a4e3a3fb77921b87d808e978cd8626bdd13a2d12b38343e7e539e1fcb25fa503",
+        "statement_count": 1
+      }
+    ],
+    "outOfOrderLocal": [
+      "supabase/migrations/002_schema_base.sql",
+      "supabase/migrations/20260829170408_p5_2_neutralizar_resets_homolog_producao.sql",
+      "supabase/migrations/20260915175435_p7_4_1_rls_importacoes_financeiras_gestor.sql",
+      "supabase/migrations/20260916140000_corrigir_overlay_exposicao_parcelas.sql",
+      "supabase/migrations/20260916150333_corrigir_aceite_sacado_vinculo_nf_cancelada.sql",
+      "supabase/migrations/20260922182301_p14_liberar_nf_de_operacao_reprovada.sql",
+      "supabase/migrations/20260929193129_guibor_a6_comissao_por_fundo.sql",
+      "supabase/migrations/20261022174904_financial_reconciliation_conditional_movements.sql",
+      "supabase/migrations/20261022211047_vrs_duplicata_parcela_keys.sql",
+      "supabase/migrations/20261023143138_consultor_operacao_memoria_readonly.sql"
+    ]
+  },
+  "sameNameComparison": [
+    {
+      "remoteVersion": "20260829173938",
+      "name": "p5_2_neutralizar_resets_homolog_producao",
+      "remoteCanonicalLfSha256": "82234e0782bab01d923963ad300cbaa73abc0ddf0156504b755031fcdd1a7cb4",
+      "sources": [
+        {
+          "path": "supabase/migrations/20260829170408_p5_2_neutralizar_resets_homolog_producao.sql",
+          "canonicalLfSha256": "a1be0513172332a9c95aa78ee38a489fba6a58d73ac8cffe32f2038551a06da3",
+          "exactByteMatch": false
+        }
+      ]
+    },
+    {
+      "remoteVersion": "20260909024514",
+      "name": "p5_7_bootstrap_primeiro_super_admin_producao",
+      "remoteCanonicalLfSha256": "c5954958b06fe68de3a71c01944b37b79c721c256a93c3e1e8a32c8489c5bf68",
+      "sources": []
+    },
+    {
+      "remoteVersion": "20260915192524",
+      "name": "p7_4_1_rls_importacoes_financeiras_gestor",
+      "remoteCanonicalLfSha256": "d01cbf5803f364394da413d72318fe8f829bc281aab5b5146d50b7b4ff4513c2",
+      "sources": [
+        {
+          "path": "supabase/migrations/20260915175435_p7_4_1_rls_importacoes_financeiras_gestor.sql",
+          "canonicalLfSha256": "069f036bc8141bed9db24c6cb043317476beba6898a3c459263acfa53bee47d1",
+          "exactByteMatch": false
+        }
+      ]
+    },
+    {
+      "remoteVersion": "20260916144655",
+      "name": "corrigir_overlay_exposicao_parcelas",
+      "remoteCanonicalLfSha256": "62fd84f46e3dc45ce9028bc7850b0115e4162675879c9b29537f8312e453b50b",
+      "sources": [
+        {
+          "path": "supabase/migrations/20260916140000_corrigir_overlay_exposicao_parcelas.sql",
+          "canonicalLfSha256": "659b13dbbea80f5a1801761b5332570394cccd83e82beef61abc563de3a15cc0",
+          "exactByteMatch": false
+        }
+      ]
+    },
+    {
+      "remoteVersion": "20260916153942",
+      "name": "corrigir_aceite_sacado_vinculo_nf_cancelada",
+      "remoteCanonicalLfSha256": "a93585499f87747d66a5a975f24b4890885b5ab4a3e19bd6547a13ab91a6ef65",
+      "sources": [
+        {
+          "path": "supabase/migrations/20260916150333_corrigir_aceite_sacado_vinculo_nf_cancelada.sql",
+          "canonicalLfSha256": "80a395c7b6143baa1409ce97f41b2a472c52b84df4914caf62e18a4b29d241cb",
+          "exactByteMatch": false
+        }
+      ]
+    },
+    {
+      "remoteVersion": "20260928185439",
+      "name": "p16_liberar_nf_de_operacao_cancelada",
+      "remoteCanonicalLfSha256": "6390f43842e82d7d980acfb6ae61e66cd551676e17c21a01a6e8ca237ce3efa1",
+      "sources": []
+    },
+    {
+      "remoteVersion": "20261005173648",
+      "name": "sacado_rls_non_sacado_short_circuit",
+      "remoteCanonicalLfSha256": "1006e35b48f871c4f14a72f7a3f2045b1f40c13f4bb80d7efeda0e26be8df3ac",
+      "sources": []
+    },
+    {
+      "remoteVersion": "20261022202246",
+      "name": "financial_reconciliation_conditional_movements",
+      "remoteCanonicalLfSha256": "763be293af352adf38cb7110ffabf35ef13abb90d4a843f42f10b7a3270acc29",
+      "sources": [
+        {
+          "path": "supabase/migrations/20261022174904_financial_reconciliation_conditional_movements.sql",
+          "canonicalLfSha256": "4fbe93e140261346d61f4535ed949d0b321bb0bc79660c7fcef3d75132ad489b",
+          "exactByteMatch": false
+        }
+      ]
+    },
+    {
+      "remoteVersion": "20261023134600",
+      "name": "vrs_duplicata_parcela_keys",
+      "remoteCanonicalLfSha256": "935e666c52f305076e2f4d691e3cfe64867a2a7e6b6abb8950e334582da9bb50",
+      "sources": [
+        {
+          "path": "supabase/migrations/20261022211047_vrs_duplicata_parcela_keys.sql",
+          "canonicalLfSha256": "7766790adef7f656eda3fefa25dde465204f5d73e0983f37aec881d6ba81b563",
+          "exactByteMatch": false
+        }
+      ]
+    },
+    {
+      "remoteVersion": "20261023165316",
+      "name": "consultor_operacao_memoria_readonly",
+      "remoteCanonicalLfSha256": "a4e3a3fb77921b87d808e978cd8626bdd13a2d12b38343e7e539e1fcb25fa503",
+      "sources": [
+        {
+          "path": "supabase/migrations/20261023143138_consultor_operacao_memoria_readonly.sql",
+          "canonicalLfSha256": "a4e3a3fb77921b87d808e978cd8626bdd13a2d12b38343e7e539e1fcb25fa503",
+          "exactByteMatch": true
+        }
+      ]
+    }
+  ],
+  "requires": [
+    "AUTHORIZED_REFRESH_OF_LEDGER",
+    "ATTEST_ALL_BASELINE_SQL_SOURCES",
+    "RESOLVE_VERSION_MISMATCHES_WITHOUT_LEDGER_REPAIR",
+    "DISPOSABLE_SELECTIVE_ARTIFACT_PROOF",
+    "NEW_EXPLICIT_REMOTE_GO"
+  ]
+}

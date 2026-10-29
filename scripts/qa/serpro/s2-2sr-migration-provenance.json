@@ -1,0 +1,378 @@
+{
+  "schemaVersion": 1,
+  "status": "DRAFT_NO_REMOTE_APPLY",
+  "snapshotCapturedAt": "2026-10-28T21:52:30.387Z",
+  "remoteRefreshed": false,
+  "sourceEvidenceSha256": "8afcd8f9db63491e00adb03e6baeb763ff93c5080aaf0cef2dc4ace2d1ede80d",
+  "rows": [
+    {
+      "version": "20260829173938",
+      "ledgerName": "p5_2_neutralizar_resets_homolog_producao",
+      "ledgerFilename": "NOT_RECORDED",
+      "capturedSqlSha256": "82234e0782bab01d923963ad300cbaa73abc0ddf0156504b755031fcdd1a7cb4",
+      "statementCount": 1,
+      "sqlTextRecovered": false,
+      "classification": "CONFLITANTE",
+      "classificationMeaning": "Candidate SQL bytes differ; semantic equivalence is NOT determined.",
+      "executionEvidence": "Captured ledger row and SQL hash, 2026-10-28; no execution log attested.",
+      "catalogEvidence": {
+        "refreshed": false,
+        "observedObjects": null,
+        "reason": "No remote catalog query in this stage; local object names are not remote proof."
+      },
+      "localCandidates": [
+        {
+          "path": "supabase/migrations/20260829170408_p5_2_neutralizar_resets_homolog_producao.sql",
+          "canonicalLfSha256": "a1be0513172332a9c95aa78ee38a489fba6a58d73ac8cffe32f2038551a06da3",
+          "exactByteMatch": false,
+          "objects": []
+        }
+      ],
+      "historicalObject": null,
+      "versionEquivalenceApproved": false,
+      "source": "S2_2S_PREFLIGHT.json + migration-history-mismatch-hashes.json",
+      "confidence": {
+        "capturedLedgerHash": "HIGH_FOR_DATED_SNAPSHOT",
+        "currentRemoteState": "NOT_VERIFIED",
+        "versionMapping": "NOT_ATTESTED"
+      },
+      "unknowns": [
+        "Current catalog/ledger state",
+        "Exact source-to-executed-version provenance",
+        "Owner decision before any selective remote SQL"
+      ]
+    },
+    {
+      "version": "20260909024514",
+      "ledgerName": "p5_7_bootstrap_primeiro_super_admin_producao",
+      "ledgerFilename": "NOT_RECORDED",
+      "capturedSqlSha256": "c5954958b06fe68de3a71c01944b37b79c721c256a93c3e1e8a32c8489c5bf68",
+      "statementCount": 1,
+      "sqlTextRecovered": false,
+      "classification": "NÃO COMPROVADA",
+      "classificationMeaning": "Execution/source/version correspondence remains unproven.",
+      "executionEvidence": "Captured ledger row and SQL hash, 2026-10-28; no execution log attested.",
+      "catalogEvidence": {
+        "refreshed": false,
+        "observedObjects": null,
+        "reason": "No remote catalog query in this stage; local object names are not remote proof."
+      },
+      "localCandidates": [],
+      "historicalObject": null,
+      "versionEquivalenceApproved": false,
+      "source": "S2_2S_PREFLIGHT.json + migration-history-mismatch-hashes.json",
+      "confidence": {
+        "capturedLedgerHash": "HIGH_FOR_DATED_SNAPSHOT",
+        "currentRemoteState": "NOT_VERIFIED",
+        "versionMapping": "NOT_ATTESTED"
+      },
+      "unknowns": [
+        "Current catalog/ledger state",
+        "Exact source-to-executed-version provenance",
+        "Owner decision before any selective remote SQL"
+      ]
+    },
+    {
+      "version": "20260915192524",
+      "ledgerName": "p7_4_1_rls_importacoes_financeiras_gestor",
+      "ledgerFilename": "NOT_RECORDED",
+      "capturedSqlSha256": "d01cbf5803f364394da413d72318fe8f829bc281aab5b5146d50b7b4ff4513c2",
+      "statementCount": 1,
+      "sqlTextRecovered": false,
+      "classification": "CONFLITANTE",
+      "classificationMeaning": "Candidate SQL bytes differ; semantic equivalence is NOT determined.",
+      "executionEvidence": "Captured ledger row and SQL hash, 2026-10-28; no execution log attested.",
+      "catalogEvidence": {
+        "refreshed": false,
+        "observedObjects": null,
+        "reason": "No remote catalog query in this stage; local object names are not remote proof."
+      },
+      "localCandidates": [
+        {
+          "path": "supabase/migrations/20260915175435_p7_4_1_rls_importacoes_financeiras_gestor.sql",
+          "canonicalLfSha256": "069f036bc8141bed9db24c6cb043317476beba6898a3c459263acfa53bee47d1",
+          "exactByteMatch": false,
+          "objects": [
+            "importacoes_gestor_fundo_select"
+          ]
+        }
+      ],
+      "historicalObject": null,
+      "versionEquivalenceApproved": false,
+      "source": "S2_2S_PREFLIGHT.json + migration-history-mismatch-hashes.json",
+      "confidence": {
+        "capturedLedgerHash": "HIGH_FOR_DATED_SNAPSHOT",
+        "currentRemoteState": "NOT_VERIFIED",
+        "versionMapping": "NOT_ATTESTED"
+      },
+      "unknowns": [
+        "Current catalog/ledger state",
+        "Exact source-to-executed-version provenance",
+        "Owner decision before any selective remote SQL"
+      ]
+    },
+    {
+      "version": "20260916144655",
+      "ledgerName": "corrigir_overlay_exposicao_parcelas",
+      "ledgerFilename": "NOT_RECORDED",
+      "capturedSqlSha256": "62fd84f46e3dc45ce9028bc7850b0115e4162675879c9b29537f8312e453b50b",
+      "statementCount": 1,
+      "sqlTextRecovered": false,
+      "classification": "CONFLITANTE",
+      "classificationMeaning": "Candidate SQL bytes differ; semantic equivalence is NOT determined.",
+      "executionEvidence": "Captured ledger row and SQL hash, 2026-10-28; no execution log attested.",
+      "catalogEvidence": {
+        "refreshed": false,
+        "observedObjects": null,
+        "reason": "No remote catalog query in this stage; local object names are not remote proof."
+      },
+      "localCandidates": [
+        {
+          "path": "supabase/migrations/20260916140000_corrigir_overlay_exposicao_parcelas.sql",
+          "canonicalLfSha256": "659b13dbbea80f5a1801761b5332570394cccd83e82beef61abc563de3a15cc0",
+          "exactByteMatch": false,
+          "objects": [
+            "public.persistir_exposicao_execucao"
+          ]
+        }
+      ],
+      "historicalObject": null,
+      "versionEquivalenceApproved": false,
+      "source": "S2_2S_PREFLIGHT.json + migration-history-mismatch-hashes.json",
+      "confidence": {
+        "capturedLedgerHash": "HIGH_FOR_DATED_SNAPSHOT",
+        "currentRemoteState": "NOT_VERIFIED",
+        "versionMapping": "NOT_ATTESTED"
+      },
+      "unknowns": [
+        "Current catalog/ledger state",
+        "Exact source-to-executed-version provenance",
+        "Owner decision before any selective remote SQL"
+      ]
+    },
+    {
+      "version": "20260916153942",
+      "ledgerName": "corrigir_aceite_sacado_vinculo_nf_cancelada",
+      "ledgerFilename": "NOT_RECORDED",
+      "capturedSqlSha256": "a93585499f87747d66a5a975f24b4890885b5ab4a3e19bd6547a13ab91a6ef65",
+      "statementCount": 1,
+      "sqlTextRecovered": false,
+      "classification": "CONFLITANTE",
+      "classificationMeaning": "Candidate SQL bytes differ; semantic equivalence is NOT determined.",
+      "executionEvidence": "Captured ledger row and SQL hash, 2026-10-28; no execution log attested.",
+      "catalogEvidence": {
+        "refreshed": false,
+        "observedObjects": null,
+        "reason": "No remote catalog query in this stage; local object names are not remote proof."
+      },
+      "localCandidates": [
+        {
+          "path": "supabase/migrations/20260916150333_corrigir_aceite_sacado_vinculo_nf_cancelada.sql",
+          "canonicalLfSha256": "80a395c7b6143baa1409ce97f41b2a472c52b84df4914caf62e18a4b29d241cb",
+          "exactByteMatch": false,
+          "objects": [
+            "public.processar_aceite_sacado"
+          ]
+        }
+      ],
+      "historicalObject": null,
+      "versionEquivalenceApproved": false,
+      "source": "S2_2S_PREFLIGHT.json + migration-history-mismatch-hashes.json",
+      "confidence": {
+        "capturedLedgerHash": "HIGH_FOR_DATED_SNAPSHOT",
+        "currentRemoteState": "NOT_VERIFIED",
+        "versionMapping": "NOT_ATTESTED"
+      },
+      "unknowns": [
+        "Current catalog/ledger state",
+        "Exact source-to-executed-version provenance",
+        "Owner decision before any selective remote SQL"
+      ]
+    },
+    {
+      "version": "20260928185439",
+      "ledgerName": "p16_liberar_nf_de_operacao_cancelada",
+      "ledgerFilename": "NOT_RECORDED",
+      "capturedSqlSha256": "6390f43842e82d7d980acfb6ae61e66cd551676e17c21a01a6e8ca237ce3efa1",
+      "statementCount": 1,
+      "sqlTextRecovered": false,
+      "classification": "EXCEÇÃO HISTÓRICA DOCUMENTADA",
+      "classificationMeaning": "P16 exception acknowledged by owner in S2.2S-R prompt; no formal reattestation or recreation.",
+      "executionEvidence": "Captured ledger row and SQL hash, 2026-10-28; no execution log attested.",
+      "catalogEvidence": {
+        "refreshed": false,
+        "observedObjects": null,
+        "reason": "No remote catalog query in this stage; local object names are not remote proof."
+      },
+      "localCandidates": [],
+      "historicalObject": {
+        "object": "6a8a38e:supabase/migrations/20260928185439_p16_liberar_nf_de_operacao_cancelada.sql",
+        "canonicalLfSha256": "6390f43842e82d7d980acfb6ae61e66cd551676e17c21a01a6e8ca237ce3efa1",
+        "matchesCapturedLedgerHash": true
+      },
+      "versionEquivalenceApproved": false,
+      "source": "S2_2S_PREFLIGHT.json + migration-history-mismatch-hashes.json",
+      "confidence": {
+        "capturedLedgerHash": "HIGH_FOR_DATED_SNAPSHOT",
+        "currentRemoteState": "NOT_VERIFIED",
+        "versionMapping": "NOT_ATTESTED"
+      },
+      "unknowns": [
+        "Current catalog/ledger state",
+        "Exact source-to-executed-version provenance",
+        "Owner decision before any selective remote SQL"
+      ]
+    },
+    {
+      "version": "20261005173648",
+      "ledgerName": "sacado_rls_non_sacado_short_circuit",
+      "ledgerFilename": "NOT_RECORDED",
+      "capturedSqlSha256": "1006e35b48f871c4f14a72f7a3f2045b1f40c13f4bb80d7efeda0e26be8df3ac",
+      "statementCount": 1,
+      "sqlTextRecovered": false,
+      "classification": "NÃO COMPROVADA",
+      "classificationMeaning": "Execution/source/version correspondence remains unproven.",
+      "executionEvidence": "Captured ledger row and SQL hash, 2026-10-28; no execution log attested.",
+      "catalogEvidence": {
+        "refreshed": false,
+        "observedObjects": null,
+        "reason": "No remote catalog query in this stage; local object names are not remote proof."
+      },
+      "localCandidates": [],
+      "historicalObject": null,
+      "versionEquivalenceApproved": false,
+      "source": "S2_2S_PREFLIGHT.json + migration-history-mismatch-hashes.json",
+      "confidence": {
+        "capturedLedgerHash": "HIGH_FOR_DATED_SNAPSHOT",
+        "currentRemoteState": "NOT_VERIFIED",
+        "versionMapping": "NOT_ATTESTED"
+      },
+      "unknowns": [
+        "Current catalog/ledger state",
+        "Exact source-to-executed-version provenance",
+        "Owner decision before any selective remote SQL"
+      ]
+    },
+    {
+      "version": "20261022202246",
+      "ledgerName": "financial_reconciliation_conditional_movements",
+      "ledgerFilename": "NOT_RECORDED",
+      "capturedSqlSha256": "763be293af352adf38cb7110ffabf35ef13abb90d4a843f42f10b7a3270acc29",
+      "statementCount": 1,
+      "sqlTextRecovered": false,
+      "classification": "CONFLITANTE",
+      "classificationMeaning": "Candidate SQL bytes differ; semantic equivalence is NOT determined.",
+      "executionEvidence": "Captured ledger row and SQL hash, 2026-10-28; no execution log attested.",
+      "catalogEvidence": {
+        "refreshed": false,
+        "observedObjects": null,
+        "reason": "No remote catalog query in this stage; local object names are not remote proof."
+      },
+      "localCandidates": [
+        {
+          "path": "supabase/migrations/20261022174904_financial_reconciliation_conditional_movements.sql",
+          "canonicalLfSha256": "4fbe93e140261346d61f4535ed949d0b321bb0bc79660c7fcef3d75132ad489b",
+          "exactByteMatch": false,
+          "objects": [
+            "public.diagnosticar_variacao_estoques",
+            "public.persistir_conciliacao_execucao"
+          ]
+        }
+      ],
+      "historicalObject": null,
+      "versionEquivalenceApproved": false,
+      "source": "S2_2S_PREFLIGHT.json + migration-history-mismatch-hashes.json",
+      "confidence": {
+        "capturedLedgerHash": "HIGH_FOR_DATED_SNAPSHOT",
+        "currentRemoteState": "NOT_VERIFIED",
+        "versionMapping": "NOT_ATTESTED"
+      },
+      "unknowns": [
+        "Current catalog/ledger state",
+        "Exact source-to-executed-version provenance",
+        "Owner decision before any selective remote SQL"
+      ]
+    },
+    {
+      "version": "20261023134600",
+      "ledgerName": "vrs_duplicata_parcela_keys",
+      "ledgerFilename": "NOT_RECORDED",
+      "capturedSqlSha256": "935e666c52f305076e2f4d691e3cfe64867a2a7e6b6abb8950e334582da9bb50",
+      "statementCount": 1,
+      "sqlTextRecovered": false,
+      "classification": "CONFLITANTE",
+      "classificationMeaning": "Candidate SQL bytes differ; semantic equivalence is NOT determined.",
+      "executionEvidence": "Captured ledger row and SQL hash, 2026-10-28; no execution log attested.",
+      "catalogEvidence": {
+        "refreshed": false,
+        "observedObjects": null,
+        "reason": "No remote catalog query in this stage; local object names are not remote proof."
+      },
+      "localCandidates": [
+        {
+          "path": "supabase/migrations/20261022211047_vrs_duplicata_parcela_keys.sql",
+          "canonicalLfSha256": "7766790adef7f656eda3fefa25dde465204f5d73e0983f37aec881d6ba81b563",
+          "exactByteMatch": false,
+          "objects": []
+        }
+      ],
+      "historicalObject": null,
+      "versionEquivalenceApproved": false,
+      "source": "S2_2S_PREFLIGHT.json + migration-history-mismatch-hashes.json",
+      "confidence": {
+        "capturedLedgerHash": "HIGH_FOR_DATED_SNAPSHOT",
+        "currentRemoteState": "NOT_VERIFIED",
+        "versionMapping": "NOT_ATTESTED"
+      },
+      "unknowns": [
+        "Current catalog/ledger state",
+        "Exact source-to-executed-version provenance",
+        "Owner decision before any selective remote SQL"
+      ]
+    },
+    {
+      "version": "20261023165316",
+      "ledgerName": "consultor_operacao_memoria_readonly",
+      "ledgerFilename": "NOT_RECORDED",
+      "capturedSqlSha256": "a4e3a3fb77921b87d808e978cd8626bdd13a2d12b38343e7e539e1fcb25fa503",
+      "statementCount": 1,
+      "sqlTextRecovered": false,
+      "classification": "NÃO COMPROVADA",
+      "classificationMeaning": "Execution/source/version correspondence remains unproven.",
+      "executionEvidence": "Captured ledger row and SQL hash, 2026-10-28; no execution log attested.",
+      "catalogEvidence": {
+        "refreshed": false,
+        "observedObjects": null,
+        "reason": "No remote catalog query in this stage; local object names are not remote proof."
+      },
+      "localCandidates": [
+        {
+          "path": "supabase/migrations/20261023143138_consultor_operacao_memoria_readonly.sql",
+          "canonicalLfSha256": "a4e3a3fb77921b87d808e978cd8626bdd13a2d12b38343e7e539e1fcb25fa503",
+          "exactByteMatch": true,
+          "objects": [
+            "operacao_calculo_nfs_consultor_select"
+          ]
+        }
+      ],
+      "historicalObject": null,
+      "versionEquivalenceApproved": false,
+      "source": "S2_2S_PREFLIGHT.json + migration-history-mismatch-hashes.json",
+      "confidence": {
+        "capturedLedgerHash": "HIGH_FOR_DATED_SNAPSHOT",
+        "currentRemoteState": "NOT_VERIFIED",
+        "versionMapping": "NOT_ATTESTED"
+      },
+      "unknowns": [
+        "Current catalog/ledger state",
+        "Exact source-to-executed-version provenance",
+        "Owner decision before any selective remote SQL"
+      ]
+    }
+  ],
+  "gateSeparation": {
+    "codeCi": "INDEPENDENT_OF_UNRESOLVED_HISTORICAL_MAPPINGS",
+    "remoteSql": "BLOCKED"
+  },
+  "noLedgerRepair": true
+}

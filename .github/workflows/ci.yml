@@ -13,6 +13,8 @@ on:
 jobs:
   validate:
     name: Typecheck, lint, tests and build
+    # The SERPRO PR has its own secret-free, contained native orchestration below.
+    if: github.head_ref != 'feature/s1-serpro-nfe-gestor-20261026'
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -169,3 +171,81 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
           SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key
           PORTAL_FIDC_CREDENTIALS_JSON: '{}'
+
+  serpro_operational:
+    name: SERPRO OFF - native QA, operational SQL and exact tree
+    if: github.event_name == 'pull_request' && github.head_ref == 'feature/s1-serpro-nfe-gestor-20261026'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    env:
+      LOCALAPPDATA: ${{ runner.temp }}
+      NEXT_TELEMETRY_DISABLED: '1'
+      NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:1
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-synthetic-anon
+      SUPABASE_SERVICE_ROLE_KEY: ci-synthetic-service
+      PORTAL_FIDC_CREDENTIALS_JSON: '{}'
+      SERPRO_NFE_ENABLED: 'false'
+      SERPRO_NFE_WORKER_ENABLED: 'false'
+      SERPRO_NFE_QUERY_ENABLED: 'false'
+      SERPRO_NFE_CONTRACT_VERIFIED: 'false'
+      SERPRO_NFE_CONSUMPTION_MODE: OFF_ZERO_BUDGET
+      SERPRO_NFE_CONSUMER_KEY: ''
+      SERPRO_NFE_CONSUMER_SECRET: ''
+    steps:
+      - name: Checkout merge ref (no persisted credentials)
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Prove executed SHA and tree (not a claim of head SHA CI)
+        run: |
+          mkdir -p "$RUNNER_TEMP/s22s"
+          node scripts/qa/serpro/s2-2s-ci-provenance.mjs --ci-only > "$RUNNER_TEMP/s22s/provenance.json"
+
+      - name: Install exact Linux dependencies
+        run: npm ci
+
+      - name: CI and selective manifest contracts
+        run: |
+          node --test scripts/qa/serpro/s2-2s-ci.test.mjs
+          node --test scripts/qa/serpro/s2-2sr-linux-dependencies.test.mjs
+          node --test scripts/qa/vortx/main-native-images.test.mjs scripts/qa/vortx/main-native-fixture.test.mjs scripts/qa/vortx/main-native-snapshot.test.mjs
+          node scripts/qa/serpro/s2-2s-manifest.mjs --prepare-only > "$RUNNER_TEMP/s22s/selective-manifest.json"
+
+      - name: Prepare pinned official images
+        run: node scripts/qa/serpro/s2-2s-ci-assets.mjs --local-only > "$RUNNER_TEMP/s22s/images.json"
+
+      - name: Contained S1, pilot isolation, S2.2 recovery, EMAIL03 and full suite
+        run: node scripts/qa/serpro/s2-2r-contained-qa.mjs --native-full
+
+      - name: TypeScript
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build with explicit webpack and synthetic configuration
+        run: npm run build -- --webpack
+
+      - name: Sanitized evidence (no environment or database dumps)
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: serpro-off-native-operational-evidence
+          path: |
+            ${{ runner.temp }}/s22s/*.json
+            ${{ runner.temp }}/bw-antecipa-evidence/s2-2r-local-20261028/bw-s22r-*/report.json
+            ${{ runner.temp }}/bw-antecipa-evidence/s2-2r-local-20261028/bw-s22r-*/native-vitest.json
+            ${{ runner.temp }}/bw-antecipa-evidence/s2-2r-local-20261028/bw-s22r-*/full-vitest.json
+            ${{ runner.temp }}/bw-antecipa-evidence/s2-2r-local-20261028/bw-s22r-*/contracts/*.json
+          if-no-files-found: error
+          retention-days: 7

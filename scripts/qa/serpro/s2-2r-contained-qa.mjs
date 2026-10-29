@@ -1,18 +1,18 @@
 import assert from 'node:assert/strict'
-import { spawn } from 'node:child_process'
+import { observeTransport } from './s2-2sr-transport.mjs'
 import { randomBytes, createHash, createHmac } from 'node:crypto'
 import { readFile, mkdir, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { decodeSnapshot, securityCatalog } from '../vortx/main-native-snapshot.mjs'
 import { applyS1BrowserUpgrade } from './s1-browser-local.mjs'
 import { rehearseReleaseUpgrade } from '../vortx/main-release-upgrade.mjs'
+import { prepareLinuxDependencyVolume, runLinuxProductionBuild } from './s2-2sr-linux-dependencies.mjs'
 
 // Only this provisioner creates resources. All services are created and inspected
 // BEFORE starting, on one internal network, without host port publications.
 const id = `bw-s22r-${Date.now()}-${process.pid}`
 const names = { db: `${id}-db`, runner: `${id}-runner` }
 const nativeFull = process.argv.includes('--native-full')
-const linuxDeps = resolve(process.env.LOCALAPPDATA, 'bw-antecipa-evidence', 's2-2r-linux-deps-20261028')
 if (nativeFull) Object.assign(names, { auth: `${id}-auth`, rest: `${id}-rest`, storage: `${id}-storage` })
 const label = `bw.qa.s22r=${id}`
 const root = resolve(process.env.LOCALAPPDATA, 'bw-antecipa-evidence', 's2-2r-local-20261028', id)
@@ -26,28 +26,27 @@ const jwt = role => {
 const anon = jwt('anon'), service = jwt('service_role')
 const envArgs = values => Object.entries(values).flatMap(([key, value]) => ['-e', `${key}=${value}`])
 const owned = []
-const report = { id, status: 'IN_PROGRESS', node: process.version, stages: [], providerCalls: 0,
+const report = { id, status: 'IN_PROGRESS', node: process.version, stages: [], transportEvents: [], providerCalls: 0,
   remoteChanges: false, pilotMigrationsApplied: false, DOCKER_TEST_ENV_CLEANUP: 'PENDING' }
 await mkdir(root, { recursive: true })
 const sanitize = text => String(text).replaceAll(password, '[SYNTHETIC_SECRET]')
   .replaceAll(secret, '[SYNTHETIC_SECRET]').replaceAll(anon, '[SYNTHETIC_JWT]').replaceAll(service, '[SYNTHETIC_JWT]')
   .replace(/postgres(?:ql)?:\/\/[^\s"']+/g, '[DB_URL]')
 async function command(program, args, input, timeout = 120000) {
-  return new Promise((done, reject) => {
-    const child = spawn(program, args, { windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] })
-    const out = [], err = []
-    const timer = setTimeout(() => child.kill('SIGTERM'), timeout)
-    child.stdout.on('data', b => out.push(b)); child.stderr.on('data', b => err.push(b))
-    child.stdin.on('error', () => {})
-    child.on('error', error => { clearTimeout(timer); reject(error) })
-    child.on('close', code => {
-      clearTimeout(timer)
-      const stdout = Buffer.concat(out).toString('utf8').trimEnd()
-      if (code === 0) done(stdout)
-      else reject(new Error(sanitize(`${program} ${args[0]} exit=${code}: ${Buffer.concat(err).toString('utf8').slice(-1500)} ${stdout.slice(-4500)}`)))
-    })
-    child.stdin.end(input)
-  })
+  let result
+  try {
+    result = await observeTransport(program, args, input, timeout, { sanitize, phase: report.stages.at(-1) ?? 'PREFLIGHT' })
+  } catch (error) {
+    if (error.transport) report.transportEvents.push(error.transport)
+    throw error
+  }
+  report.transportEvents.push(result.transport)
+  const stdout = result.stdout.trimEnd()
+  if (result.status === 0) return stdout
+  const error = new Error(sanitize(`${program} ${args[0]} exit=${result.status}: ${result.stderr.slice(-1500)} ${stdout.slice(-4500)}`)
+    + ` ${JSON.stringify(result.transport)}`)
+  error.transport = result.transport
+  throw error
 }
 const docker = (args, input, timeout) => command('docker', args, input, timeout)
 const inventory = async () => Object.fromEntries(await Promise.all([
@@ -82,6 +81,10 @@ async function inspectContained() {
     assert.deepEqual(Object.keys(c.NetworkSettings.Networks), [id], 'ONE_DEDICATED_NETWORK_ONLY')
     assert.equal(c.HostConfig.PublishAllPorts, false)
     assert.notEqual(c.HostConfig.NetworkMode, 'host')
+    if (nativeFull && name === names.runner) {
+      assert.equal(c.Mounts.filter(m => m.Type === 'volume' && m.Name === report.dependencies.volume
+        && m.Destination === '/linux-deps' && m.RW === false).length, 1, 'READ_ONLY_LINUX_DEPENDENCY_VOLUME_REQUIRED')
+    }
     return { name, image: c.Image, running: c.State.Running, hostBindings: c.HostConfig.PortBindings,
       ports: c.NetworkSettings.Ports, networks: Object.keys(c.NetworkSettings.Networks), internal: network.Internal }
   }))
@@ -100,6 +103,7 @@ try {
   // The complete official image supplies OpenSSL for existing loopback mTLS
   // integration tests. Resolve a local immutable ID; never install on this net.
   const runnerImage = JSON.parse(await docker(['image', 'inspect', 'node:22-bookworm']))[0].Id
+  if (nativeFull) report.dependencies = await prepareLinuxDependencyVolume({ docker, id, image: runnerImage, owned, phase, root })
   report.plan = { images: { db: dbImage, runner: runnerImage }, names, network: { name: id, internal: true },
     ports: [], publishAllPorts: false, source: 'VERSIONED_SCHEMA_ONLY', mounts: 'repository read-only; own DB tmpfs' }
   await phase('RESOLVED_NO_PORTS_PLAN_VERIFIED')
@@ -110,11 +114,10 @@ try {
   owned.push(['container', names.db])
   await docker(['create', '--name', names.runner, '--label', label, '--network', id,
     '--mount', `type=bind,source=${process.cwd()},target=/work,readonly`,
-    ...(nativeFull ? ['--mount', `type=bind,source=${linuxDeps},target=/linux-deps,readonly`] : []),
+    ...(nativeFull ? ['--mount', `type=volume,source=${report.dependencies.volume},target=/linux-deps,readonly`] : []),
     '-w', '/work', runnerImage, 'sleep', 'infinity'])
   owned.push(['container', names.runner])
   if (nativeFull) {
-    assert.equal(await readFile(resolve(linuxDeps, 'package-lock.json'), 'utf8'), await readFile('package-lock.json', 'utf8'), 'LINUX_DEPS_LOCK_DRIFT')
     const services = [
       ['auth', 'public.ecr.aws/supabase/gotrue:v2.194.0', {
         GOTRUE_API_HOST: '0.0.0.0', GOTRUE_API_PORT: '9999', GOTRUE_DB_DRIVER: 'postgres',
@@ -226,13 +229,17 @@ try {
     await docker(['start', names.auth, names.rest, names.storage])
     report.nativeStartInspection = await inspectContained()
     const { runContainedNative } = await import('./s2-2r-native-contracts.mjs')
-    report.native = await runContainedNative({ docker, names, envArgs, password, anon, service, root, phase, linuxDeps })
+    report.native = await runContainedNative({ docker, names, envArgs, password, anon, service, root, phase,
+      qualityLinux: process.argv.includes('--quality-linux') })
+    if (process.argv.includes('--quality-linux')) report.buildLinux = await runLinuxProductionBuild({ docker, id,
+      image: runnerImage, owned, phase, root, volume: report.dependencies.volume })
   }
   assert.deepEqual(await candidateManifest(),report.candidateSources,'SOURCE_DRIFT_DURING_CONTAINED_QA')
   report.status = 'CONTAINED_SQL_PASS'
 } catch (error) {
   report.status = 'S2_2_PARTIAL_STOP'
   report.error = sanitize(error.message)
+  report.errorDetails = { phase: report.stages.at(-1) ?? 'PREFLIGHT', code: error.code ?? null, transport: error.transport ?? null }
 } finally {
   for (const [kind, name] of owned.reverse()) {
     try {
@@ -240,12 +247,16 @@ try {
         const c = JSON.parse(await docker(['inspect', name]))[0]
         assert.equal(c.Config.Labels['bw.qa.s22r'], id, 'OWNERSHIP_REQUIRED_FOR_REMOVAL')
         await docker(['rm', '-f', '-v', name])
+      } else if (kind === 'volume') {
+        const volume = JSON.parse(await docker(['volume', 'inspect', name]))[0]
+        assert.equal(volume.Labels['bw.qa.s22r'], id, 'VOLUME_OWNERSHIP_REQUIRED')
+        await docker(['volume', 'rm', name])
       } else {
         const n = JSON.parse(await docker(['network', 'inspect', name]))[0]
         assert.equal(n.Labels['bw.qa.s22r'], id)
         await docker(['network', 'rm', name])
       }
-    } catch (error) { report.cleanupError = sanitize(error.message) }
+    } catch (error) { report.cleanupError = sanitize(error.message); report.cleanupErrorTransport = error.transport ?? null }
   }
   report.after = await inventory()
   report.preexistingPreserved = Object.keys(before).every(kind => before[kind].every(item => report.after[kind].includes(item)))
