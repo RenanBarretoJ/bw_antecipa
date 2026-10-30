@@ -1,0 +1,19 @@
+{
+  "version": "SERPRO_FINALIZATION_DRAFT_V1",
+  "status": "DRAFT_NOT_EXECUTABLE",
+  "sourceBase": "6fe4ec9fbe8c14eab5e4ff811666ecc94f256439",
+  "authority": { "publish": false, "hostedQa": false, "mainSync": false, "staged": false, "promotion": false, "sql": false, "activation": false, "providerCalls": false },
+  "scope": { "documentModel": "NFE_55", "funds": "ALL", "financialCeiling": null, "mode": "UNLIMITED_WITH_METERING", "automaticLegacyBackfill": false, "legacyQueries": "MANUAL_AUTHORIZED_ONLY" },
+  "recovery": { "maxExecutions": 15, "admissionWindowMs": 120000, "executionReserveMs": 65000, "cron": "* * * * *", "verifiedPlanRequired": true },
+  "preview": { "name": "preview/serpro-s22-certificacao", "projectRef": "fgttffyrkabpycmbnppi", "catalogMustBeVerified": true, "automaticRepair": false, "newPreviewAllowed": false },
+  "proposedRuntime": { "SERPRO_NFE_WORKER_ENABLED": true, "SERPRO_NFE_QUERY_ENABLED": true, "SERPRO_NFE_CONTRACT_VERIFIED": true, "SERPRO_NFE_CONSUMPTION_MODE": "UNLIMITED_WITH_METERING" },
+  "proposedProvider": { "capability_state": "ENABLED", "circuit_state": "CLOSED", "consumption_mode": "UNLIMITED_WITH_METERING", "cutover_at": "DATABASE_TRANSACTION_CLOCK_UNDER_FRESH_GO" },
+  "preserve": ["historicalMigrations", "blockedExecutions", "outboundFences", "leases", "httpHistory", "consumptionCounters", "fundIsolation", "sessionMfa"],
+  "requiredHostedChecks": ["GESTOR", "SUPER_ADMIN", "CEDENTE", "CONSULTOR", "SACADO", "NO_MFA", "UNAUTHORIZED_OTHER_FUND"],
+  "realSmoke": { "manualExistingNfe": "PRIVATE_MANIFEST_REQUIRED", "newAuthorizedImport": "PRIVATE_MANIFEST_REQUIRED", "plannedTestGets": 2, "globalGetCeiling": null, "ordinaryAuthorizedTrafficIncluded": true, "automaticGetRetry": false, "observeMinutes": 30, "operationalAndFinancialOwner": "Breno Alvim" },
+  "freshManifestMustBind": ["projectIdentity", "commit", "testedTree", "deployment", "previousAndProposedConfiguration", "exactReviewedSql", "approvedActor", "approvalWindow", "privateSmokeTargets", "containmentAuthority"],
+  "stopConditions": ["catalogMismatch", "clockDrift", "unknownDeployment", "unexpectedAlias", "unexpectedSecretProjection", "unverifiedCronPlan", "unauthorizedScope", "unknownCommitOutcome"],
+  "activationExecutorCertified": false,
+  "activationExecutor": "SEPARATE_LOCAL_CERTIFICATION_REQUIRED_NOT_R53_GENERIC_SQL",
+  "containment": { "blockNewHttpAuthorizations": true, "preservePreviouslyAuthorizedRequests": true, "preserveCutoverAndHistory": true, "automaticRetry": false, "automaticRollback": false }
+}

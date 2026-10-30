@@ -1,6 +1,10 @@
 {
   "crons": [
     {
+      "path": "/api/cron/serpro-nfe",
+      "schedule": "* * * * *"
+    },
+    {
       "path": "/api/cron/vortx-carteira",
       "schedule": "0 20 * * 1-5"
     },
