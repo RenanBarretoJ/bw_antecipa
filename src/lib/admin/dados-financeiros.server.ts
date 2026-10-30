@@ -1,8 +1,19 @@
 import 'server-only'
 
+import { z } from 'zod'
 import { requireSuperAdmin } from '@/lib/auth/admin-authorization'
+import { obterConfiguracoesTecnicasAdminFundo } from './configuracoes-tecnicas.server'
 import type { AdminDadosFinanceirosFundo, AdminImportacaoFinanceira } from './dados-financeiros'
 import type { TipoBaseFinanceiro } from '@/lib/financeiro/ingestao/types'
+
+const linhagemTecnicaSchema = z.object({
+  fundo: z.object({ id: z.string() }),
+  integracoes: z.array(z.object({
+    provider_key: z.string(),
+    system_name: z.string(),
+    versoes: z.array(z.object({ id: z.string() })),
+  })),
+})
 
 export async function obterDadosFinanceirosAdminFundo(fundoId: string): Promise<AdminDadosFinanceirosFundo> {
   const context = await requireSuperAdmin()
@@ -36,28 +47,32 @@ export async function obterDadosFinanceirosAdminFundo(fundoId: string): Promise<
     samplesByImport.set(sample.importacao_id, current)
   }
   const integrationVersionIds = [...new Set((data || []).map((item) => item.integracao_fundo_versao_id).filter((id): id is string => Boolean(id)))]
-  const { data: integrationVersions, error: versionsError } = integrationVersionIds.length
-    ? await context.supabase.from('integracao_fundo_versoes').select('id,integracao_fundo_id').in('id', integrationVersionIds)
-    : { data: [], error: null }
-  if (versionsError) throw new Error(`Nao foi possivel carregar a linhagem tecnica das importacoes: ${versionsError.message}`)
-  const integrationIds = [...new Set((integrationVersions || []).map((item) => item.integracao_fundo_id))]
-  const { data: integrations, error: integrationsError } = integrationIds.length
-    ? await context.supabase.from('integracoes_fundo').select('id,provider_key,system_name').eq('fundo_id', fundoId).in('id', integrationIds)
-    : { data: [], error: null }
-  if (integrationsError) throw new Error(`Nao foi possivel carregar as fontes tecnicas: ${integrationsError.message}`)
-  const integrationById = new Map((integrations || []).map((item) => [item.id, item]))
-  const versionById = new Map((integrationVersions || []).map((item) => [item.id, item]))
+  const fontePorVersao = new Map<string, string>()
+  if (integrationVersionIds.length) {
+    // Technical tables deliberately deny direct session reads. Reuse the
+    // canonical Super Admin/MFA RPC instead of granting SELECT or bypassing RLS.
+    const parsed = linhagemTecnicaSchema.safeParse(await obterConfiguracoesTecnicasAdminFundo(fundoId))
+    if (!parsed.success || parsed.data.fundo.id !== fundoId) {
+      throw new Error('Nao foi possivel confirmar a linhagem tecnica deste Fundo.')
+    }
+    const requestedVersions = new Set(integrationVersionIds)
+    for (const integration of parsed.data.integracoes) {
+      for (const version of integration.versoes) {
+        if (requestedVersions.has(version.id)) {
+          if (fontePorVersao.has(version.id)) throw new Error('Linhagem tecnica ambigua para este Fundo.')
+          fontePorVersao.set(version.id, `${integration.system_name} / ${integration.provider_key}`)
+        }
+      }
+    }
+  }
 
   const importacoes = (data || []).map((item) => {
-    const version = item.integracao_fundo_versao_id ? versionById.get(item.integracao_fundo_versao_id) : null
-    const integration = version ? integrationById.get(version.integracao_fundo_id) : null
+    const fonteIntegracao = item.integracao_fundo_versao_id ? fontePorVersao.get(item.integracao_fundo_versao_id) : undefined
     const fonte = item.origem === 'MANUAL'
       ? 'Importacao manual'
       : item.origem === 'GOLDEN_DATASET'
         ? 'RLX Golden QA'
-        : integration
-          ? `${integration.system_name} / ${integration.provider_key}`
-          : 'Fonte automatica indisponivel'
+        : fonteIntegracao || 'Fonte automatica indisponivel'
     return {
       ...item,
       fonte,
