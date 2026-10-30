@@ -1,0 +1,6718 @@
+{
+  "schema": "BW_PREVIEW_ACL_REPAIR_R75_V1",
+  "projectRef": "fgttffyrkabpycmbnppi",
+  "branchId": "5cb53ebc-edf6-43f5-a970-9eb4471c4f17",
+  "baselineVersion": "20261030205748",
+  "baselineBodySha256": "5ed9df1fa01150fae47990937b15d434409ccf68cff0fd16e0779da6c5f8701c",
+  "operator": "Breno Alvim",
+  "auditActor": "Breno Alvim via Codex SQL",
+  "version": "20261030214839",
+  "name": "preview_serpro_acl_repair_r75",
+  "receiptId": "500e0ab2-dfa3-49ba-b7af-9c3d813b2fed",
+  "creatorDefaults": [
+    {
+      "acl": "{postgres=rwU/postgres}",
+      "kind": "S",
+      "role": "postgres",
+      "schema": "public"
+    },
+    {
+      "acl": "{postgres=X/postgres}",
+      "kind": "f",
+      "role": "postgres",
+      "schema": "public"
+    },
+    {
+      "acl": "{postgres=arwdDxtm/postgres,anon=Dxtm/postgres,authenticated=Dxtm/postgres,service_role=Dxtm/postgres}",
+      "kind": "r",
+      "role": "postgres",
+      "schema": "public"
+    },
+    {
+      "acl": "{postgres=rwU/postgres,anon=rwU/postgres,authenticated=rwU/postgres,service_role=rwU/postgres}",
+      "kind": "S",
+      "role": "postgres",
+      "schema": "storage"
+    },
+    {
+      "acl": "{postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+      "kind": "f",
+      "role": "postgres",
+      "schema": "storage"
+    },
+    {
+      "acl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "kind": "r",
+      "role": "postgres",
+      "schema": "storage"
+    }
+  ],
+  "objects": [
+    {
+      "schema": "public",
+      "name": "aquisicao_movimentos",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwd/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "aquisicoes_atuais",
+      "before": {
+        "kind": "v",
+        "owner": "postgres",
+        "rls": false,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=rDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "v",
+        "owner": "postgres",
+        "rls": false,
+        "forceRls": false,
+        "acl": [
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=r/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "autorizacoes_acoes_sensiveis",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": true,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=Dxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": true,
+        "acl": [
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "bancos",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "canhotos",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=arwDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=arwDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "carteira_atual",
+      "before": {
+        "kind": "v",
+        "owner": "postgres",
+        "rls": false,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=rDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "v",
+        "owner": "postgres",
+        "rls": false,
+        "forceRls": false,
+        "acl": [
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=r/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "carteira_snapshots",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwd/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "cedente_acessos",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=Dxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=Dxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwd/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "cedente_estabelecimento_contas_bancarias",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "cedente_estabelecimento_requisitos",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "cedente_estabelecimentos",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "cedente_fundo_migracao_legado_relatorio",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "cedente_fundo_politicas",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=arwdDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=arwdDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "cedente_fundos",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "cedente_usuario_convites",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=Dxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "cedentes",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwd/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "comunicacao_configuracao_versoes",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=arwdDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=arwd/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwd/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "comunicacao_configuracoes",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=arwDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=arw/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwd/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "comunicacao_execucoes",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=Dxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwd/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "comunicacao_item_estagios",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwd/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "comunicacao_itens",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwd/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "comunicacao_template_versoes",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=arwdDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=arwd/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwd/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "comunicacao_tentativas",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwd/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "comunicacoes",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwd/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "conciliacao_execucoes",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "conciliacao_resultados",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "configuracao_cnab_versoes",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=Dxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "configuracoes_cnab",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=Dxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "consultor_cedente",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=Dxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "consultor_cedentes",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "consultor_fundos",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "consultor_usuarios",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "consultores",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "contas_escrow",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwd/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "credenciais_integracao",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=Dxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "cte_notas_fiscais",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=arwDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=arwDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "ctes",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=arwDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=arwDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "devedores_solidarios",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwd/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "documento_analises",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "documento_requisito_instancias",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "documento_tipos",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=arwDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=arwDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "documento_upload_intents",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "documento_versoes",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "documento_vinculos",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "documentos",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwd/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "documentos_gerados",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=arwDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=arwDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "documentos_repositorio",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "duplicata_correcoes",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "duplicata_validacoes",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "duplicata_versoes",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "duplicatas",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "estoque_atual",
+      "before": {
+        "kind": "v",
+        "owner": "postgres",
+        "rls": false,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=rDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "v",
+        "owner": "postgres",
+        "rls": false,
+        "forceRls": false,
+        "acl": [
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=r/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "estoque_fontes_leitura",
+      "before": {
+        "kind": "v",
+        "owner": "postgres",
+        "rls": false,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=rDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "v",
+        "owner": "postgres",
+        "rls": false,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=r/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "estoque_posicoes",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwd/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "eventos_dominio",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=arDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=arDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "eventos_entrega",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=arwDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=arwDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "evidencia_logistica_versoes",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "evidencias_logisticas_antecipadas",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "exposicao_execucoes",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "exposicao_overlay_itens",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "fundos",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "importacao_arquivos",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwd/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "importacao_ciclos",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwd/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "importacao_linhas",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwd/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "importacoes_financeiras",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwd/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "integracao_execucoes",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "integracao_fundo_versao_capacidades",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=Dxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "integracao_fundo_versoes",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=Dxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "integracao_logistica_webhook_eventos",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arw/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "integracoes_fundo",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=Dxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "integracoes_transportadoras",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=rDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=r/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "integracoes_transportadoras_tokens",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=Dxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=rDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "postgres=arwdDxtm/postgres",
+          "service_role=r/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "integracoes_vortx_vrs_credenciais",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=Dxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "liquidacao_movimentos",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwd/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "liquidacoes_atuais",
+      "before": {
+        "kind": "v",
+        "owner": "postgres",
+        "rls": false,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=rDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "v",
+        "owner": "postgres",
+        "rls": false,
+        "forceRls": false,
+        "acl": [
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=r/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "logs_auditoria",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=arDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=arDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwd/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "matching_candidatos",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "matching_execucoes",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "matching_resultados",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "mfa_recovery_codes",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "mfa_reset_solicitacoes",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "movimentos_escrow",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=Dxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=Dxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwd/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "nfe_fiscal_consultas",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": true,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": true,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "nfe_fiscal_eventos",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": true,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": true,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "nfe_fiscal_execucao_eventos",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": true,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=rDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": true,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=rxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "nfe_fiscal_execucoes",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": true,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=rDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": true,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=rxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "nfe_fiscal_provider_state",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": true,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=Dxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": true,
+        "acl": [
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "nfe_fiscal_snapshots",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": true,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": true,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "nfse_review_intents",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=Dxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwd/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "nota_fiscal_entrega_postergacoes_canhoto",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "nota_fiscal_entregas",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=arwDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=arwDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "nota_fiscal_parcelas",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "nota_fiscal_remessa_versoes",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=Dxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "nota_fiscal_remessas",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=rDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=r/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "notas_fiscais",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=arwdDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=arwdDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwd/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "notificacoes",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwd/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "operacao_calculo_nfs",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "operacao_nf_logistica_memorias",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "operacoes",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=arwdDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=arwdDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwd/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "operacoes_nf_parcelas",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "operacoes_nfs",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=arwdDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=arwdDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwd/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "plataforma_auditoria",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=Dxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "politica_operacional_versoes",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=arwdDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=arwdDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "politica_requisitos_documentais",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=arwdDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=arwdDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "politicas_operacionais",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=arwdDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=arwdDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "posicao_logistica_execucoes",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "posicao_logistica_resultados",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "profiles",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwd/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "remessa_operacional_arquivos",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwd/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "remessa_operacional_chaves",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwd/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "remessa_operacional_operacoes",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwd/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "remessas_cnab",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=arwDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=arwDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "remessas_cnab_operacoes",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=arwDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=arwDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "remessas_operacionais",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwd/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "representantes",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwd/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "retornos_integracao",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "risco_execucoes",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "risco_motivos",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "risco_revisoes",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "sacado_acessos",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "sacados",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwd/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "seguranca_eventos",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "seguranca_rate_limits",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=Dxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=Dxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "sequencias_remessa",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "sessoes_elevadas",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "solicitacoes_alteracao_cedente",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwd/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "taxas_cedente",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=arwdDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=arwdDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwd/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "template_versoes",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=arwdDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=arwdDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "templates_documentos",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=arwdDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=arwdDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "testemunhas",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=Dxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=Dxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwd/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "titulo_nf_vinculo_chaves",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "titulo_nf_vinculos",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "usuario_fundos",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "usuario_papeis",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "vortx_carteira_cotas",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=Dxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "vortx_inclusao_linhas",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=Dxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "vortx_inclusoes",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=Dxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "vortx_posicao_ativos",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=ar/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "vortx_posicao_parcelas",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=arDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=ar/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "vortx_relatorio_eventos",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=Dxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=rDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "postgres=arwdDxtm/postgres",
+          "service_role=r/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "vortx_relatorio_solicitacoes",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=Dxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=rDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "postgres=arwdDxtm/postgres",
+          "service_role=r/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "webhook_comprovantes_entrega_pendentes",
+      "before": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "anon=Dxtm/postgres",
+          "authenticated=rDxtm/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=awDxtm/postgres"
+        ]
+      },
+      "after": {
+        "kind": "r",
+        "owner": "postgres",
+        "rls": true,
+        "forceRls": false,
+        "acl": [
+          "authenticated=r/postgres",
+          "postgres=arwdDxtm/postgres",
+          "service_role=aw/postgres"
+        ]
+      },
+      "revocations": [
+        {
+          "role": "anon",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "authenticated",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        },
+        {
+          "role": "service_role",
+          "privileges": [
+            "TRUNCATE",
+            "REFERENCES",
+            "TRIGGER",
+            "MAINTAIN"
+          ]
+        }
+      ]
+    }
+  ],
+  "planSha256": "34fe67efe752d8920698810b66988903022ce09105194540ef8d6828bb42a0b8"
+}
