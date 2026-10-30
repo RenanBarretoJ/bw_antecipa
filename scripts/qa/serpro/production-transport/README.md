@@ -12,6 +12,8 @@ operacional da aplicação, não ativa SERPRO e não substitui autenticação/MF
 - `connection.mjs`: cliente `pg` dedicado, configurações explícitas, CA pinada,
   verificação de cadeia/hostname, TLS e vínculos de conexão/plano em memória.
   Sem connection string, opções de driver arbitrárias ou retry.
+- `inspection-queries.mjs`: consultas fixas de metadados compartilhadas entre
+  inspeção e a allowlist das conexões de preflight.
 - `inspection.mjs` e `catalog.sql`: identidade da sessão, permissões de
   manutenção, contrato nativo de histórico, coorte S1 por cutoff, provider OFF
   e fingerprints de catálogo esperados antes/depois de cada arquivo.
@@ -26,6 +28,31 @@ assinatura de aprovação e não consulta Vercel/Supabase para renovar atestados
 O chamador de manutenção continua responsável pela autorização real e pelas
 evidências autoritativas indicadas pelos hashes. Um arquivo de plano ou hash
 autodeclarado nunca é, sozinho, permissão para executar em produção.
+
+## Preflight somente leitura — contrato V2
+
+`prepareReadOnlyPlan` aceita exclusivamente `LOCAL_READ_ONLY_PREFLIGHT` ou
+`PRODUCTION_READ_ONLY_PREFLIGHT`, com aprovação própria, frescor, identidade,
+CA e cutoff vinculados. Não exige inventar hashes de pós-aplicação nem uma
+aprovação de aplicação SQL para observar o estado atual. O registro declarado
+continua sem autenticar, por si só, a origem humana da autorização.
+
+A mesma `createConnectionFactory` abre a conexão com TLS estrito e timeouts
+existentes, adiciona `default_transaction_read_only=on` e inicia READ ONLY antes
+de entregar o handle. Esse handle aceita somente os três SELECTs versionados de
+identidade/estado/catálogo e o cutoff do plano. SQL arbitrário, configuração do
+driver e controle de transação enviados pelo chamador são recusados antes do
+driver. O fechamento executa ROLLBACK; há prazo de processo para o handle.
+
+Planos de leitura têm marca privada distinta. `sourceEnvelope`, `BoundJournal`
+e `executeApprovedPlan` continuam exigindo um plano de aplicação, recusando
+preflight antes de gerar SQL, criar journal ou conectar para aplicar arquivos.
+`inspect` pode usar ambos os tipos, sem ampliar a autoridade de aplicação.
+
+Credenciais explícitas preexistentes exigem string não vazia e CA correspondente;
+a autenticação é validada pelo Postgres. Não se aplica uma política de criação
+de senha, não se altera a senha e não se normaliza seu conteúdo. Isso não muda
+a política de senhas/Auth da aplicação, nem permite credenciais adicionais.
 
 ## Condições de execução futura
 
@@ -72,6 +99,6 @@ duas stacks novas, certificados/usuários/NFs sintéticos, redes internas e zero
 portas publicadas. As fixtures negativas introduzem erros de forma controlada
 para provar recusa; isso não autoriza alterações de ACL ou configuração remotas.
 
-CI do SHA anterior, build ou smoke da aplicação não certificam este diff ainda
-sem commit. Publicação, prova read-only do canal real e aplicação seletiva exigem
-GOs separados. `SQL_GO=false` até decisão explícita posterior.
+CI do SHA anterior, build ou smoke da aplicação não certificam mudanças locais
+posteriores. Publicação, prova read-only pela factory atual no canal real e
+aplicação seletiva exigem GOs separados. `SQL_GO=false` até decisão explícita.

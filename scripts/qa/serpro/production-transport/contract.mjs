@@ -3,10 +3,11 @@ import {readFileSync} from 'node:fs'
 import {selection, hash, validateSources, timeoutPolicy, futureProjectRef} from '../selective-transport/policy.mjs'
 
 export {selection, hash, validateSources, timeoutPolicy}
-export const version='R48_DEDICATED_PG_V1'
-export const adapterFiles=Object.freeze(['contract.mjs','connection.mjs','journal.mjs','inspection.mjs','catalog.sql','executor.mjs'])
+export const version='R53_DEDICATED_PG_V2'
+export const adapterFiles=Object.freeze(['contract.mjs','connection.mjs','journal.mjs','inspection.mjs','inspection-queries.mjs','catalog.sql','executor.mjs'])
 export const adapterFingerprint=()=>hash(JSON.stringify(adapterFiles.map(path=>({path,sha256:hash(readFileSync(new URL('./'+path,import.meta.url)))}))))
 const plans=new WeakSet()
+const readOnlyPlans=new WeakSet()
 const exact=(o,keys)=>assert.deepEqual(Object.keys(o).sort(),[...keys].sort(),'R48_EXACT_FIELDS_REQUIRED')
 const digest=v=>assert.match(v,/^[a-f0-9]{64}$/,'R48_SHA256_REQUIRED')
 const freeze=o=>{for(const v of Object.values(o))if(v&&typeof v==='object')freeze(v);return Object.freeze(o)}
@@ -15,12 +16,9 @@ const freeze=o=>{for(const v of Object.values(o))if(v&&typeof v==='object')freez
  * No env reader, CLI, credential lookup, remote call or implicit GO exists here.
  * A production invocation still requires a separate operator GO and certification.
  */
-export function preparePlan(input,now=Date.now()) {
-  const p=structuredClone(input)
-  exact(p,['version','adapterSha256','kind','runId','projectRef','branch','endpoint','actor','sessionUser','effectiveRole','databaseOid','caSha256','approval','evidence'])
+function validateTarget(p,local) {
   assert.equal(p.version,version)
   assert.equal(p.adapterSha256,adapterFingerprint(),'R48_ADAPTER_SOURCE_DRIFT')
-  assert.ok(['LOCAL_CERTIFICATION','PRODUCTION_SELECTIVE_SQL'].includes(p.kind),'R48_KIND_REQUIRED')
   assert.match(p.runId,/^[a-zA-Z0-9-]{12,80}$/)
   assert.equal(p.branch,'main','R48_MAIN_REQUIRED')
   assert.equal(p.sessionUser,'postgres');assert.equal(p.effectiveRole,'postgres')
@@ -28,7 +26,7 @@ export function preparePlan(input,now=Date.now()) {
   assert.match(p.actor,/^[a-zA-Z0-9][a-zA-Z0-9 @._-]{2,120}$/,'R48_DECLARED_ACTOR_REQUIRED')
   exact(p.endpoint,['host','serverName','port','database'])
   assert.ok(Number.isInteger(p.endpoint.port)&&p.endpoint.port>0&&p.endpoint.port<65536)
-  if(p.kind==='PRODUCTION_SELECTIVE_SQL') {
+  if(!local) {
     assert.equal(p.projectRef,futureProjectRef,'R48_WRONG_PROJECT')
     assert.equal(p.endpoint.host,'db.'+futureProjectRef+'.supabase.co','R48_EXACT_DIRECT_HOST_REQUIRED')
     assert.equal(p.endpoint.serverName,p.endpoint.host,'R48_TLS_HOST_REQUIRED')
@@ -42,19 +40,34 @@ export function preparePlan(input,now=Date.now()) {
     assert.match(p.actor,/^r48-local-[a-z0-9-]+$/)
   }
   digest(p.caSha256)
+}
+
+function validateApproval(p,now) {
   exact(p.approval,['kind','reference','textSha256','acceptedAt','expiresAt'])
   assert.equal(p.approval.kind,p.kind,'R48_APPROVAL_KIND_MISMATCH')
   assert.match(p.approval.reference,/^[A-Za-z0-9_-]{8,100}$/)
   digest(p.approval.textSha256)
   const accepted=Date.parse(p.approval.acceptedAt),expires=Date.parse(p.approval.expiresAt)
   assert.ok(Number.isFinite(accepted)&&Number.isFinite(expires)&&accepted<=now&&now<expires&&expires-accepted<=15*60_000,'R48_FRESH_APPROVAL_REQUIRED')
-  exact(p.evidence,['observedAt','cutoff','cohort','ledgerSha256','ledgerContractSha256','catalogStages','runtimeOff','projectIdentitySha256'])
+}
+
+function validateEvidenceClock(p,now) {
   const observed=Date.parse(p.evidence.observedAt),cutoff=Date.parse(p.evidence.cutoff)
   assert.ok(Number.isFinite(observed)&&Number.isFinite(cutoff)&&observed<=now&&now-observed<=10*60_000&&cutoff<=observed,'R48_FRESH_PREFLIGHT_REQUIRED')
+  assert.deepEqual(p.evidence.runtimeOff,{worker:false,query:false,contract:false})
+  digest(p.evidence.projectIdentitySha256)
+}
+
+export function preparePlan(input,now=Date.now()) {
+  const p=structuredClone(input)
+  exact(p,['version','adapterSha256','kind','runId','projectRef','branch','endpoint','actor','sessionUser','effectiveRole','databaseOid','caSha256','approval','evidence'])
+  assert.ok(['LOCAL_CERTIFICATION','PRODUCTION_SELECTIVE_SQL'].includes(p.kind),'R48_KIND_REQUIRED')
+  validateTarget(p,p.kind==='LOCAL_CERTIFICATION');validateApproval(p,now)
+  exact(p.evidence,['observedAt','cutoff','cohort','ledgerSha256','ledgerContractSha256','catalogStages','runtimeOff','projectIdentitySha256'])
+  validateEvidenceClock(p,now)
   digest(p.evidence.ledgerSha256);digest(p.evidence.ledgerContractSha256);digest(p.evidence.projectIdentitySha256)
   assert.equal(p.evidence.catalogStages.length,3)
   for(const stage of p.evidence.catalogStages)digest(stage)
-  assert.deepEqual(p.evidence.runtimeOff,{worker:false,query:false,contract:false})
   exact(p.evidence.cohort,['count','hash','effects'])
   assert.ok(Number.isSafeInteger(p.evidence.cohort.count)&&p.evidence.cohort.count>=0)
   digest(p.evidence.cohort.hash);assert.equal(p.evidence.cohort.effects,0,'R48_COHORT_MUST_HAVE_NO_EFFECTS')
@@ -64,6 +77,28 @@ export function preparePlan(input,now=Date.now()) {
 
 export function assertPlan(plan,now=Date.now()) {
   assert.ok(plans.has(plan),'R48_PREPARED_PLAN_REQUIRED')
+  assertFresh(plan,now)
+}
+
+/** Read authority is distinct from application authority: no future-stage or
+ * write envelope is fabricated to inspect the actual current database. */
+export function prepareReadOnlyPlan(input,now=Date.now()) {
+  const p=structuredClone(input)
+  exact(p,['version','adapterSha256','kind','runId','projectRef','branch','endpoint','actor','sessionUser','effectiveRole','databaseOid','caSha256','approval','evidence'])
+  assert.ok(['LOCAL_READ_ONLY_PREFLIGHT','PRODUCTION_READ_ONLY_PREFLIGHT'].includes(p.kind),'R53_READ_ONLY_KIND_REQUIRED')
+  validateTarget(p,p.kind==='LOCAL_READ_ONLY_PREFLIGHT');validateApproval(p,now)
+  exact(p.evidence,['observedAt','cutoff','runtimeOff','projectIdentitySha256']);validateEvidenceClock(p,now)
+  p.digest=hash(JSON.stringify(p));freeze(p);readOnlyPlans.add(p);return p
+}
+
+export const isReadOnlyPlan=plan=>readOnlyPlans.has(plan)
+
+export function assertConnectionPlan(plan,now=Date.now()) {
+  assert.ok(plans.has(plan)||readOnlyPlans.has(plan),'R48_PREPARED_CONNECTION_PLAN_REQUIRED')
+  assertFresh(plan,now)
+}
+
+function assertFresh(plan,now) {
   assert.ok(now<Date.parse(plan.approval.expiresAt)&&now-Date.parse(plan.evidence.observedAt)<=10*60_000,'R48_APPROVAL_OR_PREFLIGHT_EXPIRED')
 }
 
